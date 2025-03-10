@@ -1,0 +1,27 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="using:LoupixDeck.ViewModels"
+        x:Class="LoupixDeck.Views.RotaryButtonSettings"
+        x:DataType="vm:RotaryButtonSettingsViewModel"
+        mc:Ignorable="d"
+        Title="RotaryButtonSettings"
+        Width="300"
+        Height="230">
+    <Border BorderThickness="2"
+            BorderBrush="LightGray"
+            Padding="16">
+        <Border.Effect>
+            <DropShadowEffect Color="#AA000000" BlurRadius="10" />
+        </Border.Effect>
+        <Grid RowDefinitions="30,30,30,30,30,30">
+            <Label Grid.Row="0" HorizontalAlignment="Left">Command Rotary Up</Label>
+            <TextBox Grid.Row="1" HorizontalAlignment="Stretch" Text="{Binding ButtonData.RotaryLeftCommand}" />
+            <Label Grid.Row="2" HorizontalAlignment="Left">Command Rotary Down</Label>
+            <TextBox Grid.Row="3" HorizontalAlignment="Stretch" Text="{Binding ButtonData.RotaryRightCommand}" />
+            <Label Grid.Row="4" HorizontalAlignment="Left">Button Press Command</Label>
+            <TextBox Grid.Row="5" HorizontalAlignment="Stretch" Text="{Binding ButtonData.Command}" />
+        </Grid>
+    </Border>
+</Window>

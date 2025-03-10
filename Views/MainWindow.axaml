@@ -1,0 +1,229 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:LoupixDeck.ViewModels"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        Width="800" Height="600"
+        WindowStartupLocation="CenterScreen"
+        x:Class="LoupixDeck.Views.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Icon="/Assets/avalonia-logo.ico"
+        Title="LoupixDeck">
+
+    <Design.DataContext>
+        <!-- This only sets the DataContext for the previewer in an IDE,
+             to set the actual DataContext for runtime, set the DataContext property in code (look at App.axaml.cs) -->
+        <vm:MainWindowViewModel/>
+    </Design.DataContext>
+
+    <Grid ColumnDefinitions="150,500,150" RowDefinitions="*,50">
+        <Grid Grid.Row="0" Grid.Column="0" HorizontalAlignment="Center" RowDefinitions="100,100,100">
+            <Button
+                Grid.Row="0"
+                Grid.Column="0"
+                Width="90"
+                Height="90"
+                Margin="5"
+                Command="{Binding RotaryButtonCommand}" CommandParameter="{Binding LoupeDeckDevice.RotaryButtons[0]}">
+            </Button>
+            <Button
+                Grid.Row="1"
+                Grid.Column="0"
+                Width="90"
+                Height="90"
+                Margin="5"
+                Command="{Binding RotaryButtonCommand}" CommandParameter="{Binding LoupeDeckDevice.RotaryButtons[1]}">
+            </Button>
+            <Button
+                Grid.Row="2"
+                Grid.Column="0"
+                Width="90"
+                Height="90"
+                Margin="5"
+                Background="Transparent"
+                Command="{Binding SimpleButtonCommand}" CommandParameter="{Binding LoupeDeckDevice.SimpleButtons[0]}">
+                <Image Source="{Binding LoupeDeckDevice.SimpleButtons[0].RenderedImage}" />
+            </Button>
+        </Grid>
+
+        <Grid Grid.Row="0" Grid.Column="1" HorizontalAlignment="Center" ColumnDefinitions="100,100,100,100,100"
+              RowDefinitions="100,100,100">
+
+            <!-- Reihe 1 -->
+            <Button
+                Grid.Row="0"
+                Grid.Column="0"
+                Width="90"
+                Height="90"
+                Margin="5"
+                Command="{Binding TouchButtonCommand}" CommandParameter="{Binding LoupeDeckDevice.CurrentTouchButtonPage[0]}">
+                <Image Source="{Binding LoupeDeckDevice.CurrentTouchButtonPage[0].RenderedImage}" />
+            </Button>
+            <Button
+                Grid.Row="0"
+                Grid.Column="1"
+                Width="90"
+                Height="90"
+                Margin="5"
+                Command="{Binding TouchButtonCommand}" CommandParameter="{Binding LoupeDeckDevice.CurrentTouchButtonPage[1]}">
+                <Image Source="{Binding LoupeDeckDevice.CurrentTouchButtonPage[1].RenderedImage}" />
+            </Button>
+            <Button
+                Grid.Row="0"
+                Grid.Column="2"
+                Width="90"
+                Height="90"
+                Margin="5"
+                Command="{Binding TouchButtonCommand}" CommandParameter="{Binding LoupeDeckDevice.CurrentTouchButtonPage[2]}">
+                <Image Source="{Binding LoupeDeckDevice.CurrentTouchButtonPage[2].RenderedImage}" />
+            </Button>
+            <Button
+                Grid.Row="0"
+                Grid.Column="3"
+                Width="90"
+                Height="90"
+                Margin="5"
+                Command="{Binding TouchButtonCommand}" CommandParameter="{Binding LoupeDeckDevice.CurrentTouchButtonPage[3]}">
+                <Image Source="{Binding LoupeDeckDevice.CurrentTouchButtonPage[3].RenderedImage}" />
+            </Button>
+            <Button
+                Grid.Row="0"
+                Grid.Column="4"
+                Width="90"
+                Height="90"
+                Margin="5"
+                Command="{Binding TouchButtonCommand}" CommandParameter="{Binding LoupeDeckDevice.CurrentTouchButtonPage[4]}">
+                <Image Source="{Binding LoupeDeckDevice.CurrentTouchButtonPage[4].RenderedImage}" />
+            </Button>
+
+            <!-- Reihe 2 -->
+            <Button
+                Grid.Row="1"
+                Grid.Column="0"
+                Width="90"
+                Height="90"
+                Margin="5"
+                Command="{Binding TouchButtonCommand}" CommandParameter="{Binding LoupeDeckDevice.CurrentTouchButtonPage[5]}">
+                <Image Source="{Binding LoupeDeckDevice.CurrentTouchButtonPage[5].RenderedImage}" />
+            </Button>
+            <Button
+                Grid.Row="1"
+                Grid.Column="1"
+                Width="90"
+                Height="90"
+                Margin="5"
+                Command="{Binding TouchButtonCommand}" CommandParameter="{Binding LoupeDeckDevice.CurrentTouchButtonPage[6]}">
+                <Image Source="{Binding LoupeDeckDevice.CurrentTouchButtonPage[6].RenderedImage}" />
+            </Button>
+            <Button
+                Grid.Row="1"
+                Grid.Column="2"
+                Width="90"
+                Height="90"
+                Margin="5"
+                Command="{Binding TouchButtonCommand}" CommandParameter="{Binding LoupeDeckDevice.CurrentTouchButtonPage[7]}">
+                <Image Source="{Binding LoupeDeckDevice.CurrentTouchButtonPage[7].RenderedImage}" />
+            </Button>
+            <Button
+                Grid.Row="1"
+                Grid.Column="3"
+                Width="90"
+                Height="90"
+                Margin="5"
+                Command="{Binding TouchButtonCommand}" CommandParameter="{Binding LoupeDeckDevice.CurrentTouchButtonPage[8]}">
+                <Image Source="{Binding LoupeDeckDevice.CurrentTouchButtonPage[8].RenderedImage}" />
+            </Button>
+            <Button
+                Grid.Row="1"
+                Grid.Column="4"
+                Width="90"
+                Height="90"
+                Margin="5"
+                Command="{Binding TouchButtonCommand}" CommandParameter="{Binding LoupeDeckDevice.CurrentTouchButtonPage[9]}">
+                <Image Source="{Binding LoupeDeckDevice.CurrentTouchButtonPage[9].RenderedImage}" />
+            </Button>
+
+            <!-- Reihe 3 -->
+            <Button
+                Grid.Row="2"
+                Grid.Column="0"
+                Width="90"
+                Height="90"
+                Margin="5"
+                Command="{Binding TouchButtonCommand}" CommandParameter="{Binding LoupeDeckDevice.CurrentTouchButtonPage[10]}">
+                <Image Source="{Binding LoupeDeckDevice.CurrentTouchButtonPage[10].RenderedImage}" />
+            </Button>
+            <Button
+                Grid.Row="2"
+                Grid.Column="1"
+                Width="90"
+                Height="90"
+                Margin="5"
+                Command="{Binding TouchButtonCommand}" CommandParameter="{Binding LoupeDeckDevice.CurrentTouchButtonPage[11]}">
+                <Image Source="{Binding LoupeDeckDevice.CurrentTouchButtonPage[11].RenderedImage}" />
+            </Button>
+            <Button
+                Grid.Row="2"
+                Grid.Column="2"
+                Width="90"
+                Height="90"
+                Margin="5"
+                Command="{Binding TouchButtonCommand}" CommandParameter="{Binding LoupeDeckDevice.CurrentTouchButtonPage[12]}">
+                <Image Source="{Binding LoupeDeckDevice.CurrentTouchButtonPage[12].RenderedImage}" />
+            </Button>
+            <Button
+                Grid.Row="2"
+                Grid.Column="3"
+                Width="90"
+                Height="90"
+                Margin="5"
+                Command="{Binding TouchButtonCommand}" CommandParameter="{Binding LoupeDeckDevice.CurrentTouchButtonPage[13]}">
+                <Image Source="{Binding LoupeDeckDevice.CurrentTouchButtonPage[13].RenderedImage}" />
+            </Button>
+            <Button
+                Grid.Row="2"
+                Grid.Column="4"
+                Width="90"
+                Height="90"
+                Margin="5"
+                Command="{Binding TouchButtonCommand}" CommandParameter="{Binding LoupeDeckDevice.CurrentTouchButtonPage[14]}">
+                <Image Source="{Binding LoupeDeckDevice.CurrentTouchButtonPage[14].RenderedImage}" />
+            </Button>
+        </Grid>
+        
+        <Grid Grid.Row="0" Grid.Column="2" HorizontalAlignment="Center" RowDefinitions="100,100,100,30">
+            <Button
+                Grid.Row="0"
+                Grid.Column="0"
+                Width="90"
+                Height="90"
+                Margin="5"
+                Background="Transparent"
+                Command="{Binding SimpleButtonCommand}" CommandParameter="{Binding LoupeDeckDevice.SimpleButtons[1]}">
+                <Image Source="{Binding LoupeDeckDevice.SimpleButtons[1].RenderedImage}" />
+            </Button>
+            <Button
+                Grid.Row="1"
+                Grid.Column="0"
+                Width="90"
+                Height="90"
+                Margin="5"
+                Background="Transparent"
+                Command="{Binding SimpleButtonCommand}" CommandParameter="{Binding LoupeDeckDevice.SimpleButtons[2]}">
+                <Image Source="{Binding LoupeDeckDevice.SimpleButtons[2].RenderedImage}" />
+            </Button>
+            <Button
+                Grid.Row="2"
+                Grid.Column="0"
+                Width="90"
+                Height="90"
+                Margin="5"
+                Background="Transparent"
+                Command="{Binding SimpleButtonCommand}" CommandParameter="{Binding LoupeDeckDevice.SimpleButtons[3]}">
+                <Image Source="{Binding LoupeDeckDevice.SimpleButtons[3].RenderedImage}" />
+            </Button>
+        </Grid>
+        <Slider Grid.Column="0" Grid.Row="1" Grid.ColumnSpan="3" Minimum="0" Maximum="1" TickFrequency="0.1" IsSnapToTickEnabled="True" Value="{Binding LoupeDeckDevice.Brightness}"/>
+    </Grid>
+</Window>

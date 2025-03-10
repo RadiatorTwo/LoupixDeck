@@ -1,0 +1,30 @@
+<Window
+    x:Class="LoupixDeck.Views.SimpleButtonSettings"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:ccp="clr-namespace:Avalonia.Controls;assembly=Avalonia.Controls.ColorPicker"
+    xmlns:vm="using:LoupixDeck.ViewModels"
+    x:DataType="vm:SimpleButtonSettingsViewModel"
+    Title="SimpleButtonSettings"
+    Width="300"
+    Height="300"
+    mc:Ignorable="d"
+    SystemDecorations="Full"
+    CanResize="False">
+    <Border BorderThickness="2"
+            BorderBrush="LightGray"
+            Padding="16">
+        <Border.Effect>
+            <DropShadowEffect Color="#AA000000" BlurRadius="10"/>
+        </Border.Effect>
+        <Grid RowDefinitions="30,30,30,30">
+            <Label Grid.Row="0" HorizontalAlignment="Left">Button Color</Label>
+            <ccp:ColorPicker Grid.Row="1" HorizontalAlignment="Left" Color="{Binding ButtonData.ButtonColor}" />
+
+            <Label Grid.Row="2" HorizontalAlignment="Left">Command</Label>
+            <TextBox Grid.Row="3" HorizontalAlignment="Stretch" Text="{Binding ButtonData.Command}" />
+        </Grid>
+    </Border>
+</Window>

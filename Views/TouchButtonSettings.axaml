@@ -1,0 +1,42 @@
+<Window
+    x:Class="LoupixDeck.Views.TouchButtonSettings"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:ccp="clr-namespace:Avalonia.Controls;assembly=Avalonia.Controls.ColorPicker"
+    xmlns:vm="using:LoupixDeck.ViewModels"
+    x:DataType="vm:TouchButtonSettingsViewModel"
+    Title="TouchButtonSettings"
+    Height="300"
+    Width="500"
+    mc:Ignorable="d"
+    SystemDecorations="Full"
+    CanResize="False">
+    <Border BorderThickness="2"
+            BorderBrush="LightGray"
+            Padding="16">
+        <Border.Effect>
+            <DropShadowEffect Color="#AA000000" BlurRadius="10" />
+        </Border.Effect>
+        <Grid ColumnDefinitions="*,*,*,*,*" RowDefinitions="30,30,30,30,*,30,30">
+            <Label Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="4">Text</Label>
+            <TextBox Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Text="{Binding ButtonData.Text}" />
+            <NumericUpDown Grid.Row="1" Grid.Column="2" Value="{Binding ButtonData.TextSize}" Minimum="4" Maximum="80" />
+            <ccp:ColorPicker Grid.Row="1" Grid.Column="3" Color="{Binding ButtonData.TextColor, Mode=TwoWay}" />
+
+            <Label Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2">Background Color</Label>
+            <ccp:ColorPicker Grid.Row="2" Grid.Column="3" Color="{Binding ButtonData.BackColor, Mode=TwoWay}" />
+
+            <Label Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="4">Image</Label>
+            <Image Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="3" Source="{Binding ButtonData.RenderedImage}" />
+            <Button Grid.Row="4" Grid.Column="3" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                    VerticalAlignment="Bottom"
+                    Command="{Binding SelectImageButtonCommand}">
+                ...
+            </Button>
+            <Label Grid.Row="5" Grid.Column="0" Grid.ColumnSpan="4">Command</Label>
+            <TextBox Grid.Row="6" Grid.Column="0" Grid.ColumnSpan="4" Text="{Binding ButtonData.Command}" />
+        </Grid>
+    </Border>
+</Window>
