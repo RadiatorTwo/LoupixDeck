@@ -212,10 +212,10 @@ public class LoupedeckDevice
                 // Logging or other handling could happen here
                 break;
             case (byte)Constants.Command.TOUCH:
-                OnTouchReceived("touchmove", payload);
+                OnTouchReceived(Constants.TouchEventType.TOUCH_START, payload);
                 break;
             case (byte)Constants.Command.TOUCH_END:
-                OnTouchReceived("touchend", payload);
+                OnTouchReceived(Constants.TouchEventType.TOUCH_END, payload);
                 break;
             case (byte)Constants.Command.VERSION:
                 // The version can be handled directly by the return value
@@ -234,9 +234,9 @@ public class LoupedeckDevice
     private void OnButtonPress(byte[] buff)
     {
         if (buff.Length < 2) return;
-        byte btn = buff[0];
-        string id = Constants.Buttons.TryGetValue(btn, out var value) ? value : btn.ToString();
-        string evt = (buff[1] == 0x00) ? "down" : "up";
+        var btn = buff[0];
+        var id = Constants.Buttons.TryGetValue(btn, out var value) ? value : btn.ToString();
+        var evt = (buff[1] == 0x00) ? Constants.ButtonEventType.BUTTON_DOWN : Constants.ButtonEventType.BUTTON_UP;
         OnButton?.Invoke(this, new ButtonEventArgs { ButtonId = id, EventType = evt });
     }
 
@@ -255,7 +255,7 @@ public class LoupedeckDevice
     /// <summary>
     /// Handles incoming touch data.
     /// </summary>
-    private void OnTouchReceived(string eventType, byte[] buff)
+    private void OnTouchReceived(Constants.TouchEventType eventType, byte[] buff)
     {
         if (buff.Length < 6) return;
         var x = (buff[1] << 8) | buff[2];
@@ -270,7 +270,7 @@ public class LoupedeckDevice
             Target = GetTarget(x, y)
         };
 
-        if (eventType == "touchend")
+        if (eventType == Constants.TouchEventType.TOUCH_END)
         {
             if (_touches.ContainsKey(touchId))
                 _touches.Remove(touchId);
@@ -278,7 +278,7 @@ public class LoupedeckDevice
         else
         {
             if (!_touches.ContainsKey(touchId))
-                eventType = "touchstart";
+                eventType = Constants.TouchEventType.TOUCH_START;
             _touches[touchId] = touch;
         }
 
