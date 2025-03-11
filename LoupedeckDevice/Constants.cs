@@ -72,4 +72,17 @@ public static class Constants
         public const byte Rumble1 = 0x7b;
         public const byte VeryLong = 0x76;
     }
+
+    public enum ButtonEventType
+    {
+        BUTTON_DOWN = 0,
+        BUTTON_UP = 1
+    }
+
+    public enum TouchEventType
+    {
+        TOUCH_START = 0,
+        TOUCH_END = 1,
+        TOUCH_MOVE = 2
+    }
 }
