@@ -70,7 +70,7 @@ Sec-WebSocket-Key: 123abc
         /// </summary>
         /// <param name="portName">The name of the serial port to connect to.</param>
         /// <param name="baudRate">The baud rate. Defaults to 256000 if not specified.</param>
-        public SerialConnection(string portName, int baudRate = 256000)
+        public SerialConnection(string portName, int baudRate = 921600)
         {
             _portName = portName;
             _baudRate = baudRate;
@@ -126,6 +126,7 @@ Sec-WebSocket-Key: 123abc
 
                 // Start the thread that reads incoming data and raises the MessageReceived event.
                 _running = true;
+
                 _readThread = new Thread(ReadLoop)
                 {
                     IsBackground = true
@@ -253,9 +254,9 @@ Sec-WebSocket-Key: 123abc
             _serialPort.ReadTimeout = 2000;
 
             // Toggling DTR might reset some devices and allow them to respond correctly.
-            _serialPort.DtrEnable = false;
-            Thread.Sleep(100);
-            _serialPort.DtrEnable = true;
+            //_serialPort.DtrEnable = false;
+            //Thread.Sleep(100);
+            //_serialPort.DtrEnable = true;
 
             int read = _serialPort.BaseStream.Read(readBuf, 0, readBuf.Length);
             if (read <= 0)
@@ -280,7 +281,12 @@ Sec-WebSocket-Key: 123abc
         {
             // The MagicByteLengthParser identifies packets that start with a magic byte (0x82)
             // and then extracts the complete payload based on the length specified.
-            var parser = new MagicByteLengthParser(0x82);
+            var parser = new SerialDataParser();
+            parser.PacketReceived += packet =>
+            {
+                MessageReceived?.Invoke(this, new MessageEventArgs(packet));
+            };
+
             var buf = new byte[1024];
 
             try
@@ -295,12 +301,7 @@ Sec-WebSocket-Key: 123abc
                     }
 
                     // Pass the newly read data to the parser
-                    var packets = parser.ProcessData(buf, read);
-                    foreach (var packet in packets)
-                    {
-                        // Raise event for each complete packet
-                        MessageReceived?.Invoke(this, new MessageEventArgs(packet));
-                    }
+                    parser.ProcessReceivedData(buf, read);
                 }
             }
             catch (Exception ex)
