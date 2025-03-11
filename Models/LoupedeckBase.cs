@@ -1,12 +1,13 @@
 using Avalonia.Media;
 using LoupixDeck.LoupedeckDevice;
 using LoupixDeck.Utils;
+using System.Text.Json;
 
 namespace LoupixDeck.Models;
 
 public abstract class LoupedeckBase
 {
-    public readonly AutoResetEvent _deviceCreatedEvent = new(false);
+    public readonly AutoResetEvent DeviceCreatedEvent = new(false);
     
     public List<TouchButton[]> TouchButtonPages { get; set; }
     
@@ -27,6 +28,51 @@ public abstract class LoupedeckBase
             _brightness = value;
             StaticDevice.Device.SetBrightness(_brightness);
         }
+    }
+    
+    public virtual void SaveToFile()
+    {
+        JsonSerializerOptions options = new()
+        {
+            WriteIndented = true,
+            Converters = { new ColorJsonConverter(), new BitmapJsonConverter() }
+        };
+
+        var json = JsonSerializer.Serialize(this, options);
+        var filePath = GetConfigPath("LoupixDeck", "config.json");
+        File.WriteAllText(filePath, json);
+    }
+    
+    public static T LoadFromFile<T>() where T : LoupedeckBase
+    {
+        var filePath = GetConfigPath("LoupixDeck", "config.json");
+        
+        if (!File.Exists(filePath))
+            return null;
+
+        JsonSerializerOptions options = new()
+        {
+            Converters = { new ColorJsonConverter(), new BitmapJsonConverter() }
+        };
+
+        var json = File.ReadAllText(filePath);
+        return JsonSerializer.Deserialize<T>(json, options);
+    }
+    
+    public static string GetConfigPath(string appName, string fileName)
+    {
+        string homePath = Environment.GetEnvironmentVariable("HOME") 
+                          ?? Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        
+        string configDir = Path.Combine(homePath, ".config", appName);
+
+        // Falls das Verzeichnis nicht existiert, erstelle es
+        if (!Directory.Exists(configDir))
+        {
+            Directory.CreateDirectory(configDir);
+        }
+
+        return Path.Combine(configDir, fileName);
     }
     
     public void NextPage()
@@ -65,4 +111,6 @@ public abstract class LoupedeckBase
     public abstract void TouchItemChanged(object sender, EventArgs e);
 
     public abstract void StartDeviceThread();
+
+    public abstract void ApplyAllData();
 }

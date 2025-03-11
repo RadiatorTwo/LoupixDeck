@@ -121,25 +121,40 @@ public sealed class LoupedeckLiveS : LoupedeckBase
         var deviceThread = new Thread(() =>
         {
             // Create instance of the device on this thread to ensure all events run here
-            StaticDevice.Device = new LoupedeckLiveSDevice();
+            StaticDevice.Device = new LoupedeckLiveSDevice(null, "COM4");
 
             // Signal that the instance has been created
-            _deviceCreatedEvent.Set();
+            DeviceCreatedEvent.Set();
 
-            // Draw touch buttons on the device
-            foreach (var touchButtonPage in TouchButtonPages)
-            {
-                foreach (var touchButton in touchButtonPage)
-                {
-                    StaticDevice.Device.DrawTouchButton(touchButton);
-                }
-            }
+            // // Draw touch buttons on the device
+            // foreach (var touchButtonPage in TouchButtonPages)
+            // {
+            //     foreach (var touchButton in touchButtonPage)
+            //     {
+            //         StaticDevice.Device.DrawTouchButton(touchButton);
+            //     }
+            // }
         })
         {
             IsBackground = true
         };
 
         deviceThread.Start();
-        _deviceCreatedEvent.WaitOne();
+        DeviceCreatedEvent.WaitOne();
+    }
+
+    public override void ApplyAllData()
+    {
+        foreach (var simpleButton in SimpleButtons)
+        {
+            StaticDevice.Device.SetButtonColor(simpleButton.Id, simpleButton.ButtonColor);
+        }
+
+        foreach (var touchButton in CurrentTouchButtonPage)
+        {
+            StaticDevice.Device.DrawTouchButton(touchButton);
+        }
+        
+        StaticDevice.Device.SetBrightness(Brightness);
     }
 }
