@@ -26,11 +26,6 @@ public sealed class LoupedeckLiveS : LoupedeckBase
         CurrentTouchButtonPage = new TouchButton[15];
         ApplyPage(0);
         
-        foreach (var touchButton in CurrentTouchButtonPage)
-        {
-            touchButton.ItemChanged += TouchItemChanged;
-        }
-        
         SimpleButtons =
         [
             CreateSimpleButton("0", Colors.Blue),
@@ -49,22 +44,30 @@ public sealed class LoupedeckLiveS : LoupedeckBase
             new RotaryButton()
         ];
         
+        InitEvents();
+        
         StartDeviceThread();
     }
 
+    public override void InitEvents()
+    {
+        foreach (var touchButton in CurrentTouchButtonPage)
+        {
+            touchButton.ItemChanged += TouchItemChanged;
+        }
+
+        foreach (var simpleButton in SimpleButtons)
+        {
+            simpleButton.ItemChanged += SimpleButtonChanged;
+        }
+    }
+    
     public override SimpleButton CreateSimpleButton(string id, Color color)
     {
         var button = new SimpleButton { Id = id, Command = string.Empty, ButtonColor = color };
         button.RenderedImage = BitmapHelper.RenderSimpleButtonImage(button, 90, 90);
         button.ItemChanged += SimpleButtonChanged;
         return button;
-    }
-    
-    public override void SimpleButtonChanged(object sender, EventArgs e)
-    {
-        if (sender is not SimpleButton button) return;
-        button.RenderedImage = BitmapHelper.RenderSimpleButtonImage(button, 90, 90);
-        StaticDevice.Device.SetButtonColor(button.Id, button.ButtonColor);
     }
     
     public override void ButtonTouched(object sender, TouchEventArgs e)
@@ -105,6 +108,13 @@ public sealed class LoupedeckLiveS : LoupedeckBase
         }
     }
     
+    public override void SimpleButtonChanged(object sender, EventArgs e)
+    {
+        if (sender is not SimpleButton button) return;
+        button.RenderedImage = BitmapHelper.RenderSimpleButtonImage(button, 90, 90);
+        StaticDevice.Device.SetButtonColor(button.Id, button.ButtonColor);
+    }
+    
     public override void TouchItemChanged(object sender, EventArgs e)
     {
         if (sender is not TouchButton item) return;
@@ -121,7 +131,7 @@ public sealed class LoupedeckLiveS : LoupedeckBase
         var deviceThread = new Thread(() =>
         {
             // Create instance of the device on this thread to ensure all events run here
-            StaticDevice.Device = new LoupedeckLiveSDevice(null, "COM4");
+            StaticDevice.Device = new LoupedeckLiveSDevice();
 
             // Signal that the instance has been created
             DeviceCreatedEvent.Set();
