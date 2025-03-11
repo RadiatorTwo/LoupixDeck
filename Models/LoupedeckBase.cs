@@ -56,15 +56,20 @@ public abstract class LoupedeckBase
         };
 
         var json = File.ReadAllText(filePath);
-        return JsonSerializer.Deserialize<T>(json, options);
+        
+        var instance = JsonSerializer.Deserialize<T>(json, options);
+
+        instance?.InitEvents();
+
+        return instance;
     }
     
     public static string GetConfigPath(string appName, string fileName)
     {
-        string homePath = Environment.GetEnvironmentVariable("HOME") 
-                          ?? Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        var homePath = Environment.GetEnvironmentVariable("HOME") 
+                       ?? Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
         
-        string configDir = Path.Combine(homePath, ".config", appName);
+        var configDir = Path.Combine(homePath, ".config", appName);
 
         // Falls das Verzeichnis nicht existiert, erstelle es
         if (!Directory.Exists(configDir))
@@ -98,6 +103,8 @@ public abstract class LoupedeckBase
             CurrentTouchButtonPage[i].Refresh();
         }
     }
+
+    public abstract void InitEvents();
 
     public abstract SimpleButton CreateSimpleButton(string id, Color color);
     public abstract void SimpleButtonChanged(object sender, EventArgs e);
