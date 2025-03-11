@@ -58,10 +58,23 @@ public abstract class LoupedeckBase
         var json = File.ReadAllText(filePath);
         
         var instance = JsonSerializer.Deserialize<T>(json, options);
-
-        instance?.InitEvents();
+        
+        instance.InitUpdateEvents();
 
         return instance;
+    }
+
+    private void InitUpdateEvents()
+    {
+        foreach (var touchButton in CurrentTouchButtonPage)
+        {
+            touchButton.ItemChanged += TouchItemChanged;
+        }
+
+        foreach (var simpleButton in SimpleButtons)
+        {
+            simpleButton.ItemChanged += SimpleButtonChanged;
+        }
     }
     
     public static string GetConfigPath(string appName, string fileName)
@@ -104,16 +117,16 @@ public abstract class LoupedeckBase
         }
     }
 
-    public abstract void InitEvents();
+    public abstract void InitButtonEvents();
 
     public abstract SimpleButton CreateSimpleButton(string id, Color color);
     public abstract void SimpleButtonChanged(object sender, EventArgs e);
 
-    public abstract void ButtonTouched(object sender, TouchEventArgs e);
+    public abstract void OnButtonTouch(object sender, TouchEventArgs e);
 
-    public abstract void Rotated(object sender, RotateEventArgs e);
+    public abstract void OnRotate(object sender, RotateEventArgs e);
 
-    public abstract void ButtonPressed(object sender, ButtonEventArgs e);
+    public abstract void OnButton(object sender, ButtonEventArgs e);
 
     public abstract void TouchItemChanged(object sender, EventArgs e);
 

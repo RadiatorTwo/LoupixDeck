@@ -44,22 +44,14 @@ public sealed class LoupedeckLiveS : LoupedeckBase
             new RotaryButton()
         ];
         
-        InitEvents();
-        
         StartDeviceThread();
     }
 
-    public override void InitEvents()
+    public override void InitButtonEvents()
     {
-        foreach (var touchButton in CurrentTouchButtonPage)
-        {
-            touchButton.ItemChanged += TouchItemChanged;
-        }
-
-        foreach (var simpleButton in SimpleButtons)
-        {
-            simpleButton.ItemChanged += SimpleButtonChanged;
-        }
+        StaticDevice.Device.OnButton += OnButton;
+        StaticDevice.Device.OnTouch += OnButtonTouch;
+        StaticDevice.Device.OnRotate += OnRotate;
     }
     
     public override SimpleButton CreateSimpleButton(string id, Color color)
@@ -70,7 +62,7 @@ public sealed class LoupedeckLiveS : LoupedeckBase
         return button;
     }
     
-    public override void ButtonTouched(object sender, TouchEventArgs e)
+    public override void OnButtonTouch(object sender, TouchEventArgs e)
     {
         if (e.EventType != "touchstart") return;
         
@@ -84,9 +76,9 @@ public sealed class LoupedeckLiveS : LoupedeckBase
         }
     }
 
-    public override void Rotated(object sender, RotateEventArgs e)
+    public override void OnRotate(object sender, RotateEventArgs e)
     {
-        string command = e.ButtonId switch
+        var command = e.ButtonId switch
         {
             "knobTL" => e.Delta < 0 ? RotaryButtons[0].RotaryLeftCommand : RotaryButtons[0].RotaryRightCommand,
             "knobCL" => e.Delta < 0 ? RotaryButtons[1].RotaryLeftCommand : RotaryButtons[1].RotaryRightCommand,
@@ -99,7 +91,7 @@ public sealed class LoupedeckLiveS : LoupedeckBase
         }
     }
 
-    public override void ButtonPressed(object sender, ButtonEventArgs e)
+    public override void OnButton(object sender, ButtonEventArgs e)
     {
         var button = SimpleButtons.FirstOrDefault(b => b.Id == e.ButtonId);
         if (button != null)
@@ -144,6 +136,8 @@ public sealed class LoupedeckLiveS : LoupedeckBase
             //         StaticDevice.Device.DrawTouchButton(touchButton);
             //     }
             // }
+            
+            InitButtonEvents();
         })
         {
             IsBackground = true
