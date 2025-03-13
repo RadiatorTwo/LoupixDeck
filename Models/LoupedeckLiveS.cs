@@ -84,7 +84,7 @@ public sealed class LoupedeckLiveS : LoupedeckBase
             if (button == null) continue;
 
             StaticDevice.Device.Vibrate();
-            
+
             if (Constants.SystemCommands.TryGetValue(button.Command, out var command))
             {
                 ExceuteSystemCommand(command);
@@ -133,6 +133,9 @@ public sealed class LoupedeckLiveS : LoupedeckBase
         if (button != null)
         {
             StaticDevice.Device.DrawTouchButton(button);
+
+            // Changes need to be written back to original array.
+            CopyBackTouchButtonData(button);
         }
     }
 
