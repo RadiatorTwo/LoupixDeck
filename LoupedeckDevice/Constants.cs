@@ -85,4 +85,16 @@ public static class Constants
         TOUCH_END = 1,
         TOUCH_MOVE = 2
     }
+
+    public enum SystemCommand
+    {
+        NEXT_PAGE = 0,
+        PREVIOUS_PAGE = 1
+    }
+    
+    public static readonly Dictionary<string, SystemCommand> SystemCommands = new()
+    {
+        { "System.NextPage", SystemCommand.NEXT_PAGE },
+        { "System.PreviousPage", SystemCommand.PREVIOUS_PAGE }
+    };
 }

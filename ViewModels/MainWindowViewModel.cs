@@ -23,7 +23,10 @@ public class MainWindowViewModel : ViewModelBase
             LoupeDeckDevice = new LoupedeckLiveS();
         }
 
-        LoupeDeckDevice.ApplyAllData();
+        if (LoupeDeckDevice.TouchButtonPages.Count == 0)
+        {
+            LoupeDeckDevice.AddPage();
+        }
 
         RotaryButtonCommand = new AsyncRelayCommand<RotaryButton>(RotaryButton_Click);
         SimpleButtonCommand = new AsyncRelayCommand<SimpleButton>(SimpleButton_Click);

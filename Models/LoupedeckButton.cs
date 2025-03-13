@@ -15,11 +15,17 @@ public class LoupedeckButton : INotifyPropertyChanged
         }
     }
 
+    public bool IgnoreRefresh {
+        get;
+        set;
+    }
+
     public event EventHandler ItemChanged;
     public event PropertyChangedEventHandler PropertyChanged;
 
     public void Refresh()
     {
+        if (IgnoreRefresh) return;
         ItemChanged?.Invoke(this, EventArgs.Empty);
     }
     

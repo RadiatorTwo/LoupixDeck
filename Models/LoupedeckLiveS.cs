@@ -9,29 +9,14 @@ public sealed class LoupedeckLiveS : LoupedeckBase
 {
     public LoupedeckLiveS()
     {
-        TouchButtonPages = new List<TouchButton[]>();
-
-        TouchButtonPages.Add(Enumerable.Range(0, 15)
-            .Select(index => new TouchButton(index)
-            {
-                Image = null,
-                Command = $"Command {index}",
-                BackColor = Colors.Black,
-                TextColor = Colors.Lime,
-                TextSize = 16,
-                TextCentered = true
-            })
-            .ToArray());
-
-        CurrentTouchButtonPage = new TouchButton[15];
-        ApplyPage(0);
+        StartDeviceThread();
 
         SimpleButtons =
         [
-            CreateSimpleButton("0", Colors.Blue),
-            CreateSimpleButton("1", Colors.Blue),
-            CreateSimpleButton("2", Colors.Blue),
-            CreateSimpleButton("3", Colors.Blue)
+            CreateSimpleButton("0", Colors.Blue, "System.PreviousPage"),
+            CreateSimpleButton("1", Colors.Blue, string.Empty),
+            CreateSimpleButton("2", Colors.Blue, string.Empty),
+            CreateSimpleButton("3", Colors.Blue, "System.NextPage")
         ];
 
         RotaryButtons =
@@ -44,46 +29,70 @@ public sealed class LoupedeckLiveS : LoupedeckBase
             new RotaryButton()
         ];
 
-        StartDeviceThread();
+        TouchButtonPages = new List<TouchButton[]>();
+        CurrentTouchButtonPage = new TouchButton[15];
+
+        for (var i = 0; i < CurrentTouchButtonPage.Length; i++)
+        {
+            CurrentTouchButtonPage[i] = new TouchButton(i);
+        }
+
+        InitUpdateEvents();
     }
 
     public override void InitButtonEvents()
     {
-        StaticDevice.Device.OnButton += OnButton;
-        StaticDevice.Device.OnTouch += OnButtonTouch;
+        StaticDevice.Device.OnButton += OnSimpleButtonPress;
+        StaticDevice.Device.OnTouch += OnTouchButtonPress;
         StaticDevice.Device.OnRotate += OnRotate;
     }
 
-    public override SimpleButton CreateSimpleButton(string id, Color color)
+    public override SimpleButton CreateSimpleButton(string id, Color color, string command)
     {
         var button = new SimpleButton { Id = id, Command = string.Empty, ButtonColor = color };
         button.RenderedImage = BitmapHelper.RenderSimpleButtonImage(button, 90, 90);
+        button.Command = command;
         button.ItemChanged += SimpleButtonChanged;
         return button;
     }
 
-    public override void OnButton(object sender, ButtonEventArgs e)
+    public override void OnSimpleButtonPress(object sender, ButtonEventArgs e)
     {
         if (e.EventType != Constants.ButtonEventType.BUTTON_DOWN) return;
 
         var button = SimpleButtons.FirstOrDefault(b => b.Id == e.ButtonId);
         if (button != null)
         {
-            CommandRunner.ExecuteCommand(button.Command);
+            if (Constants.SystemCommands.TryGetValue(button.Command, out var command))
+            {
+                ExceuteSystemCommand(command);
+            }
+            else
+            {
+                CommandRunner.ExecuteCommand(button.Command);
+            }
         }
     }
 
-    public override void OnButtonTouch(object sender, TouchEventArgs e)
+    public override void OnTouchButtonPress(object sender, TouchEventArgs e)
     {
         if (e.EventType != Constants.TouchEventType.TOUCH_START) return;
-        
+
         foreach (var touch in e.Touches)
         {
             var button = CurrentTouchButtonPage.FirstOrDefault(b => b.Index == touch.Target.Key);
             if (button == null) continue;
 
             StaticDevice.Device.Vibrate();
-            CommandRunner.ExecuteCommand(button.Command);
+            
+            if (Constants.SystemCommands.TryGetValue(button.Command, out var command))
+            {
+                ExceuteSystemCommand(command);
+            }
+            else
+            {
+                CommandRunner.ExecuteCommand(button.Command);
+            }
         }
     }
 
@@ -98,7 +107,14 @@ public sealed class LoupedeckLiveS : LoupedeckBase
 
         if (!string.IsNullOrEmpty(command))
         {
-            CommandRunner.ExecuteCommand(command);
+            if (Constants.SystemCommands.TryGetValue(command, out var systemCommand))
+            {
+                ExceuteSystemCommand(systemCommand);
+            }
+            else
+            {
+                CommandRunner.ExecuteCommand(command);
+            }
         }
     }
 
@@ -153,5 +169,44 @@ public sealed class LoupedeckLiveS : LoupedeckBase
         }
 
         StaticDevice.Device.SetBrightness(Brightness);
+    }
+
+    public override void AddPage()
+    {
+        CurrentPageIndex++;
+
+        var newPage = new TouchButton[15];
+
+        for (var i = 0; i < 15; i++)
+        {
+            newPage[i] = new TouchButton(i)
+            {
+                Image = null,
+                Command = $"Command {i}",
+                BackColor = Colors.Black,
+                TextColor = Colors.Lime,
+                TextSize = 16,
+                TextCentered = true
+            };
+        }
+
+        TouchButtonPages.Add(newPage);
+
+        ApplyPage(CurrentPageIndex);
+    }
+
+    public override void ExceuteSystemCommand(Constants.SystemCommand command)
+    {
+        switch (command)
+        {
+            case Constants.SystemCommand.NEXT_PAGE:
+                NextPage();
+                break;
+            case Constants.SystemCommand.PREVIOUS_PAGE:
+                PreviousPage();
+                break;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(command), command, null);
+        }
     }
 }
