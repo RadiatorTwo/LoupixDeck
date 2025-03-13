@@ -8,28 +8,29 @@ namespace LoupixDeck.Models;
 public abstract class LoupedeckBase
 {
     public readonly AutoResetEvent DeviceCreatedEvent = new(false);
-    
+
     public List<TouchButton[]> TouchButtonPages { get; set; }
-    
-    public int CurrentPageIndex { get; set; } = 0;
+
+    public int CurrentPageIndex { get; set; } = -1;
     public TouchButton[] CurrentTouchButtonPage { get; set; }
-    
+
     public SimpleButton[] SimpleButtons { get; set; }
     public RotaryButton[] RotaryButtons { get; set; }
-    
+
     private double _brightness = 1;
+
     public double Brightness
     {
         get => _brightness;
         set
         {
             if (value.Equals(_brightness)) return;
-            
+
             _brightness = value;
             StaticDevice.Device.SetBrightness(_brightness);
         }
     }
-    
+
     public virtual void SaveToFile()
     {
         JsonSerializerOptions options = new()
@@ -42,11 +43,11 @@ public abstract class LoupedeckBase
         var filePath = GetConfigPath("LoupixDeck", "config.json");
         File.WriteAllText(filePath, json);
     }
-    
+
     public static T LoadFromFile<T>() where T : LoupedeckBase
     {
         var filePath = GetConfigPath("LoupixDeck", "config.json");
-        
+
         if (!File.Exists(filePath))
             return null;
 
@@ -56,15 +57,15 @@ public abstract class LoupedeckBase
         };
 
         var json = File.ReadAllText(filePath);
-        
+
         var instance = JsonSerializer.Deserialize<T>(json, options);
-        
+
         instance.InitUpdateEvents();
 
         return instance;
     }
 
-    private void InitUpdateEvents()
+    public void InitUpdateEvents()
     {
         foreach (var touchButton in CurrentTouchButtonPage)
         {
@@ -76,12 +77,12 @@ public abstract class LoupedeckBase
             simpleButton.ItemChanged += SimpleButtonChanged;
         }
     }
-    
+
     public static string GetConfigPath(string appName, string fileName)
     {
-        var homePath = Environment.GetEnvironmentVariable("HOME") 
+        var homePath = Environment.GetEnvironmentVariable("HOME")
                        ?? Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-        
+
         var configDir = Path.Combine(homePath, ".config", appName);
 
         // Falls das Verzeichnis nicht existiert, erstelle es
@@ -92,45 +93,70 @@ public abstract class LoupedeckBase
 
         return Path.Combine(configDir, fileName);
     }
-    
+
     public void NextPage()
     {
         CurrentPageIndex = (CurrentPageIndex + 1) % TouchButtonPages.Count;
         ApplyPage(CurrentPageIndex);
     }
-    
+
     public void PreviousPage()
     {
         CurrentPageIndex = (CurrentPageIndex - 1 + TouchButtonPages.Count) % TouchButtonPages.Count;
         ApplyPage(CurrentPageIndex);
     }
-    
+
     public void ApplyPage(int pageIndex)
     {
         // Copy the TouchButtons of the new page to `CurrentTouchButtons`.
-        for (int i = 0; i < 15; i++)
+        foreach (var touchButton in TouchButtonPages[pageIndex])
         {
-            CurrentTouchButtonPage[i] = TouchButtonPages[pageIndex][i];
-
-            // Set the appropriate image for the TouchButton
-            CurrentTouchButtonPage[i].Refresh();
+            CopyTouchButtonData(touchButton);
         }
+    }
+
+    private void CopyTouchButtonData(TouchButton source)
+    {
+        if (CurrentTouchButtonPage[source.Index] == null)
+        {
+            CurrentTouchButtonPage[source.Index] = new TouchButton(source.Index);
+        }
+
+        CurrentTouchButtonPage[source.Index].IgnoreRefresh = true;
+
+        CurrentTouchButtonPage[source.Index].Text = source.Text;
+        CurrentTouchButtonPage[source.Index].TextColor = source.TextColor;
+        CurrentTouchButtonPage[source.Index].TextCentered = source.TextCentered;
+        CurrentTouchButtonPage[source.Index].TextPosition = source.TextPosition;
+        CurrentTouchButtonPage[source.Index].TextSize = source.TextSize;
+        CurrentTouchButtonPage[source.Index].Image = source.Image;
+        CurrentTouchButtonPage[source.Index].BackColor = source.BackColor;
+        CurrentTouchButtonPage[source.Index].Command = source.Command;
+        CurrentTouchButtonPage[source.Index].RenderedImage = source.RenderedImage;
+
+        CurrentTouchButtonPage[source.Index].IgnoreRefresh = false;
+
+        Avalonia.Threading.Dispatcher.UIThread.Post(() => { CurrentTouchButtonPage[source.Index].Refresh(); });
     }
 
     public abstract void InitButtonEvents();
 
-    public abstract SimpleButton CreateSimpleButton(string id, Color color);
+    public abstract SimpleButton CreateSimpleButton(string id, Color color, string command);
     public abstract void SimpleButtonChanged(object sender, EventArgs e);
 
-    public abstract void OnButtonTouch(object sender, TouchEventArgs e);
+    public abstract void OnTouchButtonPress(object sender, TouchEventArgs e);
 
     public abstract void OnRotate(object sender, RotateEventArgs e);
 
-    public abstract void OnButton(object sender, ButtonEventArgs e);
+    public abstract void OnSimpleButtonPress(object sender, ButtonEventArgs e);
 
     public abstract void TouchItemChanged(object sender, EventArgs e);
 
     public abstract void StartDeviceThread();
 
     public abstract void ApplyAllData();
+
+    public abstract void AddPage();
+
+    public abstract void ExceuteSystemCommand(Constants.SystemCommand command);
 }
