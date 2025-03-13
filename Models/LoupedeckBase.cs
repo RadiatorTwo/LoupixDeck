@@ -115,6 +115,14 @@ public abstract class LoupedeckBase
         }
     }
 
+    public void RefreshTouchButtons()
+    {
+        foreach (var touchButton in CurrentTouchButtonPage)
+        {
+            touchButton.Refresh();
+        }
+    }
+
     private void CopyTouchButtonData(TouchButton source)
     {
         if (CurrentTouchButtonPage[source.Index] == null)
@@ -137,6 +145,27 @@ public abstract class LoupedeckBase
         CurrentTouchButtonPage[source.Index].IgnoreRefresh = false;
 
         Avalonia.Threading.Dispatcher.UIThread.Post(() => { CurrentTouchButtonPage[source.Index].Refresh(); });
+    }
+    
+    public void CopyBackTouchButtonData(TouchButton source)
+    {
+        // Check if Page exists.
+        if (TouchButtonPages[CurrentPageIndex] == null) return;
+
+        if (TouchButtonPages[CurrentPageIndex][source.Index] == null)
+        {
+            TouchButtonPages[CurrentPageIndex][source.Index] = new TouchButton(source.Index);
+        }
+        
+        TouchButtonPages[CurrentPageIndex][source.Index].Text = source.Text;
+        TouchButtonPages[CurrentPageIndex][source.Index].TextColor = source.TextColor;
+        TouchButtonPages[CurrentPageIndex][source.Index].TextCentered = source.TextCentered;
+        TouchButtonPages[CurrentPageIndex][source.Index].TextPosition = source.TextPosition;
+        TouchButtonPages[CurrentPageIndex][source.Index].TextSize = source.TextSize;
+        TouchButtonPages[CurrentPageIndex][source.Index].Image = source.Image;
+        TouchButtonPages[CurrentPageIndex][source.Index].BackColor = source.BackColor;
+        TouchButtonPages[CurrentPageIndex][source.Index].Command = source.Command;
+        TouchButtonPages[CurrentPageIndex][source.Index].RenderedImage = source.RenderedImage;
     }
 
     public abstract void InitButtonEvents();

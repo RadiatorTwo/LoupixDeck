@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.Input;
 using LoupixDeck.Models;
 using LoupixDeck.Utils;
 using LoupixDeck.Views;
+using RelayCommand = LoupixDeck.Utils.RelayCommand;
 
 namespace LoupixDeck.ViewModels;
 
@@ -11,6 +12,7 @@ public class MainWindowViewModel : ViewModelBase
     public ICommand RotaryButtonCommand { get; }
     public ICommand SimpleButtonCommand { get; }
     public ICommand TouchButtonCommand { get; }
+    public ICommand AddPageCommand { get; }
 
     public LoupedeckLiveS LoupeDeckDevice { get; set; }
 
@@ -27,10 +29,20 @@ public class MainWindowViewModel : ViewModelBase
         {
             LoupeDeckDevice.AddPage();
         }
+        else
+        {
+            LoupeDeckDevice.RefreshTouchButtons();
+        }
 
         RotaryButtonCommand = new AsyncRelayCommand<RotaryButton>(RotaryButton_Click);
         SimpleButtonCommand = new AsyncRelayCommand<SimpleButton>(SimpleButton_Click);
         TouchButtonCommand = new AsyncRelayCommand<TouchButton>(TouchButton_Click);
+        AddPageCommand = new RelayCommand(AddPageButton_Click);
+    }
+
+    private void AddPageButton_Click()
+    {
+        LoupeDeckDevice.AddPage();
     }
 
     private async Task RotaryButton_Click(RotaryButton button)
