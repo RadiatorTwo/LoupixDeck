@@ -229,12 +229,17 @@
             <Button Content="+" Command="{Binding AddPageCommand}" />
       
             <!-- Dynamisch generierte Buttons -->
-            <ItemsControl ItemsSource="{Binding LoupeDeckDevice.TouchButtonPages.Count}">
-                <ItemsControl.ItemTemplate>
-                    <DataTemplate>
-                        <Button Content="{Binding}" />
-                    </DataTemplate>
-                </ItemsControl.ItemTemplate>
+            <ItemsControl ItemsSource="{Binding LoupeDeckDevice.TouchButtonPages}">
+				<ItemsControl.ItemsPanel>
+					<ItemsPanelTemplate>
+						<StackPanel Orientation="Horizontal"/>
+					</ItemsPanelTemplate>
+				</ItemsControl.ItemsPanel>
+				<ItemsControl.ItemTemplate>
+					<DataTemplate>
+						<Button Content="{Binding Page}" />
+					</DataTemplate>
+				</ItemsControl.ItemTemplate>
             </ItemsControl>
         </StackPanel>
         <Slider Grid.Column="0" Grid.Row="2" Grid.ColumnSpan="3" Minimum="0" Maximum="1" TickFrequency="0.1" IsSnapToTickEnabled="True" Value="{Binding LoupeDeckDevice.Brightness}"/>

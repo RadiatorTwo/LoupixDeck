@@ -1,6 +1,7 @@
 using Avalonia.Media;
 using LoupixDeck.LoupedeckDevice;
 using LoupixDeck.Utils;
+using System.Collections.ObjectModel;
 using System.Text.Json;
 
 namespace LoupixDeck.Models;
@@ -9,7 +10,7 @@ public abstract class LoupedeckBase
 {
     public readonly AutoResetEvent DeviceCreatedEvent = new(false);
 
-    public List<TouchButton[]> TouchButtonPages { get; set; }
+    public ObservableCollection<TouchButtonPage> TouchButtonPages { get; set; }
 
     public int CurrentPageIndex { get; set; } = -1;
     public TouchButton[] CurrentTouchButtonPage { get; set; }
@@ -109,7 +110,7 @@ public abstract class LoupedeckBase
     public void ApplyPage(int pageIndex)
     {
         // Copy the TouchButtons of the new page to `CurrentTouchButtons`.
-        foreach (var touchButton in TouchButtonPages[pageIndex])
+        foreach (var touchButton in TouchButtonPages[pageIndex].TouchButtons)
         {
             CopyTouchButtonData(touchButton);
         }
@@ -152,20 +153,20 @@ public abstract class LoupedeckBase
         // Check if Page exists.
         if (TouchButtonPages[CurrentPageIndex] == null) return;
 
-        if (TouchButtonPages[CurrentPageIndex][source.Index] == null)
+        if (TouchButtonPages[CurrentPageIndex].TouchButtons[source.Index] == null)
         {
-            TouchButtonPages[CurrentPageIndex][source.Index] = new TouchButton(source.Index);
+            TouchButtonPages[CurrentPageIndex].TouchButtons[source.Index] = new TouchButton(source.Index);
         }
         
-        TouchButtonPages[CurrentPageIndex][source.Index].Text = source.Text;
-        TouchButtonPages[CurrentPageIndex][source.Index].TextColor = source.TextColor;
-        TouchButtonPages[CurrentPageIndex][source.Index].TextCentered = source.TextCentered;
-        TouchButtonPages[CurrentPageIndex][source.Index].TextPosition = source.TextPosition;
-        TouchButtonPages[CurrentPageIndex][source.Index].TextSize = source.TextSize;
-        TouchButtonPages[CurrentPageIndex][source.Index].Image = source.Image;
-        TouchButtonPages[CurrentPageIndex][source.Index].BackColor = source.BackColor;
-        TouchButtonPages[CurrentPageIndex][source.Index].Command = source.Command;
-        TouchButtonPages[CurrentPageIndex][source.Index].RenderedImage = source.RenderedImage;
+        TouchButtonPages[CurrentPageIndex].TouchButtons[source.Index].Text = source.Text;
+        TouchButtonPages[CurrentPageIndex].TouchButtons[source.Index].TextColor = source.TextColor;
+        TouchButtonPages[CurrentPageIndex].TouchButtons[source.Index].TextCentered = source.TextCentered;
+        TouchButtonPages[CurrentPageIndex].TouchButtons[source.Index].TextPosition = source.TextPosition;
+        TouchButtonPages[CurrentPageIndex].TouchButtons[source.Index].TextSize = source.TextSize;
+        TouchButtonPages[CurrentPageIndex].TouchButtons[source.Index].Image = source.Image;
+        TouchButtonPages[CurrentPageIndex].TouchButtons[source.Index].BackColor = source.BackColor;
+        TouchButtonPages[CurrentPageIndex].TouchButtons[source.Index].Command = source.Command;
+        TouchButtonPages[CurrentPageIndex].TouchButtons[source.Index].RenderedImage = source.RenderedImage;
     }
 
     public abstract void InitButtonEvents();

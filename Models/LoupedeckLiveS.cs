@@ -2,6 +2,7 @@ using Avalonia.Media;
 using LoupixDeck.LoupedeckDevice;
 using LoupixDeck.LoupedeckDevice.Device;
 using LoupixDeck.Utils;
+using System.Collections.ObjectModel;
 
 namespace LoupixDeck.Models;
 
@@ -29,8 +30,13 @@ public sealed class LoupedeckLiveS : LoupedeckBase
             new RotaryButton()
         ];
 
-        TouchButtonPages = new List<TouchButton[]>();
+        TouchButtonPages = new ObservableCollection<TouchButtonPage>();
         CurrentTouchButtonPage = new TouchButton[15];
+
+        TouchButtonPages.CollectionChanged += (s, e) =>
+        {
+            Console.WriteLine($"Collection changed: {e.Action}");
+        };
 
         for (var i = 0; i < CurrentTouchButtonPage.Length; i++)
         {
@@ -178,11 +184,13 @@ public sealed class LoupedeckLiveS : LoupedeckBase
     {
         CurrentPageIndex++;
 
-        var newPage = new TouchButton[15];
+
+        var newPage = new TouchButtonPage(15);
+        newPage.Page = TouchButtonPages.Count + 1;
 
         for (var i = 0; i < 15; i++)
         {
-            newPage[i] = new TouchButton(i)
+            newPage.TouchButtons[i] = new TouchButton(i)
             {
                 Image = null,
                 Command = $"Command {i}",
@@ -192,7 +200,7 @@ public sealed class LoupedeckLiveS : LoupedeckBase
                 TextCentered = true
             };
         }
-
+        
         TouchButtonPages.Add(newPage);
 
         ApplyPage(CurrentPageIndex);
