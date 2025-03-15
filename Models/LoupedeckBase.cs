@@ -2,21 +2,43 @@ using Avalonia.Media;
 using LoupixDeck.LoupedeckDevice;
 using LoupixDeck.Utils;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace LoupixDeck.Models;
 
-public abstract class LoupedeckBase
+public abstract class LoupedeckBase : INotifyPropertyChanged
 {
-    [JsonIgnore] protected static int CurrentPageIndex { get; set; } = -1;
-    
+    [JsonIgnore] private int _currentPageIndex;
+
+    [JsonIgnore]
+    public int CurrentPageIndex
+    {
+        get => _currentPageIndex;
+        set
+        {
+            //if (value.Equals(_currentPageIndex)) return;
+
+            _currentPageIndex = value;
+
+            foreach (var page in TouchButtonPages)
+            {
+                page.IsSelected = page.Page == _currentPageIndex + 1;
+            }
+
+            OnPropertyChanged();
+        }
+    }
+
     public ObservableCollection<TouchButtonPage> TouchButtonPages { get; set; }
     public TouchButton[] CurrentTouchButtonPage { get; set; }
     public SimpleButton[] SimpleButtons { get; set; }
     public RotaryButton[] RotaryButtons { get; set; }
 
     private double _brightness = 1;
+
     public double Brightness
     {
         get => _brightness;
@@ -29,8 +51,15 @@ public abstract class LoupedeckBase
         }
     }
 
+    public event PropertyChangedEventHandler PropertyChanged;
+
+    protected virtual void OnPropertyChanged([CallerMemberName] string propertyName = null)
+    {
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+    }
+
     protected readonly AutoResetEvent DeviceCreatedEvent = new(false);
-    
+
     public void SaveToFile()
     {
         JsonSerializerOptions options = new()
@@ -51,8 +80,6 @@ public abstract class LoupedeckBase
         if (!File.Exists(filePath))
             return null;
 
-        CurrentPageIndex = 0;
-        
         JsonSerializerOptions options = new()
         {
             Converters = { new ColorJsonConverter(), new BitmapJsonConverter() }
@@ -61,9 +88,10 @@ public abstract class LoupedeckBase
         var json = File.ReadAllText(filePath);
 
         var instance = JsonSerializer.Deserialize<T>(json, options);
+        instance.CurrentPageIndex = 0;
 
         instance.InitUpdateEvents();
-        
+
         return instance;
     }
 
@@ -111,7 +139,7 @@ public abstract class LoupedeckBase
     public void ApplyPage(int pageIndex)
     {
         CurrentPageIndex = pageIndex;
-        
+
         // Copy the TouchButtons of the new page to `CurrentTouchButtons`.
         foreach (var touchButton in TouchButtonPages[pageIndex].TouchButtons)
         {
@@ -133,7 +161,7 @@ public abstract class LoupedeckBase
         {
             CurrentTouchButtonPage[source.Index] = new TouchButton(source.Index);
         }
-        
+
         CurrentTouchButtonPage[source.Index].IgnoreRefresh = true;
 
         CurrentTouchButtonPage[source.Index].Text = source.Text;
@@ -160,7 +188,7 @@ public abstract class LoupedeckBase
         {
             TouchButtonPages[CurrentPageIndex].TouchButtons[source.Index] = new TouchButton(source.Index);
         }
-        
+
         TouchButtonPages[CurrentPageIndex].TouchButtons[source.Index].Text = source.Text;
         TouchButtonPages[CurrentPageIndex].TouchButtons[source.Index].TextColor = source.TextColor;
         TouchButtonPages[CurrentPageIndex].TouchButtons[source.Index].TextCentered = source.TextCentered;
