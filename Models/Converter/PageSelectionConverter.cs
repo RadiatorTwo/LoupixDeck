@@ -1,8 +1,6 @@
-using System;
 using System.Globalization;
 using Avalonia.Data.Converters;
 using Avalonia.Media;
-using System.Collections.Generic;
 
 namespace LoupixDeck.Models.Converter;
 
