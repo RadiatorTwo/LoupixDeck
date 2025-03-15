@@ -8,6 +8,11 @@ namespace LoupixDeck.Models
 {
     public class TouchButtonPage
     {
+        public TouchButtonPage()
+        {
+            TouchButtons = [];
+        }
+        
         public TouchButtonPage(int pageSize)
         {
             TouchButtons = new TouchButton[pageSize];

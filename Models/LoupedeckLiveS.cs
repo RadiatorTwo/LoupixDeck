@@ -33,11 +33,6 @@ public sealed class LoupedeckLiveS : LoupedeckBase
         TouchButtonPages = new ObservableCollection<TouchButtonPage>();
         CurrentTouchButtonPage = new TouchButton[15];
 
-        TouchButtonPages.CollectionChanged += (s, e) =>
-        {
-            Console.WriteLine($"Collection changed: {e.Action}");
-        };
-
         for (var i = 0; i < CurrentTouchButtonPage.Length; i++)
         {
             CurrentTouchButtonPage[i] = new TouchButton(i);
@@ -124,14 +119,14 @@ public sealed class LoupedeckLiveS : LoupedeckBase
         }
     }
 
-    public override void SimpleButtonChanged(object sender, EventArgs e)
+    protected override void SimpleButtonChanged(object sender, EventArgs e)
     {
         if (sender is not SimpleButton button) return;
         button.RenderedImage = BitmapHelper.RenderSimpleButtonImage(button, 90, 90);
         StaticDevice.Device.SetButtonColor(button.Id, button.ButtonColor);
     }
 
-    public override void TouchItemChanged(object sender, EventArgs e)
+    protected override void TouchItemChanged(object sender, EventArgs e)
     {
         if (sender is not TouchButton item) return;
 
@@ -182,8 +177,7 @@ public sealed class LoupedeckLiveS : LoupedeckBase
 
     public override void AddPage()
     {
-        CurrentPageIndex++;
-
+        CurrentPageIndex = TouchButtonPages.Count;
 
         var newPage = new TouchButtonPage(15);
         newPage.Page = TouchButtonPages.Count + 1;
@@ -200,7 +194,7 @@ public sealed class LoupedeckLiveS : LoupedeckBase
                 TextCentered = true
             };
         }
-        
+
         TouchButtonPages.Add(newPage);
 
         ApplyPage(CurrentPageIndex);

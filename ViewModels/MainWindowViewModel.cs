@@ -13,6 +13,7 @@ public class MainWindowViewModel : ViewModelBase
     public ICommand SimpleButtonCommand { get; }
     public ICommand TouchButtonCommand { get; }
     public ICommand AddPageCommand { get; }
+    public ICommand PageButtonCommand { get; }
 
     public LoupedeckLiveS LoupeDeckDevice { get; set; }
 
@@ -38,6 +39,12 @@ public class MainWindowViewModel : ViewModelBase
         SimpleButtonCommand = new AsyncRelayCommand<SimpleButton>(SimpleButton_Click);
         TouchButtonCommand = new AsyncRelayCommand<TouchButton>(TouchButton_Click);
         AddPageCommand = new RelayCommand(AddPageButton_Click);
+        PageButtonCommand = new CommunityToolkit.Mvvm.Input.RelayCommand<int>(PageButton_Click);
+    }
+
+    private void PageButton_Click(int page)
+    {
+        LoupeDeckDevice.ApplyPage(page - 1);
     }
 
     private void AddPageButton_Click()

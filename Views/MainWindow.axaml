@@ -8,8 +8,10 @@
         WindowStartupLocation="CenterScreen"
         x:Class="LoupixDeck.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
+        d:DataContext="{d:DesignInstance Type=vm:MainWindowViewModel, IsDesignTimeCreatable=True}"
         Icon="/Assets/avalonia-logo.ico"
-        Title="LoupixDeck">
+        Title="LoupixDeck"
+        x:Name="RootWindow">
 
     <Design.DataContext>
         <!-- This only sets the DataContext for the previewer in an IDE,
@@ -17,7 +19,7 @@
         <vm:MainWindowViewModel/>
     </Design.DataContext>
 
-    <Grid ColumnDefinitions="150,500,150" RowDefinitions="*,30,50">
+    <Grid ColumnDefinitions="150,500,150" RowDefinitions="300,30,50">
         <Grid Grid.Row="0" Grid.Column="0" HorizontalAlignment="Center" RowDefinitions="100,100,100">
             <Button
                 Grid.Row="0"
@@ -225,10 +227,6 @@
             </Button>
         </Grid>
         <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal">
-            <!-- Plus-Button -->
-            <Button Content="+" Command="{Binding AddPageCommand}" />
-      
-            <!-- Dynamisch generierte Buttons -->
             <ItemsControl ItemsSource="{Binding LoupeDeckDevice.TouchButtonPages}">
 				<ItemsControl.ItemsPanel>
 					<ItemsPanelTemplate>
@@ -237,10 +235,11 @@
 				</ItemsControl.ItemsPanel>
 				<ItemsControl.ItemTemplate>
 					<DataTemplate>
-						<Button Content="{Binding Page}" />
+						<Button Content="{Binding Page}" Command="{Binding ViewModel.PageButtonCommand, ElementName=RootWindow}" CommandParameter="{Binding Page}"/>
 					</DataTemplate>
 				</ItemsControl.ItemTemplate>
             </ItemsControl>
+            <Button Content="+" Command="{Binding AddPageCommand}" />
         </StackPanel>
         <Slider Grid.Column="0" Grid.Row="2" Grid.ColumnSpan="3" Minimum="0" Maximum="1" TickFrequency="0.1" IsSnapToTickEnabled="True" Value="{Binding LoupeDeckDevice.Brightness}"/>
     </Grid>
