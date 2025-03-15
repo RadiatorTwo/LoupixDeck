@@ -3,23 +3,20 @@ using LoupixDeck.LoupedeckDevice;
 using LoupixDeck.Utils;
 using System.Collections.ObjectModel;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace LoupixDeck.Models;
 
 public abstract class LoupedeckBase
 {
-    public readonly AutoResetEvent DeviceCreatedEvent = new(false);
-
+    [JsonIgnore] protected static int CurrentPageIndex { get; set; } = -1;
+    
     public ObservableCollection<TouchButtonPage> TouchButtonPages { get; set; }
-
-    public int CurrentPageIndex { get; set; } = -1;
     public TouchButton[] CurrentTouchButtonPage { get; set; }
-
     public SimpleButton[] SimpleButtons { get; set; }
     public RotaryButton[] RotaryButtons { get; set; }
 
     private double _brightness = 1;
-
     public double Brightness
     {
         get => _brightness;
@@ -32,7 +29,9 @@ public abstract class LoupedeckBase
         }
     }
 
-    public virtual void SaveToFile()
+    protected readonly AutoResetEvent DeviceCreatedEvent = new(false);
+    
+    public void SaveToFile()
     {
         JsonSerializerOptions options = new()
         {
@@ -52,6 +51,8 @@ public abstract class LoupedeckBase
         if (!File.Exists(filePath))
             return null;
 
+        CurrentPageIndex = 0;
+        
         JsonSerializerOptions options = new()
         {
             Converters = { new ColorJsonConverter(), new BitmapJsonConverter() }
@@ -62,11 +63,11 @@ public abstract class LoupedeckBase
         var instance = JsonSerializer.Deserialize<T>(json, options);
 
         instance.InitUpdateEvents();
-
+        
         return instance;
     }
 
-    public void InitUpdateEvents()
+    protected void InitUpdateEvents()
     {
         foreach (var touchButton in CurrentTouchButtonPage)
         {
@@ -79,7 +80,7 @@ public abstract class LoupedeckBase
         }
     }
 
-    public static string GetConfigPath(string appName, string fileName)
+    private static string GetConfigPath(string appName, string fileName)
     {
         var homePath = Environment.GetEnvironmentVariable("HOME")
                        ?? Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
@@ -95,13 +96,13 @@ public abstract class LoupedeckBase
         return Path.Combine(configDir, fileName);
     }
 
-    public void NextPage()
+    protected void NextPage()
     {
         CurrentPageIndex = (CurrentPageIndex + 1) % TouchButtonPages.Count;
         ApplyPage(CurrentPageIndex);
     }
 
-    public void PreviousPage()
+    protected void PreviousPage()
     {
         CurrentPageIndex = (CurrentPageIndex - 1 + TouchButtonPages.Count) % TouchButtonPages.Count;
         ApplyPage(CurrentPageIndex);
@@ -109,6 +110,8 @@ public abstract class LoupedeckBase
 
     public void ApplyPage(int pageIndex)
     {
+        CurrentPageIndex = pageIndex;
+        
         // Copy the TouchButtons of the new page to `CurrentTouchButtons`.
         foreach (var touchButton in TouchButtonPages[pageIndex].TouchButtons)
         {
@@ -130,7 +133,7 @@ public abstract class LoupedeckBase
         {
             CurrentTouchButtonPage[source.Index] = new TouchButton(source.Index);
         }
-
+        
         CurrentTouchButtonPage[source.Index].IgnoreRefresh = true;
 
         CurrentTouchButtonPage[source.Index].Text = source.Text;
@@ -147,8 +150,8 @@ public abstract class LoupedeckBase
 
         Avalonia.Threading.Dispatcher.UIThread.Post(() => { CurrentTouchButtonPage[source.Index].Refresh(); });
     }
-    
-    public void CopyBackTouchButtonData(TouchButton source)
+
+    protected void CopyBackTouchButtonData(TouchButton source)
     {
         // Check if Page exists.
         if (TouchButtonPages[CurrentPageIndex] == null) return;
@@ -172,7 +175,7 @@ public abstract class LoupedeckBase
     public abstract void InitButtonEvents();
 
     public abstract SimpleButton CreateSimpleButton(string id, Color color, string command);
-    public abstract void SimpleButtonChanged(object sender, EventArgs e);
+    protected abstract void SimpleButtonChanged(object sender, EventArgs e);
 
     public abstract void OnTouchButtonPress(object sender, TouchEventArgs e);
 
@@ -180,7 +183,7 @@ public abstract class LoupedeckBase
 
     public abstract void OnSimpleButtonPress(object sender, ButtonEventArgs e);
 
-    public abstract void TouchItemChanged(object sender, EventArgs e);
+    protected abstract void TouchItemChanged(object sender, EventArgs e);
 
     public abstract void StartDeviceThread();
 

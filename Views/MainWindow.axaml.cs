@@ -2,6 +2,7 @@ using System.Windows.Input;
 using Avalonia.Controls;
 using Avalonia.Platform;
 using LoupixDeck.Utils;
+using LoupixDeck.ViewModels;
 
 namespace LoupixDeck.Views;
 
@@ -21,10 +22,13 @@ public partial class MainWindow : Window
     // }
 
     private static MainWindow Instance { get; set; }
+    
+    public MainWindowViewModel ViewModel => (MainWindowViewModel)DataContext;
 
     public MainWindow()
     {
         InitializeComponent();
+        
         Instance = this;
 
         ShowCommand = new RelayCommand(() => Instance?.ShowFromTray());
