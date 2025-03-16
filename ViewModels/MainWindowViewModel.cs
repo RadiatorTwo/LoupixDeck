@@ -12,8 +12,10 @@ public class MainWindowViewModel : ViewModelBase
     public ICommand RotaryButtonCommand { get; }
     public ICommand SimpleButtonCommand { get; }
     public ICommand TouchButtonCommand { get; }
-    public ICommand AddPageCommand { get; }
-    public ICommand PageButtonCommand { get; }
+    public ICommand AddRotaryPageCommand { get; }
+    public ICommand AddTouchPageCommand { get; }
+    public ICommand RotaryPageButtonCommand { get; }
+    public ICommand TouchPageButtonCommand { get; }
 
     public LoupedeckLiveS LoupeDeckDevice { get; set; }
 
@@ -28,28 +30,45 @@ public class MainWindowViewModel : ViewModelBase
 
         if (LoupeDeckDevice.TouchButtonPages.Count == 0)
         {
-            LoupeDeckDevice.AddPage();
+            LoupeDeckDevice.AddTouchButtonPage();
         }
         else
         {
             LoupeDeckDevice.RefreshTouchButtons();
         }
 
+        if (LoupeDeckDevice.RotaryButtonPages.Count == 0)
+        {
+            LoupeDeckDevice.AddRotaryButtonPage();
+        }
+
         RotaryButtonCommand = new AsyncRelayCommand<RotaryButton>(RotaryButton_Click);
         SimpleButtonCommand = new AsyncRelayCommand<SimpleButton>(SimpleButton_Click);
         TouchButtonCommand = new AsyncRelayCommand<TouchButton>(TouchButton_Click);
-        AddPageCommand = new RelayCommand(AddPageButton_Click);
-        PageButtonCommand = new CommunityToolkit.Mvvm.Input.RelayCommand<int>(PageButton_Click);
+        AddRotaryPageCommand = new RelayCommand(AddRotaryPageButton_Click);
+        AddTouchPageCommand = new RelayCommand(AddTouchPageButton_Click);
+        RotaryPageButtonCommand = new CommunityToolkit.Mvvm.Input.RelayCommand<int>(RotaryPageButton_Click);
+        TouchPageButtonCommand = new CommunityToolkit.Mvvm.Input.RelayCommand<int>(TouchPageButton_Click);
     }
 
-    private void PageButton_Click(int page)
+    private void AddRotaryPageButton_Click()
     {
-        LoupeDeckDevice.ApplyPage(page - 1);
+        Avalonia.Threading.Dispatcher.UIThread.Post(() => { LoupeDeckDevice.AddRotaryButtonPage(); });
     }
 
-    private void AddPageButton_Click()
+    private void AddTouchPageButton_Click()
     {
-        LoupeDeckDevice.AddPage();
+        Avalonia.Threading.Dispatcher.UIThread.Post(() => { LoupeDeckDevice.AddTouchButtonPage(); });
+    }
+
+    private void RotaryPageButton_Click(int page)
+    {
+        Avalonia.Threading.Dispatcher.UIThread.Post(() => { LoupeDeckDevice.ApplyRotaryPage(page - 1); });
+    }
+
+    private void TouchPageButton_Click(int page)
+    {
+        Avalonia.Threading.Dispatcher.UIThread.Post(() => { LoupeDeckDevice.ApplyTouchPage(page - 1); });
     }
 
     private async Task RotaryButton_Click(RotaryButton button)
