@@ -31,8 +31,51 @@
                 HorizontalAlignment="Center"
                 Width="90"
                 Height="90"
+                Background="Transparent"
                 Command="{Binding RotaryButtonCommand}"
                 CommandParameter="{Binding LoupeDeckDevice.CurrentRotaryButtonsPage.RotaryButtons[0], Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
+                <Button.Styles>
+                    <!-- Standard-Zustand -->
+                    <Style Selector="Button">
+                        <Setter Property="Background" Value="Transparent" />
+                        <Setter Property="Border.CornerRadius" Value="50" />
+                    </Style>
+
+                    <!-- MouseOver -->
+                    <Style Selector="Button:pointerover">
+                        <Setter Property="Background">
+                            <Setter.Value>
+                                <SolidColorBrush Color="LightGray" />
+                            </Setter.Value>
+                        </Setter>
+                        <Setter Property="Border.CornerRadius" Value="50" />
+                    </Style>
+
+                    <!-- Fokus (wenn der Button aktiv ist, z. B. nach einem Dialog) -->
+                    <Style Selector="Button:focus">
+                        <Setter Property="Background">
+                            <Setter.Value>
+                                <SolidColorBrush Color="LightGray" />
+                            </Setter.Value>
+                        </Setter>
+                        <Setter Property="Border.CornerRadius" Value="50" />
+                    </Style>
+
+                    <!-- Geklickt/Hold-Zustand -->
+                    <Style Selector="Button:pressed">
+                        <Setter Property="Background">
+                            <Setter.Value>
+                                <SolidColorBrush Color="DarkGray" />
+                            </Setter.Value>
+                        </Setter>
+                        <Setter Property="Border.CornerRadius" Value="50" />
+                    </Style>
+                </Button.Styles>
+                <Border Background="Transparent" Width="90" Height="90" CornerRadius="50">
+                    <Image Source="{SvgImage avares://LoupixDeck/Assets/dial.svg}" Stretch="UniformToFill"
+                           HorizontalAlignment="Center"
+                           VerticalAlignment="Center" />
+                </Border>
             </Button>
             <Button
                 Grid.Column="0"
@@ -40,8 +83,51 @@
                 HorizontalAlignment="Center"
                 Width="90"
                 Height="90"
+                Background="Transparent"
                 Command="{Binding RotaryButtonCommand}"
                 CommandParameter="{Binding LoupeDeckDevice.CurrentRotaryButtonsPage.RotaryButtons[1], Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
+                <Button.Styles>
+                    <!-- Standard-Zustand -->
+                    <Style Selector="Button">
+                        <Setter Property="Background" Value="Transparent" />
+                        <Setter Property="Border.CornerRadius" Value="50" />
+                    </Style>
+
+                    <!-- MouseOver -->
+                    <Style Selector="Button:pointerover">
+                        <Setter Property="Background">
+                            <Setter.Value>
+                                <SolidColorBrush Color="LightGray" />
+                            </Setter.Value>
+                        </Setter>
+                        <Setter Property="Border.CornerRadius" Value="50" />
+                    </Style>
+
+                    <!-- Fokus (wenn der Button aktiv ist, z. B. nach einem Dialog) -->
+                    <Style Selector="Button:focus">
+                        <Setter Property="Background">
+                            <Setter.Value>
+                                <SolidColorBrush Color="LightGray" />
+                            </Setter.Value>
+                        </Setter>
+                        <Setter Property="Border.CornerRadius" Value="50" />
+                    </Style>
+
+                    <!-- Geklickt/Hold-Zustand -->
+                    <Style Selector="Button:pressed">
+                        <Setter Property="Background">
+                            <Setter.Value>
+                                <SolidColorBrush Color="DarkGray" />
+                            </Setter.Value>
+                        </Setter>
+                        <Setter Property="Border.CornerRadius" Value="50" />
+                    </Style>
+                </Button.Styles>
+                <Border Background="Transparent" Width="90" Height="90" CornerRadius="50">
+                    <Image Source="{SvgImage avares://LoupixDeck/Assets/dial.svg}" Stretch="UniformToFill"
+                           HorizontalAlignment="Center"
+                           VerticalAlignment="Center" />
+                </Border>
             </Button>
             <Button
                 Grid.Column="0"
@@ -52,7 +138,46 @@
                 Background="Transparent"
                 Command="{Binding SimpleButtonCommand}"
                 CommandParameter="{Binding LoupeDeckDevice.SimpleButtons[0]}">
-                <Image Source="{Binding LoupeDeckDevice.SimpleButtons[0].RenderedImage}" />
+                <Button.Styles>
+                    <!-- Standard-Zustand -->
+                    <Style Selector="Button">
+                        <Setter Property="Background" Value="Transparent" />
+                        <Setter Property="Border.CornerRadius" Value="50" />
+                    </Style>
+
+                    <!-- MouseOver -->
+                    <Style Selector="Button:pointerover">
+                        <Setter Property="Background">
+                            <Setter.Value>
+                                <SolidColorBrush Color="LightGray" />
+                            </Setter.Value>
+                        </Setter>
+                        <Setter Property="Border.CornerRadius" Value="50" />
+                    </Style>
+
+                    <!-- Fokus (wenn der Button aktiv ist, z. B. nach einem Dialog) -->
+                    <Style Selector="Button:focus">
+                        <Setter Property="Background">
+                            <Setter.Value>
+                                <SolidColorBrush Color="LightGray" />
+                            </Setter.Value>
+                        </Setter>
+                        <Setter Property="Border.CornerRadius" Value="50" />
+                    </Style>
+
+                    <!-- Geklickt/Hold-Zustand -->
+                    <Style Selector="Button:pressed">
+                        <Setter Property="Background">
+                            <Setter.Value>
+                                <SolidColorBrush Color="DarkGray" />
+                            </Setter.Value>
+                        </Setter>
+                        <Setter Property="Border.CornerRadius" Value="50" />
+                    </Style>
+                </Button.Styles>
+                <Border Background="Transparent" Width="90" Height="90" CornerRadius="50">
+                    <Image Source="{Binding LoupeDeckDevice.SimpleButtons[0].RenderedImage}" />
+                </Border>
             </Button>
 
             <StackPanel Width="30"
@@ -249,7 +374,46 @@
                 Height="90"
                 Background="Transparent"
                 Command="{Binding SimpleButtonCommand}" CommandParameter="{Binding LoupeDeckDevice.SimpleButtons[1]}">
-                <Image Source="{Binding LoupeDeckDevice.SimpleButtons[1].RenderedImage}" />
+                <Button.Styles>
+                    <!-- Standard-Zustand -->
+                    <Style Selector="Button">
+                        <Setter Property="Background" Value="Transparent" />
+                        <Setter Property="Border.CornerRadius" Value="50" />
+                    </Style>
+
+                    <!-- MouseOver -->
+                    <Style Selector="Button:pointerover">
+                        <Setter Property="Background">
+                            <Setter.Value>
+                                <SolidColorBrush Color="LightGray" />
+                            </Setter.Value>
+                        </Setter>
+                        <Setter Property="Border.CornerRadius" Value="50" />
+                    </Style>
+
+                    <!-- Fokus (wenn der Button aktiv ist, z. B. nach einem Dialog) -->
+                    <Style Selector="Button:focus">
+                        <Setter Property="Background">
+                            <Setter.Value>
+                                <SolidColorBrush Color="LightGray" />
+                            </Setter.Value>
+                        </Setter>
+                        <Setter Property="Border.CornerRadius" Value="50" />
+                    </Style>
+
+                    <!-- Geklickt/Hold-Zustand -->
+                    <Style Selector="Button:pressed">
+                        <Setter Property="Background">
+                            <Setter.Value>
+                                <SolidColorBrush Color="DarkGray" />
+                            </Setter.Value>
+                        </Setter>
+                        <Setter Property="Border.CornerRadius" Value="50" />
+                    </Style>
+                </Button.Styles>
+                <Border Background="Transparent" Width="90" Height="90" CornerRadius="50">
+                    <Image Source="{Binding LoupeDeckDevice.SimpleButtons[1].RenderedImage}" />
+                </Border>
             </Button>
             <Button
                 Grid.Row="1"
@@ -258,7 +422,46 @@
                 Height="90"
                 Background="Transparent"
                 Command="{Binding SimpleButtonCommand}" CommandParameter="{Binding LoupeDeckDevice.SimpleButtons[2]}">
-                <Image Source="{Binding LoupeDeckDevice.SimpleButtons[2].RenderedImage}" />
+                <Button.Styles>
+                    <!-- Standard-Zustand -->
+                    <Style Selector="Button">
+                        <Setter Property="Background" Value="Transparent" />
+                        <Setter Property="Border.CornerRadius" Value="50" />
+                    </Style>
+
+                    <!-- MouseOver -->
+                    <Style Selector="Button:pointerover">
+                        <Setter Property="Background">
+                            <Setter.Value>
+                                <SolidColorBrush Color="LightGray" />
+                            </Setter.Value>
+                        </Setter>
+                        <Setter Property="Border.CornerRadius" Value="50" />
+                    </Style>
+
+                    <!-- Fokus (wenn der Button aktiv ist, z. B. nach einem Dialog) -->
+                    <Style Selector="Button:focus">
+                        <Setter Property="Background">
+                            <Setter.Value>
+                                <SolidColorBrush Color="LightGray" />
+                            </Setter.Value>
+                        </Setter>
+                        <Setter Property="Border.CornerRadius" Value="50" />
+                    </Style>
+
+                    <!-- Geklickt/Hold-Zustand -->
+                    <Style Selector="Button:pressed">
+                        <Setter Property="Background">
+                            <Setter.Value>
+                                <SolidColorBrush Color="DarkGray" />
+                            </Setter.Value>
+                        </Setter>
+                        <Setter Property="Border.CornerRadius" Value="50" />
+                    </Style>
+                </Button.Styles>
+                <Border Background="Transparent" Width="90" Height="90" CornerRadius="50">
+                    <Image Source="{Binding LoupeDeckDevice.SimpleButtons[2].RenderedImage}" />
+                </Border>
             </Button>
             <Button
                 Grid.Row="2"
@@ -267,7 +470,46 @@
                 Height="90"
                 Background="Transparent"
                 Command="{Binding SimpleButtonCommand}" CommandParameter="{Binding LoupeDeckDevice.SimpleButtons[3]}">
-                <Image Source="{Binding LoupeDeckDevice.SimpleButtons[3].RenderedImage}" />
+                <Button.Styles>
+                    <!-- Standard-Zustand -->
+                    <Style Selector="Button">
+                        <Setter Property="Background" Value="Transparent" />
+                        <Setter Property="Border.CornerRadius" Value="50" />
+                    </Style>
+
+                    <!-- MouseOver -->
+                    <Style Selector="Button:pointerover">
+                        <Setter Property="Background">
+                            <Setter.Value>
+                                <SolidColorBrush Color="LightGray" />
+                            </Setter.Value>
+                        </Setter>
+                        <Setter Property="Border.CornerRadius" Value="50" />
+                    </Style>
+
+                    <!-- Fokus (wenn der Button aktiv ist, z. B. nach einem Dialog) -->
+                    <Style Selector="Button:focus">
+                        <Setter Property="Background">
+                            <Setter.Value>
+                                <SolidColorBrush Color="LightGray" />
+                            </Setter.Value>
+                        </Setter>
+                        <Setter Property="Border.CornerRadius" Value="50" />
+                    </Style>
+
+                    <!-- Geklickt/Hold-Zustand -->
+                    <Style Selector="Button:pressed">
+                        <Setter Property="Background">
+                            <Setter.Value>
+                                <SolidColorBrush Color="DarkGray" />
+                            </Setter.Value>
+                        </Setter>
+                        <Setter Property="Border.CornerRadius" Value="50" />
+                    </Style>
+                </Button.Styles>
+                <Border Background="Transparent" Width="90" Height="90" CornerRadius="50">
+                    <Image Source="{Binding LoupeDeckDevice.SimpleButtons[3].RenderedImage}" />
+                </Border>
             </Button>
         </Grid>
 
