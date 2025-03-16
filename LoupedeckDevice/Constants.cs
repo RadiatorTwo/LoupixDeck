@@ -2,22 +2,39 @@ namespace LoupixDeck.LoupedeckDevice;
 
 public static class Constants
 {
-    public static readonly Dictionary<byte, string> Buttons = new()
+    public enum ButtonType
     {
-        { 0x01, "knobTL" },
-        { 0x02, "knobCL" },
-        { 0x03, "knobBL" },
-        { 0x04, "knobTR" },
-        { 0x05, "knobCR" },
-        { 0x06, "knobBR" },
-        { 0x07, "0" },
-        { 0x08, "1" },
-        { 0x09, "2" },
-        { 0x0a, "3" },
-        { 0x0b, "4" },
-        { 0x0c, "5" },
-        { 0x0d, "6" },
-        { 0x0e, "7" }
+        KNOB_TL = 0,
+        KNOB_CL = 1,
+        KNOB_BL = 2,
+        KNOB_TR = 3,
+        KNOB_CR = 4,
+        KNOB_BR = 5,
+        BUTTON0 = 6,
+        BUTTON1 = 7,
+        BUTTON2 = 8,
+        BUTTON3 = 9,
+        BUTTON4 = 10,
+        BUTTON5 = 11,
+        BUTTON6 = 12,
+        BUTTON7 = 13
+    }
+    public static readonly Dictionary<byte, ButtonType> Buttons = new()
+    {
+        { 0x01, ButtonType.KNOB_TL },
+        { 0x02, ButtonType.KNOB_CL },
+        { 0x03, ButtonType.KNOB_BL },
+        { 0x04, ButtonType.KNOB_TR },
+        { 0x05, ButtonType.KNOB_CR },
+        { 0x06, ButtonType.KNOB_BR },
+        { 0x07, ButtonType.BUTTON0 },
+        { 0x08, ButtonType.BUTTON1 },
+        { 0x09, ButtonType.BUTTON2 },
+        { 0x0a, ButtonType.BUTTON3 },
+        { 0x0b, ButtonType.BUTTON4 },
+        { 0x0c, ButtonType.BUTTON5 },
+        { 0x0d, ButtonType.BUTTON6 },
+        { 0x0e, ButtonType.BUTTON7 }
     };
 
     public const int ConnectionTimeout = 3000;

@@ -19,8 +19,6 @@ public abstract class LoupedeckBase : INotifyPropertyChanged
         get => _currentTouchPageIndex;
         set
         {
-            //if (value.Equals(_currentPageIndex)) return;
-
             _currentTouchPageIndex = value;
 
             foreach (var page in TouchButtonPages)
@@ -260,7 +258,7 @@ public abstract class LoupedeckBase : INotifyPropertyChanged
 
     public abstract void InitButtonEvents();
 
-    public abstract SimpleButton CreateSimpleButton(string id, Color color, string command);
+    public abstract SimpleButton CreateSimpleButton(Constants.ButtonType id, Color color, string command);
     protected abstract void SimpleButtonChanged(object sender, EventArgs e);
 
     public abstract void OnTouchButtonPress(object sender, TouchEventArgs e);
