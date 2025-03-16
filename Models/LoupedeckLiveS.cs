@@ -15,21 +15,12 @@ public sealed class LoupedeckLiveS : LoupedeckBase
         SimpleButtons =
         [
             CreateSimpleButton("0", Colors.Blue, "System.PreviousPage"),
-            CreateSimpleButton("1", Colors.Blue, string.Empty),
-            CreateSimpleButton("2", Colors.Blue, string.Empty),
+            CreateSimpleButton("1", Colors.Blue, "System.PreviousRotaryPage"),
+            CreateSimpleButton("2", Colors.Blue, "System.NextRotaryPage"),
             CreateSimpleButton("3", Colors.Blue, "System.NextPage")
         ];
 
-        RotaryButtons =
-        [
-            new RotaryButton()
-            {
-                RotaryLeftCommand = "wpctl set-volume 33 1%-",
-                RotaryRightCommand = "wpctl set-volume 33 1%+"
-            },
-            new RotaryButton()
-        ];
-
+        RotaryButtonPages = new ObservableCollection<RotaryButtonPage>();
         TouchButtonPages = new ObservableCollection<TouchButtonPage>();
         CurrentTouchButtonPage = new TouchButton[15];
 
@@ -62,16 +53,15 @@ public sealed class LoupedeckLiveS : LoupedeckBase
         if (e.EventType != Constants.ButtonEventType.BUTTON_DOWN) return;
 
         var button = SimpleButtons.FirstOrDefault(b => b.Id == e.ButtonId);
-        if (button != null)
+        if (button == null) return;
+        
+        if (Constants.SystemCommands.TryGetValue(button.Command, out var command))
         {
-            if (Constants.SystemCommands.TryGetValue(button.Command, out var command))
-            {
-                ExceuteSystemCommand(command);
-            }
-            else
-            {
-                CommandRunner.ExecuteCommand(button.Command);
-            }
+            Avalonia.Threading.Dispatcher.UIThread.Post(() => { ExceuteSystemCommand(command); });
+        }
+        else
+        {
+            CommandRunner.ExecuteCommand(button.Command);
         }
     }
 
@@ -88,7 +78,7 @@ public sealed class LoupedeckLiveS : LoupedeckBase
 
             if (Constants.SystemCommands.TryGetValue(button.Command, out var command))
             {
-                ExceuteSystemCommand(command);
+                Avalonia.Threading.Dispatcher.UIThread.Post(() => { ExceuteSystemCommand(command); });
             }
             else
             {
@@ -101,21 +91,20 @@ public sealed class LoupedeckLiveS : LoupedeckBase
     {
         var command = e.ButtonId switch
         {
-            "knobTL" => e.Delta < 0 ? RotaryButtons[0].RotaryLeftCommand : RotaryButtons[0].RotaryRightCommand,
-            "knobCL" => e.Delta < 0 ? RotaryButtons[1].RotaryLeftCommand : RotaryButtons[1].RotaryRightCommand,
+            "knobTL" => e.Delta < 0 ? RotaryButtonPages[CurrentRotaryPageIndex].RotaryButtons[0].RotaryLeftCommand : RotaryButtonPages[CurrentRotaryPageIndex].RotaryButtons[0].RotaryRightCommand,
+            "knobCL" => e.Delta < 0 ? RotaryButtonPages[CurrentRotaryPageIndex].RotaryButtons[1].RotaryLeftCommand : RotaryButtonPages[CurrentRotaryPageIndex].RotaryButtons[1].RotaryRightCommand,
             _ => null
         };
 
-        if (!string.IsNullOrEmpty(command))
+        if (string.IsNullOrEmpty(command)) return;
+        
+        if (Constants.SystemCommands.TryGetValue(command, out var systemCommand))
         {
-            if (Constants.SystemCommands.TryGetValue(command, out var systemCommand))
-            {
-                ExceuteSystemCommand(systemCommand);
-            }
-            else
-            {
-                CommandRunner.ExecuteCommand(command);
-            }
+            Avalonia.Threading.Dispatcher.UIThread.Post(() => { ExceuteSystemCommand(systemCommand); });
+        }
+        else
+        {
+            CommandRunner.ExecuteCommand(command);
         }
     }
 
@@ -175,12 +164,14 @@ public sealed class LoupedeckLiveS : LoupedeckBase
         StaticDevice.Device.SetBrightness(Brightness);
     }
 
-    public override void AddPage()
+    public override void AddTouchButtonPage()
     {
-        CurrentPageIndex = TouchButtonPages.Count;
+        CurrentTouchPageIndex = TouchButtonPages.Count;
 
-        var newPage = new TouchButtonPage(15);
-        newPage.Page = TouchButtonPages.Count + 1;
+        var newPage = new TouchButtonPage(15)
+        {
+            Page = TouchButtonPages.Count + 1
+        };
 
         for (var i = 0; i < 15; i++)
         {
@@ -197,7 +188,19 @@ public sealed class LoupedeckLiveS : LoupedeckBase
 
         TouchButtonPages.Add(newPage);
 
-        ApplyPage(CurrentPageIndex);
+        ApplyTouchPage(CurrentTouchPageIndex);
+    }
+
+    public override void AddRotaryButtonPage()
+    {
+        CurrentRotaryPageIndex = RotaryButtonPages.Count;
+        
+        var newPage = new RotaryButtonPage(2)
+        {
+            Page = RotaryButtonPages.Count + 1
+        };
+
+        RotaryButtonPages.Add(newPage);
     }
 
     public override void ExceuteSystemCommand(Constants.SystemCommand command)
@@ -205,10 +208,16 @@ public sealed class LoupedeckLiveS : LoupedeckBase
         switch (command)
         {
             case Constants.SystemCommand.NEXT_PAGE:
-                NextPage();
+                NextTouchPage();
                 break;
             case Constants.SystemCommand.PREVIOUS_PAGE:
-                PreviousPage();
+                PreviousTouchPage();
+                break;
+            case Constants.SystemCommand.NEXT_ROT_PAGE:
+                NextRotaryPage();
+                break;
+            case Constants.SystemCommand.PREVIOUS_ROT_PAGE:
+                PreviousRotaryPage();
                 break;
             default:
                 throw new ArgumentOutOfRangeException(nameof(command), command, null);

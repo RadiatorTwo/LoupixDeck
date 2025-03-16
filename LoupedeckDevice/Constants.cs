@@ -89,12 +89,16 @@ public static class Constants
     public enum SystemCommand
     {
         NEXT_PAGE = 0,
-        PREVIOUS_PAGE = 1
+        PREVIOUS_PAGE = 1,
+        NEXT_ROT_PAGE = 2,
+        PREVIOUS_ROT_PAGE = 3
     }
     
     public static readonly Dictionary<string, SystemCommand> SystemCommands = new()
     {
         { "System.NextPage", SystemCommand.NEXT_PAGE },
-        { "System.PreviousPage", SystemCommand.PREVIOUS_PAGE }
+        { "System.PreviousPage", SystemCommand.PREVIOUS_PAGE },
+        { "System.NextRotaryPage", SystemCommand.NEXT_ROT_PAGE },
+        { "System.PreviousRotaryPage", SystemCommand.PREVIOUS_ROT_PAGE }
     };
 }

@@ -11,31 +11,73 @@ namespace LoupixDeck.Models;
 
 public abstract class LoupedeckBase : INotifyPropertyChanged
 {
-    [JsonIgnore] private int _currentPageIndex;
+    [JsonIgnore] private int _currentTouchPageIndex;
 
     [JsonIgnore]
-    public int CurrentPageIndex
+    protected int CurrentTouchPageIndex
     {
-        get => _currentPageIndex;
+        get => _currentTouchPageIndex;
         set
         {
             //if (value.Equals(_currentPageIndex)) return;
 
-            _currentPageIndex = value;
+            _currentTouchPageIndex = value;
 
             foreach (var page in TouchButtonPages)
             {
-                page.IsSelected = page.Page == _currentPageIndex + 1;
+                page.IsSelected = page.Page == _currentTouchPageIndex + 1;
             }
 
             OnPropertyChanged();
         }
     }
 
+    [JsonIgnore] private int _currentRotaryPageIndex;
+
+    [JsonIgnore]
+    protected int CurrentRotaryPageIndex
+    {
+        get => _currentRotaryPageIndex;
+        set
+        {
+            _currentRotaryPageIndex = value;
+
+            foreach (var page in RotaryButtonPages)
+            {
+                page.IsSelected = page.Page == _currentRotaryPageIndex + 1;
+            }
+
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(CurrentRotaryButtonsPage));
+        }
+    }
+
+    [JsonIgnore]
+    public RotaryButtonPage CurrentRotaryButtonsPage
+    {
+        get
+        {
+            if (CurrentRotaryPageIndex >= 0 && CurrentRotaryPageIndex < RotaryButtonPages.Count)
+            {
+                return RotaryButtonPages[CurrentRotaryPageIndex];
+            }
+
+            return null;
+        }
+        set
+        {
+            if (CurrentRotaryPageIndex < 0 || CurrentRotaryPageIndex >= RotaryButtonPages.Count) return;
+
+            RotaryButtonPages[CurrentRotaryPageIndex] = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(RotaryButtonPages));
+        }
+    }
+
+    public ObservableCollection<RotaryButtonPage> RotaryButtonPages { get; set; }
     public ObservableCollection<TouchButtonPage> TouchButtonPages { get; set; }
     public TouchButton[] CurrentTouchButtonPage { get; set; }
     public SimpleButton[] SimpleButtons { get; set; }
-    public RotaryButton[] RotaryButtons { get; set; }
 
     private double _brightness = 1;
 
@@ -88,7 +130,8 @@ public abstract class LoupedeckBase : INotifyPropertyChanged
         var json = File.ReadAllText(filePath);
 
         var instance = JsonSerializer.Deserialize<T>(json, options);
-        instance.CurrentPageIndex = 0;
+        instance.CurrentTouchPageIndex = 0;
+        instance.CurrentRotaryPageIndex = 0;
 
         instance.InitUpdateEvents();
 
@@ -124,21 +167,36 @@ public abstract class LoupedeckBase : INotifyPropertyChanged
         return Path.Combine(configDir, fileName);
     }
 
-    protected void NextPage()
+    protected void NextRotaryPage()
     {
-        CurrentPageIndex = (CurrentPageIndex + 1) % TouchButtonPages.Count;
-        ApplyPage(CurrentPageIndex);
+        CurrentRotaryPageIndex = (CurrentRotaryPageIndex + 1) % RotaryButtonPages.Count;
     }
 
-    protected void PreviousPage()
+    protected void PreviousRotaryPage()
     {
-        CurrentPageIndex = (CurrentPageIndex - 1 + TouchButtonPages.Count) % TouchButtonPages.Count;
-        ApplyPage(CurrentPageIndex);
+        CurrentRotaryPageIndex = (CurrentRotaryPageIndex - 1 + RotaryButtonPages.Count) % RotaryButtonPages.Count;
     }
 
-    public void ApplyPage(int pageIndex)
+    public void ApplyRotaryPage(int pageIndex)
     {
-        CurrentPageIndex = pageIndex;
+        CurrentRotaryPageIndex = pageIndex;
+    }
+
+    protected void NextTouchPage()
+    {
+        CurrentTouchPageIndex = (CurrentTouchPageIndex + 1) % TouchButtonPages.Count;
+        ApplyTouchPage(CurrentTouchPageIndex);
+    }
+
+    protected void PreviousTouchPage()
+    {
+        CurrentTouchPageIndex = (CurrentTouchPageIndex - 1 + TouchButtonPages.Count) % TouchButtonPages.Count;
+        ApplyTouchPage(CurrentTouchPageIndex);
+    }
+
+    public void ApplyTouchPage(int pageIndex)
+    {
+        CurrentTouchPageIndex = pageIndex;
 
         // Copy the TouchButtons of the new page to `CurrentTouchButtons`.
         foreach (var touchButton in TouchButtonPages[pageIndex].TouchButtons)
@@ -182,22 +240,22 @@ public abstract class LoupedeckBase : INotifyPropertyChanged
     protected void CopyBackTouchButtonData(TouchButton source)
     {
         // Check if Page exists.
-        if (TouchButtonPages[CurrentPageIndex] == null) return;
+        if (TouchButtonPages[CurrentTouchPageIndex] == null) return;
 
-        if (TouchButtonPages[CurrentPageIndex].TouchButtons[source.Index] == null)
+        if (TouchButtonPages[CurrentTouchPageIndex].TouchButtons[source.Index] == null)
         {
-            TouchButtonPages[CurrentPageIndex].TouchButtons[source.Index] = new TouchButton(source.Index);
+            TouchButtonPages[CurrentTouchPageIndex].TouchButtons[source.Index] = new TouchButton(source.Index);
         }
 
-        TouchButtonPages[CurrentPageIndex].TouchButtons[source.Index].Text = source.Text;
-        TouchButtonPages[CurrentPageIndex].TouchButtons[source.Index].TextColor = source.TextColor;
-        TouchButtonPages[CurrentPageIndex].TouchButtons[source.Index].TextCentered = source.TextCentered;
-        TouchButtonPages[CurrentPageIndex].TouchButtons[source.Index].TextPosition = source.TextPosition;
-        TouchButtonPages[CurrentPageIndex].TouchButtons[source.Index].TextSize = source.TextSize;
-        TouchButtonPages[CurrentPageIndex].TouchButtons[source.Index].Image = source.Image;
-        TouchButtonPages[CurrentPageIndex].TouchButtons[source.Index].BackColor = source.BackColor;
-        TouchButtonPages[CurrentPageIndex].TouchButtons[source.Index].Command = source.Command;
-        TouchButtonPages[CurrentPageIndex].TouchButtons[source.Index].RenderedImage = source.RenderedImage;
+        TouchButtonPages[CurrentTouchPageIndex].TouchButtons[source.Index].Text = source.Text;
+        TouchButtonPages[CurrentTouchPageIndex].TouchButtons[source.Index].TextColor = source.TextColor;
+        TouchButtonPages[CurrentTouchPageIndex].TouchButtons[source.Index].TextCentered = source.TextCentered;
+        TouchButtonPages[CurrentTouchPageIndex].TouchButtons[source.Index].TextPosition = source.TextPosition;
+        TouchButtonPages[CurrentTouchPageIndex].TouchButtons[source.Index].TextSize = source.TextSize;
+        TouchButtonPages[CurrentTouchPageIndex].TouchButtons[source.Index].Image = source.Image;
+        TouchButtonPages[CurrentTouchPageIndex].TouchButtons[source.Index].BackColor = source.BackColor;
+        TouchButtonPages[CurrentTouchPageIndex].TouchButtons[source.Index].Command = source.Command;
+        TouchButtonPages[CurrentTouchPageIndex].TouchButtons[source.Index].RenderedImage = source.RenderedImage;
     }
 
     public abstract void InitButtonEvents();
@@ -217,7 +275,8 @@ public abstract class LoupedeckBase : INotifyPropertyChanged
 
     public abstract void ApplyAllData();
 
-    public abstract void AddPage();
+    public abstract void AddTouchButtonPage();
+    public abstract void AddRotaryButtonPage();
 
     public abstract void ExceuteSystemCommand(Constants.SystemCommand command);
 }

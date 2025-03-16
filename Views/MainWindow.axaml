@@ -20,33 +20,80 @@
     </Design.DataContext>
 
     <Grid ColumnDefinitions="150,500,150" RowDefinitions="300,30,50">
-        <Grid Grid.Row="0" Grid.Column="0" HorizontalAlignment="Center" RowDefinitions="100,100,100">
+        <Grid Grid.Row="0"
+              Grid.Column="0"
+              HorizontalAlignment="Center"
+              RowDefinitions="100,100,100"
+              ColumnDefinitions="100,50">
             <Button
+                Grid.Column="0"
                 Grid.Row="0"
-                Grid.Column="0"
+                HorizontalAlignment="Center"
                 Width="90"
                 Height="90"
-                Margin="5"
-                Command="{Binding RotaryButtonCommand}" CommandParameter="{Binding LoupeDeckDevice.RotaryButtons[0]}">
+                Command="{Binding RotaryButtonCommand}"
+                CommandParameter="{Binding LoupeDeckDevice.CurrentRotaryButtonsPage.RotaryButtons[0], Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
             </Button>
             <Button
+                Grid.Column="0"
                 Grid.Row="1"
-                Grid.Column="0"
+                HorizontalAlignment="Center"
                 Width="90"
                 Height="90"
-                Margin="5"
-                Command="{Binding RotaryButtonCommand}" CommandParameter="{Binding LoupeDeckDevice.RotaryButtons[1]}">
+                Command="{Binding RotaryButtonCommand}"
+                CommandParameter="{Binding LoupeDeckDevice.CurrentRotaryButtonsPage.RotaryButtons[1], Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
             </Button>
             <Button
-                Grid.Row="2"
                 Grid.Column="0"
+                Grid.Row="2"
+                HorizontalAlignment="Center"
                 Width="90"
                 Height="90"
-                Margin="5"
                 Background="Transparent"
-                Command="{Binding SimpleButtonCommand}" CommandParameter="{Binding LoupeDeckDevice.SimpleButtons[0]}">
+                Command="{Binding SimpleButtonCommand}"
+                CommandParameter="{Binding LoupeDeckDevice.SimpleButtons[0]}">
                 <Image Source="{Binding LoupeDeckDevice.SimpleButtons[0].RenderedImage}" />
             </Button>
+
+            <StackPanel Width="30"
+                        Margin="0,6,0,0"
+                        Grid.Row="0"
+                        Grid.Column="1"
+                        Grid.RowSpan="3"
+                        HorizontalAlignment="Left"
+                        Orientation="Vertical">
+                <ItemsControl ItemsSource="{Binding LoupeDeckDevice.RotaryButtonPages}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel Orientation="Vertical" />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Button Content="{Binding Page}"
+                                    Command="{Binding ViewModel.RotaryPageButtonCommand, ElementName=RootWindow}"
+                                    CommandParameter="{Binding Page}"
+                                    Width="30" Height="30" CornerRadius="8"
+                                    HorizontalContentAlignment="Center"
+                                    VerticalContentAlignment="Center">
+                                <Button.Background>
+                                    <MultiBinding Converter="{StaticResource PageSelectionConverter}">
+                                        <Binding Path="IsSelected" />
+                                        <Binding Path="Page" />
+                                    </MultiBinding>
+                                </Button.Background>
+                            </Button>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <Button Content="+"
+                        Width="30"
+                        Height="30"
+                        CornerRadius="8"
+                        HorizontalContentAlignment="Center"
+                        VerticalContentAlignment="Center"
+                        Command="{Binding AddRotaryPageCommand}" />
+            </StackPanel>
         </Grid>
 
         <Grid Grid.Row="0" Grid.Column="1" HorizontalAlignment="Center" ColumnDefinitions="100,100,100,100,100"
@@ -58,7 +105,6 @@
                 Grid.Column="0"
                 Width="90"
                 Height="90"
-                Margin="5"
                 Command="{Binding TouchButtonCommand}"
                 CommandParameter="{Binding LoupeDeckDevice.CurrentTouchButtonPage[0]}">
                 <Image Source="{Binding LoupeDeckDevice.CurrentTouchButtonPage[0].RenderedImage}" />
@@ -68,7 +114,6 @@
                 Grid.Column="1"
                 Width="90"
                 Height="90"
-                Margin="5"
                 Command="{Binding TouchButtonCommand}"
                 CommandParameter="{Binding LoupeDeckDevice.CurrentTouchButtonPage[1]}">
                 <Image Source="{Binding LoupeDeckDevice.CurrentTouchButtonPage[1].RenderedImage}" />
@@ -78,7 +123,6 @@
                 Grid.Column="2"
                 Width="90"
                 Height="90"
-                Margin="5"
                 Command="{Binding TouchButtonCommand}"
                 CommandParameter="{Binding LoupeDeckDevice.CurrentTouchButtonPage[2]}">
                 <Image Source="{Binding LoupeDeckDevice.CurrentTouchButtonPage[2].RenderedImage}" />
@@ -88,7 +132,6 @@
                 Grid.Column="3"
                 Width="90"
                 Height="90"
-                Margin="5"
                 Command="{Binding TouchButtonCommand}"
                 CommandParameter="{Binding LoupeDeckDevice.CurrentTouchButtonPage[3]}">
                 <Image Source="{Binding LoupeDeckDevice.CurrentTouchButtonPage[3].RenderedImage}" />
@@ -98,7 +141,6 @@
                 Grid.Column="4"
                 Width="90"
                 Height="90"
-                Margin="5"
                 Command="{Binding TouchButtonCommand}"
                 CommandParameter="{Binding LoupeDeckDevice.CurrentTouchButtonPage[4]}">
                 <Image Source="{Binding LoupeDeckDevice.CurrentTouchButtonPage[4].RenderedImage}" />
@@ -110,7 +152,6 @@
                 Grid.Column="0"
                 Width="90"
                 Height="90"
-                Margin="5"
                 Command="{Binding TouchButtonCommand}"
                 CommandParameter="{Binding LoupeDeckDevice.CurrentTouchButtonPage[5]}">
                 <Image Source="{Binding LoupeDeckDevice.CurrentTouchButtonPage[5].RenderedImage}" />
@@ -120,7 +161,6 @@
                 Grid.Column="1"
                 Width="90"
                 Height="90"
-                Margin="5"
                 Command="{Binding TouchButtonCommand}"
                 CommandParameter="{Binding LoupeDeckDevice.CurrentTouchButtonPage[6]}">
                 <Image Source="{Binding LoupeDeckDevice.CurrentTouchButtonPage[6].RenderedImage}" />
@@ -130,7 +170,6 @@
                 Grid.Column="2"
                 Width="90"
                 Height="90"
-                Margin="5"
                 Command="{Binding TouchButtonCommand}"
                 CommandParameter="{Binding LoupeDeckDevice.CurrentTouchButtonPage[7]}">
                 <Image Source="{Binding LoupeDeckDevice.CurrentTouchButtonPage[7].RenderedImage}" />
@@ -140,7 +179,6 @@
                 Grid.Column="3"
                 Width="90"
                 Height="90"
-                Margin="5"
                 Command="{Binding TouchButtonCommand}"
                 CommandParameter="{Binding LoupeDeckDevice.CurrentTouchButtonPage[8]}">
                 <Image Source="{Binding LoupeDeckDevice.CurrentTouchButtonPage[8].RenderedImage}" />
@@ -150,7 +188,6 @@
                 Grid.Column="4"
                 Width="90"
                 Height="90"
-                Margin="5"
                 Command="{Binding TouchButtonCommand}"
                 CommandParameter="{Binding LoupeDeckDevice.CurrentTouchButtonPage[9]}">
                 <Image Source="{Binding LoupeDeckDevice.CurrentTouchButtonPage[9].RenderedImage}" />
@@ -162,7 +199,6 @@
                 Grid.Column="0"
                 Width="90"
                 Height="90"
-                Margin="5"
                 Command="{Binding TouchButtonCommand}"
                 CommandParameter="{Binding LoupeDeckDevice.CurrentTouchButtonPage[10]}">
                 <Image Source="{Binding LoupeDeckDevice.CurrentTouchButtonPage[10].RenderedImage}" />
@@ -172,7 +208,6 @@
                 Grid.Column="1"
                 Width="90"
                 Height="90"
-                Margin="5"
                 Command="{Binding TouchButtonCommand}"
                 CommandParameter="{Binding LoupeDeckDevice.CurrentTouchButtonPage[11]}">
                 <Image Source="{Binding LoupeDeckDevice.CurrentTouchButtonPage[11].RenderedImage}" />
@@ -182,7 +217,6 @@
                 Grid.Column="2"
                 Width="90"
                 Height="90"
-                Margin="5"
                 Command="{Binding TouchButtonCommand}"
                 CommandParameter="{Binding LoupeDeckDevice.CurrentTouchButtonPage[12]}">
                 <Image Source="{Binding LoupeDeckDevice.CurrentTouchButtonPage[12].RenderedImage}" />
@@ -192,7 +226,6 @@
                 Grid.Column="3"
                 Width="90"
                 Height="90"
-                Margin="5"
                 Command="{Binding TouchButtonCommand}"
                 CommandParameter="{Binding LoupeDeckDevice.CurrentTouchButtonPage[13]}">
                 <Image Source="{Binding LoupeDeckDevice.CurrentTouchButtonPage[13].RenderedImage}" />
@@ -202,7 +235,6 @@
                 Grid.Column="4"
                 Width="90"
                 Height="90"
-                Margin="5"
                 Command="{Binding TouchButtonCommand}"
                 CommandParameter="{Binding LoupeDeckDevice.CurrentTouchButtonPage[14]}">
                 <Image Source="{Binding LoupeDeckDevice.CurrentTouchButtonPage[14].RenderedImage}" />
@@ -215,7 +247,6 @@
                 Grid.Column="0"
                 Width="90"
                 Height="90"
-                Margin="5"
                 Background="Transparent"
                 Command="{Binding SimpleButtonCommand}" CommandParameter="{Binding LoupeDeckDevice.SimpleButtons[1]}">
                 <Image Source="{Binding LoupeDeckDevice.SimpleButtons[1].RenderedImage}" />
@@ -225,7 +256,6 @@
                 Grid.Column="0"
                 Width="90"
                 Height="90"
-                Margin="5"
                 Background="Transparent"
                 Command="{Binding SimpleButtonCommand}" CommandParameter="{Binding LoupeDeckDevice.SimpleButtons[2]}">
                 <Image Source="{Binding LoupeDeckDevice.SimpleButtons[2].RenderedImage}" />
@@ -235,12 +265,12 @@
                 Grid.Column="0"
                 Width="90"
                 Height="90"
-                Margin="5"
                 Background="Transparent"
                 Command="{Binding SimpleButtonCommand}" CommandParameter="{Binding LoupeDeckDevice.SimpleButtons[3]}">
                 <Image Source="{Binding LoupeDeckDevice.SimpleButtons[3].RenderedImage}" />
             </Button>
         </Grid>
+
         <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal">
             <ItemsControl ItemsSource="{Binding LoupeDeckDevice.TouchButtonPages}">
                 <ItemsControl.ItemsPanel>
@@ -251,24 +281,30 @@
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
                         <Button Content="{Binding Page}"
-                                Command="{Binding ViewModel.PageButtonCommand, ElementName=RootWindow}"
+                                Command="{Binding ViewModel.TouchPageButtonCommand, ElementName=RootWindow}"
                                 CommandParameter="{Binding Page}"
                                 Width="30" Height="30" CornerRadius="8"
                                 HorizontalContentAlignment="Center"
                                 VerticalContentAlignment="Center">
                             <Button.Background>
                                 <MultiBinding Converter="{StaticResource PageSelectionConverter}">
-                                    <Binding Path="IsSelected"/>
-                                    <Binding Path="Page"/>
+                                    <Binding Path="IsSelected" />
+                                    <Binding Path="Page" />
                                 </MultiBinding>
                             </Button.Background>
                         </Button>
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
             </ItemsControl>
-            <Button Content="+" Command="{Binding AddPageCommand}" />
+            <Button Content="+"
+                    Width="30"
+                    Height="30"
+                    CornerRadius="8"
+                    HorizontalContentAlignment="Center"
+                    VerticalContentAlignment="Center"
+                    Command="{Binding AddTouchPageCommand}" />
         </StackPanel>
-        <Slider Grid.Column="0" Grid.Row="2" Grid.ColumnSpan="3" Minimum="0" Maximum="1" TickFrequency="0.1"
+        <Slider Grid.Column="1" Grid.Row="2" Minimum="0" Maximum="1" TickFrequency="0.1"
                 IsSnapToTickEnabled="True" Value="{Binding LoupeDeckDevice.Brightness}" />
     </Grid>
 </Window>
