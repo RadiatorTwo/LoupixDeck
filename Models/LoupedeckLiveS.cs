@@ -14,10 +14,10 @@ public sealed class LoupedeckLiveS : LoupedeckBase
 
         SimpleButtons =
         [
-            CreateSimpleButton("0", Colors.Blue, "System.PreviousPage"),
-            CreateSimpleButton("1", Colors.Blue, "System.PreviousRotaryPage"),
-            CreateSimpleButton("2", Colors.Blue, "System.NextRotaryPage"),
-            CreateSimpleButton("3", Colors.Blue, "System.NextPage")
+            CreateSimpleButton(Constants.ButtonType.BUTTON0, Colors.Blue, "System.PreviousPage"),
+            CreateSimpleButton(Constants.ButtonType.BUTTON1, Colors.Blue, "System.PreviousRotaryPage"),
+            CreateSimpleButton(Constants.ButtonType.BUTTON2, Colors.Blue, "System.NextRotaryPage"),
+            CreateSimpleButton(Constants.ButtonType.BUTTON3, Colors.Blue, "System.NextPage")
         ];
 
         RotaryButtonPages = new ObservableCollection<RotaryButtonPage>();
@@ -39,7 +39,7 @@ public sealed class LoupedeckLiveS : LoupedeckBase
         StaticDevice.Device.OnRotate += OnRotate;
     }
 
-    public override SimpleButton CreateSimpleButton(string id, Color color, string command)
+    public override SimpleButton CreateSimpleButton(Constants.ButtonType id, Color color, string command)
     {
         var button = new SimpleButton { Id = id, Command = string.Empty, ButtonColor = color };
         button.RenderedImage = BitmapHelper.RenderSimpleButtonImage(button, 90, 90);
@@ -53,15 +53,33 @@ public sealed class LoupedeckLiveS : LoupedeckBase
         if (e.EventType != Constants.ButtonEventType.BUTTON_DOWN) return;
 
         var button = SimpleButtons.FirstOrDefault(b => b.Id == e.ButtonId);
-        if (button == null) return;
-        
-        if (Constants.SystemCommands.TryGetValue(button.Command, out var command))
+        if (button != null)
         {
-            Avalonia.Threading.Dispatcher.UIThread.Post(() => { ExceuteSystemCommand(command); });
+            RunCommand(button.Command);
         }
         else
         {
-            CommandRunner.ExecuteCommand(button.Command);
+            switch (e.ButtonId)
+            {
+                case Constants.ButtonType.KNOB_TL:
+                    RunCommand(RotaryButtonPages[CurrentRotaryPageIndex].RotaryButtons[0].Command);
+                    break;
+                case Constants.ButtonType.KNOB_CL:
+                    RunCommand(RotaryButtonPages[CurrentRotaryPageIndex].RotaryButtons[1].Command);
+                    break;
+            }
+        }
+    }
+
+    private void RunCommand(string command)
+    {
+        if (Constants.SystemCommands.TryGetValue(command, out var systemCommand))
+        {
+            Avalonia.Threading.Dispatcher.UIThread.Post(() => { ExceuteSystemCommand(systemCommand); });
+        }
+        else
+        {
+            CommandRunner.ExecuteCommand(command);
         }
     }
 
@@ -91,8 +109,8 @@ public sealed class LoupedeckLiveS : LoupedeckBase
     {
         var command = e.ButtonId switch
         {
-            "knobTL" => e.Delta < 0 ? RotaryButtonPages[CurrentRotaryPageIndex].RotaryButtons[0].RotaryLeftCommand : RotaryButtonPages[CurrentRotaryPageIndex].RotaryButtons[0].RotaryRightCommand,
-            "knobCL" => e.Delta < 0 ? RotaryButtonPages[CurrentRotaryPageIndex].RotaryButtons[1].RotaryLeftCommand : RotaryButtonPages[CurrentRotaryPageIndex].RotaryButtons[1].RotaryRightCommand,
+            Constants.ButtonType.KNOB_TL => e.Delta < 0 ? RotaryButtonPages[CurrentRotaryPageIndex].RotaryButtons[0].RotaryLeftCommand : RotaryButtonPages[CurrentRotaryPageIndex].RotaryButtons[0].RotaryRightCommand,
+            Constants.ButtonType.KNOB_CL => e.Delta < 0 ? RotaryButtonPages[CurrentRotaryPageIndex].RotaryButtons[1].RotaryLeftCommand : RotaryButtonPages[CurrentRotaryPageIndex].RotaryButtons[1].RotaryRightCommand,
             _ => null
         };
 

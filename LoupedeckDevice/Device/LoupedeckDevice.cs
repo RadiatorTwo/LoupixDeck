@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Reflection.Metadata.Ecma335;
 using Avalonia;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
@@ -235,7 +236,9 @@ public class LoupedeckDevice
     {
         if (buff.Length < 2) return;
         var btn = buff[0];
-        var id = Constants.Buttons.TryGetValue(btn, out var value) ? value : btn.ToString();
+        
+        if (!Constants.Buttons.TryGetValue(btn, out var id)) return;
+
         var evt = (buff[1] == 0x00) ? Constants.ButtonEventType.BUTTON_DOWN : Constants.ButtonEventType.BUTTON_UP;
         OnButton?.Invoke(this, new ButtonEventArgs { ButtonId = id, EventType = evt });
     }
@@ -247,7 +250,7 @@ public class LoupedeckDevice
     {
         if (buff.Length < 2) return;
         var btn = buff[0];
-        var id = Constants.Buttons.TryGetValue(btn, out var value) ? value : btn.ToString();
+        if (!Constants.Buttons.TryGetValue(btn, out var id)) return;
         var delta = (sbyte)buff[1];
         OnRotate?.Invoke(this, new RotateEventArgs { ButtonId = id, Delta = delta });
     }
@@ -648,7 +651,7 @@ public class LoupedeckDevice
     /// <summary>
     /// Sets the color of a button by its ID.
     /// </summary>
-    public void SetButtonColor(string id, Color color)
+    public void SetButtonColor(Constants.ButtonType id, Color color)
     {
         byte key = 0;
         var found = false;

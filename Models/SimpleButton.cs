@@ -1,11 +1,12 @@
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
+using LoupixDeck.LoupedeckDevice;
 
 namespace LoupixDeck.Models;
 
 public class SimpleButton : LoupedeckButton
 {
-    public string Id { get; set; }
+    public Constants.ButtonType Id { get; set; }
     
     private Color _buttonColor;
     public Color ButtonColor
