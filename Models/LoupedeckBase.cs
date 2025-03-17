@@ -182,25 +182,22 @@ public abstract class LoupedeckBase : INotifyPropertyChanged
 
     protected void NextTouchPage()
     {
-        CurrentTouchPageIndex = (CurrentTouchPageIndex + 1) % TouchButtonPages.Count;
-        ApplyTouchPage(CurrentTouchPageIndex);
+        ApplyTouchPage((CurrentTouchPageIndex + 1) % TouchButtonPages.Count);
     }
 
     protected void PreviousTouchPage()
     {
-        CurrentTouchPageIndex = (CurrentTouchPageIndex - 1 + TouchButtonPages.Count) % TouchButtonPages.Count;
-        ApplyTouchPage(CurrentTouchPageIndex);
+        ApplyTouchPage((CurrentTouchPageIndex - 1 + TouchButtonPages.Count) % TouchButtonPages.Count);
     }
 
     public void ApplyTouchPage(int pageIndex)
     {
-        CurrentTouchPageIndex = pageIndex;
-
         // Copy the TouchButtons of the new page to `CurrentTouchButtons`.
         foreach (var touchButton in TouchButtonPages[pageIndex].TouchButtons)
         {
             CopyTouchButtonData(touchButton);
         }
+        CurrentTouchPageIndex = pageIndex;
     }
 
     public void RefreshTouchButtons()
