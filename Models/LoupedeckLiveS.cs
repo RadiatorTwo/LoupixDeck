@@ -184,8 +184,6 @@ public sealed class LoupedeckLiveS : LoupedeckBase
 
     public override void AddTouchButtonPage()
     {
-        CurrentTouchPageIndex = TouchButtonPages.Count;
-
         var newPage = new TouchButtonPage(15)
         {
             Page = TouchButtonPages.Count + 1
@@ -211,14 +209,13 @@ public sealed class LoupedeckLiveS : LoupedeckBase
 
     public override void AddRotaryButtonPage()
     {
-        CurrentRotaryPageIndex = RotaryButtonPages.Count;
-        
         var newPage = new RotaryButtonPage(2)
         {
             Page = RotaryButtonPages.Count + 1
         };
 
         RotaryButtonPages.Add(newPage);
+        CurrentRotaryPageIndex = RotaryButtonPages.Count - 1;
     }
 
     public override void ExceuteSystemCommand(Constants.SystemCommand command)
