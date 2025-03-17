@@ -181,7 +181,43 @@ public sealed class LoupedeckLiveS : LoupedeckBase
 
         StaticDevice.Device.SetBrightness(Brightness);
     }
+    
+    public override void AddRotaryButtonPage()
+    {
+        var newPage = new RotaryButtonPage(2)
+        {
+            Page = RotaryButtonPages.Count + 1
+        };
 
+        RotaryButtonPages.Add(newPage);
+        CurrentRotaryPageIndex = RotaryButtonPages.Count - 1;
+    }
+    
+    public override void DeleteRotaryButtonPage()
+    {
+        if (RotaryButtonPages.Count == 1)
+            return;
+        
+        // Remove Page and Reorder remaining pages.
+        RotaryButtonPages.RemoveAt(CurrentRotaryPageIndex);
+
+        var counter = 0;
+        foreach (var t in RotaryButtonPages)
+        {
+            counter++;
+            t.Page = counter;
+        }
+
+        if (CurrentRotaryPageIndex < RotaryButtonPages.Count) 
+        {
+            ApplyRotaryPage(CurrentRotaryPageIndex);
+        }
+        else
+        {
+            ApplyRotaryPage(RotaryButtonPages.Count - 1);
+        }
+    }
+    
     public override void AddTouchButtonPage()
     {
         var newPage = new TouchButtonPage(15)
@@ -207,15 +243,29 @@ public sealed class LoupedeckLiveS : LoupedeckBase
         ApplyTouchPage(CurrentTouchPageIndex);
     }
 
-    public override void AddRotaryButtonPage()
+    public override void DeleteTouchButtonPage()
     {
-        var newPage = new RotaryButtonPage(2)
-        {
-            Page = RotaryButtonPages.Count + 1
-        };
+        if (TouchButtonPages.Count == 1)
+            return;
+        
+        // Remove Page and Reorder remaining pages.
+        TouchButtonPages.RemoveAt(CurrentTouchPageIndex);
 
-        RotaryButtonPages.Add(newPage);
-        CurrentRotaryPageIndex = RotaryButtonPages.Count - 1;
+        var counter = 0;
+        foreach (var t in TouchButtonPages)
+        {
+            counter++;
+            t.Page = counter;
+        }
+
+        if (CurrentTouchPageIndex < TouchButtonPages.Count) 
+        {
+            ApplyTouchPage(CurrentTouchPageIndex);
+        }
+        else
+        {
+            ApplyTouchPage(TouchButtonPages.Count - 1);
+        }
     }
 
     public override void ExceuteSystemCommand(Constants.SystemCommand command)
