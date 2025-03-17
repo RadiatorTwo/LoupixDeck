@@ -273,8 +273,11 @@ public abstract class LoupedeckBase : INotifyPropertyChanged
 
     public abstract void ApplyAllData();
 
-    public abstract void AddTouchButtonPage();
     public abstract void AddRotaryButtonPage();
+    public abstract void DeleteRotaryButtonPage();
+    
+    public abstract void AddTouchButtonPage();
+    public abstract void DeleteTouchButtonPage();
 
     public abstract void ExceuteSystemCommand(Constants.SystemCommand command);
 }

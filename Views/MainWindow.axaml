@@ -218,6 +218,13 @@
                         HorizontalContentAlignment="Center"
                         VerticalContentAlignment="Center"
                         Command="{Binding AddRotaryPageCommand}" />
+                <Button Content="x"
+                        Width="30"
+                        Height="30"
+                        CornerRadius="8"
+                        HorizontalContentAlignment="Center"
+                        VerticalContentAlignment="Center"
+                        Command="{Binding DeleteRotaryPageCommand}" />
             </StackPanel>
         </Grid>
 
@@ -545,6 +552,13 @@
                     HorizontalContentAlignment="Center"
                     VerticalContentAlignment="Center"
                     Command="{Binding AddTouchPageCommand}" />
+            <Button Content="x"
+                    Width="30"
+                    Height="30"
+                    CornerRadius="8"
+                    HorizontalContentAlignment="Center"
+                    VerticalContentAlignment="Center"
+                    Command="{Binding DeleteTouchPageCommand}" />
         </StackPanel>
         <Slider Grid.Column="1" Grid.Row="2" Minimum="0" Maximum="1" TickFrequency="0.1"
                 IsSnapToTickEnabled="True" Value="{Binding LoupeDeckDevice.Brightness}" />

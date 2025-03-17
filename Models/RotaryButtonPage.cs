@@ -29,6 +29,19 @@ public class RotaryButtonPage : AvaloniaObject
         set => SetValue(IsSelectedProperty, value);
     }
     
-    public int Page { get; set; }
+    private static readonly DirectProperty<TouchButtonPage, int> PageDirectProperty =
+        AvaloniaProperty.RegisterDirect<TouchButtonPage, int>(
+            nameof(Page),
+            o => o.Page,
+            (o, v) => o.Page = v);
+        
+    private int _page;
+
+    public int Page
+    {
+        get => _page;
+        set => SetAndRaise(PageDirectProperty, ref _page, value);
+    }
+    
     public RotaryButton[] RotaryButtons { get; set; }
 }
