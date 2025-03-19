@@ -1,5 +1,4 @@
 using System.Globalization;
-using System.Reflection.Metadata.Ecma335;
 using Avalonia;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
@@ -236,7 +235,7 @@ public class LoupedeckDevice
     {
         if (buff.Length < 2) return;
         var btn = buff[0];
-        
+
         if (!Constants.Buttons.TryGetValue(btn, out var id)) return;
 
         var evt = (buff[1] == 0x00) ? Constants.ButtonEventType.BUTTON_DOWN : Constants.ButtonEventType.BUTTON_UP;
@@ -481,19 +480,30 @@ public class LoupedeckDevice
         double posX = 0,
         double posY = 0,
         double imageWidth = 90,
-        double imageHeight = 90)
+        double imageHeight = 90,
+        bool bold = false,
+        bool italic = false,
+        bool outlined = false,
+        Color outlineColor = default)
     {
         if (context == null || string.IsNullOrEmpty(text))
             throw new ArgumentException("The drawing context or text must not be null!");
 
-        var brush = new SolidColorBrush(color);
+        var brush = new ImmutableSolidColorBrush(color);
+
+        // Create typeface with bold or Italic
+        var typeface = new Typeface(
+            FontFamily.Default,
+            italic ? FontStyle.Italic : FontStyle.Normal,
+            bold ? FontWeight.Bold : FontWeight.Normal
+        );
 
         // Create the FormattedText (Avalonia 11+)
         var formattedText = new FormattedText(
             text,
             CultureInfo.CurrentCulture,
             FlowDirection.LeftToRight,
-            new Typeface(FontFamily.Default), // Default font
+            typeface, // Default font
             textSize,
             brush
         )
@@ -521,6 +531,37 @@ public class LoupedeckDevice
         {
             drawX = (int)Math.Round(posX);
             drawY = (int)Math.Round(posY);
+        }
+
+        // Falls eine Umrandung gewünscht ist, wird sie gezeichnet
+        if (outlined)
+        {
+            var outlineBrush = new ImmutableSolidColorBrush(outlineColor);
+            const int outlineOffset = 1; // Stärke der Umrandung
+            
+            var outlineText = new FormattedText(
+                text,
+                CultureInfo.CurrentCulture,
+                FlowDirection.LeftToRight,
+                typeface, // Default font
+                textSize,
+                outlineBrush
+            )
+            {
+                TextAlignment = TextAlignment.Left,
+                MaxTextHeight = 85,
+                MaxTextWidth = 85
+            };
+
+            // Zeichne den Umrandungstext in mehreren Richtungen
+            context.DrawText(outlineText, new Point(drawX - outlineOffset, drawY)); // Links
+            context.DrawText(outlineText, new Point(drawX + outlineOffset, drawY)); // Rechts
+            context.DrawText(outlineText, new Point(drawX, drawY - outlineOffset)); // Oben
+            context.DrawText(outlineText, new Point(drawX, drawY + outlineOffset)); // Unten
+            context.DrawText(outlineText, new Point(drawX - outlineOffset, drawY - outlineOffset)); // Links-oben
+            context.DrawText(outlineText, new Point(drawX + outlineOffset, drawY - outlineOffset)); // Rechts-oben
+            context.DrawText(outlineText, new Point(drawX - outlineOffset, drawY + outlineOffset)); // Links-unten
+            context.DrawText(outlineText, new Point(drawX + outlineOffset, drawY + outlineOffset)); // Rechts-unten
         }
 
         context.DrawText(formattedText, new Point(drawX, drawY));
@@ -573,12 +614,37 @@ public class LoupedeckDevice
 
         if (touchButton.Image != null)
         {
-            var sourceRect = new Rect(
-                0, 0,
-                touchButton.Image.PixelSize.Width,
-                touchButton.Image.PixelSize.Height
-            );
-            var destRect = new Rect(0, 0, width, height);
+            var imageWidth = touchButton.Image.PixelSize.Width;
+            var imageHeight = touchButton.Image.PixelSize.Height;
+
+            var sourceRect = new Rect(0, 0, imageWidth, imageHeight);
+
+            // Calculate the ratio to scale the image to the target size
+            var scaleX = width / (double)imageWidth;
+            var scaleY = height / (double)imageHeight;
+
+            // Select the smaller ratio to fit the image completely without distortion
+            var baseScale = Math.Min(scaleX, scaleY);
+
+            // Applying scaling using ImageScale
+            var scaleFactor = Math.Max(0.01, touchButton.ImageScale / 100.0);
+            var finalScale = baseScale * scaleFactor;
+
+            // New width and height after scaling (aspect ratio is retained)
+            var scaledWidth = imageWidth * finalScale;
+            var scaledHeight = imageHeight * finalScale;
+
+            // Centre the image if it is smaller than the target image
+            var posX = touchButton.ImagePositionX;
+            var posY = touchButton.ImagePositionY;
+
+            if (posX == 0 && posY == 0) // Standard: Set image in the centre if no position is specified
+            {
+                posX = (int)((width - scaledWidth) / 2);
+                posY = (int)((height - scaledHeight) / 2);
+            }
+
+            var destRect = new Rect(posX, posY, scaledWidth, scaledHeight);
 
             ctx.DrawImage(touchButton.Image, sourceRect, destRect);
         }
@@ -591,8 +657,14 @@ public class LoupedeckDevice
                 touchButton.TextColor,
                 touchButton.TextSize,
                 touchButton.TextCentered,
-                touchButton.TextPosition.X,
-                touchButton.TextPosition.Y
+                touchButton.TextPositionX,
+                touchButton.TextPositionY,
+                width,
+                height,
+                touchButton.Bold,
+                touchButton.Italic,
+                touchButton.Outlined,
+                touchButton.OutlineColor
             );
         }
 
