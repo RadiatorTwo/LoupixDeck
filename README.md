@@ -15,6 +15,8 @@ This application allows control of a **Loupedeck Live S** on Linux.
 - **Executing shell commands on button press**  
 - **Adjusting the display brightness**  
 - **Setting the RGB color of the four physical buttons**  
+- **Multi-page support for touchscreen buttons and dials**  
+- **Saving and restoring settings**  
 
 ## Supported Devices
 
