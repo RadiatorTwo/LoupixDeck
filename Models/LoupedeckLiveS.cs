@@ -227,15 +227,7 @@ public sealed class LoupedeckLiveS : LoupedeckBase
 
         for (var i = 0; i < 15; i++)
         {
-            newPage.TouchButtons[i] = new TouchButton(i)
-            {
-                Image = null,
-                Command = $"Command {i}",
-                BackColor = Colors.Black,
-                TextColor = Colors.Lime,
-                TextSize = 16,
-                TextCentered = true
-            };
+            newPage.TouchButtons[i] = new TouchButton(i);
         }
 
         TouchButtonPages.Add(newPage);

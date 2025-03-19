@@ -1,4 +1,3 @@
-using Avalonia;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
 
@@ -6,9 +5,10 @@ namespace LoupixDeck.Models;
 
 public class TouchButton(int index) : LoupedeckButton
 {
-    public int Index { get; init; } = index;
+    public int Index { get; } = index;
 
-    private string _text;
+    private string _text = string.Empty;
+
     public string Text
     {
         get => _text;
@@ -21,7 +21,8 @@ public class TouchButton(int index) : LoupedeckButton
         }
     }
 
-    private bool _textCentered;
+    private bool _textCentered = true;
+
     public bool TextCentered
     {
         get => _textCentered;
@@ -29,12 +30,13 @@ public class TouchButton(int index) : LoupedeckButton
         {
             if (value == _textCentered) return;
             _textCentered = value;
-            //OnPropertyChanged(nameof(TextCentered));
             Refresh();
+            OnPropertyChanged(nameof(TextCentered));
         }
     }
 
-    private int _textSize;
+    private int _textSize = 16;
+
     public int TextSize
     {
         get => _textSize;
@@ -42,38 +44,38 @@ public class TouchButton(int index) : LoupedeckButton
         {
             if (value == _textSize) return;
             _textSize = value;
-            //OnPropertyChanged(nameof(TextSize));
             Refresh();
         }
     }
 
-    private Point _textPosition;
-    public Point TextPosition
+    private int _textPositionX;
+
+    public int TextPositionX
     {
-        get => _textPosition;
+        get => _textPositionX;
         set
         {
-            if (value.Equals(_textPosition)) return;
-            _textPosition = value;
-            //OnPropertyChanged(nameof(TextPosition));
+            if (value.Equals(_textPositionX)) return;
+            _textPositionX = value;
             Refresh();
         }
     }
 
-    private Bitmap _image;
-    public Bitmap Image
+    private int _textPositionY;
+
+    public int TextPositionY
     {
-        get => _image;
+        get => _textPositionY;
         set
         {
-            if (_image == value) return;
-            _image = value;
-            //OnPropertyChanged(nameof(Image));
+            if (value.Equals(_textPositionY)) return;
+            _textPositionY = value;
             Refresh();
         }
     }
 
-    private Color _textColor;
+    private Color _textColor = Colors.Black;
+
     public Color TextColor
     {
         get => _textColor;
@@ -81,12 +83,38 @@ public class TouchButton(int index) : LoupedeckButton
         {
             if (value.Equals(_textColor)) return;
             _textColor = value;
-            //OnPropertyChanged(nameof(TextColor));
             Refresh();
         }
     }
 
-    private Color _backColor;
+    private bool _bold;
+
+    public bool Bold
+    {
+        get => _bold;
+        set
+        {
+            if (value == _bold) return;
+            _bold = value;
+            Refresh();
+        }
+    }
+
+    private bool _italic;
+
+    public bool Italic
+    {
+        get => _italic;
+        set
+        {
+            if (value == _italic) return;
+            _italic = value;
+            Refresh();
+        }
+    }
+
+    private Color _backColor = Colors.Black;
+
     public Color BackColor
     {
         get => _backColor;
@@ -94,12 +122,91 @@ public class TouchButton(int index) : LoupedeckButton
         {
             if (_backColor == value) return;
             _backColor = value;
-            //OnPropertyChanged(nameof(BackColor));
             Refresh();
         }
     }
-    
+
+    private bool _outlined = true;
+
+    public bool Outlined
+    {
+        get => _outlined;
+        set
+        {
+            if (value == _outlined) return;
+            _outlined = value;
+            Refresh();
+            OnPropertyChanged(nameof(Outlined));
+        }
+    }
+
+    private Color _outlineColor = Colors.White;
+
+    public Color OutlineColor
+    {
+        get => _outlineColor;
+        set
+        {
+            if (value.Equals(_outlineColor)) return;
+            _outlineColor = value;
+            Refresh();
+        }
+    }
+
+    private Bitmap _image;
+
+    public Bitmap Image
+    {
+        get => _image;
+        set
+        {
+            if (_image == value) return;
+            _image = value;
+            Refresh();
+        }
+    }
+
+    private int _imagePositionX;
+
+    public int ImagePositionX
+    {
+        get => _imagePositionX;
+        set
+        {
+            if (value.Equals(_imagePositionX)) return;
+            _imagePositionX = value;
+            Refresh();
+        }
+    }
+
+    private int _imagePositionY;
+
+    public int ImagePositionY
+    {
+        get => _imagePositionY;
+        set
+        {
+            if (value.Equals(_imagePositionY)) return;
+            _imagePositionY = value;
+            Refresh();
+        }
+    }
+
+    private int _imageScale = 100;
+
+    public int ImageScale
+    {
+        get => _imageScale;
+        set
+        {
+            if (value.Equals(_imageScale)) return;
+            _imageScale = value;
+            Refresh();
+        }
+    }
+
     private Bitmap _renderedImage;
+
     public Bitmap RenderedImage
     {
         get => _renderedImage;

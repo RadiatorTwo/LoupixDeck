@@ -8,35 +8,87 @@
     xmlns:vm="using:LoupixDeck.ViewModels"
     x:DataType="vm:TouchButtonSettingsViewModel"
     Title="TouchButtonSettings"
-    Height="300"
-    Width="500"
+    Height="500"
+    Width="800"
     mc:Ignorable="d"
     SystemDecorations="Full"
     CanResize="False">
     <Border BorderThickness="2"
-            BorderBrush="LightGray"
-            Padding="16">
-        <Border.Effect>
-            <DropShadowEffect Color="#AA000000" BlurRadius="10" />
-        </Border.Effect>
-        <Grid ColumnDefinitions="*,*,*,*,*" RowDefinitions="30,30,30,30,*,30,30">
-            <Label Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="4">Text</Label>
-            <TextBox Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Text="{Binding ButtonData.Text}" />
-            <NumericUpDown Grid.Row="1" Grid.Column="2" Value="{Binding ButtonData.TextSize}" Minimum="4" Maximum="80" />
-            <ccp:ColorPicker Grid.Row="1" Grid.Column="3" Color="{Binding ButtonData.TextColor, Mode=TwoWay}" />
+            BorderBrush="DarkGray"
+            Padding="4">
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="2*" />
+                <ColumnDefinition Width="3*" />
+            </Grid.ColumnDefinitions>
 
-            <Label Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2">Background Color</Label>
-            <ccp:ColorPicker Grid.Row="2" Grid.Column="3" Color="{Binding ButtonData.BackColor, Mode=TwoWay}" />
+            <StackPanel Grid.Column="0" Margin="10,20,0,0">
+                <TextBlock Text="Text-Settings" FontWeight="Bold" Margin="0,0,0,5" />
+                <TextBox Name="TextInputBox" Height="30" Text="{Binding ButtonData.Text}" />
 
-            <Label Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="4">Image</Label>
-            <Image Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="3" Source="{Binding ButtonData.RenderedImage}" />
-            <Button Grid.Row="4" Grid.Column="3" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
-                    VerticalAlignment="Bottom"
-                    Command="{Binding SelectImageButtonCommand}">
-                ...
-            </Button>
-            <Label Grid.Row="5" Grid.Column="0" Grid.ColumnSpan="4">Command</Label>
-            <TextBox Grid.Row="6" Grid.Column="0" Grid.ColumnSpan="4" Text="{Binding ButtonData.Command}" />
+                <TextBlock Text="Size" />
+                <Slider Name="TextSize" Minimum="4" Maximum="80" Value="{Binding ButtonData.TextSize}" />
+
+                <TextBlock Text="Color" />
+                <ccp:ColorPicker Name="TextColor" Width="80" HorizontalAlignment="Left"
+                                 Color="{Binding ButtonData.TextColor}" />
+
+                <CheckBox Name="BoldCheck" Content="Bold" IsChecked="{Binding ButtonData.Bold}" Margin="0,5,0,0" />
+                <CheckBox Name="ItalicCheck" Content="Italic" IsChecked="{Binding ButtonData.Italic}" />
+
+                <StackPanel Orientation="Horizontal">
+                    <CheckBox Name="OutlineCheck" Content="Outlined" IsChecked="{Binding ButtonData.Outlined}"
+                              Margin="0,0,20,0" />
+                    <ccp:ColorPicker Color="{Binding ButtonData.OutlineColor, Mode=TwoWay}"
+                                     Width="80"
+                                     IsVisible="{Binding ButtonData.Outlined}"
+                                     HorizontalAlignment="Left" />
+                </StackPanel>
+
+                <CheckBox Name="Centered" Content="Centered" IsChecked="{Binding ButtonData.TextCentered}" />
+                <TextBlock Text="Position (X, Y)" Margin="0,5,0,0" />
+                <StackPanel Orientation="Horizontal">
+                    <NumericUpDown Name="TextPosX" Width="120" Value="{Binding ButtonData.TextPositionX}"
+                                   IsEnabled="{Binding !ButtonData.TextCentered}" />
+                    <NumericUpDown Name="TextPosY" Width="120" Value="{Binding ButtonData.TextPositionY}"
+                                   IsEnabled="{Binding !ButtonData.TextCentered}" Margin="5,0,0,0" />
+                </StackPanel>
+            </StackPanel>
+
+            <StackPanel Grid.Column="1" Margin="20,20,0,0">
+                <TextBlock Text="Bild-Einstellungen" FontWeight="Bold" Margin="0,0,0,5" />
+                <Image Name="PreviewImage" Width="150" Height="150" Stretch="Uniform"
+                       HorizontalAlignment="Left"
+                       Source="{Binding ButtonData.RenderedImage}" />
+
+                <StackPanel Orientation="Horizontal" Margin="0,5,0,0">
+                    <Button Name="SelectImageButton" Content="Select Image" Width="120"
+                            Command="{Binding SelectImageButtonCommand}" />
+                    <Button Name="RemoveImageButton" Content="Remove Image" Width="120" Margin="5,0,0,0"
+                            Command="{Binding RemoveImageButtonCommand}" />
+                </StackPanel>
+
+                <TextBlock Text="Image Scale" Margin="0,5,0,0" />
+                <NumericUpDown Name="ImageScale" Width="120" HorizontalAlignment="Left"
+                               Value="{Binding ButtonData.ImageScale, Mode=TwoWay}" Minimum="1" Maximum="300"
+                               Increment="1" />
+
+                <TextBlock Text="Image Position (X, Y)" Margin="0,5,0,0" />
+                <StackPanel Orientation="Horizontal">
+                    <NumericUpDown Name="ImagePosX" Width="120" Value="{Binding ButtonData.ImagePositionX}" />
+                    <NumericUpDown Name="ImagePosY" Width="120" Value="{Binding ButtonData.ImagePositionY}"
+                                   Margin="5,0,0,0" />
+                </StackPanel>
+
+                <TextBlock Text="Background Color" Margin="0,5,0,0" />
+                <ccp:ColorPicker Color="{Binding ButtonData.BackColor}" Width="80" HorizontalAlignment="Left" />
+            </StackPanel>
+
+            <StackPanel Grid.Column="0" Grid.ColumnSpan="2" Margin="10" Orientation="Vertical"
+                        VerticalAlignment="Bottom">
+                <TextBlock Text="Command" FontWeight="Bold" Margin="0,10,0,5" />
+                <TextBox Name="CommandInput" Height="30" Text="{Binding ButtonData.Command}" />
+            </StackPanel>
         </Grid>
     </Border>
 </Window>

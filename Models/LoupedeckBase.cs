@@ -220,7 +220,8 @@ public abstract class LoupedeckBase : INotifyPropertyChanged
         CurrentTouchButtonPage[source.Index].Text = source.Text;
         CurrentTouchButtonPage[source.Index].TextColor = source.TextColor;
         CurrentTouchButtonPage[source.Index].TextCentered = source.TextCentered;
-        CurrentTouchButtonPage[source.Index].TextPosition = source.TextPosition;
+        CurrentTouchButtonPage[source.Index].TextPositionX = source.TextPositionX;
+        CurrentTouchButtonPage[source.Index].TextPositionY = source.TextPositionY;
         CurrentTouchButtonPage[source.Index].TextSize = source.TextSize;
         CurrentTouchButtonPage[source.Index].Image = source.Image;
         CurrentTouchButtonPage[source.Index].BackColor = source.BackColor;
@@ -245,7 +246,8 @@ public abstract class LoupedeckBase : INotifyPropertyChanged
         TouchButtonPages[CurrentTouchPageIndex].TouchButtons[source.Index].Text = source.Text;
         TouchButtonPages[CurrentTouchPageIndex].TouchButtons[source.Index].TextColor = source.TextColor;
         TouchButtonPages[CurrentTouchPageIndex].TouchButtons[source.Index].TextCentered = source.TextCentered;
-        TouchButtonPages[CurrentTouchPageIndex].TouchButtons[source.Index].TextPosition = source.TextPosition;
+        TouchButtonPages[CurrentTouchPageIndex].TouchButtons[source.Index].TextPositionX = source.TextPositionX;
+        TouchButtonPages[CurrentTouchPageIndex].TouchButtons[source.Index].TextPositionY = source.TextPositionY;
         TouchButtonPages[CurrentTouchPageIndex].TouchButtons[source.Index].TextSize = source.TextSize;
         TouchButtonPages[CurrentTouchPageIndex].TouchButtons[source.Index].Image = source.Image;
         TouchButtonPages[CurrentTouchPageIndex].TouchButtons[source.Index].BackColor = source.BackColor;
