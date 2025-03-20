@@ -108,7 +108,8 @@ public static class Constants
         NEXT_PAGE = 0,
         PREVIOUS_PAGE = 1,
         NEXT_ROT_PAGE = 2,
-        PREVIOUS_ROT_PAGE = 3
+        PREVIOUS_ROT_PAGE = 3,
+        OBS_VIRTUAL_CAM = 4
     }
     
     public static readonly Dictionary<string, SystemCommand> SystemCommands = new()
@@ -116,6 +117,7 @@ public static class Constants
         { "System.NextPage", SystemCommand.NEXT_PAGE },
         { "System.PreviousPage", SystemCommand.PREVIOUS_PAGE },
         { "System.NextRotaryPage", SystemCommand.NEXT_ROT_PAGE },
-        { "System.PreviousRotaryPage", SystemCommand.PREVIOUS_ROT_PAGE }
+        { "System.PreviousRotaryPage", SystemCommand.PREVIOUS_ROT_PAGE },
+        { "System.ObsVirtualCam", SystemCommand.OBS_VIRTUAL_CAM }
     };
 }
