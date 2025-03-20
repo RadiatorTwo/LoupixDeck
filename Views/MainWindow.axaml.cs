@@ -45,7 +45,7 @@ public partial class MainWindow : Window
         {
             _trayIcon = new TrayIcon
             {
-                Icon = new WindowIcon(AssetLoader.Open(new Uri("avares://LoupixDeck/Assets/avalonia-logo.ico"))),
+                Icon = new WindowIcon(AssetLoader.Open(new Uri("avares://LoupixDeck/Assets/logo.ico"))),
                 ToolTipText = "LoupixDeck Tray",
                 IsVisible = true,
                 Menu = new NativeMenu()
