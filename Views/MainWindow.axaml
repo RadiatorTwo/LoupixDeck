@@ -9,7 +9,7 @@
         x:Class="LoupixDeck.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
         d:DataContext="{d:DesignInstance Type=vm:MainWindowViewModel, IsDesignTimeCreatable=True}"
-        Icon="/Assets/avalonia-logo.ico"
+        Icon="/Assets/logo.ico"
         Title="LoupixDeck"
         x:Name="RootWindow">
 

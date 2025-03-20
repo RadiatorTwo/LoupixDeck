@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   height="200px"
+   version="1.2"
+   width="200px"
+   id="svg2"
+   sodipodi:docname="LoupixDeck_Logo.svg"
+   inkscape:version="1.4 (e7c3feb100, 2024-10-09)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview2"
+     pagecolor="#505050"
+     bordercolor="#eeeeee"
+     borderopacity="1"
+     inkscape:showpageshadow="0"
+     inkscape:pageopacity="0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#505050"
+     inkscape:zoom="2.0682873"
+     inkscape:cx="140.45437"
+     inkscape:cy="96.698365"
+     inkscape:window-width="2293"
+     inkscape:window-height="1372"
+     inkscape:window-x="1146"
+     inkscape:window-y="0"
+     inkscape:window-maximized="0"
+     inkscape:current-layer="svg2" />
+  <defs
+     id="defs1" />
+  <circle
+     cx="100px"
+     cy="100px"
+     fill="#222831"
+     r="90px"
+     stroke="#393E46"
+     stroke-width="5"
+     id="circle1" />
+  <path
+     d="M 55.656824,152.77261 V 53.977492 h 13.392384 v 87.856838 h 49.923442 v 10.93828 z"
+     id="text2"
+     style="font-size:143.6px;font-family:'Liberation Sans';-inkscape-font-specification:'Liberation Sans';fill:#00adb5;stroke-width:1.49584"
+     aria-label="L" />
+  <path
+     d="m 152.27834,84.261135 q 0,12.478051 -4.8653,21.865205 -4.86529,9.32992 -13.79454,14.3097 -8.92925,4.97977 -20.60596,4.97977 H 82.847711 V 44.766384 h 26.673269 q 20.49148,0 31.5958,10.302979 11.16156,10.245739 11.16156,29.191772 z m -10.98985,0 q 0,-14.996558 -8.24238,-22.838269 -8.18514,-7.89895 -23.75409,-7.89895 H 93.780316 v 63.134364 h 17.972974 q 8.87201,0 15.56894,-3.89224 6.75418,-3.89223 10.36022,-11.2188 3.60604,-7.326559 3.60604,-17.286105 z"
+     id="text3"
+     style="font-size:117.225px;font-family:'Liberation Sans';-inkscape-font-specification:'Liberation Sans';fill:#00adb5;stroke-width:1.22109"
+     transform="scale(0.9478904,1.0549743)"
+     aria-label="D" />
+</svg>
