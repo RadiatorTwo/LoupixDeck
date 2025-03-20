@@ -79,7 +79,7 @@ public sealed class LoupedeckLiveS : LoupedeckBase
         }
         else
         {
-            CommandRunner.ExecuteCommand(command);
+            _commandRunner.EnqueueCommand(command);
         }
     }
 
@@ -100,7 +100,7 @@ public sealed class LoupedeckLiveS : LoupedeckBase
             }
             else
             {
-                CommandRunner.ExecuteCommand(button.Command);
+                _commandRunner.EnqueueCommand(button.Command);
             }
         }
     }
@@ -122,7 +122,7 @@ public sealed class LoupedeckLiveS : LoupedeckBase
         }
         else
         {
-            CommandRunner.ExecuteCommand(command);
+            _commandRunner.EnqueueCommand(command);
         }
     }
 

@@ -72,13 +72,14 @@ public abstract class LoupedeckBase : INotifyPropertyChanged
         }
     }
 
+    public CommandRunner _commandRunner;
+
     public ObservableCollection<RotaryButtonPage> RotaryButtonPages { get; set; }
     public ObservableCollection<TouchButtonPage> TouchButtonPages { get; set; }
     public TouchButton[] CurrentTouchButtonPage { get; set; }
     public SimpleButton[] SimpleButtons { get; set; }
 
     private double _brightness = 1;
-
     public double Brightness
     {
         get => _brightness;
@@ -99,6 +100,11 @@ public abstract class LoupedeckBase : INotifyPropertyChanged
     }
 
     protected readonly AutoResetEvent DeviceCreatedEvent = new(false);
+
+    protected LoupedeckBase()
+    {
+        _commandRunner = new CommandRunner();
+    }
 
     public void SaveToFile()
     {
@@ -274,7 +280,7 @@ public abstract class LoupedeckBase : INotifyPropertyChanged
 
     public abstract void AddRotaryButtonPage();
     public abstract void DeleteRotaryButtonPage();
-    
+
     public abstract void AddTouchButtonPage();
     public abstract void DeleteTouchButtonPage();
 
