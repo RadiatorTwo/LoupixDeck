@@ -79,7 +79,7 @@ public sealed class LoupedeckLiveS : LoupedeckBase
         }
         else
         {
-            _commandRunner.EnqueueCommand(command);
+            CommandRunner.EnqueueCommand(command);
         }
     }
 
@@ -100,7 +100,7 @@ public sealed class LoupedeckLiveS : LoupedeckBase
             }
             else
             {
-                _commandRunner.EnqueueCommand(button.Command);
+                CommandRunner.EnqueueCommand(button.Command);
             }
         }
     }
@@ -122,7 +122,7 @@ public sealed class LoupedeckLiveS : LoupedeckBase
         }
         else
         {
-            _commandRunner.EnqueueCommand(command);
+            CommandRunner.EnqueueCommand(command);
         }
     }
 
@@ -275,6 +275,9 @@ public sealed class LoupedeckLiveS : LoupedeckBase
                 break;
             case Constants.SystemCommand.PREVIOUS_ROT_PAGE:
                 PreviousRotaryPage();
+                break;
+            case Constants.SystemCommand.OBS_VIRTUAL_CAM:
+                Obs.ToggleVirtualCamera();
                 break;
             default:
                 throw new ArgumentOutOfRangeException(nameof(command), command, null);

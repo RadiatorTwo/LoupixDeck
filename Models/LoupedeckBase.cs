@@ -11,7 +11,7 @@ namespace LoupixDeck.Models;
 
 public abstract class LoupedeckBase : INotifyPropertyChanged
 {
-    [JsonIgnore] private int _currentTouchPageIndex;
+    private int _currentTouchPageIndex;
 
     [JsonIgnore]
     protected int CurrentTouchPageIndex
@@ -30,7 +30,7 @@ public abstract class LoupedeckBase : INotifyPropertyChanged
         }
     }
 
-    [JsonIgnore] private int _currentRotaryPageIndex;
+    private int _currentRotaryPageIndex;
 
     [JsonIgnore]
     protected int CurrentRotaryPageIndex
@@ -72,14 +72,16 @@ public abstract class LoupedeckBase : INotifyPropertyChanged
         }
     }
 
-    public CommandRunner _commandRunner;
-
+    protected readonly CommandRunner CommandRunner;
+    protected readonly ObsController Obs;
+    
     public ObservableCollection<RotaryButtonPage> RotaryButtonPages { get; set; }
     public ObservableCollection<TouchButtonPage> TouchButtonPages { get; set; }
     public TouchButton[] CurrentTouchButtonPage { get; set; }
     public SimpleButton[] SimpleButtons { get; set; }
 
     private double _brightness = 1;
+
     public double Brightness
     {
         get => _brightness;
@@ -103,7 +105,10 @@ public abstract class LoupedeckBase : INotifyPropertyChanged
 
     protected LoupedeckBase()
     {
-        _commandRunner = new CommandRunner();
+        CommandRunner = new CommandRunner();
+        Obs = new ObsController();
+        
+        Obs.Connect();
     }
 
     public void SaveToFile()
@@ -115,13 +120,13 @@ public abstract class LoupedeckBase : INotifyPropertyChanged
         };
 
         var json = JsonSerializer.Serialize(this, options);
-        var filePath = GetConfigPath("LoupixDeck", "config.json");
+        var filePath = FileDialogHelper.GetConfigPath("config.json");
         File.WriteAllText(filePath, json);
     }
 
     public static T LoadFromFile<T>() where T : LoupedeckBase
     {
-        var filePath = GetConfigPath("LoupixDeck", "config.json");
+        var filePath = FileDialogHelper.GetConfigPath("config.json");
 
         if (!File.Exists(filePath))
             return null;
@@ -153,22 +158,6 @@ public abstract class LoupedeckBase : INotifyPropertyChanged
         {
             simpleButton.ItemChanged += SimpleButtonChanged;
         }
-    }
-
-    private static string GetConfigPath(string appName, string fileName)
-    {
-        var homePath = Environment.GetEnvironmentVariable("HOME")
-                       ?? Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-
-        var configDir = Path.Combine(homePath, ".config", appName);
-
-        // Falls das Verzeichnis nicht existiert, erstelle es
-        if (!Directory.Exists(configDir))
-        {
-            Directory.CreateDirectory(configDir);
-        }
-
-        return Path.Combine(configDir, fileName);
     }
 
     protected void NextRotaryPage()
@@ -203,6 +192,7 @@ public abstract class LoupedeckBase : INotifyPropertyChanged
         {
             CopyTouchButtonData(touchButton);
         }
+
         CurrentTouchPageIndex = pageIndex;
     }
 

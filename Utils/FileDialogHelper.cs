@@ -26,4 +26,20 @@ public abstract class FileDialogHelper
 
         return files.Count > 0 ? files[0] : null;
     }
+    
+    public static string GetConfigPath(string fileName)
+    {
+        var homePath = Environment.GetEnvironmentVariable("HOME")
+                       ?? Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+
+        var configDir = Path.Combine(homePath, ".config", "LoupixDeck");
+
+        // Falls das Verzeichnis nicht existiert, erstelle es
+        if (!Directory.Exists(configDir))
+        {
+            Directory.CreateDirectory(configDir);
+        }
+
+        return Path.Combine(configDir, fileName);
+    }
 }
