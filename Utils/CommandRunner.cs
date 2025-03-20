@@ -1,10 +1,40 @@
+using System.Collections.Concurrent;
 using System.Diagnostics;
 
 namespace LoupixDeck.Utils;
 
-public abstract class CommandRunner
+public class CommandRunner : IDisposable
 {
-    public static void ExecuteCommand(string command)
+    private readonly BlockingCollection<string> _commandQueue = new BlockingCollection<string>();
+    private readonly CancellationTokenSource _cts = new CancellationTokenSource();
+    private readonly Task _workerTask;
+
+    public CommandRunner()
+    {
+        _workerTask = Task.Factory.StartNew(ProcessQueue, _cts.Token, TaskCreationOptions.LongRunning, TaskScheduler.Default);
+    }
+
+    public void EnqueueCommand(string command)
+    {
+        _commandQueue.Add(command);
+    }
+
+    private void ProcessQueue()
+    {
+        try
+        {
+            foreach (var command in _commandQueue.GetConsumingEnumerable(_cts.Token))
+            {
+                ExecuteCommand(command);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // We canceled processing the commands
+        }
+    }
+
+    private void ExecuteCommand(string command)
     {
         try
         {
@@ -38,5 +68,23 @@ public abstract class CommandRunner
         {
             Console.WriteLine($"Exception: {ex.Message}");
         }
+    }
+
+    public void Dispose()
+    {
+        _commandQueue.CompleteAdding();
+        _cts.Cancel();
+
+        try
+        {
+            _workerTask.Wait();
+        }
+        catch (AggregateException ex) when (ex.InnerExceptions.All(e => e is OperationCanceledException))
+        {
+            // Ignore Operation Cancel
+        }
+
+        _cts.Dispose();
+        _commandQueue.Dispose();
     }
 }
