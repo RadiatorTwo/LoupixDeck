@@ -6,6 +6,7 @@ using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using LoupixDeck.LoupedeckDevice.Device;
 
 namespace LoupixDeck.Models;
 
@@ -72,6 +73,7 @@ public abstract class LoupedeckBase : INotifyPropertyChanged
         }
     }
 
+    protected LoupedeckLiveSDevice Device;
     protected readonly CommandRunner CommandRunner;
     protected readonly ObsController Obs;
     
@@ -90,7 +92,7 @@ public abstract class LoupedeckBase : INotifyPropertyChanged
             if (value.Equals(_brightness)) return;
 
             _brightness = value;
-            StaticDevice.Device.SetBrightness(_brightness);
+            Device.SetBrightness(_brightness);
         }
     }
 

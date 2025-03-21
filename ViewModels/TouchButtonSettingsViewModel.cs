@@ -28,7 +28,7 @@ public class TouchButtonSettingsViewModel : ViewModelBase
         if (result == null || !File.Exists(result.Path.AbsolutePath)) return;
 
         ButtonData.Image = new Bitmap(result.Path.AbsolutePath);
-        ButtonData.RenderedImage = StaticDevice.Device.RenderTouchButtonContent(ButtonData, 150, 150);
+        ButtonData.RenderedImage = BitmapHelper.RenderTouchButtonContent(ButtonData, 150, 150);
 
         ButtonData.Refresh();
     }
@@ -37,7 +37,7 @@ public class TouchButtonSettingsViewModel : ViewModelBase
     {
         ButtonData.Image = null;
 
-        ButtonData.RenderedImage = StaticDevice.Device.RenderTouchButtonContent(ButtonData, 150, 150);
+        ButtonData.RenderedImage = BitmapHelper.RenderTouchButtonContent(ButtonData, 150, 150);
 
         ButtonData.Refresh();
     }
