@@ -34,9 +34,9 @@ public sealed class LoupedeckLiveS : LoupedeckBase
 
     public override void InitButtonEvents()
     {
-        StaticDevice.Device.OnButton += OnSimpleButtonPress;
-        StaticDevice.Device.OnTouch += OnTouchButtonPress;
-        StaticDevice.Device.OnRotate += OnRotate;
+        Device.OnButton += OnSimpleButtonPress;
+        Device.OnTouch += OnTouchButtonPress;
+        Device.OnRotate += OnRotate;
     }
 
     public override SimpleButton CreateSimpleButton(Constants.ButtonType id, Color color, string command)
@@ -92,7 +92,7 @@ public sealed class LoupedeckLiveS : LoupedeckBase
             var button = CurrentTouchButtonPage.FirstOrDefault(b => b.Index == touch.Target.Key);
             if (button == null) continue;
 
-            StaticDevice.Device.Vibrate();
+            Device.Vibrate();
 
             if (Constants.SystemCommands.TryGetValue(button.Command, out var command))
             {
@@ -130,7 +130,7 @@ public sealed class LoupedeckLiveS : LoupedeckBase
     {
         if (sender is not SimpleButton button) return;
         button.RenderedImage = BitmapHelper.RenderSimpleButtonImage(button, 90, 90);
-        StaticDevice.Device.SetButtonColor(button.Id, button.ButtonColor);
+        Device.SetButtonColor(button.Id, button.ButtonColor);
     }
 
     protected override void TouchItemChanged(object sender, EventArgs e)
@@ -140,7 +140,7 @@ public sealed class LoupedeckLiveS : LoupedeckBase
         var button = CurrentTouchButtonPage.FirstOrDefault(b => b.Index == item.Index);
         if (button != null)
         {
-            StaticDevice.Device.DrawTouchButton(button);
+            Device.DrawTouchButton(button);
 
             // Changes need to be written back to original array.
             CopyBackTouchButtonData(button);
@@ -152,7 +152,7 @@ public sealed class LoupedeckLiveS : LoupedeckBase
         var deviceThread = new Thread(() =>
         {
             // Create instance of the device on this thread to ensure all events run here
-            StaticDevice.Device = new LoupedeckLiveSDevice();
+            Device = new LoupedeckLiveSDevice();
 
             // Signal that the instance has been created
             DeviceCreatedEvent.Set();
@@ -171,15 +171,15 @@ public sealed class LoupedeckLiveS : LoupedeckBase
     {
         foreach (var simpleButton in SimpleButtons)
         {
-            StaticDevice.Device.SetButtonColor(simpleButton.Id, simpleButton.ButtonColor);
+            Device.SetButtonColor(simpleButton.Id, simpleButton.ButtonColor);
         }
 
         foreach (var touchButton in CurrentTouchButtonPage)
         {
-            StaticDevice.Device.DrawTouchButton(touchButton);
+            Device.DrawTouchButton(touchButton);
         }
 
-        StaticDevice.Device.SetBrightness(Brightness);
+        Device.SetBrightness(Brightness);
     }
     
     public override void AddRotaryButtonPage()
