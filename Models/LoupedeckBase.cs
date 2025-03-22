@@ -205,6 +205,14 @@ public abstract class LoupedeckBase : INotifyPropertyChanged
             touchButton.Refresh();
         }
     }
+    
+    public void RefreshSimpleButtons()
+    {
+        foreach (var simpleButton in SimpleButtons)
+        {
+            simpleButton.Refresh();
+        }
+    }
 
     private void CopyTouchButtonData(TouchButton source)
     {

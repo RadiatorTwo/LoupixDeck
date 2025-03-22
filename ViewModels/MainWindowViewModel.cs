@@ -41,6 +41,8 @@ public class MainWindowViewModel : ViewModelBase
         {
             LoupeDeckDevice.RefreshTouchButtons();
         }
+        
+        LoupeDeckDevice.RefreshSimpleButtons();
 
         if (LoupeDeckDevice.RotaryButtonPages.Count == 0)
         {
