@@ -109,13 +109,17 @@ public sealed class LoupedeckLiveS : LoupedeckBase
     {
         var command = e.ButtonId switch
         {
-            Constants.ButtonType.KNOB_TL => e.Delta < 0 ? RotaryButtonPages[CurrentRotaryPageIndex].RotaryButtons[0].RotaryLeftCommand : RotaryButtonPages[CurrentRotaryPageIndex].RotaryButtons[0].RotaryRightCommand,
-            Constants.ButtonType.KNOB_CL => e.Delta < 0 ? RotaryButtonPages[CurrentRotaryPageIndex].RotaryButtons[1].RotaryLeftCommand : RotaryButtonPages[CurrentRotaryPageIndex].RotaryButtons[1].RotaryRightCommand,
+            Constants.ButtonType.KNOB_TL => e.Delta < 0
+                ? RotaryButtonPages[CurrentRotaryPageIndex].RotaryButtons[0].RotaryLeftCommand
+                : RotaryButtonPages[CurrentRotaryPageIndex].RotaryButtons[0].RotaryRightCommand,
+            Constants.ButtonType.KNOB_CL => e.Delta < 0
+                ? RotaryButtonPages[CurrentRotaryPageIndex].RotaryButtons[1].RotaryLeftCommand
+                : RotaryButtonPages[CurrentRotaryPageIndex].RotaryButtons[1].RotaryRightCommand,
             _ => null
         };
 
         if (string.IsNullOrEmpty(command)) return;
-        
+
         if (Constants.SystemCommands.TryGetValue(command, out var systemCommand))
         {
             Avalonia.Threading.Dispatcher.UIThread.Post(() => { ExceuteSystemCommand(systemCommand); });
@@ -181,7 +185,7 @@ public sealed class LoupedeckLiveS : LoupedeckBase
 
         Device.SetBrightness(Brightness);
     }
-    
+
     public override void AddRotaryButtonPage()
     {
         var newPage = new RotaryButtonPage(2)
@@ -192,12 +196,12 @@ public sealed class LoupedeckLiveS : LoupedeckBase
         RotaryButtonPages.Add(newPage);
         CurrentRotaryPageIndex = RotaryButtonPages.Count - 1;
     }
-    
+
     public override void DeleteRotaryButtonPage()
     {
         if (RotaryButtonPages.Count == 1)
             return;
-        
+
         // Remove Page and Reorder remaining pages.
         RotaryButtonPages.RemoveAt(CurrentRotaryPageIndex);
 
@@ -208,7 +212,7 @@ public sealed class LoupedeckLiveS : LoupedeckBase
             t.Page = counter;
         }
 
-        if (CurrentRotaryPageIndex < RotaryButtonPages.Count) 
+        if (CurrentRotaryPageIndex < RotaryButtonPages.Count)
         {
             ApplyRotaryPage(CurrentRotaryPageIndex);
         }
@@ -217,7 +221,7 @@ public sealed class LoupedeckLiveS : LoupedeckBase
             ApplyRotaryPage(RotaryButtonPages.Count - 1);
         }
     }
-    
+
     public override void AddTouchButtonPage()
     {
         var newPage = new TouchButtonPage(15)
@@ -239,7 +243,7 @@ public sealed class LoupedeckLiveS : LoupedeckBase
     {
         if (TouchButtonPages.Count == 1)
             return;
-        
+
         // Remove Page and Reorder remaining pages.
         TouchButtonPages.RemoveAt(CurrentTouchPageIndex);
 
@@ -250,7 +254,7 @@ public sealed class LoupedeckLiveS : LoupedeckBase
             t.Page = counter;
         }
 
-        if (CurrentTouchPageIndex < TouchButtonPages.Count) 
+        if (CurrentTouchPageIndex < TouchButtonPages.Count)
         {
             ApplyTouchPage(CurrentTouchPageIndex);
         }
