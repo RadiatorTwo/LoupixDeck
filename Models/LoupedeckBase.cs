@@ -76,7 +76,9 @@ public abstract class LoupedeckBase : INotifyPropertyChanged
     protected LoupedeckLiveSDevice Device;
     protected readonly CommandRunner CommandRunner;
     protected readonly ObsController Obs;
-    
+    protected readonly DBusController DBus;
+
+
     public ObservableCollection<RotaryButtonPage> RotaryButtonPages { get; set; }
     public ObservableCollection<TouchButtonPage> TouchButtonPages { get; set; }
     public TouchButton[] CurrentTouchButtonPage { get; set; }
@@ -109,8 +111,8 @@ public abstract class LoupedeckBase : INotifyPropertyChanged
     {
         CommandRunner = new CommandRunner();
         Obs = new ObsController();
-        
         Obs.Connect();
+        DBus =  new DBusController();
     }
 
     public void SaveToFile()

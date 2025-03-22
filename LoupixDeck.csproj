@@ -13,6 +13,13 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Content Include="Assets\logo.ico">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>LoupixDeck.ico</Link>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Avalonia" Version="11.2.5" />
     <PackageReference Include="Avalonia.Controls.ColorPicker" Version="11.2.5" />
     <PackageReference Include="Avalonia.Desktop" Version="11.2.5" />
@@ -29,5 +36,6 @@
     <PackageReference Include="obs-websocket-dotnet" Version="5.0.0.3" />
     <PackageReference Include="System.Drawing.Common" Version="9.0.2" />
     <PackageReference Include="System.IO.Ports" Version="9.0.2" />
+    <PackageReference Include="Tmds.DBus" Version="0.21.2" />
   </ItemGroup>
 </Project>
