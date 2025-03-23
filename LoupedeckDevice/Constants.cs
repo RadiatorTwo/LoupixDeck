@@ -1,3 +1,5 @@
+using LoupixDeck.Utils;
+
 namespace LoupixDeck.LoupedeckDevice;
 
 public static class Constants
@@ -19,6 +21,7 @@ public static class Constants
         BUTTON6 = 12,
         BUTTON7 = 13
     }
+
     public static readonly Dictionary<byte, ButtonType> Buttons = new()
     {
         { 0x01, ButtonType.KNOB_TL },
@@ -105,19 +108,26 @@ public static class Constants
 
     public enum SystemCommand
     {
-        NEXT_PAGE = 0,
-        PREVIOUS_PAGE = 1,
-        NEXT_ROT_PAGE = 2,
-        PREVIOUS_ROT_PAGE = 3,
-        OBS_VIRTUAL_CAM = 4
+        NONE,
+        NEXT_PAGE,
+        PREVIOUS_PAGE,
+        NEXT_ROT_PAGE,
+        PREVIOUS_ROT_PAGE,
+        OBS_START_RECORD,
+        OBS_STOP_RECORD,
+        OBS_PAUSE_RECORD,
+        OBS_VIRTUAL_CAM
     }
-    
-    public static readonly Dictionary<string, SystemCommand> SystemCommands = new()
+
+    public static readonly BiMap<string, SystemCommand> SystemCommands = new()
     {
         { "System.NextPage", SystemCommand.NEXT_PAGE },
         { "System.PreviousPage", SystemCommand.PREVIOUS_PAGE },
         { "System.NextRotaryPage", SystemCommand.NEXT_ROT_PAGE },
         { "System.PreviousRotaryPage", SystemCommand.PREVIOUS_ROT_PAGE },
+        { "System.ObsStartRecord", SystemCommand.OBS_START_RECORD },
+        { "System.ObsStopRecord", SystemCommand.OBS_STOP_RECORD },
+        { "System.ObsPauseRecord", SystemCommand.OBS_PAUSE_RECORD },
         { "System.ObsVirtualCam", SystemCommand.OBS_VIRTUAL_CAM }
     };
 }

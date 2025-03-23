@@ -1,6 +1,6 @@
 using Tmds.DBus;
 
-namespace LoupixDeck.Utils;
+namespace LoupixDeck.Services;
 
 [DBusInterface("org.freedesktop.Notifications")]
 public interface INotifications : IDBusObject
