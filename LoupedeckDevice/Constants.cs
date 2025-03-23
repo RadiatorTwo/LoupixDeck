@@ -116,7 +116,11 @@ public static class Constants
         OBS_START_RECORD,
         OBS_STOP_RECORD,
         OBS_PAUSE_RECORD,
-        OBS_VIRTUAL_CAM
+        OBS_VIRTUAL_CAM,
+        OBS_START_REPLAY,
+        OBS_STOP_REPLAY,
+        OBS_SAVE_REPLAY,
+        OBS_SET_SCENE
     }
 
     public static readonly BiMap<string, SystemCommand> SystemCommands = new()
@@ -128,6 +132,10 @@ public static class Constants
         { "System.ObsStartRecord", SystemCommand.OBS_START_RECORD },
         { "System.ObsStopRecord", SystemCommand.OBS_STOP_RECORD },
         { "System.ObsPauseRecord", SystemCommand.OBS_PAUSE_RECORD },
-        { "System.ObsVirtualCam", SystemCommand.OBS_VIRTUAL_CAM }
+        { "System.ObsVirtualCam", SystemCommand.OBS_VIRTUAL_CAM },
+        { "System.ObsStartReplay", SystemCommand.OBS_START_REPLAY },
+        { "System.ObsStopReplay", SystemCommand.OBS_STOP_REPLAY },
+        { "System.ObsSaveReplay", SystemCommand.OBS_SAVE_REPLAY },
+        { "System.ObsSetScene", SystemCommand.OBS_SET_SCENE }
     };
 }

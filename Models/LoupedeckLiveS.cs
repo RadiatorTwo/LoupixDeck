@@ -4,7 +4,6 @@ using LoupixDeck.LoupedeckDevice.Device;
 using LoupixDeck.Utils;
 using System.Collections.ObjectModel;
 using LoupixDeck.Services;
-using Newtonsoft.Json;
 
 namespace LoupixDeck.Models;
 
@@ -42,6 +41,7 @@ public sealed class LoupedeckLiveS : LoupedeckBase
         RefreshTouchButtons();
 
         Obs = obs;
+        obs.Connect();
         DBus = dbus;
         CommandRunner = runner;
     }
@@ -85,18 +85,6 @@ public sealed class LoupedeckLiveS : LoupedeckBase
         }
     }
 
-    private void RunCommand(string command)
-    {
-        if (Constants.SystemCommands.TryGetForward(command, out var systemCommand))
-        {
-            Avalonia.Threading.Dispatcher.UIThread.Post(() => { ExceuteSystemCommand(systemCommand); });
-        }
-        else
-        {
-            CommandRunner.EnqueueCommand(command);
-        }
-    }
-
     public override void OnTouchButtonPress(object sender, TouchEventArgs e)
     {
         if (e.EventType != Constants.TouchEventType.TOUCH_START) return;
@@ -111,6 +99,19 @@ public sealed class LoupedeckLiveS : LoupedeckBase
             if (Constants.SystemCommands.TryGetForward(button.Command, out var command))
             {
                 Avalonia.Threading.Dispatcher.UIThread.Post(() => { ExceuteSystemCommand(command); });
+            }
+            else if (button.Command.Contains("(") && button.Command.Contains(")"))
+            {
+                var singleCommand = button.Command.Substring(0, button.Command.IndexOf("(", StringComparison.Ordinal));
+                if (Constants.SystemCommands.TryGetForward(singleCommand, out var parameterCommand))
+                {
+                    var parameters = GetCommandParameters(button.Command);
+                    Avalonia.Threading.Dispatcher.UIThread.Post(() => { ExceuteSystemCommand(parameterCommand, parameters); });
+                }
+                else
+                {
+                    CommandRunner.EnqueueCommand(button.Command);
+                }
             }
             else
             {
@@ -278,10 +279,44 @@ public sealed class LoupedeckLiveS : LoupedeckBase
         }
     }
 
-    public override void ExceuteSystemCommand(Constants.SystemCommand command)
+    private void RunCommand(string command)
+    {
+        if (Constants.SystemCommands.TryGetForward(command, out var systemCommand))
+        {
+            var parameters = GetCommandParameters(command);
+            Avalonia.Threading.Dispatcher.UIThread.Post(() => { ExceuteSystemCommand(systemCommand, parameters); });
+        }
+        else
+        {
+            CommandRunner.EnqueueCommand(command);
+        }
+    }
+
+    private string[] GetCommandParameters(string command)
+    {
+        if (string.IsNullOrWhiteSpace(command))
+        {
+            return [];
+        }
+
+        var start = command.IndexOf('(');
+        var end = command.IndexOf(')');
+
+        if (start == -1)
+            return [];
+
+        var parameterString = command.Substring(start + 1, end - start - 1);
+
+        return parameterString.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+    }
+
+    public override void ExceuteSystemCommand(Constants.SystemCommand command, string[] parameters = null)
     {
         switch (command)
         {
+            case Constants.SystemCommand.NONE:
+                // Shouldnt happen
+                break;
             case Constants.SystemCommand.NEXT_PAGE:
                 NextTouchPage();
                 break;
@@ -296,6 +331,34 @@ public sealed class LoupedeckLiveS : LoupedeckBase
                 break;
             case Constants.SystemCommand.OBS_VIRTUAL_CAM:
                 Obs.ToggleVirtualCamera();
+                break;
+            case Constants.SystemCommand.OBS_START_RECORD:
+                Obs.StartRecording();
+                break;
+            case Constants.SystemCommand.OBS_STOP_RECORD:
+                Obs.StopRecording();
+                break;
+            case Constants.SystemCommand.OBS_PAUSE_RECORD:
+                Obs.PauseRecording();
+                break;
+            case Constants.SystemCommand.OBS_START_REPLAY:
+                Obs.StartReplayBuffer();
+                break;
+            case Constants.SystemCommand.OBS_STOP_REPLAY:
+                Obs.StopReplayBuffer();
+                break;
+            case Constants.SystemCommand.OBS_SAVE_REPLAY:
+                Obs.SaveReplayBuffer();
+                break;
+            case Constants.SystemCommand.OBS_SET_SCENE:
+                if (parameters != null)
+                {
+                    var sceneName = parameters[0];
+                    if (!string.IsNullOrWhiteSpace(sceneName))
+                    {
+                        Obs.SetScene(sceneName);
+                    }
+                }
                 break;
             default:
                 throw new ArgumentOutOfRangeException(nameof(command), command, null);
