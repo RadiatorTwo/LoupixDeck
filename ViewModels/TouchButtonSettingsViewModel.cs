@@ -49,7 +49,22 @@ public class TouchButtonSettingsViewModel : ViewModelBase
         obsMenu.Childs.Add(new SystemCommand("Start Record", Constants.SystemCommand.OBS_START_RECORD));
         obsMenu.Childs.Add(new SystemCommand("Stop Record", Constants.SystemCommand.OBS_STOP_RECORD));
         obsMenu.Childs.Add(new SystemCommand("Pause Record", Constants.SystemCommand.OBS_PAUSE_RECORD));
+        
+        obsMenu.Childs.Add(new SystemCommand("Start Replay", Constants.SystemCommand.OBS_START_REPLAY));
+        obsMenu.Childs.Add(new SystemCommand("Stop Replay", Constants.SystemCommand.OBS_STOP_REPLAY));
+        obsMenu.Childs.Add(new SystemCommand("Save Replay", Constants.SystemCommand.OBS_SAVE_REPLAY));
+        
         obsMenu.Childs.Add(new SystemCommand("Toggle Virtual Camera", Constants.SystemCommand.OBS_VIRTUAL_CAM));
+        
+        var scenesMenu = new SystemCommand("Scenes", Constants.SystemCommand.NONE);
+        var scenes = _obs.GetScenes();
+
+        foreach (var scene in scenes)
+        {
+            scenesMenu.Childs.Add(new SystemCommand(scene.Name, Constants.SystemCommand.OBS_SET_SCENE));
+        }
+        
+        obsMenu.Childs.Add(scenesMenu);
         
         SystemCommandMenus.Add(obsMenu);
     }
@@ -77,9 +92,12 @@ public class TouchButtonSettingsViewModel : ViewModelBase
         ButtonData.Refresh();
     }
 
-    public void InsertCommand(Constants.SystemCommand command)
+    public void InsertCommand(Constants.SystemCommand command, params object[] replacements)
     {
         var systemCommand = Constants.SystemCommands.Reverse[command];
-        ButtonData.Command += systemCommand;
+
+        var formattedCommand = string.Format(systemCommand, replacements);
+
+        ButtonData.Command += formattedCommand;
     }
 }

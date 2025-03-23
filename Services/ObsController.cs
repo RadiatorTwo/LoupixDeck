@@ -1,5 +1,6 @@
 using LoupixDeck.Models;
 using OBSWebsocketDotNet;
+using OBSWebsocketDotNet.Communication;
 using OBSWebsocketDotNet.Types;
 
 namespace LoupixDeck.Services;
@@ -13,18 +14,30 @@ public class ObsController
     {
         try
         {
-            if (!_obs.IsConnected)
+            if (_obs.IsConnected)
             {
                 return;
             }
             
             _obsConfig = ObsConfig.LoadConfig();
+            _obs.Connected += Obs_Connected;
+            _obs.Disconnected += Obs_Disconnected;
             _obs.ConnectAsync(_obsConfig.Url, _obsConfig.Password);
         }
         catch (Exception ex)
         {
             Console.WriteLine($"Error connecting to OBS: {ex.Message}");
         }
+    }
+    
+    private void Obs_Connected(object sender, EventArgs e)
+    {
+        Console.WriteLine("OBS Connected");
+    }
+
+    private void Obs_Disconnected(object sender, ObsDisconnectionInfo e)
+    {
+        Console.WriteLine($"OBS Disconnected: {e.DisconnectReason}");
     }
 
     public void Disconnect()

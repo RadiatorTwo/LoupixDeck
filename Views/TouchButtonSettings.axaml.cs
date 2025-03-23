@@ -1,12 +1,9 @@
-using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
-using Avalonia.Interactivity;
 using Avalonia.VisualTree;
 using LoupixDeck.LoupedeckDevice;
 using LoupixDeck.Models;
 using LoupixDeck.Services;
-using LoupixDeck.Utils;
 using LoupixDeck.ViewModels;
 
 namespace LoupixDeck.Views;
@@ -32,7 +29,7 @@ public partial class TouchButtonSettings : Window
         {
             if (e.ClickCount == 2)
             {
-                ((TouchButtonSettingsViewModel)DataContext).InsertCommand(command.Command);
+                ((TouchButtonSettingsViewModel)DataContext)?.InsertCommand(command.Command, command.Name);
             }
         }
         else
