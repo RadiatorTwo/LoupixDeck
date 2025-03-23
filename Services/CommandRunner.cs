@@ -1,7 +1,7 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
 
-namespace LoupixDeck.Utils;
+namespace LoupixDeck.Services;
 
 public class CommandRunner : IDisposable
 {

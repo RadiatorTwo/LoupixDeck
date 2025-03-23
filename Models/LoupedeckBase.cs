@@ -7,6 +7,7 @@ using System.Runtime.CompilerServices;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using LoupixDeck.LoupedeckDevice.Device;
+using LoupixDeck.Services;
 
 namespace LoupixDeck.Models;
 
@@ -74,10 +75,9 @@ public abstract class LoupedeckBase : INotifyPropertyChanged
     }
 
     protected LoupedeckLiveSDevice Device;
-    protected readonly CommandRunner CommandRunner;
-    protected readonly ObsController Obs;
-    protected readonly DBusController DBus;
-
+    protected CommandRunner CommandRunner;
+    protected ObsController Obs;
+    protected DBusController DBus;
 
     public ObservableCollection<RotaryButtonPage> RotaryButtonPages { get; set; }
     public ObservableCollection<TouchButtonPage> TouchButtonPages { get; set; }
@@ -106,14 +106,6 @@ public abstract class LoupedeckBase : INotifyPropertyChanged
     }
 
     protected readonly AutoResetEvent DeviceCreatedEvent = new(false);
-
-    protected LoupedeckBase()
-    {
-        CommandRunner = new CommandRunner();
-        Obs = new ObsController();
-        Obs.Connect();
-        DBus =  new DBusController();
-    }
 
     public void SaveToFile()
     {
@@ -145,8 +137,6 @@ public abstract class LoupedeckBase : INotifyPropertyChanged
         var instance = JsonSerializer.Deserialize<T>(json, options);
         instance.CurrentTouchPageIndex = 0;
         instance.CurrentRotaryPageIndex = 0;
-
-        instance.InitUpdateEvents();
 
         return instance;
     }
@@ -207,7 +197,7 @@ public abstract class LoupedeckBase : INotifyPropertyChanged
             touchButton.Refresh();
         }
     }
-    
+
     public void RefreshSimpleButtons()
     {
         foreach (var simpleButton in SimpleButtons)
@@ -262,6 +252,8 @@ public abstract class LoupedeckBase : INotifyPropertyChanged
         TouchButtonPages[CurrentTouchPageIndex].TouchButtons[source.Index].Command = source.Command;
         TouchButtonPages[CurrentTouchPageIndex].TouchButtons[source.Index].RenderedImage = source.RenderedImage;
     }
+
+    public abstract void InitDevice(bool reset, ObsController obs, DBusController dbus, CommandRunner runner);
 
     public abstract void InitButtonEvents();
 

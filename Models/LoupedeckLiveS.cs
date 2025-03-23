@@ -3,33 +3,47 @@ using LoupixDeck.LoupedeckDevice;
 using LoupixDeck.LoupedeckDevice.Device;
 using LoupixDeck.Utils;
 using System.Collections.ObjectModel;
+using LoupixDeck.Services;
+using Newtonsoft.Json;
 
 namespace LoupixDeck.Models;
 
 public sealed class LoupedeckLiveS : LoupedeckBase
 {
-    public LoupedeckLiveS()
+    public override void InitDevice(bool reset, ObsController obs, DBusController dbus, CommandRunner runner)
     {
         StartDeviceThread();
 
-        SimpleButtons =
-        [
-            CreateSimpleButton(Constants.ButtonType.BUTTON0, Colors.Blue, "System.PreviousPage"),
-            CreateSimpleButton(Constants.ButtonType.BUTTON1, Colors.Blue, "System.PreviousRotaryPage"),
-            CreateSimpleButton(Constants.ButtonType.BUTTON2, Colors.Blue, "System.NextRotaryPage"),
-            CreateSimpleButton(Constants.ButtonType.BUTTON3, Colors.Blue, "System.NextPage")
-        ];
-
-        RotaryButtonPages = new ObservableCollection<RotaryButtonPage>();
-        TouchButtonPages = new ObservableCollection<TouchButtonPage>();
-        CurrentTouchButtonPage = new TouchButton[15];
-
-        for (var i = 0; i < CurrentTouchButtonPage.Length; i++)
+        if (reset)
         {
-            CurrentTouchButtonPage[i] = new TouchButton(i);
+            SimpleButtons =
+            [
+                CreateSimpleButton(Constants.ButtonType.BUTTON0, Colors.Blue, "System.PreviousPage"),
+                CreateSimpleButton(Constants.ButtonType.BUTTON1, Colors.Blue, "System.PreviousRotaryPage"),
+                CreateSimpleButton(Constants.ButtonType.BUTTON2, Colors.Blue, "System.NextRotaryPage"),
+                CreateSimpleButton(Constants.ButtonType.BUTTON3, Colors.Blue, "System.NextPage")
+            ];
+
+            TouchButtonPages = new ObservableCollection<TouchButtonPage>();
+            CurrentTouchButtonPage = new TouchButton[15];
+            RotaryButtonPages = new ObservableCollection<RotaryButtonPage>();
+
+            for (var i = 0; i < CurrentTouchButtonPage.Length; i++)
+            {
+                CurrentTouchButtonPage[i] = new TouchButton(i);
+            }
+
+            AddTouchButtonPage();
+            AddRotaryButtonPage();
         }
 
         InitUpdateEvents();
+        RefreshSimpleButtons();
+        RefreshTouchButtons();
+
+        Obs = obs;
+        DBus = dbus;
+        CommandRunner = runner;
     }
 
     public override void InitButtonEvents()
@@ -73,7 +87,7 @@ public sealed class LoupedeckLiveS : LoupedeckBase
 
     private void RunCommand(string command)
     {
-        if (Constants.SystemCommands.TryGetValue(command, out var systemCommand))
+        if (Constants.SystemCommands.TryGetForward(command, out var systemCommand))
         {
             Avalonia.Threading.Dispatcher.UIThread.Post(() => { ExceuteSystemCommand(systemCommand); });
         }
@@ -94,7 +108,7 @@ public sealed class LoupedeckLiveS : LoupedeckBase
 
             Device.Vibrate();
 
-            if (Constants.SystemCommands.TryGetValue(button.Command, out var command))
+            if (Constants.SystemCommands.TryGetForward(button.Command, out var command))
             {
                 Avalonia.Threading.Dispatcher.UIThread.Post(() => { ExceuteSystemCommand(command); });
             }
@@ -120,7 +134,7 @@ public sealed class LoupedeckLiveS : LoupedeckBase
 
         if (string.IsNullOrEmpty(command)) return;
 
-        if (Constants.SystemCommands.TryGetValue(command, out var systemCommand))
+        if (Constants.SystemCommands.TryGetForward(command, out var systemCommand))
         {
             Avalonia.Threading.Dispatcher.UIThread.Post(() => { ExceuteSystemCommand(systemCommand); });
         }
