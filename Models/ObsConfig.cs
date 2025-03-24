@@ -1,11 +1,51 @@
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
 using Newtonsoft.Json;
 
 namespace LoupixDeck.Models;
 
-public class ObsConfig
+public class ObsConfig : INotifyPropertyChanged
 {
-    public string Url { get; set; }
-    public string Password { get; set; }
+    private string _ip;
+    private int _port;
+    private string _password;
+
+    public string Ip
+    {
+        get => _ip;
+        set
+        {
+            if (value == _ip) return;
+            _ip = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(Url));
+        }
+    }
+
+    public int Port
+    {
+        get => _port;
+        set
+        {
+            if (value == _port) return;
+            _port = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(Url));
+        }
+    }
+
+    public string Password
+    {
+        get => _password;
+        set
+        {
+            if (value == _password) return;
+            _password = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public string Url => $"ws://{Ip}:{Port}";
 
     // Lädt die Konfiguration aus einer JSON-Datei
     public static ObsConfig LoadConfig()
@@ -16,7 +56,8 @@ public class ObsConfig
             // Falls die Datei nicht existiert, werden Default-Werte verwendet.
             return new ObsConfig
             {
-                Url = "ws://127.0.0.1:4455",
+                Ip = "127.0.0.1",
+                Port = 4455,
                 Password = ""
             };
         }
@@ -33,7 +74,8 @@ public class ObsConfig
             // Bei Fehlern werden ebenfalls Default-Werte zurückgegeben.
             return new ObsConfig
             {
-                Url = "ws://127.0.0.1:4455",
+                Ip = "127.0.0.1",
+                Port = 4455,
                 Password = ""
             };
         }
@@ -53,5 +95,20 @@ public class ObsConfig
         {
             Console.WriteLine($"Error saving config: {ex.Message}");
         }
+    }
+
+    public event PropertyChangedEventHandler PropertyChanged;
+
+    protected virtual void OnPropertyChanged([CallerMemberName] string propertyName = null)
+    {
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+    }
+
+    protected bool SetField<T>(ref T field, T value, [CallerMemberName] string propertyName = null)
+    {
+        if (EqualityComparer<T>.Default.Equals(field, value)) return false;
+        field = value;
+        OnPropertyChanged(propertyName);
+        return true;
     }
 }
