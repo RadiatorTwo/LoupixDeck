@@ -1,8 +1,6 @@
-using System.Globalization;
 using Avalonia;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
-using Avalonia.Media.Immutable;
 using LoupixDeck.LoupedeckDevice.Serial;
 using LoupixDeck.Models;
 using LoupixDeck.Utils;

@@ -4,6 +4,7 @@ using LoupixDeck.Models;
 using LoupixDeck.Services;
 using LoupixDeck.Utils;
 using LoupixDeck.Views;
+using AsyncRelayCommand = CommunityToolkit.Mvvm.Input.AsyncRelayCommand;
 using RelayCommand = LoupixDeck.Utils.RelayCommand;
 
 namespace LoupixDeck.ViewModels;
@@ -24,6 +25,8 @@ public class MainWindowViewModel : ViewModelBase
     public ICommand DeleteTouchPageCommand { get; }
     public ICommand TouchPageButtonCommand { get; }
 
+    public ICommand SettingsMenuCommand { get; }
+    
     public LoupedeckLiveS LoupeDeckDevice { get; set; }
 
     public MainWindowViewModel(ObsController obs, DBusController dbus, CommandRunner runner)
@@ -53,6 +56,12 @@ public class MainWindowViewModel : ViewModelBase
         AddTouchPageCommand = new RelayCommand(AddTouchPageButton_Click);
         DeleteTouchPageCommand = new RelayCommand(DeleteTouchPageButton_Click);
         TouchPageButtonCommand = new CommunityToolkit.Mvvm.Input.RelayCommand<int>(TouchPageButton_Click);
+
+        SettingsMenuCommand = new AsyncRelayCommand(SettingsMenuButton_Click);
+    }
+
+    public MainWindowViewModel()
+    {
     }
 
     private void AddRotaryPageButton_Click()
@@ -116,5 +125,14 @@ public class MainWindowViewModel : ViewModelBase
         await newWindow.ShowDialog(WindowHelper.GetMainWindow());
 
         LoupeDeckDevice.SaveToFile();
+    }
+
+    private async Task SettingsMenuButton_Click()
+    {
+        var newWindow = new Settings(_obs)
+        {
+            WindowStartupLocation = Avalonia.Controls.WindowStartupLocation.CenterOwner
+        };
+        await newWindow.ShowDialog(WindowHelper.GetMainWindow());
     }
 }

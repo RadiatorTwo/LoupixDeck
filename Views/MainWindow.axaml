@@ -4,12 +4,12 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
-        Width="800" Height="400"
+        Width="850" Height="400"
         WindowStartupLocation="CenterScreen"
         x:Class="LoupixDeck.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
         d:DataContext="{d:DesignInstance Type=vm:MainWindowViewModel, IsDesignTimeCreatable=True}"
-        Icon="/Assets/logo.ico"
+        Icon="avares://LoupixDeck/Assets/logo.ico"
         Title="LoupixDeck"
         x:Name="RootWindow">
 
@@ -19,7 +19,7 @@
         <vm:MainWindowViewModel />
     </Design.DataContext>
 
-    <Grid ColumnDefinitions="150,500,150" RowDefinitions="300,30,50">
+    <Grid ColumnDefinitions="150,500,150,50" RowDefinitions="300,30,50">
         <Grid Grid.Row="0"
               Grid.Column="0"
               HorizontalAlignment="Center"
@@ -560,6 +560,22 @@
                     VerticalContentAlignment="Center"
                     Command="{Binding DeleteTouchPageCommand}" />
         </StackPanel>
+        <Button Grid.Row="0" Grid.Column="3" VerticalAlignment="Top" HorizontalAlignment="Left" VerticalContentAlignment="Top"
+                Width="50"
+                Height="50"
+                Background="Transparent"
+                BorderBrush="Transparent"
+                BorderThickness="0">
+            <Image Source="{SvgImage avares://LoupixDeck/Assets/hamburger.svg}" Stretch="Uniform" />
+            <Button.Flyout>
+                <Flyout Placement="Left">
+                    <StackPanel>
+                        <Button Content="Settings"
+                                Command="{Binding SettingsMenuCommand}" />
+                    </StackPanel>
+                </Flyout>
+            </Button.Flyout>
+        </Button>
         <Slider Grid.Column="1" Grid.Row="2" Minimum="0" Maximum="1" TickFrequency="0.1"
                 IsSnapToTickEnabled="True" Value="{Binding LoupeDeckDevice.Brightness}" />
     </Grid>

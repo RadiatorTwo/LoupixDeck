@@ -10,18 +10,32 @@ public class ObsController
     private readonly OBSWebsocket _obs = new();
     private ObsConfig _obsConfig;
 
-    public void Connect()
+    public event EventHandler Connected;
+    public event EventHandler<ObsDisconnectionInfo> Disconnected;
+
+    public void Connect(string ip = "", int port = 0, string password = "")
     {
         try
         {
             if (_obs.IsConnected)
             {
-                return;
+                Disconnect();
             }
-            
-            _obsConfig = ObsConfig.LoadConfig();
-            _obs.Connected += Obs_Connected;
-            _obs.Disconnected += Obs_Disconnected;
+
+            if (!string.IsNullOrEmpty(ip) && !string.IsNullOrEmpty(ip) && port > 0)
+            {
+                _obsConfig = new ObsConfig();
+                _obsConfig.Ip = ip;
+                _obsConfig.Port = port;
+                _obsConfig.Password = password;
+            }
+            else
+            {
+                _obsConfig = ObsConfig.LoadConfig();
+                _obs.Connected += Obs_Connected;
+                _obs.Disconnected += Obs_Disconnected;
+            }
+
             _obs.ConnectAsync(_obsConfig.Url, _obsConfig.Password);
         }
         catch (Exception ex)
@@ -29,15 +43,17 @@ public class ObsController
             Console.WriteLine($"Error connecting to OBS: {ex.Message}");
         }
     }
-    
+
     private void Obs_Connected(object sender, EventArgs e)
     {
         Console.WriteLine("OBS Connected");
+        Connected?.Invoke(this, e);
     }
 
     private void Obs_Disconnected(object sender, ObsDisconnectionInfo e)
     {
         Console.WriteLine($"OBS Disconnected: {e.DisconnectReason}");
+        Disconnected?.Invoke(this, e);
     }
 
     public void Disconnect()
@@ -101,7 +117,7 @@ public class ObsController
     }
 
     #endregion
-    
+
     #region Recording Functions
 
     public void StartRecording()
@@ -175,7 +191,7 @@ public class ObsController
             throw;
         }
     }
-    
+
     public void StopReplayBuffer()
     {
         if (!_obs.IsConnected)
@@ -193,7 +209,7 @@ public class ObsController
             throw;
         }
     }
-    
+
     public void SaveReplayBuffer()
     {
         if (!_obs.IsConnected)
@@ -251,7 +267,7 @@ public class ObsController
             throw;
         }
     }
-    
+
     public float GetInputVolume(string inputName)
     {
         if (!_obs.IsConnected)
@@ -270,7 +286,7 @@ public class ObsController
             throw;
         }
     }
-    
+
     public bool IsInputMuted(string inputName)
     {
         if (!_obs.IsConnected)
@@ -345,7 +361,8 @@ public class ObsController
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error toggling visibility of source '{sceneItemId}' in scene '{sceneName}': {ex.Message}");
+            Console.WriteLine(
+                $"Error toggling visibility of source '{sceneItemId}' in scene '{sceneName}': {ex.Message}");
             throw;
         }
     }
@@ -353,7 +370,7 @@ public class ObsController
     #endregion
 
     #region Scene Functions
-    
+
     public void SetScene(string sceneName)
     {
         if (!_obs.IsConnected)
@@ -371,7 +388,7 @@ public class ObsController
             throw;
         }
     }
-    
+
     public string GetCurrentSceneName()
     {
         if (!_obs.IsConnected)
@@ -390,7 +407,7 @@ public class ObsController
             throw;
         }
     }
-    
+
     public List<SceneBasicInfo> GetScenes()
     {
         if (!_obs.IsConnected)
@@ -432,7 +449,7 @@ public class ObsController
             throw;
         }
     }
-    
+
     public void SetStudioMode(bool enabled)
     {
         if (!_obs.IsConnected)

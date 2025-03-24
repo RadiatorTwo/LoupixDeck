@@ -1,0 +1,60 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="using:LoupixDeck.ViewModels"
+        x:Class="LoupixDeck.Views.Settings"
+        x:DataType="vm:SettingsViewModel"
+        mc:Ignorable="d"
+        Title="Settings"
+        Width="700"
+        Height="500">
+
+    <Grid ColumnDefinitions="200,*">
+
+        <!-- Linke Menü-Spalte -->
+        <StackPanel Grid.Column="0" Margin="5,10,5,0" Spacing="5">
+            <Button Content="Allgemein"
+                    Command="{Binding ShowGeneralCommand}"
+                    HorizontalAlignment="Stretch" />
+            <Button Content="OBS"
+                    Command="{Binding ShowObsCommand}"
+                    HorizontalAlignment="Stretch" />
+        </StackPanel>
+
+        <Grid Grid.Column="1" Margin="20 5 0 0">
+            <StackPanel IsVisible="{Binding IsGeneralSelected}">
+                <TextBlock Text="General Settings" FontSize="24" FontWeight="Bold" />
+                <TextBlock>ToDo</TextBlock>
+            </StackPanel>
+
+            <StackPanel IsVisible="{Binding IsObsSelected}">
+                <TextBlock Text="OBS Settings" FontSize="24" FontWeight="Bold" />
+
+                <StackPanel Orientation="Horizontal" Spacing="10">
+                    <TextBlock Text="IP:" Width="80" VerticalAlignment="Center" />
+                    <TextBox Width="200" Text="{Binding ObsConfig.Ip, Mode=TwoWay}" />
+                </StackPanel>
+
+                <StackPanel Orientation="Horizontal" Spacing="10">
+                    <TextBlock Text="Port:" Width="80" VerticalAlignment="Center" />
+                    <TextBox Width="200" Text="{Binding ObsConfig.Port, Mode=TwoWay}" />
+                </StackPanel>
+
+                <StackPanel Orientation="Horizontal" Spacing="10">
+                    <TextBlock Text="Passwort:" Width="80" VerticalAlignment="Center" />
+                    <TextBox Width="200" Text="{Binding ObsConfig.Password, Mode=TwoWay}" PasswordChar="*" />
+                </StackPanel>
+
+                <StackPanel Orientation="Horizontal" Spacing="20" Margin="0 20 0 0">
+                    <Button Content="Speichern" Width="120" HorizontalContentAlignment="Center"
+                            Command="{Binding SaveObsCommand}" />
+                    <Button Content="Verbindung testen" Width="150" HorizontalContentAlignment="Center"
+                            Command="{Binding TestConnectionCommand}" />
+                    <TextBlock IsVisible="{Binding ConnectionTestVisible}" Text="{Binding ConnectionResult}"
+                               Foreground="{Binding TextColor}" />
+                </StackPanel>
+            </StackPanel>
+        </Grid>
+    </Grid>
+</Window>
