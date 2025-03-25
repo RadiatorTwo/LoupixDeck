@@ -310,9 +310,9 @@ public sealed class LoupedeckLiveS : LoupedeckBase
         return parameterString.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
     }
 
-    public override void ExceuteSystemCommand(Constants.SystemCommand command, string[] parameters = null)
+    public override void ExceuteSystemCommand(Constants.CommandInfo command, string[] parameters = null)
     {
-        switch (command)
+        switch (command.SystemCommand)
         {
             case Constants.SystemCommand.NONE:
                 // Shouldnt happen

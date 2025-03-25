@@ -278,5 +278,5 @@ public abstract class LoupedeckBase : INotifyPropertyChanged
     public abstract void AddTouchButtonPage();
     public abstract void DeleteTouchButtonPage();
 
-    public abstract void ExceuteSystemCommand(Constants.SystemCommand command, string[] parameters = null);
+    public abstract void ExceuteSystemCommand(Constants.CommandInfo command, string[] parameters = null);
 }
