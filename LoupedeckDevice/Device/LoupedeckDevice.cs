@@ -1,9 +1,12 @@
-using Avalonia;
+﻿using Avalonia;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using LoupixDeck.LoupedeckDevice.Serial;
 using LoupixDeck.Models;
 using LoupixDeck.Utils;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Advanced;
+using SixLabors.ImageSharp.PixelFormats;
 
 namespace LoupixDeck.LoupedeckDevice.Device;
 
@@ -68,7 +71,7 @@ public class LoupedeckDevice
 
         foreach (var port in devicesSerial)
         {
-            if (port.Contains("ttyACM"))
+            if (port.Contains("ttyACM") || port.Contains("COM4"))
             {
                 devices.Add(new DiscoveredDevice
                 {
@@ -350,7 +353,7 @@ public class LoupedeckDevice
         string id,
         int width,
         int height,
-        Action<DrawingContext, int, int> drawAction,
+        Image<Rgba32> bitmap,
         int? x = 0,
         int? y = 0,
         bool autoRefresh = true)
@@ -365,22 +368,10 @@ public class LoupedeckDevice
         if (height == 0)
             height = displayInfo.Height;
 
-        // 1) Create a RenderTargetBitmap (Avalonia drawing surface)
-        var rtb = new RenderTargetBitmap(
-            new PixelSize(width, height),
-            new Vector(96, 96) // Typical DPI
-        );
+        // Convert the resulting Image<Rgba32> into a 16-bit-5-6-5 array
+        var buffer = ConvertImageSharpToRaw16Bpp(bitmap);
 
-        // 2) Execute the drawing operation
-        using (var ctx = rtb.CreateDrawingContext(true))
-        {
-            drawAction(ctx, width, height);
-        }
-
-        // 3) Convert the resulting RenderTargetBitmap into a 16-bit-5-6-5 array
-        var buffer = ConvertRtbToRaw16Bpp(rtb);
-
-        // 4) Pass the buffer to the actual DrawBuffer
+        // Pass the buffer to the actual DrawBuffer
         DrawBuffer(id, width, height, buffer, x, y, autoRefresh);
     }
 
@@ -444,10 +435,59 @@ public class LoupedeckDevice
         return output;
     }
 
+    public static byte[] ConvertImageSharpToRaw16Bpp(Image<Rgba32> image)
+    {
+        int width = image.Width;
+        int height = image.Height;
+
+        // 2 bytes per Pixel in RGB565-Format
+        var output = new byte[width * height * 2];
+        int outIndex = 0;
+
+        // ImageSharp speichert intern Zeile für Zeile → effizient über PixelSpan
+        for (int y = 0; y < height; y++)
+        {
+            var row = image.DangerousGetPixelRowMemory(y).Span;
+            for (int x = 0; x < width; x++)
+            {
+                var pixel = row[x];
+
+                // R, G, B in 565 umwandeln
+                int r5 = (pixel.R * 31) / 255; // 5 Bit
+                int g6 = (pixel.G * 63) / 255; // 6 Bit
+                int b5 = (pixel.B * 31) / 255; // 5 Bit
+
+                ushort rgb565 = (ushort)((r5 << 11) | (g6 << 5) | b5);
+
+                // Little Endian: zuerst LSB, dann MSB
+                output[outIndex++] = (byte)(rgb565 & 0xFF);
+                output[outIndex++] = (byte)(rgb565 >> 8);
+            }
+        }
+
+        return output;
+    }
+
+
+    /// <summary>
+    /// Draws a touch button on the corresponding key.
+    /// </summary>
+    /// <param name="touchButton">The TouchButton object containing index, bitmap, text, etc.</param>
+    public void DrawTouchButton(TouchButton touchButton)
+    {
+        ArgumentNullException.ThrowIfNull(touchButton);
+
+        var renderedBitmap = BitmapHelper.RenderTouchButtonContent(touchButton, 90, 90);
+
+        if (renderedBitmap == null) return;
+
+        DrawKey(touchButton.Index, renderedBitmap);
+    }
+
     /// <summary>
     /// Draws a key in the "center" display area based on the given index.
     /// </summary>
-    private void DrawKey(int index, Action<DrawingContext, int, int> drawAction)
+    private void DrawKey(int index, Image<Rgba32> image)
     {
         if (index < 0 || index >= Columns * Rows)
             throw new Exception($"Key {index} is not a valid key");
@@ -464,41 +504,15 @@ public class LoupedeckDevice
         var y = (index / Columns) * keyHeight;
 
         // Call the DrawCanvas method
-        DrawCanvas("center", keyWidth, keyHeight, drawAction, x, y);
+        DrawCanvas("center", keyWidth, keyHeight, image, x, y);
     }
-    
-    /// <summary>
-    /// Draws a touch button on the corresponding key, optionally with an image and text overlay.
-    /// </summary>
-    /// <param name="touchButton">The TouchButton object containing index, bitmap, text, etc.</param>
-    public void DrawTouchButton(TouchButton touchButton)
-    {
-        ArgumentNullException.ThrowIfNull(touchButton);
-
-        DrawKey(touchButton.Index, (context, width, height) =>
-        {
-            var renderedBitmap = BitmapHelper.RenderTouchButtonContent(touchButton, width, height);
-            if (renderedBitmap == null) return;
-
-            var srcRect = new Rect(
-                0, 0,
-                renderedBitmap.PixelSize.Width,
-                renderedBitmap.PixelSize.Height
-            );
-            var dstRect = new Rect(0, 0, width, height);
-
-            context.DrawImage(renderedBitmap, srcRect, dstRect);
-        });
-    }
-
-   
 
     /// <summary>
     /// Draws the entire screen (display) identified by the given ID.
     /// </summary>
-    public void DrawScreen(string id, Action<DrawingContext, int, int> drawAction)
+    public void DrawScreen(string id, Image<Rgba32> image)
     {
-        DrawCanvas(id, 0, 0, drawAction);
+        DrawCanvas(id, 0, 0, image);
     }
 
     /// <summary>
@@ -544,7 +558,7 @@ public class LoupedeckDevice
     /// <summary>
     /// Sets the color of a button by its ID.
     /// </summary>
-    public void SetButtonColor(Constants.ButtonType id, Color color)
+    public void SetButtonColor(Constants.ButtonType id, Avalonia.Media.Color color)
     {
         byte key = 0;
         var found = false;

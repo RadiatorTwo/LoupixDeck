@@ -56,7 +56,7 @@ public sealed class LoupedeckLiveS : LoupedeckBase
     public override SimpleButton CreateSimpleButton(Constants.ButtonType id, Color color, string command)
     {
         var button = new SimpleButton { Id = id, Command = string.Empty, ButtonColor = color };
-        button.RenderedImage = BitmapHelper.RenderSimpleButtonImage(button, 90, 90);
+        button.RenderedImage = BitmapHelper.RenderSimpleButtonImage(button, 90, 90).ToAvaloniaBitmap();
         button.Command = command;
         button.ItemChanged += SimpleButtonChanged;
         return button;
@@ -148,7 +148,7 @@ public sealed class LoupedeckLiveS : LoupedeckBase
     protected override void SimpleButtonChanged(object sender, EventArgs e)
     {
         if (sender is not SimpleButton button) return;
-        button.RenderedImage = BitmapHelper.RenderSimpleButtonImage(button, 90, 90);
+        button.RenderedImage = BitmapHelper.RenderSimpleButtonImage(button, 90, 90).ToAvaloniaBitmap();
         Device.SetButtonColor(button.Id, button.ButtonColor);
     }
 
