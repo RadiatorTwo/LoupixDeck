@@ -3,7 +3,7 @@
              x:Class="LoupixDeck.App"
              xmlns:local="using:LoupixDeck"
              xmlns:converter="using:LoupixDeck.Models.Converter"
-             RequestedThemeVariant="Default">
+             RequestedThemeVariant="Dark">
     <!-- "Default" ThemeVariant follows system theme variant. "Dark" or "Light" are other available options. -->
 
     <Application.DataTemplates>
@@ -13,9 +13,30 @@
     <Application.Styles>
         <FluentTheme />
         <StyleInclude Source="avares://Avalonia.Controls.ColorPicker/Themes/Fluent/Fluent.xaml" />
+        <Style Selector="Window">
+            <Setter Property="Background" Value="#FF1E1E1E" />
+        </Style>
+        <Style Selector="TextBox">
+            <Setter Property="Background" Value="#FF3A3A3A" />
+        </Style>
+        <Style Selector="TextBox:pointerover /template/ Border">
+            <Setter Property="Background" Value="#FF535353"/>
+        </Style>
+        <Style Selector="TextBox:focus /template/ Border">
+            <Setter Property="Background" Value="#FF3A3A3A"/>
+        </Style>
+        <Style Selector="NumericUpDown">
+            <Setter Property="Background" Value="#FF3A3A3A" />
+        </Style>
+        <Style Selector="NumericUpDown:pointerover /template/ Border">
+            <Setter Property="Background" Value="#FF535353"/>
+        </Style>
+        <Style Selector="NumericUpDown:focus /template/ Border">
+            <Setter Property="Background" Value="#FF3A3A3A"/>
+        </Style>
     </Application.Styles>
 
     <Application.Resources>
-        <converter:PageSelectionConverter x:Key="PageSelectionConverter"/>
+        <converter:PageSelectionConverter x:Key="PageSelectionConverter" />
     </Application.Resources>
 </Application>
