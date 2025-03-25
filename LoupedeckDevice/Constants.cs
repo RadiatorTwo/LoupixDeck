@@ -123,19 +123,21 @@ public static class Constants
         OBS_SET_SCENE
     }
 
-    public static readonly BiMap<string, SystemCommand> SystemCommands = new()
+    public record CommandInfo(SystemCommand SystemCommand, bool Parametered);
+    
+    public static readonly BiMap<string, CommandInfo> SystemCommands = new()
     {
-        { "System.NextPage", SystemCommand.NEXT_PAGE },
-        { "System.PreviousPage", SystemCommand.PREVIOUS_PAGE },
-        { "System.NextRotaryPage", SystemCommand.NEXT_ROT_PAGE },
-        { "System.PreviousRotaryPage", SystemCommand.PREVIOUS_ROT_PAGE },
-        { "System.ObsStartRecord", SystemCommand.OBS_START_RECORD },
-        { "System.ObsStopRecord", SystemCommand.OBS_STOP_RECORD },
-        { "System.ObsPauseRecord", SystemCommand.OBS_PAUSE_RECORD },
-        { "System.ObsVirtualCam", SystemCommand.OBS_VIRTUAL_CAM },
-        { "System.ObsStartReplay", SystemCommand.OBS_START_REPLAY },
-        { "System.ObsStopReplay", SystemCommand.OBS_STOP_REPLAY },
-        { "System.ObsSaveReplay", SystemCommand.OBS_SAVE_REPLAY },
-        { "System.ObsSetScene", SystemCommand.OBS_SET_SCENE }
+        { "System.NextPage", new CommandInfo(SystemCommand.NEXT_PAGE, false) },
+        { "System.PreviousPage", new CommandInfo(SystemCommand.PREVIOUS_PAGE, false) },
+        { "System.NextRotaryPage", new CommandInfo(SystemCommand.NEXT_ROT_PAGE, false) },
+        { "System.PreviousRotaryPage", new CommandInfo(SystemCommand.PREVIOUS_ROT_PAGE, false) },
+        { "System.ObsStartRecord", new CommandInfo(SystemCommand.OBS_START_RECORD, false) },
+        { "System.ObsStopRecord", new CommandInfo(SystemCommand.OBS_STOP_RECORD, false) },
+        { "System.ObsPauseRecord", new CommandInfo(SystemCommand.OBS_PAUSE_RECORD, false) },
+        { "System.ObsVirtualCam", new CommandInfo(SystemCommand.OBS_VIRTUAL_CAM, false) },
+        { "System.ObsStartReplay", new CommandInfo(SystemCommand.OBS_START_REPLAY, false) },
+        { "System.ObsStopReplay", new CommandInfo(SystemCommand.OBS_STOP_REPLAY, false) },
+        { "System.ObsSaveReplay", new CommandInfo(SystemCommand.OBS_SAVE_REPLAY, false) },
+        { "System.ObsSetScene", new CommandInfo(SystemCommand.OBS_SET_SCENE, true) }
     };
 }
