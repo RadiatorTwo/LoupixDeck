@@ -3,47 +3,18 @@ using Avalonia;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Media.Immutable;
-using Avalonia.Platform;
 using LoupixDeck.Models;
 
 namespace LoupixDeck.Utils;
 
 public static class BitmapHelper
 {
-    public static Bitmap CreateBlackBitmap(int width, int height)
-    {
-        // Create an empty pixel array (RGBA format)
-        var pixelData = new byte[width * height * 4];
-
-        // Fill all pixels with black (RGBA: 0,0,0,255)
-        for (int i = 0; i < pixelData.Length; i += 4)
-        {
-            pixelData[i] = 0;     // Red channel
-            pixelData[i + 1] = 0; // Green channel
-            pixelData[i + 2] = 0; // Blue channel
-            pixelData[i + 3] = 255; // Alpha channel (fully visible)
-        }
-
-        // Create a bitmap directly from the pixel data
-        using var memoryStream = new MemoryStream();
-        using (var wb = new WriteableBitmap(new PixelSize(width, height), new Vector(96, 96), PixelFormat.Bgra8888, AlphaFormat.Opaque))
-        {
-            using var frameBuffer = wb.Lock();
-            System.Runtime.InteropServices.Marshal.Copy(pixelData, 0, frameBuffer.Address, pixelData.Length);
-            wb.Save(memoryStream);
-        }
-
-        memoryStream.Position = 0;
-        return new Bitmap(memoryStream);
-    }
-    
     public static Bitmap RenderSimpleButtonImage(SimpleButton simpleButton, int width, int height)
     {
         ArgumentNullException.ThrowIfNull(simpleButton);
 
         var rtb = new RenderTargetBitmap(
-            new PixelSize(width, height),
-            new Vector(96, 96)
+            new PixelSize(width, height)
         );
 
         using var ctx = rtb.CreateDrawingContext(true);
@@ -129,13 +100,12 @@ public static class BitmapHelper
      /// <summary>
     /// Renders the content of a TouchButton (background, image, text) into an Avalonia bitmap.
     /// </summary>
-    public static Bitmap RenderTouchButtonContent(TouchButton touchButton, int width, int height)
+    public static RenderTargetBitmap RenderTouchButtonContent(TouchButton touchButton, int width, int height)
     {
         ArgumentNullException.ThrowIfNull(touchButton);
 
         var rtb = new RenderTargetBitmap(
-            new PixelSize(width, height),
-            new Vector(96, 96) // DPI
+            new PixelSize(width, height)
         );
 
         using var ctx = rtb.CreateDrawingContext(true);
