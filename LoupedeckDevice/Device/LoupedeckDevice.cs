@@ -129,9 +129,9 @@ public class LoupedeckDevice
             }
         }
 
-        _connection.Connected += (s, e) => OnConnect?.Invoke(this, e);
-        _connection.MessageReceived += (s, e) => OnReceive(e.Data);
-        _connection.Disconnected += (s, e) =>
+        _connection.Connected += (_, e) => OnConnect?.Invoke(this, e);
+        _connection.MessageReceived += (_, e) => OnReceive(e.Data);
+        _connection.Disconnected += (_, e) =>
         {
             OnDisconnect?.Invoke(this, e);
             Thread.Sleep(ReconnectInterval);
@@ -342,7 +342,7 @@ public class LoupedeckDevice
     /// <param name="id">Display ID.</param>
     /// <param name="width">Width (0 = use the display's default width).</param>
     /// <param name="height">Height (0 = use the display's default height).</param>
-    /// <param name="drawAction">Callback with the DrawingContext, width, and height.</param>
+    /// <param name="bitmap">RenderTargetBitmap to be drawn</param>
     /// <param name="x">X-position in the header.</param>
     /// <param name="y">Y-position in the header.</param>
     /// <param name="autoRefresh">Should a refresh be triggered automatically?</param>
@@ -350,7 +350,7 @@ public class LoupedeckDevice
         string id,
         int width,
         int height,
-        Action<DrawingContext, int, int> drawAction,
+        RenderTargetBitmap bitmap,
         int? x = 0,
         int? y = 0,
         bool autoRefresh = true)
@@ -365,22 +365,10 @@ public class LoupedeckDevice
         if (height == 0)
             height = displayInfo.Height;
 
-        // 1) Create a RenderTargetBitmap (Avalonia drawing surface)
-        var rtb = new RenderTargetBitmap(
-            new PixelSize(width, height),
-            new Vector(96, 96) // Typical DPI
-        );
+        // Convert the RenderTargetBitmap into a 16-bit-5-6-5 array
+        var buffer = ConvertRtbToRaw16Bpp(bitmap);
 
-        // 2) Execute the drawing operation
-        using (var ctx = rtb.CreateDrawingContext(true))
-        {
-            drawAction(ctx, width, height);
-        }
-
-        // 3) Convert the resulting RenderTargetBitmap into a 16-bit-5-6-5 array
-        var buffer = ConvertRtbToRaw16Bpp(rtb);
-
-        // 4) Pass the buffer to the actual DrawBuffer
+        // Pass the buffer to the actual DrawBuffer
         DrawBuffer(id, width, height, buffer, x, y, autoRefresh);
     }
 
@@ -447,7 +435,7 @@ public class LoupedeckDevice
     /// <summary>
     /// Draws a key in the "center" display area based on the given index.
     /// </summary>
-    private void DrawKey(int index, Action<DrawingContext, int, int> drawAction)
+    private void DrawKey(int index, RenderTargetBitmap bitmap)
     {
         if (index < 0 || index >= Columns * Rows)
             throw new Exception($"Key {index} is not a valid key");
@@ -464,9 +452,9 @@ public class LoupedeckDevice
         var y = (index / Columns) * keyHeight;
 
         // Call the DrawCanvas method
-        DrawCanvas("center", keyWidth, keyHeight, drawAction, x, y);
+        DrawCanvas("center", keyWidth, keyHeight, bitmap, x, y);
     }
-    
+
     /// <summary>
     /// Draws a touch button on the corresponding key, optionally with an image and text overlay.
     /// </summary>
@@ -475,30 +463,19 @@ public class LoupedeckDevice
     {
         ArgumentNullException.ThrowIfNull(touchButton);
 
-        DrawKey(touchButton.Index, (context, width, height) =>
-        {
-            var renderedBitmap = BitmapHelper.RenderTouchButtonContent(touchButton, width, height);
-            if (renderedBitmap == null) return;
+        var renderedBitmap = BitmapHelper.RenderTouchButtonContent(touchButton, 90, 90);
+        if (renderedBitmap == null) return;
 
-            var srcRect = new Rect(
-                0, 0,
-                renderedBitmap.PixelSize.Width,
-                renderedBitmap.PixelSize.Height
-            );
-            var dstRect = new Rect(0, 0, width, height);
-
-            context.DrawImage(renderedBitmap, srcRect, dstRect);
-        });
+        DrawKey(touchButton.Index, renderedBitmap);
     }
 
-   
 
     /// <summary>
     /// Draws the entire screen (display) identified by the given ID.
     /// </summary>
-    public void DrawScreen(string id, Action<DrawingContext, int, int> drawAction)
+    public void DrawScreen(string id, RenderTargetBitmap bitmap)
     {
-        DrawCanvas(id, 0, 0, drawAction);
+        DrawCanvas(id, 0, 0, bitmap);
     }
 
     /// <summary>
