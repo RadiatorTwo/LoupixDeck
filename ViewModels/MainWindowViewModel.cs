@@ -12,6 +12,7 @@ namespace LoupixDeck.ViewModels;
 public class MainWindowViewModel : ViewModelBase
 {
     private readonly ObsController _obs;
+    private readonly ElgatoController _elgato;
     public ICommand RotaryButtonCommand { get; }
     public ICommand SimpleButtonCommand { get; }
     public ICommand TouchButtonCommand { get; }
@@ -26,12 +27,13 @@ public class MainWindowViewModel : ViewModelBase
     public ICommand TouchPageButtonCommand { get; }
 
     public ICommand SettingsMenuCommand { get; }
-    
+
     public LoupedeckLiveS LoupeDeckDevice { get; set; }
 
-    public MainWindowViewModel(ObsController obs, DBusController dbus, CommandRunner runner)
+    public MainWindowViewModel(ObsController obs, ElgatoController elgato, DBusController dbus, CommandRunner runner)
     {
         _obs = obs;
+        _elgato = elgato;
 
         LoupeDeckDevice = LoupedeckBase.LoadFromFile<LoupedeckLiveS>();
 
@@ -118,7 +120,7 @@ public class MainWindowViewModel : ViewModelBase
 
     private async Task TouchButton_Click(TouchButton button)
     {
-        var newWindow = new TouchButtonSettings(button, _obs)
+        var newWindow = new TouchButtonSettings(button, _obs, _elgato)
         {
             WindowStartupLocation = Avalonia.Controls.WindowStartupLocation.CenterOwner
         };

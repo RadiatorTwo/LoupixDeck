@@ -1,5 +1,4 @@
 using LoupixDeck.Services;
-using LoupixDeck.Utils;
 using LoupixDeck.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -12,6 +11,7 @@ public static class ServiceCollectionExtensions
         collection.AddSingleton<ObsController>();
         collection.AddSingleton<DBusController>();
         collection.AddSingleton<CommandRunner>();
+        collection.AddSingleton<ElgatoController>();
         
         collection.AddTransient<MainWindowViewModel>();
     }

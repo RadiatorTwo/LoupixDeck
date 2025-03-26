@@ -11,6 +11,7 @@ namespace LoupixDeck.ViewModels;
 public class TouchButtonSettingsViewModel : ViewModelBase
 {
     private readonly ObsController _obs;
+    private readonly ElgatoController _elgato;
     public ICommand SelectImageButtonCommand { get; }
     public ICommand RemoveImageButtonCommand { get; }
     public TouchButton ButtonData { get; }
@@ -18,9 +19,10 @@ public class TouchButtonSettingsViewModel : ViewModelBase
     public ObservableCollection<SystemCommand> SystemCommandMenus { get; set; }
     public SystemCommand CurrentSystemCommand { get; set; }
 
-    public TouchButtonSettingsViewModel(TouchButton buttonData, ObsController obs)
+    public TouchButtonSettingsViewModel(TouchButton buttonData, ObsController obs, ElgatoController elgato)
     {
         _obs = obs;
+        _elgato = elgato;
         ButtonData = buttonData;
 
         SelectImageButtonCommand = new AsyncRelayCommand(SelectImgageButton_Click);
@@ -66,6 +68,21 @@ public class TouchButtonSettingsViewModel : ViewModelBase
 
         obsMenu.Childs.Add(scenesMenu);
 
+        // Elgato Menu
+        var elgatoMenu = new SystemCommand("Elgato", Constants.SystemCommand.NONE);
+        var keylightMenu = new SystemCommand("Keylights", Constants.SystemCommand.NONE);
+        
+        _elgato.ProbeForElgatoDevices();
+
+        foreach (var elgatoKeyLight in _elgato.KeyLights)
+        {
+            keylightMenu.Childs.Add(new SystemCommand(elgatoKeyLight.DisplayName, Constants.SystemCommand.NONE));
+        }
+        
+        elgatoMenu.Childs.Add(keylightMenu);
+        obsMenu.Childs.Add(elgatoMenu);
+        
+        
         SystemCommandMenus.Add(obsMenu);
     }
 
