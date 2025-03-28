@@ -28,7 +28,7 @@ public class MainWindowViewModel : ViewModelBase
 
     public ICommand SettingsMenuCommand { get; }
 
-    public LoupedeckLiveS LoupeDeckDevice { get; set; }
+    public LoupedeckLiveS LoupeDeckDevice { get; }
 
     public MainWindowViewModel(ObsController obs, ElgatoController elgato, DBusController dbus, CommandRunner runner)
     {
@@ -40,11 +40,11 @@ public class MainWindowViewModel : ViewModelBase
         if (LoupeDeckDevice == null)
         {
             LoupeDeckDevice = new LoupedeckLiveS();
-            LoupeDeckDevice.InitDevice(true, obs, dbus, runner);
+            LoupeDeckDevice.InitDevice(true, obs, dbus, elgato, runner);
         }
         else
         {
-            LoupeDeckDevice.InitDevice(false, obs, dbus, runner);
+            LoupeDeckDevice.InitDevice(false, obs, dbus, elgato, runner);
         }
 
         RotaryButtonCommand = new AsyncRelayCommand<RotaryButton>(RotaryButton_Click);

@@ -78,6 +78,7 @@ public abstract class LoupedeckBase : INotifyPropertyChanged
     protected CommandRunner CommandRunner;
     protected ObsController Obs;
     protected DBusController DBus;
+    protected ElgatoController ElgatoController;
 
     public ObservableCollection<RotaryButtonPage> RotaryButtonPages { get; set; }
     public ObservableCollection<TouchButtonPage> TouchButtonPages { get; set; }
@@ -253,7 +254,8 @@ public abstract class LoupedeckBase : INotifyPropertyChanged
         TouchButtonPages[CurrentTouchPageIndex].TouchButtons[source.Index].RenderedImage = source.RenderedImage;
     }
 
-    public abstract void InitDevice(bool reset, ObsController obs, DBusController dbus, CommandRunner runner);
+    public abstract void InitDevice(bool reset, ObsController obs, DBusController dbus, ElgatoController elgato,
+        CommandRunner runner);
 
     public abstract void InitButtonEvents();
 
@@ -278,5 +280,5 @@ public abstract class LoupedeckBase : INotifyPropertyChanged
     public abstract void AddTouchButtonPage();
     public abstract void DeleteTouchButtonPage();
 
-    public abstract void ExceuteSystemCommand(Constants.CommandInfo command, string[] parameters = null);
+    public abstract Task ExceuteSystemCommand(Constants.CommandInfo command, string[] parameters = null);
 }

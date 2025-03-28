@@ -69,46 +69,12 @@ namespace LoupixDeck.Models
             }
         }
 
-        public void Toggle()
+        public async Task Toggle()
         {
-            SetDeviceState(!this.On);
+            await SetState(!this.On);
         }
 
-        public void SetBrightness(int brightness)
-        {
-            SetDeviceBrightness(brightness);
-        }
-
-        public void SetTemperature(int temperature)
-        {
-            SetDeviceTemperature(temperature);
-        }
-
-        public void SetHue(int hue)
-        {
-            SetDeviceHue(hue);
-        }
-
-        public void SetSaturation(int saturation)
-        {
-            SetDeviceSaturation(saturation);
-        }
-
-        private void SetDeviceState(bool on)
-        {
-            if (On == on)
-            {
-                return;
-            }
-
-            var jsonData = $"{{\"lights\":[{{\"on\":{Convert.ToInt32(on)}}}]}}";
-
-            SendPutRequestAsync(jsonData).GetAwaiter().GetResult();
-
-            On = on;
-        }
-
-        private void SetDeviceBrightness(int brightness)
+        public async Task SetBrightness(int brightness)
         {
             if (Brightness == brightness)
             {
@@ -117,12 +83,12 @@ namespace LoupixDeck.Models
 
             var jsonData = $"{{\"lights\":[{{\"brightness\":{brightness}}}]}}";
 
-            SendPutRequestAsync(jsonData).GetAwaiter().GetResult();
+            await SendPutRequestAsync(jsonData);
 
             Brightness = brightness;
         }
-
-        private void SetDeviceTemperature(int temperature)
+        
+        public async Task SetTemperature(int temperature)
         {
             if (Temperature == temperature)
             {
@@ -131,12 +97,12 @@ namespace LoupixDeck.Models
 
             var jsonData = $"{{\"lights\":[{{\"temperature\":{temperature}}}]}}";
 
-            SendPutRequestAsync(jsonData).GetAwaiter().GetResult();
+            await SendPutRequestAsync(jsonData);
 
             Temperature = temperature;
         }
 
-        private void SetDeviceHue(int hue)
+        public async Task SetHue(int hue)
         {
             if (Hue == hue)
             {
@@ -145,12 +111,12 @@ namespace LoupixDeck.Models
 
             var jsonData = $"{{\"lights\":[{{\"hue\":{hue}}}]}}";
 
-            SendPutRequestAsync(jsonData).GetAwaiter().GetResult();
+            await SendPutRequestAsync(jsonData);
 
             Hue = hue;
         }
 
-        private void SetDeviceSaturation(int saturation)
+        public async Task SetSaturation(int saturation)
         {
             if (Saturation == saturation)
             {
@@ -159,12 +125,26 @@ namespace LoupixDeck.Models
 
             var jsonData = $"{{\"lights\":[{{\"hue\":{saturation}}}]}}";
 
-            SendPutRequestAsync(jsonData).GetAwaiter().GetResult();
+            await SendPutRequestAsync(jsonData);
 
             Saturation = saturation;
         }
 
-        public async Task SendPutRequestAsync(string jsonData)
+        private async Task SetState(bool on)
+        {
+            if (On == on)
+            {
+                return;
+            }
+
+            var jsonData = $"{{\"lights\":[{{\"on\":{Convert.ToInt32(on)}}}]}}";
+
+            await SendPutRequestAsync(jsonData);
+
+            On = on;
+        }
+
+        private async Task SendPutRequestAsync(string jsonData)
         {
             var content = new StringContent(jsonData, Encoding.UTF8, "application/json");
 

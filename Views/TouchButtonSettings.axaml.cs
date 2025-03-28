@@ -29,7 +29,7 @@ public partial class TouchButtonSettings : Window
         {
             if (e.ClickCount == 2)
             {
-                ((TouchButtonSettingsViewModel)DataContext)?.InsertCommand(command.Command, command.Name);
+                ((TouchButtonSettingsViewModel)DataContext)?.InsertCommand(command.Command, command.ParentName,command.Name);
             }
         }
         else

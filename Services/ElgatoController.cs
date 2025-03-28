@@ -1,92 +1,59 @@
 ﻿using LoupixDeck.Models;
-using Makaretu.Dns;
+using Zeroconf;
 
 namespace LoupixDeck.Services;
 
-public class ElgatoController
+public class ElgatoController : IDisposable
 {
-    public List<KeyLight> KeyLights { get; set; }
+    public event EventHandler<KeyLight> KeyLightFound;
+    public event EventHandler<KeyLight> KeylightDisconnected;
+
+    public readonly Dictionary<string, KeyLight> KeyLights = new();
+
+    private ZeroconfResolver.ResolverListener _listener;
 
     public void ProbeForElgatoDevices()
     {
-        KeyLights = new List<KeyLight>();
+        _listener = ZeroconfResolver.CreateListener("_elg._tcp.local.");
 
-        var mdns = new MulticastService();
-        var sd = new ServiceDiscovery(mdns);
-
-        mdns.NetworkInterfaceDiscovered += (s, e) =>
+        _listener.ServiceFound += (s, e) =>
         {
-            foreach (var nic in e.NetworkInterfaces)
+            var lightInstance = new KeyLight(KeyLights.Count,
+                e.DisplayName,
+                e.Services.Values.First().Port,
+                e.IPAddress);
+
+            lightInstance.InitDeviceAsync().GetAwaiter().GetResult();
+
+            if (KeyLights.ContainsKey(e.DisplayName))
             {
-                Console.WriteLine($"NIC '{nic.Name}'");
+                KeyLights.Remove(e.DisplayName);
             }
 
-            // Ask for the name of all services.
-            sd.QueryUnicastAllServices();
+            KeyLights.Add(e.DisplayName, lightInstance);
+            KeyLightFound?.Invoke(s, lightInstance);
         };
 
-        sd.ServiceDiscovered += (s, serviceName) =>
+        _listener.ServiceLost += (s, e) =>
         {
-            Console.WriteLine($"service '{serviceName}'");
-
-            // Ask for the name of instances of the service.
-            mdns.SendQuery(serviceName, type: DnsType.PTR);
+            var light = GetKeyLight(e.DisplayName);
+            KeyLights.Remove(e.DisplayName);
+            KeylightDisconnected?.Invoke(s, light);
         };
-
-        sd.ServiceInstanceDiscovered += (s, e) =>
-        {
-            Console.WriteLine($"service instance '{e.ServiceInstanceName}'");
-
-            // Ask for the service instance details.
-            mdns.SendQuery(e.ServiceInstanceName, type: DnsType.SRV);
-        };
-
-        mdns.AnswerReceived += (s, e) =>
-        {
-            // Is this an answer to a service instance details?
-            var servers = e.Message.Answers.OfType<SRVRecord>();
-            foreach (var server in servers)
-            {
-                Console.WriteLine($"host '{server.Target}' for '{server.Name}'");
-
-                // Ask for the host IP addresses.
-                mdns.SendQuery(server.Target, type: DnsType.A);
-                mdns.SendQuery(server.Target, type: DnsType.AAAA);
-            }
-
-            // Is this an answer to host addresses?
-            var addresses = e.Message.Answers.OfType<AddressRecord>();
-            foreach (var address in addresses)
-            {
-                Console.WriteLine($"host '{address.Name}' at {address.Address}");
-            }
-        };
-
-        try
-        {
-            mdns.Start();
-        }
-        finally
-        {
-            sd.Dispose();
-            mdns.Stop();
-        }
-
-        while (KeyLights.Count == 0)
-        {
-            Thread.Sleep(500);
-        }
     }
 
-    private void OnServiceFound(object sender, DomainName e)
+    public KeyLight GetKeyLight(string name)
     {
-        // var lightInstance = new KeyLight(KeyLights.Count,
-        //     e.,
-        //     service.Announcement.Port,
-        //     service.Announcement.Hostname);
-        //
-        // lightInstance.InitDeviceAsync().GetAwaiter().GetResult();
-        //
-        // KeyLights.Add(lightInstance);
+        if (string.IsNullOrWhiteSpace(name) || !KeyLights.TryGetValue(name, out var value))
+        {
+            return null;
+        }
+
+        return value;
+    }
+
+    public void Dispose()
+    {
+        _listener.Dispose();
     }
 }

@@ -10,7 +10,7 @@
     x:DataType="vm:TouchButtonSettingsViewModel"
     Title="TouchButtonSettings"
     Height="450"
-    Width="800"
+    Width="850"
     mc:Ignorable="d"
     SystemDecorations="Full"
     CanResize="False">
@@ -82,7 +82,7 @@
                 </StackPanel>
                 <StackPanel Grid.Column="2" Orientation="Vertical" Margin="20,20,0,0">
                     <TextBlock Text="System Commands" FontWeight="Bold" Margin="0,0,0,5" />
-                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                         <TreeView Name="SystemCommandsTreeView" ItemsSource="{Binding SystemCommandMenus}"
                                   SelectedItem="{Binding CurrentSystemCommand}" MaxHeight="350">
                             <TreeView.DataTemplates>

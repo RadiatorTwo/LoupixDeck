@@ -9,7 +9,7 @@ namespace LoupixDeck.Models;
 
 public sealed class LoupedeckLiveS : LoupedeckBase
 {
-    public override void InitDevice(bool reset, ObsController obs, DBusController dbus, CommandRunner runner)
+    public override void InitDevice(bool reset, ObsController obs, DBusController dbus, ElgatoController elgato, CommandRunner runner)
     {
         StartDeviceThread();
 
@@ -44,6 +44,7 @@ public sealed class LoupedeckLiveS : LoupedeckBase
         obs.Connect();
         DBus = dbus;
         CommandRunner = runner;
+        ElgatoController =  elgato;
     }
 
     public override void InitButtonEvents()
@@ -98,7 +99,7 @@ public sealed class LoupedeckLiveS : LoupedeckBase
 
             if (Constants.SystemCommands.TryGetForward(button.Command, out var command))
             {
-                Avalonia.Threading.Dispatcher.UIThread.Post(() => { ExceuteSystemCommand(command); });
+                Avalonia.Threading.Dispatcher.UIThread.Post(() => { ExceuteSystemCommand(command).GetAwaiter().GetResult(); });
             }
             else if (button.Command.Contains("(") && button.Command.Contains(")"))
             {
@@ -106,7 +107,7 @@ public sealed class LoupedeckLiveS : LoupedeckBase
                 if (Constants.SystemCommands.TryGetForward(singleCommand, out var parameterCommand))
                 {
                     var parameters = GetCommandParameters(button.Command);
-                    Avalonia.Threading.Dispatcher.UIThread.Post(() => { ExceuteSystemCommand(parameterCommand, parameters); });
+                    Avalonia.Threading.Dispatcher.UIThread.Post(() => { ExceuteSystemCommand(parameterCommand, parameters).GetAwaiter().GetResult(); });
                 }
                 else
                 {
@@ -137,7 +138,7 @@ public sealed class LoupedeckLiveS : LoupedeckBase
 
         if (Constants.SystemCommands.TryGetForward(command, out var systemCommand))
         {
-            Avalonia.Threading.Dispatcher.UIThread.Post(() => { ExceuteSystemCommand(systemCommand); });
+            Avalonia.Threading.Dispatcher.UIThread.Post(() => { ExceuteSystemCommand(systemCommand).GetAwaiter().GetResult(); });
         }
         else
         {
@@ -284,7 +285,7 @@ public sealed class LoupedeckLiveS : LoupedeckBase
         if (Constants.SystemCommands.TryGetForward(command, out var systemCommand))
         {
             var parameters = GetCommandParameters(command);
-            Avalonia.Threading.Dispatcher.UIThread.Post(() => { ExceuteSystemCommand(systemCommand, parameters); });
+            Avalonia.Threading.Dispatcher.UIThread.Post(() => { ExceuteSystemCommand(systemCommand, parameters).GetAwaiter().GetResult(); });
         }
         else
         {
@@ -310,7 +311,7 @@ public sealed class LoupedeckLiveS : LoupedeckBase
         return parameterString.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
     }
 
-    public override void ExceuteSystemCommand(Constants.CommandInfo command, string[] parameters = null)
+    public override async Task ExceuteSystemCommand(Constants.CommandInfo command, string[] parameters = null)
     {
         switch (command.SystemCommand)
         {
@@ -358,6 +359,70 @@ public sealed class LoupedeckLiveS : LoupedeckBase
                     {
                         Obs.SetScene(sceneName);
                     }
+                }
+                break;
+            case Constants.SystemCommand.ELG_SET_TEMPERATURE:
+                if (parameters != null)
+                {
+                    var keyLightName = parameters[0];
+                    var temperature = parameters[1];
+                    
+                    var keyLight = ElgatoController.GetKeyLight(keyLightName);
+                    
+                    if (keyLight == null)
+                    {
+                        return;
+                    }
+                    
+                    await keyLight.SetTemperature(Convert.ToInt32(temperature));
+                }
+                break;
+            case Constants.SystemCommand.ELG_SET_BRIGHTNESS:
+                if (parameters != null)
+                {
+                    var keyLightName = parameters[0];
+                    var brightness = parameters[1];
+                    
+                    var keyLight = ElgatoController.GetKeyLight(keyLightName);
+                    
+                    if (keyLight == null)
+                    {
+                        return;
+                    }
+                    
+                    await keyLight.SetBrightness(Convert.ToInt32(brightness));
+                }
+                break;
+            case Constants.SystemCommand.ELG_SET_SATURATION:
+                if (parameters != null)
+                {
+                    var keyLightName = parameters[0];
+                    var saturation = parameters[1];
+                    
+                    var keyLight = ElgatoController.GetKeyLight(keyLightName);
+                    
+                    if (keyLight == null)
+                    {
+                        return;
+                    }
+                    
+                    await keyLight.SetSaturation(Convert.ToInt32(saturation));
+                }
+                break;
+            case Constants.SystemCommand.ELG_SET_HUE:
+                if (parameters != null)
+                {
+                    var keyLightName = parameters[0];
+                    var hue = parameters[1];
+                    
+                    var keyLight = ElgatoController.GetKeyLight(keyLightName);
+                    
+                    if (keyLight == null)
+                    {
+                        return;
+                    }
+                    
+                    await keyLight.SetHue(Convert.ToInt32(hue));
                 }
                 break;
             default:

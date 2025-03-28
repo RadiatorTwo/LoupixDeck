@@ -19,6 +19,8 @@ public class TouchButtonSettingsViewModel : ViewModelBase
     public ObservableCollection<SystemCommand> SystemCommandMenus { get; set; }
     public SystemCommand CurrentSystemCommand { get; set; }
 
+    private SystemCommand _elgatoKeyLightMenu;
+
     public TouchButtonSettingsViewModel(TouchButton buttonData, ObsController obs, ElgatoController elgato)
     {
         _obs = obs;
@@ -68,22 +70,61 @@ public class TouchButtonSettingsViewModel : ViewModelBase
 
         obsMenu.Childs.Add(scenesMenu);
 
+        SystemCommandMenus.Add(obsMenu);
+
         // Elgato Menu
         var elgatoMenu = new SystemCommand("Elgato", Constants.SystemCommand.NONE);
-        var keylightMenu = new SystemCommand("Keylights", Constants.SystemCommand.NONE);
-        
-        _elgato.ProbeForElgatoDevices();
+        _elgatoKeyLightMenu = new SystemCommand("Keylights", Constants.SystemCommand.NONE);
 
-        foreach (var elgatoKeyLight in _elgato.KeyLights)
+        elgatoMenu.Childs.Add(_elgatoKeyLightMenu);
+
+        SystemCommandMenus.Add(elgatoMenu);
+
+        _elgato.KeyLightFound += (_, light) =>
         {
-            keylightMenu.Childs.Add(new SystemCommand(elgatoKeyLight.DisplayName, Constants.SystemCommand.NONE));
-        }
-        
-        elgatoMenu.Childs.Add(keylightMenu);
-        obsMenu.Childs.Add(elgatoMenu);
-        
-        
-        SystemCommandMenus.Add(obsMenu);
+            var newKeyLight = new SystemCommand(light.DisplayName, Constants.SystemCommand.NONE);
+            
+            var newToggle = new SystemCommand("Turn On/Off", Constants.SystemCommand.ELG_SET_TOGGLE,
+                light.DisplayName);
+            newKeyLight.Childs.Add(newToggle);
+            
+            if (light.Brightness != 0)
+            {
+                var newBrightness = new SystemCommand("Brightness", Constants.SystemCommand.ELG_SET_BRIGHTNESS,
+                    light.DisplayName);
+                newKeyLight.Childs.Add(newBrightness);
+            }
+
+            if (light.Temperature != 0)
+            {
+                var newTemperature = new SystemCommand("Temperature", Constants.SystemCommand.ELG_SET_TEMPERATURE,
+                    light.DisplayName);
+                newKeyLight.Childs.Add(newTemperature);
+            }
+
+            if (light.Hue != 0)
+            {
+                var newHue = new SystemCommand("Hue", Constants.SystemCommand.ELG_SET_HUE, light.DisplayName);
+                newKeyLight.Childs.Add(newHue);
+            }
+
+            if (light.Saturation != 0)
+            {
+                var newSaturation = new SystemCommand("Saturation", Constants.SystemCommand.ELG_SET_SATURATION,
+                    light.DisplayName);
+                newKeyLight.Childs.Add(newSaturation);
+            }
+
+            _elgatoKeyLightMenu.Childs.Add(newKeyLight);
+        };
+
+        _elgato.KeylightDisconnected += (_, light) =>
+        {
+            var child = _elgatoKeyLightMenu.Childs.FirstOrDefault(x => x.Name == light.DisplayName);
+            _elgatoKeyLightMenu.Childs.Remove(child);
+        };
+
+        _elgato.ProbeForElgatoDevices();
     }
 
     private async Task SelectImgageButton_Click()
@@ -109,7 +150,7 @@ public class TouchButtonSettingsViewModel : ViewModelBase
         ButtonData.Refresh();
     }
 
-    public void InsertCommand(Constants.SystemCommand command, params object[] replacements)
+    public void InsertCommand(Constants.SystemCommand command, params string[] replacements)
     {
         var systemCommand =
             Constants.SystemCommands.Reverse.FirstOrDefault(
@@ -119,9 +160,17 @@ public class TouchButtonSettingsViewModel : ViewModelBase
         if (replacements != null && systemCommand.Key.Parametered)
         {
             formattedCommand += "(";
+
             foreach (var replacement in replacements)
             {
+                if (string.IsNullOrWhiteSpace(replacement)) continue;
+                
                 formattedCommand += replacement;
+
+                if (replacements.Last() != replacement)
+                {
+                    formattedCommand += ",";
+                }
             }
 
             formattedCommand += ")";

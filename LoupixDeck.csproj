@@ -6,6 +6,7 @@
     <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+    <LangVersion>default</LangVersion>
   </PropertyGroup>
 
   <ItemGroup>
@@ -32,11 +33,11 @@
       <PrivateAssets Condition="'$(Configuration)' != 'Debug'">All</PrivateAssets>
     </PackageReference>
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.2.1" />
-    <PackageReference Include="DSoft.Makaretu.Dns.Multicast" Version="1.0.2412.112" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.2" />
     <PackageReference Include="obs-websocket-dotnet" Version="5.0.0.3" />
     <PackageReference Include="System.Drawing.Common" Version="9.0.2" />
     <PackageReference Include="System.IO.Ports" Version="9.0.2" />
     <PackageReference Include="Tmds.DBus" Version="0.21.2" />
+    <PackageReference Include="Zeroconf" Version="3.7.16" />
   </ItemGroup>
 </Project>
