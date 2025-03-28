@@ -12,6 +12,7 @@ public class TouchButtonSettingsViewModel : ViewModelBase
 {
     private readonly ObsController _obs;
     private readonly ElgatoController _elgato;
+    private readonly LoupedeckLiveS _loupedeckDevice;
     public ICommand SelectImageButtonCommand { get; }
     public ICommand RemoveImageButtonCommand { get; }
     public TouchButton ButtonData { get; }
@@ -21,10 +22,14 @@ public class TouchButtonSettingsViewModel : ViewModelBase
 
     private SystemCommand _elgatoKeyLightMenu;
 
-    public TouchButtonSettingsViewModel(TouchButton buttonData, ObsController obs, ElgatoController elgato)
+    public TouchButtonSettingsViewModel(TouchButton buttonData,
+        ObsController obs,
+        ElgatoController elgato,
+        LoupedeckLiveS loupedeckDevice)
     {
         _obs = obs;
         _elgato = elgato;
+        _loupedeckDevice = loupedeckDevice;
         ButtonData = buttonData;
 
         SelectImageButtonCommand = new AsyncRelayCommand(SelectImgageButton_Click);
@@ -82,46 +87,33 @@ public class TouchButtonSettingsViewModel : ViewModelBase
 
         _elgato.KeyLightFound += (_, light) =>
         {
-            var newKeyLight = new SystemCommand(light.DisplayName, Constants.SystemCommand.NONE);
+            var checkKeyLight = _elgatoKeyLightMenu.Childs.FirstOrDefault(kl => kl.Name == light.DisplayName);
             
+            if (checkKeyLight != null)
+                return;
+
+            var newKeyLightCommand = new SystemCommand(light.DisplayName, Constants.SystemCommand.NONE);
+
             var newToggle = new SystemCommand("Turn On/Off", Constants.SystemCommand.ELG_SET_TOGGLE,
                 light.DisplayName);
-            newKeyLight.Childs.Add(newToggle);
-            
-            if (light.Brightness != 0)
-            {
-                var newBrightness = new SystemCommand("Brightness", Constants.SystemCommand.ELG_SET_BRIGHTNESS,
-                    light.DisplayName);
-                newKeyLight.Childs.Add(newBrightness);
-            }
+            newKeyLightCommand.Childs.Add(newToggle);
 
-            if (light.Temperature != 0)
-            {
-                var newTemperature = new SystemCommand("Temperature", Constants.SystemCommand.ELG_SET_TEMPERATURE,
-                    light.DisplayName);
-                newKeyLight.Childs.Add(newTemperature);
-            }
+            var newBrightness = new SystemCommand("Brightness", Constants.SystemCommand.ELG_SET_BRIGHTNESS,
+                light.DisplayName);
+            newKeyLightCommand.Childs.Add(newBrightness);
 
-            if (light.Hue != 0)
-            {
-                var newHue = new SystemCommand("Hue", Constants.SystemCommand.ELG_SET_HUE, light.DisplayName);
-                newKeyLight.Childs.Add(newHue);
-            }
+            var newTemperature = new SystemCommand("Temperature", Constants.SystemCommand.ELG_SET_TEMPERATURE,
+                light.DisplayName);
+            newKeyLightCommand.Childs.Add(newTemperature);
 
-            if (light.Saturation != 0)
-            {
-                var newSaturation = new SystemCommand("Saturation", Constants.SystemCommand.ELG_SET_SATURATION,
-                    light.DisplayName);
-                newKeyLight.Childs.Add(newSaturation);
-            }
+            var newHue = new SystemCommand("Hue", Constants.SystemCommand.ELG_SET_HUE, light.DisplayName);
+            newKeyLightCommand.Childs.Add(newHue);
 
-            _elgatoKeyLightMenu.Childs.Add(newKeyLight);
-        };
+            var newSaturation = new SystemCommand("Saturation", Constants.SystemCommand.ELG_SET_SATURATION,
+                light.DisplayName);
+            newKeyLightCommand.Childs.Add(newSaturation);
 
-        _elgato.KeylightDisconnected += (_, light) =>
-        {
-            var child = _elgatoKeyLightMenu.Childs.FirstOrDefault(x => x.Name == light.DisplayName);
-            _elgatoKeyLightMenu.Childs.Remove(child);
+            _elgatoKeyLightMenu.Childs.Add(newKeyLightCommand);
         };
 
         _elgato.ProbeForElgatoDevices();
@@ -164,7 +156,7 @@ public class TouchButtonSettingsViewModel : ViewModelBase
             foreach (var replacement in replacements)
             {
                 if (string.IsNullOrWhiteSpace(replacement)) continue;
-                
+
                 formattedCommand += replacement;
 
                 if (replacements.Last() != replacement)

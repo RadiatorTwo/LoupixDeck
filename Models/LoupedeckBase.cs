@@ -85,6 +85,8 @@ public abstract class LoupedeckBase : INotifyPropertyChanged
     public TouchButton[] CurrentTouchButtonPage { get; set; }
     public SimpleButton[] SimpleButtons { get; set; }
 
+    public List<KeyLight> KeyLights { get; set; } = [];
+
     private double _brightness = 1;
 
     public double Brightness
