@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Data.Core.Plugins;
 using Avalonia.Markup.Xaml;
+using LoupixDeck.Commands.Base;
 using LoupixDeck.Views;
 using LoupixDeck.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
@@ -27,6 +28,8 @@ public partial class App : Application
 
         // Creates a ServiceProvider containing services from the provided IServiceCollection
         var services = collection.BuildServiceProvider();
+        
+        CommandManager.Initialize(services);
 
         var vm = services.GetRequiredService<MainWindowViewModel>();
 

@@ -1,7 +1,6 @@
 ﻿using System.Collections.ObjectModel;
 using System.Windows.Input;
 using Avalonia.Media.Imaging;
-using LoupixDeck.LoupedeckDevice;
 using LoupixDeck.Models;
 using LoupixDeck.Services;
 using LoupixDeck.Utils;
@@ -40,34 +39,34 @@ public class TouchButtonSettingsViewModel : ViewModelBase
     private void CreateSystemMenu()
     {
         // Pages
-        var pageMenu = new SystemCommand("Pages", Constants.SystemCommand.NONE);
+        var pageMenu = new SystemCommand("Pages", false);
 
-        pageMenu.Childs.Add(new SystemCommand("Next Page", Constants.SystemCommand.NEXT_PAGE));
-        pageMenu.Childs.Add(new SystemCommand("Previous Page", Constants.SystemCommand.PREVIOUS_PAGE));
-        pageMenu.Childs.Add(new SystemCommand("Next Rotary Page", Constants.SystemCommand.NEXT_ROT_PAGE));
-        pageMenu.Childs.Add(new SystemCommand("Previous Rotary Page", Constants.SystemCommand.PREVIOUS_ROT_PAGE));
+        pageMenu.Childs.Add(new SystemCommand("Next Page", true));
+        pageMenu.Childs.Add(new SystemCommand("Previous Page", true));
+        pageMenu.Childs.Add(new SystemCommand("Next Rotary Page", true));
+        pageMenu.Childs.Add(new SystemCommand("Previous Rotary Page", true));
 
         SystemCommandMenus.Add(pageMenu);
 
         // OBS Menu
-        var obsMenu = new SystemCommand("OBS", Constants.SystemCommand.NONE);
+        var obsMenu = new SystemCommand("OBS", false);
 
-        obsMenu.Childs.Add(new SystemCommand("Start Record", Constants.SystemCommand.OBS_START_RECORD));
-        obsMenu.Childs.Add(new SystemCommand("Stop Record", Constants.SystemCommand.OBS_STOP_RECORD));
-        obsMenu.Childs.Add(new SystemCommand("Pause Record", Constants.SystemCommand.OBS_PAUSE_RECORD));
+        obsMenu.Childs.Add(new SystemCommand("Start Record", true));
+        obsMenu.Childs.Add(new SystemCommand("Stop Record", true));
+        obsMenu.Childs.Add(new SystemCommand("Pause Record", true));
 
-        obsMenu.Childs.Add(new SystemCommand("Start Replay", Constants.SystemCommand.OBS_START_REPLAY));
-        obsMenu.Childs.Add(new SystemCommand("Stop Replay", Constants.SystemCommand.OBS_STOP_REPLAY));
-        obsMenu.Childs.Add(new SystemCommand("Save Replay", Constants.SystemCommand.OBS_SAVE_REPLAY));
+        obsMenu.Childs.Add(new SystemCommand("Start Replay", true));
+        obsMenu.Childs.Add(new SystemCommand("Stop Replay", true));
+        obsMenu.Childs.Add(new SystemCommand("Save Replay", true));
 
-        obsMenu.Childs.Add(new SystemCommand("Toggle Virtual Camera", Constants.SystemCommand.OBS_VIRTUAL_CAM));
+        obsMenu.Childs.Add(new SystemCommand("Toggle Virtual Camera", true));
 
-        var scenesMenu = new SystemCommand("Scenes", Constants.SystemCommand.NONE);
+        var scenesMenu = new SystemCommand("Scenes", false);
         var scenes = _obs.GetScenes();
 
         foreach (var scene in scenes)
         {
-            scenesMenu.Childs.Add(new SystemCommand(scene.Name, Constants.SystemCommand.OBS_SET_SCENE));
+            scenesMenu.Childs.Add(new SystemCommand(scene.Name, true));
         }
 
         obsMenu.Childs.Add(scenesMenu);
@@ -75,8 +74,8 @@ public class TouchButtonSettingsViewModel : ViewModelBase
         SystemCommandMenus.Add(obsMenu);
 
         // Elgato Menu
-        var elgatoMenu = new SystemCommand("Elgato", Constants.SystemCommand.NONE);
-        _elgatoKeyLightMenu = new SystemCommand("Keylights", Constants.SystemCommand.NONE);
+        var elgatoMenu = new SystemCommand("Elgato", false);
+        _elgatoKeyLightMenu = new SystemCommand("Keylights", false);
 
         elgatoMenu.Childs.Add(_elgatoKeyLightMenu);
 
@@ -102,36 +101,32 @@ public class TouchButtonSettingsViewModel : ViewModelBase
         if (checkKeyLight != null)
             return;
 
-        var newKeyLightCommand = new SystemCommand(keyLight.DisplayName, Constants.SystemCommand.NONE);
+        var newKeyLightCommand = new SystemCommand(keyLight.DisplayName, false);
 
-        var newToggle = new SystemCommand("Turn On/Off", Constants.SystemCommand.ELG_KL_TOGGLE,
-            keyLight.DisplayName);
+        var newToggle = new SystemCommand("Turn On/Off", true, keyLight.DisplayName);
         newKeyLightCommand.Childs.Add(newToggle);
 
         if (keyLight.Brightness > 0)
         {
-            var newBrightness = new SystemCommand("Brightness", Constants.SystemCommand.ELG_KL_BRIGHTNESS,
-                keyLight.DisplayName);
+            var newBrightness = new SystemCommand("Brightness", true, keyLight.DisplayName);
             newKeyLightCommand.Childs.Add(newBrightness);
         }
 
         if (keyLight.Temperature > 0)
         {
-            var newTemperature = new SystemCommand("Temperature", Constants.SystemCommand.ELG_KL_TEMPERATURE,
-                keyLight.DisplayName);
+            var newTemperature = new SystemCommand("Temperature", true, keyLight.DisplayName);
             newKeyLightCommand.Childs.Add(newTemperature);
         }
 
         if (keyLight.Hue > 0)
         {
-            var newHue = new SystemCommand("Hue", Constants.SystemCommand.ELG_KL_HUE, keyLight.DisplayName);
+            var newHue = new SystemCommand("Hue", true, keyLight.DisplayName);
             newKeyLightCommand.Childs.Add(newHue);
         }
 
         if (keyLight.Saturation > 0)
         {
-            var newSaturation = new SystemCommand("Saturation", Constants.SystemCommand.ELG_KL_SATURATION,
-                keyLight.DisplayName);
+            var newSaturation = new SystemCommand("Saturation", true, keyLight.DisplayName);
             newKeyLightCommand.Childs.Add(newSaturation);
         }
 
@@ -163,38 +158,37 @@ public class TouchButtonSettingsViewModel : ViewModelBase
 
     public void InsertCommand(SystemCommand command)
     {
-        var systemCommand =
-            Constants.SystemCommands.Reverse.FirstOrDefault(
-                x => x.Key.SystemCommand == command.Command);
-
-        var formattedCommand = systemCommand.Value;
-
-        if (systemCommand.Key.Parametered)
-        {
-            formattedCommand += "(";
-
-            switch (systemCommand.Key.SystemCommand)
-            {
-                case Constants.SystemCommand.OBS_SET_SCENE:
-                    formattedCommand += command.Name;
-                    break;
-
-                case Constants.SystemCommand.ELG_KL_TOGGLE:
-                    formattedCommand += command.ParentName;
-                    break;
-
-                case Constants.SystemCommand.ELG_KL_TEMPERATURE:
-                case Constants.SystemCommand.ELG_KL_BRIGHTNESS:
-                case Constants.SystemCommand.ELG_KL_SATURATION:
-                case Constants.SystemCommand.ELG_KL_HUE:
-                    formattedCommand += command.ParentName;
-                    formattedCommand += ",value";
-                    break;
-            }
-
-            formattedCommand += ")";
-        }
-
-        ButtonData.Command += formattedCommand;
+        // var systemCommand = Constants.SystemCommands.Reverse.FirstOrDefault(
+        //         x => x.Key.SystemCommand == command.Command);
+        //
+        // var formattedCommand = systemCommand.Value;
+        //
+        // if (systemCommand.Key.Parametered)
+        // {
+        //     formattedCommand += "(";
+        //
+        //     switch (systemCommand.Key.SystemCommand)
+        //     {
+        //         case Constants.SystemCommand.OBS_SET_SCENE:
+        //             formattedCommand += command.Name;
+        //             break;
+        //
+        //         case Constants.SystemCommand.ELG_KL_TOGGLE:
+        //             formattedCommand += command.ParentName;
+        //             break;
+        //
+        //         case Constants.SystemCommand.ELG_KL_TEMPERATURE:
+        //         case Constants.SystemCommand.ELG_KL_BRIGHTNESS:
+        //         case Constants.SystemCommand.ELG_KL_SATURATION:
+        //         case Constants.SystemCommand.ELG_KL_HUE:
+        //             formattedCommand += command.ParentName;
+        //             formattedCommand += ",value";
+        //             break;
+        //     }
+        //
+        //     formattedCommand += ")";
+        // }
+        //
+        // ButtonData.Command += formattedCommand;
     }
 }

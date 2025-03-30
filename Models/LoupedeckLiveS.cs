@@ -3,6 +3,7 @@ using LoupixDeck.LoupedeckDevice;
 using LoupixDeck.LoupedeckDevice.Device;
 using LoupixDeck.Utils;
 using System.Collections.ObjectModel;
+using LoupixDeck.Commands.Base;
 using LoupixDeck.Services;
 
 namespace LoupixDeck.Models;
@@ -123,35 +124,21 @@ public sealed class LoupedeckLiveS : LoupedeckBase
             var button = CurrentTouchButtonPage.FirstOrDefault(b => b.Index == touch.Target.Key);
             if (button == null) continue;
 
-            Device.Vibrate();
-
-            if (Constants.SystemCommands.TryGetForward(button.Command, out var command))
+            var cleanCommand = GetCommandWithoutParameter(button.Command);
+            if (CommandManager.CheckCommandExists(cleanCommand))
             {
+                var parameter = GetCommandParameters(button.Command);
                 Avalonia.Threading.Dispatcher.UIThread.Post(() =>
                 {
-                    ExceuteSystemCommand(command);
+                    CommandManager.ExecuteCommand(cleanCommand, parameter);
                 });
-            }
-            else if (button.Command.Contains('(') && button.Command.Contains(')'))
-            {
-                var singleCommand = button.Command.Substring(0, button.Command.IndexOf('('));
-                if (Constants.SystemCommands.TryGetForward(singleCommand, out var parameterCommand))
-                {
-                    var parameters = GetCommandParameters(button.Command);
-                    Avalonia.Threading.Dispatcher.UIThread.Post(() =>
-                    {
-                        ExceuteSystemCommand(parameterCommand, parameters);
-                    });
-                }
-                else
-                {
-                    CommandRunner.EnqueueCommand(button.Command);
-                }
             }
             else
             {
                 CommandRunner.EnqueueCommand(button.Command);
             }
+
+            Device.Vibrate();
         }
     }
 
@@ -170,11 +157,13 @@ public sealed class LoupedeckLiveS : LoupedeckBase
 
         if (string.IsNullOrEmpty(command)) return;
 
-        if (Constants.SystemCommands.TryGetForward(command, out var systemCommand))
+        var cleanCommand = GetCommandWithoutParameter(command);
+        if (CommandManager.CheckCommandExists(cleanCommand))
         {
+            var parameter = GetCommandParameters(cleanCommand);
             Avalonia.Threading.Dispatcher.UIThread.Post(() =>
             {
-                ExceuteSystemCommand(systemCommand);
+                CommandManager.ExecuteCommand(cleanCommand, parameter);
             });
         }
         else
@@ -319,12 +308,14 @@ public sealed class LoupedeckLiveS : LoupedeckBase
 
     private void RunCommand(string command)
     {
-        if (Constants.SystemCommands.TryGetForward(command, out var systemCommand))
+        var cleanCommand = GetCommandWithoutParameter(command);
+
+        if (CommandManager.CheckCommandExists(cleanCommand))
         {
             var parameters = GetCommandParameters(command);
             Avalonia.Threading.Dispatcher.UIThread.Post(() =>
             {
-                ExceuteSystemCommand(systemCommand, parameters);
+                CommandManager.ExecuteCommand(cleanCommand, parameters);
             });
         }
         else
@@ -351,138 +342,18 @@ public sealed class LoupedeckLiveS : LoupedeckBase
         return parameterString.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
     }
 
-    public override void ExceuteSystemCommand(Constants.CommandInfo command, string[] parameters = null)
+    private string GetCommandWithoutParameter(string command)
     {
-        switch (command.SystemCommand)
+        if (string.IsNullOrWhiteSpace(command))
         {
-            case Constants.SystemCommand.NONE:
-                // Shouldnt happen
-                break;
-            case Constants.SystemCommand.NEXT_PAGE:
-                NextTouchPage();
-                break;
-            case Constants.SystemCommand.PREVIOUS_PAGE:
-                PreviousTouchPage();
-                break;
-            case Constants.SystemCommand.NEXT_ROT_PAGE:
-                NextRotaryPage();
-                break;
-            case Constants.SystemCommand.PREVIOUS_ROT_PAGE:
-                PreviousRotaryPage();
-                break;
-            case Constants.SystemCommand.OBS_VIRTUAL_CAM:
-                Obs.ToggleVirtualCamera();
-                break;
-            case Constants.SystemCommand.OBS_START_RECORD:
-                Obs.StartRecording();
-                break;
-            case Constants.SystemCommand.OBS_STOP_RECORD:
-                Obs.StopRecording();
-                break;
-            case Constants.SystemCommand.OBS_PAUSE_RECORD:
-                Obs.PauseRecording();
-                break;
-            case Constants.SystemCommand.OBS_START_REPLAY:
-                Obs.StartReplayBuffer();
-                break;
-            case Constants.SystemCommand.OBS_STOP_REPLAY:
-                Obs.StopReplayBuffer();
-                break;
-            case Constants.SystemCommand.OBS_SAVE_REPLAY:
-                Obs.SaveReplayBuffer();
-                break;
-            case Constants.SystemCommand.OBS_SET_SCENE:
-                if (parameters != null)
-                {
-                    var sceneName = parameters[0];
-                    if (!string.IsNullOrWhiteSpace(sceneName))
-                    {
-                        Obs.SetScene(sceneName);
-                    }
-                }
-
-                break;
-
-            case Constants.SystemCommand.ELG_KL_TOGGLE:
-                if (parameters != null)
-                {
-                    var keyLight = ElgatoDevices.KeyLights.Find(e => e.DisplayName == parameters[0]);
-
-                    if (keyLight != null)
-                        _ = ElgatoController.Toggle(keyLight);
-                }
-
-                break;
-            case Constants.SystemCommand.ELG_KL_TEMPERATURE:
-                if (parameters != null)
-                {
-                    var keyLightName = parameters[0];
-                    var temperature = parameters[1];
-
-                    var keyLight = ElgatoDevices.KeyLights.Find(e => e.DisplayName == keyLightName);
-
-                    if (keyLight == null)
-                    {
-                        return;
-                    }
-
-                    _ = ElgatoController.SetTemperature(keyLight, Convert.ToInt32(temperature));
-                }
-
-                break;
-            case Constants.SystemCommand.ELG_KL_BRIGHTNESS:
-                if (parameters != null)
-                {
-                    var keyLightName = parameters[0];
-                    var brightness = parameters[1];
-
-                    var keyLight = ElgatoDevices.KeyLights.Find(e => e.DisplayName == keyLightName);
-
-                    if (keyLight == null)
-                    {
-                        return;
-                    }
-
-                    _ = ElgatoController.SetBrightness(keyLight, Convert.ToInt32(brightness));
-                }
-
-                break;
-            case Constants.SystemCommand.ELG_KL_SATURATION:
-                if (parameters != null)
-                {
-                    var keyLightName = parameters[0];
-                    var saturation = parameters[1];
-
-                    var keyLight = ElgatoDevices.KeyLights.Find(e => e.DisplayName == keyLightName);
-
-                    if (keyLight == null)
-                    {
-                        return;
-                    }
-
-                    _ = ElgatoController.SetSaturation(keyLight, Convert.ToInt32(saturation));
-                }
-
-                break;
-            case Constants.SystemCommand.ELG_KL_HUE:
-                if (parameters != null)
-                {
-                    var keyLightName = parameters[0];
-                    var hue = parameters[1];
-
-                    var keyLight = ElgatoDevices.KeyLights.Find(e => e.DisplayName == keyLightName);
-
-                    if (keyLight == null)
-                    {
-                        return;
-                    }
-
-                    _ = ElgatoController.SetHue(keyLight, Convert.ToInt32(hue));
-                }
-
-                break;
-            default:
-                throw new ArgumentOutOfRangeException(nameof(command), command, null);
+            return string.Empty;
         }
+
+        var end = command.IndexOf('(');
+        if (end == -1)
+            return command;
+
+        return command.Substring(0, end);
+        ;
     }
 }

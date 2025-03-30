@@ -157,12 +157,12 @@ public abstract class LoupedeckBase : INotifyPropertyChanged
         }
     }
 
-    protected void NextRotaryPage()
+    public void NextRotaryPage()
     {
         CurrentRotaryPageIndex = (CurrentRotaryPageIndex + 1) % RotaryButtonPages.Count;
     }
 
-    protected void PreviousRotaryPage()
+    public void PreviousRotaryPage()
     {
         CurrentRotaryPageIndex = (CurrentRotaryPageIndex - 1 + RotaryButtonPages.Count) % RotaryButtonPages.Count;
     }
@@ -172,12 +172,12 @@ public abstract class LoupedeckBase : INotifyPropertyChanged
         CurrentRotaryPageIndex = pageIndex;
     }
 
-    protected void NextTouchPage()
+    public void NextTouchPage()
     {
         ApplyTouchPage((CurrentTouchPageIndex + 1) % TouchButtonPages.Count);
     }
 
-    protected void PreviousTouchPage()
+    public void PreviousTouchPage()
     {
         ApplyTouchPage((CurrentTouchPageIndex - 1 + TouchButtonPages.Count) % TouchButtonPages.Count);
     }
@@ -285,6 +285,4 @@ public abstract class LoupedeckBase : INotifyPropertyChanged
 
     public abstract void AddTouchButtonPage();
     public abstract void DeleteTouchButtonPage();
-
-    public abstract void ExceuteSystemCommand(Constants.CommandInfo command, string[] parameters = null);
 }

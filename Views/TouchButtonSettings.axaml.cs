@@ -1,7 +1,6 @@
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.VisualTree;
-using LoupixDeck.LoupedeckDevice;
 using LoupixDeck.Models;
 using LoupixDeck.Services;
 using LoupixDeck.ViewModels;
@@ -24,8 +23,7 @@ public partial class TouchButtonSettings : Window
 
     private void OnPointerPressed(object sender, PointerPressedEventArgs e)
     {
-        if (e.Source is TextBlock textBlock && textBlock.DataContext is SystemCommand command &&
-            command.Command != Constants.SystemCommand.NONE)
+        if (e.Source is TextBlock textBlock && textBlock.DataContext is SystemCommand command && command.IsCommand)
         {
             if (e.ClickCount == 2)
             {
@@ -40,7 +38,7 @@ public partial class TouchButtonSettings : Window
             if (treeViewItem == null || !e.GetCurrentPoint(treeViewItem).Properties.IsLeftButtonPressed) return;
             var sysCommand = (SystemCommand)treeViewItem.DataContext;
 
-            if (sysCommand == null || sysCommand.Command != Constants.SystemCommand.NONE) return;
+            if (sysCommand == null || !sysCommand.IsCommand) return;
 
             // Toggle Auf-/Zuklappen
             treeViewItem.IsExpanded = !treeViewItem.IsExpanded;

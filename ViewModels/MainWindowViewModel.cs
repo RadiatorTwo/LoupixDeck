@@ -1,5 +1,6 @@
 ﻿using System.Windows.Input;
 using CommunityToolkit.Mvvm.Input;
+using LoupixDeck.Commands.Base;
 using LoupixDeck.Models;
 using LoupixDeck.Services;
 using LoupixDeck.Utils;
@@ -42,7 +43,7 @@ public class MainWindowViewModel : ViewModelBase
         _elgatoDevices = elgatoDevices;
 
         LoupeDeckDevice = LoupedeckBase.LoadFromFile<LoupedeckLiveS>();
-
+        
         if (LoupeDeckDevice == null)
         {
             LoupeDeckDevice = new LoupedeckLiveS();
@@ -52,7 +53,7 @@ public class MainWindowViewModel : ViewModelBase
         {
             LoupeDeckDevice.InitDevice(false, obs, dbus, elgatoController, elgatoDevices, runner);
         }
-
+        
         RotaryButtonCommand = new AsyncRelayCommand<RotaryButton>(RotaryButton_Click);
         SimpleButtonCommand = new AsyncRelayCommand<SimpleButton>(SimpleButton_Click);
         TouchButtonCommand = new AsyncRelayCommand<TouchButton>(TouchButton_Click);
