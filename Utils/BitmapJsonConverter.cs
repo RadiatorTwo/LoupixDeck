@@ -1,33 +1,42 @@
-using System.Text.Json;
-using System.Text.Json.Serialization;
 using Avalonia.Media.Imaging;
+using Newtonsoft.Json;
 
 namespace LoupixDeck.Utils;
 
-public class BitmapJsonConverter : JsonConverter<Bitmap>
+public class BitmapJsonConverter : JsonConverter
 {
-    public override Bitmap Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    public override bool CanConvert(Type objectType)
     {
-        string base64String = reader.GetString();
+        return typeof(Bitmap).IsAssignableFrom(objectType);
+    }
+    
+    public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
+    {
+        if (reader.TokenType == JsonToken.Null)
+            return null;
+        
+        var base64String = reader.Value?.ToString();
         if (string.IsNullOrEmpty(base64String))
             return null;
-
-        byte[] bytes = Convert.FromBase64String(base64String);
-        using MemoryStream ms = new(bytes);
+        
+        var bytes = Convert.FromBase64String(base64String);
+        using var ms = new MemoryStream(bytes);
+        
         return new Bitmap(ms);
     }
 
-    public override void Write(Utf8JsonWriter writer, Bitmap value, JsonSerializerOptions options)
+    public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
     {
-        if (value == null)
+        if (value is not Bitmap bitmap) 
         {
-            writer.WriteNullValue();
+            writer.WriteNull();
             return;
         }
 
-        using MemoryStream ms = new();
-        value.Save(ms);
-        string base64String = Convert.ToBase64String(ms.ToArray());
-        writer.WriteStringValue(base64String);
+        using var ms = new MemoryStream();
+        
+        bitmap.Save(ms);
+        var base64String = Convert.ToBase64String(ms.ToArray());
+        writer.WriteValue(base64String);
     }
 }
