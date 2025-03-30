@@ -6,6 +6,7 @@
     <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+    <LangVersion>default</LangVersion>
   </PropertyGroup>
 
   <ItemGroup>
@@ -37,5 +38,6 @@
     <PackageReference Include="System.Drawing.Common" Version="9.0.2" />
     <PackageReference Include="System.IO.Ports" Version="9.0.2" />
     <PackageReference Include="Tmds.DBus" Version="0.21.2" />
+    <PackageReference Include="Zeroconf" Version="3.7.16" />
   </ItemGroup>
 </Project>

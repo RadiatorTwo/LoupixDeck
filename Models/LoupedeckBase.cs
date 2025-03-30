@@ -4,10 +4,9 @@ using LoupixDeck.Utils;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
-using System.Text.Json;
-using System.Text.Json.Serialization;
 using LoupixDeck.LoupedeckDevice.Device;
 using LoupixDeck.Services;
+using Newtonsoft.Json;
 
 namespace LoupixDeck.Models;
 
@@ -78,11 +77,14 @@ public abstract class LoupedeckBase : INotifyPropertyChanged
     protected CommandRunner CommandRunner;
     protected ObsController Obs;
     protected DBusController DBus;
+    protected ElgatoController ElgatoController;
 
     public ObservableCollection<RotaryButtonPage> RotaryButtonPages { get; set; }
     public ObservableCollection<TouchButtonPage> TouchButtonPages { get; set; }
     public TouchButton[] CurrentTouchButtonPage { get; set; }
     public SimpleButton[] SimpleButtons { get; set; }
+
+    [JsonIgnore] public ElgatoDevices ElgatoDevices { get; set; }
 
     private double _brightness = 1;
 
@@ -109,13 +111,15 @@ public abstract class LoupedeckBase : INotifyPropertyChanged
 
     public void SaveToFile()
     {
-        JsonSerializerOptions options = new()
+        var settings = new JsonSerializerSettings
         {
-            WriteIndented = true,
-            Converters = { new ColorJsonConverter(), new BitmapJsonConverter() }
+            Formatting = Formatting.Indented
         };
+        
+        settings.Converters.Add(new ColorJsonConverter());
+        settings.Converters.Add(new BitmapJsonConverter());
 
-        var json = JsonSerializer.Serialize(this, options);
+        var json = JsonConvert.SerializeObject(this, settings);
         var filePath = FileDialogHelper.GetConfigPath("config.json");
         File.WriteAllText(filePath, json);
     }
@@ -127,14 +131,13 @@ public abstract class LoupedeckBase : INotifyPropertyChanged
         if (!File.Exists(filePath))
             return null;
 
-        JsonSerializerOptions options = new()
-        {
-            Converters = { new ColorJsonConverter(), new BitmapJsonConverter() }
-        };
-
         var json = File.ReadAllText(filePath);
+        
+        var settings = new JsonSerializerSettings();
+        settings.Converters.Add(new ColorJsonConverter());
+        settings.Converters.Add(new BitmapJsonConverter());
 
-        var instance = JsonSerializer.Deserialize<T>(json, options);
+        var instance = JsonConvert.DeserializeObject<T>(json, settings);
         instance.CurrentTouchPageIndex = 0;
         instance.CurrentRotaryPageIndex = 0;
 
@@ -253,7 +256,12 @@ public abstract class LoupedeckBase : INotifyPropertyChanged
         TouchButtonPages[CurrentTouchPageIndex].TouchButtons[source.Index].RenderedImage = source.RenderedImage;
     }
 
-    public abstract void InitDevice(bool reset, ObsController obs, DBusController dbus, CommandRunner runner);
+    public abstract void InitDevice(bool reset, 
+        ObsController obs, 
+        DBusController dbus, 
+        ElgatoController elgato,
+        ElgatoDevices elgatoDevices,
+        CommandRunner runner);
 
     public abstract void InitButtonEvents();
 

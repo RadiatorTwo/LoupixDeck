@@ -68,7 +68,7 @@ public class LoupedeckDevice
 
         foreach (var port in devicesSerial)
         {
-            if (port.Contains("ttyACM"))
+            if (port.Contains("ttyACM") || port.Contains("COM4"))
             {
                 devices.Add(new DiscoveredDevice
                 {

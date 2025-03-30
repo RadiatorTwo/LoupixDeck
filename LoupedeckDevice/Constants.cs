@@ -120,7 +120,12 @@ public static class Constants
         OBS_START_REPLAY,
         OBS_STOP_REPLAY,
         OBS_SAVE_REPLAY,
-        OBS_SET_SCENE
+        OBS_SET_SCENE,
+        ELG_KL_TOGGLE,
+        ELG_KL_TEMPERATURE,
+        ELG_KL_BRIGHTNESS,
+        ELG_KL_SATURATION,
+        ELG_KL_HUE,
     }
 
     public record CommandInfo(SystemCommand SystemCommand, bool Parametered);
@@ -138,6 +143,11 @@ public static class Constants
         { "System.ObsStartReplay", new CommandInfo(SystemCommand.OBS_START_REPLAY, false) },
         { "System.ObsStopReplay", new CommandInfo(SystemCommand.OBS_STOP_REPLAY, false) },
         { "System.ObsSaveReplay", new CommandInfo(SystemCommand.OBS_SAVE_REPLAY, false) },
-        { "System.ObsSetScene", new CommandInfo(SystemCommand.OBS_SET_SCENE, true) }
+        { "System.ObsSetScene", new CommandInfo(SystemCommand.OBS_SET_SCENE, true) },
+        { "System.ElgKlToggle", new CommandInfo(SystemCommand.ELG_KL_TOGGLE, true) },
+        { "System.ElgKlTemperature", new CommandInfo(SystemCommand.ELG_KL_TEMPERATURE, true) },
+        { "System.ElgKlBrightness", new CommandInfo(SystemCommand.ELG_KL_BRIGHTNESS, true) },
+        { "System.ElgKlSaturation", new CommandInfo(SystemCommand.ELG_KL_SATURATION, true) },
+        { "System.ElgKlHue", new CommandInfo(SystemCommand.ELG_KL_HUE, true) }
     };
 }
