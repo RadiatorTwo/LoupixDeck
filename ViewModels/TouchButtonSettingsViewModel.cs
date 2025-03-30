@@ -11,8 +11,7 @@ namespace LoupixDeck.ViewModels;
 public class TouchButtonSettingsViewModel : ViewModelBase
 {
     private readonly ObsController _obs;
-    private readonly ElgatoController _elgato;
-    private readonly LoupedeckLiveS _loupedeckDevice;
+    private readonly ElgatoDevices _elgatoDevices;
     public ICommand SelectImageButtonCommand { get; }
     public ICommand RemoveImageButtonCommand { get; }
     public TouchButton ButtonData { get; }
@@ -24,12 +23,10 @@ public class TouchButtonSettingsViewModel : ViewModelBase
 
     public TouchButtonSettingsViewModel(TouchButton buttonData,
         ObsController obs,
-        ElgatoController elgato,
-        LoupedeckLiveS loupedeckDevice)
+        ElgatoDevices elgatoDevices)
     {
         _obs = obs;
-        _elgato = elgato;
-        _loupedeckDevice = loupedeckDevice;
+        _elgatoDevices = elgatoDevices;
         ButtonData = buttonData;
 
         SelectImageButtonCommand = new AsyncRelayCommand(SelectImgageButton_Click);
@@ -85,38 +82,60 @@ public class TouchButtonSettingsViewModel : ViewModelBase
 
         SystemCommandMenus.Add(elgatoMenu);
 
-        _elgato.KeyLightFound += (_, light) =>
+        foreach (var keyLight in _elgatoDevices.KeyLights)
         {
-            var checkKeyLight = _elgatoKeyLightMenu.Childs.FirstOrDefault(kl => kl.Name == light.DisplayName);
-            
-            if (checkKeyLight != null)
-                return;
+            AddKeyLightMenuEntry(keyLight);
+        }
 
-            var newKeyLightCommand = new SystemCommand(light.DisplayName, Constants.SystemCommand.NONE);
+        _elgatoDevices.KeyLightAdded += KeyLightAdded;
+    }
 
-            var newToggle = new SystemCommand("Turn On/Off", Constants.SystemCommand.ELG_SET_TOGGLE,
-                light.DisplayName);
-            newKeyLightCommand.Childs.Add(newToggle);
+    private void KeyLightAdded(object sender, KeyLight e)
+    {
+        AddKeyLightMenuEntry(e);
+    }
 
-            var newBrightness = new SystemCommand("Brightness", Constants.SystemCommand.ELG_SET_BRIGHTNESS,
-                light.DisplayName);
+    private void AddKeyLightMenuEntry(KeyLight keyLight)
+    {
+        var checkKeyLight = _elgatoKeyLightMenu.Childs.FirstOrDefault(kl => kl.Name == keyLight.DisplayName);
+
+        if (checkKeyLight != null)
+            return;
+
+        var newKeyLightCommand = new SystemCommand(keyLight.DisplayName, Constants.SystemCommand.NONE);
+
+        var newToggle = new SystemCommand("Turn On/Off", Constants.SystemCommand.ELG_KL_TOGGLE,
+            keyLight.DisplayName);
+        newKeyLightCommand.Childs.Add(newToggle);
+
+        if (keyLight.Brightness > 0)
+        {
+            var newBrightness = new SystemCommand("Brightness", Constants.SystemCommand.ELG_KL_BRIGHTNESS,
+                keyLight.DisplayName);
             newKeyLightCommand.Childs.Add(newBrightness);
+        }
 
-            var newTemperature = new SystemCommand("Temperature", Constants.SystemCommand.ELG_SET_TEMPERATURE,
-                light.DisplayName);
+        if (keyLight.Temperature > 0)
+        {
+            var newTemperature = new SystemCommand("Temperature", Constants.SystemCommand.ELG_KL_TEMPERATURE,
+                keyLight.DisplayName);
             newKeyLightCommand.Childs.Add(newTemperature);
+        }
 
-            var newHue = new SystemCommand("Hue", Constants.SystemCommand.ELG_SET_HUE, light.DisplayName);
+        if (keyLight.Hue > 0)
+        {
+            var newHue = new SystemCommand("Hue", Constants.SystemCommand.ELG_KL_HUE, keyLight.DisplayName);
             newKeyLightCommand.Childs.Add(newHue);
+        }
 
-            var newSaturation = new SystemCommand("Saturation", Constants.SystemCommand.ELG_SET_SATURATION,
-                light.DisplayName);
+        if (keyLight.Saturation > 0)
+        {
+            var newSaturation = new SystemCommand("Saturation", Constants.SystemCommand.ELG_KL_SATURATION,
+                keyLight.DisplayName);
             newKeyLightCommand.Childs.Add(newSaturation);
+        }
 
-            _elgatoKeyLightMenu.Childs.Add(newKeyLightCommand);
-        };
-
-        _elgato.ProbeForElgatoDevices();
+        _elgatoKeyLightMenu.Childs.Add(newKeyLightCommand);
     }
 
     private async Task SelectImgageButton_Click()
@@ -142,27 +161,35 @@ public class TouchButtonSettingsViewModel : ViewModelBase
         ButtonData.Refresh();
     }
 
-    public void InsertCommand(Constants.SystemCommand command, params string[] replacements)
+    public void InsertCommand(SystemCommand command)
     {
         var systemCommand =
             Constants.SystemCommands.Reverse.FirstOrDefault(
-                x => x.Key.SystemCommand == command);
+                x => x.Key.SystemCommand == command.Command);
 
         var formattedCommand = systemCommand.Value;
-        if (replacements != null && systemCommand.Key.Parametered)
+
+        if (systemCommand.Key.Parametered)
         {
             formattedCommand += "(";
 
-            foreach (var replacement in replacements)
+            switch (systemCommand.Key.SystemCommand)
             {
-                if (string.IsNullOrWhiteSpace(replacement)) continue;
+                case Constants.SystemCommand.OBS_SET_SCENE:
+                    formattedCommand += command.Name;
+                    break;
 
-                formattedCommand += replacement;
+                case Constants.SystemCommand.ELG_KL_TOGGLE:
+                    formattedCommand += command.ParentName;
+                    break;
 
-                if (replacements.Last() != replacement)
-                {
-                    formattedCommand += ",";
-                }
+                case Constants.SystemCommand.ELG_KL_TEMPERATURE:
+                case Constants.SystemCommand.ELG_KL_BRIGHTNESS:
+                case Constants.SystemCommand.ELG_KL_SATURATION:
+                case Constants.SystemCommand.ELG_KL_HUE:
+                    formattedCommand += command.ParentName;
+                    formattedCommand += ",value";
+                    break;
             }
 
             formattedCommand += ")";

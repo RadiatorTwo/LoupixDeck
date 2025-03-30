@@ -12,7 +12,8 @@ namespace LoupixDeck.ViewModels;
 public class MainWindowViewModel : ViewModelBase
 {
     private readonly ObsController _obs;
-    private readonly ElgatoController _elgato;
+    // private readonly ElgatoController _elgatoController;
+    private readonly ElgatoDevices _elgatoDevices;
     public ICommand RotaryButtonCommand { get; }
     public ICommand SimpleButtonCommand { get; }
     public ICommand TouchButtonCommand { get; }
@@ -30,21 +31,26 @@ public class MainWindowViewModel : ViewModelBase
 
     public LoupedeckLiveS LoupeDeckDevice { get; }
 
-    public MainWindowViewModel(ObsController obs, ElgatoController elgato, DBusController dbus, CommandRunner runner)
+    public MainWindowViewModel(ObsController obs,
+        ElgatoController elgatoController,
+        ElgatoDevices elgatoDevices,
+        DBusController dbus,
+        CommandRunner runner)
     {
         _obs = obs;
-        _elgato = elgato;
+        //_elgatoController = elgatoController;
+        _elgatoDevices = elgatoDevices;
 
         LoupeDeckDevice = LoupedeckBase.LoadFromFile<LoupedeckLiveS>();
 
         if (LoupeDeckDevice == null)
         {
             LoupeDeckDevice = new LoupedeckLiveS();
-            LoupeDeckDevice.InitDevice(true, obs, dbus, elgato, runner);
+            LoupeDeckDevice.InitDevice(true, obs, dbus, elgatoController, elgatoDevices, runner);
         }
         else
         {
-            LoupeDeckDevice.InitDevice(false, obs, dbus, elgato, runner);
+            LoupeDeckDevice.InitDevice(false, obs, dbus, elgatoController, elgatoDevices, runner);
         }
 
         RotaryButtonCommand = new AsyncRelayCommand<RotaryButton>(RotaryButton_Click);
@@ -120,7 +126,7 @@ public class MainWindowViewModel : ViewModelBase
 
     private async Task TouchButton_Click(TouchButton button)
     {
-        var newWindow = new TouchButtonSettings(button, _obs, _elgato)
+        var newWindow = new TouchButtonSettings(button, _obs, _elgatoDevices)
         {
             WindowStartupLocation = Avalonia.Controls.WindowStartupLocation.CenterOwner
         };

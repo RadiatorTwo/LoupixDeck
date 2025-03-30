@@ -16,9 +16,9 @@ public partial class TouchButtonSettings : Window
         InitializeComponent();
     }
 
-    public TouchButtonSettings(TouchButton buttonData, ObsController obs, ElgatoController elgato)
+    public TouchButtonSettings(TouchButton buttonData, ObsController obs, ElgatoDevices elgatoDevices)
     {
-        DataContext = new TouchButtonSettingsViewModel(buttonData, obs, elgato);
+        DataContext = new TouchButtonSettingsViewModel(buttonData, obs, elgatoDevices);
         InitializeComponent();
     }
 
@@ -29,7 +29,7 @@ public partial class TouchButtonSettings : Window
         {
             if (e.ClickCount == 2)
             {
-                ((TouchButtonSettingsViewModel)DataContext)?.InsertCommand(command.Command, command.ParentName,command.Name);
+                ((TouchButtonSettingsViewModel)DataContext)?.InsertCommand(command);
             }
         }
         else

@@ -121,11 +121,11 @@ public static class Constants
         OBS_STOP_REPLAY,
         OBS_SAVE_REPLAY,
         OBS_SET_SCENE,
-        ELG_SET_TOGGLE,
-        ELG_SET_TEMPERATURE,
-        ELG_SET_BRIGHTNESS,
-        ELG_SET_SATURATION,
-        ELG_SET_HUE,
+        ELG_KL_TOGGLE,
+        ELG_KL_TEMPERATURE,
+        ELG_KL_BRIGHTNESS,
+        ELG_KL_SATURATION,
+        ELG_KL_HUE,
     }
 
     public record CommandInfo(SystemCommand SystemCommand, bool Parametered);
@@ -144,10 +144,10 @@ public static class Constants
         { "System.ObsStopReplay", new CommandInfo(SystemCommand.OBS_STOP_REPLAY, false) },
         { "System.ObsSaveReplay", new CommandInfo(SystemCommand.OBS_SAVE_REPLAY, false) },
         { "System.ObsSetScene", new CommandInfo(SystemCommand.OBS_SET_SCENE, true) },
-        { "System.ElgToggle", new CommandInfo(SystemCommand.ELG_SET_TOGGLE, false) },
-        { "System.ElgSetTemperature", new CommandInfo(SystemCommand.ELG_SET_TEMPERATURE, true) },
-        { "System.ElgSetBrightness", new CommandInfo(SystemCommand.ELG_SET_BRIGHTNESS, true) },
-        { "System.ElgSetSaturation", new CommandInfo(SystemCommand.ELG_SET_SATURATION, true) },
-        { "System.ElgSetHue", new CommandInfo(SystemCommand.ELG_SET_HUE, true) }
+        { "System.ElgKlToggle", new CommandInfo(SystemCommand.ELG_KL_TOGGLE, true) },
+        { "System.ElgKlTemperature", new CommandInfo(SystemCommand.ELG_KL_TEMPERATURE, true) },
+        { "System.ElgKlBrightness", new CommandInfo(SystemCommand.ELG_KL_BRIGHTNESS, true) },
+        { "System.ElgKlSaturation", new CommandInfo(SystemCommand.ELG_KL_SATURATION, true) },
+        { "System.ElgKlHue", new CommandInfo(SystemCommand.ELG_KL_HUE, true) }
     };
 }

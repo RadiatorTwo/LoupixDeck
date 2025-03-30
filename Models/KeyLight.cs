@@ -1,10 +1,25 @@
-﻿namespace LoupixDeck.Models;
+﻿using Newtonsoft.Json;
 
-public class KeyLight(string displayName, int port, string address)
+namespace LoupixDeck.Models;
+
+public class KeyLight
 {
-    public string DisplayName { get; } = displayName;
-    private int Port { get; } = port;
-    private string Address { get; } = address;
+    public string DisplayName { get; set; }
+    public int Port { get; set; }
+    public  string Address { get; set; }
+
+    public KeyLight()
+    {
+    }
+    
+    public KeyLight(string displayName, int port, string address)
+    {
+        DisplayName = displayName;
+        Port = port;
+        Address = address;
+    }
+
+    [JsonIgnore]
     public string Url => $"http://{Address}:{Port}/elgato/lights";
 
     public bool On { get; set; }

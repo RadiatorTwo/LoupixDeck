@@ -17,23 +17,26 @@ public class ElgatoController : IDisposable
         Timeout = TimeSpan.FromSeconds(2)
     };
 
-    public void ProbeForElgatoDevices()
+    public async Task ProbeForElgatoDevices()
     {
         _listener = ZeroconfResolver.CreateListener("_elg._tcp.local.");
 
         _listener.ServiceFound += (s, e) =>
         {
-            //lightInstance.InitDeviceAsync().GetAwaiter().GetResult();
-
             var keyLight = new KeyLight(e.DisplayName, e.Services.Values.First().Port, e.IPAddress);
 
             KeyLightFound?.Invoke(s, keyLight);
         };
 
         _listener.ServiceLost += (s, e) => { KeylightDisconnected?.Invoke(s, e.DisplayName); };
+        
+        //I'll give those ******* Elgato Keylights 2 Minutes to be found...
+        await Task.Delay(TimeSpan.FromMinutes(2));
+        
+        _listener.Dispose();
     }
 
-    public async Task InitDeviceAsync(KeyLight keyLight)
+    public async Task<bool> InitDeviceAsync(KeyLight keyLight)
     {
         try
         {
@@ -43,7 +46,9 @@ public class ElgatoController : IDisposable
 
             var responseContent = await response.Content.ReadAsStringAsync();
 
-            InitKeyLight(ref keyLight, JObject.Parse(responseContent));
+            InitKeyLight(keyLight, JObject.Parse(responseContent));
+            
+            return true;
         }
         catch (TaskCanceledException ex) when (!ex.CancellationToken.IsCancellationRequested)
         {
@@ -55,7 +60,7 @@ public class ElgatoController : IDisposable
         }
     }
 
-    private void InitKeyLight(ref KeyLight keyLight, JObject json)
+    private void InitKeyLight(KeyLight keyLight, JObject json)
     {
         var light = json["lights"].First();
 
