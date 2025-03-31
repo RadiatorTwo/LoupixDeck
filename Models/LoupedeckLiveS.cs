@@ -10,16 +10,16 @@ namespace LoupixDeck.Models;
 
 public sealed class LoupedeckLiveS : LoupedeckBase
 {
-    public override void InitDevice(bool reset,
-        ObsController obs,
-        DBusController dbus,
-        ElgatoController elgatoController,
-        ElgatoDevices elgatoDevices,
-        CommandRunner runner)
+    public LoupedeckLiveS(ObsController obs, DBusController dbus, ElgatoController elgatoController, ElgatoDevices elgatoDevices, CommandRunner runner)
+        : base(obs, dbus, elgatoController, elgatoDevices, runner)
+    {
+    }
+
+    public override void InitDevice()
     {
         StartDeviceThread();
 
-        if (reset)
+        if (SimpleButtons == null || SimpleButtons.Length == 0)
         {
             SimpleButtons =
             [
@@ -28,10 +28,12 @@ public sealed class LoupedeckLiveS : LoupedeckBase
                 CreateSimpleButton(Constants.ButtonType.BUTTON2, Colors.Blue, "System.NextRotaryPage"),
                 CreateSimpleButton(Constants.ButtonType.BUTTON3, Colors.Blue, "System.NextPage")
             ];
+        }
 
+        if (TouchButtonPages == null)
+        {
             TouchButtonPages = new ObservableCollection<TouchButtonPage>();
             CurrentTouchButtonPage = new TouchButton[15];
-            RotaryButtonPages = new ObservableCollection<RotaryButtonPage>();
 
             for (var i = 0; i < CurrentTouchButtonPage.Length; i++)
             {
@@ -39,41 +41,17 @@ public sealed class LoupedeckLiveS : LoupedeckBase
             }
 
             AddTouchButtonPage();
+        }
+
+        if (RotaryButtonPages == null)
+        {
+            RotaryButtonPages = new ObservableCollection<RotaryButtonPage>();
             AddRotaryButtonPage();
         }
 
         InitUpdateEvents();
         RefreshSimpleButtons();
         RefreshTouchButtons();
-
-        Obs = obs;
-        obs.Connect();
-        DBus = dbus;
-        CommandRunner = runner;
-        ElgatoDevices = elgatoDevices;
-        ElgatoController = elgatoController;
-
-        // // Try to Init existing Elgato Devices.
-        // foreach (var keyLight in ElgatoDevices.KeyLights)
-        // {
-        //     ElgatoController.InitDeviceAsync(keyLight).GetAwaiter().GetResult();
-        // }
-
-        ElgatoController.KeyLightFound += (_, light) =>
-        {
-            var checkDevice = ElgatoDevices.KeyLights.FirstOrDefault(kl => kl.DisplayName == light.DisplayName);
-
-            // We remove an existing KeyLight, to be able to re add it, in case the devices ip has changed.
-            if (checkDevice != null)
-            {
-                ElgatoDevices.RemoveKeyLight(checkDevice);
-            }
-
-            ElgatoController.InitDeviceAsync(light).GetAwaiter().GetResult();
-            ElgatoDevices.AddKeyLight(light);
-        };
-
-        _ = ElgatoController.ProbeForElgatoDevices();
     }
 
     public override void InitButtonEvents()

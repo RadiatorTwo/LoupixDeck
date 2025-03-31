@@ -1,7 +1,7 @@
 using Avalonia.Media;
 using Newtonsoft.Json;
 
-namespace LoupixDeck.Utils;
+namespace LoupixDeck.Models.Converter;
 
 public class ColorJsonConverter : JsonConverter
 {
