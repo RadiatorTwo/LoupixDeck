@@ -4,7 +4,13 @@ using LoupixDeck.Services;
 
 namespace LoupixDeck.Commands;
 
-[Command("System.ElgKlToggle")]
+[Command(
+    "System.ElgKlToggle",
+    "Toggle Keylight",
+    "Elgato Keylights",
+    "({KeyLightName})",
+    ["KeyLightName"],
+    [typeof(string)])]
 public class ElgatoKeylightToggleCommand(ElgatoController elgato, ElgatoDevices elgatoDevices) : IExecutableCommand
 {
     public async Task Execute(string[] parameters)
@@ -15,7 +21,7 @@ public class ElgatoKeylightToggleCommand(ElgatoController elgato, ElgatoDevices 
             return;
         }
 
-        var keylightName = parameters[0] as string;
+        var keylightName = parameters[0];
         var keyLight = elgatoDevices.KeyLights.FirstOrDefault(kl => kl.DisplayName == keylightName);
 
         if (keyLight == null) return;
@@ -24,7 +30,13 @@ public class ElgatoKeylightToggleCommand(ElgatoController elgato, ElgatoDevices 
     }
 }
 
-[Command("System.ElgKlTemperature")]
+[Command(
+    "System.ElgKlTemperature",
+    "Set Temperature",
+    "Elgato Keylights",
+    "({KeyLightName},{Temperature})",
+    ["KeyLightName", "Temperature"],
+    [typeof(string), typeof(int)])]
 public class ElgatoKeylightTemperatureCommand(ElgatoController elgato, ElgatoDevices elgatoDevices) : IExecutableCommand
 {
     public async Task Execute(string[] parameters)
@@ -35,9 +47,9 @@ public class ElgatoKeylightTemperatureCommand(ElgatoController elgato, ElgatoDev
             return;
         }
 
-        var keylightName = parameters[0] as string;
-        var brightness = Convert.ToInt32(parameters[1] as string);
-        
+        var keylightName = parameters[0];
+        var brightness = Convert.ToInt32(parameters[1]);
+
         var keyLight = elgatoDevices.KeyLights.FirstOrDefault(kl => kl.DisplayName == keylightName);
 
         if (keyLight == null) return;
@@ -46,7 +58,13 @@ public class ElgatoKeylightTemperatureCommand(ElgatoController elgato, ElgatoDev
     }
 }
 
-[Command("System.ElgKlBrightness")]
+[Command(
+    "System.ElgKlBrightness",
+    "Set Brightness",
+    "Elgato Keylights",
+    "({KeyLightName},{Brightness})",
+    ["KeyLightName", "Brightness"],
+    [typeof(string), typeof(int)])]
 public class ElgatoKeylightBrightnessCommand(ElgatoController elgato, ElgatoDevices elgatoDevices) : IExecutableCommand
 {
     public async Task Execute(string[] parameters)
@@ -57,9 +75,9 @@ public class ElgatoKeylightBrightnessCommand(ElgatoController elgato, ElgatoDevi
             return;
         }
 
-        var keylightName = parameters[0] as string;
-        var brightness = Convert.ToInt32(parameters[1] as string);
-        
+        var keylightName = parameters[0];
+        var brightness = Convert.ToInt32(parameters[1]);
+
         var keyLight = elgatoDevices.KeyLights.FirstOrDefault(kl => kl.DisplayName == keylightName);
 
         if (keyLight == null) return;
@@ -68,7 +86,13 @@ public class ElgatoKeylightBrightnessCommand(ElgatoController elgato, ElgatoDevi
     }
 }
 
-[Command("System.ElgKlSaturation")]
+[Command(
+    "System.ElgKlSaturation",
+    "Set Saturation",
+    "Elgato Keylights",
+    "({KeyLightName},{Saturation})",
+    ["KeyLightName", "Saturation"],
+    [typeof(string), typeof(int)])]
 public class ElgatoKeylightSaturationCommand(ElgatoController elgato, ElgatoDevices elgatoDevices) : IExecutableCommand
 {
     public async Task Execute(string[] parameters)
@@ -79,9 +103,9 @@ public class ElgatoKeylightSaturationCommand(ElgatoController elgato, ElgatoDevi
             return;
         }
 
-        var keylightName = parameters[0] as string;
-        var saturation = Convert.ToInt32(parameters[1] as string);
-        
+        var keylightName = parameters[0];
+        var saturation = Convert.ToInt32(parameters[1]);
+
         var keyLight = elgatoDevices.KeyLights.FirstOrDefault(kl => kl.DisplayName == keylightName);
 
         if (keyLight == null) return;
@@ -90,7 +114,13 @@ public class ElgatoKeylightSaturationCommand(ElgatoController elgato, ElgatoDevi
     }
 }
 
-[Command("System.ElgKlHue")]
+[Command(
+    "System.ElgKlHue",
+    "Set Hue",
+    "Elgato Keylights",
+    "({KeyLightName},{Hue})",
+    ["KeyLightName", "Hue"],
+    [typeof(string), typeof(int)])]
 public class ElgatoKeylightHueCommand(ElgatoController elgato, ElgatoDevices elgatoDevices) : IExecutableCommand
 {
     public async Task Execute(string[] parameters)
@@ -101,9 +131,9 @@ public class ElgatoKeylightHueCommand(ElgatoController elgato, ElgatoDevices elg
             return;
         }
 
-        var keylightName = parameters[0] as string;
-        var hue = Convert.ToInt32(parameters[1] as string);
-        
+        var keylightName = parameters[0];
+        var hue = Convert.ToInt32(parameters[1]);
+
         var keyLight = elgatoDevices.KeyLights.FirstOrDefault(kl => kl.DisplayName == keylightName);
 
         if (keyLight == null) return;

@@ -1,6 +1,7 @@
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.VisualTree;
+using LoupixDeck.Commands.Base;
 using LoupixDeck.Models;
 using LoupixDeck.Services;
 using LoupixDeck.ViewModels;
@@ -23,11 +24,11 @@ public partial class TouchButtonSettings : Window
 
     private void OnPointerPressed(object sender, PointerPressedEventArgs e)
     {
-        if (e.Source is TextBlock textBlock && textBlock.DataContext is SystemCommand command && command.IsCommand)
+        if (e.Source is TextBlock textBlock && textBlock.DataContext is MenuEntry menuEntry && menuEntry.Command != null && !string.IsNullOrWhiteSpace(menuEntry.Command))
         {
             if (e.ClickCount == 2)
             {
-                ((TouchButtonSettingsViewModel)DataContext)?.InsertCommand(command);
+                ((TouchButtonSettingsViewModel)DataContext)?.InsertCommand(menuEntry);
             }
         }
         else
@@ -36,9 +37,15 @@ public partial class TouchButtonSettings : Window
             var treeViewItem = source?.FindAncestorOfType<TreeViewItem>();
 
             if (treeViewItem == null || !e.GetCurrentPoint(treeViewItem).Properties.IsLeftButtonPressed) return;
-            var sysCommand = (SystemCommand)treeViewItem.DataContext;
+            var menuEntryP = (MenuEntry)treeViewItem.DataContext;
 
-            if (sysCommand == null || !sysCommand.IsCommand) return;
+            if (menuEntryP == null)
+            {
+                e.Handled = true;
+                return;
+            }
+
+            if (menuEntryP.Command == null || !string.IsNullOrWhiteSpace(menuEntryP.Command)) return;
 
             // Toggle Auf-/Zuklappen
             treeViewItem.IsExpanded = !treeViewItem.IsExpanded;

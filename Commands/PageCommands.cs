@@ -3,7 +3,7 @@ using LoupixDeck.Models;
 
 namespace LoupixDeck.Commands;
 
-[Command("System.NextPage")]
+[Command("System.NextPage","Next Touch Page", "Pages")]
 public class PreviousTouchPageCommand(LoupedeckLiveS loupedeck) : IExecutableCommand
 {
     public Task Execute(string[] parameters)
@@ -19,7 +19,7 @@ public class PreviousTouchPageCommand(LoupedeckLiveS loupedeck) : IExecutableCom
     }
 }
 
-[Command("System.PreviousPage")]
+[Command("System.PreviousPage","Previous Touch Page", "Pages")]
 public class NextTouchPageCommand(LoupedeckLiveS loupedeck) : IExecutableCommand
 {
     public Task Execute(string[] parameters)
@@ -35,8 +35,8 @@ public class NextTouchPageCommand(LoupedeckLiveS loupedeck) : IExecutableCommand
     }
 }
 
-[Command("System.PreviousPage")]
-public class PreviousRotaryPageCommand(LoupedeckLiveS loupedeck) : IExecutableCommand
+[Command("System.NextRotaryPage","Next Rotary Page", "Pages")]
+public class NextRotaryPageCommand(LoupedeckLiveS loupedeck) : IExecutableCommand
 {
     public Task Execute(string[] parameters)
     {
@@ -51,8 +51,8 @@ public class PreviousRotaryPageCommand(LoupedeckLiveS loupedeck) : IExecutableCo
     }
 }
 
-[Command("System.PreviousPage")]
-public class NextRotaryPageCommand(LoupedeckLiveS loupedeck) : IExecutableCommand
+[Command("System.PreviousRotaryPage","Previous Rotary Page", "Pages")]
+public class PreviousRotaryPageCommand(LoupedeckLiveS loupedeck) : IExecutableCommand
 {
     public Task Execute(string[] parameters)
     {

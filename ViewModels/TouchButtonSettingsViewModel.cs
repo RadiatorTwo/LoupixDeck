@@ -1,6 +1,7 @@
-﻿using System.Collections.ObjectModel;
+using System.Collections.ObjectModel;
 using System.Windows.Input;
 using Avalonia.Media.Imaging;
+using LoupixDeck.Commands.Base;
 using LoupixDeck.Models;
 using LoupixDeck.Services;
 using LoupixDeck.Utils;
@@ -15,10 +16,10 @@ public class TouchButtonSettingsViewModel : ViewModelBase
     public ICommand RemoveImageButtonCommand { get; }
     public TouchButton ButtonData { get; }
 
-    public ObservableCollection<SystemCommand> SystemCommandMenus { get; set; }
-    public SystemCommand CurrentSystemCommand { get; set; }
+    public ObservableCollection<MenuEntry> SystemCommandMenus { get; set; }
+    public MenuEntry CurrentMenuEntry { get; set; }
 
-    private SystemCommand _elgatoKeyLightMenu;
+    private MenuEntry _elgatoKeyLightMenu;
 
     public TouchButtonSettingsViewModel(TouchButton buttonData,
         ObsController obs,
@@ -31,55 +32,63 @@ public class TouchButtonSettingsViewModel : ViewModelBase
         SelectImageButtonCommand = new AsyncRelayCommand(SelectImgageButton_Click);
         RemoveImageButtonCommand = new RelayCommand(RemoveImgageButton_Click);
 
-        SystemCommandMenus = new ObservableCollection<SystemCommand>();
+        SystemCommandMenus = new ObservableCollection<MenuEntry>();
 
         CreateSystemMenu();
     }
 
     private void CreateSystemMenu()
     {
-        // Pages
-        var pageMenu = new SystemCommand("Pages", false);
+        CreatePagesMenu();
+        CreateObsMenu();
+        CreateElgatoMenu();
+    }
 
-        pageMenu.Childs.Add(new SystemCommand("Next Page", true));
-        pageMenu.Childs.Add(new SystemCommand("Previous Page", true));
-        pageMenu.Childs.Add(new SystemCommand("Next Rotary Page", true));
-        pageMenu.Childs.Add(new SystemCommand("Previous Rotary Page", true));
+    private void CreatePagesMenu()
+    {
+        // Get Only Pages Commands
+        var commands = CommandManager.GetCommandInfos().Where(ci => ci.Group == "Pages");
 
-        SystemCommandMenus.Add(pageMenu);
+        var groupMenu = new MenuEntry("Pages", string.Empty);
 
-        // OBS Menu
-        var obsMenu = new SystemCommand("OBS", false);
+        foreach (var command in commands)
+        {
+            groupMenu.Childs.Add(new MenuEntry(command.DisplayName, command.CommandName));
+        }
 
-        obsMenu.Childs.Add(new SystemCommand("Start Record", true));
-        obsMenu.Childs.Add(new SystemCommand("Stop Record", true));
-        obsMenu.Childs.Add(new SystemCommand("Pause Record", true));
+        SystemCommandMenus.Add(groupMenu);
+    }
 
-        obsMenu.Childs.Add(new SystemCommand("Start Replay", true));
-        obsMenu.Childs.Add(new SystemCommand("Stop Replay", true));
-        obsMenu.Childs.Add(new SystemCommand("Save Replay", true));
+    private void CreateObsMenu()
+    {
+        var commands = CommandManager.GetCommandInfos().Where(ci => ci.Group == "OBS");
 
-        obsMenu.Childs.Add(new SystemCommand("Toggle Virtual Camera", true));
+        var groupMenu = new MenuEntry("Pages", string.Empty);
 
-        var scenesMenu = new SystemCommand("Scenes", false);
+        foreach (var command in commands)
+        {
+            if (command.CommandName == "System.ObsSetScene")
+                continue;
+
+            groupMenu.Childs.Add(new MenuEntry(command.DisplayName, command.CommandName));
+        }
+
+        var scenesMenu = new MenuEntry("Scenes", string.Empty);
         var scenes = _obs.GetScenes();
 
         foreach (var scene in scenes)
         {
-            scenesMenu.Childs.Add(new SystemCommand(scene.Name, true));
+            scenesMenu.Childs.Add(new MenuEntry(scene.Name, $"System.ObsSetScene({scene.Name})"));
         }
 
-        obsMenu.Childs.Add(scenesMenu);
+        groupMenu.Childs.Add(scenesMenu);
 
-        SystemCommandMenus.Add(obsMenu);
+        SystemCommandMenus.Add(groupMenu);
+    }
 
-        // Elgato Menu
-        var elgatoMenu = new SystemCommand("Elgato", false);
-        _elgatoKeyLightMenu = new SystemCommand("Keylights", false);
-
-        elgatoMenu.Childs.Add(_elgatoKeyLightMenu);
-
-        SystemCommandMenus.Add(elgatoMenu);
+    private void CreateElgatoMenu()
+    {
+        _elgatoKeyLightMenu = new MenuEntry("Elgato Keylights", string.Empty);
 
         foreach (var keyLight in _elgatoDevices.KeyLights)
         {
@@ -87,6 +96,8 @@ public class TouchButtonSettingsViewModel : ViewModelBase
         }
 
         _elgatoDevices.KeyLightAdded += KeyLightAdded;
+
+        SystemCommandMenus.Add(_elgatoKeyLightMenu);
     }
 
     private void KeyLightAdded(object sender, KeyLight e)
@@ -101,36 +112,16 @@ public class TouchButtonSettingsViewModel : ViewModelBase
         if (checkKeyLight != null)
             return;
 
-        var newKeyLightCommand = new SystemCommand(keyLight.DisplayName, false);
+        var keyLightGroup = new MenuEntry(keyLight.DisplayName, null);
 
-        var newToggle = new SystemCommand("Turn On/Off", true, keyLight.DisplayName);
-        newKeyLightCommand.Childs.Add(newToggle);
+        var commands = CommandManager.GetCommandInfos().Where(ci => ci.Group == "Elgato Keylights");
 
-        if (keyLight.Brightness > 0)
+        foreach (var command in commands)
         {
-            var newBrightness = new SystemCommand("Brightness", true, keyLight.DisplayName);
-            newKeyLightCommand.Childs.Add(newBrightness);
+            keyLightGroup.Childs.Add(new MenuEntry(command.DisplayName, command.CommandName, keyLight.DisplayName));
         }
 
-        if (keyLight.Temperature > 0)
-        {
-            var newTemperature = new SystemCommand("Temperature", true, keyLight.DisplayName);
-            newKeyLightCommand.Childs.Add(newTemperature);
-        }
-
-        if (keyLight.Hue > 0)
-        {
-            var newHue = new SystemCommand("Hue", true, keyLight.DisplayName);
-            newKeyLightCommand.Childs.Add(newHue);
-        }
-
-        if (keyLight.Saturation > 0)
-        {
-            var newSaturation = new SystemCommand("Saturation", true, keyLight.DisplayName);
-            newKeyLightCommand.Childs.Add(newSaturation);
-        }
-
-        _elgatoKeyLightMenu.Childs.Add(newKeyLightCommand);
+        _elgatoKeyLightMenu.Childs.Add(keyLightGroup);
     }
 
     private async Task SelectImgageButton_Click()
@@ -156,39 +147,40 @@ public class TouchButtonSettingsViewModel : ViewModelBase
         ButtonData.Refresh();
     }
 
-    public void InsertCommand(SystemCommand command)
+    public void InsertCommand(MenuEntry menuEntry)
     {
-        // var systemCommand = Constants.SystemCommands.Reverse.FirstOrDefault(
-        //         x => x.Key.SystemCommand == command.Command);
-        //
-        // var formattedCommand = systemCommand.Value;
-        //
-        // if (systemCommand.Key.Parametered)
-        // {
-        //     formattedCommand += "(";
-        //
-        //     switch (systemCommand.Key.SystemCommand)
-        //     {
-        //         case Constants.SystemCommand.OBS_SET_SCENE:
-        //             formattedCommand += command.Name;
-        //             break;
-        //
-        //         case Constants.SystemCommand.ELG_KL_TOGGLE:
-        //             formattedCommand += command.ParentName;
-        //             break;
-        //
-        //         case Constants.SystemCommand.ELG_KL_TEMPERATURE:
-        //         case Constants.SystemCommand.ELG_KL_BRIGHTNESS:
-        //         case Constants.SystemCommand.ELG_KL_SATURATION:
-        //         case Constants.SystemCommand.ELG_KL_HUE:
-        //             formattedCommand += command.ParentName;
-        //             formattedCommand += ",value";
-        //             break;
-        //     }
-        //
-        //     formattedCommand += ")";
-        // }
-        //
-        // ButtonData.Command += formattedCommand;
+        var command = CommandManager.GetCommandInfo(menuEntry.Command);
+
+        if (command == null) return;
+
+        var parameters = new Dictionary<string, object>();
+
+        for (int i = 0; i < command.Parameters.Count; i++)
+        {
+            var parameter = command.Parameters[i];
+
+            if (i == 0)
+            {
+                // First parameter is always Target.
+                if (!string.IsNullOrEmpty(menuEntry.ParentName))
+                {
+                    // When Parentname is not null, then that is the target.
+                    parameters.Add(parameter.Name, menuEntry.ParentName);
+                }
+                else
+                {
+                    parameters.Add(parameter.Name, menuEntry.Name);
+                }
+            }
+            else
+            {
+                parameters.Add(parameter.Name, CommandManager.GetDefaultValue(parameter.ParameterType.GetType()));
+            }
+        }
+
+        var formattedCommand = CommandBuilder.BuildCommandString(command, parameters);
+
+
+        ButtonData.Command += formattedCommand;
     }
 }
