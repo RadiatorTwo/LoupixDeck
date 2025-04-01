@@ -3,18 +3,21 @@ using LoupixDeck.LoupedeckDevice;
 using LoupixDeck.LoupedeckDevice.Device;
 using LoupixDeck.Utils;
 using System.Collections.ObjectModel;
+using AutoMapper;
 using LoupixDeck.Commands.Base;
 using LoupixDeck.Services;
 
 namespace LoupixDeck.Models;
 
-public sealed class LoupedeckLiveS : LoupedeckBase
+public sealed class LoupedeckLiveS(
+    ObsController obs,
+    DBusController dbus,
+    ElgatoController elgatoController,
+    ElgatoDevices elgatoDevices,
+    CommandRunner runner,
+    IMapper mapper)
+    : LoupedeckBase(obs, dbus, elgatoController, elgatoDevices, runner, mapper)
 {
-    public LoupedeckLiveS(ObsController obs, DBusController dbus, ElgatoController elgatoController, ElgatoDevices elgatoDevices, CommandRunner runner)
-        : base(obs, dbus, elgatoController, elgatoDevices, runner)
-    {
-    }
-
     public override void InitDevice()
     {
         StartDeviceThread();
@@ -332,6 +335,5 @@ public sealed class LoupedeckLiveS : LoupedeckBase
             return command;
 
         return command.Substring(0, end);
-        ;
     }
 }

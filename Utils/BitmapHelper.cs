@@ -271,4 +271,15 @@ public static class BitmapHelper
 
         context.DrawText(formattedText, new Point(drawX, drawY));
     }
+    
+    public static Bitmap CloneBitmap(this Bitmap original)
+    {
+        if (original == null)
+            return null;
+
+        using var memoryStream = new MemoryStream();
+        original.Save(memoryStream);
+        memoryStream.Seek(0, SeekOrigin.Begin);
+        return new Bitmap(memoryStream);
+    }
 }

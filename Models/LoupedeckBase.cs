@@ -4,6 +4,7 @@ using LoupixDeck.Utils;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using AutoMapper;
 using LoupixDeck.LoupedeckDevice.Device;
 using LoupixDeck.Services;
 using Newtonsoft.Json;
@@ -13,7 +14,6 @@ namespace LoupixDeck.Models;
 
 public abstract class LoupedeckBase : INotifyPropertyChanged
 {
-
     private int _currentTouchPageIndex;
 
     [JsonIgnore]
@@ -76,10 +76,12 @@ public abstract class LoupedeckBase : INotifyPropertyChanged
     }
 
     protected LoupedeckLiveSDevice Device;
-    protected CommandRunner CommandRunner;
+    protected readonly CommandRunner CommandRunner;
     protected ObsController Obs;
     protected DBusController DBus;
-    protected ElgatoController ElgatoController;
+    
+    private readonly ElgatoController _elgatoController;
+    private readonly IMapper _mapper;
 
     public ObservableCollection<RotaryButtonPage> RotaryButtonPages { get; set; }
     public ObservableCollection<TouchButtonPage> TouchButtonPages { get; set; }
@@ -115,22 +117,18 @@ public abstract class LoupedeckBase : INotifyPropertyChanged
         DBusController dbus,
         ElgatoController elgatoController,
         ElgatoDevices elgatoDevices,
-        CommandRunner runner)
+        CommandRunner runner,
+        IMapper mapper)
     {
         Obs = obs;
         obs.Connect();
         DBus = dbus;
         CommandRunner = runner;
+        _mapper = mapper;
         ElgatoDevices = elgatoDevices;
-        ElgatoController = elgatoController;
+        _elgatoController = elgatoController;
 
-        // // Try to Init existing Elgato Devices.
-        // foreach (var keyLight in ElgatoDevices.KeyLights)
-        // {
-        //     ElgatoController.InitDeviceAsync(keyLight).GetAwaiter().GetResult();
-        // }
-
-        ElgatoController.KeyLightFound += (_, light) =>
+        _elgatoController.KeyLightFound += (_, light) =>
         {
             var checkDevice = ElgatoDevices.KeyLights.FirstOrDefault(kl => kl.DisplayName == light.DisplayName);
 
@@ -140,11 +138,11 @@ public abstract class LoupedeckBase : INotifyPropertyChanged
                 ElgatoDevices.RemoveKeyLight(checkDevice);
             }
 
-            ElgatoController.InitDeviceAsync(light).GetAwaiter().GetResult();
+            _elgatoController.InitDeviceAsync(light).GetAwaiter().GetResult();
             ElgatoDevices.AddKeyLight(light);
         };
 
-        _ = ElgatoController.ProbeForElgatoDevices();
+        _ = _elgatoController.ProbeForElgatoDevices();
     }
 
     public void SaveToFile()
@@ -235,17 +233,8 @@ public abstract class LoupedeckBase : INotifyPropertyChanged
         }
 
         CurrentTouchButtonPage[source.Index].IgnoreRefresh = true;
-
-        CurrentTouchButtonPage[source.Index].Text = source.Text;
-        CurrentTouchButtonPage[source.Index].TextColor = source.TextColor;
-        CurrentTouchButtonPage[source.Index].TextCentered = source.TextCentered;
-        CurrentTouchButtonPage[source.Index].TextPositionX = source.TextPositionX;
-        CurrentTouchButtonPage[source.Index].TextPositionY = source.TextPositionY;
-        CurrentTouchButtonPage[source.Index].TextSize = source.TextSize;
-        CurrentTouchButtonPage[source.Index].Image = source.Image;
-        CurrentTouchButtonPage[source.Index].BackColor = source.BackColor;
-        CurrentTouchButtonPage[source.Index].Command = source.Command;
-        CurrentTouchButtonPage[source.Index].RenderedImage = source.RenderedImage;
+        
+        _mapper.Map(source, CurrentTouchButtonPage[source.Index]);
 
         CurrentTouchButtonPage[source.Index].IgnoreRefresh = false;
 
@@ -262,16 +251,7 @@ public abstract class LoupedeckBase : INotifyPropertyChanged
             TouchButtonPages[CurrentTouchPageIndex].TouchButtons[source.Index] = new TouchButton(source.Index);
         }
 
-        TouchButtonPages[CurrentTouchPageIndex].TouchButtons[source.Index].Text = source.Text;
-        TouchButtonPages[CurrentTouchPageIndex].TouchButtons[source.Index].TextColor = source.TextColor;
-        TouchButtonPages[CurrentTouchPageIndex].TouchButtons[source.Index].TextCentered = source.TextCentered;
-        TouchButtonPages[CurrentTouchPageIndex].TouchButtons[source.Index].TextPositionX = source.TextPositionX;
-        TouchButtonPages[CurrentTouchPageIndex].TouchButtons[source.Index].TextPositionY = source.TextPositionY;
-        TouchButtonPages[CurrentTouchPageIndex].TouchButtons[source.Index].TextSize = source.TextSize;
-        TouchButtonPages[CurrentTouchPageIndex].TouchButtons[source.Index].Image = source.Image;
-        TouchButtonPages[CurrentTouchPageIndex].TouchButtons[source.Index].BackColor = source.BackColor;
-        TouchButtonPages[CurrentTouchPageIndex].TouchButtons[source.Index].Command = source.Command;
-        TouchButtonPages[CurrentTouchPageIndex].TouchButtons[source.Index].RenderedImage = source.RenderedImage;
+        _mapper.Map(source, TouchButtonPages[CurrentTouchPageIndex].TouchButtons[source.Index]);
     }
 
     public abstract void InitDevice();

@@ -10,6 +10,7 @@ using LoupixDeck.Models;
 using LoupixDeck.Models.Converter;
 using LoupixDeck.Utils;
 using Newtonsoft.Json;
+using AutoMapper;
 
 namespace LoupixDeck;
 
@@ -25,7 +26,7 @@ public partial class App : Application
         // Avoid duplicate validations from both Avalonia and the CommunityToolkit. 
         // More info: https://docs.avaloniaui.net/docs/guides/development-guides/data-validation#manage-validationplugins
         DisableAvaloniaDataAnnotationValidation();
-
+        
         // Register all the services needed for the application to run
         var collection = new ServiceCollection();
         collection.AddCommonServices();
@@ -79,8 +80,7 @@ public partial class App : Application
 
         return instance;
     }
-
-
+    
     private void DisableAvaloniaDataAnnotationValidation()
     {
         // Get an array of plugins to remove

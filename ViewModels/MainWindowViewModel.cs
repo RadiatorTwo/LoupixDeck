@@ -1,7 +1,5 @@
 ﻿using System.Windows.Input;
 using CommunityToolkit.Mvvm.Input;
-using LoupixDeck.Commands.Base;
-using LoupixDeck.LoupedeckDevice.Device;
 using LoupixDeck.Models;
 using LoupixDeck.Services;
 using LoupixDeck.Utils;
@@ -34,10 +32,7 @@ public class MainWindowViewModel : ViewModelBase
 
     public MainWindowViewModel(LoupedeckLiveS loupedeck,
                                ObsController obs,
-                               ElgatoController elgatoController,
-                               ElgatoDevices elgatoDevices,
-                               DBusController dbus,
-                               CommandRunner runner)
+                               ElgatoDevices elgatoDevices)
     {
         LoupeDeck = loupedeck;
         LoupeDeck.InitDevice();
