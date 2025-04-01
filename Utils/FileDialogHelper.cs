@@ -34,7 +34,6 @@ public abstract class FileDialogHelper
 
         var configDir = Path.Combine(homePath, ".config", "LoupixDeck");
 
-        // Falls das Verzeichnis nicht existiert, erstelle es
         if (!Directory.Exists(configDir))
         {
             Directory.CreateDirectory(configDir);

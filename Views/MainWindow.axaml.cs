@@ -15,12 +15,6 @@ public partial class MainWindow : Window
     private ICommand ShowCommand { get; }
     private ICommand QuitCommand { get; }
 
-    // static MainWindow()
-    // {
-    //     ShowCommand = new RelayCommand(() => Instance?.ShowFromTray());
-    //     QuitCommand = new RelayCommand(() => Instance?.QuitApplication());
-    // }
-
     private static MainWindow Instance { get; set; }
     
     public MainWindowViewModel ViewModel => (MainWindowViewModel)DataContext;
@@ -64,7 +58,7 @@ public partial class MainWindow : Window
 
     private void OnWindowClosing(object sender, WindowClosingEventArgs e)
     {
-        if (!_isMinimizedToTray) // Only minimize if it's not already minimized
+        if (!_isMinimizedToTray)
         {
             e.Cancel = true;
             MinimizeToTray();
@@ -75,19 +69,19 @@ public partial class MainWindow : Window
     {
         Avalonia.Threading.Dispatcher.UIThread.Post(() =>
         {
-            if (_isMinimizedToTray) return; // Prevent redundant actions
+            if (_isMinimizedToTray) return;
 
             _isMinimizedToTray = true;
 
             if (_trayIcon != null)
             {
-                _trayIcon.Dispose(); // Zwinge Avalonia, das alte TrayIcon zu löschen
+                _trayIcon.Dispose();
                 _trayIcon = null;
             }
 
             CreateTrayIcon();
 
-            Hide(); // Hide window
+            Hide();
         });
     }
 
@@ -95,22 +89,22 @@ public partial class MainWindow : Window
     {
         Avalonia.Threading.Dispatcher.UIThread.Post(() =>
         {
-            if (!_isMinimizedToTray) return; // Only restore if it's minimized
+            if (!_isMinimizedToTray) return;
 
             _isMinimizedToTray = false;
             Show();
-            Activate(); // Bring window to the foreground
+            Activate();
 
             if (_trayIcon != null)
             {
-                _trayIcon.IsVisible = false; // Hide tray icon
+                _trayIcon.IsVisible = false;
             }
         });
     }
 
     private void QuitApplication()
     {
-        _trayIcon?.Dispose(); // Cleanup tray icon before exit
+        _trayIcon?.Dispose();
         _trayIcon = null;
         Environment.Exit(0);
     }

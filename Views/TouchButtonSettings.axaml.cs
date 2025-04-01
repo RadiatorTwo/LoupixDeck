@@ -47,10 +47,8 @@ public partial class TouchButtonSettings : Window
 
             if (menuEntryP.Command == null || !string.IsNullOrWhiteSpace(menuEntryP.Command)) return;
 
-            // Toggle Auf-/Zuklappen
             treeViewItem.IsExpanded = !treeViewItem.IsExpanded;
 
-            // Optional: Verhindert doppelte Auswahländerung
             e.Handled = true;
         }
     }

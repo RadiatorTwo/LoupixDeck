@@ -103,7 +103,6 @@ public static class CommandManager
         if (type == typeof(string))
             return "string";
 
-        // Primitive Typen
         if (type == typeof(bool))
             return false;
         if (type == typeof(char))
@@ -131,13 +130,11 @@ public static class CommandManager
         if (type == typeof(decimal))
             return 0m;
 
-        // Spezielle Typen
         if (type == typeof(DateTime))
-            return default(DateTime); // entspricht DateTime.MinValue
+            return default(DateTime);
         if (type == typeof(Guid))
             return Guid.Empty;
 
-        // Enums: Hier wird der erste definierte Wert zurückgegeben, falls vorhanden.
         if (type.IsEnum)
         {
             var values = Enum.GetValues(type);
@@ -147,15 +144,12 @@ public static class CommandManager
                 return Activator.CreateInstance(type);
         }
 
-        // Falls es sich um ein Nullable<T> handelt, wird null zurückgegeben.
         if (Nullable.GetUnderlyingType(type) != null)
             return null;
 
-        // Für alle anderen Value Types
         if (type.IsValueType)
             return Activator.CreateInstance(type);
 
-        // Für Referenztypen (Klassen, Arrays etc.) wird null zurückgegeben.
         return null;
     }
 }
