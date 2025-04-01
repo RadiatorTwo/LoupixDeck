@@ -1,4 +1,6 @@
+using AutoMapper;
 using LoupixDeck.Models;
+using LoupixDeck.Models.Mapper;
 using LoupixDeck.Services;
 using LoupixDeck.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
@@ -20,5 +22,19 @@ public static class ServiceCollectionExtensions
         collection.AddSingleton<LoupedeckLiveS>();
 
         collection.AddTransient<MainWindowViewModel>();
+
+        InitMapper(collection);
+    }
+
+    private static void InitMapper(this IServiceCollection collection)
+    {
+        var config = new MapperConfiguration(cfg =>
+        {
+            cfg.AddProfile<ButtonMappingProfile>();
+        });
+
+        var mapper = config.CreateMapper();
+        
+        collection.AddSingleton(mapper);
     }
 }

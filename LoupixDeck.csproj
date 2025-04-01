@@ -21,6 +21,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="AutoMapper" Version="14.0.0" />
     <PackageReference Include="Avalonia" Version="11.2.5" />
     <PackageReference Include="Avalonia.Controls.ColorPicker" Version="11.2.5" />
     <PackageReference Include="Avalonia.Desktop" Version="11.2.5" />
