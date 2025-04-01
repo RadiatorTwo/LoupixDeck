@@ -17,6 +17,8 @@ public static class ServiceCollectionExtensions
         collection.AddSingleton<CommandRunner>();
         collection.AddSingleton<ElgatoController>();
 
+        collection.AddSingleton<LoupedeckLiveS>();
+
         collection.AddTransient<MainWindowViewModel>();
     }
 }

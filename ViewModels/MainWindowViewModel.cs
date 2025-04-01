@@ -1,5 +1,7 @@
 ﻿using System.Windows.Input;
 using CommunityToolkit.Mvvm.Input;
+using LoupixDeck.Commands.Base;
+using LoupixDeck.LoupedeckDevice.Device;
 using LoupixDeck.Models;
 using LoupixDeck.Services;
 using LoupixDeck.Utils;
@@ -12,7 +14,6 @@ namespace LoupixDeck.ViewModels;
 public class MainWindowViewModel : ViewModelBase
 {
     private readonly ObsController _obs;
-    // private readonly ElgatoController _elgatoController;
     private readonly ElgatoDevices _elgatoDevices;
     public ICommand RotaryButtonCommand { get; }
     public ICommand SimpleButtonCommand { get; }
@@ -29,29 +30,20 @@ public class MainWindowViewModel : ViewModelBase
 
     public ICommand SettingsMenuCommand { get; }
 
-    public LoupedeckLiveS LoupeDeckDevice { get; }
+    public LoupedeckLiveS LoupeDeck { get; }
 
-    public MainWindowViewModel(ObsController obs,
-        ElgatoController elgatoController,
-        ElgatoDevices elgatoDevices,
-        DBusController dbus,
-        CommandRunner runner)
+    public MainWindowViewModel(LoupedeckLiveS loupedeck,
+                               ObsController obs,
+                               ElgatoController elgatoController,
+                               ElgatoDevices elgatoDevices,
+                               DBusController dbus,
+                               CommandRunner runner)
     {
+        LoupeDeck = loupedeck;
+        LoupeDeck.InitDevice();
+
         _obs = obs;
-        //_elgatoController = elgatoController;
         _elgatoDevices = elgatoDevices;
-
-        LoupeDeckDevice = LoupedeckBase.LoadFromFile<LoupedeckLiveS>();
-
-        if (LoupeDeckDevice == null)
-        {
-            LoupeDeckDevice = new LoupedeckLiveS();
-            LoupeDeckDevice.InitDevice(true, obs, dbus, elgatoController, elgatoDevices, runner);
-        }
-        else
-        {
-            LoupeDeckDevice.InitDevice(false, obs, dbus, elgatoController, elgatoDevices, runner);
-        }
 
         RotaryButtonCommand = new AsyncRelayCommand<RotaryButton>(RotaryButton_Click);
         SimpleButtonCommand = new AsyncRelayCommand<SimpleButton>(SimpleButton_Click);
@@ -74,32 +66,32 @@ public class MainWindowViewModel : ViewModelBase
 
     private void AddRotaryPageButton_Click()
     {
-        Avalonia.Threading.Dispatcher.UIThread.Post(() => { LoupeDeckDevice.AddRotaryButtonPage(); });
+        Avalonia.Threading.Dispatcher.UIThread.Post(() => { LoupeDeck.AddRotaryButtonPage(); });
     }
 
     private void DeleteRotaryPageButton_Click()
     {
-        Avalonia.Threading.Dispatcher.UIThread.Post(() => { LoupeDeckDevice.DeleteRotaryButtonPage(); });
+        Avalonia.Threading.Dispatcher.UIThread.Post(() => { LoupeDeck.DeleteRotaryButtonPage(); });
     }
 
     private void RotaryPageButton_Click(int page)
     {
-        Avalonia.Threading.Dispatcher.UIThread.Post(() => { LoupeDeckDevice.ApplyRotaryPage(page - 1); });
+        Avalonia.Threading.Dispatcher.UIThread.Post(() => { LoupeDeck.ApplyRotaryPage(page - 1); });
     }
 
     private void AddTouchPageButton_Click()
     {
-        Avalonia.Threading.Dispatcher.UIThread.Post(() => { LoupeDeckDevice.AddTouchButtonPage(); });
+        Avalonia.Threading.Dispatcher.UIThread.Post(() => { LoupeDeck.AddTouchButtonPage(); });
     }
 
     private void DeleteTouchPageButton_Click()
     {
-        Avalonia.Threading.Dispatcher.UIThread.Post(() => { LoupeDeckDevice.DeleteTouchButtonPage(); });
+        Avalonia.Threading.Dispatcher.UIThread.Post(() => { LoupeDeck.DeleteTouchButtonPage(); });
     }
 
     private void TouchPageButton_Click(int page)
     {
-        Avalonia.Threading.Dispatcher.UIThread.Post(() => { LoupeDeckDevice.ApplyTouchPage(page - 1); });
+        Avalonia.Threading.Dispatcher.UIThread.Post(() => { LoupeDeck.ApplyTouchPage(page - 1); });
     }
 
     private async Task RotaryButton_Click(RotaryButton button)
@@ -110,7 +102,7 @@ public class MainWindowViewModel : ViewModelBase
         };
         await newWindow.ShowDialog(WindowHelper.GetMainWindow());
 
-        LoupeDeckDevice.SaveToFile();
+        LoupeDeck.SaveToFile();
     }
 
     private async Task SimpleButton_Click(SimpleButton button)
@@ -121,7 +113,7 @@ public class MainWindowViewModel : ViewModelBase
         };
         await newWindow.ShowDialog(WindowHelper.GetMainWindow());
 
-        LoupeDeckDevice.SaveToFile();
+        LoupeDeck.SaveToFile();
     }
 
     private async Task TouchButton_Click(TouchButton button)
@@ -132,7 +124,7 @@ public class MainWindowViewModel : ViewModelBase
         };
         await newWindow.ShowDialog(WindowHelper.GetMainWindow());
 
-        LoupeDeckDevice.SaveToFile();
+        LoupeDeck.SaveToFile();
     }
 
     private async Task SettingsMenuButton_Click()

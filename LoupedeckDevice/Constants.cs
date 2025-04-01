@@ -105,49 +105,4 @@ public static class Constants
         TOUCH_END = 1,
         TOUCH_MOVE = 2
     }
-
-    public enum SystemCommand
-    {
-        NONE,
-        NEXT_PAGE,
-        PREVIOUS_PAGE,
-        NEXT_ROT_PAGE,
-        PREVIOUS_ROT_PAGE,
-        OBS_START_RECORD,
-        OBS_STOP_RECORD,
-        OBS_PAUSE_RECORD,
-        OBS_VIRTUAL_CAM,
-        OBS_START_REPLAY,
-        OBS_STOP_REPLAY,
-        OBS_SAVE_REPLAY,
-        OBS_SET_SCENE,
-        ELG_KL_TOGGLE,
-        ELG_KL_TEMPERATURE,
-        ELG_KL_BRIGHTNESS,
-        ELG_KL_SATURATION,
-        ELG_KL_HUE,
-    }
-
-    public record CommandInfo(SystemCommand SystemCommand, bool Parametered);
-    
-    public static readonly BiMap<string, CommandInfo> SystemCommands = new()
-    {
-        { "System.NextPage", new CommandInfo(SystemCommand.NEXT_PAGE, false) },
-        { "System.PreviousPage", new CommandInfo(SystemCommand.PREVIOUS_PAGE, false) },
-        { "System.NextRotaryPage", new CommandInfo(SystemCommand.NEXT_ROT_PAGE, false) },
-        { "System.PreviousRotaryPage", new CommandInfo(SystemCommand.PREVIOUS_ROT_PAGE, false) },
-        { "System.ObsStartRecord", new CommandInfo(SystemCommand.OBS_START_RECORD, false) },
-        { "System.ObsStopRecord", new CommandInfo(SystemCommand.OBS_STOP_RECORD, false) },
-        { "System.ObsPauseRecord", new CommandInfo(SystemCommand.OBS_PAUSE_RECORD, false) },
-        { "System.ObsVirtualCam", new CommandInfo(SystemCommand.OBS_VIRTUAL_CAM, false) },
-        { "System.ObsStartReplay", new CommandInfo(SystemCommand.OBS_START_REPLAY, false) },
-        { "System.ObsStopReplay", new CommandInfo(SystemCommand.OBS_STOP_REPLAY, false) },
-        { "System.ObsSaveReplay", new CommandInfo(SystemCommand.OBS_SAVE_REPLAY, false) },
-        { "System.ObsSetScene", new CommandInfo(SystemCommand.OBS_SET_SCENE, true) },
-        { "System.ElgKlToggle", new CommandInfo(SystemCommand.ELG_KL_TOGGLE, true) },
-        { "System.ElgKlTemperature", new CommandInfo(SystemCommand.ELG_KL_TEMPERATURE, true) },
-        { "System.ElgKlBrightness", new CommandInfo(SystemCommand.ELG_KL_BRIGHTNESS, true) },
-        { "System.ElgKlSaturation", new CommandInfo(SystemCommand.ELG_KL_SATURATION, true) },
-        { "System.ElgKlHue", new CommandInfo(SystemCommand.ELG_KL_HUE, true) }
-    };
 }
