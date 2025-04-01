@@ -1,7 +1,7 @@
 using Avalonia.Media.Imaging;
 using Newtonsoft.Json;
 
-namespace LoupixDeck.Utils;
+namespace LoupixDeck.Models.Converter;
 
 public class BitmapJsonConverter : JsonConverter
 {

@@ -25,7 +25,7 @@ public static class BitmapHelper
             pen: null,
             rect: new Rect(0, 0, width, height)
         );
-        
+
         // Values for ring thickness and margin
         const int ringThickness = 3;
         const int margin = 8;
@@ -53,13 +53,13 @@ public static class BitmapHelper
             radiusX,
             radiusY
         );
-        
+
         // Radii for the inner ring
         var innerRadiusX = (width - 2 * innerRingMargin) / 2.0;
         var innerRadiusY = (height - 2 * innerRingMargin) / 2.0;
-        
+
         var innerRingPen = new Pen(brush, innerRingThickness);
-        
+
         // We have no DrawArc, so we need to draw it with geometry ourselve
         var geometry = new StreamGeometry();
         using (var geoCtx = geometry.Open())
@@ -96,8 +96,8 @@ public static class BitmapHelper
 
         return rtb;
     }
-    
-     /// <summary>
+
+    /// <summary>
     /// Renders the content of a TouchButton (background, image, text) into an Avalonia bitmap.
     /// </summary>
     public static RenderTargetBitmap RenderTouchButtonContent(TouchButton touchButton, int width, int height)
@@ -176,8 +176,8 @@ public static class BitmapHelper
         touchButton.RenderedImage = rtb;
         return rtb;
     }
-     
-     /// <summary>
+
+    /// <summary>
     /// Draws text at the given position in the specified DrawingContext.
     /// </summary>
     private static void DrawTextAt(
@@ -200,19 +200,17 @@ public static class BitmapHelper
 
         var brush = new ImmutableSolidColorBrush(color);
 
-        // Create typeface with bold or Italic
         var typeface = new Typeface(
             FontFamily.Default,
             italic ? FontStyle.Italic : FontStyle.Normal,
             bold ? FontWeight.Bold : FontWeight.Normal
         );
 
-        // Create the FormattedText (Avalonia 11+)
         var formattedText = new FormattedText(
             text,
             CultureInfo.CurrentCulture,
             FlowDirection.LeftToRight,
-            typeface, // Default font
+            typeface,
             textSize,
             brush
         )
@@ -242,17 +240,16 @@ public static class BitmapHelper
             drawY = (int)Math.Round(posY);
         }
 
-        // Falls eine Umrandung gewünscht ist, wird sie gezeichnet
         if (outlined)
         {
             var outlineBrush = new ImmutableSolidColorBrush(outlineColor);
-            const int outlineOffset = 1; // Stärke der Umrandung
-            
+            const int outlineOffset = 1;
+
             var outlineText = new FormattedText(
                 text,
                 CultureInfo.CurrentCulture,
                 FlowDirection.LeftToRight,
-                typeface, // Default font
+                typeface,
                 textSize,
                 outlineBrush
             )
@@ -262,15 +259,14 @@ public static class BitmapHelper
                 MaxTextWidth = 85
             };
 
-            // Zeichne den Umrandungstext in mehreren Richtungen
-            context.DrawText(outlineText, new Point(drawX - outlineOffset, drawY)); // Links
-            context.DrawText(outlineText, new Point(drawX + outlineOffset, drawY)); // Rechts
-            context.DrawText(outlineText, new Point(drawX, drawY - outlineOffset)); // Oben
-            context.DrawText(outlineText, new Point(drawX, drawY + outlineOffset)); // Unten
-            context.DrawText(outlineText, new Point(drawX - outlineOffset, drawY - outlineOffset)); // Links-oben
-            context.DrawText(outlineText, new Point(drawX + outlineOffset, drawY - outlineOffset)); // Rechts-oben
-            context.DrawText(outlineText, new Point(drawX - outlineOffset, drawY + outlineOffset)); // Links-unten
-            context.DrawText(outlineText, new Point(drawX + outlineOffset, drawY + outlineOffset)); // Rechts-unten
+            context.DrawText(outlineText, new Point(drawX - outlineOffset, drawY));
+            context.DrawText(outlineText, new Point(drawX + outlineOffset, drawY));
+            context.DrawText(outlineText, new Point(drawX, drawY - outlineOffset));
+            context.DrawText(outlineText, new Point(drawX, drawY + outlineOffset));
+            context.DrawText(outlineText, new Point(drawX - outlineOffset, drawY - outlineOffset));
+            context.DrawText(outlineText, new Point(drawX + outlineOffset, drawY - outlineOffset));
+            context.DrawText(outlineText, new Point(drawX - outlineOffset, drawY + outlineOffset));
+            context.DrawText(outlineText, new Point(drawX + outlineOffset, drawY + outlineOffset));
         }
 
         context.DrawText(formattedText, new Point(drawX, drawY));

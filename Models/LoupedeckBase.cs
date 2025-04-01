@@ -7,15 +7,17 @@ using System.Runtime.CompilerServices;
 using LoupixDeck.LoupedeckDevice.Device;
 using LoupixDeck.Services;
 using Newtonsoft.Json;
+using LoupixDeck.Models.Converter;
 
 namespace LoupixDeck.Models;
 
 public abstract class LoupedeckBase : INotifyPropertyChanged
 {
+
     private int _currentTouchPageIndex;
 
     [JsonIgnore]
-    protected int CurrentTouchPageIndex
+    public int CurrentTouchPageIndex
     {
         get => _currentTouchPageIndex;
         set
@@ -34,7 +36,7 @@ public abstract class LoupedeckBase : INotifyPropertyChanged
     private int _currentRotaryPageIndex;
 
     [JsonIgnore]
-    protected int CurrentRotaryPageIndex
+    public int CurrentRotaryPageIndex
     {
         get => _currentRotaryPageIndex;
         set
@@ -109,6 +111,42 @@ public abstract class LoupedeckBase : INotifyPropertyChanged
 
     protected readonly AutoResetEvent DeviceCreatedEvent = new(false);
 
+    protected LoupedeckBase(ObsController obs,
+        DBusController dbus,
+        ElgatoController elgatoController,
+        ElgatoDevices elgatoDevices,
+        CommandRunner runner)
+    {
+        Obs = obs;
+        obs.Connect();
+        DBus = dbus;
+        CommandRunner = runner;
+        ElgatoDevices = elgatoDevices;
+        ElgatoController = elgatoController;
+
+        // // Try to Init existing Elgato Devices.
+        // foreach (var keyLight in ElgatoDevices.KeyLights)
+        // {
+        //     ElgatoController.InitDeviceAsync(keyLight).GetAwaiter().GetResult();
+        // }
+
+        ElgatoController.KeyLightFound += (_, light) =>
+        {
+            var checkDevice = ElgatoDevices.KeyLights.FirstOrDefault(kl => kl.DisplayName == light.DisplayName);
+
+            // We remove an existing KeyLight, to be able to re add it, in case the devices ip has changed.
+            if (checkDevice != null)
+            {
+                ElgatoDevices.RemoveKeyLight(checkDevice);
+            }
+
+            ElgatoController.InitDeviceAsync(light).GetAwaiter().GetResult();
+            ElgatoDevices.AddKeyLight(light);
+        };
+
+        _ = ElgatoController.ProbeForElgatoDevices();
+    }
+
     public void SaveToFile()
     {
         var settings = new JsonSerializerSettings
@@ -124,26 +162,6 @@ public abstract class LoupedeckBase : INotifyPropertyChanged
         File.WriteAllText(filePath, json);
     }
 
-    public static T LoadFromFile<T>() where T : LoupedeckBase
-    {
-        var filePath = FileDialogHelper.GetConfigPath("config.json");
-
-        if (!File.Exists(filePath))
-            return null;
-
-        var json = File.ReadAllText(filePath);
-        
-        var settings = new JsonSerializerSettings();
-        settings.Converters.Add(new ColorJsonConverter());
-        settings.Converters.Add(new BitmapJsonConverter());
-
-        var instance = JsonConvert.DeserializeObject<T>(json, settings);
-        instance.CurrentTouchPageIndex = 0;
-        instance.CurrentRotaryPageIndex = 0;
-
-        return instance;
-    }
-
     protected void InitUpdateEvents()
     {
         foreach (var touchButton in CurrentTouchButtonPage)
@@ -157,12 +175,12 @@ public abstract class LoupedeckBase : INotifyPropertyChanged
         }
     }
 
-    protected void NextRotaryPage()
+    public void NextRotaryPage()
     {
         CurrentRotaryPageIndex = (CurrentRotaryPageIndex + 1) % RotaryButtonPages.Count;
     }
 
-    protected void PreviousRotaryPage()
+    public void PreviousRotaryPage()
     {
         CurrentRotaryPageIndex = (CurrentRotaryPageIndex - 1 + RotaryButtonPages.Count) % RotaryButtonPages.Count;
     }
@@ -172,12 +190,12 @@ public abstract class LoupedeckBase : INotifyPropertyChanged
         CurrentRotaryPageIndex = pageIndex;
     }
 
-    protected void NextTouchPage()
+    public void NextTouchPage()
     {
         ApplyTouchPage((CurrentTouchPageIndex + 1) % TouchButtonPages.Count);
     }
 
-    protected void PreviousTouchPage()
+    public void PreviousTouchPage()
     {
         ApplyTouchPage((CurrentTouchPageIndex - 1 + TouchButtonPages.Count) % TouchButtonPages.Count);
     }
@@ -256,12 +274,7 @@ public abstract class LoupedeckBase : INotifyPropertyChanged
         TouchButtonPages[CurrentTouchPageIndex].TouchButtons[source.Index].RenderedImage = source.RenderedImage;
     }
 
-    public abstract void InitDevice(bool reset, 
-        ObsController obs, 
-        DBusController dbus, 
-        ElgatoController elgato,
-        ElgatoDevices elgatoDevices,
-        CommandRunner runner);
+    public abstract void InitDevice();
 
     public abstract void InitButtonEvents();
 
@@ -285,6 +298,4 @@ public abstract class LoupedeckBase : INotifyPropertyChanged
 
     public abstract void AddTouchButtonPage();
     public abstract void DeleteTouchButtonPage();
-
-    public abstract void ExceuteSystemCommand(Constants.CommandInfo command, string[] parameters = null);
 }

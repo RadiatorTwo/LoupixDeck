@@ -47,13 +47,11 @@ public class ObsConfig : INotifyPropertyChanged
 
     public string Url => $"ws://{Ip}:{Port}";
 
-    // Lädt die Konfiguration aus einer JSON-Datei
     public static ObsConfig LoadConfig()
     {
         var filePath = Utils.FileDialogHelper.GetConfigPath("obsconfig.json");
         if (!File.Exists(filePath))
         {
-            // Falls die Datei nicht existiert, werden Default-Werte verwendet.
             return new ObsConfig
             {
                 Ip = "127.0.0.1",
@@ -71,7 +69,7 @@ public class ObsConfig : INotifyPropertyChanged
         catch (Exception ex)
         {
             Console.WriteLine($"Error loading config: {ex.Message}");
-            // Bei Fehlern werden ebenfalls Default-Werte zurückgegeben.
+
             return new ObsConfig
             {
                 Ip = "127.0.0.1",
@@ -81,7 +79,6 @@ public class ObsConfig : INotifyPropertyChanged
         }
     }
 
-    // Speichert die Konfiguration als JSON-Datei
     public void SaveConfig()
     {
         try

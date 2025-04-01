@@ -84,9 +84,9 @@
                     <TextBlock Text="System Commands" FontWeight="Bold" Margin="0,0,0,5" />
                     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                         <TreeView Name="SystemCommandsTreeView" ItemsSource="{Binding SystemCommandMenus}"
-                                  SelectedItem="{Binding CurrentSystemCommand}" MaxHeight="350">
+                                  SelectedItem="{Binding CurrentMenuEntry}" MaxHeight="350">
                             <TreeView.DataTemplates>
-                                <TreeDataTemplate DataType="{x:Type local:Models.SystemCommand}"
+                                <TreeDataTemplate DataType="{x:Type local:Models.MenuEntry}"
                                                   ItemsSource="{Binding Childs}">
                                     <TextBlock Text="{Binding Name}" PointerPressed="OnPointerPressed" />
                                 </TreeDataTemplate>
