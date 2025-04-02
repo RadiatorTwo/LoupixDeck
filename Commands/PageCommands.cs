@@ -46,7 +46,7 @@ public class NextRotaryPageCommand(LoupedeckLiveS loupedeck) : IExecutableComman
             return Task.CompletedTask;
         }
 
-        loupedeck.PreviousRotaryPage();
+        loupedeck.NextRotaryPage();
         return Task.CompletedTask;
     }
 }

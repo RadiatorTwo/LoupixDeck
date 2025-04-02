@@ -118,7 +118,7 @@ public class MainWindowViewModel : ViewModelBase
             WindowStartupLocation = Avalonia.Controls.WindowStartupLocation.CenterOwner
         };
         await newWindow.ShowDialog(WindowHelper.GetMainWindow());
-
+        
         LoupeDeck.SaveToFile();
     }
 

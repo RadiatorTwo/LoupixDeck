@@ -79,16 +79,17 @@ public abstract class LoupedeckBase : INotifyPropertyChanged
     protected readonly CommandRunner CommandRunner;
     protected ObsController Obs;
     protected DBusController DBus;
-    
+
     private readonly ElgatoController _elgatoController;
     private readonly IMapper _mapper;
 
     public ObservableCollection<RotaryButtonPage> RotaryButtonPages { get; set; }
     public ObservableCollection<TouchButtonPage> TouchButtonPages { get; set; }
-    public TouchButton[] CurrentTouchButtonPage { get; set; }
     public SimpleButton[] SimpleButtons { get; set; }
 
-    [JsonIgnore] public ElgatoDevices ElgatoDevices { get; set; }
+    [JsonIgnore] public TouchButton[] CurrentTouchButtonPage { get; set; }
+
+    [JsonIgnore] private ElgatoDevices ElgatoDevices { get; set; }
 
     private double _brightness = 1;
 
@@ -147,11 +148,14 @@ public abstract class LoupedeckBase : INotifyPropertyChanged
 
     public void SaveToFile()
     {
+        // Copy all Current Touchbuttons to TouchButtonPage before saving.
+        CopyCurrentTouchButtonsToPage();
+        
         var settings = new JsonSerializerSettings
         {
             Formatting = Formatting.Indented
         };
-        
+
         settings.Converters.Add(new ColorJsonConverter());
         settings.Converters.Add(new BitmapJsonConverter());
 
@@ -209,6 +213,14 @@ public abstract class LoupedeckBase : INotifyPropertyChanged
         CurrentTouchPageIndex = pageIndex;
     }
 
+    private void CopyCurrentTouchButtonsToPage()
+    {
+        foreach (var currentTouchButton in CurrentTouchButtonPage)
+        {
+            CopyBackTouchButtonData(currentTouchButton);
+        }
+    }
+
     public void RefreshTouchButtons()
     {
         foreach (var touchButton in CurrentTouchButtonPage)
@@ -233,7 +245,7 @@ public abstract class LoupedeckBase : INotifyPropertyChanged
         }
 
         CurrentTouchButtonPage[source.Index].IgnoreRefresh = true;
-        
+
         _mapper.Map(source, CurrentTouchButtonPage[source.Index]);
 
         CurrentTouchButtonPage[source.Index].IgnoreRefresh = false;
