@@ -33,17 +33,25 @@ public sealed class LoupedeckLiveS(
             ];
         }
 
-        if (TouchButtonPages == null)
+        if (CurrentTouchButtonPage == null)
         {
-            TouchButtonPages = new ObservableCollection<TouchButtonPage>();
             CurrentTouchButtonPage = new TouchButton[15];
 
             for (var i = 0; i < CurrentTouchButtonPage.Length; i++)
             {
                 CurrentTouchButtonPage[i] = new TouchButton(i);
             }
+        }
 
+        if (TouchButtonPages == null)
+        {
+            TouchButtonPages = new ObservableCollection<TouchButtonPage>();
+            
             AddTouchButtonPage();
+        }
+        else
+        {
+            ApplyTouchPage(CurrentTouchPageIndex);
         }
 
         if (RotaryButtonPages == null)

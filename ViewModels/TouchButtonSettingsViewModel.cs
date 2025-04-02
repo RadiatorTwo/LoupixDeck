@@ -63,7 +63,7 @@ public class TouchButtonSettingsViewModel : ViewModelBase
     {
         var commands = CommandManager.GetCommandInfos().Where(ci => ci.Group == "OBS");
 
-        var groupMenu = new MenuEntry("Pages", string.Empty);
+        var groupMenu = new MenuEntry("OBS", string.Empty);
 
         foreach (var command in commands)
         {
@@ -174,7 +174,7 @@ public class TouchButtonSettingsViewModel : ViewModelBase
             }
             else
             {
-                parameters.Add(parameter.Name, CommandManager.GetDefaultValue(parameter.ParameterType.GetType()));
+                parameters.Add(parameter.Name, CommandManager.GetDefaultValue(parameter.ParameterType));
             }
         }
 
