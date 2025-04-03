@@ -560,7 +560,8 @@
                     VerticalContentAlignment="Center"
                     Command="{Binding DeleteTouchPageCommand}" />
         </StackPanel>
-        <Button Grid.Row="0" Grid.Column="3" VerticalAlignment="Top" HorizontalAlignment="Left" VerticalContentAlignment="Top"
+        <Button Grid.Row="0" Grid.Column="3" VerticalAlignment="Top" HorizontalAlignment="Left"
+                VerticalContentAlignment="Top"
                 Width="50"
                 Height="50"
                 Background="Transparent"
@@ -570,8 +571,17 @@
             <Button.Flyout>
                 <Flyout Placement="Left">
                     <StackPanel>
-                        <Button Content="Settings"
+                        <Button Width="100" Height="40" VerticalContentAlignment="Center"
+                                HorizontalContentAlignment="Center"
+                                FontSize="18"
+                                Content="Settings"
                                 Command="{Binding SettingsMenuCommand}" />
+                        <Separator />
+                        <Button Width="100" Height="40" VerticalContentAlignment="Center"
+                                HorizontalContentAlignment="Center"
+                                FontSize="18"
+                                Content="Quit"
+                                Command="{Binding QuitApplicationCommand}" />
                     </StackPanel>
                 </Flyout>
             </Button.Flyout>
