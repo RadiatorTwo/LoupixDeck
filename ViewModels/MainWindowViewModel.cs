@@ -1,4 +1,6 @@
 ﻿using System.Windows.Input;
+using Avalonia;
+using Avalonia.Controls.ApplicationLifetimes;
 using CommunityToolkit.Mvvm.Input;
 using LoupixDeck.Models;
 using LoupixDeck.Services;
@@ -27,6 +29,7 @@ public class MainWindowViewModel : ViewModelBase
     public ICommand TouchPageButtonCommand { get; }
 
     public ICommand SettingsMenuCommand { get; }
+    public ICommand QuitApplicationCommand { get; }
 
     public LoupedeckLiveS LoupeDeck { get; }
 
@@ -53,6 +56,7 @@ public class MainWindowViewModel : ViewModelBase
         TouchPageButtonCommand = new CommunityToolkit.Mvvm.Input.RelayCommand<int>(TouchPageButton_Click);
 
         SettingsMenuCommand = new AsyncRelayCommand(SettingsMenuButton_Click);
+        QuitApplicationCommand = new RelayCommand(QuitApplication);
     }
 
     public MainWindowViewModel()
@@ -129,5 +133,10 @@ public class MainWindowViewModel : ViewModelBase
             WindowStartupLocation = Avalonia.Controls.WindowStartupLocation.CenterOwner
         };
         await newWindow.ShowDialog(WindowHelper.GetMainWindow());
+    }
+    
+    private void QuitApplication()
+    {
+        Environment.Exit(0);
     }
 }
