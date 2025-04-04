@@ -19,7 +19,7 @@ public class ElgatoController : IDisposable
 
     public async Task ProbeForElgatoDevices()
     {
-        _listener = ZeroconfResolver.CreateListener("_elg._tcp.local.");
+        _listener = ZeroconfResolver.CreateListener("_elg._tcp.local.", 4000, 2, TimeSpan.FromMinutes(2));
 
         _listener.ServiceFound += (s, e) =>
         {
