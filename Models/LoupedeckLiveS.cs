@@ -149,7 +149,7 @@ public sealed class LoupedeckLiveS(
         var cleanCommand = GetCommandWithoutParameter(command);
         if (CommandManager.CheckCommandExists(cleanCommand))
         {
-            var parameter = GetCommandParameters(cleanCommand);
+            var parameter = GetCommandParameters(command);
             Avalonia.Threading.Dispatcher.UIThread.Post(() =>
             {
                 CommandManager.ExecuteCommand(cleanCommand, parameter);
