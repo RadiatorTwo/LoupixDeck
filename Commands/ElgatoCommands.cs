@@ -141,3 +141,115 @@ public class ElgatoKeylightHueCommand(ElgatoController elgato, ElgatoDevices elg
         await elgato.SetHue(keyLight, hue);
     }
 }
+
+[Command(
+    "System.ElgKlChangeBrightness",
+    "Change Brightness",
+    "Elgato Keylights",
+    "({KeyLightName},{Step})",
+    ["KeyLightName", "Step"],
+    [typeof(string), typeof(int)])]
+public class ElgatoKeylightChangeBrightnessCommand(ElgatoController elgato, ElgatoDevices elgatoDevices) : IExecutableCommand
+{
+    public async Task Execute(string[] parameters)
+    {
+        if (parameters.Length != 2)
+        {
+            Console.WriteLine("Invalid Parametercount");
+            return;
+        }
+
+        var keylightName = parameters[0];
+        var step = Convert.ToInt32(parameters[1]);
+
+        var keyLight = elgatoDevices.KeyLights.FirstOrDefault(kl => kl.DisplayName == keylightName);
+
+        if (keyLight == null) return;
+
+        await elgato.SetBrightness(keyLight, keyLight.Brightness + step);
+    }
+}
+
+[Command(
+    "System.ElgKlChangeTemperature",
+    "Change Temperature",
+    "Elgato Keylights",
+    "({KeyLightName},{Step})",
+    ["KeyLightName", "Step"],
+    [typeof(string), typeof(int)])]
+public class ElgatoKeylightChangeTemperatureCommand(ElgatoController elgato, ElgatoDevices elgatoDevices) : IExecutableCommand
+{
+    public async Task Execute(string[] parameters)
+    {
+        if (parameters.Length != 2)
+        {
+            Console.WriteLine("Invalid Parametercount");
+            return;
+        }
+
+        var keylightName = parameters[0];
+        var step = Convert.ToInt32(parameters[1]);
+
+        var keyLight = elgatoDevices.KeyLights.FirstOrDefault(kl => kl.DisplayName == keylightName);
+
+        if (keyLight == null) return;
+
+        await elgato.SetTemperature(keyLight, keyLight.Temperature + step);
+    }
+}
+
+[Command(
+    "System.ElgKlChangeSaturation",
+    "Change Saturation",
+    "Elgato Keylights",
+    "({KeyLightName},{Step})",
+    ["KeyLightName", "Step"],
+    [typeof(string), typeof(int)])]
+public class ElgatoKeylightChangeSaturationCommand(ElgatoController elgato, ElgatoDevices elgatoDevices) : IExecutableCommand
+{
+    public async Task Execute(string[] parameters)
+    {
+        if (parameters.Length != 2)
+        {
+            Console.WriteLine("Invalid Parametercount");
+            return;
+        }
+
+        var keylightName = parameters[0];
+        var step = Convert.ToInt32(parameters[1]);
+
+        var keyLight = elgatoDevices.KeyLights.FirstOrDefault(kl => kl.DisplayName == keylightName);
+
+        if (keyLight == null) return;
+
+        await elgato.SetSaturation(keyLight, keyLight.Saturation + step);
+    }
+}
+
+[Command(
+    "System.ElgKlChangeHue",
+    "Change Hue",
+    "Elgato Keylights",
+    "({KeyLightName},{Step})",
+    ["KeyLightName", "Step"],
+    [typeof(string), typeof(int)])]
+public class ElgatoKeylightChangeHueCommand(ElgatoController elgato, ElgatoDevices elgatoDevices) : IExecutableCommand
+{
+    public async Task Execute(string[] parameters)
+    {
+        if (parameters.Length != 2)
+        {
+            Console.WriteLine("Invalid Parametercount");
+            return;
+        }
+
+        var keylightName = parameters[0];
+        var step = Convert.ToInt32(parameters[1]);
+
+        var keyLight = elgatoDevices.KeyLights.FirstOrDefault(kl => kl.DisplayName == keylightName);
+
+        if (keyLight == null) return;
+
+        await elgato.SetHue(keyLight, keyLight.Saturation + step);
+    }
+}

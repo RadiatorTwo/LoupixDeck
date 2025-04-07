@@ -6,6 +6,7 @@ using System.Collections.ObjectModel;
 using AutoMapper;
 using LoupixDeck.Commands.Base;
 using LoupixDeck.Services;
+using Avalonia.Controls;
 
 namespace LoupixDeck.Models;
 
@@ -113,19 +114,7 @@ public sealed class LoupedeckLiveS(
             var button = CurrentTouchButtonPage.FirstOrDefault(b => b.Index == touch.Target.Key);
             if (button == null) continue;
 
-            var cleanCommand = GetCommandWithoutParameter(button.Command);
-            if (CommandManager.CheckCommandExists(cleanCommand))
-            {
-                var parameter = GetCommandParameters(button.Command);
-                Avalonia.Threading.Dispatcher.UIThread.Post(() =>
-                {
-                    CommandManager.ExecuteCommand(cleanCommand, parameter);
-                });
-            }
-            else
-            {
-                CommandRunner.EnqueueCommand(button.Command);
-            }
+            RunCommand(button.Command);
 
             Device.Vibrate();
         }
@@ -146,19 +135,7 @@ public sealed class LoupedeckLiveS(
 
         if (string.IsNullOrEmpty(command)) return;
 
-        var cleanCommand = GetCommandWithoutParameter(command);
-        if (CommandManager.CheckCommandExists(cleanCommand))
-        {
-            var parameter = GetCommandParameters(command);
-            Avalonia.Threading.Dispatcher.UIThread.Post(() =>
-            {
-                CommandManager.ExecuteCommand(cleanCommand, parameter);
-            });
-        }
-        else
-        {
-            CommandRunner.EnqueueCommand(command);
-        }
+        RunCommand(command);
     }
 
     protected override void SimpleButtonChanged(object sender, EventArgs e)
