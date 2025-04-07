@@ -5,26 +5,47 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:ccp="clr-namespace:Avalonia.Controls;assembly=Avalonia.Controls.ColorPicker"
+    xmlns:local="clr-namespace:LoupixDeck"
     xmlns:vm="using:LoupixDeck.ViewModels"
     x:DataType="vm:SimpleButtonSettingsViewModel"
     Title="SimpleButtonSettings"
-    Width="300"
-    Height="300"
+    Width="850"
+    Height="450"
     mc:Ignorable="d"
     SystemDecorations="Full"
     CanResize="False">
-    <Border BorderThickness="2"
-            BorderBrush="LightGray"
-            Padding="16">
-        <Border.Effect>
-            <DropShadowEffect Color="#AA000000" BlurRadius="10"/>
-        </Border.Effect>
-        <Grid RowDefinitions="30,30,30,30">
-            <Label Grid.Row="0" HorizontalAlignment="Left">Button Color</Label>
-            <ccp:ColorPicker Grid.Row="1" HorizontalAlignment="Left" Color="{Binding ButtonData.ButtonColor}" />
-
-            <Label Grid.Row="2" HorizontalAlignment="Left">Command</Label>
-            <TextBox Grid.Row="3" HorizontalAlignment="Stretch" Text="{Binding ButtonData.Command}" />
-        </Grid>
-    </Border>
+	<Border BorderThickness="2"
+			BorderBrush="LightGray"
+			Padding="16">
+		<Border.Effect>
+			<DropShadowEffect Color="#AA000000" BlurRadius="10"/>
+		</Border.Effect>
+		<Grid RowDefinitions="*,50">
+			<Grid Grid.Row="0" ColumnDefinitions="2*,2*,2*">
+				<StackPanel Grid.Column="0" Margin="10,20,0,0">
+					<Label Content="Button Color" />
+					<ccp:ColorPicker Name="ButtonColorPicker" Width="120" HorizontalAlignment="Left"
+									 Color="{Binding ButtonData.ButtonColor}" />
+				</StackPanel>
+				<StackPanel Grid.Column="1" Margin="20,20,0,0">
+					<Label Content="Command" />
+					<TextBox Name="CommandInput" Text="{Binding ButtonData.Command}" />
+				</StackPanel>
+				<StackPanel Grid.Column="2" Orientation="Vertical" Margin="20,20,0,0">
+					<TextBlock Text="System Commands" FontWeight="Bold" Margin="0,0,0,5" />
+					<ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+						<TreeView Name="SystemCommandsTreeView" ItemsSource="{Binding SystemCommandMenus}"
+								  SelectedItem="{Binding CurrentMenuEntry}" MaxHeight="350">
+							<TreeView.DataTemplates>
+								<TreeDataTemplate DataType="{x:Type local:Models.MenuEntry}"
+												  ItemsSource="{Binding Childs}">
+									<TextBlock Text="{Binding Name}" PointerPressed="OnPointerPressed" />
+								</TreeDataTemplate>
+							</TreeView.DataTemplates>
+						</TreeView>
+					</ScrollViewer>
+				</StackPanel>
+			</Grid>
+		</Grid>
+	</Border>
 </Window>

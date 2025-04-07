@@ -1,7 +1,10 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Markup.Xaml;
+using Avalonia.VisualTree;
 using LoupixDeck.Models;
+using LoupixDeck.Services;
 using LoupixDeck.ViewModels;
 
 namespace LoupixDeck.Views;
@@ -10,13 +13,44 @@ public partial class SimpleButtonSettings : Window
 {
     public SimpleButtonSettings()
     {
-        DataContext = new SimpleButtonSettingsViewModel(new SimpleButton());
+        DataContext = new SimpleButtonSettingsViewModel(new SimpleButton(), null, null);
         InitializeComponent();
     }
-    
-    public SimpleButtonSettings(SimpleButton buttonData)
+
+    public SimpleButtonSettings(SimpleButton buttonData, ObsController obs, ElgatoDevices elgatoDevices)
     {
-        DataContext = new SimpleButtonSettingsViewModel(buttonData);
+        DataContext = new SimpleButtonSettingsViewModel(buttonData, obs, elgatoDevices);
         InitializeComponent();
+    }
+
+    private void OnPointerPressed(object sender, PointerPressedEventArgs e)
+    {
+        if (e.Source is TextBlock textBlock && textBlock.DataContext is MenuEntry menuEntry && menuEntry.Command != null && !string.IsNullOrWhiteSpace(menuEntry.Command))
+        {
+            if (e.ClickCount == 2)
+            {
+                ((SimpleButtonSettingsViewModel)DataContext)?.InsertCommand(menuEntry);
+            }
+        }
+        else
+        {
+            var source = e.Source as Control;
+            var treeViewItem = source?.FindAncestorOfType<TreeViewItem>();
+
+            if (treeViewItem == null || !e.GetCurrentPoint(treeViewItem).Properties.IsLeftButtonPressed) return;
+            var menuEntryP = (MenuEntry)treeViewItem.DataContext;
+
+            if (menuEntryP == null)
+            {
+                e.Handled = true;
+                return;
+            }
+
+            if (menuEntryP.Command == null || !string.IsNullOrWhiteSpace(menuEntryP.Command)) return;
+
+            treeViewItem.IsExpanded = !treeViewItem.IsExpanded;
+
+            e.Handled = true;
+        }
     }
 }
