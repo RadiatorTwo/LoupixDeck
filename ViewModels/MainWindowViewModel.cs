@@ -106,7 +106,7 @@ public class MainWindowViewModel : ViewModelBase
 
     private async Task SimpleButton_Click(SimpleButton button)
     {
-        var newWindow = new SimpleButtonSettings(button)
+        var newWindow = new SimpleButtonSettings(button, _obs, _elgatoDevices)
         {
             WindowStartupLocation = Avalonia.Controls.WindowStartupLocation.CenterOwner
         };
@@ -122,7 +122,7 @@ public class MainWindowViewModel : ViewModelBase
             WindowStartupLocation = Avalonia.Controls.WindowStartupLocation.CenterOwner
         };
         await newWindow.ShowDialog(WindowHelper.GetMainWindow());
-        
+
         LoupeDeck.SaveToFile();
     }
 
@@ -134,7 +134,7 @@ public class MainWindowViewModel : ViewModelBase
         };
         await newWindow.ShowDialog(WindowHelper.GetMainWindow());
     }
-    
+
     private void QuitApplication()
     {
         Environment.Exit(0);

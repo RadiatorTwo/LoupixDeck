@@ -149,37 +149,7 @@ public class TouchButtonSettingsViewModel : ViewModelBase
 
     public void InsertCommand(MenuEntry menuEntry)
     {
-        var command = CommandManager.GetCommandInfo(menuEntry.Command);
-
-        if (command == null) return;
-
-        var parameters = new Dictionary<string, object>();
-
-        for (int i = 0; i < command.Parameters.Count; i++)
-        {
-            var parameter = command.Parameters[i];
-
-            if (i == 0)
-            {
-                // First parameter is always Target.
-                if (!string.IsNullOrEmpty(menuEntry.ParentName))
-                {
-                    // When Parentname is not null, then that is the target.
-                    parameters.Add(parameter.Name, menuEntry.ParentName);
-                }
-                else
-                {
-                    parameters.Add(parameter.Name, menuEntry.Name);
-                }
-            }
-            else
-            {
-                parameters.Add(parameter.Name, CommandManager.GetDefaultValue(parameter.ParameterType));
-            }
-        }
-
-        var formattedCommand = CommandBuilder.BuildCommandString(command, parameters);
-
+        var formattedCommand = CommandBuilder.CreateCommandFromMenuEntry(menuEntry);
 
         ButtonData.Command += formattedCommand;
     }
