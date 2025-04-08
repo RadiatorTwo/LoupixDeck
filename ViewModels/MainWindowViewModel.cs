@@ -1,6 +1,4 @@
 ﻿using System.Windows.Input;
-using Avalonia;
-using Avalonia.Controls.ApplicationLifetimes;
 using CommunityToolkit.Mvvm.Input;
 using LoupixDeck.Models;
 using LoupixDeck.Services;
@@ -95,7 +93,7 @@ public class MainWindowViewModel : ViewModelBase
 
     private async Task RotaryButton_Click(RotaryButton button)
     {
-        var newWindow = new RotaryButtonSettings(button)
+        var newWindow = new RotaryButtonSettings(button, _obs, _elgatoDevices)
         {
             WindowStartupLocation = Avalonia.Controls.WindowStartupLocation.CenterOwner
         };

@@ -17,9 +17,9 @@ public class SimpleButtonSettingsViewModel : ViewModelBase
 
     public SimpleButtonSettingsViewModel(SimpleButton buttonData, ObsController obs, ElgatoDevices elgatoDevices)
     {
+        ButtonData = buttonData;
         _obs = obs;
         _elgatoDevices = elgatoDevices;
-        ButtonData = buttonData;
 
         CreateSystemMenu();
     }
@@ -41,7 +41,7 @@ public class SimpleButtonSettingsViewModel : ViewModelBase
 
         foreach (var command in commands)
         {
-            groupMenu.Childs.Add(new MenuEntry(command.DisplayName, command.CommandName));
+            groupMenu.Children.Add(new MenuEntry(command.DisplayName, command.CommandName));
         }
 
         SystemCommandMenus.Add(groupMenu);
@@ -58,7 +58,7 @@ public class SimpleButtonSettingsViewModel : ViewModelBase
             if (command.CommandName == "System.ObsSetScene")
                 continue;
 
-            groupMenu.Childs.Add(new MenuEntry(command.DisplayName, command.CommandName));
+            groupMenu.Children.Add(new MenuEntry(command.DisplayName, command.CommandName));
         }
 
         var scenesMenu = new MenuEntry("Scenes", string.Empty);
@@ -66,10 +66,10 @@ public class SimpleButtonSettingsViewModel : ViewModelBase
 
         foreach (var scene in scenes)
         {
-            scenesMenu.Childs.Add(new MenuEntry(scene.Name, $"System.ObsSetScene({scene.Name})"));
+            scenesMenu.Children.Add(new MenuEntry(scene.Name, $"System.ObsSetScene({scene.Name})"));
         }
 
-        groupMenu.Childs.Add(scenesMenu);
+        groupMenu.Children.Add(scenesMenu);
 
         SystemCommandMenus.Add(groupMenu);
     }
@@ -95,7 +95,7 @@ public class SimpleButtonSettingsViewModel : ViewModelBase
 
     private void AddKeyLightMenuEntry(KeyLight keyLight)
     {
-        var checkKeyLight = _elgatoKeyLightMenu.Childs.FirstOrDefault(kl => kl.Name == keyLight.DisplayName);
+        var checkKeyLight = _elgatoKeyLightMenu.Children.FirstOrDefault(kl => kl.Name == keyLight.DisplayName);
 
         if (checkKeyLight != null)
             return;
@@ -106,10 +106,10 @@ public class SimpleButtonSettingsViewModel : ViewModelBase
 
         foreach (var command in commands)
         {
-            keyLightGroup.Childs.Add(new MenuEntry(command.DisplayName, command.CommandName, keyLight.DisplayName));
+            keyLightGroup.Children.Add(new MenuEntry(command.DisplayName, command.CommandName, keyLight.DisplayName));
         }
 
-        _elgatoKeyLightMenu.Childs.Add(keyLightGroup);
+        _elgatoKeyLightMenu.Children.Add(keyLightGroup);
     }
 
     public void InsertCommand(MenuEntry menuEntry)
