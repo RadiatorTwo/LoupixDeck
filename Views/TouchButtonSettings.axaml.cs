@@ -1,7 +1,6 @@
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.VisualTree;
-using LoupixDeck.Commands.Base;
 using LoupixDeck.Models;
 using LoupixDeck.Services;
 using LoupixDeck.ViewModels;

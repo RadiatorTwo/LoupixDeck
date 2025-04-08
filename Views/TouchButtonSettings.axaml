@@ -87,7 +87,7 @@
                                   SelectedItem="{Binding CurrentMenuEntry}" MaxHeight="350">
                             <TreeView.DataTemplates>
                                 <TreeDataTemplate DataType="{x:Type local:Models.MenuEntry}"
-                                                  ItemsSource="{Binding Childs}">
+                                                  ItemsSource="{Binding Children}">
                                     <TextBlock Text="{Binding Name}" PointerPressed="OnPointerPressed" />
                                 </TreeDataTemplate>
                             </TreeView.DataTemplates>

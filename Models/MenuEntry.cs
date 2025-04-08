@@ -8,5 +8,5 @@ public class MenuEntry(string name, string command, string parentName = null)
     public string Name { get; set; } = name;
     public string Command { get; set; } = command;
 
-    public ObservableCollection<MenuEntry> Childs { get; set; } = [];
+    public ObservableCollection<MenuEntry> Children { get; set; } = [];
 }

@@ -29,8 +29,8 @@ public class TouchButtonSettingsViewModel : ViewModelBase
         _elgatoDevices = elgatoDevices;
         ButtonData = buttonData;
 
-        SelectImageButtonCommand = new AsyncRelayCommand(SelectImgageButton_Click);
-        RemoveImageButtonCommand = new RelayCommand(RemoveImgageButton_Click);
+        SelectImageButtonCommand = new AsyncRelayCommand(SelectImageButton_Click);
+        RemoveImageButtonCommand = new RelayCommand(RemoveImageButton_Click);
 
         SystemCommandMenus = new ObservableCollection<MenuEntry>();
 
@@ -53,7 +53,7 @@ public class TouchButtonSettingsViewModel : ViewModelBase
 
         foreach (var command in commands)
         {
-            groupMenu.Childs.Add(new MenuEntry(command.DisplayName, command.CommandName));
+            groupMenu.Children.Add(new MenuEntry(command.DisplayName, command.CommandName));
         }
 
         SystemCommandMenus.Add(groupMenu);
@@ -70,7 +70,7 @@ public class TouchButtonSettingsViewModel : ViewModelBase
             if (command.CommandName == "System.ObsSetScene")
                 continue;
 
-            groupMenu.Childs.Add(new MenuEntry(command.DisplayName, command.CommandName));
+            groupMenu.Children.Add(new MenuEntry(command.DisplayName, command.CommandName));
         }
 
         var scenesMenu = new MenuEntry("Scenes", string.Empty);
@@ -78,10 +78,10 @@ public class TouchButtonSettingsViewModel : ViewModelBase
 
         foreach (var scene in scenes)
         {
-            scenesMenu.Childs.Add(new MenuEntry(scene.Name, $"System.ObsSetScene({scene.Name})"));
+            scenesMenu.Children.Add(new MenuEntry(scene.Name, $"System.ObsSetScene({scene.Name})"));
         }
 
-        groupMenu.Childs.Add(scenesMenu);
+        groupMenu.Children.Add(scenesMenu);
 
         SystemCommandMenus.Add(groupMenu);
     }
@@ -107,7 +107,7 @@ public class TouchButtonSettingsViewModel : ViewModelBase
 
     private void AddKeyLightMenuEntry(KeyLight keyLight)
     {
-        var checkKeyLight = _elgatoKeyLightMenu.Childs.FirstOrDefault(kl => kl.Name == keyLight.DisplayName);
+        var checkKeyLight = _elgatoKeyLightMenu.Children.FirstOrDefault(kl => kl.Name == keyLight.DisplayName);
 
         if (checkKeyLight != null)
             return;
@@ -118,13 +118,13 @@ public class TouchButtonSettingsViewModel : ViewModelBase
 
         foreach (var command in commands)
         {
-            keyLightGroup.Childs.Add(new MenuEntry(command.DisplayName, command.CommandName, keyLight.DisplayName));
+            keyLightGroup.Children.Add(new MenuEntry(command.DisplayName, command.CommandName, keyLight.DisplayName));
         }
 
-        _elgatoKeyLightMenu.Childs.Add(keyLightGroup);
+        _elgatoKeyLightMenu.Children.Add(keyLightGroup);
     }
 
-    private async Task SelectImgageButton_Click()
+    private async Task SelectImageButton_Click()
     {
         var parent = WindowHelper.GetMainWindow();
         if (parent == null) return;
@@ -138,7 +138,7 @@ public class TouchButtonSettingsViewModel : ViewModelBase
         ButtonData.Refresh();
     }
 
-    private void RemoveImgageButton_Click()
+    private void RemoveImageButton_Click()
     {
         ButtonData.Image = null;
 
