@@ -43,10 +43,12 @@ namespace LoupixDeck.Services
             = new Dictionary<string, (Type CommandType, CommandAttribute Attribute)>();
 
         private readonly IServiceProvider _serviceProvider;
+        private readonly IUInputKeyboard _uInputKeyboard;
 
-        public SysCommandService(IServiceProvider serviceProvider)
+        public SysCommandService(IServiceProvider serviceProvider, IUInputKeyboard uInputKeyboard)
         {
             _serviceProvider = serviceProvider;
+            _uInputKeyboard = uInputKeyboard;
         }
 
         /// <summary>

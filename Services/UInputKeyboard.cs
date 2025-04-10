@@ -77,6 +77,17 @@ namespace LoupixDeck.Services
             ['x'] = 45,
             ['y'] = 21,
             ['z'] = 44,
+            
+            ['0'] = 11,
+            ['1'] = 2,
+            ['2'] = 3,
+            ['3'] = 4,
+            ['4'] = 5,
+            ['5'] = 6,
+            ['6'] = 7,
+            ['7'] = 8,
+            ['8'] = 9,
+            ['9'] = 10,
 
             // Space
             [' '] = 57
@@ -122,6 +133,11 @@ namespace LoupixDeck.Services
         private struct ssize_t
         {
             public IntPtr Value;
+
+            public ssize_t(IntPtr value)
+            {
+                Value = value;
+            }
         }
 
         private struct size_t
@@ -261,7 +277,7 @@ namespace LoupixDeck.Services
                     ReleaseKey(KEY_LEFTSHIFT);
 
                 // Small waiting time between buttons if necessary
-                // Thread.Sleep(5) or similar, if necessary
+                Thread.Sleep(1);
             }
         }
 

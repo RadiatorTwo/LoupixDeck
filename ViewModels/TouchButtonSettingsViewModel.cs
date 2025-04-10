@@ -24,7 +24,8 @@ public class TouchButtonSettingsViewModel : ViewModelBase
 
     private MenuEntry _elgatoKeyLightMenu;
 
-    public TouchButtonSettingsViewModel(TouchButton buttonData, ObsController obs, ElgatoDevices elgatoDevices, ISysCommandService sysCommandService, ICommandBuilder commandBuilder)
+    public TouchButtonSettingsViewModel(TouchButton buttonData, ObsController obs, ElgatoDevices elgatoDevices,
+        ISysCommandService sysCommandService, ICommandBuilder commandBuilder)
     {
         _obs = obs;
         _elgatoDevices = elgatoDevices;
@@ -43,6 +44,7 @@ public class TouchButtonSettingsViewModel : ViewModelBase
     private void CreateSystemMenu()
     {
         CreatePagesMenu();
+        CreateMacroMenu();
         CreateObsMenu();
         CreateElgatoMenu();
     }
@@ -86,6 +88,22 @@ public class TouchButtonSettingsViewModel : ViewModelBase
 
         groupMenu.Children.Add(scenesMenu);
 
+        SystemCommandMenus.Add(groupMenu);
+    }
+
+    private void CreateMacroMenu()
+    {
+        var commands = _sysCommandService.GetCommandInfos()
+            .Where(ci => ci.Group == "Macros")
+            .OrderBy(ci => ci.Group);
+
+        var groupMenu = new MenuEntry("Macros", string.Empty);
+        
+        foreach (var command in commands)
+        {
+            groupMenu.Children.Add(new MenuEntry(command.DisplayName, command.CommandName));
+        }
+        
         SystemCommandMenus.Add(groupMenu);
     }
 
