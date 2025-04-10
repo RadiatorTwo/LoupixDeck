@@ -13,13 +13,13 @@ public partial class RotaryButtonSettings : Window
 
     public RotaryButtonSettings()
     {
-        DataContext = new RotaryButtonSettingsViewModel(new RotaryButton(), null, null);
+        DataContext = new RotaryButtonSettingsViewModel(new RotaryButton(), null, null, null, null);
         InitializeComponent();
     }
 
-    public RotaryButtonSettings(RotaryButton buttonData, ObsController obs, ElgatoDevices elgatoDevices)
+    public RotaryButtonSettings(RotaryButton buttonData, ObsController obs, ElgatoDevices elgatoDevices, ISysCommandService sysCommandService, ICommandBuilder commandBuilder)
     {
-        DataContext = new RotaryButtonSettingsViewModel(buttonData, obs, elgatoDevices);
+        DataContext = new RotaryButtonSettingsViewModel(buttonData, obs, elgatoDevices, sysCommandService, commandBuilder);
         InitializeComponent();
     }
 

@@ -34,8 +34,6 @@ public partial class App : Application
         // Creates a ServiceProvider containing services from the provided IServiceCollection
         var services = collection.BuildServiceProvider();
         
-        CommandManager.Initialize(services);
-
         var loupeDeckDevice = LoadFromFile<LoupedeckLiveS>(services);
 
         if (loupeDeckDevice == null)

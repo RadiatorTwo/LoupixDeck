@@ -13,6 +13,9 @@ public class MainWindowViewModel : ViewModelBase
 {
     private readonly ObsController _obs;
     private readonly ElgatoDevices _elgatoDevices;
+    private readonly ISysCommandService _sysCommandService;
+    private readonly ICommandBuilder _commandBuilder;
+
     public ICommand RotaryButtonCommand { get; }
     public ICommand SimpleButtonCommand { get; }
     public ICommand TouchButtonCommand { get; }
@@ -33,13 +36,19 @@ public class MainWindowViewModel : ViewModelBase
 
     public MainWindowViewModel(LoupedeckLiveS loupedeck,
                                ObsController obs,
-                               ElgatoDevices elgatoDevices)
+                               ElgatoDevices elgatoDevices,
+                               ISysCommandService sysCommandService,
+                               ICommandBuilder commandBuilder)
     {
         LoupeDeck = loupedeck;
         LoupeDeck.InitDevice();
 
+        sysCommandService.Initialize();
+
         _obs = obs;
         _elgatoDevices = elgatoDevices;
+        _sysCommandService = sysCommandService;
+        _commandBuilder = commandBuilder;
 
         RotaryButtonCommand = new AsyncRelayCommand<RotaryButton>(RotaryButton_Click);
         SimpleButtonCommand = new AsyncRelayCommand<SimpleButton>(SimpleButton_Click);
@@ -93,7 +102,7 @@ public class MainWindowViewModel : ViewModelBase
 
     private async Task RotaryButton_Click(RotaryButton button)
     {
-        var newWindow = new RotaryButtonSettings(button, _obs, _elgatoDevices)
+        var newWindow = new RotaryButtonSettings(button, _obs, _elgatoDevices,_sysCommandService,_commandBuilder)
         {
             WindowStartupLocation = Avalonia.Controls.WindowStartupLocation.CenterOwner
         };
@@ -104,7 +113,7 @@ public class MainWindowViewModel : ViewModelBase
 
     private async Task SimpleButton_Click(SimpleButton button)
     {
-        var newWindow = new SimpleButtonSettings(button, _obs, _elgatoDevices)
+        var newWindow = new SimpleButtonSettings(button, _obs, _elgatoDevices, _sysCommandService, _commandBuilder)
         {
             WindowStartupLocation = Avalonia.Controls.WindowStartupLocation.CenterOwner
         };
@@ -115,7 +124,7 @@ public class MainWindowViewModel : ViewModelBase
 
     private async Task TouchButton_Click(TouchButton button)
     {
-        var newWindow = new TouchButtonSettings(button, _obs, _elgatoDevices)
+        var newWindow = new TouchButtonSettings(button, _obs, _elgatoDevices, _sysCommandService, _commandBuilder)
         {
             WindowStartupLocation = Avalonia.Controls.WindowStartupLocation.CenterOwner
         };

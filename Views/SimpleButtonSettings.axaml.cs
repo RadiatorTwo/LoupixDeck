@@ -11,13 +11,13 @@ public partial class SimpleButtonSettings : Window
 {
     public SimpleButtonSettings()
     {
-        DataContext = new SimpleButtonSettingsViewModel(new SimpleButton(), null, null);
+        DataContext = new SimpleButtonSettingsViewModel(new SimpleButton(), null, null, null, null);
         InitializeComponent();
     }
 
-    public SimpleButtonSettings(SimpleButton buttonData, ObsController obs, ElgatoDevices elgatoDevices)
+    public SimpleButtonSettings(SimpleButton buttonData, ObsController obs, ElgatoDevices elgatoDevices, ISysCommandService sysCommandService, ICommandBuilder commandBuilder)
     {
-        DataContext = new SimpleButtonSettingsViewModel(buttonData, obs, elgatoDevices);
+        DataContext = new SimpleButtonSettingsViewModel(buttonData, obs, elgatoDevices, sysCommandService, commandBuilder);
         InitializeComponent();
     }
 

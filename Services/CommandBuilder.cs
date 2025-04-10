@@ -1,13 +1,27 @@
-﻿using LoupixDeck.Models;
+﻿using LoupixDeck.Commands.Base;
+using LoupixDeck.Models;
 using System.Text;
 
-namespace LoupixDeck.Commands.Base
+namespace LoupixDeck.Services
 {
-    public static class CommandBuilder
+    public interface ICommandBuilder
     {
-        public static string CreateCommandFromMenuEntry(MenuEntry menuEntry)
+        string CreateCommandFromMenuEntry(MenuEntry menuEntry);
+        string BuildCommandString(CommandInfo commandInfo, Dictionary<string, object> parameterValues);
+    }
+
+    public class CommandBuilder : ICommandBuilder
+    {
+        private readonly ISysCommandService _commandService;
+
+        public CommandBuilder(ISysCommandService commandManager)
         {
-            var command = CommandManager.GetCommandInfo(menuEntry.Command);
+            _commandService = commandManager;
+        }
+
+        public string CreateCommandFromMenuEntry(MenuEntry menuEntry)
+        {
+            var command = _commandService.GetCommandInfo(menuEntry.Command);
 
             if (command == null) return string.Empty;
 
@@ -22,7 +36,6 @@ namespace LoupixDeck.Commands.Base
                     // First parameter is always Target.
                     if (!string.IsNullOrEmpty(menuEntry.ParentName))
                     {
-                        // When Parentname is not null, then that is the target.
                         parameters.Add(parameter.Name, menuEntry.ParentName);
                     }
                     else
@@ -32,14 +45,14 @@ namespace LoupixDeck.Commands.Base
                 }
                 else
                 {
-                    parameters.Add(parameter.Name, CommandManager.GetDefaultValue(parameter.ParameterType));
+                    parameters.Add(parameter.Name, _commandService.GetDefaultValue(parameter.ParameterType));
                 }
             }
 
             return BuildCommandString(command, parameters);
         }
 
-        public static string BuildCommandString(CommandInfo commandInfo, Dictionary<string, object> parameterValues)
+        public string BuildCommandString(CommandInfo commandInfo, Dictionary<string, object> parameterValues)
         {
             var sb = new StringBuilder();
             sb.Append(commandInfo.CommandName);
@@ -50,7 +63,7 @@ namespace LoupixDeck.Commands.Base
             {
                 var placeholder = "{" + param.Name + "}";
                 var replacement = parameterValues.TryGetValue(param.Name, out var value)
-                    ? value.ToString()
+                    ? value?.ToString() ?? "null"
                     : "null";
                 templateSb.Replace(placeholder, replacement);
             }
