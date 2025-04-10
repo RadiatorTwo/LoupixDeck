@@ -269,7 +269,7 @@ public abstract class LoupedeckBase : INotifyPropertyChanged
         _mapper.Map(source, TouchButtonPages[CurrentTouchPageIndex].TouchButtons[source.Index]);
     }
 
-    public abstract void InitDevice(string devicePort, int deviceBaudrate);
+    public abstract void InitDevice(string devicePort = null, int deviceBaudrate = 0);
 
     public abstract void InitButtonEvents();
 
