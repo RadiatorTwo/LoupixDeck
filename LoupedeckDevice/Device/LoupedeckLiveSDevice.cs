@@ -2,8 +2,8 @@ namespace LoupixDeck.LoupedeckDevice.Device;
 
 public class LoupedeckLiveSDevice : LoupedeckDevice
 {
-    public LoupedeckLiveSDevice(string host = null, string path = null, bool autoConnect = true, int reconnectInterval = Constants.DefaultReconnectInterval)
-        : base(host, path, autoConnect, reconnectInterval)
+    public LoupedeckLiveSDevice(string host = null, string path = null, int baudrate = 0, bool autoConnect = true, int reconnectInterval = Constants.DefaultReconnectInterval)
+        : base(host, path, baudrate, autoConnect, reconnectInterval)
     {
         Buttons = [0, 1, 2, 3];
         Columns = 5;

@@ -36,7 +36,6 @@ public class MainWindowViewModel : ViewModelBase
                                ElgatoDevices elgatoDevices)
     {
         LoupeDeck = loupedeck;
-        LoupeDeck.InitDevice();
 
         _obs = obs;
         _elgatoDevices = elgatoDevices;
