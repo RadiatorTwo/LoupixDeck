@@ -8,7 +8,7 @@ namespace LoupixDeck.ViewModels;
 public partial class InitSetupViewModel : ViewModelBase
 {
     public ObservableCollection<string> SerialDevices { get; } = [];
-    public ObservableCollection<int> BaudRates { get; } = [9600, 19200, 38400, 57600, 115200];
+    public ObservableCollection<int> BaudRates { get; } = [9600, 19200, 38400, 57600, 115200, 230400, 460800, 921600];
 
     [ObservableProperty]
     private string _selectedDevice;
@@ -17,10 +17,12 @@ public partial class InitSetupViewModel : ViewModelBase
     private string _manualDevicePath;
 
     [ObservableProperty]
-    private int _selectedBaudRate = 115200;
+    private int _selectedBaudRate = 921600;
     
     [ObservableProperty]
     private string _connectionTestResult = string.Empty;
+    
+    public bool ConnectionWorking { get; set; }
     
     public InitSetupViewModel()
     {
@@ -40,16 +42,16 @@ public partial class InitSetupViewModel : ViewModelBase
         if (string.IsNullOrWhiteSpace(ManualDevicePath))
         {
             ConnectionTestResult = "Kein Gerät ausgewählt.";
+            ConnectionWorking = false;
             return;
         }
 
         try
         {
-            using var port = new SerialPort(ManualDevicePath, SelectedBaudRate)
-            {
-                ReadTimeout = 1000,
-                WriteTimeout = 1000
-            };
+            using var port = new SerialPort(ManualDevicePath, SelectedBaudRate);
+            
+            port.ReadTimeout = 1000;
+            port.WriteTimeout = 1000;
 
             port.Open();
 
@@ -59,22 +61,25 @@ public partial class InitSetupViewModel : ViewModelBase
                 // port.WriteLine("ping");
 
                 ConnectionTestResult = "Verbindung erfolgreich!";
+                ConnectionWorking = true;
             }
             else
             {
                 ConnectionTestResult = "Verbindung konnte nicht geöffnet werden.";
+                ConnectionWorking = false;
             }
-
+            
             port.Close();
         }
         catch (Exception ex)
         {
             ConnectionTestResult = $"Fehler: {ex.Message}";
+            ConnectionWorking = false;
         }
     }
 
     [RelayCommand]
-    private void Confirm()
+    public void Confirm()
     {
         // Optional: Validierung oder Zwischenspeichern
         CloseWindow?.Invoke();

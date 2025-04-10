@@ -3,6 +3,7 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Data.Core.Plugins;
 using Avalonia.Markup.Xaml;
 using LoupixDeck.Commands.Base;
+using LoupixDeck.LoupedeckDevice.Device;
 using LoupixDeck.Views;
 using LoupixDeck.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
@@ -32,27 +33,28 @@ public partial class App : Application
             {
                 var initWindow = new InitSetup();
                 var tcs = new TaskCompletionSource<bool>();
-                
+
                 initWindow.DataContext = new InitSetupViewModel();
-                
-                initWindow.Closed += (_, _) =>
-                {
-                    tcs.TrySetResult(true);
-                };
-                
+
+                initWindow.Closed += (_, _) => { tcs.TrySetResult(true); };
+
                 desktop.MainWindow = initWindow;
                 initWindow.Show();
 
                 await tcs.Task;
-                
-                var mainViewModel = CreateMainWindowViewModel();
-                var mainWindow = new MainWindow
-                {
-                    DataContext = mainViewModel
-                };
 
-                desktop.MainWindow = mainWindow;
-                mainWindow.Show();
+                if (initWindow.DataContext is InitSetupViewModel { ConnectionWorking: true } vm)
+                {
+                    var mainViewModel = CreateMainWindowViewModel(vm.SelectedDevice, vm.SelectedBaudRate);
+                    
+                    var mainWindow = new MainWindow
+                    {
+                        DataContext = mainViewModel
+                    };
+
+                    desktop.MainWindow = mainWindow;
+                    mainWindow.Show();
+                }
             }
             else
             {
@@ -67,7 +69,7 @@ public partial class App : Application
         base.OnFrameworkInitializationCompleted();
     }
 
-    private MainWindowViewModel CreateMainWindowViewModel()
+    private MainWindowViewModel CreateMainWindowViewModel(string port = null, int baudrate = 0)
     {
         var collection = new ServiceCollection();
         collection.AddCommonServices();
@@ -80,7 +82,7 @@ public partial class App : Application
 
         if (loupeDeckDevice == null)
         {
-            collection.AddSingleton<LoupedeckLiveS>();
+            collection.AddSingleton<LoupedeckLiveSDevice>();
         }
         else
         {
@@ -88,6 +90,8 @@ public partial class App : Application
         }
 
         var mainViewModel = services.GetRequiredService<MainWindowViewModel>();
+
+        mainViewModel.LoupeDeck.InitDevice(port, baudrate);
         
         return mainViewModel;
     }

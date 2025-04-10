@@ -1,6 +1,5 @@
-using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Markup.Xaml;
+using LoupixDeck.ViewModels;
 
 namespace LoupixDeck.Views;
 
@@ -9,5 +8,34 @@ public partial class InitSetup : Window
     public InitSetup()
     {
         InitializeComponent();
+        
+        Opened += (_, _) =>
+        {
+            if (DataContext is InitSetupViewModel vm)
+            {
+                vm.CloseWindow += () =>
+                {
+                    AllowClose();
+                    Close();
+                };
+            }
+        };
+
+        Closing += OnWindowClosing;
+    }
+    
+    private bool _allowClose;
+
+    private void OnWindowClosing(object sender, System.ComponentModel.CancelEventArgs e)
+    {
+        if (!_allowClose)
+        {
+            e.Cancel = true;
+        }
+    }
+
+    public void AllowClose()
+    {
+        _allowClose = true;
     }
 }
