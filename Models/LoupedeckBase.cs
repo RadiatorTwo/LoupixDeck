@@ -74,7 +74,7 @@ public abstract class LoupedeckBase : INotifyPropertyChanged
             OnPropertyChanged(nameof(RotaryButtonPages));
         }
     }
-
+    
     protected LoupedeckLiveSDevice Device;
     protected readonly CommandRunner CommandRunner;
     protected ObsController Obs;
@@ -82,6 +82,9 @@ public abstract class LoupedeckBase : INotifyPropertyChanged
 
     private readonly ElgatoController _elgatoController;
     private readonly IMapper _mapper;
+    
+    public string DevicePort { get; set; }
+    public int DeviceBaudrate { get; set; }
 
     public ObservableCollection<RotaryButtonPage> RotaryButtonPages { get; set; }
     public ObservableCollection<TouchButtonPage> TouchButtonPages { get; set; }
@@ -266,7 +269,7 @@ public abstract class LoupedeckBase : INotifyPropertyChanged
         _mapper.Map(source, TouchButtonPages[CurrentTouchPageIndex].TouchButtons[source.Index]);
     }
 
-    public abstract void InitDevice();
+    public abstract void InitDevice(string devicePort, int deviceBaudrate);
 
     public abstract void InitButtonEvents();
 

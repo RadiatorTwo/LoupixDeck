@@ -6,7 +6,6 @@ using System.Collections.ObjectModel;
 using AutoMapper;
 using LoupixDeck.Commands.Base;
 using LoupixDeck.Services;
-using Avalonia.Controls;
 
 namespace LoupixDeck.Models;
 
@@ -24,8 +23,11 @@ public sealed class LoupedeckLiveS(
     private readonly ISysCommandService _sysCommandService = sysCommandService;
     private readonly ICommandBuilder _commandBuilder = commandBuilder;
 
-    public override void InitDevice()
+    public override void InitDevice(string devicePort, int deviceBaudrate)
     {
+        DevicePort = devicePort;
+        DeviceBaudrate = deviceBaudrate;
+        
         StartDeviceThread();
 
         if (SimpleButtons == null || SimpleButtons.Length == 0)
@@ -69,6 +71,8 @@ public sealed class LoupedeckLiveS(
         InitUpdateEvents();
         RefreshSimpleButtons();
         RefreshTouchButtons();
+        
+        SaveToFile();
     }
 
     public override void InitButtonEvents()
@@ -169,7 +173,7 @@ public sealed class LoupedeckLiveS(
         var deviceThread = new Thread(() =>
         {
             // Create instance of the device on this thread to ensure all events run here
-            Device = new LoupedeckLiveSDevice();
+            Device = new LoupedeckLiveSDevice(null, DevicePort, DeviceBaudrate);
 
             // Signal that the instance has been created
             DeviceCreatedEvent.Set();

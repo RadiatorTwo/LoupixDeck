@@ -41,7 +41,6 @@ public class MainWindowViewModel : ViewModelBase
                                ICommandBuilder commandBuilder)
     {
         LoupeDeck = loupedeck;
-        LoupeDeck.InitDevice();
 
         sysCommandService.Initialize();
 

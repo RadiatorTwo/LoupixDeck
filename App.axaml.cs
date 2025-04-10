@@ -3,6 +3,7 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Data.Core.Plugins;
 using Avalonia.Markup.Xaml;
 using LoupixDeck.Commands.Base;
+using LoupixDeck.LoupedeckDevice.Device;
 using LoupixDeck.Views;
 using LoupixDeck.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
@@ -10,7 +11,6 @@ using LoupixDeck.Models;
 using LoupixDeck.Models.Converter;
 using LoupixDeck.Utils;
 using Newtonsoft.Json;
-using AutoMapper;
 
 namespace LoupixDeck;
 
@@ -21,41 +21,77 @@ public partial class App : Application
         AvaloniaXamlLoader.Load(this);
     }
 
-    public override void OnFrameworkInitializationCompleted()
+    public override async void OnFrameworkInitializationCompleted()
     {
-        // Avoid duplicate validations from both Avalonia and the CommunityToolkit. 
-        // More info: https://docs.avaloniaui.net/docs/guides/development-guides/data-validation#manage-validationplugins
         DisableAvaloniaDataAnnotationValidation();
-        
-        // Register all the services needed for the application to run
+
+        var configPath = FileDialogHelper.GetConfigPath("config.json");
+
+        if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+        {
+            if (!File.Exists(configPath))
+            {
+                var initWindow = new InitSetup();
+                var tcs = new TaskCompletionSource<bool>();
+
+                initWindow.DataContext = new InitSetupViewModel();
+
+                initWindow.Closed += (_, _) => { tcs.TrySetResult(true); };
+
+                desktop.MainWindow = initWindow;
+                initWindow.Show();
+
+                await tcs.Task;
+
+                if (initWindow.DataContext is InitSetupViewModel { ConnectionWorking: true } vm)
+                {
+                    var mainViewModel = CreateMainWindowViewModel(vm.SelectedDevice, vm.SelectedBaudRate);
+                    
+                    var mainWindow = new MainWindow
+                    {
+                        DataContext = mainViewModel
+                    };
+
+                    desktop.MainWindow = mainWindow;
+                    mainWindow.Show();
+                }
+            }
+            else
+            {
+                var viewModel = CreateMainWindowViewModel();
+                desktop.MainWindow = new MainWindow
+                {
+                    DataContext = viewModel
+                };
+            }
+        }
+
+        base.OnFrameworkInitializationCompleted();
+    }
+
+    private MainWindowViewModel CreateMainWindowViewModel(string port = null, int baudrate = 0)
+    {
         var collection = new ServiceCollection();
         collection.AddCommonServices();
 
-        // Creates a ServiceProvider containing services from the provided IServiceCollection
         var services = collection.BuildServiceProvider();
         
         var loupeDeckDevice = LoadFromFile<LoupedeckLiveS>(services);
 
         if (loupeDeckDevice == null)
         {
-            collection.AddSingleton<LoupedeckLiveS>();
+            collection.AddSingleton<LoupedeckLiveSDevice>();
         }
         else
         {
             collection.AddSingleton(loupeDeckDevice);
         }
 
-        var vm = services.GetRequiredService<MainWindowViewModel>();
+        var mainViewModel = services.GetRequiredService<MainWindowViewModel>();
 
-        if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
-        {
-            desktop.MainWindow = new MainWindow
-            {
-                DataContext = vm
-            };
-        }
-
-        base.OnFrameworkInitializationCompleted();
+        mainViewModel.LoupeDeck.InitDevice(port, baudrate);
+        
+        return mainViewModel;
     }
 
     private static T LoadFromFile<T>(IServiceProvider provider) where T : LoupedeckBase
@@ -78,7 +114,7 @@ public partial class App : Application
 
         return instance;
     }
-    
+
     private void DisableAvaloniaDataAnnotationValidation()
     {
         // Get an array of plugins to remove
