@@ -18,6 +18,10 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <Link>LoupixDeck.ico</Link>
     </Content>
+    <Content Include="Assets\logo.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>LoupixDeck.png</Link>
+    </Content>
   </ItemGroup>
 
   <ItemGroup>

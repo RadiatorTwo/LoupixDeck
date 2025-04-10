@@ -22,6 +22,7 @@ public class LoupedeckDevice
     private int ReconnectInterval { get; set; }
     public string Host { get; set; }
     private string Path { get; set; }
+    private int Baudrate { get; set; }
 
     protected Dictionary<string, DisplayInfo> Displays { get; init; } = new();
     public int[] Buttons { get; set; }
@@ -43,42 +44,20 @@ public class LoupedeckDevice
     /// </summary>
     /// <param name="host">Host name or IP (if applicable).</param>
     /// <param name="path">Device path (e.g. serial port).</param>
+    /// <param name="baudrate">Device Connection Baudrate</param>
     /// <param name="autoConnect">If true, attempts to connect automatically.</param>
     /// <param name="reconnectInterval">Interval (ms) to wait before reconnecting.</param>
-    protected LoupedeckDevice(string host = null, string path = null, bool autoConnect = true,
+    protected LoupedeckDevice(string host = null, string path = null, int baudrate = 0, bool autoConnect = true,
         int reconnectInterval = Constants.DefaultReconnectInterval)
     {
         Host = host;
         Path = path;
         ReconnectInterval = reconnectInterval;
+        Baudrate = baudrate > 0 ? baudrate : 115200;
         if (autoConnect)
         {
             ConnectBlind();
         }
-    }
-
-    /// <summary>
-    /// Searches (synchronously) for available devices.
-    /// </summary>
-    private static List<DiscoveredDevice> ListDevices(bool ignoreSerial = false)
-    {
-        var devices = new List<DiscoveredDevice>();
-        if (ignoreSerial) return devices;
-        var devicesSerial = SerialConnection.DiscoverPorts();
-
-        foreach (var port in devicesSerial)
-        {
-            if (port.Contains("ttyACM") || port.Contains("COM4"))
-            {
-                devices.Add(new DiscoveredDevice
-                {
-                    ConnectionType = typeof(SerialConnection),
-                    Path = port
-                });
-            }
-        }
-
-        return devices;
     }
 
     /// <summary>
@@ -103,23 +82,18 @@ public class LoupedeckDevice
     {
         if (!string.IsNullOrEmpty(Path))
         {
-            _connection = new SerialConnection(Path);
+            _connection = new SerialConnection(Path, Baudrate);
         }
         else
         {
-            var devices = ListDevices();
-            if (devices.Count > 0)
+            if (!string.IsNullOrEmpty(Path) && Baudrate > 0)
             {
-                var device = devices[0];
-                if (device.Path != null)
-                {
-                    _connection = new SerialConnection(device.Path);
-                }
-                else
-                {
-                    OnDisconnect?.Invoke(this, new ConnectionEventArgs("N/A", new Exception("Device path is null")));
-                    return;
-                }
+                _connection = new SerialConnection(Path, Baudrate);
+            }
+            else
+            {
+                OnDisconnect?.Invoke(this, new ConnectionEventArgs("N/A", new Exception("Device path is null")));
+                return;
             }
 
             if (_connection == null)
