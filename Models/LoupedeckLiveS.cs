@@ -22,12 +22,19 @@ public sealed class LoupedeckLiveS(
 {
     private readonly ISysCommandService _sysCommandService = sysCommandService;
     private readonly ICommandBuilder _commandBuilder = commandBuilder;
-
-    public override void InitDevice(string devicePort, int deviceBaudrate)
+    
+    public override void InitDevice(string devicePort = null, int deviceBaudrate = 0)
     {
-        DevicePort = devicePort;
-        DeviceBaudrate = deviceBaudrate;
-        
+        if (devicePort != null)
+        {
+            DevicePort = devicePort;
+        }
+
+        if (deviceBaudrate != 0)
+        {
+            DeviceBaudrate = deviceBaudrate;
+        }
+
         StartDeviceThread();
 
         if (SimpleButtons == null || SimpleButtons.Length == 0)
@@ -54,7 +61,7 @@ public sealed class LoupedeckLiveS(
         if (TouchButtonPages == null)
         {
             TouchButtonPages = new ObservableCollection<TouchButtonPage>();
-            
+
             AddTouchButtonPage();
         }
         else
@@ -71,7 +78,7 @@ public sealed class LoupedeckLiveS(
         InitUpdateEvents();
         RefreshSimpleButtons();
         RefreshTouchButtons();
-        
+
         SaveToFile();
     }
 
