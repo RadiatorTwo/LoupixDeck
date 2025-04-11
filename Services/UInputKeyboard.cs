@@ -1,9 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
+﻿using System.Diagnostics;
 using System.Runtime.InteropServices;
-using System.Text;
-using System.Threading.Tasks;
+using LoupixDeck.Models;
+using LoupixDeck.Utils;
+// ReSharper disable CollectionNeverQueried.Local
+// ReSharper disable UnusedMember.Local
 
 namespace LoupixDeck.Services
 {
@@ -27,6 +27,7 @@ namespace LoupixDeck.Services
 
     public class UInputKeyboard : IUInputKeyboard
     {
+        private readonly KeyboardLayout _layout;
         private const string UINPUT_PATH = "/dev/uinput";
 
         private const int O_WRONLY = 0x0001;
@@ -43,59 +44,11 @@ namespace LoupixDeck.Services
 
         private const int SYN_REPORT = 0;
 
-        // Shift for capital letters
+        // Shift key
         private const int KEY_LEFTSHIFT = 42;
 
-        // Example: Here are some of the keys (a-z, SPACE, SHIFT).
-        // The codes come from linux/input-event-codes.h
-        private static readonly Dictionary<char, int> KeyCodeMap = new Dictionary<char, int>
-        {
-            // Lower case
-            ['a'] = 30,
-            ['b'] = 48,
-            ['c'] = 46,
-            ['d'] = 32,
-            ['e'] = 18,
-            ['f'] = 33,
-            ['g'] = 34,
-            ['h'] = 35,
-            ['i'] = 23,
-            ['j'] = 36,
-            ['k'] = 37,
-            ['l'] = 38,
-            ['m'] = 50,
-            ['n'] = 49,
-            ['o'] = 24,
-            ['p'] = 25,
-            ['q'] = 16,
-            ['r'] = 19,
-            ['s'] = 31,
-            ['t'] = 20,
-            ['u'] = 22,
-            ['v'] = 47,
-            ['w'] = 17,
-            ['x'] = 45,
-            ['y'] = 21,
-            ['z'] = 44,
-            
-            ['0'] = 11,
-            ['1'] = 2,
-            ['2'] = 3,
-            ['3'] = 4,
-            ['4'] = 5,
-            ['5'] = 6,
-            ['6'] = 7,
-            ['7'] = 8,
-            ['8'] = 9,
-            ['9'] = 10,
-
-            // Space
-            [' '] = 57
-        };
-
-
         [StructLayout(LayoutKind.Sequential)]
-        private struct input_event
+        private struct InputEvent
         {
             public TimeVal time;
             public ushort type;
@@ -111,7 +64,7 @@ namespace LoupixDeck.Services
         }
 
         [StructLayout(LayoutKind.Sequential)]
-        private struct uinput_user_dev
+        private struct UinputUserDev
         {
             [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 80)]
             public string name;
@@ -130,20 +83,14 @@ namespace LoupixDeck.Services
             public int[] absflat;
         }
 
-        private struct ssize_t
+        private struct SsizeT(IntPtr value)
         {
-            public IntPtr Value;
-
-            public ssize_t(IntPtr value)
-            {
-                Value = value;
-            }
+            public IntPtr Value = value;
         }
 
-        private struct size_t
+        private struct SizeT(int v)
         {
-            public IntPtr Value;
-            public size_t(int v) { Value = (IntPtr)v; }
+            public IntPtr Value = v;
         }
 
         [DllImport("libc", EntryPoint = "open", SetLastError = true)]
@@ -153,7 +100,7 @@ namespace LoupixDeck.Services
         private static extern int ioctl(int fd, int request, int value);
 
         [DllImport("libc", EntryPoint = "write", SetLastError = true)]
-        private static extern ssize_t write(int fd, IntPtr buffer, size_t count);
+        private static extern SsizeT write(int fd, IntPtr buffer, SizeT count);
 
         [DllImport("libc", EntryPoint = "close", SetLastError = true)]
         private static extern int close(int fd);
@@ -166,6 +113,9 @@ namespace LoupixDeck.Services
 
         public UInputKeyboard()
         {
+            var localLayout = GetCurrentKeyboardLayout();
+            _layout = KeyboardLayouts.GetLayout(localLayout);
+            
             // Step 1: open /dev/uinput
             try
             {
@@ -190,16 +140,16 @@ namespace LoupixDeck.Services
             ioctl(_fileDescriptor, UI_SET_EVBIT, EV_KEY);
 
             // Set keybits for the letters + SHIFT
-            foreach (var keyCode in KeyCodeMap.Values)
+            foreach (var keyCode in _layout.KeyMap)
             {
-                ioctl(_fileDescriptor, UI_SET_KEYBIT, keyCode);
+                ioctl(_fileDescriptor, UI_SET_KEYBIT, keyCode.Value.keycode);
             }
 
             // SHIFT
             ioctl(_fileDescriptor, UI_SET_KEYBIT, KEY_LEFTSHIFT);
 
             // Step 3: Create virtual device
-            var dev = new uinput_user_dev
+            var dev = new UinputUserDev
             {
                 name = "LoupixVirtualKeyboard",
                 id_bustype = 0,
@@ -217,7 +167,7 @@ namespace LoupixDeck.Services
             Marshal.StructureToPtr(dev, _devPtr, false);
 
             // Write user_dev-Struct to /dev/uinput
-            write(_fileDescriptor, _devPtr, new size_t(Marshal.SizeOf(dev)));
+            write(_fileDescriptor, _devPtr, new SizeT(Marshal.SizeOf(dev)));
 
             // Create device
             ioctl(_fileDescriptor, UI_DEV_CREATE, 0);
@@ -245,60 +195,46 @@ namespace LoupixDeck.Services
         public void SendText(string text)
         {
             if (!Connected)
-            {
                 return;
-            }
 
-            foreach (char c in text)
+            foreach (var c in text)
             {
-                // Check if capital letter
-                bool isUpperCase = char.IsUpper(c);
-
-                // Convert character to lowercase if uppercase
-                char lowerChar = char.ToLower(c);
-
-                // Is there a KeyCode for this?
-                if (!KeyCodeMap.TryGetValue(lowerChar, out int keyCode))
+                if (!_layout.KeyMap.TryGetValue(c, out var keyCode))
                 {
-                    // Optional: ignore or treat other characters
+                    // Optional: log or skip unsupported characters
                     continue;
                 }
 
-                // Press SHIFT for capital letter
-                if (isUpperCase)
+                if (keyCode.shift)
                     PressKey(KEY_LEFTSHIFT);
 
-                // Press + release button (e.g. 'a')
-                PressKey(keyCode);
-                ReleaseKey(keyCode);
-
-                // Release SHIFT again
-                if (isUpperCase)
+                PressKey(keyCode.keycode);
+                ReleaseKey(keyCode.keycode);
+                
+                if (keyCode.shift)
                     ReleaseKey(KEY_LEFTSHIFT);
 
-                // Small waiting time between buttons if necessary
-                Thread.Sleep(1);
+                Thread.Sleep(1); // Small delay between keystrokes
             }
         }
 
         public void Dispose()
         {
-            if (!_disposed)
+            if (_disposed) return;
+            
+            // Destroy device
+            ioctl(_fileDescriptor, UI_DEV_DESTROY, 0);
+
+            close(_fileDescriptor);
+            _fileDescriptor = -1;
+
+            if (_devPtr != IntPtr.Zero)
             {
-                // Destroy device
-                ioctl(_fileDescriptor, UI_DEV_DESTROY, 0);
-
-                close(_fileDescriptor);
-                _fileDescriptor = -1;
-
-                if (_devPtr != IntPtr.Zero)
-                {
-                    Marshal.FreeHGlobal(_devPtr);
-                    _devPtr = IntPtr.Zero;
-                }
-
-                _disposed = true;
+                Marshal.FreeHGlobal(_devPtr);
+                _devPtr = IntPtr.Zero;
             }
+
+            _disposed = true;
         }
 
         private void PressKey(int keyCode)
@@ -320,7 +256,7 @@ namespace LoupixDeck.Services
 
         private void SendInputEvent(int type, int code, int value)
         {
-            var inputEvent = new input_event
+            var inputEvent = new InputEvent
             {
                 type = (ushort)type,
                 code = (ushort)code,
@@ -331,9 +267,47 @@ namespace LoupixDeck.Services
             IntPtr ptr = Marshal.AllocHGlobal(size);
             Marshal.StructureToPtr(inputEvent, ptr, false);
 
-            write(_fileDescriptor, ptr, new size_t(size));
+            write(_fileDescriptor, ptr, new SizeT(size));
 
             Marshal.FreeHGlobal(ptr);
+        }
+        
+        private string GetCurrentKeyboardLayout()
+        {
+            try
+            {
+                var process = new Process
+                {
+                    StartInfo = new ProcessStartInfo
+                    {
+                        FileName = "localectl",
+                        Arguments = "status",
+                        RedirectStandardOutput = true,
+                        UseShellExecute = false,
+                        CreateNoWindow = true
+                    }
+                };
+
+                process.Start();
+                var output = process.StandardOutput.ReadToEnd();
+                process.WaitForExit();
+
+                var lines = output.Split('\n');
+                foreach (var line in lines)
+                {
+                    if (line.Contains("Layout:"))
+                    {
+                        return line.Split(':')[1].Trim();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"[KeyboardLayout] Error with localectl: {ex.Message}");
+            }
+
+            // Fallback:
+            return "us";
         }
     }
 }
