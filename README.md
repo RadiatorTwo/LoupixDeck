@@ -20,6 +20,7 @@ The following features are currently available:
   - Trigger vibration on touchscreen button press
 - **System interaction**:
   - Execute custom shell commands on button press
+  - Exceute Kexboard Macros
 - **Device settings**:
   - Adjust display brightness
   - Set individual RGB lighting for the four physical buttons
