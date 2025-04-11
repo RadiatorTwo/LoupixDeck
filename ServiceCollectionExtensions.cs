@@ -14,6 +14,10 @@ public static class ServiceCollectionExtensions
         var elgatoDevices = ElgatoDevices.LoadFromFile();
         collection.AddSingleton(elgatoDevices ?? new ElgatoDevices());
 
+        collection.AddSingleton<ICommandBuilder, CommandBuilder>();
+        collection.AddSingleton<ISysCommandService, SysCommandService>();
+        collection.AddSingleton<IUInputKeyboard, UInputKeyboard>();
+
         collection.AddSingleton<ObsController>();
         collection.AddSingleton<DBusController>();
         collection.AddSingleton<CommandRunner>();

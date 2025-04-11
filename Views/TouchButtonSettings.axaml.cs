@@ -11,13 +11,13 @@ public partial class TouchButtonSettings : Window
 {
     public TouchButtonSettings()
     {
-        DataContext = new TouchButtonSettingsViewModel(new TouchButton(-1), null, null);
+        DataContext = new TouchButtonSettingsViewModel(new TouchButton(-1), null, null, null, null);
         InitializeComponent();
     }
 
-    public TouchButtonSettings(TouchButton buttonData, ObsController obs, ElgatoDevices elgatoDevices)
+    public TouchButtonSettings(TouchButton buttonData, ObsController obs, ElgatoDevices elgatoDevices, ISysCommandService sysCommandService, ICommandBuilder commandBuilder)
     {
-        DataContext = new TouchButtonSettingsViewModel(buttonData, obs, elgatoDevices);
+        DataContext = new TouchButtonSettingsViewModel(buttonData, obs, elgatoDevices, sysCommandService, commandBuilder);
         InitializeComponent();
     }
 

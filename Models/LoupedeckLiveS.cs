@@ -15,9 +15,14 @@ public sealed class LoupedeckLiveS(
     ElgatoController elgatoController,
     ElgatoDevices elgatoDevices,
     CommandRunner runner,
+    ISysCommandService sysCommandService,
+    ICommandBuilder commandBuilder,
     IMapper mapper)
     : LoupedeckBase(obs, dbus, elgatoController, elgatoDevices, runner, mapper)
 {
+    private readonly ISysCommandService _sysCommandService = sysCommandService;
+    private readonly ICommandBuilder _commandBuilder = commandBuilder;
+    
     public override void InitDevice(string devicePort = null, int deviceBaudrate = 0)
     {
         if (devicePort != null)
@@ -287,12 +292,12 @@ public sealed class LoupedeckLiveS(
     {
         var cleanCommand = GetCommandWithoutParameter(command);
 
-        if (CommandManager.CheckCommandExists(cleanCommand))
+        if (_sysCommandService.CheckCommandExists(cleanCommand))
         {
             var parameters = GetCommandParameters(command);
             Avalonia.Threading.Dispatcher.UIThread.Post(() =>
             {
-                CommandManager.ExecuteCommand(cleanCommand, parameters);
+                _sysCommandService.ExecuteCommand(cleanCommand, parameters);
             });
         }
         else

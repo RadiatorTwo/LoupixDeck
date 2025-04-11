@@ -12,6 +12,9 @@ public class TouchButtonSettingsViewModel : ViewModelBase
 {
     private readonly ObsController _obs;
     private readonly ElgatoDevices _elgatoDevices;
+    private readonly ISysCommandService _sysCommandService;
+    private readonly ICommandBuilder _commandBuilder;
+
     public ICommand SelectImageButtonCommand { get; }
     public ICommand RemoveImageButtonCommand { get; }
     public TouchButton ButtonData { get; }
@@ -21,12 +24,13 @@ public class TouchButtonSettingsViewModel : ViewModelBase
 
     private MenuEntry _elgatoKeyLightMenu;
 
-    public TouchButtonSettingsViewModel(TouchButton buttonData,
-        ObsController obs,
-        ElgatoDevices elgatoDevices)
+    public TouchButtonSettingsViewModel(TouchButton buttonData, ObsController obs, ElgatoDevices elgatoDevices,
+        ISysCommandService sysCommandService, ICommandBuilder commandBuilder)
     {
         _obs = obs;
         _elgatoDevices = elgatoDevices;
+        _sysCommandService = sysCommandService;
+        _commandBuilder = commandBuilder;
         ButtonData = buttonData;
 
         SelectImageButtonCommand = new AsyncRelayCommand(SelectImageButton_Click);
@@ -40,6 +44,7 @@ public class TouchButtonSettingsViewModel : ViewModelBase
     private void CreateSystemMenu()
     {
         CreatePagesMenu();
+        CreateMacroMenu();
         CreateObsMenu();
         CreateElgatoMenu();
     }
@@ -47,7 +52,7 @@ public class TouchButtonSettingsViewModel : ViewModelBase
     private void CreatePagesMenu()
     {
         // Get Only Pages Commands
-        var commands = CommandManager.GetCommandInfos().Where(ci => ci.Group == "Pages");
+        var commands = _sysCommandService.GetCommandInfos().Where(ci => ci.Group == "Pages");
 
         var groupMenu = new MenuEntry("Pages", string.Empty);
 
@@ -61,7 +66,7 @@ public class TouchButtonSettingsViewModel : ViewModelBase
 
     private void CreateObsMenu()
     {
-        var commands = CommandManager.GetCommandInfos().Where(ci => ci.Group == "OBS");
+        var commands = _sysCommandService.GetCommandInfos().Where(ci => ci.Group == "OBS");
 
         var groupMenu = new MenuEntry("OBS", string.Empty);
 
@@ -83,6 +88,22 @@ public class TouchButtonSettingsViewModel : ViewModelBase
 
         groupMenu.Children.Add(scenesMenu);
 
+        SystemCommandMenus.Add(groupMenu);
+    }
+
+    private void CreateMacroMenu()
+    {
+        var commands = _sysCommandService.GetCommandInfos()
+            .Where(ci => ci.Group == "Macros")
+            .OrderBy(ci => ci.Group);
+
+        var groupMenu = new MenuEntry("Macros", string.Empty);
+        
+        foreach (var command in commands)
+        {
+            groupMenu.Children.Add(new MenuEntry(command.DisplayName, command.CommandName));
+        }
+        
         SystemCommandMenus.Add(groupMenu);
     }
 
@@ -114,7 +135,7 @@ public class TouchButtonSettingsViewModel : ViewModelBase
 
         var keyLightGroup = new MenuEntry(keyLight.DisplayName, null);
 
-        var commands = CommandManager.GetCommandInfos().Where(ci => ci.Group == "Elgato Keylights");
+        var commands = _sysCommandService.GetCommandInfos().Where(ci => ci.Group == "Elgato Keylights");
 
         foreach (var command in commands)
         {
@@ -149,7 +170,7 @@ public class TouchButtonSettingsViewModel : ViewModelBase
 
     public void InsertCommand(MenuEntry menuEntry)
     {
-        var formattedCommand = CommandBuilder.CreateCommandFromMenuEntry(menuEntry);
+        var formattedCommand = _commandBuilder.CreateCommandFromMenuEntry(menuEntry);
 
         ButtonData.Command += formattedCommand;
     }

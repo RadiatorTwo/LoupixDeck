@@ -75,9 +75,7 @@ public partial class App : Application
         collection.AddCommonServices();
 
         var services = collection.BuildServiceProvider();
-
-        CommandManager.Initialize(services);
-
+        
         var loupeDeckDevice = LoadFromFile<LoupedeckLiveS>(services);
 
         if (loupeDeckDevice == null)

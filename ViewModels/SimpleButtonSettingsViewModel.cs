@@ -9,18 +9,21 @@ public class SimpleButtonSettingsViewModel : ViewModelBase
 {
     private readonly ObsController _obs;
     private readonly ElgatoDevices _elgatoDevices;
+    private readonly ISysCommandService _sysCommandService;
+    private readonly ICommandBuilder _commandBuilder;
 
     public SimpleButton ButtonData { get; set; }
     public ObservableCollection<MenuEntry> SystemCommandMenus { get; set; }
     private MenuEntry _elgatoKeyLightMenu;
     public MenuEntry CurrentMenuEntry { get; set; }
 
-    public SimpleButtonSettingsViewModel(SimpleButton buttonData, ObsController obs, ElgatoDevices elgatoDevices)
+    public SimpleButtonSettingsViewModel(SimpleButton buttonData, ObsController obs, ElgatoDevices elgatoDevices, ISysCommandService sysCommandService, ICommandBuilder commandBuilder)
     {
         ButtonData = buttonData;
         _obs = obs;
         _elgatoDevices = elgatoDevices;
-
+        _sysCommandService = sysCommandService;
+        _commandBuilder = commandBuilder;
         CreateSystemMenu();
     }
 
@@ -35,7 +38,7 @@ public class SimpleButtonSettingsViewModel : ViewModelBase
     private void CreatePagesMenu()
     {
         // Get Only Pages Commands
-        var commands = CommandManager.GetCommandInfos().Where(ci => ci.Group == "Pages");
+        var commands = _sysCommandService.GetCommandInfos().Where(ci => ci.Group == "Pages");
 
         var groupMenu = new MenuEntry("Pages", string.Empty);
 
@@ -49,7 +52,7 @@ public class SimpleButtonSettingsViewModel : ViewModelBase
 
     private void CreateObsMenu()
     {
-        var commands = CommandManager.GetCommandInfos().Where(ci => ci.Group == "OBS");
+        var commands = _sysCommandService.GetCommandInfos().Where(ci => ci.Group == "OBS");
 
         var groupMenu = new MenuEntry("OBS", string.Empty);
 
@@ -102,7 +105,7 @@ public class SimpleButtonSettingsViewModel : ViewModelBase
 
         var keyLightGroup = new MenuEntry(keyLight.DisplayName, null);
 
-        var commands = CommandManager.GetCommandInfos().Where(ci => ci.Group == "Elgato Keylights");
+        var commands = _sysCommandService.GetCommandInfos().Where(ci => ci.Group == "Elgato Keylights");
 
         foreach (var command in commands)
         {
@@ -114,7 +117,7 @@ public class SimpleButtonSettingsViewModel : ViewModelBase
 
     public void InsertCommand(MenuEntry menuEntry)
     {
-        var formattedCommand = CommandBuilder.CreateCommandFromMenuEntry(menuEntry);
+        var formattedCommand = _commandBuilder.CreateCommandFromMenuEntry(menuEntry);
 
         ButtonData.Command += formattedCommand;
     }
