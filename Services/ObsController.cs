@@ -5,7 +5,36 @@ using OBSWebsocketDotNet.Types;
 
 namespace LoupixDeck.Services;
 
-public class ObsController
+public interface IObsController
+{
+    event EventHandler Connected;
+    event EventHandler<ObsDisconnectionInfo> Disconnected;
+    void Connect(string ip = "", int port = 0, string password = "");
+    void Disconnect();
+    void ToggleVirtualCamera();
+    void StartStreaming();
+    void StopStreaming();
+    void StartRecording();
+    void StopRecording();
+    void PauseRecording();
+    void StartReplayBuffer();
+    void StopReplayBuffer();
+    void SaveReplayBuffer();
+    void ToggleMute(string sourceName);
+    void SetVolume(string sourceName, float volume);
+    float GetInputVolume(string inputName);
+    bool IsInputMuted(string inputName);
+    void ShowSource(string sceneName, int sceneItemId);
+    void HideSource(string sceneName, int sceneItemId);
+    void ToggleSourceVisibility(string sceneName, int sceneItemId);
+    void SetScene(string sceneName);
+    string GetCurrentSceneName();
+    List<SceneBasicInfo> GetScenes();
+    bool IsStudioModeEnabled();
+    void SetStudioMode(bool enabled);
+}
+
+public class ObsController : IObsController
 {
     private readonly OBSWebsocket _obs = new();
     private ObsConfig _obsConfig;

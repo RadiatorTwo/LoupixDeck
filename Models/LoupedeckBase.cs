@@ -76,11 +76,11 @@ public abstract class LoupedeckBase : INotifyPropertyChanged
     }
     
     protected LoupedeckLiveSDevice Device;
-    protected readonly CommandRunner CommandRunner;
-    protected ObsController Obs;
-    protected DBusController DBus;
+    protected readonly ICommandRunner CommandRunner;
+    protected IObsController Obs;
+    protected IDBusController DBus;
 
-    private readonly ElgatoController _elgatoController;
+    private readonly IElgatoController _elgatoController;
     private readonly IMapper _mapper;
     
     public string DevicePort { get; set; }
@@ -117,11 +117,11 @@ public abstract class LoupedeckBase : INotifyPropertyChanged
 
     protected readonly AutoResetEvent DeviceCreatedEvent = new(false);
 
-    protected LoupedeckBase(ObsController obs,
-        DBusController dbus,
-        ElgatoController elgatoController,
+    protected LoupedeckBase(IObsController obs,
+        IDBusController dbus,
+        IElgatoController elgatoController,
         ElgatoDevices elgatoDevices,
-        CommandRunner runner,
+        ICommandRunner runner,
         IMapper mapper)
     {
         Obs = obs;

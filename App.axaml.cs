@@ -2,7 +2,6 @@ using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Data.Core.Plugins;
 using Avalonia.Markup.Xaml;
-using LoupixDeck.Commands.Base;
 using LoupixDeck.LoupedeckDevice.Device;
 using LoupixDeck.Views;
 using LoupixDeck.ViewModels;
@@ -46,7 +45,7 @@ public partial class App : Application
                 if (initWindow.DataContext is InitSetupViewModel { ConnectionWorking: true } vm)
                 {
                     var mainViewModel = CreateMainWindowViewModel(vm.SelectedDevice, vm.SelectedBaudRate);
-                    
+
                     var mainWindow = new MainWindow
                     {
                         DataContext = mainViewModel
@@ -75,22 +74,13 @@ public partial class App : Application
         collection.AddCommonServices();
 
         var services = collection.BuildServiceProvider();
-        
-        var loupeDeckDevice = LoadFromFile<LoupedeckLiveS>(services);
 
-        if (loupeDeckDevice == null)
-        {
-            collection.AddSingleton<LoupedeckLiveSDevice>();
-        }
-        else
-        {
-            collection.AddSingleton(loupeDeckDevice);
-        }
+        services.PostInit();
 
         var mainViewModel = services.GetRequiredService<MainWindowViewModel>();
 
-        mainViewModel.LoupeDeck.InitDevice(port, baudrate);
-        
+        mainViewModel.LoupedeckController.Initialize(port, baudrate);
+
         return mainViewModel;
     }
 
@@ -104,7 +94,6 @@ public partial class App : Application
         var json = File.ReadAllText(filePath);
 
         var settings = new JsonSerializerSettings();
-        settings.Converters.Add(new LoupedeckConverter(provider));
         settings.Converters.Add(new ColorJsonConverter());
         settings.Converters.Add(new BitmapJsonConverter());
 

@@ -5,33 +5,41 @@ using LoupixDeck.Commands.Base;
 using LoupixDeck.Models;
 using LoupixDeck.Services;
 using LoupixDeck.Utils;
+using LoupixDeck.ViewModels.Base;
 
 namespace LoupixDeck.ViewModels;
 
-public class TouchButtonSettingsViewModel : ViewModelBase
+public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, DialogResult>
+
 {
-    private readonly ObsController _obs;
+    public override void Initialize(TouchButton parameter)
+    {
+        ButtonData = parameter;
+    }
+    
+    private readonly IObsController _obs;
     private readonly ElgatoDevices _elgatoDevices;
     private readonly ISysCommandService _sysCommandService;
     private readonly ICommandBuilder _commandBuilder;
 
     public ICommand SelectImageButtonCommand { get; }
     public ICommand RemoveImageButtonCommand { get; }
-    public TouchButton ButtonData { get; }
+    public TouchButton ButtonData { get; set; }
 
     public ObservableCollection<MenuEntry> SystemCommandMenus { get; set; }
     public MenuEntry CurrentMenuEntry { get; set; }
 
     private MenuEntry _elgatoKeyLightMenu;
 
-    public TouchButtonSettingsViewModel(TouchButton buttonData, ObsController obs, ElgatoDevices elgatoDevices,
-        ISysCommandService sysCommandService, ICommandBuilder commandBuilder)
+    public TouchButtonSettingsViewModel(IObsController obs, 
+        ElgatoDevices elgatoDevices,
+        ISysCommandService sysCommandService, 
+        ICommandBuilder commandBuilder)
     {
         _obs = obs;
         _elgatoDevices = elgatoDevices;
         _sysCommandService = sysCommandService;
         _commandBuilder = commandBuilder;
-        ButtonData = buttonData;
 
         SelectImageButtonCommand = new AsyncRelayCommand(SelectImageButton_Click);
         RemoveImageButtonCommand = new RelayCommand(RemoveImageButton_Click);
@@ -98,12 +106,12 @@ public class TouchButtonSettingsViewModel : ViewModelBase
             .OrderBy(ci => ci.Group);
 
         var groupMenu = new MenuEntry("Macros", string.Empty);
-        
+
         foreach (var command in commands)
         {
             groupMenu.Children.Add(new MenuEntry(command.DisplayName, command.CommandName));
         }
-        
+
         SystemCommandMenus.Add(groupMenu);
     }
 

@@ -11,13 +11,13 @@ namespace LoupixDeck.Commands;
     "({KeyLightName})",
     ["KeyLightName"],
     [typeof(string)])]
-public class ElgatoKeylightToggleCommand(ElgatoController elgato, ElgatoDevices elgatoDevices) : IExecutableCommand
+public class ElgatoKeylightToggleCommand(IElgatoController elgato, ElgatoDevices elgatoDevices) : IExecutableCommand
 {
     public async Task Execute(string[] parameters)
     {
         if (parameters.Length != 1)
         {
-            Console.WriteLine("Invalid Parametercount");
+            Console.WriteLine("Invalid Parameter count");
             return;
         }
 
@@ -37,7 +37,7 @@ public class ElgatoKeylightToggleCommand(ElgatoController elgato, ElgatoDevices 
     "({KeyLightName},{Temperature})",
     ["KeyLightName", "Temperature"],
     [typeof(string), typeof(int)])]
-public class ElgatoKeylightTemperatureCommand(ElgatoController elgato, ElgatoDevices elgatoDevices) : IExecutableCommand
+public class ElgatoKeylightTemperatureCommand(IElgatoController elgato, ElgatoDevices elgatoDevices) : IExecutableCommand
 {
     public async Task Execute(string[] parameters)
     {
@@ -65,7 +65,7 @@ public class ElgatoKeylightTemperatureCommand(ElgatoController elgato, ElgatoDev
     "({KeyLightName},{Brightness})",
     ["KeyLightName", "Brightness"],
     [typeof(string), typeof(int)])]
-public class ElgatoKeylightBrightnessCommand(ElgatoController elgato, ElgatoDevices elgatoDevices) : IExecutableCommand
+public class ElgatoKeylightBrightnessCommand(IElgatoController elgato, ElgatoDevices elgatoDevices) : IExecutableCommand
 {
     public async Task Execute(string[] parameters)
     {
@@ -93,7 +93,7 @@ public class ElgatoKeylightBrightnessCommand(ElgatoController elgato, ElgatoDevi
     "({KeyLightName},{Saturation})",
     ["KeyLightName", "Saturation"],
     [typeof(string), typeof(int)])]
-public class ElgatoKeylightSaturationCommand(ElgatoController elgato, ElgatoDevices elgatoDevices) : IExecutableCommand
+public class ElgatoKeylightSaturationCommand(IElgatoController elgato, ElgatoDevices elgatoDevices) : IExecutableCommand
 {
     public async Task Execute(string[] parameters)
     {
@@ -121,7 +121,7 @@ public class ElgatoKeylightSaturationCommand(ElgatoController elgato, ElgatoDevi
     "({KeyLightName},{Hue})",
     ["KeyLightName", "Hue"],
     [typeof(string), typeof(int)])]
-public class ElgatoKeylightHueCommand(ElgatoController elgato, ElgatoDevices elgatoDevices) : IExecutableCommand
+public class ElgatoKeylightHueCommand(IElgatoController elgato, ElgatoDevices elgatoDevices) : IExecutableCommand
 {
     public async Task Execute(string[] parameters)
     {
@@ -149,7 +149,7 @@ public class ElgatoKeylightHueCommand(ElgatoController elgato, ElgatoDevices elg
     "({KeyLightName},{Step})",
     ["KeyLightName", "Step"],
     [typeof(string), typeof(int)])]
-public class ElgatoKeylightChangeBrightnessCommand(ElgatoController elgato, ElgatoDevices elgatoDevices) : IExecutableCommand
+public class ElgatoKeylightChangeBrightnessCommand(IElgatoController elgato, ElgatoDevices elgatoDevices) : IExecutableCommand
 {
     public async Task Execute(string[] parameters)
     {
@@ -177,7 +177,7 @@ public class ElgatoKeylightChangeBrightnessCommand(ElgatoController elgato, Elga
     "({KeyLightName},{Step})",
     ["KeyLightName", "Step"],
     [typeof(string), typeof(int)])]
-public class ElgatoKeylightChangeTemperatureCommand(ElgatoController elgato, ElgatoDevices elgatoDevices) : IExecutableCommand
+public class ElgatoKeylightChangeTemperatureCommand(IElgatoController elgato, ElgatoDevices elgatoDevices) : IExecutableCommand
 {
     public async Task Execute(string[] parameters)
     {
@@ -205,7 +205,7 @@ public class ElgatoKeylightChangeTemperatureCommand(ElgatoController elgato, Elg
     "({KeyLightName},{Step})",
     ["KeyLightName", "Step"],
     [typeof(string), typeof(int)])]
-public class ElgatoKeylightChangeSaturationCommand(ElgatoController elgato, ElgatoDevices elgatoDevices) : IExecutableCommand
+public class ElgatoKeylightChangeSaturationCommand(IElgatoController elgato, ElgatoDevices elgatoDevices) : IExecutableCommand
 {
     public async Task Execute(string[] parameters)
     {
@@ -233,7 +233,7 @@ public class ElgatoKeylightChangeSaturationCommand(ElgatoController elgato, Elga
     "({KeyLightName},{Step})",
     ["KeyLightName", "Step"],
     [typeof(string), typeof(int)])]
-public class ElgatoKeylightChangeHueCommand(ElgatoController elgato, ElgatoDevices elgatoDevices) : IExecutableCommand
+public class ElgatoKeylightChangeHueCommand(IElgatoController elgato, ElgatoDevices elgatoDevices) : IExecutableCommand
 {
     public async Task Execute(string[] parameters)
     {

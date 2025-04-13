@@ -8,15 +8,8 @@ namespace LoupixDeck.Views;
 
 public partial class Settings : Window
 {
-    public Settings()
+    public Settings(IObsController obs)
     {
-        DataContext = new SettingsViewModel(new ObsController());
-        InitializeComponent();
-    }
-    
-    public Settings(ObsController obs)
-    {
-        DataContext = new SettingsViewModel(obs);
         InitializeComponent();
     }
 }

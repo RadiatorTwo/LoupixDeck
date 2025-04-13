@@ -4,18 +4,13 @@ namespace LoupixDeck.Models;
 
 public class RotaryButtonPage : AvaloniaObject
 {
-    public RotaryButtonPage()
-    {
-        RotaryButtons = [];
-    }
-
     public RotaryButtonPage(int pageSize)
     {
         RotaryButtons = new RotaryButton[pageSize];
 
-        for (int i = 0; i < RotaryButtons.Length; i++)
+        for (var i = 0; i < RotaryButtons.Length; i++)
         {
-            var newButton = new RotaryButton(string.Empty, string.Empty);
+            var newButton = new RotaryButton(i, string.Empty, string.Empty);
             RotaryButtons[i] = newButton;
         }
     }

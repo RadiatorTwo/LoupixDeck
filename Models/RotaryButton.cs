@@ -1,20 +1,12 @@
 namespace LoupixDeck.Models;
 
-public class RotaryButton : LoupedeckButton
+public class RotaryButton(int index,string rotaryLeftCommand, string rotaryRightCommand) : LoupedeckButton
 {
-    private string _rotaryLeftCommand = string.Empty;
-    private string _rotaryRightCommand = string.Empty;
-
-    public RotaryButton()
-    {
-    }
-
-    public RotaryButton(string rotaryLeftCommand, string rotaryRightCommand)
-    {
-        RotaryLeftCommand = rotaryLeftCommand;
-        RotaryRightCommand = rotaryRightCommand;
-    }
-
+    public int Index { get; } = index;
+    
+    private string _rotaryLeftCommand = rotaryLeftCommand;
+    private string _rotaryRightCommand = rotaryRightCommand;
+    
     public string RotaryLeftCommand
     {
         get => _rotaryLeftCommand;

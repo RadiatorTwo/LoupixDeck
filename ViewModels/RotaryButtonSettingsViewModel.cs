@@ -2,12 +2,18 @@ using System.Collections.ObjectModel;
 using LoupixDeck.Commands.Base;
 using LoupixDeck.Models;
 using LoupixDeck.Services;
+using LoupixDeck.ViewModels.Base;
 
 namespace LoupixDeck.ViewModels;
 
-public class RotaryButtonSettingsViewModel : ViewModelBase
+public class RotaryButtonSettingsViewModel : DialogViewModelBase<RotaryButton, DialogResult>
 {
-    private readonly ObsController _obs;
+    public override void Initialize(RotaryButton parameter)
+    {
+        ButtonData = parameter;
+    }
+
+    private readonly IObsController _obs;
     private readonly ElgatoDevices _elgatoDevices;
     private readonly ISysCommandService _sysCommandService;
     private readonly ICommandBuilder _commandBuilder;
@@ -18,9 +24,11 @@ public class RotaryButtonSettingsViewModel : ViewModelBase
     private MenuEntry _elgatoKeyLightMenu;
     public MenuEntry CurrentMenuEntry { get; set; }
 
-    public RotaryButtonSettingsViewModel(RotaryButton buttonData, ObsController obs, ElgatoDevices elgatoDevices, ISysCommandService sysCommandService, ICommandBuilder commandBuilder)
+    public RotaryButtonSettingsViewModel(IObsController obs,
+        ElgatoDevices elgatoDevices,
+        ISysCommandService sysCommandService,
+        ICommandBuilder commandBuilder)
     {
-        ButtonData = buttonData;
         _obs = obs;
         _elgatoDevices = elgatoDevices;
         _sysCommandService = sysCommandService;

@@ -5,7 +5,21 @@ using Zeroconf;
 
 namespace LoupixDeck.Services;
 
-public class ElgatoController : IDisposable
+public interface IElgatoController
+{
+    event EventHandler<KeyLight> KeyLightFound;
+    event EventHandler<string> KeylightDisconnected;
+    Task ProbeForElgatoDevices();
+    Task<bool> InitDeviceAsync(KeyLight keyLight);
+    Task Toggle(KeyLight keyLight);
+    Task SetBrightness(KeyLight keyLight, int brightness);
+    Task SetTemperature(KeyLight keyLight, int temperature);
+    Task SetHue(KeyLight keyLight, int hue);
+    Task SetSaturation(KeyLight keyLight, int saturation);
+    void Dispose();
+}
+
+public class ElgatoController : IDisposable, IElgatoController
 {
     public event EventHandler<KeyLight> KeyLightFound;
     public event EventHandler<string> KeylightDisconnected;

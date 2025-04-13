@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.IO.Ports;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using LoupixDeck.ViewModels.Base;
 
 namespace LoupixDeck.ViewModels;
 
@@ -41,7 +42,7 @@ public partial class InitSetupViewModel : ViewModelBase
     {
         if (string.IsNullOrWhiteSpace(ManualDevicePath))
         {
-            ConnectionTestResult = "Kein Gerät ausgewählt.";
+            ConnectionTestResult = "No device selected.";
             ConnectionWorking = false;
             return;
         }
@@ -57,15 +58,12 @@ public partial class InitSetupViewModel : ViewModelBase
 
             if (port.IsOpen)
             {
-                // Optional: Testbefehl senden, z. B. "ping"
-                // port.WriteLine("ping");
-
-                ConnectionTestResult = "Verbindung erfolgreich!";
+                ConnectionTestResult = "Connection successful!";
                 ConnectionWorking = true;
             }
             else
             {
-                ConnectionTestResult = "Verbindung konnte nicht geöffnet werden.";
+                ConnectionTestResult = "Connection could not be opened.";
                 ConnectionWorking = false;
             }
             
@@ -73,7 +71,7 @@ public partial class InitSetupViewModel : ViewModelBase
         }
         catch (Exception ex)
         {
-            ConnectionTestResult = $"Fehler: {ex.Message}";
+            ConnectionTestResult = $"Error: {ex.Message}";
             ConnectionWorking = false;
         }
     }
@@ -81,7 +79,6 @@ public partial class InitSetupViewModel : ViewModelBase
     [RelayCommand]
     public void Confirm()
     {
-        // Optional: Validierung oder Zwischenspeichern
         CloseWindow?.Invoke();
     }
 

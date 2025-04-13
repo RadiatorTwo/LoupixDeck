@@ -11,18 +11,8 @@ using Avalonia.Styling;
 
 namespace LoupixDeck.Models
 {
-    public class TouchButtonPage : AvaloniaObject
+    public class TouchButtonPage(int pageSize) : AvaloniaObject
     {
-        public TouchButtonPage()
-        {
-            TouchButtons = [];
-        }
-
-        public TouchButtonPage(int pageSize)
-        {
-            TouchButtons = new TouchButton[pageSize];
-        }
-
         public static readonly StyledProperty<bool> IsSelectedProperty =
             AvaloniaProperty.Register<TouchButtonPage, bool>(nameof(IsSelected));
 
@@ -46,6 +36,6 @@ namespace LoupixDeck.Models
             set => SetAndRaise(PageDirectProperty, ref _page, value);
         }
 
-        public TouchButton[] TouchButtons { get; set; }
+        public TouchButton[] TouchButtons { get; set; } = new TouchButton[pageSize];
     }
 }
