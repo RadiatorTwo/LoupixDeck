@@ -8,6 +8,7 @@ namespace LoupixDeck.Services;
 
 public interface IPageManager
 {
+    int PreviousTouchPageIndex { get; set; }
     int CurrentTouchPageIndex { get; set; }
     int CurrentRotaryPageIndex { get; set; }
     ObservableCollection<TouchButtonPage> TouchButtonPages { get; }
@@ -28,27 +29,25 @@ public interface IPageManager
     void AddTouchButtonPage();
     void DeleteTouchButtonPage();
 
-    void CopyRotaryButtonData(RotaryButton source);
-    void CopyBackRotaryButtonData(TouchButton source);
-
-    void CopyCurrentTouchButtonsToPage();
-    void CopyTouchButtonData(TouchButton source);
-    void CopyBackTouchButtonData(TouchButton source);
-
     void RefreshTouchButtons();
     void RefreshSimpleButtons();
+    event Action<int, int> OnRotaryPageChanged;
+    event Action<int, int> OnTouchPageChanged;
 }
 
 public class PageManager : IPageManager
 {
-    private readonly IMapper _mapper;
     private readonly LoupedeckConfig _config;
+    private readonly IDeviceService _deviceService;
 
-    public PageManager(IMapper mapper, LoupedeckConfig config)
+    public PageManager(LoupedeckConfig config, IDeviceService deviceService)
     {
-        _mapper = mapper;
         _config = config;
+        _deviceService = deviceService;
     }
+
+    public int PreviousRotaryPageIndex { get; set; } = -1;
+    public int PreviousTouchPageIndex { get; set; } = -1;
 
     public int CurrentTouchPageIndex
     {
@@ -64,11 +63,7 @@ public class PageManager : IPageManager
 
     public ObservableCollection<TouchButtonPage> TouchButtonPages => _config.TouchButtonPages;
     public ObservableCollection<RotaryButtonPage> RotaryButtonPages => _config.RotaryButtonPages;
-    public RotaryButtonPage CurrentRotaryButtonPage
-    {
-        get => _config.CurrentRotaryButtonPage;
-        set => _config.CurrentRotaryButtonPage = value;
-    }
+    public RotaryButtonPage CurrentRotaryButtonPage => _config.CurrentRotaryButtonPage;
 
     public TouchButtonPage CurrentTouchButtonPage => _config.CurrentTouchButtonPage;
     public SimpleButton[] SimpleButtons => _config.SimpleButtons;
@@ -85,13 +80,12 @@ public class PageManager : IPageManager
 
     public void ApplyRotaryPage(int pageIndex)
     {
-        // Touch-Buttons der neuen Seite in das aktuelle Array kopieren.
-        foreach (var rotaryButton in RotaryButtonPages[pageIndex].RotaryButtons)
-        {
-            CopyRotaryButtonData(rotaryButton);
-        }
-        
+        if (CurrentRotaryPageIndex == pageIndex) return;
+
+        PreviousRotaryPageIndex = CurrentRotaryPageIndex;
         CurrentRotaryPageIndex = pageIndex;
+
+        OnRotaryPageChanged?.Invoke(PreviousRotaryPageIndex, CurrentRotaryPageIndex);
     }
 
     public void NextTouchPage()
@@ -106,13 +100,19 @@ public class PageManager : IPageManager
 
     public void ApplyTouchPage(int pageIndex)
     {
-        // Touch-Buttons der neuen Seite in das aktuelle Array kopieren.
-        foreach (var touchButton in TouchButtonPages[pageIndex].TouchButtons)
-        {
-            CopyTouchButtonData(touchButton);
-        }
-
+        PreviousTouchPageIndex = CurrentTouchPageIndex;
         CurrentTouchPageIndex = pageIndex;
+
+        OnTouchPageChanged?.Invoke(PreviousTouchPageIndex, CurrentTouchPageIndex);
+        DrawTouchButtons();
+    }
+
+    private void DrawTouchButtons()
+    {
+        foreach (var touchButton in CurrentTouchButtonPage.TouchButtons)
+        {
+            _deviceService.Device.DrawTouchButton(touchButton, false);
+        }
     }
 
     public void AddRotaryButtonPage()
@@ -164,7 +164,7 @@ public class PageManager : IPageManager
         }
 
         TouchButtonPages.Add(newPage);
-        ApplyTouchPage(CurrentTouchPageIndex);
+        ApplyTouchPage(CurrentTouchPageIndex + 1);
     }
 
     public void DeleteTouchButtonPage()
@@ -191,72 +191,6 @@ public class PageManager : IPageManager
         }
     }
 
-    public void CopyRotaryButtonData(RotaryButton source)
-    {
-        CurrentRotaryButtonPage ??= new RotaryButtonPage(2);
-        
-        if (CurrentRotaryButtonPage.RotaryButtons[source.Index] == null)
-        {
-            CurrentRotaryButtonPage.RotaryButtons[source.Index] =
-                new RotaryButton(source.Index, string.Empty, string.Empty);
-        }
-
-        CurrentRotaryButtonPage.RotaryButtons[source.Index].IgnoreRefresh = true;
-        _mapper.Map(source, CurrentRotaryButtonPage.RotaryButtons[source.Index]);
-        CurrentRotaryButtonPage.RotaryButtons[source.Index].IgnoreRefresh = false;
-
-        Dispatcher.UIThread.Post(() => { CurrentRotaryButtonPage.RotaryButtons[source.Index].Refresh(); });
-    }
-
-    public void CopyBackRotaryButtonData(TouchButton source)
-    {
-        if (RotaryButtonPages[CurrentRotaryPageIndex] == null)
-            return;
-
-        if (RotaryButtonPages[CurrentRotaryPageIndex].RotaryButtons[source.Index] == null)
-        {
-            RotaryButtonPages[CurrentRotaryPageIndex].RotaryButtons[source.Index] =
-                new RotaryButton(source.Index, string.Empty, string.Empty);
-        }
-
-        _mapper.Map(source, RotaryButtonPages[CurrentRotaryPageIndex].RotaryButtons[source.Index]);
-    }
-
-    public void CopyCurrentTouchButtonsToPage()
-    {
-        foreach (var currentTouchButton in CurrentTouchButtonPage.TouchButtons)
-        {
-            CopyBackTouchButtonData(currentTouchButton);
-        }
-    }
-
-    public void CopyTouchButtonData(TouchButton source)
-    {
-        if (CurrentTouchButtonPage.TouchButtons[source.Index] == null)
-        {
-            CurrentTouchButtonPage.TouchButtons[source.Index] = new TouchButton(source.Index);
-        }
-
-        CurrentTouchButtonPage.TouchButtons[source.Index].IgnoreRefresh = true;
-        _mapper.Map(source, CurrentTouchButtonPage.TouchButtons[source.Index]);
-        CurrentTouchButtonPage.TouchButtons[source.Index].IgnoreRefresh = false;
-
-        Dispatcher.UIThread.Post(() => { CurrentTouchButtonPage.TouchButtons[source.Index].Refresh(); });
-    }
-
-    public void CopyBackTouchButtonData(TouchButton source)
-    {
-        if (TouchButtonPages[CurrentTouchPageIndex] == null)
-            return;
-
-        if (TouchButtonPages[CurrentTouchPageIndex].TouchButtons[source.Index] == null)
-        {
-            TouchButtonPages[CurrentTouchPageIndex].TouchButtons[source.Index] = new TouchButton(source.Index);
-        }
-
-        _mapper.Map(source, TouchButtonPages[CurrentTouchPageIndex].TouchButtons[source.Index]);
-    }
-
     public void RefreshTouchButtons()
     {
         foreach (var touchButton in CurrentTouchButtonPage.TouchButtons)
@@ -272,4 +206,8 @@ public class PageManager : IPageManager
             simpleButton.Refresh();
         }
     }
+
+    public event Action<int, int> OnRotaryPageChanged;
+
+    public event Action<int, int> OnTouchPageChanged;
 }

@@ -10,6 +10,7 @@ public class LoupedeckButton : INotifyPropertyChanged
         get => _command;
         set
         {
+            if (_command == value) return;
             _command = value;
             OnPropertyChanged(nameof(Command));
         }

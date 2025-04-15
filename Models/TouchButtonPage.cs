@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
 using Avalonia;
@@ -9,33 +11,40 @@ using Avalonia.Collections;
 using Avalonia.Controls;
 using Avalonia.Styling;
 
-namespace LoupixDeck.Models
+namespace LoupixDeck.Models;
+
+public class TouchButtonPage : INotifyPropertyChanged
 {
-    public class TouchButtonPage(int pageSize) : AvaloniaObject
+    public TouchButtonPage(int pageSize)
     {
-        public static readonly StyledProperty<bool> IsSelectedProperty =
-            AvaloniaProperty.Register<TouchButtonPage, bool>(nameof(IsSelected));
+        TouchButtons = new ObservableCollection<TouchButton>();
 
-        public bool IsSelected
+        for (var i = 0; i < pageSize; i++)
         {
-            get => GetValue(IsSelectedProperty);
-            set => SetValue(IsSelectedProperty, value);
+            var newButton = new TouchButton(i);
+            TouchButtons.Add(newButton);
         }
-
-        private static readonly DirectProperty<TouchButtonPage, int> PageDirectProperty =
-            AvaloniaProperty.RegisterDirect<TouchButtonPage, int>(
-                nameof(Page),
-                o => o.Page,
-                (o, v) => o.Page = v);
+    }
         
-        private int _page;
+    private int _page;
 
-        public int Page
+    public int Page
+    {
+        get => _page;
+        set
         {
-            get => _page;
-            set => SetAndRaise(PageDirectProperty, ref _page, value);
+            if (_page == value) return;
+            _page = value;
+            OnPropertyChanged();
         }
+    }
 
-        public TouchButton[] TouchButtons { get; set; } = new TouchButton[pageSize];
+    public ObservableCollection<TouchButton> TouchButtons { get; set; } = [];
+        
+    public event PropertyChangedEventHandler PropertyChanged;
+
+    private void OnPropertyChanged([CallerMemberName] string propertyName = null)
+    {
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
     }
 }

@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using LoupixDeck.LoupedeckDevice;
 using LoupixDeck.Models;
 using LoupixDeck.Services;
@@ -36,9 +37,6 @@ public class LoupedeckLiveSController
 
         // Define the path to the configuration file (using FileDialogHelper or similar)
         _configPath = FileDialogHelper.GetConfigPath("config.json");
-
-        // Load configuration at startup.
-        // _config = _configService.LoadConfig<LoupedeckConfig>(_configPath) ?? new LoupedeckConfig();
     }
 
     public IPageManager PageManager => _pageManager;
@@ -56,6 +54,9 @@ public class LoupedeckLiveSController
         // Start the device using the configuration
         _deviceService.StartDevice(_config.DevicePort, _config.DeviceBaudrate);
 
+        _pageManager.OnRotaryPageChanged += OnRotaryPageChanged;
+        _pageManager.OnTouchPageChanged += OnTouchPageChanged;
+
         // Register the button events.
         InitButtonEvents();
 
@@ -72,16 +73,6 @@ public class LoupedeckLiveSController
             };
         }
 
-        if (_config.CurrentTouchButtonPage == null)
-        {
-            _config.CurrentTouchButtonPage = new TouchButtonPage(15);
-
-            for (var i = 0; i < _config.CurrentTouchButtonPage.TouchButtons.Length; i++)
-            {
-                _config.CurrentTouchButtonPage.TouchButtons[i] = new TouchButton(i);
-            }
-        }
-
         if (_config.TouchButtonPages == null || _config.TouchButtonPages.Count == 0)
         {
             _pageManager.AddTouchButtonPage();
@@ -96,15 +87,46 @@ public class LoupedeckLiveSController
             _pageManager.AddRotaryButtonPage();
         }
 
-        // Register update events for buttons.
-        InitUpdateEvents();
-
         // Update UI-based elements.
         _pageManager.RefreshSimpleButtons();
-        _pageManager.RefreshTouchButtons();
+        // _pageManager.RefreshTouchButtons();
 
         // Save the initial configuration.
         SaveConfig();
+    }
+
+    private void OnRotaryPageChanged(int oldIndex, int newIndex)
+    {
+    }
+
+    private void OnTouchPageChanged(int oldIndex, int newIndex)
+    {
+        if (oldIndex >= 0 && oldIndex < _config.TouchButtonPages.Count && _config.TouchButtonPages[oldIndex] != null)
+        {
+            foreach (var touchButton in _config.TouchButtonPages[oldIndex].TouchButtons)
+            {
+                touchButton.ItemChanged -= TouchItemChanged;
+            }
+        }
+
+        if (newIndex >= 0 && newIndex < _config.TouchButtonPages.Count && _config.TouchButtonPages[newIndex] != null)
+        {
+            foreach (var touchButton in _config.TouchButtonPages[newIndex].TouchButtons)
+            {
+                touchButton.ItemChanged += TouchItemChanged;
+            }
+        }
+    }
+
+    private void TouchItemChanged(object sender, EventArgs e)
+    {
+        if (sender is not TouchButton item) return;
+
+        var button = _config.CurrentTouchButtonPage.TouchButtons.FirstOrDefault(b => b.Index == item.Index);
+
+        if (button == null) return;
+
+        _deviceService.Device.DrawTouchButton(button, true);
     }
 
     private void InitButtonEvents()
@@ -192,37 +214,30 @@ public class LoupedeckLiveSController
         return button;
     }
 
-    private void InitUpdateEvents()
-    {
-        foreach (var touchButton in _config.CurrentTouchButtonPage.TouchButtons)
-        {
-            touchButton.ItemChanged += (s, e) => TouchItemChanged(s, e);
-        }
-
-        foreach (var simpleButton in _config.SimpleButtons)
-        {
-            simpleButton.ItemChanged += (s, e) => SimpleButtonChanged(s, e);
-        }
-    }
+    // private void InitItemChangedEvents()
+    // {
+    //     _pageManager.OnTouchPageChanged += (s, e) => { };
+    //     if (_config.Cur != null)
+    //     {
+    //         _config.CurrentTouchButtonPage.PropertyChanged += CurrentTouchButtonPageChanged;
+    //         foreach (var touchButton in _config.CurrentTouchButtonPage.TouchButtons)
+    //         {
+    //             touchButton.ItemChanged += (s, e) => TouchItemChanged(s, e);
+    //         }
+    //     }
+    //
+    //     foreach (var simpleButton in _config.SimpleButtons)
+    //     {
+    //         simpleButton.ItemChanged += (s, e) => SimpleButtonChanged(s, e);
+    //     }
+    // }
 
     private void SimpleButtonChanged(object sender, EventArgs e)
     {
         if (sender is not SimpleButton button) return;
-        
+
         button.RenderedImage = BitmapHelper.RenderSimpleButtonImage(button, 90, 90);
         _deviceService.Device.SetButtonColor(button.Id, button.ButtonColor);
-    }
-
-    private void TouchItemChanged(object sender, EventArgs e)
-    {
-        if (sender is not TouchButton item) return;
-        
-        var button = _config.CurrentTouchButtonPage.TouchButtons.FirstOrDefault(b => b.Index == item.Index);
-            
-        if (button == null) return;
-            
-        _deviceService.Device.DrawTouchButton(button);
-        _pageManager.CopyBackTouchButtonData(button);
     }
 
     public void ApplyAllData()
@@ -235,7 +250,7 @@ public class LoupedeckLiveSController
 
         foreach (var touchButton in _config.CurrentTouchButtonPage.TouchButtons)
         {
-            device.DrawTouchButton(touchButton);
+            device.DrawTouchButton(touchButton, true);
         }
 
         device.SetBrightness(_config.Brightness);
@@ -243,7 +258,6 @@ public class LoupedeckLiveSController
 
     public void SaveConfig()
     {
-        _pageManager.CopyCurrentTouchButtonsToPage();
         _configService.SaveConfig(_config, _configPath);
     }
 }

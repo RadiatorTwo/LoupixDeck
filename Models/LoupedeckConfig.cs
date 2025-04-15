@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using Newtonsoft.Json;
 
 namespace LoupixDeck.Models;
 
@@ -10,36 +11,19 @@ namespace LoupixDeck.Models;
 /// </summary>
 public class LoupedeckConfig : INotifyPropertyChanged
 {
-    private int _currentTouchPageIndex;
-    private int _currentRotaryPageIndex;
+    private int _currentRotaryPageIndex = -1;
+    private int _currentTouchPageIndex = -1;
+    
     private int _brightness = 1;
 
     public string DevicePort { get; set; }
     public int DeviceBaudrate { get; set; }
 
-    public ObservableCollection<RotaryButtonPage> RotaryButtonPages { get; set; } =
-        new ObservableCollection<RotaryButtonPage>();
-
-    public ObservableCollection<TouchButtonPage> TouchButtonPages { get; set; } =
-        new ObservableCollection<TouchButtonPage>();
-
     public SimpleButton[] SimpleButtons { get; set; }
-    public TouchButtonPage CurrentTouchButtonPage { get; set; }
-    public RotaryButtonPage CurrentRotaryButtonPage { get; set; }
-
-    public int CurrentTouchPageIndex
-    {
-        get => _currentTouchPageIndex;
-        set
-        {
-            if (_currentTouchPageIndex != value)
-            {
-                _currentTouchPageIndex = value;
-                OnPropertyChanged();
-            }
-        }
-    }
-
+    
+    public ObservableCollection<RotaryButtonPage> RotaryButtonPages { get; set; } = [];
+    
+    [JsonIgnore]
     public int CurrentRotaryPageIndex
     {
         get => _currentRotaryPageIndex;
@@ -49,9 +33,43 @@ public class LoupedeckConfig : INotifyPropertyChanged
             {
                 _currentRotaryPageIndex = value;
                 OnPropertyChanged();
+                OnPropertyChanged(nameof(CurrentRotaryButtonPage));
             }
         }
     }
+    
+    [JsonIgnore]
+    public RotaryButtonPage CurrentRotaryButtonPage =>
+        (RotaryButtonPages != null &&
+         _currentRotaryPageIndex >= 0 &&
+         _currentRotaryPageIndex < RotaryButtonPages.Count)
+            ? RotaryButtonPages[_currentRotaryPageIndex]
+            : null;
+    
+    public ObservableCollection<TouchButtonPage> TouchButtonPages { get; set; } = [];
+    
+    [JsonIgnore]
+    public int CurrentTouchPageIndex
+    {
+        get => _currentTouchPageIndex;
+        set
+        {
+            if (_currentTouchPageIndex != value)
+            {
+                _currentTouchPageIndex = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(CurrentTouchButtonPage));
+            }
+        }
+    }
+
+    [JsonIgnore]
+    public TouchButtonPage CurrentTouchButtonPage =>
+        (TouchButtonPages != null &&
+         _currentTouchPageIndex >= 0 &&
+         _currentTouchPageIndex < TouchButtonPages.Count)
+            ? TouchButtonPages[_currentTouchPageIndex]
+            : null;
 
     public int Brightness
     {

@@ -282,4 +282,19 @@ public static class BitmapHelper
         memoryStream.Seek(0, SeekOrigin.Begin);
         return new Bitmap(memoryStream);
     }
+
+    public static RenderTargetBitmap CreateRenderTargetBitmap(Bitmap source)
+    {
+        var rtb = new RenderTargetBitmap(
+            new PixelSize(source.PixelSize.Width, source.PixelSize.Height)
+        );
+
+        using var ctx = rtb.CreateDrawingContext();
+        
+        var destRect = new Rect(0, 0, rtb.PixelSize.Width, rtb.PixelSize.Height);
+        var sourceRect = new Rect(0, 0, source.PixelSize.Width, source.PixelSize.Height);
+        ctx.DrawImage(source, sourceRect, destRect);
+        
+        return rtb;
+    }
 }

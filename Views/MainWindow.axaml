@@ -203,7 +203,7 @@
                                     VerticalContentAlignment="Center">
                                 <Button.Background>
                                     <MultiBinding Converter="{StaticResource PageSelectionConverter}">
-                                        <Binding Path="IsSelected" />
+                                        <!-- <Binding Path="IsSelected" /> -->
                                         <Binding Path="Page" />
                                     </MultiBinding>
                                 </Button.Background>
@@ -537,7 +537,7 @@
                                 VerticalContentAlignment="Center">
                             <Button.Background>
                                 <MultiBinding Converter="{StaticResource PageSelectionConverter}">
-                                    <Binding Path="IsSelected" />
+                                    <!-- <Binding Path="IsSelected" /> -->
                                     <Binding Path="Page" />
                                 </MultiBinding>
                             </Button.Background>

@@ -55,7 +55,7 @@ public class TouchButton(int index) : LoupedeckButton
         get => _textPositionX;
         set
         {
-            if (value.Equals(_textPositionX)) return;
+            if (_textPositionY == value) return;
             _textPositionX = value;
             Refresh();
         }
@@ -68,7 +68,7 @@ public class TouchButton(int index) : LoupedeckButton
         get => _textPositionY;
         set
         {
-            if (value.Equals(_textPositionY)) return;
+            if (_textPositionY == value) return;
             _textPositionY = value;
             Refresh();
         }
@@ -81,7 +81,7 @@ public class TouchButton(int index) : LoupedeckButton
         get => _textColor;
         set
         {
-            if (value.Equals(_textColor)) return;
+            if (Equals(value, _textColor)) return;
             _textColor = value;
             Refresh();
         }
@@ -120,7 +120,7 @@ public class TouchButton(int index) : LoupedeckButton
         get => _backColor;
         set
         {
-            if (_backColor == value) return;
+            if (Equals(value, _backColor)) return;
             _backColor = value;
             Refresh();
         }
@@ -147,7 +147,7 @@ public class TouchButton(int index) : LoupedeckButton
         get => _outlineColor;
         set
         {
-            if (value.Equals(_outlineColor)) return;
+            if (Equals(value, _outlineColor)) return;
             _outlineColor = value;
             Refresh();
         }
@@ -160,7 +160,7 @@ public class TouchButton(int index) : LoupedeckButton
         get => _image;
         set
         {
-            if (_image == value) return;
+            if (Equals(value, _image)) return;
             _image = value;
             Refresh();
         }
@@ -173,7 +173,7 @@ public class TouchButton(int index) : LoupedeckButton
         get => _imagePositionX;
         set
         {
-            if (value.Equals(_imagePositionX)) return;
+            if (_imagePositionX == value) return;
             _imagePositionX = value;
             Refresh();
         }
@@ -186,7 +186,7 @@ public class TouchButton(int index) : LoupedeckButton
         get => _imagePositionY;
         set
         {
-            if (value.Equals(_imagePositionY)) return;
+            if (_imagePositionY == value) return;
             _imagePositionY = value;
             Refresh();
         }
@@ -199,7 +199,7 @@ public class TouchButton(int index) : LoupedeckButton
         get => _imageScale;
         set
         {
-            if (value.Equals(_imageScale)) return;
+            if (_imageScale == value) return;
             _imageScale = value;
             Refresh();
         }
@@ -212,7 +212,7 @@ public class TouchButton(int index) : LoupedeckButton
         get => _renderedImage;
         set
         {
-            if (_renderedImage == value) return;
+            if (Equals(value, _renderedImage)) return;
             _renderedImage = value;
             OnPropertyChanged(nameof(RenderedImage));
         }
