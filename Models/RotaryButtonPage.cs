@@ -11,7 +11,7 @@ public class RotaryButtonPage : INotifyPropertyChanged
     {
         RotaryButtons = new ObservableCollection<RotaryButton>();
 
-        for (var i = 0; i < RotaryButtons.Count; i++)
+        for (var i = 0; i < pageSize; i++)
         {
             var newButton = new RotaryButton(i, string.Empty, string.Empty);
             RotaryButtons.Add(newButton);
