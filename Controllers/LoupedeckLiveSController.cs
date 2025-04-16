@@ -63,14 +63,24 @@ public class LoupedeckLiveSController
         // If no SimpleButtons are available, create standard buttons.
         if (_config.SimpleButtons == null || !_config.SimpleButtons.Any())
         {
-            _config.SimpleButtons = new[]
-            {
+            _config.SimpleButtons =
+            [
                 CreateSimpleButton(Constants.ButtonType.BUTTON0, Avalonia.Media.Colors.Blue, "System.PreviousPage"),
-                CreateSimpleButton(Constants.ButtonType.BUTTON1, Avalonia.Media.Colors.Blue,
-                    "System.PreviousRotaryPage"),
+                CreateSimpleButton(Constants.ButtonType.BUTTON1, Avalonia.Media.Colors.Blue, "System.PreviousRotaryPage"),
                 CreateSimpleButton(Constants.ButtonType.BUTTON2, Avalonia.Media.Colors.Blue, "System.NextRotaryPage"),
                 CreateSimpleButton(Constants.ButtonType.BUTTON3, Avalonia.Media.Colors.Blue, "System.NextPage")
-            };
+            ];
+        }
+
+        if (_config.RotaryButtonPages == null || _config.RotaryButtonPages.Count == 0)
+        {
+            _pageManager.AddRotaryButtonPage();
+        }
+        else
+        {
+            // Existing config Init always page 0.
+            _config.CurrentRotaryPageIndex = 0;
+            _pageManager.ApplyRotaryPage(_config.CurrentTouchPageIndex);
         }
 
         if (_config.TouchButtonPages == null || _config.TouchButtonPages.Count == 0)
@@ -79,6 +89,8 @@ public class LoupedeckLiveSController
         }
         else
         {
+            // Existing config Init always page 0.
+            _config.CurrentTouchPageIndex = 0;
             _pageManager.ApplyTouchPage(_config.CurrentTouchPageIndex);
         }
 
@@ -89,7 +101,6 @@ public class LoupedeckLiveSController
 
         // Update UI-based elements.
         _pageManager.RefreshSimpleButtons();
-        // _pageManager.RefreshTouchButtons();
 
         // Save the initial configuration.
         SaveConfig();
