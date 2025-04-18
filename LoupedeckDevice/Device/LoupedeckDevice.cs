@@ -433,14 +433,18 @@ public class LoupedeckDevice
     /// Draws a touch button on the corresponding key, optionally with an image and text overlay.
     /// </summary>
     /// <param name="touchButton">The TouchButton object containing index, bitmap, text, etc.</param>
-    public void DrawTouchButton(TouchButton touchButton)
+    /// <param name="rerender"></param>
+    public void DrawTouchButton(TouchButton touchButton, bool rerender)
     {
         ArgumentNullException.ThrowIfNull(touchButton);
 
-        var renderedBitmap = BitmapHelper.RenderTouchButtonContent(touchButton, 90, 90);
-        if (renderedBitmap == null) return;
+        if (rerender || touchButton.RenderedImage == null)
+        {
+            var renderedBitmap = BitmapHelper.RenderTouchButtonContent(touchButton, 90, 90);
+            if (renderedBitmap == null) return;
+        }
 
-        DrawKey(touchButton.Index, renderedBitmap);
+        DrawKey(touchButton.Index, BitmapHelper.CreateRenderTargetBitmap(touchButton.RenderedImage));
     }
 
 

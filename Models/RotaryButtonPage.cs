@@ -1,47 +1,42 @@
+using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
 using Avalonia;
 
 namespace LoupixDeck.Models;
 
-public class RotaryButtonPage : AvaloniaObject
+public class RotaryButtonPage : INotifyPropertyChanged
 {
-    public RotaryButtonPage()
-    {
-        RotaryButtons = [];
-    }
-
     public RotaryButtonPage(int pageSize)
     {
-        RotaryButtons = new RotaryButton[pageSize];
+        RotaryButtons = new ObservableCollection<RotaryButton>();
 
-        for (int i = 0; i < RotaryButtons.Length; i++)
+        for (var i = 0; i < pageSize; i++)
         {
-            var newButton = new RotaryButton(string.Empty, string.Empty);
-            RotaryButtons[i] = newButton;
+            var newButton = new RotaryButton(i, string.Empty, string.Empty);
+            RotaryButtons.Add(newButton);
         }
     }
-
-    private static readonly StyledProperty<bool> IsSelectedProperty =
-        AvaloniaProperty.Register<TouchButtonPage, bool>(nameof(IsSelected));
-    
-    public bool IsSelected
-    {
-        get => GetValue(IsSelectedProperty);
-        set => SetValue(IsSelectedProperty, value);
-    }
-    
-    private static readonly DirectProperty<TouchButtonPage, int> PageDirectProperty =
-        AvaloniaProperty.RegisterDirect<TouchButtonPage, int>(
-            nameof(Page),
-            o => o.Page,
-            (o, v) => o.Page = v);
         
     private int _page;
 
     public int Page
     {
         get => _page;
-        set => SetAndRaise(PageDirectProperty, ref _page, value);
+        set
+        {
+            if (_page == value) return;
+            _page = value;
+            OnPropertyChanged();
+        }
     }
     
-    public RotaryButton[] RotaryButtons { get; set; }
+    public ObservableCollection<RotaryButton> RotaryButtons { get; set; }
+    
+    public event PropertyChangedEventHandler PropertyChanged;
+
+    private void OnPropertyChanged([CallerMemberName] string propertyName = null)
+    {
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+    }
 }

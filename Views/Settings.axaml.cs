@@ -1,8 +1,10 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
+using LoupixDeck.Models;
 using LoupixDeck.Services;
 using LoupixDeck.ViewModels;
+using LoupixDeck.ViewModels.Base;
 
 namespace LoupixDeck.Views;
 
@@ -10,13 +12,14 @@ public partial class Settings : Window
 {
     public Settings()
     {
-        DataContext = new SettingsViewModel(new ObsController());
         InitializeComponent();
-    }
-    
-    public Settings(ObsController obs)
-    {
-        DataContext = new SettingsViewModel(obs);
-        InitializeComponent();
+
+        Closing += (_, _) =>
+        {
+            if (DataContext is IDialogViewModel vm && !vm.DialogResult.Task.IsCompleted)
+            {
+                vm.DialogResult.TrySetResult(new DialogResult(false));
+            }
+        };
     }
 }

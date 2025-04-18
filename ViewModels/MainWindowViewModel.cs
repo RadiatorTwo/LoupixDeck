@@ -1,8 +1,10 @@
 ﻿using System.Windows.Input;
 using CommunityToolkit.Mvvm.Input;
+using LoupixDeck.Controllers;
 using LoupixDeck.Models;
 using LoupixDeck.Services;
 using LoupixDeck.Utils;
+using LoupixDeck.ViewModels.Base;
 using LoupixDeck.Views;
 using AsyncRelayCommand = CommunityToolkit.Mvvm.Input.AsyncRelayCommand;
 using RelayCommand = LoupixDeck.Utils.RelayCommand;
@@ -11,7 +13,8 @@ namespace LoupixDeck.ViewModels;
 
 public class MainWindowViewModel : ViewModelBase
 {
-    private readonly ObsController _obs;
+    private readonly IDialogService _dialogService;
+    private readonly IObsController _obs;
     private readonly ElgatoDevices _elgatoDevices;
     private readonly ISysCommandService _sysCommandService;
     private readonly ICommandBuilder _commandBuilder;
@@ -32,18 +35,20 @@ public class MainWindowViewModel : ViewModelBase
     public ICommand SettingsMenuCommand { get; }
     public ICommand QuitApplicationCommand { get; }
 
-    public LoupedeckLiveS LoupeDeck { get; }
+    public LoupedeckLiveSController LoupedeckController { get; }
 
-    public MainWindowViewModel(LoupedeckLiveS loupedeck,
-                               ObsController obs,
+    public MainWindowViewModel(LoupedeckLiveSController loupedeck,
+                               IDialogService dialogService, 
+                               IObsController obs,
                                ElgatoDevices elgatoDevices,
                                ISysCommandService sysCommandService,
                                ICommandBuilder commandBuilder)
     {
-        LoupeDeck = loupedeck;
+        LoupedeckController = loupedeck;
 
         sysCommandService.Initialize();
 
+        _dialogService = dialogService;
         _obs = obs;
         _elgatoDevices = elgatoDevices;
         _sysCommandService = sysCommandService;
@@ -65,80 +70,66 @@ public class MainWindowViewModel : ViewModelBase
         QuitApplicationCommand = new RelayCommand(QuitApplication);
     }
 
-    public MainWindowViewModel()
-    {
-    }
-
     private void AddRotaryPageButton_Click()
     {
-        Avalonia.Threading.Dispatcher.UIThread.Post(() => { LoupeDeck.AddRotaryButtonPage(); });
+        Avalonia.Threading.Dispatcher.UIThread.Post(() => { LoupedeckController.PageManager.AddRotaryButtonPage(); });
     }
 
     private void DeleteRotaryPageButton_Click()
     {
-        Avalonia.Threading.Dispatcher.UIThread.Post(() => { LoupeDeck.DeleteRotaryButtonPage(); });
+        Avalonia.Threading.Dispatcher.UIThread.Post(() => { LoupedeckController.PageManager.DeleteRotaryButtonPage(); });
     }
 
     private void RotaryPageButton_Click(int page)
     {
-        Avalonia.Threading.Dispatcher.UIThread.Post(() => { LoupeDeck.ApplyRotaryPage(page - 1); });
+        Avalonia.Threading.Dispatcher.UIThread.Post(() => { LoupedeckController.PageManager.ApplyRotaryPage(page - 1); });
     }
 
     private void AddTouchPageButton_Click()
     {
-        Avalonia.Threading.Dispatcher.UIThread.Post(() => { LoupeDeck.AddTouchButtonPage(); });
+        Avalonia.Threading.Dispatcher.UIThread.Post(() => { LoupedeckController.PageManager.AddTouchButtonPage(); });
     }
 
     private void DeleteTouchPageButton_Click()
     {
-        Avalonia.Threading.Dispatcher.UIThread.Post(() => { LoupeDeck.DeleteTouchButtonPage(); });
+        Avalonia.Threading.Dispatcher.UIThread.Post(() => { LoupedeckController.PageManager.DeleteTouchButtonPage(); });
     }
 
     private void TouchPageButton_Click(int page)
     {
-        Avalonia.Threading.Dispatcher.UIThread.Post(() => { LoupeDeck.ApplyTouchPage(page - 1); });
+        Avalonia.Threading.Dispatcher.UIThread.Post(() => { LoupedeckController.PageManager.ApplyTouchPage(page - 1); });
     }
 
     private async Task RotaryButton_Click(RotaryButton button)
     {
-        var newWindow = new RotaryButtonSettings(button, _obs, _elgatoDevices,_sysCommandService,_commandBuilder)
-        {
-            WindowStartupLocation = Avalonia.Controls.WindowStartupLocation.CenterOwner
-        };
-        await newWindow.ShowDialog(WindowHelper.GetMainWindow());
-
-        LoupeDeck.SaveToFile();
+        await _dialogService.ShowDialogAsync<RotaryButtonSettingsViewModel, DialogResult>(
+            vm => vm.Initialize(button)
+        );
+        
+        LoupedeckController.SaveConfig();
     }
 
     private async Task SimpleButton_Click(SimpleButton button)
     {
-        var newWindow = new SimpleButtonSettings(button, _obs, _elgatoDevices, _sysCommandService, _commandBuilder)
-        {
-            WindowStartupLocation = Avalonia.Controls.WindowStartupLocation.CenterOwner
-        };
-        await newWindow.ShowDialog(WindowHelper.GetMainWindow());
-
-        LoupeDeck.SaveToFile();
+        await _dialogService.ShowDialogAsync<SimpleButtonSettingsViewModel, DialogResult>(
+            vm => vm.Initialize(button)
+        );
+        
+        LoupedeckController.SaveConfig();
     }
 
     private async Task TouchButton_Click(TouchButton button)
     {
-        var newWindow = new TouchButtonSettings(button, _obs, _elgatoDevices, _sysCommandService, _commandBuilder)
-        {
-            WindowStartupLocation = Avalonia.Controls.WindowStartupLocation.CenterOwner
-        };
-        await newWindow.ShowDialog(WindowHelper.GetMainWindow());
+        await _dialogService.ShowDialogAsync<TouchButtonSettingsViewModel, DialogResult>(
+            vm => vm.Initialize(button)
+        );
 
-        LoupeDeck.SaveToFile();
+        LoupedeckController.SaveConfig();
     }
 
     private async Task SettingsMenuButton_Click()
     {
-        var newWindow = new Settings(_obs)
-        {
-            WindowStartupLocation = Avalonia.Controls.WindowStartupLocation.CenterOwner
-        };
-        await newWindow.ShowDialog(WindowHelper.GetMainWindow());
+        await _dialogService.ShowDialogAsync<SettingsViewModel, DialogResult>();
     }
 
     private void QuitApplication()

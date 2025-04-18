@@ -4,7 +4,7 @@ using LoupixDeck.Services;
 namespace LoupixDeck.Commands;
 
 [Command("System.ObsStartRecord", "Start Recording", "OBS")]
-public class ObsStartRecordCommand(ObsController obs) : IExecutableCommand
+public class ObsStartRecordCommand(IObsController obs) : IExecutableCommand
 {
     public Task Execute(string[] parameters)
     {
@@ -20,7 +20,7 @@ public class ObsStartRecordCommand(ObsController obs) : IExecutableCommand
 }
 
 [Command("System.ObsStopRecord", "Stop Recording", "OBS")]
-public class ObsStopRecordCommand(ObsController obs) : IExecutableCommand
+public class ObsStopRecordCommand(IObsController obs) : IExecutableCommand
 {
     public Task Execute(string[] parameters)
     {
@@ -36,7 +36,7 @@ public class ObsStopRecordCommand(ObsController obs) : IExecutableCommand
 }
 
 [Command("System.ObsPauseRecord", "Pause Recording", "OBS")]
-public class ObsPauseRecordCommand(ObsController obs) : IExecutableCommand
+public class ObsPauseRecordCommand(IObsController obs) : IExecutableCommand
 {
     public Task Execute(string[] parameters)
     {
@@ -52,7 +52,7 @@ public class ObsPauseRecordCommand(ObsController obs) : IExecutableCommand
 }
 
 [Command("System.ObsVirtualCam", "Toggle Virtual Camera", "OBS")]
-public class ObsVirtualCamCommand(ObsController obs) : IExecutableCommand
+public class ObsVirtualCamCommand(IObsController obs) : IExecutableCommand
 {
     public Task Execute(string[] parameters)
     {
@@ -68,7 +68,7 @@ public class ObsVirtualCamCommand(ObsController obs) : IExecutableCommand
 }
 
 [Command("System.ObsStartReplay", "Start Replay", "OBS")]
-public class ObsStartReplayCommand(ObsController obs) : IExecutableCommand
+public class ObsStartReplayCommand(IObsController obs) : IExecutableCommand
 {
     public Task Execute(string[] parameters)
     {
@@ -84,7 +84,7 @@ public class ObsStartReplayCommand(ObsController obs) : IExecutableCommand
 }
 
 [Command("System.ObsStopReplay", "Stop Replay", "OBS")]
-public class ObsStopReplayCommand(ObsController obs) : IExecutableCommand
+public class ObsStopReplayCommand(IObsController obs) : IExecutableCommand
 {
     public Task Execute(string[] parameters)
     {
@@ -100,7 +100,7 @@ public class ObsStopReplayCommand(ObsController obs) : IExecutableCommand
 }
 
 [Command("System.ObsSaveReplay", "Save Replay", "OBS")]
-public class ObsSaveReplayCommand(ObsController obs) : IExecutableCommand
+public class ObsSaveReplayCommand(IObsController obs) : IExecutableCommand
 {
     public Task Execute(string[] parameters)
     {
@@ -122,7 +122,7 @@ public class ObsSaveReplayCommand(ObsController obs) : IExecutableCommand
     "({SceneName})",
     ["SceneName"],
     [typeof(string)])]
-public class ObsSetSceneCommand(ObsController obs) : IExecutableCommand
+public class ObsSetSceneCommand(IObsController obs) : IExecutableCommand
 {
     public Task Execute(string[] parameters)
     {

@@ -3,19 +3,20 @@ using Avalonia.Media;
 using LoupixDeck.Models;
 using LoupixDeck.Services;
 using LoupixDeck.Utils;
+using LoupixDeck.ViewModels.Base;
 using OBSWebsocketDotNet.Communication;
 
 namespace LoupixDeck.ViewModels;
 
-public class SettingsViewModel : ViewModelBase
+public class SettingsViewModel : DialogViewModelBase<DialogResult>
 {
-    private readonly ObsController _obs;
+    private readonly IObsController _obs;
     public ICommand SaveObsCommand { get; }
     public ICommand TestConnectionCommand { get; }
     public ICommand ShowGeneralCommand { get; }
     public ICommand ShowObsCommand { get; }
 
-    public SettingsViewModel(ObsController obs)
+    public SettingsViewModel(IObsController obs)
     {
         SaveObsCommand = new RelayCommand(SaveObs);
         TestConnectionCommand = new RelayCommand(TestConnection);

@@ -4,6 +4,7 @@ using Avalonia.VisualTree;
 using LoupixDeck.Models;
 using LoupixDeck.Services;
 using LoupixDeck.ViewModels;
+using LoupixDeck.ViewModels.Base;
 
 namespace LoupixDeck.Views;
 
@@ -13,14 +14,31 @@ public partial class RotaryButtonSettings : Window
 
     public RotaryButtonSettings()
     {
-        DataContext = new RotaryButtonSettingsViewModel(new RotaryButton(), null, null, null, null);
         InitializeComponent();
+
+        this.Closing += (s, e) =>
+        {
+            if (DataContext is IDialogViewModel vm && !vm.DialogResult.Task.IsCompleted)
+            {
+                vm.DialogResult.TrySetResult(new DialogResult(false));
+            }
+        };
     }
 
-    public RotaryButtonSettings(RotaryButton buttonData, ObsController obs, ElgatoDevices elgatoDevices, ISysCommandService sysCommandService, ICommandBuilder commandBuilder)
+    public RotaryButtonSettings(IObsController obs,
+        ElgatoDevices elgatoDevices,
+        ISysCommandService sysCommandService,
+        ICommandBuilder commandBuilder)
     {
-        DataContext = new RotaryButtonSettingsViewModel(buttonData, obs, elgatoDevices, sysCommandService, commandBuilder);
         InitializeComponent();
+
+        this.Closing += (s, e) =>
+        {
+            if (DataContext is IDialogViewModel vm && !vm.DialogResult.Task.IsCompleted)
+            {
+                vm.DialogResult.TrySetResult(new DialogResult(false));
+            }
+        };
     }
 
     private void OnPointerPressed(object sender, PointerPressedEventArgs e)
@@ -29,7 +47,7 @@ public partial class RotaryButtonSettings : Window
             menuEntry.Command != null && !string.IsNullOrWhiteSpace(menuEntry.Command))
         {
             if (e.ClickCount != 2) return;
-            
+
             if (_lastFocusedTextBox == null)
             {
                 ((RotaryButtonSettingsViewModel)DataContext)?.InsertCommand(menuEntry,
