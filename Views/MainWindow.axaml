@@ -33,7 +33,7 @@
                 Height="90"
                 Background="Transparent"
                 Command="{Binding RotaryButtonCommand}"
-                CommandParameter="{Binding LoupeDeck.CurrentRotaryButtonsPage.RotaryButtons[0], Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
+                CommandParameter="{Binding LoupedeckController.Config.CurrentRotaryButtonPage.RotaryButtons[0], Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
                 <Button.Styles>
                     <!-- Standard-Zustand -->
                     <Style Selector="Button">
@@ -85,7 +85,7 @@
                 Height="90"
                 Background="Transparent"
                 Command="{Binding RotaryButtonCommand}"
-                CommandParameter="{Binding LoupeDeck.CurrentRotaryButtonsPage.RotaryButtons[1], Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
+                CommandParameter="{Binding LoupedeckController.Config.CurrentRotaryButtonPage.RotaryButtons[1], Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
                 <Button.Styles>
                     <!-- Standard-Zustand -->
                     <Style Selector="Button">
@@ -137,7 +137,7 @@
                 Height="90"
                 Background="Transparent"
                 Command="{Binding SimpleButtonCommand}"
-                CommandParameter="{Binding LoupeDeck.SimpleButtons[0]}">
+                CommandParameter="{Binding LoupedeckController.Config.SimpleButtons[0]}">
                 <Button.Styles>
                     <!-- Standard-Zustand -->
                     <Style Selector="Button">
@@ -176,7 +176,7 @@
                     </Style>
                 </Button.Styles>
                 <Border Background="Transparent" Width="90" Height="90" CornerRadius="50">
-                    <Image Source="{Binding LoupeDeck.SimpleButtons[0].RenderedImage}" />
+                    <Image Source="{Binding LoupedeckController.Config.SimpleButtons[0].RenderedImage}" />
                 </Border>
             </Button>
 
@@ -187,7 +187,7 @@
                         Grid.RowSpan="3"
                         HorizontalAlignment="Left"
                         Orientation="Vertical">
-                <ItemsControl ItemsSource="{Binding LoupeDeck.RotaryButtonPages}">
+                <ItemsControl ItemsSource="{Binding LoupedeckController.Config.RotaryButtonPages}">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
                             <StackPanel Orientation="Vertical" />
@@ -203,7 +203,7 @@
                                     VerticalContentAlignment="Center">
                                 <Button.Background>
                                     <MultiBinding Converter="{StaticResource PageSelectionConverter}">
-                                        <Binding Path="IsSelected" />
+                                        <!-- <Binding Path="IsSelected" /> -->
                                         <Binding Path="Page" />
                                     </MultiBinding>
                                 </Button.Background>
@@ -238,8 +238,8 @@
                 Width="90"
                 Height="90"
                 Command="{Binding TouchButtonCommand}"
-                CommandParameter="{Binding LoupeDeck.CurrentTouchButtonPage[0]}">
-                <Image Source="{Binding LoupeDeck.CurrentTouchButtonPage[0].RenderedImage}" />
+                CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[0]}">
+                <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[0].RenderedImage}" />
             </Button>
             <Button
                 Grid.Row="0"
@@ -247,8 +247,8 @@
                 Width="90"
                 Height="90"
                 Command="{Binding TouchButtonCommand}"
-                CommandParameter="{Binding LoupeDeck.CurrentTouchButtonPage[1]}">
-                <Image Source="{Binding LoupeDeck.CurrentTouchButtonPage[1].RenderedImage}" />
+                CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[1]}">
+                <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[1].RenderedImage}" />
             </Button>
             <Button
                 Grid.Row="0"
@@ -256,8 +256,8 @@
                 Width="90"
                 Height="90"
                 Command="{Binding TouchButtonCommand}"
-                CommandParameter="{Binding LoupeDeck.CurrentTouchButtonPage[2]}">
-                <Image Source="{Binding LoupeDeck.CurrentTouchButtonPage[2].RenderedImage}" />
+                CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[2]}">
+                <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[2].RenderedImage}" />
             </Button>
             <Button
                 Grid.Row="0"
@@ -265,8 +265,8 @@
                 Width="90"
                 Height="90"
                 Command="{Binding TouchButtonCommand}"
-                CommandParameter="{Binding LoupeDeck.CurrentTouchButtonPage[3]}">
-                <Image Source="{Binding LoupeDeck.CurrentTouchButtonPage[3].RenderedImage}" />
+                CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[3]}">
+                <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[3].RenderedImage}" />
             </Button>
             <Button
                 Grid.Row="0"
@@ -274,8 +274,8 @@
                 Width="90"
                 Height="90"
                 Command="{Binding TouchButtonCommand}"
-                CommandParameter="{Binding LoupeDeck.CurrentTouchButtonPage[4]}">
-                <Image Source="{Binding LoupeDeck.CurrentTouchButtonPage[4].RenderedImage}" />
+                CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[4]}">
+                <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[4].RenderedImage}" />
             </Button>
 
             <!-- Reihe 2 -->
@@ -285,8 +285,8 @@
                 Width="90"
                 Height="90"
                 Command="{Binding TouchButtonCommand}"
-                CommandParameter="{Binding LoupeDeck.CurrentTouchButtonPage[5]}">
-                <Image Source="{Binding LoupeDeck.CurrentTouchButtonPage[5].RenderedImage}" />
+                CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[5]}">
+                <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[5].RenderedImage}" />
             </Button>
             <Button
                 Grid.Row="1"
@@ -294,8 +294,8 @@
                 Width="90"
                 Height="90"
                 Command="{Binding TouchButtonCommand}"
-                CommandParameter="{Binding LoupeDeck.CurrentTouchButtonPage[6]}">
-                <Image Source="{Binding LoupeDeck.CurrentTouchButtonPage[6].RenderedImage}" />
+                CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[6]}">
+                <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[6].RenderedImage}" />
             </Button>
             <Button
                 Grid.Row="1"
@@ -303,8 +303,8 @@
                 Width="90"
                 Height="90"
                 Command="{Binding TouchButtonCommand}"
-                CommandParameter="{Binding LoupeDeck.CurrentTouchButtonPage[7]}">
-                <Image Source="{Binding LoupeDeck.CurrentTouchButtonPage[7].RenderedImage}" />
+                CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[7]}">
+                <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[7].RenderedImage}" />
             </Button>
             <Button
                 Grid.Row="1"
@@ -312,8 +312,8 @@
                 Width="90"
                 Height="90"
                 Command="{Binding TouchButtonCommand}"
-                CommandParameter="{Binding LoupeDeck.CurrentTouchButtonPage[8]}">
-                <Image Source="{Binding LoupeDeck.CurrentTouchButtonPage[8].RenderedImage}" />
+                CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[8]}">
+                <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[8].RenderedImage}" />
             </Button>
             <Button
                 Grid.Row="1"
@@ -321,8 +321,8 @@
                 Width="90"
                 Height="90"
                 Command="{Binding TouchButtonCommand}"
-                CommandParameter="{Binding LoupeDeck.CurrentTouchButtonPage[9]}">
-                <Image Source="{Binding LoupeDeck.CurrentTouchButtonPage[9].RenderedImage}" />
+                CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[9]}">
+                <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[9].RenderedImage}" />
             </Button>
 
             <!-- Reihe 3 -->
@@ -332,8 +332,8 @@
                 Width="90"
                 Height="90"
                 Command="{Binding TouchButtonCommand}"
-                CommandParameter="{Binding LoupeDeck.CurrentTouchButtonPage[10]}">
-                <Image Source="{Binding LoupeDeck.CurrentTouchButtonPage[10].RenderedImage}" />
+                CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[10]}">
+                <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[10].RenderedImage}" />
             </Button>
             <Button
                 Grid.Row="2"
@@ -341,8 +341,8 @@
                 Width="90"
                 Height="90"
                 Command="{Binding TouchButtonCommand}"
-                CommandParameter="{Binding LoupeDeck.CurrentTouchButtonPage[11]}">
-                <Image Source="{Binding LoupeDeck.CurrentTouchButtonPage[11].RenderedImage}" />
+                CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[11]}">
+                <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[11].RenderedImage}" />
             </Button>
             <Button
                 Grid.Row="2"
@@ -350,8 +350,8 @@
                 Width="90"
                 Height="90"
                 Command="{Binding TouchButtonCommand}"
-                CommandParameter="{Binding LoupeDeck.CurrentTouchButtonPage[12]}">
-                <Image Source="{Binding LoupeDeck.CurrentTouchButtonPage[12].RenderedImage}" />
+                CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[12]}">
+                <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[12].RenderedImage}" />
             </Button>
             <Button
                 Grid.Row="2"
@@ -359,8 +359,8 @@
                 Width="90"
                 Height="90"
                 Command="{Binding TouchButtonCommand}"
-                CommandParameter="{Binding LoupeDeck.CurrentTouchButtonPage[13]}">
-                <Image Source="{Binding LoupeDeck.CurrentTouchButtonPage[13].RenderedImage}" />
+                CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[13]}">
+                <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[13].RenderedImage}" />
             </Button>
             <Button
                 Grid.Row="2"
@@ -368,8 +368,8 @@
                 Width="90"
                 Height="90"
                 Command="{Binding TouchButtonCommand}"
-                CommandParameter="{Binding LoupeDeck.CurrentTouchButtonPage[14]}">
-                <Image Source="{Binding LoupeDeck.CurrentTouchButtonPage[14].RenderedImage}" />
+                CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[14]}">
+                <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[14].RenderedImage}" />
             </Button>
         </Grid>
 
@@ -380,7 +380,7 @@
                 Width="90"
                 Height="90"
                 Background="Transparent"
-                Command="{Binding SimpleButtonCommand}" CommandParameter="{Binding LoupeDeck.SimpleButtons[1]}">
+                Command="{Binding SimpleButtonCommand}" CommandParameter="{Binding LoupedeckController.Config.SimpleButtons[1]}">
                 <Button.Styles>
                     <!-- Standard-Zustand -->
                     <Style Selector="Button">
@@ -419,7 +419,7 @@
                     </Style>
                 </Button.Styles>
                 <Border Background="Transparent" Width="90" Height="90" CornerRadius="50">
-                    <Image Source="{Binding LoupeDeck.SimpleButtons[1].RenderedImage}" />
+                    <Image Source="{Binding LoupedeckController.Config.SimpleButtons[1].RenderedImage}" />
                 </Border>
             </Button>
             <Button
@@ -428,7 +428,7 @@
                 Width="90"
                 Height="90"
                 Background="Transparent"
-                Command="{Binding SimpleButtonCommand}" CommandParameter="{Binding LoupeDeck.SimpleButtons[2]}">
+                Command="{Binding SimpleButtonCommand}" CommandParameter="{Binding LoupedeckController.Config.SimpleButtons[2]}">
                 <Button.Styles>
                     <!-- Standard-Zustand -->
                     <Style Selector="Button">
@@ -467,7 +467,7 @@
                     </Style>
                 </Button.Styles>
                 <Border Background="Transparent" Width="90" Height="90" CornerRadius="50">
-                    <Image Source="{Binding LoupeDeck.SimpleButtons[2].RenderedImage}" />
+                    <Image Source="{Binding LoupedeckController.Config.SimpleButtons[2].RenderedImage}" />
                 </Border>
             </Button>
             <Button
@@ -476,7 +476,7 @@
                 Width="90"
                 Height="90"
                 Background="Transparent"
-                Command="{Binding SimpleButtonCommand}" CommandParameter="{Binding LoupeDeck.SimpleButtons[3]}">
+                Command="{Binding SimpleButtonCommand}" CommandParameter="{Binding LoupedeckController.Config.SimpleButtons[3]}">
                 <Button.Styles>
                     <!-- Standard-Zustand -->
                     <Style Selector="Button">
@@ -515,13 +515,13 @@
                     </Style>
                 </Button.Styles>
                 <Border Background="Transparent" Width="90" Height="90" CornerRadius="50">
-                    <Image Source="{Binding LoupeDeck.SimpleButtons[3].RenderedImage}" />
+                    <Image Source="{Binding LoupedeckController.Config.SimpleButtons[3].RenderedImage}" />
                 </Border>
             </Button>
         </Grid>
 
         <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal">
-            <ItemsControl ItemsSource="{Binding LoupeDeck.TouchButtonPages}">
+            <ItemsControl ItemsSource="{Binding LoupedeckController.Config.TouchButtonPages}">
                 <ItemsControl.ItemsPanel>
                     <ItemsPanelTemplate>
                         <StackPanel Orientation="Horizontal" />
@@ -537,7 +537,7 @@
                                 VerticalContentAlignment="Center">
                             <Button.Background>
                                 <MultiBinding Converter="{StaticResource PageSelectionConverter}">
-                                    <Binding Path="IsSelected" />
+                                    <!-- <Binding Path="IsSelected" /> -->
                                     <Binding Path="Page" />
                                 </MultiBinding>
                             </Button.Background>
@@ -587,6 +587,6 @@
             </Button.Flyout>
         </Button>
         <Slider Grid.Column="1" Grid.Row="2" Minimum="0" Maximum="1" TickFrequency="0.1"
-                IsSnapToTickEnabled="True" Value="{Binding LoupeDeck.Brightness}" />
+                IsSnapToTickEnabled="True" Value="{Binding LoupedeckController.Config.Brightness}" />
     </Grid>
 </Window>

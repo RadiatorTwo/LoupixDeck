@@ -4,6 +4,7 @@ using Avalonia.VisualTree;
 using LoupixDeck.Models;
 using LoupixDeck.Services;
 using LoupixDeck.ViewModels;
+using LoupixDeck.ViewModels.Base;
 
 namespace LoupixDeck.Views;
 
@@ -11,19 +12,21 @@ public partial class TouchButtonSettings : Window
 {
     public TouchButtonSettings()
     {
-        DataContext = new TouchButtonSettingsViewModel(new TouchButton(-1), null, null, null, null);
         InitializeComponent();
-    }
 
-    public TouchButtonSettings(TouchButton buttonData, ObsController obs, ElgatoDevices elgatoDevices, ISysCommandService sysCommandService, ICommandBuilder commandBuilder)
-    {
-        DataContext = new TouchButtonSettingsViewModel(buttonData, obs, elgatoDevices, sysCommandService, commandBuilder);
-        InitializeComponent();
+        Closing += (_, _) =>
+        {
+            if (DataContext is IDialogViewModel vm && !vm.DialogResult.Task.IsCompleted)
+            {
+                vm.DialogResult.TrySetResult(new DialogResult(false));
+            }
+        };
     }
 
     private void OnPointerPressed(object sender, PointerPressedEventArgs e)
     {
-        if (e.Source is TextBlock textBlock && textBlock.DataContext is MenuEntry menuEntry && menuEntry.Command != null && !string.IsNullOrWhiteSpace(menuEntry.Command))
+        if (e.Source is TextBlock textBlock && textBlock.DataContext is MenuEntry menuEntry &&
+            menuEntry.Command != null && !string.IsNullOrWhiteSpace(menuEntry.Command))
         {
             if (e.ClickCount == 2)
             {

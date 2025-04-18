@@ -2,12 +2,12 @@ using System;
 using Avalonia.Controls;
 using Avalonia.Controls.Templates;
 using LoupixDeck.ViewModels;
+using LoupixDeck.ViewModels.Base;
 
 namespace LoupixDeck;
 
 public class ViewLocator : IDataTemplate
 {
-
     public Control Build(object param)
     {
         if (param is null)

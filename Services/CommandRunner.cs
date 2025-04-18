@@ -3,7 +3,14 @@ using System.Diagnostics;
 
 namespace LoupixDeck.Services;
 
-public class CommandRunner : IDisposable
+public interface ICommandRunner : IDisposable
+{
+    void EnqueueCommand(string command);
+    void ProcessQueue();
+    void ExecuteCommand(string command);
+}
+
+public class CommandRunner : ICommandRunner
 {
     private readonly BlockingCollection<string> _commandQueue = new BlockingCollection<string>();
     private readonly CancellationTokenSource _cts = new CancellationTokenSource();
@@ -19,7 +26,7 @@ public class CommandRunner : IDisposable
         _commandQueue.Add(command);
     }
 
-    private void ProcessQueue()
+    public void ProcessQueue()
     {
         try
         {
@@ -34,7 +41,7 @@ public class CommandRunner : IDisposable
         }
     }
 
-    private void ExecuteCommand(string command)
+    public void ExecuteCommand(string command)
     {
         try
         {

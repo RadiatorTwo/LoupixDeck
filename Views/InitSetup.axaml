@@ -10,7 +10,10 @@
         x:DataType="vm:InitSetupViewModel"
         Icon="avares://LoupixDeck/Assets/logo.ico"
         Title="Setup Connection"
-        SystemDecorations="BorderOnly">
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource ThemeBackground}"
+        CanResize="False"
+        Topmost="True">
     <Design.DataContext>
         <vm:InitSetupViewModel />
     </Design.DataContext>

@@ -10,7 +10,14 @@ public interface INotifications : IDBusObject
         IDictionary<string, object> hints, int expireTimeout);
 }
 
-public class DBusController
+public interface IDBusController
+{
+    Task SendNotificationAsync(string title, 
+        string body,
+        int expireTimeout = 5000);
+}
+
+public class DBusController : IDBusController
 {
     public async Task SendNotificationAsync(string title, 
                                             string body,
