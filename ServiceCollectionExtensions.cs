@@ -1,7 +1,5 @@
-using AutoMapper;
 using LoupixDeck.Controllers;
 using LoupixDeck.Models;
-using LoupixDeck.Models.Mapper;
 using LoupixDeck.Services;
 using LoupixDeck.Utils;
 using LoupixDeck.ViewModels;
@@ -53,7 +51,6 @@ public static class ServiceCollectionExtensions
         collection.AddTransient<MainWindowViewModel>();
 
         InitDialogs(collection);
-        InitMapper(collection);
     }
 
     private static void InitDialogs(IServiceCollection collection)
@@ -81,14 +78,5 @@ public static class ServiceCollectionExtensions
         dialogService.Register<RotaryButtonSettingsViewModel, RotaryButtonSettings>();
         dialogService.Register<TouchButtonSettingsViewModel, TouchButtonSettings>();
         dialogService.Register<SettingsViewModel, Settings>();
-    }
-
-    private static void InitMapper(IServiceCollection collection)
-    {
-        var config = new MapperConfiguration(cfg => { cfg.AddProfile<ButtonMappingProfile>(); });
-
-        var mapper = config.CreateMapper();
-
-        collection.AddSingleton(mapper);
     }
 }
