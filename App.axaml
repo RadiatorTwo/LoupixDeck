@@ -37,6 +37,8 @@
     </Application.Styles>
 
     <Application.Resources>
-        <converter:PageSelectionConverter x:Key="PageSelectionConverter" />
+        <converter:BoolToBrushConverter x:Key="BoolToBrushConverter" />
+        <SolidColorBrush x:Key="UnselectedBrush" Color="#FF4b4b4b"/>
+        <SolidColorBrush x:Key="SelectedBrush" Color="#FF373737"/>
     </Application.Resources>
 </Application>

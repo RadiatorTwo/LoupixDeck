@@ -43,7 +43,6 @@ public class PageManager : IPageManager
         _deviceService = deviceService;
     }
 
-    public int PreviousRotaryPageIndex { get; set; } = -1;
     public int PreviousTouchPageIndex { get; set; } = -1;
 
     public int CurrentTouchPageIndex
@@ -57,11 +56,10 @@ public class PageManager : IPageManager
         get => _config.CurrentRotaryPageIndex;
         set => _config.CurrentRotaryPageIndex = value;
     }
-
+    
     public ObservableCollection<TouchButtonPage> TouchButtonPages => _config.TouchButtonPages;
     public ObservableCollection<RotaryButtonPage> RotaryButtonPages => _config.RotaryButtonPages;
     public RotaryButtonPage CurrentRotaryButtonPage => _config.CurrentRotaryButtonPage;
-
     public TouchButtonPage CurrentTouchButtonPage => _config.CurrentTouchButtonPage;
     public SimpleButton[] SimpleButtons => _config.SimpleButtons;
 
@@ -79,10 +77,17 @@ public class PageManager : IPageManager
     {
         if (CurrentRotaryPageIndex == pageIndex) return;
 
-        PreviousRotaryPageIndex = CurrentRotaryPageIndex;
+        var previousRotaryPageIndex = CurrentRotaryPageIndex;
         CurrentRotaryPageIndex = pageIndex;
+        
+        foreach (var page in RotaryButtonPages)
+        {
+            page.Selected = false;
+        }
+        
+        CurrentRotaryButtonPage.Selected = true;
 
-        OnRotaryPageChanged?.Invoke(PreviousRotaryPageIndex, CurrentRotaryPageIndex);
+        OnRotaryPageChanged?.Invoke(previousRotaryPageIndex, CurrentRotaryPageIndex);
     }
 
     public void NextTouchPage()
@@ -97,9 +102,18 @@ public class PageManager : IPageManager
 
     public void ApplyTouchPage(int pageIndex)
     {
+        if (CurrentTouchPageIndex == pageIndex) return;
+        
         PreviousTouchPageIndex = CurrentTouchPageIndex;
         CurrentTouchPageIndex = pageIndex;
 
+        foreach (var page in TouchButtonPages)
+        {
+            page.Selected = false;    
+        }
+        
+        CurrentTouchButtonPage.Selected = true;
+        
         OnTouchPageChanged?.Invoke(PreviousTouchPageIndex, CurrentTouchPageIndex);
         DrawTouchButtons();
     }
