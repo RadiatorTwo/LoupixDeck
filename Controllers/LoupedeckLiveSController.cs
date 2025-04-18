@@ -54,7 +54,6 @@ public class LoupedeckLiveSController
         // Start the device using the configuration
         _deviceService.StartDevice(_config.DevicePort, _config.DeviceBaudrate);
 
-        _pageManager.OnRotaryPageChanged += OnRotaryPageChanged;
         _pageManager.OnTouchPageChanged += OnTouchPageChanged;
 
         // Register the button events.
@@ -71,6 +70,11 @@ public class LoupedeckLiveSController
                 CreateSimpleButton(Constants.ButtonType.BUTTON3, Avalonia.Media.Colors.Blue, "System.NextPage")
             ];
         }
+        
+        foreach (var simpleButton in _config.SimpleButtons)
+        {
+            simpleButton.ItemChanged += SimpleButtonChanged;
+        }
 
         if (_config.RotaryButtonPages == null || _config.RotaryButtonPages.Count == 0)
         {
@@ -80,7 +84,7 @@ public class LoupedeckLiveSController
         {
             // Existing config Init always page 0.
             _config.CurrentRotaryPageIndex = 0;
-            _pageManager.ApplyRotaryPage(_config.CurrentTouchPageIndex);
+            _pageManager.ApplyRotaryPage(_config.CurrentRotaryPageIndex);
         }
 
         if (_config.TouchButtonPages == null || _config.TouchButtonPages.Count == 0)
@@ -105,42 +109,8 @@ public class LoupedeckLiveSController
         // Save the initial configuration.
         SaveConfig();
     }
-
-    private void OnRotaryPageChanged(int oldIndex, int newIndex)
-    {
-    }
-
-    private void OnTouchPageChanged(int oldIndex, int newIndex)
-    {
-        if (oldIndex >= 0 && oldIndex < _config.TouchButtonPages.Count && _config.TouchButtonPages[oldIndex] != null)
-        {
-            foreach (var touchButton in _config.TouchButtonPages[oldIndex].TouchButtons)
-            {
-                touchButton.ItemChanged -= TouchItemChanged;
-            }
-        }
-
-        if (newIndex >= 0 && newIndex < _config.TouchButtonPages.Count && _config.TouchButtonPages[newIndex] != null)
-        {
-            foreach (var touchButton in _config.TouchButtonPages[newIndex].TouchButtons)
-            {
-                touchButton.ItemChanged += TouchItemChanged;
-            }
-        }
-    }
-
-    private void TouchItemChanged(object sender, EventArgs e)
-    {
-        if (sender is not TouchButton item) return;
-
-        var button = _config.CurrentTouchButtonPage.TouchButtons.FirstOrDefault(b => b.Index == item.Index);
-
-        if (button == null) return;
-
-        _deviceService.Device.DrawTouchButton(button, true);
-    }
-
-    private void InitButtonEvents()
+    
+     private void InitButtonEvents()
     {
         var device = _deviceService.Device;
         device.OnButton += OnSimpleButtonPress;
@@ -208,6 +178,36 @@ public class LoupedeckLiveSController
         }
     }
 
+    private void OnTouchPageChanged(int oldIndex, int newIndex)
+    {
+        if (oldIndex >= 0 && oldIndex < _config.TouchButtonPages.Count && _config.TouchButtonPages[oldIndex] != null)
+        {
+            foreach (var touchButton in _config.TouchButtonPages[oldIndex].TouchButtons)
+            {
+                touchButton.ItemChanged -= TouchItemChanged;
+            }
+        }
+
+        if (newIndex >= 0 && newIndex < _config.TouchButtonPages.Count && _config.TouchButtonPages[newIndex] != null)
+        {
+            foreach (var touchButton in _config.TouchButtonPages[newIndex].TouchButtons)
+            {
+                touchButton.ItemChanged += TouchItemChanged;
+            }
+        }
+    }
+
+    private void TouchItemChanged(object sender, EventArgs e)
+    {
+        if (sender is not TouchButton item) return;
+
+        var button = _config.CurrentTouchButtonPage.TouchButtons.FirstOrDefault(b => b.Index == item.Index);
+
+        if (button == null) return;
+
+        _deviceService.Device.DrawTouchButton(button, true);
+    }
+
     public SimpleButton CreateSimpleButton(Constants.ButtonType id, Avalonia.Media.Color color, string command)
     {
         var button = new SimpleButton
@@ -224,24 +224,6 @@ public class LoupedeckLiveSController
         };
         return button;
     }
-
-    // private void InitItemChangedEvents()
-    // {
-    //     _pageManager.OnTouchPageChanged += (s, e) => { };
-    //     if (_config.Cur != null)
-    //     {
-    //         _config.CurrentTouchButtonPage.PropertyChanged += CurrentTouchButtonPageChanged;
-    //         foreach (var touchButton in _config.CurrentTouchButtonPage.TouchButtons)
-    //         {
-    //             touchButton.ItemChanged += (s, e) => TouchItemChanged(s, e);
-    //         }
-    //     }
-    //
-    //     foreach (var simpleButton in _config.SimpleButtons)
-    //     {
-    //         simpleButton.ItemChanged += (s, e) => SimpleButtonChanged(s, e);
-    //     }
-    // }
 
     private void SimpleButtonChanged(object sender, EventArgs e)
     {
