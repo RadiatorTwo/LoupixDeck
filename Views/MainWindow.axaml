@@ -3,6 +3,7 @@
         xmlns:vm="using:LoupixDeck.ViewModels"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:conv="clr-namespace:LoupixDeck.Models.Converter"
         mc:Ignorable="d"
         Width="850" Height="400"
         WindowStartupLocation="CenterScreen"
@@ -18,6 +19,14 @@
              to set the actual DataContext for runtime, set the DataContext property in code (look at App.axaml.cs) -->
         <vm:MainWindowViewModel />
     </Design.DataContext>
+    
+    <Window.Resources>
+        <!-- Hier weisen Sie die Ressourcen zu -->
+        <conv:BoolToBrushConverter
+            x:Key="BoolToBrushConverter"
+            SelectedBrush="{StaticResource SelectedBrush}"
+            UnselectedBrush="{StaticResource UnselectedBrush}"/>
+    </Window.Resources>
 
     <Grid ColumnDefinitions="150,500,150,50" RowDefinitions="300,30,50">
         <Grid Grid.Row="0"
@@ -200,14 +209,8 @@
                                     CommandParameter="{Binding Page}"
                                     Width="30" Height="30" CornerRadius="8"
                                     HorizontalContentAlignment="Center"
-                                    VerticalContentAlignment="Center">
-                                <Button.Background>
-                                    <MultiBinding Converter="{StaticResource PageSelectionConverter}">
-                                        <!-- <Binding Path="IsSelected" /> -->
-                                        <Binding Path="Page" />
-                                    </MultiBinding>
-                                </Button.Background>
-                            </Button>
+                                    VerticalContentAlignment="Center"
+                                    Background="{Binding Selected, Converter={StaticResource BoolToBrushConverter}}"/>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
@@ -534,14 +537,8 @@
                                 CommandParameter="{Binding Page}"
                                 Width="30" Height="30" CornerRadius="8"
                                 HorizontalContentAlignment="Center"
-                                VerticalContentAlignment="Center">
-                            <Button.Background>
-                                <MultiBinding Converter="{StaticResource PageSelectionConverter}">
-                                    <!-- <Binding Path="IsSelected" /> -->
-                                    <Binding Path="Page" />
-                                </MultiBinding>
-                            </Button.Background>
-                        </Button>
+                                VerticalContentAlignment="Center"
+                                Background="{Binding Selected, Converter={StaticResource BoolToBrushConverter}}"/>
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
             </ItemsControl>

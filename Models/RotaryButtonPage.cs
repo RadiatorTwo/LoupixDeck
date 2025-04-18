@@ -1,7 +1,7 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
-using Avalonia;
+using Newtonsoft.Json;
 
 namespace LoupixDeck.Models;
 
@@ -19,6 +19,7 @@ public class RotaryButtonPage : INotifyPropertyChanged
     }
         
     private int _page;
+    private bool _selected;
 
     public int Page
     {
@@ -30,7 +31,19 @@ public class RotaryButtonPage : INotifyPropertyChanged
             OnPropertyChanged();
         }
     }
-    
+
+    [JsonIgnore]
+    public bool Selected
+    {
+        get => _selected;
+        set
+        {
+            if (value == _selected) return;
+            _selected = value;
+            OnPropertyChanged();
+        }
+    }
+
     public ObservableCollection<RotaryButton> RotaryButtons { get; set; }
     
     public event PropertyChangedEventHandler PropertyChanged;

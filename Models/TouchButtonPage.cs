@@ -1,15 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using System.ComponentModel;
-using System.Linq;
 using System.Runtime.CompilerServices;
-using System.Text;
-using System.Threading.Tasks;
-using Avalonia;
-using Avalonia.Collections;
-using Avalonia.Controls;
-using Avalonia.Styling;
+using Newtonsoft.Json;
 
 namespace LoupixDeck.Models;
 
@@ -27,6 +19,7 @@ public class TouchButtonPage : INotifyPropertyChanged
     }
         
     private int _page;
+    private bool _selected;
 
     public int Page
     {
@@ -38,8 +31,20 @@ public class TouchButtonPage : INotifyPropertyChanged
             OnPropertyChanged();
         }
     }
+    
+    [JsonIgnore]
+    public bool Selected
+    {
+        get => _selected;
+        set
+        {
+            if (value == _selected) return;
+            _selected = value;
+            OnPropertyChanged();
+        }
+    }
 
-    public ObservableCollection<TouchButton> TouchButtons { get; set; } = [];
+    public ObservableCollection<TouchButton> TouchButtons { get; set; }
         
     public event PropertyChangedEventHandler PropertyChanged;
 

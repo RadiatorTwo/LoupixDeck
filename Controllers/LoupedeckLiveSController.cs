@@ -1,4 +1,3 @@
-using System.ComponentModel;
 using LoupixDeck.LoupedeckDevice;
 using LoupixDeck.Models;
 using LoupixDeck.Services;
@@ -106,6 +105,9 @@ public class LoupedeckLiveSController
         // Update UI-based elements.
         _pageManager.RefreshSimpleButtons();
 
+        _config.CurrentRotaryButtonPage.Selected = true;
+        _config.CurrentTouchButtonPage.Selected = true;
+        
         // Save the initial configuration.
         SaveConfig();
     }
