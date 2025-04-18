@@ -129,11 +129,7 @@ public class MainWindowViewModel : ViewModelBase
 
     private async Task SettingsMenuButton_Click()
     {
-        var newWindow = new Settings(_obs)
-        {
-            WindowStartupLocation = Avalonia.Controls.WindowStartupLocation.CenterOwner
-        };
-        await newWindow.ShowDialog(WindowHelper.GetMainWindow());
+        await _dialogService.ShowDialogAsync<SettingsViewModel, DialogResult>();
     }
 
     private void QuitApplication()

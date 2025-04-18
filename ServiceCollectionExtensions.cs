@@ -67,6 +67,9 @@ public static class ServiceCollectionExtensions
         collection.AddTransient<TouchButtonSettings>();
         collection.AddTransient<TouchButtonSettingsViewModel>();
         
+        collection.AddTransient<Settings>();
+        collection.AddTransient<SettingsViewModel>();
+        
         collection.AddSingleton<IDialogService, DialogService>();
     }
 
@@ -77,6 +80,7 @@ public static class ServiceCollectionExtensions
         dialogService.Register<SimpleButtonSettingsViewModel, SimpleButtonSettings>();
         dialogService.Register<RotaryButtonSettingsViewModel, RotaryButtonSettings>();
         dialogService.Register<TouchButtonSettingsViewModel, TouchButtonSettings>();
+        dialogService.Register<SettingsViewModel, Settings>();
     }
 
     private static void InitMapper(IServiceCollection collection)

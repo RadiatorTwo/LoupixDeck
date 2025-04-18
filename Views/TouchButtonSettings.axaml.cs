@@ -14,23 +14,7 @@ public partial class TouchButtonSettings : Window
     {
         InitializeComponent();
 
-        this.Closing += (s, e) =>
-        {
-            if (DataContext is IDialogViewModel vm && !vm.DialogResult.Task.IsCompleted)
-            {
-                vm.DialogResult.TrySetResult(new DialogResult(false));
-            }
-        };
-    }
-
-    public TouchButtonSettings(IObsController obs,
-        ElgatoDevices elgatoDevices,
-        ISysCommandService sysCommandService,
-        ICommandBuilder commandBuilder)
-    {
-        InitializeComponent();
-
-        this.Closing += (s, e) =>
+        Closing += (_, _) =>
         {
             if (DataContext is IDialogViewModel vm && !vm.DialogResult.Task.IsCompleted)
             {

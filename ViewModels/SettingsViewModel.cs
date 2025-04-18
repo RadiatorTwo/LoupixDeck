@@ -8,7 +8,7 @@ using OBSWebsocketDotNet.Communication;
 
 namespace LoupixDeck.ViewModels;
 
-public class SettingsViewModel : ViewModelBase
+public class SettingsViewModel : DialogViewModelBase<DialogResult>
 {
     private readonly IObsController _obs;
     public ICommand SaveObsCommand { get; }
