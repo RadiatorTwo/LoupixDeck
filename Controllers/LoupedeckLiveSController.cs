@@ -54,10 +54,7 @@ public class LoupedeckLiveSController
         _deviceService.StartDevice(_config.DevicePort, _config.DeviceBaudrate);
 
         _pageManager.OnTouchPageChanged += OnTouchPageChanged;
-
-        // Register the button events.
-        InitButtonEvents();
-
+        
         // If no SimpleButtons are available, create standard buttons.
         if (_config.SimpleButtons == null || !_config.SimpleButtons.Any())
         {
@@ -95,6 +92,12 @@ public class LoupedeckLiveSController
             // Existing config Init always page 0.
             _config.CurrentTouchPageIndex = 0;
             _pageManager.ApplyTouchPage(_config.CurrentTouchPageIndex);
+            
+            // With an existing config, we need to apply the item changed event to the current Touch Button Page
+            foreach (var touchButton in _config.CurrentTouchButtonPage.TouchButtons)
+            {
+                touchButton.ItemChanged += TouchItemChanged;
+            }
         }
 
         if (_config.RotaryButtonPages == null || _config.RotaryButtonPages.Count == 0)
@@ -102,11 +105,13 @@ public class LoupedeckLiveSController
             _pageManager.AddRotaryButtonPage();
         }
 
-        // Update UI-based elements.
-        _pageManager.RefreshSimpleButtons();
-
         _config.CurrentRotaryButtonPage.Selected = true;
         _config.CurrentTouchButtonPage.Selected = true;
+        
+        // Apply all TouchButton Images and RGB Button Colors.
+        ApplyAllData();
+        
+        InitButtonEvents();
         
         // Save the initial configuration.
         SaveConfig();
@@ -219,7 +224,7 @@ public class LoupedeckLiveSController
             ButtonColor = color
         };
         button.RenderedImage = BitmapHelper.RenderSimpleButtonImage(button, 90, 90);
-        button.ItemChanged += (s, e) =>
+        button.ItemChanged += (_, _) =>
         {
             button.RenderedImage = BitmapHelper.RenderSimpleButtonImage(button, 90, 90);
             _deviceService.Device.SetButtonColor(button.Id, button.ButtonColor);
