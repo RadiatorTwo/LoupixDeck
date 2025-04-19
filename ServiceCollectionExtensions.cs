@@ -12,7 +12,6 @@ public static class ServiceCollectionExtensions
 {
     public static void AddCommonServices(this IServiceCollection collection)
     {
-        // Registrierung der LoupedeckConfig als Singleton
         collection.AddSingleton(provider =>
         {
             var configService = provider.GetRequiredService<IConfigService>();

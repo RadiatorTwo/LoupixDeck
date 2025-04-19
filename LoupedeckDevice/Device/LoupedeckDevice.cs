@@ -447,6 +447,17 @@ public class LoupedeckDevice
         DrawKey(touchButton.Index, BitmapHelper.CreateRenderTargetBitmap(touchButton.RenderedImage));
     }
 
+    public void DrawTextButton(int index, string text)
+    {
+        if (string.IsNullOrEmpty(text))
+            throw new ArgumentException("Text must not be null or empty.", nameof(text));
+
+        var renderedBitmap = BitmapHelper.RenderTextToBitmap(text, 90, 90);
+        if (renderedBitmap == null)
+            throw new Exception("The rendering of the text has failed.");
+
+        DrawKey(index, renderedBitmap);
+    }
 
     /// <summary>
     /// Draws the entire screen (display) identified by the given ID.

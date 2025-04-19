@@ -34,7 +34,6 @@ public class LoupedeckLiveSController
         _configService = configService;
         _config = config;
 
-        // Define the path to the configuration file (using FileDialogHelper or similar)
         _configPath = FileDialogHelper.GetConfigPath("config.json");
     }
 

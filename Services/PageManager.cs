@@ -116,6 +116,8 @@ public class PageManager : IPageManager
         
         OnTouchPageChanged?.Invoke(PreviousTouchPageIndex, CurrentTouchPageIndex);
         DrawTouchButtons();
+
+        _deviceService.ShowTemporaryTextButton(0, CurrentTouchButtonPage.PageName, 2000);
     }
 
     private void DrawTouchButtons()

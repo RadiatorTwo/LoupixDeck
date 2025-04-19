@@ -7,43 +7,37 @@ public interface IDeviceService
 {
     LoupedeckLiveSDevice Device { get; }
     void StartDevice(string devicePort, int deviceBaudrate);
+    Task ShowTemporaryTextButton(int index, string text, int displayDurationMilliseconds);
 }
 
 public class LoupedeckDeviceService : IDeviceService
 {
-    private readonly IObsController _obsController;
-    private readonly IDBusController _dbusController;
     private readonly IElgatoController _elgatoController;
-    private readonly ElgatoDevices _elgatoDevices;
-    private readonly ICommandRunner _commandRunner;
-    private readonly AutoResetEvent _deviceCreatedEvent = new AutoResetEvent(false);
+    private readonly LoupedeckConfig _config;
+    private readonly AutoResetEvent _deviceCreatedEvent = new(false);
 
     public LoupedeckLiveSDevice Device { get; private set; }
 
     public LoupedeckDeviceService(IObsController obsController,
-        IDBusController dbusController,
         IElgatoController elgatoController,
         ElgatoDevices elgatoDevices,
-        ICommandRunner commandRunner)
+        LoupedeckConfig config)
     {
-        _obsController = obsController;
-        _dbusController = dbusController;
         _elgatoController = elgatoController;
-        _elgatoDevices = elgatoDevices;
-        _commandRunner = commandRunner;
+        _config = config;
 
-        _obsController.Connect();
+        obsController.Connect();
 
         _elgatoController.KeyLightFound += (_, light) =>
         {
-            var checkDevice = _elgatoDevices.KeyLights.FirstOrDefault(kl => kl.DisplayName == light.DisplayName);
+            var checkDevice = elgatoDevices.KeyLights.FirstOrDefault(kl => kl.DisplayName == light.DisplayName);
             if (checkDevice != null)
             {
-                _elgatoDevices.RemoveKeyLight(checkDevice);
+                elgatoDevices.RemoveKeyLight(checkDevice);
             }
 
             _elgatoController.InitDeviceAsync(light).GetAwaiter().GetResult();
-            _elgatoDevices.AddKeyLight(light);
+            elgatoDevices.AddKeyLight(light);
         };
         _ = _elgatoController.ProbeForElgatoDevices();
     }
@@ -60,5 +54,14 @@ public class LoupedeckDeviceService : IDeviceService
         };
         deviceThread.Start();
         _deviceCreatedEvent.WaitOne();
+    }
+
+    public async Task ShowTemporaryTextButton(int index, string text, int displayDurationMilliseconds)
+    {
+        Device.DrawTextButton(index, text);
+
+        await Task.Delay(displayDurationMilliseconds);
+
+        Device.DrawTouchButton(_config.CurrentTouchButtonPage.TouchButtons[index], false);
     }
 }

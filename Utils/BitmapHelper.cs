@@ -177,6 +177,33 @@ public static class BitmapHelper
         return rtb;
     }
 
+    public static RenderTargetBitmap RenderTextToBitmap(string text, int imageWidth, int imageHeight)
+    {
+        var rtb = new RenderTargetBitmap(new PixelSize(imageWidth, imageHeight));
+
+        using var ctx = rtb.CreateDrawingContext(true);
+
+        ctx.DrawRectangle(
+            brush: Brushes.Black,
+            pen: null,
+            rect: new Rect(0, 0, imageWidth, imageHeight)
+        );
+
+        DrawTextAt(
+            ctx,
+            text,
+            Colors.White,
+            14,
+            true,
+            0,
+            0,
+            imageWidth,
+            imageHeight
+        );
+
+        return rtb;
+    }
+
     /// <summary>
     /// Draws text at the given position in the specified DrawingContext.
     /// </summary>
@@ -271,7 +298,7 @@ public static class BitmapHelper
 
         context.DrawText(formattedText, new Point(drawX, drawY));
     }
-    
+
     public static Bitmap CloneBitmap(this Bitmap original)
     {
         if (original == null)
@@ -290,11 +317,11 @@ public static class BitmapHelper
         );
 
         using var ctx = rtb.CreateDrawingContext();
-        
+
         var destRect = new Rect(0, 0, rtb.PixelSize.Width, rtb.PixelSize.Height);
         var sourceRect = new Rect(0, 0, source.PixelSize.Width, source.PixelSize.Height);
         ctx.DrawImage(source, sourceRect, destRect);
-        
+
         return rtb;
     }
 }
