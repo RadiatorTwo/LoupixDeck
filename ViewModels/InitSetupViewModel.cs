@@ -11,32 +11,28 @@ public partial class InitSetupViewModel : ViewModelBase
     public ObservableCollection<string> SerialDevices { get; } = [];
     public ObservableCollection<int> BaudRates { get; } = [9600, 19200, 38400, 57600, 115200, 230400, 460800, 921600];
 
-    [ObservableProperty]
-    private string _selectedDevice;
+    [ObservableProperty] private string _selectedDevice;
 
-    [ObservableProperty]
-    private string _manualDevicePath;
+    [ObservableProperty] private string _manualDevicePath;
 
-    [ObservableProperty]
-    private int _selectedBaudRate = 921600;
-    
-    [ObservableProperty]
-    private string _connectionTestResult = string.Empty;
-    
+    [ObservableProperty] private int _selectedBaudRate = 921600;
+
+    [ObservableProperty] private string _connectionTestResult = string.Empty;
+
     public bool ConnectionWorking { get; set; }
-    
+
     public InitSetupViewModel()
     {
         var ports = SerialPort.GetPortNames();
         foreach (var port in ports.OrderBy(p => p))
             SerialDevices.Add(port);
     }
-    
+
     partial void OnSelectedDeviceChanged(string value)
     {
         ManualDevicePath = value;
     }
-    
+
     [RelayCommand]
     private void TestConnection()
     {
@@ -50,7 +46,7 @@ public partial class InitSetupViewModel : ViewModelBase
         try
         {
             using var port = new SerialPort(ManualDevicePath, SelectedBaudRate);
-            
+
             port.ReadTimeout = 1000;
             port.WriteTimeout = 1000;
 
@@ -66,7 +62,7 @@ public partial class InitSetupViewModel : ViewModelBase
                 ConnectionTestResult = "Connection could not be opened.";
                 ConnectionWorking = false;
             }
-            
+
             port.Close();
         }
         catch (Exception ex)
@@ -79,6 +75,13 @@ public partial class InitSetupViewModel : ViewModelBase
     [RelayCommand]
     public void Confirm()
     {
+        CloseWindow?.Invoke();
+    }
+
+    [RelayCommand]
+    public void AbortCommand()
+    {
+        ConnectionWorking = false;
         CloseWindow?.Invoke();
     }
 
