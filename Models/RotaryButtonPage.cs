@@ -17,7 +17,9 @@ public class RotaryButtonPage : INotifyPropertyChanged
             RotaryButtons.Add(newButton);
         }
     }
-        
+
+    public string PageName => $"Rotary Page: {Page}";
+
     private int _page;
     private bool _selected;
 
