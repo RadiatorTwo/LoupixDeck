@@ -75,7 +75,12 @@ public partial class InitSetupViewModel : ViewModelBase
     [RelayCommand]
     public void Confirm()
     {
-        CloseWindow?.Invoke();
+        TestConnection();
+
+        if (ConnectionWorking)
+        {
+            CloseWindow?.Invoke();
+        }
     }
 
     [RelayCommand]
