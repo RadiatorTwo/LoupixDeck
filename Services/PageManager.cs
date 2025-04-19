@@ -88,6 +88,8 @@ public class PageManager : IPageManager
         CurrentRotaryButtonPage.Selected = true;
 
         OnRotaryPageChanged?.Invoke(previousRotaryPageIndex, CurrentRotaryPageIndex);
+        
+        _deviceService.ShowTemporaryTextButton(0, CurrentRotaryButtonPage.PageName, 2000);
     }
 
     public void NextTouchPage()
