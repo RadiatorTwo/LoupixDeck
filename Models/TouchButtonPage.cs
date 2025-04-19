@@ -21,6 +21,8 @@ public class TouchButtonPage : INotifyPropertyChanged
     private int _page;
     private bool _selected;
 
+    public string PageName => $"Page: {Page}";
+
     public int Page
     {
         get => _page;
