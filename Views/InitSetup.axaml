@@ -33,7 +33,7 @@
             <Button Height="30" Width="80" HorizontalContentAlignment="Center"
                     Content="OK" Command="{Binding ConfirmCommand}" HorizontalAlignment="Right" />
             <Button Height="30" Width="80" HorizontalContentAlignment="Center"
-                    Content="Cancel" Command="{Binding TestConnectionCommand}" />
+                    Content="Cancel" Command="{Binding AbortCommand}" />
         </StackPanel>
     </Grid>
 </Window>
