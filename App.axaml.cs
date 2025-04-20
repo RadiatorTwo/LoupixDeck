@@ -2,14 +2,10 @@ using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Data.Core.Plugins;
 using Avalonia.Markup.Xaml;
-using LoupixDeck.LoupedeckDevice.Device;
 using LoupixDeck.Views;
 using LoupixDeck.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
-using LoupixDeck.Models;
-using LoupixDeck.Models.Converter;
 using LoupixDeck.Utils;
-using Newtonsoft.Json;
 
 namespace LoupixDeck;
 
@@ -44,31 +40,55 @@ public partial class App : Application
 
                 if (initWindow.DataContext is InitSetupViewModel { ConnectionWorking: true } vm)
                 {
-                    var mainViewModel = CreateMainWindowViewModel(vm.SelectedDevice, vm.SelectedBaudRate);
-
-                    var mainWindow = new MainWindow
+                    var splashScreen = new SplashScreen();
+                    desktop.MainWindow = splashScreen;
+                    splashScreen.Show();
+                    
+#pragma warning disable CS4014
+                    Task.Run(async () =>
+#pragma warning restore CS4014
                     {
-                        DataContext = mainViewModel
-                    };
-
-                    desktop.MainWindow = mainWindow;
-                    mainWindow.Show();
+                        var viewModel = await CreateMainWindowViewModel(vm.SelectedDevice, vm.SelectedBaudRate);
+                        OnViewModelCreated(viewModel, splashScreen, desktop);
+                    });
                 }
             }
             else
             {
-                var viewModel = CreateMainWindowViewModel();
-                desktop.MainWindow = new MainWindow
+                var splashScreen = new SplashScreen();
+                desktop.MainWindow = splashScreen;
+                splashScreen.Show();
+                
+#pragma warning disable CS4014
+                Task.Run(async () =>
+#pragma warning restore CS4014
                 {
-                    DataContext = viewModel
-                };
+                    var viewModel = await CreateMainWindowViewModel();
+                    OnViewModelCreated(viewModel, splashScreen, desktop);
+                });
             }
         }
 
         base.OnFrameworkInitializationCompleted();
     }
+    
+    private void OnViewModelCreated(MainWindowViewModel viewModel, SplashScreen splashScreen, IClassicDesktopStyleApplicationLifetime desktop)
+    {
+        // UI-Thread verwenden, um Änderungen an der UI vorzunehmen
+        Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+        {
+            var mainWindow = new MainWindow
+            {
+                DataContext = viewModel
+            };
+            
+            desktop.MainWindow = mainWindow;
+            mainWindow.Show();
+            splashScreen.Close();
+        });
+    }
 
-    private MainWindowViewModel CreateMainWindowViewModel(string port = null, int baudrate = 0)
+    private async Task<MainWindowViewModel> CreateMainWindowViewModel(string port = null, int baudrate = 0)
     {
         var collection = new ServiceCollection();
         collection.AddCommonServices();
@@ -79,7 +99,7 @@ public partial class App : Application
 
         var mainViewModel = services.GetRequiredService<MainWindowViewModel>();
 
-        mainViewModel.LoupedeckController.Initialize(port, baudrate);
+        await mainViewModel.LoupedeckController.Initialize(port, baudrate);
 
         return mainViewModel;
     }
