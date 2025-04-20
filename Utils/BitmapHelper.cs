@@ -3,98 +3,101 @@ using Avalonia;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Media.Immutable;
+using Avalonia.Threading;
 using LoupixDeck.Models;
 
 namespace LoupixDeck.Utils;
 
 public static class BitmapHelper
 {
-    public static Bitmap RenderSimpleButtonImage(SimpleButton simpleButton, int width, int height)
+    public static async Task<Bitmap> RenderSimpleButtonImage(SimpleButton simpleButton, int width, int height)
     {
         ArgumentNullException.ThrowIfNull(simpleButton);
 
-        var rtb = new RenderTargetBitmap(
-            new PixelSize(width, height)
-        );
-
-        using var ctx = rtb.CreateDrawingContext(true);
-
-        // Background: first clear it with transparency
-        ctx.DrawRectangle(
-            brush: Brushes.Transparent,
-            pen: null,
-            rect: new Rect(0, 0, width, height)
-        );
-
-        // Values for ring thickness and margin
-        const int ringThickness = 3;
-        const int margin = 8;
-        const int innerRingThickness = 4;
-        const int innerRingMargin = 28;
-        const double gapAngle = 45.0;
-        const double startAngle = 60;
-
-        // Create a pen for the ring
-        var brush = new SolidColorBrush(simpleButton.ButtonColor);
-        var ringPen = new Pen(brush, ringThickness);
-
-        // Calculate the center point
-        var center = new Point(width / 2.0, height / 2.0);
-
-        // Choose radii to maintain the desired margin from the edges
-        var radiusX = (width - 2 * margin) / 2.0;
-        var radiusY = (height - 2 * margin) / 2.0;
-
-        // Draw the ring (circle or ellipse depending on width/height ratio)
-        ctx.DrawEllipse(
-            Brushes.Transparent,
-            ringPen,
-            center,
-            radiusX,
-            radiusY
-        );
-
-        // Radii for the inner ring
-        var innerRadiusX = (width - 2 * innerRingMargin) / 2.0;
-        var innerRadiusY = (height - 2 * innerRingMargin) / 2.0;
-
-        var innerRingPen = new Pen(brush, innerRingThickness);
-
-        // We have no DrawArc, so we need to draw it with geometry ourselve
-        var geometry = new StreamGeometry();
-        using (var geoCtx = geometry.Open())
+        return await Dispatcher.UIThread.InvokeAsync(() =>
         {
-            const double endAngle = startAngle + (360 - gapAngle);
+            var rtb = new RenderTargetBitmap(
+                new PixelSize(width, height)
+            );
 
-            const int segmentCount = 100;
-            const double angleStep = (endAngle - startAngle) / segmentCount;
+            using var ctx = rtb.CreateDrawingContext(true);
 
-            var isFirstPoint = true;
+            // Background: first clear it with transparency
+            ctx.DrawRectangle(
+                brush: Brushes.Transparent,
+                pen: null,
+                rect: new Rect(0, 0, width, height)
+            );
 
-            for (var i = 0; i <= segmentCount; i++)
+            // Values for ring thickness and margin
+            const int ringThickness = 3;
+            const int margin = 8;
+            const int innerRingThickness = 4;
+            const int innerRingMargin = 28;
+            const double gapAngle = 45.0;
+            const double startAngle = 60;
+
+            // Create a pen for the ring
+            var brush = new ImmutableSolidColorBrush(simpleButton.ButtonColor);
+            var ringPen = new ImmutablePen(brush, ringThickness);
+
+            // Calculate the center point
+            var center = new Point(width / 2.0, height / 2.0);
+
+            // Choose radii to maintain the desired margin from the edges
+            var radiusX = (width - 2 * margin) / 2.0;
+            var radiusY = (height - 2 * margin) / 2.0;
+
+            // Draw the ring (circle or ellipse depending on width/height ratio)
+            ctx.DrawEllipse(
+                Brushes.Transparent,
+                ringPen,
+                center,
+                radiusX,
+                radiusY
+            );
+
+            // Radii for the inner ring
+            var innerRadiusX = (width - 2 * innerRingMargin) / 2.0;
+            var innerRadiusY = (height - 2 * innerRingMargin) / 2.0;
+
+            var innerRingPen = new ImmutablePen(brush, innerRingThickness);
+
+            // We have no DrawArc, so we need to draw it with geometry ourselves
+            var geo = new StreamGeometry();
+            using (var geoCtx = geo.Open())
             {
-                var angle = startAngle + i * angleStep;
-                var radian = Math.PI * angle / 180.0;
-                var x = center.X + innerRadiusX * Math.Cos(radian);
-                var y = center.Y - innerRadiusY * Math.Sin(radian);
+                const double endAngle = startAngle + (360 - gapAngle);
+                const int segmentCount = 100;
+                const double angleStep = (endAngle - startAngle) / segmentCount;
 
-                var point = new Point(x, y);
-                if (isFirstPoint)
+                var isFirstPoint = true;
+
+                for (var i = 0; i <= segmentCount; i++)
                 {
-                    geoCtx.BeginFigure(point, false);
-                    isFirstPoint = false;
-                }
-                else
-                {
-                    geoCtx.LineTo(point);
+                    var angle = startAngle + i * angleStep;
+                    var radian = Math.PI * angle / 180.0;
+                    var x = center.X + innerRadiusX * Math.Cos(radian);
+                    var y = center.Y - innerRadiusY * Math.Sin(radian);
+
+                    var point = new Point(x, y);
+                    if (isFirstPoint)
+                    {
+                        geoCtx.BeginFigure(point, false);
+                        isFirstPoint = false;
+                    }
+                    else
+                    {
+                        geoCtx.LineTo(point);
+                    }
                 }
             }
-        }
 
-        // Draw the inner ring with the geometry
-        ctx.DrawGeometry(Brushes.Transparent, innerRingPen, geometry);
+            // Draw the inner ring with the geometry
+            ctx.DrawGeometry(Brushes.Transparent, innerRingPen, geo);
 
-        return rtb;
+            return rtb;
+        });
     }
 
     /// <summary>
