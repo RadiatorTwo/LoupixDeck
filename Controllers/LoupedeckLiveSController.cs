@@ -2,6 +2,7 @@ using LoupixDeck.LoupedeckDevice;
 using LoupixDeck.Models;
 using LoupixDeck.Services;
 using LoupixDeck.Utils;
+using LoupixDeck.Views;
 
 namespace LoupixDeck.Controllers;
 
@@ -108,7 +109,11 @@ public class LoupedeckLiveSController
         _config.CurrentTouchButtonPage.Selected = true;
 
         // Apply all TouchButton Images and RGB Button Colors.
-        ApplyAllData();
+        // Needs to be called on UI Thread.
+        await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+        {
+            ApplyAllData();
+        });
 
         InitButtonEvents();
 
