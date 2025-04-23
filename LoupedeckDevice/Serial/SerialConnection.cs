@@ -118,8 +118,11 @@ Sec-WebSocket-Key: 123abc
 
                 _serialPort.Open();
 
-                // Perform the handshake synchronously.
-                PerformHandshake();
+                // Perform the handshake to get the device into Websocket mode on the Serial Port
+                if (!PerformHandshake())
+                {
+                    throw new IOException("Handshake failed after multiple attempts.");
+                }
 
                 // If the handshake is successful, notify that we have connected.
                 Connected?.Invoke(this, new ConnectionEventArgs(_portName));
@@ -234,43 +237,80 @@ Sec-WebSocket-Key: 123abc
         }
 
         /// <summary>
-        /// Performs a "GET ... websocket" handshake and checks for the expected "HTTP/1.1" response.
+        /// Attempts to perform a “GET ... websocket” handshake and checks for the expected “HTTP/1.1” response.
+        /// Makes several attempts if the handshake fails.
         /// </summary>
-        /// <exception cref="InvalidOperationException">Thrown if the serial port is not initialized.</exception>
-        /// <exception cref="IOException">Thrown if no response arrives or an invalid response is received.</exception>
-        private void PerformHandshake()
+        /// <param name="maxRetries">The maximum number of attempts.</param>
+        /// <returns>Returns true if the handshake was successful, otherwise false.</returns>
+        private bool PerformHandshake(int maxRetries = 3)
         {
-            // First, write the header
             var buffer = Encoding.ASCII.GetBytes(WS_UPGRADE_HEADER);
-            _serialPort?.BaseStream.Write(buffer, 0, buffer.Length);
 
-            // Then read the response synchronously
-            var readBuf = new byte[1024];
             if (_serialPort == null)
             {
                 throw new InvalidOperationException("Serial port is not initialized.");
             }
 
-            _serialPort.ReadTimeout = 2000;
-
-            // Toggling DTR might reset some devices and allow them to respond correctly.
-            //_serialPort.DtrEnable = false;
-            //Thread.Sleep(100);
-            //_serialPort.DtrEnable = true;
-
-            int read = _serialPort.BaseStream.Read(readBuf, 0, readBuf.Length);
-            if (read <= 0)
+            for (int attempt = 1; attempt <= maxRetries; attempt++)
             {
-                throw new IOException("No response received during the handshake.");
+                try
+                {
+                    // Sending Header
+                    _serialPort.BaseStream.Write(buffer, 0, buffer.Length);
+
+                    // Read answer
+                    _serialPort.ReadTimeout = 250; // Timeout for the handshake response
+                    var readBuf = new byte[1024];
+                    var responseBuilder = new StringBuilder();
+
+                    while (true)
+                    {
+                        int read = _serialPort.BaseStream.Read(readBuf, 0, readBuf.Length);
+                        if (read > 0)
+                        {
+                            responseBuilder.Append(Encoding.ASCII.GetString(readBuf, 0, read));
+
+                            // Check whether the response begins with the expected header
+                            if (responseBuilder.Length >= WS_UPGRADE_RESPONSE.Length)
+                            {
+                                var response = responseBuilder.ToString();
+                                if (response.StartsWith(WS_UPGRADE_RESPONSE, StringComparison.OrdinalIgnoreCase))
+                                {
+                                    // Successful handshake
+                                    return true;
+                                }
+                                else
+                                {
+                                    throw new IOException($"Invalid handshake response: {response}");
+                                }
+                            }
+                        }
+                        else
+                        {
+                            throw new IOException("No response received during the handshake.");
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Handshake attempt {attempt} failed: {ex.Message}");
+
+                    // Last attempt failed
+                    if (attempt == maxRetries)
+                    {
+                        return false;
+                    }
+
+                    Thread.Sleep(250);
+                }
+                finally
+                {
+                    // Reset timeout
+                    _serialPort.ReadTimeout = SerialPort.InfiniteTimeout;
+                }
             }
 
-            var response = Encoding.ASCII.GetString(readBuf, 0, read);
-            if (!response.StartsWith(WS_UPGRADE_RESPONSE, StringComparison.OrdinalIgnoreCase))
-            {
-                throw new IOException($"Invalid handshake response: {response}");
-            }
-
-            _serialPort.ReadTimeout = SerialPort.InfiniteTimeout;
+            return false; // Should never be reached
         }
 
         /// <summary>
