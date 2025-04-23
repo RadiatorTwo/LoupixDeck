@@ -255,6 +255,8 @@ Sec-WebSocket-Key: 123abc
             {
                 try
                 {
+                    SendWakeSignal();
+
                     // Sending Header
                     _serialPort.BaseStream.Write(buffer, 0, buffer.Length);
 
@@ -311,6 +313,23 @@ Sec-WebSocket-Key: 123abc
             }
 
             return false; // Should never be reached
+        }
+
+        private void SendWakeSignal()
+        {
+            try
+            {
+                // Beispiel: Sende ein Nullbyte (0x00) als Aufwecksignal
+                var wakeSignal = Encoding.ASCII.GetBytes("HELO");
+                _serialPort.BaseStream.Write(wakeSignal, 0, wakeSignal.Length);
+
+                // Optional: Kurze Pause, um dem Gerät Zeit zu geben, zu reagieren
+                Thread.Sleep(100);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Failed to send wake signal: {ex.Message}");
+            }
         }
 
         /// <summary>
