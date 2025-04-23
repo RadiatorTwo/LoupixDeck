@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using LoupixDeck.LoupedeckDevice;
 using LoupixDeck.Models;
 using LoupixDeck.Models.Extensions;
@@ -79,9 +80,11 @@ public class LoupedeckLiveSController(
         {
             pageManager.AddRotaryButtonPage();
         }
-
+        
         config.CurrentRotaryButtonPage.Selected = true;
         config.CurrentTouchButtonPage.Selected = true;
+        
+        config.PropertyChanged += ConfigOnPropertyChanged;
 
         // Apply all TouchButton Images and RGB Button Colors.
         ApplyAllData();
@@ -230,11 +233,23 @@ public class LoupedeckLiveSController(
             device.DrawTouchButton(touchButton, true);
         }
 
-        device.SetBrightness(config.Brightness);
+        device.SetBrightness(config.Brightness / 100.0);
     }
 
     public void SaveConfig()
     {
         configService.SaveConfig(config, _configPath);
+    }
+    
+    private void ConfigOnPropertyChanged(object sender, PropertyChangedEventArgs e)
+    {
+        switch (e.PropertyName)
+        {
+            case nameof(LoupedeckConfig.Brightness):
+            {
+                deviceService.Device.SetBrightness(config.Brightness / 100.0);
+                break;
+            }
+        }
     }
 }

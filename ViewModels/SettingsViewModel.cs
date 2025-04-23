@@ -10,21 +10,23 @@ namespace LoupixDeck.ViewModels;
 
 public class SettingsViewModel : DialogViewModelBase<DialogResult>
 {
+    public LoupedeckConfig Config { get; }
     private readonly IObsController _obs;
     public ICommand SaveObsCommand { get; }
     public ICommand TestConnectionCommand { get; }
     public ICommand ShowGeneralCommand { get; }
     public ICommand ShowObsCommand { get; }
 
-    public SettingsViewModel(IObsController obs)
+    public SettingsViewModel(LoupedeckConfig config,IObsController obs)
     {
+        Config = config;
         SaveObsCommand = new RelayCommand(SaveObs);
         TestConnectionCommand = new RelayCommand(TestConnection);
         ShowGeneralCommand = new RelayCommand(ShowGeneral);
         ShowObsCommand = new RelayCommand(ShowObs);
 
-        IsGeneralSelected = false;
-        IsObsSelected = true;
+        IsGeneralSelected = true;
+        IsObsSelected = false;
 
         ConnectionTestVisible = true;
 

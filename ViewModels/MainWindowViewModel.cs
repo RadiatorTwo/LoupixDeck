@@ -130,6 +130,7 @@ public class MainWindowViewModel : ViewModelBase
     private async Task SettingsMenuButton_Click()
     {
         await _dialogService.ShowDialogAsync<SettingsViewModel, DialogResult>();
+        LoupedeckController.SaveConfig();
     }
 
     private void QuitApplication()
