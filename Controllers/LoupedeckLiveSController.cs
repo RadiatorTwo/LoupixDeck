@@ -61,7 +61,8 @@ public class LoupedeckLiveSController
             _config.SimpleButtons =
             [
                 CreateSimpleButton(Constants.ButtonType.BUTTON0, Avalonia.Media.Colors.Blue, "System.PreviousPage"),
-                CreateSimpleButton(Constants.ButtonType.BUTTON1, Avalonia.Media.Colors.Blue, "System.PreviousRotaryPage"),
+                CreateSimpleButton(Constants.ButtonType.BUTTON1, Avalonia.Media.Colors.Blue,
+                    "System.PreviousRotaryPage"),
                 CreateSimpleButton(Constants.ButtonType.BUTTON2, Avalonia.Media.Colors.Blue, "System.NextRotaryPage"),
                 CreateSimpleButton(Constants.ButtonType.BUTTON3, Avalonia.Media.Colors.Blue, "System.NextPage")
             ];
@@ -109,11 +110,7 @@ public class LoupedeckLiveSController
         _config.CurrentTouchButtonPage.Selected = true;
 
         // Apply all TouchButton Images and RGB Button Colors.
-        // Needs to be called on UI Thread.
-        await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
-        {
-            ApplyAllData();
-        });
+        ApplyAllData();
 
         InitButtonEvents();
 
@@ -228,8 +225,13 @@ public class LoupedeckLiveSController
             ButtonColor = color
         };
 
-        button.RenderedImage = BitmapHelper.RenderSimpleButtonImage(button, 90, 90);
+        Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+        {
+            button.RenderedImage = BitmapHelper.RenderSimpleButtonImage(button, 90, 90);
+        });
         button.ItemChanged += SimpleButtonChanged;
+
+        _deviceService.Device.SetButtonColor(id, button.ButtonColor);
 
         return button;
     }
@@ -245,11 +247,6 @@ public class LoupedeckLiveSController
     public void ApplyAllData()
     {
         var device = _deviceService.Device;
-        foreach (var simpleButton in _config.SimpleButtons)
-        {
-            simpleButton.RenderedImage = BitmapHelper.RenderSimpleButtonImage(simpleButton, 90, 90);
-            device.SetButtonColor(simpleButton.Id, simpleButton.ButtonColor);
-        }
 
         foreach (var touchButton in _config.CurrentTouchButtonPage.TouchButtons)
         {
