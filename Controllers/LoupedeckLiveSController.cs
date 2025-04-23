@@ -1,8 +1,8 @@
 using LoupixDeck.LoupedeckDevice;
 using LoupixDeck.Models;
+using LoupixDeck.Models.Extensions;
 using LoupixDeck.Services;
 using LoupixDeck.Utils;
-using LoupixDeck.Views;
 
 namespace LoupixDeck.Controllers;
 
@@ -13,34 +13,18 @@ namespace LoupixDeck.Controllers;
 /// - registers the device events and
 /// - forwards the UI events to the corresponding services.
 /// </summary>
-public class LoupedeckLiveSController
+public class LoupedeckLiveSController(
+    IDeviceService deviceService,
+    ICommandService commandService,
+    IPageManager pageManager,
+    IConfigService configService,
+    LoupedeckConfig config)
 {
-    private readonly IDeviceService _deviceService;
-    private readonly ICommandService _commandService;
-    private readonly IPageManager _pageManager;
-    private readonly IConfigService _configService;
-    private readonly LoupedeckConfig _config;
-    private readonly string _configPath;
+    private readonly string _configPath = FileDialogHelper.GetConfigPath("config.json");
 
-    public LoupedeckLiveSController(
-        IDeviceService deviceService,
-        ICommandService commandService,
-        IPageManager pageManager,
-        IConfigService configService,
-        LoupedeckConfig config)
-    {
-        _deviceService = deviceService;
-        _commandService = commandService;
-        _pageManager = pageManager;
-        _configService = configService;
-        _config = config;
+    public IPageManager PageManager => pageManager;
 
-        _configPath = FileDialogHelper.GetConfigPath("config.json");
-    }
-
-    public IPageManager PageManager => _pageManager;
-
-    public LoupedeckConfig Config => _config;
+    public LoupedeckConfig Config => config;
 
     public async Task Initialize(string port = null, int baudrate = 0)
     {
@@ -51,63 +35,53 @@ public class LoupedeckLiveSController
             Config.DeviceBaudrate = baudrate;
 
         // Start the device using the configuration
-        _deviceService.StartDevice(_config.DevicePort, _config.DeviceBaudrate);
+        deviceService.StartDevice(config.DevicePort, config.DeviceBaudrate);
 
-        _pageManager.OnTouchPageChanged += OnTouchPageChanged;
+        pageManager.OnTouchPageChanged += OnTouchPageChanged;
 
-        // If no SimpleButtons are available, create standard buttons.
-        if (_config.SimpleButtons == null || !_config.SimpleButtons.Any())
+        config.SimpleButtons =
+        [
+            CreateSimpleButton(Constants.ButtonType.BUTTON0, Avalonia.Media.Colors.Blue, "System.PreviousPage"),
+            CreateSimpleButton(Constants.ButtonType.BUTTON1, Avalonia.Media.Colors.Blue, "System.PreviousRotaryPage"),
+            CreateSimpleButton(Constants.ButtonType.BUTTON2, Avalonia.Media.Colors.Blue, "System.NextRotaryPage"),
+            CreateSimpleButton(Constants.ButtonType.BUTTON3, Avalonia.Media.Colors.Blue, "System.NextPage")
+        ];
+
+        if (config.RotaryButtonPages == null || config.RotaryButtonPages.Count == 0)
         {
-            _config.SimpleButtons =
-            [
-                CreateSimpleButton(Constants.ButtonType.BUTTON0, Avalonia.Media.Colors.Blue, "System.PreviousPage"),
-                CreateSimpleButton(Constants.ButtonType.BUTTON1, Avalonia.Media.Colors.Blue,
-                    "System.PreviousRotaryPage"),
-                CreateSimpleButton(Constants.ButtonType.BUTTON2, Avalonia.Media.Colors.Blue, "System.NextRotaryPage"),
-                CreateSimpleButton(Constants.ButtonType.BUTTON3, Avalonia.Media.Colors.Blue, "System.NextPage")
-            ];
-        }
-
-        foreach (var simpleButton in _config.SimpleButtons)
-        {
-            simpleButton.ItemChanged += SimpleButtonChanged;
-        }
-
-        if (_config.RotaryButtonPages == null || _config.RotaryButtonPages.Count == 0)
-        {
-            _pageManager.AddRotaryButtonPage();
+            pageManager.AddRotaryButtonPage();
         }
         else
         {
             // Existing config Init always page 0.
-            _config.CurrentRotaryPageIndex = 0;
-            _pageManager.ApplyRotaryPage(_config.CurrentRotaryPageIndex);
+            config.CurrentRotaryPageIndex = 0;
+            pageManager.ApplyRotaryPage(config.CurrentRotaryPageIndex);
         }
 
-        if (_config.TouchButtonPages == null || _config.TouchButtonPages.Count == 0)
+        if (config.TouchButtonPages == null || config.TouchButtonPages.Count == 0)
         {
-            _pageManager.AddTouchButtonPage();
+            pageManager.AddTouchButtonPage();
         }
         else
         {
             // Existing config Init always page 0.
-            _config.CurrentTouchPageIndex = 0;
-            _pageManager.ApplyTouchPage(_config.CurrentTouchPageIndex);
+            config.CurrentTouchPageIndex = 0;
+            pageManager.ApplyTouchPage(config.CurrentTouchPageIndex);
 
             // With an existing config, we need to apply the item changed event to the current Touch Button Page
-            foreach (var touchButton in _config.CurrentTouchButtonPage.TouchButtons)
+            foreach (var touchButton in config.CurrentTouchButtonPage.TouchButtons)
             {
                 touchButton.ItemChanged += TouchItemChanged;
             }
         }
 
-        if (_config.RotaryButtonPages == null || _config.RotaryButtonPages.Count == 0)
+        if (config.RotaryButtonPages == null || config.RotaryButtonPages.Count == 0)
         {
-            _pageManager.AddRotaryButtonPage();
+            pageManager.AddRotaryButtonPage();
         }
 
-        _config.CurrentRotaryButtonPage.Selected = true;
-        _config.CurrentTouchButtonPage.Selected = true;
+        config.CurrentRotaryButtonPage.Selected = true;
+        config.CurrentTouchButtonPage.Selected = true;
 
         // Apply all TouchButton Images and RGB Button Colors.
         ApplyAllData();
@@ -116,89 +90,91 @@ public class LoupedeckLiveSController
 
         // Save the initial configuration.
         SaveConfig();
+
+        await Task.CompletedTask;
     }
 
     private void InitButtonEvents()
     {
-        var device = _deviceService.Device;
+        var device = deviceService.Device;
         device.OnButton += OnSimpleButtonPress;
         device.OnTouch += OnTouchButtonPress;
         device.OnRotate += OnRotate;
     }
 
-    public void OnSimpleButtonPress(object sender, ButtonEventArgs e)
+    private void OnSimpleButtonPress(object sender, ButtonEventArgs e)
     {
         if (e.EventType != Constants.ButtonEventType.BUTTON_DOWN)
             return;
 
-        var button = _config.SimpleButtons.FirstOrDefault(b => b.Id == e.ButtonId);
+        var button = config.SimpleButtons.FirstOrDefault(b => b.Id == e.ButtonId);
         if (button != null)
         {
-            _commandService.ExecuteCommand(button.Command);
+            commandService.ExecuteCommand(button.Command);
         }
         else
         {
             switch (e.ButtonId)
             {
                 case Constants.ButtonType.KNOB_TL:
-                    _commandService.ExecuteCommand(_config.RotaryButtonPages[_config.CurrentRotaryPageIndex]
+                    commandService.ExecuteCommand(config.RotaryButtonPages[config.CurrentRotaryPageIndex]
                         .RotaryButtons[0].Command);
                     break;
                 case Constants.ButtonType.KNOB_CL:
-                    _commandService.ExecuteCommand(_config.RotaryButtonPages[_config.CurrentRotaryPageIndex]
+                    commandService.ExecuteCommand(config.RotaryButtonPages[config.CurrentRotaryPageIndex]
                         .RotaryButtons[1].Command);
                     break;
             }
         }
     }
 
-    public void OnTouchButtonPress(object sender, TouchEventArgs e)
+    private void OnTouchButtonPress(object sender, TouchEventArgs e)
     {
         if (e.EventType != Constants.TouchEventType.TOUCH_START)
             return;
 
         foreach (var touch in e.Touches)
         {
-            var button = _config.CurrentTouchButtonPage.TouchButtons.FirstOrDefault(b => b.Index == touch.Target.Key);
+            var button = config.CurrentTouchButtonPage.TouchButtons.FindByIndex(touch.Target.Key);
             if (button == null) continue;
 
-            _commandService.ExecuteCommand(button.Command);
-            _deviceService.Device.Vibrate();
+            commandService.ExecuteCommand(button.Command);
+            deviceService.Device.Vibrate();
         }
     }
 
-    public void OnRotate(object sender, RotateEventArgs e)
+    private void OnRotate(object sender, RotateEventArgs e)
     {
         string command = e.ButtonId switch
         {
             Constants.ButtonType.KNOB_TL => e.Delta < 0
-                ? _config.RotaryButtonPages[_config.CurrentRotaryPageIndex].RotaryButtons[0].RotaryLeftCommand
-                : _config.RotaryButtonPages[_config.CurrentRotaryPageIndex].RotaryButtons[0].RotaryRightCommand,
+                ? config.RotaryButtonPages[config.CurrentRotaryPageIndex].RotaryButtons[0].RotaryLeftCommand
+                : config.RotaryButtonPages[config.CurrentRotaryPageIndex].RotaryButtons[0].RotaryRightCommand,
             Constants.ButtonType.KNOB_CL => e.Delta < 0
-                ? _config.RotaryButtonPages[_config.CurrentRotaryPageIndex].RotaryButtons[1].RotaryLeftCommand
-                : _config.RotaryButtonPages[_config.CurrentRotaryPageIndex].RotaryButtons[1].RotaryRightCommand,
+                ? config.RotaryButtonPages[config.CurrentRotaryPageIndex].RotaryButtons[1].RotaryLeftCommand
+                : config.RotaryButtonPages[config.CurrentRotaryPageIndex].RotaryButtons[1].RotaryRightCommand,
             _ => null
         };
 
         if (!string.IsNullOrEmpty(command))
         {
-            _commandService.ExecuteCommand(command);
+            commandService.ExecuteCommand(command);
         }
     }
 
     private void OnTouchPageChanged(int oldIndex, int newIndex)
     {
-        if (oldIndex >= 0 && oldIndex < _config.TouchButtonPages.Count && _config.TouchButtonPages[oldIndex] != null)
+        if (oldIndex >= 0 && oldIndex < config.TouchButtonPages.Count && config.TouchButtonPages[oldIndex] != null)
         {
-            foreach (var touchButton in _config.TouchButtonPages[oldIndex].TouchButtons)
+            foreach (var touchButton in config.TouchButtonPages[oldIndex].TouchButtons)
             {
                 touchButton.ItemChanged -= TouchItemChanged;
             }
         }
 
-        if (newIndex >= 0 && newIndex < _config.TouchButtonPages.Count && _config.TouchButtonPages[newIndex] != null)
+        if (newIndex >= 0 && newIndex < config.TouchButtonPages.Count && config.TouchButtonPages[newIndex] != null)
         {
-            foreach (var touchButton in _config.TouchButtonPages[newIndex].TouchButtons)
+            foreach (var touchButton in config.TouchButtonPages[newIndex].TouchButtons)
             {
                 touchButton.ItemChanged += TouchItemChanged;
             }
@@ -209,16 +185,16 @@ public class LoupedeckLiveSController
     {
         if (sender is not TouchButton item) return;
 
-        var button = _config.CurrentTouchButtonPage.TouchButtons.FirstOrDefault(b => b.Index == item.Index);
+        var button = config.CurrentTouchButtonPage.TouchButtons.FirstOrDefault(b => b.Index == item.Index);
 
         if (button == null) return;
 
-        _deviceService.Device.DrawTouchButton(button, true);
+        deviceService.Device.DrawTouchButton(button, true);
     }
 
-    public SimpleButton CreateSimpleButton(Constants.ButtonType id, Avalonia.Media.Color color, string command)
+    private SimpleButton CreateSimpleButton(Constants.ButtonType id, Avalonia.Media.Color color, string command)
     {
-        var button = new SimpleButton
+        var button = config.SimpleButtons.FindById(id) ?? new SimpleButton
         {
             Id = id,
             Command = command,
@@ -229,9 +205,10 @@ public class LoupedeckLiveSController
         {
             button.RenderedImage = BitmapHelper.RenderSimpleButtonImage(button, 90, 90);
         });
+
         button.ItemChanged += SimpleButtonChanged;
 
-        _deviceService.Device.SetButtonColor(id, button.ButtonColor);
+        deviceService.Device.SetButtonColor(id, button.ButtonColor);
 
         return button;
     }
@@ -241,23 +218,23 @@ public class LoupedeckLiveSController
         if (sender is not SimpleButton button) return;
 
         button.RenderedImage = BitmapHelper.RenderSimpleButtonImage(button, 90, 90);
-        _deviceService.Device.SetButtonColor(button.Id, button.ButtonColor);
+        deviceService.Device.SetButtonColor(button.Id, button.ButtonColor);
     }
 
-    public void ApplyAllData()
+    private void ApplyAllData()
     {
-        var device = _deviceService.Device;
+        var device = deviceService.Device;
 
-        foreach (var touchButton in _config.CurrentTouchButtonPage.TouchButtons)
+        foreach (var touchButton in config.CurrentTouchButtonPage.TouchButtons)
         {
             device.DrawTouchButton(touchButton, true);
         }
 
-        device.SetBrightness(_config.Brightness);
+        device.SetBrightness(config.Brightness);
     }
 
     public void SaveConfig()
     {
-        _configService.SaveConfig(_config, _configPath);
+        configService.SaveConfig(config, _configPath);
     }
 }
