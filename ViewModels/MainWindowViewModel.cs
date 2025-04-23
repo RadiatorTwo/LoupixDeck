@@ -38,11 +38,11 @@ public class MainWindowViewModel : ViewModelBase
     public LoupedeckLiveSController LoupedeckController { get; }
 
     public MainWindowViewModel(LoupedeckLiveSController loupedeck,
-                               IDialogService dialogService, 
-                               IObsController obs,
-                               ElgatoDevices elgatoDevices,
-                               ISysCommandService sysCommandService,
-                               ICommandBuilder commandBuilder)
+        IDialogService dialogService,
+        IObsController obs,
+        ElgatoDevices elgatoDevices,
+        ISysCommandService sysCommandService,
+        ICommandBuilder commandBuilder)
     {
         LoupedeckController = loupedeck;
 
@@ -72,56 +72,75 @@ public class MainWindowViewModel : ViewModelBase
 
     private void AddRotaryPageButton_Click()
     {
-        Avalonia.Threading.Dispatcher.UIThread.Post(() => { LoupedeckController.PageManager.AddRotaryButtonPage(); });
+        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        {
+            LoupedeckController.PageManager.AddRotaryButtonPage();
+            LoupedeckController.SaveConfig();
+        });
     }
 
     private void DeleteRotaryPageButton_Click()
     {
-        Avalonia.Threading.Dispatcher.UIThread.Post(() => { LoupedeckController.PageManager.DeleteRotaryButtonPage(); });
+        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        {
+            LoupedeckController.PageManager.DeleteRotaryButtonPage();
+            LoupedeckController.SaveConfig();
+        });
     }
 
     private void RotaryPageButton_Click(int page)
     {
-        Avalonia.Threading.Dispatcher.UIThread.Post(() => { LoupedeckController.PageManager.ApplyRotaryPage(page - 1); });
+        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        {
+            LoupedeckController.PageManager.ApplyRotaryPage(page - 1);
+        });
     }
 
     private void AddTouchPageButton_Click()
     {
-        Avalonia.Threading.Dispatcher.UIThread.Post(() => { LoupedeckController.PageManager.AddTouchButtonPage(); });
+        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        {
+            LoupedeckController.PageManager.AddTouchButtonPage();
+            LoupedeckController.SaveConfig();
+        });
     }
 
     private void DeleteTouchPageButton_Click()
     {
-        Avalonia.Threading.Dispatcher.UIThread.Post(() => { LoupedeckController.PageManager.DeleteTouchButtonPage(); });
+        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        {
+            LoupedeckController.PageManager.DeleteTouchButtonPage();
+            LoupedeckController.SaveConfig();
+        });
     }
 
     private void TouchPageButton_Click(int page)
     {
-        Avalonia.Threading.Dispatcher.UIThread.Post(() => { LoupedeckController.PageManager.ApplyTouchPage(page - 1); });
+        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        {
+            LoupedeckController.PageManager.ApplyTouchPage(page - 1);
+        });
     }
 
     private async Task RotaryButton_Click(RotaryButton button)
     {
-        await _dialogService.ShowDialogAsync<RotaryButtonSettingsViewModel, DialogResult>(
-            vm => vm.Initialize(button)
+        await _dialogService.ShowDialogAsync<RotaryButtonSettingsViewModel, DialogResult>(vm => vm.Initialize(button)
         );
-        
+
         LoupedeckController.SaveConfig();
     }
 
     private async Task SimpleButton_Click(SimpleButton button)
     {
-        await _dialogService.ShowDialogAsync<SimpleButtonSettingsViewModel, DialogResult>(
-            vm => vm.Initialize(button)
+        await _dialogService.ShowDialogAsync<SimpleButtonSettingsViewModel, DialogResult>(vm => vm.Initialize(button)
         );
-        
+
         LoupedeckController.SaveConfig();
     }
 
     private async Task TouchButton_Click(TouchButton button)
     {
-        await _dialogService.ShowDialogAsync<TouchButtonSettingsViewModel, DialogResult>(
-            vm => vm.Initialize(button)
+        await _dialogService.ShowDialogAsync<TouchButtonSettingsViewModel, DialogResult>(vm => vm.Initialize(button)
         );
 
         LoupedeckController.SaveConfig();
