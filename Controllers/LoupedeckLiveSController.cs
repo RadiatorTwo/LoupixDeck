@@ -53,19 +53,19 @@ public class LoupedeckLiveSController
         _deviceService.StartDevice(_config.DevicePort, _config.DeviceBaudrate);
 
         _pageManager.OnTouchPageChanged += OnTouchPageChanged;
-        
+
         // If no SimpleButtons are available, create standard buttons.
         if (_config.SimpleButtons == null || !_config.SimpleButtons.Any())
         {
             _config.SimpleButtons =
             [
-                await CreateSimpleButton(Constants.ButtonType.BUTTON0, Avalonia.Media.Colors.Blue, "System.PreviousPage"),
-                await CreateSimpleButton(Constants.ButtonType.BUTTON1, Avalonia.Media.Colors.Blue, "System.PreviousRotaryPage"),
-                await CreateSimpleButton(Constants.ButtonType.BUTTON2, Avalonia.Media.Colors.Blue, "System.NextRotaryPage"),
-                await CreateSimpleButton(Constants.ButtonType.BUTTON3, Avalonia.Media.Colors.Blue, "System.NextPage")
+                CreateSimpleButton(Constants.ButtonType.BUTTON0, Avalonia.Media.Colors.Blue, "System.PreviousPage"),
+                CreateSimpleButton(Constants.ButtonType.BUTTON1, Avalonia.Media.Colors.Blue, "System.PreviousRotaryPage"),
+                CreateSimpleButton(Constants.ButtonType.BUTTON2, Avalonia.Media.Colors.Blue, "System.NextRotaryPage"),
+                CreateSimpleButton(Constants.ButtonType.BUTTON3, Avalonia.Media.Colors.Blue, "System.NextPage")
             ];
         }
-        
+
         foreach (var simpleButton in _config.SimpleButtons)
         {
             simpleButton.ItemChanged += SimpleButtonChanged;
@@ -91,7 +91,7 @@ public class LoupedeckLiveSController
             // Existing config Init always page 0.
             _config.CurrentTouchPageIndex = 0;
             _pageManager.ApplyTouchPage(_config.CurrentTouchPageIndex);
-            
+
             // With an existing config, we need to apply the item changed event to the current Touch Button Page
             foreach (var touchButton in _config.CurrentTouchButtonPage.TouchButtons)
             {
@@ -106,17 +106,17 @@ public class LoupedeckLiveSController
 
         _config.CurrentRotaryButtonPage.Selected = true;
         _config.CurrentTouchButtonPage.Selected = true;
-        
+
         // Apply all TouchButton Images and RGB Button Colors.
         ApplyAllData();
-        
+
         InitButtonEvents();
-        
+
         // Save the initial configuration.
         SaveConfig();
     }
-    
-     private void InitButtonEvents()
+
+    private void InitButtonEvents()
     {
         var device = _deviceService.Device;
         device.OnButton += OnSimpleButtonPress;
@@ -214,7 +214,7 @@ public class LoupedeckLiveSController
         _deviceService.Device.DrawTouchButton(button, true);
     }
 
-    public async Task<SimpleButton> CreateSimpleButton(Constants.ButtonType id, Avalonia.Media.Color color, string command)
+    public SimpleButton CreateSimpleButton(Constants.ButtonType id, Avalonia.Media.Color color, string command)
     {
         var button = new SimpleButton
         {
@@ -222,22 +222,19 @@ public class LoupedeckLiveSController
             Command = command,
             ButtonColor = color
         };
-        
-        button.RenderedImage = await BitmapHelper.RenderSimpleButtonImage(button, 90, 90);
+
+        button.RenderedImage = BitmapHelper.RenderSimpleButtonImage(button, 90, 90);
         button.ItemChanged += SimpleButtonChanged;
-        
+
         return button;
     }
 
     private void SimpleButtonChanged(object sender, EventArgs e)
     {
         if (sender is not SimpleButton button) return;
-        
-        _ = Task.Run(async () =>
-        {
-            button.RenderedImage = await BitmapHelper.RenderSimpleButtonImage(button, 90, 90);
-            _deviceService.Device.SetButtonColor(button.Id, button.ButtonColor);
-        });
+
+        button.RenderedImage = BitmapHelper.RenderSimpleButtonImage(button, 90, 90);
+        _deviceService.Device.SetButtonColor(button.Id, button.ButtonColor);
     }
 
     public void ApplyAllData()
@@ -245,6 +242,7 @@ public class LoupedeckLiveSController
         var device = _deviceService.Device;
         foreach (var simpleButton in _config.SimpleButtons)
         {
+            simpleButton.RenderedImage = BitmapHelper.RenderSimpleButtonImage(simpleButton, 90, 90);
             device.SetButtonColor(simpleButton.Id, simpleButton.ButtonColor);
         }
 
