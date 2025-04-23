@@ -237,7 +237,7 @@ Sec-WebSocket-Key: 123abc
         }
 
         /// <summary>
-        /// Attempts to perform a “GET ... websocket” handshake and checks for the expected “HTTP/1.1” response.
+        /// Attempts to perform a GET ... websocket handshake and checks for the expected HTTP/1.1 response.
         /// Makes several attempts if the handshake fails.
         /// </summary>
         /// <param name="maxRetries">The maximum number of attempts.</param>
@@ -255,13 +255,13 @@ Sec-WebSocket-Key: 123abc
             {
                 try
                 {
-                    SendWakeSignal();
+                    // SendWakeSignal();
 
                     // Sending Header
                     _serialPort.BaseStream.Write(buffer, 0, buffer.Length);
 
                     // Read answer
-                    _serialPort.ReadTimeout = 250; // Timeout for the handshake response
+                    _serialPort.ReadTimeout = 500; // Timeout for the handshake response
                     var readBuf = new byte[1024];
                     var responseBuilder = new StringBuilder();
 
@@ -303,7 +303,7 @@ Sec-WebSocket-Key: 123abc
                         return false;
                     }
 
-                    Thread.Sleep(250);
+                    Thread.Sleep(500);
                 }
                 finally
                 {
@@ -319,8 +319,9 @@ Sec-WebSocket-Key: 123abc
         {
             try
             {
-                // Beispiel: Sende ein Nullbyte (0x00) als Aufwecksignal
-                var wakeSignal = Encoding.ASCII.GetBytes("HELO");
+                // Send a zero byte (0x00) as a wake-up signal
+                var wakeSignal = "\0"u8.ToArray();
+                //var wakeSignal = Encoding.ASCII.GetBytes("HELO");
                 _serialPort.BaseStream.Write(wakeSignal, 0, wakeSignal.Length);
 
                 // Optional: Kurze Pause, um dem Gerät Zeit zu geben, zu reagieren
