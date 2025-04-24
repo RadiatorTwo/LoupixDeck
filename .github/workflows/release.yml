@@ -48,12 +48,14 @@ jobs:
           -o publish/linux-x64
 
     - name: Zip Windows build
-      working-directory: ./publish/win-x64
-      run: zip -r ../../LoupixDeck-win-x64.zip .
+      run: |
+        cd publish/win-x64
+        zip -r ../../LoupixDeck-win-x64.zip .
 
     - name: Tar Linux build
-      working-directory: ./publish/linux-x64
-      run: tar -czvf ../../LoupixDeck-linux-x64.tar.gz .
+      run: |
+        cd publish/linux-x64
+        tar -czvf ../../LoupixDeck-linux-x64.tar.gz .
 
     - name: Upload Windows zip to release
       uses: softprops/action-gh-release@v2
