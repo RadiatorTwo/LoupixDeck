@@ -3,9 +3,7 @@ using CommunityToolkit.Mvvm.Input;
 using LoupixDeck.Controllers;
 using LoupixDeck.Models;
 using LoupixDeck.Services;
-using LoupixDeck.Utils;
 using LoupixDeck.ViewModels.Base;
-using LoupixDeck.Views;
 using AsyncRelayCommand = CommunityToolkit.Mvvm.Input.AsyncRelayCommand;
 using RelayCommand = LoupixDeck.Utils.RelayCommand;
 
@@ -14,10 +12,6 @@ namespace LoupixDeck.ViewModels;
 public class MainWindowViewModel : ViewModelBase
 {
     private readonly IDialogService _dialogService;
-    private readonly IObsController _obs;
-    private readonly ElgatoDevices _elgatoDevices;
-    private readonly ISysCommandService _sysCommandService;
-    private readonly ICommandBuilder _commandBuilder;
 
     public ICommand RotaryButtonCommand { get; }
     public ICommand SimpleButtonCommand { get; }
@@ -39,20 +33,13 @@ public class MainWindowViewModel : ViewModelBase
 
     public MainWindowViewModel(LoupedeckLiveSController loupedeck,
         IDialogService dialogService,
-        IObsController obs,
-        ElgatoDevices elgatoDevices,
-        ISysCommandService sysCommandService,
-        ICommandBuilder commandBuilder)
+        ISysCommandService sysCommandService)
     {
         LoupedeckController = loupedeck;
 
         sysCommandService.Initialize();
 
         _dialogService = dialogService;
-        _obs = obs;
-        _elgatoDevices = elgatoDevices;
-        _sysCommandService = sysCommandService;
-        _commandBuilder = commandBuilder;
 
         RotaryButtonCommand = new AsyncRelayCommand<RotaryButton>(RotaryButton_Click);
         SimpleButtonCommand = new AsyncRelayCommand<SimpleButton>(SimpleButton_Click);
@@ -60,11 +47,11 @@ public class MainWindowViewModel : ViewModelBase
 
         AddRotaryPageCommand = new RelayCommand(AddRotaryPageButton_Click);
         DeleteRotaryPageCommand = new RelayCommand(DeleteRotaryPageButton_Click);
-        RotaryPageButtonCommand = new CommunityToolkit.Mvvm.Input.RelayCommand<int>(RotaryPageButton_Click);
+        RotaryPageButtonCommand = new RelayCommand<int>(RotaryPageButton_Click);
 
         AddTouchPageCommand = new RelayCommand(AddTouchPageButton_Click);
         DeleteTouchPageCommand = new RelayCommand(DeleteTouchPageButton_Click);
-        TouchPageButtonCommand = new CommunityToolkit.Mvvm.Input.RelayCommand<int>(TouchPageButton_Click);
+        TouchPageButtonCommand = new RelayCommand<int>(TouchPageButton_Click);
 
         SettingsMenuCommand = new AsyncRelayCommand(SettingsMenuButton_Click);
         QuitApplicationCommand = new RelayCommand(QuitApplication);
