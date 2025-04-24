@@ -1,0 +1,65 @@
+name: .NET Release
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  publish:
+    name: Publish for Windows and Linux
+    runs-on: ubuntu-latest
+
+    env:
+      PROJECT_PATH: ./LoupixDeck.csproj
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Setup .NET SDK
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 9.0.x
+
+    - name: Restore dependencies
+      run: dotnet restore ${{ env.PROJECT_PATH }}
+
+    - name: Publish for Windows
+      run: |
+        dotnet publish ${{ env.PROJECT_PATH }} -c Release -r win-x64 --self-contained true \
+          /p:PublishSingleFile=true \
+          /p:PublishTrimmed=false \
+          /p:EnableCompressionInSingleFile=true \
+          /p:ReadyToRun=true \
+          -o publish/win-x64
+
+    - name: Publish for Linux
+      run: |
+        dotnet publish ${{ env.PROJECT_PATH }} -c Release -r linux-x64 --self-contained true \
+          /p:PublishSingleFile=true \
+          /p:PublishTrimmed=false \
+          /p:EnableCompressionInSingleFile=true \
+          /p:ReadyToRun=true \
+          -o publish/linux-x64
+
+    - name: Zip Windows build
+      run: zip -r LoupixDeck-win-x64.zip ./publish/win-x64
+
+    - name: Tar Linux build
+      run: tar -czvf LoupixDeck-linux-x64.tar.gz -C ./publish/linux-x64 .
+
+    - name: Upload Windows zip to release
+      uses: softprops/action-gh-release@v2
+      with:
+        files: LoupixDeck-win-x64.zip
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Upload Linux tar.gz to release
+      uses: softprops/action-gh-release@v2
+      with:
+        files: LoupixDeck-linux-x64.tar.gz
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
