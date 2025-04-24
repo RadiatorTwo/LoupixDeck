@@ -13,19 +13,44 @@
         Icon="avares://LoupixDeck/Assets/logo.ico"
         Title="LoupixDeck"
         x:Name="RootWindow">
+    <Window.Styles>
+        <Style Selector="Button[Tag=Touch]">
+            <Setter Property="Background" Value="#0F0F0F" />
+            <Setter Property="BorderBrush" Value="{StaticResource ButtonBorder}" />
+            <Setter Property="BorderThickness" Value="2" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Width" Value="90" />
+            <Setter Property="Height" Value="90" />
+            <Setter Property="Effect" Value="{StaticResource InnerShadow}" />
+        </Style>
+        <Style Selector="Button[Tag=Led]">
+            <Setter Property="Background" Value="#FF0F0F0F" />
+            <Setter Property="Effect" Value="{StaticResource InnerShadow}" />
+        </Style>
+        <Style Selector="Button[Tag=Mini]">
+            <Setter Property="Width" Value="30" />
+            <Setter Property="Height" Value="30" />
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="Background" Value="{StaticResource PanelDark}" />
+            <Setter Property="BorderBrush" Value="{StaticResource ButtonBorder}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="8" />
+        </Style>
 
+    </Window.Styles>
     <Design.DataContext>
         <!-- This only sets the DataContext for the previewer in an IDE,
              to set the actual DataContext for runtime, set the DataContext property in code (look at App.axaml.cs) -->
         <vm:MainWindowViewModel />
     </Design.DataContext>
-    
+
     <Window.Resources>
         <!-- Hier weisen Sie die Ressourcen zu -->
         <conv:BoolToBrushConverter
             x:Key="BoolToBrushConverter"
             SelectedBrush="{StaticResource SelectedBrush}"
-            UnselectedBrush="{StaticResource UnselectedBrush}"/>
+            UnselectedBrush="{StaticResource UnselectedBrush}" />
     </Window.Resources>
 
     <Grid ColumnDefinitions="150,500,150,50" RowDefinitions="300,30,50">
@@ -138,15 +163,14 @@
                            VerticalAlignment="Center" />
                 </Border>
             </Button>
-            <Button
-                Grid.Column="0"
-                Grid.Row="2"
-                HorizontalAlignment="Center"
-                Width="90"
-                Height="90"
-                Background="Transparent"
-                Command="{Binding SimpleButtonCommand}"
-                CommandParameter="{Binding LoupedeckController.Config.SimpleButtons[0]}">
+            <Button Tag="Led"
+                    Grid.Column="0"
+                    Grid.Row="2"
+                    HorizontalAlignment="Center"
+                    Width="90"
+                    Height="90"
+                    Command="{Binding SimpleButtonCommand}"
+                    CommandParameter="{Binding LoupedeckController.Config.SimpleButtons[0]}">
                 <Button.Styles>
                     <!-- Standard-Zustand -->
                     <Style Selector="Button">
@@ -204,13 +228,13 @@
                     </ItemsControl.ItemsPanel>
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                            <Button Content="{Binding Page}"
+                            <Button Tag="Mini"
+                                    Content="{Binding Page}"
                                     Command="{Binding ViewModel.RotaryPageButtonCommand, ElementName=RootWindow}"
                                     CommandParameter="{Binding Page}"
-                                    Width="30" Height="30" CornerRadius="8"
                                     HorizontalContentAlignment="Center"
                                     VerticalContentAlignment="Center"
-                                    Background="{Binding Selected, Converter={StaticResource BoolToBrushConverter}}"/>
+                                    Background="{Binding Selected, Converter={StaticResource BoolToBrushConverter}}" />
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
@@ -235,155 +259,200 @@
               RowDefinitions="100,100,100">
 
             <!-- Reihe 1 -->
-            <Button
-                Grid.Row="0"
-                Grid.Column="0"
-                Width="90"
-                Height="90"
-                Command="{Binding TouchButtonCommand}"
-                CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[0]}">
-                <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[0].RenderedImage}" />
+            <Button Tag="Touch"
+                    Grid.Row="0"
+                    Grid.Column="0"
+                    Width="90"
+                    Height="90"
+                    Command="{Binding TouchButtonCommand}"
+                    CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[0]}">
+                <Border CornerRadius="6" ClipToBounds="True">
+                    <Image
+                        Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[0].RenderedImage}" />
+                </Border>
             </Button>
-            <Button
-                Grid.Row="0"
-                Grid.Column="1"
-                Width="90"
-                Height="90"
-                Command="{Binding TouchButtonCommand}"
-                CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[1]}">
-                <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[1].RenderedImage}" />
+            <Button Tag="Touch"
+                    Grid.Row="0"
+                    Grid.Column="1"
+                    Width="90"
+                    Height="90"
+                    Command="{Binding TouchButtonCommand}"
+                    CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[1]}">
+                <Border CornerRadius="6" ClipToBounds="True">
+                    <Image
+                        Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[1].RenderedImage}" />
+                </Border>
             </Button>
-            <Button
-                Grid.Row="0"
-                Grid.Column="2"
-                Width="90"
-                Height="90"
-                Command="{Binding TouchButtonCommand}"
-                CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[2]}">
-                <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[2].RenderedImage}" />
+            <Button Tag="Touch"
+                    Grid.Row="0"
+                    Grid.Column="2"
+                    Width="90"
+                    Height="90"
+                    Command="{Binding TouchButtonCommand}"
+                    CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[2]}">
+                <Border CornerRadius="6" ClipToBounds="True">
+                    <Image
+                        Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[2].RenderedImage}" />
+                </Border>
             </Button>
-            <Button
-                Grid.Row="0"
-                Grid.Column="3"
-                Width="90"
-                Height="90"
-                Command="{Binding TouchButtonCommand}"
-                CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[3]}">
-                <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[3].RenderedImage}" />
+            <Button Tag="Touch"
+                    Grid.Row="0"
+                    Grid.Column="3"
+                    Width="90"
+                    Height="90"
+                    Command="{Binding TouchButtonCommand}"
+                    CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[3]}">
+                <Border CornerRadius="6" ClipToBounds="True">
+                    <Image
+                        Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[3].RenderedImage}" />
+                </Border>
             </Button>
-            <Button
-                Grid.Row="0"
-                Grid.Column="4"
-                Width="90"
-                Height="90"
-                Command="{Binding TouchButtonCommand}"
-                CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[4]}">
-                <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[4].RenderedImage}" />
+            <Button Tag="Touch"
+                    Grid.Row="0"
+                    Grid.Column="4"
+                    Width="90"
+                    Height="90"
+                    Command="{Binding TouchButtonCommand}"
+                    CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[4]}">
+                <Border CornerRadius="6" ClipToBounds="True">
+                    <Image
+                        Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[4].RenderedImage}" />
+                </Border>
             </Button>
 
             <!-- Reihe 2 -->
-            <Button
-                Grid.Row="1"
-                Grid.Column="0"
-                Width="90"
-                Height="90"
-                Command="{Binding TouchButtonCommand}"
-                CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[5]}">
-                <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[5].RenderedImage}" />
+            <Button Tag="Touch"
+                    Grid.Row="1"
+                    Grid.Column="0"
+                    Width="90"
+                    Height="90"
+                    Command="{Binding TouchButtonCommand}"
+                    CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[5]}">
+                <Border CornerRadius="6" ClipToBounds="True">
+                    <Image
+                        Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[5].RenderedImage}" />
+                </Border>
             </Button>
-            <Button
-                Grid.Row="1"
-                Grid.Column="1"
-                Width="90"
-                Height="90"
-                Command="{Binding TouchButtonCommand}"
-                CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[6]}">
-                <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[6].RenderedImage}" />
+            <Button Tag="Touch"
+                    Grid.Row="1"
+                    Grid.Column="1"
+                    Width="90"
+                    Height="90"
+                    Command="{Binding TouchButtonCommand}"
+                    CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[6]}">
+                <Border CornerRadius="6" ClipToBounds="True">
+                    <Image
+                        Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[6].RenderedImage}" />
+                </Border>
             </Button>
-            <Button
-                Grid.Row="1"
-                Grid.Column="2"
-                Width="90"
-                Height="90"
-                Command="{Binding TouchButtonCommand}"
-                CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[7]}">
-                <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[7].RenderedImage}" />
+            <Button Tag="Touch"
+                    Grid.Row="1"
+                    Grid.Column="2"
+                    Width="90"
+                    Height="90"
+                    Command="{Binding TouchButtonCommand}"
+                    CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[7]}">
+                <Border CornerRadius="6" ClipToBounds="True">
+                    <Image
+                        Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[7].RenderedImage}" />
+                </Border>
             </Button>
-            <Button
-                Grid.Row="1"
-                Grid.Column="3"
-                Width="90"
-                Height="90"
-                Command="{Binding TouchButtonCommand}"
-                CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[8]}">
-                <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[8].RenderedImage}" />
+            <Button Tag="Touch"
+                    Grid.Row="1"
+                    Grid.Column="3"
+                    Width="90"
+                    Height="90"
+                    Command="{Binding TouchButtonCommand}"
+                    CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[8]}">
+                <Border CornerRadius="6" ClipToBounds="True">
+                    <Image
+                        Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[8].RenderedImage}" />
+                </Border>
             </Button>
-            <Button
-                Grid.Row="1"
-                Grid.Column="4"
-                Width="90"
-                Height="90"
-                Command="{Binding TouchButtonCommand}"
-                CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[9]}">
-                <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[9].RenderedImage}" />
+            <Button Tag="Touch"
+                    Grid.Row="1"
+                    Grid.Column="4"
+                    Width="90"
+                    Height="90"
+                    Command="{Binding TouchButtonCommand}"
+                    CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[9]}">
+                <Border CornerRadius="6" ClipToBounds="True">
+                    <Image
+                        Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[9].RenderedImage}" />
+                </Border>
             </Button>
 
             <!-- Reihe 3 -->
-            <Button
-                Grid.Row="2"
-                Grid.Column="0"
-                Width="90"
-                Height="90"
-                Command="{Binding TouchButtonCommand}"
-                CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[10]}">
-                <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[10].RenderedImage}" />
+            <Button Tag="Touch"
+                    Grid.Row="2"
+                    Grid.Column="0"
+                    Width="90"
+                    Height="90"
+                    Command="{Binding TouchButtonCommand}"
+                    CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[10]}">
+                <Border CornerRadius="6" ClipToBounds="True">
+                    <Image
+                        Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[10].RenderedImage}" />
+                </Border>
             </Button>
-            <Button
-                Grid.Row="2"
-                Grid.Column="1"
-                Width="90"
-                Height="90"
-                Command="{Binding TouchButtonCommand}"
-                CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[11]}">
-                <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[11].RenderedImage}" />
+            <Button Tag="Touch"
+                    Grid.Row="2"
+                    Grid.Column="1"
+                    Width="90"
+                    Height="90"
+                    Command="{Binding TouchButtonCommand}"
+                    CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[11]}">
+                <Border CornerRadius="6" ClipToBounds="True">
+                    <Image
+                        Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[11].RenderedImage}" />
+                </Border>
             </Button>
-            <Button
-                Grid.Row="2"
-                Grid.Column="2"
-                Width="90"
-                Height="90"
-                Command="{Binding TouchButtonCommand}"
-                CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[12]}">
-                <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[12].RenderedImage}" />
+            <Button Tag="Touch"
+                    Grid.Row="2"
+                    Grid.Column="2"
+                    Width="90"
+                    Height="90"
+                    Command="{Binding TouchButtonCommand}"
+                    CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[12]}">
+                <Border CornerRadius="6" ClipToBounds="True">
+                    <Image
+                        Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[12].RenderedImage}" />
+                </Border>
             </Button>
-            <Button
-                Grid.Row="2"
-                Grid.Column="3"
-                Width="90"
-                Height="90"
-                Command="{Binding TouchButtonCommand}"
-                CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[13]}">
-                <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[13].RenderedImage}" />
+            <Button Tag="Touch"
+                    Grid.Row="2"
+                    Grid.Column="3"
+                    Width="90"
+                    Height="90"
+                    Command="{Binding TouchButtonCommand}"
+                    CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[13]}">
+                <Border CornerRadius="6" ClipToBounds="True">
+                    <Image
+                        Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[13].RenderedImage}" />
+                </Border>
             </Button>
-            <Button
-                Grid.Row="2"
-                Grid.Column="4"
-                Width="90"
-                Height="90"
-                Command="{Binding TouchButtonCommand}"
-                CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[14]}">
-                <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[14].RenderedImage}" />
+            <Button Tag="Touch"
+                    Grid.Row="2"
+                    Grid.Column="4"
+                    Width="90"
+                    Height="90"
+                    Command="{Binding TouchButtonCommand}"
+                    CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[14]}">
+                <Border CornerRadius="6" ClipToBounds="True">
+                    <Image
+                        Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[14].RenderedImage}" />
+                </Border>
             </Button>
         </Grid>
 
         <Grid Grid.Row="0" Grid.Column="2" HorizontalAlignment="Center" RowDefinitions="100,100,100,30">
-            <Button
-                Grid.Row="0"
-                Grid.Column="0"
-                Width="90"
-                Height="90"
-                Background="Transparent"
-                Command="{Binding SimpleButtonCommand}" CommandParameter="{Binding LoupedeckController.Config.SimpleButtons[1]}">
+            <Button Tag="Led"
+                    Grid.Row="0"
+                    Grid.Column="0"
+                    Width="90"
+                    Height="90"
+                    Command="{Binding SimpleButtonCommand}"
+                    CommandParameter="{Binding LoupedeckController.Config.SimpleButtons[1]}">
                 <Button.Styles>
                     <!-- Standard-Zustand -->
                     <Style Selector="Button">
@@ -425,13 +494,13 @@
                     <Image Source="{Binding LoupedeckController.Config.SimpleButtons[1].RenderedImage}" />
                 </Border>
             </Button>
-            <Button
-                Grid.Row="1"
-                Grid.Column="0"
-                Width="90"
-                Height="90"
-                Background="Transparent"
-                Command="{Binding SimpleButtonCommand}" CommandParameter="{Binding LoupedeckController.Config.SimpleButtons[2]}">
+            <Button Tag="Led"
+                    Grid.Row="1"
+                    Grid.Column="0"
+                    Width="90"
+                    Height="90"
+                    Command="{Binding SimpleButtonCommand}"
+                    CommandParameter="{Binding LoupedeckController.Config.SimpleButtons[2]}">
                 <Button.Styles>
                     <!-- Standard-Zustand -->
                     <Style Selector="Button">
@@ -473,13 +542,13 @@
                     <Image Source="{Binding LoupedeckController.Config.SimpleButtons[2].RenderedImage}" />
                 </Border>
             </Button>
-            <Button
-                Grid.Row="2"
-                Grid.Column="0"
-                Width="90"
-                Height="90"
-                Background="Transparent"
-                Command="{Binding SimpleButtonCommand}" CommandParameter="{Binding LoupedeckController.Config.SimpleButtons[3]}">
+            <Button Tag="Led"
+                    Grid.Row="2"
+                    Grid.Column="0"
+                    Width="90"
+                    Height="90"
+                    Command="{Binding SimpleButtonCommand}"
+                    CommandParameter="{Binding LoupedeckController.Config.SimpleButtons[3]}">
                 <Button.Styles>
                     <!-- Standard-Zustand -->
                     <Style Selector="Button">
@@ -532,13 +601,13 @@
                 </ItemsControl.ItemsPanel>
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
-                        <Button Content="{Binding Page}"
+                        <Button Tag="Mini"
+                                Content="{Binding Page}"
                                 Command="{Binding ViewModel.TouchPageButtonCommand, ElementName=RootWindow}"
                                 CommandParameter="{Binding Page}"
-                                Width="30" Height="30" CornerRadius="8"
                                 HorizontalContentAlignment="Center"
                                 VerticalContentAlignment="Center"
-                                Background="{Binding Selected, Converter={StaticResource BoolToBrushConverter}}"/>
+                                Background="{Binding Selected, Converter={StaticResource BoolToBrushConverter}}" />
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
             </ItemsControl>

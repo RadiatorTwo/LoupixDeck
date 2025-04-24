@@ -5,7 +5,6 @@
              xmlns:converter="using:LoupixDeck.Models.Converter"
              RequestedThemeVariant="Dark">
     <!-- "Default" ThemeVariant follows system theme variant. "Dark" or "Light" are other available options. -->
-
     <Application.DataTemplates>
         <local:ViewLocator />
     </Application.DataTemplates>
@@ -40,5 +39,23 @@
         <converter:BoolToBrushConverter x:Key="BoolToBrushConverter" />
         <SolidColorBrush x:Key="UnselectedBrush" Color="#FF4b4b4b"/>
         <SolidColorBrush x:Key="SelectedBrush" Color="#FF373737"/>
+        
+        <Color x:Key="BaseDark">#1E1E1E</Color>
+        <Color x:Key="PanelDark">#232323</Color>
+        <Color x:Key="ButtonBorder">#5A5A5A</Color>
+        <Color x:Key="ButtonBorderHover">#8C8C8C</Color>
+        
+        <LinearGradientBrush x:Key="DeckBackgroundBrush"
+                             StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#31353a" Offset="0"/>
+            <GradientStop Color="#1c1f22" Offset="1"/>
+        </LinearGradientBrush>
+        
+        <DropShadowEffect x:Key="InnerShadow"
+                          Color="#77000000"
+                          BlurRadius="8"
+                          OffsetX="0"
+                          OffsetY="2"
+                          Opacity="1"/>
     </Application.Resources>
 </Application>
