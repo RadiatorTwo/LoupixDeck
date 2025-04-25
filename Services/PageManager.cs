@@ -179,7 +179,7 @@ public class PageManager : IPageManager
         }
 
         TouchButtonPages.Add(newPage);
-        ApplyTouchPage(CurrentTouchPageIndex + 1);
+        ApplyTouchPage(TouchButtonPages.Count - 1);
     }
 
     public void DeleteTouchButtonPage()
