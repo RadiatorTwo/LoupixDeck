@@ -1,5 +1,6 @@
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
+using Newtonsoft.Json;
 
 namespace LoupixDeck.Models;
 
@@ -207,6 +208,7 @@ public class TouchButton(int index) : LoupedeckButton
 
     private Bitmap _renderedImage;
 
+    [JsonIgnore]
     public Bitmap RenderedImage
     {
         get => _renderedImage;
