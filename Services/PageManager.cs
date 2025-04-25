@@ -136,10 +136,9 @@ public class PageManager : IPageManager
         {
             Page = RotaryButtonPages.Count + 1
         };
-        RotaryButtonPages.Add(newPage);
-        CurrentRotaryPageIndex = RotaryButtonPages.Count - 1;
 
-        ApplyRotaryPage(CurrentRotaryPageIndex);
+        RotaryButtonPages.Add(newPage);
+        ApplyRotaryPage(RotaryButtonPages.Count - 1);
     }
 
     public void DeleteRotaryButtonPage()
@@ -179,7 +178,7 @@ public class PageManager : IPageManager
         }
 
         TouchButtonPages.Add(newPage);
-        ApplyTouchPage(CurrentTouchPageIndex + 1);
+        ApplyTouchPage(TouchButtonPages.Count - 1);
     }
 
     public void DeleteTouchButtonPage()
