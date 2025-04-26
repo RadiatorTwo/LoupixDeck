@@ -1,6 +1,7 @@
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Newtonsoft.Json;
+using SkiaSharp;
 
 namespace LoupixDeck.Models;
 
@@ -150,6 +151,20 @@ public class TouchButton(int index) : LoupedeckButton
         {
             if (Equals(value, _outlineColor)) return;
             _outlineColor = value;
+            Refresh();
+        }
+    }
+
+    private SKBitmap _originalImage;
+
+    [JsonIgnore]
+    public SKBitmap OriginalImage
+    {
+        get => _originalImage;
+        set
+        {
+            if (Equals(value, _originalImage)) return;
+            _originalImage = value;
             Refresh();
         }
     }

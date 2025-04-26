@@ -1,11 +1,10 @@
 using System.Collections.ObjectModel;
 using System.Windows.Input;
-using Avalonia.Media.Imaging;
-using LoupixDeck.Commands.Base;
 using LoupixDeck.Models;
 using LoupixDeck.Services;
 using LoupixDeck.Utils;
 using LoupixDeck.ViewModels.Base;
+using SkiaSharp;
 
 namespace LoupixDeck.ViewModels;
 
@@ -160,9 +159,9 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
         var result = await FileDialogHelper.OpenFileDialog(parent);
 
         if (result == null || !File.Exists(result.Path.AbsolutePath)) return;
-
-        ButtonData.Image = new Bitmap(result.Path.AbsolutePath);
-        ButtonData.RenderedImage = BitmapHelper.RenderTouchButtonContent(ButtonData, 150, 150);
+        
+        ButtonData.OriginalImage = SKBitmap.Decode(result.Path.AbsolutePath);
+        // ButtonData.RenderedImage = BitmapHelper.RenderTouchButtonContent(ButtonData, 150, 150);
 
         ButtonData.Refresh();
     }
