@@ -168,6 +168,7 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
 
     private void RemoveImageButton_Click()
     {
+        ButtonData.OriginalImage = null;
         ButtonData.Image = null;
 
         ButtonData.RenderedImage = BitmapHelper.RenderTouchButtonContent(ButtonData, 150, 150);

@@ -120,7 +120,8 @@ public static class BitmapHelper
 
         if (touchButton.OriginalImage != null)
         {
-            var image = ScaleAndPositionBitmap(
+            touchButton.IgnoreRefresh = true; // Prevents infinite loop
+            touchButton.Image = ScaleAndPositionBitmap(
                 touchButton.OriginalImage,
                 width,
                 height,
@@ -128,10 +129,13 @@ public static class BitmapHelper
                 touchButton.ImagePositionX,
                 touchButton.ImagePositionY
             ).ToRenderTargetBitmap();
+            touchButton.IgnoreRefresh = false;
+        }
 
+        if (touchButton.Image != null)
+        {
             var destRect = new Rect(0, 0, width, height);
-
-            ctx.DrawImage(image, destRect);
+            ctx.DrawImage(touchButton.Image, destRect);
         }
 
         if (!string.IsNullOrEmpty(touchButton.Text))
@@ -154,6 +158,7 @@ public static class BitmapHelper
         }
 
         touchButton.RenderedImage = rtb;
+
         return rtb;
     }
 
@@ -180,7 +185,7 @@ public static class BitmapHelper
 
         // Zielbitmap anlegen (transparenter Hintergrund)
         var result = new SKBitmap(targetWidth, targetHeight, source.ColorType, source.AlphaType);
-        
+
         // ――― Skalierung berechnen ―――
         double scaleX = (double)targetWidth / source.Width;
         double scaleY = (double)targetHeight / source.Height;
@@ -205,16 +210,16 @@ public static class BitmapHelper
             posY + scaledH);
 
         using var canvas = new SKCanvas(result);
-        
+
         var paint = new SKPaint
         {
             FilterQuality = SKFilterQuality.High,
             IsAntialias = true,
             IsDither = true
         };
-        
+
         canvas.Clear(SKColors.Transparent);
-        
+
         canvas.DrawBitmap(source, destRect, paint);
         canvas.Flush(); // sicherstellen, dass alles geschrieben ist
 
