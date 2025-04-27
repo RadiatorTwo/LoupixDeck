@@ -50,7 +50,16 @@ public partial class App : Application
                     {
                         var viewModel = await CreateMainWindowViewModel(vm.SelectedDevice, vm.SelectedBaudRate);
                         OnViewModelCreated(viewModel, splashScreen, desktop);
-                    });
+                    }).ContinueWith(t =>
+                    {
+                        if (t.Exception == null) return;
+                        
+                        // Fehlerbehandlung hier
+                        foreach (var ex in t.Exception.Flatten().InnerExceptions)
+                        {
+                            Console.WriteLine($"Fehler im Task: {ex}");
+                        }
+                    }, TaskContinuationOptions.OnlyOnFaulted);
                 }
             }
             else
@@ -65,7 +74,16 @@ public partial class App : Application
                 {
                     var viewModel = await CreateMainWindowViewModel();
                     OnViewModelCreated(viewModel, splashScreen, desktop);
-                });
+                }).ContinueWith(t =>
+                {
+                    if (t.Exception == null) return;
+                    
+                    // Fehlerbehandlung hier
+                    foreach (var ex in t.Exception.Flatten().InnerExceptions)
+                    {
+                        Console.WriteLine($"Fehler im Task: {ex}");
+                    }
+                }, TaskContinuationOptions.OnlyOnFaulted);
             }
         }
 

@@ -16,14 +16,14 @@ public interface IPageManager
 
     void NextRotaryPage();
     void PreviousRotaryPage();
-    void ApplyRotaryPage(int pageIndex);
+    void ApplyRotaryPage(int pageIndex, bool init = false);
     void NextTouchPage();
     void PreviousTouchPage();
-    void ApplyTouchPage(int pageIndex);
+    void ApplyTouchPage(int pageIndex, bool init = false);
 
-    void AddRotaryButtonPage();
+    void AddRotaryButtonPage(bool init = false);
     void DeleteRotaryButtonPage();
-    void AddTouchButtonPage();
+    void AddTouchButtonPage(bool init = false);
     void DeleteTouchButtonPage();
 
     void RefreshTouchButtons();
@@ -56,7 +56,7 @@ public class PageManager : IPageManager
         get => _config.CurrentRotaryPageIndex;
         set => _config.CurrentRotaryPageIndex = value;
     }
-    
+
     public ObservableCollection<TouchButtonPage> TouchButtonPages => _config.TouchButtonPages;
     public ObservableCollection<RotaryButtonPage> RotaryButtonPages => _config.RotaryButtonPages;
     public RotaryButtonPage CurrentRotaryButtonPage => _config.CurrentRotaryButtonPage;
@@ -73,23 +73,26 @@ public class PageManager : IPageManager
         ApplyRotaryPage((CurrentRotaryPageIndex - 1 + RotaryButtonPages.Count) % RotaryButtonPages.Count);
     }
 
-    public void ApplyRotaryPage(int pageIndex)
+    public void ApplyRotaryPage(int pageIndex, bool init = false)
     {
         if (CurrentRotaryPageIndex == pageIndex) return;
 
         var previousRotaryPageIndex = CurrentRotaryPageIndex;
         CurrentRotaryPageIndex = pageIndex;
-        
+
         foreach (var page in RotaryButtonPages)
         {
             page.Selected = false;
         }
-        
+
         CurrentRotaryButtonPage.Selected = true;
 
         OnRotaryPageChanged?.Invoke(previousRotaryPageIndex, CurrentRotaryPageIndex);
-        
-        _deviceService.ShowTemporaryTextButton(0, CurrentRotaryButtonPage.PageName, 2000);
+
+        if (!init)
+        {
+            _deviceService.ShowTemporaryTextButton(0, CurrentRotaryButtonPage.PageName, 2000);
+        }
     }
 
     public void NextTouchPage()
@@ -102,24 +105,27 @@ public class PageManager : IPageManager
         ApplyTouchPage((CurrentTouchPageIndex - 1 + TouchButtonPages.Count) % TouchButtonPages.Count);
     }
 
-    public void ApplyTouchPage(int pageIndex)
+    public void ApplyTouchPage(int pageIndex, bool init = false)
     {
         if (CurrentTouchPageIndex == pageIndex) return;
-        
+
         PreviousTouchPageIndex = CurrentTouchPageIndex;
         CurrentTouchPageIndex = pageIndex;
 
         foreach (var page in TouchButtonPages)
         {
-            page.Selected = false;    
+            page.Selected = false;
         }
-        
+
         CurrentTouchButtonPage.Selected = true;
-        
+
         OnTouchPageChanged?.Invoke(PreviousTouchPageIndex, CurrentTouchPageIndex);
         DrawTouchButtons();
 
-        _deviceService.ShowTemporaryTextButton(0, CurrentTouchButtonPage.PageName, 2000);
+        if (!init)
+        {
+            _deviceService.ShowTemporaryTextButton(0, CurrentTouchButtonPage.PageName, 2000);
+        }
     }
 
     private void DrawTouchButtons()
@@ -130,7 +136,7 @@ public class PageManager : IPageManager
         }
     }
 
-    public void AddRotaryButtonPage()
+    public void AddRotaryButtonPage(bool init = false)
     {
         var newPage = new RotaryButtonPage(2)
         {
@@ -138,7 +144,7 @@ public class PageManager : IPageManager
         };
 
         RotaryButtonPages.Add(newPage);
-        ApplyRotaryPage(RotaryButtonPages.Count - 1);
+        ApplyRotaryPage(RotaryButtonPages.Count - 1, init);
     }
 
     public void DeleteRotaryButtonPage()
@@ -165,7 +171,7 @@ public class PageManager : IPageManager
         }
     }
 
-    public void AddTouchButtonPage()
+    public void AddTouchButtonPage(bool init = false)
     {
         var newPage = new TouchButtonPage(15)
         {
@@ -178,7 +184,7 @@ public class PageManager : IPageManager
         }
 
         TouchButtonPages.Add(newPage);
-        ApplyTouchPage(TouchButtonPages.Count - 1);
+        ApplyTouchPage(TouchButtonPages.Count - 1, init);
     }
 
     public void DeleteTouchButtonPage()

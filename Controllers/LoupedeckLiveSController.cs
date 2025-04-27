@@ -50,44 +50,43 @@ public class LoupedeckLiveSController(
 
         if (config.RotaryButtonPages == null || config.RotaryButtonPages.Count == 0)
         {
-            pageManager.AddRotaryButtonPage();
+            pageManager.AddRotaryButtonPage(true);
         }
         else
         {
             // Existing config Init always page 0.
             config.CurrentRotaryPageIndex = 0;
-            pageManager.ApplyRotaryPage(config.CurrentRotaryPageIndex);
+            pageManager.ApplyRotaryPage(config.CurrentRotaryPageIndex, true);
         }
 
         if (config.TouchButtonPages == null || config.TouchButtonPages.Count == 0)
         {
-            pageManager.AddTouchButtonPage();
+            pageManager.AddTouchButtonPage(true);
         }
         else
         {
             // Existing config Init always page 0.
             config.CurrentTouchPageIndex = 0;
-            pageManager.ApplyTouchPage(config.CurrentTouchPageIndex);
+            pageManager.ApplyTouchPage(config.CurrentTouchPageIndex, true);
 
             // With an existing config, we need to apply the item changed event to the current Touch Button Page
             foreach (var touchButton in config.CurrentTouchButtonPage.TouchButtons)
             {
                 touchButton.ItemChanged += TouchItemChanged;
             }
+
+            foreach (var touchButton in config.CurrentTouchButtonPage.TouchButtons)
+            {
+                deviceService.Device.DrawTouchButton(touchButton, true);
+            }
         }
 
-        if (config.RotaryButtonPages == null || config.RotaryButtonPages.Count == 0)
-        {
-            pageManager.AddRotaryButtonPage();
-        }
-        
         config.CurrentRotaryButtonPage.Selected = true;
         config.CurrentTouchButtonPage.Selected = true;
-        
+
         config.PropertyChanged += ConfigOnPropertyChanged;
 
-        // Apply all TouchButton Images and RGB Button Colors.
-        ApplyAllData();
+        deviceService.Device.SetBrightness(config.Brightness / 100.0);
 
         InitButtonEvents();
 
@@ -224,23 +223,11 @@ public class LoupedeckLiveSController(
         deviceService.Device.SetButtonColor(button.Id, button.ButtonColor);
     }
 
-    private void ApplyAllData()
-    {
-        var device = deviceService.Device;
-
-        foreach (var touchButton in config.CurrentTouchButtonPage.TouchButtons)
-        {
-            device.DrawTouchButton(touchButton, true);
-        }
-
-        device.SetBrightness(config.Brightness / 100.0);
-    }
-
     public void SaveConfig()
     {
         configService.SaveConfig(config, _configPath);
     }
-    
+
     private void ConfigOnPropertyChanged(object sender, PropertyChangedEventArgs e)
     {
         switch (e.PropertyName)
