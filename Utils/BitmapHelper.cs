@@ -3,8 +3,9 @@ using Avalonia;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Media.Immutable;
-using Avalonia.Threading;
 using LoupixDeck.Models;
+using SkiaSharp;
+using Avalonia.Platform;
 
 namespace LoupixDeck.Utils;
 
@@ -117,41 +118,24 @@ public static class BitmapHelper
             rect: new Rect(0, 0, width, height)
         );
 
+        if (touchButton.OriginalImage != null)
+        {
+            touchButton.IgnoreRefresh = true; // Prevents infinite loop
+            touchButton.Image = ScaleAndPositionBitmap(
+                touchButton.OriginalImage,
+                width,
+                height,
+                touchButton.ImageScale,
+                touchButton.ImagePositionX,
+                touchButton.ImagePositionY
+            ).ToRenderTargetBitmap();
+            touchButton.IgnoreRefresh = false;
+        }
+
         if (touchButton.Image != null)
         {
-            var imageWidth = touchButton.Image.PixelSize.Width;
-            var imageHeight = touchButton.Image.PixelSize.Height;
-
-            var sourceRect = new Rect(0, 0, imageWidth, imageHeight);
-
-            // Calculate the ratio to scale the image to the target size
-            var scaleX = width / (double)imageWidth;
-            var scaleY = height / (double)imageHeight;
-
-            // Select the smaller ratio to fit the image completely without distortion
-            var baseScale = Math.Min(scaleX, scaleY);
-
-            // Applying scaling using ImageScale
-            var scaleFactor = Math.Max(0.01, touchButton.ImageScale / 100.0);
-            var finalScale = baseScale * scaleFactor;
-
-            // New width and height after scaling (aspect ratio is retained)
-            var scaledWidth = imageWidth * finalScale;
-            var scaledHeight = imageHeight * finalScale;
-
-            // Centre the image if it is smaller than the target image
-            var posX = touchButton.ImagePositionX;
-            var posY = touchButton.ImagePositionY;
-
-            if (posX == 0 && posY == 0) // Standard: Set image in the centre if no position is specified
-            {
-                posX = (int)((width - scaledWidth) / 2);
-                posY = (int)((height - scaledHeight) / 2);
-            }
-
-            var destRect = new Rect(posX, posY, scaledWidth, scaledHeight);
-
-            ctx.DrawImage(touchButton.Image, sourceRect, destRect);
+            var destRect = new Rect(0, 0, width, height);
+            ctx.DrawImage(touchButton.Image, destRect);
         }
 
         if (!string.IsNullOrEmpty(touchButton.Text))
@@ -174,7 +158,123 @@ public static class BitmapHelper
         }
 
         touchButton.RenderedImage = rtb;
+
         return rtb;
+    }
+
+    /// <summary>
+    /// Skaliert und positioniert ein Bitmap analog zu RenderTouchButtonContent
+    /// und liefert das Ergebnis als neues SKBitmap zurück.
+    /// </summary>
+    /// <param name="source">Das Quellbild (SKBitmap).</param>
+    /// <param name="targetWidth">Breite der Zielfläche in Pixeln.</param>
+    /// <param name="targetHeight">Höhe der Zielfläche in Pixeln.</param>
+    /// <param name="imageScale">Prozentuale Skalierung (touchButton.ImageScale, 100 %= Basisgröße).</param>
+    /// <param name="posX">X-Position (touchButton.ImagePositionX). 0 = zentrieren.</param>
+    /// <param name="posY">Y-Position (touchButton.ImagePositionY). 0 = zentrieren.</param>
+    /// <returns>Fertig skaliertes und platziertes SKBitmap.</returns>
+    private static SKBitmap ScaleAndPositionBitmap(
+        SKBitmap source,
+        int targetWidth,
+        int targetHeight,
+        double imageScale,
+        int posX,
+        int posY)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+
+        // Zielbitmap anlegen (transparenter Hintergrund)
+        var result = new SKBitmap(targetWidth, targetHeight, source.ColorType, source.AlphaType);
+
+        // ――― Skalierung berechnen ―――
+        double scaleX = (double)targetWidth / source.Width;
+        double scaleY = (double)targetHeight / source.Height;
+        double baseScale = Math.Min(scaleX, scaleY); // Bild vollständig einpassen
+        double scaleFactor = Math.Max(0.01, imageScale / 100.0); // 0,01 = Sicherheitsminimum
+        double finalScale = baseScale * scaleFactor;
+
+        float scaledW = (float)(source.Width * finalScale);
+        float scaledH = (float)(source.Height * finalScale);
+
+        // ――― Position berechnen (0/0 ⇒ zentriert) ―――
+        if (posX == 0 && posY == 0)
+        {
+            posX = (int)((targetWidth - scaledW) / 2);
+            posY = (int)((targetHeight - scaledH) / 2);
+        }
+
+        var destRect = new SKRect(
+            posX,
+            posY,
+            posX + scaledW,
+            posY + scaledH);
+
+        using var canvas = new SKCanvas(result);
+
+        var paint = new SKPaint
+        {
+            FilterQuality = SKFilterQuality.High,
+            IsAntialias = true,
+            IsDither = true
+        };
+
+        canvas.Clear(SKColors.Transparent);
+
+        canvas.DrawBitmap(source, destRect, paint);
+        canvas.Flush(); // sicherstellen, dass alles geschrieben ist
+
+        return result; // Aufrufer ist für Dispose zuständig
+    }
+
+    /// <summary>
+    /// Erzeugt aus einem SKBitmap ein Avalonia RenderTargetBitmap
+    /// ohne zusätzlichen Encode/Decode-Schritt.
+    /// </summary>
+    /// <param name="source">Quellbild (SKBitmap)</param>
+    /// <param name="dpi">Ziel-DPI, Standard 96</param>
+    /// <returns>Fertiges RenderTargetBitmap</returns>
+    public static RenderTargetBitmap ToRenderTargetBitmap(
+        this SKBitmap source,
+        double dpi = 96)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+
+        // --- 1) PixelFormat / AlphaFormat aus SKColorType ableiten -------------
+        var pixelFormat = source.ColorType switch
+        {
+            SKColorType.Bgra8888 => PixelFormat.Bgra8888,
+            SKColorType.Rgba8888 => PixelFormat.Rgba8888,
+            _ => PixelFormat.Bgra8888 // Fallback
+        };
+
+        var alphaFormat = source.AlphaType == SKAlphaType.Opaque
+            ? AlphaFormat.Opaque
+            : AlphaFormat.Unpremul;
+
+        // --- 2) SKBitmap-Pixelpuffer „wrappen“ (keine Kopie) -------------------
+        //    Bitmap()-Konstruktor akzeptiert einen IntPtr auf Rohdaten + Stride
+        //    Quelle: Avalonia API-Dokumentation der Bitmap-Klasse :contentReference[oaicite:0]{index=0}
+        using var avBitmap = new Bitmap(
+            pixelFormat,
+            alphaFormat,
+            source.GetPixels(),
+            new PixelSize(source.Width, source.Height),
+            new Vector(dpi, dpi),
+            source.RowBytes);
+
+        // --- 3) RenderTargetBitmap anlegen und zeichnen ------------------------
+        var rtb = new RenderTargetBitmap(
+            new PixelSize(source.Width, source.Height),
+            new Vector(dpi, dpi));
+
+        using (var ctx = rtb.CreateDrawingContext(true))
+        {
+            ctx.DrawImage(
+                avBitmap,
+                new Rect(0, 0, source.Width, source.Height));
+        } // Flush & Dispose
+
+        return rtb; // Aufrufer verwaltet Lebensdauer des RTB
     }
 
     public static RenderTargetBitmap RenderTextToBitmap(string text, int imageWidth, int imageHeight)
