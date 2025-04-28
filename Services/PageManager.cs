@@ -17,14 +17,14 @@ public interface IPageManager
     void NextRotaryPage();
     void PreviousRotaryPage();
     void ApplyRotaryPage(int pageIndex, bool init = false);
-    void NextTouchPage();
-    void PreviousTouchPage();
-    void ApplyTouchPage(int pageIndex, bool init = false);
+    Task NextTouchPage();
+    Task PreviousTouchPage();
+    Task ApplyTouchPage(int pageIndex, bool init = false);
 
     void AddRotaryButtonPage(bool init = false);
     void DeleteRotaryButtonPage();
-    void AddTouchButtonPage(bool init = false);
-    void DeleteTouchButtonPage();
+    Task AddTouchButtonPage(bool init = false);
+    Task DeleteTouchButtonPage();
 
     void RefreshTouchButtons();
     void RefreshSimpleButtons();
@@ -95,17 +95,17 @@ public class PageManager : IPageManager
         }
     }
 
-    public void NextTouchPage()
+    public async Task NextTouchPage()
     {
-        ApplyTouchPage((CurrentTouchPageIndex + 1) % TouchButtonPages.Count);
+        await ApplyTouchPage((CurrentTouchPageIndex + 1) % TouchButtonPages.Count);
     }
 
-    public void PreviousTouchPage()
+    public async Task PreviousTouchPage()
     {
-        ApplyTouchPage((CurrentTouchPageIndex - 1 + TouchButtonPages.Count) % TouchButtonPages.Count);
+        await ApplyTouchPage((CurrentTouchPageIndex - 1 + TouchButtonPages.Count) % TouchButtonPages.Count);
     }
 
-    public void ApplyTouchPage(int pageIndex, bool init = false)
+    public async Task ApplyTouchPage(int pageIndex, bool init = false)
     {
         if (CurrentTouchPageIndex == pageIndex) return;
 
@@ -120,19 +120,19 @@ public class PageManager : IPageManager
         CurrentTouchButtonPage.Selected = true;
 
         OnTouchPageChanged?.Invoke(PreviousTouchPageIndex, CurrentTouchPageIndex);
-        DrawTouchButtons();
+        await DrawTouchButtons();
 
         if (!init)
         {
-            _deviceService.ShowTemporaryTextButton(0, CurrentTouchButtonPage.PageName, 2000);
+            await _deviceService.ShowTemporaryTextButton(0, CurrentTouchButtonPage.PageName, 2000);
         }
     }
 
-    private void DrawTouchButtons()
+    private async Task DrawTouchButtons()
     {
         foreach (var touchButton in CurrentTouchButtonPage.TouchButtons)
         {
-            _deviceService.Device.DrawTouchButton(touchButton, false);
+            await _deviceService.Device.DrawTouchButton(touchButton, false);
         }
     }
 
@@ -171,7 +171,7 @@ public class PageManager : IPageManager
         }
     }
 
-    public void AddTouchButtonPage(bool init = false)
+    public async Task AddTouchButtonPage(bool init = false)
     {
         var newPage = new TouchButtonPage(15)
         {
@@ -184,17 +184,17 @@ public class PageManager : IPageManager
         }
 
         TouchButtonPages.Add(newPage);
-        ApplyTouchPage(TouchButtonPages.Count - 1, init);
+        await ApplyTouchPage(TouchButtonPages.Count - 1, init);
     }
 
-    public void DeleteTouchButtonPage()
+    public async Task DeleteTouchButtonPage()
     {
         if (TouchButtonPages.Count == 1)
             return;
 
         TouchButtonPages.RemoveAt(CurrentTouchPageIndex);
 
-        int counter = 0;
+        var counter = 0;
         foreach (var page in TouchButtonPages)
         {
             counter++;
@@ -203,11 +203,11 @@ public class PageManager : IPageManager
 
         if (CurrentTouchPageIndex < TouchButtonPages.Count)
         {
-            ApplyTouchPage(CurrentTouchPageIndex);
+            await ApplyTouchPage(CurrentTouchPageIndex);
         }
         else
         {
-            ApplyTouchPage(TouchButtonPages.Count - 1);
+            await ApplyTouchPage(TouchButtonPages.Count - 1);
         }
     }
 

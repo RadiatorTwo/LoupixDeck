@@ -61,13 +61,13 @@ public class LoupedeckLiveSController(
 
         if (config.TouchButtonPages == null || config.TouchButtonPages.Count == 0)
         {
-            pageManager.AddTouchButtonPage(true);
+            await pageManager.AddTouchButtonPage(true);
         }
         else
         {
             // Existing config Init always page 0.
             config.CurrentTouchPageIndex = 0;
-            pageManager.ApplyTouchPage(config.CurrentTouchPageIndex, true);
+            await pageManager.ApplyTouchPage(config.CurrentTouchPageIndex, true);
 
             // With an existing config, we need to apply the item changed event to the current Touch Button Page
             foreach (var touchButton in config.CurrentTouchButtonPage.TouchButtons)
@@ -77,7 +77,7 @@ public class LoupedeckLiveSController(
 
             foreach (var touchButton in config.CurrentTouchButtonPage.TouchButtons)
             {
-                deviceService.Device.DrawTouchButton(touchButton, true);
+                await deviceService.Device.DrawTouchButton(touchButton, true);
             }
         }
 
@@ -183,7 +183,7 @@ public class LoupedeckLiveSController(
         }
     }
 
-    private void TouchItemChanged(object sender, EventArgs e)
+    private async void TouchItemChanged(object sender, EventArgs e)
     {
         if (sender is not TouchButton item) return;
 
@@ -191,7 +191,7 @@ public class LoupedeckLiveSController(
 
         if (button == null) return;
 
-        deviceService.Device.DrawTouchButton(button, true);
+        await deviceService.Device.DrawTouchButton(button, true);
     }
 
     private SimpleButton CreateSimpleButton(Constants.ButtonType id, Avalonia.Media.Color color, string command)

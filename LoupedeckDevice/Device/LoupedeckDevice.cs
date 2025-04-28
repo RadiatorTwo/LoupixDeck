@@ -1,3 +1,4 @@
+using System.Threading.Channels;
 using Avalonia;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
@@ -15,6 +16,15 @@ public class LoupedeckDevice
 {
     private ISerialConnection _connection;
     private byte _transactionId;
+
+    private record QueueItem(
+        Constants.Command Command,
+        byte[] Data,
+        TaskCompletionSource<byte[]> Completion,
+        bool ExpectResponse);
+
+    private readonly Channel<QueueItem> _sendChannel = Channel.CreateUnbounded<QueueItem>();
+    private Task _queueWorkerTask;
 
     private readonly Dictionary<byte, TaskCompletionSource<byte[]>> _pendingTransactions = new();
     private readonly Dictionary<byte, TouchInfo> _touches = new();
@@ -113,12 +123,96 @@ public class LoupedeckDevice
         };
 
         _connection.Connect();
+
+        StartQueueWorker();
+    }
+
+    /// <summary>
+    /// Starts the background worker that processes queued send requests sequentially.
+    /// This ensures that all communication with the device is serialized and thread-safe.
+    /// </summary>
+    private void StartQueueWorker()
+    {
+        _queueWorkerTask = Task.Run(async () =>
+        {
+            await foreach (var item in _sendChannel.Reader.ReadAllAsync())
+            {
+                try
+                {
+                    _transactionId = (byte)((_transactionId + 1) % 256);
+                    if (_transactionId == 0)
+                        _transactionId++;
+
+                    var length = (byte)Math.Min(3 + item.Data.Length, 0xff);
+                    byte[] header = [length, (byte)item.Command, _transactionId];
+                    var packet = header.Concat(item.Data).ToArray();
+
+                    if (item.ExpectResponse)
+                    {
+                        _pendingTransactions[_transactionId] = item.Completion;
+                    }
+
+                    _connection?.Send(packet);
+
+                    if (!item.ExpectResponse)
+                    {
+                        // Sofort abschließen, weil keine Antwort erwartet wird
+                        item.Completion.TrySetResult([]);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    item.Completion.TrySetException(ex);
+                }
+            }
+        });
     }
 
     /// <summary>
     /// Closes the current connection.
     /// </summary>
-    public void Close() => _connection?.Close();
+    public void Close()
+    {
+        _sendChannel.Writer.TryComplete();
+        _connection?.Close();
+    }
+
+    /// <summary>
+    /// Queues a command and optional data to be sent to the device, 
+    /// and asynchronously waits for the response.
+    /// </summary>
+    /// <param name="command">The command to send to the device.</param>
+    /// <param name="data">Optional payload data for the command.</param>
+    /// <returns>A task that completes with the device's response payload.</returns>
+    private async Task<byte[]> SendAsync(Constants.Command command, byte[] data = null)
+    {
+        data ??= [];
+
+        var tcs = new TaskCompletionSource<byte[]>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var item = new QueueItem(command, data, tcs, true);
+
+        await _sendChannel.Writer.WriteAsync(item);
+
+        return await tcs.Task;
+    }
+
+    /// <summary>
+    /// Queues a command and optional data to be sent to the device without waiting for a response.
+    /// Used for fire-and-forget operations where no reply is expected.
+    /// </summary>
+    /// <param name="command">The command to send to the device.</param>
+    /// <param name="data">Optional payload data for the command.</param>
+    /// <returns>A task that completes when the command has been sent.</returns>
+    private async Task SendNoResponseAsync(Constants.Command command, byte[] data = null)
+    {
+        data ??= [];
+
+        // Completion bleibt null, weil wir keine Antwort erwarten
+        var tcs = new TaskCompletionSource<byte[]>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var item = new QueueItem(command, data, tcs, false);
+
+        await _sendChannel.Writer.WriteAsync(item);
+    }
 
     /// <summary>
     /// Sends a command with the given data and waits synchronously for the response.
@@ -126,21 +220,7 @@ public class LoupedeckDevice
     /// </summary>
     private byte[] Send(Constants.Command command, byte[] data = null)
     {
-        data ??= Array.Empty<byte>();
-
-        _transactionId = (byte)((_transactionId + 1) % 256);
-        if (_transactionId == 0)
-            _transactionId++;
-
-        var length = (byte)Math.Min(3 + data.Length, 0xff);
-        byte[] header = { length, (byte)command, _transactionId };
-        var packet = header.Concat(data).ToArray();
-        var tcs = new TaskCompletionSource<byte[]>();
-
-        _pendingTransactions[_transactionId] = tcs;
-        _connection?.Send(packet);
-
-        return tcs.Task.GetAwaiter().GetResult();
+        return SendAsync(command, data).GetAwaiter().GetResult();
     }
 
     /// <summary>
@@ -148,17 +228,7 @@ public class LoupedeckDevice
     /// </summary>
     private void SendNoResponse(Constants.Command command, byte[] data = null)
     {
-        data ??= Array.Empty<byte>();
-
-        _transactionId = (byte)((_transactionId + 1) % 256);
-        if (_transactionId == 0)
-            _transactionId++;
-
-        var length = (byte)Math.Min(3 + data.Length, 0xff);
-        byte[] header = { length, (byte)command, _transactionId };
-        var packet = header.Concat(data).ToArray();
-
-        _connection?.Send(packet);
+        SendNoResponseAsync(command, data).GetAwaiter().GetResult();
     }
 
     /// <summary>
@@ -247,8 +317,7 @@ public class LoupedeckDevice
 
         if (eventType == Constants.TouchEventType.TOUCH_END)
         {
-            if (_touches.ContainsKey(touchId))
-                _touches.Remove(touchId);
+            _touches.Remove(touchId);
         }
         else
         {
@@ -273,7 +342,7 @@ public class LoupedeckDevice
     /// <summary>
     /// Sends a 16-bit (5-6-5) image buffer to display "id" at the position (x,y).
     /// </summary>
-    private void DrawBuffer(string id, int width, int height, byte[] buffer, int? x = 0, int? y = 0,
+    private async Task DrawBuffer(string id, int width, int height, byte[] buffer, int? x = 0, int? y = 0,
         bool autoRefresh = true)
     {
         if (Displays == null || !Displays.TryGetValue(id, out var displayInfo))
@@ -303,10 +372,10 @@ public class LoupedeckDevice
         header[7] = (byte)(height & 0xff);
 
         var data = displayInfo.Id.Concat(header).Concat(buffer).ToArray();
-        Send(Constants.Command.FRAMEBUFF, data);
+        await SendAsync(Constants.Command.FRAMEBUFF, data);
 
         if (autoRefresh)
-            Refresh(id);
+            await Refresh(id);
     }
 
     /// <summary>
@@ -320,7 +389,7 @@ public class LoupedeckDevice
     /// <param name="x">X-position in the header.</param>
     /// <param name="y">Y-position in the header.</param>
     /// <param name="autoRefresh">Should a refresh be triggered automatically?</param>
-    private void DrawCanvas(
+    private async Task DrawCanvas(
         string id,
         int width,
         int height,
@@ -343,7 +412,7 @@ public class LoupedeckDevice
         var buffer = ConvertRtbToRaw16Bpp(bitmap);
 
         // Pass the buffer to the actual DrawBuffer
-        DrawBuffer(id, width, height, buffer, x, y, autoRefresh);
+        await DrawBuffer(id, width, height, buffer, x, y, autoRefresh);
     }
 
     /// <summary>
@@ -409,7 +478,7 @@ public class LoupedeckDevice
     /// <summary>
     /// Draws a key in the "center" display area based on the given index.
     /// </summary>
-    private void DrawKey(int index, RenderTargetBitmap bitmap)
+    private async Task DrawKey(int index, RenderTargetBitmap bitmap)
     {
         if (index < 0 || index >= Columns * Rows)
             throw new Exception($"Key {index} is not a valid key");
@@ -426,7 +495,7 @@ public class LoupedeckDevice
         var y = (index / Columns) * keyHeight;
 
         // Call the DrawCanvas method
-        DrawCanvas("center", keyWidth, keyHeight, bitmap, x, y);
+        await DrawCanvas("center", keyWidth, keyHeight, bitmap, x, y);
     }
 
     /// <summary>
@@ -434,7 +503,7 @@ public class LoupedeckDevice
     /// </summary>
     /// <param name="touchButton">The TouchButton object containing index, bitmap, text, etc.</param>
     /// <param name="rerender"></param>
-    public void DrawTouchButton(TouchButton touchButton, bool rerender)
+    public async Task DrawTouchButton(TouchButton touchButton, bool rerender)
     {
         ArgumentNullException.ThrowIfNull(touchButton);
 
@@ -444,10 +513,10 @@ public class LoupedeckDevice
             if (renderedBitmap == null) return;
         }
 
-        DrawKey(touchButton.Index, BitmapHelper.CreateRenderTargetBitmap(touchButton.RenderedImage));
+        await DrawKey(touchButton.Index, BitmapHelper.CreateRenderTargetBitmap(touchButton.RenderedImage));
     }
 
-    public void DrawTextButton(int index, string text)
+    public async Task DrawTextButton(int index, string text)
     {
         if (string.IsNullOrEmpty(text))
             throw new ArgumentException("Text must not be null or empty.", nameof(text));
@@ -456,26 +525,26 @@ public class LoupedeckDevice
         if (renderedBitmap == null)
             throw new Exception("The rendering of the text has failed.");
 
-        DrawKey(index, renderedBitmap);
+        await DrawKey(index, renderedBitmap);
     }
 
     /// <summary>
     /// Draws the entire screen (display) identified by the given ID.
     /// </summary>
-    public void DrawScreen(string id, RenderTargetBitmap bitmap)
+    public async Task DrawScreen(string id, RenderTargetBitmap bitmap)
     {
-        DrawCanvas(id, 0, 0, bitmap);
+        await DrawCanvas(id, 0, 0, bitmap);
     }
 
     /// <summary>
     /// Triggers a refresh (redraw) of the display.
     /// </summary>
-    private void Refresh(string id)
+    private async Task Refresh(string id)
     {
         if (Displays == null || !Displays.TryGetValue(id, out var displayInfo))
             throw new Exception($"Display '{id}' is not available on this device!");
 
-        Send(Constants.Command.DRAW, displayInfo.Id);
+        await SendAsync(Constants.Command.DRAW, displayInfo.Id);
     }
 
     /// <summary>
