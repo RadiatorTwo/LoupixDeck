@@ -72,7 +72,7 @@ public class LoupedeckDeviceService : IDeviceService
                 return;
             }
     
-            Device.DrawTextButton(index, text); // Update the text button
+            await Device.DrawTextButton(index, text); // Update the text button
             await Task.Delay(interval); // Wait for the specified interval
             elapsed += interval; // Increment the elapsed time
         }
@@ -80,7 +80,7 @@ public class LoupedeckDeviceService : IDeviceService
         // Only the last call executes this action
         if (callId == _currentCallId)
         {
-            Device.DrawTouchButton(_config.CurrentTouchButtonPage.TouchButtons[index], false); // Reset the button
+            await Device.DrawTouchButton(_config.CurrentTouchButtonPage.TouchButtons[index], false); // Reset the button
         }
     }
 }
