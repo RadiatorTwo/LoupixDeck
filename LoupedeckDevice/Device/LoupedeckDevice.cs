@@ -21,12 +21,13 @@ public class LoupedeckDevice
         Constants.Command Command,
         byte[] Data,
         TaskCompletionSource<byte[]> Completion,
-        bool ExpectResponse);
+        bool ExpectResponse,
+        CancellationTokenSource TimeoutCts);
 
     private readonly Channel<QueueItem> _sendChannel = Channel.CreateUnbounded<QueueItem>();
-    private Task _queueWorkerTask;
 
     private readonly Dictionary<byte, TaskCompletionSource<byte[]>> _pendingTransactions = new();
+    private readonly Dictionary<byte, CancellationTokenSource> _pendingTimeouts = new();
     private readonly Dictionary<byte, TouchInfo> _touches = new();
 
     private int ReconnectInterval { get; set; }
@@ -133,7 +134,7 @@ public class LoupedeckDevice
     /// </summary>
     private void StartQueueWorker()
     {
-        _queueWorkerTask = Task.Run(async () =>
+        _ = Task.Run(async () =>
         {
             await foreach (var item in _sendChannel.Reader.ReadAllAsync())
             {
@@ -150,13 +151,14 @@ public class LoupedeckDevice
                     if (item.ExpectResponse)
                     {
                         _pendingTransactions[_transactionId] = item.Completion;
+                        _pendingTimeouts[_transactionId] = item.TimeoutCts;
                     }
 
                     _connection?.Send(packet);
 
                     if (!item.ExpectResponse)
                     {
-                        // Sofort abschließen, weil keine Antwort erwartet wird
+                        // Immediately complete the task if no response is expected
                         item.Completion.TrySetResult([]);
                     }
                 }
@@ -188,9 +190,18 @@ public class LoupedeckDevice
     {
         data ??= [];
 
+        var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
         var tcs = new TaskCompletionSource<byte[]>(TaskCreationOptions.RunContinuationsAsynchronously);
-        var item = new QueueItem(command, data, tcs, true);
 
+        timeoutCts.Token.Register(() =>
+        {
+            tcs.TrySetException(new TimeoutException($"Timeout waiting for response to command {command}."));
+        });
+
+        var item = new QueueItem(command, data, tcs, true, timeoutCts);
+
+        // The cancellation token is not used for the write operation:
+        // ReSharper disable once MethodSupportsCancellation
         await _sendChannel.Writer.WriteAsync(item);
 
         return await tcs.Task;
@@ -207,12 +218,16 @@ public class LoupedeckDevice
     {
         data ??= [];
 
-        // Completion bleibt null, weil wir keine Antwort erwarten
+        var dummyCts = new CancellationTokenSource();
         var tcs = new TaskCompletionSource<byte[]>(TaskCreationOptions.RunContinuationsAsynchronously);
-        var item = new QueueItem(command, data, tcs, false);
 
+        var item = new QueueItem(command, data, tcs, false, dummyCts);
+
+        // The cancellation token is not used for the write operation:
+        // ReSharper disable once MethodSupportsCancellation
         await _sendChannel.Writer.WriteAsync(item);
     }
+
 
     /// <summary>
     /// Sends a command with the given data and waits synchronously for the response.
@@ -237,10 +252,25 @@ public class LoupedeckDevice
     private void OnReceive(byte[] buff)
     {
         if (buff.Length < 3) return;
+
         var msgLength = buff[0];
         var command = buff[1];
         var transactionId = buff[2];
         var payload = buff.Skip(3).Take(msgLength - 3).ToArray();
+
+        if (_pendingTransactions.TryGetValue(transactionId, out var transaction))
+        {
+            transaction.SetResult(payload);
+            _pendingTransactions.Remove(transactionId);
+        }
+
+        // Additionally, cancel the timeout if it exists:
+        if (_pendingTimeouts.TryGetValue(transactionId, out var cts))
+        {
+            cts.Cancel();
+            cts.Dispose();
+            _pendingTimeouts.Remove(transactionId);
+        }
 
         // Dispatch based on the received command
         switch (command)
@@ -264,11 +294,6 @@ public class LoupedeckDevice
                 // The version can be handled directly by the return value
                 break;
         }
-
-        if (!_pendingTransactions.TryGetValue(transactionId, out var transaction)) return;
-
-        transaction.SetResult(payload);
-        _pendingTransactions.Remove(transactionId);
     }
 
     /// <summary>
@@ -513,7 +538,20 @@ public class LoupedeckDevice
             if (renderedBitmap == null) return;
         }
 
-        await DrawKey(touchButton.Index, BitmapHelper.CreateRenderTargetBitmap(touchButton.RenderedImage));
+        try
+        {
+            await DrawKey(touchButton.Index, BitmapHelper.CreateRenderTargetBitmap(touchButton.RenderedImage));
+        }
+        catch (TimeoutException ex)
+        {
+            // Device not Responding
+            Console.WriteLine($"Timeout occurred: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            // Other unexpected errors
+            Console.WriteLine($"Unexpected error: {ex.Message}");
+        }
     }
 
     public async Task DrawTextButton(int index, string text)
@@ -525,7 +563,20 @@ public class LoupedeckDevice
         if (renderedBitmap == null)
             throw new Exception("The rendering of the text has failed.");
 
-        await DrawKey(index, renderedBitmap);
+        try
+        {
+            await DrawKey(index, renderedBitmap);
+        }
+        catch (TimeoutException ex)
+        {
+            // Device not Responding
+            Console.WriteLine($"Timeout occurred: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            // Other unexpected errors
+            Console.WriteLine($"Unexpected error: {ex.Message}");
+        }
     }
 
     /// <summary>
