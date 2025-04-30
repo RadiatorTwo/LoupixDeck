@@ -8,6 +8,8 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
     <LangVersion>default</LangVersion>
+    <DebugType>embedded</DebugType>
+    <PublishSymbols>false</PublishSymbols>
   </PropertyGroup>
 
   <ItemGroup>
