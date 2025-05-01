@@ -434,7 +434,7 @@ public class LoupedeckDevice
             height = displayInfo.Height;
 
         // Convert the RenderTargetBitmap into a 16-bit-5-6-5 array
-        var buffer = ConvertRtbToRaw16Bpp(bitmap);
+        var buffer = ConvertRtbToRaw16Bpp(bitmap, width, height);
 
         // Pass the buffer to the actual DrawBuffer
         await DrawBuffer(id, width, height, buffer, x, y, autoRefresh);
@@ -443,12 +443,10 @@ public class LoupedeckDevice
     /// <summary>
     /// Converts a RenderTargetBitmap (usually BGRA32) into a 16-bit-565 byte array.
     /// </summary>
-    private byte[] ConvertRtbToRaw16Bpp(RenderTargetBitmap rtb)
+    private byte[] ConvertRtbToRaw16Bpp(RenderTargetBitmap rtb, int width, int height)
     {
-        var pixelWidth = rtb.PixelSize.Width;
-        var pixelHeight = rtb.PixelSize.Height;
-        var stride = pixelWidth * 4; // BGRA32 = 4 bytes per pixel
-        var bufferSize = stride * pixelHeight;
+        var stride = width * 4; // BGRA32 = 4 bytes per pixel
+        var bufferSize = stride * height;
 
         // 1) Allocate a byte array to receive the BGRA data
         var bgraBytes = new byte[bufferSize];
@@ -463,7 +461,7 @@ public class LoupedeckDevice
 
             // 3) CopyPixels copies the bitmap data (BGRA) into bgraBytes
             rtb.CopyPixels(
-                sourceRect: new PixelRect(0, 0, pixelWidth, pixelHeight),
+                sourceRect: new PixelRect(0, 0, width, height),
                 buffer: ptr,
                 bufferSize: bufferSize,
                 stride: stride
@@ -475,22 +473,22 @@ public class LoupedeckDevice
         }
 
         // 4) Output array in 16-bit-565 format: 2 bytes per pixel
-        var output = new byte[pixelWidth * pixelHeight * 2];
-        int outIndex = 0;
+        var output = new byte[width * height * 2];
+        var outIndex = 0;
 
         // BGRA32 => RGB565 conversion (Little Endian)
         for (int i = 0; i < bufferSize; i += 4)
         {
-            byte b = bgraBytes[i + 0];
-            byte g = bgraBytes[i + 1];
-            byte r = bgraBytes[i + 2];
+            var b = bgraBytes[i + 0];
+            var g = bgraBytes[i + 1];
+            var r = bgraBytes[i + 2];
             // byte a = bgraBytes[i + 3]; // If you need alpha
 
-            int r5 = (r * 31) / 255; // 0..31
-            int g6 = (g * 63) / 255; // 0..63
-            int b5 = (b * 31) / 255; // 0..31
+            var r5 = (r * 31) / 255; // 0..31
+            var g6 = (g * 63) / 255; // 0..63
+            var b5 = (b * 31) / 255; // 0..31
 
-            ushort rgb565 = (ushort)((r5 << 11) | (g6 << 5) | b5);
+            var rgb565 = (ushort)((r5 << 11) | (g6 << 5) | b5);
 
             // Little-Endian: LSB, then MSB
             output[outIndex++] = (byte)(rgb565 & 0xFF);
@@ -582,9 +580,11 @@ public class LoupedeckDevice
     /// <summary>
     /// Draws the entire screen (display) identified by the given ID.
     /// </summary>
-    public async Task DrawScreen(string id, RenderTargetBitmap bitmap)
+    public async Task DrawScreen(string id, Bitmap bitmap)
     {
-        await DrawCanvas(id, 0, 0, bitmap);
+        ArgumentNullException.ThrowIfNull(bitmap);
+
+        await DrawCanvas(id, 0, 0, BitmapHelper.CreateRenderTargetBitmap(bitmap));
     }
 
     /// <summary>

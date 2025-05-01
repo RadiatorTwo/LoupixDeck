@@ -103,7 +103,7 @@ public class SettingsViewModel : DialogViewModelBase<DialogResult>
 
         var image = SKBitmap.Decode(result.Path.AbsolutePath);
 
-        var scaledImage = BitmapHelper.ScaleAndPositionBitmap(image, 450, 270, 100, 0, 0);
+        var scaledImage = BitmapHelper.ScaleAndPositionBitmap(image, 480, 270, 100, 0, 0);
 
         Config.Wallpaper = scaledImage.ToRenderTargetBitmap();
     }
