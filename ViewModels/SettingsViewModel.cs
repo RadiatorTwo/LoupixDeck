@@ -5,6 +5,7 @@ using LoupixDeck.Services;
 using LoupixDeck.Utils;
 using LoupixDeck.ViewModels.Base;
 using OBSWebsocketDotNet.Communication;
+using SkiaSharp;
 
 namespace LoupixDeck.ViewModels;
 
@@ -14,6 +15,7 @@ public class SettingsViewModel : DialogViewModelBase<DialogResult>
     private readonly IObsController _obs;
     public ICommand SaveObsCommand { get; }
     public ICommand TestConnectionCommand { get; }
+    public ICommand SelectImageButtonCommand { get; }
     public ICommand NavigateCommand { get; }
 
     private SettingsView _currentView;
@@ -31,6 +33,7 @@ public class SettingsViewModel : DialogViewModelBase<DialogResult>
         Config = config;
         SaveObsCommand = new RelayCommand(SaveObs);
         TestConnectionCommand = new RelayCommand(TestConnection);
+        SelectImageButtonCommand = new AsyncRelayCommand(SelectImageButton_Click);
 
         NavigateCommand = new RelayCommand<SettingsView>(Navigate);
         CurrentView = SettingsView.General;
@@ -90,6 +93,19 @@ public class SettingsViewModel : DialogViewModelBase<DialogResult>
     private void TestConnection()
     {
         _obs.Connect(ObsConfig.Ip, ObsConfig.Port, ObsConfig.Password);
+    }
+
+    private async Task SelectImageButton_Click()
+    {
+        var result = await FileDialogHelper.OpenFileDialog();
+
+        if (result == null || !File.Exists(result.Path.AbsolutePath)) return;
+
+        var image = SKBitmap.Decode(result.Path.AbsolutePath);
+
+        var scaledImage = BitmapHelper.ScaleAndPositionBitmap(image, 450, 270, 100, 0, 0);
+
+        Config.Wallpaper = scaledImage.ToRenderTargetBitmap();
     }
 
     private void Navigate(SettingsView settingsPage)

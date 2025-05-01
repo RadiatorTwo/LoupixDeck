@@ -5,8 +5,11 @@ namespace LoupixDeck.Utils;
 
 public abstract class FileDialogHelper
 {
-    public static async Task<IStorageFile> OpenFileDialog(Window parent)
+    public static async Task<IStorageFile> OpenFileDialog()
     {
+        var parent = WindowHelper.GetMainWindow();
+        if (parent == null) return null;
+        
         var files = await parent.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
         {
             Title = "Datei auswählen",

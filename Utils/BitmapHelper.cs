@@ -173,7 +173,7 @@ public static class BitmapHelper
     /// <param name="posX">X-Position (touchButton.ImagePositionX). 0 = zentrieren.</param>
     /// <param name="posY">Y-Position (touchButton.ImagePositionY). 0 = zentrieren.</param>
     /// <returns>Fertig skaliertes und platziertes SKBitmap.</returns>
-    private static SKBitmap ScaleAndPositionBitmap(
+    public static SKBitmap ScaleAndPositionBitmap(
         SKBitmap source,
         int targetWidth,
         int targetHeight,

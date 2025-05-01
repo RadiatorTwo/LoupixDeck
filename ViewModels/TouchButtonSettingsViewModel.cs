@@ -154,9 +154,7 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
 
     private async Task SelectImageButton_Click()
     {
-        var parent = WindowHelper.GetMainWindow();
-        if (parent == null) return;
-        var result = await FileDialogHelper.OpenFileDialog(parent);
+        var result = await FileDialogHelper.OpenFileDialog();
 
         if (result == null || !File.Exists(result.Path.AbsolutePath)) return;
         
