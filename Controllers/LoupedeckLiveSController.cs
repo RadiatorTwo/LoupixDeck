@@ -228,7 +228,7 @@ public class LoupedeckLiveSController(
         configService.SaveConfig(config, _configPath);
     }
 
-    private void ConfigOnPropertyChanged(object sender, PropertyChangedEventArgs e)
+    private async void ConfigOnPropertyChanged(object sender, PropertyChangedEventArgs e)
     {
         switch (e.PropertyName)
         {
@@ -237,6 +237,11 @@ public class LoupedeckLiveSController(
                 deviceService.Device.SetBrightness(config.Brightness / 100.0);
                 break;
             }
+            // case nameof(LoupedeckConfig.Wallpaper):
+            // {
+            //     await deviceService.Device.DrawScreen("center", config.Wallpaper);
+            //     break;
+            // }
         }
     }
 }
