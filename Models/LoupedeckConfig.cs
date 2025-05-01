@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using Newtonsoft.Json;
+using SkiaSharp;
 
 namespace LoupixDeck.Models;
 
@@ -79,6 +80,18 @@ public class LoupedeckConfig : INotifyPropertyChanged
             if (_brightness == value) return;
             _brightness = value;
             OnPropertyChanged();
+        }
+    }
+    
+    private SKBitmap _wallpaper;
+    
+    public SKBitmap Wallpaper
+    {
+        get => _wallpaper;
+        set
+        {
+            if (Equals(value, _wallpaper)) return;
+            _wallpaper = value;
         }
     }
 

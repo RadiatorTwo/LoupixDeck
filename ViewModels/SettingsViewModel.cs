@@ -14,19 +14,26 @@ public class SettingsViewModel : DialogViewModelBase<DialogResult>
     private readonly IObsController _obs;
     public ICommand SaveObsCommand { get; }
     public ICommand TestConnectionCommand { get; }
-    public ICommand ShowGeneralCommand { get; }
-    public ICommand ShowObsCommand { get; }
+    public ICommand NavigateCommand { get; }
 
-    public SettingsViewModel(LoupedeckConfig config,IObsController obs)
+    private SettingsView _currentView;
+
+    public SettingsView CurrentView
+    {
+        get => _currentView;
+        set => SetProperty(ref _currentView, value);
+    }
+
+    public ObsConfig ObsConfig { get; }
+
+    public SettingsViewModel(LoupedeckConfig config, IObsController obs)
     {
         Config = config;
         SaveObsCommand = new RelayCommand(SaveObs);
         TestConnectionCommand = new RelayCommand(TestConnection);
-        ShowGeneralCommand = new RelayCommand(ShowGeneral);
-        ShowObsCommand = new RelayCommand(ShowObs);
 
-        IsGeneralSelected = true;
-        IsObsSelected = false;
+        NavigateCommand = new RelayCommand<SettingsView>(Navigate);
+        CurrentView = SettingsView.General;
 
         ConnectionTestVisible = true;
 
@@ -75,24 +82,6 @@ public class SettingsViewModel : DialogViewModelBase<DialogResult>
         set => SetProperty(ref _connectionResult, value);
     }
 
-    private bool _isGeneralSelected;
-
-    public bool IsGeneralSelected
-    {
-        get => _isGeneralSelected;
-        set => SetProperty(ref _isGeneralSelected, value);
-    }
-
-    private bool _isObsSelected;
-
-    public bool IsObsSelected
-    {
-        get => _isObsSelected;
-        set => SetProperty(ref _isObsSelected, value);
-    }
-
-    public ObsConfig ObsConfig { get; }
-
     private void SaveObs()
     {
         ObsConfig.SaveConfig();
@@ -103,15 +92,8 @@ public class SettingsViewModel : DialogViewModelBase<DialogResult>
         _obs.Connect(ObsConfig.Ip, ObsConfig.Port, ObsConfig.Password);
     }
 
-    private void ShowGeneral()
+    private void Navigate(SettingsView settingsPage)
     {
-        IsGeneralSelected = true;
-        IsObsSelected = false;
-    }
-
-    private void ShowObs()
-    {
-        IsGeneralSelected = false;
-        IsObsSelected = true;
+        CurrentView = settingsPage;
     }
 }
