@@ -5,11 +5,11 @@ namespace LoupixDeck.Utils;
 
 public abstract class FileDialogHelper
 {
-    public static async Task<IStorageFile> OpenFileDialog()
+    public static async Task<string> OpenFileDialog()
     {
         var parent = WindowHelper.GetMainWindow();
         if (parent == null) return null;
-        
+
         var files = await parent.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
         {
             Title = "Datei auswählen",
@@ -18,7 +18,7 @@ public abstract class FileDialogHelper
             {
                 new("Bilder")
                 {
-                    Patterns = ["*.png","*.jpg","*.jpeg","*.bmp","*.tif","*.tiff"]
+                    Patterns = ["*.png", "*.jpg", "*.jpeg", "*.bmp", "*.tif", "*.tiff", "*.mp4"]
                 },
                 new("Alle Dateien")
                 {
@@ -26,10 +26,12 @@ public abstract class FileDialogHelper
                 }
             }
         });
-
-        return files.Count > 0 ? files[0] : null;
+        
+        if (files.Count == 0) return string.Empty;
+        
+        return Uri.UnescapeDataString(files[0].Path.AbsolutePath);
     }
-    
+
     public static string GetConfigPath(string fileName)
     {
         var homePath = Environment.GetEnvironmentVariable("HOME")
