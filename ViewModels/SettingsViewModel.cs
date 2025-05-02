@@ -99,9 +99,9 @@ public class SettingsViewModel : DialogViewModelBase<DialogResult>
     {
         var result = await FileDialogHelper.OpenFileDialog();
 
-        if (result == null || !File.Exists(result.Path.AbsolutePath)) return;
+        if (result == null || !File.Exists(result)) return;
 
-        var image = SKBitmap.Decode(result.Path.AbsolutePath);
+        var image = SKBitmap.Decode(result);
 
         var scaledImage = BitmapHelper.ScaleAndPositionBitmap(image, 480, 270, 100, 0, 0);
 
