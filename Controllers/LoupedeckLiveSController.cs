@@ -1,9 +1,16 @@
+using System.Collections.Concurrent;
 using System.ComponentModel;
+using System.Diagnostics;
+using System.Runtime.InteropServices;
+using Avalonia;
+using Avalonia.Media.Imaging;
+using Avalonia.Platform;
 using LoupixDeck.LoupedeckDevice;
 using LoupixDeck.Models;
 using LoupixDeck.Models.Extensions;
 using LoupixDeck.Services;
 using LoupixDeck.Utils;
+using SkiaSharp;
 
 namespace LoupixDeck.Controllers;
 
@@ -43,7 +50,8 @@ public class LoupedeckLiveSController(
         config.SimpleButtons =
         [
             await CreateSimpleButton(Constants.ButtonType.BUTTON0, Avalonia.Media.Colors.Blue, "System.PreviousPage"),
-            await CreateSimpleButton(Constants.ButtonType.BUTTON1, Avalonia.Media.Colors.Blue, "System.PreviousRotaryPage"),
+            await CreateSimpleButton(Constants.ButtonType.BUTTON1, Avalonia.Media.Colors.Blue,
+                "System.PreviousRotaryPage"),
             await CreateSimpleButton(Constants.ButtonType.BUTTON2, Avalonia.Media.Colors.Blue, "System.NextRotaryPage"),
             await CreateSimpleButton(Constants.ButtonType.BUTTON3, Avalonia.Media.Colors.Blue, "System.NextPage")
         ];
@@ -194,7 +202,8 @@ public class LoupedeckLiveSController(
         await deviceService.Device.DrawTouchButton(button, true, config.Wallpaper, 5);
     }
 
-    private async Task<SimpleButton> CreateSimpleButton(Constants.ButtonType id, Avalonia.Media.Color color, string command)
+    private async Task<SimpleButton> CreateSimpleButton(Constants.ButtonType id, Avalonia.Media.Color color,
+        string command)
     {
         var button = config.SimpleButtons.FindById(id) ?? new SimpleButton
         {
@@ -233,19 +242,106 @@ public class LoupedeckLiveSController(
         switch (e.PropertyName)
         {
             case nameof(LoupedeckConfig.Brightness):
-            {
                 await deviceService.Device.SetBrightness(config.Brightness / 100.0);
                 break;
-            }
+
             case nameof(LoupedeckConfig.Wallpaper):
-            {
                 foreach (var touchButton in config.CurrentTouchButtonPage.TouchButtons)
                 {
                     await deviceService.Device.DrawTouchButton(touchButton, true, config.Wallpaper, 5);
                 }
 
                 break;
-            }
+
+            case nameof(LoupedeckConfig.VideoPath):
+                StartFfmpegReader();
+                StartFrameProcessor();
+                break;
         }
+    }
+
+    private async Task ProcessFrame(byte[] frame)
+    {
+        var bitmap = CreateBitmapFromRgb24(frame, 480, 270);
+        await deviceService.Device.DrawScreen("center", bitmap.ToRenderTargetBitmap());
+    }
+
+    private readonly BlockingCollection<byte[]> _frameQueue = new(1); // max 1 Frame im Speicher
+
+    private byte[] _frontBuffer;
+    private byte[] _backBuffer;
+    private readonly Lock _bufferLock = new();
+
+    private void StartFfmpegReader()
+    {
+        Task.Run(() =>
+        {
+            using var ffmpeg = Process.Start(new ProcessStartInfo
+            {
+                FileName = "ffmpeg",
+                Arguments = $"-i \"{config.VideoPath}\" -f rawvideo -r 30 -pix_fmt bgr0 -vf scale=480:270 -",
+                RedirectStandardOutput = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            });
+
+            if (ffmpeg == null) return;
+            
+            var stream = ffmpeg.StandardOutput.BaseStream;
+            const int frameSize = 480 * 270 * 4;
+            var buffer = new byte[frameSize];
+
+            while (!ffmpeg.HasExited)
+            {
+                var read = 0;
+                while (read < frameSize)
+                {
+                    var r = stream.Read(buffer, read, frameSize - read);
+                    if (r <= 0) return;
+                    read += r;
+                }
+
+                // Achtung: blockiert, wenn noch nicht verarbeitet
+                _frameQueue.Add(buffer.ToArray());
+            }
+        });
+    }
+
+    private void SwapBuffers()
+    {
+        (_frontBuffer, _backBuffer) = (_backBuffer, _frontBuffer);
+    }
+
+    private void StartFrameProcessor()
+    {
+        Task.Run(async () =>
+        {
+            const int frameDurationMs = 1000 / 24;
+            var stopwatch = Stopwatch.StartNew();
+
+            while (true)
+            {
+                var frame = _frameQueue.Take(); // wartet auf neuen Frame
+
+                var before = stopwatch.ElapsedMilliseconds;
+                await ProcessFrame(frame);
+
+                var after = stopwatch.ElapsedMilliseconds;
+                var elapsed = after - before;
+
+                var delay = Math.Max(0, frameDurationMs - (int)elapsed);
+                await Task.Delay(delay);
+            }
+        });
+    }
+
+    private static SKBitmap CreateBitmapFromRgb24(byte[] rgbData, int width, int height)
+    {
+        var bitmap = new SKBitmap(width, height, SKColorType.Bgra8888, SKAlphaType.Opaque);
+        var ptr = bitmap.GetPixels();
+
+        Marshal.Copy(rgbData, 0, ptr, rgbData.Length);
+
+        return bitmap;
     }
 }

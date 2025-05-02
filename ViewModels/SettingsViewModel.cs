@@ -98,14 +98,15 @@ public class SettingsViewModel : DialogViewModelBase<DialogResult>
     private async Task SelectImageButton_Click()
     {
         var result = await FileDialogHelper.OpenFileDialog();
+        if (result == null) return;
+        
+        Config.VideoPath = result;
+        
+        // var image = SKBitmap.Decode(result.Path.AbsolutePath);
 
-        if (result == null || !File.Exists(result)) return;
+        // var scaledImage = BitmapHelper.ScaleAndPositionBitmap(image, 480, 270, 100, 0, 0);
 
-        var image = SKBitmap.Decode(result);
-
-        var scaledImage = BitmapHelper.ScaleAndPositionBitmap(image, 480, 270, 100, 0, 0);
-
-        Config.Wallpaper = scaledImage.ToRenderTargetBitmap();
+        // Config.Wallpaper = scaledImage.ToRenderTargetBitmap();
     }
 
     private void Navigate(SettingsView settingsPage)
