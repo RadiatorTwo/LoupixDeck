@@ -42,10 +42,10 @@ public class LoupedeckLiveSController(
 
         config.SimpleButtons =
         [
-            CreateSimpleButton(Constants.ButtonType.BUTTON0, Avalonia.Media.Colors.Blue, "System.PreviousPage"),
-            CreateSimpleButton(Constants.ButtonType.BUTTON1, Avalonia.Media.Colors.Blue, "System.PreviousRotaryPage"),
-            CreateSimpleButton(Constants.ButtonType.BUTTON2, Avalonia.Media.Colors.Blue, "System.NextRotaryPage"),
-            CreateSimpleButton(Constants.ButtonType.BUTTON3, Avalonia.Media.Colors.Blue, "System.NextPage")
+            await CreateSimpleButton(Constants.ButtonType.BUTTON0, Avalonia.Media.Colors.Blue, "System.PreviousPage"),
+            await CreateSimpleButton(Constants.ButtonType.BUTTON1, Avalonia.Media.Colors.Blue, "System.PreviousRotaryPage"),
+            await CreateSimpleButton(Constants.ButtonType.BUTTON2, Avalonia.Media.Colors.Blue, "System.NextRotaryPage"),
+            await CreateSimpleButton(Constants.ButtonType.BUTTON3, Avalonia.Media.Colors.Blue, "System.NextPage")
         ];
 
         if (config.RotaryButtonPages == null || config.RotaryButtonPages.Count == 0)
@@ -194,7 +194,7 @@ public class LoupedeckLiveSController(
         await deviceService.Device.DrawTouchButton(button, true, config.Wallpaper, 5);
     }
 
-    private SimpleButton CreateSimpleButton(Constants.ButtonType id, Avalonia.Media.Color color, string command)
+    private async Task<SimpleButton> CreateSimpleButton(Constants.ButtonType id, Avalonia.Media.Color color, string command)
     {
         var button = config.SimpleButtons.FindById(id) ?? new SimpleButton
         {
@@ -203,24 +203,24 @@ public class LoupedeckLiveSController(
             ButtonColor = color
         };
 
-        Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+        Avalonia.Threading.Dispatcher.UIThread.Invoke(() =>
         {
             button.RenderedImage = BitmapHelper.RenderSimpleButtonImage(button, 90, 90);
         });
 
         button.ItemChanged += SimpleButtonChanged;
 
-        deviceService.Device.SetButtonColor(id, button.ButtonColor);
+        await deviceService.Device.SetButtonColor(id, button.ButtonColor);
 
         return button;
     }
 
-    private void SimpleButtonChanged(object sender, EventArgs e)
+    private async void SimpleButtonChanged(object sender, EventArgs e)
     {
         if (sender is not SimpleButton button) return;
 
         button.RenderedImage = BitmapHelper.RenderSimpleButtonImage(button, 90, 90);
-        deviceService.Device.SetButtonColor(button.Id, button.ButtonColor);
+        await deviceService.Device.SetButtonColor(button.Id, button.ButtonColor);
     }
 
     public void SaveConfig()

@@ -633,7 +633,7 @@ public class LoupedeckDevice
     /// <summary>
     /// Sets the color of a button by its ID.
     /// </summary>
-    public void SetButtonColor(Constants.ButtonType id, Color color)
+    public async Task SetButtonColor(Constants.ButtonType id, Color color)
     {
         byte key = 0;
         var found = false;
@@ -655,7 +655,7 @@ public class LoupedeckDevice
         var b = color.B;
         var data = new[] { key, r, g, b };
 
-        Send(Constants.Command.SET_COLOR, data);
+        await SendAsync(Constants.Command.SET_COLOR, data);
     }
 
     /// <summary>

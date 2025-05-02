@@ -14,7 +14,7 @@ public class LoupedeckConfig : INotifyPropertyChanged
     private int _currentRotaryPageIndex = -1;
     private int _currentTouchPageIndex = -1;
     
-    private int _brightness = 1;
+    private int _brightness = 100;
 
     public string DevicePort { get; set; }
     public int DeviceBaudrate { get; set; }
