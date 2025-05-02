@@ -101,9 +101,15 @@ public static class BitmapHelper
     /// <summary>
     /// Renders the content of a TouchButton (background, image, text) into an Avalonia bitmap.
     /// </summary>
-    public static RenderTargetBitmap RenderTouchButtonContent(TouchButton touchButton, int width, int height)
+    public static RenderTargetBitmap RenderTouchButtonContent(
+        TouchButton touchButton,
+        int width,
+        int height,
+        Bitmap wallpaper,
+        int gridColumns = 0)
     {
         ArgumentNullException.ThrowIfNull(touchButton);
+
 
         var rtb = new RenderTargetBitmap(
             new PixelSize(width, height)
@@ -111,25 +117,38 @@ public static class BitmapHelper
 
         using var ctx = rtb.CreateDrawingContext(true);
 
-        var backgroundBrush = new ImmutableSolidColorBrush(touchButton.BackColor);
-        ctx.DrawRectangle(
-            backgroundBrush,
-            pen: null,
-            rect: new Rect(0, 0, width, height)
-        );
-
-        if (touchButton.OriginalImage != null)
+        if (wallpaper != null && gridColumns > 0)
         {
-            touchButton.IgnoreRefresh = true; // Prevents infinite loop
-            touchButton.Image = ScaleAndPositionBitmap(
-                touchButton.OriginalImage,
-                width,
-                height,
-                touchButton.ImageScale,
-                touchButton.ImagePositionX,
-                touchButton.ImagePositionY
-            ).ToRenderTargetBitmap();
-            touchButton.IgnoreRefresh = false;
+            // Determine the position of the button in the 5×3 grid
+            // Provided you have a list of all TouchButtons somewhere:
+            // var index = allButtons.IndexOf(touchButton);
+            // Or: TouchButton has row/column properties ready.
+            var col = touchButton.Index % gridColumns;
+            var row = touchButton.Index / gridColumns;
+
+            // Calculate the section from the wallpaper
+            var srcRect = new Rect(
+                x: col * width,
+                y: row * height,
+                width: width,
+                height: height
+            );
+
+            // Draw this wallpaper slice first
+            ctx.DrawImage(wallpaper, srcRect, new Rect(0, 0, width, height));
+
+            // (Optional future feature) Add a semi-transparent background color
+            //var backgroundBrush = new ImmutableSolidColorBrush(touchButton.BackColor);
+            //ctx.DrawRectangle(backgroundBrush, null, new Rect(0,0,width,height));
+        }
+        else
+        {
+            var backgroundBrush = new ImmutableSolidColorBrush(touchButton.BackColor);
+            ctx.DrawRectangle(
+                backgroundBrush,
+                pen: null,
+                rect: new Rect(0, 0, width, height)
+            );
         }
 
         if (touchButton.Image != null)
@@ -163,16 +182,9 @@ public static class BitmapHelper
     }
 
     /// <summary>
-    /// Skaliert und positioniert ein Bitmap analog zu RenderTouchButtonContent
-    /// und liefert das Ergebnis als neues SKBitmap zurück.
+    /// Scales and positions a bitmap in the same way as RenderTouchButtonContent
+    /// and returns the result as a new SKBitmap.
     /// </summary>
-    /// <param name="source">Das Quellbild (SKBitmap).</param>
-    /// <param name="targetWidth">Breite der Zielfläche in Pixeln.</param>
-    /// <param name="targetHeight">Höhe der Zielfläche in Pixeln.</param>
-    /// <param name="imageScale">Prozentuale Skalierung (touchButton.ImageScale, 100 %= Basisgröße).</param>
-    /// <param name="posX">X-Position (touchButton.ImagePositionX). 0 = zentrieren.</param>
-    /// <param name="posY">Y-Position (touchButton.ImagePositionY). 0 = zentrieren.</param>
-    /// <returns>Fertig skaliertes und platziertes SKBitmap.</returns>
     public static SKBitmap ScaleAndPositionBitmap(
         SKBitmap source,
         int targetWidth,
@@ -183,20 +195,20 @@ public static class BitmapHelper
     {
         ArgumentNullException.ThrowIfNull(source);
 
-        // Zielbitmap anlegen (transparenter Hintergrund)
+        // Create target bitmap (transparent background)
         var result = new SKBitmap(targetWidth, targetHeight, source.ColorType, source.AlphaType);
 
-        // ――― Skalierung berechnen ―――
-        double scaleX = (double)targetWidth / source.Width;
-        double scaleY = (double)targetHeight / source.Height;
-        double baseScale = Math.Min(scaleX, scaleY); // Bild vollständig einpassen
-        double scaleFactor = Math.Max(0.01, imageScale / 100.0); // 0,01 = Sicherheitsminimum
-        double finalScale = baseScale * scaleFactor;
+        // Calculate scaling
+        var scaleX = (double)targetWidth / source.Width;
+        var scaleY = (double)targetHeight / source.Height;
+        var baseScale = Math.Min(scaleX, scaleY); // Bild vollständig einpassen
+        var scaleFactor = Math.Max(0.01, imageScale / 100.0); // 0,01 = Sicherheitsminimum
+        var finalScale = baseScale * scaleFactor;
 
-        float scaledW = (float)(source.Width * finalScale);
-        float scaledH = (float)(source.Height * finalScale);
+        var scaledW = (float)(source.Width * finalScale);
+        var scaledH = (float)(source.Height * finalScale);
 
-        // ――― Position berechnen (0/0 ⇒ zentriert) ―――
+        // Calculate position (0/0 ⇒ centered)
         if (posX == 0 && posY == 0)
         {
             posX = (int)((targetWidth - scaledW) / 2);
@@ -221,25 +233,20 @@ public static class BitmapHelper
         canvas.Clear(SKColors.Transparent);
 
         canvas.DrawBitmap(source, destRect, paint);
-        canvas.Flush(); // sicherstellen, dass alles geschrieben ist
+        canvas.Flush();
 
-        return result; // Aufrufer ist für Dispose zuständig
+        return result;
     }
 
     /// <summary>
-    /// Erzeugt aus einem SKBitmap ein Avalonia RenderTargetBitmap
-    /// ohne zusätzlichen Encode/Decode-Schritt.
+    /// Creates an Avalonia RenderTargetBitmap
+    /// from an SKBitmap without an additional encode/decode step.
     /// </summary>
-    /// <param name="source">Quellbild (SKBitmap)</param>
-    /// <param name="dpi">Ziel-DPI, Standard 96</param>
-    /// <returns>Fertiges RenderTargetBitmap</returns>
-    public static RenderTargetBitmap ToRenderTargetBitmap(
-        this SKBitmap source,
-        double dpi = 96)
+    public static RenderTargetBitmap ToRenderTargetBitmap(this SKBitmap source, double dpi = 96)
     {
         ArgumentNullException.ThrowIfNull(source);
 
-        // --- 1) PixelFormat / AlphaFormat aus SKColorType ableiten -------------
+        // Derive PixelFormat / AlphaFormat from SKColorType
         var pixelFormat = source.ColorType switch
         {
             SKColorType.Bgra8888 => PixelFormat.Bgra8888,
@@ -251,9 +258,9 @@ public static class BitmapHelper
             ? AlphaFormat.Opaque
             : AlphaFormat.Unpremul;
 
-        // --- 2) SKBitmap-Pixelpuffer „wrappen“ (keine Kopie) -------------------
-        //    Bitmap()-Konstruktor akzeptiert einen IntPtr auf Rohdaten + Stride
-        //    Quelle: Avalonia API-Dokumentation der Bitmap-Klasse :contentReference[oaicite:0]{index=0}
+        // SKBitmap pixel buffer “wrap” (no copy)
+        // Bitmap() constructor accepts an IntPtr on raw data + stride
+        // Source: Avalonia API documentation of the bitmap class :contentReference[oaicite:0]{index=0}
         using var avBitmap = new Bitmap(
             pixelFormat,
             alphaFormat,
@@ -262,19 +269,18 @@ public static class BitmapHelper
             new Vector(dpi, dpi),
             source.RowBytes);
 
-        // --- 3) RenderTargetBitmap anlegen und zeichnen ------------------------
+        // Create and draw RenderTargetBitmap
         var rtb = new RenderTargetBitmap(
             new PixelSize(source.Width, source.Height),
             new Vector(dpi, dpi));
 
-        using (var ctx = rtb.CreateDrawingContext(true))
-        {
-            ctx.DrawImage(
-                avBitmap,
-                new Rect(0, 0, source.Width, source.Height));
-        } // Flush & Dispose
+        using var ctx = rtb.CreateDrawingContext(true);
+        
+        ctx.DrawImage(
+            avBitmap,
+            new Rect(0, 0, source.Width, source.Height));
 
-        return rtb; // Aufrufer verwaltet Lebensdauer des RTB
+        return rtb;
     }
 
     public static RenderTargetBitmap RenderTextToBitmap(string text, int imageWidth, int imageHeight)
