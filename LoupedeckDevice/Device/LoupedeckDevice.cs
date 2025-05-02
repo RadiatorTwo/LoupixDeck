@@ -524,15 +524,18 @@ public class LoupedeckDevice
     /// <summary>
     /// Draws a touch button on the corresponding key, optionally with an image and text overlay.
     /// </summary>
-    /// <param name="touchButton">The TouchButton object containing index, bitmap, text, etc.</param>
-    /// <param name="rerender"></param>
-    public async Task DrawTouchButton(TouchButton touchButton, bool rerender)
+    public async Task DrawTouchButton(
+        TouchButton touchButton,
+        bool refresh,
+        Bitmap wallpaper,
+        int columns)
     {
         ArgumentNullException.ThrowIfNull(touchButton);
 
-        if (rerender || touchButton.RenderedImage == null)
+        if (refresh || touchButton.RenderedImage == null)
         {
-            var renderedBitmap = BitmapHelper.RenderTouchButtonContent(touchButton, 90, 90);
+            var renderedBitmap =
+                BitmapHelper.RenderTouchButtonContent(touchButton, 90, 90, wallpaper, columns);
             if (renderedBitmap == null) return;
         }
 
@@ -616,7 +619,7 @@ public class LoupedeckDevice
     /// <summary>
     /// Sets the brightness level of the device.
     /// </summary>
-    public void SetBrightness(double value)
+    public async Task SetBrightness(double value)
     {
         var byteValue = (int)Math.Clamp(
             Math.Round(value * Constants.MaxBrightness),
@@ -624,7 +627,7 @@ public class LoupedeckDevice
             Constants.MaxBrightness
         );
 
-        Send(Constants.Command.SET_BRIGHTNESS, [(byte)byteValue]);
+        await SendAsync(Constants.Command.SET_BRIGHTNESS, [(byte)byteValue]);
     }
 
     /// <summary>
