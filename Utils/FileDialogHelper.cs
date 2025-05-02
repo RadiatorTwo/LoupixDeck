@@ -36,8 +36,11 @@ public abstract class FileDialogHelper
     {
         var homePath = Environment.GetEnvironmentVariable("HOME")
                        ?? Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-
+#if DEBUG
+        var configDir = Path.Combine(homePath, ".config", "LoupixDeck", "debug");
+#else
         var configDir = Path.Combine(homePath, ".config", "LoupixDeck");
+#endif
 
         if (!Directory.Exists(configDir))
         {
