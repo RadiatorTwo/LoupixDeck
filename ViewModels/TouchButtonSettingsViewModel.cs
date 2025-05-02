@@ -15,7 +15,7 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
     {
         ButtonData = parameter;
     }
-    
+
     private readonly IObsController _obs;
     private readonly ElgatoDevices _elgatoDevices;
     private readonly ISysCommandService _sysCommandService;
@@ -30,9 +30,9 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
 
     private MenuEntry _elgatoKeyLightMenu;
 
-    public TouchButtonSettingsViewModel(IObsController obs, 
+    public TouchButtonSettingsViewModel(IObsController obs,
         ElgatoDevices elgatoDevices,
-        ISysCommandService sysCommandService, 
+        ISysCommandService sysCommandService,
         ICommandBuilder commandBuilder)
     {
         _obs = obs;
@@ -157,21 +157,22 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
         var result = await FileDialogHelper.OpenFileDialog();
 
         if (result == null || !File.Exists(result.Path.AbsolutePath)) return;
-        
-        ButtonData.OriginalImage = SKBitmap.Decode(result.Path.AbsolutePath);
-        // ButtonData.RenderedImage = BitmapHelper.RenderTouchButtonContent(ButtonData, 150, 150);
 
-        ButtonData.Refresh();
+        var image = SKBitmap.Decode(result.Path.AbsolutePath);
+        var scaledImage = BitmapHelper.ScaleAndPositionBitmap(
+            image,
+            90,
+            90,
+            ButtonData.ImageScale,
+            ButtonData.ImagePositionX,
+            ButtonData.ImagePositionY);
+
+        ButtonData.Image = scaledImage.ToRenderTargetBitmap();
     }
 
     private void RemoveImageButton_Click()
     {
-        ButtonData.OriginalImage = null;
         ButtonData.Image = null;
-
-        ButtonData.RenderedImage = BitmapHelper.RenderTouchButtonContent(ButtonData, 150, 150);
-
-        ButtonData.Refresh();
     }
 
     public void InsertCommand(MenuEntry menuEntry)

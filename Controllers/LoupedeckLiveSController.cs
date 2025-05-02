@@ -77,7 +77,7 @@ public class LoupedeckLiveSController(
 
             foreach (var touchButton in config.CurrentTouchButtonPage.TouchButtons)
             {
-                await deviceService.Device.DrawTouchButton(touchButton, true);
+                await deviceService.Device.DrawTouchButton(touchButton, true, config.Wallpaper, 5);
             }
         }
 
@@ -86,7 +86,7 @@ public class LoupedeckLiveSController(
 
         config.PropertyChanged += ConfigOnPropertyChanged;
 
-        deviceService.Device.SetBrightness(config.Brightness / 100.0);
+        await deviceService.Device.SetBrightness(config.Brightness / 100.0);
 
         InitButtonEvents();
 
@@ -191,7 +191,7 @@ public class LoupedeckLiveSController(
 
         if (button == null) return;
 
-        await deviceService.Device.DrawTouchButton(button, true);
+        await deviceService.Device.DrawTouchButton(button, true, config.Wallpaper, 5);
     }
 
     private SimpleButton CreateSimpleButton(Constants.ButtonType id, Avalonia.Media.Color color, string command)
@@ -234,14 +234,18 @@ public class LoupedeckLiveSController(
         {
             case nameof(LoupedeckConfig.Brightness):
             {
-                deviceService.Device.SetBrightness(config.Brightness / 100.0);
+                await deviceService.Device.SetBrightness(config.Brightness / 100.0);
                 break;
             }
-            // case nameof(LoupedeckConfig.Wallpaper):
-            // {
-            //     await deviceService.Device.DrawScreen("center", config.Wallpaper);
-            //     break;
-            // }
+            case nameof(LoupedeckConfig.Wallpaper):
+            {
+                foreach (var touchButton in config.CurrentTouchButtonPage.TouchButtons)
+                {
+                    await deviceService.Device.DrawTouchButton(touchButton, true, config.Wallpaper, 5);
+                }
+
+                break;
+            }
         }
     }
 }

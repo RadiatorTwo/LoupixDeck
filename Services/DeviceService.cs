@@ -57,13 +57,13 @@ public class LoupedeckDeviceService : IDeviceService
     }
 
     private int _currentCallId;
-    
+
     public async Task ShowTemporaryTextButton(int index, string text, int displayDurationMilliseconds)
     {
         var callId = Interlocked.Increment(ref _currentCallId); // Atomically increment the call ID
-        var interval = 100; // Update interval in milliseconds
+        const int interval = 100; // Update interval in milliseconds
         var elapsed = 0; // Tracks the elapsed time
-    
+
         while (elapsed < displayDurationMilliseconds)
         {
             if (callId != _currentCallId)
@@ -71,16 +71,20 @@ public class LoupedeckDeviceService : IDeviceService
                 // Exit if a newer call has been made
                 return;
             }
-    
+
             await Device.DrawTextButton(index, text); // Update the text button
             await Task.Delay(interval); // Wait for the specified interval
             elapsed += interval; // Increment the elapsed time
         }
-    
+
         // Only the last call executes this action
         if (callId == _currentCallId)
         {
-            await Device.DrawTouchButton(_config.CurrentTouchButtonPage.TouchButtons[index], false); // Reset the button
+            await Device.DrawTouchButton(
+                _config.CurrentTouchButtonPage.TouchButtons[index], 
+                false,
+                _config.Wallpaper,
+                5); // Reset the button
         }
     }
 }

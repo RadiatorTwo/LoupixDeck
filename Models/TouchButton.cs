@@ -155,20 +155,6 @@ public class TouchButton(int index) : LoupedeckButton
         }
     }
 
-    private SKBitmap _originalImage;
-
-    [JsonIgnore]
-    public SKBitmap OriginalImage
-    {
-        get => _originalImage;
-        set
-        {
-            if (Equals(value, _originalImage)) return;
-            _originalImage = value;
-            Refresh();
-        }
-    }
-
     private Bitmap _image;
 
     public Bitmap Image

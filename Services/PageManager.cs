@@ -132,7 +132,7 @@ public class PageManager : IPageManager
     {
         foreach (var touchButton in CurrentTouchButtonPage.TouchButtons)
         {
-            await _deviceService.Device.DrawTouchButton(touchButton, false);
+            await _deviceService.Device.DrawTouchButton(touchButton, false, _config.Wallpaper, 5);
         }
     }
 
