@@ -12,8 +12,8 @@ public interface ICommandRunner : IDisposable
 
 public class CommandRunner : ICommandRunner
 {
-    private readonly BlockingCollection<string> _commandQueue = new BlockingCollection<string>();
-    private readonly CancellationTokenSource _cts = new CancellationTokenSource();
+    private readonly BlockingCollection<string> _commandQueue = new();
+    private readonly CancellationTokenSource _cts = new();
     private readonly Task _workerTask;
 
     public CommandRunner()
@@ -47,8 +47,8 @@ public class CommandRunner : ICommandRunner
         {
             var psi = new ProcessStartInfo
             {
-                FileName = "/bin/bash",
-                Arguments = $"-c \"{command}\"",
+                FileName = OperatingSystem.IsWindows() ? "cmd.exe" : "/bin/bash",
+                Arguments = OperatingSystem.IsWindows() ? $"/c \"{command}\"" : $"-c \"{command}\"",
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 UseShellExecute = false,
