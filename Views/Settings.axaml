@@ -83,6 +83,10 @@
                     </Border>
                     <Button Content="..." VerticalAlignment="Top" Command="{Binding SelectImageButtonCommand}"></Button>
                 </StackPanel>
+                <TextBlock Text="Opacity:" Margin="0,10,0,0"/>
+                <Slider Minimum="0" Maximum="1" HorizontalAlignment="Left" TickFrequency="0.1"
+                        IsSnapToTickEnabled="True"
+                        Value="{Binding Config.WallpaperOpacity, Mode=TwoWay}" Width="200" />
             </StackPanel>
         </Grid>
     </Grid>

@@ -526,8 +526,8 @@ public class LoupedeckDevice
     /// </summary>
     public async Task DrawTouchButton(
         TouchButton touchButton,
+        LoupedeckConfig config,
         bool refresh,
-        Bitmap wallpaper,
         int columns)
     {
         ArgumentNullException.ThrowIfNull(touchButton);
@@ -535,7 +535,7 @@ public class LoupedeckDevice
         if (refresh || touchButton.RenderedImage == null)
         {
             var renderedBitmap =
-                BitmapHelper.RenderTouchButtonContent(touchButton, 90, 90, wallpaper, columns);
+                BitmapHelper.RenderTouchButtonContent(touchButton, config, 90, 90, columns);
             if (renderedBitmap == null) return;
         }
 

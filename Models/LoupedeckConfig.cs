@@ -94,6 +94,19 @@ public class LoupedeckConfig : INotifyPropertyChanged
             OnPropertyChanged();
         }
     }
+    
+    private double _wallpaperOpacity;
+
+    public double WallpaperOpacity
+    {
+        get => _wallpaperOpacity;
+        set
+        {
+            if (!(Math.Abs(_wallpaperOpacity - value) > 0.0001)) return;
+            _wallpaperOpacity = value;
+            OnPropertyChanged();
+        }
+    }
 
     public event PropertyChangedEventHandler PropertyChanged;
 

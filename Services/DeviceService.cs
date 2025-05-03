@@ -82,8 +82,8 @@ public class LoupedeckDeviceService : IDeviceService
         {
             await Device.DrawTouchButton(
                 _config.CurrentTouchButtonPage.TouchButtons[index], 
+                _config,
                 false,
-                _config.Wallpaper,
                 5); // Reset the button
         }
     }

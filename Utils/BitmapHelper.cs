@@ -103,13 +103,12 @@ public static class BitmapHelper
     /// </summary>
     public static RenderTargetBitmap RenderTouchButtonContent(
         TouchButton touchButton,
+        LoupedeckConfig config,
         int width,
         int height,
-        Bitmap wallpaper,
         int gridColumns = 0)
     {
         ArgumentNullException.ThrowIfNull(touchButton);
-
 
         var rtb = new RenderTargetBitmap(
             new PixelSize(width, height)
@@ -117,12 +116,9 @@ public static class BitmapHelper
 
         using var ctx = rtb.CreateDrawingContext(true);
 
-        if (wallpaper != null && gridColumns > 0)
+        if (config.Wallpaper != null && gridColumns > 0)
         {
             // Determine the position of the button in the 5×3 grid
-            // Provided you have a list of all TouchButtons somewhere:
-            // var index = allButtons.IndexOf(touchButton);
-            // Or: TouchButton has row/column properties ready.
             var col = touchButton.Index % gridColumns;
             var row = touchButton.Index / gridColumns;
 
@@ -135,11 +131,13 @@ public static class BitmapHelper
             );
 
             // Draw this wallpaper slice first
-            ctx.DrawImage(wallpaper, srcRect, new Rect(0, 0, width, height));
+            ctx.DrawImage(config.Wallpaper, srcRect, new Rect(0, 0, width, height));
 
             // (Optional future feature) Add a semi-transparent background color
-            //var backgroundBrush = new ImmutableSolidColorBrush(touchButton.BackColor);
-            //ctx.DrawRectangle(backgroundBrush, null, new Rect(0,0,width,height));
+            var semiTransparentBrush = new ImmutableSolidColorBrush(
+                new Color((byte)(255 * config.WallpaperOpacity), 0, 0, 0) // Black with Alpha Channel Multiplied by Opacity value
+            );
+            ctx.DrawRectangle(semiTransparentBrush, null, new Rect(0, 0, width, height));
         }
         else
         {
