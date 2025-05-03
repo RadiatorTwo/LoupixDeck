@@ -9,7 +9,13 @@ namespace LoupixDeck.ViewModels;
 public partial class InitSetupViewModel : ViewModelBase
 {
     public ObservableCollection<string> SerialDevices { get; } = [];
+
+#if DEBUG
+    public ObservableCollection<int> BaudRates { get; } =
+        [9600, 19200, 38400, 57600, 115200, 230400, 460800, 921600, 1500000, 3000000, 480000000];
+#else
     public ObservableCollection<int> BaudRates { get; } = [9600, 19200, 38400, 57600, 115200, 230400, 460800, 921600];
+#endif
 
     [ObservableProperty] private string _selectedDevice;
 
