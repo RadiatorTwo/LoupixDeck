@@ -12,15 +12,15 @@ public abstract class FileDialogHelper
 
         var files = await parent.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
         {
-            Title = "Datei auswählen",
+            Title = "Select Image File",
             AllowMultiple = false,
             FileTypeFilter = new List<FilePickerFileType>
             {
-                new("Bilder")
+                new("Pictures")
                 {
-                    Patterns = ["*.png", "*.jpg", "*.jpeg", "*.bmp", "*.tif", "*.tiff", "*.mp4"]
+                    Patterns = ["*.png", "*.jpg", "*.jpeg", "*.bmp", "*.tif", "*.tiff"]
                 },
-                new("Alle Dateien")
+                new("All files")
                 {
                     Patterns = ["*"]
                 }
