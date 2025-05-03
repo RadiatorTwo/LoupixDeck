@@ -90,7 +90,7 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
 
         foreach (var scene in scenes)
         {
-            scenesMenu.Children.Add(new MenuEntry(scene.Name, $"System.ObsSetScene({scene.Name})"));
+            scenesMenu.Children.Add(new MenuEntry(scene.Name, $"System.ObsSetScene"));
         }
 
         groupMenu.Children.Add(scenesMenu);
