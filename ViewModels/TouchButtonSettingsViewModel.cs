@@ -165,7 +165,8 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
             90,
             ButtonData.ImageScale,
             ButtonData.ImagePositionX,
-            ButtonData.ImagePositionY);
+            ButtonData.ImagePositionY,
+            BitmapHelper.ScalingOption.Fit);
 
         ButtonData.Image = scaledImage.ToRenderTargetBitmap();
     }

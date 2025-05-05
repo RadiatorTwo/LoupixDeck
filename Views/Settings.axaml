@@ -14,6 +14,7 @@
     
     <Window.Resources>
         <cnv:EnumToBooleanConverter x:Key="EnumToBooleanConverter" />
+        <cnv:ScalingOptionConverter x:Key="ScalingOptionConverter" />
     </Window.Resources>
 
     <Grid ColumnDefinitions="200,*">
@@ -87,6 +88,10 @@
                 <Slider Minimum="0" Maximum="1" HorizontalAlignment="Left" TickFrequency="0.1"
                         IsSnapToTickEnabled="True"
                         Value="{Binding Config.WallpaperOpacity, Mode=TwoWay}" Width="200" />
+                <ComboBox Width="200" Margin="0,10,0,0" 
+                          ItemsSource="{Binding WallpaperScalingOptions}" 
+                          SelectedItem="{Binding SelectedWallpaperScalingOption, Mode=TwoWay}" 
+                          PlaceholderText="Scaling" />
             </StackPanel>
         </Grid>
     </Grid>

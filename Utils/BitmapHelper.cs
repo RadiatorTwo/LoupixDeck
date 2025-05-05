@@ -11,6 +11,17 @@ namespace LoupixDeck.Utils;
 
 public static class BitmapHelper
 {
+    public enum ScalingOption
+    {
+        None, // Image shown as is in full resolution
+        Fill, // The image fills the screen, the aspect ratio may be lost
+        Fit, // The image is scaled to be completely visible, the aspect ratio is retained
+        Stretch, // The image is distorted to fill the screen completely
+        Tile, // The image is displayed several times next to each other/repeatedly
+        Center, // The image is displayed centered without scaling
+        //CropToFill // Like “Fill”, but with cropping instead of distortion
+    }
+
     public static Bitmap RenderSimpleButtonImage(SimpleButton simpleButton, int width, int height)
     {
         ArgumentNullException.ThrowIfNull(simpleButton);
@@ -180,8 +191,7 @@ public static class BitmapHelper
     }
 
     /// <summary>
-    /// Scales and positions a bitmap in the same way as RenderTouchButtonContent
-    /// and returns the result as a new SKBitmap.
+    /// Scales and positions a bitmap and returns the result as a new SKBitmap.
     /// </summary>
     public static SKBitmap ScaleAndPositionBitmap(
         SKBitmap source,
@@ -189,37 +199,15 @@ public static class BitmapHelper
         int targetHeight,
         double imageScale,
         int posX,
-        int posY)
+        int posY,
+        ScalingOption scalingOption)
     {
         ArgumentNullException.ThrowIfNull(source);
 
-        // Create target bitmap (transparent background)
         var result = new SKBitmap(targetWidth, targetHeight, source.ColorType, source.AlphaType);
 
-        // Calculate scaling
-        var scaleX = (double)targetWidth / source.Width;
-        var scaleY = (double)targetHeight / source.Height;
-        var baseScale = Math.Min(scaleX, scaleY); // Bild vollständig einpassen
-        var scaleFactor = Math.Max(0.01, imageScale / 100.0); // 0,01 = Sicherheitsminimum
-        var finalScale = baseScale * scaleFactor;
-
-        var scaledW = (float)(source.Width * finalScale);
-        var scaledH = (float)(source.Height * finalScale);
-
-        // Calculate position (0/0 ⇒ centered)
-        if (posX == 0 && posY == 0)
-        {
-            posX = (int)((targetWidth - scaledW) / 2);
-            posY = (int)((targetHeight - scaledH) / 2);
-        }
-
-        var destRect = new SKRect(
-            posX,
-            posY,
-            posX + scaledW,
-            posY + scaledH);
-
         using var canvas = new SKCanvas(result);
+        canvas.Clear(SKColors.Transparent);
 
         var paint = new SKPaint
         {
@@ -228,7 +216,66 @@ public static class BitmapHelper
             IsDither = true
         };
 
-        canvas.Clear(SKColors.Transparent);
+        SKRect destRect;
+
+        switch (scalingOption)
+        {
+            case ScalingOption.None:
+                destRect = new SKRect(posX, posY, posX + source.Width, posY + source.Height);
+                break;
+
+            case ScalingOption.Stretch:
+                // Verzerrt das Bild, um den gesamten Zielbereich zu füllen
+                destRect = new SKRect(0, 0, targetWidth, targetHeight);
+                break;
+
+            case ScalingOption.Fill:
+                // Skaliert proportional, Bild wird ggf. beschnitten (UniformToFill)
+            {
+                var scale = Math.Max((double)targetWidth / source.Width, (double)targetHeight / source.Height);
+                var scaledWidth = (float)(source.Width * scale);
+                var scaledHeight = (float)(source.Height * scale);
+                var offsetX = (targetWidth - scaledWidth) / 2;
+                var offsetY = (targetHeight - scaledHeight) / 2;
+                destRect = new SKRect(offsetX, offsetY, offsetX + scaledWidth, offsetY + scaledHeight);
+            }
+                break;
+
+            case ScalingOption.Fit:
+                // Skaliert proportional, es bleibt ggf. ein Rand (Uniform)
+            {
+                var scale = Math.Min((double)targetWidth / source.Width, (double)targetHeight / source.Height);
+                var scaledWidth = (float)(source.Width * scale);
+                var scaledHeight = (float)(source.Height * scale);
+                var offsetX = (targetWidth - scaledWidth) / 2;
+                var offsetY = (targetHeight - scaledHeight) / 2;
+                destRect = new SKRect(offsetX, offsetY, offsetX + scaledWidth, offsetY + scaledHeight);
+            }
+                break;
+
+            case ScalingOption.Tile:
+                for (int x = 0; x < targetWidth; x += source.Width)
+                {
+                    for (int y = 0; y < targetHeight; y += source.Height)
+                    {
+                        var tileRect = new SKRect(x, y, x + source.Width, y + source.Height);
+                        canvas.DrawBitmap(source, tileRect, paint);
+                    }
+                }
+
+                return result;
+
+            case ScalingOption.Center:
+            {
+                var offsetX = (targetWidth - source.Width) / 2;
+                var offsetY = (targetHeight - source.Height) / 2;
+                destRect = new SKRect(offsetX, offsetY, offsetX + source.Width, offsetY + source.Height);
+            }
+                break;
+
+            default:
+                throw new ArgumentOutOfRangeException(nameof(scalingOption), scalingOption, null);
+        }
 
         canvas.DrawBitmap(source, destRect, paint);
         canvas.Flush();
@@ -273,7 +320,7 @@ public static class BitmapHelper
             new Vector(dpi, dpi));
 
         using var ctx = rtb.CreateDrawingContext(true);
-        
+
         ctx.DrawImage(
             avBitmap,
             new Rect(0, 0, source.Width, source.Height));
