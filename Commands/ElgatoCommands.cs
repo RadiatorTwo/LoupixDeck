@@ -54,7 +54,7 @@ public class ElgatoKeylightTemperatureCommand(IElgatoController elgato, ElgatoDe
 
         if (keyLight == null) return;
 
-        await elgato.SetBrightness(keyLight, brightness);
+        await elgato.SetTemperature(keyLight, brightness);
     }
 }
 
