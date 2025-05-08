@@ -76,7 +76,7 @@ public class TouchButton(int index) : LoupedeckButton
         }
     }
 
-    private Color _textColor = Colors.Black;
+    private Color _textColor = Colors.White;
 
     public Color TextColor
     {
@@ -128,7 +128,7 @@ public class TouchButton(int index) : LoupedeckButton
         }
     }
 
-    private bool _outlined = true;
+    private bool _outlined;
 
     public bool Outlined
     {
@@ -142,7 +142,7 @@ public class TouchButton(int index) : LoupedeckButton
         }
     }
 
-    private Color _outlineColor = Colors.White;
+    private Color _outlineColor = Colors.Black;
 
     public Color OutlineColor
     {
