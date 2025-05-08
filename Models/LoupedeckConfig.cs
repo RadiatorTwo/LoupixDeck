@@ -13,16 +13,16 @@ public class LoupedeckConfig : INotifyPropertyChanged
 {
     private int _currentRotaryPageIndex = -1;
     private int _currentTouchPageIndex = -1;
-    
+
     private int _brightness = 100;
 
     public string DevicePort { get; set; }
     public int DeviceBaudrate { get; set; }
 
     public SimpleButton[] SimpleButtons { get; set; }
-    
+
     public ObservableCollection<RotaryButtonPage> RotaryButtonPages { get; set; } = [];
-    
+
     [JsonIgnore]
     public int CurrentRotaryPageIndex
     {
@@ -37,7 +37,7 @@ public class LoupedeckConfig : INotifyPropertyChanged
             }
         }
     }
-    
+
     [JsonIgnore]
     public RotaryButtonPage CurrentRotaryButtonPage =>
         (RotaryButtonPages != null &&
@@ -45,9 +45,9 @@ public class LoupedeckConfig : INotifyPropertyChanged
          _currentRotaryPageIndex < RotaryButtonPages.Count)
             ? RotaryButtonPages[_currentRotaryPageIndex]
             : null;
-    
+
     public ObservableCollection<TouchButtonPage> TouchButtonPages { get; set; } = [];
-    
+
     [JsonIgnore]
     public int CurrentTouchPageIndex
     {
@@ -81,9 +81,9 @@ public class LoupedeckConfig : INotifyPropertyChanged
             OnPropertyChanged();
         }
     }
-    
+
     private Avalonia.Media.Imaging.Bitmap _wallpaper;
-    
+
     public Avalonia.Media.Imaging.Bitmap Wallpaper
     {
         get => _wallpaper;
@@ -91,6 +91,19 @@ public class LoupedeckConfig : INotifyPropertyChanged
         {
             if (Equals(value, _wallpaper)) return;
             _wallpaper = value;
+            OnPropertyChanged();
+        }
+    }
+
+    private double _wallpaperOpacity;
+
+    public double WallpaperOpacity
+    {
+        get => _wallpaperOpacity;
+        set
+        {
+            if (!(Math.Abs(_wallpaperOpacity - value) > 0.0001)) return;
+            _wallpaperOpacity = value;
             OnPropertyChanged();
         }
     }

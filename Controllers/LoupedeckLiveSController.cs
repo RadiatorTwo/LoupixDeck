@@ -77,7 +77,7 @@ public class LoupedeckLiveSController(
 
             foreach (var touchButton in config.CurrentTouchButtonPage.TouchButtons)
             {
-                await deviceService.Device.DrawTouchButton(touchButton, true, config.Wallpaper, 5);
+                await deviceService.Device.DrawTouchButton(touchButton, config, true, 5);
             }
         }
 
@@ -191,10 +191,11 @@ public class LoupedeckLiveSController(
 
         if (button == null) return;
 
-        await deviceService.Device.DrawTouchButton(button, true, config.Wallpaper, 5);
+        await deviceService.Device.DrawTouchButton(button, config, true, 5);
     }
 
-    private async Task<SimpleButton> CreateSimpleButton(Constants.ButtonType id, Avalonia.Media.Color color, string command)
+    private async Task<SimpleButton> CreateSimpleButton(Constants.ButtonType id, Avalonia.Media.Color color,
+        string command)
     {
         var button = config.SimpleButtons.FindById(id) ?? new SimpleButton
         {
@@ -228,24 +229,37 @@ public class LoupedeckLiveSController(
         configService.SaveConfig(config, _configPath);
     }
 
+    private CancellationTokenSource _propertyChangedCts;
+    
     private async void ConfigOnPropertyChanged(object sender, PropertyChangedEventArgs e)
     {
-        switch (e.PropertyName)
-        {
-            case nameof(LoupedeckConfig.Brightness):
-            {
-                await deviceService.Device.SetBrightness(config.Brightness / 100.0);
-                break;
-            }
-            case nameof(LoupedeckConfig.Wallpaper):
-            {
-                foreach (var touchButton in config.CurrentTouchButtonPage.TouchButtons)
-                {
-                    await deviceService.Device.DrawTouchButton(touchButton, true, config.Wallpaper, 5);
-                }
+        _propertyChangedCts?.Cancel();
+        _propertyChangedCts = new CancellationTokenSource();
+        var token = _propertyChangedCts.Token;
 
-                break;
+        try
+        {
+            switch (e.PropertyName)
+            {
+                case nameof(LoupedeckConfig.Brightness):
+                    await Task.Delay(100, token); // Debounce
+                    await deviceService.Device.SetBrightness(config.Brightness / 100.0);
+                    break;
+
+                case nameof(LoupedeckConfig.Wallpaper):
+                case nameof(LoupedeckConfig.WallpaperOpacity):
+                    await Task.Delay(100, token); // Debounce
+                    foreach (var touchButton in config.CurrentTouchButtonPage.TouchButtons)
+                    {
+                        await deviceService.Device.DrawTouchButton(touchButton, config, true, 5);
+                        await Task.Delay(0, token);
+                    }
+                    break;
             }
+        }
+        catch (TaskCanceledException)
+        {
+            // ignore canceled Tasks
         }
     }
 }
