@@ -146,7 +146,8 @@ public static class BitmapHelper
 
             // (Optional future feature) Add a semi-transparent background color
             var semiTransparentBrush = new ImmutableSolidColorBrush(
-                new Color((byte)(255 * config.WallpaperOpacity), 0, 0, 0) // Black with Alpha Channel Multiplied by Opacity value
+                new Color((byte)(255 * config.WallpaperOpacity), 0, 0,
+                    0) // Black with Alpha Channel Multiplied by Opacity value
             );
             ctx.DrawRectangle(semiTransparentBrush, null, new Rect(0, 0, width, height));
         }
@@ -197,7 +198,7 @@ public static class BitmapHelper
         SKBitmap source,
         int targetWidth,
         int targetHeight,
-        double imageScale,
+        float imageScale,
         int posX,
         int posY,
         ScalingOption scalingOption)
@@ -218,60 +219,79 @@ public static class BitmapHelper
 
         SKRect destRect;
 
+        var scaleValue = imageScale / 100;
+        
         switch (scalingOption)
         {
             case ScalingOption.None:
-                destRect = new SKRect(posX, posY, posX + source.Width, posY + source.Height);
+            {
+                var scaledWidth = source.Width * scaleValue;
+                var scaledHeight = source.Height * scaleValue;
+                destRect = new SKRect(posX, posY, posX + scaledWidth, posY + scaledHeight);
                 break;
+            }
 
             case ScalingOption.Stretch:
-                // Verzerrt das Bild, um den gesamten Zielbereich zu füllen
-                destRect = new SKRect(0, 0, targetWidth, targetHeight);
+            {
+                destRect = new SKRect(posX, posY, posX + targetWidth, posY + targetHeight);
                 break;
+            }
 
+            
             case ScalingOption.Fill:
-                // Skaliert proportional, Bild wird ggf. beschnitten (UniformToFill)
             {
-                var scale = Math.Max((double)targetWidth / source.Width, (double)targetHeight / source.Height);
+                var scale = Math.Max((double)targetWidth / source.Width, (double)targetHeight / source.Height) * scaleValue;
                 var scaledWidth = (float)(source.Width * scale);
                 var scaledHeight = (float)(source.Height * scale);
-                var offsetX = (targetWidth - scaledWidth) / 2;
-                var offsetY = (targetHeight - scaledHeight) / 2;
+                var offsetX = posX + (targetWidth - scaledWidth) / 2;
+                var offsetY = posY + (targetHeight - scaledHeight) / 2;
                 destRect = new SKRect(offsetX, offsetY, offsetX + scaledWidth, offsetY + scaledHeight);
-            }
                 break;
-
+            }
+            
             case ScalingOption.Fit:
-                // Skaliert proportional, es bleibt ggf. ein Rand (Uniform)
             {
-                var scale = Math.Min((double)targetWidth / source.Width, (double)targetHeight / source.Height);
+                var scale = Math.Min((double)targetWidth / source.Width, (double)targetHeight / source.Height) * scaleValue;
                 var scaledWidth = (float)(source.Width * scale);
                 var scaledHeight = (float)(source.Height * scale);
-                var offsetX = (targetWidth - scaledWidth) / 2;
-                var offsetY = (targetHeight - scaledHeight) / 2;
+                var offsetX = posX + (targetWidth - scaledWidth) / 2;
+                var offsetY = posY + (targetHeight - scaledHeight) / 2;
                 destRect = new SKRect(offsetX, offsetY, offsetX + scaledWidth, offsetY + scaledHeight);
-            }
                 break;
+            }
 
             case ScalingOption.Tile:
-                for (int x = 0; x < targetWidth; x += source.Width)
+            {
+                var scaledWidth = source.Width * scaleValue;
+                var scaledHeight = source.Height * scaleValue;
+
+                var startX = posX % (int)scaledWidth;
+                var startY = posY % (int)scaledHeight;
+
+                if (startX > 0) startX -= (int)scaledWidth;
+                if (startY > 0) startY -= (int)scaledHeight;
+
+                for (var x = startX; x < targetWidth; x += (int)scaledWidth)
                 {
-                    for (int y = 0; y < targetHeight; y += source.Height)
+                    for (var y = startY; y < targetHeight; y += (int)scaledHeight)
                     {
-                        var tileRect = new SKRect(x, y, x + source.Width, y + source.Height);
+                        var tileRect = new SKRect(x, y, x + scaledWidth, y + scaledHeight);
                         canvas.DrawBitmap(source, tileRect, paint);
                     }
                 }
 
                 return result;
+            }
 
             case ScalingOption.Center:
             {
-                var offsetX = (targetWidth - source.Width) / 2;
-                var offsetY = (targetHeight - source.Height) / 2;
-                destRect = new SKRect(offsetX, offsetY, offsetX + source.Width, offsetY + source.Height);
-            }
+                var scaledWidth = source.Width * scaleValue;
+                var scaledHeight = source.Height * scaleValue;
+                var offsetX = posX + (targetWidth - scaledWidth) / 2;
+                var offsetY = posY + (targetHeight - scaledHeight) / 2;
+                destRect = new SKRect(offsetX, offsetY, offsetX + scaledWidth, offsetY + scaledHeight);
                 break;
+            }
 
             default:
                 throw new ArgumentOutOfRangeException(nameof(scalingOption), scalingOption, null);

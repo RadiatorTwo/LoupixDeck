@@ -18,7 +18,7 @@ public class SettingsViewModel : DialogViewModelBase<DialogResult>
     public ICommand TestConnectionCommand { get; }
     public ICommand SelectImageButtonCommand { get; }
     public ICommand NavigateCommand { get; }
-    
+
     private SKBitmap _wallpaperBitmap = null;
 
     private SettingsView _currentView;
@@ -30,7 +30,7 @@ public class SettingsViewModel : DialogViewModelBase<DialogResult>
     }
 
     public ObsConfig ObsConfig { get; }
-    
+
     public ObservableCollection<BitmapHelper.ScalingOption> WallpaperScalingOptions { get; } =
     [
         BitmapHelper.ScalingOption.None,
@@ -50,12 +50,58 @@ public class SettingsViewModel : DialogViewModelBase<DialogResult>
         set
         {
             SetProperty(ref _selectedWallpaperScalingOption, value);
-            
-            if (_wallpaperBitmap == null) return;
-            
-            var scaledImage = BitmapHelper.ScaleAndPositionBitmap(_wallpaperBitmap, 480, 270, 100, 0, 0, value);
-            Config.Wallpaper = scaledImage.ToRenderTargetBitmap();
+            ApplyScaling();
         }
+    }
+
+    private int _wallpaperScaling = 100;
+
+    public int WallpaperScaling
+    {
+        get => _wallpaperScaling;
+        set
+        {
+            SetProperty(ref _wallpaperScaling, value);
+            ApplyScaling();
+        }
+    }
+
+    private int _wallpaperPositionX;
+
+    public int WallpaperPositionX
+    {
+        get => _wallpaperPositionX;
+        set
+        {
+            SetProperty(ref _wallpaperPositionX, value);
+            ApplyScaling();
+        }
+    }
+
+    private int _wallpaperPositionY;
+
+    public int WallpaperPositionY
+    {
+        get => _wallpaperPositionY;
+        set
+        {
+            SetProperty(ref _wallpaperPositionY, value);
+            ApplyScaling();
+        }
+    }
+
+    private void ApplyScaling()
+    {
+        if (_wallpaperBitmap == null) return;
+
+        var scaledImage = BitmapHelper.ScaleAndPositionBitmap(
+            _wallpaperBitmap,
+            480, 270,
+            WallpaperScaling,
+            WallpaperPositionX, WallpaperPositionY,
+            SelectedWallpaperScalingOption);
+
+        Config.Wallpaper = scaledImage.ToRenderTargetBitmap();
     }
 
     public SettingsViewModel(LoupedeckConfig config, IObsController obs)
@@ -133,9 +179,7 @@ public class SettingsViewModel : DialogViewModelBase<DialogResult>
 
         _wallpaperBitmap = SKBitmap.Decode(result);
 
-        var scaledImage = BitmapHelper.ScaleAndPositionBitmap(_wallpaperBitmap, 480, 270, 100, 0, 0, SelectedWallpaperScalingOption);
-
-        Config.Wallpaper = scaledImage.ToRenderTargetBitmap();
+        ApplyScaling();
     }
 
     private void Navigate(SettingsView settingsPage)
