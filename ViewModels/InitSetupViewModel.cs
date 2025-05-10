@@ -38,6 +38,10 @@ public partial class InitSetupViewModel : ViewModelBase
 
     public InitSetupViewModel()
     {
+    }
+
+    public void Init()
+    {
         var devices = SerialDeviceHelper.ListSerialUsbDevices();
         
         foreach (var device in devices)
@@ -54,10 +58,10 @@ public partial class InitSetupViewModel : ViewModelBase
         
         SelectedDevice = SerialDevices[0];
 
-        // if (SerialDevices.Count == 1)
-        // {
-        //     Confirm();
-        // }
+        if (SerialDevices.Count == 1)
+        {
+            Confirm();
+        }
     }
 
     // partial void OnSelectedDeviceChanged(DeviceItem value)
