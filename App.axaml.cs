@@ -26,71 +26,54 @@ public partial class App : Application
         {
             if (!File.Exists(configPath))
             {
-                var initWindow = new InitSetup();
-                var tcs = new TaskCompletionSource<bool>();
-
-                initWindow.DataContext = new InitSetupViewModel();
-
-                initWindow.Closed += (_, _) => { tcs.TrySetResult(true); };
-
-                desktop.MainWindow = initWindow;
-                initWindow.Show();
-
-                await tcs.Task;
-
-                if (initWindow.DataContext is InitSetupViewModel { ConnectionWorking: true } vm)
+                var initWindow = new InitSetup
                 {
-                    var splashScreen = new SplashScreen();
-                    desktop.MainWindow = splashScreen;
-                    splashScreen.Show();
-                    
-#pragma warning disable CS4014
-                    Task.Run(async () =>
-#pragma warning restore CS4014
+                    DataContext = new InitSetupViewModel()
+                };
+                
+                initWindow.Closed += async (_, _) =>
+                {
+                    if (initWindow.DataContext is InitSetupViewModel { ConnectionWorking: true } vm)
                     {
-                        var viewModel = await CreateMainWindowViewModel(vm.SelectedDevice, vm.SelectedBaudRate);
-                        OnViewModelCreated(viewModel, splashScreen, desktop);
-                    }).ContinueWith(t =>
+                        await InitializeMainWindow(vm.SelectedDevice.Path, vm.SelectedBaudRate, desktop);
+                    }
+                    else
                     {
-                        if (t.Exception == null) return;
-                        
-                        // Fehlerbehandlung hier
-                        foreach (var ex in t.Exception.Flatten().InnerExceptions)
-                        {
-                            Console.WriteLine($"Fehler im Task: {ex}");
-                        }
-                    }, TaskContinuationOptions.OnlyOnFaulted);
-                }
+                        desktop.Shutdown();
+                    }
+                };
+
+                initWindow.Show();
             }
             else
             {
-                var splashScreen = new SplashScreen();
-                desktop.MainWindow = splashScreen;
-                splashScreen.Show();
-                
-#pragma warning disable CS4014
-                Task.Run(async () =>
-#pragma warning restore CS4014
-                {
-                    var viewModel = await CreateMainWindowViewModel();
-                    OnViewModelCreated(viewModel, splashScreen, desktop);
-                }).ContinueWith(t =>
-                {
-                    if (t.Exception == null) return;
-                    
-                    // Fehlerbehandlung hier
-                    foreach (var ex in t.Exception.Flatten().InnerExceptions)
-                    {
-                        Console.WriteLine($"Fehler im Task: {ex}");
-                    }
-                }, TaskContinuationOptions.OnlyOnFaulted);
+                await InitializeMainWindow(null, 0, desktop);
             }
         }
 
         base.OnFrameworkInitializationCompleted();
     }
-    
-    private void OnViewModelCreated(MainWindowViewModel viewModel, SplashScreen splashScreen, IClassicDesktopStyleApplicationLifetime desktop)
+
+    private async Task InitializeMainWindow(string port, int baudRate, IClassicDesktopStyleApplicationLifetime desktop)
+    {
+        var splashScreen = new SplashScreen();
+        desktop.MainWindow = splashScreen;
+        splashScreen.Show();
+
+        try
+        {
+            var viewModel = await CreateMainWindowViewModel(port, baudRate);
+            OnViewModelCreated(viewModel, splashScreen, desktop);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Fehler: {ex.Message}");
+            desktop.Shutdown();
+        }
+    }
+
+    private void OnViewModelCreated(MainWindowViewModel viewModel, SplashScreen splashScreen,
+        IClassicDesktopStyleApplicationLifetime desktop)
     {
         // UI-Thread verwenden, um Änderungen an der UI vorzunehmen
         Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
@@ -99,7 +82,7 @@ public partial class App : Application
             {
                 DataContext = viewModel
             };
-            
+
             desktop.MainWindow = mainWindow;
             mainWindow.Show();
             splashScreen.Close();
