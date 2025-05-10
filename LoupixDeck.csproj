@@ -44,6 +44,7 @@
     <PackageReference Include="obs-websocket-dotnet" Version="5.0.0.3" />
     <PackageReference Include="System.Drawing.Common" Version="9.0.2" />
     <PackageReference Include="System.IO.Ports" Version="9.0.2" />
+    <PackageReference Include="System.Management" Version="9.0.4" />
     <PackageReference Include="Tmds.DBus" Version="0.21.2" />
     <PackageReference Include="Zeroconf" Version="3.7.16" />
   </ItemGroup>
