@@ -22,7 +22,6 @@
         <StackPanel Grid.Column="0" Grid.Row="0" Grid.ColumnSpan="2" Margin="20" Spacing="10">
             <TextBlock Text="Serial Device:" FontWeight="Bold" />
             <ComboBox ItemsSource="{Binding SerialDevices}" SelectedItem="{Binding SelectedDevice}" />
-            <TextBox Text="{Binding ManualDevicePath}" />
             <TextBlock Text="Baudrate:" FontWeight="Bold" />
             <ComboBox ItemsSource="{Binding BaudRates}" SelectedItem="{Binding SelectedBaudRate}" />
         </StackPanel>

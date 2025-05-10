@@ -48,7 +48,7 @@ public partial class App : Application
                     Task.Run(async () =>
 #pragma warning restore CS4014
                     {
-                        var viewModel = await CreateMainWindowViewModel(vm.SelectedDevice, vm.SelectedBaudRate);
+                        var viewModel = await CreateMainWindowViewModel(vm.SelectedDevice.Path, vm.SelectedBaudRate);
                         OnViewModelCreated(viewModel, splashScreen, desktop);
                     }).ContinueWith(t =>
                     {
