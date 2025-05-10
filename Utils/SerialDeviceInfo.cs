@@ -1,5 +1,9 @@
 using System.Diagnostics;
 
+#if WINDOWS
+using System.Management;
+#endif
+
 public static class SerialDeviceHelper
 {
     public record SerialDeviceInfo(
@@ -12,6 +16,45 @@ public static class SerialDeviceHelper
         string[] Aliases
     );
 
+#if WINDOWS
+    public static List<SerialDeviceInfo> ListSerialUsbDevices()
+    {
+        var result = new List<SerialDeviceInfo>();
+    
+        using var searcher = new ManagementObjectSearcher("SELECT * FROM Win32_PnPEntity WHERE Name LIKE '%(COM%'");
+    
+        foreach (var device in searcher.Get())
+        {
+            var name = device["Name"]?.ToString(); // z.B. "USB Serial Device (COM3)"
+            var deviceId = device["PNPDeviceID"]?.ToString(); // z.B. "USB\\VID_2341&PID_0043\\..."
+    
+            if (string.IsNullOrEmpty(deviceId)) continue;
+    
+            string? Extract(string prefix) =>
+                deviceId.Contains(prefix) ?
+                deviceId.Split(new[] { '\\', '&' }, StringSplitOptions.RemoveEmptyEntries)
+                    .FirstOrDefault(s => s.StartsWith(prefix))?.Substring(prefix.Length) : null;
+    
+            var vid = Extract("VID_");
+            var pid = Extract("PID_");
+            var serial = deviceId.Split('\\').Length > 2 ? deviceId.Split('\\')[2] : null;
+            var manufacturer = device["Manufacturer"]?.ToString();
+            var product = name;
+    
+            result.Add(new SerialDeviceInfo(
+                DevNode: name ?? "Unknown",
+                Vid: vid,
+                Pid: pid,
+                Serial: serial,
+                Manufacturer: manufacturer,
+                Product: product,
+                Aliases: null // Windows hat kein direktes Äquivalent zu /dev/aliasen
+            ));
+        }
+    
+        return result;
+    }
+#else
     public static List<SerialDeviceInfo> ListSerialUsbDevices()
     {
         var result = new List<SerialDeviceInfo>();
@@ -41,6 +84,8 @@ public static class SerialDeviceHelper
 
         return result;
     }
+
+#endif
 
     private static string RunUdevadm(string devPath)
     {
