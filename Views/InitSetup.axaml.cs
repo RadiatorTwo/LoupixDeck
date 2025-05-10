@@ -18,6 +18,8 @@ public partial class InitSetup : Window
                     AllowClose();
                     Close();
                 };
+                
+                vm.Init();
             }
         };
 
