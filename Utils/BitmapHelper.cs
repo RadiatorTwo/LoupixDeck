@@ -1,4 +1,4 @@
-using System.Globalization;
+using System.Text;
 using Avalonia;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
@@ -121,58 +121,55 @@ public static class BitmapHelper
     {
         ArgumentNullException.ThrowIfNull(touchButton);
 
-        var rtb = new RenderTargetBitmap(
-            new PixelSize(width, height)
-        );
-
-        using var ctx = rtb.CreateDrawingContext(true);
+        // Create SKBitmap for rendering
+        var bitmap = new SKBitmap(width, height);
+        using var canvas = new SKCanvas(bitmap);
 
         if (config.Wallpaper != null && gridColumns > 0)
         {
-            // Determine the position of the button in the 5×3 grid
+            // Determine the position of the button in the grid
             var col = touchButton.Index % gridColumns;
             var row = touchButton.Index / gridColumns;
 
             // Calculate the section from the wallpaper
-            var srcRect = new Rect(
-                x: col * width,
-                y: row * height,
-                width: width,
-                height: height
+            var wallpaperBitmap = config.Wallpaper.ToSKBitmap();
+            var srcRect = new SKRect(
+                col * width,
+                row * height,
+                (col + 1) * width,
+                (row + 1) * height
             );
+            var destRect = new SKRect(0, 0, width, height);
 
-            // Draw this wallpaper slice first
-            ctx.DrawImage(config.Wallpaper, srcRect, new Rect(0, 0, width, height));
+            // Draw Wallpaper Cutout
+            canvas.DrawBitmap(wallpaperBitmap, srcRect, destRect);
 
-            // (Optional future feature) Add a semi-transparent background color
-            var semiTransparentBrush = new ImmutableSolidColorBrush(
-                new Color((byte)(255 * config.WallpaperOpacity), 0, 0,
-                    0) // Black with Alpha Channel Multiplied by Opacity value
-            );
-            ctx.DrawRectangle(semiTransparentBrush, null, new Rect(0, 0, width, height));
+            // Semi-transparent background
+            using var paint = new SKPaint();
+
+            paint.Color = new SKColor(0, 0, 0, (byte)(255 * config.WallpaperOpacity));
+
+            canvas.DrawRect(destRect, paint);
         }
         else
         {
-            var backgroundBrush = new ImmutableSolidColorBrush(touchButton.BackColor);
-            ctx.DrawRectangle(
-                backgroundBrush,
-                pen: null,
-                rect: new Rect(0, 0, width, height)
-            );
+            // Draw Monochrome Background
+            canvas.Clear(touchButton.BackColor.ToSKColor());
         }
 
         if (touchButton.Image != null)
         {
-            var destRect = new Rect(0, 0, width, height);
-            ctx.DrawImage(touchButton.Image, destRect);
+            var imageBitmap = touchButton.Image.ToSKBitmap();
+            var destRect = new SKRect(0, 0, width, height);
+            canvas.DrawBitmap(imageBitmap, destRect);
         }
 
         if (!string.IsNullOrEmpty(touchButton.Text))
         {
             DrawTextAt(
-                ctx,
+                canvas,
                 touchButton.Text,
-                touchButton.TextColor,
+                touchButton.TextColor.ToSKColor(),
                 touchButton.TextSize,
                 touchButton.TextCentered,
                 touchButton.TextPositionX,
@@ -182,10 +179,12 @@ public static class BitmapHelper
                 touchButton.Bold,
                 touchButton.Italic,
                 touchButton.Outlined,
-                touchButton.OutlineColor
+                touchButton.OutlineColor.ToSKColor()
             );
         }
 
+        // Convert back to RenderTargetBitmap and save in the TouchButton
+        var rtb = bitmap.ToRenderTargetBitmap();
         touchButton.RenderedImage = rtb;
 
         return rtb;
@@ -220,7 +219,7 @@ public static class BitmapHelper
         SKRect destRect;
 
         var scaleValue = imageScale / 100;
-        
+
         switch (scalingOption)
         {
             case ScalingOption.None:
@@ -237,10 +236,12 @@ public static class BitmapHelper
                 break;
             }
 
-            
+
             case ScalingOption.Fill:
             {
-                var scale = Math.Max((double)targetWidth / source.Width, (double)targetHeight / source.Height) * scaleValue;
+                var scale = Math.Max(
+                    (double)targetWidth / source.Width, 
+                    (double)targetHeight / source.Height) * scaleValue;
                 var scaledWidth = (float)(source.Width * scale);
                 var scaledHeight = (float)(source.Height * scale);
                 var offsetX = posX + (targetWidth - scaledWidth) / 2;
@@ -248,10 +249,12 @@ public static class BitmapHelper
                 destRect = new SKRect(offsetX, offsetY, offsetX + scaledWidth, offsetY + scaledHeight);
                 break;
             }
-            
+
             case ScalingOption.Fit:
             {
-                var scale = Math.Min((double)targetWidth / source.Width, (double)targetHeight / source.Height) * scaleValue;
+                var scale = Math.Min(
+                    (double)targetWidth / source.Width, 
+                    (double)targetHeight / source.Height) * scaleValue;
                 var scaledWidth = (float)(source.Width * scale);
                 var scaledHeight = (float)(source.Height * scale);
                 var offsetX = posX + (targetWidth - scaledWidth) / 2;
@@ -348,22 +351,43 @@ public static class BitmapHelper
         return rtb;
     }
 
+    public static SKBitmap ToSKBitmap(this Bitmap bitmap)
+    {
+        ArgumentNullException.ThrowIfNull(bitmap);
+
+        var skBitmap = new SKBitmap(bitmap.PixelSize.Width, bitmap.PixelSize.Height);
+
+        // Kopiere die Pixeldaten in das SKBitmap
+        using var memoryStream = new MemoryStream();
+        bitmap.Save(memoryStream);
+        memoryStream.Position = 0;
+
+        using var skData = SKData.CreateCopy(memoryStream.ToArray());
+        using var skImage = SKImage.FromEncodedData(skData);
+        skImage.ReadPixels(skBitmap.Info, skBitmap.GetPixels());
+
+        return skBitmap;
+    }
+
+    public static SKColor ToSKColor(this Color color)
+    {
+        return new SKColor(color.R, color.G, color.B, color.A);
+    }
+
     public static RenderTargetBitmap RenderTextToBitmap(string text, int imageWidth, int imageHeight)
     {
-        var rtb = new RenderTargetBitmap(new PixelSize(imageWidth, imageHeight));
+        // Create an SKBitmap for rendering
+        var bitmap = new SKBitmap(imageWidth, imageHeight);
+        using var canvas = new SKCanvas(bitmap);
 
-        using var ctx = rtb.CreateDrawingContext(true);
+        // Set black background
+        canvas.Clear(SKColors.Black);
 
-        ctx.DrawRectangle(
-            brush: Brushes.Black,
-            pen: null,
-            rect: new Rect(0, 0, imageWidth, imageHeight)
-        );
-
+        // Draw text
         DrawTextAt(
-            ctx,
+            canvas,
             text,
-            Colors.White,
+            SKColors.White,
             14,
             true,
             0,
@@ -372,102 +396,158 @@ public static class BitmapHelper
             imageHeight
         );
 
-        return rtb;
+        // Convert SKBitmap to RenderTargetBitmap
+        return bitmap.ToRenderTargetBitmap();
     }
 
     /// <summary>
     /// Draws text at the given position in the specified DrawingContext.
     /// </summary>
     private static void DrawTextAt(
-        DrawingContext context,
+        SKCanvas canvas,
         string text,
-        Color color,
-        double textSize,
+        SKColor color,
+        float textSize,
         bool centered,
-        double posX = 0,
-        double posY = 0,
-        double imageWidth = 90,
-        double imageHeight = 90,
+        float posX = 0,
+        float posY = 0,
+        float imageWidth = 90,
+        float imageHeight = 90,
         bool bold = false,
         bool italic = false,
         bool outlined = false,
-        Color outlineColor = default)
+        SKColor outlineColor = default)
     {
-        if (context == null || string.IsNullOrEmpty(text))
-            throw new ArgumentException("The drawing context or text must not be null!");
+        if (canvas == null || string.IsNullOrEmpty(text))
+            throw new ArgumentException("Canvas oder Text dürfen nicht null sein!");
 
-        var brush = new ImmutableSolidColorBrush(color);
-
-        var typeface = new Typeface(
-            FontFamily.Default,
-            italic ? FontStyle.Italic : FontStyle.Normal,
-            bold ? FontWeight.Bold : FontWeight.Normal
+        using var textPaint = new SKPaint();
+        
+        textPaint.Color = color;
+        textPaint.TextSize = textSize;
+        textPaint.Style = SKPaintStyle.Fill;
+        textPaint.TextAlign = centered ? SKTextAlign.Center : SKTextAlign.Left;
+        textPaint.TextEncoding = SKTextEncoding.Utf32; // Better Unicode support
+        textPaint.IsAntialias = true;
+        textPaint.SubpixelText = true; // Improves text sharpness
+        textPaint.LcdRenderText = true; // Optimized for LCD
+        textPaint.HintingLevel = SKPaintHinting.Full; // Maximum font hinting
+        textPaint.FilterQuality = SKFilterQuality.High; // Highest Render Quality
+        textPaint.StrokeJoin = SKStrokeJoin.Round; // Improves the corners
+        textPaint.StrokeCap = SKStrokeCap.Round;    // Improves endpoints
+        textPaint.IsLinearText = false;
+        
+        textPaint.Typeface = SKTypeface.FromFamilyName(
+            "Liberation Sans",
+            bold ? SKFontStyleWeight.Bold : SKFontStyleWeight.Normal,
+            SKFontStyleWidth.Normal,
+            italic ? SKFontStyleSlant.Italic : SKFontStyleSlant.Upright
         );
 
-        var formattedText = new FormattedText(
-            text,
-            CultureInfo.CurrentCulture,
-            FlowDirection.LeftToRight,
-            typeface,
-            textSize,
-            brush
-        )
-        {
-            TextAlignment = TextAlignment.Left,
-            MaxTextHeight = 85,
-            MaxTextWidth = 85
-        };
+        // Split text into lines based on available width
+        var lines = WrapText(text, textPaint, imageWidth);
+        var lineHeight = textPaint.FontSpacing;
+        var totalHeight = lineHeight * lines.Count;
 
-        var textWidth = formattedText.Width;
-        var textHeight = formattedText.Height;
-
-        int drawX;
-        int drawY;
-
+        float startY;
         if (centered)
         {
-            var centerX = imageWidth / 2;
-            var centerY = imageHeight / 2;
-
-            drawX = (int)Math.Round(centerX - (textWidth / 2));
-            drawY = (int)Math.Round(centerY - (textHeight / 2));
+            startY = posY + (imageHeight - totalHeight) / 2 + textPaint.TextSize;
         }
         else
         {
-            drawX = (int)Math.Round(posX);
-            drawY = (int)Math.Round(posY);
+            startY = posY + textPaint.TextSize;
         }
 
-        if (outlined)
+        // Draw every line
+        for (var i = 0; i < lines.Count; i++)
         {
-            var outlineBrush = new ImmutableSolidColorBrush(outlineColor);
-            const int outlineOffset = 1;
+            var line = lines[i];
+            var drawX = centered ? imageWidth / 2 : posX;
+            var drawY = startY + (i * lineHeight);
 
-            var outlineText = new FormattedText(
-                text,
-                CultureInfo.CurrentCulture,
-                FlowDirection.LeftToRight,
-                typeface,
-                textSize,
-                outlineBrush
-            )
+            if (outlined)
             {
-                TextAlignment = TextAlignment.Left,
-                MaxTextHeight = 85,
-                MaxTextWidth = 85
-            };
+                using var outlinePaint = new SKPaint();
+                
+                outlinePaint.Color = outlineColor;
+                outlinePaint.TextSize = textSize;
+                outlinePaint.Style = SKPaintStyle.Stroke;
+                outlinePaint.TextAlign = textPaint.TextAlign;
+                outlinePaint.Typeface = textPaint.Typeface;
+                outlinePaint.StrokeWidth = 3;
+                outlinePaint.IsAntialias = true;
+                outlinePaint.SubpixelText = true; // Improves text sharpness
+                outlinePaint.LcdRenderText = true; // Optimized for LCD
+                outlinePaint.HintingLevel = SKPaintHinting.Full; // Maximum font hinting
+                outlinePaint.FilterQuality = SKFilterQuality.High; // Highest Render Quality
+                outlinePaint.StrokeJoin = SKStrokeJoin.Round; // Verbessert die Ecken
+                outlinePaint.StrokeCap = SKStrokeCap.Round;    // Verbessert die Endpunkte
+                outlinePaint.IsLinearText = false;
 
-            context.DrawText(outlineText, new Point(drawX - outlineOffset, drawY));
-            context.DrawText(outlineText, new Point(drawX + outlineOffset, drawY));
-            context.DrawText(outlineText, new Point(drawX, drawY - outlineOffset));
-            context.DrawText(outlineText, new Point(drawX, drawY + outlineOffset));
-            context.DrawText(outlineText, new Point(drawX - outlineOffset, drawY - outlineOffset));
-            context.DrawText(outlineText, new Point(drawX + outlineOffset, drawY - outlineOffset));
-            context.DrawText(outlineText, new Point(drawX - outlineOffset, drawY + outlineOffset));
-            context.DrawText(outlineText, new Point(drawX + outlineOffset, drawY + outlineOffset));
+                canvas.DrawText(line, drawX, drawY, outlinePaint);
+            }
+
+            canvas.DrawText(line, drawX, drawY, textPaint);
+        }
+    }
+
+    private static List<string> WrapText(string text, SKPaint paint, float maxWidth)
+    {
+        var lines = new List<string>();
+        var words = text.Split(' ');
+        var currentLine = new StringBuilder();
+
+        foreach (var word in words)
+        {
+            var testLine = currentLine.Length == 0 ? word : currentLine + " " + word;
+            var testWidth = paint.MeasureText(testLine);
+
+            if (testWidth <= maxWidth)
+            {
+                currentLine.Append(currentLine.Length == 0 ? word : " " + word);
+            }
+            else
+            {
+                if (currentLine.Length > 0)
+                {
+                    lines.Add(currentLine.ToString());
+                    currentLine.Clear();
+                }
+
+                // If a single word is too long, break it down
+                if (paint.MeasureText(word) > maxWidth)
+                {
+                    var chars = word.ToCharArray();
+                    currentLine.Clear();
+                    foreach (var c in chars)
+                    {
+                        var testChar = currentLine.ToString() + c;
+                        if (paint.MeasureText(testChar) <= maxWidth)
+                        {
+                            currentLine.Append(c);
+                        }
+                        else
+                        {
+                            lines.Add(currentLine.ToString());
+                            currentLine.Clear();
+                            currentLine.Append(c);
+                        }
+                    }
+                }
+                else
+                {
+                    currentLine.Append(word);
+                }
+            }
         }
 
-        context.DrawText(formattedText, new Point(drawX, drawY));
+        if (currentLine.Length > 0)
+        {
+            lines.Add(currentLine.ToString());
+        }
+
+        return lines;
     }
 
     public static Bitmap CloneBitmap(this Bitmap original)
