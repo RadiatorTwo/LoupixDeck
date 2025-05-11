@@ -1,17 +1,19 @@
+using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Markup.Xaml;
 using LoupixDeck.ViewModels;
 
 namespace LoupixDeck.Views;
 
-public partial class InitSetup : Window
+public partial class About : Window
 {
-    public InitSetup()
+    public About()
     {
         InitializeComponent();
         
         Opened += (_, _) =>
         {
-            if (DataContext is InitSetupViewModel vm)
+            if (DataContext is AboutViewModel vm)
             {
                 vm.CloseWindow += () =>
                 {
@@ -19,7 +21,7 @@ public partial class InitSetup : Window
                     Close();
                 };
                 
-                vm.Init();
+                // vm.Init();
             }
         };
 
