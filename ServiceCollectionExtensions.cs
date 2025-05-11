@@ -66,6 +66,9 @@ public static class ServiceCollectionExtensions
         collection.AddTransient<Settings>();
         collection.AddTransient<SettingsViewModel>();
         
+        collection.AddTransient<About>();
+        collection.AddTransient<AboutViewModel>();
+        
         collection.AddSingleton<IDialogService, DialogService>();
     }
 
@@ -77,5 +80,6 @@ public static class ServiceCollectionExtensions
         dialogService.Register<RotaryButtonSettingsViewModel, RotaryButtonSettings>();
         dialogService.Register<TouchButtonSettingsViewModel, TouchButtonSettings>();
         dialogService.Register<SettingsViewModel, Settings>();
+        dialogService.Register<AboutViewModel, About>();
     }
 }
