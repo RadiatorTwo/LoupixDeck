@@ -209,9 +209,10 @@ public static class BitmapHelper
         using var canvas = new SKCanvas(result);
         canvas.Clear(SKColors.Transparent);
 
+        var sampling = new SKSamplingOptions(SKCubicResampler.Mitchell);
+
         var paint = new SKPaint
         {
-            FilterQuality = SKFilterQuality.High,
             IsAntialias = true,
             IsDither = true
         };
@@ -240,7 +241,7 @@ public static class BitmapHelper
             case ScalingOption.Fill:
             {
                 var scale = Math.Max(
-                    (double)targetWidth / source.Width, 
+                    (double)targetWidth / source.Width,
                     (double)targetHeight / source.Height) * scaleValue;
                 var scaledWidth = (float)(source.Width * scale);
                 var scaledHeight = (float)(source.Height * scale);
@@ -253,7 +254,7 @@ public static class BitmapHelper
             case ScalingOption.Fit:
             {
                 var scale = Math.Min(
-                    (double)targetWidth / source.Width, 
+                    (double)targetWidth / source.Width,
                     (double)targetHeight / source.Height) * scaleValue;
                 var scaledWidth = (float)(source.Width * scale);
                 var scaledHeight = (float)(source.Height * scale);
@@ -279,7 +280,7 @@ public static class BitmapHelper
                     for (var y = startY; y < targetHeight; y += (int)scaledHeight)
                     {
                         var tileRect = new SKRect(x, y, x + scaledWidth, y + scaledHeight);
-                        canvas.DrawBitmap(source, tileRect, paint);
+                        canvas.DrawImage(SKImage.FromBitmap(source), tileRect, sampling, paint);
                     }
                 }
 
@@ -421,49 +422,46 @@ public static class BitmapHelper
         if (canvas == null || string.IsNullOrEmpty(text))
             throw new ArgumentException("Canvas oder Text dürfen nicht null sein!");
 
-        using var textPaint = new SKPaint();
-        
-        textPaint.Color = color;
-        textPaint.TextSize = textSize;
-        textPaint.Style = SKPaintStyle.Fill;
-        textPaint.TextAlign = centered ? SKTextAlign.Center : SKTextAlign.Left;
-        textPaint.TextEncoding = SKTextEncoding.Utf32; // Better Unicode support
-        textPaint.IsAntialias = true;
-        textPaint.SubpixelText = true; // Improves text sharpness
-        textPaint.LcdRenderText = true; // Optimized for LCD
-        textPaint.HintingLevel = SKPaintHinting.Full; // Maximum font hinting
-        textPaint.FilterQuality = SKFilterQuality.High; // Highest Render Quality
-        textPaint.StrokeJoin = SKStrokeJoin.Round; // Improves the corners
-        textPaint.StrokeCap = SKStrokeCap.Round;    // Improves endpoints
-        textPaint.IsLinearText = false;
-        
-        textPaint.Typeface = SKTypeface.FromFamilyName(
+        var typeface = SKTypeface.FromFamilyName(
             "Liberation Sans",
             bold ? SKFontStyleWeight.Bold : SKFontStyleWeight.Normal,
             SKFontStyleWidth.Normal,
             italic ? SKFontStyleSlant.Italic : SKFontStyleSlant.Upright
         );
+        
+        var font = new SKFont(typeface, textSize)
+        {
+            Edging = SKFontEdging.Antialias,
+            Subpixel = true,
+            Hinting = SKFontHinting.Full
+        };
+        
+        using var textPaint = new SKPaint();
+        
+        textPaint.Color = color;
+        textPaint.Style = SKPaintStyle.Fill;
+        textPaint.IsAntialias = true;
+        textPaint.StrokeJoin = SKStrokeJoin.Round;
+        textPaint.StrokeCap = SKStrokeCap.Round;
 
         // Split text into lines based on available width
-        var lines = WrapText(text, textPaint, imageWidth);
-        var lineHeight = textPaint.FontSpacing;
+        var lines = WrapText(text, font, imageWidth);
+        var lineHeight = font.Spacing;
         var totalHeight = lineHeight * lines.Count;
-
-        float startY;
-        if (centered)
-        {
-            startY = posY + (imageHeight - totalHeight) / 2 + textPaint.TextSize;
-        }
-        else
-        {
-            startY = posY + textPaint.TextSize;
-        }
+        var startY = centered
+            ? posY + (imageHeight - totalHeight) / 2 - font.Metrics.Ascent
+            : posY - font.Metrics.Ascent;
 
         // Draw every line
         for (var i = 0; i < lines.Count; i++)
         {
             var line = lines[i];
-            var drawX = centered ? imageWidth / 2 : posX;
+
+            var textWidth = font.MeasureText(line);
+            var drawX = centered
+                ? posX + (imageWidth - textWidth) / 2f
+                : posX;
+
             var drawY = startY + (i * lineHeight);
 
             if (outlined)
@@ -471,28 +469,20 @@ public static class BitmapHelper
                 using var outlinePaint = new SKPaint();
                 
                 outlinePaint.Color = outlineColor;
-                outlinePaint.TextSize = textSize;
                 outlinePaint.Style = SKPaintStyle.Stroke;
-                outlinePaint.TextAlign = textPaint.TextAlign;
-                outlinePaint.Typeface = textPaint.Typeface;
                 outlinePaint.StrokeWidth = 3;
                 outlinePaint.IsAntialias = true;
-                outlinePaint.SubpixelText = true; // Improves text sharpness
-                outlinePaint.LcdRenderText = true; // Optimized for LCD
-                outlinePaint.HintingLevel = SKPaintHinting.Full; // Maximum font hinting
-                outlinePaint.FilterQuality = SKFilterQuality.High; // Highest Render Quality
-                outlinePaint.StrokeJoin = SKStrokeJoin.Round; // Verbessert die Ecken
-                outlinePaint.StrokeCap = SKStrokeCap.Round;    // Verbessert die Endpunkte
-                outlinePaint.IsLinearText = false;
+                outlinePaint.StrokeJoin = SKStrokeJoin.Round;
+                outlinePaint.StrokeCap = SKStrokeCap.Round;
 
-                canvas.DrawText(line, drawX, drawY, outlinePaint);
+                canvas.DrawText(line, drawX, drawY, font, outlinePaint);
             }
 
-            canvas.DrawText(line, drawX, drawY, textPaint);
+            canvas.DrawText(line, drawX, drawY, font, textPaint);
         }
     }
 
-    private static List<string> WrapText(string text, SKPaint paint, float maxWidth)
+    private static List<string> WrapText(string text, SKFont font, float maxWidth)
     {
         var lines = new List<string>();
         var words = text.Split(' ');
@@ -501,7 +491,7 @@ public static class BitmapHelper
         foreach (var word in words)
         {
             var testLine = currentLine.Length == 0 ? word : currentLine + " " + word;
-            var testWidth = paint.MeasureText(testLine);
+            var testWidth = font.MeasureText(testLine);
 
             if (testWidth <= maxWidth)
             {
@@ -516,14 +506,14 @@ public static class BitmapHelper
                 }
 
                 // If a single word is too long, break it down
-                if (paint.MeasureText(word) > maxWidth)
+                if (font.MeasureText(word) > maxWidth)
                 {
                     var chars = word.ToCharArray();
                     currentLine.Clear();
                     foreach (var c in chars)
                     {
                         var testChar = currentLine.ToString() + c;
-                        if (paint.MeasureText(testChar) <= maxWidth)
+                        if (font.MeasureText(testChar) <= maxWidth)
                         {
                             currentLine.Append(c);
                         }
