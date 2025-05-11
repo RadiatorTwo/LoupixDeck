@@ -27,6 +27,7 @@ public class MainWindowViewModel : ViewModelBase
     public ICommand TouchPageButtonCommand { get; }
 
     public ICommand SettingsMenuCommand { get; }
+    public ICommand AboutMenuCommand { get; }
     public ICommand QuitApplicationCommand { get; }
 
     public LoupedeckLiveSController LoupedeckController { get; }
@@ -54,6 +55,7 @@ public class MainWindowViewModel : ViewModelBase
         TouchPageButtonCommand = new RelayCommand<int>(TouchPageButton_Click);
 
         SettingsMenuCommand = new AsyncRelayCommand(SettingsMenuButton_Click);
+        AboutMenuCommand = new AsyncRelayCommand(AboutMenuButton_Click);
         QuitApplicationCommand = new RelayCommand(QuitApplication);
     }
 
@@ -136,6 +138,12 @@ public class MainWindowViewModel : ViewModelBase
     private async Task SettingsMenuButton_Click()
     {
         await _dialogService.ShowDialogAsync<SettingsViewModel, DialogResult>();
+        LoupedeckController.SaveConfig();
+    }
+    
+    private async Task AboutMenuButton_Click()
+    {
+        await _dialogService.ShowDialogAsync<AboutViewModel, DialogResult>();
         LoupedeckController.SaveConfig();
     }
 
