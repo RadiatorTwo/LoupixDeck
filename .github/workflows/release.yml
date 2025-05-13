@@ -22,7 +22,13 @@ jobs:
           fetch-depth: 0
 
       - name: Extract version from tag
-        run: echo "VERSION=${env:GITHUB_REF#refs/tags/v}" | Out-File -FilePath $env:GITHUB_ENV -Append
+        run: |
+          $tag = "$env:GITHUB_REF"
+          $version = $tag -replace 'refs/tags/v', ''
+          echo "VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Append
+          
+      - name: Debug version
+        run: echo "Set version to $env:VERSION"
 
       - name: Setup .NET SDK
         uses: actions/setup-dotnet@v4
