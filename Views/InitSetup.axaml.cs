@@ -1,10 +1,14 @@
 using Avalonia.Controls;
 using LoupixDeck.ViewModels;
+using System.Runtime.Versioning;
 
 namespace LoupixDeck.Views;
 
 public partial class InitSetup : Window
 {
+#if WINDOWS
+    [SupportedOSPlatform("windows")]
+#endif
     public InitSetup()
     {
         InitializeComponent();

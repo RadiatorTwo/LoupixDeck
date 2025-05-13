@@ -12,6 +12,10 @@
     <PublishSymbols>false</PublishSymbols>
   </PropertyGroup>
 
+  <PropertyGroup Condition="'$(OS)' == 'Windows_NT'">
+    <DefineConstants>WINDOWS</DefineConstants>
+  </PropertyGroup>
+	
   <ItemGroup>
     <AvaloniaResource Include="Assets\**" />
   </ItemGroup>

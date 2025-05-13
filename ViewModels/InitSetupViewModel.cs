@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.IO.Ports;
+using System.Runtime.Versioning;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using LoupixDeck.Registry;
@@ -40,6 +41,9 @@ public partial class InitSetupViewModel : ViewModelBase
     {
     }
 
+#if WINDOWS
+    [SupportedOSPlatform("windows")]
+#endif
     public void Init()
     {
         var devices = SerialDeviceHelper.ListSerialUsbDevices();
