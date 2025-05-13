@@ -2,6 +2,8 @@ using System.Diagnostics;
 
 #if WINDOWS
 using System.Management;
+using System.Runtime.Versioning;
+using System.Text.RegularExpressions;
 #endif
 
 public static class SerialDeviceHelper
@@ -17,41 +19,51 @@ public static class SerialDeviceHelper
     );
 
 #if WINDOWS
+    [SupportedOSPlatform("windows")]
     public static List<SerialDeviceInfo> ListSerialUsbDevices()
     {
         var result = new List<SerialDeviceInfo>();
-    
+        var regexVid = new Regex(@"VID_([0-9A-F]{4})", RegexOptions.IgnoreCase);
+        var regexPid = new Regex(@"PID_([0-9A-F]{4})", RegexOptions.IgnoreCase);
+        var regexCom = new Regex(@"\(COM(\d+)\)", RegexOptions.IgnoreCase);
+
         using var searcher = new ManagementObjectSearcher("SELECT * FROM Win32_PnPEntity WHERE Name LIKE '%(COM%'");
-    
-        foreach (var device in searcher.Get())
+
+        foreach (var device in searcher.Get().OfType<ManagementObject>())
         {
             var name = device["Name"]?.ToString(); // z.B. "USB Serial Device (COM3)"
             var deviceId = device["PNPDeviceID"]?.ToString(); // z.B. "USB\\VID_2341&PID_0043\\..."
-    
-            if (string.IsNullOrEmpty(deviceId)) continue;
-    
-            string? Extract(string prefix) =>
-                deviceId.Contains(prefix) ?
-                deviceId.Split(new[] { '\\', '&' }, StringSplitOptions.RemoveEmptyEntries)
-                    .FirstOrDefault(s => s.StartsWith(prefix))?.Substring(prefix.Length) : null;
-    
-            var vid = Extract("VID_");
-            var pid = Extract("PID_");
-            var serial = deviceId.Split('\\').Length > 2 ? deviceId.Split('\\')[2] : null;
+
+            if (string.IsNullOrEmpty(deviceId) || string.IsNullOrEmpty(name)) continue;
+
+            var matchVid = regexVid.Match(deviceId);
+            var matchPid = regexPid.Match(deviceId);
+            var matchCom = regexCom.Match(name);
+
+            var vid = matchVid.Success ? matchVid.Groups[1].Value : null;
+            var pid = matchPid.Success ? matchPid.Groups[1].Value : null;
+            var comPort = matchCom.Success ? $"COM{matchCom.Groups[1].Value}" : null;
+
+            var parts = deviceId.Split('\\');
+            var serial = parts.Length > 2 ? parts[2] : null;
+
             var manufacturer = device["Manufacturer"]?.ToString();
             var product = name;
-    
-            result.Add(new SerialDeviceInfo(
-                DevNode: name ?? "Unknown",
-                Vid: vid,
-                Pid: pid,
-                Serial: serial,
-                Manufacturer: manufacturer,
-                Product: product,
-                Aliases: null // Windows hat kein direktes Äquivalent zu /dev/aliasen
-            ));
+
+            if (!string.IsNullOrEmpty(comPort))
+            {
+                result.Add(new SerialDeviceInfo(
+                    DevNode: comPort,
+                    Vid: vid,
+                    Pid: pid,
+                    Serial: serial,
+                    Manufacturer: manufacturer,
+                    Product: product,
+                    Aliases: null
+                ));
+            }
         }
-    
+
         return result;
     }
 #else

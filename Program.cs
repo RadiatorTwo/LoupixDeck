@@ -11,6 +11,7 @@ sealed class Program
     private static Socket _listenerSocket;
 #else
     private const string MutexName = "LoupixDeck_Mutex";
+    private static bool _mutexOwned;
     private static Mutex _instanceMutex;
 #endif
 
@@ -48,14 +49,13 @@ sealed class Program
             };
         }
 #else
-        _instanceMutex = new Mutex(false, MutexName);
-        if (!_instanceMutex.WaitOne(0, false))
+        _instanceMutex = new Mutex(true, MutexName, out _mutexOwned);
+
+        if (!_mutexOwned)
         {
             Console.WriteLine("Already running.");
             return;
         }
-
-        AppDomain.CurrentDomain.ProcessExit += (_, _) => _instanceMutex.ReleaseMutex();
 #endif
 
         BuildAvaloniaApp()

@@ -14,6 +14,6 @@ public static class DeviceRegistry
 
     public static DeviceInfo GetDeviceByVidPid(string vid, string pid)
     {
-        return SupportedDevices.FirstOrDefault(d => d.VendorId == vid && d.ProductId == pid);
+        return SupportedDevices.FirstOrDefault(d => d.VendorId.ToLower() == vid.ToLower() && d.ProductId.ToLower() == pid.ToLower());
     }
 }

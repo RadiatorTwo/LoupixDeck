@@ -6,6 +6,7 @@ using LoupixDeck.Views;
 using LoupixDeck.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
 using LoupixDeck.Utils;
+using System.Runtime.Versioning;
 
 namespace LoupixDeck;
 
@@ -16,6 +17,9 @@ public partial class App : Application
         AvaloniaXamlLoader.Load(this);
     }
 
+#if WINDOWS
+    [SupportedOSPlatform("windows")]
+#endif
     public override async void OnFrameworkInitializationCompleted()
     {
         DisableAvaloniaDataAnnotationValidation();
