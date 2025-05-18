@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using Newtonsoft.Json;
+using SkiaSharp;
 
 namespace LoupixDeck.Models;
 
@@ -82,9 +83,10 @@ public class LoupedeckConfig : INotifyPropertyChanged
         }
     }
 
-    private Avalonia.Media.Imaging.Bitmap _wallpaper;
+    private SKBitmap _wallpaper;
 
-    public Avalonia.Media.Imaging.Bitmap Wallpaper
+    [JsonConverter(typeof(SKBitmapBase64Converter))]
+    public SKBitmap Wallpaper
     {
         get => _wallpaper;
         set

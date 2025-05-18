@@ -155,9 +155,10 @@ public class TouchButton(int index) : LoupedeckButton
         }
     }
 
-    private Bitmap _image;
+    private SKBitmap _image;
 
-    public Bitmap Image
+    [JsonConverter(typeof(SKBitmapBase64Converter))]
+    public SKBitmap Image
     {
         get => _image;
         set
@@ -207,10 +208,10 @@ public class TouchButton(int index) : LoupedeckButton
         }
     }
 
-    private Bitmap _renderedImage;
+    private SKBitmap _renderedImage;
 
     [JsonIgnore]
-    public Bitmap RenderedImage
+    public SKBitmap RenderedImage
     {
         get => _renderedImage;
         set

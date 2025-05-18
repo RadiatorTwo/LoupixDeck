@@ -112,7 +112,7 @@ public static class BitmapHelper
     /// <summary>
     /// Renders the content of a TouchButton (background, image, text) into an Avalonia bitmap.
     /// </summary>
-    public static RenderTargetBitmap RenderTouchButtonContent(
+    public static SKBitmap RenderTouchButtonContent(
         TouchButton touchButton,
         LoupedeckConfig config,
         int width,
@@ -132,7 +132,7 @@ public static class BitmapHelper
             var row = touchButton.Index / gridColumns;
 
             // Calculate the section from the wallpaper
-            var wallpaperBitmap = config.Wallpaper.ToSKBitmap();
+            var wallpaperBitmap = config.Wallpaper;
             var srcRect = new SKRect(
                 col * width,
                 row * height,
@@ -159,7 +159,7 @@ public static class BitmapHelper
 
         if (touchButton.Image != null)
         {
-            var imageBitmap = touchButton.Image.ToSKBitmap();
+            var imageBitmap = touchButton.Image;
             var destRect = new SKRect(0, 0, width, height);
             canvas.DrawBitmap(imageBitmap, destRect);
         }
@@ -184,10 +184,10 @@ public static class BitmapHelper
         }
 
         // Convert back to RenderTargetBitmap and save in the TouchButton
-        var rtb = bitmap.ToRenderTargetBitmap();
-        touchButton.RenderedImage = rtb;
+        // var rtb = bitmap.ToRenderTargetBitmap();
+        touchButton.RenderedImage = bitmap;
 
-        return rtb;
+        return bitmap;
     }
 
     /// <summary>
@@ -375,7 +375,7 @@ public static class BitmapHelper
         return new SKColor(color.R, color.G, color.B, color.A);
     }
 
-    public static RenderTargetBitmap RenderTextToBitmap(string text, int imageWidth, int imageHeight)
+    public static SKBitmap RenderTextToBitmap(string text, int imageWidth, int imageHeight)
     {
         // Create an SKBitmap for rendering
         var bitmap = new SKBitmap(imageWidth, imageHeight);
@@ -398,7 +398,7 @@ public static class BitmapHelper
         );
 
         // Convert SKBitmap to RenderTargetBitmap
-        return bitmap.ToRenderTargetBitmap();
+        return bitmap;
     }
 
     /// <summary>

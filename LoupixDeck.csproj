@@ -10,6 +10,7 @@
     <LangVersion>default</LangVersion>
     <DebugType>embedded</DebugType>
     <PublishSymbols>false</PublishSymbols>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
   <ItemGroup>
