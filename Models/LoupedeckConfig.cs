@@ -85,7 +85,6 @@ public class LoupedeckConfig : INotifyPropertyChanged
 
     private SKBitmap _wallpaper;
 
-    [JsonConverter(typeof(SKBitmapBase64Converter))]
     public SKBitmap Wallpaper
     {
         get => _wallpaper;

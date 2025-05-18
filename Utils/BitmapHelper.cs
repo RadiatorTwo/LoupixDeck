@@ -5,7 +5,6 @@ using Avalonia.Media.Imaging;
 using Avalonia.Media.Immutable;
 using LoupixDeck.Models;
 using SkiaSharp;
-using Avalonia.Platform;
 
 namespace LoupixDeck.Utils;
 
@@ -307,69 +306,6 @@ public static class BitmapHelper
         return result;
     }
 
-    /// <summary>
-    /// Creates an Avalonia RenderTargetBitmap
-    /// from an SKBitmap without an additional encode/decode step.
-    /// </summary>
-    public static RenderTargetBitmap ToRenderTargetBitmap(this SKBitmap source, double dpi = 96)
-    {
-        ArgumentNullException.ThrowIfNull(source);
-
-        // Derive PixelFormat / AlphaFormat from SKColorType
-        var pixelFormat = source.ColorType switch
-        {
-            SKColorType.Bgra8888 => PixelFormat.Bgra8888,
-            SKColorType.Rgba8888 => PixelFormat.Rgba8888,
-            _ => PixelFormat.Bgra8888 // Fallback
-        };
-
-        var alphaFormat = source.AlphaType == SKAlphaType.Opaque
-            ? AlphaFormat.Opaque
-            : AlphaFormat.Unpremul;
-
-        // SKBitmap pixel buffer “wrap” (no copy)
-        // Bitmap() constructor accepts an IntPtr on raw data + stride
-        // Source: Avalonia API documentation of the bitmap class :contentReference[oaicite:0]{index=0}
-        using var avBitmap = new Bitmap(
-            pixelFormat,
-            alphaFormat,
-            source.GetPixels(),
-            new PixelSize(source.Width, source.Height),
-            new Vector(dpi, dpi),
-            source.RowBytes);
-
-        // Create and draw RenderTargetBitmap
-        var rtb = new RenderTargetBitmap(
-            new PixelSize(source.Width, source.Height),
-            new Vector(dpi, dpi));
-
-        using var ctx = rtb.CreateDrawingContext(true);
-
-        ctx.DrawImage(
-            avBitmap,
-            new Rect(0, 0, source.Width, source.Height));
-
-        return rtb;
-    }
-
-    public static SKBitmap ToSKBitmap(this Bitmap bitmap)
-    {
-        ArgumentNullException.ThrowIfNull(bitmap);
-
-        var skBitmap = new SKBitmap(bitmap.PixelSize.Width, bitmap.PixelSize.Height);
-
-        // Kopiere die Pixeldaten in das SKBitmap
-        using var memoryStream = new MemoryStream();
-        bitmap.Save(memoryStream);
-        memoryStream.Position = 0;
-
-        using var skData = SKData.CreateCopy(memoryStream.ToArray());
-        using var skImage = SKImage.FromEncodedData(skData);
-        skImage.ReadPixels(skBitmap.Info, skBitmap.GetPixels());
-
-        return skBitmap;
-    }
-
     public static SKColor ToSKColor(this Color color)
     {
         return new SKColor(color.R, color.G, color.B, color.A);
@@ -538,31 +474,5 @@ public static class BitmapHelper
         }
 
         return lines;
-    }
-
-    public static Bitmap CloneBitmap(this Bitmap original)
-    {
-        if (original == null)
-            return null;
-
-        using var memoryStream = new MemoryStream();
-        original.Save(memoryStream);
-        memoryStream.Seek(0, SeekOrigin.Begin);
-        return new Bitmap(memoryStream);
-    }
-
-    public static RenderTargetBitmap CreateRenderTargetBitmap(Bitmap source)
-    {
-        var rtb = new RenderTargetBitmap(
-            new PixelSize(source.PixelSize.Width, source.PixelSize.Height)
-        );
-
-        using var ctx = rtb.CreateDrawingContext();
-
-        var destRect = new Rect(0, 0, rtb.PixelSize.Width, rtb.PixelSize.Height);
-        var sourceRect = new Rect(0, 0, source.PixelSize.Width, source.PixelSize.Height);
-        ctx.DrawImage(source, sourceRect, destRect);
-
-        return rtb;
     }
 }

@@ -1,6 +1,7 @@
 using Newtonsoft.Json;
 using SkiaSharp;
-using System;
+
+namespace LoupixDeck.Models.Converter;
 
 public class SKBitmapBase64Converter : JsonConverter<SKBitmap>
 {
@@ -8,7 +9,7 @@ public class SKBitmapBase64Converter : JsonConverter<SKBitmap>
     {
         using var image = SKImage.FromBitmap(value);
         using var data = image.Encode(SKEncodedImageFormat.Png, 100);
-        string base64 = Convert.ToBase64String(data.ToArray());
+        var base64 = Convert.ToBase64String(data.ToArray());
         writer.WriteValue(base64);
     }
 
@@ -17,8 +18,9 @@ public class SKBitmapBase64Converter : JsonConverter<SKBitmap>
         if (reader.TokenType != JsonToken.String)
             return null;
 
-        string base64 = (string)reader.Value;
-        byte[] bytes = Convert.FromBase64String(base64);
+        var base64 = (string)reader.Value;
+        var bytes = Convert.FromBase64String(base64 ?? string.Empty);
+        
         return SKBitmap.Decode(bytes);
     }
 }
