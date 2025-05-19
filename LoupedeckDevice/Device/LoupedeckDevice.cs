@@ -5,6 +5,7 @@ using Avalonia.Media.Imaging;
 using LoupixDeck.LoupedeckDevice.Serial;
 using LoupixDeck.Models;
 using LoupixDeck.Utils;
+using SkiaSharp;
 
 namespace LoupixDeck.LoupedeckDevice.Device;
 
@@ -418,7 +419,7 @@ public class LoupedeckDevice
         string id,
         int width,
         int height,
-        RenderTargetBitmap bitmap,
+        SKBitmap bitmap,
         int? x = 0,
         int? y = 0,
         bool autoRefresh = true)
@@ -434,7 +435,7 @@ public class LoupedeckDevice
             height = displayInfo.Height;
 
         // Convert the RenderTargetBitmap into a 16-bit-5-6-5 array
-        var buffer = ConvertRtbToRaw16Bpp(bitmap, width, height);
+        var buffer = ConvertSKBitmapToRaw16BppUnsafe(bitmap);
 
         // Pass the buffer to the actual DrawBuffer
         await DrawBuffer(id, width, height, buffer, x, y, autoRefresh);
@@ -443,56 +444,46 @@ public class LoupedeckDevice
     /// <summary>
     /// Converts a RenderTargetBitmap (usually BGRA32) into a 16-bit-565 byte array.
     /// </summary>
-    private byte[] ConvertRtbToRaw16Bpp(RenderTargetBitmap rtb, int width, int height)
+    private unsafe byte[] ConvertSKBitmapToRaw16BppUnsafe(SKBitmap bitmap)
     {
-        var stride = width * 4; // BGRA32 = 4 bytes per pixel
-        var bufferSize = stride * height;
+        if (bitmap.ColorType != SKColorType.Bgra8888)
+            throw new InvalidOperationException("Bitmap muss im Format BGRA8888 vorliegen.");
 
-        // 1) Allocate a byte array to receive the BGRA data
-        var bgraBytes = new byte[bufferSize];
+        int width = bitmap.Width;
+        int height = bitmap.Height;
+        int pixelCount = width * height;
 
-        // 2) Pin it and get an IntPtr
-        var handle =
-            System.Runtime.InteropServices.GCHandle.Alloc(bgraBytes,
-                System.Runtime.InteropServices.GCHandleType.Pinned);
-        try
+        // Output-Array für 16-Bit RGB565 (2 Bytes pro Pixel)
+        byte[] output = new byte[pixelCount * 2];
+
+        // Zugriff auf die Pixeldaten als Pointer
+        SKPixmap pixmap = bitmap.PeekPixels(); // Schneller Zugriff ohne Kopie
+        byte* srcPtr = (byte*)pixmap.GetPixels().ToPointer();
+
+        fixed (byte* destPtrFixed = output)
         {
-            var ptr = handle.AddrOfPinnedObject();
+            byte* destPtr = destPtrFixed;
 
-            // 3) CopyPixels copies the bitmap data (BGRA) into bgraBytes
-            rtb.CopyPixels(
-                sourceRect: new PixelRect(0, 0, width, height),
-                buffer: ptr,
-                bufferSize: bufferSize,
-                stride: stride
-            );
-        }
-        finally
-        {
-            handle.Free();
-        }
+            for (int i = 0; i < pixelCount; i++)
+            {
+                byte b = srcPtr[0];
+                byte g = srcPtr[1];
+                byte r = srcPtr[2];
+                // byte a = srcPtr[3]; // optional
 
-        // 4) Output array in 16-bit-565 format: 2 bytes per pixel
-        var output = new byte[width * height * 2];
-        var outIndex = 0;
+                // RGB888 → RGB565
+                ushort r5 = (ushort)((r * 31) / 255);
+                ushort g6 = (ushort)((g * 63) / 255);
+                ushort b5 = (ushort)((b * 31) / 255);
 
-        // BGRA32 => RGB565 conversion (Little Endian)
-        for (int i = 0; i < bufferSize; i += 4)
-        {
-            var b = bgraBytes[i + 0];
-            var g = bgraBytes[i + 1];
-            var r = bgraBytes[i + 2];
-            // byte a = bgraBytes[i + 3]; // If you need alpha
+                ushort rgb565 = (ushort)((r5 << 11) | (g6 << 5) | b5);
 
-            var r5 = (r * 31) / 255; // 0..31
-            var g6 = (g * 63) / 255; // 0..63
-            var b5 = (b * 31) / 255; // 0..31
+                destPtr[0] = (byte)(rgb565 & 0xFF);       // LSB
+                destPtr[1] = (byte)((rgb565 >> 8) & 0xFF); // MSB
 
-            var rgb565 = (ushort)((r5 << 11) | (g6 << 5) | b5);
-
-            // Little-Endian: LSB, then MSB
-            output[outIndex++] = (byte)(rgb565 & 0xFF);
-            output[outIndex++] = (byte)(rgb565 >> 8);
+                srcPtr += 4;   // BGRA8888 → 4 Bytes weiter
+                destPtr += 2;  // RGB565 → 2 Bytes weiter
+            }
         }
 
         return output;
@@ -501,7 +492,7 @@ public class LoupedeckDevice
     /// <summary>
     /// Draws a key in the "center" display area based on the given index.
     /// </summary>
-    private async Task DrawKey(int index, RenderTargetBitmap bitmap)
+    private async Task DrawKey(int index, SKBitmap bitmap)
     {
         if (index < 0 || index >= Columns * Rows)
             throw new Exception($"Key {index} is not a valid key");
@@ -541,7 +532,7 @@ public class LoupedeckDevice
 
         try
         {
-            await DrawKey(touchButton.Index, BitmapHelper.CreateRenderTargetBitmap(touchButton.RenderedImage));
+            await DrawKey(touchButton.Index, touchButton.RenderedImage);
         }
         catch (TimeoutException ex)
         {
@@ -583,11 +574,11 @@ public class LoupedeckDevice
     /// <summary>
     /// Draws the entire screen (display) identified by the given ID.
     /// </summary>
-    public async Task DrawScreen(string id, Bitmap bitmap)
+    public async Task DrawScreen(string id, SKBitmap bitmap)
     {
         ArgumentNullException.ThrowIfNull(bitmap);
 
-        await DrawCanvas(id, 0, 0, BitmapHelper.CreateRenderTargetBitmap(bitmap));
+        await DrawCanvas(id, 0, 0, bitmap);
     }
 
     /// <summary>
