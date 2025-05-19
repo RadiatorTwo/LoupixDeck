@@ -20,7 +20,7 @@ public class ConfigService : IConfigService
             Formatting = Formatting.Indented
         };
         _settings.Converters.Add(new ColorJsonConverter());
-        _settings.Converters.Add(new BitmapJsonConverter());
+        _settings.Converters.Add(new SKBitmapBase64Converter());
     }
 
     public T LoadConfig<T>(string filePath) where T : class

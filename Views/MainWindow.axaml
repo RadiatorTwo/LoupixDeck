@@ -268,7 +268,7 @@
                     CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[0]}">
                 <Border CornerRadius="6" ClipToBounds="True">
                     <Image
-                        Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[0].RenderedImage}" />
+                        Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[0].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
                 </Border>
             </Button>
             <Button Tag="Touch"
@@ -280,7 +280,7 @@
                     CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[1]}">
                 <Border CornerRadius="6" ClipToBounds="True">
                     <Image
-                        Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[1].RenderedImage}" />
+                        Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[1].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
                 </Border>
             </Button>
             <Button Tag="Touch"
@@ -292,7 +292,7 @@
                     CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[2]}">
                 <Border CornerRadius="6" ClipToBounds="True">
                     <Image
-                        Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[2].RenderedImage}" />
+                        Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[2].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
                 </Border>
             </Button>
             <Button Tag="Touch"
@@ -304,7 +304,7 @@
                     CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[3]}">
                 <Border CornerRadius="6" ClipToBounds="True">
                     <Image
-                        Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[3].RenderedImage}" />
+                        Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[3].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
                 </Border>
             </Button>
             <Button Tag="Touch"
@@ -316,7 +316,7 @@
                     CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[4]}">
                 <Border CornerRadius="6" ClipToBounds="True">
                     <Image
-                        Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[4].RenderedImage}" />
+                        Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[4].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
                 </Border>
             </Button>
 
@@ -330,7 +330,7 @@
                     CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[5]}">
                 <Border CornerRadius="6" ClipToBounds="True">
                     <Image
-                        Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[5].RenderedImage}" />
+                        Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[5].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
                 </Border>
             </Button>
             <Button Tag="Touch"
@@ -342,7 +342,7 @@
                     CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[6]}">
                 <Border CornerRadius="6" ClipToBounds="True">
                     <Image
-                        Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[6].RenderedImage}" />
+                        Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[6].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
                 </Border>
             </Button>
             <Button Tag="Touch"
@@ -354,7 +354,7 @@
                     CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[7]}">
                 <Border CornerRadius="6" ClipToBounds="True">
                     <Image
-                        Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[7].RenderedImage}" />
+                        Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[7].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
                 </Border>
             </Button>
             <Button Tag="Touch"
@@ -366,7 +366,7 @@
                     CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[8]}">
                 <Border CornerRadius="6" ClipToBounds="True">
                     <Image
-                        Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[8].RenderedImage}" />
+                        Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[8].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
                 </Border>
             </Button>
             <Button Tag="Touch"
@@ -378,7 +378,7 @@
                     CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[9]}">
                 <Border CornerRadius="6" ClipToBounds="True">
                     <Image
-                        Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[9].RenderedImage}" />
+                        Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[9].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
                 </Border>
             </Button>
 
@@ -392,7 +392,7 @@
                     CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[10]}">
                 <Border CornerRadius="6" ClipToBounds="True">
                     <Image
-                        Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[10].RenderedImage}" />
+                        Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[10].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
                 </Border>
             </Button>
             <Button Tag="Touch"
@@ -404,7 +404,7 @@
                     CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[11]}">
                 <Border CornerRadius="6" ClipToBounds="True">
                     <Image
-                        Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[11].RenderedImage}" />
+                        Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[11].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
                 </Border>
             </Button>
             <Button Tag="Touch"
@@ -416,7 +416,7 @@
                     CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[12]}">
                 <Border CornerRadius="6" ClipToBounds="True">
                     <Image
-                        Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[12].RenderedImage}" />
+                        Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[12].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
                 </Border>
             </Button>
             <Button Tag="Touch"
@@ -428,7 +428,7 @@
                     CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[13]}">
                 <Border CornerRadius="6" ClipToBounds="True">
                     <Image
-                        Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[13].RenderedImage}" />
+                        Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[13].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
                 </Border>
             </Button>
             <Button Tag="Touch"
@@ -440,7 +440,7 @@
                     CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[14]}">
                 <Border CornerRadius="6" ClipToBounds="True">
                     <Image
-                        Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[14].RenderedImage}" />
+                        Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[14].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
                 </Border>
             </Button>
         </Grid>
