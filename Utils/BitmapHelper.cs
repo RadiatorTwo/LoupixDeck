@@ -196,115 +196,113 @@ public static class BitmapHelper
         SKBitmap source,
         int targetWidth,
         int targetHeight,
-        float imageScale,
-        int posX,
-        int posY,
-        ScalingOption scalingOption)
+        float imageScale = 100f,
+        int posX = 0,
+        int posY = 0,
+        ScalingOption scalingOption = ScalingOption.Fit)
     {
         ArgumentNullException.ThrowIfNull(source);
 
-        var result = new SKBitmap(targetWidth, targetHeight, source.ColorType, source.AlphaType);
-
-        using var canvas = new SKCanvas(result);
-        canvas.Clear(SKColors.Transparent);
-
-        var sampling = new SKSamplingOptions(SKCubicResampler.Mitchell);
-
-        var paint = new SKPaint
-        {
-            IsAntialias = true,
-            IsDither = true
-        };
-
-        SKRect destRect;
-
-        var scaleValue = imageScale / 100;
+        // ---------- 1) Basic size after scaling (without imageScale) --------
+        float baseW = source.Width;
+        float baseH = source.Height;
 
         switch (scalingOption)
         {
-            case ScalingOption.None:
-            {
-                var scaledWidth = source.Width * scaleValue;
-                var scaledHeight = source.Height * scaleValue;
-                destRect = new SKRect(posX, posY, posX + scaledWidth, posY + scaledHeight);
-                break;
-            }
-
-            case ScalingOption.Stretch:
-            {
-                destRect = new SKRect(posX, posY, posX + targetWidth, posY + targetHeight);
-                break;
-            }
-
-
-            case ScalingOption.Fill:
-            {
-                var scale = Math.Max(
-                    (double)targetWidth / source.Width,
-                    (double)targetHeight / source.Height) * scaleValue;
-                var scaledWidth = (float)(source.Width * scale);
-                var scaledHeight = (float)(source.Height * scale);
-                var offsetX = posX + (targetWidth - scaledWidth) / 2;
-                var offsetY = posY + (targetHeight - scaledHeight) / 2;
-                destRect = new SKRect(offsetX, offsetY, offsetX + scaledWidth, offsetY + scaledHeight);
-                break;
-            }
-
             case ScalingOption.Fit:
             {
-                var scale = Math.Min(
-                    (double)targetWidth / source.Width,
-                    (double)targetHeight / source.Height) * scaleValue;
-                var scaledWidth = (float)(source.Width * scale);
-                var scaledHeight = (float)(source.Height * scale);
-                var offsetX = posX + (targetWidth - scaledWidth) / 2;
-                var offsetY = posY + (targetHeight - scaledHeight) / 2;
-                destRect = new SKRect(offsetX, offsetY, offsetX + scaledWidth, offsetY + scaledHeight);
+                var f = Math.Min(targetWidth / baseW, targetHeight / baseH);
+                baseW *= f;
+                baseH *= f;
                 break;
             }
-
-            case ScalingOption.Tile:
+            case ScalingOption.Fill:
             {
-                var scaledWidth = source.Width * scaleValue;
-                var scaledHeight = source.Height * scaleValue;
-
-                var startX = posX % (int)scaledWidth;
-                var startY = posY % (int)scaledHeight;
-
-                if (startX > 0) startX -= (int)scaledWidth;
-                if (startY > 0) startY -= (int)scaledHeight;
-
-                for (var x = startX; x < targetWidth; x += (int)scaledWidth)
-                {
-                    for (var y = startY; y < targetHeight; y += (int)scaledHeight)
-                    {
-                        var tileRect = new SKRect(x, y, x + scaledWidth, y + scaledHeight);
-                        canvas.DrawImage(SKImage.FromBitmap(source), tileRect, sampling, paint);
-                    }
-                }
-
-                return result;
+                var f = Math.Max(targetWidth / baseW, targetHeight / baseH);
+                baseW *= f;
+                baseH *= f;
+                break;
             }
-
+            case ScalingOption.Stretch:
+                baseW = targetWidth;
+                baseH = targetHeight;
+                break;
+            case ScalingOption.None:
             case ScalingOption.Center:
-            {
-                var scaledWidth = source.Width * scaleValue;
-                var scaledHeight = source.Height * scaleValue;
-                var offsetX = posX + (targetWidth - scaledWidth) / 2;
-                var offsetY = posY + (targetHeight - scaledHeight) / 2;
-                destRect = new SKRect(offsetX, offsetY, offsetX + scaledWidth, offsetY + scaledHeight);
+            case ScalingOption.Tile:
+                // keine Änderung
                 break;
-            }
-
             default:
                 throw new ArgumentOutOfRangeException(nameof(scalingOption), scalingOption, null);
         }
 
-        canvas.DrawBitmap(source, destRect, paint);
-        canvas.Flush();
+        // ---------- 2) imageScale as the final stage -----------------------------
+        var scale = Math.Max(0.01f, imageScale / 100f);
+        var dstW = Math.Max(1, (int)Math.Round(baseW * scale));
+        var dstH = Math.Max(1, (int)Math.Round(baseH * scale));
 
-        return result;
+        // ---------- 3) Sampler (Downscale = linear + MipMaps, Upscale = Biqubic Mitchell)  ------------------
+        SKSamplingOptions sampling;
+
+        if (scale > 1)
+        {
+            sampling = new SKSamplingOptions(SKCubicResampler.Mitchell);
+        }
+        else
+        {
+            sampling = new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear);
+        }
+
+        // ---------- 4) Bitmap (one-time) high-quality resampling ------------------
+        using var scaledBmp = new SKBitmap(dstW, dstH, source.ColorType, source.AlphaType);
+        source.ScalePixels(scaledBmp, sampling);
+
+        // ---------- 5) Prepare target surface --------------------------------
+        var dstInfo = new SKImageInfo(targetWidth, targetHeight, source.ColorType, source.AlphaType);
+        var dst = new SKBitmap(dstInfo);
+        dst.Erase(SKColors.Transparent);
+
+        using var canvas = new SKCanvas(dst);
+
+        // ---------- 6) Render paths ---------------------------------------------
+        if (scalingOption == ScalingOption.Tile)
+        {
+            // *** Kachel-Shader: imageScale wirkt via scaledBmp-Größe ***
+            var localMatrix = SKMatrix.CreateTranslation(-posX, -posY);
+
+            using var shader = scaledBmp.ToShader(
+                SKShaderTileMode.Repeat,
+                SKShaderTileMode.Repeat,
+                sampling,
+                localMatrix);
+
+            using var p = new SKPaint();
+            p.Shader = shader;
+
+            canvas.DrawRect(new SKRect(0, 0, targetWidth, targetHeight), p);
+        }
+        else
+        {
+            // Single image
+            float drawX = posX;
+            float drawY = posY;
+
+            if (scalingOption is ScalingOption.Center or ScalingOption.Fit or ScalingOption.Fill)
+            {
+                drawX += (targetWidth - dstW) * 0.5f;
+                drawY += (targetHeight - dstH) * 0.5f;
+            }
+
+            var destRect = new SKRect(drawX, drawY, drawX + dstW, drawY + dstH);
+            canvas.DrawBitmap(scaledBmp,
+                new SKRect(0, 0, dstW, dstH), // Quelle 1:1
+                destRect);
+        }
+
+        canvas.Flush();
+        return dst;
     }
+
 
     public static SKColor ToSKColor(this Color color)
     {
@@ -364,16 +362,16 @@ public static class BitmapHelper
             SKFontStyleWidth.Normal,
             italic ? SKFontStyleSlant.Italic : SKFontStyleSlant.Upright
         );
-        
+
         var font = new SKFont(typeface, textSize)
         {
             Edging = SKFontEdging.Antialias,
             Subpixel = true,
             Hinting = SKFontHinting.Full
         };
-        
+
         using var textPaint = new SKPaint();
-        
+
         textPaint.Color = color;
         textPaint.Style = SKPaintStyle.Fill;
         textPaint.IsAntialias = true;
@@ -403,7 +401,7 @@ public static class BitmapHelper
             if (outlined)
             {
                 using var outlinePaint = new SKPaint();
-                
+
                 outlinePaint.Color = outlineColor;
                 outlinePaint.Style = SKPaintStyle.Stroke;
                 outlinePaint.StrokeWidth = 3;
