@@ -101,7 +101,7 @@ public class SettingsViewModel : DialogViewModelBase<DialogResult>
             WallpaperPositionX, WallpaperPositionY,
             SelectedWallpaperScalingOption);
 
-        Config.Wallpaper = scaledImage.ToRenderTargetBitmap();
+        Config.Wallpaper = scaledImage;
     }
 
     public SettingsViewModel(LoupedeckConfig config, IObsController obs)

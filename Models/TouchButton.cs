@@ -1,5 +1,4 @@
 using Avalonia.Media;
-using Avalonia.Media.Imaging;
 using Newtonsoft.Json;
 using SkiaSharp;
 
@@ -155,9 +154,9 @@ public class TouchButton(int index) : LoupedeckButton
         }
     }
 
-    private Bitmap _image;
+    private SKBitmap _image;
 
-    public Bitmap Image
+    public SKBitmap Image
     {
         get => _image;
         set
@@ -207,10 +206,10 @@ public class TouchButton(int index) : LoupedeckButton
         }
     }
 
-    private Bitmap _renderedImage;
+    private SKBitmap _renderedImage;
 
     [JsonIgnore]
-    public Bitmap RenderedImage
+    public SKBitmap RenderedImage
     {
         get => _renderedImage;
         set
