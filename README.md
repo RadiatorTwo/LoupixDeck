@@ -11,8 +11,9 @@ It provides a highly customizable interface to assign commands, control external
 
 ## ⚠️ Disclaimer
 
-> ⚠️ **This software is in an early, experimental stage.**
-> ⚠️ **Many features are under active development or not fully implemented.**
+ ⚠️ **This software is in an early, experimental stage.**
+
+ ⚠️ **Many features are under active development or not fully implemented.**
 
 ---
 
