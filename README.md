@@ -52,6 +52,13 @@ It provides a highly customizable interface to assign commands, control external
 
 > Support for additional Loupedeck models may be considered in the future, but is not currently planned.
 
+## 📸 Screenshots
+
+![Screenshot_20-Mai_22-30-55_LoupixDeck](https://github.com/user-attachments/assets/1a16ae9c-e765-435d-9a43-26ea521e78bd)
+
+![Screenshot_20-Mai_22-31-52_LoupixDeck](https://github.com/user-attachments/assets/dea8d42d-fc2f-4132-b80e-d4ddf3a463dc)
+
+
 ## 🛠️ Build Instructions
 
 ### Linux
