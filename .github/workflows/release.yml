@@ -13,7 +13,7 @@ jobs:
     runs-on: windows-latest
 
     env:
-      PROJECT_PATH: ./LoupixDeck.csproj
+      PROJECT_PATH: ./src/LoupixDeck/LoupixDeck.csproj
 
     steps:
       - name: Checkout repository
@@ -63,7 +63,7 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      PROJECT_PATH: ./LoupixDeck.csproj
+      PROJECT_PATH: ./src/LoupixDeck/LoupixDeck.csproj
 
     steps:
       - name: Checkout repository

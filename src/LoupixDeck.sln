@@ -1,0 +1,28 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LoupixDeck", "LoupixDeck\LoupixDeck.csproj", "{AF828B5B-1EFD-4239-8188-A90279319AE6}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AssetGenerator", "Tools\AssetGenerator\AssetGenerator.csproj", "{251DFBD1-25A6-4F55-9164-7FE124AEFFD4}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{AF828B5B-1EFD-4239-8188-A90279319AE6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{AF828B5B-1EFD-4239-8188-A90279319AE6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{AF828B5B-1EFD-4239-8188-A90279319AE6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{AF828B5B-1EFD-4239-8188-A90279319AE6}.Release|Any CPU.Build.0 = Release|Any CPU
+		{251DFBD1-25A6-4F55-9164-7FE124AEFFD4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{251DFBD1-25A6-4F55-9164-7FE124AEFFD4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{251DFBD1-25A6-4F55-9164-7FE124AEFFD4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{251DFBD1-25A6-4F55-9164-7FE124AEFFD4}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
