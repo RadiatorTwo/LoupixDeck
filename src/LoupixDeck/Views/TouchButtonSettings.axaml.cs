@@ -1,4 +1,6 @@
+using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.VisualTree;
 using LoupixDeck.Models;
@@ -53,5 +55,21 @@ public partial class TouchButtonSettings : Window
 
             e.Handled = true;
         }
+    }
+
+    protected override void OnApplyTemplate(TemplateAppliedEventArgs e)
+    {
+        base.OnApplyTemplate(e);
+
+        var listBox = this.Find<ListBox>("SvgListBox");
+
+        if (listBox != null)
+            listBox.GetObservable(BoundsProperty).Subscribe(bounds =>
+            {
+                if (listBox.Presenter?.Panel is WrapPanel wrapPanel)
+                {
+                    wrapPanel.Height = bounds.Height;
+                }
+            });
     }
 }

@@ -32,7 +32,25 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
 
     #region IconSelection
 
-    public string IconSearchText { get; set; }
+    private string _iconSearchText;
+
+    public string IconSearchText
+    {
+        get => _iconSearchText;
+        set
+        {
+            if (_iconSearchText != value)
+            {
+                _iconSearchText = value;
+                OnPropertyChanged();
+                UpdateFilteredRows();
+            }
+        }
+    }
+
+    public record IconEntry(string Name, string Path);
+
+    public ObservableCollection<IconEntry> SvgItemRows { get; } = new();
 
     #endregion
 
@@ -52,6 +70,8 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
         SystemCommandMenus = new ObservableCollection<MenuEntry>();
 
         CreateSystemMenu();
+
+        UpdateFilteredRows();
     }
 
     private void CreateSystemMenu()
@@ -64,7 +84,7 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
 
     private void CreatePagesMenu()
     {
-        // Get Only Pages Commands
+        // Nur die Pages Commands laden
         var commands = _sysCommandService.GetCommandInfos().Where(ci => ci.Group == "Pages");
 
         var groupMenu = new MenuEntry("Pages", string.Empty);
@@ -187,5 +207,19 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
         var formattedCommand = _commandBuilder.CreateCommandFromMenuEntry(menuEntry);
 
         ButtonData.Command += formattedCommand;
+    }
+
+    private void UpdateFilteredRows()
+    {
+        SvgItemRows.Clear();
+
+        var filtered = Assets.All
+            .Where(x => string.IsNullOrEmpty(IconSearchText) ||
+                        x.Key.Contains(IconSearchText, StringComparison.OrdinalIgnoreCase))
+            .Select(x => new IconEntry(x.Key, x.Value))
+            .ToList();
+
+        foreach (var item in filtered)
+            SvgItemRows.Add(item);
     }
 }

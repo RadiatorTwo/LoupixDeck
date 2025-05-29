@@ -18,9 +18,12 @@ sb.AppendLine("{");
 sb.AppendLine("    public static readonly Dictionary<string, string> All = new()");
 sb.AppendLine("    {");
 
+var assetsRoot = Path.GetFullPath(Path.Combine(root, "..")); // Assets/
+
 foreach (var file in Directory.GetFiles(root, "*", SearchOption.AllDirectories))
 {
-    var relative = Path.GetRelativePath(root, file).Replace('\\', '/');
+    var relative = Path.GetRelativePath(assetsRoot, file).Replace('\\', '/');
+
     var name = Path.GetFileNameWithoutExtension(relative);
     var safe = Regex.Replace(name, @"[^a-zA-Z0-9_]", "_");
 

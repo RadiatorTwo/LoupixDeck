@@ -18,7 +18,7 @@
             BorderBrush="DarkGray"
             Padding="4">
         <Grid RowDefinitions="*,50">
-            <Grid ColumnDefinitions="2*,2*,2*,2*" Grid.Row="0">
+            <Grid ColumnDefinitions="2*,2*,3*,2*" Grid.Row="0">
                 <StackPanel Grid.Column="0" Margin="10,20,0,0">
                     <TextBlock Text="Text-Settings" FontWeight="Bold" Margin="0,0,0,5" />
                     <TextBox Name="TextInputBox" Height="30" Text="{Binding ButtonData.Text}" />
@@ -84,25 +84,23 @@
                 <StackPanel Grid.Column="2" Orientation="Vertical" Margin="20,20,0,0">
                     <TextBlock Text="Icon Selection" FontWeight="Bold" Margin="0,0,0,5" />
                     <TextBox Text="{Binding IconSearchText}" />
-                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                        <ItemsControl>
-                            <ItemsControl.ItemsPanel>
-                                <ItemsPanelTemplate>
-                                    <WrapPanel Orientation="Horizontal" />
-                                </ItemsPanelTemplate>
-                            </ItemsControl.ItemsPanel>
+                    <ScrollViewer Height="300" Padding="5">
+                        <ItemsRepeater ItemsSource="{Binding SvgItemRows}">
+                            <ItemsRepeater.Layout>
+                                <UniformGridLayout MaximumRowsOrColumns="8"/>
+                            </ItemsRepeater.Layout>
 
-                            <ItemsControl.ItemTemplate>
+                            <ItemsRepeater.ItemTemplate>
                                 <DataTemplate>
-                                    <Border Margin="4"
-                                            CornerRadius="5"
-                                            Background="Gray"
-                                            Padding="5">
-                                        <TextBlock Text="{Binding}" />
+                                    <Border Classes="selectable-icon" Padding="8">
+                                        <StackPanel>
+                                            <Svg Path="{Binding Path}" Width="50" Height="50" Stretch="Uniform" />
+                                            <TextBlock Text="{Binding Name}" TextAlignment="Center" FontSize="12" />
+                                        </StackPanel>
                                     </Border>
                                 </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
+                            </ItemsRepeater.ItemTemplate>
+                        </ItemsRepeater>
                     </ScrollViewer>
                 </StackPanel>
 
