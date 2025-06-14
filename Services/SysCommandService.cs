@@ -14,7 +14,7 @@ namespace LoupixDeck.Services
         /// <summary>
         /// Executes the specified command.
         /// </summary>
-        void ExecuteCommand(string commandName, string[] parameters);
+        Task ExecuteCommand(string commandName, string[] parameters);
 
         /// <summary>
         /// Checks whether a command exists.
@@ -71,13 +71,13 @@ namespace LoupixDeck.Services
             }
         }
 
-        public void ExecuteCommand(string commandName, string[] parameters)
+        public async Task ExecuteCommand(string commandName, string[] parameters)
         {
             if (_commands.TryGetValue(commandName, out var command))
             {
                 var executableCommand =
                     (IExecutableCommand)ActivatorUtilities.CreateInstance(_serviceProvider, command.CommandType);
-                executableCommand.Execute(parameters);
+                await executableCommand.Execute(parameters);
             }
             else
             {
