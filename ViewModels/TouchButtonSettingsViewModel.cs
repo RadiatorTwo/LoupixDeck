@@ -45,14 +45,14 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
 
         SystemCommandMenus = new ObservableCollection<MenuEntry>();
 
-        CreateSystemMenu();
+        CreateSystemMenu().GetAwaiter().GetResult();
     }
 
-    private void CreateSystemMenu()
+    private async Task CreateSystemMenu()
     {
         CreatePagesMenu();
         CreateMacroMenu();
-        CreateObsMenu();
+        await CreateObsMenu();
         CreateElgatoMenu();
     }
 
@@ -71,7 +71,7 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
         SystemCommandMenus.Add(groupMenu);
     }
 
-    private void CreateObsMenu()
+    private async Task CreateObsMenu()
     {
         var commands = _sysCommandService.GetCommandInfos().Where(ci => ci.Group == "OBS");
 
@@ -86,7 +86,7 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
         }
 
         var scenesMenu = new MenuEntry("Scenes", string.Empty);
-        var scenes = _obs.GetScenes();
+        var scenes = await _obs.GetScenes();
 
         foreach (var scene in scenes)
         {
