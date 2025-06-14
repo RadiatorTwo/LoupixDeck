@@ -180,7 +180,7 @@ public class ObsController : IObsController
 
     public async Task ToggleVirtualCamera()
     {
-        if (await CheckConnection())
+        if (!await CheckConnection())
         {
             return;
         }
@@ -197,7 +197,7 @@ public class ObsController : IObsController
 
     public async Task StartStreaming()
     {
-        if (await CheckConnection())
+        if (!await CheckConnection())
         {
             return;
         }
@@ -214,7 +214,7 @@ public class ObsController : IObsController
 
     public async Task StopStreaming()
     {
-        if (await CheckConnection())
+        if (!await CheckConnection())
         {
             return;
         }
@@ -235,7 +235,7 @@ public class ObsController : IObsController
 
     public async Task StartRecording()
     {
-        if (await CheckConnection())
+        if (!await CheckConnection())
         {
             return;
         }
@@ -253,7 +253,7 @@ public class ObsController : IObsController
 
     public async Task StopRecording()
     {
-        if (await CheckConnection())
+        if (!await CheckConnection())
         {
             return;
         }
@@ -271,7 +271,7 @@ public class ObsController : IObsController
 
     public async Task PauseRecording()
     {
-        if (await CheckConnection())
+        if (!await CheckConnection())
         {
             Connect();
         }
@@ -289,7 +289,7 @@ public class ObsController : IObsController
 
     public async Task StartReplayBuffer()
     {
-        if (await CheckConnection())
+        if (!await CheckConnection())
         {
             return;
         }
@@ -307,7 +307,7 @@ public class ObsController : IObsController
 
     public async Task StopReplayBuffer()
     {
-        if (await CheckConnection())
+        if (!await CheckConnection())
         {
             return;
         }
@@ -325,7 +325,7 @@ public class ObsController : IObsController
 
     public async Task SaveReplayBuffer()
     {
-        if (await CheckConnection())
+        if (!await CheckConnection())
         {
             return;
         }
@@ -347,7 +347,7 @@ public class ObsController : IObsController
 
     public async Task ToggleMute(string sourceName)
     {
-        if (await CheckConnection())
+        if (!await CheckConnection())
         {
             return;
         }
@@ -365,7 +365,7 @@ public class ObsController : IObsController
 
     public async Task SetVolume(string sourceName, float volume)
     {
-        if (await CheckConnection())
+        if (!await CheckConnection())
         {
             return;
         }
@@ -383,7 +383,7 @@ public class ObsController : IObsController
 
     public async Task<float> GetInputVolume(string inputName)
     {
-        if (await CheckConnection())
+        if (!await CheckConnection())
         {
             return 0f;
         }
@@ -402,7 +402,7 @@ public class ObsController : IObsController
 
     public async Task<bool> IsInputMuted(string inputName)
     {
-        if (await CheckConnection())
+        if (!await CheckConnection())
         {
             return false;
         }
@@ -425,7 +425,7 @@ public class ObsController : IObsController
 
     public async Task ShowSource(string sceneName, int sceneItemId)
     {
-        if (await CheckConnection())
+        if (!await CheckConnection())
         {
             return;
         }
@@ -443,7 +443,7 @@ public class ObsController : IObsController
 
     public async Task HideSource(string sceneName, int sceneItemId)
     {
-        if (await CheckConnection())
+        if (!await CheckConnection())
         {
             return;
         }
@@ -461,7 +461,7 @@ public class ObsController : IObsController
 
     public async Task ToggleSourceVisibility(string sceneName, int sceneItemId)
     {
-        if (await CheckConnection())
+        if (!await CheckConnection())
         {
             return;
         }
@@ -504,7 +504,7 @@ public class ObsController : IObsController
 
     public async Task<string> GetCurrentSceneName()
     {
-        if (await CheckConnection())
+        if (!await CheckConnection())
         {
             return string.Empty;
         }
@@ -523,7 +523,7 @@ public class ObsController : IObsController
 
     public async Task<List<SceneBasicInfo>> GetScenes()
     {
-        if (await CheckConnection())
+        if (!await CheckConnection())
         {
             return [];
         }
@@ -546,7 +546,7 @@ public class ObsController : IObsController
 
     public async Task<bool> IsStudioModeEnabled()
     {
-        if (await CheckConnection())
+        if (!await CheckConnection())
         {
             return false;
         }
@@ -565,7 +565,7 @@ public class ObsController : IObsController
 
     public async Task SetStudioMode(bool enabled)
     {
-        if (await CheckConnection())
+        if (!await CheckConnection())
         {
             return;
         }
