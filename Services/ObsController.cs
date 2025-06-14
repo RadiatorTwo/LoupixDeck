@@ -10,28 +10,32 @@ public interface IObsController
     event EventHandler Connected;
     event EventHandler<ObsDisconnectionInfo> Disconnected;
     void Connect(string ip = "", int port = 0, string password = "");
+
+    Task ConnectAndWaitAsync(string ip = "", int port = 0, string password = "",
+        CancellationToken cancellationToken = default);
+
     void Disconnect();
-    void ToggleVirtualCamera();
-    void StartStreaming();
-    void StopStreaming();
-    void StartRecording();
-    void StopRecording();
-    void PauseRecording();
-    void StartReplayBuffer();
-    void StopReplayBuffer();
-    void SaveReplayBuffer();
-    void ToggleMute(string sourceName);
-    void SetVolume(string sourceName, float volume);
-    float GetInputVolume(string inputName);
-    bool IsInputMuted(string inputName);
-    void ShowSource(string sceneName, int sceneItemId);
-    void HideSource(string sceneName, int sceneItemId);
-    void ToggleSourceVisibility(string sceneName, int sceneItemId);
-    void SetScene(string sceneName);
-    string GetCurrentSceneName();
-    List<SceneBasicInfo> GetScenes();
-    bool IsStudioModeEnabled();
-    void SetStudioMode(bool enabled);
+    Task ToggleVirtualCamera();
+    Task StartStreaming();
+    Task StopStreaming();
+    Task StartRecording();
+    Task StopRecording();
+    Task PauseRecording();
+    Task StartReplayBuffer();
+    Task StopReplayBuffer();
+    Task SaveReplayBuffer();
+    Task ToggleMute(string sourceName);
+    Task SetVolume(string sourceName, float volume);
+    Task<float> GetInputVolume(string inputName);
+    Task<bool> IsInputMuted(string inputName);
+    Task ShowSource(string sceneName, int sceneItemId);
+    Task HideSource(string sceneName, int sceneItemId);
+    Task ToggleSourceVisibility(string sceneName, int sceneItemId);
+    Task SetScene(string sceneName);
+    Task<string> GetCurrentSceneName();
+    Task<List<SceneBasicInfo>> GetScenes();
+    Task<bool> IsStudioModeEnabled();
+    Task SetStudioMode(bool enabled);
 }
 
 public class ObsController : IObsController
@@ -53,10 +57,12 @@ public class ObsController : IObsController
 
             if (!string.IsNullOrEmpty(ip) && !string.IsNullOrEmpty(ip) && port > 0)
             {
-                _obsConfig = new ObsConfig();
-                _obsConfig.Ip = ip;
-                _obsConfig.Port = port;
-                _obsConfig.Password = password;
+                _obsConfig = new ObsConfig
+                {
+                    Ip = ip,
+                    Port = port,
+                    Password = password
+                };
             }
             else
             {
@@ -71,6 +77,84 @@ public class ObsController : IObsController
         {
             Console.WriteLine($"Error connecting to OBS: {ex.Message}");
         }
+    }
+
+    public async Task ConnectAndWaitAsync(
+        string ip = "",
+        int port = 0,
+        string password = "",
+        CancellationToken cancellationToken = default)
+    {
+        if (_obs.IsConnected)
+            return;
+
+        if (!string.IsNullOrEmpty(ip) && !string.IsNullOrEmpty(ip) && port > 0)
+        {
+            _obsConfig = new ObsConfig
+            {
+                Ip = ip,
+                Port = port,
+                Password = password
+            };
+        }
+        else
+        {
+            _obsConfig = ObsConfig.LoadConfig();
+        }
+
+        var tcs = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+
+        // Events registrieren
+        _obs.Connected += OnConnected;
+        _obs.Disconnected += OnDisconnected;
+
+        // Verbindungsversuch starten (nicht await-bar!)
+        _obs.ConnectAsync(_obsConfig.Url, _obsConfig.Password);
+
+        var timeout = TimeSpan.FromSeconds(2);
+        using var timeoutCts = new CancellationTokenSource(timeout);
+        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(
+            timeoutCts.Token, cancellationToken);
+
+        var token = linkedCts.Token;
+
+        await using (linkedCts.Token.Register(() => tcs.TrySetCanceled(token)))
+        {
+            await tcs.Task.ConfigureAwait(false); // hier warten wir wirklich
+        }
+
+        return;
+
+        void OnConnected(object _, EventArgs __)
+        {
+            Unsubscribe();
+            tcs.TrySetResult();
+        }
+
+        void OnDisconnected(object _, ObsDisconnectionInfo info)
+        {
+            Unsubscribe();
+            tcs.TrySetException(
+                new InvalidOperationException(
+                    $"Verbindung fehlgeschlagen: {info.ObsCloseCode}/{info.WebsocketDisconnectionInfo}"));
+        }
+
+        void Unsubscribe()
+        {
+            _obs.Connected -= OnConnected;
+            _obs.Disconnected -= OnDisconnected;
+        }
+    }
+
+    private async Task<bool> CheckConnection()
+    {
+        if (!_obs.IsConnected)
+        {
+            await ConnectAndWaitAsync();
+        }
+
+        return _obs.IsConnected;
     }
 
     private void Obs_Connected(object sender, EventArgs e)
@@ -94,9 +178,9 @@ public class ObsController : IObsController
 
     #region Streaming Functions
 
-    public void ToggleVirtualCamera()
+    public async Task ToggleVirtualCamera()
     {
-        if (!_obs.IsConnected)
+        if (!await CheckConnection())
         {
             return;
         }
@@ -111,9 +195,9 @@ public class ObsController : IObsController
         }
     }
 
-    public void StartStreaming()
+    public async Task StartStreaming()
     {
-        if (!_obs.IsConnected)
+        if (!await CheckConnection())
         {
             return;
         }
@@ -128,9 +212,9 @@ public class ObsController : IObsController
         }
     }
 
-    public void StopStreaming()
+    public async Task StopStreaming()
     {
-        if (!_obs.IsConnected)
+        if (!await CheckConnection())
         {
             return;
         }
@@ -149,9 +233,9 @@ public class ObsController : IObsController
 
     #region Recording Functions
 
-    public void StartRecording()
+    public async Task StartRecording()
     {
-        if (!_obs.IsConnected)
+        if (!await CheckConnection())
         {
             return;
         }
@@ -167,9 +251,9 @@ public class ObsController : IObsController
         }
     }
 
-    public void StopRecording()
+    public async Task StopRecording()
     {
-        if (!_obs.IsConnected)
+        if (!await CheckConnection())
         {
             return;
         }
@@ -185,11 +269,11 @@ public class ObsController : IObsController
         }
     }
 
-    public void PauseRecording()
+    public async Task PauseRecording()
     {
-        if (!_obs.IsConnected)
+        if (!await CheckConnection())
         {
-            return;
+            Connect();
         }
 
         try
@@ -203,9 +287,9 @@ public class ObsController : IObsController
         }
     }
 
-    public void StartReplayBuffer()
+    public async Task StartReplayBuffer()
     {
-        if (!_obs.IsConnected)
+        if (!await CheckConnection())
         {
             return;
         }
@@ -221,9 +305,9 @@ public class ObsController : IObsController
         }
     }
 
-    public void StopReplayBuffer()
+    public async Task StopReplayBuffer()
     {
-        if (!_obs.IsConnected)
+        if (!await CheckConnection())
         {
             return;
         }
@@ -239,9 +323,9 @@ public class ObsController : IObsController
         }
     }
 
-    public void SaveReplayBuffer()
+    public async Task SaveReplayBuffer()
     {
-        if (!_obs.IsConnected)
+        if (!await CheckConnection())
         {
             return;
         }
@@ -261,9 +345,9 @@ public class ObsController : IObsController
 
     #region Audio Functions
 
-    public void ToggleMute(string sourceName)
+    public async Task ToggleMute(string sourceName)
     {
-        if (!_obs.IsConnected)
+        if (!await CheckConnection())
         {
             return;
         }
@@ -279,9 +363,9 @@ public class ObsController : IObsController
         }
     }
 
-    public void SetVolume(string sourceName, float volume)
+    public async Task SetVolume(string sourceName, float volume)
     {
-        if (!_obs.IsConnected)
+        if (!await CheckConnection())
         {
             return;
         }
@@ -297,9 +381,9 @@ public class ObsController : IObsController
         }
     }
 
-    public float GetInputVolume(string inputName)
+    public async Task<float> GetInputVolume(string inputName)
     {
-        if (!_obs.IsConnected)
+        if (!await CheckConnection())
         {
             return 0f;
         }
@@ -316,9 +400,9 @@ public class ObsController : IObsController
         }
     }
 
-    public bool IsInputMuted(string inputName)
+    public async Task<bool> IsInputMuted(string inputName)
     {
-        if (!_obs.IsConnected)
+        if (!await CheckConnection())
         {
             return false;
         }
@@ -339,9 +423,9 @@ public class ObsController : IObsController
 
     #region Scene Items
 
-    public void ShowSource(string sceneName, int sceneItemId)
+    public async Task ShowSource(string sceneName, int sceneItemId)
     {
-        if (!_obs.IsConnected)
+        if (!await CheckConnection())
         {
             return;
         }
@@ -357,9 +441,9 @@ public class ObsController : IObsController
         }
     }
 
-    public void HideSource(string sceneName, int sceneItemId)
+    public async Task HideSource(string sceneName, int sceneItemId)
     {
-        if (!_obs.IsConnected)
+        if (!await CheckConnection())
         {
             return;
         }
@@ -375,9 +459,9 @@ public class ObsController : IObsController
         }
     }
 
-    public void ToggleSourceVisibility(string sceneName, int sceneItemId)
+    public async Task ToggleSourceVisibility(string sceneName, int sceneItemId)
     {
-        if (!_obs.IsConnected)
+        if (!await CheckConnection())
         {
             return;
         }
@@ -400,9 +484,9 @@ public class ObsController : IObsController
 
     #region Scene Functions
 
-    public void SetScene(string sceneName)
+    public async Task SetScene(string sceneName)
     {
-        if (!_obs.IsConnected)
+        if (!await CheckConnection())
         {
             return;
         }
@@ -418,9 +502,9 @@ public class ObsController : IObsController
         }
     }
 
-    public string GetCurrentSceneName()
+    public async Task<string> GetCurrentSceneName()
     {
-        if (!_obs.IsConnected)
+        if (!await CheckConnection())
         {
             return string.Empty;
         }
@@ -437,9 +521,9 @@ public class ObsController : IObsController
         }
     }
 
-    public List<SceneBasicInfo> GetScenes()
+    public async Task<List<SceneBasicInfo>> GetScenes()
     {
-        if (!_obs.IsConnected)
+        if (!await CheckConnection())
         {
             return [];
         }
@@ -460,9 +544,9 @@ public class ObsController : IObsController
 
     #region Other Functions
 
-    public bool IsStudioModeEnabled()
+    public async Task<bool> IsStudioModeEnabled()
     {
-        if (!_obs.IsConnected)
+        if (!await CheckConnection())
         {
             return false;
         }
@@ -479,9 +563,9 @@ public class ObsController : IObsController
         }
     }
 
-    public void SetStudioMode(bool enabled)
+    public async Task SetStudioMode(bool enabled)
     {
-        if (!_obs.IsConnected)
+        if (!await CheckConnection())
         {
             return;
         }

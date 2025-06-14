@@ -112,7 +112,7 @@ public class LoupedeckLiveSController(
         var button = config.SimpleButtons.FirstOrDefault(b => b.Id == e.ButtonId);
         if (button != null)
         {
-            commandService.ExecuteCommand(button.Command);
+            commandService.ExecuteCommand(button.Command).GetAwaiter().GetResult();
         }
         else
         {
@@ -120,11 +120,11 @@ public class LoupedeckLiveSController(
             {
                 case Constants.ButtonType.KNOB_TL:
                     commandService.ExecuteCommand(config.RotaryButtonPages[config.CurrentRotaryPageIndex]
-                        .RotaryButtons[0].Command);
+                        .RotaryButtons[0].Command).GetAwaiter().GetResult();
                     break;
                 case Constants.ButtonType.KNOB_CL:
                     commandService.ExecuteCommand(config.RotaryButtonPages[config.CurrentRotaryPageIndex]
-                        .RotaryButtons[1].Command);
+                        .RotaryButtons[1].Command).GetAwaiter().GetResult();
                     break;
             }
         }
@@ -140,7 +140,8 @@ public class LoupedeckLiveSController(
             var button = config.CurrentTouchButtonPage.TouchButtons.FindByIndex(touch.Target.Key);
             if (button == null) continue;
 
-            commandService.ExecuteCommand(button.Command);
+            commandService.ExecuteCommand(button.Command).GetAwaiter().GetResult();
+            
             deviceService.Device.Vibrate();
         }
     }
@@ -160,7 +161,7 @@ public class LoupedeckLiveSController(
 
         if (!string.IsNullOrEmpty(command))
         {
-            commandService.ExecuteCommand(command);
+            commandService.ExecuteCommand(command).GetAwaiter().GetResult();
         }
     }
 
