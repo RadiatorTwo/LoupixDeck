@@ -4,7 +4,7 @@ namespace LoupixDeck.Services;
 
 public interface ICommandService
 {
-    void ExecuteCommand(string command);
+    Task ExecuteCommand(string command);
 }
 
 public class CommandService : ICommandService
@@ -18,7 +18,7 @@ public class CommandService : ICommandService
         _commandRunner = commandRunner;
     }
 
-    public void ExecuteCommand(string command)
+    public async Task ExecuteCommand(string command)
     {
         if (string.IsNullOrWhiteSpace(command))
             return;
@@ -28,7 +28,7 @@ public class CommandService : ICommandService
         if (_sysCommandService.CheckCommandExists(cleanCommand))
         {
             var parameters = GetCommandParameters(command);
-            Dispatcher.UIThread.Post(() => { _sysCommandService.ExecuteCommand(cleanCommand, parameters); });
+            await _sysCommandService.ExecuteCommand(cleanCommand, parameters);
         }
         else
         {

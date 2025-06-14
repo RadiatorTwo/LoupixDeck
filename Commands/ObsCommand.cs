@@ -124,17 +124,15 @@ public class ObsSaveReplayCommand(IObsController obs) : IExecutableCommand
     [typeof(string)])]
 public class ObsSetSceneCommand(IObsController obs) : IExecutableCommand
 {
-    public Task Execute(string[] parameters)
+    public async Task Execute(string[] parameters)
     {
         if (parameters.Length != 1)
         {
             Console.WriteLine("Invalid Parametercount");
-            return Task.CompletedTask;
         }
 
         var sceneName = parameters[0];
 
-        obs.SetScene(sceneName);
-        return Task.CompletedTask;
+        await obs.SetScene(sceneName);
     }
 }
