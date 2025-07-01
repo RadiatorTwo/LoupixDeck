@@ -5,6 +5,8 @@ VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LoupixDeck", "LoupixDeck.csproj", "{54544BAA-0AFD-4672-8D4F-39618846AAA8}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LoupixDeck.Tests", "LoupixDeck.Tests\LoupixDeck.Tests.csproj", "{ECD4A351-D844-4C26-A48A-0548146710EB}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -27,6 +29,18 @@ Global
 		{54544BAA-0AFD-4672-8D4F-39618846AAA8}.Release|x64.Build.0 = Release|Any CPU
 		{54544BAA-0AFD-4672-8D4F-39618846AAA8}.Release|x86.ActiveCfg = Release|Any CPU
 		{54544BAA-0AFD-4672-8D4F-39618846AAA8}.Release|x86.Build.0 = Release|Any CPU
+                {ECD4A351-D844-4C26-A48A-0548146710EB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+                {ECD4A351-D844-4C26-A48A-0548146710EB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+                {ECD4A351-D844-4C26-A48A-0548146710EB}.Debug|x64.ActiveCfg = Debug|Any CPU
+                {ECD4A351-D844-4C26-A48A-0548146710EB}.Debug|x64.Build.0 = Debug|Any CPU
+                {ECD4A351-D844-4C26-A48A-0548146710EB}.Debug|x86.ActiveCfg = Debug|Any CPU
+                {ECD4A351-D844-4C26-A48A-0548146710EB}.Debug|x86.Build.0 = Debug|Any CPU
+                {ECD4A351-D844-4C26-A48A-0548146710EB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+                {ECD4A351-D844-4C26-A48A-0548146710EB}.Release|Any CPU.Build.0 = Release|Any CPU
+                {ECD4A351-D844-4C26-A48A-0548146710EB}.Release|x64.ActiveCfg = Release|Any CPU
+                {ECD4A351-D844-4C26-A48A-0548146710EB}.Release|x64.Build.0 = Release|Any CPU
+                {ECD4A351-D844-4C26-A48A-0548146710EB}.Release|x86.ActiveCfg = Release|Any CPU
+                {ECD4A351-D844-4C26-A48A-0548146710EB}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
