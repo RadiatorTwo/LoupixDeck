@@ -154,7 +154,7 @@ public class ElgatoController : IDisposable, IElgatoController
             return;
         }
 
-        var jsonData = $"{{\"lights\":[{{\"hue\":{saturation}}}]}}";
+        var jsonData = $"{{\"lights\":[{{\"saturation\":{saturation}}}]}}";
 
         await SendPutRequestAsync(keyLight.Url, jsonData);
 
