@@ -129,6 +129,7 @@ public class ObsSetSceneCommand(IObsController obs) : IExecutableCommand
         if (parameters.Length != 1)
         {
             Console.WriteLine("Invalid Parametercount");
+            return;
         }
 
         var sceneName = parameters[0];
