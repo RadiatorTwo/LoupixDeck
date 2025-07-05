@@ -31,6 +31,11 @@ public class DialogService(IServiceProvider serviceProvider) : IDialogService
         var viewModel = serviceProvider.GetRequiredService<TViewModel>();
         initializer?.Invoke(viewModel);
 
+        if (viewModel is IAsyncInitViewModel asyncInit)
+        {
+            await asyncInit.InitializeAsync();
+        }
+        
         if (!_viewModelToWindowMap.TryGetValue(typeof(TViewModel), out var windowType))
             throw new InvalidOperationException($"No window registered for {typeof(TViewModel).Name}");
 

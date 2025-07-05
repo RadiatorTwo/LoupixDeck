@@ -8,7 +8,7 @@ using SkiaSharp;
 
 namespace LoupixDeck.ViewModels;
 
-public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, DialogResult>
+public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, DialogResult>, IAsyncInitViewModel
 
 {
     public override void Initialize(TouchButton parameter)
@@ -44,8 +44,11 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
         RemoveImageButtonCommand = new RelayCommand(RemoveImageButton_Click);
 
         SystemCommandMenus = new ObservableCollection<MenuEntry>();
+    }
 
-        CreateSystemMenu().GetAwaiter().GetResult();
+    public Task InitializeAsync()
+    {
+        return CreateSystemMenu();
     }
 
     private async Task CreateSystemMenu()

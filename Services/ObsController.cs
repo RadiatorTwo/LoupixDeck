@@ -105,11 +105,11 @@ public class ObsController : IObsController
         var tcs = new TaskCompletionSource(
             TaskCreationOptions.RunContinuationsAsynchronously);
 
-        // Events registrieren
+        // Register events
         _obs.Connected += OnConnected;
         _obs.Disconnected += OnDisconnected;
 
-        // Verbindungsversuch starten (nicht await-bar!)
+        // Attempt to connect (not awaitable!)
         _obs.ConnectAsync(_obsConfig.Url, _obsConfig.Password);
 
         var timeout = TimeSpan.FromSeconds(2);
@@ -121,7 +121,7 @@ public class ObsController : IObsController
 
         await using (linkedCts.Token.Register(() => tcs.TrySetCanceled(token)))
         {
-            await tcs.Task.ConfigureAwait(false); // hier warten wir wirklich
+            await tcs.Task.ConfigureAwait(false);
         }
 
         return;
@@ -137,7 +137,7 @@ public class ObsController : IObsController
             Unsubscribe();
             tcs.TrySetException(
                 new InvalidOperationException(
-                    $"Verbindung fehlgeschlagen: {info.ObsCloseCode}/{info.WebsocketDisconnectionInfo}"));
+                    $"{info.ObsCloseCode}/{info.WebsocketDisconnectionInfo} - {info.DisconnectReason}"));
         }
 
         void Unsubscribe()
@@ -149,11 +149,18 @@ public class ObsController : IObsController
 
     private async Task<bool> CheckConnection()
     {
-        if (!_obs.IsConnected)
+        if (_obs.IsConnected) return _obs.IsConnected;
+        
+        try
         {
             // Avoid capturing the current SynchronizationContext to prevent
             // deadlocks when called from a synchronously blocked context.
             await ConnectAndWaitAsync().ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error connecting to OBS: {ex.Message}");
+            return false;
         }
 
         return _obs.IsConnected;
