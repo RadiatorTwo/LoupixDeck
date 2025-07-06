@@ -6,7 +6,7 @@ using LoupixDeck.ViewModels.Base;
 
 namespace LoupixDeck.ViewModels;
 
-public class SimpleButtonSettingsViewModel : DialogViewModelBase<SimpleButton, DialogResult>
+public class SimpleButtonSettingsViewModel : DialogViewModelBase<SimpleButton, DialogResult>, IAsyncInitViewModel
 {
     public override void Initialize(SimpleButton parameter)
     {
@@ -30,8 +30,11 @@ public class SimpleButtonSettingsViewModel : DialogViewModelBase<SimpleButton, D
         _elgatoDevices = elgatoDevices;
         _sysCommandService = sysCommandService;
         _commandBuilder = commandBuilder;
-        
-        CreateSystemMenu().GetAwaiter().GetResult();
+    }
+    
+    public Task InitializeAsync()
+    {
+        return CreateSystemMenu();
     }
 
     private async Task CreateSystemMenu()

@@ -6,7 +6,7 @@ using LoupixDeck.ViewModels.Base;
 
 namespace LoupixDeck.ViewModels;
 
-public class RotaryButtonSettingsViewModel : DialogViewModelBase<RotaryButton, DialogResult>
+public class RotaryButtonSettingsViewModel : DialogViewModelBase<RotaryButton, DialogResult>, IAsyncInitViewModel
 {
     public override void Initialize(RotaryButton parameter)
     {
@@ -33,9 +33,12 @@ public class RotaryButtonSettingsViewModel : DialogViewModelBase<RotaryButton, D
         _elgatoDevices = elgatoDevices;
         _sysCommandService = sysCommandService;
         _commandBuilder = commandBuilder;
-
-        CreateSystemMenu().GetAwaiter().GetResult();
     }
+    
+    public Task InitializeAsync()
+    {
+        return CreateSystemMenu();
+    }    
 
     private async Task CreateSystemMenu()
     {
