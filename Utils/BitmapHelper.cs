@@ -158,9 +158,17 @@ public static class BitmapHelper
 
         if (touchButton.Image != null)
         {
-            var imageBitmap = touchButton.Image;
             var destRect = new SKRect(0, 0, width, height);
-            canvas.DrawBitmap(imageBitmap, destRect);
+            
+            var scaledImage = BitmapHelper.ScaleAndPositionBitmap(
+                touchButton.Image,
+                width,
+                height,
+                touchButton.ImageScale,
+                touchButton.ImagePositionX,
+                touchButton.ImagePositionY);
+            
+            canvas.DrawBitmap(scaledImage, destRect);
         }
 
         if (!string.IsNullOrEmpty(touchButton.Text))

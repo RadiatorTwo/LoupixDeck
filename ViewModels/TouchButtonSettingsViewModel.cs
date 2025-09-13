@@ -161,17 +161,7 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
 
         if (result == null || !File.Exists(result)) return;
 
-        var image = SKBitmap.Decode(result);
-        var scaledImage = BitmapHelper.ScaleAndPositionBitmap(
-            image,
-            90,
-            90,
-            ButtonData.ImageScale,
-            ButtonData.ImagePositionX,
-            ButtonData.ImagePositionY,
-            BitmapHelper.ScalingOption.Fit);
-
-        ButtonData.Image = scaledImage;
+        ButtonData.Image = SKBitmap.Decode(result);
     }
 
     private void RemoveImageButton_Click()
