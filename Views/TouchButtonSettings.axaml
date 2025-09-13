@@ -9,8 +9,8 @@
     xmlns:vm="using:LoupixDeck.ViewModels"
     x:DataType="vm:TouchButtonSettingsViewModel"
     Title="TouchButtonSettings"
-    Height="450"
-    Width="850"
+    Height="500"
+    Width="900"
     mc:Ignorable="d"
     SystemDecorations="Full"
     CanResize="False">
@@ -18,7 +18,7 @@
             BorderBrush="DarkGray"
             Padding="4">
         <Grid RowDefinitions="*,50">
-            <Grid ColumnDefinitions="2*,2*,2*" Grid.Row="0">
+            <Grid ColumnDefinitions="1.1*,*,*" Grid.Row="0">
                 <StackPanel Grid.Column="0" Margin="10,20,0,0">
                     <TextBlock Text="Text-Settings" FontWeight="Bold" Margin="0,0,0,5" />
                     <TextBox Name="TextInputBox" Height="30" Text="{Binding ButtonData.Text}" />
@@ -43,43 +43,94 @@
                     </StackPanel>
 
                     <CheckBox Name="Centered" Content="Centered" IsChecked="{Binding ButtonData.TextCentered}" />
-                    <TextBlock Text="Position (X, Y)" Margin="0,5,0,0" />
-                    <StackPanel Orientation="Horizontal">
-                        <NumericUpDown Name="TextPosX" Width="120" Value="{Binding ButtonData.TextPositionX}"
-                                       IsEnabled="{Binding !ButtonData.TextCentered}" />
-                        <NumericUpDown Name="TextPosY" Width="120" Value="{Binding ButtonData.TextPositionY}"
-                                       IsEnabled="{Binding !ButtonData.TextCentered}" Margin="5,0,0,0" />
+                    
+                    <StackPanel>
+                        <!-- Text Position X -->
+                        <StackPanel Orientation="Horizontal" Margin="0,3,0,0">
+                            <TextBlock Text="Text X:" Width="80" VerticalAlignment="Center" />
+                            <Slider Minimum="-100" Maximum="100"
+                                    Value="{Binding ButtonData.TextPositionX, Mode=TwoWay}"
+                                    IsSnapToTickEnabled="True" TickFrequency="0.1"
+                                    Width="180" />
+                            <TextBlock Text="{Binding ButtonData.TextPositionX}"
+                                       Width="40" Margin="5,0,0,0"
+                                       VerticalAlignment="Center" />
+                        </StackPanel>
+
+                        <!-- Text Position Y -->
+                        <StackPanel Orientation="Horizontal" Margin="0,3,0,0">
+                            <TextBlock Text="Text Y:" Width="80" VerticalAlignment="Center" />
+                            <Slider Minimum="-100" Maximum="100"
+                                    Value="{Binding ButtonData.TextPositionY, Mode=TwoWay}"
+                                    IsSnapToTickEnabled="True" TickFrequency="0.1"
+                                    Width="180" />
+                            <TextBlock Text="{Binding ButtonData.TextPositionY}"
+                                       Width="40" Margin="5,0,0,0"
+                                       VerticalAlignment="Center" />
+                        </StackPanel>
                     </StackPanel>
                 </StackPanel>
 
-                <StackPanel Grid.Column="1" Margin="20,20,0,0">
+                <StackPanel Grid.Column="1" Margin="10">
                     <TextBlock Text="Image-Settings" FontWeight="Bold" Margin="0,0,0,5" />
-                    <Image Name="PreviewImage" Width="150" Height="150" Stretch="Uniform"
+
+                    <Image Name="PreviewImage"
+                           Width="120" Height="120"
+                           Stretch="Uniform"
                            HorizontalAlignment="Left"
                            Source="{Binding ButtonData.RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
 
-                    <StackPanel Orientation="Horizontal" Margin="0,5,0,0">
-                        <Button Name="SelectImageButton" Content="Select Image" Width="120"
+                    <StackPanel Orientation="Horizontal" Margin="0,5,0,10">
+                        <Button Content="Select" Width="80"
                                 Command="{Binding SelectImageButtonCommand}" />
-                        <Button Name="RemoveImageButton" Content="Remove Image" Width="120" Margin="5,0,0,0"
+                        <Button Content="Remove" Width="80" Margin="5,0,0,0"
                                 Command="{Binding RemoveImageButtonCommand}" />
                     </StackPanel>
 
-                    <TextBlock Text="Image Scale" Margin="0,5,0,0" />
-                    <NumericUpDown Name="ImageScale" Width="120" HorizontalAlignment="Left"
-                                   Value="{Binding ButtonData.ImageScale, Mode=TwoWay}" Minimum="1" Maximum="300"
-                                   Increment="1" />
-
-                    <TextBlock Text="Image Position (X, Y)" Margin="0,5,0,0" />
-                    <StackPanel Orientation="Horizontal">
-                        <NumericUpDown Name="ImagePosX" Width="120" Value="{Binding ButtonData.ImagePositionX}" />
-                        <NumericUpDown Name="ImagePosY" Width="120" Value="{Binding ButtonData.ImagePositionY}"
-                                       Margin="5,0,0,0" />
+                    <!-- Scale -->
+                    <StackPanel Orientation="Horizontal" Margin="0,3,0,0">
+                        <TextBlock Text="Scale:" Width="80" VerticalAlignment="Center" />
+                        <Slider Minimum="1" Maximum="500"
+                                Value="{Binding ButtonData.ImageScale, Mode=TwoWay}"
+                                IsSnapToTickEnabled="True" TickFrequency="1"
+                                Width="180" />
+                        <TextBlock Text="{Binding ButtonData.ImageScale}"
+                                   Width="40" Margin="5,0,0,0"
+                                   VerticalAlignment="Center" />
                     </StackPanel>
 
-                    <TextBlock Text="Background Color" Margin="0,5,0,0" />
-                    <ccp:ColorPicker Color="{Binding ButtonData.BackColor}" Width="80" HorizontalAlignment="Left" />
+                    <!-- Position X -->
+                    <StackPanel Orientation="Horizontal" Margin="0,3,0,0">
+                        <TextBlock Text="Pos X:" Width="80" VerticalAlignment="Center" />
+                        <Slider Minimum="-200" Maximum="200"
+                                Value="{Binding ButtonData.ImagePositionX, Mode=TwoWay}"
+                                IsSnapToTickEnabled="True" TickFrequency="1"
+                                Width="180" />
+                        <TextBlock Text="{Binding ButtonData.ImagePositionX}"
+                                   Width="40" Margin="5,0,0,0"
+                                   VerticalAlignment="Center" />
+                    </StackPanel>
+
+                    <!-- Position Y -->
+                    <StackPanel Orientation="Horizontal" Margin="0,3,0,0">
+                        <TextBlock Text="Pos Y:" Width="80" VerticalAlignment="Center" />
+                        <Slider Minimum="-200" Maximum="200"
+                                Value="{Binding ButtonData.ImagePositionY, Mode=TwoWay}"
+                                IsSnapToTickEnabled="True" TickFrequency="1"
+                                Width="180" />
+                        <TextBlock Text="{Binding ButtonData.ImagePositionY}"
+                                   Width="40" Margin="5,0,0,0"
+                                   VerticalAlignment="Center" />
+                    </StackPanel>
+
+                    <!-- Background Color -->
+                    <StackPanel Orientation="Horizontal" Margin="0,5,0,0">
+                        <TextBlock Text="Background:" Width="80" VerticalAlignment="Center" />
+                        <ccp:ColorPicker Color="{Binding ButtonData.BackColor}"
+                                         Width="80" HorizontalAlignment="Left" />
+                    </StackPanel>
                 </StackPanel>
+
                 <StackPanel Grid.Column="2" Orientation="Vertical" Margin="20,20,0,0">
                     <TextBlock Text="System Commands" FontWeight="Bold" Margin="0,0,0,5" />
                     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">

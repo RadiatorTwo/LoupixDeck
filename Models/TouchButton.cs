@@ -59,6 +59,7 @@ public class TouchButton(int index) : LoupedeckButton
             if (_textPositionY == value) return;
             _textPositionX = value;
             Refresh();
+            OnPropertyChanged(nameof(TextPositionX));
         }
     }
 
@@ -72,6 +73,7 @@ public class TouchButton(int index) : LoupedeckButton
             if (_textPositionY == value) return;
             _textPositionY = value;
             Refresh();
+            OnPropertyChanged(nameof(TextPositionY));
         }
     }
 
@@ -177,6 +179,7 @@ public class TouchButton(int index) : LoupedeckButton
             if (_imagePositionX == value) return;
             _imagePositionX = value;
             Refresh();
+            OnPropertyChanged(nameof(ImagePositionX));
         }
     }
 
@@ -190,6 +193,7 @@ public class TouchButton(int index) : LoupedeckButton
             if (_imagePositionY == value) return;
             _imagePositionY = value;
             Refresh();
+            OnPropertyChanged(nameof(ImagePositionY));
         }
     }
 
@@ -203,6 +207,7 @@ public class TouchButton(int index) : LoupedeckButton
             if (_imageScale == value) return;
             _imageScale = value;
             Refresh();
+            OnPropertyChanged(nameof(ImageScale));
         }
     }
 
