@@ -40,7 +40,15 @@ namespace LoupixDeck.Services
                     }
                     else
                     {
-                        parameters.Add(parameter.Name, menuEntry.Name);
+                        if (menuEntry.Parameters != null && menuEntry.Parameters.Any())
+                        {
+                            var menuParameter = menuEntry.Parameters.First();
+                            parameters.Add(menuParameter.Key, menuParameter.Value);
+                        }
+                        else
+                        {
+                            parameters.Add(parameter.Name, menuEntry.Name);
+                        }
                     }
                 }
                 else

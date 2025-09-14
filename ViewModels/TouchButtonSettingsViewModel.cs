@@ -18,6 +18,7 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
 
     private readonly IObsController _obs;
     private readonly ElgatoDevices _elgatoDevices;
+    private readonly ICoolerControlApiController _coolercontrol;
     private readonly ISysCommandService _sysCommandService;
     private readonly ICommandBuilder _commandBuilder;
 
@@ -32,11 +33,13 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
 
     public TouchButtonSettingsViewModel(IObsController obs,
         ElgatoDevices elgatoDevices,
+        ICoolerControlApiController coolercontrol,
         ISysCommandService sysCommandService,
         ICommandBuilder commandBuilder)
     {
         _obs = obs;
         _elgatoDevices = elgatoDevices;
+        _coolercontrol = coolercontrol;
         _sysCommandService = sysCommandService;
         _commandBuilder = commandBuilder;
 
@@ -57,6 +60,7 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
         CreateMacroMenu();
         await CreateObsMenu();
         CreateElgatoMenu();
+        await CreateCoolerControlMenu();
     }
 
     private void CreatePagesMenu()
@@ -129,6 +133,38 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
         _elgatoDevices.KeyLightAdded += KeyLightAdded;
 
         SystemCommandMenus.Add(_elgatoKeyLightMenu);
+    }
+
+    private async Task CreateCoolerControlMenu()
+    {
+        var commands = _sysCommandService.GetCommandInfos().Where(ci => ci.Group == "Cooler Control");
+
+        var groupMenu = new MenuEntry("Cooler Control", string.Empty);
+
+        foreach (var command in commands)
+        {
+            if (command.CommandName == "System.CoolerControlSetMode")
+                continue;
+
+            groupMenu.Children.Add(new MenuEntry(command.DisplayName, command.CommandName));
+        }
+
+        var modesMenu = new MenuEntry("Modes", string.Empty);
+        var modes = await _coolercontrol.GetModes();
+
+        foreach (var mode in modes)
+        {
+            modesMenu.Children.Add(
+                new MenuEntry(mode["name"]?.ToString(),
+                    $"System.CoolerControlSetMode",
+                    null,
+                    new Dictionary<string, string>() { { "UID", mode["uid"]?.ToString() ?? string.Empty } })
+            );
+        }
+
+        groupMenu.Children.Add(modesMenu);
+
+        SystemCommandMenus.Add(groupMenu);
     }
 
     private void KeyLightAdded(object sender, KeyLight e)
