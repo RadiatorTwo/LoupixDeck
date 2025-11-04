@@ -17,17 +17,62 @@ public class SettingsViewModel : DialogViewModelBase<DialogResult>
     public ICommand SaveObsCommand { get; }
     public ICommand TestConnectionCommand { get; }
     public ICommand SelectImageButtonCommand { get; }
+    public ICommand RemoveWallpaperCommand { get; }
     public ICommand NavigateCommand { get; }
 
     private SKBitmap _wallpaperBitmap = null;
 
     private SettingsView _currentView;
+    private TouchButtonPage _selectedPage;
 
     public SettingsView CurrentView
     {
         get => _currentView;
         set => SetProperty(ref _currentView, value);
     }
+
+    public TouchButtonPage SelectedPage
+    {
+        get => _selectedPage;
+        set
+        {
+            if (SetProperty(ref _selectedPage, value))
+            {
+                // Reset wallpaper bitmap when page changes
+                _wallpaperBitmap = _selectedPage?.Wallpaper;
+                OnPropertyChanged(nameof(SelectedPageWallpaper));
+                OnPropertyChanged(nameof(SelectedPageWallpaperOpacity));
+            }
+        }
+    }
+
+    public SKBitmap SelectedPageWallpaper
+    {
+        get => _selectedPage?.Wallpaper;
+        set
+        {
+            if (_selectedPage != null && _selectedPage.Wallpaper != value)
+            {
+                _selectedPage.Wallpaper = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
+    public double SelectedPageWallpaperOpacity
+    {
+        get => _selectedPage?.WallpaperOpacity ?? 0;
+        set
+        {
+            if (_selectedPage != null && Math.Abs(_selectedPage.WallpaperOpacity - value) > 0.0001)
+            {
+                _selectedPage.WallpaperOpacity = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
+    public ObservableCollection<TouchButtonPage> Pages => Config.TouchButtonPages;
 
     public ObsConfig ObsConfig { get; }
 
@@ -92,7 +137,7 @@ public class SettingsViewModel : DialogViewModelBase<DialogResult>
 
     private void ApplyScaling()
     {
-        if (_wallpaperBitmap == null) return;
+        if (_wallpaperBitmap == null || _selectedPage == null) return;
 
         var scaledImage = BitmapHelper.ScaleAndPositionBitmap(
             _wallpaperBitmap,
@@ -101,7 +146,8 @@ public class SettingsViewModel : DialogViewModelBase<DialogResult>
             WallpaperPositionX, WallpaperPositionY,
             SelectedWallpaperScalingOption);
 
-        Config.Wallpaper = scaledImage;
+        _selectedPage.Wallpaper = scaledImage;
+        OnPropertyChanged(nameof(SelectedPageWallpaper));
     }
 
     public SettingsViewModel(LoupedeckConfig config, IObsController obs)
@@ -110,6 +156,7 @@ public class SettingsViewModel : DialogViewModelBase<DialogResult>
         SaveObsCommand = new RelayCommand(SaveObs);
         TestConnectionCommand = new RelayCommand(TestConnection);
         SelectImageButtonCommand = new AsyncRelayCommand(SelectImageButton_Click);
+        RemoveWallpaperCommand = new RelayCommand(RemoveWallpaper);
 
         NavigateCommand = new RelayCommand<SettingsView>(Navigate);
         CurrentView = SettingsView.General;
@@ -121,6 +168,12 @@ public class SettingsViewModel : DialogViewModelBase<DialogResult>
 
         _obs.Connected += ObsConnected;
         _obs.Disconnected += ObsDisconnected;
+
+        // Initialize selected page to the current page or first page
+        if (Config.TouchButtonPages != null && Config.TouchButtonPages.Count > 0)
+        {
+            SelectedPage = Config.CurrentTouchButtonPage ?? Config.TouchButtonPages[0];
+        }
     }
 
     private void ObsConnected(object sender, EventArgs e)
@@ -180,6 +233,18 @@ public class SettingsViewModel : DialogViewModelBase<DialogResult>
         _wallpaperBitmap = SKBitmap.Decode(result);
 
         ApplyScaling();
+    }
+
+    private void RemoveWallpaper()
+    {
+        if (_selectedPage == null) return;
+
+        _selectedPage.Wallpaper = null;
+        _selectedPage.WallpaperOpacity = 0;
+        _wallpaperBitmap = null;
+
+        OnPropertyChanged(nameof(SelectedPageWallpaper));
+        OnPropertyChanged(nameof(SelectedPageWallpaperOpacity));
     }
 
     private void Navigate(SettingsView settingsPage)

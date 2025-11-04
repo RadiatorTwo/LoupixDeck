@@ -93,11 +93,20 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
         }
 
         var scenesMenu = new MenuEntry("Scenes", string.Empty);
-        var scenes = await _obs.GetScenes();
 
-        foreach (var scene in scenes)
+        try
         {
-            scenesMenu.Children.Add(new MenuEntry(scene.Name, $"System.ObsSetScene"));
+            var scenes = await _obs.GetScenes();
+
+            foreach (var scene in scenes)
+            {
+                scenesMenu.Children.Add(new MenuEntry(scene.Name, $"System.ObsSetScene"));
+            }
+        }
+        catch (Exception ex)
+        {
+            // If OBS is not connected, add an error entry to inform the user
+            scenesMenu.Children.Add(new MenuEntry($"OBS not connected: {ex.Message}", string.Empty));
         }
 
         groupMenu.Children.Add(scenesMenu);
@@ -150,16 +159,25 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
         }
 
         var modesMenu = new MenuEntry("Modes", string.Empty);
-        var modes = await _coolercontrol.GetModes();
 
-        foreach (var mode in modes)
+        try
         {
-            modesMenu.Children.Add(
-                new MenuEntry(mode["name"]?.ToString(),
-                    $"System.CoolerControlSetMode",
-                    null,
-                    new Dictionary<string, string>() { { "UID", mode["uid"]?.ToString() ?? string.Empty } })
-            );
+            var modes = await _coolercontrol.GetModes();
+
+            foreach (var mode in modes)
+            {
+                modesMenu.Children.Add(
+                    new MenuEntry(mode["name"]?.ToString(),
+                        $"System.CoolerControlSetMode",
+                        null,
+                        new Dictionary<string, string>() { { "UID", mode["uid"]?.ToString() ?? string.Empty } })
+                );
+            }
+        }
+        catch (Exception ex)
+        {
+            // If connection fails, add an error entry to inform the user
+            modesMenu.Children.Add(new MenuEntry($"Connection failed: {ex.Message}", string.Empty));
         }
 
         groupMenu.Children.Add(modesMenu);

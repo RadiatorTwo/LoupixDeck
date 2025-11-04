@@ -38,7 +38,28 @@ public class LoupedeckLiveSController(
         // Start the device using the configuration
         deviceService.StartDevice(config.DevicePort, config.DeviceBaudrate);
 
+        // Migrate old wallpaper configuration to first page if needed
+        if (config.Wallpaper != null && config.TouchButtonPages != null && config.TouchButtonPages.Count > 0)
+        {
+            if (config.TouchButtonPages[0].Wallpaper == null)
+            {
+                config.TouchButtonPages[0].Wallpaper = config.Wallpaper;
+                config.TouchButtonPages[0].WallpaperOpacity = config.WallpaperOpacity;
+                config.Wallpaper = null; // Clear old property
+                config.WallpaperOpacity = 0;
+            }
+        }
+
         pageManager.OnTouchPageChanged += OnTouchPageChanged;
+
+        // Subscribe to page property changes for wallpaper updates
+        foreach (var page in config.TouchButtonPages)
+        {
+            page.PropertyChanged += TouchButtonPageOnPropertyChanged;
+        }
+
+        // Subscribe to collection changes to handle newly added pages
+        config.TouchButtonPages.CollectionChanged += TouchButtonPagesOnCollectionChanged;
 
         config.SimpleButtons =
         [
@@ -184,6 +205,65 @@ public class LoupedeckLiveSController(
         }
     }
 
+    private void TouchButtonPagesOnCollectionChanged(object sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
+    {
+        // Subscribe to property changes for newly added pages
+        if (e.NewItems != null)
+        {
+            foreach (var item in e.NewItems)
+            {
+                if (item is TouchButtonPage page)
+                {
+                    page.PropertyChanged += TouchButtonPageOnPropertyChanged;
+                }
+            }
+        }
+
+        // Unsubscribe from property changes for removed pages
+        if (e.OldItems != null)
+        {
+            foreach (var item in e.OldItems)
+            {
+                if (item is TouchButtonPage page)
+                {
+                    page.PropertyChanged -= TouchButtonPageOnPropertyChanged;
+                }
+            }
+        }
+    }
+
+    private async void TouchButtonPageOnPropertyChanged(object sender, PropertyChangedEventArgs e)
+    {
+        if (sender is not TouchButtonPage page) return;
+
+        // Only redraw if this is the current page and wallpaper properties changed
+        if (page != config.CurrentTouchButtonPage) return;
+
+        _propertyChangedCts?.Cancel();
+        _propertyChangedCts = new CancellationTokenSource();
+        var token = _propertyChangedCts.Token;
+
+        try
+        {
+            switch (e.PropertyName)
+            {
+                case nameof(TouchButtonPage.Wallpaper):
+                case nameof(TouchButtonPage.WallpaperOpacity):
+                    await Task.Delay(100, token); // Debounce
+                    foreach (var touchButton in config.CurrentTouchButtonPage.TouchButtons)
+                    {
+                        await deviceService.Device.DrawTouchButton(touchButton, config, true, 5);
+                        await Task.Delay(0, token);
+                    }
+                    break;
+            }
+        }
+        catch (TaskCanceledException)
+        {
+            // ignore canceled Tasks
+        }
+    }
+
     private async void TouchItemChanged(object sender, EventArgs e)
     {
         if (sender is not TouchButton item) return;
@@ -245,16 +325,6 @@ public class LoupedeckLiveSController(
                 case nameof(LoupedeckConfig.Brightness):
                     await Task.Delay(100, token); // Debounce
                     await deviceService.Device.SetBrightness(config.Brightness / 100.0);
-                    break;
-
-                case nameof(LoupedeckConfig.Wallpaper):
-                case nameof(LoupedeckConfig.WallpaperOpacity):
-                    await Task.Delay(100, token); // Debounce
-                    foreach (var touchButton in config.CurrentTouchButtonPage.TouchButtons)
-                    {
-                        await deviceService.Device.DrawTouchButton(touchButton, config, true, 5);
-                        await Task.Delay(0, token);
-                    }
                     break;
             }
         }

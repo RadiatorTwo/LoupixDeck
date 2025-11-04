@@ -132,7 +132,8 @@ public class PageManager : IPageManager
     {
         foreach (var touchButton in CurrentTouchButtonPage.TouchButtons)
         {
-            await _deviceService.Device.DrawTouchButton(touchButton, _config, false, 5);
+            // Force refresh to ensure wallpaper changes are applied when switching pages
+            await _deviceService.Device.DrawTouchButton(touchButton, _config, true, 5);
         }
     }
 

@@ -2,6 +2,7 @@
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using Newtonsoft.Json;
+using SkiaSharp;
 
 namespace LoupixDeck.Models;
 
@@ -17,9 +18,11 @@ public class TouchButtonPage : INotifyPropertyChanged
             TouchButtons.Add(newButton);
         }
     }
-        
+
     private int _page;
     private bool _selected;
+    private SKBitmap _wallpaper;
+    private double _wallpaperOpacity;
 
     public string PageName => $"Page: {Page}";
 
@@ -33,7 +36,7 @@ public class TouchButtonPage : INotifyPropertyChanged
             OnPropertyChanged();
         }
     }
-    
+
     [JsonIgnore]
     public bool Selected
     {
@@ -42,6 +45,28 @@ public class TouchButtonPage : INotifyPropertyChanged
         {
             if (value == _selected) return;
             _selected = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public SKBitmap Wallpaper
+    {
+        get => _wallpaper;
+        set
+        {
+            if (Equals(value, _wallpaper)) return;
+            _wallpaper = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public double WallpaperOpacity
+    {
+        get => _wallpaperOpacity;
+        set
+        {
+            if (!(Math.Abs(_wallpaperOpacity - value) > 0.0001)) return;
+            _wallpaperOpacity = value;
             OnPropertyChanged();
         }
     }

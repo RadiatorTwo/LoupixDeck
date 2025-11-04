@@ -124,14 +124,35 @@ public static class BitmapHelper
         var bitmap = new SKBitmap(width, height);
         using var canvas = new SKCanvas(bitmap);
 
-        if (config.Wallpaper != null && gridColumns > 0)
+        // Determine which wallpaper to use: current page's or fallback to first page's
+        SKBitmap wallpaperToUse = null;
+        double opacityToUse = 0;
+
+        if (config.CurrentTouchButtonPage != null)
+        {
+            // Try to use the current page's wallpaper
+            if (config.CurrentTouchButtonPage.Wallpaper != null)
+            {
+                wallpaperToUse = config.CurrentTouchButtonPage.Wallpaper;
+                opacityToUse = config.CurrentTouchButtonPage.WallpaperOpacity;
+            }
+            // Fallback to first page's wallpaper if current page has none
+            else if (config.TouchButtonPages != null &&
+                     config.TouchButtonPages.Count > 0 &&
+                     config.TouchButtonPages[0].Wallpaper != null)
+            {
+                wallpaperToUse = config.TouchButtonPages[0].Wallpaper;
+                opacityToUse = config.TouchButtonPages[0].WallpaperOpacity;
+            }
+        }
+
+        if (wallpaperToUse != null && gridColumns > 0)
         {
             // Determine the position of the button in the grid
             var col = touchButton.Index % gridColumns;
             var row = touchButton.Index / gridColumns;
 
             // Calculate the section from the wallpaper
-            var wallpaperBitmap = config.Wallpaper;
             var srcRect = new SKRect(
                 col * width,
                 row * height,
@@ -141,12 +162,12 @@ public static class BitmapHelper
             var destRect = new SKRect(0, 0, width, height);
 
             // Draw Wallpaper Cutout
-            canvas.DrawBitmap(wallpaperBitmap, srcRect, destRect);
+            canvas.DrawBitmap(wallpaperToUse, srcRect, destRect);
 
             // Semi-transparent background
             using var paint = new SKPaint();
 
-            paint.Color = new SKColor(0, 0, 0, (byte)(255 * config.WallpaperOpacity));
+            paint.Color = new SKColor(0, 0, 0, (byte)(255 * opacityToUse));
 
             canvas.DrawRect(destRect, paint);
         }

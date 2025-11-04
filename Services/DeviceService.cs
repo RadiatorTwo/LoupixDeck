@@ -81,10 +81,10 @@ public class LoupedeckDeviceService : IDeviceService
         if (callId == _currentCallId)
         {
             await Device.DrawTouchButton(
-                _config.CurrentTouchButtonPage.TouchButtons[index], 
+                _config.CurrentTouchButtonPage.TouchButtons[index],
                 _config,
-                false,
-                5); // Reset the button
+                true,
+                5); // Reset the button with current page wallpaper
         }
     }
 }

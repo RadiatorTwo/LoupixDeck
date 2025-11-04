@@ -78,11 +78,20 @@ public class RotaryButtonSettingsViewModel : DialogViewModelBase<RotaryButton, D
         }
 
         var scenesMenu = new MenuEntry("Scenes", string.Empty);
-        var scenes = await _obs.GetScenes();
 
-        foreach (var scene in scenes)
+        try
         {
-            scenesMenu.Children.Add(new MenuEntry(scene.Name, $"System.ObsSetScene({scene.Name})"));
+            var scenes = await _obs.GetScenes();
+
+            foreach (var scene in scenes)
+            {
+                scenesMenu.Children.Add(new MenuEntry(scene.Name, $"System.ObsSetScene({scene.Name})"));
+            }
+        }
+        catch (Exception ex)
+        {
+            // If OBS is not connected, add an error entry to inform the user
+            scenesMenu.Children.Add(new MenuEntry($"OBS not connected: {ex.Message}", string.Empty));
         }
 
         groupMenu.Children.Add(scenesMenu);
