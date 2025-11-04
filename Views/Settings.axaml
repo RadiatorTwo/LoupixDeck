@@ -9,8 +9,8 @@
         x:DataType="vm:SettingsViewModel"
         mc:Ignorable="d"
         Title="Settings"
-        Width="700"
-        Height="600">
+        Width="800"
+        Height="680">
 
     <Window.Resources>
         <cnv:EnumToBooleanConverter x:Key="EnumToBooleanConverter" />

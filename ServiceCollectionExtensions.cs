@@ -38,7 +38,16 @@ public static class ServiceCollectionExtensions
 
         collection.AddSingleton<ICommandBuilder, CommandBuilder>();
         collection.AddSingleton<ISysCommandService, SysCommandService>();
-        collection.AddSingleton<IUInputKeyboard, UInputKeyboard>();
+
+        // UInputKeyboard is only available on Linux
+        if (OperatingSystem.IsLinux())
+        {
+            collection.AddSingleton<IUInputKeyboard, UInputKeyboard>();
+        }
+        else
+        {
+            collection.AddSingleton<IUInputKeyboard, WindowsUInputKeyboard>();
+        }
 
         collection.AddSingleton<IObsController, ObsController>();
         collection.AddSingleton<IDBusController, DBusController>();

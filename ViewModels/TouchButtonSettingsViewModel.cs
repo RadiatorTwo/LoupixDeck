@@ -57,7 +57,13 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
     private async Task CreateSystemMenu()
     {
         CreatePagesMenu();
-        CreateMacroMenu();
+
+        // Macros are only available on Linux
+        if (OperatingSystem.IsLinux())
+        {
+            CreateMacroMenu();
+        }
+
         await CreateObsMenu();
         CreateElgatoMenu();
         await CreateCoolerControlMenu();

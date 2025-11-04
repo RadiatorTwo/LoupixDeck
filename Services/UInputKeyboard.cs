@@ -310,4 +310,28 @@ namespace LoupixDeck.Services
             return "us";
         }
     }
+
+    /// <summary>
+    /// Dummy implementation for Windows that does nothing.
+    /// UInput is only available on Linux systems.
+    /// </summary>
+    public class WindowsUInputKeyboard : IUInputKeyboard
+    {
+        public bool Connected { get; set; } = false;
+
+        public void SendKey(int keyCode)
+        {
+            // No-op on Windows
+        }
+
+        public void SendText(string text)
+        {
+            // No-op on Windows
+        }
+
+        public void Dispose()
+        {
+            // Nothing to dispose
+        }
+    }
 }
