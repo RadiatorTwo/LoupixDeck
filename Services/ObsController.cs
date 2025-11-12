@@ -55,7 +55,7 @@ public class ObsController : IObsController
                 Disconnect();
             }
 
-            if (!string.IsNullOrEmpty(ip) && !string.IsNullOrEmpty(ip) && port > 0)
+            if (!string.IsNullOrEmpty(ip) && !string.IsNullOrEmpty(password) && port > 0)
             {
                 _obsConfig = new ObsConfig
                 {
@@ -88,7 +88,7 @@ public class ObsController : IObsController
         if (_obs.IsConnected)
             return;
 
-        if (!string.IsNullOrEmpty(ip) && !string.IsNullOrEmpty(ip) && port > 0)
+        if (!string.IsNullOrEmpty(ip) && !string.IsNullOrEmpty(password) && port > 0)
         {
             _obsConfig = new ObsConfig
             {
@@ -213,7 +213,7 @@ public class ObsController : IObsController
 
         try
         {
-            _obs.StopStream();
+            _obs.StartStream();
         }
         catch (Exception ex)
         {
@@ -230,7 +230,7 @@ public class ObsController : IObsController
 
         try
         {
-            _obs.StartStream();
+            _obs.StopStream();
         }
         catch (Exception ex)
         {

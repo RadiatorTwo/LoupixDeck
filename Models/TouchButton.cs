@@ -56,7 +56,7 @@ public class TouchButton(int index) : LoupedeckButton
         get => _textPositionX;
         set
         {
-            if (_textPositionY == value) return;
+            if (_textPositionX == value) return;
             _textPositionX = value;
             Refresh();
             OnPropertyChanged(nameof(TextPositionX));
