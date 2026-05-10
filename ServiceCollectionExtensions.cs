@@ -54,6 +54,7 @@ public static class ServiceCollectionExtensions
         collection.AddSingleton<ICommandRunner, CommandRunner>();
         collection.AddSingleton<IElgatoController, ElgatoController>();
         collection.AddSingleton<ICoolerControlApiController, CoolerControlApiController>();
+        collection.AddSingleton<IDynamicTextManager, DynamicTextManager>();
 
         collection.AddSingleton<LoupedeckLiveSController>();
 

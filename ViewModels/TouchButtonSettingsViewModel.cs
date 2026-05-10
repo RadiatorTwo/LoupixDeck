@@ -67,6 +67,21 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
         await CreateObsMenu();
         CreateElgatoMenu();
         await CreateCoolerControlMenu();
+        CreateDynamicTextMenu();
+    }
+
+    private void CreateDynamicTextMenu()
+    {
+        var commands = _sysCommandService.GetCommandInfos().Where(ci => ci.Group == "Dynamic Text");
+
+        var groupMenu = new MenuEntry("Dynamic Text", string.Empty);
+
+        foreach (var command in commands)
+        {
+            groupMenu.Children.Add(new MenuEntry(command.DisplayName, command.CommandName));
+        }
+
+        SystemCommandMenus.Add(groupMenu);
     }
 
     private void CreatePagesMenu()

@@ -35,6 +35,11 @@ namespace LoupixDeck.Services
         /// Returns the default value for a given type
         /// </summary>
         object GetDefaultValue(Type type);
+
+        /// <summary>
+        /// Looks up the implementation type for a registered command name.
+        /// </summary>
+        bool TryGetCommandType(string commandName, out Type type);
     }
 
     public class SysCommandService : ISysCommandService
@@ -88,6 +93,18 @@ namespace LoupixDeck.Services
         public bool CheckCommandExists(string commandName)
         {
             return _commands.ContainsKey(commandName);
+        }
+
+        public bool TryGetCommandType(string commandName, out Type type)
+        {
+            if (_commands.TryGetValue(commandName, out var entry))
+            {
+                type = entry.CommandType;
+                return true;
+            }
+
+            type = null;
+            return false;
         }
 
         public CommandInfo GetCommandInfo(string commandName)

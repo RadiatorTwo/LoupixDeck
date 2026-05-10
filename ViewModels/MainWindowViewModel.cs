@@ -34,11 +34,13 @@ public class MainWindowViewModel : ViewModelBase
 
     public MainWindowViewModel(LoupedeckLiveSController loupedeck,
         IDialogService dialogService,
-        ISysCommandService sysCommandService)
+        ISysCommandService sysCommandService,
+        IDynamicTextManager dynamicTextManager)
     {
         LoupedeckController = loupedeck;
 
         sysCommandService.Initialize();
+        dynamicTextManager.Start();
 
         _dialogService = dialogService;
 
