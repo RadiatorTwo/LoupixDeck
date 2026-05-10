@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.Input;
 using LoupixDeck.Controllers;
 using LoupixDeck.Models;
 using LoupixDeck.Services;
+using LoupixDeck.Services.Argus;
 using LoupixDeck.ViewModels.Base;
 using AsyncRelayCommand = CommunityToolkit.Mvvm.Input.AsyncRelayCommand;
 using RelayCommand = LoupixDeck.Utils.RelayCommand;
@@ -32,15 +33,19 @@ public class MainWindowViewModel : ViewModelBase
 
     public LoupedeckLiveSController LoupedeckController { get; }
 
+    private readonly IDynamicTextManager _dynamicTextManager;
+
     public MainWindowViewModel(LoupedeckLiveSController loupedeck,
         IDialogService dialogService,
         ISysCommandService sysCommandService,
+        IArgusMonitorService argusMonitorService,
         IDynamicTextManager dynamicTextManager)
     {
         LoupedeckController = loupedeck;
+        _dynamicTextManager = dynamicTextManager;
 
         sysCommandService.Initialize();
-        dynamicTextManager.Start();
+        argusMonitorService.Start();
 
         _dialogService = dialogService;
 
@@ -135,6 +140,7 @@ public class MainWindowViewModel : ViewModelBase
         );
 
         LoupedeckController.SaveConfig();
+        _dynamicTextManager.Rescan();
     }
 
     private async Task SettingsMenuButton_Click()

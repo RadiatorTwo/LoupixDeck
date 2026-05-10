@@ -1,6 +1,7 @@
 using LoupixDeck.Controllers;
 using LoupixDeck.Models;
 using LoupixDeck.Services;
+using LoupixDeck.Services.Argus;
 using LoupixDeck.Utils;
 using LoupixDeck.ViewModels;
 using LoupixDeck.Views;
@@ -54,6 +55,7 @@ public static class ServiceCollectionExtensions
         collection.AddSingleton<ICommandRunner, CommandRunner>();
         collection.AddSingleton<IElgatoController, ElgatoController>();
         collection.AddSingleton<ICoolerControlApiController, CoolerControlApiController>();
+        collection.AddSingleton<IArgusMonitorService, ArgusMonitorService>();
         collection.AddSingleton<IDynamicTextManager, DynamicTextManager>();
 
         collection.AddSingleton<LoupedeckLiveSController>();

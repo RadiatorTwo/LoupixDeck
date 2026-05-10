@@ -8,6 +8,7 @@ namespace LoupixDeck.Services;
 public interface IDynamicTextManager
 {
     void Start();
+    void Rescan();
 }
 
 public class DynamicTextManager : IDynamicTextManager, IDisposable
@@ -49,7 +50,7 @@ public class DynamicTextManager : IDynamicTextManager, IDisposable
 
     private void OnTouchPageChanged(int previous, int current) => Rescan();
 
-    private void Rescan()
+    public void Rescan()
     {
         StopLoop();
 

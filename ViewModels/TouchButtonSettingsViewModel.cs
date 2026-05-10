@@ -1,7 +1,9 @@
 using System.Collections.ObjectModel;
 using System.Windows.Input;
 using LoupixDeck.Models;
+using LoupixDeck.Models.Argus;
 using LoupixDeck.Services;
+using LoupixDeck.Services.Argus;
 using LoupixDeck.Utils;
 using LoupixDeck.ViewModels.Base;
 using SkiaSharp;
@@ -21,6 +23,7 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
     private readonly ICoolerControlApiController _coolercontrol;
     private readonly ISysCommandService _sysCommandService;
     private readonly ICommandBuilder _commandBuilder;
+    private readonly IArgusMonitorService _argusMonitor;
 
     public ICommand SelectImageButtonCommand { get; }
     public ICommand RemoveImageButtonCommand { get; }
@@ -35,13 +38,15 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
         ElgatoDevices elgatoDevices,
         ICoolerControlApiController coolercontrol,
         ISysCommandService sysCommandService,
-        ICommandBuilder commandBuilder)
+        ICommandBuilder commandBuilder,
+        IArgusMonitorService argusMonitor)
     {
         _obs = obs;
         _elgatoDevices = elgatoDevices;
         _coolercontrol = coolercontrol;
         _sysCommandService = sysCommandService;
         _commandBuilder = commandBuilder;
+        _argusMonitor = argusMonitor;
 
         SelectImageButtonCommand = new AsyncRelayCommand(SelectImageButton_Click);
         RemoveImageButtonCommand = new RelayCommand(RemoveImageButton_Click);
@@ -68,6 +73,48 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
         CreateElgatoMenu();
         await CreateCoolerControlMenu();
         CreateDynamicTextMenu();
+        CreateArgusMonitorMenu();
+    }
+
+    private void CreateArgusMonitorMenu()
+    {
+        var groupMenu = new MenuEntry("Argus Monitor", string.Empty);
+
+        var sensors = _argusMonitor.Sensors;
+        if (!_argusMonitor.IsAvailable || sensors.Count == 0)
+        {
+            groupMenu.Children.Add(new MenuEntry("Argus Monitor not available", string.Empty));
+            SystemCommandMenus.Add(groupMenu);
+            return;
+        }
+
+        foreach (var typeGroup in sensors
+                     .Where(s => s.Type != ArgusSensorType.Invalid)
+                     .GroupBy(s => s.Type)
+                     .OrderBy(g => g.Key.ToString()))
+        {
+            var typeMenu = new MenuEntry(typeGroup.Key.ToString(), string.Empty);
+
+            foreach (var sensor in typeGroup.OrderBy(s => s.SensorIndex))
+            {
+                var label = string.IsNullOrWhiteSpace(sensor.Label)
+                    ? $"#{sensor.SensorIndex}"
+                    : sensor.Label;
+
+                typeMenu.Children.Add(new MenuEntry(
+                    label,
+                    "Argus.Sensor",
+                    parentName: null,
+                    parameters: new Dictionary<string, string>
+                    {
+                        { "Sensor", $"{sensor.Type}:{sensor.SensorIndex}" }
+                    }));
+            }
+
+            groupMenu.Children.Add(typeMenu);
+        }
+
+        SystemCommandMenus.Add(groupMenu);
     }
 
     private void CreateDynamicTextMenu()

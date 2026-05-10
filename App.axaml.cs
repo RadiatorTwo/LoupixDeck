@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Data.Core.Plugins;
 using Avalonia.Markup.Xaml;
+using LoupixDeck.Services;
 using LoupixDeck.Views;
 using LoupixDeck.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
@@ -105,6 +106,12 @@ public partial class App : Application
         var mainViewModel = services.GetRequiredService<MainWindowViewModel>();
 
         await mainViewModel.LoupedeckController.Initialize(port, baudrate);
+
+        // Start dynamic-text providers AFTER the controller has wired up its
+        // ItemChanged subscribers and drawn the initial page. Otherwise the very
+        // first text update fires Refresh() before anyone is listening, and the
+        // Text-setter equality check then suppresses subsequent updates.
+        services.GetRequiredService<IDynamicTextManager>().Start();
 
         return mainViewModel;
     }
