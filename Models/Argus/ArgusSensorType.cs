@@ -31,5 +31,16 @@ public enum ArgusSensorType : uint
     RamUsage,
     Battery,
     CpuPower,
-    Max
+    Max,
+
+    // Computed (not part of the native Argus API enum). Synthesized by ArgusMonitorService
+    // from CpuFrequencyFsb (index 0) and CpuMultiplier[coreIndex]. Kept above Max so it
+    // never collides with future native additions.
+    CpuFrequency = 1000,
+    CpuFrequencyMax = 1001,
+    CpuFrequencyMin = 1002,
+    CpuFrequencyAvg = 1003,
+    CpuMultiplierMax = 1004,
+    CpuMultiplierMin = 1005,
+    CpuMultiplierAvg = 1006,
 }

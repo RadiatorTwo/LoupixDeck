@@ -196,6 +196,8 @@ public sealed class ArgusMonitorService : IArgusMonitorService, IDisposable
                     list.Add(new ArgusSensor(type, label, unit, value, dataIndex, sensorIndex));
                 }
 
+                AppendComputedSensors(list);
+
                 _lastCycleCounter = cycleCounter;
                 sensors = list;
                 return true;
@@ -217,6 +219,56 @@ public sealed class ArgusMonitorService : IArgusMonitorService, IDisposable
                 try { _mutex.ReleaseMutex(); } catch { }
             }
         }
+    }
+
+    // Argus exposes the CPU bus/FSB clock and the per-core multiplier separately.
+    // The actual core frequency is FSB × multiplier — synthesize that as a virtual sensor
+    // so it shows up in the editor menu and Argus.Sensor(CpuFrequency:N) can read it.
+    private static void AppendComputedSensors(List<ArgusSensor> list)
+    {
+        var fsb = list.FirstOrDefault(s => s.Type == ArgusSensorType.CpuFrequencyFsb);
+        if (fsb is null || fsb.Value <= 0)
+            return;
+
+        var freqUnit = string.IsNullOrEmpty(fsb.Unit) ? "MHz" : fsb.Unit;
+
+        var multipliers = list.Where(s => s.Type == ArgusSensorType.CpuMultiplier).ToList();
+        if (multipliers.Count == 0)
+            return;
+
+        var multUnit = multipliers[0].Unit ?? string.Empty;
+        var freqs = new List<double>(multipliers.Count);
+
+        foreach (var mult in multipliers)
+        {
+            var freq = fsb.Value * mult.Value;
+            freqs.Add(freq);
+
+            var label = string.IsNullOrWhiteSpace(mult.Label)
+                ? $"CPU Core #{mult.SensorIndex} Frequency"
+                : $"{mult.Label} Frequency";
+
+            list.Add(new ArgusSensor(
+                ArgusSensorType.CpuFrequency,
+                label,
+                freqUnit,
+                freq,
+                mult.DataIndex,
+                mult.SensorIndex));
+        }
+
+        AddAggregate(list, ArgusSensorType.CpuFrequencyMax, "CPU Frequency Max", freqUnit, freqs.Max());
+        AddAggregate(list, ArgusSensorType.CpuFrequencyMin, "CPU Frequency Min", freqUnit, freqs.Min());
+        AddAggregate(list, ArgusSensorType.CpuFrequencyAvg, "CPU Frequency Avg", freqUnit, freqs.Average());
+
+        AddAggregate(list, ArgusSensorType.CpuMultiplierMax, "CPU Multiplier Max", multUnit, multipliers.Max(m => m.Value));
+        AddAggregate(list, ArgusSensorType.CpuMultiplierMin, "CPU Multiplier Min", multUnit, multipliers.Min(m => m.Value));
+        AddAggregate(list, ArgusSensorType.CpuMultiplierAvg, "CPU Multiplier Avg", multUnit, multipliers.Average(m => m.Value));
+    }
+
+    private static void AddAggregate(List<ArgusSensor> list, ArgusSensorType type, string label, string unit, double value)
+    {
+        list.Add(new ArgusSensor(type, label, unit, value, 0, 0));
     }
 
     private static string ReadWideString(ReadOnlySpan<byte> bytes)
