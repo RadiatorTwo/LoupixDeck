@@ -433,9 +433,32 @@ public class LoupedeckLiveSController(
         await deviceService.Device.SetButtonColor(button.Id, button.ButtonColor);
     }
 
+    private readonly SemaphoreSlim _saveSemaphore = new(1, 1);
+
+    // Fire-and-forget: serialization (incl. SKBitmap -> PNG -> base64) is
+    // expensive enough to hitch the UI thread for ~2s on configs with images,
+    // so the actual save runs on the threadpool. The semaphore serializes
+    // concurrent calls to keep the temp-file rename atomic.
     public void SaveConfig()
     {
-        configService.SaveConfig(config, _configPath);
+        _ = SaveConfigAsync();
+    }
+
+    public async Task SaveConfigAsync()
+    {
+        await _saveSemaphore.WaitAsync().ConfigureAwait(false);
+        try
+        {
+            await Task.Run(() => configService.SaveConfig(config, _configPath)).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"SaveConfig failed: {ex.Message}");
+        }
+        finally
+        {
+            _saveSemaphore.Release();
+        }
     }
 
     private CancellationTokenSource _propertyChangedCts;

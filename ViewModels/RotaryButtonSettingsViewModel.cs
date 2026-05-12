@@ -33,19 +33,21 @@ public class RotaryButtonSettingsViewModel : DialogViewModelBase<RotaryButton, D
         _elgatoDevices = elgatoDevices;
         _sysCommandService = sysCommandService;
         _commandBuilder = commandBuilder;
+
+        SystemCommandMenus = new ObservableCollection<MenuEntry>();
     }
-    
+
     public Task InitializeAsync()
     {
         return CreateSystemMenu();
-    }    
+    }
 
     private async Task CreateSystemMenu()
     {
-        SystemCommandMenus = new ObservableCollection<MenuEntry>();
         CreatePagesMenu();
-        await CreateObsMenu();
+        var obsTask = CreateObsMenu();
         CreateElgatoMenu();
+        await obsTask;
     }
 
     private void CreatePagesMenu()
@@ -78,6 +80,8 @@ public class RotaryButtonSettingsViewModel : DialogViewModelBase<RotaryButton, D
         }
 
         var scenesMenu = new MenuEntry("Scenes", string.Empty);
+        groupMenu.Children.Add(scenesMenu);
+        SystemCommandMenus.Add(groupMenu);
 
         try
         {
@@ -93,10 +97,6 @@ public class RotaryButtonSettingsViewModel : DialogViewModelBase<RotaryButton, D
             // If OBS is not connected, add an error entry to inform the user
             scenesMenu.Children.Add(new MenuEntry($"OBS not connected: {ex.Message}", string.Empty));
         }
-
-        groupMenu.Children.Add(scenesMenu);
-
-        SystemCommandMenus.Add(groupMenu);
     }
 
     private void CreateElgatoMenu()

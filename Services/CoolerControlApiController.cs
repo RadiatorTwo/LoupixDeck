@@ -15,7 +15,7 @@ public class CoolerControlApiController : ICoolerControlApiController
 {
     private readonly HttpClient _client;
 
-    public CoolerControlApiController(string baseUrl = "http://127.0.01:11987/")
+    public CoolerControlApiController(string baseUrl = "http://127.0.0.1:11987/")
     {
         var handler = new HttpClientHandler
         {
@@ -25,7 +25,8 @@ public class CoolerControlApiController : ICoolerControlApiController
 
         _client = new HttpClient(handler)
         {
-            BaseAddress = new Uri(baseUrl)
+            BaseAddress = new Uri(baseUrl),
+            Timeout = TimeSpan.FromSeconds(2)
         };
     }
     

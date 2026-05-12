@@ -69,12 +69,17 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
             CreateMacroMenu();
         }
 
-        await CreateObsMenu();
+        // OBS and CoolerControl menus add their group entries synchronously
+        // and populate scenes/modes asynchronously, so order stays stable
+        // while both network calls run in parallel.
+        var obsTask = CreateObsMenu();
         CreateElgatoMenu();
-        await CreateCoolerControlMenu();
+        var coolerTask = CreateCoolerControlMenu();
         CreateDynamicTextMenu();
         CreateArgusMonitorMenu();
         CreateAudioMenu();
+
+        await Task.WhenAll(obsTask, coolerTask);
     }
 
     private void CreateAudioMenu()
@@ -176,6 +181,8 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
         }
 
         var scenesMenu = new MenuEntry("Scenes", string.Empty);
+        groupMenu.Children.Add(scenesMenu);
+        SystemCommandMenus.Add(groupMenu);
 
         try
         {
@@ -191,10 +198,6 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
             // If OBS is not connected, add an error entry to inform the user
             scenesMenu.Children.Add(new MenuEntry($"OBS not connected: {ex.Message}", string.Empty));
         }
-
-        groupMenu.Children.Add(scenesMenu);
-
-        SystemCommandMenus.Add(groupMenu);
     }
 
     private void CreateMacroMenu()
@@ -242,6 +245,8 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
         }
 
         var modesMenu = new MenuEntry("Modes", string.Empty);
+        groupMenu.Children.Add(modesMenu);
+        SystemCommandMenus.Add(groupMenu);
 
         try
         {
@@ -262,10 +267,6 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
             // If connection fails, add an error entry to inform the user
             modesMenu.Children.Add(new MenuEntry($"Connection failed: {ex.Message}", string.Empty));
         }
-
-        groupMenu.Children.Add(modesMenu);
-
-        SystemCommandMenus.Add(groupMenu);
     }
 
     private void KeyLightAdded(object sender, KeyLight e)

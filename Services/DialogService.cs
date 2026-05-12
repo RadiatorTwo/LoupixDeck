@@ -31,17 +31,20 @@ public class DialogService(IServiceProvider serviceProvider) : IDialogService
         var viewModel = serviceProvider.GetRequiredService<TViewModel>();
         initializer?.Invoke(viewModel);
 
-        if (viewModel is IAsyncInitViewModel asyncInit)
-        {
-            await asyncInit.InitializeAsync();
-        }
-        
         if (!_viewModelToWindowMap.TryGetValue(typeof(TViewModel), out var windowType))
             throw new InvalidOperationException($"No window registered for {typeof(TViewModel).Name}");
 
         var window = (Window)Activator.CreateInstance(windowType)!;
         window.DataContext = viewModel;
         window.WindowStartupLocation = WindowStartupLocation.CenterOwner;
+
+        if (viewModel is IAsyncInitViewModel asyncInit)
+        {
+            // Kick off async init without blocking. The sync prefix of
+            // InitializeAsync (before its first await) runs immediately so
+            // bindings that read initial collection references stay valid.
+            _ = asyncInit.InitializeAsync();
+        }
 
         await window.ShowDialog(WindowHelper.GetMainWindow());
         return await viewModel.DialogResult.Task;
