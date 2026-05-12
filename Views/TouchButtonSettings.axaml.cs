@@ -1,8 +1,10 @@
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Interactivity;
 using Avalonia.VisualTree;
 using LoupixDeck.Models;
 using LoupixDeck.Services;
+using LoupixDeck.Utils;
 using LoupixDeck.ViewModels;
 using LoupixDeck.ViewModels.Base;
 
@@ -21,6 +23,23 @@ public partial class TouchButtonSettings : Window
                 vm.DialogResult.TrySetResult(new DialogResult(false));
             }
         };
+    }
+
+    private async void ClearButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is not TouchButtonSettingsViewModel vm) return;
+
+        var confirmed = await ConfirmDialogHelper.AskYesNoAsync(
+            this,
+            "Clear Button",
+            "Soll dieser Button wirklich geleert werden? Alle Einstellungen, Texte, Bilder und der Command gehen dabei verloren.");
+
+        if (!confirmed) return;
+
+        // Clear AFTER the window is closed — otherwise TwoWay bindings (TextBox,
+        // ColorPicker) write their stale UI values back on focus loss and undo the reset.
+        Closed += (_, _) => vm.ClearButton();
+        Close();
     }
 
     private void OnPointerPressed(object sender, PointerPressedEventArgs e)

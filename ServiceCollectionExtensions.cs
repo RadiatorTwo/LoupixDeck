@@ -2,6 +2,8 @@ using LoupixDeck.Controllers;
 using LoupixDeck.Models;
 using LoupixDeck.Services;
 using LoupixDeck.Services.Argus;
+using LoupixDeck.Services.Audio;
+using LoupixDeck.Services.FolderNavigation;
 using LoupixDeck.Utils;
 using LoupixDeck.ViewModels;
 using LoupixDeck.Views;
@@ -57,6 +59,16 @@ public static class ServiceCollectionExtensions
         collection.AddSingleton<ICoolerControlApiController, CoolerControlApiController>();
         collection.AddSingleton<IArgusMonitorService, ArgusMonitorService>();
         collection.AddSingleton<IDynamicTextManager, DynamicTextManager>();
+        collection.AddSingleton<IFolderNavigationService, FolderNavigationService>();
+
+        if (OperatingSystem.IsWindows())
+        {
+            collection.AddSingleton<IWindowsAudioService, WindowsAudioService>();
+        }
+        else
+        {
+            collection.AddSingleton<IWindowsAudioService, NoOpAudioService>();
+        }
 
         collection.AddSingleton<LoupedeckLiveSController>();
 

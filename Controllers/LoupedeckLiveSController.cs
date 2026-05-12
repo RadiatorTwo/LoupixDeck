@@ -3,6 +3,7 @@ using LoupixDeck.LoupedeckDevice;
 using LoupixDeck.Models;
 using LoupixDeck.Models.Extensions;
 using LoupixDeck.Services;
+using LoupixDeck.Services.FolderNavigation;
 using LoupixDeck.Utils;
 
 namespace LoupixDeck.Controllers;
@@ -19,6 +20,7 @@ public class LoupedeckLiveSController(
     ICommandService commandService,
     IPageManager pageManager,
     IConfigService configService,
+    IFolderNavigationService folderNav,
     LoupedeckConfig config)
 {
     private readonly string _configPath = FileDialogHelper.GetConfigPath("config.json");
@@ -51,6 +53,7 @@ public class LoupedeckLiveSController(
         }
 
         pageManager.OnTouchPageChanged += OnTouchPageChanged;
+        folderNav.StateChanged += OnFolderStateChanged;
 
         // Subscribe to page property changes for wallpaper updates
         foreach (var page in config.TouchButtonPages)
@@ -130,6 +133,20 @@ public class LoupedeckLiveSController(
         if (e.EventType != Constants.ButtonEventType.BUTTON_DOWN)
             return;
 
+        if (folderNav.IsActive)
+        {
+            // Side buttons are disabled in folder mode. Knob presses can still be
+            // overridden by the active folder provider.
+            if (TryGetRotaryIndex(e.ButtonId, out var rotaryIndex) &&
+                folderNav.CurrentProvider?.RotaryOverrides is { } overrides &&
+                overrides.TryGetValue(rotaryIndex, out var ov) &&
+                ov.OnPress != null)
+            {
+                ov.OnPress().GetAwaiter().GetResult();
+            }
+            return;
+        }
+
         var button = config.SimpleButtons.FirstOrDefault(b => b.Id == e.ButtonId);
         if (button != null)
         {
@@ -156,19 +173,71 @@ public class LoupedeckLiveSController(
         if (e.EventType != Constants.TouchEventType.TOUCH_START)
             return;
 
+        if (folderNav.IsActive)
+        {
+            foreach (var touch in e.Touches)
+            {
+                HandleFolderTouch(touch.Target.Key);
+            }
+            return;
+        }
+
         foreach (var touch in e.Touches)
         {
             var button = config.CurrentTouchButtonPage.TouchButtons.FindByIndex(touch.Target.Key);
             if (button == null) continue;
 
             commandService.ExecuteCommand(button.Command).GetAwaiter().GetResult();
-            
+
             deviceService.Device.Vibrate();
+        }
+    }
+
+    private void HandleFolderTouch(int slotIndex)
+    {
+        if (slotIndex < 0) return;
+
+        if (slotIndex == FolderConstants.BackSlotIndex)
+        {
+            folderNav.NavigateBack().GetAwaiter().GetResult();
+            deviceService.Device.Vibrate();
+            return;
+        }
+
+        if (!folderNav.CurrentEntries.TryGetValue(slotIndex, out var entry))
+            return; // empty slot — disabled
+
+        deviceService.Device.Vibrate();
+
+        if (entry.OpensFolder != null)
+        {
+            folderNav.OpenFolder(entry.OpensFolder).GetAwaiter().GetResult();
+        }
+        else if (entry.OnPress != null)
+        {
+            try { entry.OnPress().GetAwaiter().GetResult(); }
+            catch (Exception ex) { Console.WriteLine($"Folder entry press failed: {ex.Message}"); }
         }
     }
 
     private void OnRotate(object sender, RotateEventArgs e)
     {
+        if (folderNav.IsActive)
+        {
+            if (TryGetRotaryIndex(e.ButtonId, out var rotaryIndex) &&
+                folderNav.CurrentProvider?.RotaryOverrides is { } overrides &&
+                overrides.TryGetValue(rotaryIndex, out var ov))
+            {
+                var action = e.Delta < 0 ? ov.OnLeft : ov.OnRight;
+                if (action != null)
+                {
+                    try { action().GetAwaiter().GetResult(); }
+                    catch (Exception ex) { Console.WriteLine($"Folder rotary failed: {ex.Message}"); }
+                }
+            }
+            return;
+        }
+
         string command = e.ButtonId switch
         {
             Constants.ButtonType.KNOB_TL => e.Delta < 0
@@ -183,6 +252,60 @@ public class LoupedeckLiveSController(
         if (!string.IsNullOrEmpty(command))
         {
             commandService.ExecuteCommand(command).GetAwaiter().GetResult();
+        }
+    }
+
+    private static bool TryGetRotaryIndex(Constants.ButtonType id, out int index)
+    {
+        switch (id)
+        {
+            case Constants.ButtonType.KNOB_TL: index = 0; return true;
+            case Constants.ButtonType.KNOB_CL: index = 1; return true;
+            case Constants.ButtonType.KNOB_BL: index = 2; return true;
+            default: index = -1; return false;
+        }
+    }
+
+    private async void OnFolderStateChanged()
+    {
+        try
+        {
+            var device = deviceService.Device;
+            if (device == null) return;
+
+            if (folderNav.IsActive)
+            {
+                for (var slot = 0; slot < FolderConstants.TotalSlots; slot++)
+                {
+                    SkiaSharp.SKBitmap bmp;
+                    if (slot == FolderConstants.BackSlotIndex)
+                    {
+                        bmp = BitmapHelper.RenderFolderBackButton(config, slot, 90, 90, FolderConstants.Columns);
+                    }
+                    else if (folderNav.CurrentEntries.TryGetValue(slot, out var entry))
+                    {
+                        bmp = BitmapHelper.RenderFolderEntry(entry, config, slot, 90, 90, FolderConstants.Columns);
+                    }
+                    else
+                    {
+                        bmp = BitmapHelper.RenderEmptyFolderSlot(config, slot, 90, 90, FolderConstants.Columns);
+                    }
+
+                    await device.DrawTouchSlot(slot, bmp);
+                }
+            }
+            else
+            {
+                // Folder mode left — restore the configured page.
+                foreach (var touchButton in config.CurrentTouchButtonPage.TouchButtons)
+                {
+                    await device.DrawTouchButton(touchButton, config, true, 5);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Folder redraw failed: {ex.Message}");
         }
     }
 
@@ -267,6 +390,11 @@ public class LoupedeckLiveSController(
     private async void TouchItemChanged(object sender, EventArgs e)
     {
         if (sender is not TouchButton item) return;
+
+        // Folder mode owns the touch display — suppress per-button redraws (e.g. from
+        // DynamicTextManager) so they don't paint over the folder view. When the folder
+        // exits, OnFolderStateChanged redraws every slot from the current state.
+        if (folderNav.IsActive) return;
 
         var button = config.CurrentTouchButtonPage.TouchButtons.FirstOrDefault(b => b.Index == item.Index);
 

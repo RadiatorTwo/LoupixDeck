@@ -74,6 +74,21 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
         await CreateCoolerControlMenu();
         CreateDynamicTextMenu();
         CreateArgusMonitorMenu();
+        CreateAudioMenu();
+    }
+
+    private void CreateAudioMenu()
+    {
+        var commands = _sysCommandService.GetCommandInfos().Where(ci => ci.Group == "Audio");
+
+        var groupMenu = new MenuEntry("Audio", string.Empty);
+
+        foreach (var command in commands)
+        {
+            groupMenu.Children.Add(new MenuEntry(command.DisplayName, command.CommandName));
+        }
+
+        SystemCommandMenus.Add(groupMenu);
     }
 
     private void CreateArgusMonitorMenu()
@@ -296,5 +311,41 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
         var formattedCommand = _commandBuilder.CreateCommandFromMenuEntry(menuEntry);
 
         ButtonData.Command += formattedCommand;
+    }
+
+    /// <summary>
+    /// Resets the touch button to a blank default state — clears command, text, image and
+    /// all visual settings. Triggers a single redraw at the end via Refresh().
+    /// </summary>
+    public void ClearButton()
+    {
+        if (ButtonData == null) return;
+
+        var b = ButtonData;
+        b.IgnoreRefresh = true;
+        try
+        {
+            b.Command = null;
+            b.Text = string.Empty;
+            b.Image = null;
+            b.TextSize = 16;
+            b.TextPositionX = 0;
+            b.TextPositionY = 0;
+            b.TextColor = Avalonia.Media.Colors.White;
+            b.BackColor = Avalonia.Media.Colors.Black;
+            b.OutlineColor = Avalonia.Media.Colors.Black;
+            b.Outlined = false;
+            b.Bold = false;
+            b.Italic = false;
+            b.TextCentered = true;
+            b.ImagePositionX = 0;
+            b.ImagePositionY = 0;
+            b.ImageScale = 100;
+        }
+        finally
+        {
+            b.IgnoreRefresh = false;
+        }
+        b.Refresh();
     }
 }

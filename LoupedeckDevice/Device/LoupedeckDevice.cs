@@ -546,6 +546,29 @@ public class LoupedeckDevice
         }
     }
 
+    /// <summary>
+    /// Draws an arbitrary bitmap directly to the touch slot at the given index, bypassing
+    /// the per-button render cache. Used by the folder-navigation overlay so that the
+    /// configured TouchButton state is not mutated.
+    /// </summary>
+    public async Task DrawTouchSlot(int index, SKBitmap bitmap)
+    {
+        ArgumentNullException.ThrowIfNull(bitmap);
+
+        try
+        {
+            await DrawKey(index, bitmap);
+        }
+        catch (TimeoutException ex)
+        {
+            Console.WriteLine($"Timeout occurred: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Unexpected error: {ex.Message}");
+        }
+    }
+
     public async Task DrawTextButton(int index, string text)
     {
         if (string.IsNullOrEmpty(text))

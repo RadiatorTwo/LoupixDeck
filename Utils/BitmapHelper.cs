@@ -338,6 +338,163 @@ public static class BitmapHelper
         return new SKColor(color.R, color.G, color.B, color.A);
     }
 
+    /// <summary>
+    /// Renders a folder entry slot — wallpaper background extracted from the page (matching
+    /// the slot's grid position), then optional image, then text.
+    /// </summary>
+    public static SKBitmap RenderFolderEntry(
+        Services.FolderNavigation.FolderEntry entry,
+        LoupedeckConfig config,
+        int slotIndex,
+        int width,
+        int height,
+        int gridColumns)
+    {
+        ArgumentNullException.ThrowIfNull(entry);
+
+        var bitmap = new SKBitmap(width, height);
+        using var canvas = new SKCanvas(bitmap);
+
+        DrawWallpaperOrColor(canvas, config, slotIndex, width, height, gridColumns, entry.BackColor);
+
+        if (entry.Image != null)
+        {
+            var destRect = new SKRect(0, 0, width, height);
+            using var scaledImage = ScaleAndPositionBitmap(entry.Image, width, height);
+            canvas.DrawBitmap(scaledImage, destRect);
+        }
+
+        if (!string.IsNullOrEmpty(entry.Text))
+        {
+            DrawTextAt(
+                canvas,
+                entry.Text,
+                entry.TextColor.ToSKColor(),
+                entry.TextSize,
+                centered: true,
+                posX: 0,
+                posY: 0,
+                imageWidth: width,
+                imageHeight: height,
+                bold: entry.Bold);
+        }
+
+        canvas.Flush();
+        return bitmap;
+    }
+
+    /// <summary>
+    /// Renders the folder back-button slot — wallpaper background plus a centered chevron-left arrow.
+    /// </summary>
+    public static SKBitmap RenderFolderBackButton(
+        LoupedeckConfig config,
+        int slotIndex,
+        int width,
+        int height,
+        int gridColumns)
+    {
+        var bitmap = new SKBitmap(width, height);
+        using var canvas = new SKCanvas(bitmap);
+
+        DrawWallpaperOrColor(canvas, config, slotIndex, width, height, gridColumns,
+            Color.FromArgb(160, 0, 0, 0));
+
+        // Draw a chevron-left arrow centered in the slot.
+        using var arrowPaint = new SKPaint();
+        arrowPaint.Color = SKColors.White;
+        arrowPaint.Style = SKPaintStyle.Stroke;
+        arrowPaint.StrokeWidth = 6;
+        arrowPaint.IsAntialias = true;
+        arrowPaint.StrokeCap = SKStrokeCap.Round;
+        arrowPaint.StrokeJoin = SKStrokeJoin.Round;
+
+        var cx = width / 2f;
+        var cy = height / 2f;
+        var size = Math.Min(width, height) * 0.30f;
+
+        using var path = new SKPath();
+        path.MoveTo(cx + size * 0.5f, cy - size);
+        path.LineTo(cx - size * 0.5f, cy);
+        path.LineTo(cx + size * 0.5f, cy + size);
+
+        canvas.DrawPath(path, arrowPaint);
+
+        canvas.Flush();
+        return bitmap;
+    }
+
+    /// <summary>
+    /// Renders an empty (disabled) folder slot — only the wallpaper cutout, no foreground.
+    /// Visually communicates "no action here".
+    /// </summary>
+    public static SKBitmap RenderEmptyFolderSlot(
+        LoupedeckConfig config,
+        int slotIndex,
+        int width,
+        int height,
+        int gridColumns)
+    {
+        var bitmap = new SKBitmap(width, height);
+        using var canvas = new SKCanvas(bitmap);
+
+        DrawWallpaperOrColor(canvas, config, slotIndex, width, height, gridColumns, Colors.Black);
+
+        canvas.Flush();
+        return bitmap;
+    }
+
+    private static void DrawWallpaperOrColor(
+        SKCanvas canvas,
+        LoupedeckConfig config,
+        int slotIndex,
+        int width,
+        int height,
+        int gridColumns,
+        Color fallbackColor)
+    {
+        SKBitmap wallpaperToUse = null;
+        double opacityToUse = 0;
+
+        if (config?.CurrentTouchButtonPage != null)
+        {
+            if (config.CurrentTouchButtonPage.Wallpaper != null)
+            {
+                wallpaperToUse = config.CurrentTouchButtonPage.Wallpaper;
+                opacityToUse = config.CurrentTouchButtonPage.WallpaperOpacity;
+            }
+            else if (config.TouchButtonPages != null &&
+                     config.TouchButtonPages.Count > 0 &&
+                     config.TouchButtonPages[0].Wallpaper != null)
+            {
+                wallpaperToUse = config.TouchButtonPages[0].Wallpaper;
+                opacityToUse = config.TouchButtonPages[0].WallpaperOpacity;
+            }
+        }
+
+        if (wallpaperToUse != null && gridColumns > 0)
+        {
+            var col = slotIndex % gridColumns;
+            var row = slotIndex / gridColumns;
+
+            var srcRect = new SKRect(
+                col * width,
+                row * height,
+                (col + 1) * width,
+                (row + 1) * height);
+            var destRect = new SKRect(0, 0, width, height);
+
+            canvas.DrawBitmap(wallpaperToUse, srcRect, destRect);
+
+            using var paint = new SKPaint();
+            paint.Color = new SKColor(0, 0, 0, (byte)(255 * opacityToUse));
+            canvas.DrawRect(destRect, paint);
+        }
+        else
+        {
+            canvas.Clear(fallbackColor.ToSKColor());
+        }
+    }
+
     public static SKBitmap RenderTextToBitmap(string text, int imageWidth, int imageHeight)
     {
         // Create an SKBitmap for rendering

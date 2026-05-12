@@ -148,7 +148,21 @@
             </Grid>
             <StackPanel Grid.Row="1" Orientation="Vertical">
                 <TextBlock Text="Command" FontWeight="Bold" />
-                <TextBox Name="CommandInput" Text="{Binding ButtonData.Command}" />
+                <Grid ColumnDefinitions="*,Auto">
+                    <TextBox Grid.Column="0"
+                             Name="CommandInput"
+                             Text="{Binding ButtonData.Command}"
+                             VerticalAlignment="Stretch" />
+                    <Button Grid.Column="1"
+                            Name="ClearButton"
+                            Content="Clear"
+                            Width="120"
+                            Margin="10,0,0,0"
+                            VerticalAlignment="Stretch"
+                            Background="#A03030"
+                            Foreground="White"
+                            Click="ClearButton_Click" />
+                </Grid>
             </StackPanel>
         </Grid>
     </Border>
