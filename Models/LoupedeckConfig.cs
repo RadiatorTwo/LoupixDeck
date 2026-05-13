@@ -17,6 +17,16 @@ public class LoupedeckConfig : INotifyPropertyChanged
 
     private int _brightness = 100;
 
+    /// <summary>
+    /// Schema version of the persisted config. Bumped when a breaking change is
+    /// introduced; <see cref="ConfigService"/> discards configs with a different
+    /// version (no migration in v2 — the old single-image touch-button schema is
+    /// not convertible to the new layer schema).
+    /// </summary>
+    public const int CurrentVersion = 2;
+
+    public int Version { get; set; } = CurrentVersion;
+
     public string DevicePort { get; set; }
     public int DeviceBaudrate { get; set; }
 
