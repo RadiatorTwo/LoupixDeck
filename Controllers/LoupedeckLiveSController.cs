@@ -2,6 +2,7 @@ using System.ComponentModel;
 using LoupixDeck.LoupedeckDevice;
 using LoupixDeck.Models;
 using LoupixDeck.Models.Extensions;
+using LoupixDeck.Models.Layers;
 using LoupixDeck.Services;
 using LoupixDeck.Services.FolderNavigation;
 using LoupixDeck.Utils;
@@ -21,6 +22,7 @@ public class LoupedeckLiveSController(
     IPageManager pageManager,
     IConfigService configService,
     IFolderNavigationService folderNav,
+    IAssetService assetService,
     LoupedeckConfig config)
 {
     private readonly string _configPath = FileDialogHelper.GetConfigPath("config.json");
@@ -435,10 +437,8 @@ public class LoupedeckLiveSController(
 
     private readonly SemaphoreSlim _saveSemaphore = new(1, 1);
 
-    // Fire-and-forget: serialization (incl. SKBitmap -> PNG -> base64) is
-    // expensive enough to hitch the UI thread for ~2s on configs with images,
-    // so the actual save runs on the threadpool. The semaphore serializes
-    // concurrent calls to keep the temp-file rename atomic.
+    // Fire-and-forget save. The semaphore serializes concurrent calls so the
+    // temp-file rename stays atomic.
     public void SaveConfig()
     {
         _ = SaveConfigAsync();
@@ -449,7 +449,20 @@ public class LoupedeckLiveSController(
         await _saveSemaphore.WaitAsync().ConfigureAwait(false);
         try
         {
-            await Task.Run(() => configService.SaveConfig(config, _configPath)).ConfigureAwait(false);
+            // Marshal serialization onto the UI thread: the config tree contains
+            // ObservableCollections (pages → buttons → layers) that the UI may
+            // mutate at any time. Iterating them off-thread races and throws
+            // "Collection was modified". With the layer-based config we no
+            // longer embed bitmaps, so the JSON write itself is cheap enough to
+            // run on the UI thread without a perceptible hitch.
+            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(
+                () => configService.SaveConfig(config, _configPath));
+
+            // Snapshot referenced asset paths on the UI thread, then perform
+            // the actual filesystem cleanup off-thread.
+            var referenced = await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(
+                () => CollectReferencedAssetPaths().ToList());
+            await Task.Run(() => assetService.Cleanup(referenced)).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -458,6 +471,25 @@ public class LoupedeckLiveSController(
         finally
         {
             _saveSemaphore.Release();
+        }
+    }
+
+    private IEnumerable<string> CollectReferencedAssetPaths()
+    {
+        if (config.TouchButtonPages == null) yield break;
+
+        foreach (var page in config.TouchButtonPages)
+        {
+            if (page?.TouchButtons == null) continue;
+            foreach (var button in page.TouchButtons)
+            {
+                if (button?.Layers == null) continue;
+                foreach (var layer in button.Layers)
+                {
+                    if (layer is ImageLayer img && !string.IsNullOrWhiteSpace(img.AssetRelativePath))
+                        yield return img.AssetRelativePath;
+                }
+            }
         }
     }
 

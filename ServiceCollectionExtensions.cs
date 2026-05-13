@@ -24,6 +24,7 @@ public static class ServiceCollectionExtensions
         });
 
         collection.AddSingleton<IConfigService, ConfigService>();
+        collection.AddSingleton<IAssetService, AssetService>();
         collection.AddSingleton<ICommandService, CommandService>();
         collection.AddSingleton<IDeviceService, LoupedeckDeviceService>();
         collection.AddSingleton<IPageManager, PageManager>();
@@ -106,5 +107,26 @@ public static class ServiceCollectionExtensions
         dialogService.Register<TouchButtonSettingsViewModel, TouchButtonSettings>();
         dialogService.Register<SettingsViewModel, Settings>();
         dialogService.Register<AboutViewModel, About>();
+
+        // Let the (static) bitmap renderer resolve image-layer assets via DI.
+        var assetService = services.GetRequiredService<IAssetService>();
+        BitmapHelper.AssetResolver = assetService.Load;
+
+        // After config load, rewire per-layer PropertyChanged handlers so edits
+        // trigger TouchButton.Refresh(). The collection setter in TouchButton
+        // wires its own CollectionChanged hook, but layers created by the JSON
+        // converter bypass AttachLayerHandlers.
+        var config = services.GetRequiredService<LoupedeckConfig>();
+        if (config.TouchButtonPages != null)
+        {
+            foreach (var page in config.TouchButtonPages)
+            {
+                if (page?.TouchButtons == null) continue;
+                foreach (var button in page.TouchButtons)
+                {
+                    button?.RewireLayerHandlers();
+                }
+            }
+        }
     }
 }

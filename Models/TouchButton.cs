@@ -1,120 +1,28 @@
+using System.Collections.Specialized;
+using System.ComponentModel;
 using Avalonia.Media;
+using LoupixDeck.Models.Layers;
 using Newtonsoft.Json;
 using SkiaSharp;
 
 namespace LoupixDeck.Models;
 
-public class TouchButton(int index) : LoupedeckButton
+public class TouchButton : LoupedeckButton
 {
-    public int Index { get; } = index;
-
-    private string _text = string.Empty;
-
-    public string Text
+    public TouchButton(int index)
     {
-        get => _text;
-        set
-        {
-            if (value == _text) return;
-            _text = value;
-            //OnPropertyChanged(nameof(Text));
-            Refresh();
-        }
+        Index = index;
+        Layers = new System.Collections.ObjectModel.ObservableCollection<LayerBase>();
+        AttachLayerHandlers(Layers);
     }
 
-    private bool _textCentered = true;
-
-    public bool TextCentered
+    /// <summary>Parameterless ctor for the JSON deserializer.</summary>
+    [JsonConstructor]
+    private TouchButton() : this(0)
     {
-        get => _textCentered;
-        set
-        {
-            if (value == _textCentered) return;
-            _textCentered = value;
-            Refresh();
-            OnPropertyChanged(nameof(TextCentered));
-        }
     }
 
-    private int _textSize = 16;
-
-    public int TextSize
-    {
-        get => _textSize;
-        set
-        {
-            if (value == _textSize) return;
-            _textSize = value;
-            Refresh();
-        }
-    }
-
-    private int _textPositionX;
-
-    public int TextPositionX
-    {
-        get => _textPositionX;
-        set
-        {
-            if (_textPositionX == value) return;
-            _textPositionX = value;
-            Refresh();
-            OnPropertyChanged(nameof(TextPositionX));
-        }
-    }
-
-    private int _textPositionY;
-
-    public int TextPositionY
-    {
-        get => _textPositionY;
-        set
-        {
-            if (_textPositionY == value) return;
-            _textPositionY = value;
-            Refresh();
-            OnPropertyChanged(nameof(TextPositionY));
-        }
-    }
-
-    private Color _textColor = Colors.White;
-
-    public Color TextColor
-    {
-        get => _textColor;
-        set
-        {
-            if (Equals(value, _textColor)) return;
-            _textColor = value;
-            Refresh();
-        }
-    }
-
-    private bool _bold;
-
-    public bool Bold
-    {
-        get => _bold;
-        set
-        {
-            if (value == _bold) return;
-            _bold = value;
-            Refresh();
-        }
-    }
-
-    private bool _italic;
-
-    public bool Italic
-    {
-        get => _italic;
-        set
-        {
-            if (value == _italic) return;
-            _italic = value;
-            Refresh();
-        }
-    }
+    public int Index { get; set; }
 
     private Color _backColor = Colors.Black;
 
@@ -129,85 +37,19 @@ public class TouchButton(int index) : LoupedeckButton
         }
     }
 
-    private bool _outlined;
+    private System.Collections.ObjectModel.ObservableCollection<LayerBase> _layers;
 
-    public bool Outlined
+    public System.Collections.ObjectModel.ObservableCollection<LayerBase> Layers
     {
-        get => _outlined;
+        get => _layers;
         set
         {
-            if (value == _outlined) return;
-            _outlined = value;
+            if (ReferenceEquals(_layers, value)) return;
+            DetachLayerHandlers(_layers);
+            _layers = value ?? new System.Collections.ObjectModel.ObservableCollection<LayerBase>();
+            AttachLayerHandlers(_layers);
             Refresh();
-            OnPropertyChanged(nameof(Outlined));
-        }
-    }
-
-    private Color _outlineColor = Colors.Black;
-
-    public Color OutlineColor
-    {
-        get => _outlineColor;
-        set
-        {
-            if (Equals(value, _outlineColor)) return;
-            _outlineColor = value;
-            Refresh();
-        }
-    }
-
-    private SKBitmap _image;
-
-    public SKBitmap Image
-    {
-        get => _image;
-        set
-        {
-            if (Equals(value, _image)) return;
-            _image = value;
-            Refresh();
-        }
-    }
-
-    private int _imagePositionX;
-
-    public int ImagePositionX
-    {
-        get => _imagePositionX;
-        set
-        {
-            if (_imagePositionX == value) return;
-            _imagePositionX = value;
-            Refresh();
-            OnPropertyChanged(nameof(ImagePositionX));
-        }
-    }
-
-    private int _imagePositionY;
-
-    public int ImagePositionY
-    {
-        get => _imagePositionY;
-        set
-        {
-            if (_imagePositionY == value) return;
-            _imagePositionY = value;
-            Refresh();
-            OnPropertyChanged(nameof(ImagePositionY));
-        }
-    }
-
-    private int _imageScale = 100;
-
-    public int ImageScale
-    {
-        get => _imageScale;
-        set
-        {
-            if (_imageScale == value) return;
-            _imageScale = value;
-            Refresh();
-            OnPropertyChanged(nameof(ImageScale));
+            OnPropertyChanged(nameof(Layers));
         }
     }
 
@@ -222,6 +64,82 @@ public class TouchButton(int index) : LoupedeckButton
             if (Equals(value, _renderedImage)) return;
             _renderedImage = value;
             OnPropertyChanged(nameof(RenderedImage));
+        }
+    }
+
+    private void AttachLayerHandlers(System.Collections.ObjectModel.ObservableCollection<LayerBase> layers)
+    {
+        if (layers == null) return;
+        layers.CollectionChanged += Layers_CollectionChanged;
+        foreach (var layer in layers)
+        {
+            if (layer != null) layer.PropertyChanged += Layer_PropertyChanged;
+        }
+    }
+
+    private void DetachLayerHandlers(System.Collections.ObjectModel.ObservableCollection<LayerBase> layers)
+    {
+        if (layers == null) return;
+        layers.CollectionChanged -= Layers_CollectionChanged;
+        foreach (var layer in layers)
+        {
+            if (layer != null) layer.PropertyChanged -= Layer_PropertyChanged;
+        }
+    }
+
+    private void Layers_CollectionChanged(object sender, NotifyCollectionChangedEventArgs e)
+    {
+        if (e.OldItems != null)
+        {
+            foreach (LayerBase l in e.OldItems)
+                if (l != null) l.PropertyChanged -= Layer_PropertyChanged;
+        }
+
+        if (e.NewItems != null)
+        {
+            foreach (LayerBase l in e.NewItems)
+                if (l != null) l.PropertyChanged += Layer_PropertyChanged;
+        }
+
+        Refresh();
+    }
+
+    private void Layer_PropertyChanged(object sender, PropertyChangedEventArgs e)
+    {
+        Refresh();
+    }
+
+    /// <summary>
+    /// Returns the first <see cref="TextLayer"/> on this button, creating one
+    /// (and appending it as the top-most layer) if none exists. Intended for
+    /// dynamic-text providers that need a stable text target.
+    /// </summary>
+    public TextLayer GetOrCreatePrimaryTextLayer()
+    {
+        foreach (var layer in Layers)
+        {
+            if (layer is TextLayer text) return text;
+        }
+
+        var created = new TextLayer { Name = "Text", BoxWidth = 90, BoxHeight = 90 };
+        Layers.Add(created);
+        return created;
+    }
+
+    /// <summary>
+    /// Re-attaches PropertyChanged handlers to all layers — call after JSON
+    /// deserialization since the ObservableCollection setter wires up the
+    /// collection events but the individual layers were constructed by the
+    /// JSON converter, bypassing AttachLayerHandlers.
+    /// </summary>
+    public void RewireLayerHandlers()
+    {
+        if (_layers == null) return;
+        foreach (var layer in _layers)
+        {
+            if (layer == null) continue;
+            layer.PropertyChanged -= Layer_PropertyChanged;
+            layer.PropertyChanged += Layer_PropertyChanged;
         }
     }
 }
