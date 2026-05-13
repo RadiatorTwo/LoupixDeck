@@ -4,12 +4,20 @@ using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Media.Immutable;
 using LoupixDeck.Models;
+using LoupixDeck.Models.Layers;
 using SkiaSharp;
 
 namespace LoupixDeck.Utils;
 
 public static class BitmapHelper
 {
+    /// <summary>
+    /// Resolver used by the renderer to fetch an <see cref="SKBitmap"/> for a
+    /// given relative asset path. Wired up at app startup so the static helper
+    /// does not need to know about DI. Returns null if unresolved.
+    /// </summary>
+    public static Func<string, SKBitmap> AssetResolver { get; set; }
+
     public enum ScalingOption
     {
         None, // Image shown as is in full resolution
@@ -177,45 +185,337 @@ public static class BitmapHelper
             canvas.Clear(touchButton.BackColor.ToSKColor());
         }
 
-        if (touchButton.Image != null)
-        {
-            var destRect = new SKRect(0, 0, width, height);
-            
-            var scaledImage = BitmapHelper.ScaleAndPositionBitmap(
-                touchButton.Image,
-                width,
-                height,
-                touchButton.ImageScale,
-                touchButton.ImagePositionX,
-                touchButton.ImagePositionY);
-            
-            canvas.DrawBitmap(scaledImage, destRect);
-        }
-
-        if (!string.IsNullOrEmpty(touchButton.Text))
-        {
-            DrawTextAt(
-                canvas,
-                touchButton.Text,
-                touchButton.TextColor.ToSKColor(),
-                touchButton.TextSize,
-                touchButton.TextCentered,
-                touchButton.TextPositionX,
-                touchButton.TextPositionY,
-                width,
-                height,
-                touchButton.Bold,
-                touchButton.Italic,
-                touchButton.Outlined,
-                touchButton.OutlineColor.ToSKColor()
-            );
-        }
+        DrawLayers(canvas, touchButton.Layers, width, height);
 
         // Convert back to RenderTargetBitmap and save in the TouchButton
         // var rtb = bitmap.ToRenderTargetBitmap();
         touchButton.RenderedImage = bitmap;
 
         return bitmap;
+    }
+
+    /// <summary>
+    /// Renders the touch-button settings dialog preview: a <paramref name="canvasSize"/>
+    /// square with a centered <paramref name="frameSize"/>-pixel frame representing the
+    /// real 90×90 device area. Layers may extend beyond the frame so the user can drag
+    /// images past the button edge — frame clipping happens only on the device-side
+    /// render produced by <see cref="RenderTouchButtonContent"/>.
+    /// </summary>
+    public static SKBitmap RenderEditorCanvas(
+        TouchButton touchButton,
+        LoupedeckConfig config,
+        int canvasSize = 600,
+        int frameSize = 300)
+    {
+        ArgumentNullException.ThrowIfNull(touchButton);
+
+        const int deviceSize = 90;
+
+        var bmp = new SKBitmap(canvasSize, canvasSize);
+        using var canvas = new SKCanvas(bmp);
+
+        canvas.Clear(new SKColor(0x22, 0x22, 0x22));
+
+        var frameOffset = (canvasSize - frameSize) / 2f;
+        var frameRect = new SKRect(frameOffset, frameOffset,
+            frameOffset + frameSize, frameOffset + frameSize);
+
+        // Fill the frame with the button's background color (the device-pixel area).
+        using (var bgPaint = new SKPaint { Color = touchButton.BackColor.ToSKColor() })
+        {
+            canvas.DrawRect(frameRect, bgPaint);
+        }
+
+        // Switch to device-pixel space inside the frame so layer positions/scale match
+        // exactly what the device render produces.
+        canvas.Save();
+        canvas.Translate(frameOffset, frameOffset);
+        canvas.Scale((float)frameSize / deviceSize);
+
+        if (touchButton.Layers != null)
+        {
+            foreach (var layer in touchButton.Layers)
+            {
+                if (layer == null || !layer.Visible) continue;
+
+                switch (layer)
+                {
+                    case ImageLayer image:
+                        DrawImageLayerExtended(canvas, image, deviceSize, deviceSize);
+                        break;
+                    case TextLayer text:
+                        DrawTextLayer(canvas, text, deviceSize, deviceSize);
+                        break;
+                    case SymbolLayer symbol:
+                        DrawSymbolPlaceholder(canvas, symbol, deviceSize, deviceSize);
+                        break;
+                }
+            }
+        }
+
+        canvas.Restore();
+
+        return bmp;
+    }
+
+    /// <summary>
+    /// Returns the on-canvas (editor-preview) rectangle that a layer currently occupies.
+    /// Used by the View to position the selection overlay. Returns null if the layer has
+    /// no resolvable geometry (e.g. image with missing asset).
+    /// </summary>
+    public static SKRect? GetLayerEditorBounds(
+        LayerBase layer,
+        int canvasSize = 600,
+        int frameSize = 300)
+    {
+        if (layer == null || !layer.Visible) return null;
+
+        const int deviceSize = 90;
+        var deviceRect = GetLayerDeviceRect(layer, deviceSize, deviceSize);
+        if (deviceRect == null) return null;
+
+        var frameOffset = (canvasSize - frameSize) / 2f;
+        var scale = (float)frameSize / deviceSize;
+        var dr = deviceRect.Value;
+        return new SKRect(
+            frameOffset + dr.Left * scale,
+            frameOffset + dr.Top * scale,
+            frameOffset + dr.Right * scale,
+            frameOffset + dr.Bottom * scale);
+    }
+
+    /// <summary>
+    /// Returns the bounding rectangle of a layer in 90×90 device-pixel space.
+    /// Mirrors the geometry math used in <see cref="DrawImageLayerExtended"/> /
+    /// <see cref="DrawSymbolPlaceholder"/> so the selection overlay always matches
+    /// the rendered output.
+    /// </summary>
+    private static SKRect? GetLayerDeviceRect(LayerBase layer, int deviceW, int deviceH)
+    {
+        switch (layer)
+        {
+            case ImageLayer image:
+            {
+                var bmp = image.CachedImage;
+                if (bmp == null && !string.IsNullOrEmpty(image.AssetRelativePath) && AssetResolver != null)
+                {
+                    bmp = AssetResolver(image.AssetRelativePath);
+                    image.CachedImage = bmp;
+                }
+                if (bmp == null) return null;
+
+                float srcW, srcH;
+                if (!image.SourceRect.IsEmpty &&
+                    image.SourceRect.Width > 0 && image.SourceRect.Height > 0)
+                {
+                    srcW = image.SourceRect.Width;
+                    srcH = image.SourceRect.Height;
+                }
+                else
+                {
+                    srcW = bmp.Width;
+                    srcH = bmp.Height;
+                }
+
+                var fit = Math.Min(deviceW / srcW, deviceH / srcH);
+                var scaleX = (float)Math.Max(0.01, image.EffectiveScaleX);
+                var scaleY = (float)Math.Max(0.01, image.EffectiveScaleY);
+                var dstW = srcW * fit * scaleX;
+                var dstH = srcH * fit * scaleY;
+                var drawX = (deviceW - dstW) / 2f + image.PositionX;
+                var drawY = (deviceH - dstH) / 2f + image.PositionY;
+                return new SKRect(drawX, drawY, drawX + dstW, drawY + dstH);
+            }
+            case SymbolLayer symbol:
+            {
+                var size = Math.Min(deviceW, deviceH) * 0.6f * (float)Math.Max(0.1, symbol.Scale);
+                var cx = deviceW / 2f + symbol.PositionX;
+                var cy = deviceH / 2f + symbol.PositionY;
+                return new SKRect(cx - size / 2f, cy - size / 2f, cx + size / 2f, cy + size / 2f);
+            }
+            case TextLayer text:
+                return MeasureTextDeviceRect(text, deviceW, deviceH);
+            default:
+                return null;
+        }
+    }
+
+    /// <summary>
+    /// Returns the bounding rectangle (in device-pixel space) that the given text
+    /// layer occupies when rendered by <see cref="DrawTextAt"/>. Mirrors the same
+    /// font metrics + wrap logic so the editor selection overlay tracks the text.
+    /// </summary>
+    /// <summary>
+    /// Returns the text-layout box rectangle in device-pixel space. This is the
+    /// area the renderer wraps text into; the selection overlay tracks it so the
+    /// user can drag the corners/edges to enlarge or shrink the wrap area.
+    /// </summary>
+    private static SKRect MeasureTextDeviceRect(TextLayer layer, int deviceW, int deviceH)
+    {
+        var (boxLeft, boxTop) = TextBoxOrigin(layer, deviceW, deviceH);
+        return new SKRect(boxLeft, boxTop,
+            boxLeft + layer.EffectiveBoxWidth,
+            boxTop + layer.EffectiveBoxHeight);
+    }
+
+    /// <summary>
+    /// Editor-canvas variant of <see cref="DrawImageLayer"/> that does NOT pre-render to
+    /// a clipped 90×90 surface — it lets the image overflow the device area so the user
+    /// can see what they're dragging past the frame.
+    /// </summary>
+    private static void DrawImageLayerExtended(SKCanvas canvas, ImageLayer layer, int deviceW, int deviceH)
+    {
+        var bmp = layer.CachedImage;
+        if (bmp == null && !string.IsNullOrEmpty(layer.AssetRelativePath) && AssetResolver != null)
+        {
+            bmp = AssetResolver(layer.AssetRelativePath);
+            layer.CachedImage = bmp;
+        }
+        if (bmp == null) return;
+
+        SKRect srcRect;
+        if (!layer.SourceRect.IsEmpty &&
+            layer.SourceRect.Width > 0 && layer.SourceRect.Height > 0)
+        {
+            srcRect = layer.SourceRect.ToSKRect();
+        }
+        else
+        {
+            srcRect = new SKRect(0, 0, bmp.Width, bmp.Height);
+        }
+
+        var fit = Math.Min(deviceW / srcRect.Width, deviceH / srcRect.Height);
+        var scaleX = (float)Math.Max(0.01, layer.EffectiveScaleX);
+        var scaleY = (float)Math.Max(0.01, layer.EffectiveScaleY);
+        var dstW = srcRect.Width * fit * scaleX;
+        var dstH = srcRect.Height * fit * scaleY;
+        var drawX = (deviceW - dstW) / 2f + layer.PositionX;
+        var drawY = (deviceH - dstH) / 2f + layer.PositionY;
+
+        canvas.DrawBitmap(bmp, srcRect, new SKRect(drawX, drawY, drawX + dstW, drawY + dstH));
+    }
+
+    /// <summary>
+    /// Iterates the layer collection in order (later entries paint on top) and
+    /// dispatches to the appropriate per-layer renderer.
+    /// </summary>
+    private static void DrawLayers(SKCanvas canvas,
+        System.Collections.ObjectModel.ObservableCollection<LayerBase> layers,
+        int width, int height)
+    {
+        if (layers == null) return;
+
+        foreach (var layer in layers)
+        {
+            if (layer == null || !layer.Visible) continue;
+
+            switch (layer)
+            {
+                case ImageLayer image:
+                    DrawImageLayer(canvas, image, width, height);
+                    break;
+                case TextLayer text:
+                    DrawTextLayer(canvas, text, width, height);
+                    break;
+                case SymbolLayer symbol:
+                    DrawSymbolPlaceholder(canvas, symbol, width, height);
+                    break;
+            }
+        }
+    }
+
+    private static void DrawImageLayer(SKCanvas canvas, ImageLayer layer, int width, int height)
+    {
+        var bmp = layer.CachedImage;
+        if (bmp == null && !string.IsNullOrEmpty(layer.AssetRelativePath) && AssetResolver != null)
+        {
+            bmp = AssetResolver(layer.AssetRelativePath);
+            layer.CachedImage = bmp;
+        }
+        if (bmp == null) return;
+
+        // Draw directly onto the target canvas so layer alpha composites correctly.
+        // The previous approach materialised an intermediate SKBitmap with the source's
+        // AlphaType — for opaque sources (e.g. JPEG) the "transparent" surrounding area
+        // stayed fully opaque black and overwrote any layers drawn beneath this one.
+        var srcRect = (!layer.SourceRect.IsEmpty &&
+                       layer.SourceRect.Width > 0 && layer.SourceRect.Height > 0)
+            ? layer.SourceRect.ToSKRect()
+            : new SKRect(0, 0, bmp.Width, bmp.Height);
+
+        var fit = Math.Min(width / srcRect.Width, height / srcRect.Height);
+        var scaleX = (float)Math.Max(0.01, layer.EffectiveScaleX);
+        var scaleY = (float)Math.Max(0.01, layer.EffectiveScaleY);
+        var dstW = srcRect.Width * fit * scaleX;
+        var dstH = srcRect.Height * fit * scaleY;
+        var drawX = (width - dstW) / 2f + layer.PositionX;
+        var drawY = (height - dstH) / 2f + layer.PositionY;
+
+        canvas.Save();
+        canvas.ClipRect(new SKRect(0, 0, width, height));
+        canvas.DrawBitmap(bmp, srcRect, new SKRect(drawX, drawY, drawX + dstW, drawY + dstH));
+        canvas.Restore();
+    }
+
+    private static void DrawTextLayer(SKCanvas canvas, TextLayer layer, int width, int height)
+    {
+        if (string.IsNullOrEmpty(layer.Text)) return;
+
+        var boxW = layer.EffectiveBoxWidth;
+        var boxH = layer.EffectiveBoxHeight;
+        var (boxLeft, boxTop) = TextBoxOrigin(layer, width, height);
+
+        var saved = canvas.Save();
+        canvas.Translate(boxLeft, boxTop);
+
+        DrawTextAt(
+            canvas,
+            layer.Text,
+            layer.TextColor.ToSKColor(),
+            layer.TextSize,
+            layer.Centered,
+            posX: 0,
+            posY: 0,
+            imageWidth: boxW,
+            imageHeight: boxH,
+            layer.Bold,
+            layer.Italic,
+            layer.Outlined,
+            layer.OutlineColor.ToSKColor());
+
+        canvas.RestoreToCount(saved);
+    }
+
+    private static (float Left, float Top) TextBoxOrigin(TextLayer layer, int deviceW, int deviceH)
+    {
+        var boxW = layer.EffectiveBoxWidth;
+        var boxH = layer.EffectiveBoxHeight;
+        if (layer.Centered)
+        {
+            return ((deviceW - boxW) / 2f + layer.PositionX,
+                    (deviceH - boxH) / 2f + layer.PositionY);
+        }
+        return (layer.PositionX, layer.PositionY);
+    }
+
+    private static void DrawSymbolPlaceholder(SKCanvas canvas, SymbolLayer layer, int width, int height)
+    {
+        // Stub renderer: a dashed box with the symbol id (if any) until the
+        // symbol library is wired up.
+        using var paint = new SKPaint
+        {
+            Color = layer.Tint.ToSKColor(),
+            Style = SKPaintStyle.Stroke,
+            StrokeWidth = 2,
+            IsAntialias = true,
+            PathEffect = SKPathEffect.CreateDash(new float[] { 4, 4 }, 0)
+        };
+
+        var size = Math.Min(width, height) * 0.6f * (float)Math.Max(0.1, layer.Scale);
+        var cx = width / 2f + layer.PositionX;
+        var cy = height / 2f + layer.PositionY;
+        var rect = new SKRect(cx - size / 2f, cy - size / 2f, cx + size / 2f, cy + size / 2f);
+        canvas.DrawRect(rect, paint);
     }
 
     /// <summary>

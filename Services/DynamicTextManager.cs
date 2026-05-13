@@ -193,7 +193,7 @@ public class DynamicTextManager : IDynamicTextManager, IDisposable
             }
 
             var button = entry.Button;
-            Dispatcher.UIThread.Post(() => button.Text = newText);
+            Dispatcher.UIThread.Post(() => button.GetOrCreatePrimaryTextLayer().Text = newText);
 
             // Advance NextDue by exactly one interval to stay aligned to the wall clock.
             // If we fell behind by more than one interval, snap forward.

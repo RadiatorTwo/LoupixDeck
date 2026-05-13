@@ -1,5 +1,8 @@
 using Newtonsoft.Json;
+using LoupixDeck.Models;
 using LoupixDeck.Models.Converter;
+using LoupixDeck.Models.Layers;
+using Newtonsoft.Json.Linq;
 
 namespace LoupixDeck.Services;
 
@@ -21,6 +24,7 @@ public class ConfigService : IConfigService
         };
         _settings.Converters.Add(new ColorJsonConverter());
         _settings.Converters.Add(new SKBitmapBase64Converter());
+        _settings.Converters.Add(new LayerJsonConverter());
     }
 
     public T LoadConfig<T>(string filePath) where T : class
@@ -31,6 +35,14 @@ public class ConfigService : IConfigService
                 return null;
 
             var json = File.ReadAllText(filePath);
+
+            if (typeof(T) == typeof(LoupedeckConfig) && !IsCompatibleVersion(json))
+            {
+                Console.WriteLine($"Config version mismatch in {filePath} — backing up and starting fresh.");
+                BackupCorruptedFile(filePath);
+                return null;
+            }
+
             return JsonConvert.DeserializeObject<T>(json, _settings);
         }
         catch (IOException ex)
@@ -67,6 +79,21 @@ public class ConfigService : IConfigService
 
             // Return null to allow application to create new default config
             return null;
+        }
+    }
+
+    private static bool IsCompatibleVersion(string json)
+    {
+        try
+        {
+            var token = JToken.Parse(json);
+            var version = token["Version"]?.Value<int?>() ?? token["version"]?.Value<int?>() ?? 1;
+            return version == LoupedeckConfig.CurrentVersion;
+        }
+        catch
+        {
+            // Let the normal deserialize path surface the parse error.
+            return true;
         }
     }
 
