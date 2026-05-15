@@ -399,3 +399,11 @@ FodyWeavers.xsd
 # JetBrains Rider
 *.sln.iml
 .idea
+
+# Local tooling / AI assistants
+.claude/
+.mcp.json
+CLAUDE.md
+.github/copilot-instructions.md
+package.json
+package-lock.json
