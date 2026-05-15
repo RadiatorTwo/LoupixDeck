@@ -470,6 +470,20 @@
                                         </DataTemplate>
                                     </ContentControl.DataTemplates>
                                 </ContentControl>
+
+                                <Separator Margin="0,15,0,8" />
+
+                                <!-- Vibration Settings -->
+                                <TextBlock Text="Vibration Settings" FontWeight="Bold" Margin="0,0,0,4" />
+                                <CheckBox Content="Enable Vibration"
+                                          IsChecked="{Binding ButtonData.VibrationEnabled}"
+                                          Margin="0,0,0,5" />
+                                <StackPanel IsEnabled="{Binding ButtonData.VibrationEnabled}">
+                                    <TextBlock Text="Pattern:" Margin="0,5,0,2" />
+                                    <ComboBox ItemsSource="{Binding VibrationPatterns}"
+                                              SelectedItem="{Binding SelectedVibrationPattern}"
+                                              Width="200" HorizontalAlignment="Left" />
+                                </StackPanel>
                             </StackPanel>
                         </ScrollViewer>
                     </TabItem>

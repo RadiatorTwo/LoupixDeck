@@ -1,7 +1,9 @@
 using System.Collections.ObjectModel;
 using System.Windows.Input;
+using LoupixDeck.LoupedeckDevice;
 using LoupixDeck.Models;
 using LoupixDeck.Models.Argus;
+using LoupixDeck.Models.Converter;
 using LoupixDeck.Models.Layers;
 using LoupixDeck.Services;
 using LoupixDeck.Services.Argus;
@@ -27,6 +29,10 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
         {
             ButtonData.ItemChanged += ButtonData_ItemChanged;
             UpdateEditorPreview();
+
+            _selectedVibrationPattern = VibrationPatterns.FirstOrDefault(
+                p => p.Value == ButtonData.VibrationPattern);
+            OnPropertyChanged(nameof(SelectedVibrationPattern));
         }
     }
 
@@ -162,6 +168,49 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
 
     public ObservableCollection<MenuEntry> SystemCommandMenus { get; set; }
     public MenuEntry CurrentMenuEntry { get; set; }
+
+    // Pattern names verified against the official DRV2605 effect library
+    // (the haptic chip in the Live S). See Constants.VibrationPattern for the
+    // raw mapping table.
+    public ObservableCollection<VibrationPatternItem> VibrationPatterns { get; } =
+    [
+        // Single clicks — three strengths of the same waveform
+        new VibrationPatternItem("Click Strong",    Constants.VibrationPattern.Short),             // effect 1
+        new VibrationPatternItem("Click Medium",    Constants.VibrationPattern.StrongClickMed),    // effect 2
+        new VibrationPatternItem("Click Soft",      Constants.VibrationPattern.StrongClickSoft),   // effect 3
+        // Different click/bump characters
+        new VibrationPatternItem("Sharp Click",     Constants.VibrationPattern.SharpClick),        // effect 4
+        new VibrationPatternItem("Soft Bump",       Constants.VibrationPattern.SoftBump),          // effect 7
+        // Multi-clicks
+        new VibrationPatternItem("Double Click",    Constants.VibrationPattern.Medium),            // effect 10
+        new VibrationPatternItem("Triple Click",    Constants.VibrationPattern.TripleClick),       // effect 12
+        // Alerts
+        new VibrationPatternItem("Alert 750ms",     Constants.VibrationPattern.Long),              // effect 15
+        new VibrationPatternItem("Alert 1000ms",    Constants.VibrationPattern.LongAlert),         // effect 16
+        // Buzzes / hums (continuous — stop on touch release)
+        new VibrationPatternItem("Strong Buzz",     Constants.VibrationPattern.StrongBuzz),        // effect 14
+        new VibrationPatternItem("Long Buzz",       Constants.VibrationPattern.VeryLong),          // effect 118
+        new VibrationPatternItem("Soft Buzz",       Constants.VibrationPattern.ShortLower),        // effect 51
+        new VibrationPatternItem("Smooth Hum",      Constants.VibrationPattern.Rumble5),           // effect 119
+        // Ramps (continuous — stop on touch release)
+        new VibrationPatternItem("Ramp Up Smooth",  Constants.VibrationPattern.AscendSlow),        // effect 82
+        new VibrationPatternItem("Ramp Up Sharp",   Constants.VibrationPattern.AscendFast),        // effect 88
+        new VibrationPatternItem("Ramp Down",       Constants.VibrationPattern.DescendSlow)        // effect 70
+    ];
+
+    private VibrationPatternItem _selectedVibrationPattern;
+    public VibrationPatternItem SelectedVibrationPattern
+    {
+        get => _selectedVibrationPattern;
+        set
+        {
+            if (_selectedVibrationPattern == value) return;
+            _selectedVibrationPattern = value;
+            if (ButtonData != null && value != null)
+                ButtonData.VibrationPattern = value.Value;
+            OnPropertyChanged(nameof(SelectedVibrationPattern));
+        }
+    }
 
     private MenuEntry _elgatoKeyLightMenu;
 

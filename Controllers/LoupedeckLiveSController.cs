@@ -172,6 +172,13 @@ public class LoupedeckLiveSController(
 
     private void OnTouchButtonPress(object sender, TouchEventArgs e)
     {
+        // Touch-Release: laufende Wellenform stoppen (für kontinuierliche Patterns wie Buzz/Rumble).
+        if (e.EventType == Constants.TouchEventType.TOUCH_END)
+        {
+            deviceService.Device.Vibrate(Constants.VibrationPattern.Off);
+            return;
+        }
+
         if (e.EventType != Constants.TouchEventType.TOUCH_START)
             return;
 
@@ -191,7 +198,8 @@ public class LoupedeckLiveSController(
 
             commandService.ExecuteCommand(button.Command).GetAwaiter().GetResult();
 
-            deviceService.Device.Vibrate();
+            if (button.VibrationEnabled)
+                deviceService.Device.Vibrate(button.VibrationPattern);
         }
     }
 
@@ -202,14 +210,11 @@ public class LoupedeckLiveSController(
         if (slotIndex == FolderConstants.BackSlotIndex)
         {
             folderNav.NavigateBack().GetAwaiter().GetResult();
-            deviceService.Device.Vibrate();
             return;
         }
 
         if (!folderNav.CurrentEntries.TryGetValue(slotIndex, out var entry))
             return; // empty slot — disabled
-
-        deviceService.Device.Vibrate();
 
         if (entry.OpensFolder != null)
         {
