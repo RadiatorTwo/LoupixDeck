@@ -38,6 +38,7 @@
     <Application.Resources>
         <converter:SKBitmapToAvaloniaBitmapConverter x:Key="SkiaToBitmapConverter" />
         <converter:BoolToBrushConverter x:Key="BoolToBrushConverter" />
+        <FontFamily x:Key="MdiFont">avares://LoupixDeck/Assets/Fonts/materialdesignicons-webfont.ttf#Material Design Icons</FontFamily>
         <SolidColorBrush x:Key="UnselectedBrush" Color="#FF4b4b4b" />
         <SolidColorBrush x:Key="SelectedBrush" Color="#FF373737" />
 

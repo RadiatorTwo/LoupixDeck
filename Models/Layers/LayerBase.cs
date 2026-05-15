@@ -49,7 +49,15 @@ public abstract class LayerBase : INotifyPropertyChanged
     public double Scale
     {
         get => _scale;
-        set => SetField(ref _scale, value);
+        set
+        {
+            if (SetField(ref _scale, value))
+            {
+                OnPropertyChanged(nameof(EffectiveScaleX));
+                OnPropertyChanged(nameof(EffectiveScaleY));
+                OnDisplaySizeChanged();
+            }
+        }
     }
 
     /// <summary>
@@ -60,7 +68,14 @@ public abstract class LayerBase : INotifyPropertyChanged
     public double ScaleY
     {
         get => _scaleY;
-        set => SetField(ref _scaleY, value);
+        set
+        {
+            if (SetField(ref _scaleY, value))
+            {
+                OnPropertyChanged(nameof(EffectiveScaleY));
+                OnDisplaySizeChanged();
+            }
+        }
     }
 
     [JsonIgnore]
@@ -68,6 +83,41 @@ public abstract class LayerBase : INotifyPropertyChanged
 
     [JsonIgnore]
     public double EffectiveScaleY => _scaleY > 0 ? _scaleY : EffectiveScaleX;
+
+    /// <summary>
+    /// Displayed width of the layer in 90×90 device-pixel space. Bridges the
+    /// editor's size fields to the underlying <see cref="Scale"/> multiplier.
+    /// Base implementation is inert; concrete layers that have a resolvable
+    /// size (image, symbol) override it.
+    /// </summary>
+    [JsonIgnore]
+    public virtual double DisplayWidth
+    {
+        get => 0;
+        set { }
+    }
+
+    /// <summary>
+    /// Displayed height of the layer in 90×90 device-pixel space. See
+    /// <see cref="DisplayWidth"/>.
+    /// </summary>
+    [JsonIgnore]
+    public virtual double DisplayHeight
+    {
+        get => 0;
+        set { }
+    }
+
+    /// <summary>
+    /// Raises change notifications for <see cref="DisplayWidth"/> /
+    /// <see cref="DisplayHeight"/> so the editor's size fields track changes
+    /// made via scale, crop or drag-resize.
+    /// </summary>
+    protected void OnDisplaySizeChanged()
+    {
+        OnPropertyChanged(nameof(DisplayWidth));
+        OnPropertyChanged(nameof(DisplayHeight));
+    }
 
     public double Rotation
     {
