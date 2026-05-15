@@ -72,6 +72,12 @@ public partial class TouchButtonSettings : Window
         Close();
     }
 
+    private async void ChangeSymbol_Click(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is TouchButtonSettingsViewModel vm)
+            await vm.ChangeSelectedSymbolAsync();
+    }
+
     private void OnPointerPressed(object sender, PointerPressedEventArgs e)
     {
         if (e.Source is TextBlock textBlock && textBlock.DataContext is MenuEntry menuEntry &&

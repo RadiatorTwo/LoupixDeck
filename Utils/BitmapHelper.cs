@@ -247,7 +247,7 @@ public static class BitmapHelper
                         DrawTextLayer(canvas, text, deviceSize, deviceSize);
                         break;
                     case SymbolLayer symbol:
-                        DrawSymbolPlaceholder(canvas, symbol, deviceSize, deviceSize);
+                        DrawSymbolLayer(canvas, symbol, deviceSize, deviceSize);
                         break;
                 }
             }
@@ -287,7 +287,7 @@ public static class BitmapHelper
     /// <summary>
     /// Returns the bounding rectangle of a layer in 90×90 device-pixel space.
     /// Mirrors the geometry math used in <see cref="DrawImageLayerExtended"/> /
-    /// <see cref="DrawSymbolPlaceholder"/> so the selection overlay always matches
+    /// <see cref="DrawSymbolLayer"/> so the selection overlay always matches
     /// the rendered output.
     /// </summary>
     private static SKRect? GetLayerDeviceRect(LayerBase layer, int deviceW, int deviceH)
@@ -328,10 +328,12 @@ public static class BitmapHelper
             }
             case SymbolLayer symbol:
             {
-                var size = Math.Min(deviceW, deviceH) * 0.6f * (float)Math.Max(0.1, symbol.Scale);
+                var baseSize = Math.Min(deviceW, deviceH);
+                var dstW = baseSize * (float)Math.Max(0.01, symbol.EffectiveScaleX);
+                var dstH = baseSize * (float)Math.Max(0.01, symbol.EffectiveScaleY);
                 var cx = deviceW / 2f + symbol.PositionX;
                 var cy = deviceH / 2f + symbol.PositionY;
-                return new SKRect(cx - size / 2f, cy - size / 2f, cx + size / 2f, cy + size / 2f);
+                return new SKRect(cx - dstW / 2f, cy - dstH / 2f, cx + dstW / 2f, cy + dstH / 2f);
             }
             case TextLayer text:
                 return MeasureTextDeviceRect(text, deviceW, deviceH);
@@ -418,7 +420,7 @@ public static class BitmapHelper
                     DrawTextLayer(canvas, text, width, height);
                     break;
                 case SymbolLayer symbol:
-                    DrawSymbolPlaceholder(canvas, symbol, width, height);
+                    DrawSymbolLayer(canvas, symbol, width, height);
                     break;
             }
         }
@@ -498,10 +500,157 @@ public static class BitmapHelper
         return (layer.PositionX, layer.PositionY);
     }
 
+    /// <summary>
+    /// Renders a <see cref="SymbolLayer"/> as a glyph from the bundled Material
+    /// Design Icons font. The glyph is converted to an <see cref="SKPath"/> and
+    /// transformed into device-pixel space (so outline width and shadow blur stay
+    /// consistent regardless of symbol scale), then drawn shadow → outline → fill.
+    /// The glyph's tight bounds are stretched to fill a
+    /// <c>Min(width,height) · Scale</c> box centered at the layer position, so the
+    /// geometry matches <see cref="GetLayerDeviceRect"/>. Falls back to the dashed
+    /// placeholder when the symbol id is unknown or the font/glyph is missing.
+    /// </summary>
+    private static void DrawSymbolLayer(SKCanvas canvas, SymbolLayer layer, int width, int height)
+    {
+        if (!SymbolLibrary.TryGet(layer.SymbolId, out var def))
+        {
+            DrawSymbolPlaceholder(canvas, layer, width, height);
+            return;
+        }
+
+        var typeface = SymbolLibrary.GetTypeface();
+        if (typeface == null)
+        {
+            DrawSymbolPlaceholder(canvas, layer, width, height);
+            return;
+        }
+
+        var glyph = SymbolLibrary.GlyphString(def.Codepoint);
+
+        // A fixed reference size keeps the glyph path precise; the final size
+        // comes from the matrix applied to the path below.
+        const float refSize = 128f;
+        using var font = new SKFont(typeface, refSize)
+        {
+            Edging = SKFontEdging.Antialias,
+            Subpixel = true,
+            Hinting = SKFontHinting.None
+        };
+
+        var glyphIds = font.GetGlyphs(glyph);
+        if (glyphIds.Length == 0)
+        {
+            DrawSymbolPlaceholder(canvas, layer, width, height);
+            return;
+        }
+
+        using var path = font.GetGlyphPath(glyphIds[0]);
+        if (path == null || path.IsEmpty)
+        {
+            DrawSymbolPlaceholder(canvas, layer, width, height);
+            return;
+        }
+
+        var gb = path.TightBounds;
+        if (gb.Width <= 0 || gb.Height <= 0)
+        {
+            DrawSymbolPlaceholder(canvas, layer, width, height);
+            return;
+        }
+
+        var baseSize = Math.Min(width, height);
+        var dstW = baseSize * (float)Math.Max(0.01, layer.EffectiveScaleX);
+        var dstH = baseSize * (float)Math.Max(0.01, layer.EffectiveScaleY);
+
+        var cx = width / 2f + layer.PositionX;
+        var cy = height / 2f + layer.PositionY;
+
+        var sx = dstW / gb.Width;
+        var sy = dstH / gb.Height;
+
+        // Transform the glyph path into device-pixel space:
+        // translate(-tightCenter) -> scale -> rotate -> translate(cx,cy).
+        var m = SKMatrix.CreateTranslation(cx, cy);
+        m = SKMatrix.Concat(m, SKMatrix.CreateRotationDegrees((float)layer.Rotation));
+        m = SKMatrix.Concat(m, SKMatrix.CreateScale(sx, sy));
+        m = SKMatrix.Concat(m, SKMatrix.CreateTranslation(-gb.MidX, -gb.MidY));
+        path.Transform(m);
+
+        // 1) Drop shadow.
+        if (layer.Shadow)
+        {
+            using var shadowPaint = new SKPaint
+            {
+                Color = layer.ShadowColor.ToSKColor(),
+                Style = SKPaintStyle.Fill,
+                IsAntialias = true
+            };
+            if (layer.ShadowBlur > 0)
+                shadowPaint.MaskFilter = SKMaskFilter.CreateBlur(
+                    SKBlurStyle.Normal, (float)layer.ShadowBlur);
+
+            var saved = canvas.Save();
+            canvas.Translate(layer.ShadowOffsetX, layer.ShadowOffsetY);
+            canvas.DrawPath(path, shadowPaint);
+            canvas.RestoreToCount(saved);
+        }
+
+        // 2) Outline.
+        if (layer.Outlined && layer.OutlineWidth > 0)
+        {
+            using var outlinePaint = new SKPaint
+            {
+                Color = layer.OutlineColor.ToSKColor(),
+                Style = SKPaintStyle.Stroke,
+                StrokeWidth = (float)layer.OutlineWidth,
+                StrokeJoin = SKStrokeJoin.Round,
+                StrokeCap = SKStrokeCap.Round,
+                IsAntialias = true
+            };
+            canvas.DrawPath(path, outlinePaint);
+        }
+
+        // 3) Fill (solid tint or linear gradient).
+        using var fillPaint = new SKPaint
+        {
+            Style = SKPaintStyle.Fill,
+            IsAntialias = true
+        };
+
+        SKShader gradientShader = null;
+        if (layer.UseGradient)
+        {
+            var db = path.Bounds;
+            var rad = layer.GradientAngle * Math.PI / 180.0;
+            var dx = (float)Math.Cos(rad);
+            var dy = (float)Math.Sin(rad);
+            var half = 0.5f * (Math.Abs(dx) * db.Width + Math.Abs(dy) * db.Height);
+            if (half > 0)
+            {
+                var center = new SKPoint(db.MidX, db.MidY);
+                var p0 = new SKPoint(center.X - dx * half, center.Y - dy * half);
+                var p1 = new SKPoint(center.X + dx * half, center.Y + dy * half);
+                gradientShader = SKShader.CreateLinearGradient(
+                    p0, p1,
+                    new[] { layer.GradientStartColor.ToSKColor(), layer.GradientEndColor.ToSKColor() },
+                    null,
+                    SKShaderTileMode.Clamp);
+            }
+        }
+
+        if (gradientShader != null)
+            fillPaint.Shader = gradientShader;
+        else
+            fillPaint.Color = (layer.UseGradient ? layer.GradientStartColor : layer.Tint).ToSKColor();
+
+        canvas.DrawPath(path, fillPaint);
+        gradientShader?.Dispose();
+    }
+
     private static void DrawSymbolPlaceholder(SKCanvas canvas, SymbolLayer layer, int width, int height)
     {
-        // Stub renderer: a dashed box with the symbol id (if any) until the
-        // symbol library is wired up.
+        // Fallback renderer: a dashed box, drawn when the symbol id is unknown
+        // or the icon font could not be loaded.
         using var paint = new SKPaint
         {
             Color = layer.Tint.ToSKColor(),
@@ -511,7 +660,7 @@ public static class BitmapHelper
             PathEffect = SKPathEffect.CreateDash(new float[] { 4, 4 }, 0)
         };
 
-        var size = Math.Min(width, height) * 0.6f * (float)Math.Max(0.1, layer.Scale);
+        var size = Math.Min(width, height) * (float)Math.Max(0.05, layer.EffectiveScaleX);
         var cx = width / 2f + layer.PositionX;
         var cy = height / 2f + layer.PositionY;
         var rect = new SKRect(cx - size / 2f, cy - size / 2f, cx + size / 2f, cy + size / 2f);
