@@ -37,6 +37,7 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
     private readonly ICommandBuilder _commandBuilder;
     private readonly IArgusMonitorService _argusMonitor;
     private readonly IAssetService _assetService;
+    private readonly IDialogService _dialogService;
     private readonly LoupedeckConfig _config;
 
     public const int EditorCanvasSize = 600;
@@ -49,6 +50,7 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
 
     public ICommand AddImageLayerCommand { get; }
     public ICommand AddTextLayerCommand { get; }
+    public ICommand AddSymbolLayerCommand { get; }
     public ICommand RemoveLayerCommand { get; }
     public ICommand MoveLayerUpCommand { get; }
     public ICommand MoveLayerDownCommand { get; }
@@ -170,6 +172,7 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
         ICommandBuilder commandBuilder,
         IArgusMonitorService argusMonitor,
         IAssetService assetService,
+        IDialogService dialogService,
         LoupedeckConfig config)
     {
         _obs = obs;
@@ -179,10 +182,12 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
         _commandBuilder = commandBuilder;
         _argusMonitor = argusMonitor;
         _assetService = assetService;
+        _dialogService = dialogService;
         _config = config;
 
         AddImageLayerCommand = new AsyncRelayCommand(AddImageLayer);
         AddTextLayerCommand = new RelayCommand(AddTextLayer);
+        AddSymbolLayerCommand = new AsyncRelayCommand(AddSymbolLayer);
         RemoveLayerCommand = new RelayCommand(RemoveSelectedLayer);
         MoveLayerUpCommand = new RelayCommand(MoveSelectedLayerUp);
         MoveLayerDownCommand = new RelayCommand(MoveSelectedLayerDown);
@@ -459,6 +464,46 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
         };
         ButtonData.Layers.Add(layer);
         SelectedLayer = layer;
+    }
+
+    private async Task AddSymbolLayer()
+    {
+        if (ButtonData == null) return;
+
+        var request = new SymbolPickerRequest();
+        var result = await _dialogService.ShowDialogAsync<SymbolPickerViewModel, DialogResult>(
+            vm => vm.Initialize(request));
+
+        if (result is not { IsConfirmed: true } || request.SelectedSymbol == null) return;
+
+        var def = request.SelectedSymbol;
+        var layer = new SymbolLayer
+        {
+            Name = def.DisplayName,
+            SymbolId = def.Id,
+            Scale = 0.7
+        };
+        ButtonData.Layers.Add(layer);
+        SelectedLayer = layer;
+    }
+
+    /// <summary>
+    /// Re-opens the symbol picker for the currently selected <see cref="SymbolLayer"/>
+    /// and applies the new symbol. Invoked from the properties panel.
+    /// </summary>
+    public async Task ChangeSelectedSymbolAsync()
+    {
+        if (_selectedLayer is not SymbolLayer symbol) return;
+
+        var request = new SymbolPickerRequest { CurrentSymbolId = symbol.SymbolId };
+        var result = await _dialogService.ShowDialogAsync<SymbolPickerViewModel, DialogResult>(
+            vm => vm.Initialize(request));
+
+        if (result is not { IsConfirmed: true } || request.SelectedSymbol == null) return;
+
+        var def = request.SelectedSymbol;
+        symbol.SymbolId = def.Id;
+        symbol.Name = def.DisplayName;
     }
 
     private void RemoveSelectedLayer()

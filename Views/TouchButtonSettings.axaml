@@ -53,9 +53,7 @@
 
                         <Button Content="+ Image"  Command="{Binding AddImageLayerCommand}" />
                         <Button Content="+ Text"   Command="{Binding AddTextLayerCommand}"  />
-                        <Button Content="+ Symbol"
-                                IsEnabled="False"
-                                ToolTip.Tip="Symbol-Library coming soon" />
+                        <Button Content="+ Symbol" Command="{Binding AddSymbolLayerCommand}" />
 
                         <Button Content="▲ Up"     Command="{Binding MoveLayerUpCommand}"   />
                         <Button Content="▼ Down"   Command="{Binding MoveLayerDownCommand}" />
@@ -176,17 +174,17 @@
                                                                HorizontalAlignment="Right" />
                                                 </Grid>
 
-                                                <TextBlock Text="Scale" />
-                                                <Grid ColumnDefinitions="*,50">
-                                                    <Slider Grid.Column="0"
-                                                            Minimum="0.05" Maximum="5"
-                                                            Value="{Binding Scale, Mode=TwoWay}"
-                                                            TickFrequency="0.05" />
-                                                    <TextBlock Grid.Column="1"
-                                                               Text="{Binding Scale, StringFormat={}{0:0.00}}"
-                                                               VerticalAlignment="Center"
-                                                               HorizontalAlignment="Right" />
-                                                </Grid>
+                                                <TextBlock Text="Width (px)" />
+                                                <NumericUpDown Value="{Binding DisplayWidth, Mode=TwoWay}"
+                                                               Minimum="1" Maximum="4000"
+                                                               Increment="1" FormatString="0"
+                                                               Margin="0,0,0,6" />
+
+                                                <TextBlock Text="Height (px)" />
+                                                <NumericUpDown Value="{Binding DisplayHeight, Mode=TwoWay}"
+                                                               Minimum="1" Maximum="4000"
+                                                               Increment="1" FormatString="0"
+                                                               Margin="0,0,0,6" />
 
                                                 <TextBlock Text="Crop (Source-Rect)"
                                                            FontWeight="Bold" Margin="0,10,0,4"
@@ -304,16 +302,170 @@
                                             </StackPanel>
                                         </DataTemplate>
 
-                                        <!-- Symbol layer (stub) -->
+                                        <!-- Symbol layer -->
                                         <DataTemplate DataType="layers:SymbolLayer">
                                             <StackPanel>
-                                                <TextBlock Text="Symbol Layer (stub)" FontWeight="Bold" Margin="0,0,0,6" />
+                                                <TextBlock Text="Symbol Layer" FontWeight="Bold" Margin="0,0,0,6" />
+
                                                 <TextBlock Text="Name" />
                                                 <TextBox Text="{Binding Name, Mode=TwoWay}" Margin="0,0,0,6" />
-                                                <TextBlock Text="Symbol Id" />
-                                                <TextBox Text="{Binding SymbolId, Mode=TwoWay}" Margin="0,0,0,6"
-                                                         IsEnabled="False"
-                                                         ToolTip.Tip="Will be set by the symbol picker once available." />
+
+                                                <TextBlock Text="Symbol" />
+                                                <Grid ColumnDefinitions="Auto,*" Margin="0,0,0,6">
+                                                    <Border Grid.Column="0"
+                                                            Width="48" Height="48"
+                                                            BorderThickness="1" BorderBrush="#444"
+                                                            Background="#161616"
+                                                            Margin="0,0,8,0">
+                                                        <TextBlock Text="{Binding Glyph}"
+                                                                   FontFamily="{StaticResource MdiFont}"
+                                                                   FontSize="28"
+                                                                   HorizontalAlignment="Center"
+                                                                   VerticalAlignment="Center" />
+                                                    </Border>
+                                                    <Button Grid.Column="1"
+                                                            Content="Change Symbol…"
+                                                            VerticalAlignment="Center"
+                                                            HorizontalAlignment="Stretch"
+                                                            Click="ChangeSymbol_Click" />
+                                                </Grid>
+
+                                                <StackPanel Orientation="Horizontal" Margin="0,4,0,4">
+                                                    <TextBlock Text="Tint:" Width="60" VerticalAlignment="Center" />
+                                                    <ccp:ColorPicker Color="{Binding Tint, Mode=TwoWay}" Width="80" />
+                                                </StackPanel>
+
+                                                <Separator Margin="0,6,0,6" />
+                                                <TextBlock Text="Style" FontWeight="Bold" Margin="0,0,0,4" />
+
+                                                <!-- Gradient fill -->
+                                                <CheckBox Content="Gradient fill"
+                                                          IsChecked="{Binding UseGradient, Mode=TwoWay}" />
+                                                <StackPanel IsVisible="{Binding UseGradient}" Margin="16,2,0,4">
+                                                    <StackPanel Orientation="Horizontal" Margin="0,2,0,2">
+                                                        <TextBlock Text="From:" Width="50" VerticalAlignment="Center" />
+                                                        <ccp:ColorPicker Color="{Binding GradientStartColor, Mode=TwoWay}" Width="80" />
+                                                    </StackPanel>
+                                                    <StackPanel Orientation="Horizontal" Margin="0,2,0,2">
+                                                        <TextBlock Text="To:" Width="50" VerticalAlignment="Center" />
+                                                        <ccp:ColorPicker Color="{Binding GradientEndColor, Mode=TwoWay}" Width="80" />
+                                                    </StackPanel>
+                                                    <TextBlock Text="Angle" />
+                                                    <Grid ColumnDefinitions="*,50">
+                                                        <Slider Grid.Column="0"
+                                                                Minimum="0" Maximum="360"
+                                                                Value="{Binding GradientAngle, Mode=TwoWay}"
+                                                                IsSnapToTickEnabled="True" TickFrequency="1" />
+                                                        <TextBlock Grid.Column="1"
+                                                                   Text="{Binding GradientAngle, StringFormat={}{0:0}°}"
+                                                                   VerticalAlignment="Center"
+                                                                   HorizontalAlignment="Right" />
+                                                    </Grid>
+                                                </StackPanel>
+
+                                                <!-- Outline -->
+                                                <CheckBox Content="Outline"
+                                                          IsChecked="{Binding Outlined, Mode=TwoWay}"
+                                                          Margin="0,2,0,0" />
+                                                <StackPanel IsVisible="{Binding Outlined}" Margin="16,2,0,4">
+                                                    <StackPanel Orientation="Horizontal" Margin="0,2,0,2">
+                                                        <TextBlock Text="Color:" Width="50" VerticalAlignment="Center" />
+                                                        <ccp:ColorPicker Color="{Binding OutlineColor, Mode=TwoWay}" Width="80" />
+                                                    </StackPanel>
+                                                    <TextBlock Text="Width" />
+                                                    <Grid ColumnDefinitions="*,50">
+                                                        <Slider Grid.Column="0"
+                                                                Minimum="0.5" Maximum="20"
+                                                                Value="{Binding OutlineWidth, Mode=TwoWay}"
+                                                                TickFrequency="0.5" />
+                                                        <TextBlock Grid.Column="1"
+                                                                   Text="{Binding OutlineWidth, StringFormat={}{0:0.0}}"
+                                                                   VerticalAlignment="Center"
+                                                                   HorizontalAlignment="Right" />
+                                                    </Grid>
+                                                </StackPanel>
+
+                                                <!-- Drop shadow -->
+                                                <CheckBox Content="Shadow"
+                                                          IsChecked="{Binding Shadow, Mode=TwoWay}"
+                                                          Margin="0,2,0,0" />
+                                                <StackPanel IsVisible="{Binding Shadow}" Margin="16,2,0,4">
+                                                    <StackPanel Orientation="Horizontal" Margin="0,2,0,2">
+                                                        <TextBlock Text="Color:" Width="50" VerticalAlignment="Center" />
+                                                        <ccp:ColorPicker Color="{Binding ShadowColor, Mode=TwoWay}" Width="80" />
+                                                    </StackPanel>
+                                                    <TextBlock Text="Blur" />
+                                                    <Grid ColumnDefinitions="*,50">
+                                                        <Slider Grid.Column="0"
+                                                                Minimum="0" Maximum="20"
+                                                                Value="{Binding ShadowBlur, Mode=TwoWay}"
+                                                                TickFrequency="0.5" />
+                                                        <TextBlock Grid.Column="1"
+                                                                   Text="{Binding ShadowBlur, StringFormat={}{0:0.0}}"
+                                                                   VerticalAlignment="Center"
+                                                                   HorizontalAlignment="Right" />
+                                                    </Grid>
+                                                    <TextBlock Text="Offset X" />
+                                                    <Grid ColumnDefinitions="*,50">
+                                                        <Slider Grid.Column="0"
+                                                                Minimum="-20" Maximum="20"
+                                                                Value="{Binding ShadowOffsetX, Mode=TwoWay}"
+                                                                IsSnapToTickEnabled="True" TickFrequency="1" />
+                                                        <TextBlock Grid.Column="1"
+                                                                   Text="{Binding ShadowOffsetX}"
+                                                                   VerticalAlignment="Center"
+                                                                   HorizontalAlignment="Right" />
+                                                    </Grid>
+                                                    <TextBlock Text="Offset Y" />
+                                                    <Grid ColumnDefinitions="*,50">
+                                                        <Slider Grid.Column="0"
+                                                                Minimum="-20" Maximum="20"
+                                                                Value="{Binding ShadowOffsetY, Mode=TwoWay}"
+                                                                IsSnapToTickEnabled="True" TickFrequency="1" />
+                                                        <TextBlock Grid.Column="1"
+                                                                   Text="{Binding ShadowOffsetY}"
+                                                                   VerticalAlignment="Center"
+                                                                   HorizontalAlignment="Right" />
+                                                    </Grid>
+                                                </StackPanel>
+
+                                                <Separator Margin="0,6,0,6" />
+
+                                                <TextBlock Text="Position X" />
+                                                <Grid ColumnDefinitions="*,50">
+                                                    <Slider Grid.Column="0"
+                                                            Minimum="-200" Maximum="200"
+                                                            Value="{Binding PositionX, Mode=TwoWay}"
+                                                            IsSnapToTickEnabled="True" TickFrequency="1" />
+                                                    <TextBlock Grid.Column="1"
+                                                               Text="{Binding PositionX}"
+                                                               VerticalAlignment="Center"
+                                                               HorizontalAlignment="Right" />
+                                                </Grid>
+
+                                                <TextBlock Text="Position Y" />
+                                                <Grid ColumnDefinitions="*,50">
+                                                    <Slider Grid.Column="0"
+                                                            Minimum="-200" Maximum="200"
+                                                            Value="{Binding PositionY, Mode=TwoWay}"
+                                                            IsSnapToTickEnabled="True" TickFrequency="1" />
+                                                    <TextBlock Grid.Column="1"
+                                                               Text="{Binding PositionY}"
+                                                               VerticalAlignment="Center"
+                                                               HorizontalAlignment="Right" />
+                                                </Grid>
+
+                                                <TextBlock Text="Width (px)" />
+                                                <NumericUpDown Value="{Binding DisplayWidth, Mode=TwoWay}"
+                                                               Minimum="1" Maximum="4000"
+                                                               Increment="1" FormatString="0"
+                                                               Margin="0,0,0,6" />
+
+                                                <TextBlock Text="Height (px)" />
+                                                <NumericUpDown Value="{Binding DisplayHeight, Mode=TwoWay}"
+                                                               Minimum="1" Maximum="4000"
+                                                               Increment="1" FormatString="0"
+                                                               Margin="0,0,0,6" />
                                             </StackPanel>
                                         </DataTemplate>
                                     </ContentControl.DataTemplates>
