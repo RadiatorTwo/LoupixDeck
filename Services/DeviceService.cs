@@ -7,6 +7,7 @@ public interface IDeviceService
 {
     LoupedeckLiveSDevice Device { get; }
     void StartDevice(string devicePort, int deviceBaudrate);
+    void ReconnectDevice();
     Task ShowTemporaryTextButton(int index, string text, int displayDurationMilliseconds);
 }
 
@@ -54,6 +55,16 @@ public class LoupedeckDeviceService : IDeviceService
         };
         deviceThread.Start();
         _deviceCreatedEvent.WaitOne();
+    }
+
+    /// <summary>
+    /// Reconnects the *existing* Device instance so that all event subscribers
+    /// (LoupedeckLiveSController.OnButton/OnTouch/OnRotate) stay valid.
+    /// Replacing the Device reference here would silently break those.
+    /// </summary>
+    public void ReconnectDevice()
+    {
+        Device?.Reconnect();
     }
 
     private int _currentCallId;

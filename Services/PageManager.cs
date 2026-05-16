@@ -124,7 +124,10 @@ public class PageManager : IPageManager
 
         if (!init)
         {
-            await _deviceService.ShowTemporaryTextButton(0, CurrentTouchButtonPage.PageName, 2000);
+            // Fire-and-forget: the 2s on-device overlay must not block callers
+            // (e.g. AddTouchButtonPage), which would otherwise leave the
+            // triggering UI command disabled for the full duration.
+            _ = _deviceService.ShowTemporaryTextButton(0, CurrentTouchButtonPage.PageName, 2000);
         }
     }
 
@@ -174,9 +177,15 @@ public class PageManager : IPageManager
 
     public async Task AddTouchButtonPage(bool init = false)
     {
+        var previous = TouchButtonPages.Count > 0
+            ? TouchButtonPages[TouchButtonPages.Count - 1]
+            : null;
+
         var newPage = new TouchButtonPage(15)
         {
-            Page = TouchButtonPages.Count + 1
+            Page = TouchButtonPages.Count + 1,
+            Wallpaper = previous?.Wallpaper,
+            WallpaperOpacity = previous?.WallpaperOpacity ?? 0
         };
 
         for (int i = 0; i < 15; i++)

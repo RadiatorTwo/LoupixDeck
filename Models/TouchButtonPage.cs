@@ -34,6 +34,7 @@ public class TouchButtonPage : INotifyPropertyChanged
             if (_page == value) return;
             _page = value;
             OnPropertyChanged();
+            OnPropertyChanged(nameof(PageName));
         }
     }
 

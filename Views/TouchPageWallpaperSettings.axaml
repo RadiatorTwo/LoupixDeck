@@ -1,0 +1,85 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="using:LoupixDeck.ViewModels"
+        x:Class="LoupixDeck.Views.TouchPageWallpaperSettings"
+        x:DataType="vm:TouchPageWallpaperSettingsViewModel"
+        mc:Ignorable="d"
+        Title="Edit Wallpaper"
+        Width="520"
+        Height="560"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False">
+    <Window.Styles>
+        <StyleInclude Source="avares://LoupixDeck/Views/Styles/SettingsStyles.axaml" />
+    </Window.Styles>
+
+    <Grid Margin="16" RowDefinitions="Auto,*,Auto" RowSpacing="12">
+
+        <TextBlock Grid.Row="0"
+                   Classes="card-title"
+                   Margin="0"
+                   Text="{Binding PageName}" />
+
+        <Border Grid.Row="1"
+                Background="#262626"
+                BorderBrush="#3A3A3A"
+                BorderThickness="1"
+                CornerRadius="8"
+                Padding="16">
+            <StackPanel Spacing="10">
+
+                <StackPanel Orientation="Horizontal" Spacing="12">
+                    <Border BorderBrush="#444" BorderThickness="1" CornerRadius="3">
+                        <Image Width="280" Height="158"
+                               Source="{Binding Wallpaper, Converter={StaticResource SkiaToBitmapConverter}}" />
+                    </Border>
+                    <StackPanel Spacing="6" VerticalAlignment="Center">
+                        <Button Content="Select…" Command="{Binding SelectImageCommand}" Width="110" />
+                        <Button Content="Remove"  Command="{Binding RemoveWallpaperCommand}" Width="110" />
+                    </StackPanel>
+                </StackPanel>
+
+                <Grid ColumnDefinitions="80,*,40" RowDefinitions="Auto,Auto,Auto,Auto,Auto" RowSpacing="6">
+
+                    <TextBlock Grid.Row="0" Grid.Column="0" Classes="label" Text="Opacity"    VerticalAlignment="Center" />
+                    <Slider    Grid.Row="0" Grid.Column="1" Minimum="0"  Maximum="1"
+                               TickFrequency="0.1" IsSnapToTickEnabled="True"
+                               Value="{Binding WallpaperOpacity, Mode=TwoWay}" />
+
+                    <TextBlock Grid.Row="1" Grid.Column="0" Classes="label" Text="Scaling"    VerticalAlignment="Center" />
+                    <ComboBox  Grid.Row="1" Grid.Column="1" HorizontalAlignment="Stretch"
+                               ItemsSource="{Binding WallpaperScalingOptions}"
+                               SelectedItem="{Binding SelectedWallpaperScalingOption, Mode=TwoWay}" />
+
+                    <TextBlock Grid.Row="2" Grid.Column="0" Classes="label" Text="Scale"      VerticalAlignment="Center" />
+                    <Slider    Grid.Row="2" Grid.Column="1" Minimum="1"  Maximum="400"
+                               TickFrequency="1" IsSnapToTickEnabled="True"
+                               Value="{Binding WallpaperScaling, Mode=TwoWay}" />
+                    <TextBlock Grid.Row="2" Grid.Column="2" Classes="value" Text="{Binding WallpaperScaling}"
+                               VerticalAlignment="Center" HorizontalAlignment="Right" />
+
+                    <TextBlock Grid.Row="3" Grid.Column="0" Classes="label" Text="Position X" VerticalAlignment="Center" />
+                    <Slider    Grid.Row="3" Grid.Column="1" Minimum="-480" Maximum="480"
+                               TickFrequency="1" IsSnapToTickEnabled="True"
+                               Value="{Binding WallpaperPositionX, Mode=TwoWay}" />
+                    <TextBlock Grid.Row="3" Grid.Column="2" Classes="value" Text="{Binding WallpaperPositionX}"
+                               VerticalAlignment="Center" HorizontalAlignment="Right" />
+
+                    <TextBlock Grid.Row="4" Grid.Column="0" Classes="label" Text="Position Y" VerticalAlignment="Center" />
+                    <Slider    Grid.Row="4" Grid.Column="1" Minimum="-270" Maximum="270"
+                               TickFrequency="1" IsSnapToTickEnabled="True"
+                               Value="{Binding WallpaperPositionY, Mode=TwoWay}" />
+                    <TextBlock Grid.Row="4" Grid.Column="2" Classes="value" Text="{Binding WallpaperPositionY}"
+                               VerticalAlignment="Center" HorizontalAlignment="Right" />
+                </Grid>
+            </StackPanel>
+        </Border>
+
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+            <Button Content="Cancel" Width="100" Command="{Binding CancelCommand}" />
+            <Button Content="OK"     Width="100" IsDefault="True" Command="{Binding ConfirmCommand}" />
+        </StackPanel>
+    </Grid>
+</Window>

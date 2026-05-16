@@ -26,6 +26,8 @@ public class LoupedeckDevice
         CancellationTokenSource TimeoutCts);
 
     private readonly Channel<QueueItem> _sendChannel = Channel.CreateUnbounded<QueueItem>();
+    private bool _queueWorkerStarted;
+    private volatile bool _suppressAutoReconnect;
 
     private readonly Dictionary<byte, TaskCompletionSource<byte[]>> _pendingTransactions = new();
     private readonly Dictionary<byte, CancellationTokenSource> _pendingTimeouts = new();
@@ -120,6 +122,7 @@ public class LoupedeckDevice
         _connection.Disconnected += (_, e) =>
         {
             OnDisconnect?.Invoke(this, e);
+            if (_suppressAutoReconnect) return;
             Thread.Sleep(ReconnectInterval);
             ConnectBlind();
         };
@@ -135,6 +138,11 @@ public class LoupedeckDevice
     /// </summary>
     private void StartQueueWorker()
     {
+        // Reconnect() reuses the same send channel, so we must not spin up a
+        // second worker each time Connect() runs.
+        if (_queueWorkerStarted) return;
+        _queueWorkerStarted = true;
+
         _ = Task.Run(async () =>
         {
             await foreach (var item in _sendChannel.Reader.ReadAllAsync())
@@ -176,8 +184,67 @@ public class LoupedeckDevice
     /// </summary>
     public void Close()
     {
+        _suppressAutoReconnect = true;
         _sendChannel.Writer.TryComplete();
         _connection?.Close();
+    }
+
+    /// <summary>
+    /// Tears down the current serial connection and re-establishes it on the
+    /// same Device instance, so external event subscribers (OnButton, OnTouch,
+    /// OnRotate, …) remain wired up. The auto-reconnect handler is suppressed
+    /// while we close, and the port is briefly opened by a probe before the
+    /// real connect — that DTR pulse is what gets the device into a workable
+    /// state on the very first connection (mirrors InitSetup.TestConnection).
+    /// </summary>
+    public void Reconnect()
+    {
+        _suppressAutoReconnect = true;
+        try
+        {
+            _connection?.Close();
+        }
+        catch
+        {
+            // ignored — best-effort tear-down
+        }
+        _connection = null;
+
+        // Give the OS time to release the COM port; without this, the next
+        // SerialPort.Open() throws UnauthorizedAccessException on Windows.
+        Thread.Sleep(500);
+
+        try
+        {
+            ProbeWake();
+        }
+        catch
+        {
+            // ignored — Connect() will surface the real error
+        }
+
+        _suppressAutoReconnect = false;
+        ConnectBlind();
+    }
+
+    /// <summary>
+    /// Opens and immediately closes the serial port to pulse DTR/RTS and put
+    /// the device into a state where the handshake can succeed.
+    /// </summary>
+    private void ProbeWake()
+    {
+        if (string.IsNullOrEmpty(Path)) return;
+
+        using var probe = new System.IO.Ports.SerialPort(Path, Baudrate)
+        {
+            ReadTimeout = 500,
+            WriteTimeout = 500
+        };
+        probe.Open();
+        Thread.Sleep(150);
+        probe.Close();
+        // Let the device finish its USB-CDC re-enumeration before the real open.
+        Thread.Sleep(300);
     }
 
     /// <summary>
