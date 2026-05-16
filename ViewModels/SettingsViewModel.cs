@@ -218,7 +218,7 @@ public class SettingsViewModel : DialogViewModelBase<DialogResult>
     {
         await Task.Run(() =>
         {
-            try { _deviceService?.StartDevice(Config.DevicePort, Config.DeviceBaudrate); }
+            try { _deviceService?.ReconnectDevice(); }
             catch { /* ignored */ }
         });
         await Task.Delay(500);
@@ -259,13 +259,45 @@ public class SettingsViewModel : DialogViewModelBase<DialogResult>
         _pageManager.DeleteRotaryButtonPage();
     }
 
-    private static void MovePage<T>(ObservableCollection<T> coll, T page, int delta)
+    private void MovePage<T>(ObservableCollection<T> coll, T page, int delta)
     {
         if (page == null) return;
         var idx = coll.IndexOf(page);
         var target = idx + delta;
         if (idx < 0 || target < 0 || target >= coll.Count) return;
         coll.Move(idx, target);
+
+        // Renumber pages so PageName reflects the new order.
+        var counter = 0;
+        foreach (var item in coll)
+        {
+            counter++;
+            switch (item)
+            {
+                case TouchButtonPage tp: tp.Page = counter; break;
+                case RotaryButtonPage rp: rp.Page = counter; break;
+            }
+        }
+
+        // Keep the current-page index pointing at the same page after the move.
+        if (typeof(T) == typeof(TouchButtonPage))
+        {
+            _pageManager.CurrentTouchPageIndex = AdjustCurrentIndex(
+                _pageManager.CurrentTouchPageIndex, idx, target);
+        }
+        else if (typeof(T) == typeof(RotaryButtonPage))
+        {
+            _pageManager.CurrentRotaryPageIndex = AdjustCurrentIndex(
+                _pageManager.CurrentRotaryPageIndex, idx, target);
+        }
+    }
+
+    private static int AdjustCurrentIndex(int current, int from, int to)
+    {
+        if (current == from) return to;
+        if (from < current && to >= current) return current - 1;
+        if (from > current && to <= current) return current + 1;
+        return current;
     }
 
     private void RefreshTouchPageCommands()

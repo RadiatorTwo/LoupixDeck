@@ -124,7 +124,10 @@ public class PageManager : IPageManager
 
         if (!init)
         {
-            await _deviceService.ShowTemporaryTextButton(0, CurrentTouchButtonPage.PageName, 2000);
+            // Fire-and-forget: the 2s on-device overlay must not block callers
+            // (e.g. AddTouchButtonPage), which would otherwise leave the
+            // triggering UI command disabled for the full duration.
+            _ = _deviceService.ShowTemporaryTextButton(0, CurrentTouchButtonPage.PageName, 2000);
         }
     }
 
