@@ -4,5 +4,6 @@ public enum SettingsView
 {
     General,
     Obs,
-    Wallpaper
+    Wallpaper,
+    Haptic
 }

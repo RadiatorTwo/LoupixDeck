@@ -55,6 +55,8 @@ public static class Constants
         SET_BRIGHTNESS = 0x09,
         FRAMEBUFF = 0x10,
         SET_VIBRATION = 0x1b,
+        SET_HAPTIC_STRENGTH = 0x19,
+        SET_HAPTIC = 0x2e,
         MCU = 0x0d,
         DRAW = 0x0f,
         TOUCH = 0x4d,

@@ -106,6 +106,24 @@ public class LoupedeckConfig : INotifyPropertyChanged
         }
     }
 
+    private bool _hapticEnabled;
+    public bool HapticEnabled
+    {
+        get => _hapticEnabled;
+        set
+        {
+            if (_hapticEnabled == value) return;
+            _hapticEnabled = value;
+            OnPropertyChanged();
+        }
+    }
+
+    // ObjectCreationHandling.Replace: Newtonsoft otherwise reuses the default
+    // collection and appends deserialized items to it — so each save+load round
+    // would duplicate every step.
+    [Newtonsoft.Json.JsonProperty(ObjectCreationHandling = Newtonsoft.Json.ObjectCreationHandling.Replace)]
+    public ObservableCollection<HapticStep> HapticSteps { get; set; } = [new HapticStep()];
+
     private double _wallpaperOpacity;
 
     public double WallpaperOpacity

@@ -71,6 +71,8 @@ public static class ServiceCollectionExtensions
             collection.AddSingleton<IWindowsAudioService, NoOpAudioService>();
         }
 
+        collection.AddSingleton<INativeHapticService, NativeHapticService>();
+
         collection.AddSingleton<LoupedeckLiveSController>();
 
         collection.AddTransient<MainWindowViewModel>();
@@ -115,6 +117,18 @@ public static class ServiceCollectionExtensions
         // Let the (static) bitmap renderer resolve image-layer assets via DI.
         var assetService = services.GetRequiredService<IAssetService>();
         BitmapHelper.AssetResolver = assetService.Load;
+
+        // Heal configs that were saved before HapticSteps had ObjectCreationHandling.Replace —
+        // those files accumulated duplicate steps on every save+load round.
+        var hapticConfig = services.GetRequiredService<LoupedeckConfig>();
+        while (hapticConfig.HapticSteps.Count > SettingsViewModel.MaxHapticSteps)
+            hapticConfig.HapticSteps.RemoveAt(hapticConfig.HapticSteps.Count - 1);
+        if (hapticConfig.HapticSteps.Count == 0)
+            hapticConfig.HapticSteps.Add(new HapticStep());
+
+        // Materialize the haptic service so it subscribes to config/page events,
+        // and push the persisted config to the device once it's connected.
+        services.GetRequiredService<INativeHapticService>().Apply();
 
         // After config load, rewire per-layer PropertyChanged handlers so edits
         // trigger TouchButton.Refresh(). The collection setter in TouchButton
