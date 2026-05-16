@@ -37,6 +37,34 @@ public class TouchButton : LoupedeckButton
         }
     }
 
+    private bool _vibrationEnabled;
+
+    public bool VibrationEnabled
+    {
+        get => _vibrationEnabled;
+        set
+        {
+            if (value == _vibrationEnabled) return;
+            _vibrationEnabled = value;
+            OnPropertyChanged(nameof(VibrationEnabled));
+        }
+    }
+
+    private byte _vibrationPattern;
+
+    public byte VibrationPattern
+    {
+        get => _vibrationPattern == 0
+            ? LoupedeckDevice.Constants.VibrationPattern.ShortLower
+            : _vibrationPattern;
+        set
+        {
+            if (value == _vibrationPattern) return;
+            _vibrationPattern = value;
+            OnPropertyChanged(nameof(VibrationPattern));
+        }
+    }
+
     private System.Collections.ObjectModel.ObservableCollection<LayerBase> _layers;
 
     public System.Collections.ObjectModel.ObservableCollection<LayerBase> Layers

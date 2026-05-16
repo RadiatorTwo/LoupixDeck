@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.Windows.Input;
 using Avalonia.Media;
 using LoupixDeck.Models;
+using LoupixDeck.Models.Converter;
 using LoupixDeck.Services;
 using LoupixDeck.Utils;
 using LoupixDeck.ViewModels.Base;
@@ -19,6 +20,10 @@ public class SettingsViewModel : DialogViewModelBase<DialogResult>
     public ICommand SelectImageButtonCommand { get; }
     public ICommand RemoveWallpaperCommand { get; }
     public ICommand NavigateCommand { get; }
+    public ICommand AddHapticStepCommand { get; }
+    public ICommand RemoveHapticStepCommand { get; }
+
+    public ObservableCollection<VibrationPatternItem> VibrationPatterns => VibrationPatternCatalog.All;
 
     private SKBitmap _wallpaperBitmap = null;
 
@@ -159,6 +164,10 @@ public class SettingsViewModel : DialogViewModelBase<DialogResult>
         RemoveWallpaperCommand = new RelayCommand(RemoveWallpaper);
 
         NavigateCommand = new RelayCommand<SettingsView>(Navigate);
+        AddHapticStepCommand = new RelayCommand(AddHapticStep);
+        RemoveHapticStepCommand = new RelayCommand<HapticStep>(RemoveHapticStep);
+
+        Config.HapticSteps.CollectionChanged += OnHapticStepsChanged;
         CurrentView = SettingsView.General;
 
         ConnectionTestVisible = true;
@@ -250,5 +259,37 @@ public class SettingsViewModel : DialogViewModelBase<DialogResult>
     private void Navigate(SettingsView settingsPage)
     {
         CurrentView = settingsPage;
+    }
+
+    public const int MaxHapticSteps = 2;
+
+    private void OnHapticStepsChanged(object sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
+    {
+        OnPropertyChanged(nameof(FirstHapticStep));
+        OnPropertyChanged(nameof(SecondHapticStep));
+        OnPropertyChanged(nameof(HasSecondHapticStep));
+        OnPropertyChanged(nameof(CanAddHapticStep));
+    }
+
+    public HapticStep FirstHapticStep =>
+        Config.HapticSteps.Count > 0 ? Config.HapticSteps[0] : null;
+
+    public HapticStep SecondHapticStep =>
+        Config.HapticSteps.Count > 1 ? Config.HapticSteps[1] : null;
+
+    public bool HasSecondHapticStep => Config.HapticSteps.Count > 1;
+    public bool CanAddHapticStep => Config.HapticSteps.Count < MaxHapticSteps;
+
+    private void AddHapticStep()
+    {
+        if (Config.HapticSteps.Count >= MaxHapticSteps) return;
+        Config.HapticSteps.Add(new HapticStep());
+    }
+
+    private void RemoveHapticStep(HapticStep step)
+    {
+        if (Config.HapticSteps.Count <= 1) return;
+        // step parameter is unused — only one removable step at index 1
+        Config.HapticSteps.RemoveAt(Config.HapticSteps.Count - 1);
     }
 }
