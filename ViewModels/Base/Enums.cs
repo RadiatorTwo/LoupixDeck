@@ -3,7 +3,12 @@ namespace LoupixDeck.ViewModels.Base;
 public enum SettingsView
 {
     General,
+    Pages,
+    Haptic,
     Obs,
-    Wallpaper,
-    Haptic
+    Elgato,
+    CoolerControl,
+    Argus,
+    Theme,
+    About
 }

@@ -9,7 +9,12 @@ public sealed class RelayCommand<T>(Action<T> execute, Predicate<T> canExecute =
 
     public bool CanExecute(object parameter)
     {
-        return !_isExecuting && (canExecute == null || (parameter is T param && canExecute(param)));
+        if (_isExecuting) return false;
+        if (canExecute == null) return true;
+        // For reference types, allow null parameter to flow through the predicate;
+        // value-type T's still require a successful cast.
+        if (parameter is T param) return canExecute(param);
+        return parameter == null && default(T) == null && canExecute(default);
     }
 
     public void Execute(object parameter)
@@ -34,6 +39,8 @@ public sealed class RelayCommand<T>(Action<T> execute, Predicate<T> canExecute =
     }
 
     public event EventHandler CanExecuteChanged;
+
+    public void RaiseCanExecuteChanged() => OnCanExecuteChanged();
 
     private void OnCanExecuteChanged()
     {

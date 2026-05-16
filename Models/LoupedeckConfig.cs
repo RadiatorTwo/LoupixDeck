@@ -30,6 +30,10 @@ public class LoupedeckConfig : INotifyPropertyChanged
     public string DevicePort { get; set; }
     public int DeviceBaudrate { get; set; }
 
+    public int StartupTouchPageIndex { get; set; }
+    public string CoolerControlUrl { get; set; } = "http://localhost:11987";
+    public string ThemeVariant { get; set; } = "Dark";
+
     public SimpleButton[] SimpleButtons { get; set; }
 
     public ObservableCollection<RotaryButtonPage> RotaryButtonPages { get; set; } = [];

@@ -2,6 +2,8 @@ using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Data.Core.Plugins;
 using Avalonia.Markup.Xaml;
+using Avalonia.Styling;
+using LoupixDeck.Models;
 using LoupixDeck.Services;
 using LoupixDeck.Views;
 using LoupixDeck.ViewModels;
@@ -102,6 +104,15 @@ public partial class App : Application
         var services = collection.BuildServiceProvider();
 
         services.PostInit();
+
+        // Apply persisted theme variant before showing UI.
+        var cfg = services.GetRequiredService<LoupedeckConfig>();
+        RequestedThemeVariant = cfg.ThemeVariant switch
+        {
+            "Light" => ThemeVariant.Light,
+            "Dark" => ThemeVariant.Dark,
+            _ => ThemeVariant.Default
+        };
 
         var mainViewModel = services.GetRequiredService<MainWindowViewModel>();
 
