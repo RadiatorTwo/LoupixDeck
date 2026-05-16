@@ -6,228 +6,535 @@
         xmlns:bs="clr-namespace:LoupixDeck.ViewModels.Base"
         xmlns:cnv="clr-namespace:LoupixDeck.Models.Converter"
         xmlns:m="clr-namespace:LoupixDeck.Models"
+        xmlns:argus="clr-namespace:LoupixDeck.Models.Argus"
         x:Class="LoupixDeck.Views.Settings"
         x:DataType="vm:SettingsViewModel"
         x:Name="SettingsWindow"
         mc:Ignorable="d"
         Title="Settings"
-        Width="800"
-        Height="680">
+        Width="980"
+        Height="720">
 
     <Window.Resources>
         <cnv:EnumToBooleanConverter x:Key="EnumToBooleanConverter" />
         <cnv:ScalingOptionConverter x:Key="ScalingOptionConverter" />
     </Window.Resources>
 
-    <Grid ColumnDefinitions="200,*">
+    <Window.Styles>
+        <StyleInclude Source="avares://LoupixDeck/Views/Styles/SettingsStyles.axaml" />
+    </Window.Styles>
 
-        <!-- Linke Menü-Spalte -->
-        <StackPanel Grid.Column="0" Margin="5,10,5,0" Spacing="5">
-            <Button Content="General"
-                    Command="{Binding NavigateCommand}"
-                    CommandParameter="{x:Static bs:SettingsView.General}"
-                    HorizontalAlignment="Stretch" />
-            <Button Content="OBS Studio"
-                    Command="{Binding NavigateCommand}"
-                    CommandParameter="{x:Static bs:SettingsView.Obs}"
-                    HorizontalAlignment="Stretch" />
-            <Button Content="Wallpaper"
-                    Command="{Binding NavigateCommand}"
-                    CommandParameter="{x:Static bs:SettingsView.Wallpaper}"
-                    HorizontalAlignment="Stretch" />
-            <Button Content="Haptic"
-                    Command="{Binding NavigateCommand}"
-                    CommandParameter="{x:Static bs:SettingsView.Haptic}"
-                    HorizontalAlignment="Stretch" />
-        </StackPanel>
+    <Grid ColumnDefinitions="240,*">
 
-        <Grid Grid.Column="1" Margin="20 5 0 0">
-            <StackPanel
-                IsVisible="{Binding CurrentView, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=General}">
-                <TextBlock Text="General Settings" FontSize="24" FontWeight="Bold" />
+        <!-- ===== Sidebar ===== -->
+        <Border Grid.Column="0" Background="#1A1A1A" BorderBrush="#2A2A2A" BorderThickness="0,0,1,0">
+            <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+                <StackPanel Margin="8,12,8,12">
 
-                <TextBlock Text="Display Brightness:" Margin="0,10,0,0" />
-                <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,10,0,0">
-                    <Slider Minimum="0" Maximum="100" HorizontalAlignment="Left" TickFrequency="1"
-                            IsSnapToTickEnabled="True"
-                            Value="{Binding Config.Brightness, Mode=TwoWay}" Width="200" />
-                    <TextBlock Text="{Binding Config.Brightness}" VerticalAlignment="Center"></TextBlock>
+                    <TextBlock Classes="section-header" Text="DEVICE" />
+                    <Button Classes="nav" Classes.active="{Binding CurrentView, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=General}"
+                            Command="{Binding NavigateCommand}" CommandParameter="{x:Static bs:SettingsView.General}">
+                        <Grid ColumnDefinitions="6,Auto,*">
+                            <Border Grid.Column="0" Classes="nav-accent" />
+                            <TextBlock Grid.Column="1" Classes="nav-icon" Text="&#xF2FE;" Margin="6,0,0,0"/>
+                            <TextBlock Grid.Column="2" Classes="nav-label" Text="General" />
+                        </Grid>
+                    </Button>
+                    <Button Classes="nav" Classes.active="{Binding CurrentView, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Pages}"
+                            Command="{Binding NavigateCommand}" CommandParameter="{x:Static bs:SettingsView.Pages}">
+                        <Grid ColumnDefinitions="6,Auto,*">
+                            <Border Grid.Column="0" Classes="nav-accent" />
+                            <TextBlock Grid.Column="1" Classes="nav-icon" Text="&#xF24A;" Margin="6,0,0,0"/>
+                            <TextBlock Grid.Column="2" Classes="nav-label" Text="Pages" />
+                        </Grid>
+                    </Button>
+                    <Button Classes="nav" Classes.active="{Binding CurrentView, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Haptic}"
+                            Command="{Binding NavigateCommand}" CommandParameter="{x:Static bs:SettingsView.Haptic}">
+                        <Grid ColumnDefinitions="6,Auto,*">
+                            <Border Grid.Column="0" Classes="nav-accent" />
+                            <TextBlock Grid.Column="1" Classes="nav-icon" Text="&#xF566;" Margin="6,0,0,0"/>
+                            <TextBlock Grid.Column="2" Classes="nav-label" Text="Haptic" />
+                        </Grid>
+                    </Button>
+
+                    <TextBlock Classes="section-header" Text="INTEGRATIONS" />
+                    <Button Classes="nav" Classes.active="{Binding CurrentView, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Obs}"
+                            Command="{Binding NavigateCommand}" CommandParameter="{x:Static bs:SettingsView.Obs}">
+                        <Grid ColumnDefinitions="6,Auto,*">
+                            <Border Grid.Column="0" Classes="nav-accent" />
+                            <TextBlock Grid.Column="1" Classes="nav-icon" Text="&#xF567;" Margin="6,0,0,0"/>
+                            <TextBlock Grid.Column="2" Classes="nav-label" Text="OBS Studio" />
+                        </Grid>
+                    </Button>
+                    <Button Classes="nav" Classes.active="{Binding CurrentView, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Elgato}"
+                            Command="{Binding NavigateCommand}" CommandParameter="{x:Static bs:SettingsView.Elgato}">
+                        <Grid ColumnDefinitions="6,Auto,*">
+                            <Border Grid.Column="0" Classes="nav-accent" />
+                            <TextBlock Grid.Column="1" Classes="nav-icon" Text="&#xF0335;" Margin="6,0,0,0"/>
+                            <TextBlock Grid.Column="2" Classes="nav-label" Text="Elgato" />
+                        </Grid>
+                    </Button>
+                    <Button Classes="nav" Classes.active="{Binding CurrentView, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=CoolerControl}"
+                            Command="{Binding NavigateCommand}" CommandParameter="{x:Static bs:SettingsView.CoolerControl}">
+                        <Grid ColumnDefinitions="6,Auto,*">
+                            <Border Grid.Column="0" Classes="nav-accent" />
+                            <TextBlock Grid.Column="1" Classes="nav-icon" Text="&#xF45A;" Margin="6,0,0,0"/>
+                            <TextBlock Grid.Column="2" Classes="nav-label" Text="CoolerControl" />
+                        </Grid>
+                    </Button>
+                    <Button Classes="nav" Classes.active="{Binding CurrentView, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Argus}"
+                            Command="{Binding NavigateCommand}" CommandParameter="{x:Static bs:SettingsView.Argus}"
+                            IsVisible="{Binding IsWindows}">
+                        <Grid ColumnDefinitions="6,Auto,*">
+                            <Border Grid.Column="0" Classes="nav-accent" />
+                            <TextBlock Grid.Column="1" Classes="nav-icon" Text="&#xF12E;" Margin="6,0,0,0"/>
+                            <TextBlock Grid.Column="2" Classes="nav-label" Text="Argus Monitor" />
+                        </Grid>
+                    </Button>
+
+                    <TextBlock Classes="section-header" Text="APPEARANCE" />
+                    <Button Classes="nav" Classes.active="{Binding CurrentView, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Theme}"
+                            Command="{Binding NavigateCommand}" CommandParameter="{x:Static bs:SettingsView.Theme}">
+                        <Grid ColumnDefinitions="6,Auto,*">
+                            <Border Grid.Column="0" Classes="nav-accent" />
+                            <TextBlock Grid.Column="1" Classes="nav-icon" Text="&#xF50E;" Margin="6,0,0,0"/>
+                            <TextBlock Grid.Column="2" Classes="nav-label" Text="Theme" />
+                        </Grid>
+                    </Button>
+
+                    <TextBlock Classes="section-header" Text="APP" />
+                    <Button Classes="nav" Classes.active="{Binding CurrentView, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=About}"
+                            Command="{Binding NavigateCommand}" CommandParameter="{x:Static bs:SettingsView.About}">
+                        <Grid ColumnDefinitions="6,Auto,*">
+                            <Border Grid.Column="0" Classes="nav-accent" />
+                            <TextBlock Grid.Column="1" Classes="nav-icon" Text="&#xF02D;" Margin="6,0,0,0"/>
+                            <TextBlock Grid.Column="2" Classes="nav-label" Text="About" />
+                        </Grid>
+                    </Button>
+
                 </StackPanel>
-            </StackPanel>
+            </ScrollViewer>
+        </Border>
 
-            <StackPanel
-                IsVisible="{Binding CurrentView, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Obs}">
-                <TextBlock Text="OBS Settings" FontSize="24" FontWeight="Bold" />
+        <!-- ===== Right pane ===== -->
+        <ScrollViewer Grid.Column="1" Padding="24,16,4,16" HorizontalScrollBarVisibility="Disabled">
+            <Grid>
 
-                <StackPanel Orientation="Horizontal" Spacing="10">
-                    <TextBlock Text="IP:" Width="80" VerticalAlignment="Center" />
-                    <TextBox Width="200" Text="{Binding ObsConfig.Ip, Mode=TwoWay}" />
-                </StackPanel>
+                <!-- ====== General ====== -->
+                <StackPanel IsVisible="{Binding CurrentView, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=General}">
+                    <TextBlock Classes="page-title" Text="General" />
 
-                <StackPanel Orientation="Horizontal" Spacing="10">
-                    <TextBlock Text="Port:" Width="80" VerticalAlignment="Center" />
-                    <TextBox Width="200" Text="{Binding ObsConfig.Port, Mode=TwoWay}" />
-                </StackPanel>
+                    <!-- Device card -->
+                    <Border Classes="card">
+                        <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="*,Auto">
+                            <StackPanel Grid.Row="0" Grid.Column="0" Orientation="Horizontal" Spacing="10">
+                                <TextBlock FontFamily="{StaticResource MdiFont}" Text="&#xF2FE;" FontSize="24" VerticalAlignment="Center"/>
+                                <TextBlock Classes="card-title" Text="Loupedeck Live S" Margin="0,0,0,0" VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <Border Grid.Row="0" Grid.Column="1" Classes="pill"
+                                    Classes.ok="{Binding DeviceConnected}"
+                                    Classes.error="{Binding !DeviceConnected}">
+                                <TextBlock Text="{Binding DeviceStatusText}" />
+                            </Border>
 
-                <StackPanel Orientation="Horizontal" Spacing="10">
-                    <TextBlock Text="Password:" Width="80" VerticalAlignment="Center" />
-                    <TextBox Width="200" Text="{Binding ObsConfig.Password, Mode=TwoWay}" PasswordChar="*" />
-                </StackPanel>
+                            <Grid Grid.Row="1" Grid.ColumnSpan="2" ColumnDefinitions="140,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto" Margin="0,16,0,0">
+                                <TextBlock Grid.Row="0" Grid.Column="0" Classes="label" Text="Port" />
+                                <TextBlock Grid.Row="0" Grid.Column="1" Classes="value" Text="{Binding Config.DevicePort}" />
 
-                <StackPanel Orientation="Horizontal" Spacing="20" Margin="0 20 0 0">
-                    <Button Content="Save" Width="120" HorizontalContentAlignment="Center"
-                            Command="{Binding SaveObsCommand}" />
-                    <Button Content="Test Connection" Width="150" HorizontalContentAlignment="Center"
-                            Command="{Binding TestConnectionCommand}" />
-                    <TextBlock IsVisible="{Binding ConnectionTestVisible}" Text="{Binding ConnectionResult}"
-                               Foreground="{Binding TextColor}" />
-                </StackPanel>
-            </StackPanel>
+                                <TextBlock Grid.Row="1" Grid.Column="0" Classes="label" Text="Baudrate" Margin="0,8,0,0"/>
+                                <TextBlock Grid.Row="1" Grid.Column="1" Classes="value" Text="{Binding Config.DeviceBaudrate}" Margin="0,8,0,0"/>
 
-            <StackPanel x:Name="Wallpaper"
-                        IsVisible="{Binding CurrentView, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Wallpaper}">
-                <TextBlock Text="Wallpaper" FontSize="24" FontWeight="Bold" />
+                                <TextBlock Grid.Row="2" Grid.Column="0" Classes="label" Text="Firmware" Margin="0,8,0,0"/>
+                                <TextBlock Grid.Row="2" Grid.Column="1" Classes="value" Text="{Binding DeviceVersion}" Margin="0,8,0,0"/>
 
-                <!-- Page Selection -->
-                <TextBlock Text="Select Page:" Margin="0,10,0,0" />
-                <ComboBox Width="200" HorizontalAlignment="Left" Margin="0,5,0,0"
-                          ItemsSource="{Binding Pages}"
-                          SelectedItem="{Binding SelectedPage, Mode=TwoWay}">
-                    <ComboBox.ItemTemplate>
-                        <DataTemplate>
-                            <TextBlock Text="{Binding PageName}" />
-                        </DataTemplate>
-                    </ComboBox.ItemTemplate>
-                </ComboBox>
+                                <TextBlock Grid.Row="3" Grid.Column="0" Classes="label" Text="Serial" Margin="0,8,0,0"/>
+                                <TextBlock Grid.Row="3" Grid.Column="1" Classes="value" Text="{Binding DeviceSerial}" Margin="0,8,0,0"/>
 
-                <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,10,0,0">
-                    <Border BorderBrush="Black" BorderThickness="2" CornerRadius="5">
-                        <Image Width="400" Height="190" Source="{Binding SelectedPageWallpaper, Converter={StaticResource SkiaToBitmapConverter}}" />
+                                <Button Grid.Row="4" Grid.ColumnSpan="2" Content="Reconnect"
+                                        Command="{Binding ReconnectDeviceCommand}"
+                                        HorizontalAlignment="Left" Margin="0,16,0,0"/>
+                            </Grid>
+                        </Grid>
                     </Border>
-                    <StackPanel Spacing="5">
-                        <Button Content="Select Image" VerticalAlignment="Top" Command="{Binding SelectImageButtonCommand}" Width="120"></Button>
-                        <Button Content="Remove" VerticalAlignment="Top" Command="{Binding RemoveWallpaperCommand}" Width="120"></Button>
-                    </StackPanel>
-                </StackPanel>
-                <TextBlock Text="Opacity:" Margin="0,10,0,0" />
-                <Slider Minimum="0" Maximum="1" HorizontalAlignment="Left" TickFrequency="0.1"
-                        IsSnapToTickEnabled="True"
-                        Value="{Binding SelectedPageWallpaperOpacity, Mode=TwoWay}" Width="200" />
 
-                <!-- Scaling Controls -->
-                <ComboBox Width="200" Margin="0,10,0,0"
-                          ItemsSource="{Binding WallpaperScalingOptions}"
-                          SelectedItem="{Binding SelectedWallpaperScalingOption, Mode=TwoWay}"
-                          PlaceholderText="Scaling" />
+                    <!-- Display card -->
+                    <Border Classes="card">
+                        <StackPanel>
+                            <TextBlock Classes="card-title" Text="Display" />
+                            <TextBlock Classes="label" Text="Brightness" />
+                            <StackPanel Orientation="Horizontal" Spacing="12" Margin="0,6,0,0">
+                                <TextBlock FontFamily="{StaticResource MdiFont}" Text="&#xF1A4;" FontSize="16" VerticalAlignment="Center" Foreground="#909090"/>
+                                <Slider Minimum="0" Maximum="100" Width="320" TickFrequency="1" IsSnapToTickEnabled="True"
+                                        Value="{Binding Config.Brightness, Mode=TwoWay}" />
+                                <TextBlock FontFamily="{StaticResource MdiFont}" Text="&#xF59C;" FontSize="20" VerticalAlignment="Center"/>
+                                <TextBlock Classes="value" Text="{Binding Config.Brightness}" VerticalAlignment="Center" Width="36" TextAlignment="Right"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
 
-                <TextBlock Text="Scale:" Margin="0,10,0,0" />
-                <StackPanel Orientation="Horizontal" Spacing="10">
-                    <Slider Minimum="1" Maximum="400" TickFrequency="1" IsSnapToTickEnabled="True"
-                            Value="{Binding WallpaperScaling, Mode=TwoWay}" Width="200" />
-                    <TextBlock Text="{Binding WallpaperScaling}"/>
-                </StackPanel>
-
-                <!-- Position Controls -->
-                <TextBlock Text="Position X:" Margin="0,10,0,0" />
-                <StackPanel Orientation="Horizontal" Spacing="10">
-                    <Slider Minimum="-480" Maximum="480" TickFrequency="1" IsSnapToTickEnabled="True"
-                            Value="{Binding WallpaperPositionX, Mode=TwoWay}" Width="200" />
-                    <TextBlock Text="{Binding WallpaperPositionX}" />
-                </StackPanel>
-
-                <TextBlock Text="Position Y:" Margin="0,10,0,0" />
-                <StackPanel Orientation="Horizontal" Spacing="10">
-                    <Slider Minimum="-270" Maximum="270" TickFrequency="1" IsSnapToTickEnabled="True"
-                            Value="{Binding WallpaperPositionY, Mode=TwoWay}" Width="200" />
-                    <TextBlock Text="{Binding WallpaperPositionY}" />
-                </StackPanel>
-            </StackPanel>
-
-            <StackPanel
-                IsVisible="{Binding CurrentView, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Haptic}">
-                <TextBlock Text="Haptic Feedback" FontSize="24" FontWeight="Bold" />
-
-                <CheckBox Content="Enable haptic feedback"
-                          IsChecked="{Binding Config.HapticEnabled, Mode=TwoWay}"
-                          Margin="0,15,0,0" />
-
-                <!-- First effect (always present, plays immediately on touch) -->
-                <Border BorderBrush="Gray" BorderThickness="1" CornerRadius="4"
-                        Padding="10" Margin="0,20,20,0"
-                        DataContext="{Binding FirstHapticStep}">
-                    <StackPanel>
-                        <TextBlock Text="First effect (immediate)" FontWeight="Bold" />
-                        <Grid ColumnDefinitions="80,*" RowDefinitions="Auto,Auto" Margin="0,8,0,0">
-                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Effect:" VerticalAlignment="Center" />
-                            <ComboBox Grid.Row="0" Grid.Column="1" Width="240" HorizontalAlignment="Left"
-                                      ItemsSource="{Binding #SettingsWindow.((vm:SettingsViewModel)DataContext).VibrationPatterns}"
-                                      SelectedValue="{Binding Effect, Mode=TwoWay}"
-                                      SelectedValueBinding="{Binding Value}">
+                    <!-- Behavior card -->
+                    <Border Classes="card">
+                        <StackPanel>
+                            <TextBlock Classes="card-title" Text="Behavior" />
+                            <TextBlock Classes="label" Text="Startup touch page" />
+                            <ComboBox Width="200" Margin="0,6,0,0"
+                                      ItemsSource="{Binding TouchPages}"
+                                      SelectedIndex="{Binding Config.StartupTouchPageIndex, Mode=TwoWay}">
                                 <ComboBox.ItemTemplate>
-                                    <DataTemplate DataType="cnv:VibrationPatternItem">
-                                        <TextBlock Text="{Binding Name}" />
+                                    <DataTemplate DataType="m:TouchButtonPage">
+                                        <TextBlock Text="{Binding PageName}" />
                                     </DataTemplate>
                                 </ComboBox.ItemTemplate>
                             </ComboBox>
+                            <TextBlock Classes="hint" Margin="0,6,0,0"
+                                       Text="Applied on next app launch." />
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
 
-                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Duration:" VerticalAlignment="Center" Margin="0,8,0,0" />
-                            <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Spacing="10" Margin="0,8,0,0">
-                                <Slider Minimum="2" Maximum="255" TickFrequency="1" IsSnapToTickEnabled="True"
-                                        Value="{Binding Duration, Mode=TwoWay}" Width="280" />
-                                <TextBlock Text="{Binding Duration}" VerticalAlignment="Center" Width="40" />
+                <!-- ====== Pages ====== -->
+                <StackPanel IsVisible="{Binding CurrentView, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Pages}">
+                    <TextBlock Classes="page-title" Text="Pages" />
+
+                    <Grid ColumnDefinitions="*,12,*">
+                        <Border Grid.Column="0" Classes="card" Margin="0,0,0,12">
+                            <StackPanel>
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <TextBlock Grid.Column="0" Classes="card-title" Text="Touch pages" />
+                                    <Button Grid.Column="1" Content="+ Add" Command="{Binding AddTouchPageCommand}" />
+                                </Grid>
+                                <ItemsControl ItemsSource="{Binding TouchPages}" Margin="0,8,0,0">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate DataType="m:TouchButtonPage">
+                                            <Border Background="#2D2D2D" CornerRadius="4" Padding="8" Margin="0,0,0,6">
+                                                <Grid ColumnDefinitions="80,*,Auto,Auto,Auto,Auto">
+                                                    <Border Grid.Column="0" BorderBrush="#444" BorderThickness="1" CornerRadius="3" Height="40">
+                                                        <Image Source="{Binding Wallpaper, Converter={StaticResource SkiaToBitmapConverter}}" Stretch="UniformToFill" />
+                                                    </Border>
+                                                    <TextBlock Grid.Column="1" Text="{Binding PageName}" VerticalAlignment="Center" Margin="10,0,0,0" />
+                                                    <Button Grid.Column="2" Classes="row-action" ToolTip.Tip="Edit wallpaper"
+                                                            Command="{Binding $parent[Window].DataContext.EditWallpaperCommand}"
+                                                            CommandParameter="{Binding}">
+                                                        <TextBlock FontFamily="{StaticResource MdiFont}" Text="&#xF02E9;" FontSize="16" VerticalAlignment="Center" HorizontalAlignment="Center" />
+                                                    </Button>
+                                                    <Button Grid.Column="3" Classes="row-action" Content="↑" ToolTip.Tip="Move up"
+                                                            Command="{Binding $parent[Window].DataContext.MoveTouchPageUpCommand}"
+                                                            CommandParameter="{Binding}" />
+                                                    <Button Grid.Column="4" Classes="row-action" Content="↓" ToolTip.Tip="Move down"
+                                                            Command="{Binding $parent[Window].DataContext.MoveTouchPageDownCommand}"
+                                                            CommandParameter="{Binding}" />
+                                                    <Button Grid.Column="5" Classes="row-action danger" Content="✕" ToolTip.Tip="Remove page"
+                                                            Command="{Binding $parent[Window].DataContext.RemoveTouchPageCommand}"
+                                                            CommandParameter="{Binding}" />
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Grid.Column="2" Classes="card" Margin="0,0,0,12">
+                            <StackPanel>
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <TextBlock Grid.Column="0" Classes="card-title" Text="Rotary pages" />
+                                    <Button Grid.Column="1" Content="+ Add" Command="{Binding AddRotaryPageCommand}" />
+                                </Grid>
+                                <ItemsControl ItemsSource="{Binding RotaryPages}" Margin="0,8,0,0">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate DataType="m:RotaryButtonPage">
+                                            <Border Background="#2D2D2D" CornerRadius="4" Padding="8" Margin="0,0,0,6">
+                                                <Grid ColumnDefinitions="*,Auto,Auto,Auto">
+                                                    <TextBlock Grid.Column="0" Text="{Binding PageName}" VerticalAlignment="Center" />
+                                                    <Button Grid.Column="1" Classes="row-action" Content="↑" ToolTip.Tip="Move up"
+                                                            Command="{Binding $parent[Window].DataContext.MoveRotaryPageUpCommand}"
+                                                            CommandParameter="{Binding}" />
+                                                    <Button Grid.Column="2" Classes="row-action" Content="↓" ToolTip.Tip="Move down"
+                                                            Command="{Binding $parent[Window].DataContext.MoveRotaryPageDownCommand}"
+                                                            CommandParameter="{Binding}" />
+                                                    <Button Grid.Column="3" Classes="row-action danger" Content="✕" ToolTip.Tip="Remove rotary page"
+                                                            Command="{Binding $parent[Window].DataContext.RemoveRotaryPageCommand}"
+                                                            CommandParameter="{Binding}" />
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+                </StackPanel>
+
+                <!-- ====== Haptic ====== -->
+                <StackPanel IsVisible="{Binding CurrentView, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Haptic}">
+                    <TextBlock Classes="page-title" Text="Haptic Feedback" />
+
+                    <Border Classes="card">
+                        <StackPanel>
+                            <TextBlock Classes="card-title" Text="Global" />
+                            <CheckBox Content="Enable haptic feedback"
+                                      IsChecked="{Binding Config.HapticEnabled, Mode=TwoWay}" />
+                        </StackPanel>
+                    </Border>
+
+                    <Border Classes="card" DataContext="{Binding FirstHapticStep}">
+                        <StackPanel>
+                            <TextBlock Classes="card-title" Text="First effect (immediate)" />
+                            <Grid ColumnDefinitions="100,*" RowDefinitions="Auto,Auto" Margin="0,4,0,0">
+                                <TextBlock Grid.Row="0" Grid.Column="0" Classes="label" Text="Effect" VerticalAlignment="Center" />
+                                <ComboBox Grid.Row="0" Grid.Column="1" Width="260" HorizontalAlignment="Left"
+                                          ItemsSource="{Binding $parent[Window].DataContext.VibrationPatterns}"
+                                          SelectedItem="{Binding SelectedEffectItem, Mode=TwoWay}">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate DataType="cnv:VibrationPatternItem">
+                                            <TextBlock Text="{Binding Name}" />
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
+
+                                <TextBlock Grid.Row="1" Grid.Column="0" Classes="label" Text="Duration" VerticalAlignment="Center" Margin="0,12,0,0" />
+                                <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Spacing="10" Margin="0,12,0,0">
+                                    <Slider Minimum="2" Maximum="255" TickFrequency="1" IsSnapToTickEnabled="True"
+                                            Value="{Binding Duration, Mode=TwoWay}" Width="300" />
+                                    <TextBlock Text="{Binding Duration}" VerticalAlignment="Center" Width="40" />
+                                </StackPanel>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <Button Content="Add second effect" Command="{Binding AddHapticStepCommand}"
+                            HorizontalAlignment="Left" Margin="0,4,0,12"
+                            IsVisible="{Binding CanAddHapticStep}" />
+
+                    <Border Classes="card"
+                            IsVisible="{Binding $parent[Window].DataContext.HasSecondHapticStep}"
+                            DataContext="{Binding SecondHapticStep}">
+                        <StackPanel>
+                            <Grid ColumnDefinitions="*,Auto">
+                                <TextBlock Grid.Column="0" Classes="card-title" Text="Second effect (after delay)" />
+                                <Button Grid.Column="1" Content="Remove"
+                                        Command="{Binding $parent[Window].DataContext.RemoveHapticStepCommand}"
+                                        CommandParameter="{Binding}" />
+                            </Grid>
+                            <Grid ColumnDefinitions="100,*" RowDefinitions="Auto,Auto,Auto" Margin="0,4,0,0">
+                                <TextBlock Grid.Row="0" Grid.Column="0" Classes="label" Text="Effect" VerticalAlignment="Center" />
+                                <ComboBox Grid.Row="0" Grid.Column="1" Width="260" HorizontalAlignment="Left"
+                                          ItemsSource="{Binding $parent[Window].DataContext.VibrationPatterns}"
+                                          SelectedItem="{Binding SelectedEffectItem, Mode=TwoWay}">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate DataType="cnv:VibrationPatternItem">
+                                            <TextBlock Text="{Binding Name}" />
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
+
+                                <TextBlock Grid.Row="1" Grid.Column="0" Classes="label" Text="Delay" VerticalAlignment="Center" Margin="0,12,0,0" />
+                                <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Spacing="10" Margin="0,12,0,0">
+                                    <Slider Minimum="4" Maximum="255" TickFrequency="1" IsSnapToTickEnabled="True"
+                                            Value="{Binding Delay, Mode=TwoWay}" Width="300" />
+                                    <TextBlock Text="{Binding Delay}" VerticalAlignment="Center" Width="40" />
+                                </StackPanel>
+
+                                <TextBlock Grid.Row="2" Grid.Column="0" Classes="label" Text="Duration" VerticalAlignment="Center" Margin="0,12,0,0" />
+                                <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal" Spacing="10" Margin="0,12,0,0">
+                                    <Slider Minimum="2" Maximum="255" TickFrequency="1" IsSnapToTickEnabled="True"
+                                            Value="{Binding Duration, Mode=TwoWay}" Width="300" />
+                                    <TextBlock Text="{Binding Duration}" VerticalAlignment="Center" Width="40" />
+                                </StackPanel>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
+                <!-- ====== OBS ====== -->
+                <StackPanel IsVisible="{Binding CurrentView, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Obs}">
+                    <TextBlock Classes="page-title" Text="OBS Studio" />
+
+                    <Border Classes="card">
+                        <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto" ColumnDefinitions="100,*,Auto">
+                            <TextBlock Grid.Row="0" Grid.Column="0" Classes="card-title" Text="Connection" Grid.ColumnSpan="2" />
+                            <Border Grid.Row="0" Grid.Column="2" Classes="pill"
+                                    Classes.ok="{Binding ObsStatusOk}"
+                                    Classes.neutral="{Binding ObsStatusNeutral}">
+                                <TextBlock Text="{Binding ObsStatusText}" />
+                            </Border>
+
+                            <TextBlock Grid.Row="1" Grid.Column="0" Classes="label" Text="IP" VerticalAlignment="Center" Margin="0,10,0,0" />
+                            <TextBox Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Width="280" HorizontalAlignment="Left"
+                                     Text="{Binding ObsConfig.Ip, Mode=TwoWay}" Margin="0,10,0,0" />
+
+                            <TextBlock Grid.Row="2" Grid.Column="0" Classes="label" Text="Port" VerticalAlignment="Center" Margin="0,8,0,0" />
+                            <TextBox Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="2" Width="120" HorizontalAlignment="Left"
+                                     Text="{Binding ObsConfig.Port, Mode=TwoWay}" Margin="0,8,0,0" />
+
+                            <TextBlock Grid.Row="3" Grid.Column="0" Classes="label" Text="Password" VerticalAlignment="Center" Margin="0,8,0,0" />
+                            <TextBox Grid.Row="3" Grid.Column="1" Grid.ColumnSpan="2" Width="280" HorizontalAlignment="Left"
+                                     Text="{Binding ObsConfig.Password, Mode=TwoWay}" PasswordChar="*" Margin="0,8,0,0" />
+
+                            <StackPanel Grid.Row="4" Grid.ColumnSpan="3" Orientation="Horizontal" Spacing="12" Margin="0,16,0,0">
+                                <Button Content="Save" Width="100" Command="{Binding SaveObsCommand}" />
+                                <Button Content="Test Connection" Width="150" Command="{Binding TestConnectionCommand}" />
+                                <TextBlock IsVisible="{Binding ConnectionTestVisible}" Text="{Binding ConnectionResult}"
+                                           VerticalAlignment="Center" />
                             </StackPanel>
                         </Grid>
-                    </StackPanel>
-                </Border>
+                    </Border>
+                </StackPanel>
 
-                <!-- Add-second-effect button (only when there's just one step) -->
-                <Button Content="Add second effect" Command="{Binding AddHapticStepCommand}"
-                        HorizontalAlignment="Left" Margin="0,8,0,0"
-                        IsVisible="{Binding CanAddHapticStep}" />
+                <!-- ====== Elgato ====== -->
+                <StackPanel IsVisible="{Binding CurrentView, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Elgato}">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBlock Grid.Column="0" Classes="page-title" Text="Elgato Key Lights" />
+                        <Button Grid.Column="1" Content="Rescan" Command="{Binding RescanElgatoCommand}" />
+                    </Grid>
 
-                <!-- Second effect (optional — fires after delay, while finger still held) -->
-                <Border BorderBrush="Gray" BorderThickness="1" CornerRadius="4"
-                        Padding="10" Margin="0,8,20,0"
-                        IsVisible="{Binding #SettingsWindow.((vm:SettingsViewModel)DataContext).HasSecondHapticStep}"
-                        DataContext="{Binding SecondHapticStep}">
-                    <StackPanel>
-                        <Grid ColumnDefinitions="*,Auto">
-                            <TextBlock Grid.Column="0" Text="Second effect (after delay)" FontWeight="Bold"
-                                       VerticalAlignment="Center" />
-                            <Button Grid.Column="1" Content="Remove"
-                                    Command="{Binding #SettingsWindow.((vm:SettingsViewModel)DataContext).RemoveHapticStepCommand}"
-                                    CommandParameter="{Binding}" />
-                        </Grid>
-                        <Grid ColumnDefinitions="80,*" RowDefinitions="Auto,Auto,Auto" Margin="0,8,0,0">
-                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Effect:" VerticalAlignment="Center" />
-                            <ComboBox Grid.Row="0" Grid.Column="1" Width="240" HorizontalAlignment="Left"
-                                      ItemsSource="{Binding #SettingsWindow.((vm:SettingsViewModel)DataContext).VibrationPatterns}"
-                                      SelectedValue="{Binding Effect, Mode=TwoWay}"
-                                      SelectedValueBinding="{Binding Value}">
-                                <ComboBox.ItemTemplate>
-                                    <DataTemplate DataType="cnv:VibrationPatternItem">
-                                        <TextBlock Text="{Binding Name}" />
+                    <ItemsControl ItemsSource="{Binding ElgatoDevices.KeyLights}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate DataType="m:KeyLight">
+                                <Border Classes="card">
+                                    <StackPanel>
+                                        <Grid ColumnDefinitions="*,Auto">
+                                            <StackPanel Grid.Column="0">
+                                                <TextBlock Classes="card-title" Text="{Binding DisplayName}" />
+                                                <TextBlock Classes="label" Text="{Binding Address}" />
+                                            </StackPanel>
+                                            <Button Grid.Column="1" Content="Power"
+                                                    Command="{Binding $parent[Window].DataContext.ToggleKeyLightCommand}"
+                                                    CommandParameter="{Binding}" />
+                                        </Grid>
+                                        <Grid ColumnDefinitions="100,*" RowDefinitions="Auto,Auto" Margin="0,8,0,0">
+                                            <TextBlock Grid.Row="0" Grid.Column="0" Classes="label" Text="Brightness" VerticalAlignment="Center"/>
+                                            <Slider Grid.Row="0" Grid.Column="1" Minimum="0" Maximum="100" Width="300"
+                                                    HorizontalAlignment="Left" Value="{Binding Brightness, Mode=TwoWay}" />
+                                            <TextBlock Grid.Row="1" Grid.Column="0" Classes="label" Text="Temperature" VerticalAlignment="Center" Margin="0,8,0,0"/>
+                                            <Slider Grid.Row="1" Grid.Column="1" Minimum="143" Maximum="344" Width="300"
+                                                    HorizontalAlignment="Left" Value="{Binding Temperature, Mode=TwoWay}" Margin="0,8,0,0"/>
+                                        </Grid>
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <Border Classes="card" IsVisible="{Binding HasNoElgatoLights}">
+                        <TextBlock Classes="hint" Text="No Key Lights found. Make sure they're on the same network and click Rescan." />
+                    </Border>
+                </StackPanel>
+
+                <!-- ====== CoolerControl ====== -->
+                <StackPanel IsVisible="{Binding CurrentView, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=CoolerControl}">
+                    <TextBlock Classes="page-title" Text="CoolerControl" />
+
+                    <Border Classes="card">
+                        <StackPanel>
+                            <Grid ColumnDefinitions="*,Auto">
+                                <TextBlock Grid.Column="0" Classes="card-title" Text="Connection" />
+                                <Border Grid.Column="1" Classes="pill"
+                                        Classes.ok="{Binding CoolerControlIsOk}"
+                                        Classes.warn="{Binding CoolerControlIsWarn}"
+                                        Classes.error="{Binding CoolerControlIsError}"
+                                        Classes.neutral="{Binding CoolerControlIsNeutral}">
+                                    <TextBlock Text="{Binding CoolerControlStatus}" />
+                                </Border>
+                            </Grid>
+                            <TextBlock Classes="label" Text="URL" Margin="0,10,0,0"/>
+                            <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,6,0,0">
+                                <TextBox Width="380" Text="{Binding Config.CoolerControlUrl, Mode=TwoWay}" />
+                                <Button Content="Test" Command="{Binding TestCoolerControlCommand}" />
+                            </StackPanel>
+                            <TextBlock Classes="hint" Margin="0,6,0,0"
+                                       Text="App restart required for the new URL to take effect for button-bound commands." />
+                        </StackPanel>
+                    </Border>
+
+                    <Border Classes="card" IsVisible="{Binding CoolerControlModes.Count}">
+                        <StackPanel>
+                            <TextBlock Classes="card-title" Text="Available modes" />
+                            <ItemsControl ItemsSource="{Binding CoolerControlModes}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding}" Margin="0,2,0,2" />
                                     </DataTemplate>
-                                </ComboBox.ItemTemplate>
-                            </ComboBox>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
 
-                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Delay:" VerticalAlignment="Center" Margin="0,8,0,0" />
-                            <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Spacing="10" Margin="0,8,0,0">
-                                <Slider Minimum="4" Maximum="255" TickFrequency="1" IsSnapToTickEnabled="True"
-                                        Value="{Binding Delay, Mode=TwoWay}" Width="280" />
-                                <TextBlock Text="{Binding Delay}" VerticalAlignment="Center" Width="40" />
-                            </StackPanel>
+                <!-- Argus is rendered as a sibling of the ScrollViewer so its inner ScrollViewer
+                     has a bounded height (the outer ScrollViewer would otherwise give infinite height). -->
 
-                            <TextBlock Grid.Row="2" Grid.Column="0" Text="Duration:" VerticalAlignment="Center" Margin="0,8,0,0" />
-                            <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal" Spacing="10" Margin="0,8,0,0">
-                                <Slider Minimum="2" Maximum="255" TickFrequency="1" IsSnapToTickEnabled="True"
-                                        Value="{Binding Duration, Mode=TwoWay}" Width="280" />
-                                <TextBlock Text="{Binding Duration}" VerticalAlignment="Center" Width="40" />
+
+                <!-- ====== Theme ====== -->
+                <StackPanel IsVisible="{Binding CurrentView, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Theme}">
+                    <TextBlock Classes="page-title" Text="Theme" />
+                    <Border Classes="card">
+                        <StackPanel>
+                            <TextBlock Classes="card-title" Text="Appearance" />
+                            <RadioButton Content="Dark"   GroupName="theme" IsChecked="{Binding ThemeIsDark, Mode=TwoWay}" Margin="0,4,0,0"/>
+                            <RadioButton Content="Light"  GroupName="theme" IsChecked="{Binding ThemeIsLight, Mode=TwoWay}" Margin="0,4,0,0"/>
+                            <RadioButton Content="System" GroupName="theme" IsChecked="{Binding ThemeIsSystem, Mode=TwoWay}" Margin="0,4,0,0"/>
+                            <TextBlock Classes="hint" Margin="0,8,0,0"
+                                       Text="Applies immediately. Some controls keep the previous palette until next app launch." />
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
+                <!-- ====== About ====== -->
+                <StackPanel IsVisible="{Binding CurrentView, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=About}">
+                    <TextBlock Classes="page-title" Text="About" />
+                    <Border Classes="card">
+                        <StackPanel>
+                            <TextBlock Text="LoupixDeck" FontSize="20" FontWeight="Bold" />
+                            <TextBlock Classes="label" Text="{Binding Version}" Margin="0,4,0,0"/>
+                            <TextBlock Classes="hint" Margin="0,12,0,0"
+                                       Text="Open-source Avalonia desktop app controlling the Loupedeck Live S on Linux and Windows." />
+                            <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,16,0,0">
+                                <Button Content="Project Website" Command="{Binding OpenWebsiteCommand}" />
                             </StackPanel>
-                        </Grid>
-                    </StackPanel>
-                </Border>
-            </StackPanel>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </Grid>
+        </ScrollViewer>
+
+        <!-- ====== Argus (outside ScrollViewer for bounded height) ====== -->
+        <Grid Grid.Column="1" Margin="24,16,20,16"
+              IsVisible="{Binding CurrentView, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Argus}"
+              RowDefinitions="Auto,Auto,*">
+            <TextBlock Grid.Row="0" Classes="page-title" Text="Argus Monitor" />
+
+            <Border Grid.Row="1" Classes="card">
+                <Grid ColumnDefinitions="*,Auto">
+                    <TextBlock Grid.Column="0" Classes="card-title" Text="Status" />
+                    <Border Grid.Column="1" Classes="pill"
+                            Classes.ok="{Binding ArgusStatusOk}"
+                            Classes.neutral="{Binding ArgusStatusNeutral}">
+                        <TextBlock Text="{Binding ArgusStatusText}" />
+                    </Border>
+                </Grid>
+            </Border>
+
+            <Border Grid.Row="2" Classes="card">
+                <Grid RowDefinitions="Auto,*">
+                    <TextBlock Grid.Row="0" Classes="card-title" Text="Sensors (first 60)" />
+                    <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled" Padding="0,0,16,0">
+                        <ItemsControl ItemsSource="{Binding ArgusSensors}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate DataType="argus:ArgusSensor">
+                                    <Grid ColumnDefinitions="*,Auto" Margin="0,2,0,2">
+                                        <TextBlock Grid.Column="0" Text="{Binding Label}" />
+                                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4">
+                                            <TextBlock Text="{Binding Value, StringFormat=F1}" Classes="value" />
+                                            <TextBlock Text="{Binding Unit}" Classes="label" />
+                                        </StackPanel>
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </Grid>
+            </Border>
         </Grid>
     </Grid>
 </Window>

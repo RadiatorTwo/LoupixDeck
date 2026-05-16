@@ -174,9 +174,15 @@ public class PageManager : IPageManager
 
     public async Task AddTouchButtonPage(bool init = false)
     {
+        var previous = TouchButtonPages.Count > 0
+            ? TouchButtonPages[TouchButtonPages.Count - 1]
+            : null;
+
         var newPage = new TouchButtonPage(15)
         {
-            Page = TouchButtonPages.Count + 1
+            Page = TouchButtonPages.Count + 1,
+            Wallpaper = previous?.Wallpaper,
+            WallpaperOpacity = previous?.WallpaperOpacity ?? 0
         };
 
         for (int i = 0; i < 15; i++)

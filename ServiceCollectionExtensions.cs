@@ -94,6 +94,9 @@ public static class ServiceCollectionExtensions
         collection.AddTransient<SymbolPicker>();
         collection.AddTransient<SymbolPickerViewModel>();
 
+        collection.AddTransient<TouchPageWallpaperSettings>();
+        collection.AddTransient<TouchPageWallpaperSettingsViewModel>();
+
         collection.AddTransient<Settings>();
         collection.AddTransient<SettingsViewModel>();
         
@@ -111,6 +114,7 @@ public static class ServiceCollectionExtensions
         dialogService.Register<RotaryButtonSettingsViewModel, RotaryButtonSettings>();
         dialogService.Register<TouchButtonSettingsViewModel, TouchButtonSettings>();
         dialogService.Register<SymbolPickerViewModel, SymbolPicker>();
+        dialogService.Register<TouchPageWallpaperSettingsViewModel, TouchPageWallpaperSettings>();
         dialogService.Register<SettingsViewModel, Settings>();
         dialogService.Register<AboutViewModel, About>();
 

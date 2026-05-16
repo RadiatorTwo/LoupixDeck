@@ -91,8 +91,10 @@ public class LoupedeckLiveSController(
         }
         else
         {
-            // Existing config Init always page 0.
-            config.CurrentTouchPageIndex = 0;
+            var startupIndex = config.StartupTouchPageIndex;
+            if (startupIndex < 0 || startupIndex >= config.TouchButtonPages.Count)
+                startupIndex = 0;
+            config.CurrentTouchPageIndex = startupIndex;
             await pageManager.ApplyTouchPage(config.CurrentTouchPageIndex, true);
 
             // With an existing config, we need to apply the item changed event to the current Touch Button Page

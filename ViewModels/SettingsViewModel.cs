@@ -1,13 +1,20 @@
 using System.Collections.ObjectModel;
+using System.Net.Http;
 using System.Windows.Input;
+using Avalonia;
 using Avalonia.Media;
+using Avalonia.Styling;
+using Avalonia.Threading;
+using LoupixDeck.LoupedeckDevice.Device;
 using LoupixDeck.Models;
+using LoupixDeck.Models.Argus;
 using LoupixDeck.Models.Converter;
 using LoupixDeck.Services;
+using LoupixDeck.Services.Argus;
 using LoupixDeck.Utils;
 using LoupixDeck.ViewModels.Base;
+using Newtonsoft.Json.Linq;
 using OBSWebsocketDotNet.Communication;
-using SkiaSharp;
 
 namespace LoupixDeck.ViewModels;
 
@@ -15,251 +22,267 @@ public class SettingsViewModel : DialogViewModelBase<DialogResult>
 {
     public LoupedeckConfig Config { get; }
     private readonly IObsController _obs;
+    private readonly IDeviceService _deviceService;
+    private readonly IElgatoController _elgatoController;
+    private readonly IPageManager _pageManager;
+    private readonly IArgusMonitorService _argusMonitor;
+    private readonly IDialogService _dialogService;
+    public ElgatoDevices ElgatoDevices { get; }
+
     public ICommand SaveObsCommand { get; }
     public ICommand TestConnectionCommand { get; }
-    public ICommand SelectImageButtonCommand { get; }
-    public ICommand RemoveWallpaperCommand { get; }
     public ICommand NavigateCommand { get; }
     public ICommand AddHapticStepCommand { get; }
     public ICommand RemoveHapticStepCommand { get; }
+    public ICommand ReconnectDeviceCommand { get; }
+    public ICommand AddTouchPageCommand { get; }
+    public ICommand RemoveTouchPageCommand { get; }
+    public ICommand MoveTouchPageUpCommand { get; }
+    public ICommand MoveTouchPageDownCommand { get; }
+    public ICommand EditWallpaperCommand { get; }
+    public ICommand AddRotaryPageCommand { get; }
+    public ICommand RemoveRotaryPageCommand { get; }
+    public ICommand MoveRotaryPageUpCommand { get; }
+    public ICommand MoveRotaryPageDownCommand { get; }
+    public ICommand RescanElgatoCommand { get; }
+    public ICommand ToggleKeyLightCommand { get; }
+    public ICommand TestCoolerControlCommand { get; }
+    public ICommand OpenWebsiteCommand { get; }
 
     public ObservableCollection<VibrationPatternItem> VibrationPatterns => VibrationPatternCatalog.All;
 
-    private SKBitmap _wallpaperBitmap = null;
+    public bool IsWindows => OperatingSystem.IsWindows();
 
-    private SettingsView _currentView;
-    private TouchButtonPage _selectedPage;
-
-    public SettingsView CurrentView
-    {
-        get => _currentView;
-        set => SetProperty(ref _currentView, value);
-    }
-
-    public TouchButtonPage SelectedPage
-    {
-        get => _selectedPage;
-        set
-        {
-            if (SetProperty(ref _selectedPage, value))
-            {
-                // Reset wallpaper bitmap when page changes
-                _wallpaperBitmap = _selectedPage?.Wallpaper;
-                OnPropertyChanged(nameof(SelectedPageWallpaper));
-                OnPropertyChanged(nameof(SelectedPageWallpaperOpacity));
-            }
-        }
-    }
-
-    public SKBitmap SelectedPageWallpaper
-    {
-        get => _selectedPage?.Wallpaper;
-        set
-        {
-            if (_selectedPage != null && _selectedPage.Wallpaper != value)
-            {
-                _selectedPage.Wallpaper = value;
-                OnPropertyChanged();
-            }
-        }
-    }
-
-    public double SelectedPageWallpaperOpacity
-    {
-        get => _selectedPage?.WallpaperOpacity ?? 0;
-        set
-        {
-            if (_selectedPage != null && Math.Abs(_selectedPage.WallpaperOpacity - value) > 0.0001)
-            {
-                _selectedPage.WallpaperOpacity = value;
-                OnPropertyChanged();
-            }
-        }
-    }
-
-    public ObservableCollection<TouchButtonPage> Pages => Config.TouchButtonPages;
-
-    public ObsConfig ObsConfig { get; }
-
-    public ObservableCollection<BitmapHelper.ScalingOption> WallpaperScalingOptions { get; } =
-    [
-        BitmapHelper.ScalingOption.None,
-        BitmapHelper.ScalingOption.Fill,
-        BitmapHelper.ScalingOption.Fit,
-        BitmapHelper.ScalingOption.Stretch,
-        BitmapHelper.ScalingOption.Tile,
-        BitmapHelper.ScalingOption.Center,
-        // BitmapHelper.ScalingOption.CropToFill
-    ];
-
-    private BitmapHelper.ScalingOption _selectedWallpaperScalingOption = BitmapHelper.ScalingOption.Fit;
-
-    public BitmapHelper.ScalingOption SelectedWallpaperScalingOption
-    {
-        get => _selectedWallpaperScalingOption;
-        set
-        {
-            SetProperty(ref _selectedWallpaperScalingOption, value);
-            ApplyScaling();
-        }
-    }
-
-    private int _wallpaperScaling = 100;
-
-    public int WallpaperScaling
-    {
-        get => _wallpaperScaling;
-        set
-        {
-            SetProperty(ref _wallpaperScaling, value);
-            ApplyScaling();
-        }
-    }
-
-    private int _wallpaperPositionX;
-
-    public int WallpaperPositionX
-    {
-        get => _wallpaperPositionX;
-        set
-        {
-            SetProperty(ref _wallpaperPositionX, value);
-            ApplyScaling();
-        }
-    }
-
-    private int _wallpaperPositionY;
-
-    public int WallpaperPositionY
-    {
-        get => _wallpaperPositionY;
-        set
-        {
-            SetProperty(ref _wallpaperPositionY, value);
-            ApplyScaling();
-        }
-    }
-
-    private void ApplyScaling()
-    {
-        if (_wallpaperBitmap == null || _selectedPage == null) return;
-
-        var scaledImage = BitmapHelper.ScaleAndPositionBitmap(
-            _wallpaperBitmap,
-            480, 270,
-            WallpaperScaling,
-            WallpaperPositionX, WallpaperPositionY,
-            SelectedWallpaperScalingOption);
-
-        _selectedPage.Wallpaper = scaledImage;
-        OnPropertyChanged(nameof(SelectedPageWallpaper));
-    }
-
-    public SettingsViewModel(LoupedeckConfig config, IObsController obs)
+    public SettingsViewModel(LoupedeckConfig config,
+        IObsController obs,
+        IDeviceService deviceService,
+        IElgatoController elgatoController,
+        ElgatoDevices elgatoDevices,
+        IPageManager pageManager,
+        IArgusMonitorService argusMonitor,
+        IDialogService dialogService)
     {
         Config = config;
+        _deviceService = deviceService;
+        _elgatoController = elgatoController;
+        ElgatoDevices = elgatoDevices ?? new ElgatoDevices();
+        _pageManager = pageManager;
+        _argusMonitor = argusMonitor;
+        _dialogService = dialogService;
+
         SaveObsCommand = new RelayCommand(SaveObs);
         TestConnectionCommand = new RelayCommand(TestConnection);
-        SelectImageButtonCommand = new AsyncRelayCommand(SelectImageButton_Click);
-        RemoveWallpaperCommand = new RelayCommand(RemoveWallpaper);
 
         NavigateCommand = new RelayCommand<SettingsView>(Navigate);
         AddHapticStepCommand = new RelayCommand(AddHapticStep);
         RemoveHapticStepCommand = new RelayCommand<HapticStep>(RemoveHapticStep);
 
-        Config.HapticSteps.CollectionChanged += OnHapticStepsChanged;
-        CurrentView = SettingsView.General;
+        ReconnectDeviceCommand = new AsyncRelayCommand(ReconnectDevice);
+        AddTouchPageCommand = new AsyncRelayCommand(() => _pageManager.AddTouchButtonPage());
+        RemoveTouchPageCommand = new RelayCommand<TouchButtonPage>(
+            p => _ = RemoveTouchPage(p),
+            p => p != null && _pageManager.TouchButtonPages.Count > 1);
+        MoveTouchPageUpCommand = new RelayCommand<TouchButtonPage>(
+            p => MovePage(_pageManager.TouchButtonPages, p, -1),
+            p => p != null && _pageManager.TouchButtonPages.IndexOf(p) > 0);
+        MoveTouchPageDownCommand = new RelayCommand<TouchButtonPage>(
+            p => MovePage(_pageManager.TouchButtonPages, p, +1),
+            p => p != null && _pageManager.TouchButtonPages.IndexOf(p) < _pageManager.TouchButtonPages.Count - 1);
+        EditWallpaperCommand = new RelayCommand<TouchButtonPage>(
+            p => _ = EditWallpaper(p),
+            p => p != null);
+        AddRotaryPageCommand = new RelayCommand(() => _pageManager.AddRotaryButtonPage());
+        RemoveRotaryPageCommand = new RelayCommand<RotaryButtonPage>(
+            RemoveRotaryPage,
+            p => p != null && _pageManager.RotaryButtonPages.Count > 1);
+        MoveRotaryPageUpCommand = new RelayCommand<RotaryButtonPage>(
+            p => MovePage(_pageManager.RotaryButtonPages, p, -1),
+            p => p != null && _pageManager.RotaryButtonPages.IndexOf(p) > 0);
+        MoveRotaryPageDownCommand = new RelayCommand<RotaryButtonPage>(
+            p => MovePage(_pageManager.RotaryButtonPages, p, +1),
+            p => p != null && _pageManager.RotaryButtonPages.IndexOf(p) < _pageManager.RotaryButtonPages.Count - 1);
 
-        ConnectionTestVisible = true;
+        // CollectionChanged can fire from a background thread (the parameterless
+        // RelayCommand runs Execute via Task.Run). Marshal the CanExecute refresh
+        // back to the UI thread so Avalonia's Button.IsEnabled update is safe.
+        _pageManager.TouchButtonPages.CollectionChanged += (_, _) =>
+            Dispatcher.UIThread.Post(RefreshTouchPageCommands);
+        _pageManager.RotaryButtonPages.CollectionChanged += (_, _) =>
+            Dispatcher.UIThread.Post(RefreshRotaryPageCommands);
+
+        RescanElgatoCommand = new AsyncRelayCommand(RescanElgato);
+        ToggleKeyLightCommand = new RelayCommand<KeyLight>(light => _ = ToggleKeyLight(light));
+        TestCoolerControlCommand = new AsyncRelayCommand(TestCoolerControl);
+        OpenWebsiteCommand = new RelayCommand(() =>
+        {
+            try
+            {
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = "https://github.com/RadiatorTwo/LoupixDeck",
+                    UseShellExecute = true
+                });
+            }
+            catch { }
+        });
+
+        Config.HapticSteps.CollectionChanged += OnHapticStepsChanged;
+
+        CurrentView = SettingsView.General;
 
         ObsConfig = ObsConfig.LoadConfig();
         _obs = obs;
-
         _obs.Connected += ObsConnected;
         _obs.Disconnected += ObsDisconnected;
+        ObsConnected_State = _obs == null ? false : false; // initial state unknown, treat as disconnected
+        UpdateObsStatus();
 
-        // Initialize selected page to the current page or first page
-        if (Config.TouchButtonPages != null && Config.TouchButtonPages.Count > 0)
+        if (_argusMonitor != null)
         {
-            SelectedPage = Config.CurrentTouchButtonPage ?? Config.TouchButtonPages[0];
+            _argusMonitor.SnapshotUpdated += OnArgusSnapshotUpdated;
+            // Refresh on UI thread but lightweight — only reads the volatile snapshot field.
+            Dispatcher.UIThread.Post(RefreshArgusSnapshot);
+        }
+
+        // Device info call blocks on a serial round-trip — push it off the UI thread.
+        _ = Task.Run(RefreshDeviceInfoAsync);
+
+        Version = $"v{System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "?"}";
+    }
+
+    // ───────── General / Device ─────────
+
+    private string _deviceVersion = "—";
+    public string DeviceVersion { get => _deviceVersion; private set => SetProperty(ref _deviceVersion, value); }
+
+    private string _deviceSerial = "—";
+    public string DeviceSerial { get => _deviceSerial; private set => SetProperty(ref _deviceSerial, value); }
+
+    private bool _deviceConnected;
+    public bool DeviceConnected
+    {
+        get => _deviceConnected;
+        private set
+        {
+            if (SetProperty(ref _deviceConnected, value))
+            {
+                OnPropertyChanged(nameof(DeviceStatusText));
+            }
         }
     }
 
-    private void ObsConnected(object sender, EventArgs e)
+    public string DeviceStatusText => DeviceConnected ? "Connected" : "Disconnected";
+
+    private async Task RefreshDeviceInfoAsync()
     {
-        ConnectionResult = "Successfully connected";
-        ConnectionTestVisible = true;
-        TextColor = Colors.Green;
+        var dev = _deviceService?.Device;
+        if (dev == null)
+        {
+            Dispatcher.UIThread.Post(() =>
+            {
+                DeviceConnected = false;
+                DeviceVersion = "—";
+                DeviceSerial = "—";
+            });
+            return;
+        }
+
+        string version = "—";
+        string serialHex = "—";
+        var ok = false;
+        try
+        {
+            // Blocks on serial round-trip (GetInfo does Send().GetAwaiter().GetResult()).
+            // We are already off the UI thread because the caller used Task.Run.
+            var (serial, ver) = dev.GetInfo();
+            version = ver ?? "—";
+            serialHex = serial != null ? BitConverter.ToString(serial).Replace("-", "") : "—";
+            ok = true;
+        }
+        catch
+        {
+            // fall through with defaults
+        }
+
+        Dispatcher.UIThread.Post(() =>
+        {
+            DeviceVersion = version;
+            DeviceSerial = serialHex;
+            DeviceConnected = ok;
+        });
+
+        await Task.CompletedTask;
     }
 
-    private void ObsDisconnected(object sender, ObsDisconnectionInfo e)
+    private async Task ReconnectDevice()
     {
-        ConnectionResult = $"Error: {e.WebsocketDisconnectionInfo.CloseStatusDescription}";
-        ConnectionTestVisible = true;
-        TextColor = Colors.Red;
+        await Task.Run(() =>
+        {
+            try { _deviceService?.StartDevice(Config.DevicePort, Config.DeviceBaudrate); }
+            catch { /* ignored */ }
+        });
+        await Task.Delay(500);
+        await Task.Run(RefreshDeviceInfoAsync);
     }
 
-    private bool _connectionTestVisible;
+    // ───────── Pages ─────────
 
-    public bool ConnectionTestVisible
+    public ObservableCollection<TouchButtonPage> TouchPages => _pageManager.TouchButtonPages;
+    public ObservableCollection<RotaryButtonPage> RotaryPages => _pageManager.RotaryButtonPages;
+
+    public ObservableCollection<int> TouchPageIndices
     {
-        get => _connectionTestVisible;
-        set => SetProperty(ref _connectionTestVisible, value);
+        get
+        {
+            var c = new ObservableCollection<int>();
+            if (TouchPages != null)
+                for (var i = 0; i < TouchPages.Count; i++) c.Add(i);
+            return c;
+        }
     }
 
-    private Color _textColor = Colors.Blue;
-
-    public Color TextColor
+    private async Task RemoveTouchPage(TouchButtonPage page)
     {
-        get => _textColor;
-        set => SetProperty(ref _textColor, value);
+        if (page == null || TouchPages.Count <= 1) return;
+        var idx = TouchPages.IndexOf(page);
+        if (idx < 0) return;
+        _pageManager.CurrentTouchPageIndex = idx;
+        await _pageManager.DeleteTouchButtonPage();
     }
 
-    private string _connectionResult;
-
-    public string ConnectionResult
+    private void RemoveRotaryPage(RotaryButtonPage page)
     {
-        get => _connectionResult;
-        set => SetProperty(ref _connectionResult, value);
+        if (page == null || RotaryPages.Count <= 1) return;
+        var idx = RotaryPages.IndexOf(page);
+        if (idx < 0) return;
+        _pageManager.CurrentRotaryPageIndex = idx;
+        _pageManager.DeleteRotaryButtonPage();
     }
 
-    private void SaveObs()
+    private static void MovePage<T>(ObservableCollection<T> coll, T page, int delta)
     {
-        ObsConfig.SaveConfig();
+        if (page == null) return;
+        var idx = coll.IndexOf(page);
+        var target = idx + delta;
+        if (idx < 0 || target < 0 || target >= coll.Count) return;
+        coll.Move(idx, target);
     }
 
-    private void TestConnection()
+    private void RefreshTouchPageCommands()
     {
-        _obs.Connect(ObsConfig.Ip, ObsConfig.Port, ObsConfig.Password);
+        (MoveTouchPageUpCommand as RelayCommand<TouchButtonPage>)?.RaiseCanExecuteChanged();
+        (MoveTouchPageDownCommand as RelayCommand<TouchButtonPage>)?.RaiseCanExecuteChanged();
+        (RemoveTouchPageCommand as RelayCommand<TouchButtonPage>)?.RaiseCanExecuteChanged();
     }
 
-    private async Task SelectImageButton_Click()
+    private void RefreshRotaryPageCommands()
     {
-        var result = await FileDialogHelper.OpenFileDialog();
-
-        if (result == null || !File.Exists(result)) return;
-
-        _wallpaperBitmap = SKBitmap.Decode(result);
-
-        ApplyScaling();
+        (MoveRotaryPageUpCommand as RelayCommand<RotaryButtonPage>)?.RaiseCanExecuteChanged();
+        (MoveRotaryPageDownCommand as RelayCommand<RotaryButtonPage>)?.RaiseCanExecuteChanged();
+        (RemoveRotaryPageCommand as RelayCommand<RotaryButtonPage>)?.RaiseCanExecuteChanged();
     }
 
-    private void RemoveWallpaper()
-    {
-        if (_selectedPage == null) return;
-
-        _selectedPage.Wallpaper = null;
-        _selectedPage.WallpaperOpacity = 0;
-        _wallpaperBitmap = null;
-
-        OnPropertyChanged(nameof(SelectedPageWallpaper));
-        OnPropertyChanged(nameof(SelectedPageWallpaperOpacity));
-    }
-
-    private void Navigate(SettingsView settingsPage)
-    {
-        CurrentView = settingsPage;
-    }
+    // ───────── Haptic ─────────
 
     public const int MaxHapticSteps = 2;
 
@@ -289,7 +312,248 @@ public class SettingsViewModel : DialogViewModelBase<DialogResult>
     private void RemoveHapticStep(HapticStep step)
     {
         if (Config.HapticSteps.Count <= 1) return;
-        // step parameter is unused — only one removable step at index 1
         Config.HapticSteps.RemoveAt(Config.HapticSteps.Count - 1);
     }
+
+    // ───────── OBS ─────────
+
+    private bool _obsConnected;
+    public bool ObsConnected_State
+    {
+        get => _obsConnected;
+        private set
+        {
+            if (SetProperty(ref _obsConnected, value))
+            {
+                OnPropertyChanged(nameof(ObsStatusText));
+                OnPropertyChanged(nameof(ObsStatusOk));
+                OnPropertyChanged(nameof(ObsStatusNeutral));
+            }
+        }
+    }
+    public string ObsStatusText => ObsConnected_State ? "Connected" : (ObsConfig != null && !string.IsNullOrWhiteSpace(ObsConfig.Ip) ? "Disconnected" : "Not configured");
+    public bool ObsStatusOk => ObsConnected_State;
+    public bool ObsStatusNeutral => !ObsConnected_State;
+
+    private void UpdateObsStatus()
+    {
+        // Lacking an explicit Connected-property on the controller; rely on event-driven state.
+    }
+
+    // ───────── Elgato ─────────
+
+    private bool _isScanningElgato;
+    public bool IsScanningElgato
+    {
+        get => _isScanningElgato;
+        private set => SetProperty(ref _isScanningElgato, value);
+    }
+
+    public bool HasNoElgatoLights => (ElgatoDevices?.KeyLights?.Count ?? 0) == 0;
+
+    private async Task RescanElgato()
+    {
+        if (IsScanningElgato) return;
+        IsScanningElgato = true;
+        try
+        {
+            await _elgatoController.ProbeForElgatoDevices();
+        }
+        finally
+        {
+            IsScanningElgato = false;
+            OnPropertyChanged(nameof(ElgatoDevices));
+            OnPropertyChanged(nameof(HasNoElgatoLights));
+        }
+    }
+
+    private async Task ToggleKeyLight(KeyLight light)
+    {
+        if (light == null) return;
+        try { await _elgatoController.Toggle(light); }
+        catch { /* device may be offline */ }
+    }
+
+    // ───────── CoolerControl ─────────
+
+    private string _coolerControlStatus = "Not tested";
+    public string CoolerControlStatus { get => _coolerControlStatus; private set => SetProperty(ref _coolerControlStatus, value); }
+
+    public enum CcState { Neutral, Ok, Warn, Error }
+    private CcState _ccState = CcState.Neutral;
+    public CcState CoolerControlState
+    {
+        get => _ccState;
+        private set
+        {
+            if (SetProperty(ref _ccState, value))
+            {
+                OnPropertyChanged(nameof(CoolerControlIsOk));
+                OnPropertyChanged(nameof(CoolerControlIsWarn));
+                OnPropertyChanged(nameof(CoolerControlIsError));
+                OnPropertyChanged(nameof(CoolerControlIsNeutral));
+            }
+        }
+    }
+    public bool CoolerControlIsOk      => _ccState == CcState.Ok;
+    public bool CoolerControlIsWarn    => _ccState == CcState.Warn;
+    public bool CoolerControlIsError   => _ccState == CcState.Error;
+    public bool CoolerControlIsNeutral => _ccState == CcState.Neutral;
+
+    public ObservableCollection<string> CoolerControlModes { get; } = [];
+
+    private async Task TestCoolerControl()
+    {
+        CoolerControlStatus = "Testing…";
+        CoolerControlState = CcState.Warn;
+        CoolerControlModes.Clear();
+
+        try
+        {
+            using var client = new HttpClient { BaseAddress = new Uri(Config.CoolerControlUrl), Timeout = TimeSpan.FromSeconds(2) };
+            var json = await client.GetStringAsync("modes");
+            var arr = (JArray)JObject.Parse(json)["modes"];
+            if (arr != null)
+            {
+                foreach (var mode in arr)
+                {
+                    var name = mode["name"]?.ToString() ?? mode["uid"]?.ToString() ?? "(unnamed)";
+                    CoolerControlModes.Add(name);
+                }
+            }
+            CoolerControlStatus = $"Connected — {CoolerControlModes.Count} modes";
+            CoolerControlState = CcState.Ok;
+        }
+        catch (Exception ex)
+        {
+            CoolerControlStatus = $"Unreachable: {ex.Message}";
+            CoolerControlState = CcState.Error;
+        }
+    }
+
+    // ───────── Argus ─────────
+
+    public ObservableCollection<ArgusSensor> ArgusSensors { get; } = [];
+
+    public string ArgusStatusText => (_argusMonitor?.IsAvailable ?? false) ? "Reading" : "Not running";
+    public bool ArgusStatusOk => _argusMonitor?.IsAvailable ?? false;
+    public bool ArgusStatusNeutral => !ArgusStatusOk;
+
+    private void OnArgusSnapshotUpdated()
+    {
+        Dispatcher.UIThread.Post(RefreshArgusSnapshot);
+    }
+
+    private void RefreshArgusSnapshot()
+    {
+        OnPropertyChanged(nameof(ArgusStatusText));
+        OnPropertyChanged(nameof(ArgusStatusOk));
+        OnPropertyChanged(nameof(ArgusStatusNeutral));
+
+        ArgusSensors.Clear();
+        if (_argusMonitor?.Sensors == null) return;
+        foreach (var s in _argusMonitor.Sensors.Take(60))
+            ArgusSensors.Add(s);
+    }
+
+    // ───────── Theme ─────────
+
+    public bool ThemeIsDark
+    {
+        get => string.Equals(Config.ThemeVariant, "Dark", StringComparison.OrdinalIgnoreCase);
+        set { if (value) ApplyTheme("Dark"); }
+    }
+    public bool ThemeIsLight
+    {
+        get => string.Equals(Config.ThemeVariant, "Light", StringComparison.OrdinalIgnoreCase);
+        set { if (value) ApplyTheme("Light"); }
+    }
+    public bool ThemeIsSystem
+    {
+        get => string.Equals(Config.ThemeVariant, "System", StringComparison.OrdinalIgnoreCase);
+        set { if (value) ApplyTheme("System"); }
+    }
+
+    private void ApplyTheme(string variant)
+    {
+        if (Config.ThemeVariant == variant) return;
+        Config.ThemeVariant = variant;
+        OnPropertyChanged(nameof(ThemeIsDark));
+        OnPropertyChanged(nameof(ThemeIsLight));
+        OnPropertyChanged(nameof(ThemeIsSystem));
+
+        if (Application.Current != null)
+        {
+            Application.Current.RequestedThemeVariant = variant switch
+            {
+                "Light" => ThemeVariant.Light,
+                "Dark" => ThemeVariant.Dark,
+                _ => ThemeVariant.Default
+            };
+        }
+    }
+
+    // ───────── About ─────────
+
+    public string Version { get; }
+
+    // ───────── View navigation ─────────
+
+    private SettingsView _currentView;
+    public SettingsView CurrentView
+    {
+        get => _currentView;
+        set => SetProperty(ref _currentView, value);
+    }
+
+    public ObsConfig ObsConfig { get; }
+
+    private async Task EditWallpaper(TouchButtonPage page)
+    {
+        if (page == null) return;
+        await _dialogService.ShowDialogAsync<TouchPageWallpaperSettingsViewModel, DialogResult>(
+            vm => vm.Initialize(page));
+    }
+
+    private void ObsConnected(object sender, EventArgs e)
+    {
+        ObsConnected_State = true;
+        ConnectionResult = "Successfully connected";
+        ConnectionTestVisible = true;
+        TextColor = Colors.Green;
+    }
+
+    private void ObsDisconnected(object sender, ObsDisconnectionInfo e)
+    {
+        ObsConnected_State = false;
+        ConnectionResult = $"Error: {e.WebsocketDisconnectionInfo.CloseStatusDescription}";
+        ConnectionTestVisible = true;
+        TextColor = Colors.Red;
+    }
+
+    private bool _connectionTestVisible;
+    public bool ConnectionTestVisible
+    {
+        get => _connectionTestVisible;
+        set => SetProperty(ref _connectionTestVisible, value);
+    }
+
+    private Color _textColor = Colors.Blue;
+    public Color TextColor
+    {
+        get => _textColor;
+        set => SetProperty(ref _textColor, value);
+    }
+
+    private string _connectionResult;
+    public string ConnectionResult
+    {
+        get => _connectionResult;
+        set => SetProperty(ref _connectionResult, value);
+    }
+
+    private void SaveObs() => ObsConfig.SaveConfig();
+    private void TestConnection() => _obs.Connect(ObsConfig.Ip, ObsConfig.Port, ObsConfig.Password);
+
+    private void Navigate(SettingsView settingsPage) => CurrentView = settingsPage;
 }

@@ -1,6 +1,9 @@
 using System.ComponentModel;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using LoupixDeck.LoupedeckDevice;
+using LoupixDeck.Models.Converter;
+using Newtonsoft.Json;
 
 namespace LoupixDeck.Models;
 
@@ -10,7 +13,20 @@ public class HapticStep : INotifyPropertyChanged
     public byte Effect
     {
         get => _effect;
-        set { if (_effect == value) return; _effect = value; OnPropertyChanged(); }
+        set
+        {
+            if (_effect == value) return;
+            _effect = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(SelectedEffectItem));
+        }
+    }
+
+    [JsonIgnore]
+    public VibrationPatternItem SelectedEffectItem
+    {
+        get => VibrationPatternCatalog.All.FirstOrDefault(p => p.Value == _effect) ?? VibrationPatternCatalog.All[0];
+        set { if (value != null) Effect = value.Value; }
     }
 
     private byte _delay = 0x32;
