@@ -152,6 +152,8 @@ public class SettingsViewModel : DialogViewModelBase<DialogResult>
 
     // ───────── General / Device ─────────
 
+    public string DeviceName => _deviceService?.Device?.Type ?? "Device";
+
     private string _deviceVersion = "—";
     public string DeviceVersion { get => _deviceVersion; private set => SetProperty(ref _deviceVersion, value); }
 

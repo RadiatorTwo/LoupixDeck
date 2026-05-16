@@ -33,15 +33,20 @@ public class MainWindowViewModel : ViewModelBase
 
     public LoupedeckLiveSController LoupedeckController { get; }
 
+    /// <summary>Slug of the active device — drives MainWindow's device-layout selector.</summary>
+    public string DeviceSlug { get; }
+
     private readonly IDynamicTextManager _dynamicTextManager;
 
     public MainWindowViewModel(LoupedeckLiveSController loupedeck,
         IDialogService dialogService,
         ISysCommandService sysCommandService,
         IArgusMonitorService argusMonitorService,
-        IDynamicTextManager dynamicTextManager)
+        IDynamicTextManager dynamicTextManager,
+        LoupixDeck.Registry.DeviceRegistry.DeviceInfo deviceInfo)
     {
         LoupedeckController = loupedeck;
+        DeviceSlug = deviceInfo.Slug;
         _dynamicTextManager = dynamicTextManager;
 
         sysCommandService.Initialize();

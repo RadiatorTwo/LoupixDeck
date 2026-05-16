@@ -34,6 +34,21 @@ public abstract class FileDialogHelper
 
     public static string GetConfigPath(string fileName)
     {
+        return Path.Combine(GetConfigDir(), fileName);
+    }
+
+    /// <summary>
+    /// Path to the per-device config file (e.g. config_loupedeck-live-s.json).
+    /// Use this for everything except first-launch detection / legacy migration.
+    /// </summary>
+    public static string GetConfigPath(LoupixDeck.Registry.DeviceRegistry.DeviceInfo deviceInfo)
+    {
+        ArgumentNullException.ThrowIfNull(deviceInfo);
+        return Path.Combine(GetConfigDir(), $"config_{deviceInfo.Slug}.json");
+    }
+
+    public static string GetConfigDir()
+    {
         var homePath = Environment.GetEnvironmentVariable("HOME")
                        ?? Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
 #if DEBUG
@@ -47,6 +62,6 @@ public abstract class FileDialogHelper
             Directory.CreateDirectory(configDir);
         }
 
-        return Path.Combine(configDir, fileName);
+        return configDir;
     }
 }

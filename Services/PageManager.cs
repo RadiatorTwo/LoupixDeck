@@ -136,13 +136,13 @@ public class PageManager : IPageManager
         foreach (var touchButton in CurrentTouchButtonPage.TouchButtons)
         {
             // Force refresh to ensure wallpaper changes are applied when switching pages
-            await _deviceService.Device.DrawTouchButton(touchButton, _config, true, 5);
+            await _deviceService.Device.DrawTouchButton(touchButton, _config, true, _deviceService.Device.Columns);
         }
     }
 
     public void AddRotaryButtonPage(bool init = false)
     {
-        var newPage = new RotaryButtonPage(2)
+        var newPage = new RotaryButtonPage(_deviceService.RotaryButtonCount)
         {
             Page = RotaryButtonPages.Count + 1
         };
@@ -181,14 +181,15 @@ public class PageManager : IPageManager
             ? TouchButtonPages[TouchButtonPages.Count - 1]
             : null;
 
-        var newPage = new TouchButtonPage(15)
+        var touchCount = _deviceService.TouchButtonCount;
+        var newPage = new TouchButtonPage(touchCount)
         {
             Page = TouchButtonPages.Count + 1,
             Wallpaper = previous?.Wallpaper,
             WallpaperOpacity = previous?.WallpaperOpacity ?? 0
         };
 
-        for (int i = 0; i < 15; i++)
+        for (int i = 0; i < touchCount; i++)
         {
             newPage.TouchButtons[i] = new TouchButton(i);
         }

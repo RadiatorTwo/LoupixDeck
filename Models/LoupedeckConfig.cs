@@ -30,6 +30,12 @@ public class LoupedeckConfig : INotifyPropertyChanged
     public string DevicePort { get; set; }
     public int DeviceBaudrate { get; set; }
 
+    /// <summary>USB vendor ID of the device this config belongs to (hex, e.g. "2ec2").</summary>
+    public string DeviceVid { get; set; }
+
+    /// <summary>USB product ID of the device this config belongs to (hex, e.g. "0006").</summary>
+    public string DevicePid { get; set; }
+
     public int StartupTouchPageIndex { get; set; }
     public string CoolerControlUrl { get; set; } = "http://localhost:11987";
     public string ThemeVariant { get; set; } = "Dark";

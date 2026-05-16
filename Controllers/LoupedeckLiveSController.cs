@@ -3,6 +3,7 @@ using LoupixDeck.LoupedeckDevice;
 using LoupixDeck.Models;
 using LoupixDeck.Models.Extensions;
 using LoupixDeck.Models.Layers;
+using LoupixDeck.Registry;
 using LoupixDeck.Services;
 using LoupixDeck.Services.FolderNavigation;
 using LoupixDeck.Utils;
@@ -10,11 +11,14 @@ using LoupixDeck.Utils;
 namespace LoupixDeck.Controllers;
 
 /// <summary>
-/// This controller orchestrates the collaboration of the services:
-/// - It loads or saves the configuration,
-/// - starts the device,
-/// - registers the device events and
-/// - forwards the UI events to the corresponding services.
+/// Device-agnostic controller orchestrating the services:
+/// - loads/saves the per-device configuration,
+/// - starts the device (concrete type chosen via <see cref="DeviceRegistry"/>),
+/// - registers device events,
+/// - forwards UI events to the corresponding services.
+///
+/// The class name is kept for source-history continuity (originally Live-S-only);
+/// it now handles any device exposed via <see cref="IDeviceService"/>.
 /// </summary>
 public class LoupedeckLiveSController(
     IDeviceService deviceService,
@@ -23,9 +27,12 @@ public class LoupedeckLiveSController(
     IConfigService configService,
     IFolderNavigationService folderNav,
     IAssetService assetService,
-    LoupedeckConfig config)
+    LoupedeckConfig config,
+    DeviceRegistry.DeviceInfo deviceInfo) : IDeviceController
 {
-    private readonly string _configPath = FileDialogHelper.GetConfigPath("config.json");
+    private readonly string _configPath = deviceInfo != null
+        ? FileDialogHelper.GetConfigPath(deviceInfo)
+        : FileDialogHelper.GetConfigPath("config.json");
 
     public IPageManager PageManager => pageManager;
 
@@ -38,6 +45,14 @@ public class LoupedeckLiveSController(
 
         if (baudrate > 0)
             Config.DeviceBaudrate = baudrate;
+
+        // Stamp the active device's VID/PID into the config so subsequent
+        // launches load the right per-device file via ActiveDeviceResolver.
+        if (deviceInfo != null)
+        {
+            Config.DeviceVid = deviceInfo.VendorId;
+            Config.DevicePid = deviceInfo.ProductId;
+        }
 
         // Start the device using the configuration
         deviceService.StartDevice(config.DevicePort, config.DeviceBaudrate);
@@ -66,13 +81,7 @@ public class LoupedeckLiveSController(
         // Subscribe to collection changes to handle newly added pages
         config.TouchButtonPages.CollectionChanged += TouchButtonPagesOnCollectionChanged;
 
-        config.SimpleButtons =
-        [
-            await CreateSimpleButton(Constants.ButtonType.BUTTON0, Avalonia.Media.Colors.Blue, "System.PreviousPage"),
-            await CreateSimpleButton(Constants.ButtonType.BUTTON1, Avalonia.Media.Colors.Blue, "System.PreviousRotaryPage"),
-            await CreateSimpleButton(Constants.ButtonType.BUTTON2, Avalonia.Media.Colors.Blue, "System.NextRotaryPage"),
-            await CreateSimpleButton(Constants.ButtonType.BUTTON3, Avalonia.Media.Colors.Blue, "System.NextPage")
-        ];
+        config.SimpleButtons = await BuildSimpleButtons();
 
         if (config.RotaryButtonPages == null || config.RotaryButtonPages.Count == 0)
         {
@@ -105,7 +114,7 @@ public class LoupedeckLiveSController(
 
             foreach (var touchButton in config.CurrentTouchButtonPage.TouchButtons)
             {
-                await deviceService.Device.DrawTouchButton(touchButton, config, true, 5);
+                await deviceService.Device.DrawTouchButton(touchButton, config, true, deviceService.Device.Columns);
             }
         }
 
@@ -155,21 +164,15 @@ public class LoupedeckLiveSController(
         if (button != null)
         {
             commandService.ExecuteCommand(button.Command).GetAwaiter().GetResult();
+            return;
         }
-        else
-        {
-            switch (e.ButtonId)
-            {
-                case Constants.ButtonType.KNOB_TL:
-                    commandService.ExecuteCommand(config.RotaryButtonPages[config.CurrentRotaryPageIndex]
-                        .RotaryButtons[0].Command).GetAwaiter().GetResult();
-                    break;
-                case Constants.ButtonType.KNOB_CL:
-                    commandService.ExecuteCommand(config.RotaryButtonPages[config.CurrentRotaryPageIndex]
-                        .RotaryButtons[1].Command).GetAwaiter().GetResult();
-                    break;
-            }
-        }
+
+        if (!TryGetRotaryIndex(e.ButtonId, out var idx)) return;
+        var page = config.RotaryButtonPages[config.CurrentRotaryPageIndex];
+        if (page?.RotaryButtons == null || idx >= page.RotaryButtons.Count) return;
+        var cmd = page.RotaryButtons[idx].Command;
+        if (!string.IsNullOrEmpty(cmd))
+            commandService.ExecuteCommand(cmd).GetAwaiter().GetResult();
     }
 
     private void OnTouchButtonPress(object sender, TouchEventArgs e)
@@ -256,23 +259,22 @@ public class LoupedeckLiveSController(
             return;
         }
 
-        string command = e.ButtonId switch
-        {
-            Constants.ButtonType.KNOB_TL => e.Delta < 0
-                ? config.RotaryButtonPages[config.CurrentRotaryPageIndex].RotaryButtons[0].RotaryLeftCommand
-                : config.RotaryButtonPages[config.CurrentRotaryPageIndex].RotaryButtons[0].RotaryRightCommand,
-            Constants.ButtonType.KNOB_CL => e.Delta < 0
-                ? config.RotaryButtonPages[config.CurrentRotaryPageIndex].RotaryButtons[1].RotaryLeftCommand
-                : config.RotaryButtonPages[config.CurrentRotaryPageIndex].RotaryButtons[1].RotaryRightCommand,
-            _ => null
-        };
+        if (!TryGetRotaryIndex(e.ButtonId, out var idx)) return;
+        var page = config.RotaryButtonPages[config.CurrentRotaryPageIndex];
+        if (page?.RotaryButtons == null || idx >= page.RotaryButtons.Count) return;
 
+        var btn = page.RotaryButtons[idx];
+        var command = e.Delta < 0 ? btn.RotaryLeftCommand : btn.RotaryRightCommand;
         if (!string.IsNullOrEmpty(command))
-        {
             commandService.ExecuteCommand(command).GetAwaiter().GetResult();
-        }
     }
 
+    /// <summary>
+    /// Maps the device knob id to its rotary-page slot index. Order matches the
+    /// physical layout (left column top→bottom, then right column top→bottom),
+    /// which is what both the Live S (slots 0–1) and the Razer Stream Controller
+    /// (slots 0–5) consume.
+    /// </summary>
     private static bool TryGetRotaryIndex(Constants.ButtonType id, out int index)
     {
         switch (id)
@@ -280,6 +282,9 @@ public class LoupedeckLiveSController(
             case Constants.ButtonType.KNOB_TL: index = 0; return true;
             case Constants.ButtonType.KNOB_CL: index = 1; return true;
             case Constants.ButtonType.KNOB_BL: index = 2; return true;
+            case Constants.ButtonType.KNOB_TR: index = 3; return true;
+            case Constants.ButtonType.KNOB_CR: index = 4; return true;
+            case Constants.ButtonType.KNOB_BR: index = 5; return true;
             default: index = -1; return false;
         }
     }
@@ -317,7 +322,7 @@ public class LoupedeckLiveSController(
                 // Folder mode left — restore the configured page.
                 foreach (var touchButton in config.CurrentTouchButtonPage.TouchButtons)
                 {
-                    await device.DrawTouchButton(touchButton, config, true, 5);
+                    await device.DrawTouchButton(touchButton, config, true, device.Columns);
                 }
             }
         }
@@ -393,7 +398,7 @@ public class LoupedeckLiveSController(
                     await Task.Delay(100, token); // Debounce
                     foreach (var touchButton in config.CurrentTouchButtonPage.TouchButtons)
                     {
-                        await deviceService.Device.DrawTouchButton(touchButton, config, true, 5);
+                        await deviceService.Device.DrawTouchButton(touchButton, config, true, deviceService.Device.Columns);
                         await Task.Delay(0, token);
                     }
                     break;
@@ -418,7 +423,37 @@ public class LoupedeckLiveSController(
 
         if (button == null) return;
 
-        await deviceService.Device.DrawTouchButton(button, config, true, 5);
+        await deviceService.Device.DrawTouchButton(button, config, true, deviceService.Device.Columns);
+    }
+
+    /// <summary>
+    /// Builds the SimpleButton array sized to the active device's physical button count.
+    /// The first four slots get the page-navigation defaults that existed for the Live S;
+    /// any additional slots (e.g. Razer's BUTTON4–BUTTON7) are created blank for the
+    /// user to assign — preserves saved bindings via SimpleButtonExtensions.FindById.
+    /// </summary>
+    private async Task<SimpleButton[]> BuildSimpleButtons()
+    {
+        var defaults = new (Constants.ButtonType Id, string Cmd)[]
+        {
+            (Constants.ButtonType.BUTTON0, "System.PreviousPage"),
+            (Constants.ButtonType.BUTTON1, "System.PreviousRotaryPage"),
+            (Constants.ButtonType.BUTTON2, "System.NextRotaryPage"),
+            (Constants.ButtonType.BUTTON3, "System.NextPage"),
+            (Constants.ButtonType.BUTTON4, null),
+            (Constants.ButtonType.BUTTON5, null),
+            (Constants.ButtonType.BUTTON6, null),
+            (Constants.ButtonType.BUTTON7, null)
+        };
+
+        var device = deviceService.Device;
+        var count = device.Buttons?.Length ?? 0;
+        var result = new SimpleButton[count];
+        for (var i = 0; i < count && i < defaults.Length; i++)
+        {
+            result[i] = await CreateSimpleButton(defaults[i].Id, Avalonia.Media.Colors.Blue, defaults[i].Cmd ?? string.Empty);
+        }
+        return result;
     }
 
     private async Task<SimpleButton> CreateSimpleButton(Constants.ButtonType id, Avalonia.Media.Color color,

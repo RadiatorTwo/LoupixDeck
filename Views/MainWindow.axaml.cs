@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Platform;
 using LoupixDeck.Utils;
 using LoupixDeck.ViewModels;
+using LoupixDeck.Views.Devices;
 
 namespace LoupixDeck.Views;
 
@@ -16,13 +17,13 @@ public partial class MainWindow : Window
     private ICommand QuitCommand { get; }
 
     private static MainWindow Instance { get; set; }
-    
+
     public MainWindowViewModel ViewModel => (MainWindowViewModel)DataContext;
 
     public MainWindow()
     {
         InitializeComponent();
-        
+
         Instance = this;
 
         ShowCommand = new RelayCommand(() => Instance?.ShowFromTray());
@@ -31,6 +32,25 @@ public partial class MainWindow : Window
         // CreateTrayIcon();
 
         this.Closing += OnWindowClosing;
+        this.DataContextChanged += OnDataContextChanged;
+    }
+
+    /// <summary>
+    /// Pick the device-specific UserControl when DI hands us a VM. The child
+    /// inherits DataContext, so its existing LoupedeckController.Config bindings
+    /// resolve unchanged. Unknown slugs fall through to Live S to keep something
+    /// rendered rather than a blank window.
+    /// </summary>
+    private void OnDataContextChanged(object sender, System.EventArgs e)
+    {
+        var host = this.FindControl<ContentControl>("DeviceLayoutHost");
+        if (host == null || DataContext is not MainWindowViewModel vm) return;
+
+        host.Content = vm.DeviceSlug switch
+        {
+            "razer-stream-controller" => new RazerStreamControllerLayout(),
+            _ => new LoupedeckLiveSLayout()
+        };
     }
 
     private void CreateTrayIcon()

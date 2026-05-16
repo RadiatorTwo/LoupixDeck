@@ -21,6 +21,8 @@ sealed class Program
     [STAThread]
     public static void Main(string[] args)
     {
+        RedirectConsoleToLogFile();
+        Console.WriteLine($"=== LoupixDeck Main {DateTime.Now:yyyy-MM-dd HH:mm:ss} args=[{string.Join(' ', args)}] ===");
 #if !WINDOWS
         {
             if (File.Exists(SocketPath))
@@ -60,6 +62,35 @@ sealed class Program
 
         BuildAvaloniaApp()
             .StartWithClassicDesktopLifetime(args);
+    }
+
+    private static void RedirectConsoleToLogFile()
+    {
+        try
+        {
+            var home = Environment.GetEnvironmentVariable("HOME")
+                       ?? Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+#if DEBUG
+            var dir = Path.Combine(home, ".config", "LoupixDeck", "debug");
+#else
+            var dir = Path.Combine(home, ".config", "LoupixDeck");
+#endif
+            Directory.CreateDirectory(dir);
+            var path = Path.Combine(dir, "loupixdeck-startup.log");
+            var stream = new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.Read);
+            var writer = new StreamWriter(stream) { AutoFlush = true };
+            Console.SetOut(writer);
+            Console.SetError(writer);
+            AppDomain.CurrentDomain.UnhandledException += (_, e) =>
+            {
+                Console.WriteLine($"UnhandledException: {e.ExceptionObject}");
+                writer.Flush();
+            };
+        }
+        catch
+        {
+            // best-effort
+        }
     }
 
     // Avalonia configuration, don't remove; also used by visual designer.

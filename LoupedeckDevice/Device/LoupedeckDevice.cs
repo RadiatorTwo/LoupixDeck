@@ -40,12 +40,21 @@ public class LoupedeckDevice
 
     protected Dictionary<string, DisplayInfo> Displays { get; init; } = new();
     public int[] Buttons { get; set; }
-    protected int Columns { get; init; }
-    protected int Rows { get; init; }
+    public int Columns { get; protected init; }
+    public int Rows { get; protected init; }
     protected int[] VisibleX { get; init; }
     protected int[] VisibleY { get; init; }
     public string Type { get; set; }
     public string ProductId { get; set; }
+
+    /// <summary>Number of rotary encoders (knobs) the device exposes. Subclasses must set this.</summary>
+    public int RotaryCount { get; protected init; }
+
+    /// <summary>
+    /// Number of addressable touch buttons. Defaults to Columns*Rows; devices with
+    /// extra non-grid touch slots (e.g. Razer side panels) override this in their ctor.
+    /// </summary>
+    public int TouchButtonCount { get; protected init; }
 
     public event EventHandler<ConnectionEventArgs> OnConnect;
     public event EventHandler<ConnectionEventArgs> OnDisconnect;
@@ -482,7 +491,7 @@ public class LoupedeckDevice
     /// <param name="x">X-position in the header.</param>
     /// <param name="y">Y-position in the header.</param>
     /// <param name="autoRefresh">Should a refresh be triggered automatically?</param>
-    private async Task DrawCanvas(
+    protected async Task DrawCanvas(
         string id,
         int width,
         int height,
@@ -582,7 +591,7 @@ public class LoupedeckDevice
     /// <summary>
     /// Draws a touch button on the corresponding key, optionally with an image and text overlay.
     /// </summary>
-    public async Task DrawTouchButton(
+    public virtual async Task DrawTouchButton(
         TouchButton touchButton,
         LoupedeckConfig config,
         bool refresh,
