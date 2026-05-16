@@ -34,8 +34,20 @@ public class DialogService(IServiceProvider serviceProvider) : IDialogService
         if (!_viewModelToWindowMap.TryGetValue(typeof(TViewModel), out var windowType))
             throw new InvalidOperationException($"No window registered for {typeof(TViewModel).Name}");
 
-        var window = (Window)Activator.CreateInstance(windowType)!;
-        window.DataContext = viewModel;
+        // Prefer a (ViewModel) ctor so the window can set DataContext *before*
+        // InitializeComponent runs — that prevents spurious binding warnings on
+        // $parent[Window].DataContext.X during the first XAML evaluation pass.
+        Window window;
+        var ctorWithVm = windowType.GetConstructor(new[] { typeof(TViewModel) });
+        if (ctorWithVm != null)
+        {
+            window = (Window)ctorWithVm.Invoke(new object[] { viewModel })!;
+        }
+        else
+        {
+            window = (Window)Activator.CreateInstance(windowType)!;
+            window.DataContext = viewModel;
+        }
         window.WindowStartupLocation = WindowStartupLocation.CenterOwner;
 
         if (viewModel is IAsyncInitViewModel asyncInit)

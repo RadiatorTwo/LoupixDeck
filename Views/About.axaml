@@ -16,7 +16,7 @@
         <StackPanel Spacing="10" HorizontalAlignment="Center" VerticalAlignment="Center">
             <TextBlock Text="LoupixDeck" FontSize="24" FontWeight="Bold" HorizontalAlignment="Center" />
             <TextBlock Text="{Binding Version}" FontSize="16" HorizontalAlignment="Center" />
-            <TextBlock Text="© 2025 RadiatorTwo" FontSize="14" HorizontalAlignment="Center" />
+            <TextBlock Text="© 2025-2026 RadiatorTwo" FontSize="14" HorizontalAlignment="Center" />
             <Separator/>
             <Button Content="Project Website" Width="150" HorizontalAlignment="Center"
                     Command="{Binding OpenWebsiteCommand}" />
