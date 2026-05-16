@@ -681,6 +681,57 @@ public class LoupedeckDevice
     }
 
     /// <summary>
+    /// Per-button native haptic slot (DRV2605 effect, scheduled relative to touch-start).
+    /// </summary>
+    public readonly record struct HapticSlot(byte ButtonId, byte Sequence, byte EffectId, byte DelayMs, byte DurationMs);
+
+    /// <summary>
+    /// Enables firmware-side haptic feedback for touch buttons.
+    /// Reverse-engineered op-code 0x2e — payload: [screen, 0x00, count, (btn, seq, fx, delay, dur) * count].
+    /// </summary>
+    public void EnableNativeHaptic(IReadOnlyList<HapticSlot> slots, byte screen = 0x4d)
+    {
+        if (slots == null || slots.Count == 0)
+            throw new ArgumentOutOfRangeException(nameof(slots));
+
+        var data = new byte[3 + slots.Count * 5];
+        data[0] = screen;
+        data[1] = 0x00;
+        data[2] = (byte)slots.Count;
+        var i = 3;
+        foreach (var s in slots)
+        {
+            data[i++] = s.ButtonId;
+            data[i++] = s.Sequence;
+            data[i++] = s.EffectId;
+            data[i++] = s.DelayMs;
+            data[i++] = s.DurationMs;
+        }
+
+        SendNoResponse(Constants.Command.SET_HAPTIC, data);
+    }
+
+    /// <summary>
+    /// Disables firmware-side haptic feedback (op-code 0x2e, payload [screen, 0x01]).
+    /// </summary>
+    public void DisableNativeHaptic(byte screen = 0x4d)
+    {
+        SendNoResponse(Constants.Command.SET_HAPTIC, [screen, 0x01]);
+    }
+
+    /// <summary>
+    /// Sets the global haptic strength (0x00 = off … 0x04 = strongest).
+    /// Op-code 0x19, payload [0x02, 0x03, 0x00, 0x0a, strength].
+    /// </summary>
+    public void SetHapticStrength(byte strength)
+    {
+        if (strength > 0x04)
+            throw new ArgumentOutOfRangeException(nameof(strength), "Strength must be 0x00..0x04.");
+
+        SendNoResponse(Constants.Command.SET_HAPTIC_STRENGTH, [0x02, 0x03, 0x00, 0x0a, strength]);
+    }
+
+    /// <summary>
     /// Performs a device reset.
     /// </summary>
     public void ResetDevice()

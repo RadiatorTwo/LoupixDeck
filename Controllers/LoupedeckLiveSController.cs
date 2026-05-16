@@ -172,6 +172,22 @@ public class LoupedeckLiveSController(
 
     private void OnTouchButtonPress(object sender, TouchEventArgs e)
     {
+        // Per-button override: native haptic skips these buttons entirely, so we
+        // drive the legacy software Vibrate() pulse on both touch start and end.
+        if (e.EventType == Constants.TouchEventType.TOUCH_END)
+        {
+            foreach (var touch in e.Touches)
+            {
+                var btn = config.CurrentTouchButtonPage?.TouchButtons?.FindByIndex(touch.Target.Key);
+                if (btn != null && btn.VibrationEnabled)
+                {
+                    deviceService.Device.Vibrate(Constants.VibrationPattern.Off);
+                    break;
+                }
+            }
+            return;
+        }
+
         if (e.EventType != Constants.TouchEventType.TOUCH_START)
             return;
 
@@ -189,9 +205,10 @@ public class LoupedeckLiveSController(
             var button = config.CurrentTouchButtonPage.TouchButtons.FindByIndex(touch.Target.Key);
             if (button == null) continue;
 
-            commandService.ExecuteCommand(button.Command).GetAwaiter().GetResult();
+            if (button.VibrationEnabled)
+                deviceService.Device.Vibrate(button.VibrationPattern);
 
-            deviceService.Device.Vibrate();
+            commandService.ExecuteCommand(button.Command).GetAwaiter().GetResult();
         }
     }
 
@@ -202,14 +219,11 @@ public class LoupedeckLiveSController(
         if (slotIndex == FolderConstants.BackSlotIndex)
         {
             folderNav.NavigateBack().GetAwaiter().GetResult();
-            deviceService.Device.Vibrate();
             return;
         }
 
         if (!folderNav.CurrentEntries.TryGetValue(slotIndex, out var entry))
             return; // empty slot — disabled
-
-        deviceService.Device.Vibrate();
 
         if (entry.OpensFolder != null)
         {

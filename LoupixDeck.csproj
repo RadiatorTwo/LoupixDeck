@@ -22,6 +22,14 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Remove="Fork\**" />
+    <AvaloniaXaml Remove="Fork\**" />
+    <AvaloniaResource Remove="Fork\**" />
+    <EmbeddedResource Remove="Fork\**" />
+    <None Remove="Fork\**" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Content Include="Assets\logo.ico">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <Link>LoupixDeck.ico</Link>
