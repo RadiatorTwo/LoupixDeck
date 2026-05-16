@@ -5,8 +5,10 @@
         xmlns:vm="using:LoupixDeck.ViewModels"
         xmlns:bs="clr-namespace:LoupixDeck.ViewModels.Base"
         xmlns:cnv="clr-namespace:LoupixDeck.Models.Converter"
+        xmlns:m="clr-namespace:LoupixDeck.Models"
         x:Class="LoupixDeck.Views.Settings"
         x:DataType="vm:SettingsViewModel"
+        x:Name="SettingsWindow"
         mc:Ignorable="d"
         Title="Settings"
         Width="800"
@@ -32,6 +34,10 @@
             <Button Content="Wallpaper"
                     Command="{Binding NavigateCommand}"
                     CommandParameter="{x:Static bs:SettingsView.Wallpaper}"
+                    HorizontalAlignment="Stretch" />
+            <Button Content="Haptic"
+                    Command="{Binding NavigateCommand}"
+                    CommandParameter="{x:Static bs:SettingsView.Haptic}"
                     HorizontalAlignment="Stretch" />
         </StackPanel>
 
@@ -135,6 +141,92 @@
                             Value="{Binding WallpaperPositionY, Mode=TwoWay}" Width="200" />
                     <TextBlock Text="{Binding WallpaperPositionY}" />
                 </StackPanel>
+            </StackPanel>
+
+            <StackPanel
+                IsVisible="{Binding CurrentView, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Haptic}">
+                <TextBlock Text="Haptic Feedback" FontSize="24" FontWeight="Bold" />
+
+                <CheckBox Content="Enable haptic feedback"
+                          IsChecked="{Binding Config.HapticEnabled, Mode=TwoWay}"
+                          Margin="0,15,0,0" />
+
+                <!-- First effect (always present, plays immediately on touch) -->
+                <Border BorderBrush="Gray" BorderThickness="1" CornerRadius="4"
+                        Padding="10" Margin="0,20,20,0"
+                        DataContext="{Binding FirstHapticStep}">
+                    <StackPanel>
+                        <TextBlock Text="First effect (immediate)" FontWeight="Bold" />
+                        <Grid ColumnDefinitions="80,*" RowDefinitions="Auto,Auto" Margin="0,8,0,0">
+                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Effect:" VerticalAlignment="Center" />
+                            <ComboBox Grid.Row="0" Grid.Column="1" Width="240" HorizontalAlignment="Left"
+                                      ItemsSource="{Binding #SettingsWindow.((vm:SettingsViewModel)DataContext).VibrationPatterns}"
+                                      SelectedValue="{Binding Effect, Mode=TwoWay}"
+                                      SelectedValueBinding="{Binding Value}">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate DataType="cnv:VibrationPatternItem">
+                                        <TextBlock Text="{Binding Name}" />
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+
+                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Duration:" VerticalAlignment="Center" Margin="0,8,0,0" />
+                            <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Spacing="10" Margin="0,8,0,0">
+                                <Slider Minimum="2" Maximum="255" TickFrequency="1" IsSnapToTickEnabled="True"
+                                        Value="{Binding Duration, Mode=TwoWay}" Width="280" />
+                                <TextBlock Text="{Binding Duration}" VerticalAlignment="Center" Width="40" />
+                            </StackPanel>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- Add-second-effect button (only when there's just one step) -->
+                <Button Content="Add second effect" Command="{Binding AddHapticStepCommand}"
+                        HorizontalAlignment="Left" Margin="0,8,0,0"
+                        IsVisible="{Binding CanAddHapticStep}" />
+
+                <!-- Second effect (optional — fires after delay, while finger still held) -->
+                <Border BorderBrush="Gray" BorderThickness="1" CornerRadius="4"
+                        Padding="10" Margin="0,8,20,0"
+                        IsVisible="{Binding #SettingsWindow.((vm:SettingsViewModel)DataContext).HasSecondHapticStep}"
+                        DataContext="{Binding SecondHapticStep}">
+                    <StackPanel>
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Grid.Column="0" Text="Second effect (after delay)" FontWeight="Bold"
+                                       VerticalAlignment="Center" />
+                            <Button Grid.Column="1" Content="Remove"
+                                    Command="{Binding #SettingsWindow.((vm:SettingsViewModel)DataContext).RemoveHapticStepCommand}"
+                                    CommandParameter="{Binding}" />
+                        </Grid>
+                        <Grid ColumnDefinitions="80,*" RowDefinitions="Auto,Auto,Auto" Margin="0,8,0,0">
+                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Effect:" VerticalAlignment="Center" />
+                            <ComboBox Grid.Row="0" Grid.Column="1" Width="240" HorizontalAlignment="Left"
+                                      ItemsSource="{Binding #SettingsWindow.((vm:SettingsViewModel)DataContext).VibrationPatterns}"
+                                      SelectedValue="{Binding Effect, Mode=TwoWay}"
+                                      SelectedValueBinding="{Binding Value}">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate DataType="cnv:VibrationPatternItem">
+                                        <TextBlock Text="{Binding Name}" />
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+
+                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Delay:" VerticalAlignment="Center" Margin="0,8,0,0" />
+                            <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Spacing="10" Margin="0,8,0,0">
+                                <Slider Minimum="4" Maximum="255" TickFrequency="1" IsSnapToTickEnabled="True"
+                                        Value="{Binding Delay, Mode=TwoWay}" Width="280" />
+                                <TextBlock Text="{Binding Delay}" VerticalAlignment="Center" Width="40" />
+                            </StackPanel>
+
+                            <TextBlock Grid.Row="2" Grid.Column="0" Text="Duration:" VerticalAlignment="Center" Margin="0,8,0,0" />
+                            <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal" Spacing="10" Margin="0,8,0,0">
+                                <Slider Minimum="2" Maximum="255" TickFrequency="1" IsSnapToTickEnabled="True"
+                                        Value="{Binding Duration, Mode=TwoWay}" Width="280" />
+                                <TextBlock Text="{Binding Duration}" VerticalAlignment="Center" Width="40" />
+                            </StackPanel>
+                        </Grid>
+                    </StackPanel>
+                </Border>
             </StackPanel>
         </Grid>
     </Grid>

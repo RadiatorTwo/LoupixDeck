@@ -1,7 +1,9 @@
 using System.Collections.ObjectModel;
 using System.Windows.Input;
+using LoupixDeck.LoupedeckDevice;
 using LoupixDeck.Models;
 using LoupixDeck.Models.Argus;
+using LoupixDeck.Models.Converter;
 using LoupixDeck.Models.Layers;
 using LoupixDeck.Services;
 using LoupixDeck.Services.Argus;
@@ -27,6 +29,10 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
         {
             ButtonData.ItemChanged += ButtonData_ItemChanged;
             UpdateEditorPreview();
+
+            _selectedVibrationPattern = VibrationPatterns.FirstOrDefault(
+                p => p.Value == ButtonData.VibrationPattern);
+            OnPropertyChanged(nameof(SelectedVibrationPattern));
         }
     }
 
@@ -162,6 +168,22 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
 
     public ObservableCollection<MenuEntry> SystemCommandMenus { get; set; }
     public MenuEntry CurrentMenuEntry { get; set; }
+
+    public ObservableCollection<VibrationPatternItem> VibrationPatterns => VibrationPatternCatalog.All;
+
+    private VibrationPatternItem _selectedVibrationPattern;
+    public VibrationPatternItem SelectedVibrationPattern
+    {
+        get => _selectedVibrationPattern;
+        set
+        {
+            if (_selectedVibrationPattern == value) return;
+            _selectedVibrationPattern = value;
+            if (ButtonData != null && value != null)
+                ButtonData.VibrationPattern = value.Value;
+            OnPropertyChanged(nameof(SelectedVibrationPattern));
+        }
+    }
 
     private MenuEntry _elgatoKeyLightMenu;
 
