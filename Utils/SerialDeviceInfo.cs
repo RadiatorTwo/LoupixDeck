@@ -1,8 +1,8 @@
 using System.Diagnostics;
 
 #if WINDOWS
+using System.Diagnostics.CodeAnalysis;
 using System.Management;
-using System.Runtime.Versioning;
 using System.Text.RegularExpressions;
 #endif
 
@@ -19,7 +19,12 @@ public static class SerialDeviceHelper
     );
 
 #if WINDOWS
-    [SupportedOSPlatform("windows")]
+    // SuppressMessage rather than [SupportedOSPlatform] — the latter cascades to
+    // every caller and forces platform attributes on otherwise cross-platform
+    // code (the Linux #else branch implements the same API). The WMI call is
+    // only reachable when the WINDOWS constant is defined, so the analyzer
+    // warning is informational, not load-bearing.
+    [SuppressMessage("Interoperability", "CA1416:Validate platform compatibility")]
     public static List<SerialDeviceInfo> ListSerialUsbDevices()
     {
         var result = new List<SerialDeviceInfo>();

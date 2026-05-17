@@ -9,7 +9,7 @@
     xmlns:vm="using:LoupixDeck.ViewModels"
     xmlns:layers="clr-namespace:LoupixDeck.Models.Layers"
     x:DataType="vm:TouchButtonSettingsViewModel"
-    Title="TouchButtonSettings"
+    Title="{Binding ButtonData.Index, StringFormat='Touch Button {0}'}"
     Height="820"
     Width="1280"
     mc:Ignorable="d"
@@ -125,7 +125,8 @@
                             <StackPanel Margin="4">
 
                                 <!-- Button-wide settings -->
-                                <TextBlock Text="Button" FontWeight="Bold" Margin="0,0,0,4" />
+                                <TextBlock Text="{Binding ButtonData.Index, StringFormat='Button {0}'}"
+                                           FontWeight="Bold" Margin="0,0,0,4" />
                                 <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
                                     <TextBlock Text="Background:" Width="90" VerticalAlignment="Center" />
                                     <ccp:ColorPicker Color="{Binding ButtonData.BackColor}"
@@ -472,6 +473,11 @@
                                 </ContentControl>
 
                                 <Separator Margin="0,15,0,8" />
+
+                                <!-- Device OFF behavior -->
+                                <CheckBox Content="Run also when device is OFF"
+                                          IsChecked="{Binding ButtonData.EnableWhenOff}"
+                                          Margin="0,0,0,12" />
 
                                 <!-- Vibration Settings -->
                                 <TextBlock Text="Vibration Settings" FontWeight="Bold" Margin="0,0,0,4" />

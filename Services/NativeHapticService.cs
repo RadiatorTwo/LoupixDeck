@@ -138,7 +138,8 @@ public sealed class NativeHapticService : INativeHapticService, IDisposable
             // they are driven via the legacy software Vibrate() path from the
             // touch-start/end handler so the firmware never plays a global pulse
             // on top of the per-button one.
-            for (byte i = 0; i < 15; i++)
+            var btnCount = (byte)Math.Min(dev.TouchButtonCount, byte.MaxValue);
+            for (byte i = 0; i < btnCount; i++)
             {
                 var btn = page?.TouchButtons?.FindByIndex(i);
                 if (btn != null && btn.VibrationEnabled)
@@ -147,12 +148,12 @@ public sealed class NativeHapticService : INativeHapticService, IDisposable
                     continue;
                 }
 
-                var slots = new List<LoupedeckLiveSDevice.HapticSlot>(steps.Count);
+                var slots = new List<LoupixDeck.LoupedeckDevice.Device.LoupedeckDevice.HapticSlot>(steps.Count);
                 for (var s = 0; s < steps.Count; s++)
                 {
                     var step = steps[s];
                     var delay = s == 0 ? (byte)0x04 : step.Delay;
-                    slots.Add(new LoupedeckLiveSDevice.HapticSlot(
+                    slots.Add(new LoupixDeck.LoupedeckDevice.Device.LoupedeckDevice.HapticSlot(
                         i, (byte)s, step.Effect, delay, step.Duration));
                 }
 

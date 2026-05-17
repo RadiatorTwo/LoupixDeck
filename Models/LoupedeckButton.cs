@@ -21,6 +21,25 @@ public class LoupedeckButton : INotifyPropertyChanged
         set;
     }
 
+    private bool _enableWhenOff;
+
+    /// <summary>
+    /// When true, this button's command still runs while the device is in the
+    /// OFF state (manual toggle or auto-OFF during system suspend). Used e.g.
+    /// for a "wake the device" button that needs to function while everything
+    /// else is muted.
+    /// </summary>
+    public virtual bool EnableWhenOff
+    {
+        get => _enableWhenOff;
+        set
+        {
+            if (_enableWhenOff == value) return;
+            _enableWhenOff = value;
+            OnPropertyChanged(nameof(EnableWhenOff));
+        }
+    }
+
     public event EventHandler ItemChanged;
     public event PropertyChangedEventHandler PropertyChanged;
 
