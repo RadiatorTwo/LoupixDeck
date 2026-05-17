@@ -110,14 +110,12 @@ The Command menu is filtered per OS — Windows-only and Linux-only commands onl
 
 ## 📸 Screenshots
 
-> Screenshots will be added with the v1.3.0 release.
-
 | | |
 |---|---|
 | ![Main window — Loupedeck Live S](docs/screenshots/main-window-loupedeck.png) | ![Main window — Razer Stream Controller](docs/screenshots/main-window-razer.png) |
 | ![Layer-based touch button editor](docs/screenshots/layer-editor.png) | ![Material Design Icons symbol picker](docs/screenshots/symbol-picker.png) |
-| ![Settings sidebar navigation](docs/screenshots/settings-sidebar.png) | ![Native haptic feedback settings](docs/screenshots/haptic-settings.png) |
-| ![System tray menu](docs/screenshots/tray-menu.png) | |
+| ![Settings sidebar navigation](docs/screenshots/settings-sidebar.png) | ![Pages management](docs/screenshots/pages-management.png) |
+| ![Command picker](docs/screenshots/command-picker.png) | |
 
 ---
 
