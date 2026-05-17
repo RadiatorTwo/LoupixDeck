@@ -7,33 +7,37 @@
         x:Class="LoupixDeck.Views.RotaryButtonSettings"
         x:DataType="vm:RotaryButtonSettingsViewModel"
         mc:Ignorable="d"
-        Title="RotaryButtonSettings"
+        Title="{Binding KnobLabel}"
         Width="850"
         Height="300">
     <Border BorderThickness="2"
             BorderBrush="LightGray"
             Padding="16">
-        <Grid RowDefinitions="60,60,70,40,*" ColumnDefinitions="*,*">
-            <StackPanel Grid.Row="0" Grid.Column="0" Orientation="Vertical">
+        <Grid RowDefinitions="Auto,60,60,70,40,*" ColumnDefinitions="*,*">
+            <TextBlock Grid.Row="0" Grid.ColumnSpan="2"
+                       Text="{Binding KnobLabel}"
+                       FontSize="14" FontWeight="Bold"
+                       HorizontalAlignment="Left" Margin="0,0,0,8" />
+            <StackPanel Grid.Row="1" Grid.Column="0" Orientation="Vertical">
                 <Label HorizontalAlignment="Left">Command Rotary Left</Label>
                 <TextBox x:Name="TextBoxRotaryLeft" HorizontalAlignment="Stretch" Text="{Binding ButtonData.RotaryLeftCommand}"
                          GotFocus="TextBoxGotFocus" />
             </StackPanel>
-            <StackPanel Grid.Row="1" Grid.Column="0" Orientation="Vertical">
+            <StackPanel Grid.Row="2" Grid.Column="0" Orientation="Vertical">
                 <Label HorizontalAlignment="Left">Command Rotary Right</Label>
                 <TextBox x:Name="TextBoxRotaryRight" HorizontalAlignment="Stretch" Text="{Binding ButtonData.RotaryRightCommand}"
                          GotFocus="TextBoxGotFocus" />
             </StackPanel>
-            <StackPanel Grid.Row="2" Grid.Column="0" Orientation="Vertical">
+            <StackPanel Grid.Row="3" Grid.Column="0" Orientation="Vertical">
                 <Label HorizontalAlignment="Left">Button Press Command</Label>
                 <TextBox x:Name="TextBoxButtonPress" HorizontalAlignment="Stretch" Text="{Binding ButtonData.Command}"
                          GotFocus="TextBoxGotFocus" />
             </StackPanel>
-            <StackPanel Grid.Row="3" Grid.Column="0" Orientation="Vertical" VerticalAlignment="Center">
+            <StackPanel Grid.Row="4" Grid.Column="0" Orientation="Vertical" VerticalAlignment="Center">
                 <CheckBox Content="Run also when device is OFF"
                           IsChecked="{Binding ButtonData.EnableWhenOff}" />
             </StackPanel>
-            <StackPanel Grid.Row="0" Grid.RowSpan="5" Grid.Column="1" Orientation="Vertical" Margin="20,20,0,0">
+            <StackPanel Grid.Row="1" Grid.RowSpan="5" Grid.Column="1" Orientation="Vertical" Margin="20,0,0,0">
                 <TextBlock Text="System Commands" FontWeight="Bold" Margin="0,0,0,5" />
                 <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                     <TreeView Name="SystemCommandsTreeView" ItemsSource="{Binding SystemCommandMenus}"

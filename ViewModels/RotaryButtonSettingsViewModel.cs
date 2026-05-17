@@ -13,6 +13,10 @@ public class RotaryButtonSettingsViewModel : DialogViewModelBase<RotaryButton, D
         ButtonData = parameter;
     }
 
+    /// <summary>User-facing label, 0-based to match the System.UpdateButton
+    /// / GotoRotaryPage index space.</summary>
+    public string KnobLabel => $"Rotary Button {ButtonData?.Index ?? 0}";
+
     private readonly IObsController _obs;
     private readonly ElgatoDevices _elgatoDevices;
     private readonly ISysCommandService _sysCommandService;
