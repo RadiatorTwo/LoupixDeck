@@ -115,6 +115,12 @@ public class LoupedeckLiveSController(
         if (baudrate > 0)
             Config.DeviceBaudrate = baudrate;
 
+        // Auto-detect path never sets baudrate, so the config would otherwise
+        // persist as 0 and Settings would show "0" even though the device runs
+        // on the 115200 fallback inside LoupedeckDevice.
+        if (Config.DeviceBaudrate <= 0)
+            Config.DeviceBaudrate = 115200;
+
         // Stamp the active device's VID/PID into the config so subsequent
         // launches load the right per-device file via ActiveDeviceResolver.
         if (deviceInfo != null)
