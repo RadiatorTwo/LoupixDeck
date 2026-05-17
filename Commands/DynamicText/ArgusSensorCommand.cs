@@ -7,7 +7,8 @@ namespace LoupixDeck.Commands.DynamicText;
 [Command("Argus.Sensor", "Argus Sensor", "Argus Monitor",
     parameterTemplate: "({Sensor})",
     parameterNames: ["Sensor"],
-    parameterTypes: [typeof(string)])]
+    parameterTypes: [typeof(string)],
+    Platform = CommandPlatform.Windows)]
 public class ArgusSensorCommand : IDynamicTextProvider
 {
     private readonly IArgusMonitorService _argus;

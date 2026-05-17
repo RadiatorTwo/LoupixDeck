@@ -1,5 +1,12 @@
 namespace LoupixDeck.Commands.Base;
 
+public enum CommandPlatform
+{
+    All,
+    Windows,
+    Linux
+}
+
 [AttributeUsage(AttributeTargets.Class, Inherited = false)]
 public class CommandAttribute(
     string commandName,
@@ -16,4 +23,6 @@ public class CommandAttribute(
 
     public string[] ParameterNames { get; } = parameterNames;
     public Type[] ParameterTypes { get; } =  parameterTypes;
+
+    public CommandPlatform Platform { get; set; } = CommandPlatform.All;
 }

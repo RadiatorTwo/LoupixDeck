@@ -69,10 +69,15 @@ namespace LoupixDeck.Services
             foreach (var type in commandTypes)
             {
                 var attribute = type.GetCustomAttribute<CommandAttribute>();
-                if (attribute != null)
-                {
-                    _commands[attribute.CommandName] = (type, attribute);
-                }
+                if (attribute == null)
+                    continue;
+
+                if (attribute.Platform == CommandPlatform.Windows && !OperatingSystem.IsWindows())
+                    continue;
+                if (attribute.Platform == CommandPlatform.Linux && !OperatingSystem.IsLinux())
+                    continue;
+
+                _commands[attribute.CommandName] = (type, attribute);
             }
         }
 
