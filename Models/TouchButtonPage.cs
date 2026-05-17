@@ -73,7 +73,10 @@ public class TouchButtonPage : INotifyPropertyChanged
     }
 
     public ObservableCollection<TouchButton> TouchButtons { get; set; }
-        
+
+    /// <summary>Pre/Post-command wrap applied to every touch button on this page.</summary>
+    public CommandWrap TouchButtonWrap { get; set; } = new();
+
     public event PropertyChangedEventHandler PropertyChanged;
 
     private void OnPropertyChanged([CallerMemberName] string propertyName = null)

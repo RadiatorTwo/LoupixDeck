@@ -164,6 +164,9 @@ public static class ServiceCollectionExtensions
         collection.AddTransient<TouchPageWallpaperSettings>();
         collection.AddTransient<TouchPageWallpaperSettingsViewModel>();
 
+        collection.AddTransient<PageCommandsSettings>();
+        collection.AddTransient<PageCommandsSettingsViewModel>();
+
         collection.AddTransient<Settings>();
         collection.AddTransient<SettingsViewModel>();
         
@@ -182,6 +185,7 @@ public static class ServiceCollectionExtensions
         dialogService.Register<TouchButtonSettingsViewModel, TouchButtonSettings>();
         dialogService.Register<SymbolPickerViewModel, SymbolPicker>();
         dialogService.Register<TouchPageWallpaperSettingsViewModel, TouchPageWallpaperSettings>();
+        dialogService.Register<PageCommandsSettingsViewModel, PageCommandsSettings>();
         dialogService.Register<SettingsViewModel, Settings>();
         dialogService.Register<AboutViewModel, About>();
 

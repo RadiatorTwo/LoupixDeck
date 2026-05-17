@@ -230,7 +230,7 @@
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate DataType="m:TouchButtonPage">
                                             <Border Background="#2D2D2D" CornerRadius="4" Padding="8" Margin="0,0,0,6">
-                                                <Grid ColumnDefinitions="80,*,Auto,Auto,Auto,Auto">
+                                                <Grid ColumnDefinitions="80,*,Auto,Auto,Auto,Auto,Auto">
                                                     <Border Grid.Column="0" BorderBrush="#444" BorderThickness="1" CornerRadius="3" Height="40">
                                                         <Image Source="{Binding Wallpaper, Converter={StaticResource SkiaToBitmapConverter}}" Stretch="UniformToFill" />
                                                     </Border>
@@ -240,13 +240,18 @@
                                                             CommandParameter="{Binding}">
                                                         <TextBlock FontFamily="{StaticResource MdiFont}" Text="&#xF02E9;" FontSize="16" VerticalAlignment="Center" HorizontalAlignment="Center" />
                                                     </Button>
-                                                    <Button Grid.Column="3" Classes="row-action" Content="↑" ToolTip.Tip="Move up"
+                                                    <Button Grid.Column="3" Classes="row-action" ToolTip.Tip="Edit page commands"
+                                                            Command="{Binding $parent[Window].DataContext.EditPageCommandsCommand}"
+                                                            CommandParameter="{Binding}">
+                                                        <TextBlock FontFamily="{StaticResource MdiFont}" Text="&#xF18D8;" FontSize="16" VerticalAlignment="Center" HorizontalAlignment="Center" />
+                                                    </Button>
+                                                    <Button Grid.Column="4" Classes="row-action" Content="↑" ToolTip.Tip="Move up"
                                                             Command="{Binding $parent[Window].DataContext.MoveTouchPageUpCommand}"
                                                             CommandParameter="{Binding}" />
-                                                    <Button Grid.Column="4" Classes="row-action" Content="↓" ToolTip.Tip="Move down"
+                                                    <Button Grid.Column="5" Classes="row-action" Content="↓" ToolTip.Tip="Move down"
                                                             Command="{Binding $parent[Window].DataContext.MoveTouchPageDownCommand}"
                                                             CommandParameter="{Binding}" />
-                                                    <Button Grid.Column="5" Classes="row-action danger" Content="✕" ToolTip.Tip="Remove page"
+                                                    <Button Grid.Column="6" Classes="row-action danger" Content="✕" ToolTip.Tip="Remove page"
                                                             Command="{Binding $parent[Window].DataContext.RemoveTouchPageCommand}"
                                                             CommandParameter="{Binding}" />
                                                 </Grid>
@@ -267,15 +272,20 @@
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate DataType="m:RotaryButtonPage">
                                             <Border Background="#2D2D2D" CornerRadius="4" Padding="8" Margin="0,0,0,6">
-                                                <Grid ColumnDefinitions="*,Auto,Auto,Auto">
+                                                <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto">
                                                     <TextBlock Grid.Column="0" Text="{Binding PageName}" VerticalAlignment="Center" />
-                                                    <Button Grid.Column="1" Classes="row-action" Content="↑" ToolTip.Tip="Move up"
+                                                    <Button Grid.Column="1" Classes="row-action" ToolTip.Tip="Edit page commands"
+                                                            Command="{Binding $parent[Window].DataContext.EditPageCommandsCommand}"
+                                                            CommandParameter="{Binding}">
+                                                        <TextBlock FontFamily="{StaticResource MdiFont}" Text="&#xF18D8;" FontSize="16" VerticalAlignment="Center" HorizontalAlignment="Center" />
+                                                    </Button>
+                                                    <Button Grid.Column="2" Classes="row-action" Content="↑" ToolTip.Tip="Move up"
                                                             Command="{Binding $parent[Window].DataContext.MoveRotaryPageUpCommand}"
                                                             CommandParameter="{Binding}" />
-                                                    <Button Grid.Column="2" Classes="row-action" Content="↓" ToolTip.Tip="Move down"
+                                                    <Button Grid.Column="3" Classes="row-action" Content="↓" ToolTip.Tip="Move down"
                                                             Command="{Binding $parent[Window].DataContext.MoveRotaryPageDownCommand}"
                                                             CommandParameter="{Binding}" />
-                                                    <Button Grid.Column="3" Classes="row-action danger" Content="✕" ToolTip.Tip="Remove rotary page"
+                                                    <Button Grid.Column="4" Classes="row-action danger" Content="✕" ToolTip.Tip="Remove rotary page"
                                                             Command="{Binding $parent[Window].DataContext.RemoveRotaryPageCommand}"
                                                             CommandParameter="{Binding}" />
                                                 </Grid>

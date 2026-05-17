@@ -1,0 +1,80 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="using:LoupixDeck.ViewModels"
+        xmlns:local="using:LoupixDeck"
+        x:Class="LoupixDeck.Views.PageCommandsSettings"
+        x:DataType="vm:PageCommandsSettingsViewModel"
+        mc:Ignorable="d"
+        Title="Page Commands"
+        Width="940"
+        Height="660"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False">
+    <Window.Styles>
+        <StyleInclude Source="avares://LoupixDeck/Views/Styles/SettingsStyles.axaml" />
+    </Window.Styles>
+
+    <Grid Margin="16" RowDefinitions="Auto,*,Auto" RowSpacing="12">
+
+        <TextBlock Grid.Row="0" Classes="card-title" Margin="0"
+                   Text="{Binding PageName, StringFormat='Page Commands — {0}'}" />
+
+        <Grid Grid.Row="1" ColumnDefinitions="*,12,300">
+
+            <!-- Slot editor -->
+            <ScrollViewer Grid.Column="0" HorizontalScrollBarVisibility="Disabled">
+                <ItemsControl ItemsSource="{Binding Slots}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate DataType="vm:WrapSlot">
+                            <Border Background="#262626" BorderBrush="#3A3A3A" BorderThickness="1"
+                                    CornerRadius="8" Padding="14" Margin="0,0,4,10">
+                                <StackPanel Spacing="6">
+                                    <TextBlock Classes="card-title" Text="{Binding Label}" Margin="0,0,0,6" />
+
+                                    <CheckBox Content="Run Pre Execution Commands"
+                                              IsChecked="{Binding Wrap.PreEnabled, Mode=TwoWay}" />
+                                    <TextBox Tag="pre" GotFocus="OnCommandBoxFocused"
+                                             Watermark="cmd1 &amp;&amp; cmd2 &amp;&amp; …"
+                                             Text="{Binding Wrap.PreCommands, Mode=TwoWay}"
+                                             IsEnabled="{Binding Wrap.PreEnabled}" />
+
+                                    <CheckBox Content="Run Post Execution Commands" Margin="0,6,0,0"
+                                              IsChecked="{Binding Wrap.PostEnabled, Mode=TwoWay}" />
+                                    <TextBox Tag="post" GotFocus="OnCommandBoxFocused"
+                                             Watermark="cmd1 &amp;&amp; cmd2 &amp;&amp; …"
+                                             Text="{Binding Wrap.PostCommands, Mode=TwoWay}"
+                                             IsEnabled="{Binding Wrap.PostEnabled}" />
+                                </StackPanel>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+
+            <!-- System command picker -->
+            <StackPanel Grid.Column="2" Orientation="Vertical">
+                <TextBlock Text="System Commands" FontWeight="Bold" Margin="0,0,0,5" />
+                <TextBlock Classes="hint" Margin="0,0,0,6"
+                           Text="Double-click an entry to append it to the focused command box." />
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                    <TreeView Name="SystemCommandsTreeView" ItemsSource="{Binding SystemCommandMenus}"
+                              SelectedItem="{Binding CurrentMenuEntry}" MaxHeight="520">
+                        <TreeView.DataTemplates>
+                            <TreeDataTemplate DataType="{x:Type local:Models.MenuEntry}"
+                                              ItemsSource="{Binding Children}">
+                                <TextBlock Text="{Binding Name}" PointerPressed="OnPointerPressed" />
+                            </TreeDataTemplate>
+                        </TreeView.DataTemplates>
+                    </TreeView>
+                </ScrollViewer>
+            </StackPanel>
+        </Grid>
+
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+            <Button Content="Cancel" Width="100" Command="{Binding CancelCommand}" />
+            <Button Content="OK"     Width="100" IsDefault="True" Command="{Binding ConfirmCommand}" />
+        </StackPanel>
+    </Grid>
+</Window>

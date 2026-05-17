@@ -48,7 +48,13 @@ public class RotaryButtonPage : INotifyPropertyChanged
     }
 
     public ObservableCollection<RotaryButton> RotaryButtons { get; set; }
-    
+
+    // Pre/Post-command wraps applied per input type when a button on this page fires.
+    public CommandWrap SimpleButtonWrap { get; set; } = new();
+    public CommandWrap KnobLeftWrap { get; set; } = new();
+    public CommandWrap KnobRightWrap { get; set; } = new();
+    public CommandWrap KnobPressWrap { get; set; } = new();
+
     public event PropertyChangedEventHandler PropertyChanged;
 
     private void OnPropertyChanged([CallerMemberName] string propertyName = null)

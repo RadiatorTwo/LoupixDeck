@@ -255,7 +255,8 @@ public class LoupedeckLiveSController(
         if (button != null)
         {
             if (_isDeviceOff && !button.EnableWhenOff) return;
-            commandService.ExecuteCommand(button.Command).GetAwaiter().GetResult();
+            var wrapped = config.CurrentRotaryButtonPage?.SimpleButtonWrap?.Apply(button.Command) ?? button.Command;
+            commandService.ExecuteCommand(wrapped).GetAwaiter().GetResult();
             return;
         }
 
@@ -265,8 +266,9 @@ public class LoupedeckLiveSController(
         var rotary = page.RotaryButtons[idx];
         if (_isDeviceOff && !rotary.EnableWhenOff) return;
         var cmd = rotary.Command;
-        if (!string.IsNullOrEmpty(cmd))
-            commandService.ExecuteCommand(cmd).GetAwaiter().GetResult();
+        if (string.IsNullOrEmpty(cmd)) return;
+        var wrappedRotary = page.KnobPressWrap?.Apply(cmd) ?? cmd;
+        commandService.ExecuteCommand(wrappedRotary).GetAwaiter().GetResult();
     }
 
     private void OnTouchButtonPress(object sender, TouchEventArgs e)
@@ -308,7 +310,8 @@ public class LoupedeckLiveSController(
             if (button.VibrationEnabled)
                 deviceService.Device.Vibrate(button.VibrationPattern);
 
-            commandService.ExecuteCommand(button.Command).GetAwaiter().GetResult();
+            var wrapped = config.CurrentTouchButtonPage.TouchButtonWrap?.Apply(button.Command) ?? button.Command;
+            commandService.ExecuteCommand(wrapped).GetAwaiter().GetResult();
         }
     }
 
@@ -360,9 +363,12 @@ public class LoupedeckLiveSController(
 
         var btn = page.RotaryButtons[idx];
         if (_isDeviceOff && !btn.EnableWhenOff) return;
-        var command = e.Delta < 0 ? btn.RotaryLeftCommand : btn.RotaryRightCommand;
-        if (!string.IsNullOrEmpty(command))
-            commandService.ExecuteCommand(command).GetAwaiter().GetResult();
+        var leftTurn = e.Delta < 0;
+        var command = leftTurn ? btn.RotaryLeftCommand : btn.RotaryRightCommand;
+        if (string.IsNullOrEmpty(command)) return;
+        var wrap = leftTurn ? page.KnobLeftWrap : page.KnobRightWrap;
+        var wrapped = wrap?.Apply(command) ?? command;
+        commandService.ExecuteCommand(wrapped).GetAwaiter().GetResult();
     }
 
     /// <summary>

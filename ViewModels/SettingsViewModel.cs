@@ -40,6 +40,7 @@ public class SettingsViewModel : DialogViewModelBase<DialogResult>
     public ICommand MoveTouchPageUpCommand { get; }
     public ICommand MoveTouchPageDownCommand { get; }
     public ICommand EditWallpaperCommand { get; }
+    public ICommand EditPageCommandsCommand { get; }
     public ICommand AddRotaryPageCommand { get; }
     public ICommand RemoveRotaryPageCommand { get; }
     public ICommand MoveRotaryPageUpCommand { get; }
@@ -91,6 +92,9 @@ public class SettingsViewModel : DialogViewModelBase<DialogResult>
         EditWallpaperCommand = new RelayCommand<TouchButtonPage>(
             p => _ = EditWallpaper(p),
             p => p != null);
+        EditPageCommandsCommand = new RelayCommand<object>(
+            p => _ = EditPageCommands(p),
+            p => p is TouchButtonPage or RotaryButtonPage);
         AddRotaryPageCommand = new RelayCommand(() => _pageManager.AddRotaryButtonPage());
         RemoveRotaryPageCommand = new RelayCommand<RotaryButtonPage>(
             RemoveRotaryPage,
@@ -546,6 +550,13 @@ public class SettingsViewModel : DialogViewModelBase<DialogResult>
     {
         if (page == null) return;
         await _dialogService.ShowDialogAsync<TouchPageWallpaperSettingsViewModel, DialogResult>(
+            vm => vm.Initialize(page));
+    }
+
+    private async Task EditPageCommands(object page)
+    {
+        if (page is not TouchButtonPage && page is not RotaryButtonPage) return;
+        await _dialogService.ShowDialogAsync<PageCommandsSettingsViewModel, DialogResult>(
             vm => vm.Initialize(page));
     }
 
