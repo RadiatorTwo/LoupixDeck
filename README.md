@@ -5,8 +5,7 @@
 [![Platform](https://img.shields.io/badge/platform-windows-blue)](https://github.com/RadiatorTwo/LoupixDeck)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
-**LoupixDeck** is a cross-platform (Linux + Windows) desktop application for controlling supported
-USB control surfaces such as the **Loupedeck Live S** and the **Razer Stream Controller**.
+**LoupixDeck** is a Cross-platform (Linux/Windows) GUI application — open-source alternative to Loupedeck software for Loupedeck Live S and Razer Stream Controller.
 
 Built with Avalonia and .NET 9, it provides a fully customizable interface to design
 multi-layered touch buttons, assign commands, drive external tools (OBS, Elgato, Cooler Control,
