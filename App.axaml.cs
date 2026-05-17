@@ -4,12 +4,12 @@ using Avalonia.Data.Core.Plugins;
 using Avalonia.Markup.Xaml;
 using Avalonia.Styling;
 using LoupixDeck.Models;
+using LoupixDeck.Registry;
 using LoupixDeck.Services;
 using LoupixDeck.Views;
 using LoupixDeck.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
 using LoupixDeck.Utils;
-using System.Runtime.Versioning;
 
 namespace LoupixDeck;
 
@@ -17,32 +17,34 @@ public partial class App : Application
 {
     public override void Initialize()
     {
+        Console.WriteLine($"App.Initialize {DateTime.Now:HH:mm:ss}");
         AvaloniaXamlLoader.Load(this);
     }
 
-#if WINDOWS
-    [SupportedOSPlatform("windows")]
-#endif
     public override async void OnFrameworkInitializationCompleted()
     {
         DisableAvaloniaDataAnnotationValidation();
 
-        var configPath = FileDialogHelper.GetConfigPath("config.json");
-
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            if (!File.Exists(configPath))
+            // Decide which device's config we're booting with BEFORE building DI:
+            // existing per-device file (preferred), legacy config.json (migrated),
+            // or null → user must pick via InitSetup.
+            var deviceInfo = ActiveDeviceResolver.Resolve();
+
+            if (deviceInfo == null)
             {
                 var initWindow = new InitSetup
                 {
                     DataContext = new InitSetupViewModel()
                 };
-                
+
                 initWindow.Closed += async (_, _) =>
                 {
-                    if (initWindow.DataContext is InitSetupViewModel { ConnectionWorking: true } vm)
+                    if (initWindow.DataContext is InitSetupViewModel { ConnectionWorking: true } vm
+                        && vm.SelectedDevice?.Info != null)
                     {
-                        await InitializeMainWindow(vm.SelectedDevice.Path, vm.SelectedBaudRate, desktop);
+                        await InitializeMainWindow(vm.SelectedDevice.Path, vm.SelectedBaudRate, vm.SelectedDevice.Info, desktop);
                     }
                     else
                     {
@@ -54,14 +56,15 @@ public partial class App : Application
             }
             else
             {
-                await InitializeMainWindow(null, 0, desktop);
+                await InitializeMainWindow(null, 0, deviceInfo, desktop);
             }
         }
 
         base.OnFrameworkInitializationCompleted();
     }
 
-    private async Task InitializeMainWindow(string port, int baudRate, IClassicDesktopStyleApplicationLifetime desktop)
+    private async Task InitializeMainWindow(string port, int baudRate, DeviceRegistry.DeviceInfo deviceInfo,
+        IClassicDesktopStyleApplicationLifetime desktop)
     {
         var splashScreen = new SplashScreen();
         desktop.MainWindow = splashScreen;
@@ -69,12 +72,12 @@ public partial class App : Application
 
         try
         {
-            var viewModel = await CreateMainWindowViewModel(port, baudRate);
+            var viewModel = await CreateMainWindowViewModel(deviceInfo, port, baudRate);
             OnViewModelCreated(viewModel, splashScreen, desktop);
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Fehler: {ex.Message}");
+            Console.WriteLine($"InitializeMainWindow failed: {ex}");
             desktop.Shutdown();
         }
     }
@@ -91,19 +94,38 @@ public partial class App : Application
             };
 
             desktop.MainWindow = mainWindow;
-            mainWindow.Show();
+
+            // Skip Show() entirely when starting minimized to tray, otherwise the
+            // window briefly flashes onscreen before OnDataContextChanged hides it.
+            // We also switch to OnExplicitShutdown so the lifetime doesn't end the
+            // moment the splash closes with no visible window — the tray-icon is
+            // the only entry point and Environment.Exit(0) is the only exit path.
+            if (viewModel.LoupedeckController?.Config?.StartMinimizedToTray == true)
+            {
+                desktop.ShutdownMode = Avalonia.Controls.ShutdownMode.OnExplicitShutdown;
+                mainWindow.MarkStartedMinimized();
+            }
+            else
+            {
+                mainWindow.Show();
+            }
             splashScreen.Close();
         });
     }
 
-    private async Task<MainWindowViewModel> CreateMainWindowViewModel(string port = null, int baudrate = 0)
+    private async Task<MainWindowViewModel> CreateMainWindowViewModel(DeviceRegistry.DeviceInfo deviceInfo,
+        string port = null, int baudrate = 0)
     {
         var collection = new ServiceCollection();
-        collection.AddCommonServices();
+        collection.AddCommonServices(deviceInfo);
 
         var services = collection.BuildServiceProvider();
 
         services.PostInit();
+
+        // Expose the DI container so the CLI command channel in Program.cs can
+        // resolve ICommandService for incoming "loupixdeck show / wakeup / …".
+        Program.AppServices = services;
 
         // Apply persisted theme variant before showing UI.
         var cfg = services.GetRequiredService<LoupedeckConfig>();
@@ -117,6 +139,10 @@ public partial class App : Application
         var mainViewModel = services.GetRequiredService<MainWindowViewModel>();
 
         await mainViewModel.LoupedeckController.Initialize(port, baudrate);
+
+        // Persist the just-booted device so the next launch can disambiguate
+        // when multiple devices are plugged in (or none).
+        ActiveDeviceResolver.RememberActive(deviceInfo);
 
         // Start dynamic-text providers AFTER the controller has wired up its
         // ItemChanged subscribers and drawn the initial page. Otherwise the very

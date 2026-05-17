@@ -66,3 +66,52 @@ public class PreviousRotaryPageCommand(LoupedeckLiveSController loupedeck) : IEx
         return Task.CompletedTask;
     }
 }
+
+[Command("System.GotoPage", "Go to Touch Page by number", "Pages",
+    parameterTemplate: "({Page})",
+    parameterNames: ["Page"],
+    parameterTypes: [typeof(int)])]
+public class GotoPageCommand(IDeviceController controller) : IExecutableCommand
+{
+    public async Task Execute(string[] parameters)
+    {
+        if (parameters.Length != 1 || !int.TryParse(parameters[0], out var page))
+        {
+            Console.WriteLine("Usage: System.GotoPage(pageNumber) — 1-based");
+            return;
+        }
+        var index = page - 1;
+        var pages = controller.PageManager.TouchButtonPages;
+        if (index < 0 || index >= pages.Count)
+        {
+            Console.WriteLine($"Touch page {page} out of range (1-{pages.Count})");
+            return;
+        }
+        await controller.PageManager.ApplyTouchPage(index);
+    }
+}
+
+[Command("System.GotoRotaryPage", "Go to Rotary Page by number", "Pages",
+    parameterTemplate: "({Page})",
+    parameterNames: ["Page"],
+    parameterTypes: [typeof(int)])]
+public class GotoRotaryPageCommand(IDeviceController controller) : IExecutableCommand
+{
+    public Task Execute(string[] parameters)
+    {
+        if (parameters.Length != 1 || !int.TryParse(parameters[0], out var page))
+        {
+            Console.WriteLine("Usage: System.GotoRotaryPage(pageNumber) — 1-based");
+            return Task.CompletedTask;
+        }
+        var index = page - 1;
+        var pages = controller.PageManager.RotaryButtonPages;
+        if (index < 0 || index >= pages.Count)
+        {
+            Console.WriteLine($"Rotary page {page} out of range (1-{pages.Count})");
+            return Task.CompletedTask;
+        }
+        controller.PageManager.ApplyRotaryPage(index);
+        return Task.CompletedTask;
+    }
+}

@@ -1,11 +1,14 @@
 using LoupixDeck.LoupedeckDevice.Device;
 using LoupixDeck.Models;
+using LoupixDeck.Registry;
 
 namespace LoupixDeck.Services;
 
 public interface IDeviceService
 {
-    LoupedeckLiveSDevice Device { get; }
+    LoupedeckDevice.Device.LoupedeckDevice Device { get; }
+    int TouchButtonCount { get; }
+    int RotaryButtonCount { get; }
     void StartDevice(string devicePort, int deviceBaudrate);
     void ReconnectDevice();
     Task ShowTemporaryTextButton(int index, string text, int displayDurationMilliseconds);
@@ -15,17 +18,23 @@ public class LoupedeckDeviceService : IDeviceService
 {
     private readonly IElgatoController _elgatoController;
     private readonly LoupedeckConfig _config;
+    private readonly DeviceRegistry.DeviceInfo _deviceInfo;
     private readonly AutoResetEvent _deviceCreatedEvent = new(false);
 
-    public LoupedeckLiveSDevice Device { get; private set; }
+    public LoupedeckDevice.Device.LoupedeckDevice Device { get; private set; }
+
+    public int TouchButtonCount => Device?.TouchButtonCount ?? 0;
+    public int RotaryButtonCount => Device?.RotaryCount ?? 0;
 
     public LoupedeckDeviceService(IObsController obsController,
         IElgatoController elgatoController,
         ElgatoDevices elgatoDevices,
-        LoupedeckConfig config)
+        LoupedeckConfig config,
+        DeviceRegistry.DeviceInfo deviceInfo)
     {
         _elgatoController = elgatoController;
         _config = config;
+        _deviceInfo = deviceInfo;
 
         obsController.Connect();
 
@@ -47,7 +56,17 @@ public class LoupedeckDeviceService : IDeviceService
     {
         var deviceThread = new Thread(() =>
         {
-            Device = new LoupedeckLiveSDevice(null, devicePort, deviceBaudrate);
+            // The active device type was selected before DI build (App.axaml.cs +
+            // ActiveDeviceResolver / InitSetup). Falling back to Live S keeps very
+            // old configs that predate the device registry alive.
+            var type = _deviceInfo?.DeviceType ?? typeof(LoupedeckLiveSDevice);
+            Device = (LoupedeckDevice.Device.LoupedeckDevice)Activator.CreateInstance(
+                type,
+                null, // host
+                devicePort,
+                deviceBaudrate,
+                true, // autoConnect
+                LoupedeckDevice.Constants.DefaultReconnectInterval);
             _deviceCreatedEvent.Set();
         })
         {
@@ -59,7 +78,7 @@ public class LoupedeckDeviceService : IDeviceService
 
     /// <summary>
     /// Reconnects the *existing* Device instance so that all event subscribers
-    /// (LoupedeckLiveSController.OnButton/OnTouch/OnRotate) stay valid.
+    /// (the device controller's OnButton/OnTouch/OnRotate) stay valid.
     /// Replacing the Device reference here would silently break those.
     /// </summary>
     public void ReconnectDevice()
@@ -95,7 +114,7 @@ public class LoupedeckDeviceService : IDeviceService
                 _config.CurrentTouchButtonPage.TouchButtons[index],
                 _config,
                 true,
-                5); // Reset the button with current page wallpaper
+                Device.Columns); // Reset the button with current page wallpaper
         }
     }
 }

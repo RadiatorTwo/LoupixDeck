@@ -1,17 +1,18 @@
 using System.Collections.ObjectModel;
 using System.IO.Ports;
-using System.Runtime.Versioning;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using LoupixDeck.Registry;
+using LoupixDeck.Utils;
 using LoupixDeck.ViewModels.Base;
 
 namespace LoupixDeck.ViewModels;
 
-public class DeviceItem(string name, string path)
+public class DeviceItem(string name, string path, DeviceRegistry.DeviceInfo info)
 {
     private string Name { get; } = name;
     public string Path { get; } = path;
+    public DeviceRegistry.DeviceInfo Info { get; } = info;
 
     public override string ToString() => Name;
 }
@@ -41,9 +42,6 @@ public partial class InitSetupViewModel : ViewModelBase
     {
     }
 
-#if WINDOWS
-    [SupportedOSPlatform("windows")]
-#endif
     public void Init()
     {
         var devices = SerialDeviceHelper.ListSerialUsbDevices();
@@ -51,11 +49,18 @@ public partial class InitSetupViewModel : ViewModelBase
         foreach (var device in devices)
         {
             var matchingDevice = DeviceRegistry.GetDeviceByVidPid(device.Vid, device.Pid);
-            
+
             if (matchingDevice == null) continue;
-            
+
+#if DEBUG
+            // Hardware-less testing: env var LOUPIXDECK_FAKE_DEVICE=<slug> coerces
+            // any detected supported device into that type so the multi-device
+            // plumbing can be exercised against whatever's actually plugged in.
+            matchingDevice = FakeDeviceOverride.Apply(matchingDevice);
+#endif
+
             var name = $"{matchingDevice.Name} ({device.Vid}:{device.Pid})";
-            SerialDevices.Add(new DeviceItem(name, device.DevNode));
+            SerialDevices.Add(new DeviceItem(name, device.DevNode, matchingDevice));
         }
 
         if (SerialDevices.Count == 0) return;

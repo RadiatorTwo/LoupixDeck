@@ -225,6 +225,7 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
     private async Task CreateSystemMenu()
     {
         CreatePagesMenu();
+        CreateDeviceControlMenu();
 
         // Macros are only available on Linux
         if (OperatingSystem.IsLinux())
@@ -311,6 +312,18 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
             groupMenu.Children.Add(new MenuEntry(command.DisplayName, command.CommandName));
         }
 
+        SystemCommandMenus.Add(groupMenu);
+    }
+
+    private void CreateDeviceControlMenu()
+    {
+        var commands = _sysCommandService.GetCommandInfos().Where(ci => ci.Group == "Device Control");
+        var groupMenu = new MenuEntry("Device Control", string.Empty);
+        foreach (var command in commands)
+        {
+            if (command.CommandName == "System.DeviceWakeup") continue;
+            groupMenu.Children.Add(new MenuEntry(command.DisplayName, command.CommandName));
+        }
         SystemCommandMenus.Add(groupMenu);
     }
 
@@ -556,8 +569,7 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
     public void InsertCommand(MenuEntry menuEntry)
     {
         var formattedCommand = _commandBuilder.CreateCommandFromMenuEntry(menuEntry);
-
-        ButtonData.Command += formattedCommand;
+        ButtonData.Command = Utils.CommandChain.Append(ButtonData.Command, formattedCommand);
     }
 
     /// <summary>
