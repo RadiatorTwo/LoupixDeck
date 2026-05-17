@@ -40,6 +40,9 @@ public class LoupedeckConfig : INotifyPropertyChanged
     public string CoolerControlUrl { get; set; } = "http://localhost:11987";
     public string ThemeVariant { get; set; } = "Dark";
 
+    public CloseButtonBehavior CloseButtonBehavior { get; set; } = CloseButtonBehavior.MinimizeToTray;
+    public bool StartMinimizedToTray { get; set; }
+
     public SimpleButton[] SimpleButtons { get; set; }
 
     public ObservableCollection<RotaryButtonPage> RotaryButtonPages { get; set; } = [];

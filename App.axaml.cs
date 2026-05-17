@@ -94,7 +94,21 @@ public partial class App : Application
             };
 
             desktop.MainWindow = mainWindow;
-            mainWindow.Show();
+
+            // Skip Show() entirely when starting minimized to tray, otherwise the
+            // window briefly flashes onscreen before OnDataContextChanged hides it.
+            // We also switch to OnExplicitShutdown so the lifetime doesn't end the
+            // moment the splash closes with no visible window — the tray-icon is
+            // the only entry point and Environment.Exit(0) is the only exit path.
+            if (viewModel.LoupedeckController?.Config?.StartMinimizedToTray == true)
+            {
+                desktop.ShutdownMode = Avalonia.Controls.ShutdownMode.OnExplicitShutdown;
+                mainWindow.MarkStartedMinimized();
+            }
+            else
+            {
+                mainWindow.Show();
+            }
             splashScreen.Close();
         });
     }

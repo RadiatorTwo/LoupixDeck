@@ -162,6 +162,12 @@ public class MainWindowViewModel : ViewModelBase
 
     private void QuitApplication()
     {
+        var window = Utils.WindowHelper.GetMainWindow();
+        if (window is Views.MainWindow mw)
+        {
+            mw.QuitApplication();
+            return;
+        }
         Environment.Exit(0);
     }
 }

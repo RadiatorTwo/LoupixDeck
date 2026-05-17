@@ -13,7 +13,7 @@
         mc:Ignorable="d"
         Title="Settings"
         Width="980"
-        Height="720">
+        Height="820">
 
     <Window.Resources>
         <cnv:EnumToBooleanConverter x:Key="EnumToBooleanConverter" />
@@ -190,6 +190,29 @@
                                        Text="Applied on next app launch." />
                         </StackPanel>
                     </Border>
+
+                    <!-- Window card -->
+                    <Border Classes="card">
+                        <StackPanel>
+                            <TextBlock Classes="card-title" Text="Window" />
+                            <TextBlock Classes="label" Text="Close button behavior" />
+                            <RadioButton GroupName="closeBehavior" Content="Minimize to tray"
+                                         HorizontalAlignment="Left" Margin="0,6,0,0"
+                                         IsChecked="{Binding Config.CloseButtonBehavior, Mode=TwoWay,
+                                                     Converter={StaticResource EnumToBooleanConverter},
+                                                     ConverterParameter={x:Static m:CloseButtonBehavior.MinimizeToTray}}" />
+                            <RadioButton GroupName="closeBehavior" Content="Quit application"
+                                         HorizontalAlignment="Left" Margin="0,4,0,0"
+                                         IsChecked="{Binding Config.CloseButtonBehavior, Mode=TwoWay,
+                                                     Converter={StaticResource EnumToBooleanConverter},
+                                                     ConverterParameter={x:Static m:CloseButtonBehavior.Quit}}" />
+                            <TextBlock Classes="hint" Margin="0,6,0,0"
+                                       Text="Choose 'Quit' on desktops without a system tray." />
+                            <CheckBox Content="Start minimized to tray"
+                                      HorizontalAlignment="Left" Margin="0,10,0,0"
+                                      IsChecked="{Binding Config.StartMinimizedToTray, Mode=TwoWay}" />
+                        </StackPanel>
+                    </Border>
                 </StackPanel>
 
                 <!-- ====== Pages ====== -->
@@ -234,7 +257,7 @@
                             </StackPanel>
                         </Border>
 
-                        <Border Grid.Column="2" Classes="card" Margin="0,0,0,12">
+                        <Border Grid.Column="2" Classes="card">
                             <StackPanel>
                                 <Grid ColumnDefinitions="*,Auto">
                                     <TextBlock Grid.Column="0" Classes="card-title" Text="Rotary pages" />
@@ -499,7 +522,7 @@
         </ScrollViewer>
 
         <!-- ====== Argus (outside ScrollViewer for bounded height) ====== -->
-        <Grid Grid.Column="1" Margin="24,16,20,16"
+        <Grid Grid.Column="1" Margin="24,16,4,16"
               IsVisible="{Binding CurrentView, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Argus}"
               RowDefinitions="Auto,Auto,*">
             <TextBlock Grid.Row="0" Classes="page-title" Text="Argus Monitor" />
