@@ -123,6 +123,10 @@ public partial class App : Application
 
         services.PostInit();
 
+        // Expose the DI container so the CLI command channel in Program.cs can
+        // resolve ICommandService for incoming "loupixdeck show / wakeup / …".
+        Program.AppServices = services;
+
         // Apply persisted theme variant before showing UI.
         var cfg = services.GetRequiredService<LoupedeckConfig>();
         RequestedThemeVariant = cfg.ThemeVariant switch
