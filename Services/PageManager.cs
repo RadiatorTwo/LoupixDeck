@@ -89,7 +89,7 @@ public class PageManager : IPageManager
 
         OnRotaryPageChanged?.Invoke(previousRotaryPageIndex, CurrentRotaryPageIndex);
 
-        if (!init)
+        if (!init && _config.ShowPageNameOverlayEnabled)
         {
             _deviceService.ShowTemporaryTextButton(0, CurrentRotaryButtonPage.PageName, 2000);
         }
@@ -122,7 +122,7 @@ public class PageManager : IPageManager
         OnTouchPageChanged?.Invoke(PreviousTouchPageIndex, CurrentTouchPageIndex);
         await DrawTouchButtons();
 
-        if (!init)
+        if (!init && _config.ShowPageNameOverlayEnabled)
         {
             // Fire-and-forget: the 2s on-device overlay must not block callers
             // (e.g. AddTouchButtonPage), which would otherwise leave the
