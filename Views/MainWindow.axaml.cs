@@ -136,6 +136,17 @@ public partial class MainWindow : Window
         });
     }
 
+    /// <summary>
+    /// Toggles between visible and tray-minimized. Used by the System.ToggleWindow
+    /// command so an external trigger (button on the device, CLI) can bring the
+    /// window back without going through the tray icon.
+    /// </summary>
+    internal void ToggleVisibility()
+    {
+        if (IsVisible) MinimizeToTray();
+        else ShowFromTray();
+    }
+
     private bool _isQuitting;
 
     internal void QuitApplication()

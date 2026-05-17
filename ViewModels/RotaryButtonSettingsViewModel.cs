@@ -45,9 +45,22 @@ public class RotaryButtonSettingsViewModel : DialogViewModelBase<RotaryButton, D
     private async Task CreateSystemMenu()
     {
         CreatePagesMenu();
+        CreateDeviceControlMenu();
         var obsTask = CreateObsMenu();
         CreateElgatoMenu();
         await obsTask;
+    }
+
+    private void CreateDeviceControlMenu()
+    {
+        var commands = _sysCommandService.GetCommandInfos().Where(ci => ci.Group == "Device Control");
+        var groupMenu = new MenuEntry("Device Control", string.Empty);
+        foreach (var command in commands)
+        {
+            if (command.CommandName == "System.DeviceWakeup") continue;
+            groupMenu.Children.Add(new MenuEntry(command.DisplayName, command.CommandName));
+        }
+        SystemCommandMenus.Add(groupMenu);
     }
 
     private void CreatePagesMenu()
@@ -151,13 +164,13 @@ public class RotaryButtonSettingsViewModel : DialogViewModelBase<RotaryButton, D
         switch (selection)
         {
             case SelectedCommand.RotaryLeft:
-                ButtonData.RotaryLeftCommand += formattedCommand;
+                ButtonData.RotaryLeftCommand = Utils.CommandChain.Append(ButtonData.RotaryLeftCommand, formattedCommand);
                 break;
             case SelectedCommand.RotaryRight:
-                ButtonData.RotaryRightCommand += formattedCommand;
+                ButtonData.RotaryRightCommand = Utils.CommandChain.Append(ButtonData.RotaryRightCommand, formattedCommand);
                 break;
             case SelectedCommand.ButtonPress:
-                ButtonData.Command += formattedCommand;
+                ButtonData.Command = Utils.CommandChain.Append(ButtonData.Command, formattedCommand);
                 break;
         }
     }

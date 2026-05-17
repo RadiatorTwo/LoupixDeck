@@ -42,9 +42,24 @@ public class SimpleButtonSettingsViewModel : DialogViewModelBase<SimpleButton, D
     private async Task CreateSystemMenu()
     {
         CreatePagesMenu();
+        CreateDeviceControlMenu();
         var obsTask = CreateObsMenu();
         CreateElgatoMenu();
         await obsTask;
+    }
+
+    private void CreateDeviceControlMenu()
+    {
+        var commands = _sysCommandService.GetCommandInfos().Where(ci => ci.Group == "Device Control");
+        var groupMenu = new MenuEntry("Device Control", string.Empty);
+        foreach (var command in commands)
+        {
+            // Wakeup only makes sense from an external trigger (CLI, hotkey) —
+            // putting it on a device button can't fire if the device is dead.
+            if (command.CommandName == "System.DeviceWakeup") continue;
+            groupMenu.Children.Add(new MenuEntry(command.DisplayName, command.CommandName));
+        }
+        SystemCommandMenus.Add(groupMenu);
     }
 
     private void CreatePagesMenu()
@@ -137,7 +152,6 @@ public class SimpleButtonSettingsViewModel : DialogViewModelBase<SimpleButton, D
     public void InsertCommand(MenuEntry menuEntry)
     {
         var formattedCommand = _commandBuilder.CreateCommandFromMenuEntry(menuEntry);
-
-        ButtonData.Command += formattedCommand;
+        ButtonData.Command = Utils.CommandChain.Append(ButtonData.Command, formattedCommand);
     }
 }

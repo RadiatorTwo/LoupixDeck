@@ -88,25 +88,30 @@ public class PageCommandsSettingsViewModel : DialogViewModelBase<object, DialogR
         if (string.IsNullOrEmpty(formatted)) return;
 
         if (_activeIsPost)
-            _activeSlot.Wrap.PostCommands = AppendChained(_activeSlot.Wrap.PostCommands, formatted);
+            _activeSlot.Wrap.PostCommands = Utils.CommandChain.Append(_activeSlot.Wrap.PostCommands, formatted);
         else
-            _activeSlot.Wrap.PreCommands = AppendChained(_activeSlot.Wrap.PreCommands, formatted);
-    }
-
-    private static string AppendChained(string existing, string addition)
-    {
-        if (string.IsNullOrWhiteSpace(existing)) return addition;
-        var trimmed = existing.TrimEnd();
-        // Don't double-up if the user already typed a trailing && themselves.
-        return trimmed.EndsWith("&&") ? existing + " " + addition : existing + " && " + addition;
+            _activeSlot.Wrap.PreCommands = Utils.CommandChain.Append(_activeSlot.Wrap.PreCommands, formatted);
     }
 
     private async Task CreateSystemMenu()
     {
         CreatePagesMenu();
+        CreateDeviceControlMenu();
         var obsTask = CreateObsMenu();
         CreateElgatoMenu();
         await obsTask;
+    }
+
+    private void CreateDeviceControlMenu()
+    {
+        var commands = _sysCommandService.GetCommandInfos().Where(ci => ci.Group == "Device Control");
+        var groupMenu = new MenuEntry("Device Control", string.Empty);
+        foreach (var command in commands)
+        {
+            if (command.CommandName == "System.DeviceWakeup") continue;
+            groupMenu.Children.Add(new MenuEntry(command.DisplayName, command.CommandName));
+        }
+        SystemCommandMenus.Add(groupMenu);
     }
 
     private void CreatePagesMenu()

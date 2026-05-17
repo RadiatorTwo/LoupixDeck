@@ -256,7 +256,7 @@ public class LoupedeckLiveSController(
         {
             if (_isDeviceOff && !button.EnableWhenOff) return;
             var wrapped = config.CurrentRotaryButtonPage?.SimpleButtonWrap?.Apply(button.Command) ?? button.Command;
-            commandService.ExecuteCommand(wrapped).GetAwaiter().GetResult();
+            FireAndForget(wrapped);
             return;
         }
 
@@ -268,7 +268,24 @@ public class LoupedeckLiveSController(
         var cmd = rotary.Command;
         if (string.IsNullOrEmpty(cmd)) return;
         var wrappedRotary = page.KnobPressWrap?.Apply(cmd) ?? cmd;
-        commandService.ExecuteCommand(wrappedRotary).GetAwaiter().GetResult();
+        FireAndForget(wrappedRotary);
+    }
+
+    /// <summary>
+    /// Runs the command off the serial-read thread. Critical: device-touching
+    /// commands (SetBrightness, SetButtonColor, …) issue SendAsync calls whose
+    /// completion is signalled by the read thread. If we awaited here we'd
+    /// deadlock the very thread that needs to complete the await, and the
+    /// device would appear disconnected after the first such command.
+    /// </summary>
+    private void FireAndForget(string command)
+    {
+        if (string.IsNullOrEmpty(command)) return;
+        _ = Task.Run(async () =>
+        {
+            try { await commandService.ExecuteCommand(command); }
+            catch (Exception ex) { Console.WriteLine($"Command failed ({command}): {ex.Message}"); }
+        });
     }
 
     private void OnTouchButtonPress(object sender, TouchEventArgs e)
@@ -311,7 +328,7 @@ public class LoupedeckLiveSController(
                 deviceService.Device.Vibrate(button.VibrationPattern);
 
             var wrapped = config.CurrentTouchButtonPage.TouchButtonWrap?.Apply(button.Command) ?? button.Command;
-            commandService.ExecuteCommand(wrapped).GetAwaiter().GetResult();
+            FireAndForget(wrapped);
         }
     }
 
@@ -368,7 +385,7 @@ public class LoupedeckLiveSController(
         if (string.IsNullOrEmpty(command)) return;
         var wrap = leftTurn ? page.KnobLeftWrap : page.KnobRightWrap;
         var wrapped = wrap?.Apply(command) ?? command;
-        commandService.ExecuteCommand(wrapped).GetAwaiter().GetResult();
+        FireAndForget(wrapped);
     }
 
     /// <summary>
