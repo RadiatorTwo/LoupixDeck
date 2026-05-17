@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using Avalonia.Threading;
 
 namespace LoupixDeck.Services;
@@ -18,10 +19,32 @@ public class CommandService : ICommandService
         _commandRunner = commandRunner;
     }
 
+    // Splits on "&&" with any amount of surrounding whitespace, so both
+    // "a && b" and "a&&b" work the same. Static so the compiled regex
+    // instance is reused across calls.
+    private static readonly Regex ChainSplitter = new(@"\s*&&\s*", RegexOptions.Compiled);
+
     public async Task ExecuteCommand(string command)
     {
         if (string.IsNullOrWhiteSpace(command))
             return;
+
+        // Per-page Pre/Post wraps and inline chains in a single button command
+        // both run sequentially. Each part is dispatched as either a System or
+        // shell command exactly like before. Note: this changes shell semantics
+        // — we no longer rely on the shell's own && short-circuit, the second
+        // part runs even if the first failed. Acceptable for the desk-control
+        // commands this app targets.
+        foreach (var part in ChainSplitter.Split(command))
+        {
+            if (string.IsNullOrWhiteSpace(part)) continue;
+            await ExecuteSingle(part.Trim());
+        }
+    }
+
+    private async Task ExecuteSingle(string command)
+    {
+        if (string.IsNullOrWhiteSpace(command)) return;
 
         var cleanCommand = GetCommandWithoutParameter(command);
 

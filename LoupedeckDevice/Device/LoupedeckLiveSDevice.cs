@@ -8,6 +8,8 @@ public class LoupedeckLiveSDevice : LoupedeckDevice
         Buttons = [0, 1, 2, 3];
         Columns = 5;
         Rows = 3;
+        RotaryCount = 2;
+        TouchButtonCount = Columns * Rows;
         VisibleX = [15, 464];
         VisibleY = [10, 269];
         Type = "Loupedeck Live S";

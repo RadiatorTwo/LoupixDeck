@@ -30,9 +30,51 @@ public class LoupedeckConfig : INotifyPropertyChanged
     public string DevicePort { get; set; }
     public int DeviceBaudrate { get; set; }
 
+    /// <summary>USB vendor ID of the device this config belongs to (hex, e.g. "2ec2").</summary>
+    public string DeviceVid { get; set; }
+
+    /// <summary>USB product ID of the device this config belongs to (hex, e.g. "0006").</summary>
+    public string DevicePid { get; set; }
+
     public int StartupTouchPageIndex { get; set; }
     public string CoolerControlUrl { get; set; } = "http://localhost:11987";
     public string ThemeVariant { get; set; } = "Dark";
+
+    public CloseButtonBehavior CloseButtonBehavior { get; set; } = CloseButtonBehavior.MinimizeToTray;
+    public bool StartMinimizedToTray { get; set; }
+
+    // Visual flash overlay on touch press — useful especially on the Razer
+    // (no LED ring on touch buttons) so the user gets visible feedback.
+    private bool _touchFeedbackEnabled;
+    public bool TouchFeedbackEnabled
+    {
+        get => _touchFeedbackEnabled;
+        set { if (_touchFeedbackEnabled == value) return; _touchFeedbackEnabled = value; OnPropertyChanged(); }
+    }
+
+    private Avalonia.Media.Color _touchFeedbackColor = Avalonia.Media.Colors.White;
+    public Avalonia.Media.Color TouchFeedbackColor
+    {
+        get => _touchFeedbackColor;
+        set { if (_touchFeedbackColor == value) return; _touchFeedbackColor = value; OnPropertyChanged(); }
+    }
+
+    private double _touchFeedbackOpacity = 0.5;
+    public double TouchFeedbackOpacity
+    {
+        get => _touchFeedbackOpacity;
+        set { if (Math.Abs(_touchFeedbackOpacity - value) < 0.0001) return; _touchFeedbackOpacity = value; OnPropertyChanged(); }
+    }
+
+    // While a finger is down, ignore further TOUCH_START events until TOUCH_END.
+    // Defends against the device emitting duplicate TOUCH_START at button
+    // boundaries or when the finger slides across slots.
+    private bool _touchSlidingPreventionEnabled = true;
+    public bool TouchSlidingPreventionEnabled
+    {
+        get => _touchSlidingPreventionEnabled;
+        set { if (_touchSlidingPreventionEnabled == value) return; _touchSlidingPreventionEnabled = value; OnPropertyChanged(); }
+    }
 
     public SimpleButton[] SimpleButtons { get; set; }
 
