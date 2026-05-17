@@ -54,6 +54,32 @@ public class LoupedeckLiveSController(
             Config.DevicePid = deviceInfo.ProductId;
         }
 
+        // Re-detect the current port via VID/PID. The OS may have assigned a
+        // different COM/ttyACM number since the last save (USB reconnect, suspend
+        // wake-up, hub change). Skip when the user just picked a port explicitly
+        // via InitSetup — that's an authoritative override.
+        if (port == null && !string.IsNullOrEmpty(Config.DeviceVid) && !string.IsNullOrEmpty(Config.DevicePid))
+        {
+            try
+            {
+                var current = SerialDeviceHelper.ListSerialUsbDevices()
+                    .FirstOrDefault(d =>
+                        string.Equals(d.Vid, Config.DeviceVid, StringComparison.OrdinalIgnoreCase) &&
+                        string.Equals(d.Pid, Config.DevicePid, StringComparison.OrdinalIgnoreCase));
+
+                if (current != null && !string.IsNullOrEmpty(current.DevNode) &&
+                    !string.Equals(current.DevNode, Config.DevicePort, StringComparison.Ordinal))
+                {
+                    Console.WriteLine($"[Port] {Config.DeviceVid}:{Config.DevicePid} moved {Config.DevicePort} → {current.DevNode}");
+                    Config.DevicePort = current.DevNode;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Port] re-detection failed: {ex.Message}");
+            }
+        }
+
         // Start the device using the configuration
         deviceService.StartDevice(config.DevicePort, config.DeviceBaudrate);
 
