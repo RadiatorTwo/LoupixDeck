@@ -258,6 +258,19 @@ internal static class CommandChannel
             command = $"System.GotoPage({tp})";
         else if (lower.StartsWith("rotarypage") && int.TryParse(lower.AsSpan(10), out var rp))
             command = $"System.GotoRotaryPage({rp})";
+        // Fork-CLI compat: `updatebutton 6 text=Hi backColor=Red` →
+        // `System.UpdateButton(6,text=Hi,backColor=Red)`.
+        else if (lower == "updatebutton" && raw.Length > head.Length)
+        {
+            var rest = raw.Substring(head.Length).Trim();
+            command = $"System.UpdateButton({rest.Replace(' ', ',')})";
+        }
+        // Fork-CLI compat: `removelayer 6 MyImage` → `System.RemoveLayer(6,MyImage)`.
+        else if (lower == "removelayer" && raw.Length > head.Length)
+        {
+            var rest = raw.Substring(head.Length).Trim();
+            command = $"System.RemoveLayer({rest.Replace(' ', ',')})";
+        }
         else
         {
             command = lower switch
