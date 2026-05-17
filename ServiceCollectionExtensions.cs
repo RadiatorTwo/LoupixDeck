@@ -5,6 +5,7 @@ using LoupixDeck.Services;
 using LoupixDeck.Services.Argus;
 using LoupixDeck.Services.Audio;
 using LoupixDeck.Services.FolderNavigation;
+using LoupixDeck.Services.SystemPower;
 using LoupixDeck.Utils;
 using LoupixDeck.ViewModels;
 using LoupixDeck.Views;
@@ -99,6 +100,15 @@ public static class ServiceCollectionExtensions
         }
 
         collection.AddSingleton<INativeHapticService, NativeHapticService>();
+
+        if (OperatingSystem.IsLinux())
+            collection.AddSingleton<ISystemPowerService, LinuxSystemPowerService>();
+#if WINDOWS
+        else if (OperatingSystem.IsWindows())
+            collection.AddSingleton<ISystemPowerService, WindowsSystemPowerService>();
+#endif
+        else
+            collection.AddSingleton<ISystemPowerService, NoOpSystemPowerService>();
 
         collection.AddSingleton<LoupedeckLiveSController>();
         collection.AddSingleton<IDeviceController>(sp => sp.GetRequiredService<LoupedeckLiveSController>());

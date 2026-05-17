@@ -13,7 +13,7 @@
     <Border BorderThickness="2"
             BorderBrush="LightGray"
             Padding="16">
-        <Grid RowDefinitions="60,60,70,*" ColumnDefinitions="*,*">
+        <Grid RowDefinitions="60,60,70,40,*" ColumnDefinitions="*,*">
             <StackPanel Grid.Row="0" Grid.Column="0" Orientation="Vertical">
                 <Label HorizontalAlignment="Left">Command Rotary Left</Label>
                 <TextBox x:Name="TextBoxRotaryLeft" HorizontalAlignment="Stretch" Text="{Binding ButtonData.RotaryLeftCommand}"
@@ -29,7 +29,11 @@
                 <TextBox x:Name="TextBoxButtonPress" HorizontalAlignment="Stretch" Text="{Binding ButtonData.Command}"
                          GotFocus="TextBoxGotFocus" />
             </StackPanel>
-            <StackPanel Grid.Row="0" Grid.RowSpan="4" Grid.Column="1" Orientation="Vertical" Margin="20,20,0,0">
+            <StackPanel Grid.Row="3" Grid.Column="0" Orientation="Vertical" VerticalAlignment="Center">
+                <CheckBox Content="Run also when device is OFF"
+                          IsChecked="{Binding ButtonData.EnableWhenOff}" />
+            </StackPanel>
+            <StackPanel Grid.Row="0" Grid.RowSpan="5" Grid.Column="1" Orientation="Vertical" Margin="20,20,0,0">
                 <TextBlock Text="System Commands" FontWeight="Bold" Margin="0,0,0,5" />
                 <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                     <TreeView Name="SystemCommandsTreeView" ItemsSource="{Binding SystemCommandMenus}"

@@ -27,6 +27,7 @@ public class LoupedeckLiveSController(
     IConfigService configService,
     IFolderNavigationService folderNav,
     IAssetService assetService,
+    INativeHapticService nativeHapticService,
     LoupedeckConfig config,
     DeviceRegistry.DeviceInfo deviceInfo) : IDeviceController
 {
@@ -37,6 +38,70 @@ public class LoupedeckLiveSController(
     public IPageManager PageManager => pageManager;
 
     public LoupedeckConfig Config => config;
+
+    private volatile bool _isDeviceOff;
+    public bool IsDeviceOff => _isDeviceOff;
+
+    public async Task ClearDeviceState()
+    {
+        if (_isDeviceOff) return;
+        _isDeviceOff = true;
+        try
+        {
+            var device = deviceService.Device;
+            if (device == null) return;
+            await device.SetBrightness(0);
+            if (config.SimpleButtons != null)
+            {
+                foreach (var btn in config.SimpleButtons)
+                {
+                    if (btn == null) continue;
+                    await device.SetButtonColor(btn.Id, Avalonia.Media.Colors.Black);
+                }
+            }
+            // Silence firmware-level haptic so touches on the dark screen don't buzz.
+            try { device.DisableNativeHaptic(); } catch { /* device may be gone */ }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"ClearDeviceState failed: {ex.Message}");
+        }
+    }
+
+    public async Task RestoreDeviceState()
+    {
+        if (!_isDeviceOff) return;
+        _isDeviceOff = false;
+        try
+        {
+            var device = deviceService.Device;
+            if (device == null) return;
+            await device.SetBrightness(config.Brightness / 100.0);
+            if (config.SimpleButtons != null)
+            {
+                foreach (var btn in config.SimpleButtons)
+                {
+                    if (btn == null) continue;
+                    await device.SetButtonColor(btn.Id, btn.ButtonColor);
+                }
+            }
+            if (config.CurrentTouchButtonPage?.TouchButtons != null)
+            {
+                foreach (var tb in config.CurrentTouchButtonPage.TouchButtons)
+                {
+                    await device.DrawTouchButton(tb, config, true, device.Columns);
+                }
+            }
+            // Re-program firmware haptic from the persisted config.
+            nativeHapticService.Apply();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"RestoreDeviceState failed: {ex.Message}");
+        }
+    }
+
+    public Task ToggleDeviceState() => _isDeviceOff ? RestoreDeviceState() : ClearDeviceState();
 
     public async Task Initialize(string port = null, int baudrate = 0)
     {
@@ -189,6 +254,7 @@ public class LoupedeckLiveSController(
         var button = config.SimpleButtons.FirstOrDefault(b => b.Id == e.ButtonId);
         if (button != null)
         {
+            if (_isDeviceOff && !button.EnableWhenOff) return;
             commandService.ExecuteCommand(button.Command).GetAwaiter().GetResult();
             return;
         }
@@ -196,7 +262,9 @@ public class LoupedeckLiveSController(
         if (!TryGetRotaryIndex(e.ButtonId, out var idx)) return;
         var page = config.RotaryButtonPages[config.CurrentRotaryPageIndex];
         if (page?.RotaryButtons == null || idx >= page.RotaryButtons.Count) return;
-        var cmd = page.RotaryButtons[idx].Command;
+        var rotary = page.RotaryButtons[idx];
+        if (_isDeviceOff && !rotary.EnableWhenOff) return;
+        var cmd = rotary.Command;
         if (!string.IsNullOrEmpty(cmd))
             commandService.ExecuteCommand(cmd).GetAwaiter().GetResult();
     }
@@ -235,6 +303,7 @@ public class LoupedeckLiveSController(
         {
             var button = config.CurrentTouchButtonPage.TouchButtons.FindByIndex(touch.Target.Key);
             if (button == null) continue;
+            if (_isDeviceOff && !button.EnableWhenOff) continue;
 
             if (button.VibrationEnabled)
                 deviceService.Device.Vibrate(button.VibrationPattern);
@@ -290,6 +359,7 @@ public class LoupedeckLiveSController(
         if (page?.RotaryButtons == null || idx >= page.RotaryButtons.Count) return;
 
         var btn = page.RotaryButtons[idx];
+        if (_isDeviceOff && !btn.EnableWhenOff) return;
         var command = e.Delta < 0 ? btn.RotaryLeftCommand : btn.RotaryRightCommand;
         if (!string.IsNullOrEmpty(command))
             commandService.ExecuteCommand(command).GetAwaiter().GetResult();

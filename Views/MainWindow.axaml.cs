@@ -16,6 +16,7 @@ public partial class MainWindow : Window
     // Static Commands
     private ICommand ShowCommand { get; }
     private ICommand QuitCommand { get; }
+    private ICommand ToggleDeviceCommand { get; }
 
     private static MainWindow Instance { get; set; }
 
@@ -29,6 +30,9 @@ public partial class MainWindow : Window
 
         ShowCommand = new RelayCommand(() => Instance?.ShowFromTray());
         QuitCommand = new RelayCommand(() => Instance?.QuitApplication());
+        ToggleDeviceCommand = new RelayCommand(() =>
+            Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                Instance?.ViewModel?.ToggleDeviceStateCommand?.Execute(null)));
 
         CreateTrayIcon();
 
@@ -77,9 +81,11 @@ public partial class MainWindow : Window
         };
 
         var showMenuItem = new NativeMenuItem("Show") { Command = ShowCommand };
+        var toggleMenuItem = new NativeMenuItem("Toggle device on/off") { Command = ToggleDeviceCommand };
         var quitMenuItem = new NativeMenuItem("Quit") { Command = QuitCommand };
 
         _trayIcon.Menu?.Items.Add(showMenuItem);
+        _trayIcon.Menu?.Items.Add(toggleMenuItem);
         _trayIcon.Menu?.Items.Add(new NativeMenuItemSeparator());
         _trayIcon.Menu?.Items.Add(quitMenuItem);
 

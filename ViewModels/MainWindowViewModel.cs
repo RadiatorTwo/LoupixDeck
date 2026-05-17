@@ -4,6 +4,7 @@ using LoupixDeck.Controllers;
 using LoupixDeck.Models;
 using LoupixDeck.Services;
 using LoupixDeck.Services.Argus;
+using LoupixDeck.Services.SystemPower;
 using LoupixDeck.ViewModels.Base;
 using AsyncRelayCommand = CommunityToolkit.Mvvm.Input.AsyncRelayCommand;
 using RelayCommand = LoupixDeck.Utils.RelayCommand;
@@ -30,6 +31,7 @@ public class MainWindowViewModel : ViewModelBase
     public ICommand SettingsMenuCommand { get; }
     public ICommand AboutMenuCommand { get; }
     public ICommand QuitApplicationCommand { get; }
+    public ICommand ToggleDeviceStateCommand { get; }
 
     public LoupedeckLiveSController LoupedeckController { get; }
 
@@ -43,6 +45,7 @@ public class MainWindowViewModel : ViewModelBase
         ISysCommandService sysCommandService,
         IArgusMonitorService argusMonitorService,
         IDynamicTextManager dynamicTextManager,
+        ISystemPowerService powerService,
         LoupixDeck.Registry.DeviceRegistry.DeviceInfo deviceInfo)
     {
         LoupedeckController = loupedeck;
@@ -51,6 +54,20 @@ public class MainWindowViewModel : ViewModelBase
 
         sysCommandService.Initialize();
         argusMonitorService.Start();
+
+        // Auto-clear the device while the host is suspended, restore on wake.
+        // Both handlers must hop to the UI thread because they touch ObservableCollections
+        // (TouchButtons / SimpleButtons) that the UI binds to.
+        powerService.Suspending += (_, _) =>
+            Avalonia.Threading.Dispatcher.UIThread.Post(() => _ = LoupedeckController.ClearDeviceState());
+        powerService.Resuming += (_, _) =>
+            Avalonia.Threading.Dispatcher.UIThread.Post(async () =>
+            {
+                // Give the USB stack a moment to re-enumerate the device after wake.
+                await Task.Delay(1000);
+                await LoupedeckController.RestoreDeviceState();
+            });
+        powerService.StartMonitoring();
 
         _dialogService = dialogService;
 
@@ -69,6 +86,7 @@ public class MainWindowViewModel : ViewModelBase
         SettingsMenuCommand = new AsyncRelayCommand(SettingsMenuButton_Click);
         AboutMenuCommand = new AsyncRelayCommand(AboutMenuButton_Click);
         QuitApplicationCommand = new RelayCommand(QuitApplication);
+        ToggleDeviceStateCommand = new AsyncRelayCommand(LoupedeckController.ToggleDeviceState);
     }
 
     private void AddRotaryPageButton_Click()
