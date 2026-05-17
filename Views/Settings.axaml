@@ -325,6 +325,16 @@
                         </StackPanel>
                     </Border>
 
+                    <!-- Touch sliding prevention + diagnostic logging -->
+                    <Border Classes="card">
+                        <StackPanel>
+                            <TextBlock Classes="card-title" Text="Touch input" />
+                            <CheckBox Content="Prevent multi-trigger while finger is down"
+                                      IsChecked="{Binding Config.TouchSlidingPreventionEnabled, Mode=TwoWay}"
+                                      ToolTip.Tip="Ignores additional TOUCH_START events until the finger is lifted. Defends against duplicate triggers when sliding across buttons or tapping near a button boundary." />
+                        </StackPanel>
+                    </Border>
+
                     <!-- Haptic (enable + both effects in one card) -->
                     <Border Classes="card">
                         <StackPanel>

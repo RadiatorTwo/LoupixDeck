@@ -42,6 +42,10 @@ public class LoupedeckLiveSController(
     private volatile bool _isDeviceOff;
     public bool IsDeviceOff => _isDeviceOff;
 
+    // Tracks the slot index of the currently active touch contact. Set on the
+    // first TOUCH_START of a finger-down sequence, cleared on TOUCH_END.
+    private int? _activeTouchSlot;
+
     public async Task ClearDeviceState()
     {
         if (_isDeviceOff) return;
@@ -303,6 +307,7 @@ public class LoupedeckLiveSController(
                     break;
                 }
             }
+            _activeTouchSlot = null;
             return;
         }
 
@@ -320,9 +325,16 @@ public class LoupedeckLiveSController(
 
         foreach (var touch in e.Touches)
         {
-            var button = config.CurrentTouchButtonPage.TouchButtons.FindByIndex(touch.Target.Key);
+            var slot = touch.Target.Key;
+
+            if (config.TouchSlidingPreventionEnabled && _activeTouchSlot.HasValue)
+                continue;
+
+            var button = config.CurrentTouchButtonPage.TouchButtons.FindByIndex(slot);
             if (button == null) continue;
             if (_isDeviceOff && !button.EnableWhenOff) continue;
+
+            _activeTouchSlot = slot;
 
             if (button.VibrationEnabled)
                 deviceService.Device.Vibrate(button.VibrationPattern);

@@ -66,6 +66,16 @@ public class LoupedeckConfig : INotifyPropertyChanged
         set { if (Math.Abs(_touchFeedbackOpacity - value) < 0.0001) return; _touchFeedbackOpacity = value; OnPropertyChanged(); }
     }
 
+    // While a finger is down, ignore further TOUCH_START events until TOUCH_END.
+    // Defends against the device emitting duplicate TOUCH_START at button
+    // boundaries or when the finger slides across slots.
+    private bool _touchSlidingPreventionEnabled = true;
+    public bool TouchSlidingPreventionEnabled
+    {
+        get => _touchSlidingPreventionEnabled;
+        set { if (_touchSlidingPreventionEnabled == value) return; _touchSlidingPreventionEnabled = value; OnPropertyChanged(); }
+    }
+
     public SimpleButton[] SimpleButtons { get; set; }
 
     public ObservableCollection<RotaryButtonPage> RotaryButtonPages { get; set; } = [];
