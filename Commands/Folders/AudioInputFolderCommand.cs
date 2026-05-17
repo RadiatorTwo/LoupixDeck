@@ -4,7 +4,7 @@ using LoupixDeck.Services.FolderNavigation;
 
 namespace LoupixDeck.Commands.Folders;
 
-[Command("Audio.InputDevices", "Audio: Input Devices", "Audio")]
+[Command("Audio.InputDevices", "Audio: Input Devices", "Audio", Platform = CommandPlatform.Windows)]
 public sealed class AudioInputFolderCommand(
     IFolderNavigationService nav,
     IWindowsAudioService audio) : IExecutableCommand
