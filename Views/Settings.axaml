@@ -296,6 +296,15 @@
                             </StackPanel>
                         </Border>
                     </Grid>
+
+                    <Border Classes="card">
+                        <StackPanel>
+                            <TextBlock Classes="card-title" Text="Page switching" />
+                            <CheckBox Content="Show page name overlay when switching pages"
+                                      IsChecked="{Binding Config.ShowPageNameOverlayEnabled, Mode=TwoWay}"
+                                      ToolTip.Tip="Briefly displays the new page name on the first touch button (~2s) after switching touch or rotary pages." />
+                        </StackPanel>
+                    </Border>
                 </StackPanel>
 
                 <!-- ====== Feedback (touch flash + haptic) ====== -->

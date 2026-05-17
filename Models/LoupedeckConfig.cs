@@ -152,6 +152,16 @@ public class LoupedeckConfig : INotifyPropertyChanged
         }
     }
 
+    // Briefly draws the page name on touch button 0 after switching pages.
+    // Opt-in: many users find the 2s overlay distracting and prefer to keep
+    // their layout visible.
+    private bool _showPageNameOverlayEnabled;
+    public bool ShowPageNameOverlayEnabled
+    {
+        get => _showPageNameOverlayEnabled;
+        set { if (_showPageNameOverlayEnabled == value) return; _showPageNameOverlayEnabled = value; OnPropertyChanged(); }
+    }
+
     private bool _hapticEnabled;
     public bool HapticEnabled
     {
