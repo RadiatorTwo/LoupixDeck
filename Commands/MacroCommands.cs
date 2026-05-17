@@ -9,7 +9,8 @@ namespace LoupixDeck.Commands;
     "Macros",
     "({Text})",
     ["Text"],
-    [typeof(string)])]
+    [typeof(string)],
+    Platform = CommandPlatform.Linux)]
 public class SimpleMacroCommand(IUInputKeyboard uInputKeyboard) : IExecutableCommand
 {
     public Task Execute(string[] parameters)
