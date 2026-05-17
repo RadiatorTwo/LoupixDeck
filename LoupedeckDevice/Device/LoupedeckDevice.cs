@@ -627,7 +627,7 @@ public class LoupedeckDevice
     /// the per-button render cache. Used by the folder-navigation overlay so that the
     /// configured TouchButton state is not mutated.
     /// </summary>
-    public async Task DrawTouchSlot(int index, SKBitmap bitmap)
+    public virtual async Task DrawTouchSlot(int index, SKBitmap bitmap)
     {
         ArgumentNullException.ThrowIfNull(bitmap);
 
@@ -644,6 +644,13 @@ public class LoupedeckDevice
             Console.WriteLine($"Unexpected error: {ex.Message}");
         }
     }
+
+    /// <summary>
+    /// Exposes the unified-display canvas for subclasses that draw non-grid
+    /// regions (e.g. the Razer side panels at x=0 / x=420).
+    /// </summary>
+    protected Task DrawCanvasRegion(string displayId, int width, int height, SKBitmap bitmap, int x, int y)
+        => DrawCanvas(displayId, width, height, bitmap, x, y);
 
     public async Task DrawTextButton(int index, string text)
     {

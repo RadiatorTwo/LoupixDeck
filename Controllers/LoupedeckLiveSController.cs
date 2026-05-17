@@ -327,8 +327,57 @@ public class LoupedeckLiveSController(
             if (button.VibrationEnabled)
                 deviceService.Device.Vibrate(button.VibrationPattern);
 
+            if (config.TouchFeedbackEnabled)
+                _ = ShowTouchFeedback(button);
+
             var wrapped = config.CurrentTouchButtonPage.TouchButtonWrap?.Apply(button.Command) ?? button.Command;
             FireAndForget(wrapped);
+        }
+    }
+
+    /// <summary>
+    /// Flashes a colored translucent overlay on the pressed touch slot for ~100ms,
+    /// then restores the original rendered image. Fire-and-forget by design.
+    /// </summary>
+    private async Task ShowTouchFeedback(TouchButton button)
+    {
+        try
+        {
+            var device = deviceService.Device;
+            if (device == null) return;
+
+            var original = button.RenderedImage;
+            // Use the original bitmap's dimensions so we cover Razer side panels
+            // (60×270) and regular grid buttons (90×90) without special-casing.
+            var width = original?.Width ?? 90;
+            var height = original?.Height ?? 90;
+
+            using var flash = new SkiaSharp.SKBitmap(width, height);
+            using (var canvas = new SkiaSharp.SKCanvas(flash))
+            {
+                if (original != null) canvas.DrawBitmap(original, 0, 0);
+                var c = config.TouchFeedbackColor;
+                var alpha = (byte)Math.Clamp(255 * config.TouchFeedbackOpacity, 0, 255);
+                using var paint = new SkiaSharp.SKPaint
+                {
+                    Color = new SkiaSharp.SKColor(c.R, c.G, c.B, alpha)
+                };
+                canvas.DrawRect(0, 0, width, height, paint);
+            }
+
+            await device.DrawTouchSlot(button.Index, flash);
+            await Task.Delay(100);
+
+            // Restore — if we have a cached original, draw it directly; otherwise
+            // re-render the button through its normal path.
+            if (original != null)
+                await device.DrawTouchSlot(button.Index, original);
+            else
+                await device.DrawTouchButton(button, config, true, device.Columns);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Touch feedback failed: {ex.Message}");
         }
     }
 

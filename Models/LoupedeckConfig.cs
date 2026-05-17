@@ -43,6 +43,29 @@ public class LoupedeckConfig : INotifyPropertyChanged
     public CloseButtonBehavior CloseButtonBehavior { get; set; } = CloseButtonBehavior.MinimizeToTray;
     public bool StartMinimizedToTray { get; set; }
 
+    // Visual flash overlay on touch press — useful especially on the Razer
+    // (no LED ring on touch buttons) so the user gets visible feedback.
+    private bool _touchFeedbackEnabled;
+    public bool TouchFeedbackEnabled
+    {
+        get => _touchFeedbackEnabled;
+        set { if (_touchFeedbackEnabled == value) return; _touchFeedbackEnabled = value; OnPropertyChanged(); }
+    }
+
+    private Avalonia.Media.Color _touchFeedbackColor = Avalonia.Media.Colors.White;
+    public Avalonia.Media.Color TouchFeedbackColor
+    {
+        get => _touchFeedbackColor;
+        set { if (_touchFeedbackColor == value) return; _touchFeedbackColor = value; OnPropertyChanged(); }
+    }
+
+    private double _touchFeedbackOpacity = 0.5;
+    public double TouchFeedbackOpacity
+    {
+        get => _touchFeedbackOpacity;
+        set { if (Math.Abs(_touchFeedbackOpacity - value) < 0.0001) return; _touchFeedbackOpacity = value; OnPropertyChanged(); }
+    }
+
     public SimpleButton[] SimpleButtons { get; set; }
 
     public ObservableCollection<RotaryButtonPage> RotaryButtonPages { get; set; } = [];

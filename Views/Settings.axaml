@@ -53,7 +53,7 @@
                         <Grid ColumnDefinitions="6,Auto,*">
                             <Border Grid.Column="0" Classes="nav-accent" />
                             <TextBlock Grid.Column="1" Classes="nav-icon" Text="&#xF566;" Margin="6,0,0,0"/>
-                            <TextBlock Grid.Column="2" Classes="nav-label" Text="Haptic" />
+                            <TextBlock Grid.Column="2" Classes="nav-label" Text="Feedback" />
                         </Grid>
                     </Button>
 
@@ -298,83 +298,106 @@
                     </Grid>
                 </StackPanel>
 
-                <!-- ====== Haptic ====== -->
+                <!-- ====== Feedback (touch flash + haptic) ====== -->
                 <StackPanel IsVisible="{Binding CurrentView, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Haptic}">
-                    <TextBlock Classes="page-title" Text="Haptic Feedback" />
+                    <TextBlock Classes="page-title" Text="Feedback" />
 
+                    <!-- Touch flash overlay (top) -->
                     <Border Classes="card">
                         <StackPanel>
-                            <TextBlock Classes="card-title" Text="Global" />
+                            <TextBlock Classes="card-title" Text="Touch flash" />
+                            <CheckBox Content="Flash touch buttons on press"
+                                      IsChecked="{Binding Config.TouchFeedbackEnabled, Mode=TwoWay}" />
+                            <Grid ColumnDefinitions="80,Auto,*,40" RowDefinitions="Auto,Auto" RowSpacing="8" Margin="0,8,0,0"
+                                  IsEnabled="{Binding Config.TouchFeedbackEnabled}">
+                                <TextBlock Grid.Row="0" Grid.Column="0" Classes="label" Text="Color" VerticalAlignment="Center" />
+                                <ColorPicker Grid.Row="0" Grid.Column="1" Width="120" HorizontalAlignment="Left"
+                                             Color="{Binding Config.TouchFeedbackColor, Mode=TwoWay}" />
+
+                                <TextBlock Grid.Row="1" Grid.Column="0" Classes="label" Text="Opacity" VerticalAlignment="Center" />
+                                <Slider Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Minimum="0" Maximum="1"
+                                        TickFrequency="0.05" IsSnapToTickEnabled="True"
+                                        Value="{Binding Config.TouchFeedbackOpacity, Mode=TwoWay}" />
+                                <TextBlock Grid.Row="1" Grid.Column="3" Classes="value"
+                                           Text="{Binding Config.TouchFeedbackOpacity, StringFormat='{}{0:F2}'}"
+                                           VerticalAlignment="Center" HorizontalAlignment="Right" />
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Haptic (enable + both effects in one card) -->
+                    <Border Classes="card">
+                        <StackPanel>
+                            <TextBlock Classes="card-title" Text="Haptic" />
                             <CheckBox Content="Enable haptic feedback"
                                       IsChecked="{Binding Config.HapticEnabled, Mode=TwoWay}" />
-                        </StackPanel>
-                    </Border>
 
-                    <Border Classes="card" DataContext="{Binding FirstHapticStep}">
-                        <StackPanel>
-                            <TextBlock Classes="card-title" Text="First effect (immediate)" />
-                            <Grid ColumnDefinitions="100,*" RowDefinitions="Auto,Auto" Margin="0,4,0,0">
-                                <TextBlock Grid.Row="0" Grid.Column="0" Classes="label" Text="Effect" VerticalAlignment="Center" />
-                                <ComboBox Grid.Row="0" Grid.Column="1" Width="260" HorizontalAlignment="Left"
-                                          ItemsSource="{Binding $parent[Window].DataContext.VibrationPatterns}"
-                                          SelectedItem="{Binding SelectedEffectItem, Mode=TwoWay}">
-                                    <ComboBox.ItemTemplate>
-                                        <DataTemplate DataType="cnv:VibrationPatternItem">
-                                            <TextBlock Text="{Binding Name}" />
-                                        </DataTemplate>
-                                    </ComboBox.ItemTemplate>
-                                </ComboBox>
+                            <StackPanel IsEnabled="{Binding Config.HapticEnabled}">
+                                <!-- First effect -->
+                                <TextBlock Text="First effect (immediate)" FontWeight="SemiBold" Margin="0,16,0,4" />
+                                <Grid DataContext="{Binding FirstHapticStep}"
+                                      ColumnDefinitions="100,*" RowDefinitions="Auto,Auto" Margin="0,4,0,0">
+                                    <TextBlock Grid.Row="0" Grid.Column="0" Classes="label" Text="Effect" VerticalAlignment="Center" />
+                                    <ComboBox Grid.Row="0" Grid.Column="1" Width="260" HorizontalAlignment="Left"
+                                              ItemsSource="{Binding $parent[Window].DataContext.VibrationPatterns}"
+                                              SelectedItem="{Binding SelectedEffectItem, Mode=TwoWay}">
+                                        <ComboBox.ItemTemplate>
+                                            <DataTemplate DataType="cnv:VibrationPatternItem">
+                                                <TextBlock Text="{Binding Name}" />
+                                            </DataTemplate>
+                                        </ComboBox.ItemTemplate>
+                                    </ComboBox>
 
-                                <TextBlock Grid.Row="1" Grid.Column="0" Classes="label" Text="Duration" VerticalAlignment="Center" Margin="0,12,0,0" />
-                                <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Spacing="10" Margin="0,12,0,0">
-                                    <Slider Minimum="2" Maximum="255" TickFrequency="1" IsSnapToTickEnabled="True"
-                                            Value="{Binding Duration, Mode=TwoWay}" Width="300" />
-                                    <TextBlock Text="{Binding Duration}" VerticalAlignment="Center" Width="40" />
+                                    <TextBlock Grid.Row="1" Grid.Column="0" Classes="label" Text="Duration" VerticalAlignment="Center" Margin="0,12,0,0" />
+                                    <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Spacing="10" Margin="0,12,0,0">
+                                        <Slider Minimum="2" Maximum="255" TickFrequency="1" IsSnapToTickEnabled="True"
+                                                Value="{Binding Duration, Mode=TwoWay}" Width="300" />
+                                        <TextBlock Text="{Binding Duration}" VerticalAlignment="Center" Width="40" />
+                                    </StackPanel>
+                                </Grid>
+
+                                <!-- Add-second-effect button -->
+                                <Button Content="Add second effect" Command="{Binding AddHapticStepCommand}"
+                                        HorizontalAlignment="Left" Margin="0,14,0,0"
+                                        IsVisible="{Binding CanAddHapticStep}" />
+
+                                <!-- Second effect (conditional) -->
+                                <StackPanel IsVisible="{Binding HasSecondHapticStep}">
+                                    <Grid ColumnDefinitions="*,Auto" Margin="0,16,0,4">
+                                        <TextBlock Grid.Column="0" Text="Second effect (after delay)" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                        <Button Grid.Column="1" Content="Remove"
+                                                Command="{Binding RemoveHapticStepCommand}"
+                                                CommandParameter="{Binding SecondHapticStep}" />
+                                    </Grid>
+                                    <Grid DataContext="{Binding SecondHapticStep}"
+                                          ColumnDefinitions="100,*" RowDefinitions="Auto,Auto,Auto" Margin="0,4,0,0">
+                                        <TextBlock Grid.Row="0" Grid.Column="0" Classes="label" Text="Effect" VerticalAlignment="Center" />
+                                        <ComboBox Grid.Row="0" Grid.Column="1" Width="260" HorizontalAlignment="Left"
+                                                  ItemsSource="{Binding $parent[Window].DataContext.VibrationPatterns}"
+                                                  SelectedItem="{Binding SelectedEffectItem, Mode=TwoWay}">
+                                            <ComboBox.ItemTemplate>
+                                                <DataTemplate DataType="cnv:VibrationPatternItem">
+                                                    <TextBlock Text="{Binding Name}" />
+                                                </DataTemplate>
+                                            </ComboBox.ItemTemplate>
+                                        </ComboBox>
+
+                                        <TextBlock Grid.Row="1" Grid.Column="0" Classes="label" Text="Delay" VerticalAlignment="Center" Margin="0,12,0,0" />
+                                        <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Spacing="10" Margin="0,12,0,0">
+                                            <Slider Minimum="4" Maximum="255" TickFrequency="1" IsSnapToTickEnabled="True"
+                                                    Value="{Binding Delay, Mode=TwoWay}" Width="300" />
+                                            <TextBlock Text="{Binding Delay}" VerticalAlignment="Center" Width="40" />
+                                        </StackPanel>
+
+                                        <TextBlock Grid.Row="2" Grid.Column="0" Classes="label" Text="Duration" VerticalAlignment="Center" Margin="0,12,0,0" />
+                                        <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal" Spacing="10" Margin="0,12,0,0">
+                                            <Slider Minimum="2" Maximum="255" TickFrequency="1" IsSnapToTickEnabled="True"
+                                                    Value="{Binding Duration, Mode=TwoWay}" Width="300" />
+                                            <TextBlock Text="{Binding Duration}" VerticalAlignment="Center" Width="40" />
+                                        </StackPanel>
+                                    </Grid>
                                 </StackPanel>
-                            </Grid>
-                        </StackPanel>
-                    </Border>
-
-                    <Button Content="Add second effect" Command="{Binding AddHapticStepCommand}"
-                            HorizontalAlignment="Left" Margin="0,4,0,12"
-                            IsVisible="{Binding CanAddHapticStep}" />
-
-                    <Border Classes="card"
-                            IsVisible="{Binding $parent[Window].DataContext.HasSecondHapticStep}"
-                            DataContext="{Binding SecondHapticStep}">
-                        <StackPanel>
-                            <Grid ColumnDefinitions="*,Auto">
-                                <TextBlock Grid.Column="0" Classes="card-title" Text="Second effect (after delay)" />
-                                <Button Grid.Column="1" Content="Remove"
-                                        Command="{Binding $parent[Window].DataContext.RemoveHapticStepCommand}"
-                                        CommandParameter="{Binding}" />
-                            </Grid>
-                            <Grid ColumnDefinitions="100,*" RowDefinitions="Auto,Auto,Auto" Margin="0,4,0,0">
-                                <TextBlock Grid.Row="0" Grid.Column="0" Classes="label" Text="Effect" VerticalAlignment="Center" />
-                                <ComboBox Grid.Row="0" Grid.Column="1" Width="260" HorizontalAlignment="Left"
-                                          ItemsSource="{Binding $parent[Window].DataContext.VibrationPatterns}"
-                                          SelectedItem="{Binding SelectedEffectItem, Mode=TwoWay}">
-                                    <ComboBox.ItemTemplate>
-                                        <DataTemplate DataType="cnv:VibrationPatternItem">
-                                            <TextBlock Text="{Binding Name}" />
-                                        </DataTemplate>
-                                    </ComboBox.ItemTemplate>
-                                </ComboBox>
-
-                                <TextBlock Grid.Row="1" Grid.Column="0" Classes="label" Text="Delay" VerticalAlignment="Center" Margin="0,12,0,0" />
-                                <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Spacing="10" Margin="0,12,0,0">
-                                    <Slider Minimum="4" Maximum="255" TickFrequency="1" IsSnapToTickEnabled="True"
-                                            Value="{Binding Delay, Mode=TwoWay}" Width="300" />
-                                    <TextBlock Text="{Binding Delay}" VerticalAlignment="Center" Width="40" />
-                                </StackPanel>
-
-                                <TextBlock Grid.Row="2" Grid.Column="0" Classes="label" Text="Duration" VerticalAlignment="Center" Margin="0,12,0,0" />
-                                <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal" Spacing="10" Margin="0,12,0,0">
-                                    <Slider Minimum="2" Maximum="255" TickFrequency="1" IsSnapToTickEnabled="True"
-                                            Value="{Binding Duration, Mode=TwoWay}" Width="300" />
-                                    <TextBlock Text="{Binding Duration}" VerticalAlignment="Center" Width="40" />
-                                </StackPanel>
-                            </Grid>
+                            </StackPanel>
                         </StackPanel>
                     </Border>
                 </StackPanel>
