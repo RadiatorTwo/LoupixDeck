@@ -118,6 +118,36 @@ The Command menu is filtered per OS — Windows-only and Linux-only commands onl
 
 ---
 
+## 🚀 Quick Install (Linux)
+
+Distro-agnostic one-liner — downloads the latest release binary, installs it system-wide,
+sets up udev rules and a desktop entry, and installs the .NET 9 runtime if it's missing.
+Works on Arch/CachyOS/Manjaro, Debian/Ubuntu/Mint/Pop!_OS, Fedora/RHEL, openSUSE,
+Alpine, Void, Gentoo, Solus (anything with one of the common package managers; falls
+back to Microsoft's `dotnet-install.sh` otherwise).
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/RadiatorTwo/LoupixDeck/master/install-loupixdeck.sh | bash
+```
+
+Or with `wget`:
+
+```bash
+wget -qO- https://raw.githubusercontent.com/RadiatorTwo/LoupixDeck/master/install-loupixdeck.sh | bash
+```
+
+Prefer to inspect first:
+
+```bash
+curl -fsSLO https://raw.githubusercontent.com/RadiatorTwo/LoupixDeck/master/install-loupixdeck.sh
+less install-loupixdeck.sh
+bash install-loupixdeck.sh
+```
+
+After install, launch with `loupixdeck` or from your application menu.
+
+---
+
 ## 🛠️ Build Instructions
 
 Requires the [.NET 9 SDK](https://dotnet.microsoft.com/download).
