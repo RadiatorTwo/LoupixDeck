@@ -9,6 +9,7 @@ public enum SettingsView
     Elgato,
     CoolerControl,
     Argus,
+    HwInfo,
     Theme,
     About
 }

@@ -174,6 +174,31 @@ public class LoupedeckConfig : INotifyPropertyChanged
         }
     }
 
+    // Integration master switches. Default false so the background services
+    // (Argus shared-memory polling, Elgato network discovery) and their commands
+    // stay dormant until the user opts in. A missing key in an older config.json
+    // deserializes to false — backward compatible, no version bump.
+    private bool _argusMonitorEnabled;
+    public bool ArgusMonitorEnabled
+    {
+        get => _argusMonitorEnabled;
+        set { if (_argusMonitorEnabled == value) return; _argusMonitorEnabled = value; OnPropertyChanged(); }
+    }
+
+    private bool _elgatoEnabled;
+    public bool ElgatoEnabled
+    {
+        get => _elgatoEnabled;
+        set { if (_elgatoEnabled == value) return; _elgatoEnabled = value; OnPropertyChanged(); }
+    }
+
+    private bool _hwInfoEnabled;
+    public bool HwInfoEnabled
+    {
+        get => _hwInfoEnabled;
+        set { if (_hwInfoEnabled == value) return; _hwInfoEnabled = value; OnPropertyChanged(); }
+    }
+
     // ObjectCreationHandling.Replace: Newtonsoft otherwise reuses the default
     // collection and appends deserialized items to it — so each save+load round
     // would duplicate every step.
