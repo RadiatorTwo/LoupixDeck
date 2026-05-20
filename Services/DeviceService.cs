@@ -49,7 +49,9 @@ public class LoupedeckDeviceService : IDeviceService
             _elgatoController.InitDeviceAsync(light).GetAwaiter().GetResult();
             elgatoDevices.AddKeyLight(light);
         };
-        _ = _elgatoController.ProbeForElgatoDevices();
+        // Only probe the network for Key Lights when the integration is enabled.
+        if (_config.ElgatoEnabled)
+            _ = _elgatoController.ProbeForElgatoDevices();
     }
 
     public void StartDevice(string devicePort, int deviceBaudrate)
