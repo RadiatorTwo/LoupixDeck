@@ -17,6 +17,7 @@ public class SimpleButtonSettingsViewModel : DialogViewModelBase<SimpleButton, D
     private readonly ElgatoDevices _elgatoDevices;
     private readonly ISysCommandService _sysCommandService;
     private readonly ICommandBuilder _commandBuilder;
+    private readonly LoupedeckConfig _config;
 
     public SimpleButton ButtonData { get; set; }
 
@@ -27,12 +28,14 @@ public class SimpleButtonSettingsViewModel : DialogViewModelBase<SimpleButton, D
     public MenuEntry CurrentMenuEntry { get; set; }
 
     public SimpleButtonSettingsViewModel(IObsController obs, ElgatoDevices elgatoDevices,
-        ISysCommandService sysCommandService, ICommandBuilder commandBuilder)
+        ISysCommandService sysCommandService, ICommandBuilder commandBuilder,
+        LoupedeckConfig config)
     {
         _obs = obs;
         _elgatoDevices = elgatoDevices;
         _sysCommandService = sysCommandService;
         _commandBuilder = commandBuilder;
+        _config = config;
 
         SystemCommandMenus = new ObservableCollection<MenuEntry>();
     }
@@ -47,7 +50,8 @@ public class SimpleButtonSettingsViewModel : DialogViewModelBase<SimpleButton, D
         CreatePagesMenu();
         CreateDeviceControlMenu();
         var obsTask = CreateObsMenu();
-        CreateElgatoMenu();
+        if (_config.ElgatoEnabled)
+            CreateElgatoMenu();
         await obsTask;
     }
 

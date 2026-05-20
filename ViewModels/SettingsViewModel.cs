@@ -9,8 +9,10 @@ using LoupixDeck.LoupedeckDevice.Device;
 using LoupixDeck.Models;
 using LoupixDeck.Models.Argus;
 using LoupixDeck.Models.Converter;
+using LoupixDeck.Models.HwInfo;
 using LoupixDeck.Services;
 using LoupixDeck.Services.Argus;
+using LoupixDeck.Services.HwInfo;
 using LoupixDeck.Utils;
 using LoupixDeck.ViewModels.Base;
 using Newtonsoft.Json.Linq;
@@ -26,6 +28,7 @@ public class SettingsViewModel : DialogViewModelBase<DialogResult>
     private readonly IElgatoController _elgatoController;
     private readonly IPageManager _pageManager;
     private readonly IArgusMonitorService _argusMonitor;
+    private readonly IHwInfoService _hwInfo;
     private readonly IDialogService _dialogService;
     public ElgatoDevices ElgatoDevices { get; }
 
@@ -61,6 +64,7 @@ public class SettingsViewModel : DialogViewModelBase<DialogResult>
         ElgatoDevices elgatoDevices,
         IPageManager pageManager,
         IArgusMonitorService argusMonitor,
+        IHwInfoService hwInfo,
         IDialogService dialogService)
     {
         Config = config;
@@ -69,6 +73,7 @@ public class SettingsViewModel : DialogViewModelBase<DialogResult>
         ElgatoDevices = elgatoDevices ?? new ElgatoDevices();
         _pageManager = pageManager;
         _argusMonitor = argusMonitor;
+        _hwInfo = hwInfo;
         _dialogService = dialogService;
 
         SaveObsCommand = new RelayCommand(SaveObs);
@@ -146,6 +151,12 @@ public class SettingsViewModel : DialogViewModelBase<DialogResult>
             _argusMonitor.SnapshotUpdated += OnArgusSnapshotUpdated;
             // Refresh on UI thread but lightweight — only reads the volatile snapshot field.
             Dispatcher.UIThread.Post(RefreshArgusSnapshot);
+        }
+
+        if (_hwInfo != null)
+        {
+            _hwInfo.SnapshotUpdated += OnHwInfoSnapshotUpdated;
+            Dispatcher.UIThread.Post(RefreshHwInfoSnapshot);
         }
 
         // Device info call blocks on a serial round-trip — push it off the UI thread.
@@ -380,6 +391,23 @@ public class SettingsViewModel : DialogViewModelBase<DialogResult>
 
     // ───────── Elgato ─────────
 
+    /// <summary>
+    /// Master switch for the Elgato integration. Enabling it kicks off a discovery
+    /// probe immediately so Key Lights show up without waiting for the next app start.
+    /// </summary>
+    public bool ElgatoEnabled
+    {
+        get => Config.ElgatoEnabled;
+        set
+        {
+            if (Config.ElgatoEnabled == value) return;
+            Config.ElgatoEnabled = value;
+            OnPropertyChanged();
+            if (value)
+                _ = _elgatoController.ProbeForElgatoDevices();
+        }
+    }
+
     private bool _isScanningElgato;
     public bool IsScanningElgato
     {
@@ -471,6 +499,26 @@ public class SettingsViewModel : DialogViewModelBase<DialogResult>
 
     // ───────── Argus ─────────
 
+    /// <summary>
+    /// Master switch for the Argus Monitor integration. Toggling it starts/stops the
+    /// shared-memory poll loop right away so the status reflects the change live.
+    /// </summary>
+    public bool ArgusMonitorEnabled
+    {
+        get => Config.ArgusMonitorEnabled;
+        set
+        {
+            if (Config.ArgusMonitorEnabled == value) return;
+            Config.ArgusMonitorEnabled = value;
+            OnPropertyChanged();
+            if (value)
+                _argusMonitor?.Start();
+            else
+                _argusMonitor?.Stop();
+            RefreshArgusSnapshot();
+        }
+    }
+
     public ObservableCollection<ArgusSensor> ArgusSensors { get; } = [];
 
     public string ArgusStatusText => (_argusMonitor?.IsAvailable ?? false) ? "Reading" : "Not running";
@@ -492,6 +540,53 @@ public class SettingsViewModel : DialogViewModelBase<DialogResult>
         if (_argusMonitor?.Sensors == null) return;
         foreach (var s in _argusMonitor.Sensors.Take(60))
             ArgusSensors.Add(s);
+    }
+
+    // ───────── HWiNFO ─────────
+
+    /// <summary>
+    /// Master switch for the HWiNFO integration. Toggling it starts/stops the
+    /// shared-memory poll loop right away so the status reflects the change live.
+    /// </summary>
+    public bool HwInfoEnabled
+    {
+        get => Config.HwInfoEnabled;
+        set
+        {
+            if (Config.HwInfoEnabled == value) return;
+            Config.HwInfoEnabled = value;
+            OnPropertyChanged();
+            if (value)
+                _hwInfo?.Start();
+            else
+                _hwInfo?.Stop();
+            RefreshHwInfoSnapshot();
+        }
+    }
+
+    public ObservableCollection<HwInfoSensor> HwInfoSensors { get; } = [];
+
+    public string HwInfoStatusText => (_hwInfo?.IsAvailable ?? false) ? "Reading" : "Not running";
+    public bool HwInfoStatusOk => _hwInfo?.IsAvailable ?? false;
+    public bool HwInfoStatusNeutral => !HwInfoStatusOk;
+    public string HwInfoDiagnostics => _hwInfo?.Diagnostics ?? string.Empty;
+
+    private void OnHwInfoSnapshotUpdated()
+    {
+        Dispatcher.UIThread.Post(RefreshHwInfoSnapshot);
+    }
+
+    private void RefreshHwInfoSnapshot()
+    {
+        OnPropertyChanged(nameof(HwInfoStatusText));
+        OnPropertyChanged(nameof(HwInfoStatusOk));
+        OnPropertyChanged(nameof(HwInfoStatusNeutral));
+        OnPropertyChanged(nameof(HwInfoDiagnostics));
+
+        HwInfoSensors.Clear();
+        if (_hwInfo?.Sensors == null) return;
+        foreach (var s in _hwInfo.Sensors.Take(60))
+            HwInfoSensors.Add(s);
     }
 
     // ───────── Theme ─────────
