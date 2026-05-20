@@ -21,6 +21,7 @@ public class RotaryButtonSettingsViewModel : DialogViewModelBase<RotaryButton, D
     private readonly ElgatoDevices _elgatoDevices;
     private readonly ISysCommandService _sysCommandService;
     private readonly ICommandBuilder _commandBuilder;
+    private readonly LoupedeckConfig _config;
 
     public RotaryButton ButtonData { get; set; }
 
@@ -31,12 +32,14 @@ public class RotaryButtonSettingsViewModel : DialogViewModelBase<RotaryButton, D
     public RotaryButtonSettingsViewModel(IObsController obs,
         ElgatoDevices elgatoDevices,
         ISysCommandService sysCommandService,
-        ICommandBuilder commandBuilder)
+        ICommandBuilder commandBuilder,
+        LoupedeckConfig config)
     {
         _obs = obs;
         _elgatoDevices = elgatoDevices;
         _sysCommandService = sysCommandService;
         _commandBuilder = commandBuilder;
+        _config = config;
 
         SystemCommandMenus = new ObservableCollection<MenuEntry>();
     }
@@ -51,7 +54,8 @@ public class RotaryButtonSettingsViewModel : DialogViewModelBase<RotaryButton, D
         CreatePagesMenu();
         CreateDeviceControlMenu();
         var obsTask = CreateObsMenu();
-        CreateElgatoMenu();
+        if (_config.ElgatoEnabled)
+            CreateElgatoMenu();
         await obsTask;
     }
 

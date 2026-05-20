@@ -4,9 +4,11 @@ using LoupixDeck.LoupedeckDevice;
 using LoupixDeck.Models;
 using LoupixDeck.Models.Argus;
 using LoupixDeck.Models.Converter;
+using LoupixDeck.Models.HwInfo;
 using LoupixDeck.Models.Layers;
 using LoupixDeck.Services;
 using LoupixDeck.Services.Argus;
+using LoupixDeck.Services.HwInfo;
 using LoupixDeck.Utils;
 using LoupixDeck.ViewModels.Base;
 using SkiaSharp;
@@ -42,6 +44,7 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
     private readonly ISysCommandService _sysCommandService;
     private readonly ICommandBuilder _commandBuilder;
     private readonly IArgusMonitorService _argusMonitor;
+    private readonly IHwInfoService _hwInfo;
     private readonly IAssetService _assetService;
     private readonly IDialogService _dialogService;
     private readonly LoupedeckConfig _config;
@@ -193,6 +196,7 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
         ISysCommandService sysCommandService,
         ICommandBuilder commandBuilder,
         IArgusMonitorService argusMonitor,
+        IHwInfoService hwInfo,
         IAssetService assetService,
         IDialogService dialogService,
         LoupedeckConfig config)
@@ -203,6 +207,7 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
         _sysCommandService = sysCommandService;
         _commandBuilder = commandBuilder;
         _argusMonitor = argusMonitor;
+        _hwInfo = hwInfo;
         _assetService = assetService;
         _dialogService = dialogService;
         _config = config;
@@ -237,10 +242,14 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
         // and populate scenes/modes asynchronously, so order stays stable
         // while both network calls run in parallel.
         var obsTask = CreateObsMenu();
-        CreateElgatoMenu();
+        if (_config.ElgatoEnabled)
+            CreateElgatoMenu();
         var coolerTask = CreateCoolerControlMenu();
         CreateDynamicTextMenu();
-        CreateArgusMonitorMenu();
+        if (_config.ArgusMonitorEnabled)
+            CreateArgusMonitorMenu();
+        if (_config.HwInfoEnabled)
+            CreateHwInfoMenu();
         CreateAudioMenu();
 
         await Task.WhenAll(obsTask, coolerTask);
@@ -292,6 +301,50 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
                     parameters: new Dictionary<string, string>
                     {
                         { "Sensor", $"{sensor.Type}:{sensor.SensorIndex}" }
+                    }));
+            }
+
+            groupMenu.Children.Add(typeMenu);
+        }
+
+        SystemCommandMenus.Add(groupMenu);
+    }
+
+    private void CreateHwInfoMenu()
+    {
+        var groupMenu = new MenuEntry("HWiNFO", string.Empty);
+
+        var sensors = _hwInfo.Sensors;
+        if (!_hwInfo.IsAvailable || sensors.Count == 0)
+        {
+            groupMenu.Children.Add(new MenuEntry("HWiNFO not available", string.Empty));
+            SystemCommandMenus.Add(groupMenu);
+            return;
+        }
+
+        // HWiNFO's natural grouping is the parent sensor (CPU, GPU, a drive, …).
+        foreach (var sensorGroup in sensors
+                     .GroupBy(s => new { s.SensorId, s.SensorInstance, s.SensorName })
+                     .OrderBy(g => g.Key.SensorName))
+        {
+            var name = string.IsNullOrWhiteSpace(sensorGroup.Key.SensorName)
+                ? $"Sensor 0x{sensorGroup.Key.SensorId:X}"
+                : sensorGroup.Key.SensorName;
+            var typeMenu = new MenuEntry(name, string.Empty);
+
+            foreach (var sensor in sensorGroup.OrderBy(s => s.ReadingId))
+            {
+                var label = string.IsNullOrWhiteSpace(sensor.Label)
+                    ? $"#{sensor.ReadingId}"
+                    : sensor.Label;
+
+                typeMenu.Children.Add(new MenuEntry(
+                    label,
+                    "HwInfo.Sensor",
+                    parentName: null,
+                    parameters: new Dictionary<string, string>
+                    {
+                        { "Sensor", $"{sensor.SensorId}:{sensor.SensorInstance}:{sensor.ReadingId}" }
                     }));
             }
 

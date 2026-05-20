@@ -3,6 +3,7 @@ using LoupixDeck.Models;
 using LoupixDeck.Registry;
 using LoupixDeck.Services;
 using LoupixDeck.Services.Argus;
+using LoupixDeck.Services.HwInfo;
 using LoupixDeck.Services.Audio;
 using LoupixDeck.Services.FolderNavigation;
 using LoupixDeck.Services.SystemPower;
@@ -87,6 +88,7 @@ public static class ServiceCollectionExtensions
         collection.AddSingleton<IElgatoController, ElgatoController>();
         collection.AddSingleton<ICoolerControlApiController, CoolerControlApiController>();
         collection.AddSingleton<IArgusMonitorService, ArgusMonitorService>();
+        collection.AddSingleton<IHwInfoService, HwInfoService>();
         collection.AddSingleton<IDynamicTextManager, DynamicTextManager>();
         collection.AddSingleton<IFolderNavigationService, FolderNavigationService>();
 
