@@ -154,6 +154,19 @@ public partial class MainWindow : Window
         _isQuitting = true;
         _trayIcon?.Dispose();
         _trayIcon = null;
+
+        // Give loaded plugins a chance to shut down cleanly (close connections,
+        // stop poll loops) before the process exits.
+        try
+        {
+            (Program.AppServices?.GetService(typeof(Services.Plugins.IPluginManager))
+                as Services.Plugins.IPluginManager)?.ShutdownAll();
+        }
+        catch
+        {
+            // best effort — never block shutdown
+        }
+
         Environment.Exit(0);
     }
 }

@@ -7,33 +7,25 @@ using Avalonia.Styling;
 using Avalonia.Threading;
 using LoupixDeck.LoupedeckDevice.Device;
 using LoupixDeck.Models;
-using LoupixDeck.Models.Argus;
 using LoupixDeck.Models.Converter;
-using LoupixDeck.Models.HwInfo;
 using LoupixDeck.Services;
-using LoupixDeck.Services.Argus;
-using LoupixDeck.Services.HwInfo;
+using LoupixDeck.Services.Plugins;
 using LoupixDeck.Utils;
 using LoupixDeck.ViewModels.Base;
 using Newtonsoft.Json.Linq;
-using OBSWebsocketDotNet.Communication;
 
 namespace LoupixDeck.ViewModels;
 
 public class SettingsViewModel : DialogViewModelBase<DialogResult>
 {
     public LoupedeckConfig Config { get; }
-    private readonly IObsController _obs;
     private readonly IDeviceService _deviceService;
-    private readonly IElgatoController _elgatoController;
     private readonly IPageManager _pageManager;
-    private readonly IArgusMonitorService _argusMonitor;
-    private readonly IHwInfoService _hwInfo;
     private readonly IDialogService _dialogService;
-    public ElgatoDevices ElgatoDevices { get; }
 
-    public ICommand SaveObsCommand { get; }
-    public ICommand TestConnectionCommand { get; }
+    /// <summary>All discovered plugins — drives the Plugins settings page.</summary>
+    public IReadOnlyList<LoadedPlugin> Plugins { get; }
+
     public ICommand NavigateCommand { get; }
     public ICommand AddHapticStepCommand { get; }
     public ICommand RemoveHapticStepCommand { get; }
@@ -48,9 +40,6 @@ public class SettingsViewModel : DialogViewModelBase<DialogResult>
     public ICommand RemoveRotaryPageCommand { get; }
     public ICommand MoveRotaryPageUpCommand { get; }
     public ICommand MoveRotaryPageDownCommand { get; }
-    public ICommand RescanElgatoCommand { get; }
-    public ICommand ToggleKeyLightCommand { get; }
-    public ICommand TestCoolerControlCommand { get; }
     public ICommand OpenWebsiteCommand { get; }
 
     public ObservableCollection<VibrationPatternItem> VibrationPatterns => VibrationPatternCatalog.All;
@@ -58,26 +47,16 @@ public class SettingsViewModel : DialogViewModelBase<DialogResult>
     public bool IsWindows => OperatingSystem.IsWindows();
 
     public SettingsViewModel(LoupedeckConfig config,
-        IObsController obs,
         IDeviceService deviceService,
-        IElgatoController elgatoController,
-        ElgatoDevices elgatoDevices,
         IPageManager pageManager,
-        IArgusMonitorService argusMonitor,
-        IHwInfoService hwInfo,
-        IDialogService dialogService)
+        IDialogService dialogService,
+        IPluginManager pluginManager)
     {
         Config = config;
         _deviceService = deviceService;
-        _elgatoController = elgatoController;
-        ElgatoDevices = elgatoDevices ?? new ElgatoDevices();
         _pageManager = pageManager;
-        _argusMonitor = argusMonitor;
-        _hwInfo = hwInfo;
         _dialogService = dialogService;
-
-        SaveObsCommand = new RelayCommand(SaveObs);
-        TestConnectionCommand = new RelayCommand(TestConnection);
+        Plugins = pluginManager.Plugins;
 
         NavigateCommand = new RelayCommand<SettingsView>(Navigate);
         AddHapticStepCommand = new RelayCommand(AddHapticStep);
@@ -119,9 +98,6 @@ public class SettingsViewModel : DialogViewModelBase<DialogResult>
         _pageManager.RotaryButtonPages.CollectionChanged += (_, _) =>
             Dispatcher.UIThread.Post(RefreshRotaryPageCommands);
 
-        RescanElgatoCommand = new AsyncRelayCommand(RescanElgato);
-        ToggleKeyLightCommand = new RelayCommand<KeyLight>(light => _ = ToggleKeyLight(light));
-        TestCoolerControlCommand = new AsyncRelayCommand(TestCoolerControl);
         OpenWebsiteCommand = new RelayCommand(() =>
         {
             try
@@ -138,26 +114,6 @@ public class SettingsViewModel : DialogViewModelBase<DialogResult>
         Config.HapticSteps.CollectionChanged += OnHapticStepsChanged;
 
         CurrentView = SettingsView.General;
-
-        ObsConfig = ObsConfig.LoadConfig();
-        _obs = obs;
-        _obs.Connected += ObsConnected;
-        _obs.Disconnected += ObsDisconnected;
-        ObsConnected_State = _obs == null ? false : false; // initial state unknown, treat as disconnected
-        UpdateObsStatus();
-
-        if (_argusMonitor != null)
-        {
-            _argusMonitor.SnapshotUpdated += OnArgusSnapshotUpdated;
-            // Refresh on UI thread but lightweight — only reads the volatile snapshot field.
-            Dispatcher.UIThread.Post(RefreshArgusSnapshot);
-        }
-
-        if (_hwInfo != null)
-        {
-            _hwInfo.SnapshotUpdated += OnHwInfoSnapshotUpdated;
-            Dispatcher.UIThread.Post(RefreshHwInfoSnapshot);
-        }
 
         // Device info call blocks on a serial round-trip — push it off the UI thread.
         _ = Task.Run(RefreshDeviceInfoAsync);
@@ -364,231 +320,6 @@ public class SettingsViewModel : DialogViewModelBase<DialogResult>
         Config.HapticSteps.RemoveAt(Config.HapticSteps.Count - 1);
     }
 
-    // ───────── OBS ─────────
-
-    private bool _obsConnected;
-    public bool ObsConnected_State
-    {
-        get => _obsConnected;
-        private set
-        {
-            if (SetProperty(ref _obsConnected, value))
-            {
-                OnPropertyChanged(nameof(ObsStatusText));
-                OnPropertyChanged(nameof(ObsStatusOk));
-                OnPropertyChanged(nameof(ObsStatusNeutral));
-            }
-        }
-    }
-    public string ObsStatusText => ObsConnected_State ? "Connected" : (ObsConfig != null && !string.IsNullOrWhiteSpace(ObsConfig.Ip) ? "Disconnected" : "Not configured");
-    public bool ObsStatusOk => ObsConnected_State;
-    public bool ObsStatusNeutral => !ObsConnected_State;
-
-    private void UpdateObsStatus()
-    {
-        // Lacking an explicit Connected-property on the controller; rely on event-driven state.
-    }
-
-    // ───────── Elgato ─────────
-
-    /// <summary>
-    /// Master switch for the Elgato integration. Enabling it kicks off a discovery
-    /// probe immediately so Key Lights show up without waiting for the next app start.
-    /// </summary>
-    public bool ElgatoEnabled
-    {
-        get => Config.ElgatoEnabled;
-        set
-        {
-            if (Config.ElgatoEnabled == value) return;
-            Config.ElgatoEnabled = value;
-            OnPropertyChanged();
-            if (value)
-                _ = _elgatoController.ProbeForElgatoDevices();
-        }
-    }
-
-    private bool _isScanningElgato;
-    public bool IsScanningElgato
-    {
-        get => _isScanningElgato;
-        private set => SetProperty(ref _isScanningElgato, value);
-    }
-
-    public bool HasNoElgatoLights => (ElgatoDevices?.KeyLights?.Count ?? 0) == 0;
-
-    private async Task RescanElgato()
-    {
-        if (IsScanningElgato) return;
-        IsScanningElgato = true;
-        try
-        {
-            await _elgatoController.ProbeForElgatoDevices();
-        }
-        finally
-        {
-            IsScanningElgato = false;
-            OnPropertyChanged(nameof(ElgatoDevices));
-            OnPropertyChanged(nameof(HasNoElgatoLights));
-        }
-    }
-
-    private async Task ToggleKeyLight(KeyLight light)
-    {
-        if (light == null) return;
-        try { await _elgatoController.Toggle(light); }
-        catch { /* device may be offline */ }
-    }
-
-    // ───────── CoolerControl ─────────
-
-    private string _coolerControlStatus = "Not tested";
-    public string CoolerControlStatus { get => _coolerControlStatus; private set => SetProperty(ref _coolerControlStatus, value); }
-
-    public enum CcState { Neutral, Ok, Warn, Error }
-    private CcState _ccState = CcState.Neutral;
-    public CcState CoolerControlState
-    {
-        get => _ccState;
-        private set
-        {
-            if (SetProperty(ref _ccState, value))
-            {
-                OnPropertyChanged(nameof(CoolerControlIsOk));
-                OnPropertyChanged(nameof(CoolerControlIsWarn));
-                OnPropertyChanged(nameof(CoolerControlIsError));
-                OnPropertyChanged(nameof(CoolerControlIsNeutral));
-            }
-        }
-    }
-    public bool CoolerControlIsOk      => _ccState == CcState.Ok;
-    public bool CoolerControlIsWarn    => _ccState == CcState.Warn;
-    public bool CoolerControlIsError   => _ccState == CcState.Error;
-    public bool CoolerControlIsNeutral => _ccState == CcState.Neutral;
-
-    public ObservableCollection<string> CoolerControlModes { get; } = [];
-
-    private async Task TestCoolerControl()
-    {
-        CoolerControlStatus = "Testing…";
-        CoolerControlState = CcState.Warn;
-        CoolerControlModes.Clear();
-
-        try
-        {
-            using var client = new HttpClient { BaseAddress = new Uri(Config.CoolerControlUrl), Timeout = TimeSpan.FromSeconds(2) };
-            var json = await client.GetStringAsync("modes");
-            var arr = (JArray)JObject.Parse(json)["modes"];
-            if (arr != null)
-            {
-                foreach (var mode in arr)
-                {
-                    var name = mode["name"]?.ToString() ?? mode["uid"]?.ToString() ?? "(unnamed)";
-                    CoolerControlModes.Add(name);
-                }
-            }
-            CoolerControlStatus = $"Connected — {CoolerControlModes.Count} modes";
-            CoolerControlState = CcState.Ok;
-        }
-        catch (Exception ex)
-        {
-            CoolerControlStatus = $"Unreachable: {ex.Message}";
-            CoolerControlState = CcState.Error;
-        }
-    }
-
-    // ───────── Argus ─────────
-
-    /// <summary>
-    /// Master switch for the Argus Monitor integration. Toggling it starts/stops the
-    /// shared-memory poll loop right away so the status reflects the change live.
-    /// </summary>
-    public bool ArgusMonitorEnabled
-    {
-        get => Config.ArgusMonitorEnabled;
-        set
-        {
-            if (Config.ArgusMonitorEnabled == value) return;
-            Config.ArgusMonitorEnabled = value;
-            OnPropertyChanged();
-            if (value)
-                _argusMonitor?.Start();
-            else
-                _argusMonitor?.Stop();
-            RefreshArgusSnapshot();
-        }
-    }
-
-    public ObservableCollection<ArgusSensor> ArgusSensors { get; } = [];
-
-    public string ArgusStatusText => (_argusMonitor?.IsAvailable ?? false) ? "Reading" : "Not running";
-    public bool ArgusStatusOk => _argusMonitor?.IsAvailable ?? false;
-    public bool ArgusStatusNeutral => !ArgusStatusOk;
-
-    private void OnArgusSnapshotUpdated()
-    {
-        Dispatcher.UIThread.Post(RefreshArgusSnapshot);
-    }
-
-    private void RefreshArgusSnapshot()
-    {
-        OnPropertyChanged(nameof(ArgusStatusText));
-        OnPropertyChanged(nameof(ArgusStatusOk));
-        OnPropertyChanged(nameof(ArgusStatusNeutral));
-
-        ArgusSensors.Clear();
-        if (_argusMonitor?.Sensors == null) return;
-        foreach (var s in _argusMonitor.Sensors.Take(60))
-            ArgusSensors.Add(s);
-    }
-
-    // ───────── HWiNFO ─────────
-
-    /// <summary>
-    /// Master switch for the HWiNFO integration. Toggling it starts/stops the
-    /// shared-memory poll loop right away so the status reflects the change live.
-    /// </summary>
-    public bool HwInfoEnabled
-    {
-        get => Config.HwInfoEnabled;
-        set
-        {
-            if (Config.HwInfoEnabled == value) return;
-            Config.HwInfoEnabled = value;
-            OnPropertyChanged();
-            if (value)
-                _hwInfo?.Start();
-            else
-                _hwInfo?.Stop();
-            RefreshHwInfoSnapshot();
-        }
-    }
-
-    public ObservableCollection<HwInfoSensor> HwInfoSensors { get; } = [];
-
-    public string HwInfoStatusText => (_hwInfo?.IsAvailable ?? false) ? "Reading" : "Not running";
-    public bool HwInfoStatusOk => _hwInfo?.IsAvailable ?? false;
-    public bool HwInfoStatusNeutral => !HwInfoStatusOk;
-    public string HwInfoDiagnostics => _hwInfo?.Diagnostics ?? string.Empty;
-
-    private void OnHwInfoSnapshotUpdated()
-    {
-        Dispatcher.UIThread.Post(RefreshHwInfoSnapshot);
-    }
-
-    private void RefreshHwInfoSnapshot()
-    {
-        OnPropertyChanged(nameof(HwInfoStatusText));
-        OnPropertyChanged(nameof(HwInfoStatusOk));
-        OnPropertyChanged(nameof(HwInfoStatusNeutral));
-        OnPropertyChanged(nameof(HwInfoDiagnostics));
-
-        HwInfoSensors.Clear();
-        if (_hwInfo?.Sensors == null) return;
-        foreach (var s in _hwInfo.Sensors.Take(60))
-            HwInfoSensors.Add(s);
-    }
-
     // ───────── Theme ─────────
 
     public bool ThemeIsDark
@@ -639,8 +370,6 @@ public class SettingsViewModel : DialogViewModelBase<DialogResult>
         set => SetProperty(ref _currentView, value);
     }
 
-    public ObsConfig ObsConfig { get; }
-
     private async Task EditWallpaper(TouchButtonPage page)
     {
         if (page == null) return;
@@ -654,46 +383,6 @@ public class SettingsViewModel : DialogViewModelBase<DialogResult>
         await _dialogService.ShowDialogAsync<PageCommandsSettingsViewModel, DialogResult>(
             vm => vm.Initialize(page));
     }
-
-    private void ObsConnected(object sender, EventArgs e)
-    {
-        ObsConnected_State = true;
-        ConnectionResult = "Successfully connected";
-        ConnectionTestVisible = true;
-        TextColor = Colors.Green;
-    }
-
-    private void ObsDisconnected(object sender, ObsDisconnectionInfo e)
-    {
-        ObsConnected_State = false;
-        ConnectionResult = $"Error: {e.WebsocketDisconnectionInfo.CloseStatusDescription}";
-        ConnectionTestVisible = true;
-        TextColor = Colors.Red;
-    }
-
-    private bool _connectionTestVisible;
-    public bool ConnectionTestVisible
-    {
-        get => _connectionTestVisible;
-        set => SetProperty(ref _connectionTestVisible, value);
-    }
-
-    private Color _textColor = Colors.Blue;
-    public Color TextColor
-    {
-        get => _textColor;
-        set => SetProperty(ref _textColor, value);
-    }
-
-    private string _connectionResult;
-    public string ConnectionResult
-    {
-        get => _connectionResult;
-        set => SetProperty(ref _connectionResult, value);
-    }
-
-    private void SaveObs() => ObsConfig.SaveConfig();
-    private void TestConnection() => _obs.Connect(ObsConfig.Ip, ObsConfig.Port, ObsConfig.Password);
 
     private void Navigate(SettingsView settingsPage) => CurrentView = settingsPage;
 }

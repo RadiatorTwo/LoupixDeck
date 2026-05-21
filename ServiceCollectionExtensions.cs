@@ -2,10 +2,9 @@ using LoupixDeck.Controllers;
 using LoupixDeck.Models;
 using LoupixDeck.Registry;
 using LoupixDeck.Services;
-using LoupixDeck.Services.Argus;
-using LoupixDeck.Services.HwInfo;
-using LoupixDeck.Services.Audio;
+using LoupixDeck.Services.Commands;
 using LoupixDeck.Services.FolderNavigation;
+using LoupixDeck.Services.Plugins;
 using LoupixDeck.Services.SystemPower;
 using LoupixDeck.Utils;
 using LoupixDeck.ViewModels;
@@ -58,19 +57,22 @@ public static class ServiceCollectionExtensions
         collection.AddSingleton<IDeviceService, LoupedeckDeviceService>();
         collection.AddSingleton<IPageManager, PageManager>();
 
-        var elgatoDevices = ElgatoDevices.LoadFromFile();
-
-        if (elgatoDevices != null)
-        {
-            collection.AddSingleton(elgatoDevices);
-        }
-        else
-        {
-            collection.AddSingleton<ElgatoDevices>();
-        }
-
         collection.AddSingleton<ICommandBuilder, CommandBuilder>();
         collection.AddSingleton<ISysCommandService, SysCommandService>();
+
+        // The command registry unifies built-in commands and plugin commands.
+        // CoreCommandProvider wraps the reflection-based scanner;
+        // PluginCommandProvider feeds in commands from loaded plugins.
+        collection.AddSingleton<IPluginManager, PluginManager>();
+        collection.AddSingleton<ICommandProvider, CoreCommandProvider>();
+        collection.AddSingleton<ICommandProvider, PluginCommandProvider>();
+        collection.AddSingleton<ICommandRegistry, CommandRegistry>();
+
+        // The command-selection menu is assembled generically from these
+        // contributors instead of the former per-ViewModel hard-coded logic.
+        collection.AddSingleton<IMenuContributor, CommandGroupMenuContributor>();
+        collection.AddSingleton<IMenuContributor, PluginMenuContributor>();
+        collection.AddSingleton<IMenuTreeBuilder, MenuTreeBuilder>();
 
         // UInputKeyboard is only available on Linux
         if (OperatingSystem.IsLinux())
@@ -82,24 +84,10 @@ public static class ServiceCollectionExtensions
             collection.AddSingleton<IUInputKeyboard, WindowsUInputKeyboard>();
         }
 
-        collection.AddSingleton<IObsController, ObsController>();
         collection.AddSingleton<IDBusController, DBusController>();
         collection.AddSingleton<ICommandRunner, CommandRunner>();
-        collection.AddSingleton<IElgatoController, ElgatoController>();
-        collection.AddSingleton<ICoolerControlApiController, CoolerControlApiController>();
-        collection.AddSingleton<IArgusMonitorService, ArgusMonitorService>();
-        collection.AddSingleton<IHwInfoService, HwInfoService>();
         collection.AddSingleton<IDynamicTextManager, DynamicTextManager>();
         collection.AddSingleton<IFolderNavigationService, FolderNavigationService>();
-
-        if (OperatingSystem.IsWindows())
-        {
-            collection.AddSingleton<IWindowsAudioService, WindowsAudioService>();
-        }
-        else
-        {
-            collection.AddSingleton<IWindowsAudioService, NoOpAudioService>();
-        }
 
         collection.AddSingleton<INativeHapticService, NativeHapticService>();
 

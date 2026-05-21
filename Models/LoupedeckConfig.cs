@@ -18,12 +18,12 @@ public class LoupedeckConfig : INotifyPropertyChanged
     private int _brightness = 100;
 
     /// <summary>
-    /// Schema version of the persisted config. Bumped when a breaking change is
-    /// introduced; <see cref="ConfigService"/> discards configs with a different
-    /// version (no migration in v2 — the old single-image touch-button schema is
-    /// not convertible to the new layer schema).
+    /// Schema version of the persisted config. <see cref="ConfigService"/> runs
+    /// the migration chain for older versions (see <c>Services/Migrations</c>).
+    /// v3 introduced the plugin system: the integration-specific fields were
+    /// removed and the per-integration enable flags became <see cref="EnabledPlugins"/>.
     /// </summary>
-    public const int CurrentVersion = 2;
+    public const int CurrentVersion = 3;
 
     public int Version { get; set; } = CurrentVersion;
 
@@ -37,7 +37,6 @@ public class LoupedeckConfig : INotifyPropertyChanged
     public string DevicePid { get; set; }
 
     public int StartupTouchPageIndex { get; set; }
-    public string CoolerControlUrl { get; set; } = "http://localhost:11987";
     public string ThemeVariant { get; set; } = "Dark";
 
     public CloseButtonBehavior CloseButtonBehavior { get; set; } = CloseButtonBehavior.MinimizeToTray;
@@ -174,30 +173,11 @@ public class LoupedeckConfig : INotifyPropertyChanged
         }
     }
 
-    // Integration master switches. Default false so the background services
-    // (Argus shared-memory polling, Elgato network discovery) and their commands
-    // stay dormant until the user opts in. A missing key in an older config.json
-    // deserializes to false — backward compatible, no version bump.
-    private bool _argusMonitorEnabled;
-    public bool ArgusMonitorEnabled
-    {
-        get => _argusMonitorEnabled;
-        set { if (_argusMonitorEnabled == value) return; _argusMonitorEnabled = value; OnPropertyChanged(); }
-    }
-
-    private bool _elgatoEnabled;
-    public bool ElgatoEnabled
-    {
-        get => _elgatoEnabled;
-        set { if (_elgatoEnabled == value) return; _elgatoEnabled = value; OnPropertyChanged(); }
-    }
-
-    private bool _hwInfoEnabled;
-    public bool HwInfoEnabled
-    {
-        get => _hwInfoEnabled;
-        set { if (_hwInfoEnabled == value) return; _hwInfoEnabled = value; OnPropertyChanged(); }
-    }
+    /// <summary>
+    /// Ids of plugins the user has enabled. The v2→v3 migration seeds this from
+    /// the former per-integration enable flags (see <c>PluginConfigMigrator</c>).
+    /// </summary>
+    public List<string> EnabledPlugins { get; set; } = [];
 
     // ObjectCreationHandling.Replace: Newtonsoft otherwise reuses the default
     // collection and appends deserialized items to it — so each save+load round

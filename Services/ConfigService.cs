@@ -2,6 +2,7 @@ using Newtonsoft.Json;
 using LoupixDeck.Models;
 using LoupixDeck.Models.Converter;
 using LoupixDeck.Models.Layers;
+using LoupixDeck.Services.Migrations;
 using Newtonsoft.Json.Linq;
 
 namespace LoupixDeck.Services;
@@ -16,6 +17,14 @@ public class ConfigService : IConfigService
 {
     private readonly JsonSerializerSettings _settings;
 
+    /// <summary>
+    /// Config upgrade chain, ordered implicitly by <see cref="IConfigMigration.FromVersion"/>.
+    /// </summary>
+    private readonly List<IConfigMigration> _migrations =
+    [
+        new PluginConfigMigrator()
+    ];
+
     public ConfigService()
     {
         _settings = new JsonSerializerSettings
@@ -27,6 +36,18 @@ public class ConfigService : IConfigService
         _settings.Converters.Add(new LayerJsonConverter());
     }
 
+    private enum ConfigVersionState
+    {
+        /// <summary>Version matches the current schema — load as-is.</summary>
+        Current,
+
+        /// <summary>Older schema — run the migration chain before loading.</summary>
+        NeedsMigration,
+
+        /// <summary>Newer schema than this build understands — discard.</summary>
+        FromFuture
+    }
+
     public T LoadConfig<T>(string filePath) where T : class
     {
         try
@@ -36,11 +57,12 @@ public class ConfigService : IConfigService
 
             var json = File.ReadAllText(filePath);
 
-            if (typeof(T) == typeof(LoupedeckConfig) && !IsCompatibleVersion(json))
+            if (typeof(T) == typeof(LoupedeckConfig))
             {
-                Console.WriteLine($"Config version mismatch in {filePath} — backing up and starting fresh.");
-                BackupCorruptedFile(filePath);
-                return null;
+                var migrated = LoadVersionedConfig<T>(json, filePath);
+                // A null result means "backed up, start fresh"; a non-null
+                // result is the (possibly migrated) config.
+                return migrated;
             }
 
             return JsonConvert.DeserializeObject<T>(json, _settings);
@@ -82,19 +104,108 @@ public class ConfigService : IConfigService
         }
     }
 
-    private static bool IsCompatibleVersion(string json)
+    /// <summary>
+    /// Loads a <see cref="LoupedeckConfig"/>, classifying its schema version and
+    /// running the migration chain when the file predates the current schema.
+    /// Returns null when the file must be discarded (backed up) and a fresh
+    /// config created. Parse errors propagate to the caller's corruption handler.
+    /// </summary>
+    private T LoadVersionedConfig<T>(string json, string filePath) where T : class
     {
-        try
+        var root = JObject.Parse(json);
+
+        switch (ClassifyVersion(root))
         {
-            var token = JToken.Parse(json);
-            var version = token["Version"]?.Value<int?>() ?? token["version"]?.Value<int?>() ?? 1;
-            return version == LoupedeckConfig.CurrentVersion;
+            case ConfigVersionState.FromFuture:
+                Console.WriteLine($"Config {filePath} is from a newer version — backing up and starting fresh.");
+                BackupCorruptedFile(filePath);
+                return null;
+
+            case ConfigVersionState.NeedsMigration:
+                var upgraded = MigrateIfNeeded(root, filePath);
+                if (upgraded == null)
+                {
+                    Console.WriteLine($"Config {filePath} could not be migrated — backing up and starting fresh.");
+                    BackupCorruptedFile(filePath);
+                    return null;
+                }
+
+                var result = upgraded.ToObject<T>(JsonSerializer.Create(_settings));
+
+                // Persist the upgrade so it is durable and the migration runs once.
+                try
+                {
+                    SaveConfig(result, filePath);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Failed to persist migrated config {filePath}: {ex.Message}");
+                }
+
+                return result;
+
+            default:
+                return JsonConvert.DeserializeObject<T>(json, _settings);
         }
-        catch
+    }
+
+    private static int GetVersion(JObject root)
+    {
+        return root["Version"]?.Value<int?>() ?? root["version"]?.Value<int?>() ?? 1;
+    }
+
+    private static ConfigVersionState ClassifyVersion(JObject root)
+    {
+        var version = GetVersion(root);
+
+        if (version == LoupedeckConfig.CurrentVersion)
+            return ConfigVersionState.Current;
+
+        return version < LoupedeckConfig.CurrentVersion
+            ? ConfigVersionState.NeedsMigration
+            : ConfigVersionState.FromFuture;
+    }
+
+    /// <summary>
+    /// Applies the migration chain step by step until the config reaches the
+    /// current version. Returns null when a required migration step is missing
+    /// or fails to advance the version.
+    /// </summary>
+    private JObject MigrateIfNeeded(JObject root, string filePath)
+    {
+        var version = GetVersion(root);
+
+        while (version < LoupedeckConfig.CurrentVersion)
         {
-            // Let the normal deserialize path surface the parse error.
-            return true;
+            var migration = _migrations.FirstOrDefault(m => m.FromVersion == version);
+            if (migration == null)
+            {
+                Console.WriteLine($"No migration registered from config version {version}.");
+                return null;
+            }
+
+            try
+            {
+                migration.Apply(root, filePath);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Migration from config version {version} threw: {ex.Message}");
+                return null;
+            }
+
+            var newVersion = GetVersion(root);
+            if (newVersion <= version)
+            {
+                Console.WriteLine($"Migration from config version {version} did not advance the version.");
+                return null;
+            }
+
+            Console.WriteLine($"Migrated config {filePath}: v{version} → v{newVersion}.");
+            version = newVersion;
         }
+
+        return root;
     }
 
     private void BackupCorruptedFile(string filePath)
