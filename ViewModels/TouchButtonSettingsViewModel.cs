@@ -1,14 +1,11 @@
 using System.Collections.ObjectModel;
 using System.Windows.Input;
-using LoupixDeck.LoupedeckDevice;
 using LoupixDeck.Models;
-using LoupixDeck.Models.Argus;
 using LoupixDeck.Models.Converter;
-using LoupixDeck.Models.HwInfo;
 using LoupixDeck.Models.Layers;
+using LoupixDeck.PluginSdk;
 using LoupixDeck.Services;
-using LoupixDeck.Services.Argus;
-using LoupixDeck.Services.HwInfo;
+using LoupixDeck.Services.Commands;
 using LoupixDeck.Utils;
 using LoupixDeck.ViewModels.Base;
 using SkiaSharp;
@@ -38,13 +35,8 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
         }
     }
 
-    private readonly IObsController _obs;
-    private readonly ElgatoDevices _elgatoDevices;
-    private readonly ICoolerControlApiController _coolercontrol;
-    private readonly ISysCommandService _sysCommandService;
     private readonly ICommandBuilder _commandBuilder;
-    private readonly IArgusMonitorService _argusMonitor;
-    private readonly IHwInfoService _hwInfo;
+    private readonly IMenuTreeBuilder _menuTreeBuilder;
     private readonly IAssetService _assetService;
     private readonly IDialogService _dialogService;
     private readonly LoupedeckConfig _config;
@@ -188,26 +180,15 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
         }
     }
 
-    private MenuEntry _elgatoKeyLightMenu;
-
-    public TouchButtonSettingsViewModel(IObsController obs,
-        ElgatoDevices elgatoDevices,
-        ICoolerControlApiController coolercontrol,
-        ISysCommandService sysCommandService,
+    public TouchButtonSettingsViewModel(
         ICommandBuilder commandBuilder,
-        IArgusMonitorService argusMonitor,
-        IHwInfoService hwInfo,
+        IMenuTreeBuilder menuTreeBuilder,
         IAssetService assetService,
         IDialogService dialogService,
         LoupedeckConfig config)
     {
-        _obs = obs;
-        _elgatoDevices = elgatoDevices;
-        _coolercontrol = coolercontrol;
-        _sysCommandService = sysCommandService;
         _commandBuilder = commandBuilder;
-        _argusMonitor = argusMonitor;
-        _hwInfo = hwInfo;
+        _menuTreeBuilder = menuTreeBuilder;
         _assetService = assetService;
         _dialogService = dialogService;
         _config = config;
@@ -222,304 +203,9 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
         SystemCommandMenus = new ObservableCollection<MenuEntry>();
     }
 
-    public Task InitializeAsync()
+    public async Task InitializeAsync()
     {
-        return CreateSystemMenu();
-    }
-
-    private async Task CreateSystemMenu()
-    {
-        CreatePagesMenu();
-        CreateDeviceControlMenu();
-
-        // Macros are only available on Linux
-        if (OperatingSystem.IsLinux())
-        {
-            CreateMacroMenu();
-        }
-
-        // OBS and CoolerControl menus add their group entries synchronously
-        // and populate scenes/modes asynchronously, so order stays stable
-        // while both network calls run in parallel.
-        var obsTask = CreateObsMenu();
-        if (_config.ElgatoEnabled)
-            CreateElgatoMenu();
-        var coolerTask = CreateCoolerControlMenu();
-        CreateDynamicTextMenu();
-        if (_config.ArgusMonitorEnabled)
-            CreateArgusMonitorMenu();
-        if (_config.HwInfoEnabled)
-            CreateHwInfoMenu();
-        CreateAudioMenu();
-
-        await Task.WhenAll(obsTask, coolerTask);
-    }
-
-    private void CreateAudioMenu()
-    {
-        var commands = _sysCommandService.GetCommandInfos().Where(ci => ci.Group == "Audio");
-
-        var groupMenu = new MenuEntry("Audio", string.Empty);
-
-        foreach (var command in commands)
-        {
-            groupMenu.Children.Add(new MenuEntry(command.DisplayName, command.CommandName));
-        }
-
-        SystemCommandMenus.Add(groupMenu);
-    }
-
-    private void CreateArgusMonitorMenu()
-    {
-        var groupMenu = new MenuEntry("Argus Monitor", string.Empty);
-
-        var sensors = _argusMonitor.Sensors;
-        if (!_argusMonitor.IsAvailable || sensors.Count == 0)
-        {
-            groupMenu.Children.Add(new MenuEntry("Argus Monitor not available", string.Empty));
-            SystemCommandMenus.Add(groupMenu);
-            return;
-        }
-
-        foreach (var typeGroup in sensors
-                     .Where(s => s.Type != ArgusSensorType.Invalid)
-                     .GroupBy(s => s.Type)
-                     .OrderBy(g => g.Key.ToString()))
-        {
-            var typeMenu = new MenuEntry(typeGroup.Key.ToString(), string.Empty);
-
-            foreach (var sensor in typeGroup.OrderBy(s => s.SensorIndex))
-            {
-                var label = string.IsNullOrWhiteSpace(sensor.Label)
-                    ? $"#{sensor.SensorIndex}"
-                    : sensor.Label;
-
-                typeMenu.Children.Add(new MenuEntry(
-                    label,
-                    "Argus.Sensor",
-                    parentName: null,
-                    parameters: new Dictionary<string, string>
-                    {
-                        { "Sensor", $"{sensor.Type}:{sensor.SensorIndex}" }
-                    }));
-            }
-
-            groupMenu.Children.Add(typeMenu);
-        }
-
-        SystemCommandMenus.Add(groupMenu);
-    }
-
-    private void CreateHwInfoMenu()
-    {
-        var groupMenu = new MenuEntry("HWiNFO", string.Empty);
-
-        var sensors = _hwInfo.Sensors;
-        if (!_hwInfo.IsAvailable || sensors.Count == 0)
-        {
-            groupMenu.Children.Add(new MenuEntry("HWiNFO not available", string.Empty));
-            SystemCommandMenus.Add(groupMenu);
-            return;
-        }
-
-        // HWiNFO's natural grouping is the parent sensor (CPU, GPU, a drive, …).
-        foreach (var sensorGroup in sensors
-                     .GroupBy(s => new { s.SensorId, s.SensorInstance, s.SensorName })
-                     .OrderBy(g => g.Key.SensorName))
-        {
-            var name = string.IsNullOrWhiteSpace(sensorGroup.Key.SensorName)
-                ? $"Sensor 0x{sensorGroup.Key.SensorId:X}"
-                : sensorGroup.Key.SensorName;
-            var typeMenu = new MenuEntry(name, string.Empty);
-
-            foreach (var sensor in sensorGroup.OrderBy(s => s.ReadingId))
-            {
-                var label = string.IsNullOrWhiteSpace(sensor.Label)
-                    ? $"#{sensor.ReadingId}"
-                    : sensor.Label;
-
-                typeMenu.Children.Add(new MenuEntry(
-                    label,
-                    "HwInfo.Sensor",
-                    parentName: null,
-                    parameters: new Dictionary<string, string>
-                    {
-                        { "Sensor", $"{sensor.SensorId}:{sensor.SensorInstance}:{sensor.ReadingId}" }
-                    }));
-            }
-
-            groupMenu.Children.Add(typeMenu);
-        }
-
-        SystemCommandMenus.Add(groupMenu);
-    }
-
-    private void CreateDynamicTextMenu()
-    {
-        var commands = _sysCommandService.GetCommandInfos().Where(ci => ci.Group == "Dynamic Text");
-
-        var groupMenu = new MenuEntry("Dynamic Text", string.Empty);
-
-        foreach (var command in commands)
-        {
-            groupMenu.Children.Add(new MenuEntry(command.DisplayName, command.CommandName));
-        }
-
-        SystemCommandMenus.Add(groupMenu);
-    }
-
-    private void CreateDeviceControlMenu()
-    {
-        var commands = _sysCommandService.GetCommandInfos().Where(ci => ci.Group == "Device Control");
-        var groupMenu = new MenuEntry("Device Control", string.Empty);
-        foreach (var command in commands)
-        {
-            if (command.CommandName == "System.DeviceWakeup") continue;
-            groupMenu.Children.Add(new MenuEntry(command.DisplayName, command.CommandName));
-        }
-        SystemCommandMenus.Add(groupMenu);
-    }
-
-    private void CreatePagesMenu()
-    {
-        // Get Only Pages Commands
-        var commands = _sysCommandService.GetCommandInfos().Where(ci => ci.Group == "Pages");
-
-        var groupMenu = new MenuEntry("Pages", string.Empty);
-
-        foreach (var command in commands)
-        {
-            groupMenu.Children.Add(new MenuEntry(command.DisplayName, command.CommandName));
-        }
-
-        SystemCommandMenus.Add(groupMenu);
-    }
-
-    private async Task CreateObsMenu()
-    {
-        var commands = _sysCommandService.GetCommandInfos().Where(ci => ci.Group == "OBS");
-
-        var groupMenu = new MenuEntry("OBS", string.Empty);
-
-        foreach (var command in commands)
-        {
-            if (command.CommandName == "System.ObsSetScene")
-                continue;
-
-            groupMenu.Children.Add(new MenuEntry(command.DisplayName, command.CommandName));
-        }
-
-        var scenesMenu = new MenuEntry("Scenes", string.Empty);
-        groupMenu.Children.Add(scenesMenu);
-        SystemCommandMenus.Add(groupMenu);
-
-        try
-        {
-            var scenes = await _obs.GetScenes();
-
-            foreach (var scene in scenes)
-            {
-                scenesMenu.Children.Add(new MenuEntry(scene.Name, $"System.ObsSetScene"));
-            }
-        }
-        catch (Exception ex)
-        {
-            // If OBS is not connected, add an error entry to inform the user
-            scenesMenu.Children.Add(new MenuEntry($"OBS not connected: {ex.Message}", string.Empty));
-        }
-    }
-
-    private void CreateMacroMenu()
-    {
-        var commands = _sysCommandService.GetCommandInfos()
-            .Where(ci => ci.Group == "Macros")
-            .OrderBy(ci => ci.Group);
-
-        var groupMenu = new MenuEntry("Macros", string.Empty);
-
-        foreach (var command in commands)
-        {
-            groupMenu.Children.Add(new MenuEntry(command.DisplayName, command.CommandName));
-        }
-
-        SystemCommandMenus.Add(groupMenu);
-    }
-
-    private void CreateElgatoMenu()
-    {
-        _elgatoKeyLightMenu = new MenuEntry("Elgato Keylights", string.Empty);
-
-        foreach (var keyLight in _elgatoDevices.KeyLights)
-        {
-            AddKeyLightMenuEntry(keyLight);
-        }
-
-        _elgatoDevices.KeyLightAdded += KeyLightAdded;
-
-        SystemCommandMenus.Add(_elgatoKeyLightMenu);
-    }
-
-    private async Task CreateCoolerControlMenu()
-    {
-        var commands = _sysCommandService.GetCommandInfos().Where(ci => ci.Group == "Cooler Control");
-
-        var groupMenu = new MenuEntry("Cooler Control", string.Empty);
-
-        foreach (var command in commands)
-        {
-            if (command.CommandName == "System.CoolerControlSetMode")
-                continue;
-
-            groupMenu.Children.Add(new MenuEntry(command.DisplayName, command.CommandName));
-        }
-
-        var modesMenu = new MenuEntry("Modes", string.Empty);
-        groupMenu.Children.Add(modesMenu);
-        SystemCommandMenus.Add(groupMenu);
-
-        try
-        {
-            var modes = await _coolercontrol.GetModes();
-
-            foreach (var mode in modes)
-            {
-                modesMenu.Children.Add(
-                    new MenuEntry(mode["name"]?.ToString(),
-                        $"System.CoolerControlSetMode",
-                        null,
-                        new Dictionary<string, string>() { { "UID", mode["uid"]?.ToString() ?? string.Empty } })
-                );
-            }
-        }
-        catch (Exception ex)
-        {
-            // If connection fails, add an error entry to inform the user
-            modesMenu.Children.Add(new MenuEntry($"Connection failed: {ex.Message}", string.Empty));
-        }
-    }
-
-    private void KeyLightAdded(object sender, KeyLight e)
-    {
-        AddKeyLightMenuEntry(e);
-    }
-
-    private void AddKeyLightMenuEntry(KeyLight keyLight)
-    {
-        var checkKeyLight = _elgatoKeyLightMenu.Children.FirstOrDefault(kl => kl.Name == keyLight.DisplayName);
-
-        if (checkKeyLight != null)
-            return;
-
-        var keyLightGroup = new MenuEntry(keyLight.DisplayName, null);
-
-        var commands = _sysCommandService.GetCommandInfos().Where(ci => ci.Group == "Elgato Keylights");
-
-        foreach (var command in commands)
-        {
-            keyLightGroup.Children.Add(new MenuEntry(command.DisplayName, command.CommandName, keyLight.DisplayName));
-        }
-
-        _elgatoKeyLightMenu.Children.Add(keyLightGroup);
+        await _menuTreeBuilder.BuildInto(SystemCommandMenus, ButtonTargets.TouchButton);
     }
 
     private async Task AddImageLayer()

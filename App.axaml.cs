@@ -123,6 +123,11 @@ public partial class App : Application
 
         services.PostInit();
 
+        // Discover and load plugins before the command registry is built
+        // (MainWindowViewModel's constructor initializes it), so plugin
+        // commands are picked up alongside the core commands.
+        services.GetRequiredService<Services.Plugins.IPluginManager>().LoadPlugins();
+
         // Expose the DI container so the CLI command channel in Program.cs can
         // resolve ICommandService for incoming "loupixdeck show / wakeup / …".
         Program.AppServices = services;

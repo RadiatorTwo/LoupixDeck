@@ -3,8 +3,7 @@ using CommunityToolkit.Mvvm.Input;
 using LoupixDeck.Controllers;
 using LoupixDeck.Models;
 using LoupixDeck.Services;
-using LoupixDeck.Services.Argus;
-using LoupixDeck.Services.HwInfo;
+using LoupixDeck.Services.Commands;
 using LoupixDeck.Services.SystemPower;
 using LoupixDeck.ViewModels.Base;
 using AsyncRelayCommand = CommunityToolkit.Mvvm.Input.AsyncRelayCommand;
@@ -43,9 +42,7 @@ public class MainWindowViewModel : ViewModelBase
 
     public MainWindowViewModel(LoupedeckLiveSController loupedeck,
         IDialogService dialogService,
-        ISysCommandService sysCommandService,
-        IArgusMonitorService argusMonitorService,
-        IHwInfoService hwInfoService,
+        ICommandRegistry commandRegistry,
         IDynamicTextManager dynamicTextManager,
         ISystemPowerService powerService,
         LoupedeckConfig config,
@@ -55,16 +52,7 @@ public class MainWindowViewModel : ViewModelBase
         DeviceSlug = deviceInfo.Slug;
         _dynamicTextManager = dynamicTextManager;
 
-        sysCommandService.Initialize();
-
-        // Only spin up the Argus poll loop when the integration is enabled.
-        // The Settings dialog can start/stop it later at runtime.
-        if (config.ArgusMonitorEnabled)
-            argusMonitorService.Start();
-
-        // Same for the HWiNFO shared-memory poll loop.
-        if (config.HwInfoEnabled)
-            hwInfoService.Start();
+        commandRegistry.Initialize();
 
         // Auto-clear the device while the host is suspended, restore on wake.
         // Both handlers must hop to the UI thread because they touch ObservableCollections
