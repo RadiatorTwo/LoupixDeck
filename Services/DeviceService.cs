@@ -16,7 +16,6 @@ public interface IDeviceService
 
 public class LoupedeckDeviceService : IDeviceService
 {
-    private readonly IElgatoController _elgatoController;
     private readonly LoupedeckConfig _config;
     private readonly DeviceRegistry.DeviceInfo _deviceInfo;
     private readonly AutoResetEvent _deviceCreatedEvent = new(false);
@@ -26,32 +25,10 @@ public class LoupedeckDeviceService : IDeviceService
     public int TouchButtonCount => Device?.TouchButtonCount ?? 0;
     public int RotaryButtonCount => Device?.RotaryCount ?? 0;
 
-    public LoupedeckDeviceService(IObsController obsController,
-        IElgatoController elgatoController,
-        ElgatoDevices elgatoDevices,
-        LoupedeckConfig config,
-        DeviceRegistry.DeviceInfo deviceInfo)
+    public LoupedeckDeviceService(LoupedeckConfig config, DeviceRegistry.DeviceInfo deviceInfo)
     {
-        _elgatoController = elgatoController;
         _config = config;
         _deviceInfo = deviceInfo;
-
-        obsController.Connect();
-
-        _elgatoController.KeyLightFound += (_, light) =>
-        {
-            var checkDevice = elgatoDevices.KeyLights.FirstOrDefault(kl => kl.DisplayName == light.DisplayName);
-            if (checkDevice != null)
-            {
-                elgatoDevices.RemoveKeyLight(checkDevice);
-            }
-
-            _elgatoController.InitDeviceAsync(light).GetAwaiter().GetResult();
-            elgatoDevices.AddKeyLight(light);
-        };
-        // Only probe the network for Key Lights when the integration is enabled.
-        if (_config.ElgatoEnabled)
-            _ = _elgatoController.ProbeForElgatoDevices();
     }
 
     public void StartDevice(string devicePort, int deviceBaudrate)

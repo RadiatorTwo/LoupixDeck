@@ -1,5 +1,5 @@
 using System.Text.RegularExpressions;
-using Avalonia.Threading;
+using LoupixDeck.Services.Commands;
 
 namespace LoupixDeck.Services;
 
@@ -10,12 +10,12 @@ public interface ICommandService
 
 public class CommandService : ICommandService
 {
-    private readonly ISysCommandService _sysCommandService;
+    private readonly ICommandRegistry _commandRegistry;
     private readonly ICommandRunner _commandRunner;
 
-    public CommandService(ISysCommandService sysCommandService, ICommandRunner commandRunner)
+    public CommandService(ICommandRegistry commandRegistry, ICommandRunner commandRunner)
     {
-        _sysCommandService = sysCommandService;
+        _commandRegistry = commandRegistry;
         _commandRunner = commandRunner;
     }
 
@@ -48,10 +48,10 @@ public class CommandService : ICommandService
 
         var cleanCommand = GetCommandWithoutParameter(command);
 
-        if (_sysCommandService.CheckCommandExists(cleanCommand))
+        if (_commandRegistry.Contains(cleanCommand))
         {
             var parameters = GetCommandParameters(command);
-            await _sysCommandService.ExecuteCommand(cleanCommand, parameters);
+            await _commandRegistry.Execute(cleanCommand, parameters);
         }
         else
         {

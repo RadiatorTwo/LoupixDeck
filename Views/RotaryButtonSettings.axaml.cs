@@ -25,22 +25,6 @@ public partial class RotaryButtonSettings : Window
         };
     }
 
-    public RotaryButtonSettings(IObsController obs,
-        ElgatoDevices elgatoDevices,
-        ISysCommandService sysCommandService,
-        ICommandBuilder commandBuilder)
-    {
-        InitializeComponent();
-
-        this.Closing += (s, e) =>
-        {
-            if (DataContext is IDialogViewModel vm && !vm.DialogResult.Task.IsCompleted)
-            {
-                vm.DialogResult.TrySetResult(new DialogResult(false));
-            }
-        };
-    }
-
     private void OnPointerPressed(object sender, PointerPressedEventArgs e)
     {
         if (e.Source is TextBlock textBlock && textBlock.DataContext is MenuEntry menuEntry &&

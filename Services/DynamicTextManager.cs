@@ -1,7 +1,6 @@
 using Avalonia.Threading;
-using LoupixDeck.Commands.Base;
 using LoupixDeck.Models;
-using Microsoft.Extensions.DependencyInjection;
+using LoupixDeck.Services.Commands;
 
 namespace LoupixDeck.Services;
 
@@ -16,15 +15,14 @@ public class DynamicTextManager : IDynamicTextManager, IDisposable
     private sealed class Entry
     {
         public TouchButton Button;
-        public IDynamicTextProvider Provider;
+        public RegisteredCommand Command;
         public string[] Parameters;
         public TimeSpan Interval;
         public DateTime NextDueUtc;
     }
 
     private readonly IPageManager _pageManager;
-    private readonly ISysCommandService _sysCommandService;
-    private readonly IServiceProvider _serviceProvider;
+    private readonly ICommandRegistry _commandRegistry;
 
     private readonly object _gate = new();
     private List<Entry> _active = new();
@@ -34,12 +32,10 @@ public class DynamicTextManager : IDynamicTextManager, IDisposable
 
     public DynamicTextManager(
         IPageManager pageManager,
-        ISysCommandService sysCommandService,
-        IServiceProvider serviceProvider)
+        ICommandRegistry commandRegistry)
     {
         _pageManager = pageManager;
-        _sysCommandService = sysCommandService;
-        _serviceProvider = serviceProvider;
+        _commandRegistry = commandRegistry;
     }
 
     public void Start()
@@ -68,32 +64,19 @@ public class DynamicTextManager : IDynamicTextManager, IDisposable
                 if (string.IsNullOrEmpty(name))
                     continue;
 
-                if (!_sysCommandService.TryGetCommandType(name, out var type))
+                var command = _commandRegistry.Get(name);
+                if (command == null || !command.IsDisplayCommand || command.GetText == null)
                     continue;
-
-                if (!typeof(IDynamicTextProvider).IsAssignableFrom(type))
-                    continue;
-
-                IDynamicTextProvider provider;
-                try
-                {
-                    provider = (IDynamicTextProvider)ActivatorUtilities.CreateInstance(_serviceProvider, type);
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"DynamicTextManager: failed to instantiate '{name}': {ex.Message}");
-                    continue;
-                }
 
                 var parms = ParseParameters(button.Command);
-                var interval = provider.UpdateInterval;
+                var interval = command.UpdateInterval;
                 if (interval < TimeSpan.FromMilliseconds(250))
                     interval = TimeSpan.FromMilliseconds(250);
 
                 entries.Add(new Entry
                 {
                     Button = button,
-                    Provider = provider,
+                    Command = command,
                     Parameters = parms,
                     Interval = interval,
                     NextDueUtc = DateTime.UtcNow
@@ -183,11 +166,11 @@ public class DynamicTextManager : IDynamicTextManager, IDisposable
             string newText;
             try
             {
-                newText = entry.Provider.GetText(entry.Parameters) ?? string.Empty;
+                newText = entry.Command.GetText(entry.Parameters) ?? string.Empty;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"DynamicTextManager: provider '{entry.Provider.GetType().Name}' threw: {ex.Message}");
+                Console.WriteLine($"DynamicTextManager: command '{entry.Command.CommandName}' threw: {ex.Message}");
                 entry.NextDueUtc = AlignedNext(now, entry.Interval);
                 continue;
             }
