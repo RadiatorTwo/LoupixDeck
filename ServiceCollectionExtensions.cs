@@ -71,7 +71,7 @@ public static class ServiceCollectionExtensions
         // The command-selection menu is assembled generically from these
         // contributors instead of the former per-ViewModel hard-coded logic.
         collection.AddSingleton<IMenuContributor, CommandGroupMenuContributor>();
-        collection.AddSingleton<IMenuContributor, PluginMenuContributor>();
+        collection.AddSingleton<IPluginMenuSource, PluginMenuContributor>();
         collection.AddSingleton<IMenuTreeBuilder, MenuTreeBuilder>();
 
         // UInputKeyboard is only available on Linux

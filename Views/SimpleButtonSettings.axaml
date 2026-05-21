@@ -40,7 +40,12 @@
 							<TreeView.DataTemplates>
 								<TreeDataTemplate DataType="{x:Type local:Models.MenuEntry}"
 												  ItemsSource="{Binding Children}">
-									<TextBlock Text="{Binding Name}" PointerPressed="OnPointerPressed" />
+									<StackPanel Orientation="Horizontal" PointerPressed="OnPointerPressed">
+										<TextBlock Text="{Binding Name}" />
+										<TextBlock Text="(loading…)" Margin="6,0,0,0"
+												   Foreground="Gray" FontStyle="Italic"
+												   IsVisible="{Binding IsLoading}" />
+									</StackPanel>
 								</TreeDataTemplate>
 							</TreeView.DataTemplates>
 						</TreeView>

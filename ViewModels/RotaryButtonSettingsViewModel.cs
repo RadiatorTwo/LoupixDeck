@@ -36,9 +36,7 @@ public class RotaryButtonSettingsViewModel : DialogViewModelBase<RotaryButton, D
 
     public async Task InitializeAsync()
     {
-        var menus = await _menuTreeBuilder.Build(ButtonTargets.RotaryEncoder);
-        foreach (var menu in menus)
-            SystemCommandMenus.Add(menu);
+        await _menuTreeBuilder.BuildInto(SystemCommandMenus, ButtonTargets.RotaryEncoder);
     }
 
     public enum SelectedCommand

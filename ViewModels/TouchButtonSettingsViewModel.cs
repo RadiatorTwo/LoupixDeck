@@ -205,9 +205,7 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
 
     public async Task InitializeAsync()
     {
-        var menus = await _menuTreeBuilder.Build(ButtonTargets.TouchButton);
-        foreach (var menu in menus)
-            SystemCommandMenus.Add(menu);
+        await _menuTreeBuilder.BuildInto(SystemCommandMenus, ButtonTargets.TouchButton);
     }
 
     private async Task AddImageLayer()

@@ -7,12 +7,12 @@ namespace LoupixDeck.Services.Commands;
 
 /// <summary>
 /// Bridges plugins that implement the SDK's <see cref="SdkMenuContributor"/>
-/// into the core menu pipeline: it asks each such plugin for its dynamic
-/// <see cref="MenuNode"/>s and converts them to <see cref="MenuEntry"/> trees.
-/// Groups it produces are merged by name with the generic command groups, so a
-/// plugin can extend its own group with dynamic submenus.
+/// into the core menu pipeline. It hands the <see cref="MenuTreeBuilder"/> one
+/// <see cref="DeferredMenuSource"/> per such plugin; the builder loads them
+/// concurrently and merges the resulting <see cref="MenuEntry"/> trees once
+/// they arrive, so a slow/offline integration cannot block the menu.
 /// </summary>
-public class PluginMenuContributor : IMenuContributor
+public class PluginMenuContributor : IPluginMenuSource
 {
     private readonly IPluginManager _pluginManager;
 
@@ -21,9 +21,9 @@ public class PluginMenuContributor : IMenuContributor
         _pluginManager = pluginManager;
     }
 
-    public async Task<IReadOnlyList<MenuEntry>> Contribute(ButtonTargets target)
+    public IReadOnlyList<DeferredMenuSource> GetDeferredSources(ButtonTargets target)
     {
-        var result = new List<MenuEntry>();
+        var sources = new List<DeferredMenuSource>();
 
         foreach (var plugin in _pluginManager.Plugins)
         {
@@ -33,28 +33,50 @@ public class PluginMenuContributor : IMenuContributor
             if (plugin.Instance is not SdkMenuContributor contributor)
                 continue;
 
-            try
+            var pluginId = plugin.Manifest?.Id ?? plugin.Instance.GetType().Name;
+            var pluginName = plugin.Manifest?.Name ?? pluginId;
+
+            // The plugin's command groups are the anchors for the inline
+            // "(loading…)" indicator shown while its dynamic submenus load.
+            var groupNames = SafeGetGroupNames(plugin.Instance);
+
+            sources.Add(new DeferredMenuSource(pluginId, pluginName, groupNames, async () =>
             {
-                var nodes = await MenuContributorHelpers.WithTimeout(
-                    contributor.GetMenuNodes(target), TimeSpan.FromSeconds(5));
+                var nodes = await contributor.GetMenuNodes(target);
+                var result = new List<MenuEntry>();
 
-                if (nodes == null)
-                    continue;
-
-                foreach (var node in nodes)
+                if (nodes != null)
                 {
-                    var entry = Convert(node);
-                    if (entry != null)
-                        result.Add(entry);
+                    foreach (var node in nodes)
+                    {
+                        var entry = Convert(node);
+                        if (entry != null)
+                            result.Add(entry);
+                    }
                 }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"PluginMenuContributor: '{plugin.Manifest?.Id}' menu failed: {ex.Message}");
-            }
+
+                return result;
+            }));
         }
 
-        return result;
+        return sources;
+    }
+
+    private static IReadOnlyList<string> SafeGetGroupNames(LoupixPlugin plugin)
+    {
+        try
+        {
+            return plugin.GetCommands()
+                .Where(c => c?.Descriptor != null && !string.IsNullOrWhiteSpace(c.Descriptor.Group))
+                .Select(c => c.Descriptor.Group)
+                .Distinct(StringComparer.Ordinal)
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"PluginMenuContributor: failed to read groups of '{plugin.Metadata?.Id}': {ex.Message}");
+            return [];
+        }
     }
 
     private static MenuEntry Convert(MenuNode node)

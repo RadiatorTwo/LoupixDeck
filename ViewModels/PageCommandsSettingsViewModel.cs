@@ -72,9 +72,7 @@ public class PageCommandsSettingsViewModel : DialogViewModelBase<object, DialogR
     {
         // Page wraps chain around button commands; the SimpleButton target set
         // (Pages, Device Control, OBS, Elgato) is the right scope for them.
-        var menus = await _menuTreeBuilder.Build(ButtonTargets.SimpleButton);
-        foreach (var menu in menus)
-            SystemCommandMenus.Add(menu);
+        await _menuTreeBuilder.BuildInto(SystemCommandMenus, ButtonTargets.SimpleButton);
     }
 
     public void SetActiveTarget(WrapSlot slot, bool isPost)

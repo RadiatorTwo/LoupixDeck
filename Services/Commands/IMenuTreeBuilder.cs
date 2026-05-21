@@ -10,5 +10,12 @@ namespace LoupixDeck.Services.Commands;
 /// </summary>
 public interface IMenuTreeBuilder
 {
-    Task<ObservableCollection<MenuEntry>> Build(ButtonTargets target);
+    /// <summary>
+    /// Populates <paramref name="target"/> progressively: the core command
+    /// groups are added synchronously (so they are visible the moment the
+    /// dialog opens), then each plugin's groups stream in independently as the
+    /// plugin finishes. The returned task completes once the synchronous core
+    /// groups are in place — plugin loading continues in the background.
+    /// </summary>
+    Task BuildInto(ObservableCollection<MenuEntry> target, ButtonTargets buttonTarget);
 }

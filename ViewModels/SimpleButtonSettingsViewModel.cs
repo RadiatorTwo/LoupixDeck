@@ -34,9 +34,7 @@ public class SimpleButtonSettingsViewModel : DialogViewModelBase<SimpleButton, D
 
     public async Task InitializeAsync()
     {
-        var menus = await _menuTreeBuilder.Build(ButtonTargets.SimpleButton);
-        foreach (var menu in menus)
-            SystemCommandMenus.Add(menu);
+        await _menuTreeBuilder.BuildInto(SystemCommandMenus, ButtonTargets.SimpleButton);
     }
 
     public void InsertCommand(MenuEntry menuEntry)
