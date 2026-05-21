@@ -5,11 +5,7 @@ public enum SettingsView
     General,
     Pages,
     Haptic,
-    Obs,
-    Elgato,
-    CoolerControl,
-    Argus,
-    HwInfo,
+    Plugins,
     Theme,
     About
 }

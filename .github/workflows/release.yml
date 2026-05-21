@@ -8,9 +8,99 @@ permissions:
   contents: write
 
 jobs:
+  build-plugins:
+    name: Build Plugins
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Plugin SDK
+        uses: actions/checkout@v4
+        with:
+          repository: RadiatorTwo/LoupixDeck.PluginSdk
+          path: src/LoupixDeck.PluginSdk
+
+      - name: Checkout OBS plugin
+        uses: actions/checkout@v4
+        with:
+          repository: RadiatorTwo/LoupixDeck.Plugin.Obs
+          path: src/LoupixDeck.Plugin.Obs
+
+      - name: Checkout Elgato plugin
+        uses: actions/checkout@v4
+        with:
+          repository: RadiatorTwo/LoupixDeck.Plugin.Elgato
+          path: src/LoupixDeck.Plugin.Elgato
+
+      - name: Checkout HWiNFO plugin
+        uses: actions/checkout@v4
+        with:
+          repository: RadiatorTwo/LoupixDeck.Plugin.HwInfo
+          path: src/LoupixDeck.Plugin.HwInfo
+
+      - name: Checkout CoolerControl plugin
+        uses: actions/checkout@v4
+        with:
+          repository: RadiatorTwo/LoupixDeck.Plugin.CoolerControl
+          path: src/LoupixDeck.Plugin.CoolerControl
+
+      - name: Checkout Audio plugin
+        uses: actions/checkout@v4
+        with:
+          repository: RadiatorTwo/LoupixDeck.Plugin.Audio
+          path: src/LoupixDeck.Plugin.Audio
+
+      - name: Checkout Argus plugin
+        uses: actions/checkout@v4
+        with:
+          repository: RadiatorTwo/LoupixDeck.Plugin.Argus
+          path: src/LoupixDeck.Plugin.Argus
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+
+      - name: Build Plugin SDK package
+        run: dotnet build src/LoupixDeck.PluginSdk -c Release
+
+      - name: Build and assemble plugins
+        run: |
+          set -euo pipefail
+          mkdir -p plugins
+          for repo in \
+            LoupixDeck.Plugin.Obs \
+            LoupixDeck.Plugin.Elgato \
+            LoupixDeck.Plugin.HwInfo \
+            LoupixDeck.Plugin.CoolerControl \
+            LoupixDeck.Plugin.Audio \
+            LoupixDeck.Plugin.Argus
+          do
+            echo "::group::Building $repo"
+            manifest="src/$repo/plugin.json"
+            id=$(jq -r '.id' "$manifest")
+            if [ -z "$id" ] || [ "$id" = "null" ]; then
+              echo "Plugin $repo has no 'id' in plugin.json" >&2
+              exit 1
+            fi
+            dotnet build "src/$repo/$repo.csproj" -c Release -o "build/$repo"
+            mkdir -p "plugins/$id"
+            cp -r "build/$repo/." "plugins/$id/"
+            cp "$manifest" "plugins/$id/plugin.json"
+            echo "::endgroup::"
+          done
+          echo "Assembled plugins:"
+          ls -R plugins
+
+      - name: Upload plugins artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: plugins
+          path: plugins
+
   build-windows:
     name: Build Windows
     runs-on: windows-latest
+    needs: build-plugins
 
     env:
       PROJECT_PATH: ./LoupixDeck.csproj
@@ -26,7 +116,7 @@ jobs:
           $tag = "$env:GITHUB_REF"
           $version = $tag -replace 'refs/tags/v', ''
           echo "VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Append
-          
+
       - name: Debug version
         run: echo "Set version to $env:VERSION"
 
@@ -48,6 +138,17 @@ jobs:
             /p:Version=$env:VERSION `
             -o publish/win-x64
 
+      - name: Download plugins artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: plugins
+          path: plugins-artifact
+
+      - name: Bundle plugins into publish output
+        run: |
+          New-Item -ItemType Directory -Force -Path publish/win-x64/plugins | Out-Null
+          Copy-Item -Path plugins-artifact/* -Destination publish/win-x64/plugins -Recurse -Force
+
       - name: Zip Windows build
         run: Compress-Archive -Path publish/win-x64/* -DestinationPath LoupixDeck-win-x64.zip
 
@@ -61,6 +162,7 @@ jobs:
   build-linux:
     name: Build Linux
     runs-on: ubuntu-latest
+    needs: build-plugins
 
     env:
       PROJECT_PATH: ./LoupixDeck.csproj
@@ -91,6 +193,17 @@ jobs:
             /p:ReadyToRun=true \
             /p:Version=${{ env.VERSION }} \
             -o publish/linux-x64
+
+      - name: Download plugins artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: plugins
+          path: plugins-artifact
+
+      - name: Bundle plugins into publish output
+        run: |
+          mkdir -p publish/linux-x64/plugins
+          cp -r plugins-artifact/. publish/linux-x64/plugins/
 
       - name: Tar Linux build
         run: |

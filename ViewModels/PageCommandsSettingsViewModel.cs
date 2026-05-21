@@ -1,8 +1,9 @@
 using System.Collections.ObjectModel;
 using System.Windows.Input;
-using LoupixDeck.Commands.Base;
 using LoupixDeck.Models;
+using LoupixDeck.PluginSdk;
 using LoupixDeck.Services;
+using LoupixDeck.Services.Commands;
 using LoupixDeck.ViewModels.Base;
 using RelayCommand = CommunityToolkit.Mvvm.Input.RelayCommand;
 
@@ -15,11 +16,8 @@ namespace LoupixDeck.ViewModels;
 /// </summary>
 public class PageCommandsSettingsViewModel : DialogViewModelBase<object, DialogResult>, IAsyncInitViewModel
 {
-    private readonly IObsController _obs;
-    private readonly ElgatoDevices _elgatoDevices;
-    private readonly ISysCommandService _sysCommandService;
     private readonly ICommandBuilder _commandBuilder;
-    private MenuEntry _elgatoKeyLightMenu;
+    private readonly IMenuTreeBuilder _menuTreeBuilder;
 
     public ICommand ConfirmCommand { get; }
     public ICommand CancelCommand { get; }
@@ -36,13 +34,10 @@ public class PageCommandsSettingsViewModel : DialogViewModelBase<object, DialogR
     private WrapSlot _activeSlot;
     private bool _activeIsPost;
 
-    public PageCommandsSettingsViewModel(IObsController obs, ElgatoDevices elgatoDevices,
-        ISysCommandService sysCommandService, ICommandBuilder commandBuilder)
+    public PageCommandsSettingsViewModel(ICommandBuilder commandBuilder, IMenuTreeBuilder menuTreeBuilder)
     {
-        _obs = obs;
-        _elgatoDevices = elgatoDevices;
-        _sysCommandService = sysCommandService;
         _commandBuilder = commandBuilder;
+        _menuTreeBuilder = menuTreeBuilder;
 
         ConfirmCommand = new RelayCommand(ConfirmDialog);
         CancelCommand = new RelayCommand(CancelDialog);
@@ -73,7 +68,12 @@ public class PageCommandsSettingsViewModel : DialogViewModelBase<object, DialogR
         OnPropertyChanged(nameof(PageName));
     }
 
-    public Task InitializeAsync() => CreateSystemMenu();
+    public async Task InitializeAsync()
+    {
+        // Page wraps chain around button commands; the SimpleButton target set
+        // (Pages, Device Control, OBS, Elgato) is the right scope for them.
+        await _menuTreeBuilder.BuildInto(SystemCommandMenus, ButtonTargets.SimpleButton);
+    }
 
     public void SetActiveTarget(WrapSlot slot, bool isPost)
     {
@@ -91,80 +91,6 @@ public class PageCommandsSettingsViewModel : DialogViewModelBase<object, DialogR
             _activeSlot.Wrap.PostCommands = Utils.CommandChain.Append(_activeSlot.Wrap.PostCommands, formatted);
         else
             _activeSlot.Wrap.PreCommands = Utils.CommandChain.Append(_activeSlot.Wrap.PreCommands, formatted);
-    }
-
-    private async Task CreateSystemMenu()
-    {
-        CreatePagesMenu();
-        CreateDeviceControlMenu();
-        var obsTask = CreateObsMenu();
-        CreateElgatoMenu();
-        await obsTask;
-    }
-
-    private void CreateDeviceControlMenu()
-    {
-        var commands = _sysCommandService.GetCommandInfos().Where(ci => ci.Group == "Device Control");
-        var groupMenu = new MenuEntry("Device Control", string.Empty);
-        foreach (var command in commands)
-        {
-            if (command.CommandName == "System.DeviceWakeup") continue;
-            groupMenu.Children.Add(new MenuEntry(command.DisplayName, command.CommandName));
-        }
-        SystemCommandMenus.Add(groupMenu);
-    }
-
-    private void CreatePagesMenu()
-    {
-        var commands = _sysCommandService.GetCommandInfos().Where(ci => ci.Group == "Pages");
-        var groupMenu = new MenuEntry("Pages", string.Empty);
-        foreach (var command in commands)
-            groupMenu.Children.Add(new MenuEntry(command.DisplayName, command.CommandName));
-        SystemCommandMenus.Add(groupMenu);
-    }
-
-    private async Task CreateObsMenu()
-    {
-        var commands = _sysCommandService.GetCommandInfos().Where(ci => ci.Group == "OBS");
-        var groupMenu = new MenuEntry("OBS", string.Empty);
-        foreach (var command in commands)
-        {
-            if (command.CommandName == "System.ObsSetScene") continue;
-            groupMenu.Children.Add(new MenuEntry(command.DisplayName, command.CommandName));
-        }
-
-        var scenesMenu = new MenuEntry("Scenes", string.Empty);
-        groupMenu.Children.Add(scenesMenu);
-        SystemCommandMenus.Add(groupMenu);
-
-        try
-        {
-            var scenes = await _obs.GetScenes();
-            foreach (var scene in scenes)
-                scenesMenu.Children.Add(new MenuEntry(scene.Name, $"System.ObsSetScene({scene.Name})"));
-        }
-        catch (Exception ex)
-        {
-            scenesMenu.Children.Add(new MenuEntry($"OBS not connected: {ex.Message}", string.Empty));
-        }
-    }
-
-    private void CreateElgatoMenu()
-    {
-        _elgatoKeyLightMenu = new MenuEntry("Elgato Keylights", string.Empty);
-        foreach (var keyLight in _elgatoDevices.KeyLights) AddKeyLightMenuEntry(keyLight);
-        _elgatoDevices.KeyLightAdded += (_, e) => AddKeyLightMenuEntry(e);
-        SystemCommandMenus.Add(_elgatoKeyLightMenu);
-    }
-
-    private void AddKeyLightMenuEntry(KeyLight keyLight)
-    {
-        if (_elgatoKeyLightMenu.Children.Any(kl => kl.Name == keyLight.DisplayName)) return;
-        var keyLightGroup = new MenuEntry(keyLight.DisplayName, null);
-        var commands = _sysCommandService.GetCommandInfos().Where(ci => ci.Group == "Elgato Keylights");
-        foreach (var command in commands)
-            keyLightGroup.Children.Add(new MenuEntry(command.DisplayName, command.CommandName, keyLight.DisplayName));
-        _elgatoKeyLightMenu.Children.Add(keyLightGroup);
     }
 
     private void ConfirmDialog()

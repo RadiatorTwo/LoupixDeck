@@ -1,5 +1,6 @@
 ﻿using LoupixDeck.Commands.Base;
 using LoupixDeck.Models;
+using LoupixDeck.Services.Commands;
 using System.Text;
 
 namespace LoupixDeck.Services
@@ -12,16 +13,16 @@ namespace LoupixDeck.Services
 
     public class CommandBuilder : ICommandBuilder
     {
-        private readonly ISysCommandService _commandService;
+        private readonly ICommandRegistry _commandRegistry;
 
-        public CommandBuilder(ISysCommandService commandManager)
+        public CommandBuilder(ICommandRegistry commandRegistry)
         {
-            _commandService = commandManager;
+            _commandRegistry = commandRegistry;
         }
 
         public string CreateCommandFromMenuEntry(MenuEntry menuEntry)
         {
-            var command = _commandService.GetCommandInfo(menuEntry.Command);
+            var command = _commandRegistry.Get(menuEntry.Command)?.Info;
 
             if (command == null) return string.Empty;
 
@@ -53,7 +54,7 @@ namespace LoupixDeck.Services
                 }
                 else
                 {
-                    parameters.Add(parameter.Name, _commandService.GetDefaultValue(parameter.ParameterType));
+                    parameters.Add(parameter.Name, ParameterDefaults.GetDefaultValue(parameter.ParameterType));
                 }
             }
 

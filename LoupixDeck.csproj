@@ -53,16 +53,19 @@
       <PrivateAssets Condition="'$(Configuration)' != 'Debug'">All</PrivateAssets>
     </PackageReference>
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.2.1" />
+    <!-- Plugin SDK — built from the separate LoupixDeck.PluginSdk repository
+         and resolved during development via the local feed in nuget.config. -->
+    <PackageReference Include="LoupixDeck.PluginSdk" Version="1.2.0" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.2" />
     <PackageReference Include="Microsoft.Win32.SystemEvents" Version="9.0.2" />
-    <PackageReference Include="NAudio" Version="2.2.1" />
-    <PackageReference Include="obs-websocket-dotnet" Version="5.0.1" />
+    <!-- Was previously pulled in transitively via obs-websocket-dotnet, which
+         moved into the OBS plugin; the core uses Newtonsoft.Json directly. -->
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageReference Include="SkiaSharp.NativeAssets.Linux" Version="3.116.1" />
     <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="3.116.1" />
     <PackageReference Include="System.Drawing.Common" Version="9.0.2" />
     <PackageReference Include="System.IO.Ports" Version="9.0.2" />
     <PackageReference Include="System.Management" Version="9.0.4" />
     <PackageReference Include="Tmds.DBus" Version="0.21.2" />
-    <PackageReference Include="Zeroconf" Version="3.7.16" />
   </ItemGroup>
 </Project>
