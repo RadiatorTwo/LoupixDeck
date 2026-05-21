@@ -135,7 +135,18 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: plugin-sdk
-          path: ../LoupixDeck.PluginSdk/nupkg
+          path: .sdk-feed
+
+      - name: Point nuget.config at the built SDK feed
+        run: |
+          Set-Content -Path nuget.config -Encoding utf8 -Value @(
+            '<?xml version="1.0" encoding="utf-8"?>',
+            '<configuration>',
+            '  <packageSources>',
+            '    <add key="LoupixDeck.PluginSdk (ci)" value=".sdk-feed" />',
+            '  </packageSources>',
+            '</configuration>'
+          )
 
       - name: Restore dependencies
         run: dotnet restore $env:PROJECT_PATH
@@ -197,7 +208,17 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: plugin-sdk
-          path: ../LoupixDeck.PluginSdk/nupkg
+          path: .sdk-feed
+
+      - name: Point nuget.config at the built SDK feed
+        run: |
+          printf '%s\n' \
+            '<?xml version="1.0" encoding="utf-8"?>' \
+            '<configuration>' \
+            '  <packageSources>' \
+            '    <add key="LoupixDeck.PluginSdk (ci)" value=".sdk-feed" />' \
+            '  </packageSources>' \
+            '</configuration>' > nuget.config
 
       - name: Restore dependencies
         run: dotnet restore ${{ env.PROJECT_PATH }}
