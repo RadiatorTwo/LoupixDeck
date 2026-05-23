@@ -8,6 +8,14 @@ public interface IDynamicTextManager
 {
     void Start();
     void Rescan();
+
+    /// <summary>
+    /// Forces an immediate re-render of every active dynamic-text button bound
+    /// to <paramref name="commandName"/>, bypassing the next poll tick. Used by
+    /// <see cref="LoupixDeck.PluginSdk.IPluginHost.RequestButtonRefresh"/> when
+    /// a plugin's data arrives via push.
+    /// </summary>
+    void RefreshCommand(string commandName);
 }
 
 public class DynamicTextManager : IDynamicTextManager, IDisposable
@@ -112,6 +120,42 @@ public class DynamicTextManager : IDynamicTextManager, IDisposable
             var token = _cts.Token;
             var timer = _timer;
             _loopTask = Task.Run(() => TickLoop(timer, token), token);
+        }
+    }
+
+    public void RefreshCommand(string commandName)
+    {
+        if (string.IsNullOrEmpty(commandName))
+            return;
+
+        List<Entry> snapshot;
+        lock (_gate)
+        {
+            snapshot = _active;
+        }
+
+        var now = DateTime.UtcNow;
+        foreach (var entry in snapshot)
+        {
+            if (!string.Equals(entry.Command?.CommandName, commandName, StringComparison.Ordinal))
+                continue;
+
+            string newText;
+            try
+            {
+                newText = entry.Command.GetText(entry.Parameters) ?? string.Empty;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"DynamicTextManager.RefreshCommand: '{commandName}' threw: {ex.Message}");
+                continue;
+            }
+
+            var button = entry.Button;
+            Dispatcher.UIThread.Post(() => button.GetOrCreatePrimaryTextLayer().Text = newText);
+
+            // Re-align the next poll so we don't fire again immediately after this push.
+            entry.NextDueUtc = AlignedNext(now, entry.Interval);
         }
     }
 
