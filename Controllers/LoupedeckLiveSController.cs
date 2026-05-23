@@ -3,6 +3,7 @@ using LoupixDeck.LoupedeckDevice;
 using LoupixDeck.Models;
 using LoupixDeck.Models.Extensions;
 using LoupixDeck.Models.Layers;
+using LoupixDeck.PluginSdk;
 using LoupixDeck.Registry;
 using LoupixDeck.Services;
 using LoupixDeck.Services.FolderNavigation;
@@ -266,7 +267,7 @@ public class LoupedeckLiveSController(
         {
             if (_isDeviceOff && !button.EnableWhenOff) return;
             var wrapped = config.CurrentRotaryButtonPage?.SimpleButtonWrap?.Apply(button.Command) ?? button.Command;
-            FireAndForget(wrapped);
+            FireAndForget(wrapped, ButtonTargets.SimpleButton);
             return;
         }
 
@@ -278,7 +279,7 @@ public class LoupedeckLiveSController(
         var cmd = rotary.Command;
         if (string.IsNullOrEmpty(cmd)) return;
         var wrappedRotary = page.KnobPressWrap?.Apply(cmd) ?? cmd;
-        FireAndForget(wrappedRotary);
+        FireAndForget(wrappedRotary, ButtonTargets.RotaryEncoder);
     }
 
     /// <summary>
@@ -288,12 +289,12 @@ public class LoupedeckLiveSController(
     /// deadlock the very thread that needs to complete the await, and the
     /// device would appear disconnected after the first such command.
     /// </summary>
-    private void FireAndForget(string command)
+    private void FireAndForget(string command, ButtonTargets target)
     {
         if (string.IsNullOrEmpty(command)) return;
         _ = Task.Run(async () =>
         {
-            try { await commandService.ExecuteCommand(command); }
+            try { await commandService.ExecuteCommand(command, target); }
             catch (Exception ex) { Console.WriteLine($"Command failed ({command}): {ex.Message}"); }
         });
     }
@@ -349,7 +350,7 @@ public class LoupedeckLiveSController(
                 _ = ShowTouchFeedback(button);
 
             var wrapped = config.CurrentTouchButtonPage.TouchButtonWrap?.Apply(button.Command) ?? button.Command;
-            FireAndForget(wrapped);
+            FireAndForget(wrapped, ButtonTargets.TouchButton);
         }
     }
 
@@ -452,7 +453,7 @@ public class LoupedeckLiveSController(
         if (string.IsNullOrEmpty(command)) return;
         var wrap = leftTurn ? page.KnobLeftWrap : page.KnobRightWrap;
         var wrapped = wrap?.Apply(command) ?? command;
-        FireAndForget(wrapped);
+        FireAndForget(wrapped, ButtonTargets.RotaryEncoder);
     }
 
     /// <summary>
