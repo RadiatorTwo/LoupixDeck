@@ -181,7 +181,8 @@ public class PluginManager : IPluginManager
         {
             try
             {
-                _ = _serviceProvider.GetRequiredService<ICommandService>().ExecuteCommand(command);
+                // Chained from a plugin — there's no triggering button.
+                _ = _serviceProvider.GetRequiredService<ICommandService>().ExecuteCommand(command, ButtonTargets.None);
             }
             catch (Exception ex)
             {
@@ -189,11 +190,11 @@ public class PluginManager : IPluginManager
             }
         }
 
-        void RequestButtonRefresh(string _)
+        void RequestButtonRefresh(string commandName)
         {
             try
             {
-                _serviceProvider.GetRequiredService<IDynamicTextManager>().Rescan();
+                _serviceProvider.GetRequiredService<IDynamicTextManager>().RefreshCommand(commandName);
             }
             catch (Exception ex)
             {

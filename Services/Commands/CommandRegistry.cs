@@ -1,3 +1,5 @@
+using LoupixDeck.PluginSdk;
+
 namespace LoupixDeck.Services.Commands;
 
 /// <inheritdoc cref="ICommandRegistry"/>
@@ -55,7 +57,7 @@ public class CommandRegistry : ICommandRegistry
 
     public IEnumerable<RegisteredCommand> GetAll() => _commands.Values;
 
-    public async Task Execute(string commandName, string[] parameters)
+    public async Task Execute(string commandName, string[] parameters, ButtonTargets target)
     {
         var command = Get(commandName);
         if (command == null)
@@ -64,6 +66,6 @@ public class CommandRegistry : ICommandRegistry
             return;
         }
 
-        await command.Execute(parameters ?? Array.Empty<string>());
+        await command.Execute(parameters ?? Array.Empty<string>(), target);
     }
 }

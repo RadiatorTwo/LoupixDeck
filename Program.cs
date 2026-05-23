@@ -305,7 +305,7 @@ internal static class CommandChannel
         // Fire on the UI thread so we don't block the listener thread.
         Avalonia.Threading.Dispatcher.UIThread.Post(async () =>
         {
-            try { await svc.ExecuteCommand(command); }
+            try { await svc.ExecuteCommand(command, LoupixDeck.PluginSdk.ButtonTargets.None); }
             catch (Exception ex) { Console.WriteLine($"[CLI] dispatch failed: {ex.Message}"); }
         });
         return $"OK: {command}";

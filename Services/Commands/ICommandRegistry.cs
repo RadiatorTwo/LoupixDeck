@@ -1,3 +1,5 @@
+using LoupixDeck.PluginSdk;
+
 namespace LoupixDeck.Services.Commands;
 
 /// <summary>
@@ -19,6 +21,10 @@ public interface ICommandRegistry
     /// <summary>Returns all registered commands.</summary>
     IEnumerable<RegisteredCommand> GetAll();
 
-    /// <summary>Executes a command by name with positional parameters.</summary>
-    Task Execute(string commandName, string[] parameters);
+    /// <summary>
+    /// Executes a command by name. <paramref name="target"/> is the button type
+    /// that triggered the call (or <see cref="ButtonTargets.None"/> when the
+    /// origin is not a button — CLI, plugin-to-plugin chaining, etc.).
+    /// </summary>
+    Task Execute(string commandName, string[] parameters, ButtonTargets target);
 }

@@ -59,15 +59,25 @@ public class PluginCommandProvider : ICommandProvider
                 .ToList()
         };
 
-        Func<string[], Task> execute = parameters => command.Execute(new CommandContext
+        Func<string[], ButtonTargets, Task> execute = async (parameters, target) =>
         {
-            Parameters = parameters ?? Array.Empty<string>(),
-            // The button that triggered execution is not tracked in the command
-            // pipeline; plugins that need it can read it from GetText's context.
-            Target = ButtonTargets.None,
-            Device = host?.ActiveDevice,
-            Host = host
-        });
+            try
+            {
+                await command.Execute(new CommandContext
+                {
+                    Parameters = parameters ?? Array.Empty<string>(),
+                    Target = target,
+                    Device = host?.ActiveDevice,
+                    Host = host
+                });
+            }
+            catch (Exception ex)
+            {
+                // Without this, an Execute exception bubbles up to the
+                // button-press handler with no plugin attribution.
+                host?.Logger?.Error($"Execute failed for '{descriptor.CommandName}'", ex);
+            }
+        };
 
         var isDisplay = false;
         var interval = TimeSpan.Zero;
