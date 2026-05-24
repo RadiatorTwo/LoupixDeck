@@ -136,6 +136,27 @@ public partial class Settings : Window
 
         foreach (var descriptor in page.SettingsSchema)
         {
+            if (descriptor.Kind == PluginSettingKind.Heading)
+            {
+                PluginSettingsHost.Children.Add(new TextBlock
+                {
+                    Text = descriptor.Label,
+                    FontWeight = FontWeight.Bold,
+                    Margin = new Avalonia.Thickness(0, 12, 0, 4)
+                });
+                if (!string.IsNullOrWhiteSpace(descriptor.Description))
+                {
+                    PluginSettingsHost.Children.Add(new TextBlock
+                    {
+                        Text = descriptor.Description,
+                        FontSize = 11,
+                        Opacity = 0.7,
+                        TextWrapping = TextWrapping.Wrap
+                    });
+                }
+                continue;
+            }
+
             PluginSettingsHost.Children.Add(new TextBlock { Text = descriptor.Label });
 
             Control editor;

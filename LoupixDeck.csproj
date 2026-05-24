@@ -55,7 +55,7 @@
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.2.1" />
     <!-- Plugin SDK — built from the separate LoupixDeck.PluginSdk repository
          and resolved during development via the local feed in nuget.config. -->
-    <PackageReference Include="LoupixDeck.PluginSdk" Version="1.2.0" />
+    <PackageReference Include="LoupixDeck.PluginSdk" Version="1.3.0" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.2" />
     <PackageReference Include="Microsoft.Win32.SystemEvents" Version="9.0.2" />
     <!-- Was previously pulled in transitively via obs-websocket-dotnet, which

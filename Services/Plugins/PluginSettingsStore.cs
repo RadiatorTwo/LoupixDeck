@@ -82,6 +82,17 @@ public sealed class PluginSettingsStore : IPluginSettings
         }
     }
 
+    public IEnumerable<string> Keys
+    {
+        get
+        {
+            lock (_gate)
+            {
+                return _data.Properties().Select(p => p.Name).ToArray();
+            }
+        }
+    }
+
     public void Save()
     {
         try
