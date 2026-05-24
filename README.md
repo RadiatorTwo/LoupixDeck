@@ -137,6 +137,23 @@ The Command menu is filtered per OS — Windows-only and Linux-only commands onl
 
 ---
 
+## 🧩 Plugins
+
+LoupixDeck is extensible through third-party plugins that contribute their own commands,
+dynamic text providers, and settings UI to the main app. Plugins are discovered from a
+per-user plugin directory at startup and integrate seamlessly into the command picker and
+menu tree.
+
+The plugin SDK — including interfaces, base classes, and documentation for building your own
+plugins — is developed in a separate repository:
+
+**👉 [github.com/RadiatorTwo/LoupixDeck.PluginSdk](https://github.com/RadiatorTwo/LoupixDeck.PluginSdk)**
+
+It is published as the `LoupixDeck.PluginSdk` NuGet package; reference it from your plugin
+project to get started.
+
+---
+
 ## 📸 Screenshots
 
 | | |
