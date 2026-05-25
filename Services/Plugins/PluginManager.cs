@@ -215,7 +215,39 @@ public class PluginManager : IPluginManager
             }
         }
 
-        return new PluginHost(logger, settings, device, ExecuteCommand, RequestButtonRefresh, OpenFolder);
+        void OverlayTouchText(int slot, string text, TimeSpan duration)
+        {
+            try
+            {
+                var devSvc = _serviceProvider.GetRequiredService<IDeviceService>();
+                // Fire and forget — the host's ShowTemporaryTextButton already
+                // self-supersedes via its internal call-ID counter, so quick
+                // repeated invocations don't queue up restore-races.
+                _ = devSvc.ShowTemporaryTextButton(slot, text ?? string.Empty,
+                    (int)Math.Max(50, duration.TotalMilliseconds));
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"PluginHost[{manifest.Id}]: OverlayTouchText failed: {ex.Message}");
+            }
+        }
+
+        int GetTouchSlotForRotary(int rotaryIndex)
+        {
+            try
+            {
+                return _serviceProvider.GetRequiredService<IDeviceService>().Device?
+                    .GetTouchSlotForRotary(rotaryIndex) ?? -1;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"PluginHost[{manifest.Id}]: GetTouchSlotForRotary failed: {ex.Message}");
+                return -1;
+            }
+        }
+
+        return new PluginHost(logger, settings, device, ExecuteCommand, RequestButtonRefresh,
+            OpenFolder, OverlayTouchText, GetTouchSlotForRotary);
     }
 
     public void ShutdownAll()

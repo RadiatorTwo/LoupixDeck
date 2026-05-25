@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using LoupixDeck.PluginSdk;
 
 namespace LoupixDeck.Services.Plugins;
@@ -12,6 +13,8 @@ public sealed class PluginHost : IPluginHost
     private readonly Action<string> _executeCommand;
     private readonly Action<string> _requestButtonRefresh;
     private readonly Action<IFolderProvider> _openFolder;
+    private readonly Action<int, string, TimeSpan> _overlayTouchText;
+    private readonly Func<int, int> _getTouchSlotForRotary;
 
     public PluginHost(
         IPluginLogger logger,
@@ -19,7 +22,9 @@ public sealed class PluginHost : IPluginHost
         DeviceInfo activeDevice,
         Action<string> executeCommand,
         Action<string> requestButtonRefresh,
-        Action<IFolderProvider> openFolder)
+        Action<IFolderProvider> openFolder,
+        Action<int, string, TimeSpan> overlayTouchText,
+        Func<int, int> getTouchSlotForRotary)
     {
         Logger = logger;
         Settings = settings;
@@ -27,6 +32,8 @@ public sealed class PluginHost : IPluginHost
         _executeCommand = executeCommand;
         _requestButtonRefresh = requestButtonRefresh;
         _openFolder = openFolder;
+        _overlayTouchText = overlayTouchText;
+        _getTouchSlotForRotary = getTouchSlotForRotary;
     }
 
     public IPluginLogger Logger { get; }
@@ -40,4 +47,31 @@ public sealed class PluginHost : IPluginHost
     public void ExecuteCommand(string command) => _executeCommand?.Invoke(command);
 
     public void OpenFolder(IFolderProvider provider) => _openFolder?.Invoke(provider);
+
+    public void OverlayTouchText(int slot, string text, TimeSpan duration) =>
+        _overlayTouchText?.Invoke(slot, text, duration);
+
+    public int GetTouchSlotForRotary(int rotaryIndex) =>
+        _getTouchSlotForRotary?.Invoke(rotaryIndex) ?? -1;
+
+    public bool OpenBrowser(string url)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+            return false;
+
+        try
+        {
+            // UseShellExecute=true routes through the OS handler: default
+            // browser on Windows, xdg-open (via shell) on Linux. Works
+            // headlessly when there's no UI, in which case Start returns
+            // null but the dispatch is still considered attempted.
+            Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Logger?.Error($"OpenBrowser failed for '{url}'", ex);
+            return false;
+        }
+    }
 }

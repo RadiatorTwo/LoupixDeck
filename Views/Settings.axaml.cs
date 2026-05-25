@@ -130,7 +130,7 @@ public partial class Settings : Window
         BuildSettingsForm(page, plugin.Host.Settings);
     }
 
-    private void BuildSettingsForm(IPluginSettingsPage page, IPluginSettings settings)
+    private void BuildSettingsForm(IPluginSettingsPage page, IPluginSettings settings, string? initialStatus = null)
     {
         var editors = new List<(PluginSettingDescriptor Descriptor, Control Control)>();
 
@@ -215,7 +215,11 @@ public partial class Settings : Window
             editors.Add((descriptor, editor));
         }
 
-        var status = new TextBlock { Margin = new Avalonia.Thickness(0, 4, 0, 0) };
+        var status = new TextBlock
+        {
+            Margin = new Avalonia.Thickness(0, 4, 0, 0),
+            Text = initialStatus ?? string.Empty
+        };
 
         var buttons = new StackPanel
         {
@@ -248,14 +252,21 @@ public partial class Settings : Window
                 page.OnSettingsSaved();
 
                 status.Text = $"{action.Label}…";
+                string resultText;
                 try
                 {
-                    status.Text = await action.Invoke();
+                    resultText = await action.Invoke();
                 }
                 catch (System.Exception ex)
                 {
-                    status.Text = $"Failed: {ex.Message}";
+                    resultText = $"Failed: {ex.Message}";
                 }
+
+                // Rebuild the form so dynamic schema/action changes are
+                // reflected (e.g. an OAuth "Connect" button swaps to
+                // "Disconnect" and the connection heading text updates).
+                PluginSettingsHost.Children.Clear();
+                BuildSettingsForm(page, settings, resultText);
             };
             buttons.Children.Add(actionButton);
         }

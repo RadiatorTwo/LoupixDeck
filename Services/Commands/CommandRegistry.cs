@@ -57,7 +57,7 @@ public class CommandRegistry : ICommandRegistry
 
     public IEnumerable<RegisteredCommand> GetAll() => _commands.Values;
 
-    public async Task Execute(string commandName, string[] parameters, ButtonTargets target)
+    public async Task Execute(string commandName, string[] parameters, ButtonTargets target, int? sourceIndex = null)
     {
         var command = Get(commandName);
         if (command == null)
@@ -66,6 +66,6 @@ public class CommandRegistry : ICommandRegistry
             return;
         }
 
-        await command.Execute(parameters ?? Array.Empty<string>(), target);
+        await command.Execute(parameters ?? Array.Empty<string>(), target, sourceIndex);
     }
 }

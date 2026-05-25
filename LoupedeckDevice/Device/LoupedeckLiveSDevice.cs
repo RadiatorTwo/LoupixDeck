@@ -20,6 +20,16 @@ public class LoupedeckLiveSDevice : LoupedeckDevice
         };
     }
 
+    // The Live S has two rotaries stacked vertically on the left of the touch
+    // grid: the top one sits next to slot 0 (row 0, col 0), the bottom one
+    // next to slot 5 (row 1, col 0). See Views/Devices/LoupedeckLiveSLayout.axaml.
+    public override int GetTouchSlotForRotary(int rotaryIndex) => rotaryIndex switch
+    {
+        0 => 0,
+        1 => 5,
+        _ => -1
+    };
+
     protected override TouchTarget GetTarget(int x, int y)
     {
         if (VisibleX == null || VisibleY == null)

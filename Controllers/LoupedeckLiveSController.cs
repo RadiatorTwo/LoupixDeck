@@ -279,7 +279,7 @@ public class LoupedeckLiveSController(
         var cmd = rotary.Command;
         if (string.IsNullOrEmpty(cmd)) return;
         var wrappedRotary = page.KnobPressWrap?.Apply(cmd) ?? cmd;
-        FireAndForget(wrappedRotary, ButtonTargets.RotaryEncoder);
+        FireAndForget(wrappedRotary, ButtonTargets.RotaryEncoder, idx);
     }
 
     /// <summary>
@@ -289,12 +289,12 @@ public class LoupedeckLiveSController(
     /// deadlock the very thread that needs to complete the await, and the
     /// device would appear disconnected after the first such command.
     /// </summary>
-    private void FireAndForget(string command, ButtonTargets target)
+    private void FireAndForget(string command, ButtonTargets target, int? sourceIndex = null)
     {
         if (string.IsNullOrEmpty(command)) return;
         _ = Task.Run(async () =>
         {
-            try { await commandService.ExecuteCommand(command, target); }
+            try { await commandService.ExecuteCommand(command, target, sourceIndex); }
             catch (Exception ex) { Console.WriteLine($"Command failed ({command}): {ex.Message}"); }
         });
     }
@@ -453,7 +453,7 @@ public class LoupedeckLiveSController(
         if (string.IsNullOrEmpty(command)) return;
         var wrap = leftTurn ? page.KnobLeftWrap : page.KnobRightWrap;
         var wrapped = wrap?.Apply(command) ?? command;
-        FireAndForget(wrapped, ButtonTargets.RotaryEncoder);
+        FireAndForget(wrapped, ButtonTargets.RotaryEncoder, idx);
     }
 
     /// <summary>

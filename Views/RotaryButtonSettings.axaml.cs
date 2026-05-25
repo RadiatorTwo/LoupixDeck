@@ -1,5 +1,6 @@
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Interactivity;
 using Avalonia.VisualTree;
 using LoupixDeck.Models;
 using LoupixDeck.Services;
@@ -27,34 +28,14 @@ public partial class RotaryButtonSettings : Window
 
     private void OnPointerPressed(object sender, PointerPressedEventArgs e)
     {
+        if (DataContext is not RotaryButtonSettingsViewModel vm) return;
+
         if (e.Source is TextBlock textBlock && textBlock.DataContext is MenuEntry menuEntry &&
             menuEntry.Command != null && !string.IsNullOrWhiteSpace(menuEntry.Command))
         {
             if (e.ClickCount != 2) return;
 
-            if (_lastFocusedTextBox == null)
-            {
-                ((RotaryButtonSettingsViewModel)DataContext)?.InsertCommand(menuEntry,
-                    RotaryButtonSettingsViewModel.SelectedCommand.RotaryLeft);
-            }
-            else
-            {
-                if (_lastFocusedTextBox == TextBoxRotaryLeft)
-                {
-                    ((RotaryButtonSettingsViewModel)DataContext)?.InsertCommand(menuEntry,
-                        RotaryButtonSettingsViewModel.SelectedCommand.RotaryLeft);
-                }
-                else if (_lastFocusedTextBox == TextBoxRotaryRight)
-                {
-                    ((RotaryButtonSettingsViewModel)DataContext)?.InsertCommand(menuEntry,
-                        RotaryButtonSettingsViewModel.SelectedCommand.RotaryRight);
-                }
-                else if (_lastFocusedTextBox == TextBoxButtonPress)
-                {
-                    ((RotaryButtonSettingsViewModel)DataContext)?.InsertCommand(menuEntry,
-                        RotaryButtonSettingsViewModel.SelectedCommand.ButtonPress);
-                }
-            }
+            vm.InsertCommand(menuEntry, GetActiveSlot(vm));
         }
         else
         {
@@ -81,5 +62,38 @@ public partial class RotaryButtonSettings : Window
     public void TextBoxGotFocus(object sender, GotFocusEventArgs e)
     {
         _lastFocusedTextBox = sender as TextBox;
+
+        if (DataContext is RotaryButtonSettingsViewModel vm)
+        {
+            if (_lastFocusedTextBox == TextBoxRotaryLeft)
+                vm.SelectedCommandSlot = RotaryButtonSettingsViewModel.SelectedCommand.RotaryLeft;
+            else if (_lastFocusedTextBox == TextBoxRotaryRight)
+                vm.SelectedCommandSlot = RotaryButtonSettingsViewModel.SelectedCommand.RotaryRight;
+            else if (_lastFocusedTextBox == TextBoxButtonPress)
+                vm.SelectedCommandSlot = RotaryButtonSettingsViewModel.SelectedCommand.ButtonPress;
+        }
+    }
+
+    private void ClearButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is not RotaryButtonSettingsViewModel vm) return;
+        if (sender is not Button { Tag: string tag }) return;
+
+        if (Enum.TryParse<RotaryButtonSettingsViewModel.SelectedCommand>(tag, out var slot))
+        {
+            vm.ClearSlot(slot);
+        }
+    }
+
+    private RotaryButtonSettingsViewModel.SelectedCommand GetActiveSlot(RotaryButtonSettingsViewModel vm)
+    {
+        if (_lastFocusedTextBox == TextBoxRotaryLeft)
+            return RotaryButtonSettingsViewModel.SelectedCommand.RotaryLeft;
+        if (_lastFocusedTextBox == TextBoxRotaryRight)
+            return RotaryButtonSettingsViewModel.SelectedCommand.RotaryRight;
+        if (_lastFocusedTextBox == TextBoxButtonPress)
+            return RotaryButtonSettingsViewModel.SelectedCommand.ButtonPress;
+
+        return vm.SelectedCommandSlot;
     }
 }
