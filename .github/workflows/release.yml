@@ -55,6 +55,12 @@ jobs:
           repository: RadiatorTwo/LoupixDeck.Plugin.Argus
           path: src/LoupixDeck.Plugin.Argus
 
+      - name: Checkout SpotifyPremium plugin
+        uses: actions/checkout@v4
+        with:
+          repository: RadiatorTwo/LoupixDeck.Plugin.SpotifyPremium
+          path: src/LoupixDeck.Plugin.SpotifyPremium
+
       - name: Setup .NET SDK
         uses: actions/setup-dotnet@v4
         with:
@@ -79,7 +85,8 @@ jobs:
             LoupixDeck.Plugin.HwInfo \
             LoupixDeck.Plugin.CoolerControl \
             LoupixDeck.Plugin.Audio \
-            LoupixDeck.Plugin.Argus
+            LoupixDeck.Plugin.Argus \
+            LoupixDeck.Plugin.SpotifyPremium
           do
             echo "::group::Building $repo"
             manifest="src/$repo/plugin.json"
