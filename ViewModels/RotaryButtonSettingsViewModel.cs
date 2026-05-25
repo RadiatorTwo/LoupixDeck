@@ -26,6 +26,13 @@ public class RotaryButtonSettingsViewModel : DialogViewModelBase<RotaryButton, D
     public ObservableCollection<MenuEntry> SystemCommandMenus { get; set; }
     public MenuEntry CurrentMenuEntry { get; set; }
 
+    private SelectedCommand _selectedCommandSlot = SelectedCommand.RotaryLeft;
+    public SelectedCommand SelectedCommandSlot
+    {
+        get => _selectedCommandSlot;
+        set => SetProperty(ref _selectedCommandSlot, value);
+    }
+
     public RotaryButtonSettingsViewModel(ICommandBuilder commandBuilder, IMenuTreeBuilder menuTreeBuilder)
     {
         _commandBuilder = commandBuilder;
@@ -60,6 +67,22 @@ public class RotaryButtonSettingsViewModel : DialogViewModelBase<RotaryButton, D
                 break;
             case SelectedCommand.ButtonPress:
                 ButtonData.Command = Utils.CommandChain.Append(ButtonData.Command, formattedCommand);
+                break;
+        }
+    }
+
+    public void ClearSlot(SelectedCommand slot)
+    {
+        switch (slot)
+        {
+            case SelectedCommand.RotaryLeft:
+                ButtonData.RotaryLeftCommand = string.Empty;
+                break;
+            case SelectedCommand.RotaryRight:
+                ButtonData.RotaryRightCommand = string.Empty;
+                break;
+            case SelectedCommand.ButtonPress:
+                ButtonData.Command = string.Empty;
                 break;
         }
     }

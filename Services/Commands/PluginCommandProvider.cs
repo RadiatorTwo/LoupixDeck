@@ -59,7 +59,7 @@ public class PluginCommandProvider : ICommandProvider
                 .ToList()
         };
 
-        Func<string[], ButtonTargets, Task> execute = async (parameters, target) =>
+        Func<string[], ButtonTargets, int?, Task> execute = async (parameters, target, sourceIndex) =>
         {
             try
             {
@@ -67,6 +67,7 @@ public class PluginCommandProvider : ICommandProvider
                 {
                     Parameters = parameters ?? Array.Empty<string>(),
                     Target = target,
+                    SourceIndex = sourceIndex,
                     Device = host?.ActiveDevice,
                     Host = host
                 });

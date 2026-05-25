@@ -1,5 +1,6 @@
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Interactivity;
 using Avalonia.VisualTree;
 using LoupixDeck.Models;
 using LoupixDeck.Services;
@@ -52,6 +53,14 @@ public partial class SimpleButtonSettings : Window
             treeViewItem.IsExpanded = !treeViewItem.IsExpanded;
 
             e.Handled = true;
+        }
+    }
+
+    private void ClearButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is SimpleButtonSettingsViewModel vm && vm.ButtonData != null)
+        {
+            vm.ButtonData.Command = string.Empty;
         }
     }
 }

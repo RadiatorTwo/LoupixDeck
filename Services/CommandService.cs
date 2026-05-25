@@ -11,8 +11,10 @@ public interface ICommandService
     /// that triggered the call (or <see cref="ButtonTargets.None"/> when the
     /// origin is not a button — CLI, plugin-to-plugin chaining, etc.).
     /// Chained commands joined by <c>&amp;&amp;</c> all inherit this target.
+    /// <paramref name="sourceIndex"/> identifies the originating control
+    /// (rotary index, touch slot) when the target is an indexed source.
     /// </summary>
-    Task ExecuteCommand(string command, ButtonTargets target);
+    Task ExecuteCommand(string command, ButtonTargets target, int? sourceIndex = null);
 }
 
 public class CommandService : ICommandService
@@ -31,7 +33,7 @@ public class CommandService : ICommandService
     // instance is reused across calls.
     private static readonly Regex ChainSplitter = new(@"\s*&&\s*", RegexOptions.Compiled);
 
-    public async Task ExecuteCommand(string command, ButtonTargets target)
+    public async Task ExecuteCommand(string command, ButtonTargets target, int? sourceIndex = null)
     {
         if (string.IsNullOrWhiteSpace(command))
             return;
@@ -45,11 +47,11 @@ public class CommandService : ICommandService
         foreach (var part in ChainSplitter.Split(command))
         {
             if (string.IsNullOrWhiteSpace(part)) continue;
-            await ExecuteSingle(part.Trim(), target);
+            await ExecuteSingle(part.Trim(), target, sourceIndex);
         }
     }
 
-    private async Task ExecuteSingle(string command, ButtonTargets target)
+    private async Task ExecuteSingle(string command, ButtonTargets target, int? sourceIndex)
     {
         if (string.IsNullOrWhiteSpace(command)) return;
 
@@ -58,7 +60,7 @@ public class CommandService : ICommandService
         if (_commandRegistry.Contains(cleanCommand))
         {
             var parameters = GetCommandParameters(command);
-            await _commandRegistry.Execute(cleanCommand, parameters, target);
+            await _commandRegistry.Execute(cleanCommand, parameters, target, sourceIndex);
         }
         else
         {

@@ -25,6 +25,9 @@ public interface ICommandRegistry
     /// Executes a command by name. <paramref name="target"/> is the button type
     /// that triggered the call (or <see cref="ButtonTargets.None"/> when the
     /// origin is not a button — CLI, plugin-to-plugin chaining, etc.).
+    /// <paramref name="sourceIndex"/> identifies the originating control
+    /// (rotary index, touch slot, simple button index) when the target is an
+    /// indexed source, so plugins can locate the physical control that fired.
     /// </summary>
-    Task Execute(string commandName, string[] parameters, ButtonTargets target);
+    Task Execute(string commandName, string[] parameters, ButtonTargets target, int? sourceIndex = null);
 }

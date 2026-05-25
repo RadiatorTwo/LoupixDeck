@@ -51,6 +51,15 @@ public class LoupedeckDevice
     public int RotaryCount { get; protected init; }
 
     /// <summary>
+    /// Returns the touch slot that physically sits next to the rotary at
+    /// <paramref name="rotaryIndex"/>, or -1 when the device has no such
+    /// neighbour. Plugins use this for transient feedback overlays (e.g. a
+    /// volume read-out flashed on the slot beside the rotary the user just
+    /// turned). Subclasses override per device geometry; the base returns -1.
+    /// </summary>
+    public virtual int GetTouchSlotForRotary(int rotaryIndex) => -1;
+
+    /// <summary>
     /// Number of addressable touch buttons. Defaults to Columns*Rows; devices with
     /// extra non-grid touch slots (e.g. Razer side panels) override this in their ctor.
     /// </summary>

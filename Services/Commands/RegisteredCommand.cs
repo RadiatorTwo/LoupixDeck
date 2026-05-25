@@ -35,9 +35,11 @@ public sealed class RegisteredCommand
     /// <summary>
     /// Runs the command. The second argument is the button type that triggered
     /// the call — forwarded to <c>CommandContext.Target</c> on plugin commands;
-    /// core commands ignore it.
+    /// core commands ignore it. The third argument identifies the originating
+    /// indexed control (rotary index, slot index) and is forwarded to
+    /// <c>CommandContext.SourceIndex</c>; null for chained/CLI invocations.
     /// </summary>
-    public Func<string[], ButtonTargets, Task> Execute { get; init; }
+    public Func<string[], ButtonTargets, int?, Task> Execute { get; init; }
 
     /// <summary>For display commands: produces the current text. Null otherwise.</summary>
     public Func<string[], string> GetText { get; init; }

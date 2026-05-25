@@ -66,7 +66,7 @@ public class CoreCommandProvider : ICommandProvider
                 SupportedTargets = ResolveTargets(name, info.Group),
                 IsDisplayCommand = isDisplay,
                 UpdateInterval = interval,
-                Execute = (parameters, _) => _sysCommandService.ExecuteCommand(capturedName, parameters),
+                Execute = (parameters, _, _) => _sysCommandService.ExecuteCommand(capturedName, parameters),
                 GetText = getText
             });
         }

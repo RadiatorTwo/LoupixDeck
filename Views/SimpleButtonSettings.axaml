@@ -9,49 +9,103 @@
     xmlns:vm="using:LoupixDeck.ViewModels"
     x:DataType="vm:SimpleButtonSettingsViewModel"
     Title="{Binding ButtonLabel}"
-    Width="850"
-    Height="450"
+    Width="1000"
+    Height="700"
     mc:Ignorable="d"
     SystemDecorations="Full"
     CanResize="False">
-	<Border BorderThickness="2"
-			BorderBrush="LightGray"
-			Padding="16">
-		<Grid RowDefinitions="*,50">
-			<Grid Grid.Row="0" ColumnDefinitions="2*,2*,2*">
-				<StackPanel Grid.Column="0" Margin="10,20,0,0">
-					<TextBlock Text="{Binding ButtonLabel}" FontSize="14" FontWeight="Bold" Margin="0,0,0,10" />
-					<Label Content="Button Color" />
-					<ccp:ColorPicker Name="ButtonColorPicker" Width="120" HorizontalAlignment="Left"
-									 Color="{Binding ButtonData.ButtonColor}" />
-				</StackPanel>
-				<StackPanel Grid.Column="1" Margin="20,20,0,0">
-					<Label Content="Command" />
-					<TextBox Name="CommandInput" Text="{Binding ButtonData.Command}" />
-					<CheckBox Content="Run also when device is OFF"
-							  IsChecked="{Binding ButtonData.EnableWhenOff}"
-							  Margin="0,10,0,0" />
-				</StackPanel>
-				<StackPanel Grid.Column="2" Orientation="Vertical" Margin="20,20,0,0">
-					<TextBlock Text="System Commands" FontWeight="Bold" Margin="0,0,0,5" />
-					<ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-						<TreeView Name="SystemCommandsTreeView" ItemsSource="{Binding SystemCommandMenus}"
-								  SelectedItem="{Binding CurrentMenuEntry}" MaxHeight="350">
-							<TreeView.DataTemplates>
-								<TreeDataTemplate DataType="{x:Type local:Models.MenuEntry}"
-												  ItemsSource="{Binding Children}">
-									<StackPanel Orientation="Horizontal" PointerPressed="OnPointerPressed">
-										<TextBlock Text="{Binding Name}" />
-										<TextBlock Text="(loading…)" Margin="6,0,0,0"
-												   Foreground="Gray" FontStyle="Italic"
-												   IsVisible="{Binding IsLoading}" />
-									</StackPanel>
-								</TreeDataTemplate>
-							</TreeView.DataTemplates>
-						</TreeView>
-					</ScrollViewer>
-				</StackPanel>
-			</Grid>
-		</Grid>
-	</Border>
+
+    <Window.Styles>
+        <Style Selector="Border.slot">
+            <Setter Property="BorderBrush" Value="#444" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="Padding" Value="10" />
+            <Setter Property="Background" Value="#1A1A1A" />
+            <Setter Property="Margin" Value="0,0,0,10" />
+        </Style>
+    </Window.Styles>
+
+    <Border BorderThickness="2"
+            BorderBrush="DarkGray"
+            Padding="4">
+        <Grid RowDefinitions="Auto,*" Margin="6">
+
+            <!-- Title -->
+            <TextBlock Grid.Row="0"
+                       Text="{Binding ButtonLabel}"
+                       FontSize="22" FontWeight="Bold"
+                       Margin="0,0,0,8" />
+
+            <!-- Two columns: left = command + color + OFF checkbox, right = command tree -->
+            <Grid Grid.Row="1" ColumnDefinitions="*,420">
+
+                <!-- Left side -->
+                <StackPanel Grid.Column="0" Margin="0,0,8,0">
+
+                    <Border Classes="slot">
+                        <StackPanel>
+                            <TextBlock Text="Command" FontWeight="Bold" Margin="0,0,0,4" />
+                            <Grid ColumnDefinitions="*,Auto">
+                                <TextBox Grid.Column="0"
+                                         Name="CommandInput"
+                                         Text="{Binding ButtonData.Command}" />
+                                <Button Grid.Column="1"
+                                        Content="Clear"
+                                        Width="70"
+                                        Margin="6,0,0,0"
+                                        Background="#A03030"
+                                        Foreground="White"
+                                        Click="ClearButton_Click" />
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Classes="slot">
+                        <StackPanel>
+                            <TextBlock Text="Button Color" FontWeight="Bold" Margin="0,0,0,4" />
+                            <ccp:ColorPicker Name="ButtonColorPicker"
+                                             Width="120" HorizontalAlignment="Left"
+                                             Color="{Binding ButtonData.ButtonColor}" />
+                        </StackPanel>
+                    </Border>
+
+                    <CheckBox Content="Run also when device is OFF"
+                              IsChecked="{Binding ButtonData.EnableWhenOff}"
+                              Margin="0,4,0,0" />
+                </StackPanel>
+
+                <!-- Right: commands tree, full height -->
+                <Border Grid.Column="1"
+                        BorderBrush="#444" BorderThickness="1" CornerRadius="4"
+                        Padding="4">
+                    <Grid RowDefinitions="Auto,*">
+                        <TextBlock Grid.Row="0"
+                                   Text="System Commands"
+                                   FontWeight="Bold"
+                                   Margin="4,2,0,6" />
+                        <ScrollViewer Grid.Row="1"
+                                      VerticalScrollBarVisibility="Auto"
+                                      HorizontalScrollBarVisibility="Disabled">
+                            <TreeView Name="SystemCommandsTreeView"
+                                      ItemsSource="{Binding SystemCommandMenus}"
+                                      SelectedItem="{Binding CurrentMenuEntry}">
+                                <TreeView.DataTemplates>
+                                    <TreeDataTemplate DataType="{x:Type local:Models.MenuEntry}"
+                                                      ItemsSource="{Binding Children}">
+                                        <StackPanel Orientation="Horizontal" PointerPressed="OnPointerPressed">
+                                            <TextBlock Text="{Binding Name}" />
+                                            <TextBlock Text="(loading…)" Margin="6,0,0,0"
+                                                       Foreground="Gray" FontStyle="Italic"
+                                                       IsVisible="{Binding IsLoading}" />
+                                        </StackPanel>
+                                    </TreeDataTemplate>
+                                </TreeView.DataTemplates>
+                            </TreeView>
+                        </ScrollViewer>
+                    </Grid>
+                </Border>
+            </Grid>
+        </Grid>
+    </Border>
 </Window>
