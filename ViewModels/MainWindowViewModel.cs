@@ -4,6 +4,7 @@ using LoupixDeck.Controllers;
 using LoupixDeck.Models;
 using LoupixDeck.Services;
 using LoupixDeck.Services.Commands;
+using LoupixDeck.Services.Plugins;
 using LoupixDeck.Services.SystemPower;
 using LoupixDeck.ViewModels.Base;
 using AsyncRelayCommand = CommunityToolkit.Mvvm.Input.AsyncRelayCommand;
@@ -39,20 +40,52 @@ public class MainWindowViewModel : ViewModelBase
     public string DeviceSlug { get; }
 
     private readonly IDynamicTextManager _dynamicTextManager;
+    private readonly IExclusiveModeService _exclusiveMode;
+
+    private bool _isExclusiveModeActive;
+
+    /// <summary>
+    /// True while a plugin/provider has taken the device over via exclusive mode.
+    /// The GUI still shows the configured touch buttons (they aren't what the
+    /// device is rendering), so the layouts overlay them with a notice while this
+    /// is set. Updated from <see cref="IExclusiveModeService.StateChanged"/>.
+    /// </summary>
+    public bool IsExclusiveModeActive
+    {
+        get => _isExclusiveModeActive;
+        private set => SetProperty(ref _isExclusiveModeActive, value);
+    }
+
+    private string _exclusiveModeTitle;
+
+    /// <summary>Title of the active exclusive-mode provider, shown in the overlay.</summary>
+    public string ExclusiveModeTitle
+    {
+        get => _exclusiveModeTitle;
+        private set => SetProperty(ref _exclusiveModeTitle, value);
+    }
 
     public MainWindowViewModel(LoupedeckLiveSController loupedeck,
         IDialogService dialogService,
         ICommandRegistry commandRegistry,
         IDynamicTextManager dynamicTextManager,
         ISystemPowerService powerService,
+        IExclusiveModeService exclusiveMode,
         LoupedeckConfig config,
         LoupixDeck.Registry.DeviceRegistry.DeviceInfo deviceInfo)
     {
         LoupedeckController = loupedeck;
         DeviceSlug = deviceInfo.Slug;
         _dynamicTextManager = dynamicTextManager;
+        _exclusiveMode = exclusiveMode;
 
         commandRegistry.Initialize();
+
+        // Mirror exclusive-mode state into bindable properties. StateChanged can
+        // fire off the UI thread (controller / UDP worker), so marshal before
+        // touching the observable properties the layouts bind to.
+        _exclusiveMode.StateChanged += OnExclusiveModeStateChanged;
+        OnExclusiveModeStateChanged();
 
         // Auto-clear the device while the host is suspended, restore on wake.
         // Both handlers must hop to the UI thread because they touch ObservableCollections
@@ -86,6 +119,15 @@ public class MainWindowViewModel : ViewModelBase
         AboutMenuCommand = new AsyncRelayCommand(AboutMenuButton_Click);
         QuitApplicationCommand = new RelayCommand(QuitApplication);
         ToggleDeviceStateCommand = new AsyncRelayCommand(LoupedeckController.ToggleDeviceState);
+    }
+
+    private void OnExclusiveModeStateChanged()
+    {
+        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        {
+            IsExclusiveModeActive = _exclusiveMode.IsActive;
+            ExclusiveModeTitle = _exclusiveMode.Current?.Title ?? string.Empty;
+        });
     }
 
     private void AddRotaryPageButton_Click()

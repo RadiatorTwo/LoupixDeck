@@ -411,5 +411,30 @@
                     HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
                     Command="{Binding DeleteTouchPageCommand}" />
         </StackPanel>
+
+        <!-- Exclusive-mode overlay: while a provider owns the device, none of the
+             on-screen controls reflect or affect it, so cover the whole device and
+             swallow all input with a notice. -->
+        <Border Grid.Row="0" Grid.RowSpan="3"
+                Grid.Column="0" Grid.ColumnSpan="3"
+                IsVisible="{Binding IsExclusiveModeActive}"
+                Background="#E60F0F0F"
+                BorderBrush="{StaticResource SelectedBrush}"
+                BorderThickness="2"
+                CornerRadius="6">
+            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8">
+                <TextBlock Text="Exclusive Mode Active"
+                           FontSize="22" FontWeight="Bold" Foreground="White"
+                           HorizontalAlignment="Center" />
+                <TextBlock Text="{Binding ExclusiveModeTitle}"
+                           FontSize="16" Foreground="#CCCCCC"
+                           HorizontalAlignment="Center"
+                           IsVisible="{Binding ExclusiveModeTitle, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                <TextBlock Text="The device is being controlled. Its buttons are inactive."
+                           FontSize="12" Foreground="#999999"
+                           TextWrapping="Wrap" MaxWidth="420" TextAlignment="Center"
+                           HorizontalAlignment="Center" />
+            </StackPanel>
+        </Border>
     </Grid>
 </UserControl>
