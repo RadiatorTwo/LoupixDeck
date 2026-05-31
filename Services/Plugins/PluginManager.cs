@@ -246,8 +246,40 @@ public class PluginManager : IPluginManager
             }
         }
 
+        bool RequestExclusiveMode(IExclusiveModeProvider provider)
+        {
+            try
+            {
+                return _serviceProvider.GetRequiredService<IExclusiveModeService>().TryEnter(provider);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"PluginHost[{manifest.Id}]: RequestExclusiveMode failed: {ex.Message}");
+                return false;
+            }
+        }
+
+        void ReleaseExclusiveMode(IExclusiveModeProvider provider)
+        {
+            try
+            {
+                _serviceProvider.GetRequiredService<IExclusiveModeService>().Exit(provider);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"PluginHost[{manifest.Id}]: ReleaseExclusiveMode failed: {ex.Message}");
+            }
+        }
+
+        bool IsInExclusiveMode()
+        {
+            try { return _serviceProvider.GetRequiredService<IExclusiveModeService>().IsActive; }
+            catch { return false; }
+        }
+
         return new PluginHost(logger, settings, device, ExecuteCommand, RequestButtonRefresh,
-            OpenFolder, OverlayTouchText, GetTouchSlotForRotary);
+            OpenFolder, OverlayTouchText, GetTouchSlotForRotary,
+            RequestExclusiveMode, ReleaseExclusiveMode, IsInExclusiveMode);
     }
 
     public void ShutdownAll()

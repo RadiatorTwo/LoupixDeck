@@ -577,7 +577,7 @@ public class LoupedeckDevice
     /// <summary>
     /// Draws a key in the "center" display area based on the given index.
     /// </summary>
-    private async Task DrawKey(int index, SKBitmap bitmap)
+    private async Task DrawKey(int index, SKBitmap bitmap, bool autoRefresh = true)
     {
         if (index < 0 || index >= Columns * Rows)
             throw new Exception($"Key {index} is not a valid key");
@@ -594,7 +594,7 @@ public class LoupedeckDevice
         var y = (index / Columns) * keyHeight;
 
         // Call the DrawCanvas method
-        await DrawCanvas("center", keyWidth, keyHeight, bitmap, x, y);
+        await DrawCanvas("center", keyWidth, keyHeight, bitmap, x, y, autoRefresh);
     }
 
     /// <summary>
@@ -636,13 +636,13 @@ public class LoupedeckDevice
     /// the per-button render cache. Used by the folder-navigation overlay so that the
     /// configured TouchButton state is not mutated.
     /// </summary>
-    public virtual async Task DrawTouchSlot(int index, SKBitmap bitmap)
+    public virtual async Task DrawTouchSlot(int index, SKBitmap bitmap, bool refresh = true)
     {
         ArgumentNullException.ThrowIfNull(bitmap);
 
         try
         {
-            await DrawKey(index, bitmap);
+            await DrawKey(index, bitmap, refresh);
         }
         catch (TimeoutException ex)
         {
@@ -655,11 +655,53 @@ public class LoupedeckDevice
     }
 
     /// <summary>
+    /// Draws all center-grid touch slots in one shot: composites the per-slot
+    /// bitmaps into a single full-display image and issues ONE framebuffer write
+    /// plus ONE refresh. Drawing slots individually instead triggers a full-display
+    /// refresh per slot, so the screen visibly rebuilds slot-by-slot (tearing).
+    /// This is the path proven by the video-streaming PoC. <paramref name="slotBitmaps"/>
+    /// is indexed by slot number; null entries keep the cleared background.
+    /// </summary>
+    public virtual async Task DrawTouchSlotsAtomic(IReadOnlyList<SKBitmap> slotBitmaps, bool refresh = true)
+    {
+        if (slotBitmaps == null || slotBitmaps.Count == 0) return;
+        if (Displays == null || !Displays.TryGetValue("center", out var center)) return;
+
+        var xBase = VisibleX is { Length: > 0 } ? VisibleX[0] : 0;
+        const int keySize = 90;
+
+        using var full = new SKBitmap(new SKImageInfo(center.Width, center.Height,
+            SKColorType.Bgra8888, SKAlphaType.Premul));
+        using (var canvas = new SKCanvas(full))
+        {
+            canvas.Clear(SKColors.Black);
+            for (var slot = 0; slot < slotBitmaps.Count && slot < Columns * Rows; slot++)
+            {
+                var bmp = slotBitmaps[slot];
+                if (bmp == null) continue;
+                var x = xBase + (slot % Columns) * keySize;
+                var y = (slot / Columns) * keySize;
+                canvas.DrawBitmap(bmp, x, y);
+            }
+        }
+
+        try
+        {
+            await DrawScreen("center", full, refresh);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"DrawTouchSlotsAtomic failed: {ex.Message}");
+        }
+    }
+
+    /// <summary>
     /// Exposes the unified-display canvas for subclasses that draw non-grid
     /// regions (e.g. the Razer side panels at x=0 / x=420).
     /// </summary>
-    protected Task DrawCanvasRegion(string displayId, int width, int height, SKBitmap bitmap, int x, int y)
-        => DrawCanvas(displayId, width, height, bitmap, x, y);
+    protected Task DrawCanvasRegion(string displayId, int width, int height, SKBitmap bitmap, int x, int y,
+        bool autoRefresh = true)
+        => DrawCanvas(displayId, width, height, bitmap, x, y, autoRefresh);
 
     public async Task DrawTextButton(int index, string text)
     {
@@ -687,13 +729,21 @@ public class LoupedeckDevice
     }
 
     /// <summary>
+    /// Pixel size of the named display. Used by diagnostics/benchmarks to build a
+    /// correctly-sized full-screen bitmap for <see cref="DrawScreen"/>. Returns
+    /// (0,0) when the display is unknown.
+    /// </summary>
+    public (int Width, int Height) GetDisplaySize(string id = "center")
+        => Displays != null && Displays.TryGetValue(id, out var d) ? (d.Width, d.Height) : (0, 0);
+
+    /// <summary>
     /// Draws the entire screen (display) identified by the given ID.
     /// </summary>
-    public async Task DrawScreen(string id, SKBitmap bitmap)
+    public async Task DrawScreen(string id, SKBitmap bitmap, bool refresh = true)
     {
         ArgumentNullException.ThrowIfNull(bitmap);
 
-        await DrawCanvas(id, 0, 0, bitmap);
+        await DrawCanvas(id, 0, 0, bitmap, autoRefresh: refresh);
     }
 
     /// <summary>

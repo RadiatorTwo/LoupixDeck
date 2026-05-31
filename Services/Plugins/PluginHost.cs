@@ -4,7 +4,7 @@ using LoupixDeck.PluginSdk;
 namespace LoupixDeck.Services.Plugins;
 
 /// <summary>
-/// Concrete <see cref="IPluginHost"/> handed to a single plugin. The two host
+/// Concrete <see cref="IPluginHost"/> handed to a single plugin. The host
 /// operations are wired as delegates by the <see cref="PluginManager"/> so the
 /// host stays decoupled from the core's command and rendering services.
 /// </summary>
@@ -15,6 +15,9 @@ public sealed class PluginHost : IPluginHost
     private readonly Action<IFolderProvider> _openFolder;
     private readonly Action<int, string, TimeSpan> _overlayTouchText;
     private readonly Func<int, int> _getTouchSlotForRotary;
+    private readonly Func<IExclusiveModeProvider, bool> _requestExclusiveMode;
+    private readonly Action<IExclusiveModeProvider> _releaseExclusiveMode;
+    private readonly Func<bool> _isInExclusiveMode;
 
     public PluginHost(
         IPluginLogger logger,
@@ -24,7 +27,10 @@ public sealed class PluginHost : IPluginHost
         Action<string> requestButtonRefresh,
         Action<IFolderProvider> openFolder,
         Action<int, string, TimeSpan> overlayTouchText,
-        Func<int, int> getTouchSlotForRotary)
+        Func<int, int> getTouchSlotForRotary,
+        Func<IExclusiveModeProvider, bool> requestExclusiveMode,
+        Action<IExclusiveModeProvider> releaseExclusiveMode,
+        Func<bool> isInExclusiveMode)
     {
         Logger = logger;
         Settings = settings;
@@ -34,6 +40,9 @@ public sealed class PluginHost : IPluginHost
         _openFolder = openFolder;
         _overlayTouchText = overlayTouchText;
         _getTouchSlotForRotary = getTouchSlotForRotary;
+        _requestExclusiveMode = requestExclusiveMode;
+        _releaseExclusiveMode = releaseExclusiveMode;
+        _isInExclusiveMode = isInExclusiveMode;
     }
 
     public IPluginLogger Logger { get; }
@@ -53,6 +62,14 @@ public sealed class PluginHost : IPluginHost
 
     public int GetTouchSlotForRotary(int rotaryIndex) =>
         _getTouchSlotForRotary?.Invoke(rotaryIndex) ?? -1;
+
+    public bool RequestExclusiveMode(IExclusiveModeProvider provider) =>
+        _requestExclusiveMode?.Invoke(provider) ?? false;
+
+    public void ReleaseExclusiveMode(IExclusiveModeProvider provider) =>
+        _releaseExclusiveMode?.Invoke(provider);
+
+    public bool IsInExclusiveMode => _isInExclusiveMode?.Invoke() ?? false;
 
     public bool OpenBrowser(string url)
     {

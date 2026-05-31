@@ -25,4 +25,12 @@ public class CommandAttribute(
     public Type[] ParameterTypes { get; } =  parameterTypes;
 
     public CommandPlatform Platform { get; set; } = CommandPlatform.All;
+
+    /// <summary>
+    /// When true the command is registered and remains executable (a button can
+    /// still be assigned <c>Name(args)</c> manually, and the pipeline runs it),
+    /// but it is not listed in the command-selection menu. Use for internal /
+    /// developer commands that should not be user-discoverable.
+    /// </summary>
+    public bool Hidden { get; set; }
 }

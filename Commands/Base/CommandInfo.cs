@@ -6,5 +6,6 @@ public class CommandInfo
     public string DisplayName { get; set; }
     public string Group { get; set; }
     public string ParameterTemplate { get; set; }
+    public bool Hidden { get; set; }
     public List<ParameterDescriptor> Parameters { get; set; } = [];
 }

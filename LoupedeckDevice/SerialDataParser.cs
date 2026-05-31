@@ -6,6 +6,17 @@ public class SerialDataParser
     // Internal buffer to which all received bytes are appended.
     private readonly List<byte> _buffer = new();
 
+    // Wire-protocol tracing emits several lines per received byte — useful when
+    // debugging the framing, but it floods the console during normal operation
+    // (and drowns out everything else). Off by default; flip to true here when
+    // you need to inspect the raw protocol.
+    private static readonly bool TraceEnabled = false;
+
+    private static void Trace(string message)
+    {
+        if (TraceEnabled) Console.WriteLine(message);
+    }
+
     // Event triggered when a complete command (excluding the start byte) is received.
     public event Action<byte[]> PacketReceived;
 
@@ -18,13 +29,13 @@ public class SerialDataParser
     {
         if (data == null || bytesRead <= 0)
         {
-            Console.WriteLine("No data to process.");
+            Trace("No data to process.");
             return;
         }
 
         // Append new data to the buffer.
         _buffer.AddRange(data.Take(bytesRead));
-        Console.WriteLine($"Added {bytesRead} new bytes. Buffer length: {_buffer.Count}");
+        Trace($"Added {bytesRead} new bytes. Buffer length: {_buffer.Count}");
 
         // As long as the buffer contains data that may hold a complete command...
         while (true)
@@ -32,7 +43,7 @@ public class SerialDataParser
             // If the buffer is empty, stop processing.
             if (_buffer.Count == 0)
             {
-                Console.WriteLine("Buffer is empty.");
+                Trace("Buffer is empty.");
                 break;
             }
 
@@ -43,13 +54,13 @@ public class SerialDataParser
                 int index = _buffer.IndexOf(130);
                 if (index == -1)
                 {
-                    Console.WriteLine($"No start byte (130) found in the buffer. Discarding all {_buffer.Count} bytes.");
+                    Trace($"No start byte (130) found in the buffer. Discarding all {_buffer.Count} bytes.");
                     _buffer.Clear();
                     break;
                 }
                 else
                 {
-                    Console.WriteLine($"Invalid bytes found at the beginning. Removing {index} bytes until the next start byte.");
+                    Trace($"Invalid bytes found at the beginning. Removing {index} bytes until the next start byte.");
                     _buffer.RemoveRange(0, index);
                 }
             }
@@ -58,7 +69,7 @@ public class SerialDataParser
             // At least 2 bytes are required to determine the length of the command.
             if (_buffer.Count < 2)
             {
-                Console.WriteLine("Not enough bytes to determine the length. Waiting for more data.");
+                Trace("Not enough bytes to determine the length. Waiting for more data.");
                 break;
             }
 
@@ -70,7 +81,7 @@ public class SerialDataParser
             // Check if the buffer contains a complete command.
             if (_buffer.Count < totalCommandLength)
             {
-                Console.WriteLine($"Incomplete command: Expected {totalCommandLength} bytes, but buffer contains only {_buffer.Count}. Waiting for more data.");
+                Trace($"Incomplete command: Expected {totalCommandLength} bytes, but buffer contains only {_buffer.Count}. Waiting for more data.");
                 break;
             }
 
@@ -78,15 +89,15 @@ public class SerialDataParser
             // Extract the command without the start byte (130) and the length byte.
             // The 'command' array contains all bytes starting after the length byte.
             byte[] command = _buffer.Skip(2).Take(totalCommandLength - 2).ToArray();
-            Console.WriteLine($"Complete command found. Length: {command.Length} bytes. Command: {BitConverter.ToString(command)}");
+            Trace($"Complete command found. Length: {command.Length} bytes. Command: {BitConverter.ToString(command)}");
 
             // Trigger event
             PacketReceived?.Invoke(command);
-            Console.WriteLine("PacketReceived event triggered.");
+            Trace("PacketReceived event triggered.");
 
             // Remove the processed command from the buffer.
             _buffer.RemoveRange(0, totalCommandLength);
-            Console.WriteLine($"Removed {totalCommandLength} bytes from the buffer. New buffer length: {_buffer.Count}");
+            Trace($"Removed {totalCommandLength} bytes from the buffer. New buffer length: {_buffer.Count}");
         }
     }
 }

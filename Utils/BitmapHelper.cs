@@ -1054,6 +1054,18 @@ public static class BitmapHelper
     private static List<string> WrapText(string text, SKFont font, float maxWidth)
     {
         var lines = new List<string>();
+
+        // Honor explicit line breaks first — each segment is then width-wrapped
+        // independently. Without this, '\n' (and '\r') would fall into the
+        // space-split below and render as missing-glyph boxes.
+        var segments = text.Replace("\r\n", "\n").Split('\n');
+        if (segments.Length > 1)
+        {
+            foreach (var segment in segments)
+                lines.AddRange(WrapText(segment, font, maxWidth));
+            return lines;
+        }
+
         var words = text.Split(' ');
         var currentLine = new StringBuilder();
 

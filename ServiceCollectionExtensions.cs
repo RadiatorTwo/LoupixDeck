@@ -88,6 +88,7 @@ public static class ServiceCollectionExtensions
         collection.AddSingleton<ICommandRunner, CommandRunner>();
         collection.AddSingleton<IDynamicTextManager, DynamicTextManager>();
         collection.AddSingleton<IFolderNavigationService, FolderNavigationService>();
+        collection.AddSingleton<IExclusiveModeService, ExclusiveModeService>();
 
         collection.AddSingleton<INativeHapticService, NativeHapticService>();
 

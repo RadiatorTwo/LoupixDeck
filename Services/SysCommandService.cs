@@ -122,6 +122,7 @@ namespace LoupixDeck.Services
                     DisplayName = entry.Attribute.DisplayName,
                     Group = entry.Attribute.Group,
                     ParameterTemplate = entry.Attribute.ParameterTemplate,
+                    Hidden = entry.Attribute.Hidden,
                     Parameters = CreateParameterDescriptors(entry.Attribute)
                 };
             }
@@ -137,6 +138,7 @@ namespace LoupixDeck.Services
                 DisplayName = kvp.Value.Attribute.DisplayName,
                 Group = kvp.Value.Attribute.Group,
                 ParameterTemplate = kvp.Value.Attribute.ParameterTemplate,
+                Hidden = kvp.Value.Attribute.Hidden,
                 Parameters = CreateParameterDescriptors(kvp.Value.Attribute)
             });
         }

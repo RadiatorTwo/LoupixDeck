@@ -73,7 +73,7 @@ public class RazerStreamControllerDevice : LoupedeckDevice
     /// panels (12/13) by routing to their unified-display X offsets; everything
     /// else falls through to the base 90×90 grid path.
     /// </summary>
-    public override async Task DrawTouchSlot(int index, SKBitmap bitmap)
+    public override async Task DrawTouchSlot(int index, SKBitmap bitmap, bool refresh = true)
     {
         ArgumentNullException.ThrowIfNull(bitmap);
         if (index == LeftSideIndex || index == RightSideIndex)
@@ -81,11 +81,11 @@ public class RazerStreamControllerDevice : LoupedeckDevice
             const int sideW = 60;
             const int sideH = 270;
             var destX = index == LeftSideIndex ? 0 : 420;
-            try { await DrawCanvasRegion("center", sideW, sideH, bitmap, destX, 0); }
+            try { await DrawCanvasRegion("center", sideW, sideH, bitmap, destX, 0, refresh); }
             catch (Exception ex) { Console.WriteLine($"Razer side-panel slot draw failed for index {index}: {ex.Message}"); }
             return;
         }
-        await base.DrawTouchSlot(index, bitmap);
+        await base.DrawTouchSlot(index, bitmap, refresh);
     }
 
     /// <summary>

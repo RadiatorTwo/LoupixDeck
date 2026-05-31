@@ -7,6 +7,7 @@ using LoupixDeck.PluginSdk;
 using LoupixDeck.Registry;
 using LoupixDeck.Services;
 using LoupixDeck.Services.FolderNavigation;
+using LoupixDeck.Services.Plugins;
 using LoupixDeck.Utils;
 
 namespace LoupixDeck.Controllers;
@@ -27,6 +28,7 @@ public class LoupedeckLiveSController(
     IPageManager pageManager,
     IConfigService configService,
     IFolderNavigationService folderNav,
+    IExclusiveModeService exclusiveMode,
     IAssetService assetService,
     INativeHapticService nativeHapticService,
     LoupedeckConfig config,
@@ -173,6 +175,7 @@ public class LoupedeckLiveSController(
 
         pageManager.OnTouchPageChanged += OnTouchPageChanged;
         folderNav.StateChanged += OnFolderStateChanged;
+        exclusiveMode.StateChanged += OnExclusiveStateChanged;
 
         // Subscribe to page property changes for wallpaper updates
         foreach (var page in config.TouchButtonPages)
@@ -248,6 +251,29 @@ public class LoupedeckLiveSController(
         if (e.EventType != Constants.ButtonEventType.BUTTON_DOWN)
             return;
 
+        if (exclusiveMode.IsActive)
+        {
+            // Exclusive provider receives the raw 0-based button index. Rotary
+            // presses are forwarded through OnRotaryPressed; everything else is
+            // a simple button.
+            if (TryGetRotaryIndex(e.ButtonId, out var rIdx))
+            {
+                try { exclusiveMode.Current?.OnRotaryPressed(rIdx); }
+                catch (Exception ex) { Console.WriteLine($"Exclusive rotary press: {ex.Message}"); }
+            }
+            else
+            {
+                var sbIdx = Array.FindIndex(config.SimpleButtons ?? Array.Empty<SimpleButton>(),
+                    b => b != null && b.Id == e.ButtonId);
+                if (sbIdx >= 0)
+                {
+                    try { exclusiveMode.Current?.OnSimpleButtonPressed(sbIdx); }
+                    catch (Exception ex) { Console.WriteLine($"Exclusive button press: {ex.Message}"); }
+                }
+            }
+            return;
+        }
+
         if (folderNav.IsActive)
         {
             // Side buttons are disabled in folder mode. Knob presses can still be
@@ -320,6 +346,16 @@ public class LoupedeckLiveSController(
 
         if (e.EventType != Constants.TouchEventType.TOUCH_START)
             return;
+
+        if (exclusiveMode.IsActive)
+        {
+            foreach (var touch in e.Touches)
+            {
+                try { exclusiveMode.Current?.OnTouchPressed(touch.Target.Key); }
+                catch (Exception ex) { Console.WriteLine($"Exclusive touch: {ex.Message}"); }
+            }
+            return;
+        }
 
         if (folderNav.IsActive)
         {
@@ -426,6 +462,16 @@ public class LoupedeckLiveSController(
 
     private void OnRotate(object sender, RotateEventArgs e)
     {
+        if (exclusiveMode.IsActive)
+        {
+            if (TryGetRotaryIndex(e.ButtonId, out var rIdx))
+            {
+                try { exclusiveMode.Current?.OnRotated(rIdx, e.Delta); }
+                catch (Exception ex) { Console.WriteLine($"Exclusive rotate: {ex.Message}"); }
+            }
+            return;
+        }
+
         if (folderNav.IsActive)
         {
             if (TryGetRotaryIndex(e.ButtonId, out var rotaryIndex) &&
@@ -476,12 +522,242 @@ public class LoupedeckLiveSController(
         }
     }
 
+    // Serializes exclusive-mode redraws and coalesces bursts. A chatty provider
+    // (e.g. a Spotify progress bar) raises EntriesChanged many times a second;
+    // without this, overlapping async-void redraw loops interleave their per-slot
+    // FRAMEBUFF/DRAW pairs on the serial queue and a DRAW presents a half-written
+    // buffer — visible as tearing on solid backgrounds.
+    private readonly SemaphoreSlim _exclusiveRedrawGate = new(1, 1);
+    private long _exclusiveGen;        // bumped on every change request
+    private long _exclusiveDrawnGen;   // generation already rendered
+    private long _lastExclusiveDrawTs; // Stopwatch timestamp of the last redraw
+
+    // Minimum gap between full redraws (~30 fps). Keeps a continuously-updating
+    // provider from driving the panel faster than it cleanly presents. The device
+    // tops out around 35–44 fps for a full repaint, so this also leaves headroom.
+    private const double ExclusiveMinRedrawMs = 1000.0 / 30.0;
+
+    private static double StopwatchMs(long ticks) =>
+        ticks * 1000.0 / System.Diagnostics.Stopwatch.Frequency;
+
+    private async void OnExclusiveStateChanged()
+    {
+        var requested = Interlocked.Increment(ref _exclusiveGen);
+
+        await _exclusiveRedrawGate.WaitAsync();
+        try
+        {
+            // Coalesced away: an earlier waiter already rendered state at least
+            // as fresh as this request. (BuildTouchEntries reads live provider
+            // state, so the newest content is always what gets drawn.)
+            if (Interlocked.Read(ref _exclusiveDrawnGen) >= requested)
+                return;
+
+            // Rate-limit: keep a minimum gap between full redraws.
+            var lastTs = Interlocked.Read(ref _lastExclusiveDrawTs);
+            if (lastTs != 0)
+            {
+                var wait = ExclusiveMinRedrawMs - StopwatchMs(System.Diagnostics.Stopwatch.GetTimestamp() - lastTs);
+                if (wait > 0)
+                    await Task.Delay((int)Math.Ceiling(wait));
+            }
+
+            var snapshot = Interlocked.Read(ref _exclusiveGen);
+            await RedrawExclusiveOnce();
+            Interlocked.Exchange(ref _exclusiveDrawnGen, snapshot);
+            Interlocked.Exchange(ref _lastExclusiveDrawTs, System.Diagnostics.Stopwatch.GetTimestamp());
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Exclusive redraw failed: {ex.Message}");
+        }
+        finally
+        {
+            _exclusiveRedrawGate.Release();
+        }
+    }
+
+    private async Task RedrawExclusiveOnce()
+    {
+        var device = deviceService.Device;
+        if (device == null) return;
+
+        if (exclusiveMode.IsActive)
+        {
+            var provider = exclusiveMode.Current;
+
+            // Map provider's entries by slot for quick lookup; remaining
+            // slots get blanked so leftover page content can't bleed
+            // through. Slot bounds match the folder renderer.
+            var entries = provider?.BuildTouchEntries() ?? Array.Empty<PluginSdk.FolderEntry>();
+            var bySlot = new Dictionary<int, PluginSdk.FolderEntry>(entries.Count);
+            foreach (var e in entries)
+            {
+                if (e != null) bySlot[e.SlotIndex] = e;
+            }
+
+            // The provider chooses how its frames reach the device (see
+            // ExclusiveRenderMode). SDK plugins default to FullScreen; per-tile
+            // modes trade the single big blit for many small framebuffer writes
+            // (no DRAW), which is the lever for higher frame rates on live data.
+            var mode = provider?.RenderMode ?? PluginSdk.ExclusiveRenderMode.FullScreen;
+
+            switch (mode)
+            {
+                case PluginSdk.ExclusiveRenderMode.SingleTile:
+                    ResetDirtyTiles();
+                    await DrawExclusiveSingleTile(device, bySlot, provider.SingleTileSlot);
+                    return;
+
+                case PluginSdk.ExclusiveRenderMode.Grid:
+                    ResetDirtyTiles();
+                    await DrawExclusiveGrid(device, bySlot);
+                    return;
+
+                case PluginSdk.ExclusiveRenderMode.DirtyTiles:
+                    await DrawExclusiveDirtyTiles(device, provider, bySlot);
+                    return;
+
+                default: // FullScreen
+                    ResetDirtyTiles();
+                    await DrawExclusiveFullScreen(device, bySlot);
+                    return;
+            }
+        }
+
+        // Exclusive ended — repaint the active page.
+        ResetDirtyTiles();
+        if (config.CurrentTouchButtonPage?.TouchButtons != null)
+        {
+            foreach (var touchButton in config.CurrentTouchButtonPage.TouchButtons)
+            {
+                await device.DrawTouchButton(touchButton, config, true, device.Columns);
+            }
+        }
+    }
+
+    // FullScreen: render every slot, push the whole frame in ONE atomic blit + DRAW.
+    // Drawing slot-by-slot here would refresh the full display 15× per frame.
+    private async Task DrawExclusiveFullScreen(LoupedeckDevice.Device.LoupedeckDevice device,
+        IReadOnlyDictionary<int, PluginSdk.FolderEntry> bySlot)
+    {
+        var slotBitmaps = new SkiaSharp.SKBitmap[FolderConstants.TotalSlots];
+        for (var slot = 0; slot < FolderConstants.TotalSlots; slot++)
+            slotBitmaps[slot] = RenderSlot(bySlot, slot);
+
+        await device.DrawTouchSlotsAtomic(slotBitmaps, refresh: true);
+
+        foreach (var b in slotBitmaps) b?.Dispose();
+    }
+
+    // Grid: every slot as its own 90x90 framebuffer, no DRAW.
+    private async Task DrawExclusiveGrid(LoupedeckDevice.Device.LoupedeckDevice device,
+        IReadOnlyDictionary<int, PluginSdk.FolderEntry> bySlot)
+    {
+        for (var slot = 0; slot < FolderConstants.TotalSlots; slot++)
+        {
+            using var bmp = RenderSlot(bySlot, slot);
+            await device.DrawTouchSlot(slot, bmp, refresh: false);
+        }
+    }
+
+    // SingleTile: draw just one 90x90 slot, no DRAW.
+    private async Task DrawExclusiveSingleTile(LoupedeckDevice.Device.LoupedeckDevice device,
+        IReadOnlyDictionary<int, PluginSdk.FolderEntry> bySlot, int slotIndex)
+    {
+        if (slotIndex < 0 || slotIndex >= FolderConstants.TotalSlots) slotIndex = 0;
+        using var bmp = RenderSlot(bySlot, slotIndex);
+        await device.DrawTouchSlot(slotIndex, bmp, refresh: false);
+    }
+
+    // DirtyTiles: like Grid, but only re-send slots whose visible content changed
+    // since the last frame. A new provider (or first frame) repaints everything.
+    private async Task DrawExclusiveDirtyTiles(LoupedeckDevice.Device.LoupedeckDevice device,
+        PluginSdk.IExclusiveModeProvider provider,
+        IReadOnlyDictionary<int, PluginSdk.FolderEntry> bySlot)
+    {
+        if (!ReferenceEquals(_dirtyOwner, provider) || _dirtyKeys == null)
+        {
+            _dirtyOwner = provider;
+            _dirtyKeys = new TileSig?[FolderConstants.TotalSlots]; // all null → redraw all
+        }
+
+        for (var slot = 0; slot < FolderConstants.TotalSlots; slot++)
+        {
+            var sig = bySlot.TryGetValue(slot, out var entry) ? TileSig.Of(entry) : TileSig.Empty;
+            var prev = _dirtyKeys[slot];
+            if (prev.HasValue && prev.Value.Equals(sig))
+                continue; // unchanged — skip the serial write entirely
+
+            using (var bmp = RenderSlot(bySlot, slot))
+                await device.DrawTouchSlot(slot, bmp, refresh: false);
+
+            _dirtyKeys[slot] = sig;
+        }
+    }
+
+    private SkiaSharp.SKBitmap RenderSlot(IReadOnlyDictionary<int, PluginSdk.FolderEntry> bySlot, int slot)
+        => bySlot.TryGetValue(slot, out var entry)
+            ? RenderSdkEntry(entry, slot)
+            : BitmapHelper.RenderEmptyFolderSlot(config, slot, 90, 90, FolderConstants.Columns);
+
+    // --- DirtyTiles bookkeeping -------------------------------------------------
+    private PluginSdk.IExclusiveModeProvider _dirtyOwner;
+    private TileSig?[] _dirtyKeys;
+
+    private void ResetDirtyTiles()
+    {
+        _dirtyOwner = null;
+        _dirtyKeys = null;
+    }
+
+    /// <summary>Visible signature of a touch slot — two equal signatures render to
+    /// the same pixels, so the DirtyTiles path can skip re-sending the tile.</summary>
+    private readonly record struct TileSig(
+        string Text, PluginSdk.PluginColor Back, PluginSdk.PluginColor Fore, int TextSize, bool Bold, int ImageHash)
+    {
+        public static readonly TileSig Empty = new(" <empty>", default, default, 0, false, 0);
+
+        public static TileSig Of(PluginSdk.FolderEntry e)
+            => new(e.Text ?? string.Empty, e.BackColor, e.TextColor, e.TextSize, e.Bold, HashImage(e.Image));
+
+        private static int HashImage(byte[] img)
+        {
+            if (img == null || img.Length == 0) return 0;
+            unchecked
+            {
+                var h = (int)2166136261;
+                foreach (var b in img) h = (h ^ b) * 16777619;
+                return h;
+            }
+        }
+    }
+
+    /// <summary>Adapts an SDK FolderEntry to the core FolderEntry renderer.</summary>
+    private static SkiaSharp.SKBitmap RenderSdkEntry(PluginSdk.FolderEntry e, int slot)
+    {
+        var core = new Services.FolderNavigation.FolderEntry
+        {
+            SlotIndex = e.SlotIndex,
+            Text = e.Text,
+            BackColor = Avalonia.Media.Color.FromArgb(e.BackColor.A, e.BackColor.R, e.BackColor.G, e.BackColor.B),
+            TextColor = Avalonia.Media.Color.FromArgb(e.TextColor.A, e.TextColor.R, e.TextColor.G, e.TextColor.B),
+            TextSize = e.TextSize,
+            Bold = e.Bold
+        };
+        return BitmapHelper.RenderFolderEntry(core, null, slot, 90, 90, FolderConstants.Columns);
+    }
+
     private async void OnFolderStateChanged()
     {
         try
         {
             var device = deviceService.Device;
             if (device == null) return;
+
+            // Exclusive mode owns the display — skip folder repaints, they'd
+            // race with the exclusive provider's slot updates.
+            if (exclusiveMode.IsActive) return;
 
             if (folderNav.IsActive)
             {
@@ -601,10 +877,10 @@ public class LoupedeckLiveSController(
     {
         if (sender is not TouchButton item) return;
 
-        // Folder mode owns the touch display — suppress per-button redraws (e.g. from
-        // DynamicTextManager) so they don't paint over the folder view. When the folder
-        // exits, OnFolderStateChanged redraws every slot from the current state.
-        if (folderNav.IsActive) return;
+        // Folder mode or exclusive mode owns the touch display — suppress per-button
+        // redraws (e.g. from DynamicTextManager) so they don't paint over the active
+        // view. When the override exits, the corresponding handler repaints the page.
+        if (folderNav.IsActive || exclusiveMode.IsActive) return;
 
         var button = config.CurrentTouchButtonPage.TouchButtons.FirstOrDefault(b => b.Index == item.Index);
 

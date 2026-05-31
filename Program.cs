@@ -201,17 +201,56 @@ sealed class Program
     }
 #endif
 
+#if WINDOWS
+    private const int AttachParentProcess = -1;
+
+    [System.Runtime.InteropServices.DllImport("kernel32.dll", SetLastError = true)]
+    [return: System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)]
+    private static extern bool AttachConsole(int dwProcessId);
+
+    [System.Runtime.InteropServices.DllImport("kernel32.dll", SetLastError = true)]
+    [return: System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)]
+    private static extern bool AllocConsole();
+#endif
+
+    /// <summary>
+    /// Debug builds send console output to the terminal for live diagnostics;
+    /// release builds redirect it to a log file. Because this is a WinExe (GUI
+    /// subsystem) there is no console on Windows by default, so the debug path
+    /// attaches to the launching terminal — or opens a fresh console as a
+    /// fallback (e.g. when started from Explorer).
+    /// </summary>
     private static void RedirectConsoleToLogFile()
     {
+#if DEBUG
+#if WINDOWS
+        try
+        {
+            // AttachConsole/AllocConsole both fail (returning false) when a
+            // console is already shared from `dotnet run`; that's fine — we just
+            // rebind to whatever console we end up with so AutoFlush is on.
+            if (!AttachConsole(AttachParentProcess))
+                AllocConsole();
+
+            var stdout = new StreamWriter(Console.OpenStandardOutput()) { AutoFlush = true };
+            Console.SetOut(stdout);
+            Console.SetError(stdout);
+            try { Console.OutputEncoding = Encoding.UTF8; } catch { /* console may reject */ }
+        }
+        catch
+        {
+            // best-effort — leave the default stdout in place
+        }
+#endif
+        // Non-Windows debug builds already have stdout wired to the terminal.
+        AppDomain.CurrentDomain.UnhandledException += (_, e) =>
+            Console.WriteLine($"UnhandledException: {e.ExceptionObject}");
+#else
         try
         {
             var home = Environment.GetEnvironmentVariable("HOME")
                        ?? Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-#if DEBUG
-            var dir = Path.Combine(home, ".config", "LoupixDeck", "debug");
-#else
             var dir = Path.Combine(home, ".config", "LoupixDeck");
-#endif
             Directory.CreateDirectory(dir);
             var path = Path.Combine(dir, "loupixdeck-startup.log");
             var stream = new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.Read);
@@ -228,6 +267,7 @@ sealed class Program
         {
             // best-effort
         }
+#endif
     }
 
     public static AppBuilder BuildAvaloniaApp()
