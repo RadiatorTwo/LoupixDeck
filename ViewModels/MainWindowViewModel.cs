@@ -30,6 +30,7 @@ public class MainWindowViewModel : ViewModelBase
     public ICommand TouchPageButtonCommand { get; }
 
     public ICommand SettingsMenuCommand { get; }
+    public ICommand MacroEditorMenuCommand { get; }
     public ICommand AboutMenuCommand { get; }
     public ICommand QuitApplicationCommand { get; }
     public ICommand ToggleDeviceStateCommand { get; }
@@ -116,6 +117,7 @@ public class MainWindowViewModel : ViewModelBase
         TouchPageButtonCommand = new RelayCommand<int>(TouchPageButton_Click);
 
         SettingsMenuCommand = new AsyncRelayCommand(SettingsMenuButton_Click);
+        MacroEditorMenuCommand = new AsyncRelayCommand(MacroEditorMenuButton_Click);
         AboutMenuCommand = new AsyncRelayCommand(AboutMenuButton_Click);
         QuitApplicationCommand = new RelayCommand(QuitApplication);
         ToggleDeviceStateCommand = new AsyncRelayCommand(LoupedeckController.ToggleDeviceState);
@@ -211,6 +213,12 @@ public class MainWindowViewModel : ViewModelBase
     {
         await _dialogService.ShowDialogAsync<SettingsViewModel, DialogResult>();
         LoupedeckController.SaveConfig();
+    }
+
+    private async Task MacroEditorMenuButton_Click()
+    {
+        // Macros persist in their own macros.json — no SaveConfig needed here.
+        await _dialogService.ShowDialogAsync<MacroEditorViewModel, DialogResult>();
     }
     
     private async Task AboutMenuButton_Click()

@@ -92,6 +92,9 @@ public class CoreCommandProvider : ICommandProvider
             "Pages" => ButtonTargets.All,
             "Device Control" => ButtonTargets.All,
             "Macros" => ButtonTargets.TouchButton,
+            // User-defined macros (System.Macro) are generic input automation —
+            // assignable to every button type.
+            "User Macros" => ButtonTargets.All,
             "Dynamic Text" => ButtonTargets.TouchButton,
             // "Button Control" and anything unmapped is not menu-assignable.
             _ => ButtonTargets.None

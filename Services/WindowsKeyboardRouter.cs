@@ -28,6 +28,10 @@ namespace LoupixDeck.Services
 
         public void SendKeyCombination(IReadOnlyList<string> keyNames) => Active.SendKeyCombination(keyNames);
 
+        public void KeyDown(string keyName) => Active.KeyDown(keyName);
+
+        public void KeyUp(string keyName) => Active.KeyUp(keyName);
+
         public void Dispose()
         {
             sendInput.Dispose();
