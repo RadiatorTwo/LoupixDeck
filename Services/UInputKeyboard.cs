@@ -30,6 +30,17 @@ namespace LoupixDeck.Services
         /// </summary>
         /// <param name="keyNames">Ordered list of key names making up the combination.</param>
         void SendKeyCombination(IReadOnlyList<string> keyNames);
+
+        /// <summary>
+        /// Presses a key and keeps it held down until <see cref="KeyUp"/> is called for the
+        /// same key. Key names are resolved via <see cref="Utils.KeyNames"/>.
+        /// </summary>
+        void KeyDown(string keyName);
+
+        /// <summary>
+        /// Releases a key previously held down by <see cref="KeyDown"/>.
+        /// </summary>
+        void KeyUp(string keyName);
     }
 
     public class UInputKeyboard : IUInputKeyboard
@@ -259,6 +270,28 @@ namespace LoupixDeck.Services
                 ReleaseKey(codes[i]);
         }
 
+        public void KeyDown(string keyName)
+        {
+            if (!Connected)
+                return;
+
+            if (KeyNames.TryGetLinux(keyName, out var code))
+                PressKey(code);
+            else
+                Console.Error.WriteLine($"[UInputKeyboard] Unknown key name: '{keyName}'");
+        }
+
+        public void KeyUp(string keyName)
+        {
+            if (!Connected)
+                return;
+
+            if (KeyNames.TryGetLinux(keyName, out var code))
+                ReleaseKey(code);
+            else
+                Console.Error.WriteLine($"[UInputKeyboard] Unknown key name: '{keyName}'");
+        }
+
         public void Dispose()
         {
             if (_disposed) return;
@@ -480,6 +513,27 @@ namespace LoupixDeck.Services
                 inputs[i++] = KeyInput(keys[k].virtualKey, keys[k].extended, true);
 
             Send(inputs);
+        }
+
+        public void KeyDown(string keyName)
+        {
+            SendSingle(keyName, up: false);
+        }
+
+        public void KeyUp(string keyName)
+        {
+            SendSingle(keyName, up: true);
+        }
+
+        private void SendSingle(string keyName, bool up)
+        {
+            if (!Connected)
+                return;
+
+            if (KeyNames.TryGetWindows(keyName, out var virtualKey, out var extended))
+                Send([KeyInput(virtualKey, extended, up)]);
+            else
+                Console.Error.WriteLine($"[WindowsUInputKeyboard] Unknown key name: '{keyName}'");
         }
 
         public void Dispose()

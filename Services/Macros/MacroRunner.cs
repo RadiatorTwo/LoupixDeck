@@ -1,0 +1,132 @@
+using System.Diagnostics;
+using LoupixDeck.Models.Macros;
+using LoupixDeck.PluginSdk;
+using LoupixDeck.Services.Mouse;
+
+namespace LoupixDeck.Services.Macros;
+
+/// <summary>
+/// Executes the steps of a user-defined macro sequentially. Each step is wrapped in
+/// its own try/catch so a faulty step (unknown key, failing command) does not abort
+/// the rest of the macro.
+/// </summary>
+public class MacroRunner
+{
+    private readonly IUInputKeyboard _keyboard;
+    private readonly IVirtualMouse _mouse;
+    private readonly ICommandService _commandService;
+
+    public MacroRunner(IUInputKeyboard keyboard, IVirtualMouse mouse, ICommandService commandService)
+    {
+        _keyboard = keyboard;
+        _mouse = mouse;
+        _commandService = commandService;
+    }
+
+    public async Task Run(Macro macro)
+    {
+        if (macro == null)
+        {
+            Console.Error.WriteLine("[MacroRunner] Macro not found.");
+            return;
+        }
+
+        foreach (var step in macro.Steps)
+        {
+            if (step == null) continue;
+
+            try
+            {
+                await ExecuteStep(step);
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine(
+                    $"[MacroRunner] Step '{step.TypeText}' in macro '{macro.Name}' failed: {ex.Message}");
+            }
+        }
+    }
+
+    private async Task ExecuteStep(MacroStep step)
+    {
+        switch (step)
+        {
+            case TextStep text:
+                if (!string.IsNullOrEmpty(text.Text))
+                    _keyboard.SendText(text.Text);
+                break;
+
+            case KeyCombinationStep combo:
+                var keys = (combo.Keys ?? string.Empty)
+                    .Split('+', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                if (keys.Length > 0)
+                    _keyboard.SendKeyCombination(keys);
+                break;
+
+            case DelayStep delay:
+                await Delay(delay.Milliseconds);
+                break;
+
+            case KeyDownStep keyDown:
+                if (!string.IsNullOrWhiteSpace(keyDown.Key))
+                    _keyboard.KeyDown(keyDown.Key);
+                break;
+
+            case KeyUpStep keyUp:
+                if (!string.IsNullOrWhiteSpace(keyUp.Key))
+                    _keyboard.KeyUp(keyUp.Key);
+                break;
+
+            case MouseStep mouse:
+                ExecuteMouseStep(mouse);
+                break;
+
+            case CommandStep command:
+                if (!string.IsNullOrWhiteSpace(command.CommandString))
+                    await _commandService.ExecuteCommand(command.CommandString, ButtonTargets.None);
+                break;
+        }
+    }
+
+    private void ExecuteMouseStep(MouseStep step)
+    {
+        switch (step.Action)
+        {
+            case MouseStepAction.Click:
+                _mouse.Click(step.Button);
+                break;
+            case MouseStepAction.Down:
+                _mouse.ButtonDown(step.Button);
+                break;
+            case MouseStepAction.Up:
+                _mouse.ButtonUp(step.Button);
+                break;
+            case MouseStepAction.MoveRelative:
+                _mouse.MoveRelative(step.X, step.Y);
+                break;
+            case MouseStepAction.MoveAbsolute:
+                _mouse.MoveAbsolute(step.X, step.Y);
+                break;
+            case MouseStepAction.Scroll:
+                _mouse.Scroll(step.Amount);
+                break;
+        }
+    }
+
+    // Coarse Task.Delay for the bulk, short spin for the tail — Task.Delay alone has
+    // ~15 ms granularity on Windows (same pattern as DeviceControlCommands.WaitUntilMs).
+    private static async Task Delay(int milliseconds)
+    {
+        if (milliseconds <= 0)
+            return;
+
+        var sw = Stopwatch.StartNew();
+        while (true)
+        {
+            var remain = milliseconds - sw.Elapsed.TotalMilliseconds;
+            if (remain <= 0) return;
+            if (remain > 3) await Task.Delay(1);
+            else Thread.SpinWait(200);
+        }
+    }
+}

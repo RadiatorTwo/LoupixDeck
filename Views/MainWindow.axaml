@@ -61,6 +61,11 @@
                                 FontSize="18"
                                 Content="Settings"
                                 Command="{Binding SettingsMenuCommand}" />
+                        <Button Width="100" Height="40" VerticalContentAlignment="Center" Margin="0,5,0,0"
+                                HorizontalContentAlignment="Center"
+                                FontSize="18"
+                                Content="Macros"
+                                Command="{Binding MacroEditorMenuCommand}" />
                         <Separator />
                         <Button Width="100" Height="40" VerticalContentAlignment="Center"
                                 HorizontalContentAlignment="Center"
