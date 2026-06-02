@@ -3,9 +3,9 @@ using LoupixDeck.Models.Macros;
 namespace LoupixDeck.Services.Mouse;
 
 /// <summary>
-/// Virtual mouse used by macro mouse steps. Windows: SendInput; Linux: uinput.
-/// Kept separate from <see cref="IUInputKeyboard"/> so the keyboard backends
-/// (including Interception) stay untouched.
+/// Virtual mouse used by macro mouse steps. Windows: SendInput or Interception
+/// (picked per call by <see cref="WindowsMouseRouter"/>); Linux: uinput.
+/// Kept separate from <see cref="IUInputKeyboard"/> so the two input paths stay decoupled.
 /// </summary>
 public interface IVirtualMouse : IDisposable
 {

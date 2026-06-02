@@ -7,8 +7,8 @@ namespace LoupixDeck.Services.Mouse;
 /// Windows implementation backed by the Win32 <c>SendInput</c> API (user32.dll).
 /// Injected mouse events enter the session input stream like a real mouse. Note:
 /// they carry the injected flag, so raw-input apps may ignore them (same limit as
-/// <see cref="WindowsUInputKeyboard"/>). Interception is intentionally not used
-/// for mouse input.
+/// <see cref="WindowsUInputKeyboard"/>) — <see cref="InterceptionMouse"/> covers
+/// that case; <see cref="WindowsMouseRouter"/> picks between the two per call.
 /// </summary>
 public class WindowsVirtualMouse : IVirtualMouse
 {

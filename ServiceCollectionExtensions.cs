@@ -102,8 +102,11 @@ public static class ServiceCollectionExtensions
             // Manages downloading/installing/uninstalling the Interception driver (settings page).
             collection.AddSingleton<IInterceptionService, InterceptionService>();
 
-            // Virtual mouse for macro mouse steps (SendInput-backed; Interception mouse is not used).
-            collection.AddSingleton<IVirtualMouse, WindowsVirtualMouse>();
+            // Virtual mouse for macro mouse steps — same backend split as the keyboard:
+            // SendInput (always works) and Interception, picked per call by a router.
+            collection.AddSingleton<WindowsVirtualMouse>();
+            collection.AddSingleton<InterceptionMouse>();
+            collection.AddSingleton<IVirtualMouse, WindowsMouseRouter>();
         }
 
         collection.AddSingleton<IDBusController, DBusController>();

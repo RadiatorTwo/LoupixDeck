@@ -42,8 +42,8 @@ public class LoupedeckConfig : INotifyPropertyChanged
     public CloseButtonBehavior CloseButtonBehavior { get; set; } = CloseButtonBehavior.MinimizeToTray;
     public bool StartMinimizedToTray { get; set; }
 
-    // Windows only: route keyboard macros through the Interception kernel driver
-    // instead of SendInput, so injected keys reach raw-input apps (games / anti-cheat).
+    // Windows only: route keyboard and mouse macros through the Interception kernel driver
+    // instead of SendInput, so injected input reaches raw-input apps (games / anti-cheat).
     // null = "auto" (active when the driver is installed); false = explicitly off.
     // Missing in older config.json simply stays null → auto behaviour (backward compatible).
     private bool? _interceptionEnabled;
