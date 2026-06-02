@@ -1,0 +1,424 @@
+<Window
+    x:Class="LoupixDeck.Views.MacroEditor"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:vm="using:LoupixDeck.ViewModels"
+    xmlns:macros="using:LoupixDeck.Models.Macros"
+    xmlns:models="using:LoupixDeck.Models"
+    x:DataType="vm:MacroEditorViewModel"
+    Title="Macro Editor"
+    Width="980"
+    Height="700"
+    mc:Ignorable="d"
+    SystemDecorations="Full"
+    CanResize="True"
+    MinWidth="820"
+    MinHeight="560">
+
+    <Window.Styles>
+        <StyleInclude Source="avares://LoupixDeck/Views/Styles/SettingsStyles.axaml" />
+
+        <!-- Step panel -->
+        <Style Selector="Border.step-panel">
+            <Setter Property="Background" Value="#262626" />
+            <Setter Property="BorderBrush" Value="#3A3A3A" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="Margin" Value="0,0,0,6" />
+            <Setter Property="Padding" Value="10,4" />
+        </Style>
+        <Style Selector="Border.step-panel.dragging">
+            <Setter Property="Opacity" Value="0.55" />
+            <Setter Property="BorderBrush" Value="#4DA3FF" />
+        </Style>
+
+        <Style Selector="TextBlock.step-icon">
+            <Setter Property="FontFamily" Value="{StaticResource MdiFont}" />
+            <Setter Property="FontSize" Value="20" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+        <Style Selector="TextBlock.step-type">
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+        <Style Selector="TextBlock.step-value">
+            <Setter Property="Foreground" Value="#A0A0A0" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+        </Style>
+
+        <Style Selector="Border.drag-handle">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Cursor" Value="SizeAll" />
+            <Setter Property="Padding" Value="6,0" />
+        </Style>
+        <Style Selector="Border.drag-handle TextBlock">
+            <Setter Property="Foreground" Value="#707070" />
+        </Style>
+        <Style Selector="Border.drag-handle:pointerover TextBlock">
+            <Setter Property="Foreground" Value="#C0C0C0" />
+        </Style>
+
+        <Style Selector="Border.step-editor">
+            <Setter Property="BorderBrush" Value="#3A3A3A" />
+            <Setter Property="BorderThickness" Value="0,1,0,0" />
+            <Setter Property="Margin" Value="0,4,0,0" />
+            <Setter Property="Padding" Value="2,8,2,4" />
+        </Style>
+
+        <Style Selector="TextBlock.editor-label">
+            <Setter Property="Foreground" Value="#A0A0A0" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+
+        <!-- Collapse/expand toggle on each step panel -->
+        <Style Selector="ToggleButton.step-expand">
+            <Setter Property="Background" Value="#333" />
+            <Setter Property="BorderBrush" Value="#444" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="Width" Value="28" />
+            <Setter Property="Height" Value="28" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="Margin" Value="0,0,4,0" />
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="FontFamily" Value="{StaticResource MdiFont}" />
+            <Setter Property="Content" Value="&#xF0140;" />
+            <!-- mdi-chevron-down -->
+        </Style>
+        <Style Selector="ToggleButton.step-expand:checked">
+            <Setter Property="Content" Value="&#xF0143;" />
+            <!-- mdi-chevron-up -->
+        </Style>
+        <Style Selector="ToggleButton.step-expand:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#3F3F3F" />
+        </Style>
+        <Style Selector="ToggleButton.step-expand:checked /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#333" />
+            <Setter Property="Foreground" Value="White" />
+        </Style>
+        <Style Selector="ToggleButton.step-expand:checked:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#3F3F3F" />
+            <Setter Property="Foreground" Value="White" />
+        </Style>
+
+        <!-- Invalid-input highlight (macro name) -->
+        <Style Selector="TextBox.error /template/ Border#PART_BorderElement">
+            <Setter Property="BorderBrush" Value="#E05A5A" />
+        </Style>
+        <Style Selector="TextBox.error:pointerover /template/ Border#PART_BorderElement">
+            <Setter Property="BorderBrush" Value="#E05A5A" />
+        </Style>
+        <Style Selector="TextBox.error:focus /template/ Border#PART_BorderElement">
+            <Setter Property="BorderBrush" Value="#E05A5A" />
+        </Style>
+
+        <Style Selector="TextBlock.validation-error">
+            <Setter Property="Foreground" Value="#F08A8A" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+        </Style>
+    </Window.Styles>
+
+    <Grid RowDefinitions="Auto,*" Margin="14">
+
+        <!-- Title -->
+        <TextBlock Grid.Row="0" Classes="page-title" Text="Macro Editor" />
+
+        <!-- Main content: macro list | step editor -->
+        <Grid Grid.Row="1" ColumnDefinitions="260,*">
+
+            <!-- Left: macro list -->
+            <Border Grid.Column="0" Classes="card" Margin="0,0,12,0" Padding="10">
+                <Grid RowDefinitions="Auto,*,Auto">
+                    <TextBlock Grid.Row="0" Classes="card-title" Text="Macros" />
+
+                    <ListBox Grid.Row="1"
+                             ItemsSource="{Binding Macros}"
+                             SelectedItem="{Binding SelectedMacro, Mode=TwoWay}">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate DataType="{x:Type macros:Macro}">
+                                <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+
+                    <Grid Grid.Row="2" ColumnDefinitions="*,*" Margin="0,8,0,0">
+                        <Button Grid.Column="0"
+                                Content="Add Macro"
+                                HorizontalAlignment="Stretch"
+                                HorizontalContentAlignment="Center"
+                                Margin="0,0,4,0"
+                                Command="{Binding AddMacroCommand}" />
+                        <Button Grid.Column="1"
+                                Content="Remove"
+                                HorizontalAlignment="Stretch"
+                                HorizontalContentAlignment="Center"
+                                Margin="4,0,0,0"
+                                Background="#3A2424"
+                                Foreground="#E08A8A"
+                                IsEnabled="{Binding HasSelectedMacro}"
+                                Command="{Binding RemoveMacroCommand}" />
+                    </Grid>
+                </Grid>
+            </Border>
+
+            <!-- Right: steps of the selected macro -->
+            <Border Grid.Column="1" Classes="card" Margin="0" Padding="14"
+                    IsVisible="{Binding HasSelectedMacro}">
+                <Grid RowDefinitions="Auto,Auto,*">
+
+                    <!-- Name -->
+                    <Grid Grid.Row="0" RowDefinitions="Auto,Auto" ColumnDefinitions="Auto,*" Margin="0,0,0,10">
+                        <TextBlock Grid.Row="0" Grid.Column="0" Classes="editor-label" Text="Name" Margin="0,0,10,0" />
+                        <TextBox Grid.Row="0" Grid.Column="1"
+                                 Classes.error="{Binding HasValidationMessage}"
+                                 Text="{Binding SelectedMacro.Name, Mode=TwoWay}" />
+                        <TextBlock Grid.Row="1" Grid.Column="1"
+                                   Classes="validation-error"
+                                   Margin="0,4,0,0"
+                                   Text="{Binding ValidationMessage}"
+                                   IsVisible="{Binding HasValidationMessage}" />
+                    </Grid>
+
+                    <!-- Steps header + add button -->
+                    <Grid Grid.Row="1" ColumnDefinitions="*,Auto" Margin="0,0,0,8">
+                        <TextBlock Grid.Column="0" Classes="card-title" Text="Steps" VerticalAlignment="Center"
+                                   Margin="0" />
+                        <Button Grid.Column="1" Content="Add Step ▾">
+                            <Button.Flyout>
+                                <MenuFlyout Placement="BottomEdgeAlignedRight">
+                                    <MenuItem Header="Type Text" Tag="Text" Click="AddStepMenu_Click" />
+                                    <MenuItem Header="Key Combination" Tag="KeyCombination" Click="AddStepMenu_Click" />
+                                    <MenuItem Header="Key Down" Tag="KeyDown" Click="AddStepMenu_Click" />
+                                    <MenuItem Header="Key Up" Tag="KeyUp" Click="AddStepMenu_Click" />
+                                    <MenuItem Header="Delay" Tag="Delay" Click="AddStepMenu_Click" />
+                                    <MenuItem Header="Mouse" Tag="Mouse" Click="AddStepMenu_Click" />
+                                    <MenuItem Header="Command" Tag="Command" Click="AddStepMenu_Click" />
+                                </MenuFlyout>
+                            </Button.Flyout>
+                        </Button>
+                    </Grid>
+
+                    <!-- Step list -->
+                    <ScrollViewer Grid.Row="2"
+                                  VerticalScrollBarVisibility="Auto"
+                                  HorizontalScrollBarVisibility="Disabled">
+                        <StackPanel>
+                            <ItemsControl Name="StepsList"
+                                          ItemsSource="{Binding SelectedMacro.Steps}"
+                                          PointerMoved="StepsList_PointerMoved"
+                                          PointerReleased="StepsList_PointerReleased"
+                                          PointerCaptureLost="StepsList_PointerCaptureLost">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate DataType="{x:Type macros:MacroStep}">
+                                        <Border Classes="step-panel" Classes.dragging="{Binding IsDragging}">
+                                            <Grid RowDefinitions="Auto,Auto">
+
+                                                <!-- Panel row: icon | type | value | expand | remove | drag handle -->
+                                                <Grid Grid.Row="0"
+                                                      ColumnDefinitions="36,150,*,Auto,Auto,Auto"
+                                                      MinHeight="36">
+                                                    <TextBlock Grid.Column="0" Classes="step-icon"
+                                                               Text="{Binding Icon}" />
+                                                    <TextBlock Grid.Column="1" Classes="step-type"
+                                                               Text="{Binding TypeText}" />
+                                                    <TextBlock Grid.Column="2" Classes="step-value"
+                                                               Text="{Binding ValueText}" />
+
+                                                    <ToggleButton Grid.Column="3" Classes="step-expand"
+                                                                  VerticalAlignment="Center"
+                                                                  ToolTip.Tip="Expand / collapse step editor"
+                                                                  IsChecked="{Binding IsEditing, Mode=TwoWay}" />
+
+                                                    <Button Grid.Column="4" Classes="row-action danger"
+                                                            FontFamily="{StaticResource MdiFont}"
+                                                            Content="&#xF01B4;"
+                                                            VerticalAlignment="Center"
+                                                            ToolTip.Tip="Remove step"
+                                                            Click="RemoveStep_Click" />
+
+                                                    <Border Grid.Column="5" Classes="drag-handle"
+                                                            VerticalAlignment="Stretch"
+                                                            PointerPressed="DragHandle_PointerPressed">
+                                                        <TextBlock Classes="step-icon" Text="&#xF01DB;" />
+                                                    </Border>
+                                                </Grid>
+
+                                                <!-- Inline editor (expanded via Edit) -->
+                                                <Border Grid.Row="1" Classes="step-editor"
+                                                        IsVisible="{Binding IsEditing}">
+                                                    <ContentControl Content="{Binding}">
+                                                        <ContentControl.DataTemplates>
+
+                                                            <DataTemplate DataType="{x:Type macros:TextStep}">
+                                                                <Grid ColumnDefinitions="Auto,*">
+                                                                    <TextBlock Grid.Column="0" Classes="editor-label"
+                                                                               Text="Text" Margin="0,0,10,0" />
+                                                                    <TextBox Grid.Column="1"
+                                                                             Text="{Binding Text, Mode=TwoWay}" />
+                                                                </Grid>
+                                                            </DataTemplate>
+
+                                                            <DataTemplate DataType="{x:Type macros:KeyCombinationStep}">
+                                                                <StackPanel Spacing="4">
+                                                                    <Grid ColumnDefinitions="Auto,*">
+                                                                        <TextBlock Grid.Column="0" Classes="editor-label"
+                                                                                   Text="Keys" Margin="0,0,10,0" />
+                                                                        <TextBox Grid.Column="1"
+                                                                                 Text="{Binding Keys, Mode=TwoWay}" />
+                                                                    </Grid>
+                                                                    <TextBlock Classes="hint"
+                                                                               Text="Key names joined with '+', e.g. Ctrl+Shift+Esc or Tab or Enter." />
+                                                                </StackPanel>
+                                                            </DataTemplate>
+
+                                                            <DataTemplate DataType="{x:Type macros:DelayStep}">
+                                                                <Grid ColumnDefinitions="Auto,Auto,Auto">
+                                                                    <TextBlock Grid.Column="0" Classes="editor-label"
+                                                                               Text="Duration" Margin="0,0,10,0" />
+                                                                    <NumericUpDown Grid.Column="1" Width="140"
+                                                                                   Minimum="0" Maximum="600000"
+                                                                                   Increment="50" FormatString="0"
+                                                                                   Value="{Binding Milliseconds, Mode=TwoWay}" />
+                                                                    <TextBlock Grid.Column="2" Classes="editor-label"
+                                                                               Text="ms" Margin="8,0,0,0" />
+                                                                </Grid>
+                                                            </DataTemplate>
+
+                                                            <DataTemplate DataType="{x:Type macros:KeyDownStep}">
+                                                                <StackPanel Spacing="4">
+                                                                    <Grid ColumnDefinitions="Auto,*">
+                                                                        <TextBlock Grid.Column="0" Classes="editor-label"
+                                                                                   Text="Key" Margin="0,0,10,0" />
+                                                                        <TextBox Grid.Column="1"
+                                                                                 Text="{Binding Key, Mode=TwoWay}" />
+                                                                    </Grid>
+                                                                    <TextBlock Classes="hint"
+                                                                               Text="Single key name to hold down, e.g. Shift, Ctrl, A. Release it with a Key Up step." />
+                                                                </StackPanel>
+                                                            </DataTemplate>
+
+                                                            <DataTemplate DataType="{x:Type macros:KeyUpStep}">
+                                                                <StackPanel Spacing="4">
+                                                                    <Grid ColumnDefinitions="Auto,*">
+                                                                        <TextBlock Grid.Column="0" Classes="editor-label"
+                                                                                   Text="Key" Margin="0,0,10,0" />
+                                                                        <TextBox Grid.Column="1"
+                                                                                 Text="{Binding Key, Mode=TwoWay}" />
+                                                                    </Grid>
+                                                                    <TextBlock Classes="hint"
+                                                                               Text="Single key name to release, e.g. Shift, Ctrl, A." />
+                                                                </StackPanel>
+                                                            </DataTemplate>
+
+                                                            <DataTemplate DataType="{x:Type macros:MouseStep}">
+                                                                <StackPanel Spacing="6">
+                                                                    <Grid ColumnDefinitions="Auto,180,20,Auto,180">
+                                                                        <TextBlock Grid.Column="0" Classes="editor-label"
+                                                                                   Text="Action" Margin="0,0,10,0" />
+                                                                        <ComboBox Grid.Column="1"
+                                                                                  HorizontalAlignment="Stretch"
+                                                                                  ItemsSource="{x:Static macros:MouseStep.AllActions}"
+                                                                                  SelectedItem="{Binding Action, Mode=TwoWay}" />
+                                                                        <TextBlock Grid.Column="3" Classes="editor-label"
+                                                                                   Text="Button" Margin="0,0,10,0"
+                                                                                   IsVisible="{Binding ShowsButton}" />
+                                                                        <ComboBox Grid.Column="4"
+                                                                                  HorizontalAlignment="Stretch"
+                                                                                  ItemsSource="{x:Static macros:MouseStep.AllButtons}"
+                                                                                  SelectedItem="{Binding Button, Mode=TwoWay}"
+                                                                                  IsVisible="{Binding ShowsButton}" />
+                                                                    </Grid>
+                                                                    <Grid ColumnDefinitions="Auto,140,20,Auto,140"
+                                                                          IsVisible="{Binding ShowsCoordinates}">
+                                                                        <TextBlock Grid.Column="0" Classes="editor-label"
+                                                                                   Text="X" Margin="0,0,10,0" />
+                                                                        <NumericUpDown Grid.Column="1"
+                                                                                       Minimum="-100000" Maximum="100000"
+                                                                                       Increment="10" FormatString="0"
+                                                                                       Value="{Binding X, Mode=TwoWay}" />
+                                                                        <TextBlock Grid.Column="3" Classes="editor-label"
+                                                                                   Text="Y" Margin="0,0,10,0" />
+                                                                        <NumericUpDown Grid.Column="4"
+                                                                                       Minimum="-100000" Maximum="100000"
+                                                                                       Increment="10" FormatString="0"
+                                                                                       Value="{Binding Y, Mode=TwoWay}" />
+                                                                    </Grid>
+                                                                    <Grid ColumnDefinitions="Auto,140,Auto"
+                                                                          IsVisible="{Binding ShowsAmount}">
+                                                                        <TextBlock Grid.Column="0" Classes="editor-label"
+                                                                                   Text="Amount" Margin="0,0,10,0" />
+                                                                        <NumericUpDown Grid.Column="1"
+                                                                                       Minimum="-100" Maximum="100"
+                                                                                       Increment="1" FormatString="0"
+                                                                                       Value="{Binding Amount, Mode=TwoWay}" />
+                                                                        <TextBlock Grid.Column="2" Classes="editor-label"
+                                                                                   Text="wheel detents (+ up / - down)"
+                                                                                   Margin="8,0,0,0" />
+                                                                    </Grid>
+                                                                    <TextBlock Classes="hint"
+                                                                               IsVisible="{Binding ShowsAbsoluteHint}"
+                                                                               Text="Absolute positioning is not supported on Linux (the step is skipped there)." />
+                                                                </StackPanel>
+                                                            </DataTemplate>
+
+                                                            <DataTemplate DataType="{x:Type macros:CommandStep}">
+                                                                <StackPanel Spacing="6">
+                                                                    <Grid ColumnDefinitions="Auto,*">
+                                                                        <TextBlock Grid.Column="0" Classes="editor-label"
+                                                                                   Text="Command" Margin="0,0,10,0" />
+                                                                        <TextBox Grid.Column="1"
+                                                                                 Text="{Binding CommandString, Mode=TwoWay}" />
+                                                                    </Grid>
+                                                                    <TextBlock Classes="hint"
+                                                                               Text="A LoupixDeck system command or any shell command. Double-click an entry below to insert it." />
+                                                                    <Expander Header="System Commands">
+                                                                        <TreeView MaxHeight="240"
+                                                                                  Tag="{Binding}"
+                                                                                  ItemsSource="{Binding $parent[Window].((vm:MacroEditorViewModel)DataContext).SystemCommandMenus}">
+                                                                            <TreeView.DataTemplates>
+                                                                                <TreeDataTemplate DataType="{x:Type models:MenuEntry}"
+                                                                                                  ItemsSource="{Binding Children}">
+                                                                                    <StackPanel Orientation="Horizontal"
+                                                                                                PointerPressed="CommandTree_PointerPressed">
+                                                                                        <TextBlock Text="{Binding Name}" />
+                                                                                        <TextBlock Text="(loading…)" Margin="6,0,0,0"
+                                                                                                   Foreground="Gray" FontStyle="Italic"
+                                                                                                   IsVisible="{Binding IsLoading}" />
+                                                                                    </StackPanel>
+                                                                                </TreeDataTemplate>
+                                                                            </TreeView.DataTemplates>
+                                                                        </TreeView>
+                                                                    </Expander>
+                                                                </StackPanel>
+                                                            </DataTemplate>
+
+                                                        </ContentControl.DataTemplates>
+                                                    </ContentControl>
+                                                </Border>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+                            <!-- Empty state -->
+                            <TextBlock Classes="hint"
+                                       Margin="2,4,0,0"
+                                       Text="No steps yet — use “Add Step” to build the macro. Drag the handle on the right of a step to reorder."
+                                       IsVisible="{Binding !SelectedMacro.Steps.Count}" />
+                        </StackPanel>
+                    </ScrollViewer>
+                </Grid>
+            </Border>
+        </Grid>
+    </Grid>
+</Window>

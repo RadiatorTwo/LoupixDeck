@@ -22,9 +22,10 @@ namespace LoupixDeck.Services
         // INTERCEPTION_KEYBOARD(0): keyboards are devices 1..10, mice 11..20.
         private const int KeyboardDevice = 1;
 
-        // InterceptionKeyState flags.
-        private const ushort KeyDown = 0x00;
-        private const ushort KeyUp = 0x01;
+        // InterceptionKeyState flags. (Named State* to avoid colliding with the
+        // IUInputKeyboard.KeyDown/KeyUp methods.)
+        private const ushort StateKeyDown = 0x00;
+        private const ushort StateKeyUp = 0x01;
         private const ushort KeyE0 = 0x02;
 
         // Left Shift make code (PS/2 set 1) — used to type shifted characters in SendText.
@@ -175,6 +176,31 @@ namespace LoupixDeck.Services
             }
         }
 
+        public void KeyDown(string keyName)
+        {
+            SendSingle(keyName, up: false);
+        }
+
+        public void KeyUp(string keyName)
+        {
+            SendSingle(keyName, up: true);
+        }
+
+        private void SendSingle(string keyName, bool up)
+        {
+            if (!KeyNames.TryGetInterception(keyName, out var scanCode, out var e0))
+            {
+                Console.Error.WriteLine($"[InterceptionKeyboard] Unknown key name: '{keyName}'");
+                return;
+            }
+
+            lock (_lock)
+            {
+                if (!EnsureContext()) return;
+                SendStrokeVerified((ushort)scanCode, e0, up);
+            }
+        }
+
         public void Dispose()
         {
             lock (_lock)
@@ -310,7 +336,7 @@ namespace LoupixDeck.Services
 
         private static InterceptionStroke Stroke(ushort code, bool e0, bool up)
         {
-            ushort state = up ? KeyUp : KeyDown;
+            ushort state = up ? StateKeyUp : StateKeyDown;
             if (e0) state |= KeyE0;
             return new InterceptionStroke { Code = code, State = state, Information = 0 };
         }

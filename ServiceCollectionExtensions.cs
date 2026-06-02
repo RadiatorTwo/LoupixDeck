@@ -4,6 +4,8 @@ using LoupixDeck.Registry;
 using LoupixDeck.Services;
 using LoupixDeck.Services.Commands;
 using LoupixDeck.Services.FolderNavigation;
+using LoupixDeck.Services.Macros;
+using LoupixDeck.Services.Mouse;
 using LoupixDeck.Services.Plugins;
 using LoupixDeck.Services.SystemPower;
 using LoupixDeck.Utils;
@@ -71,8 +73,13 @@ public static class ServiceCollectionExtensions
         // The command-selection menu is assembled generically from these
         // contributors instead of the former per-ViewModel hard-coded logic.
         collection.AddSingleton<IMenuContributor, CommandGroupMenuContributor>();
+        collection.AddSingleton<IMenuContributor, UserMacroMenuContributor>();
         collection.AddSingleton<IPluginMenuSource, PluginMenuContributor>();
         collection.AddSingleton<IMenuTreeBuilder, MenuTreeBuilder>();
+
+        // User-defined macros: in-memory store (macros.json) + sequential step executor.
+        collection.AddSingleton<IMacroManager, MacroManager>();
+        collection.AddSingleton<MacroRunner>();
 
         // UInputKeyboard is only available on Linux
         if (OperatingSystem.IsLinux())
@@ -80,6 +87,9 @@ public static class ServiceCollectionExtensions
             collection.AddSingleton<IUInputKeyboard, UInputKeyboard>();
             // No Interception on Linux — register a stand-in so SettingsViewModel still resolves.
             collection.AddSingleton<IInterceptionService, NoOpInterceptionService>();
+
+            // Virtual mouse for macro mouse steps (uinput-backed).
+            collection.AddSingleton<IVirtualMouse, UInputMouse>();
         }
         else
         {
@@ -91,6 +101,9 @@ public static class ServiceCollectionExtensions
 
             // Manages downloading/installing/uninstalling the Interception driver (settings page).
             collection.AddSingleton<IInterceptionService, InterceptionService>();
+
+            // Virtual mouse for macro mouse steps (SendInput-backed; Interception mouse is not used).
+            collection.AddSingleton<IVirtualMouse, WindowsVirtualMouse>();
         }
 
         collection.AddSingleton<IDBusController, DBusController>();
@@ -169,7 +182,10 @@ public static class ServiceCollectionExtensions
 
         collection.AddTransient<Settings>();
         collection.AddTransient<SettingsViewModel>();
-        
+
+        collection.AddTransient<MacroEditor>();
+        collection.AddTransient<MacroEditorViewModel>();
+
         collection.AddTransient<About>();
         collection.AddTransient<AboutViewModel>();
         
@@ -187,7 +203,11 @@ public static class ServiceCollectionExtensions
         dialogService.Register<TouchPageWallpaperSettingsViewModel, TouchPageWallpaperSettings>();
         dialogService.Register<PageCommandsSettingsViewModel, PageCommandsSettings>();
         dialogService.Register<SettingsViewModel, Settings>();
+        dialogService.Register<MacroEditorViewModel, MacroEditor>();
         dialogService.Register<AboutViewModel, About>();
+
+        // Load user macros once — execution and menus read from memory afterwards.
+        services.GetRequiredService<IMacroManager>().Load();
 
         // Let the (static) bitmap renderer resolve image-layer assets via DI.
         var assetService = services.GetRequiredService<IAssetService>();
