@@ -472,6 +472,8 @@
                                         IsEnabled="{Binding !InterceptionBusy}" />
                             </StackPanel>
                             <TextBlock Classes="hint" Margin="0,10,0,0"
+                                       Text="The Interception driver is third-party software by Francisco Lopes (github.com/oblitum/Interception). It is free for non-commercial use only — commercial use requires a separate license from its author." />
+                            <TextBlock Classes="hint" Margin="0,10,0,0"
                                        Text="{Binding InterceptionStatusMessage}" />
                         </StackPanel>
                     </Border>

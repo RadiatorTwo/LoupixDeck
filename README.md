@@ -98,7 +98,8 @@ automatically. See [`Registry/DeviceRegistry.cs`](Registry/DeviceRegistry.cs).
 The Command menu is filtered per OS — Windows-only and Linux-only commands only appear where they apply.
 
 - **Shell** — execute arbitrary shell commands.
-- **Macros** (Linux) — keyboard injection via `uinput`.
+- **Macros** — visual macro editor with keyboard, mouse, delay and command steps; injection via
+  `uinput` (Linux) or SendInput / Interception (Windows, see *Third-Party Software* below).
 - **OBS Studio** — start/stop recording, virtual camera, replay buffer, scene switching (via obs-websocket).
 - **Elgato Key Lights** — toggle, brightness, color temperature, hue, saturation (auto-discovered via Zeroconf).
 - **Cooler Control** — set fan/cooling modes via the Cooler Control daemon API.
@@ -335,6 +336,28 @@ Implementation: [`Program.cs`](Program.cs) (`CommandChannel.Dispatch`).
 
 ---
 
+## ⚖️ Third-Party Software
+
+### Interception Driver (Windows)
+
+The optional Windows **Macro Driver** feature uses the
+[Interception](https://github.com/oblitum/Interception) kernel driver by Francisco Lopes to
+inject keyboard and mouse input at driver level, so macros also reach applications that read
+raw input (games / anti-cheat).
+
+- The driver is **not bundled** with LoupixDeck. It is downloaded from the official GitHub
+  release only when you choose to install it from the settings ("Macro Driver" page).
+- Interception is dual-licensed: it is **free for non-commercial use only**. Commercial use
+  requires a separate license from its author — see the
+  [Interception repository](https://github.com/oblitum/Interception) for details.
+- Without the driver, macros fall back to the standard `SendInput` API and remain fully
+  functional (injected input just may not reach raw-input applications).
+
+---
+
 ## 📄 License
 
 Released under the [MIT License](LICENSE).
+
+The license above covers LoupixDeck itself. Third-party components (such as the optional
+Interception driver) are subject to their own licenses — see *Third-Party Software* above.
