@@ -6,6 +6,7 @@ public enum SettingsView
     Pages,
     Haptic,
     Plugins,
+    Interception,
     Theme,
     About
 }

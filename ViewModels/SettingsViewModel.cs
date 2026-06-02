@@ -22,6 +22,7 @@ public class SettingsViewModel : DialogViewModelBase<DialogResult>
     private readonly IDeviceService _deviceService;
     private readonly IPageManager _pageManager;
     private readonly IDialogService _dialogService;
+    private readonly IInterceptionService _interceptionService;
 
     /// <summary>All discovered plugins — drives the Plugins settings page.</summary>
     public IReadOnlyList<LoadedPlugin> Plugins { get; }
@@ -41,6 +42,8 @@ public class SettingsViewModel : DialogViewModelBase<DialogResult>
     public ICommand MoveRotaryPageUpCommand { get; }
     public ICommand MoveRotaryPageDownCommand { get; }
     public ICommand OpenWebsiteCommand { get; }
+    public ICommand InstallInterceptionCommand { get; }
+    public ICommand UninstallInterceptionCommand { get; }
 
     public ObservableCollection<VibrationPatternItem> VibrationPatterns => VibrationPatternCatalog.All;
 
@@ -50,12 +53,14 @@ public class SettingsViewModel : DialogViewModelBase<DialogResult>
         IDeviceService deviceService,
         IPageManager pageManager,
         IDialogService dialogService,
-        IPluginManager pluginManager)
+        IPluginManager pluginManager,
+        IInterceptionService interceptionService)
     {
         Config = config;
         _deviceService = deviceService;
         _pageManager = pageManager;
         _dialogService = dialogService;
+        _interceptionService = interceptionService;
         Plugins = pluginManager.Plugins;
 
         NavigateCommand = new RelayCommand<SettingsView>(Navigate);
@@ -111,12 +116,19 @@ public class SettingsViewModel : DialogViewModelBase<DialogResult>
             catch { }
         });
 
+        InstallInterceptionCommand = new AsyncRelayCommand(InstallInterceptionAsync);
+        UninstallInterceptionCommand = new AsyncRelayCommand(UninstallInterceptionAsync);
+
         Config.HapticSteps.CollectionChanged += OnHapticStepsChanged;
 
         CurrentView = SettingsView.General;
 
         // Device info call blocks on a serial round-trip — push it off the UI thread.
         _ = Task.Run(RefreshDeviceInfoAsync);
+
+        // Probe the Interception driver state (DLL API) off the UI thread; drives the page.
+        if (IsWindows)
+            _ = Task.Run(RefreshInterceptionStatus);
 
         Version = $"v{System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "?"}";
     }
@@ -196,6 +208,88 @@ public class SettingsViewModel : DialogViewModelBase<DialogResult>
         });
         await Task.Delay(500);
         await Task.Run(RefreshDeviceInfoAsync);
+    }
+
+    // ───────── Interception (Windows only) ─────────
+
+    private bool _interceptionDriverInstalled;
+    public bool InterceptionDriverInstalled
+    {
+        get => _interceptionDriverInstalled;
+        private set
+        {
+            if (SetProperty(ref _interceptionDriverInstalled, value))
+                OnPropertyChanged(nameof(InterceptionStatusText));
+        }
+    }
+
+    public string InterceptionStatusText => InterceptionDriverInstalled ? "Installed" : "Not installed";
+
+    private bool _interceptionBusy;
+    public bool InterceptionBusy
+    {
+        get => _interceptionBusy;
+        private set => SetProperty(ref _interceptionBusy, value);
+    }
+
+    private string _interceptionStatusMessage = string.Empty;
+    public string InterceptionStatusMessage
+    {
+        get => _interceptionStatusMessage;
+        private set => SetProperty(ref _interceptionStatusMessage, value);
+    }
+
+    /// <summary>
+    /// The Use-Interception toggle. Maps the tri-state config (null = auto) onto a plain bool:
+    /// auto is shown as enabled, so an installed driver is used by default.
+    /// </summary>
+    public bool InterceptionEnabled
+    {
+        get => Config.InterceptionEnabled ?? true;
+        set
+        {
+            if ((Config.InterceptionEnabled ?? true) == value) return;
+            Config.InterceptionEnabled = value;
+            OnPropertyChanged();
+        }
+    }
+
+    private void RefreshInterceptionStatus()
+    {
+        var installed = _interceptionService.IsDriverInstalled();
+        Dispatcher.UIThread.Post(() => InterceptionDriverInstalled = installed);
+    }
+
+    private async Task InstallInterceptionAsync()
+    {
+        InterceptionBusy = true;
+        try
+        {
+            var progress = new Progress<string>(msg =>
+                Dispatcher.UIThread.Post(() => InterceptionStatusMessage = msg));
+            await _interceptionService.DownloadAndInstallAsync(progress);
+        }
+        finally
+        {
+            InterceptionBusy = false;
+            await Task.Run(RefreshInterceptionStatus);
+        }
+    }
+
+    private async Task UninstallInterceptionAsync()
+    {
+        InterceptionBusy = true;
+        try
+        {
+            var progress = new Progress<string>(msg =>
+                Dispatcher.UIThread.Post(() => InterceptionStatusMessage = msg));
+            await _interceptionService.UninstallAsync(progress);
+        }
+        finally
+        {
+            InterceptionBusy = false;
+            await Task.Run(RefreshInterceptionStatus);
+        }
     }
 
     // ───────── Pages ─────────

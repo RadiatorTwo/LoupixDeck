@@ -23,6 +23,13 @@ namespace LoupixDeck.Services
         /// </summary>
         /// <param name="text">Text to be sent</param>
         void SendText(string text);
+
+        /// <summary>
+        /// Sends a key combination (e.g. ["Ctrl","C"]): all keys are pressed in order and
+        /// released in reverse order. Key names are resolved via <see cref="Utils.KeyNames"/>.
+        /// </summary>
+        /// <param name="keyNames">Ordered list of key names making up the combination.</param>
+        void SendKeyCombination(IReadOnlyList<string> keyNames);
     }
 
     public class UInputKeyboard : IUInputKeyboard
@@ -148,6 +155,13 @@ namespace LoupixDeck.Services
             // SHIFT
             ioctl(_fileDescriptor, UI_SET_KEYBIT, KEY_LEFTSHIFT);
 
+            // Keys usable in key combinations (modifiers, function keys, navigation, ...).
+            // uinput only emits events for keys whose keybit was registered before UI_DEV_CREATE.
+            foreach (var keyCode in KeyNames.AllLinuxKeyCodes)
+            {
+                ioctl(_fileDescriptor, UI_SET_KEYBIT, keyCode);
+            }
+
             // Step 3: Create virtual device
             var dev = new UinputUserDev
             {
@@ -218,10 +232,37 @@ namespace LoupixDeck.Services
             }
         }
 
+        /// <summary>
+        /// Presses every key of the combination in order, then releases them in reverse order.
+        /// </summary>
+        public void SendKeyCombination(IReadOnlyList<string> keyNames)
+        {
+            if (!Connected || keyNames == null || keyNames.Count == 0)
+                return;
+
+            var codes = new List<int>(keyNames.Count);
+            foreach (var name in keyNames)
+            {
+                if (KeyNames.TryGetLinux(name, out var code))
+                    codes.Add(code);
+                else
+                    Console.Error.WriteLine($"[UInputKeyboard] Unknown key name: '{name}'");
+            }
+
+            if (codes.Count == 0)
+                return;
+
+            foreach (var code in codes)
+                PressKey(code);
+
+            for (var i = codes.Count - 1; i >= 0; i--)
+                ReleaseKey(codes[i]);
+        }
+
         public void Dispose()
         {
             if (_disposed) return;
-            
+
             // Destroy device
             ioctl(_fileDescriptor, UI_DEV_DESTROY, 0);
 
@@ -312,26 +353,187 @@ namespace LoupixDeck.Services
     }
 
     /// <summary>
-    /// Dummy implementation for Windows that does nothing.
-    /// UInput is only available on Linux systems.
+    /// Windows implementation backed by the Win32 <c>SendInput</c> API (user32.dll).
+    /// No kernel driver, no admin rights and no third-party dependency: input is injected
+    /// into the session input stream and delivered to the focused window, like a normal
+    /// keyboard. Text is sent layout-independently via Unicode injection; key combinations
+    /// use virtual-key codes.
+    ///
+    /// Note: injected events carry the LLKHF_INJECTED flag, so apps reading raw input
+    /// (some games / anti-cheat) may ignore them — that is a fundamental limit of any
+    /// user-mode injection and cannot be bypassed without a kernel driver.
     /// </summary>
     public class WindowsUInputKeyboard : IUInputKeyboard
     {
-        public bool Connected { get; set; } = false;
+        private const int INPUT_KEYBOARD = 1;
+
+        private const uint KEYEVENTF_EXTENDEDKEY = 0x0001;
+        private const uint KEYEVENTF_KEYUP = 0x0002;
+        private const uint KEYEVENTF_UNICODE = 0x0004;
+
+        private const uint MAPVK_VK_TO_VSC = 0;
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct KEYBDINPUT
+        {
+            public ushort wVk;
+            public ushort wScan;
+            public uint dwFlags;
+            public uint time;
+            public IntPtr dwExtraInfo;
+        }
+
+        // Only the keyboard variant is used, but the union must be sized to the largest
+        // member (MOUSEINPUT) so Marshal.SizeOf<INPUT>() matches the size SendInput expects.
+        [StructLayout(LayoutKind.Sequential)]
+        private struct MOUSEINPUT
+        {
+            public int dx;
+            public int dy;
+            public uint mouseData;
+            public uint dwFlags;
+            public uint time;
+            public IntPtr dwExtraInfo;
+        }
+
+        [StructLayout(LayoutKind.Explicit)]
+        private struct INPUTUNION
+        {
+            [FieldOffset(0)] public MOUSEINPUT mi;
+            [FieldOffset(0)] public KEYBDINPUT ki;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct INPUT
+        {
+            public uint type;
+            public INPUTUNION u;
+        }
+
+        [DllImport("user32.dll", SetLastError = true)]
+        private static extern uint SendInput(uint nInputs, INPUT[] pInputs, int cbSize);
+
+        [DllImport("user32.dll")]
+        private static extern uint MapVirtualKey(uint uCode, uint uMapType);
+
+        private static readonly int InputSize = Marshal.SizeOf<INPUT>();
+
+        // SendInput requires no setup, so the backend is always available on Windows.
+        public bool Connected { get; set; } = true;
 
         public void SendKey(int keyCode)
         {
-            // No-op on Windows
+            if (!Connected)
+                return;
+
+            // keyCode is treated as a virtual-key code (interface compatibility).
+            var inputs = new[]
+            {
+                KeyInput(keyCode, false, false),
+                KeyInput(keyCode, false, true)
+            };
+            Send(inputs);
         }
 
         public void SendText(string text)
         {
-            // No-op on Windows
+            if (!Connected || string.IsNullOrEmpty(text))
+                return;
+
+            // Unicode injection: send each UTF-16 code unit directly, independent of the
+            // active keyboard layout (handles umlauts, accents, emoji, ...).
+            var inputs = new INPUT[text.Length * 2];
+            var i = 0;
+            foreach (var c in text)
+            {
+                inputs[i++] = UnicodeInput(c, false);
+                inputs[i++] = UnicodeInput(c, true);
+            }
+
+            Send(inputs);
+        }
+
+        public void SendKeyCombination(IReadOnlyList<string> keyNames)
+        {
+            if (!Connected || keyNames == null || keyNames.Count == 0)
+                return;
+
+            var keys = new List<(int virtualKey, bool extended)>(keyNames.Count);
+            foreach (var name in keyNames)
+            {
+                if (KeyNames.TryGetWindows(name, out var virtualKey, out var extended))
+                    keys.Add((virtualKey, extended));
+                else
+                    Console.Error.WriteLine($"[WindowsUInputKeyboard] Unknown key name: '{name}'");
+            }
+
+            if (keys.Count == 0)
+                return;
+
+            // Press all keys in order, then release them in reverse order.
+            var inputs = new INPUT[keys.Count * 2];
+            var i = 0;
+            foreach (var (virtualKey, extended) in keys)
+                inputs[i++] = KeyInput(virtualKey, extended, false);
+
+            for (var k = keys.Count - 1; k >= 0; k--)
+                inputs[i++] = KeyInput(keys[k].virtualKey, keys[k].extended, true);
+
+            Send(inputs);
         }
 
         public void Dispose()
         {
-            // Nothing to dispose
+            // Nothing to dispose — SendInput holds no resources.
+        }
+
+        private static INPUT KeyInput(int virtualKey, bool extended, bool up)
+        {
+            var flags = 0u;
+            if (extended) flags |= KEYEVENTF_EXTENDEDKEY;
+            if (up) flags |= KEYEVENTF_KEYUP;
+
+            return new INPUT
+            {
+                type = INPUT_KEYBOARD,
+                u = new INPUTUNION
+                {
+                    ki = new KEYBDINPUT
+                    {
+                        wVk = (ushort)virtualKey,
+                        wScan = (ushort)MapVirtualKey((uint)virtualKey, MAPVK_VK_TO_VSC),
+                        dwFlags = flags
+                    }
+                }
+            };
+        }
+
+        private static INPUT UnicodeInput(char c, bool up)
+        {
+            var flags = KEYEVENTF_UNICODE;
+            if (up) flags |= KEYEVENTF_KEYUP;
+
+            return new INPUT
+            {
+                type = INPUT_KEYBOARD,
+                u = new INPUTUNION
+                {
+                    ki = new KEYBDINPUT
+                    {
+                        wVk = 0,
+                        wScan = c,
+                        dwFlags = flags
+                    }
+                }
+            };
+        }
+
+        private static void Send(INPUT[] inputs)
+        {
+            if (inputs.Length == 0)
+                return;
+
+            SendInput((uint)inputs.Length, inputs, InputSize);
         }
     }
 }

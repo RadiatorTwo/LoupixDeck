@@ -42,6 +42,17 @@ public class LoupedeckConfig : INotifyPropertyChanged
     public CloseButtonBehavior CloseButtonBehavior { get; set; } = CloseButtonBehavior.MinimizeToTray;
     public bool StartMinimizedToTray { get; set; }
 
+    // Windows only: route keyboard macros through the Interception kernel driver
+    // instead of SendInput, so injected keys reach raw-input apps (games / anti-cheat).
+    // null = "auto" (active when the driver is installed); false = explicitly off.
+    // Missing in older config.json simply stays null → auto behaviour (backward compatible).
+    private bool? _interceptionEnabled;
+    public bool? InterceptionEnabled
+    {
+        get => _interceptionEnabled;
+        set { if (_interceptionEnabled == value) return; _interceptionEnabled = value; OnPropertyChanged(); }
+    }
+
     // Visual flash overlay on touch press — useful especially on the Razer
     // (no LED ring on touch buttons) so the user gets visible feedback.
     private bool _touchFeedbackEnabled;

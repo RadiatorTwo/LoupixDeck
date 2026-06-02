@@ -78,10 +78,19 @@ public static class ServiceCollectionExtensions
         if (OperatingSystem.IsLinux())
         {
             collection.AddSingleton<IUInputKeyboard, UInputKeyboard>();
+            // No Interception on Linux — register a stand-in so SettingsViewModel still resolves.
+            collection.AddSingleton<IInterceptionService, NoOpInterceptionService>();
         }
         else
         {
-            collection.AddSingleton<IUInputKeyboard, WindowsUInputKeyboard>();
+            // Two concrete keyboard backends plus a router that picks between them per call:
+            // SendInput (always works) and Interception (kernel driver, reaches raw-input apps).
+            collection.AddSingleton<WindowsUInputKeyboard>();
+            collection.AddSingleton<InterceptionKeyboard>();
+            collection.AddSingleton<IUInputKeyboard, WindowsKeyboardRouter>();
+
+            // Manages downloading/installing/uninstalling the Interception driver (settings page).
+            collection.AddSingleton<IInterceptionService, InterceptionService>();
         }
 
         collection.AddSingleton<IDBusController, DBusController>();
