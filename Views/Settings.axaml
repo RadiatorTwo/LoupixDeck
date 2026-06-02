@@ -72,7 +72,7 @@
                             <Grid ColumnDefinitions="6,Auto,*">
                                 <Border Grid.Column="0" Classes="nav-accent" />
                                 <TextBlock Grid.Column="1" Classes="nav-icon" Text="&#xF030C;" Margin="6,0,0,0"/>
-                                <TextBlock Grid.Column="2" Classes="nav-label" Text="Interception" />
+                                <TextBlock Grid.Column="2" Classes="nav-label" Text="Macro Driver" />
                             </Grid>
                         </Button>
                     </StackPanel>
@@ -427,7 +427,7 @@
 
                 <!-- ====== Interception ====== -->
                 <StackPanel IsVisible="{Binding CurrentView, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Interception}">
-                    <TextBlock Classes="page-title" Text="Interception" />
+                    <TextBlock Classes="page-title" Text="Macro Driver" />
 
                     <!-- Status card -->
                     <Border Classes="card">
@@ -443,7 +443,7 @@
                             </Border>
 
                             <TextBlock Grid.Row="1" Grid.ColumnSpan="2" Classes="hint" Margin="0,12,0,0"
-                                       Text="The Interception kernel driver lets keyboard macros reach apps that read raw input (games / anti-cheat), which the default SendInput method cannot. The driver is downloaded from the official GitHub release and is not bundled. Installing or removing it requires a reboot." />
+                                       Text="The Interception kernel driver lets keyboard and mouse macros reach apps that read raw input (games / anti-cheat), which the default SendInput method cannot. The driver is downloaded from the official GitHub release and is not bundled. Installing or removing it requires a reboot." />
                         </Grid>
                     </Border>
 
@@ -451,7 +451,7 @@
                     <Border Classes="card">
                         <StackPanel>
                             <TextBlock Classes="card-title" Text="Usage" />
-                            <CheckBox Content="Use Interception for keyboard macros"
+                            <CheckBox Content="Use Interception for keyboard and mouse macros"
                                       IsEnabled="{Binding InterceptionDriverInstalled}"
                                       IsChecked="{Binding InterceptionEnabled, Mode=TwoWay}" />
                             <TextBlock Classes="hint" Margin="0,6,0,0"
