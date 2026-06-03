@@ -100,6 +100,7 @@ The Command menu is filtered per OS — Windows-only and Linux-only commands onl
 - **Shell** — execute arbitrary shell commands.
 - **Macros** — visual macro editor with keyboard, mouse, delay and command steps; injection via
   `uinput` (Linux) or SendInput / Interception (Windows, see *Third-Party Software* below).
+  See [Macro Editor](#-macro-editor) for a full description.
 - **OBS Studio** — start/stop recording, virtual camera, replay buffer, scene switching (via obs-websocket).
 - **Elgato Key Lights** — toggle, brightness, color temperature, hue, saturation (auto-discovered via Zeroconf).
 - **Cooler Control** — set fan/cooling modes via the Cooler Control daemon API.
@@ -155,6 +156,39 @@ project to get started.
 
 ---
 
+## 🎬 Macro Editor
+
+The visual macro editor lets you build named, reusable macros from a sequence of typed steps.
+Open it via **Commands → Macros → Edit Macros** in any button's command picker.
+
+### Step types
+
+| Step | Description |
+|---|---|
+| **Text** | Type a string — each character is injected as individual key presses. |
+| **Key Combination** | Send a chord (e.g. `Ctrl+Shift+Esc`). |
+| **Key Down / Key Up** | Hold or release a single key — useful for custom press/release timings. |
+| **Mouse** | Click, press/release a button, move (relative or absolute), or scroll. Supports left, right, and middle buttons. |
+| **Delay** | Pause execution for a configurable number of milliseconds. |
+| **Command** | Run any LoupixDeck command (shell, OBS, page navigation, …) as a macro step. |
+
+### How macros are used
+
+After creating a macro in the editor, it appears under **Commands → Macros** in every command
+picker. Assign it to a touch button, a rotary press, or a physical button exactly like any
+other command. Macros are stored in `macros.json` in the user-config directory and are shared
+across all devices and pages.
+
+### Input injection
+
+| Platform | Backend | Notes |
+|---|---|---|
+| Linux | `uinput` | Requires `/dev/uinput` access (see Build Instructions). |
+| Windows | `SendInput` (default) | Works with most applications. |
+| Windows | Interception driver (optional) | Driver-level injection for raw-input apps / games. See *Third-Party Software*. |
+
+---
+
 ## 📸 Screenshots
 
 | | |
@@ -162,7 +196,7 @@ project to get started.
 | ![Main window — Loupedeck Live S](docs/screenshots/main-window-loupedeck.png) | ![Main window — Razer Stream Controller](docs/screenshots/main-window-razer.png) |
 | ![Layer-based touch button editor](docs/screenshots/layer-editor.png) | ![Material Design Icons symbol picker](docs/screenshots/symbol-picker.png) |
 | ![Settings sidebar navigation](docs/screenshots/settings-sidebar.png) | ![Pages management](docs/screenshots/pages-management.png) |
-| ![Command picker](docs/screenshots/command-picker.png) | |
+| ![Command picker](docs/screenshots/command-picker.png) | ![Visual macro editor](docs/screenshots/macro-editor.png) |
 
 ---
 
