@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Threading.Channels;
 using Avalonia;
 using Avalonia.Media;
@@ -29,8 +30,12 @@ public class LoupedeckDevice
     private bool _queueWorkerStarted;
     private volatile bool _suppressAutoReconnect;
 
-    private readonly Dictionary<byte, TaskCompletionSource<byte[]>> _pendingTransactions = new();
-    private readonly Dictionary<byte, CancellationTokenSource> _pendingTimeouts = new();
+    // Accessed concurrently from the send-queue worker thread (insert) and the
+    // serial read thread (lookup/remove). Plain Dictionary corrupts under that
+    // race ("non-concurrent collection" / "Index was outside the bounds of the
+    // array"), so these must be concurrent collections.
+    private readonly ConcurrentDictionary<byte, TaskCompletionSource<byte[]>> _pendingTransactions = new();
+    private readonly ConcurrentDictionary<byte, CancellationTokenSource> _pendingTimeouts = new();
     private readonly Dictionary<byte, TouchInfo> _touches = new();
 
     private int ReconnectInterval { get; set; }
@@ -344,18 +349,18 @@ public class LoupedeckDevice
         var transactionId = buff[2];
         var payload = buff.Skip(3).Take(msgLength - 3).ToArray();
 
-        if (_pendingTransactions.TryGetValue(transactionId, out var transaction))
+        if (_pendingTransactions.TryRemove(transactionId, out var transaction))
         {
-            transaction.SetResult(payload);
-            _pendingTransactions.Remove(transactionId);
+            // TrySetResult: a timeout may have already completed this TCS with an
+            // exception, in which case SetResult would throw.
+            transaction.TrySetResult(payload);
         }
 
         // Additionally, cancel the timeout if it exists:
-        if (_pendingTimeouts.TryGetValue(transactionId, out var cts))
+        if (_pendingTimeouts.TryRemove(transactionId, out var cts))
         {
             cts.Cancel();
             cts.Dispose();
-            _pendingTimeouts.Remove(transactionId);
         }
 
         // Dispatch based on the received command
