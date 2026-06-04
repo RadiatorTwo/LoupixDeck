@@ -14,55 +14,55 @@ jobs:
 
     steps:
       - name: Checkout Plugin SDK
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: RadiatorTwo/LoupixDeck.PluginSdk
           path: src/LoupixDeck.PluginSdk
 
       - name: Checkout OBS plugin
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: RadiatorTwo/LoupixDeck.Plugin.Obs
           path: src/LoupixDeck.Plugin.Obs
 
       - name: Checkout Elgato plugin
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: RadiatorTwo/LoupixDeck.Plugin.Elgato
           path: src/LoupixDeck.Plugin.Elgato
 
       - name: Checkout HWiNFO plugin
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: RadiatorTwo/LoupixDeck.Plugin.HwInfo
           path: src/LoupixDeck.Plugin.HwInfo
 
       - name: Checkout CoolerControl plugin
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: RadiatorTwo/LoupixDeck.Plugin.CoolerControl
           path: src/LoupixDeck.Plugin.CoolerControl
 
       - name: Checkout Audio plugin
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: RadiatorTwo/LoupixDeck.Plugin.Audio
           path: src/LoupixDeck.Plugin.Audio
 
       - name: Checkout Argus plugin
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: RadiatorTwo/LoupixDeck.Plugin.Argus
           path: src/LoupixDeck.Plugin.Argus
 
       - name: Checkout SpotifyPremium plugin
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: RadiatorTwo/LoupixDeck.Plugin.SpotifyPremium
           path: src/LoupixDeck.Plugin.SpotifyPremium
 
       - name: Setup .NET SDK
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v5
         with:
           dotnet-version: 9.0.x
 
@@ -70,7 +70,7 @@ jobs:
         run: dotnet build src/LoupixDeck.PluginSdk -c Release
 
       - name: Upload Plugin SDK package
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: plugin-sdk
           path: src/LoupixDeck.PluginSdk/nupkg
@@ -105,7 +105,7 @@ jobs:
           ls -R plugins
 
       - name: Upload plugins artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: plugins
           path: plugins
@@ -120,7 +120,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
@@ -134,12 +134,12 @@ jobs:
         run: echo "Set version to $env:VERSION"
 
       - name: Setup .NET SDK
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v5
         with:
           dotnet-version: 9.0.x
 
       - name: Download Plugin SDK package
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: plugin-sdk
           path: .sdk-feed
@@ -169,7 +169,7 @@ jobs:
             -o publish/win-x64
 
       - name: Download plugins artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: plugins
           path: plugins-artifact
@@ -183,7 +183,7 @@ jobs:
         run: Compress-Archive -Path publish/win-x64/* -DestinationPath LoupixDeck-win-x64.zip
 
       - name: Upload Windows zip to release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: LoupixDeck-win-x64.zip
         env:
@@ -199,7 +199,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
@@ -207,12 +207,12 @@ jobs:
         run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_ENV
 
       - name: Setup .NET SDK
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v5
         with:
           dotnet-version: 9.0.x
 
       - name: Download Plugin SDK package
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: plugin-sdk
           path: .sdk-feed
@@ -241,7 +241,7 @@ jobs:
             -o publish/linux-x64
 
       - name: Download plugins artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: plugins
           path: plugins-artifact
@@ -257,7 +257,7 @@ jobs:
           tar -czvf ../../LoupixDeck-linux-x64.tar.gz .
 
       - name: Upload Linux tar.gz to release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: LoupixDeck-linux-x64.tar.gz
         env:
