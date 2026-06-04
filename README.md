@@ -370,6 +370,35 @@ Implementation: [`Program.cs`](Program.cs) (`CommandChannel.Dispatch`).
 
 ---
 
+## 🩺 Diagnostics
+
+LoupixDeck can write a crash log to help track down a hard-to-reproduce crash. It is **off by
+default** — pass a command-line switch when starting the binary to turn it on:
+
+| Switch | Effect |
+|---|---|
+| `--crashlog` | Log unhandled managed exceptions (on any thread, including background/timer threads) to `crash.log` with a full stack trace. |
+| `--firstchance` | Additionally log **every** thrown exception, even ones that are caught. Very noisy — useful to capture the last exception before a crash. Implies `--crashlog`. |
+
+```bash
+# Linux
+./LoupixDeck --crashlog
+
+# Windows (PowerShell)
+.\LoupixDeck.exe --crashlog
+```
+
+The log is written to `~/.config/LoupixDeck/crash.log` (the same folder as the config and the
+startup log), so it works even for installed builds where the program folder is read-only.
+
+> **Native crashes:** a pure native access violation (e.g. inside SkiaSharp) fast-fails the
+> runtime and is *not* captured by `--crashlog`. For those, run with the .NET minidump
+> environment variables instead: `DOTNET_DbgEnableMiniDump=1`, `DOTNET_DbgMiniDumpType=2`,
+> `DOTNET_DbgMiniDumpName=<path>`. The two are complementary — `--crashlog` for managed crashes,
+> the minidump for native ones.
+
+---
+
 ## ⚖️ Third-Party Software
 
 ### Interception Driver (Windows)

@@ -27,6 +27,7 @@ sealed class Program
     [STAThread]
     public static void Main(string[] args)
     {
+        InstallCrashLogger(args);
         RedirectConsoleToLogFile();
         Console.WriteLine($"=== LoupixDeck Main {DateTime.Now:yyyy-MM-dd HH:mm:ss} args=[{string.Join(' ', args)}] ===");
 
@@ -268,6 +269,106 @@ sealed class Program
             // best-effort
         }
 #endif
+    }
+
+    // ──────── Crash diagnostics ────────
+
+    [ThreadStatic] private static bool _inCrashLog;
+    private static readonly object _crashLogGate = new();
+
+    /// <summary>
+    /// Absolute path of the crash log. Written into the user config dir
+    /// (~/.config/LoupixDeck), the same writable location as the startup log —
+    /// next to the executable would fail for installed release builds (e.g. a
+    /// read-only Program Files).
+    /// </summary>
+    private static string CrashLogPath()
+    {
+        try
+        {
+            var home = Environment.GetEnvironmentVariable("HOME")
+                       ?? Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            var dir = Path.Combine(home, ".config", "LoupixDeck");
+            Directory.CreateDirectory(dir);
+            return Path.Combine(dir, "crash.log");
+        }
+        catch { return "crash.log"; }
+    }
+
+    /// <summary>
+    /// Installs process-wide handlers that record unhandled MANAGED exceptions (on any
+    /// thread) to <c>crash.log</c> with a full stack trace. This catches background-thread
+    /// failures (e.g. "Collection was modified", NullReferenceException in a render/timer
+    /// path) that otherwise terminate the process with no visible reason.
+    ///
+    /// OPT-IN: disabled by default so normal release users get no crash.log and no
+    /// handler overhead. Enable with the <c>--crashlog</c> command-line switch when
+    /// diagnosing a crash.
+    ///
+    /// NOTE: a pure NATIVE access violation (e.g. inside Skia) fast-fails the runtime and
+    /// is NOT delivered here — for that, run with the .NET minidump env vars
+    /// (DOTNET_DbgEnableMiniDump=1, DOTNET_DbgMiniDumpType=2, DOTNET_DbgMiniDumpName=…).
+    /// The two are complementary: this for managed crashes, the dump for native ones.
+    ///
+    /// Pass <c>--firstchance</c> to also log EVERY thrown exception (very noisy — useful to
+    /// see the last exception before a crash). It implies <c>--crashlog</c>.
+    /// </summary>
+    private static void InstallCrashLogger(string[] args)
+    {
+        var firstChance = args.Any(a => a.Equals("--firstchance", StringComparison.OrdinalIgnoreCase));
+        var enabled = firstChance
+                      || args.Any(a => a.Equals("--crashlog", StringComparison.OrdinalIgnoreCase));
+        if (!enabled)
+            return;
+
+        AppDomain.CurrentDomain.UnhandledException += (_, e) =>
+            WriteCrash("AppDomain.UnhandledException", e.ExceptionObject, e.IsTerminating);
+
+        TaskScheduler.UnobservedTaskException += (_, e) =>
+        {
+            WriteCrash("TaskScheduler.UnobservedTaskException", e.Exception, false);
+            e.SetObserved();
+        };
+
+        if (firstChance)
+        {
+            AppDomain.CurrentDomain.FirstChanceException += (_, e) =>
+                WriteCrash("FirstChanceException", e.Exception, false);
+        }
+
+        Console.WriteLine($"[CrashLogger] installed → {CrashLogPath()}");
+    }
+
+    private static void WriteCrash(string source, object error, bool terminating)
+    {
+        // Guard against re-entrancy: file IO below can itself raise an exception, which
+        // would re-trigger the FirstChance handler and recurse.
+        if (_inCrashLog) return;
+        _inCrashLog = true;
+        try
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("================ CRASH ================");
+            sb.AppendLine($"Time:        {DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}");
+            sb.AppendLine($"Source:      {source}");
+            sb.AppendLine($"Terminating: {terminating}");
+            sb.AppendLine($"Thread:      {Environment.CurrentManagedThreadId} '{Thread.CurrentThread.Name}'");
+            sb.AppendLine($"Detail:      {error}");
+            sb.AppendLine("======================================");
+
+            try
+            {
+                lock (_crashLogGate)
+                    File.AppendAllText(CrashLogPath(), sb.ToString());
+            }
+            catch { /* disk best-effort */ }
+
+            try { Console.WriteLine(sb.ToString()); } catch { /* console best-effort */ }
+        }
+        finally
+        {
+            _inCrashLog = false;
+        }
     }
 
     public static AppBuilder BuildAvaloniaApp()
