@@ -47,9 +47,28 @@
         <Style Selector="Button.Led:pressed">
             <Setter Property="RenderTransform" Value="scale(0.94)" />
         </Style>
+
+        <!-- Touch buttons: chrome-free so only the rendered image shows, with the
+             dark bezel behind it filling the gaps and rounded corners. No grey
+             button background in any state (hover, press, focus, dialog). -->
+        <Style Selector="Button[Tag=Touch]">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Focusable" Value="False" />
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <ContentPresenter Content="{TemplateBinding Content}"
+                                      ContentTemplate="{TemplateBinding ContentTemplate}"
+                                      HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                      VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
+                </ControlTemplate>
+            </Setter>
+        </Style>
     </UserControl.Styles>
 
-    <Grid ColumnDefinitions="150,500,150" RowDefinitions="300,30,50">
+    <Grid ColumnDefinitions="150,570,150" RowDefinitions="330,30,50">
         <Grid Grid.Row="0"
               Grid.Column="0"
               HorizontalAlignment="Center"
@@ -200,8 +219,14 @@
             </StackPanel>
         </Grid>
 
-        <Grid Grid.Row="0" Grid.Column="1" HorizontalAlignment="Center" ColumnDefinitions="100,100,100,100,100"
-              RowDefinitions="100,100,100">
+        <!-- Touch-screen bezel: dark frame around and between the touch buttons,
+             matching the real device (6 mm L/R, 3 mm top/bottom, 2 mm gaps at
+             6 px/mm; corners slightly rounder than the buttons). -->
+        <Border Grid.Row="0" Grid.Column="1"
+                HorizontalAlignment="Center" VerticalAlignment="Center"
+                Background="#121212" CornerRadius="12" Padding="36,18">
+        <Grid ColumnDefinitions="90,90,90,90,90" RowDefinitions="90,90,90"
+              ColumnSpacing="12" RowSpacing="12">
             <Button Tag="Touch" Grid.Row="0" Grid.Column="0" Width="90" Height="90"
                     Command="{Binding TouchButtonCommand}"
                     CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[0]}">
@@ -310,6 +335,7 @@
                 </Border>
             </Button>
         </Grid>
+        </Border>
 
         <Grid Grid.Row="0" Grid.Column="2" HorizontalAlignment="Center" RowDefinitions="100,100,100,30">
             <Button Tag="Led" Classes="Led" Grid.Row="0" Grid.Column="0" Width="66" Height="66"
