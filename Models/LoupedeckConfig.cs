@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using Newtonsoft.Json;
@@ -16,6 +17,15 @@ public class LoupedeckConfig : INotifyPropertyChanged
     private int _currentTouchPageIndex = -1;
 
     private int _brightness = 100;
+
+    public LoupedeckConfig()
+    {
+        // Newtonsoft populates the field-initialized collections in place (no
+        // ObjectCreationHandling.Replace), so the property setters never fire on
+        // load — subscribe here to keep the page-count labels in sync.
+        _rotaryButtonPages.CollectionChanged += OnRotaryPagesChanged;
+        _touchButtonPages.CollectionChanged += OnTouchPagesChanged;
+    }
 
     /// <summary>
     /// Schema version of the persisted config. <see cref="ConfigService"/> runs
@@ -88,7 +98,25 @@ public class LoupedeckConfig : INotifyPropertyChanged
 
     public SimpleButton[] SimpleButtons { get; set; }
 
-    public ObservableCollection<RotaryButtonPage> RotaryButtonPages { get; set; } = [];
+    private ObservableCollection<RotaryButtonPage> _rotaryButtonPages = [];
+    public ObservableCollection<RotaryButtonPage> RotaryButtonPages
+    {
+        get => _rotaryButtonPages;
+        set
+        {
+            if (ReferenceEquals(_rotaryButtonPages, value)) return;
+            if (_rotaryButtonPages != null)
+                _rotaryButtonPages.CollectionChanged -= OnRotaryPagesChanged;
+            _rotaryButtonPages = value;
+            if (_rotaryButtonPages != null)
+                _rotaryButtonPages.CollectionChanged += OnRotaryPagesChanged;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(RotaryPageLabel));
+        }
+    }
+
+    private void OnRotaryPagesChanged(object sender, NotifyCollectionChangedEventArgs e)
+        => OnPropertyChanged(nameof(RotaryPageLabel));
 
     [JsonIgnore]
     public int CurrentRotaryPageIndex
@@ -101,6 +129,7 @@ public class LoupedeckConfig : INotifyPropertyChanged
                 _currentRotaryPageIndex = value;
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(CurrentRotaryButtonPage));
+                OnPropertyChanged(nameof(RotaryPageLabel));
             }
         }
     }
@@ -113,7 +142,32 @@ public class LoupedeckConfig : INotifyPropertyChanged
             ? RotaryButtonPages[_currentRotaryPageIndex]
             : null;
 
-    public ObservableCollection<TouchButtonPage> TouchButtonPages { get; set; } = [];
+    /// <summary>"current / total" label for the rotary pager (1-based).</summary>
+    [JsonIgnore]
+    public string RotaryPageLabel =>
+        RotaryButtonPages is { Count: > 0 }
+            ? $"{Math.Clamp(_currentRotaryPageIndex + 1, 1, RotaryButtonPages.Count)} / {RotaryButtonPages.Count}"
+            : "0 / 0";
+
+    private ObservableCollection<TouchButtonPage> _touchButtonPages = [];
+    public ObservableCollection<TouchButtonPage> TouchButtonPages
+    {
+        get => _touchButtonPages;
+        set
+        {
+            if (ReferenceEquals(_touchButtonPages, value)) return;
+            if (_touchButtonPages != null)
+                _touchButtonPages.CollectionChanged -= OnTouchPagesChanged;
+            _touchButtonPages = value;
+            if (_touchButtonPages != null)
+                _touchButtonPages.CollectionChanged += OnTouchPagesChanged;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(TouchPageLabel));
+        }
+    }
+
+    private void OnTouchPagesChanged(object sender, NotifyCollectionChangedEventArgs e)
+        => OnPropertyChanged(nameof(TouchPageLabel));
 
     [JsonIgnore]
     public int CurrentTouchPageIndex
@@ -126,6 +180,7 @@ public class LoupedeckConfig : INotifyPropertyChanged
                 _currentTouchPageIndex = value;
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(CurrentTouchButtonPage));
+                OnPropertyChanged(nameof(TouchPageLabel));
             }
         }
     }
@@ -137,6 +192,13 @@ public class LoupedeckConfig : INotifyPropertyChanged
          _currentTouchPageIndex < TouchButtonPages.Count)
             ? TouchButtonPages[_currentTouchPageIndex]
             : null;
+
+    /// <summary>"current / total" label for the touch pager (1-based).</summary>
+    [JsonIgnore]
+    public string TouchPageLabel =>
+        TouchButtonPages is { Count: > 0 }
+            ? $"{Math.Clamp(_currentTouchPageIndex + 1, 1, TouchButtonPages.Count)} / {TouchButtonPages.Count}"
+            : "0 / 0";
 
     public int Brightness
     {
