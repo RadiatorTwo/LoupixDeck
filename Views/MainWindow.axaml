@@ -13,6 +13,9 @@
         Title="LoupixDeck"
         x:Name="RootWindow">
     <Window.Styles>
+        <!-- Device touch button chrome. The Razer centre grid relies on this
+             window-level style; the Live S layout overrides Button[Tag=Touch]
+             locally with a chrome-free variant. -->
         <Style Selector="Button[Tag=Touch]">
             <Setter Property="Background" Value="#0F0F0F" />
             <Setter Property="BorderBrush" Value="{StaticResource ButtonBorder}" />
@@ -27,14 +30,68 @@
             <Setter Property="Background" Value="#FF0F0F0F" />
             <Setter Property="Effect" Value="{StaticResource InnerShadow}" />
         </Style>
-        <Style Selector="Button[Tag=Mini]">
-            <Setter Property="Width" Value="30" />
-            <Setter Property="Height" Value="30" />
-            <Setter Property="FontSize" Value="14" />
-            <Setter Property="Background" Value="{StaticResource PanelDark}" />
-            <Setter Property="BorderBrush" Value="{StaticResource ButtonBorder}" />
+
+        <!-- Compact page pager (shared by every device layout): a single name field
+             flanked by prev/next chevrons plus add/delete. Constant size regardless
+             of how many pages exist, so the window never grows with page count. -->
+        <Style Selector="Border.Pager">
+            <Setter Property="Background" Value="#1A1A1A" />
+            <Setter Property="BorderBrush" Value="#333333" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Padding" Value="6,4" />
+        </Style>
+
+        <!-- Prev/next chevrons and add/delete actions share a chrome-free custom
+             template so hover/press never paint the default grey button box. -->
+        <Style Selector="Button.PagerBtn">
+            <Setter Property="Width" Value="28" />
+            <Setter Property="Height" Value="28" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="FontSize" Value="16" />
+            <Setter Property="Foreground" Value="#D8D8D8" />
+            <Setter Property="Background" Value="#2E2E2E" />
+            <Setter Property="BorderBrush" Value="{StaticResource PageChipBorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Border Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="{TemplateBinding CornerRadius}">
+                        <ContentPresenter Content="{TemplateBinding Content}"
+                                          HorizontalAlignment="Center"
+                                          VerticalAlignment="Center" />
+                    </Border>
+                </ControlTemplate>
+            </Setter>
+        </Style>
+        <Style Selector="Button.PagerBtn:pointerover">
+            <Setter Property="Background" Value="#3A3A3A" />
+            <Setter Property="BorderBrush" Value="{StaticResource PageActiveBorderBrush}" />
+        </Style>
+        <!-- Chevrons sit flush either side of the name field (no rounded outer edge). -->
+        <Style Selector="Button.PagerNav">
+            <Setter Property="FontSize" Value="18" />
+        </Style>
+        <!-- Delete gets a danger-coloured hover so it reads apart from add. -->
+        <Style Selector="Button.PagerBtn.delete:pointerover">
+            <Setter Property="Background" Value="#5A2730" />
+            <Setter Property="BorderBrush" Value="#B05560" />
+            <Setter Property="Foreground" Value="#FF9090" />
+        </Style>
+
+        <!-- Editable page-name field at the centre of the pager. Watermark shows the
+             page number (PageName fallback) when the page has no custom name. -->
+        <Style Selector="TextBox.PageName">
+            <Setter Property="Width" Value="128" />
+            <Setter Property="Height" Value="28" />
+            <Setter Property="MinHeight" Value="28" />
+            <Setter Property="Padding" Value="6,1" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="TextAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
         </Style>
     </Window.Styles>
     <Design.DataContext>
