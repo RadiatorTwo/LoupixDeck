@@ -162,7 +162,7 @@
                        Width="90" Height="90" />
             </Button>
             <Button Tag="Led" Classes="Led"
-                    Margin="0,84,0,0"
+                    Margin="0,72,0,0"
                     HorizontalAlignment="Center"
                     Width="66"
                     Height="66"
@@ -365,7 +365,7 @@
                     Orientation="Vertical"
                     HorizontalAlignment="Left"
                     VerticalAlignment="Top"
-                    Margin="42,27,12,0"
+                    Margin="42,15,12,0"
                     Spacing="72">
             <Button Tag="Led" Classes="Led" Width="66" Height="66"
                     Command="{Binding SimpleButtonCommand}"
