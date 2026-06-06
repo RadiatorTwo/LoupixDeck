@@ -716,7 +716,7 @@ public class LoupedeckLiveSController(
     private readonly record struct TileSig(
         string Text, PluginSdk.PluginColor Back, PluginSdk.PluginColor Fore, int TextSize, bool Bold, int ImageHash)
     {
-        public static readonly TileSig Empty = new(" <empty>", default, default, 0, false, 0);
+        public static readonly TileSig Empty = new("<empty>", default, default, 0, false, 0);
 
         public static TileSig Of(PluginSdk.FolderEntry e)
             => new(e.Text ?? string.Empty, e.BackColor, e.TextColor, e.TextSize, e.Bold, HashImage(e.Image));
