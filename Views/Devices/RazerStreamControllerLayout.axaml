@@ -250,6 +250,9 @@
                 <Button Classes="PagerBtn PagerNav" Content="›"
                         ToolTip.Tip="Nächste Rotary-Seite"
                         Command="{Binding NextRotaryPageCommand}" />
+                <TextBlock Classes="PageCount"
+                           Text="{Binding LoupedeckController.Config.RotaryPageLabel}"
+                           ToolTip.Tip="Aktuelle / Anzahl Rotary-Seiten" />
                 <Button Classes="PagerBtn" Content="+"
                         ToolTip.Tip="Rotary-Seite hinzufügen"
                         Command="{Binding AddRotaryPageCommand}" />
@@ -272,6 +275,9 @@
                 <Button Classes="PagerBtn PagerNav" Content="›"
                         ToolTip.Tip="Nächste Touch-Seite"
                         Command="{Binding NextTouchPageCommand}" />
+                <TextBlock Classes="PageCount"
+                           Text="{Binding LoupedeckController.Config.TouchPageLabel}"
+                           ToolTip.Tip="Aktuelle / Anzahl Touch-Seiten" />
                 <Button Classes="PagerBtn" Content="+"
                         ToolTip.Tip="Touch-Seite hinzufügen"
                         Command="{Binding AddTouchPageCommand}" />
