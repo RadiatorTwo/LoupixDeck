@@ -6,6 +6,13 @@ public class SerialDataParser
     // Internal buffer to which all received bytes are appended.
     private readonly List<byte> _buffer = new();
 
+    // A well-formed frame is at most 2 header bytes + 255 payload bytes = 257 bytes.
+    // If the buffer ever grows far beyond that without yielding a complete frame, the
+    // stream is desynced or we are receiving garbage. Cap it so a permanent bad-frame
+    // condition cannot grow the buffer without bound (OOM). 4 KiB leaves ample headroom
+    // for a legitimate partial frame while still bounding runaway growth.
+    private const int MaxBufferSize = 4096;
+
     // Wire-protocol tracing emits several lines per received byte — useful when
     // debugging the framing, but it floods the console during normal operation
     // (and drowns out everything else). Off by default; flip to true here when
@@ -36,6 +43,14 @@ public class SerialDataParser
         // Append new data to the buffer.
         _buffer.AddRange(data.Take(bytesRead));
         Trace($"Added {bytesRead} new bytes. Buffer length: {_buffer.Count}");
+
+        // Guard against unbounded growth from a permanently desynced/garbage stream.
+        if (_buffer.Count > MaxBufferSize)
+        {
+            Trace($"Buffer exceeded {MaxBufferSize} bytes ({_buffer.Count}); discarding to prevent unbounded growth.");
+            _buffer.Clear();
+            return;
+        }
 
         // As long as the buffer contains data that may hold a complete command...
         while (true)

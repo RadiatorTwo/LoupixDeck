@@ -18,6 +18,24 @@ public static class BitmapHelper
     /// </summary>
     public static Func<string, SKBitmap> AssetResolver { get; set; }
 
+    /// <summary>
+    /// Cache of "Liberation Sans" typefaces keyed by (weight, slant). Previously a
+    /// fresh <see cref="SKTypeface"/> was allocated on every text render, piling up
+    /// native objects that the GC finalizer thread later freed concurrently with
+    /// active Skia rendering — see <c>docs/CRASH_ANALYSIS_ACCESS_VIOLATION.md</c>
+    /// (point 5). Typefaces are long-lived and intentionally never disposed.
+    /// </summary>
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<
+        (SKFontStyleWeight Weight, SKFontStyleSlant Slant), SKTypeface> TypefaceCache = new();
+
+    private static SKTypeface GetTextTypeface(bool bold, bool italic)
+    {
+        var weight = bold ? SKFontStyleWeight.Bold : SKFontStyleWeight.Normal;
+        var slant = italic ? SKFontStyleSlant.Italic : SKFontStyleSlant.Upright;
+        return TypefaceCache.GetOrAdd((weight, slant), key =>
+            SKTypeface.FromFamilyName("Liberation Sans", key.Weight, SKFontStyleWidth.Normal, key.Slant));
+    }
+
     public enum ScalingOption
     {
         None, // Image shown as is in full resolution
@@ -991,14 +1009,11 @@ public static class BitmapHelper
         if (canvas == null || string.IsNullOrEmpty(text))
             throw new ArgumentException("Canvas oder Text dürfen nicht null sein!");
 
-        var typeface = SKTypeface.FromFamilyName(
-            "Liberation Sans",
-            bold ? SKFontStyleWeight.Bold : SKFontStyleWeight.Normal,
-            SKFontStyleWidth.Normal,
-            italic ? SKFontStyleSlant.Italic : SKFontStyleSlant.Upright
-        );
+        // Reuse the cached typeface; only the per-size SKFont is allocated here and
+        // it is disposed at scope exit so it does not leak to the finalizer thread.
+        var typeface = GetTextTypeface(bold, italic);
 
-        var font = new SKFont(typeface, textSize)
+        using var font = new SKFont(typeface, textSize)
         {
             Edging = SKFontEdging.Antialias,
             Subpixel = true,

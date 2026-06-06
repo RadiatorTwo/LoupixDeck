@@ -536,6 +536,9 @@ public class LoupedeckDevice
     /// </summary>
     private unsafe byte[] ConvertSKBitmapToRaw16BppUnsafe(SKBitmap bitmap)
     {
+        if (bitmap == null || bitmap.IsNull)
+            throw new InvalidOperationException("Bitmap ist null oder leer.");
+
         if (bitmap.ColorType != SKColorType.Bgra8888)
             throw new InvalidOperationException("Bitmap muss im Format BGRA8888 vorliegen.");
 
@@ -546,9 +549,16 @@ public class LoupedeckDevice
         // Output-Array für 16-Bit RGB565 (2 Bytes pro Pixel)
         byte[] output = new byte[pixelCount * 2];
 
-        // Zugriff auf die Pixeldaten als Pointer
-        SKPixmap pixmap = bitmap.PeekPixels(); // Schneller Zugriff ohne Kopie
+        // Zugriff auf die Pixeldaten als Pointer. PeekPixels liefert bei einem nicht
+        // zugänglichen/leeren Bitmap null; ohne Null-Check würde der Pointerzugriff
+        // unten in einer AccessViolation enden statt einer fangbaren Exception.
+        using SKPixmap pixmap = bitmap.PeekPixels(); // Schneller Zugriff ohne Kopie
+        if (pixmap == null)
+            throw new InvalidOperationException("Pixeldaten der Bitmap sind nicht zugänglich (PeekPixels lieferte null).");
+
         byte* srcPtr = (byte*)pixmap.GetPixels().ToPointer();
+        if (srcPtr == null)
+            throw new InvalidOperationException("Pixelzeiger der Bitmap ist null.");
 
         fixed (byte* destPtrFixed = output)
         {
@@ -575,6 +585,10 @@ public class LoupedeckDevice
                 destPtr += 2;  // RGB565 → 2 Bytes weiter
             }
         }
+
+        // Stellt sicher, dass das Bitmap (Eigentümer des nativen Pixelpuffers, auf den
+        // srcPtr zeigt) nicht während der Schleife finalisiert wird → kein use-after-free.
+        GC.KeepAlive(bitmap);
 
         return output;
     }
