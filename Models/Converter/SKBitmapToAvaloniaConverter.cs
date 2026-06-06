@@ -12,9 +12,15 @@ public class SKBitmapToAvaloniaBitmapConverter : IValueConverter
     public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
     {
         if (value is not SKBitmap { IsNull: false } skBitmap) return AvaloniaProperty.UnsetValue;
-        
-        var pixmap = skBitmap.PeekPixels(); // no Copy!
-        var info = pixmap.Info;
+
+        // Guard: a bitmap that cannot expose its pixels (empty / not peekable)
+        // would otherwise NRE / AccessViolation below. PeekPixels returns null
+        // in that case.
+        using var pixmap = skBitmap.PeekPixels();
+        if (pixmap == null) return AvaloniaProperty.UnsetValue;
+
+        var pixels = skBitmap.GetPixels();
+        if (pixels == IntPtr.Zero) return AvaloniaProperty.UnsetValue;
 
         // Derive PixelFormat / AlphaFormat from SKColorType
         var pixelFormat = skBitmap.ColorType switch
@@ -27,22 +33,21 @@ public class SKBitmapToAvaloniaBitmapConverter : IValueConverter
         var alphaFormat = skBitmap.AlphaType == SKAlphaType.Opaque
             ? AlphaFormat.Opaque
             : AlphaFormat.Unpremul;
-            
-        unsafe
-        {
-            fixed (void* ptr = &pixmap.GetPixelSpan().GetPinnableReference())
-            {
-                using var stream = new UnmanagedMemoryStream((byte*)ptr, info.RowBytes * info.Height);
-                return new Bitmap(
-                    pixelFormat,
-                    alphaFormat,
-                    skBitmap.GetPixels(),
-                    new PixelSize(skBitmap.Width, skBitmap.Height),
-                    new Vector(96, 96),
-                    skBitmap.RowBytes);
-            }
-        }
 
+        // Avalonia 11.3's Bitmap(PixelFormat, AlphaFormat, IntPtr, …) constructor
+        // copies the pixels, so the returned Bitmap is independent of skBitmap.
+        // GC.KeepAlive guarantees skBitmap (and its native pixel buffer) stays
+        // alive across the copy.
+        var bitmap = new Bitmap(
+            pixelFormat,
+            alphaFormat,
+            pixels,
+            new PixelSize(skBitmap.Width, skBitmap.Height),
+            new Vector(96, 96),
+            skBitmap.RowBytes);
+
+        GC.KeepAlive(skBitmap);
+        return bitmap;
     }
 
     public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
