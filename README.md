@@ -11,9 +11,11 @@ Built with Avalonia and .NET 9, it provides a fully customizable interface to de
 multi-layered touch buttons, assign commands, drive external tools (OBS, Elgato, Cooler Control,
 Argus Monitor, …) and manage dynamic page layouts for both touchscreen and rotary inputs.
 
+![LoupixDeck main window](docs/screenshots/main-window-loupedeck.png)
+
 ---
 
-## ⚠️ Disclaimer
+## Disclaimer
 
 LoupixDeck is experimental but actively developed. Features evolve quickly between releases; expect
 the occasional rough edge. Bug reports and PRs are welcome.
