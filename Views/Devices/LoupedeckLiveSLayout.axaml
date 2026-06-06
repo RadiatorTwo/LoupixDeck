@@ -15,6 +15,40 @@
             UnselectedBrush="{StaticResource UnselectedBrush}" />
     </UserControl.Resources>
 
+    <UserControl.Styles>
+        <!-- RGB LED buttons: the colour/glow is baked into the rendered image. A bare
+             template (no chrome border/background) guarantees no grey box ever appears
+             in any state — hover, press, focus, or while a modal dialog disables the
+             window. The only feedback is a subtle forward (scale) movement. -->
+        <Style Selector="Button.Led">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Focusable" Value="False" />
+            <Setter Property="RenderTransformOrigin" Value="0.5,0.5" />
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <ContentPresenter Content="{TemplateBinding Content}"
+                                      ContentTemplate="{TemplateBinding ContentTemplate}"
+                                      HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                      VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
+                </ControlTemplate>
+            </Setter>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.08" />
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="Button.Led:pointerover">
+            <Setter Property="RenderTransform" Value="scale(1.06)" />
+        </Style>
+        <Style Selector="Button.Led:pressed">
+            <Setter Property="RenderTransform" Value="scale(0.94)" />
+        </Style>
+    </UserControl.Styles>
+
     <Grid ColumnDefinitions="150,500,150" RowDefinitions="300,30,50">
         <Grid Grid.Row="0"
               Grid.Column="0"
@@ -111,45 +145,15 @@
                            VerticalAlignment="Center" />
                 </Border>
             </Button>
-            <Button Tag="Led"
+            <Button Tag="Led" Classes="Led"
                     Grid.Column="0"
                     Grid.Row="2"
                     HorizontalAlignment="Center"
-                    Width="90"
-                    Height="90"
+                    Width="66"
+                    Height="66"
                     Command="{Binding SimpleButtonCommand}"
                     CommandParameter="{Binding LoupedeckController.Config.SimpleButtons[0]}">
-                <Button.Styles>
-                    <Style Selector="Button">
-                        <Setter Property="Background" Value="Transparent" />
-                        <Setter Property="Border.CornerRadius" Value="50" />
-                    </Style>
-                    <Style Selector="Button:pointerover">
-                        <Setter Property="Background">
-                            <Setter.Value>
-                                <SolidColorBrush Color="LightGray" />
-                            </Setter.Value>
-                        </Setter>
-                        <Setter Property="Border.CornerRadius" Value="50" />
-                    </Style>
-                    <Style Selector="Button:focus">
-                        <Setter Property="Background">
-                            <Setter.Value>
-                                <SolidColorBrush Color="LightGray" />
-                            </Setter.Value>
-                        </Setter>
-                        <Setter Property="Border.CornerRadius" Value="50" />
-                    </Style>
-                    <Style Selector="Button:pressed">
-                        <Setter Property="Background">
-                            <Setter.Value>
-                                <SolidColorBrush Color="DarkGray" />
-                            </Setter.Value>
-                        </Setter>
-                        <Setter Property="Border.CornerRadius" Value="50" />
-                    </Style>
-                </Button.Styles>
-                <Border Background="Transparent" Width="90" Height="90" CornerRadius="50">
+                <Border Background="Transparent" Width="66" Height="66" CornerRadius="33">
                     <Image Source="{Binding LoupedeckController.Config.SimpleButtons[0].RenderedImage}" />
                 </Border>
             </Button>
@@ -308,78 +312,24 @@
         </Grid>
 
         <Grid Grid.Row="0" Grid.Column="2" HorizontalAlignment="Center" RowDefinitions="100,100,100,30">
-            <Button Tag="Led" Grid.Row="0" Grid.Column="0" Width="90" Height="90"
+            <Button Tag="Led" Classes="Led" Grid.Row="0" Grid.Column="0" Width="66" Height="66"
                     Command="{Binding SimpleButtonCommand}"
                     CommandParameter="{Binding LoupedeckController.Config.SimpleButtons[1]}">
-                <Button.Styles>
-                    <Style Selector="Button">
-                        <Setter Property="Background" Value="Transparent" />
-                        <Setter Property="Border.CornerRadius" Value="50" />
-                    </Style>
-                    <Style Selector="Button:pointerover">
-                        <Setter Property="Background"><Setter.Value><SolidColorBrush Color="LightGray" /></Setter.Value></Setter>
-                        <Setter Property="Border.CornerRadius" Value="50" />
-                    </Style>
-                    <Style Selector="Button:focus">
-                        <Setter Property="Background"><Setter.Value><SolidColorBrush Color="LightGray" /></Setter.Value></Setter>
-                        <Setter Property="Border.CornerRadius" Value="50" />
-                    </Style>
-                    <Style Selector="Button:pressed">
-                        <Setter Property="Background"><Setter.Value><SolidColorBrush Color="DarkGray" /></Setter.Value></Setter>
-                        <Setter Property="Border.CornerRadius" Value="50" />
-                    </Style>
-                </Button.Styles>
-                <Border Background="Transparent" Width="90" Height="90" CornerRadius="50">
+                <Border Background="Transparent" Width="66" Height="66" CornerRadius="33">
                     <Image Source="{Binding LoupedeckController.Config.SimpleButtons[1].RenderedImage}" />
                 </Border>
             </Button>
-            <Button Tag="Led" Grid.Row="1" Grid.Column="0" Width="90" Height="90"
+            <Button Tag="Led" Classes="Led" Grid.Row="1" Grid.Column="0" Width="66" Height="66"
                     Command="{Binding SimpleButtonCommand}"
                     CommandParameter="{Binding LoupedeckController.Config.SimpleButtons[2]}">
-                <Button.Styles>
-                    <Style Selector="Button">
-                        <Setter Property="Background" Value="Transparent" />
-                        <Setter Property="Border.CornerRadius" Value="50" />
-                    </Style>
-                    <Style Selector="Button:pointerover">
-                        <Setter Property="Background"><Setter.Value><SolidColorBrush Color="LightGray" /></Setter.Value></Setter>
-                        <Setter Property="Border.CornerRadius" Value="50" />
-                    </Style>
-                    <Style Selector="Button:focus">
-                        <Setter Property="Background"><Setter.Value><SolidColorBrush Color="LightGray" /></Setter.Value></Setter>
-                        <Setter Property="Border.CornerRadius" Value="50" />
-                    </Style>
-                    <Style Selector="Button:pressed">
-                        <Setter Property="Background"><Setter.Value><SolidColorBrush Color="DarkGray" /></Setter.Value></Setter>
-                        <Setter Property="Border.CornerRadius" Value="50" />
-                    </Style>
-                </Button.Styles>
-                <Border Background="Transparent" Width="90" Height="90" CornerRadius="50">
+                <Border Background="Transparent" Width="66" Height="66" CornerRadius="33">
                     <Image Source="{Binding LoupedeckController.Config.SimpleButtons[2].RenderedImage}" />
                 </Border>
             </Button>
-            <Button Tag="Led" Grid.Row="2" Grid.Column="0" Width="90" Height="90"
+            <Button Tag="Led" Classes="Led" Grid.Row="2" Grid.Column="0" Width="66" Height="66"
                     Command="{Binding SimpleButtonCommand}"
                     CommandParameter="{Binding LoupedeckController.Config.SimpleButtons[3]}">
-                <Button.Styles>
-                    <Style Selector="Button">
-                        <Setter Property="Background" Value="Transparent" />
-                        <Setter Property="Border.CornerRadius" Value="50" />
-                    </Style>
-                    <Style Selector="Button:pointerover">
-                        <Setter Property="Background"><Setter.Value><SolidColorBrush Color="LightGray" /></Setter.Value></Setter>
-                        <Setter Property="Border.CornerRadius" Value="50" />
-                    </Style>
-                    <Style Selector="Button:focus">
-                        <Setter Property="Background"><Setter.Value><SolidColorBrush Color="LightGray" /></Setter.Value></Setter>
-                        <Setter Property="Border.CornerRadius" Value="50" />
-                    </Style>
-                    <Style Selector="Button:pressed">
-                        <Setter Property="Background"><Setter.Value><SolidColorBrush Color="DarkGray" /></Setter.Value></Setter>
-                        <Setter Property="Border.CornerRadius" Value="50" />
-                    </Style>
-                </Button.Styles>
-                <Border Background="Transparent" Width="90" Height="90" CornerRadius="50">
+                <Border Background="Transparent" Width="66" Height="66" CornerRadius="33">
                     <Image Source="{Binding LoupedeckController.Config.SimpleButtons[3].RenderedImage}" />
                 </Border>
             </Button>
