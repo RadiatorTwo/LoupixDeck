@@ -4,6 +4,7 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:conv="clr-namespace:LoupixDeck.Models.Converter"
+             xmlns:utils="clr-namespace:LoupixDeck.Utils"
              mc:Ignorable="d"
              x:Class="LoupixDeck.Views.Devices.RazerStreamControllerLayout"
              x:DataType="vm:MainWindowViewModel"
@@ -16,19 +17,36 @@
     </UserControl.Resources>
 
     <UserControl.Styles>
+        <!-- Rotary dials: the realistic knob is baked into the rendered image, so a
+             bare template keeps any grey chrome out of every state; the only feedback
+             is a subtle scale movement. -->
         <Style Selector="Button.Knob">
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderBrush" Value="Transparent" />
             <Setter Property="Width" Value="80" />
             <Setter Property="Height" Value="80" />
-            <Setter Property="CornerRadius" Value="40" />
             <Setter Property="Padding" Value="0" />
+            <Setter Property="Focusable" Value="False" />
+            <Setter Property="RenderTransformOrigin" Value="0.5,0.5" />
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <ContentPresenter Content="{TemplateBinding Content}"
+                                      ContentTemplate="{TemplateBinding ContentTemplate}"
+                                      HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                      VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
+                </ControlTemplate>
+            </Setter>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.08" />
+                </Transitions>
+            </Setter>
         </Style>
         <Style Selector="Button.Knob:pointerover">
-            <Setter Property="Background"><Setter.Value><SolidColorBrush Color="LightGray" /></Setter.Value></Setter>
+            <Setter Property="RenderTransform" Value="scale(1.04)" />
         </Style>
         <Style Selector="Button.Knob:pressed">
-            <Setter Property="Background"><Setter.Value><SolidColorBrush Color="DarkGray" /></Setter.Value></Setter>
+            <Setter Property="RenderTransform" Value="scale(0.96)" />
         </Style>
         <!-- RGB LED buttons: the colour/glow is baked into the rendered image. A bare
              template (no chrome border/background) guarantees no grey box ever appears
@@ -76,19 +94,19 @@
                     HorizontalAlignment="Center" VerticalAlignment="Center"
                     Command="{Binding RotaryButtonCommand}"
                     CommandParameter="{Binding LoupedeckController.Config.CurrentRotaryButtonPage.RotaryButtons[0], Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
-                <Image Source="{SvgImage avares://LoupixDeck/Assets/dial.svg}" Stretch="UniformToFill" />
+                <Image Source="{x:Static utils:BitmapHelper.RotaryKnobImage}" Width="80" Height="80" />
             </Button>
             <Button Classes="Knob" Grid.Column="0" Grid.Row="1"
                     HorizontalAlignment="Center" VerticalAlignment="Center"
                     Command="{Binding RotaryButtonCommand}"
                     CommandParameter="{Binding LoupedeckController.Config.CurrentRotaryButtonPage.RotaryButtons[1], Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
-                <Image Source="{SvgImage avares://LoupixDeck/Assets/dial.svg}" Stretch="UniformToFill" />
+                <Image Source="{x:Static utils:BitmapHelper.RotaryKnobImage}" Width="80" Height="80" />
             </Button>
             <Button Classes="Knob" Grid.Column="0" Grid.Row="2"
                     HorizontalAlignment="Center" VerticalAlignment="Center"
                     Command="{Binding RotaryButtonCommand}"
                     CommandParameter="{Binding LoupedeckController.Config.CurrentRotaryButtonPage.RotaryButtons[2], Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
-                <Image Source="{SvgImage avares://LoupixDeck/Assets/dial.svg}" Stretch="UniformToFill" />
+                <Image Source="{x:Static utils:BitmapHelper.RotaryKnobImage}" Width="80" Height="80" />
             </Button>
 
             <!-- Left narrow display: TouchButtons[12] (60x270, full height) -->
@@ -209,19 +227,19 @@
                     HorizontalAlignment="Center" VerticalAlignment="Center"
                     Command="{Binding RotaryButtonCommand}"
                     CommandParameter="{Binding LoupedeckController.Config.CurrentRotaryButtonPage.RotaryButtons[3], Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
-                <Image Source="{SvgImage avares://LoupixDeck/Assets/dial.svg}" Stretch="UniformToFill" />
+                <Image Source="{x:Static utils:BitmapHelper.RotaryKnobImage}" Width="80" Height="80" />
             </Button>
             <Button Classes="Knob" Grid.Column="4" Grid.Row="1"
                     HorizontalAlignment="Center" VerticalAlignment="Center"
                     Command="{Binding RotaryButtonCommand}"
                     CommandParameter="{Binding LoupedeckController.Config.CurrentRotaryButtonPage.RotaryButtons[4], Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
-                <Image Source="{SvgImage avares://LoupixDeck/Assets/dial.svg}" Stretch="UniformToFill" />
+                <Image Source="{x:Static utils:BitmapHelper.RotaryKnobImage}" Width="80" Height="80" />
             </Button>
             <Button Classes="Knob" Grid.Column="4" Grid.Row="2"
                     HorizontalAlignment="Center" VerticalAlignment="Center"
                     Command="{Binding RotaryButtonCommand}"
                     CommandParameter="{Binding LoupedeckController.Config.CurrentRotaryButtonPage.RotaryButtons[5], Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
-                <Image Source="{SvgImage avares://LoupixDeck/Assets/dial.svg}" Stretch="UniformToFill" />
+                <Image Source="{x:Static utils:BitmapHelper.RotaryKnobImage}" Width="80" Height="80" />
             </Button>
         </Grid>
 

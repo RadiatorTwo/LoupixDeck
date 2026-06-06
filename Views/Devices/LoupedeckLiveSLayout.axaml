@@ -4,6 +4,7 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:conv="clr-namespace:LoupixDeck.Models.Converter"
+             xmlns:utils="clr-namespace:LoupixDeck.Utils"
              mc:Ignorable="d"
              x:Class="LoupixDeck.Views.Devices.LoupedeckLiveSLayout"
              x:DataType="vm:MainWindowViewModel"
@@ -48,6 +49,37 @@
             <Setter Property="RenderTransform" Value="scale(0.94)" />
         </Style>
 
+        <!-- Rotary dials: the realistic knob is baked into the rendered image. Like
+             the LED buttons, a bare template guarantees no grey box appears in any
+             state; the only feedback is a subtle scale movement. -->
+        <Style Selector="Button.Dial">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Focusable" Value="False" />
+            <Setter Property="RenderTransformOrigin" Value="0.5,0.5" />
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <ContentPresenter Content="{TemplateBinding Content}"
+                                      ContentTemplate="{TemplateBinding ContentTemplate}"
+                                      HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                      VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
+                </ControlTemplate>
+            </Setter>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.08" />
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="Button.Dial:pointerover">
+            <Setter Property="RenderTransform" Value="scale(1.04)" />
+        </Style>
+        <Style Selector="Button.Dial:pressed">
+            <Setter Property="RenderTransform" Value="scale(0.96)" />
+        </Style>
+
         <!-- Touch buttons: chrome-free so only the rendered image shows, with the
              dark bezel behind it filling the gaps and rounded corners. No grey
              button background in any state (hover, press, focus, dialog). -->
@@ -68,121 +100,18 @@
         </Style>
     </UserControl.Styles>
 
-    <Grid ColumnDefinitions="150,570,150" RowDefinitions="330,30,50">
-        <Grid Grid.Row="0"
-              Grid.Column="0"
-              HorizontalAlignment="Center"
-              RowDefinitions="100,100,100"
-              ColumnDefinitions="100,50">
-            <Button
-                Grid.Column="0"
-                Grid.Row="0"
-                HorizontalAlignment="Center"
-                Width="90"
-                Height="90"
-                Background="Transparent"
-                Command="{Binding RotaryButtonCommand}"
-                CommandParameter="{Binding LoupedeckController.Config.CurrentRotaryButtonPage.RotaryButtons[0], Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
-                <Button.Styles>
-                    <Style Selector="Button">
-                        <Setter Property="Background" Value="Transparent" />
-                        <Setter Property="Border.CornerRadius" Value="50" />
-                    </Style>
-                    <Style Selector="Button:pointerover">
-                        <Setter Property="Background">
-                            <Setter.Value>
-                                <SolidColorBrush Color="LightGray" />
-                            </Setter.Value>
-                        </Setter>
-                        <Setter Property="Border.CornerRadius" Value="50" />
-                    </Style>
-                    <Style Selector="Button:focus">
-                        <Setter Property="Background">
-                            <Setter.Value>
-                                <SolidColorBrush Color="LightGray" />
-                            </Setter.Value>
-                        </Setter>
-                        <Setter Property="Border.CornerRadius" Value="50" />
-                    </Style>
-                    <Style Selector="Button:pressed">
-                        <Setter Property="Background">
-                            <Setter.Value>
-                                <SolidColorBrush Color="DarkGray" />
-                            </Setter.Value>
-                        </Setter>
-                        <Setter Property="Border.CornerRadius" Value="50" />
-                    </Style>
-                </Button.Styles>
-                <Border Background="Transparent" Width="90" Height="90" CornerRadius="50">
-                    <Image Source="{SvgImage avares://LoupixDeck/Assets/dial.svg}" Stretch="UniformToFill"
-                           HorizontalAlignment="Center"
-                           VerticalAlignment="Center" />
-                </Border>
-            </Button>
-            <Button
-                Grid.Column="0"
-                Grid.Row="1"
-                HorizontalAlignment="Center"
-                Width="90"
-                Height="90"
-                Background="Transparent"
-                Command="{Binding RotaryButtonCommand}"
-                CommandParameter="{Binding LoupedeckController.Config.CurrentRotaryButtonPage.RotaryButtons[1], Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
-                <Button.Styles>
-                    <Style Selector="Button">
-                        <Setter Property="Background" Value="Transparent" />
-                        <Setter Property="Border.CornerRadius" Value="50" />
-                    </Style>
-                    <Style Selector="Button:pointerover">
-                        <Setter Property="Background">
-                            <Setter.Value>
-                                <SolidColorBrush Color="LightGray" />
-                            </Setter.Value>
-                        </Setter>
-                        <Setter Property="Border.CornerRadius" Value="50" />
-                    </Style>
-                    <Style Selector="Button:focus">
-                        <Setter Property="Background">
-                            <Setter.Value>
-                                <SolidColorBrush Color="LightGray" />
-                            </Setter.Value>
-                        </Setter>
-                        <Setter Property="Border.CornerRadius" Value="50" />
-                    </Style>
-                    <Style Selector="Button:pressed">
-                        <Setter Property="Background">
-                            <Setter.Value>
-                                <SolidColorBrush Color="DarkGray" />
-                            </Setter.Value>
-                        </Setter>
-                        <Setter Property="Border.CornerRadius" Value="50" />
-                    </Style>
-                </Button.Styles>
-                <Border Background="Transparent" Width="90" Height="90" CornerRadius="50">
-                    <Image Source="{SvgImage avares://LoupixDeck/Assets/dial.svg}" Stretch="UniformToFill"
-                           HorizontalAlignment="Center"
-                           VerticalAlignment="Center" />
-                </Border>
-            </Button>
-            <Button Tag="Led" Classes="Led"
-                    Grid.Column="0"
-                    Grid.Row="2"
-                    HorizontalAlignment="Center"
-                    Width="66"
-                    Height="66"
-                    Command="{Binding SimpleButtonCommand}"
-                    CommandParameter="{Binding LoupedeckController.Config.SimpleButtons[0]}">
-                <Border Background="Transparent" Width="66" Height="66" CornerRadius="33">
-                    <Image Source="{Binding LoupedeckController.Config.SimpleButtons[0].RenderedImage}" />
-                </Border>
-            </Button>
+    <Grid ColumnDefinitions="Auto,570,Auto" RowDefinitions="Auto,16">
+        <StackPanel Grid.Row="0" Grid.Column="0"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Right"
+                    VerticalAlignment="Top"
+                    Margin="12,0,30,0">
 
+            <!-- Rotary page add/switch buttons, to the LEFT of the rotary dials,
+                 aligned to the top next to the first rotary. -->
             <StackPanel Width="30"
-                        Margin="0,6,0,0"
-                        Grid.Row="0"
-                        Grid.Column="1"
-                        Grid.RowSpan="3"
-                        HorizontalAlignment="Left"
+                        VerticalAlignment="Top"
+                        Margin="0,10,10,0"
                         Orientation="Vertical">
                 <ItemsControl ItemsSource="{Binding LoupedeckController.Config.RotaryButtonPages}">
                     <ItemsControl.ItemsPanel>
@@ -217,13 +146,49 @@
                         VerticalContentAlignment="Center"
                         Command="{Binding DeleteRotaryPageCommand}" />
             </StackPanel>
-        </Grid>
+
+            <!-- Rotary dials (7 mm apart) with the first LED button 10 mm below. -->
+            <StackPanel Orientation="Vertical" HorizontalAlignment="Center">
+            <Button Classes="Dial"
+                HorizontalAlignment="Center"
+                Width="90"
+                Height="90"
+                Command="{Binding RotaryButtonCommand}"
+                CommandParameter="{Binding LoupedeckController.Config.CurrentRotaryButtonPage.RotaryButtons[0], Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
+                <Image Source="{x:Static utils:BitmapHelper.RotaryKnobImage}"
+                       Width="90" Height="90" />
+            </Button>
+            <Button Classes="Dial"
+                Margin="0,42,0,0"
+                HorizontalAlignment="Center"
+                Width="90"
+                Height="90"
+                Command="{Binding RotaryButtonCommand}"
+                CommandParameter="{Binding LoupedeckController.Config.CurrentRotaryButtonPage.RotaryButtons[1], Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
+                <Image Source="{x:Static utils:BitmapHelper.RotaryKnobImage}"
+                       Width="90" Height="90" />
+            </Button>
+            <Button Tag="Led" Classes="Led"
+                    Margin="0,84,0,0"
+                    HorizontalAlignment="Center"
+                    Width="66"
+                    Height="66"
+                    Command="{Binding SimpleButtonCommand}"
+                    CommandParameter="{Binding LoupedeckController.Config.SimpleButtons[0]}">
+                <Border Background="Transparent" Width="66" Height="66" CornerRadius="33">
+                    <Image Source="{Binding LoupedeckController.Config.SimpleButtons[0].RenderedImage}" />
+                </Border>
+            </Button>
+            </StackPanel>
+        </StackPanel>
 
         <!-- Touch-screen bezel: dark frame around and between the touch buttons,
              matching the real device (6 mm L/R, 3 mm top/bottom, 2 mm gaps at
              6 px/mm; corners slightly rounder than the buttons). -->
-        <Border Grid.Row="0" Grid.Column="1"
-                HorizontalAlignment="Center" VerticalAlignment="Center"
+        <StackPanel Grid.Row="0" Grid.Column="1"
+                    HorizontalAlignment="Center" VerticalAlignment="Top"
+                    Margin="0,9,0,0" Spacing="6">
+        <Border HorizontalAlignment="Center"
                 Background="#121212" CornerRadius="12" Padding="36,18">
         <Grid ColumnDefinitions="90,90,90,90,90" RowDefinitions="90,90,90"
               ColumnSpacing="12" RowSpacing="12">
@@ -337,61 +302,72 @@
         </Grid>
         </Border>
 
-        <Grid Grid.Row="0" Grid.Column="2" HorizontalAlignment="Center" RowDefinitions="100,100,100,30">
-            <Button Tag="Led" Classes="Led" Grid.Row="0" Grid.Column="0" Width="66" Height="66"
+            <!-- Touch page add/select/remove buttons, a small gap below the bezel,
+                 left-aligned under the bezel's left edge. -->
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
+                <ItemsControl ItemsSource="{Binding LoupedeckController.Config.TouchButtonPages}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel Orientation="Horizontal" />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Button Tag="Mini"
+                                    Content="{Binding Page}"
+                                    Command="{Binding #RootControl.((vm:MainWindowViewModel)DataContext).TouchPageButtonCommand}"
+                                    CommandParameter="{Binding Page}"
+                                    HorizontalContentAlignment="Center"
+                                    VerticalContentAlignment="Center"
+                                    Background="{Binding Selected, Converter={StaticResource BoolToBrushConverter}}" />
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <Button Content="+" Width="30" Height="30" CornerRadius="8"
+                        HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                        Command="{Binding AddTouchPageCommand}" />
+                <Button Content="x" Width="30" Height="30" CornerRadius="8"
+                        HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                        Command="{Binding DeleteTouchPageCommand}" />
+            </StackPanel>
+        </StackPanel>
+
+        <!-- Right LED buttons: 7 mm from the touch bezel, 12 mm apart vertically.
+             The trailing right margin leaves room for the hover scale so the
+             buttons are not clipped by the (SizeToContent) window edge. -->
+        <StackPanel Grid.Row="0" Grid.Column="2"
+                    Orientation="Vertical"
+                    HorizontalAlignment="Left"
+                    VerticalAlignment="Top"
+                    Margin="42,27,12,0"
+                    Spacing="72">
+            <Button Tag="Led" Classes="Led" Width="66" Height="66"
                     Command="{Binding SimpleButtonCommand}"
                     CommandParameter="{Binding LoupedeckController.Config.SimpleButtons[1]}">
                 <Border Background="Transparent" Width="66" Height="66" CornerRadius="33">
                     <Image Source="{Binding LoupedeckController.Config.SimpleButtons[1].RenderedImage}" />
                 </Border>
             </Button>
-            <Button Tag="Led" Classes="Led" Grid.Row="1" Grid.Column="0" Width="66" Height="66"
+            <Button Tag="Led" Classes="Led" Width="66" Height="66"
                     Command="{Binding SimpleButtonCommand}"
                     CommandParameter="{Binding LoupedeckController.Config.SimpleButtons[2]}">
                 <Border Background="Transparent" Width="66" Height="66" CornerRadius="33">
                     <Image Source="{Binding LoupedeckController.Config.SimpleButtons[2].RenderedImage}" />
                 </Border>
             </Button>
-            <Button Tag="Led" Classes="Led" Grid.Row="2" Grid.Column="0" Width="66" Height="66"
+            <Button Tag="Led" Classes="Led" Width="66" Height="66"
                     Command="{Binding SimpleButtonCommand}"
                     CommandParameter="{Binding LoupedeckController.Config.SimpleButtons[3]}">
                 <Border Background="Transparent" Width="66" Height="66" CornerRadius="33">
                     <Image Source="{Binding LoupedeckController.Config.SimpleButtons[3].RenderedImage}" />
                 </Border>
             </Button>
-        </Grid>
-
-        <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal">
-            <ItemsControl ItemsSource="{Binding LoupedeckController.Config.TouchButtonPages}">
-                <ItemsControl.ItemsPanel>
-                    <ItemsPanelTemplate>
-                        <StackPanel Orientation="Horizontal" />
-                    </ItemsPanelTemplate>
-                </ItemsControl.ItemsPanel>
-                <ItemsControl.ItemTemplate>
-                    <DataTemplate>
-                        <Button Tag="Mini"
-                                Content="{Binding Page}"
-                                Command="{Binding #RootControl.((vm:MainWindowViewModel)DataContext).TouchPageButtonCommand}"
-                                CommandParameter="{Binding Page}"
-                                HorizontalContentAlignment="Center"
-                                VerticalContentAlignment="Center"
-                                Background="{Binding Selected, Converter={StaticResource BoolToBrushConverter}}" />
-                    </DataTemplate>
-                </ItemsControl.ItemTemplate>
-            </ItemsControl>
-            <Button Content="+" Width="30" Height="30" CornerRadius="8"
-                    HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
-                    Command="{Binding AddTouchPageCommand}" />
-            <Button Content="x" Width="30" Height="30" CornerRadius="8"
-                    HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
-                    Command="{Binding DeleteTouchPageCommand}" />
         </StackPanel>
 
         <!-- Exclusive-mode overlay: while a provider owns the device, none of the
              on-screen controls reflect or affect it, so cover the whole device and
              swallow all input with a notice. -->
-        <Border Grid.Row="0" Grid.RowSpan="3"
+        <Border Grid.Row="0"
                 Grid.Column="0" Grid.ColumnSpan="3"
                 IsVisible="{Binding IsExclusiveModeActive}"
                 Background="#E60F0F0F"
