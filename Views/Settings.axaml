@@ -408,7 +408,12 @@
 
                 <!-- ====== Plugins ====== -->
                 <StackPanel IsVisible="{Binding CurrentView, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Plugins}">
-                    <TextBlock Classes="page-title" Text="Plugins" />
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBlock Grid.Column="0" Classes="page-title" Text="Plugins" />
+                        <Button Grid.Column="1" Content="Open Plugins Folder"
+                                Command="{Binding OpenPluginsFolderCommand}"
+                                VerticalAlignment="Center" />
+                    </Grid>
 
                     <Border Classes="card">
                         <Grid ColumnDefinitions="220,*" MinHeight="280">

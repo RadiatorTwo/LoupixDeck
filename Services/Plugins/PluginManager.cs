@@ -8,8 +8,10 @@ using SdkDeviceInfo = LoupixDeck.PluginSdk.DeviceInfo;
 namespace LoupixDeck.Services.Plugins;
 
 /// <summary>
-/// Discovers, loads and initializes plugins from the <c>plugins/</c> directory
-/// next to the application. Each plugin is isolated in its own collectible
+/// Discovers, loads and initializes plugins from the bundled <c>plugins/</c>
+/// directory next to the application and from the user <c>plugins/</c> directory
+/// in the config folder (<c>~/.config/LoupixDeck/plugins</c>). Each plugin is
+/// isolated in its own collectible
 /// <see cref="PluginLoadContext"/>; a failure in one plugin never prevents the
 /// app — or the other plugins — from starting.
 /// </summary>
@@ -47,20 +49,59 @@ public class PluginManager : IPluginManager
     {
         _plugins.Clear();
 
-        var pluginsRoot = Path.Combine(AppContext.BaseDirectory, "plugins");
-        if (!Directory.Exists(pluginsRoot))
+        // Plugins are discovered from two roots: the bundled `plugins/` folder
+        // next to the executable, and a user `plugins/` folder alongside the
+        // config files (~/.config/LoupixDeck/plugins). The app directory is
+        // scanned first so bundled plugins win when an id appears in both.
+        // The user plugins folder is created on startup so it always exists for
+        // the user to drop plugins into (and for "Open Plugins Folder" to open).
+        var userPluginsRoot = Path.Combine(Utils.FileDialogHelper.GetConfigDir(), "plugins");
+        try
         {
-            Console.WriteLine($"PluginManager: no plugins directory at '{pluginsRoot}' — core only.");
-            return;
+            Directory.CreateDirectory(userPluginsRoot);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"PluginManager: could not create user plugins dir '{userPluginsRoot}': {ex.Message}");
         }
 
-        foreach (var dir in Directory.GetDirectories(pluginsRoot))
+        var pluginsRoots = new[]
         {
-            var manifestPath = Path.Combine(dir, "plugin.json");
-            if (!File.Exists(manifestPath))
-                continue;
+            Path.Combine(AppContext.BaseDirectory, "plugins"),
+            userPluginsRoot
+        };
 
-            _plugins.Add(LoadOne(dir, manifestPath));
+        var seenIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var pluginsRoot in pluginsRoots)
+        {
+            if (!Directory.Exists(pluginsRoot))
+            {
+                Console.WriteLine($"PluginManager: no plugins directory at '{pluginsRoot}'.");
+                continue;
+            }
+
+            foreach (var dir in Directory.GetDirectories(pluginsRoot))
+            {
+                var manifestPath = Path.Combine(dir, "plugin.json");
+                if (!File.Exists(manifestPath))
+                    continue;
+
+                var loaded = LoadOne(dir, manifestPath);
+
+                // Skip a plugin whose id was already discovered in an earlier
+                // root, so a user copy can't shadow/collide with a bundled one.
+                var id = loaded.Manifest?.Id;
+                if (!string.IsNullOrWhiteSpace(id) && !seenIds.Add(id))
+                {
+                    Console.WriteLine(
+                        $"PluginManager: skipping duplicate plugin id '{id}' at '{dir}' " +
+                        "(already loaded from an earlier directory).");
+                    continue;
+                }
+
+                _plugins.Add(loaded);
+            }
         }
 
         var ok = _plugins.Count(p => p.Status == PluginLoadStatus.Loaded);
