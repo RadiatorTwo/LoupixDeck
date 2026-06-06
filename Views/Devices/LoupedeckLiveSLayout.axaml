@@ -82,6 +82,7 @@
             <Setter Property="BorderThickness" Value="0" />
             <Setter Property="Padding" Value="0" />
             <Setter Property="Focusable" Value="False" />
+            <Setter Property="RenderTransformOrigin" Value="50%,50%" />
             <Setter Property="Template">
                 <ControlTemplate>
                     <ContentPresenter Content="{TemplateBinding Content}"
@@ -90,6 +91,19 @@
                                       VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
                 </ControlTemplate>
             </Setter>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.08" />
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="Button[Tag=Touch]:pointerover">
+            <!-- Lift above neighbours so the centred forward zoom is never clipped. -->
+            <Setter Property="ZIndex" Value="1" />
+            <Setter Property="RenderTransform" Value="scale(1.05)" />
+        </Style>
+        <Style Selector="Button[Tag=Touch]:pressed">
+            <Setter Property="RenderTransform" Value="scale(0.96)" />
         </Style>
     </UserControl.Styles>
 

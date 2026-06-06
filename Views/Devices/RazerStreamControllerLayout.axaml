@@ -73,6 +73,24 @@
         <Style Selector="Button.LedRound:pressed">
             <Setter Property="RenderTransform" Value="scale(0.94)" />
         </Style>
+        <!-- Touch buttons keep their inline chrome (per-button bezel); add only the
+             same centred forward-zoom feedback as the knobs and LED buttons. The
+             grid has no gaps, so lift the hovered button above its neighbours. -->
+        <Style Selector="Button[Tag=Touch]">
+            <Setter Property="RenderTransformOrigin" Value="50%,50%" />
+            <Setter Property="Transitions">
+                <Transitions>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.08" />
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="Button[Tag=Touch]:pointerover">
+            <Setter Property="ZIndex" Value="1" />
+            <Setter Property="RenderTransform" Value="scale(1.05)" />
+        </Style>
+        <Style Selector="Button[Tag=Touch]:pressed">
+            <Setter Property="RenderTransform" Value="scale(0.96)" />
+        </Style>
     </UserControl.Styles>
 
     <Grid RowDefinitions="Auto,Auto,Auto,Auto" Margin="10">
