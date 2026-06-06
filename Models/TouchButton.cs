@@ -2,6 +2,7 @@ using System.Collections.Specialized;
 using System.ComponentModel;
 using Avalonia.Media;
 using LoupixDeck.Models.Layers;
+using LoupixDeck.Utils;
 using Newtonsoft.Json;
 using SkiaSharp;
 
@@ -102,14 +103,38 @@ public class TouchButton : LoupedeckButton
 
     private SKBitmap _renderedImage;
 
+    // A bitmap just replaced as RenderedImage may still be read by an in-flight reader
+    // that captured the reference around the swap: the UI preview-converter (not gated,
+    // copies the pixels) or the device push (reads RenderedImage, then converts across
+    // an await in DrawKey -> DrawCanvas). Disposing it immediately would risk a
+    // use-after-free, so retire it and dispose only a few swaps later — by then every
+    // such reader has long finished. This bounds the native pixel memory instead of
+    // leaving it to the GC finalizer (crash-analysis measure 4). Three generations of
+    // headroom comfortably covers the widest reader window (the awaited device push).
+    private readonly Queue<SKBitmap> _retiredImages = new();
+    private const int RetainedRenderedGenerations = 3;
+
     [JsonIgnore]
     public SKBitmap RenderedImage
     {
         get => _renderedImage;
         set
         {
-            if (Equals(value, _renderedImage)) return;
-            _renderedImage = value;
+            if (ReferenceEquals(value, _renderedImage)) return;
+
+            // Swap + retire under the render gate so the deferred native Dispose()
+            // never overlaps active Skia work and concurrent setters stay consistent.
+            // OnPropertyChanged is raised outside the lock (it may marshal to the UI).
+            lock (SkiaRenderGate.Sync)
+            {
+                var old = _renderedImage;
+                _renderedImage = value;
+                if (old != null)
+                    _retiredImages.Enqueue(old);
+                while (_retiredImages.Count > RetainedRenderedGenerations)
+                    _retiredImages.Dequeue().Dispose();
+            }
+
             OnPropertyChanged(nameof(RenderedImage));
         }
     }
