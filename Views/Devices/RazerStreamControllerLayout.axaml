@@ -30,19 +30,37 @@
         <Style Selector="Button.Knob:pressed">
             <Setter Property="Background"><Setter.Value><SolidColorBrush Color="DarkGray" /></Setter.Value></Setter>
         </Style>
+        <!-- RGB LED buttons: the colour/glow is baked into the rendered image. A bare
+             template (no chrome border/background) guarantees no grey box ever appears
+             in any state — hover, press, focus, or while a modal dialog disables the
+             window. The only feedback is a subtle forward (scale) movement. -->
         <Style Selector="Button.LedRound">
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderBrush" Value="Transparent" />
             <Setter Property="Width" Value="72" />
             <Setter Property="Height" Value="72" />
-            <Setter Property="CornerRadius" Value="36" />
             <Setter Property="Padding" Value="0" />
+            <Setter Property="Focusable" Value="False" />
+            <Setter Property="RenderTransformOrigin" Value="0.5,0.5" />
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <ContentPresenter Content="{TemplateBinding Content}"
+                                      ContentTemplate="{TemplateBinding ContentTemplate}"
+                                      HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                      VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
+                </ControlTemplate>
+            </Setter>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.08" />
+                </Transitions>
+            </Setter>
         </Style>
         <Style Selector="Button.LedRound:pointerover">
-            <Setter Property="Background"><Setter.Value><SolidColorBrush Color="LightGray" /></Setter.Value></Setter>
+            <Setter Property="RenderTransform" Value="scale(1.06)" />
         </Style>
         <Style Selector="Button.LedRound:pressed">
-            <Setter Property="Background"><Setter.Value><SolidColorBrush Color="DarkGray" /></Setter.Value></Setter>
+            <Setter Property="RenderTransform" Value="scale(0.94)" />
         </Style>
     </UserControl.Styles>
 

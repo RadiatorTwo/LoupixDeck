@@ -3,6 +3,7 @@ using Avalonia;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Media.Immutable;
+using Avalonia.Platform;
 using LoupixDeck.Models;
 using LoupixDeck.Models.Layers;
 using SkiaSharp;
@@ -47,91 +48,185 @@ public static class BitmapHelper
         //CropToFill // Like “Fill”, but with cropping instead of distortion
     }
 
+    /// <summary>
+    /// Renders an RGB device button as a realistic physical push-button: a dark,
+    /// top-lit plastic body with a bevelled rim, and an inner LED ring (with a gap
+    /// at the top-right) that glows softly in the assigned colour. The ring keeps a
+    /// faint base glow even when the button colour is (near-)black so it stays
+    /// visible in the "off" state. Drawn with SkiaSharp (for blur-based glow and
+    /// gradient shading) and returned as an Avalonia <see cref="Bitmap"/> so the
+    /// existing image bindings stay unchanged.
+    /// </summary>
     public static Bitmap RenderSimpleButtonImage(SimpleButton simpleButton, int width, int height)
     {
         ArgumentNullException.ThrowIfNull(simpleButton);
 
-        var rtb = new RenderTargetBitmap(
-            new PixelSize(width, height)
-        );
+        // Supersample so the downscaled on-screen image has smooth edges.
+        const int ss = 2;
+        var w = width * ss;
+        var h = height * ss;
 
-        using var ctx = rtb.CreateDrawingContext(true);
+        // Unpremultiplied Bgra8888 matches the Avalonia Bitmap construction below
+        // (AlphaFormat.Unpremul), avoiding dark fringes on the glow's soft edges.
+        var info = new SKImageInfo(w, h, SKColorType.Bgra8888, SKAlphaType.Unpremul);
 
-        // Background: first clear it with transparency
-        ctx.DrawRectangle(
-            brush: Brushes.Transparent,
-            pen: null,
-            rect: new Rect(0, 0, width, height)
-        );
+        Bitmap result;
 
-        // Values for ring thickness and margin
-        const int ringThickness = 3;
-        const int margin = 8;
-        const int innerRingThickness = 4;
-        const int innerRingMargin = 28;
-        const double gapAngle = 45.0;
-        const double startAngle = 60;
-
-        // Create a pen for the ring
-        var brush = new ImmutableSolidColorBrush(simpleButton.ButtonColor);
-        var ringPen = new ImmutablePen(brush, ringThickness);
-
-        // Calculate the center point
-        var center = new Point(width / 2.0, height / 2.0);
-
-        // Choose radii to maintain the desired margin from the edges
-        var radiusX = (width - 2 * margin) / 2.0;
-        var radiusY = (height - 2 * margin) / 2.0;
-
-        // Draw the ring (circle or ellipse depending on width/height ratio)
-        ctx.DrawEllipse(
-            Brushes.Transparent,
-            ringPen,
-            center,
-            radiusX,
-            radiusY
-        );
-
-        // Radii for the inner ring
-        var innerRadiusX = (width - 2 * innerRingMargin) / 2.0;
-        var innerRadiusY = (height - 2 * innerRingMargin) / 2.0;
-
-        var innerRingPen = new ImmutablePen(brush, innerRingThickness);
-
-        // We have no DrawArc, so we need to draw it with geometry ourselves
-        var geo = new StreamGeometry();
-        using (var geoCtx = geo.Open())
+        // All Skia drawing happens under the shared render gate so it can never
+        // overlap another render/convert on a different thread (see SkiaRenderGate /
+        // docs/CRASH_ANALYSIS_ACCESS_VIOLATION.md, measure 1).
+        lock (SkiaRenderGate.Sync)
         {
-            const double endAngle = startAngle + (360 - gapAngle);
-            const int segmentCount = 100;
-            const double angleStep = (endAngle - startAngle) / segmentCount;
-
-            var isFirstPoint = true;
-
-            for (var i = 0; i <= segmentCount; i++)
+            using var surface = new SKBitmap(info);
+            using (var canvas = new SKCanvas(surface))
             {
-                var angle = startAngle + i * angleStep;
-                var radian = Math.PI * angle / 180.0;
-                var x = center.X + innerRadiusX * Math.Cos(radian);
-                var y = center.Y - innerRadiusY * Math.Sin(radian);
+                canvas.Clear(SKColors.Transparent);
 
-                var point = new Point(x, y);
-                if (isFirstPoint)
+                var cx = w / 2f;
+                var cy = h / 2f;
+
+                // Leave room around the body for the seating shadow.
+                var bodyRadius = Math.Min(w, h) / 2f - 3f * ss;
+
+                // 1. Seating shadow: soft dark blob slightly below the body so the
+                //    button appears to sit in the panel.
+                using (var shadow = new SKPaint
+                       {
+                           IsAntialias = true,
+                           Color = new SKColor(0, 0, 0, 160),
+                           MaskFilter = SKMaskFilter.CreateBlur(SKBlurStyle.Normal, 3f * ss)
+                       })
                 {
-                    geoCtx.BeginFigure(point, false);
-                    isFirstPoint = false;
+                    canvas.DrawCircle(cx, cy + 2f * ss, bodyRadius, shadow);
                 }
-                else
+
+                // 2. Button body: a near-flat dark face. Only a slight vertical
+                //    gradient so it reads as a flat disc rather than a domed bulge.
+                using (var bodyShader = SKShader.CreateLinearGradient(
+                           new SKPoint(cx, cy - bodyRadius),
+                           new SKPoint(cx, cy + bodyRadius),
+                           [new SKColor(0x33, 0x33, 0x33), new SKColor(0x29, 0x29, 0x29)],
+                           [0f, 1f],
+                           SKShaderTileMode.Clamp))
+                using (var body = new SKPaint { IsAntialias = true, Shader = bodyShader })
                 {
-                    geoCtx.LineTo(point);
+                    canvas.DrawCircle(cx, cy, bodyRadius, body);
+                }
+
+                // 3. Bevel rim: a thin bright top edge fading to a dark bottom edge.
+                //    This alone gives the flat face just enough edge definition.
+                var rimWidth = 1.5f * ss;
+                using (var rimShader = SKShader.CreateLinearGradient(
+                           new SKPoint(cx, cy - bodyRadius),
+                           new SKPoint(cx, cy + bodyRadius),
+                           [new SKColor(0xFF, 0xFF, 0xFF, 55), new SKColor(0x00, 0x00, 0x00, 110)],
+                           [0f, 1f],
+                           SKShaderTileMode.Clamp))
+                using (var rim = new SKPaint
+                       {
+                           IsAntialias = true,
+                           Style = SKPaintStyle.Stroke,
+                           StrokeWidth = rimWidth,
+                           Shader = rimShader
+                       })
+                {
+                    canvas.DrawCircle(cx, cy, bodyRadius - rimWidth / 2f, rim);
+                }
+
+                // 4. Glowing LED ring with a gap at the top-right.
+                var glowColor = ResolveGlowColor(simpleButton.ButtonColor.ToSKColor());
+                var coreColor = MixToWhite(glowColor, 0.45f);
+
+                var ringRadius = bodyRadius * 0.60f;
+                var oval = new SKRect(cx - ringRadius, cy - ringRadius, cx + ringRadius, cy + ringRadius);
+
+                // Skia angles: 0° = +x, positive = clockwise (y-down). Centre the
+                // gap at the top-right (~ -45°) and sweep the remainder.
+                const float gapAngle = 50f;
+                const float startAngle = -45f + gapAngle / 2f;
+                const float sweepAngle = 360f - gapAngle;
+                var coreWidth = 2.4f * ss;
+
+                using var ringPath = new SKPath();
+                ringPath.AddArc(oval, startAngle, sweepAngle);
+
+                // Wide soft halo.
+                using (var halo = new SKPaint
+                       {
+                           IsAntialias = true,
+                           Style = SKPaintStyle.Stroke,
+                           StrokeWidth = coreWidth * 3.2f,
+                           StrokeCap = SKStrokeCap.Round,
+                           Color = glowColor.WithAlpha(110),
+                           MaskFilter = SKMaskFilter.CreateBlur(SKBlurStyle.Normal, 4.5f * ss)
+                       })
+                {
+                    canvas.DrawPath(ringPath, halo);
+                }
+
+                // Tighter inner glow.
+                using (var innerGlow = new SKPaint
+                       {
+                           IsAntialias = true,
+                           Style = SKPaintStyle.Stroke,
+                           StrokeWidth = coreWidth * 1.8f,
+                           StrokeCap = SKStrokeCap.Round,
+                           Color = glowColor.WithAlpha(180),
+                           MaskFilter = SKMaskFilter.CreateBlur(SKBlurStyle.Normal, 2f * ss)
+                       })
+                {
+                    canvas.DrawPath(ringPath, innerGlow);
+                }
+
+                // Crisp bright core (the lit filament).
+                using (var core = new SKPaint
+                       {
+                           IsAntialias = true,
+                           Style = SKPaintStyle.Stroke,
+                           StrokeWidth = coreWidth,
+                           StrokeCap = SKStrokeCap.Round,
+                           Color = coreColor
+                       })
+                {
+                    canvas.DrawPath(ringPath, core);
                 }
             }
+
+            // Copy the pixels into an independent Avalonia bitmap (the constructor
+            // copies, so the SKBitmap can be disposed) — same technique as
+            // SKBitmapToAvaloniaBitmapConverter.
+            var pixels = surface.GetPixels();
+            result = new Bitmap(
+                PixelFormat.Bgra8888,
+                AlphaFormat.Unpremul,
+                pixels,
+                new PixelSize(w, h),
+                new Vector(96, 96),
+                surface.RowBytes);
+            GC.KeepAlive(surface);
         }
 
-        // Draw the inner ring with the geometry
-        ctx.DrawGeometry(Brushes.Transparent, innerRingPen, geo);
+        return result;
+    }
 
-        return rtb;
+    /// <summary>
+    /// Resolves the glow colour for the LED ring. Returns the assigned colour as-is
+    /// whenever it carries any visible hue; only a fully transparent or (near-)black
+    /// "off" colour falls back to a faint neutral grey so the ring stays softly
+    /// visible. Uses the brightest channel (not perceived luminance) so saturated but
+    /// perceptually dark colours like pure blue keep their own colour.
+    /// </summary>
+    private static SKColor ResolveGlowColor(SKColor c)
+    {
+        var maxChannel = Math.Max(c.Red, Math.Max(c.Green, c.Blue));
+        return c.Alpha < 8 || maxChannel < 24 ? new SKColor(0x3A, 0x3A, 0x3A) : c;
+    }
+
+    /// <summary>Blends <paramref name="c"/> toward white by factor <paramref name="t"/> (0..1).</summary>
+    private static SKColor MixToWhite(SKColor c, float t)
+    {
+        byte Mix(byte v) => (byte)(v + (255 - v) * t);
+        return new SKColor(Mix(c.Red), Mix(c.Green), Mix(c.Blue), c.Alpha);
     }
 
     /// <summary>
