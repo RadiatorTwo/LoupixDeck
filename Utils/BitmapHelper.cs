@@ -137,7 +137,8 @@ public static class BitmapHelper
                 var glowColor = ResolveGlowColor(simpleButton.ButtonColor.ToSKColor());
                 var coreColor = MixToWhite(glowColor, 0.45f);
 
-                var ringRadius = bodyRadius * 0.60f;
+                // The body face spans the 11 mm button; size the ring to a 5 mm diameter.
+                var ringRadius = bodyRadius * (5f / 11f);
                 var oval = new SKRect(cx - ringRadius, cy - ringRadius, cx + ringRadius, cy + ringRadius);
 
                 // Skia angles: 0° = +x, positive = clockwise (y-down). Centre the
@@ -227,6 +228,261 @@ public static class BitmapHelper
     {
         byte Mix(byte v) => (byte)(v + (255 - v) * t);
         return new SKColor(Mix(c.Red), Mix(c.Green), Mix(c.Blue), c.Alpha);
+    }
+
+    private static Bitmap _rotaryKnobImage;
+
+    /// <summary>
+    /// A shared, lazily-rendered image of the rotary dial. The knob has no per-button
+    /// state, so every dial in every layout binds to this single cached bitmap (via
+    /// <c>{x:Static}</c>). Rendered at 90 px to match the 15 mm base at 6 px/mm.
+    /// </summary>
+    public static Bitmap RotaryKnobImage => _rotaryKnobImage ??= RenderRotaryKnobImage(90, 90);
+
+    /// <summary>
+    /// Renders a rotary dial as a realistic stepped knob built from three concentric
+    /// tiers matching the real device — a 15 mm base, a 12 mm mid-step and an 11 mm
+    /// top cap. Each tier is top-lit with its own bevelled rim, and the steps between
+    /// tiers carry a soft contact shadow so the knob reads as a physical stacked
+    /// cylinder. Drawn with SkiaSharp (for blur-based shadows and gradient shading)
+    /// and returned as an Avalonia <see cref="Bitmap"/> so the existing image
+    /// bindings stay unchanged.
+    /// </summary>
+    public static Bitmap RenderRotaryKnobImage(int width, int height)
+    {
+        // Supersample so the downscaled on-screen image has smooth edges.
+        const int ss = 2;
+        var w = width * ss;
+        var h = height * ss;
+
+        var info = new SKImageInfo(w, h, SKColorType.Bgra8888, SKAlphaType.Unpremul);
+
+        Bitmap result;
+
+        // All Skia drawing happens under the shared render gate so it can never
+        // overlap another render/convert on a different thread (see SkiaRenderGate /
+        // docs/CRASH_ANALYSIS_ACCESS_VIOLATION.md, measure 1).
+        lock (SkiaRenderGate.Sync)
+        {
+            using var surface = new SKBitmap(info);
+            using (var canvas = new SKCanvas(surface))
+            {
+                canvas.Clear(SKColors.Transparent);
+
+                var cx = w / 2f;
+                var cy = h / 2f;
+
+                // Leave room around the base for the seating shadow. The two upper
+                // tiers are sized from the real diameters (12/15 and 11/15 of base).
+                var baseRadius = Math.Min(w, h) / 2f - 4f * ss;
+                var midRadius = baseRadius * (12f / 15f);
+                var topRadius = baseRadius * (11f / 15f);
+
+                // 1. Seating shadow: soft dark blob slightly below the base so the
+                //    knob appears to sit in the panel.
+                using (var shadow = new SKPaint
+                       {
+                           IsAntialias = true,
+                           Color = new SKColor(0, 0, 0, 170),
+                           MaskFilter = SKMaskFilter.CreateBlur(SKBlurStyle.Normal, 4f * ss)
+                       })
+                {
+                    canvas.DrawCircle(cx, cy + 3f * ss, baseRadius, shadow);
+                }
+
+                // 2. Base tier (15 mm).
+                DrawKnobTier(canvas, cx, cy, baseRadius,
+                    new SKColor(0x2B, 0x2B, 0x2B), new SKColor(0x14, 0x14, 0x14), ss);
+
+                // 3. Contact shadow cast by the mid tier onto the exposed base ring.
+                DrawStepShadow(canvas, cx, cy, midRadius, ss);
+
+                // 4. Mid tier (12 mm) — a touch lighter so the step reads.
+                DrawKnobTier(canvas, cx, cy, midRadius,
+                    new SKColor(0x36, 0x36, 0x36), new SKColor(0x1B, 0x1B, 0x1B), ss);
+
+                // 5. Grip ridges: 12 radial tactile grooves only on the rotating
+                //    mid-tier side band (between the top cap and the mid edge). The
+                //    base flange stays smooth.
+                DrawGripRidges(canvas, cx, cy, topRadius, midRadius, 12, ss);
+
+                // 6. Contact shadow cast by the top cap onto the exposed mid ring.
+                DrawStepShadow(canvas, cx, cy, topRadius, ss);
+
+                // 7. Top cap (11 mm) — the smooth surface the user touches.
+                DrawKnobTop(canvas, cx, cy, topRadius, ss);
+            }
+
+            // Copy the pixels into an independent Avalonia bitmap (the constructor
+            // copies, so the SKBitmap can be disposed) — same technique as
+            // RenderSimpleButtonImage.
+            var pixels = surface.GetPixels();
+            result = new Bitmap(
+                PixelFormat.Bgra8888,
+                AlphaFormat.Unpremul,
+                pixels,
+                new PixelSize(w, h),
+                new Vector(96, 96),
+                surface.RowBytes);
+            GC.KeepAlive(surface);
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Draws one knob tier: a top-lit dark disc with a bevelled rim (a bright top
+    /// edge fading to a dark bottom edge) that gives the flat face edge definition.
+    /// </summary>
+    private static void DrawKnobTier(SKCanvas canvas, float cx, float cy, float radius,
+        SKColor top, SKColor bottom, float scale)
+    {
+        using (var faceShader = SKShader.CreateLinearGradient(
+                   new SKPoint(cx, cy - radius),
+                   new SKPoint(cx, cy + radius),
+                   [top, bottom],
+                   [0f, 1f],
+                   SKShaderTileMode.Clamp))
+        using (var face = new SKPaint { IsAntialias = true, Shader = faceShader })
+        {
+            canvas.DrawCircle(cx, cy, radius, face);
+        }
+
+        var rimWidth = 1.6f * scale;
+        using (var rimShader = SKShader.CreateLinearGradient(
+                   new SKPoint(cx, cy - radius),
+                   new SKPoint(cx, cy + radius),
+                   [new SKColor(0xFF, 0xFF, 0xFF, 70), new SKColor(0x00, 0x00, 0x00, 130)],
+                   [0f, 1f],
+                   SKShaderTileMode.Clamp))
+        using (var rim = new SKPaint
+               {
+                   IsAntialias = true,
+                   Style = SKPaintStyle.Stroke,
+                   StrokeWidth = rimWidth,
+                   Shader = rimShader
+               })
+        {
+            canvas.DrawCircle(cx, cy, radius - rimWidth / 2f, rim);
+        }
+    }
+
+    /// <summary>
+    /// Draws the soft contact shadow an upper tier casts onto the tier below, as a
+    /// blurred dark ring hugging the upper tier's edge (biased slightly downward to
+    /// match the top lighting).
+    /// </summary>
+    private static void DrawStepShadow(SKCanvas canvas, float cx, float cy, float radius, float scale)
+    {
+        using var p = new SKPaint
+        {
+            IsAntialias = true,
+            Style = SKPaintStyle.Stroke,
+            StrokeWidth = 3f * scale,
+            Color = new SKColor(0, 0, 0, 150),
+            MaskFilter = SKMaskFilter.CreateBlur(SKBlurStyle.Normal, 2f * scale)
+        };
+        canvas.DrawCircle(cx, cy + 0.5f * scale, radius + 1.5f * scale, p);
+    }
+
+    /// <summary>
+    /// Draws the smooth top cap: a top-lit radial face, a bevelled rim and a soft
+    /// specular highlight near the top.
+    /// </summary>
+    private static void DrawKnobTop(SKCanvas canvas, float cx, float cy, float radius, float scale)
+    {
+        // Radial face whose light centre is offset upward so it reads as top-lit.
+        using (var faceShader = SKShader.CreateRadialGradient(
+                   new SKPoint(cx, cy - radius * 0.35f),
+                   radius * 1.3f,
+                   [new SKColor(0x4A, 0x4A, 0x4A), new SKColor(0x1E, 0x1E, 0x1E)],
+                   [0f, 1f],
+                   SKShaderTileMode.Clamp))
+        using (var face = new SKPaint { IsAntialias = true, Shader = faceShader })
+        {
+            canvas.DrawCircle(cx, cy, radius, face);
+        }
+
+        var rimWidth = 1.6f * scale;
+        using (var rimShader = SKShader.CreateLinearGradient(
+                   new SKPoint(cx, cy - radius),
+                   new SKPoint(cx, cy + radius),
+                   [new SKColor(0xFF, 0xFF, 0xFF, 95), new SKColor(0x00, 0x00, 0x00, 140)],
+                   [0f, 1f],
+                   SKShaderTileMode.Clamp))
+        using (var rim = new SKPaint
+               {
+                   IsAntialias = true,
+                   Style = SKPaintStyle.Stroke,
+                   StrokeWidth = rimWidth,
+                   Shader = rimShader
+               })
+        {
+            canvas.DrawCircle(cx, cy, radius - rimWidth / 2f, rim);
+        }
+
+        // Soft specular highlight near the top edge.
+        using (var highlight = new SKPaint
+               {
+                   IsAntialias = true,
+                   Color = new SKColor(0xFF, 0xFF, 0xFF, 55),
+                   MaskFilter = SKMaskFilter.CreateBlur(SKBlurStyle.Normal, 5f * scale)
+               })
+        {
+            canvas.DrawOval(
+                new SKRect(cx - radius * 0.5f, cy - radius * 0.72f,
+                    cx + radius * 0.5f, cy - radius * 0.18f),
+                highlight);
+        }
+    }
+
+    /// <summary>
+    /// Draws <paramref name="count"/> evenly spaced radial grip grooves across the
+    /// side band (the <paramref name="innerR"/>..<paramref name="outerR"/> annulus).
+    /// Each groove is a dark radial line paired with a thin highlight on its
+    /// clockwise side so the raised ridges between grooves read as tactile bumps.
+    /// </summary>
+    private static void DrawGripRidges(SKCanvas canvas, float cx, float cy,
+        float innerR, float outerR, int count, float scale)
+    {
+        // Angular offset (radians) of the catch-light relative to its groove.
+        const float highlightOffset = 0.05f;
+
+        using var groove = new SKPaint
+        {
+            IsAntialias = true,
+            Style = SKPaintStyle.Stroke,
+            StrokeWidth = 1.3f * scale,
+            StrokeCap = SKStrokeCap.Round,
+            Color = new SKColor(0x00, 0x00, 0x00, 140)
+        };
+        using var highlight = new SKPaint
+        {
+            IsAntialias = true,
+            Style = SKPaintStyle.Stroke,
+            StrokeWidth = 0.9f * scale,
+            StrokeCap = SKStrokeCap.Round,
+            Color = new SKColor(0xFF, 0xFF, 0xFF, 60)
+        };
+
+        for (var i = 0; i < count; i++)
+        {
+            var angle = (float)(i * 2 * Math.PI / count);
+            DrawRadialLine(canvas, cx, cy, innerR, outerR, angle + highlightOffset, highlight);
+            DrawRadialLine(canvas, cx, cy, innerR, outerR, angle, groove);
+        }
+    }
+
+    /// <summary>Strokes a radial line from <paramref name="innerR"/> to <paramref name="outerR"/> at the given angle.</summary>
+    private static void DrawRadialLine(SKCanvas canvas, float cx, float cy,
+        float innerR, float outerR, float angle, SKPaint paint)
+    {
+        var dx = (float)Math.Cos(angle);
+        var dy = (float)Math.Sin(angle);
+        canvas.DrawLine(
+            cx + dx * innerR, cy + dy * innerR,
+            cx + dx * outerR, cy + dy * outerR,
+            paint);
     }
 
     /// <summary>
