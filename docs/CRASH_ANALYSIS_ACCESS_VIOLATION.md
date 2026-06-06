@@ -1,8 +1,10 @@
 # Crash-Analyse: seltener „Schutzseite"-Fehler im Leerlauf (AccessViolationException)
 
-Status: **Diagnose / native AV noch nicht final eingefangen**; die risikoarmen
-Robustheits-Härtungen (Maßnahmen 2, 3, 5, 7) sind umgesetzt — siehe
-„Behoben: Robustheits-Härtung der Render-/Serial-Pipeline (2026-06-06)". Ein separater
+Status: **Diagnose / native AV noch nicht final eingefangen**; die Robustheits-Härtungen
+(Maßnahmen 2, 3, 5, 7) **und** die Render-Pipeline-Serialisierung (Maßnahme 1) sind umgesetzt
+— siehe „Behoben: Render-Pipeline serialisiert" und „Behoben: Robustheits-Härtung der
+Render-/Serial-Pipeline". Offen bleiben Maßnahme 4 (kontrolliertes Dispose) und 6 (Argus
+`Stop()`, Plugin-Repo) sowie die eigentliche AV-Erfassung per Minidump. Ein separater
 Cross-Thread-Race im Comms-Layer wurde ebenfalls gefunden und behoben — siehe
 „Behoben: Cross-Thread-Race …"
 Letzte Aktualisierung: 2026-06-06
@@ -168,10 +170,10 @@ Leerlauf). Sauberer wäre, den Task vor dem `Close()` sicher zu Ende laufen zu l
 
 Priorisiert; 1–3 adressieren den eigentlichen Crash.
 
-1. **Render-/Konvertierungs-Pipeline serialisieren** — alle Aufrufe von
+1. ✅ **Render-/Konvertierungs-Pipeline serialisieren** — alle Aufrufe von
    `RenderTouchButtonContent` + `ConvertSKBitmapToRaw16BppUnsafe` unter **ein** gemeinsames
    `lock` stellen (oder konsequent auf den UI-Thread marshallen). Schließt das
-   Skia-Cross-Thread-Race. *(offen)*
+   Skia-Cross-Thread-Race. *(umgesetzt 2026-06-06 — siehe „Behoben: Render-Pipeline serialisiert")*
 2. ✅ **`ConvertSKBitmapToRaw16BppUnsafe` härten** — `GC.KeepAlive(bitmap)` nach der Schleife,
    Null-Check für `PeekPixels()`. *(umgesetzt 2026-06-06)*
 3. ✅ **`SKBitmapToAvaloniaConverter` aufräumen** — toten `fixed` / `UnmanagedMemoryStream`-Block
@@ -238,9 +240,43 @@ Argus-Betrieb) als nächster Schritt offen bleibt.
 
 Hinweis: Nach „Versuchsergebnis / aktueller Stand" sind #4 (Finalizer-Race) und
 „Render-Thread liest Pixel" als Ursache eher unwahrscheinlich. Diese Fixes sind daher als
-**Robustheit** zu werten, nicht als bestätigter Crash-Fix. Maßnahme 1 (Render-Pipeline unter
-ein gemeinsames `lock` serialisieren) und Maßnahme 6 (Argus `Stop()`-Poll-Task) bleiben offen,
-ebenso die eigentliche AV-Erfassung per Minidump.
+**Robustheit** zu werten, nicht als bestätigter Crash-Fix. Maßnahme 1 (Render-Pipeline-
+Serialisierung) ist inzwischen umgesetzt (siehe nächster Abschnitt); offen bleiben Maßnahme 4
+(kontrolliertes Dispose) und Maßnahme 6 (Argus `Stop()`-Poll-Task, Plugin-Repo), ebenso die
+eigentliche AV-Erfassung per Minidump.
+
+## Behoben: Render-Pipeline serialisiert (Maßnahme 1) (2026-06-06)
+
+Alle synchronen SkiaSharp-Draw-/Pixel-Read-Operationen, die off-UI laufen können, werden jetzt
+über **ein** gemeinsames Lock serialisiert, sodass nie zwei davon gleichzeitig auf verschiedenen
+Threads laufen. Das schließt das im Dokument beschriebene Skia-Cross-Thread-Race konstruktiv aus
+(unabhängig davon, ob es der konkrete AV-Auslöser war).
+
+- **Neues gemeinsames Gate**: `Utils/SkiaRenderGate.cs` (`public static readonly object Sync`).
+  Bewusst am **Blatt** (den eigentlichen Skia-Operationen) angesetzt statt an jeder Aufrufstelle —
+  dadurch sind **alle** Aufrufer (UI-Thread, Device-Send-Pfad, `async void`-Threadpool-
+  Fortsetzungen, `DynamicTextManager`-Timer) automatisch serialisiert, ohne jeden Pfad einzeln
+  anzufassen.
+- **Drei Gate-Punkte** (alle synchron, kein `await`/keine Device-I/O unter dem Lock):
+  1. `Utils/BitmapHelper.cs` — `RenderTouchButtonContent`: SKBitmap-Allokation + gesamtes
+     Zeichnen (inkl. `DrawLayers`-Helfer) im Lock; nur das `RenderedImage`-Publish + `return`
+     bleiben außerhalb (damit UI-marshalled Arbeit aus `OnPropertyChanged` nie unter dem Lock
+     läuft).
+  2. `LoupedeckDevice/Device/LoupedeckDevice.cs` — `ConvertSKBitmapToRaw16BppUnsafe`: der
+     `PeekPixels`/`fixed`/Loop-Block (jeder Device-Framebuffer-Push läuft durch diesen einen
+     Chokepoint: `DrawKey`/`DrawScreen`/`DrawCanvas`).
+  3. `LoupedeckDevice/Device/LoupedeckDevice.cs` — `DrawTouchSlotsAtomic`: der Composit-Block
+     (`canvas.DrawBitmap` der Slot-Bitmaps); das anschließende `await DrawScreen` liegt
+     außerhalb des Locks.
+- **Bewusst außerhalb des Scopes**: `RenderSimpleButtonImage` (nutzt Avalonia-
+  `RenderTargetBitmap`, kein direktes SkiaSharp); die versteckten Exclusive-Modus-Commands
+  `System.PlayVideo`/`System.Benchmark` (laufen per Design nicht gleichzeitig mit dem normalen
+  Button-Rendering; ihre Device-Pushes nehmen das Convert-Lock ohnehin mit); `SKBitmap.Decode`-
+  Stellen (reine Dekodierung, kein geteilter Canvas).
+- **Deadlock-Analyse**: Das Lock wird nie über ein `await` oder Device-I/O gehalten; der
+  UI-Vorschau-Konverter (`SKBitmapToAvaloniaConverter`) ist **nicht** gegated (er kopiert die
+  Pixel ohnehin, siehe „Versuchsergebnis"), sodass kein verschachtelter Lock zwischen UI-Render-
+  Thread und Gate entstehen kann. `Monitor` ist zudem pro Thread reentrant.
 
 ## Behoben: Cross-Thread-Race auf den Transaktions-Dictionaries (2026-06-04)
 
