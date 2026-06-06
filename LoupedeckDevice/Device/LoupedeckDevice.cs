@@ -549,46 +549,52 @@ public class LoupedeckDevice
         // Output-Array für 16-Bit RGB565 (2 Bytes pro Pixel)
         byte[] output = new byte[pixelCount * 2];
 
-        // Zugriff auf die Pixeldaten als Pointer. PeekPixels liefert bei einem nicht
-        // zugänglichen/leeren Bitmap null; ohne Null-Check würde der Pointerzugriff
-        // unten in einer AccessViolation enden statt einer fangbaren Exception.
-        using SKPixmap pixmap = bitmap.PeekPixels(); // Schneller Zugriff ohne Kopie
-        if (pixmap == null)
-            throw new InvalidOperationException("Pixeldaten der Bitmap sind nicht zugänglich (PeekPixels lieferte null).");
-
-        byte* srcPtr = (byte*)pixmap.GetPixels().ToPointer();
-        if (srcPtr == null)
-            throw new InvalidOperationException("Pixelzeiger der Bitmap ist null.");
-
-        fixed (byte* destPtrFixed = output)
+        // Pixel-Zugriff läuft unter dem gemeinsamen Render-Gate, damit er nie mit einem
+        // RenderTouchButtonContent/Composit auf einem anderen Thread überlappt
+        // (siehe SkiaRenderGate / docs/CRASH_ANALYSIS_ACCESS_VIOLATION.md, Maßnahme 1).
+        lock (SkiaRenderGate.Sync)
         {
-            byte* destPtr = destPtrFixed;
+            // Zugriff auf die Pixeldaten als Pointer. PeekPixels liefert bei einem nicht
+            // zugänglichen/leeren Bitmap null; ohne Null-Check würde der Pointerzugriff
+            // unten in einer AccessViolation enden statt einer fangbaren Exception.
+            using SKPixmap pixmap = bitmap.PeekPixels(); // Schneller Zugriff ohne Kopie
+            if (pixmap == null)
+                throw new InvalidOperationException("Pixeldaten der Bitmap sind nicht zugänglich (PeekPixels lieferte null).");
 
-            for (int i = 0; i < pixelCount; i++)
+            byte* srcPtr = (byte*)pixmap.GetPixels().ToPointer();
+            if (srcPtr == null)
+                throw new InvalidOperationException("Pixelzeiger der Bitmap ist null.");
+
+            fixed (byte* destPtrFixed = output)
             {
-                byte b = srcPtr[0];
-                byte g = srcPtr[1];
-                byte r = srcPtr[2];
-                // byte a = srcPtr[3]; // optional
+                byte* destPtr = destPtrFixed;
 
-                // RGB888 → RGB565
-                ushort r5 = (ushort)((r * 31) / 255);
-                ushort g6 = (ushort)((g * 63) / 255);
-                ushort b5 = (ushort)((b * 31) / 255);
+                for (int i = 0; i < pixelCount; i++)
+                {
+                    byte b = srcPtr[0];
+                    byte g = srcPtr[1];
+                    byte r = srcPtr[2];
+                    // byte a = srcPtr[3]; // optional
 
-                ushort rgb565 = (ushort)((r5 << 11) | (g6 << 5) | b5);
+                    // RGB888 → RGB565
+                    ushort r5 = (ushort)((r * 31) / 255);
+                    ushort g6 = (ushort)((g * 63) / 255);
+                    ushort b5 = (ushort)((b * 31) / 255);
 
-                destPtr[0] = (byte)(rgb565 & 0xFF);       // LSB
-                destPtr[1] = (byte)((rgb565 >> 8) & 0xFF); // MSB
+                    ushort rgb565 = (ushort)((r5 << 11) | (g6 << 5) | b5);
 
-                srcPtr += 4;   // BGRA8888 → 4 Bytes weiter
-                destPtr += 2;  // RGB565 → 2 Bytes weiter
+                    destPtr[0] = (byte)(rgb565 & 0xFF);       // LSB
+                    destPtr[1] = (byte)((rgb565 >> 8) & 0xFF); // MSB
+
+                    srcPtr += 4;   // BGRA8888 → 4 Bytes weiter
+                    destPtr += 2;  // RGB565 → 2 Bytes weiter
+                }
             }
-        }
 
-        // Stellt sicher, dass das Bitmap (Eigentümer des nativen Pixelpuffers, auf den
-        // srcPtr zeigt) nicht während der Schleife finalisiert wird → kein use-after-free.
-        GC.KeepAlive(bitmap);
+            // Stellt sicher, dass das Bitmap (Eigentümer des nativen Pixelpuffers, auf den
+            // srcPtr zeigt) nicht während der Schleife finalisiert wird → kein use-after-free.
+            GC.KeepAlive(bitmap);
+        }
 
         return output;
     }
@@ -691,8 +697,15 @@ public class LoupedeckDevice
 
         using var full = new SKBitmap(new SKImageInfo(center.Width, center.Height,
             SKColorType.Bgra8888, SKAlphaType.Premul));
-        using (var canvas = new SKCanvas(full))
+
+        // Composit the per-slot bitmaps under the shared render gate so this draw can
+        // never overlap a per-button render/convert on another thread (see
+        // SkiaRenderGate / docs/CRASH_ANALYSIS_ACCESS_VIOLATION.md, measure 1). The
+        // lock covers only the synchronous Skia work — the device I/O below is awaited
+        // outside it.
+        lock (SkiaRenderGate.Sync)
         {
+            using var canvas = new SKCanvas(full);
             canvas.Clear(SKColors.Black);
             for (var slot = 0; slot < slotBitmaps.Count && slot < Columns * Rows; slot++)
             {

@@ -146,10 +146,6 @@ public static class BitmapHelper
     {
         ArgumentNullException.ThrowIfNull(touchButton);
 
-        // Create SKBitmap for rendering
-        var bitmap = new SKBitmap(width, height);
-        using var canvas = new SKCanvas(bitmap);
-
         // Determine which wallpaper to use: current page's or fallback to first page's
         SKBitmap wallpaperToUse = null;
         double opacityToUse = 0;
@@ -172,41 +168,53 @@ public static class BitmapHelper
             }
         }
 
-        if (wallpaperToUse != null && gridColumns > 0)
+        // All SkiaSharp drawing happens under the shared render gate so it can never
+        // overlap another render/convert running on a different thread (see
+        // SkiaRenderGate / docs/CRASH_ANALYSIS_ACCESS_VIOLATION.md, measure 1). Only
+        // the finished-bitmap publish + return is left outside the lock.
+        SKBitmap bitmap;
+        lock (SkiaRenderGate.Sync)
         {
-            // Determine the position of the button in the grid
-            var col = touchButton.Index % gridColumns;
-            var row = touchButton.Index / gridColumns;
+            // Create SKBitmap for rendering
+            bitmap = new SKBitmap(width, height);
+            using var canvas = new SKCanvas(bitmap);
 
-            // Calculate the section from the wallpaper
-            var srcRect = new SKRect(
-                col * width,
-                row * height,
-                (col + 1) * width,
-                (row + 1) * height
-            );
-            var destRect = new SKRect(0, 0, width, height);
+            if (wallpaperToUse != null && gridColumns > 0)
+            {
+                // Determine the position of the button in the grid
+                var col = touchButton.Index % gridColumns;
+                var row = touchButton.Index / gridColumns;
 
-            // Draw Wallpaper Cutout
-            canvas.DrawBitmap(wallpaperToUse, srcRect, destRect);
+                // Calculate the section from the wallpaper
+                var srcRect = new SKRect(
+                    col * width,
+                    row * height,
+                    (col + 1) * width,
+                    (row + 1) * height
+                );
+                var destRect = new SKRect(0, 0, width, height);
 
-            // Semi-transparent background
-            using var paint = new SKPaint();
+                // Draw Wallpaper Cutout
+                canvas.DrawBitmap(wallpaperToUse, srcRect, destRect);
 
-            paint.Color = new SKColor(0, 0, 0, (byte)(255 * opacityToUse));
+                // Semi-transparent background
+                using var paint = new SKPaint();
 
-            canvas.DrawRect(destRect, paint);
+                paint.Color = new SKColor(0, 0, 0, (byte)(255 * opacityToUse));
+
+                canvas.DrawRect(destRect, paint);
+            }
+            else
+            {
+                // Draw Monochrome Background
+                canvas.Clear(touchButton.BackColor.ToSKColor());
+            }
+
+            DrawLayers(canvas, touchButton.Layers, width, height);
         }
-        else
-        {
-            // Draw Monochrome Background
-            canvas.Clear(touchButton.BackColor.ToSKColor());
-        }
 
-        DrawLayers(canvas, touchButton.Layers, width, height);
-
-        // Convert back to RenderTargetBitmap and save in the TouchButton
-        // var rtb = bitmap.ToRenderTargetBitmap();
+        // Publish the finished bitmap (fires OnPropertyChanged for the UI binding);
+        // kept outside the gate so UI-marshalled work never runs while the lock is held.
         touchButton.RenderedImage = bitmap;
 
         return bitmap;
