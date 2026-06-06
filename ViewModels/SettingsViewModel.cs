@@ -42,6 +42,7 @@ public class SettingsViewModel : DialogViewModelBase<DialogResult>
     public ICommand MoveRotaryPageUpCommand { get; }
     public ICommand MoveRotaryPageDownCommand { get; }
     public ICommand OpenWebsiteCommand { get; }
+    public ICommand OpenPluginsFolderCommand { get; }
     public ICommand InstallInterceptionCommand { get; }
     public ICommand UninstallInterceptionCommand { get; }
 
@@ -115,6 +116,8 @@ public class SettingsViewModel : DialogViewModelBase<DialogResult>
             }
             catch { }
         });
+
+        OpenPluginsFolderCommand = new RelayCommand(OpenPluginsFolder);
 
         InstallInterceptionCommand = new AsyncRelayCommand(InstallInterceptionAsync);
         UninstallInterceptionCommand = new AsyncRelayCommand(UninstallInterceptionAsync);
@@ -252,6 +255,29 @@ public class SettingsViewModel : DialogViewModelBase<DialogResult>
             Config.InterceptionEnabled = value;
             OnPropertyChanged();
         }
+    }
+
+    /// <summary>
+    /// Opens the user plugins folder in the OS file manager, creating it first
+    /// if missing. This is the per-build config plugins dir
+    /// (<c>~/.config/LoupixDeck[/debug]/plugins</c>), where users drop their own
+    /// plugins. UseShellExecute=true routes a directory path through Explorer on
+    /// Windows / xdg-open on Linux.
+    /// </summary>
+    private void OpenPluginsFolder()
+    {
+        try
+        {
+            var dir = System.IO.Path.Combine(FileDialogHelper.GetConfigDir(), "plugins");
+            System.IO.Directory.CreateDirectory(dir);
+
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = dir,
+                UseShellExecute = true
+            });
+        }
+        catch { }
     }
 
     private void RefreshInterceptionStatus()
