@@ -20,11 +20,29 @@ public class TouchButtonPage : INotifyPropertyChanged
     }
 
     private int _page;
+    private string _name;
     private bool _selected;
     private SKBitmap _wallpaper;
     private double _wallpaperOpacity;
 
-    public string PageName => $"Page: {Page}";
+    /// <summary>
+    /// Optional user-assigned page name. Persisted; when empty the page falls back
+    /// to its number, so configs written before naming existed load unchanged.
+    /// </summary>
+    public string Name
+    {
+        get => _name;
+        set
+        {
+            if (_name == value) return;
+            _name = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(PageName));
+        }
+    }
+
+    [JsonIgnore]
+    public string PageName => string.IsNullOrWhiteSpace(_name) ? $"Page: {Page}" : _name;
 
     public int Page
     {

@@ -9,13 +9,6 @@
              x:Class="LoupixDeck.Views.Devices.LoupedeckLiveSLayout"
              x:DataType="vm:MainWindowViewModel"
              x:Name="RootControl">
-    <UserControl.Resources>
-        <conv:BoolToBrushConverter
-            x:Key="BoolToBrushConverter"
-            SelectedBrush="{StaticResource SelectedBrush}"
-            UnselectedBrush="{StaticResource UnselectedBrush}" />
-    </UserControl.Resources>
-
     <UserControl.Styles>
         <!-- RGB LED buttons: the colour/glow is baked into the rendered image. A bare
              template (no chrome border/background) guarantees no grey box ever appears
@@ -100,55 +93,38 @@
         </Style>
     </UserControl.Styles>
 
-    <Grid ColumnDefinitions="Auto,570,Auto" RowDefinitions="Auto,16">
-        <StackPanel Grid.Row="0" Grid.Column="0"
-                    Orientation="Horizontal"
-                    HorizontalAlignment="Right"
-                    VerticalAlignment="Top"
-                    Margin="12,0,30,0">
+    <Grid ColumnDefinitions="Auto,570,Auto" RowDefinitions="Auto,Auto,16">
 
-            <!-- Rotary page add/switch buttons, to the LEFT of the rotary dials,
-                 aligned to the top next to the first rotary. -->
-            <StackPanel Width="30"
-                        VerticalAlignment="Top"
-                        Margin="0,10,10,0"
-                        Orientation="Vertical">
-                <ItemsControl ItemsSource="{Binding LoupedeckController.Config.RotaryButtonPages}">
-                    <ItemsControl.ItemsPanel>
-                        <ItemsPanelTemplate>
-                            <StackPanel Orientation="Vertical" />
-                        </ItemsPanelTemplate>
-                    </ItemsControl.ItemsPanel>
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <Button Tag="Mini"
-                                    Content="{Binding Page}"
-                                    Command="{Binding #RootControl.((vm:MainWindowViewModel)DataContext).RotaryPageButtonCommand}"
-                                    CommandParameter="{Binding Page}"
-                                    HorizontalContentAlignment="Center"
-                                    VerticalContentAlignment="Center"
-                                    Background="{Binding Selected, Converter={StaticResource BoolToBrushConverter}}" />
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-                <Button Content="+"
-                        Width="30"
-                        Height="30"
-                        CornerRadius="8"
-                        HorizontalContentAlignment="Center"
-                        VerticalContentAlignment="Center"
+        <!-- Rotary page controls as their own strip above the device (left, over the
+             dials), separated from the device buttons so the dials stay flush with
+             the touch buttons instead of being pushed down. The touch pager lives
+             below its own screen (further down). -->
+        <Border Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="3" Classes="Pager"
+                HorizontalAlignment="Left" Margin="12,6,12,12">
+            <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                <Button Classes="PagerBtn PagerNav" Content="‹"
+                        ToolTip.Tip="Vorherige Rotary-Seite"
+                        Command="{Binding PreviousRotaryPageCommand}" />
+                <TextBox Classes="PageName" Width="160"
+                         Text="{Binding LoupedeckController.Config.CurrentRotaryButtonPage.Name, Mode=TwoWay}"
+                         Watermark="{Binding LoupedeckController.Config.CurrentRotaryButtonPage.PageName}"
+                         KeyDown="OnPageNameKeyDown" LostFocus="OnPageNameCommit" />
+                <Button Classes="PagerBtn PagerNav" Content="›"
+                        ToolTip.Tip="Nächste Rotary-Seite"
+                        Command="{Binding NextRotaryPageCommand}" />
+                <Button Classes="PagerBtn" Content="+"
+                        ToolTip.Tip="Rotary-Seite hinzufügen"
                         Command="{Binding AddRotaryPageCommand}" />
-                <Button Content="x"
-                        Width="30"
-                        Height="30"
-                        CornerRadius="8"
-                        HorizontalContentAlignment="Center"
-                        VerticalContentAlignment="Center"
+                <Button Classes="PagerBtn delete" Content="✕"
+                        ToolTip.Tip="Aktuelle Rotary-Seite löschen"
                         Command="{Binding DeleteRotaryPageCommand}" />
             </StackPanel>
+        </Border>
 
-            <!-- Rotary dials (7 mm apart) with the first LED button 10 mm below. -->
-            <StackPanel Orientation="Vertical" HorizontalAlignment="Center">
+        <!-- Rotary dials (7 mm apart) with the first LED button 10 mm below. -->
+        <StackPanel Grid.Row="1" Grid.Column="0"
+                    Orientation="Vertical" HorizontalAlignment="Center"
+                    VerticalAlignment="Top" Margin="12,0,30,0">
             <Button Classes="Dial"
                 HorizontalAlignment="Center"
                 Width="90"
@@ -179,13 +155,12 @@
                     <Image Source="{Binding LoupedeckController.Config.SimpleButtons[0].RenderedImage}" />
                 </Border>
             </Button>
-            </StackPanel>
         </StackPanel>
 
         <!-- Touch-screen bezel: dark frame around and between the touch buttons,
              matching the real device (6 mm L/R, 3 mm top/bottom, 2 mm gaps at
              6 px/mm; corners slightly rounder than the buttons). -->
-        <StackPanel Grid.Row="0" Grid.Column="1"
+        <StackPanel Grid.Row="1" Grid.Column="1"
                     HorizontalAlignment="Center" VerticalAlignment="Top"
                     Margin="0,9,0,0" Spacing="6">
         <Border HorizontalAlignment="Center"
@@ -302,40 +277,34 @@
         </Grid>
         </Border>
 
-            <!-- Touch page add/select/remove buttons, a small gap below the bezel,
-                 left-aligned under the bezel's left edge. -->
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
-                <ItemsControl ItemsSource="{Binding LoupedeckController.Config.TouchButtonPages}">
-                    <ItemsControl.ItemsPanel>
-                        <ItemsPanelTemplate>
-                            <StackPanel Orientation="Horizontal" />
-                        </ItemsPanelTemplate>
-                    </ItemsControl.ItemsPanel>
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <Button Tag="Mini"
-                                    Content="{Binding Page}"
-                                    Command="{Binding #RootControl.((vm:MainWindowViewModel)DataContext).TouchPageButtonCommand}"
-                                    CommandParameter="{Binding Page}"
-                                    HorizontalContentAlignment="Center"
-                                    VerticalContentAlignment="Center"
-                                    Background="{Binding Selected, Converter={StaticResource BoolToBrushConverter}}" />
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-                <Button Content="+" Width="30" Height="30" CornerRadius="8"
-                        HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
-                        Command="{Binding AddTouchPageCommand}" />
-                <Button Content="x" Width="30" Height="30" CornerRadius="8"
-                        HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
-                        Command="{Binding DeleteTouchPageCommand}" />
-            </StackPanel>
+            <!-- Touch page pager, centred below the touch screen it controls. -->
+            <Border Classes="Pager" HorizontalAlignment="Center">
+                <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                    <Button Classes="PagerBtn PagerNav" Content="‹"
+                            ToolTip.Tip="Vorherige Touch-Seite"
+                            Command="{Binding PreviousTouchPageCommand}" />
+                    <TextBox Classes="PageName"
+                             Text="{Binding LoupedeckController.Config.CurrentTouchButtonPage.Name, Mode=TwoWay}"
+                             Watermark="{Binding LoupedeckController.Config.CurrentTouchButtonPage.PageName}"
+                             KeyDown="OnPageNameKeyDown" LostFocus="OnPageNameCommit" />
+                    <Button Classes="PagerBtn PagerNav" Content="›"
+                            ToolTip.Tip="Nächste Touch-Seite"
+                            Command="{Binding NextTouchPageCommand}" />
+                    <Button Classes="PagerBtn" Content="+"
+                            ToolTip.Tip="Touch-Seite hinzufügen"
+                            Command="{Binding AddTouchPageCommand}" />
+                    <Button Classes="PagerBtn delete" Content="✕"
+                            ToolTip.Tip="Aktuelle Touch-Seite löschen"
+                            Command="{Binding DeleteTouchPageCommand}" />
+                </StackPanel>
+            </Border>
+
         </StackPanel>
 
         <!-- Right LED buttons: 7 mm from the touch bezel, 12 mm apart vertically.
              The trailing right margin leaves room for the hover scale so the
              buttons are not clipped by the (SizeToContent) window edge. -->
-        <StackPanel Grid.Row="0" Grid.Column="2"
+        <StackPanel Grid.Row="1" Grid.Column="2"
                     Orientation="Vertical"
                     HorizontalAlignment="Left"
                     VerticalAlignment="Top"
@@ -367,7 +336,7 @@
         <!-- Exclusive-mode overlay: while a provider owns the device, none of the
              on-screen controls reflect or affect it, so cover the whole device and
              swallow all input with a notice. -->
-        <Border Grid.Row="0"
+        <Border Grid.Row="1"
                 Grid.Column="0" Grid.ColumnSpan="3"
                 IsVisible="{Binding IsExclusiveModeActive}"
                 Background="#E60F0F0F"

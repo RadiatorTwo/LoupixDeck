@@ -42,6 +42,13 @@
         <SolidColorBrush x:Key="UnselectedBrush" Color="#FF4b4b4b" />
         <SolidColorBrush x:Key="SelectedBrush" Color="#FF373737" />
 
+        <!-- Accent used to mark the active page chip in the page toolbar. A clear,
+             saturated blue so the current page reads at a glance against the dark
+             grey chrome (the old selected/unselected greys were near-identical). -->
+        <SolidColorBrush x:Key="PageActiveBrush" Color="#FF2F7DD1" />
+        <SolidColorBrush x:Key="PageActiveBorderBrush" Color="#FF5AA6EE" />
+        <SolidColorBrush x:Key="PageChipBorderBrush" Color="#FF454545" />
+
         <Color x:Key="BaseDark">#1E1E1E</Color>
         <Color x:Key="PanelDark">#232323</Color>
         <Color x:Key="ButtonBorder">#5A5A5A</Color>

@@ -23,11 +23,15 @@ public class MainWindowViewModel : ViewModelBase
     public ICommand AddRotaryPageCommand { get; }
     public ICommand DeleteRotaryPageCommand { get; }
     public ICommand RotaryPageButtonCommand { get; }
+    public ICommand NextRotaryPageCommand { get; }
+    public ICommand PreviousRotaryPageCommand { get; }
 
 
     public ICommand AddTouchPageCommand { get; }
     public ICommand DeleteTouchPageCommand { get; }
     public ICommand TouchPageButtonCommand { get; }
+    public ICommand NextTouchPageCommand { get; }
+    public ICommand PreviousTouchPageCommand { get; }
 
     public ICommand SettingsMenuCommand { get; }
     public ICommand MacroEditorMenuCommand { get; }
@@ -111,10 +115,14 @@ public class MainWindowViewModel : ViewModelBase
         AddRotaryPageCommand = new RelayCommand(AddRotaryPageButton_Click);
         DeleteRotaryPageCommand = new RelayCommand(DeleteRotaryPageButton_Click);
         RotaryPageButtonCommand = new RelayCommand<int>(RotaryPageButton_Click);
+        NextRotaryPageCommand = new RelayCommand(NextRotaryPage_Click);
+        PreviousRotaryPageCommand = new RelayCommand(PreviousRotaryPage_Click);
 
         AddTouchPageCommand = new RelayCommand(AddTouchPageButton_Click);
         DeleteTouchPageCommand = new RelayCommand(DeleteTouchPageButton_Click);
         TouchPageButtonCommand = new RelayCommand<int>(TouchPageButton_Click);
+        NextTouchPageCommand = new RelayCommand(NextTouchPage_Click);
+        PreviousTouchPageCommand = new RelayCommand(PreviousTouchPage_Click);
 
         SettingsMenuCommand = new AsyncRelayCommand(SettingsMenuButton_Click);
         MacroEditorMenuCommand = new AsyncRelayCommand(MacroEditorMenuButton_Click);
@@ -158,6 +166,18 @@ public class MainWindowViewModel : ViewModelBase
         });
     }
 
+    private void NextRotaryPage_Click()
+    {
+        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+            LoupedeckController.PageManager.NextRotaryPage());
+    }
+
+    private void PreviousRotaryPage_Click()
+    {
+        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+            LoupedeckController.PageManager.PreviousRotaryPage());
+    }
+
     private void AddTouchPageButton_Click()
     {
         Avalonia.Threading.Dispatcher.UIThread.Post(() =>
@@ -182,6 +202,18 @@ public class MainWindowViewModel : ViewModelBase
         {
             LoupedeckController.PageManager.ApplyTouchPage(page - 1);
         });
+    }
+
+    private void NextTouchPage_Click()
+    {
+        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+            _ = LoupedeckController.PageManager.NextTouchPage());
+    }
+
+    private void PreviousTouchPage_Click()
+    {
+        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+            _ = LoupedeckController.PageManager.PreviousTouchPage());
     }
 
     private async Task RotaryButton_Click(RotaryButton button)
