@@ -111,7 +111,7 @@
 
         <Button Grid.Column="1"
                 VerticalAlignment="Top" HorizontalAlignment="Right"
-                VerticalContentAlignment="Top"
+                VerticalContentAlignment="Center" HorizontalContentAlignment="Center"
                 Width="50" Height="50"
                 Margin="0,4,4,0"
                 Background="Transparent"
