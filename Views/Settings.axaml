@@ -26,7 +26,7 @@
     <Grid ColumnDefinitions="240,*">
 
         <!-- ===== Sidebar ===== -->
-        <Border Grid.Column="0" Background="#1A1A1A" BorderBrush="#2A2A2A" BorderThickness="0,0,1,0">
+        <Border Grid.Column="0" Background="{DynamicResource AppSurfaceLow}" BorderBrush="{DynamicResource AppBorderSubtle}" BorderThickness="0,0,1,0">
             <ScrollViewer HorizontalScrollBarVisibility="Disabled">
                 <StackPanel Margin="8,12,8,12">
 
@@ -148,7 +148,7 @@
                             <TextBlock Classes="card-title" Text="Display" />
                             <TextBlock Classes="label" Text="Brightness" />
                             <StackPanel Orientation="Horizontal" Spacing="12" Margin="0,6,0,0">
-                                <TextBlock FontFamily="{StaticResource MdiFont}" Text="&#xF1A4;" FontSize="16" VerticalAlignment="Center" Foreground="#909090"/>
+                                <TextBlock FontFamily="{StaticResource MdiFont}" Text="&#xF1A4;" FontSize="16" VerticalAlignment="Center" Foreground="{DynamicResource AppTextSecondary}"/>
                                 <Slider Minimum="0" Maximum="100" Width="320" TickFrequency="1" IsSnapToTickEnabled="True"
                                         Value="{Binding Config.Brightness, Mode=TwoWay}" />
                                 <TextBlock FontFamily="{StaticResource MdiFont}" Text="&#xF59C;" FontSize="20" VerticalAlignment="Center"/>
@@ -214,9 +214,9 @@
                                 <ItemsControl ItemsSource="{Binding TouchPages}" Margin="0,8,0,0">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate DataType="m:TouchButtonPage">
-                                            <Border Background="#2D2D2D" CornerRadius="4" Padding="8" Margin="0,0,0,6">
+                                            <Border Background="{DynamicResource AppSurfaceAlt}" CornerRadius="4" Padding="8" Margin="0,0,0,6">
                                                 <Grid ColumnDefinitions="80,*,Auto,Auto,Auto,Auto,Auto">
-                                                    <Border Grid.Column="0" BorderBrush="#444" BorderThickness="1" CornerRadius="3" Height="40">
+                                                    <Border Grid.Column="0" BorderBrush="{DynamicResource AppBorderSubtle}" BorderThickness="1" CornerRadius="3" Height="40">
                                                         <Image Source="{Binding Wallpaper, Converter={StaticResource SkiaToBitmapConverter}}" Stretch="UniformToFill" />
                                                     </Border>
                                                     <TextBlock Grid.Column="1" Text="{Binding PageName}" VerticalAlignment="Center" Margin="10,0,0,0" />
@@ -256,7 +256,7 @@
                                 <ItemsControl ItemsSource="{Binding RotaryPages}" Margin="0,8,0,0">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate DataType="m:RotaryButtonPage">
-                                            <Border Background="#2D2D2D" CornerRadius="4" Padding="8" Margin="0,0,0,6">
+                                            <Border Background="{DynamicResource AppSurfaceAlt}" CornerRadius="4" Padding="8" Margin="0,0,0,6">
                                                 <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto">
                                                     <TextBlock Grid.Column="0" Text="{Binding PageName}" VerticalAlignment="Center" />
                                                     <Button Grid.Column="1" Classes="row-action" ToolTip.Tip="Edit page commands"

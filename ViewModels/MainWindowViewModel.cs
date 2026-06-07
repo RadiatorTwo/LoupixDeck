@@ -44,6 +44,13 @@ public class MainWindowViewModel : ViewModelBase
     /// <summary>Slug of the active device — drives MainWindow's device-layout selector.</summary>
     public string DeviceSlug { get; }
 
+    /// <summary>
+    /// The shared rotary-knob image. Bound by every dial in both device layouts.
+    /// Re-fetched whenever the theme variant changes (see <see cref="OnThemeVariantChanged"/>)
+    /// so the knob plastic follows Light/Dark — the underlying bitmap self-heals on read.
+    /// </summary>
+    public Avalonia.Media.Imaging.Bitmap RotaryKnobImage => Utils.BitmapHelper.RotaryKnobImage;
+
     private readonly IDynamicTextManager _dynamicTextManager;
     private readonly IExclusiveModeService _exclusiveMode;
 
@@ -129,6 +136,22 @@ public class MainWindowViewModel : ViewModelBase
         AboutMenuCommand = new AsyncRelayCommand(AboutMenuButton_Click);
         QuitApplicationCommand = new RelayCommand(QuitApplication);
         ToggleDeviceStateCommand = new AsyncRelayCommand(LoupedeckController.ToggleDeviceState);
+
+        // Follow Light/Dark for the rendered device chrome (knob + LED/RGB buttons),
+        // whose bitmaps bake in their colours and so can't react to DynamicResource.
+        if (Avalonia.Application.Current is { } currentApp)
+            currentApp.ActualThemeVariantChanged += OnThemeVariantChanged;
+    }
+
+    private void OnThemeVariantChanged(object sender, EventArgs e)
+    {
+        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        {
+            // The knob bitmap self-heals to the new theme on next read; nudge the binding.
+            OnPropertyChanged(nameof(RotaryKnobImage));
+            // LED/RGB button bodies are baked bitmaps — re-render them for the new theme.
+            LoupedeckController.RefreshRenderedButtonChrome();
+        });
     }
 
     private void OnExclusiveModeStateChanged()

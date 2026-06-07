@@ -28,7 +28,7 @@
                 <ItemsControl ItemsSource="{Binding Slots}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate DataType="vm:WrapSlot">
-                            <Border Background="#262626" BorderBrush="#3A3A3A" BorderThickness="1"
+                            <Border Background="{DynamicResource AppSurface}" BorderBrush="{DynamicResource AppBorderSubtle}" BorderThickness="1"
                                     CornerRadius="8" Padding="14" Margin="0,0,4,10">
                                 <StackPanel Spacing="6">
                                     <TextBlock Classes="card-title" Text="{Binding Label}" Margin="0,0,0,6" />

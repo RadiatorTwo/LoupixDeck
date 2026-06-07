@@ -20,11 +20,11 @@
 
     <Window.Styles>
         <Style Selector="Border.slot">
-            <Setter Property="BorderBrush" Value="#444" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AppBorderSubtle}" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="CornerRadius" Value="4" />
             <Setter Property="Padding" Value="10" />
-            <Setter Property="Background" Value="#1A1A1A" />
+            <Setter Property="Background" Value="{DynamicResource AppSurfaceLow}" />
             <Setter Property="Margin" Value="0,0,0,10" />
         </Style>
         <Style Selector="Border.slot.active">
@@ -130,7 +130,7 @@
 
                 <!-- Right: commands tree, full height -->
                 <Border Grid.Column="1"
-                        BorderBrush="#444" BorderThickness="1" CornerRadius="4"
+                        BorderBrush="{DynamicResource AppBorderSubtle}" BorderThickness="1" CornerRadius="4"
                         Padding="4">
                     <Grid RowDefinitions="Auto,*">
                         <TextBlock Grid.Row="0"

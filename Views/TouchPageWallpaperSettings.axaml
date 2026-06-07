@@ -23,15 +23,15 @@
                    Text="{Binding PageName}" />
 
         <Border Grid.Row="1"
-                Background="#262626"
-                BorderBrush="#3A3A3A"
+                Background="{DynamicResource AppSurface}"
+                BorderBrush="{DynamicResource AppBorderSubtle}"
                 BorderThickness="1"
                 CornerRadius="8"
                 Padding="16">
             <StackPanel Spacing="10">
 
                 <StackPanel Orientation="Horizontal" Spacing="12">
-                    <Border BorderBrush="#444" BorderThickness="1" CornerRadius="3">
+                    <Border BorderBrush="{DynamicResource AppBorderSubtle}" BorderThickness="1" CornerRadius="3">
                         <Image Width="280" Height="158"
                                Source="{Binding Wallpaper, Converter={StaticResource SkiaToBitmapConverter}}" />
                     </Border>

@@ -105,25 +105,25 @@
                     HorizontalAlignment="Center" VerticalAlignment="Center"
                     Command="{Binding RotaryButtonCommand}"
                     CommandParameter="{Binding LoupedeckController.Config.CurrentRotaryButtonPage.RotaryButtons[0], Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
-                <Image Source="{x:Static utils:BitmapHelper.RotaryKnobImage}" Width="80" Height="80" />
+                <Image Source="{Binding RotaryKnobImage}" Width="80" Height="80" />
             </Button>
             <Button Classes="Knob" Grid.Column="0" Grid.Row="1"
                     HorizontalAlignment="Center" VerticalAlignment="Center"
                     Command="{Binding RotaryButtonCommand}"
                     CommandParameter="{Binding LoupedeckController.Config.CurrentRotaryButtonPage.RotaryButtons[1], Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
-                <Image Source="{x:Static utils:BitmapHelper.RotaryKnobImage}" Width="80" Height="80" />
+                <Image Source="{Binding RotaryKnobImage}" Width="80" Height="80" />
             </Button>
             <Button Classes="Knob" Grid.Column="0" Grid.Row="2"
                     HorizontalAlignment="Center" VerticalAlignment="Center"
                     Command="{Binding RotaryButtonCommand}"
                     CommandParameter="{Binding LoupedeckController.Config.CurrentRotaryButtonPage.RotaryButtons[2], Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
-                <Image Source="{x:Static utils:BitmapHelper.RotaryKnobImage}" Width="80" Height="80" />
+                <Image Source="{Binding RotaryKnobImage}" Width="80" Height="80" />
             </Button>
 
             <!-- Left narrow display: TouchButtons[12] (60x270, full height) -->
             <Button Tag="Touch" Grid.Column="1" Grid.Row="0" Grid.RowSpan="3"
                     Width="60" Height="270" Padding="0"
-                    Background="#0F0F0F" BorderBrush="{StaticResource ButtonBorder}" BorderThickness="2" CornerRadius="6"
+                    Background="{DynamicResource DeviceScreenBackground}" BorderBrush="{DynamicResource DeviceButtonBorder}" BorderThickness="2" CornerRadius="6"
                     Command="{Binding TouchButtonCommand}"
                     CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[12]}">
                 <Border CornerRadius="6" ClipToBounds="True">
@@ -225,7 +225,7 @@
             <!-- Right narrow display: TouchButtons[13] -->
             <Button Tag="Touch" Grid.Column="3" Grid.Row="0" Grid.RowSpan="3"
                     Width="60" Height="270" Padding="0"
-                    Background="#0F0F0F" BorderBrush="{StaticResource ButtonBorder}" BorderThickness="2" CornerRadius="6"
+                    Background="{DynamicResource DeviceScreenBackground}" BorderBrush="{DynamicResource DeviceButtonBorder}" BorderThickness="2" CornerRadius="6"
                     Command="{Binding TouchButtonCommand}"
                     CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[13]}">
                 <Border CornerRadius="6" ClipToBounds="True">
@@ -238,19 +238,19 @@
                     HorizontalAlignment="Center" VerticalAlignment="Center"
                     Command="{Binding RotaryButtonCommand}"
                     CommandParameter="{Binding LoupedeckController.Config.CurrentRotaryButtonPage.RotaryButtons[3], Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
-                <Image Source="{x:Static utils:BitmapHelper.RotaryKnobImage}" Width="80" Height="80" />
+                <Image Source="{Binding RotaryKnobImage}" Width="80" Height="80" />
             </Button>
             <Button Classes="Knob" Grid.Column="4" Grid.Row="1"
                     HorizontalAlignment="Center" VerticalAlignment="Center"
                     Command="{Binding RotaryButtonCommand}"
                     CommandParameter="{Binding LoupedeckController.Config.CurrentRotaryButtonPage.RotaryButtons[4], Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
-                <Image Source="{x:Static utils:BitmapHelper.RotaryKnobImage}" Width="80" Height="80" />
+                <Image Source="{Binding RotaryKnobImage}" Width="80" Height="80" />
             </Button>
             <Button Classes="Knob" Grid.Column="4" Grid.Row="2"
                     HorizontalAlignment="Center" VerticalAlignment="Center"
                     Command="{Binding RotaryButtonCommand}"
                     CommandParameter="{Binding LoupedeckController.Config.CurrentRotaryButtonPage.RotaryButtons[5], Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
-                <Image Source="{x:Static utils:BitmapHelper.RotaryKnobImage}" Width="80" Height="80" />
+                <Image Source="{Binding RotaryKnobImage}" Width="80" Height="80" />
             </Button>
         </Grid>
 

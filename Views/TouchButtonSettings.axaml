@@ -64,7 +64,7 @@
 
                 <!-- Center: Editor canvas with selection overlay -->
                 <Border Grid.Column="1"
-                        BorderThickness="1" BorderBrush="#444"
+                        BorderThickness="1" BorderBrush="{DynamicResource AppBorderSubtle}"
                         Background="#111"
                         Margin="6"
                         HorizontalAlignment="Center" VerticalAlignment="Center">
@@ -149,7 +149,7 @@
 
                                                 <TextBlock Text="Asset" />
                                                 <TextBlock Text="{Binding AssetRelativePath}"
-                                                           Foreground="#888" Margin="0,0,0,6" />
+                                                           Foreground="{DynamicResource AppTextSecondary}" Margin="0,0,0,6" />
 
                                                 <TextBlock Text="Position X" />
                                                 <Grid ColumnDefinitions="*,50">
@@ -209,7 +209,7 @@
                                                                    Minimum="0" />
                                                 </Grid>
                                                 <TextBlock Text="(All zeros = use full image)"
-                                                           Foreground="#888" FontStyle="Italic" />
+                                                           Foreground="{DynamicResource AppTextSecondary}" FontStyle="Italic" />
                                             </StackPanel>
                                         </DataTemplate>
 
@@ -315,8 +315,8 @@
                                                 <Grid ColumnDefinitions="Auto,*" Margin="0,0,0,6">
                                                     <Border Grid.Column="0"
                                                             Width="48" Height="48"
-                                                            BorderThickness="1" BorderBrush="#444"
-                                                            Background="#161616"
+                                                            BorderThickness="1" BorderBrush="{DynamicResource AppBorderSubtle}"
+                                                            Background="{DynamicResource AppSurfaceLow}"
                                                             Margin="0,0,8,0">
                                                         <TextBlock Text="{Binding Glyph}"
                                                                    FontFamily="{StaticResource MdiFont}"

@@ -85,27 +85,38 @@ public static class BitmapHelper
                 var cx = w / 2f;
                 var cy = h / 2f;
 
-                // Leave room around the body for the seating shadow.
-                var bodyRadius = Math.Min(w, h) / 2f - 3f * ss;
+                // Leave room around the body for the seating shadow so its blurred,
+                // downward-biased edge stays inside the bitmap instead of being clipped
+                // at the canvas edge (obvious on a light background). The margin (9·ss)
+                // matches the rotary knob so both seat with the same depth.
+                var bodyRadius = Math.Min(w, h) / 2f - 9f * ss;
+
+                // Light/Dark plastic palette so the button body follows the app theme.
+                // The bevel rim and glowing LED ring stay the same — the ring colour is
+                // device state, not chrome.
+                var light = IsLightTheme;
 
                 // 1. Seating shadow: soft dark blob slightly below the body so the
                 //    button appears to sit in the panel.
                 using (var shadow = new SKPaint
                        {
                            IsAntialias = true,
-                           Color = new SKColor(0, 0, 0, 160),
-                           MaskFilter = SKMaskFilter.CreateBlur(SKBlurStyle.Normal, 3f * ss)
+                           Color = new SKColor(0, 0, 0, (byte)(light ? 110 : 185)),
+                           MaskFilter = SKMaskFilter.CreateBlur(SKBlurStyle.Normal, 4f * ss)
                        })
                 {
-                    canvas.DrawCircle(cx, cy + 2f * ss, bodyRadius, shadow);
+                    canvas.DrawCircle(cx, cy + 3f * ss, bodyRadius, shadow);
                 }
 
-                // 2. Button body: a near-flat dark face. Only a slight vertical
-                //    gradient so it reads as a flat disc rather than a domed bulge.
+                // 2. Button body: a near-flat face. Only a slight vertical gradient so
+                //    it reads as a flat disc rather than a domed bulge.
+                SKColor[] bodyColors = light
+                    ? [new SKColor(0xE2, 0xE2, 0xE2), new SKColor(0xD0, 0xD0, 0xD0)]
+                    : [new SKColor(0x33, 0x33, 0x33), new SKColor(0x29, 0x29, 0x29)];
                 using (var bodyShader = SKShader.CreateLinearGradient(
                            new SKPoint(cx, cy - bodyRadius),
                            new SKPoint(cx, cy + bodyRadius),
-                           [new SKColor(0x33, 0x33, 0x33), new SKColor(0x29, 0x29, 0x29)],
+                           bodyColors,
                            [0f, 1f],
                            SKShaderTileMode.Clamp))
                 using (var body = new SKPaint { IsAntialias = true, Shader = bodyShader })
@@ -231,13 +242,36 @@ public static class BitmapHelper
     }
 
     private static Bitmap _rotaryKnobImage;
+    private static bool _rotaryKnobImageLight;
+
+    /// <summary>
+    /// True when the application is currently showing the Light theme variant. The
+    /// simulated-device plastic is rendered lighter in Light mode so the knob and LED
+    /// buttons follow the theme like the rest of the chrome.
+    /// </summary>
+    private static bool IsLightTheme =>
+        Avalonia.Application.Current?.ActualThemeVariant == Avalonia.Styling.ThemeVariant.Light;
 
     /// <summary>
     /// A shared, lazily-rendered image of the rotary dial. The knob has no per-button
-    /// state, so every dial in every layout binds to this single cached bitmap (via
-    /// <c>{x:Static}</c>). Rendered at 90 px to match the 15 mm base at 6 px/mm.
+    /// state, so every dial in every layout binds to this single cached bitmap (via a
+    /// VM property). Re-rendered when the theme variant changes. Rendered at 90 px to
+    /// match the 15 mm base at 6 px/mm.
     /// </summary>
-    public static Bitmap RotaryKnobImage => _rotaryKnobImage ??= RenderRotaryKnobImage(90, 90);
+    public static Bitmap RotaryKnobImage
+    {
+        get
+        {
+            var light = IsLightTheme;
+            if (_rotaryKnobImage == null || _rotaryKnobImageLight != light)
+            {
+                _rotaryKnobImage = RenderRotaryKnobImage(90, 90);
+                _rotaryKnobImageLight = light;
+            }
+
+            return _rotaryKnobImage;
+        }
+    }
 
     /// <summary>
     /// Renders a rotary dial as a realistic stepped knob built from three concentric
@@ -272,18 +306,27 @@ public static class BitmapHelper
                 var cx = w / 2f;
                 var cy = h / 2f;
 
-                // Leave room around the base for the seating shadow. The two upper
-                // tiers are sized from the real diameters (12/15 and 11/15 of base).
-                var baseRadius = Math.Min(w, h) / 2f - 4f * ss;
+                // Leave room around the base for the seating shadow so its blurred,
+                // downward-biased edge stays inside the bitmap — otherwise it gets
+                // clipped at the canvas edge, which is glaringly obvious on a light
+                // background. The margin (9·ss) is sized so the full dense shadow
+                // (offset + radius + blur) fits within the canvas. The two upper tiers
+                // are sized from the real diameters (12/15 and 11/15 of base).
+                var baseRadius = Math.Min(w, h) / 2f - 9f * ss;
                 var midRadius = baseRadius * (12f / 15f);
                 var topRadius = baseRadius * (11f / 15f);
+
+                // Light/Dark plastic palette so the knob follows the app theme. The
+                // top-lit shading, rims and contact shadows stay the same; only the
+                // base plastic tone flips.
+                var light = IsLightTheme;
 
                 // 1. Seating shadow: soft dark blob slightly below the base so the
                 //    knob appears to sit in the panel.
                 using (var shadow = new SKPaint
                        {
                            IsAntialias = true,
-                           Color = new SKColor(0, 0, 0, 170),
+                           Color = new SKColor(0, 0, 0, (byte)(light ? 110 : 185)),
                            MaskFilter = SKMaskFilter.CreateBlur(SKBlurStyle.Normal, 4f * ss)
                        })
                 {
@@ -292,14 +335,16 @@ public static class BitmapHelper
 
                 // 2. Base tier (15 mm).
                 DrawKnobTier(canvas, cx, cy, baseRadius,
-                    new SKColor(0x2B, 0x2B, 0x2B), new SKColor(0x14, 0x14, 0x14), ss);
+                    light ? new SKColor(0xE6, 0xE6, 0xE6) : new SKColor(0x2B, 0x2B, 0x2B),
+                    light ? new SKColor(0xCC, 0xCC, 0xCC) : new SKColor(0x14, 0x14, 0x14), ss);
 
                 // 3. Contact shadow cast by the mid tier onto the exposed base ring.
                 DrawStepShadow(canvas, cx, cy, midRadius, ss);
 
                 // 4. Mid tier (12 mm) — a touch lighter so the step reads.
                 DrawKnobTier(canvas, cx, cy, midRadius,
-                    new SKColor(0x36, 0x36, 0x36), new SKColor(0x1B, 0x1B, 0x1B), ss);
+                    light ? new SKColor(0xF0, 0xF0, 0xF0) : new SKColor(0x36, 0x36, 0x36),
+                    light ? new SKColor(0xD6, 0xD6, 0xD6) : new SKColor(0x1B, 0x1B, 0x1B), ss);
 
                 // 5. Grip ridges: 12 radial tactile grooves only on the rotating
                 //    mid-tier side band (between the top cap and the mid edge). The
@@ -310,7 +355,7 @@ public static class BitmapHelper
                 DrawStepShadow(canvas, cx, cy, topRadius, ss);
 
                 // 7. Top cap (11 mm) — the smooth surface the user touches.
-                DrawKnobTop(canvas, cx, cy, topRadius, ss);
+                DrawKnobTop(canvas, cx, cy, topRadius, ss, light);
             }
 
             // Copy the pixels into an independent Avalonia bitmap (the constructor
@@ -389,13 +434,17 @@ public static class BitmapHelper
     /// Draws the smooth top cap: a top-lit radial face, a bevelled rim and a soft
     /// specular highlight near the top.
     /// </summary>
-    private static void DrawKnobTop(SKCanvas canvas, float cx, float cy, float radius, float scale)
+    private static void DrawKnobTop(SKCanvas canvas, float cx, float cy, float radius, float scale,
+        bool light = false)
     {
         // Radial face whose light centre is offset upward so it reads as top-lit.
+        SKColor[] faceColors = light
+            ? [new SKColor(0xF4, 0xF4, 0xF4), new SKColor(0xD2, 0xD2, 0xD2)]
+            : [new SKColor(0x4A, 0x4A, 0x4A), new SKColor(0x1E, 0x1E, 0x1E)];
         using (var faceShader = SKShader.CreateRadialGradient(
                    new SKPoint(cx, cy - radius * 0.35f),
                    radius * 1.3f,
-                   [new SKColor(0x4A, 0x4A, 0x4A), new SKColor(0x1E, 0x1E, 0x1E)],
+                   faceColors,
                    [0f, 1f],
                    SKShaderTileMode.Clamp))
         using (var face = new SKPaint { IsAntialias = true, Shader = faceShader })

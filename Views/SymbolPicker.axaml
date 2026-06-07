@@ -29,7 +29,7 @@
             </Grid>
 
             <!-- Symbol grid -->
-            <Border Grid.Row="1" BorderThickness="1" BorderBrush="#444" Background="#161616">
+            <Border Grid.Row="1" BorderThickness="1" BorderBrush="{DynamicResource AppBorderSubtle}" Background="{DynamicResource AppSurfaceLow}">
                 <ListBox ItemsSource="{Binding Symbols}"
                          SelectedItem="{Binding SelectedSymbol, Mode=TwoWay}"
                          DoubleTapped="SymbolList_DoubleTapped"
@@ -73,7 +73,7 @@
             <Grid Grid.Row="2" ColumnDefinitions="*,Auto,Auto" Margin="0,8,0,0">
                 <TextBlock Grid.Column="0"
                            VerticalAlignment="Center"
-                           Foreground="#999"
+                           Foreground="{DynamicResource AppTextSecondary}"
                            Text="{Binding SelectedSymbol.DisplayName}" />
                 <Button Grid.Column="1"
                         Content="Cancel"

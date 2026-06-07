@@ -949,6 +949,23 @@ public class LoupedeckLiveSController(
         await deviceService.Device.SetButtonColor(button.Id, button.ButtonColor);
     }
 
+    /// <summary>
+    /// Re-renders the baked simple-button images for the current theme. Called when the
+    /// app theme variant changes so the LED/RGB button plastic follows Light/Dark. The
+    /// device LED colours are unaffected (they're device state, not chrome). Must run on
+    /// the UI thread — it assigns RenderedImage, which the UI binds to.
+    /// </summary>
+    public void RefreshRenderedButtonChrome()
+    {
+        if (config.SimpleButtons == null) return;
+
+        foreach (var button in config.SimpleButtons)
+        {
+            if (button == null) continue;
+            button.RenderedImage = BitmapHelper.RenderSimpleButtonImage(button, 90, 90);
+        }
+    }
+
     private readonly SemaphoreSlim _saveSemaphore = new(1, 1);
 
     // Fire-and-forget save. The semaphore serializes concurrent calls so the
