@@ -259,23 +259,23 @@
         <Border Grid.Row="0" Classes="Pager" HorizontalAlignment="Left" Margin="0,4,0,10">
             <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
                 <Button Classes="PagerBtn PagerNav" Content="‹"
-                        ToolTip.Tip="Vorherige Rotary-Seite"
+                        ToolTip.Tip="Previous rotary page"
                         Command="{Binding PreviousRotaryPageCommand}" />
                 <TextBox Classes="PageName" Width="160"
                          Text="{Binding LoupedeckController.Config.CurrentRotaryButtonPage.Name, Mode=TwoWay}"
                          Watermark="{Binding LoupedeckController.Config.CurrentRotaryButtonPage.PageName}"
                          KeyDown="OnPageNameKeyDown" LostFocus="OnPageNameCommit" />
                 <Button Classes="PagerBtn PagerNav" Content="›"
-                        ToolTip.Tip="Nächste Rotary-Seite"
+                        ToolTip.Tip="Next rotary page"
                         Command="{Binding NextRotaryPageCommand}" />
                 <TextBlock Classes="PageCount"
                            Text="{Binding LoupedeckController.Config.RotaryPageLabel}"
-                           ToolTip.Tip="Aktuelle / Anzahl Rotary-Seiten" />
+                           ToolTip.Tip="Current / total rotary pages" />
                 <Button Classes="PagerBtn" Content="+"
-                        ToolTip.Tip="Rotary-Seite hinzufügen"
+                        ToolTip.Tip="Add rotary page"
                         Command="{Binding AddRotaryPageCommand}" />
                 <Button Classes="PagerBtn delete" Content="✕"
-                        ToolTip.Tip="Aktuelle Rotary-Seite löschen"
+                        ToolTip.Tip="Delete current rotary page"
                         Command="{Binding DeleteRotaryPageCommand}" />
             </StackPanel>
         </Border>
@@ -284,23 +284,23 @@
         <Border Grid.Row="2" Classes="Pager" HorizontalAlignment="Center" Margin="0,10,0,4">
             <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
                 <Button Classes="PagerBtn PagerNav" Content="‹"
-                        ToolTip.Tip="Vorherige Touch-Seite"
+                        ToolTip.Tip="Previous touch page"
                         Command="{Binding PreviousTouchPageCommand}" />
                 <TextBox Classes="PageName"
                          Text="{Binding LoupedeckController.Config.CurrentTouchButtonPage.Name, Mode=TwoWay}"
                          Watermark="{Binding LoupedeckController.Config.CurrentTouchButtonPage.PageName}"
                          KeyDown="OnPageNameKeyDown" LostFocus="OnPageNameCommit" />
                 <Button Classes="PagerBtn PagerNav" Content="›"
-                        ToolTip.Tip="Nächste Touch-Seite"
+                        ToolTip.Tip="Next touch page"
                         Command="{Binding NextTouchPageCommand}" />
                 <TextBlock Classes="PageCount"
                            Text="{Binding LoupedeckController.Config.TouchPageLabel}"
-                           ToolTip.Tip="Aktuelle / Anzahl Touch-Seiten" />
+                           ToolTip.Tip="Current / total touch pages" />
                 <Button Classes="PagerBtn" Content="+"
-                        ToolTip.Tip="Touch-Seite hinzufügen"
+                        ToolTip.Tip="Add touch page"
                         Command="{Binding AddTouchPageCommand}" />
                 <Button Classes="PagerBtn delete" Content="✕"
-                        ToolTip.Tip="Aktuelle Touch-Seite löschen"
+                        ToolTip.Tip="Delete current touch page"
                         Command="{Binding DeleteTouchPageCommand}" />
             </StackPanel>
         </Border>

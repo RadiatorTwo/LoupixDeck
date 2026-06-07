@@ -18,7 +18,7 @@ public class AboutViewModel : DialogViewModelBase<DialogResult>
             var assembly = Assembly.GetExecutingAssembly();
             var attribute = assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>();
             var fullVersion = attribute?.InformationalVersion ?? "Unknown Version";
-            var versionWithoutMetadata = fullVersion.Split('+')[0]; // Entfernt alles nach dem '+'
+            var versionWithoutMetadata = fullVersion.Split('+')[0]; // Strips everything after the '+'
             return $"v{versionWithoutMetadata}";
         }
     }

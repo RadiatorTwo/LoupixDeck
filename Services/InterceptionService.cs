@@ -149,7 +149,7 @@ namespace LoupixDeck.Services
                 .FirstOrDefault(p => p.Replace('\\', '/').Contains("/x64/", StringComparison.OrdinalIgnoreCase));
 
             if (installerPath == null)
-                progress.Report("Installer im Archiv nicht gefunden.");
+                progress.Report("Installer not found in the archive.");
 
             return (installerPath, dllPath);
         }

@@ -85,7 +85,7 @@ public partial class App : Application
     private void OnViewModelCreated(MainWindowViewModel viewModel, SplashScreen splashScreen,
         IClassicDesktopStyleApplicationLifetime desktop)
     {
-        // UI-Thread verwenden, um Änderungen an der UI vorzunehmen
+        // Use the UI thread to make changes to the UI
         Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
         {
             var mainWindow = new MainWindow

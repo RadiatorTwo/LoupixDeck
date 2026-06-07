@@ -1085,7 +1085,7 @@ public static class BitmapHelper
             case ScalingOption.None:
             case ScalingOption.Center:
             case ScalingOption.Tile:
-                // keine Änderung
+                // no change
                 break;
             default:
                 throw new ArgumentOutOfRangeException(nameof(scalingOption), scalingOption, null);
@@ -1122,7 +1122,7 @@ public static class BitmapHelper
         // ---------- 6) Render paths ---------------------------------------------
         if (scalingOption == ScalingOption.Tile)
         {
-            // *** Kachel-Shader: imageScale wirkt via scaledBmp-Größe ***
+            // *** Tile shader: imageScale takes effect via the scaledBmp size ***
             var localMatrix = SKMatrix.CreateTranslation(-posX, -posY);
 
             using var shader = scaledBmp.ToShader(
@@ -1366,7 +1366,7 @@ public static class BitmapHelper
         SKColor outlineColor = default)
     {
         if (canvas == null || string.IsNullOrEmpty(text))
-            throw new ArgumentException("Canvas oder Text dürfen nicht null sein!");
+            throw new ArgumentException("Canvas and text must not be null!");
 
         // Reuse the cached typeface; only the per-size SKFont is allocated here and
         // it is disposed at scope exit so it does not leak to the finalizer thread.

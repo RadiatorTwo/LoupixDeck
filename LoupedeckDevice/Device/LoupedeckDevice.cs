@@ -546,24 +546,24 @@ public class LoupedeckDevice
         int height = bitmap.Height;
         int pixelCount = width * height;
 
-        // Output-Array für 16-Bit RGB565 (2 Bytes pro Pixel)
+        // Output array for 16-bit RGB565 (2 bytes per pixel)
         byte[] output = new byte[pixelCount * 2];
 
-        // Pixel-Zugriff läuft unter dem gemeinsamen Render-Gate, damit er nie mit einem
-        // RenderTouchButtonContent/Composit auf einem anderen Thread überlappt
-        // (siehe SkiaRenderGate / docs/CRASH_ANALYSIS_ACCESS_VIOLATION.md, Maßnahme 1).
+        // Pixel access runs under the shared render gate so it never overlaps a
+        // RenderTouchButtonContent/composite on another thread
+        // (see SkiaRenderGate / docs/CRASH_ANALYSIS_ACCESS_VIOLATION.md, measure 1).
         lock (SkiaRenderGate.Sync)
         {
-            // Zugriff auf die Pixeldaten als Pointer. PeekPixels liefert bei einem nicht
-            // zugänglichen/leeren Bitmap null; ohne Null-Check würde der Pointerzugriff
-            // unten in einer AccessViolation enden statt einer fangbaren Exception.
-            using SKPixmap pixmap = bitmap.PeekPixels(); // Schneller Zugriff ohne Kopie
+            // Access the pixel data as a pointer. PeekPixels returns null for an
+            // inaccessible/empty bitmap; without a null check the pointer access
+            // below would end in an AccessViolation instead of a catchable exception.
+            using SKPixmap pixmap = bitmap.PeekPixels(); // Fast access without a copy
             if (pixmap == null)
-                throw new InvalidOperationException("Pixeldaten der Bitmap sind nicht zugänglich (PeekPixels lieferte null).");
+                throw new InvalidOperationException("Bitmap pixel data is not accessible (PeekPixels returned null).");
 
             byte* srcPtr = (byte*)pixmap.GetPixels().ToPointer();
             if (srcPtr == null)
-                throw new InvalidOperationException("Pixelzeiger der Bitmap ist null.");
+                throw new InvalidOperationException("Bitmap pixel pointer is null.");
 
             fixed (byte* destPtrFixed = output)
             {
@@ -586,13 +586,13 @@ public class LoupedeckDevice
                     destPtr[0] = (byte)(rgb565 & 0xFF);       // LSB
                     destPtr[1] = (byte)((rgb565 >> 8) & 0xFF); // MSB
 
-                    srcPtr += 4;   // BGRA8888 → 4 Bytes weiter
-                    destPtr += 2;  // RGB565 → 2 Bytes weiter
+                    srcPtr += 4;   // advance 4 bytes (BGRA8888)
+                    destPtr += 2;  // advance 2 bytes (RGB565)
                 }
             }
 
-            // Stellt sicher, dass das Bitmap (Eigentümer des nativen Pixelpuffers, auf den
-            // srcPtr zeigt) nicht während der Schleife finalisiert wird → kein use-after-free.
+            // Ensures the bitmap (owner of the native pixel buffer that srcPtr points
+            // to) is not finalized during the loop → no use-after-free.
             GC.KeepAlive(bitmap);
         }
 

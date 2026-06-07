@@ -64,7 +64,7 @@ public partial class TouchButtonSettings : Window
         var confirmed = await ConfirmDialogHelper.AskYesNoAsync(
             this,
             "Clear Button",
-            "Soll dieser Button wirklich geleert werden? Alle Einstellungen, Texte, Bilder und der Command gehen dabei verloren.");
+            "Do you really want to clear this button? All settings, texts, images and the command will be lost.");
 
         if (!confirmed) return;
 
