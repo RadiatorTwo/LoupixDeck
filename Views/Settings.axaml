@@ -77,6 +77,18 @@
                         </Button>
                     </StackPanel>
 
+                    <StackPanel IsVisible="{Binding IsAppSwitchingSupported}">
+                        <TextBlock Classes="section-header" Text="AUTOMATION" />
+                        <Button Classes="nav" Classes.active="{Binding CurrentView, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=AppSwitching}"
+                                Command="{Binding NavigateCommand}" CommandParameter="{x:Static bs:SettingsView.AppSwitching}">
+                            <Grid ColumnDefinitions="6,Auto,*">
+                                <Border Grid.Column="0" Classes="nav-accent" />
+                                <TextBlock Grid.Column="1" Classes="nav-icon" Text="&#xF05DF;" Margin="6,0,0,0"/>
+                                <TextBlock Grid.Column="2" Classes="nav-label" Text="App Switching" />
+                            </Grid>
+                        </Button>
+                    </StackPanel>
+
                     <TextBlock Classes="section-header" Text="APPEARANCE" />
                     <Button Classes="nav" Classes.active="{Binding CurrentView, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Theme}"
                             Command="{Binding NavigateCommand}" CommandParameter="{x:Static bs:SettingsView.Theme}">
@@ -518,6 +530,79 @@
                             <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,16,0,0">
                                 <Button Content="Project Website" Command="{Binding OpenWebsiteCommand}" />
                             </StackPanel>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
+                <!-- ====== App Switching ====== -->
+                <StackPanel IsVisible="{Binding CurrentView, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=AppSwitching}">
+                    <TextBlock Classes="page-title" Text="App Switching" />
+
+                    <Border Classes="card">
+                        <StackPanel>
+                            <TextBlock Classes="card-title" Text="Automatic page switching" />
+                            <CheckBox Content="Switch pages based on the focused application"
+                                      IsChecked="{Binding Config.AppSwitchingEnabled, Mode=TwoWay}" Margin="0,4,0,0" />
+                            <TextBlock Classes="hint" Margin="0,6,0,0"
+                                       Text="When the foreground window changes, the deck switches to the page bound by the first matching rule. Process name is matched case-insensitively (a trailing &quot;.exe&quot; is ignored). On Linux this requires an X11 / XWayland session and the 'xprop' tool." />
+
+                            <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,12,0,0" VerticalAlignment="Center">
+                                <TextBlock Classes="label" Text="No-match fallback page" VerticalAlignment="Center" />
+                                <ComboBox Width="160"
+                                          ItemsSource="{Binding FallbackPageOptions}"
+                                          SelectedIndex="{Binding FallbackSelectionIndex, Mode=TwoWay}" />
+                            </StackPanel>
+                            <TextBlock Classes="hint" Margin="0,6,0,0"
+                                       Text="When no rule matches the focused app, switch to this touch page. '(do nothing)' keeps the current page." />
+                        </StackPanel>
+                    </Border>
+
+                    <Border Classes="card">
+                        <StackPanel>
+                            <Grid ColumnDefinitions="*,Auto">
+                                <TextBlock Grid.Column="0" Classes="card-title" Text="Rules" />
+                                <Button Grid.Column="1" Content="+ Add rule" Command="{Binding AddAppBindingCommand}" />
+                            </Grid>
+
+                            <Grid ColumnDefinitions="*,*,120,120,40" Margin="0,8,0,4">
+                                <TextBlock Grid.Column="0" Classes="label" Text="Process" />
+                                <TextBlock Grid.Column="1" Classes="label" Text="Title contains" Margin="8,0,0,0" />
+                                <TextBlock Grid.Column="2" Classes="label" Text="Touch page" Margin="8,0,0,0" />
+                                <TextBlock Grid.Column="3" Classes="label" Text="Rotary page" Margin="8,0,0,0" />
+                            </Grid>
+
+                            <ItemsControl ItemsSource="{Binding AppBindingRows}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate DataType="vm:AppBindingRow">
+                                        <Border Background="{DynamicResource AppSurfaceAlt}" CornerRadius="4" Padding="8" Margin="0,0,0,6">
+                                            <Grid ColumnDefinitions="*,*,120,120,40">
+                                                <TextBox Grid.Column="0" Watermark="chrome"
+                                                         Text="{Binding Binding.ProcessName, Mode=TwoWay}" />
+                                                <TextBox Grid.Column="1" Watermark="(optional)" Margin="8,0,0,0"
+                                                         Text="{Binding Binding.TitleContains, Mode=TwoWay}" />
+                                                <ComboBox Grid.Column="2" Margin="8,0,0,0" HorizontalAlignment="Stretch"
+                                                          ItemsSource="{Binding TouchPages}"
+                                                          SelectedIndex="{Binding Binding.TouchPageIndex, Mode=TwoWay}">
+                                                    <ComboBox.ItemTemplate>
+                                                        <DataTemplate DataType="m:TouchButtonPage">
+                                                            <TextBlock Text="{Binding PageName}" />
+                                                        </DataTemplate>
+                                                    </ComboBox.ItemTemplate>
+                                                </ComboBox>
+                                                <ComboBox Grid.Column="3" Margin="8,0,0,0" HorizontalAlignment="Stretch"
+                                                          ItemsSource="{Binding RotaryPageOptions}"
+                                                          SelectedIndex="{Binding Binding.RotarySelectionIndex, Mode=TwoWay}" />
+                                                <Button Grid.Column="4" Classes="row-action danger" Content="✕" ToolTip.Tip="Remove rule"
+                                                        Command="{Binding $parent[Window].DataContext.RemoveAppBindingCommand}"
+                                                        CommandParameter="{Binding}" />
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+                            <TextBlock Classes="hint" Margin="0,6,0,0"
+                                       Text="Rules are evaluated top to bottom — the first match wins. &quot;Rotary page&quot; is optional: '(unchanged)' leaves the current rotary page as-is." />
                         </StackPanel>
                     </Border>
                 </StackPanel>

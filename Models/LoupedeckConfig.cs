@@ -258,6 +258,23 @@ public class LoupedeckConfig : INotifyPropertyChanged
     [Newtonsoft.Json.JsonProperty(ObjectCreationHandling = Newtonsoft.Json.ObjectCreationHandling.Replace)]
     public ObservableCollection<HapticStep> HapticSteps { get; set; } = [new HapticStep()];
 
+    // --- App-focus page switching (Feature 2) ---------------------------------
+    // Master toggle for the foreground-window → page mapping.
+    private bool _appSwitchingEnabled;
+    public bool AppSwitchingEnabled
+    {
+        get => _appSwitchingEnabled;
+        set { if (_appSwitchingEnabled == value) return; _appSwitchingEnabled = value; OnPropertyChanged(); }
+    }
+
+    // Ordered rule list — first match wins. ObjectCreationHandling.Replace for the
+    // same reason as HapticSteps (avoid Newtonsoft appending to the default instance).
+    [Newtonsoft.Json.JsonProperty(ObjectCreationHandling = Newtonsoft.Json.ObjectCreationHandling.Replace)]
+    public ObservableCollection<AppPageBinding> AppPageBindings { get; set; } = [];
+
+    // Touch page to switch to when no rule matches. null = do nothing on no-match.
+    public int? AppSwitchingFallbackTouchPageIndex { get; set; }
+
     private double _wallpaperOpacity;
 
     public double WallpaperOpacity

@@ -8,5 +8,6 @@ public enum SettingsView
     Plugins,
     Interception,
     Theme,
-    About
+    About,
+    AppSwitching
 }

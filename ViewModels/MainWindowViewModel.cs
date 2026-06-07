@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.Input;
 using LoupixDeck.Controllers;
 using LoupixDeck.Models;
 using LoupixDeck.Services;
+using LoupixDeck.Services.AppSwitching;
 using LoupixDeck.Services.Commands;
 using LoupixDeck.Services.Plugins;
 using LoupixDeck.Services.SystemPower;
@@ -83,6 +84,7 @@ public class MainWindowViewModel : ViewModelBase
         IDynamicTextManager dynamicTextManager,
         ISystemPowerService powerService,
         IExclusiveModeService exclusiveMode,
+        IAppSwitchingService appSwitching,
         LoupedeckConfig config,
         LoupixDeck.Registry.DeviceRegistry.DeviceInfo deviceInfo)
     {
@@ -112,6 +114,10 @@ public class MainWindowViewModel : ViewModelBase
                 await LoupedeckController.RestoreDeviceState();
             });
         powerService.StartMonitoring();
+
+        // Foreground-window → page switching. Started on the UI thread because the
+        // Windows WinEvent hook requires the message pump of the thread that sets it.
+        appSwitching.Start();
 
         _dialogService = dialogService;
 

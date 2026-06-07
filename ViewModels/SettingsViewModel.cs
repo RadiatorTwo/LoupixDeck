@@ -51,10 +51,19 @@ public class SettingsViewModel : DialogViewModelBase<DialogResult>
     public ICommand OpenPluginsFolderCommand { get; }
     public ICommand InstallInterceptionCommand { get; }
     public ICommand UninstallInterceptionCommand { get; }
+    public ICommand AddAppBindingCommand { get; }
+    public ICommand RemoveAppBindingCommand { get; }
 
     public ObservableCollection<VibrationPatternItem> VibrationPatterns => VibrationPatternCatalog.All;
 
     public bool IsWindows => OperatingSystem.IsWindows();
+
+    /// <summary>
+    /// App-focus page switching is available on Windows and on Linux (X11/XWayland).
+    /// Gates the "App Switching" settings page — wider than <see cref="IsWindows"/>,
+    /// so the editor stays hidden only on macOS / unsupported platforms.
+    /// </summary>
+    public bool IsAppSwitchingSupported => OperatingSystem.IsWindows() || OperatingSystem.IsLinux();
 
     public SettingsViewModel(LoupedeckConfig config,
         IDeviceService deviceService,
@@ -75,6 +84,9 @@ public class SettingsViewModel : DialogViewModelBase<DialogResult>
         NavigateCommand = new RelayCommand<SettingsView>(Navigate);
         AddHapticStepCommand = new RelayCommand(AddHapticStep);
         RemoveHapticStepCommand = new RelayCommand<HapticStep>(RemoveHapticStep);
+
+        AddAppBindingCommand = new RelayCommand(AddAppBinding);
+        RemoveAppBindingCommand = new RelayCommand<AppBindingRow>(RemoveAppBinding, p => p != null);
 
         ReconnectDeviceCommand = new AsyncRelayCommand(ReconnectDevice);
         AddTouchPageCommand = new AsyncRelayCommand(() => _pageManager.AddTouchButtonPage());
@@ -108,9 +120,26 @@ public class SettingsViewModel : DialogViewModelBase<DialogResult>
         // RelayCommand runs Execute via Task.Run). Marshal the CanExecute refresh
         // back to the UI thread so Avalonia's Button.IsEnabled update is safe.
         _pageManager.TouchButtonPages.CollectionChanged += (_, _) =>
-            Dispatcher.UIThread.Post(RefreshTouchPageCommands);
+            Dispatcher.UIThread.Post(() =>
+            {
+                RefreshTouchPageCommands();
+                SyncFallbackPageOptions();
+            });
         _pageManager.RotaryButtonPages.CollectionChanged += (_, _) =>
-            Dispatcher.UIThread.Post(RefreshRotaryPageCommands);
+            Dispatcher.UIThread.Post(() =>
+            {
+                RefreshRotaryPageCommands();
+                SyncRotaryPageOptions();
+            });
+
+        SyncRotaryPageOptions();
+        SyncFallbackPageOptions();
+
+        // Build the editor rows from the persisted rules. Rows and
+        // Config.AppPageBindings are kept in sync manually in Add/RemoveAppBinding
+        // (the only mutation paths), so no event subscription is needed here.
+        foreach (var binding in Config.AppPageBindings)
+            AppBindingRows.Add(new AppBindingRow(binding, TouchPages, RotaryPageOptions));
 
         OpenWebsiteCommand = new RelayCommand(() =>
         {
@@ -356,6 +385,74 @@ public class SettingsViewModel : DialogViewModelBase<DialogResult>
                 for (var i = 0; i < TouchPages.Count; i++) c.Add(i);
             return c;
         }
+    }
+
+    // ───────── App Switching ─────────
+
+    // The rule editor's touch-page selector binds directly to the live TouchPages
+    // collection (a stable instance). A regenerated list would make the ComboBox
+    // reset its SelectedIndex and — via the TwoWay binding — write that reset back
+    // over the user's choice, so the selection appeared to "not save".
+
+    /// <summary>Rotary page labels with a leading "(unchanged)" entry — maps to
+    /// <c>AppPageBinding.RotarySelectionIndex</c> (0 = unchanged, n = page n). Kept
+    /// as a single stable instance and synced in place (tail add/remove) so bound
+    /// ComboBoxes never lose their selection.</summary>
+    private readonly ObservableCollection<string> _rotaryPageOptions = new();
+    public ObservableCollection<string> RotaryPageOptions => _rotaryPageOptions;
+
+    /// <summary>Editor rows bound by the rule list. Kept in sync with
+    /// <c>Config.AppPageBindings</c> in <see cref="AddAppBinding"/> /
+    /// <see cref="RemoveAppBinding"/>.</summary>
+    public ObservableCollection<AppBindingRow> AppBindingRows { get; } = new();
+
+    /// <summary>Touch page labels for the no-match fallback selector, with a leading
+    /// "(do nothing)" entry. Stable instance synced in place (tail add/remove).</summary>
+    private readonly ObservableCollection<string> _fallbackPageOptions = new();
+    public ObservableCollection<string> FallbackPageOptions => _fallbackPageOptions;
+
+    private void SyncFallbackPageOptions()
+    {
+        if (_fallbackPageOptions.Count == 0) _fallbackPageOptions.Add("(do nothing)");
+        var want = (TouchPages?.Count ?? 0) + 1; // +1 for the "(do nothing)" entry
+        while (_fallbackPageOptions.Count > want) _fallbackPageOptions.RemoveAt(_fallbackPageOptions.Count - 1);
+        while (_fallbackPageOptions.Count < want) _fallbackPageOptions.Add($"Page {_fallbackPageOptions.Count}");
+    }
+
+    /// <summary>ComboBox helper for the no-match fallback: 0 = "(do nothing)" (null),
+    /// n = touch page n-1. Maps to/from <c>Config.AppSwitchingFallbackTouchPageIndex</c>.</summary>
+    public int FallbackSelectionIndex
+    {
+        get => Config.AppSwitchingFallbackTouchPageIndex is { } idx ? idx + 1 : 0;
+        set
+        {
+            var newValue = value <= 0 ? (int?)null : value - 1;
+            if (Config.AppSwitchingFallbackTouchPageIndex == newValue) return;
+            Config.AppSwitchingFallbackTouchPageIndex = newValue;
+            OnPropertyChanged();
+        }
+    }
+
+    private void SyncRotaryPageOptions()
+    {
+        if (_rotaryPageOptions.Count == 0) _rotaryPageOptions.Add("(unchanged)");
+        var want = (RotaryPages?.Count ?? 0) + 1; // +1 for the "(unchanged)" entry
+        while (_rotaryPageOptions.Count > want) _rotaryPageOptions.RemoveAt(_rotaryPageOptions.Count - 1);
+        while (_rotaryPageOptions.Count < want) _rotaryPageOptions.Add($"Page {_rotaryPageOptions.Count}");
+    }
+
+    private void AddAppBinding()
+    {
+        var binding = new AppPageBinding();
+        Config.AppPageBindings.Add(binding);
+        AppBindingRows.Add(new AppBindingRow(binding, TouchPages, RotaryPageOptions));
+    }
+
+    private void RemoveAppBinding(AppBindingRow row)
+    {
+        if (row == null) return;
+        Config.AppPageBindings.Remove(row.Binding);
+        AppBindingRows.Remove(row);
     }
 
     private async Task RemoveTouchPage(TouchButtonPage page)

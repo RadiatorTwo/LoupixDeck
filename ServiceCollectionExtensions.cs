@@ -2,6 +2,8 @@ using LoupixDeck.Controllers;
 using LoupixDeck.Models;
 using LoupixDeck.Registry;
 using LoupixDeck.Services;
+using LoupixDeck.Services.ActiveWindow;
+using LoupixDeck.Services.AppSwitching;
 using LoupixDeck.Services.Commands;
 using LoupixDeck.Services.FolderNavigation;
 using LoupixDeck.Services.Macros;
@@ -127,6 +129,20 @@ public static class ServiceCollectionExtensions
 #endif
         else
             collection.AddSingleton<ISystemPowerService, NoOpSystemPowerService>();
+
+        // Foreground-window monitor + app-switching driver. The Linux monitor needs
+        // no #if guard (it only uses Process + /proc, compiles platform-neutrally);
+        // only the Windows type lives behind #if WINDOWS.
+        if (OperatingSystem.IsLinux())
+            collection.AddSingleton<IActiveWindowMonitor, LinuxActiveWindowMonitor>();
+#if WINDOWS
+        else if (OperatingSystem.IsWindows())
+            collection.AddSingleton<IActiveWindowMonitor, WindowsActiveWindowMonitor>();
+#endif
+        else
+            collection.AddSingleton<IActiveWindowMonitor, NoOpActiveWindowMonitor>();
+
+        collection.AddSingleton<IAppSwitchingService, AppSwitchingService>();
 
         collection.AddSingleton<LoupedeckLiveSController>();
         collection.AddSingleton<IDeviceController>(sp => sp.GetRequiredService<LoupedeckLiveSController>());
