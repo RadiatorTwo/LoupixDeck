@@ -6,7 +6,14 @@ namespace LoupixDeck.Services.Commands;
 public class CommandRegistry : ICommandRegistry
 {
     private readonly IEnumerable<ICommandProvider> _providers;
-    private readonly Dictionary<string, RegisteredCommand> _commands = new(StringComparer.Ordinal);
+
+    // Immutable, copy-on-write map. Initialize() builds a fresh dictionary and
+    // publishes it via a single volatile reference swap, so a runtime rebuild
+    // (plugin hot-reload) can never tear a read on a device input thread —
+    // readers take a local copy of the reference and an in-flight Execute keeps
+    // running against the snapshot it already captured.
+    private volatile IReadOnlyDictionary<string, RegisteredCommand> _commands =
+        new Dictionary<string, RegisteredCommand>(StringComparer.Ordinal);
 
     public CommandRegistry(IEnumerable<ICommandProvider> providers)
     {
@@ -15,7 +22,7 @@ public class CommandRegistry : ICommandRegistry
 
     public void Initialize()
     {
-        _commands.Clear();
+        var next = new Dictionary<string, RegisteredCommand>(StringComparer.Ordinal);
 
         foreach (var provider in _providers)
         {
@@ -37,9 +44,11 @@ public class CommandRegistry : ICommandRegistry
                 if (command == null || string.IsNullOrEmpty(command.CommandName))
                     continue;
 
-                _commands[command.CommandName] = command;
+                next[command.CommandName] = command;
             }
         }
+
+        _commands = next; // atomic publish
     }
 
     public bool Contains(string commandName)
@@ -49,7 +58,8 @@ public class CommandRegistry : ICommandRegistry
 
     public RegisteredCommand Get(string commandName)
     {
-        if (commandName != null && _commands.TryGetValue(commandName, out var command))
+        var map = _commands; // local copy of the reference — never torn
+        if (commandName != null && map.TryGetValue(commandName, out var command))
             return command;
 
         return null;

@@ -410,9 +410,13 @@
                 <StackPanel IsVisible="{Binding CurrentView, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Plugins}">
                     <Grid ColumnDefinitions="*,Auto">
                         <TextBlock Grid.Column="0" Classes="page-title" Text="Plugins" />
-                        <Button Grid.Column="1" Content="Open Plugins Folder"
-                                Command="{Binding OpenPluginsFolderCommand}"
-                                VerticalAlignment="Center" />
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8"
+                                    VerticalAlignment="Center">
+                            <Button Content="Install from Zip…" Click="OnInstallPluginClick" />
+                            <Button Content="Remove" Click="OnRemovePluginClick" />
+                            <Button Content="Open Plugins Folder"
+                                    Command="{Binding OpenPluginsFolderCommand}" />
+                        </StackPanel>
                     </Grid>
 
                     <Border Classes="card">
@@ -425,9 +429,12 @@
                         </Grid>
                     </Border>
 
+                    <TextBlock x:Name="PluginActionStatus" Classes="hint" Margin="0,8,0,0"
+                               IsVisible="False" TextWrapping="Wrap" />
+
                     <TextBlock x:Name="PluginRestartHint" Classes="hint" Margin="0,8,0,0"
                                IsVisible="False"
-                               Text="Enabling or disabling a plugin takes effect after the app is restarted." />
+                               Text="Some changes finish applying after the app is restarted." />
                 </StackPanel>
 
                 <!-- ====== Interception ====== -->

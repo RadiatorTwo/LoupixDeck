@@ -1,11 +1,14 @@
 using System.Collections.Generic;
 using System.Linq;
 using Avalonia.Controls;
+using Avalonia.Interactivity;
 using Avalonia.Layout;
+using Avalonia.Markup.Xaml.MarkupExtensions;
 using Avalonia.Media;
 using LoupixDeck.Models;
 using LoupixDeck.PluginSdk;
 using LoupixDeck.Services.Plugins;
+using LoupixDeck.Utils;
 using LoupixDeck.ViewModels;
 using LoupixDeck.ViewModels.Base;
 
@@ -81,24 +84,101 @@ public partial class Settings : Window
     private static bool IsPluginEnabled(SettingsViewModel vm, string id) =>
         vm.Config.EnabledPlugins.Any(e => string.Equals(e, id, System.StringComparison.OrdinalIgnoreCase));
 
-    private void TogglePlugin(SettingsViewModel vm, string id, bool enabled)
+    private async void TogglePlugin(SettingsViewModel vm, string id, bool enabled)
     {
         if (string.IsNullOrEmpty(id))
             return;
 
-        var list = vm.Config.EnabledPlugins;
-        var has = IsPluginEnabled(vm, id);
+        // The reload coordinator owns the EnabledPlugins mutation and the live
+        // load/unload. Lock the list during the await so rapid clicks can't race.
+        if (PluginList != null)
+            PluginList.IsEnabled = false;
 
-        if (enabled && !has)
-            list.Add(id);
-        else if (!enabled && has)
-            list.RemoveAll(e => string.Equals(e, id, System.StringComparison.OrdinalIgnoreCase));
-        else
+        try
+        {
+            var result = enabled
+                ? await vm.EnablePluginAsync(id)
+                : await vm.DisablePluginAsync(id);
+            ShowPluginActionResult(result);
+        }
+        finally
+        {
+            if (PluginList != null)
+                PluginList.IsEnabled = true;
+        }
+
+        // Rebuild the rows so the status label ((Loaded)/(Disabled)) and the checkbox
+        // reflect the post-reload reality.
+        PopulatePluginList();
+    }
+
+    // ───────── Install / Remove (local, restart-based lifecycle) ─────────
+
+    private async void OnInstallPluginClick(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is not SettingsViewModel vm)
             return;
 
-        // The change takes effect on the next launch — plugins load at startup.
-        if (PluginRestartHint != null)
+        var zipPath = await FileDialogHelper.OpenZipDialog(this);
+        if (string.IsNullOrEmpty(zipPath))
+            return;
+
+        var result = await vm.InstallPluginFromZipAsync(zipPath);
+        ShowPluginActionResult(result);
+
+        // A freshly installed plugin loads live — rebuild the list so it appears.
+        PopulatePluginList();
+    }
+
+    private async void OnRemovePluginClick(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is not SettingsViewModel vm)
+            return;
+
+        if (PluginList?.SelectedItem is not ListBoxItem { Tag: LoadedPlugin plugin })
+        {
+            ShowPluginActionStatus("Select a plugin in the list to remove.");
+            return;
+        }
+
+        var name = plugin.Manifest?.Name ?? plugin.Directory;
+        var confirmed = await ConfirmDialogHelper.AskYesNoAsync(this, "Remove plugin",
+            $"Remove '{name}'? This deletes the plugin's folder and cannot be undone.");
+        if (!confirmed)
+            return;
+
+        var result = await vm.RemovePluginAsync(plugin);
+
+        if (result.Success)
+        {
+            // The plugin is already unloaded live; drop its row. The on-disk delete
+            // (or a deferred one) and the enabled-list change persist on dialog close.
+            if (PluginList.SelectedItem is ListBoxItem item)
+                PluginList.Items.Remove(item);
+            PluginSettingsHost?.Children.Clear();
+        }
+
+        ShowPluginActionResult(result);
+    }
+
+    private void ShowPluginActionResult(PluginActionResult result)
+    {
+        if (result == null)
+            return;
+
+        ShowPluginActionStatus(result.Message);
+
+        if (result is { Success: true, RequiresRestart: true } && PluginRestartHint != null)
             PluginRestartHint.IsVisible = true;
+    }
+
+    private void ShowPluginActionStatus(string message)
+    {
+        if (PluginActionStatus == null)
+            return;
+
+        PluginActionStatus.Text = message ?? string.Empty;
+        PluginActionStatus.IsVisible = !string.IsNullOrEmpty(message);
     }
 
     private void OnPluginSelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -110,6 +190,9 @@ public partial class Settings : Window
 
         if (PluginList?.SelectedItem is not ListBoxItem { Tag: LoadedPlugin plugin })
             return;
+
+        // Manifest metadata header — shown for every plugin regardless of load status.
+        BuildPluginHeader(plugin);
 
         if (plugin.Status != PluginLoadStatus.Loaded)
         {
@@ -128,6 +211,134 @@ public partial class Settings : Window
         }
 
         BuildSettingsForm(page, plugin.Host.Settings);
+    }
+
+    /// <summary>
+    /// Renders the manifest metadata (icon, name, author, version, description and
+    /// project link) at the top of the detail pane. Every field is optional — a
+    /// plugin whose manifest omits them simply shows less.
+    /// </summary>
+    private void BuildPluginHeader(LoadedPlugin plugin)
+    {
+        var manifest = plugin.Manifest;
+        var name = manifest?.Name ?? plugin.Directory;
+
+        var titleRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12 };
+
+        // Icon, if the manifest points at one that exists in the plugin folder.
+        if (manifest != null && !string.IsNullOrWhiteSpace(manifest.IconFile) &&
+            !string.IsNullOrWhiteSpace(plugin.Directory))
+        {
+            var iconPath = System.IO.Path.Combine(plugin.Directory, manifest.IconFile);
+            if (System.IO.File.Exists(iconPath))
+            {
+                try
+                {
+                    titleRow.Children.Add(new Image
+                    {
+                        Source = new Avalonia.Media.Imaging.Bitmap(iconPath),
+                        Width = 48,
+                        Height = 48,
+                        VerticalAlignment = VerticalAlignment.Top
+                    });
+                }
+                catch
+                {
+                    // A broken/unsupported image must never break the settings page.
+                }
+            }
+        }
+
+        var titleText = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+        titleText.Children.Add(new TextBlock
+        {
+            Text = name,
+            FontWeight = FontWeight.Bold,
+            FontSize = 16,
+            TextWrapping = TextWrapping.Wrap
+        });
+
+        var subtitle = BuildSubtitle(manifest);
+        if (!string.IsNullOrWhiteSpace(subtitle))
+        {
+            titleText.Children.Add(new TextBlock
+            {
+                Text = subtitle,
+                FontSize = 12,
+                Opacity = 0.7,
+                TextWrapping = TextWrapping.Wrap
+            });
+        }
+
+        titleRow.Children.Add(titleText);
+        PluginSettingsHost.Children.Add(titleRow);
+
+        if (!string.IsNullOrWhiteSpace(manifest?.Description))
+        {
+            PluginSettingsHost.Children.Add(new TextBlock
+            {
+                Text = manifest.Description,
+                TextWrapping = TextWrapping.Wrap,
+                Margin = new Avalonia.Thickness(0, 4, 0, 0)
+            });
+        }
+
+        if (!string.IsNullOrWhiteSpace(manifest?.ProjectUrl))
+        {
+            var link = new Button
+            {
+                Content = "Open project page",
+                Padding = new Avalonia.Thickness(0),
+                Background = Brushes.Transparent,
+                BorderThickness = new Avalonia.Thickness(0),
+                Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand),
+                HorizontalAlignment = HorizontalAlignment.Left
+            };
+            // Accent blue (theme-invariant) — matches the active-page chip colour.
+            link[!Button.ForegroundProperty] = new DynamicResourceExtension("PageActiveBrush");
+            var url = manifest.ProjectUrl;
+            link.Click += (_, _) => OpenUrl(url);
+            PluginSettingsHost.Children.Add(link);
+        }
+
+        // Visual divider between the metadata header and the settings form / status.
+        var divider = new Border
+        {
+            Height = 1,
+            Margin = new Avalonia.Thickness(0, 8, 0, 4)
+        };
+        divider[!Border.BackgroundProperty] = new DynamicResourceExtension("AppBorderSubtle");
+        PluginSettingsHost.Children.Add(divider);
+    }
+
+    /// <summary>Builds the "by {Author} • v{Version}" subtitle from whatever fields exist.</summary>
+    private static string BuildSubtitle(PluginManifest manifest)
+    {
+        if (manifest == null)
+            return null;
+
+        var parts = new List<string>();
+        if (!string.IsNullOrWhiteSpace(manifest.Author))
+            parts.Add($"by {manifest.Author}");
+        if (!string.IsNullOrWhiteSpace(manifest.Version))
+            parts.Add($"v{manifest.Version}");
+
+        return parts.Count == 0 ? null : string.Join("  •  ", parts);
+    }
+
+    private static void OpenUrl(string url)
+    {
+        try
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(url)
+            {
+                UseShellExecute = true
+            });
+        }
+        catch
+        {
+            // Opening a browser is best-effort; failure must not crash the dialog.
+        }
     }
 
     private void BuildSettingsForm(IPluginSettingsPage page, IPluginSettings settings, string? initialStatus = null)

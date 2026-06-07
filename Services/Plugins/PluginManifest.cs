@@ -23,4 +23,27 @@ public sealed class PluginManifest
 
     /// <summary>"All", "Windows" or "Linux" — the OS the plugin supports.</summary>
     public string Platform { get; set; } = "All";
+
+    // ───────── Display metadata (all optional; older manifests omit them) ─────────
+
+    /// <summary>Plugin author / publisher, shown in the plugin manager.</summary>
+    public string Author { get; set; }
+
+    /// <summary>Short, human-readable description of what the plugin does.</summary>
+    public string Description { get; set; }
+
+    /// <summary>Project / homepage URL, shown as a link in the plugin manager.</summary>
+    public string ProjectUrl { get; set; }
+
+    /// <summary>
+    /// File name of an icon within the plugin folder (e.g. <c>icon.png</c>),
+    /// displayed next to the plugin in the manager.
+    /// </summary>
+    public string IconFile { get; set; }
+
+    /// <summary>
+    /// Optional minimum host application version the plugin requires (SemVer).
+    /// Informational for now; a future host-version gate can enforce it.
+    /// </summary>
+    public string MinHostVersion { get; set; }
 }

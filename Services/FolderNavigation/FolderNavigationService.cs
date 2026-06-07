@@ -51,6 +51,26 @@ public sealed class FolderNavigationService : IFolderNavigationService
         return Task.CompletedTask;
     }
 
+    public Task ExitAll()
+    {
+        if (_stack.Count == 0)
+            return Task.CompletedTask;
+
+        // Unsubscribe + OnExit every frame so no provider keeps a live reference.
+        while (_stack.Count > 0)
+        {
+            var leaving = _stack.Pop();
+            leaving.EntriesChanged -= OnProviderEntriesChanged;
+            try { leaving.OnExit(); } catch { /* swallow */ }
+        }
+
+        _activeProvider = null;
+        _currentEntries = new Dictionary<int, FolderEntry>();
+
+        StateChanged?.Invoke();
+        return Task.CompletedTask;
+    }
+
     private void OnProviderEntriesChanged()
     {
         if (_activeProvider != null)

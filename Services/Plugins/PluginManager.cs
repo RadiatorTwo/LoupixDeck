@@ -23,6 +23,23 @@ public interface IPluginManager
     /// <summary>Scans the plugins directory and loads every discovered plugin.</summary>
     void LoadPlugins();
 
+    /// <summary>
+    /// Loads (or reloads) a single plugin by id at runtime, replacing any existing
+    /// entry with the same id. Honours the same enable/platform/SDK gates as the
+    /// bulk load, so a disabled plugin yields a <see cref="PluginLoadStatus.Disabled"/>
+    /// entry without creating a load context. UI thread only. Returns the resulting
+    /// <see cref="LoadedPlugin"/>, or null when no manifest is found for the id.
+    /// </summary>
+    LoadedPlugin LoadPlugin(string pluginId);
+
+    /// <summary>
+    /// Shuts down and unloads a single plugin by id, dropping it from
+    /// <see cref="Plugins"/>. The collectible context unload is best-effort — actual
+    /// collection (and file-lock release) is not guaranteed. UI thread only.
+    /// Returns true when an unload was requested.
+    /// </summary>
+    bool UnloadPlugin(string pluginId);
+
     /// <summary>Shuts down every loaded plugin and unloads its context.</summary>
     void ShutdownAll();
 }
@@ -33,7 +50,11 @@ public class PluginManager : IPluginManager
     private readonly IServiceProvider _serviceProvider;
     private readonly DeviceRegistry.DeviceInfo _deviceInfo;
     private readonly Models.LoupedeckConfig _config;
-    private readonly List<LoadedPlugin> _plugins = new();
+
+    // Copy-on-write snapshot. Every mutation builds a new list and swaps this
+    // reference, so readers (e.g. PluginCommandProvider during a registry rebuild)
+    // always see a consistent, immutable list — never a torn mid-mutation state.
+    private volatile IReadOnlyList<LoadedPlugin> _plugins = Array.Empty<LoadedPlugin>();
 
     public PluginManager(IServiceProvider serviceProvider, DeviceRegistry.DeviceInfo deviceInfo,
         Models.LoupedeckConfig config)
@@ -45,9 +66,72 @@ public class PluginManager : IPluginManager
 
     public IReadOnlyList<LoadedPlugin> Plugins => _plugins;
 
+    /// <summary>Builds a new plugin list from the current snapshot and publishes it.</summary>
+    private void ReplacePlugins(Action<List<LoadedPlugin>> mutate)
+    {
+        var next = new List<LoadedPlugin>(_plugins);
+        mutate(next);
+        _plugins = next; // atomic reference swap
+    }
+
+    /// <summary>The two discovery roots, app dir first so bundled plugins win.</summary>
+    private static string[] GetPluginRoots()
+    {
+        var userPluginsRoot = Path.Combine(Utils.FileDialogHelper.GetConfigDir(), "plugins");
+        return
+        [
+            Path.Combine(AppContext.BaseDirectory, "plugins"),
+            userPluginsRoot
+        ];
+    }
+
+    /// <summary>
+    /// Finds the directory + manifest path for a plugin id across both roots
+    /// (app dir wins). Returns false when no manifest with that id exists.
+    /// </summary>
+    private static bool TryResolvePluginDir(string pluginId, out string dir, out string manifestPath)
+    {
+        dir = null;
+        manifestPath = null;
+        if (string.IsNullOrWhiteSpace(pluginId))
+            return false;
+
+        foreach (var root in GetPluginRoots())
+        {
+            if (!Directory.Exists(root))
+                continue;
+
+            foreach (var candidate in Directory.GetDirectories(root))
+            {
+                var candidateManifest = Path.Combine(candidate, "plugin.json");
+                if (!File.Exists(candidateManifest))
+                    continue;
+
+                string id;
+                try
+                {
+                    id = JsonConvert.DeserializeObject<PluginManifest>(File.ReadAllText(candidateManifest))?.Id;
+                }
+                catch
+                {
+                    continue;
+                }
+
+                if (string.Equals(id, pluginId, StringComparison.OrdinalIgnoreCase))
+                {
+                    dir = candidate;
+                    manifestPath = candidateManifest;
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
     public void LoadPlugins()
     {
-        _plugins.Clear();
+        var loadedPlugins = new List<LoadedPlugin>();
 
         // Plugins are discovered from two roots: the bundled `plugins/` folder
         // next to the executable, and a user `plugins/` folder alongside the
@@ -64,6 +148,12 @@ public class PluginManager : IPluginManager
         {
             Console.WriteLine($"PluginManager: could not create user plugins dir '{userPluginsRoot}': {ex.Message}");
         }
+
+        // Carry out any lifecycle ops that were deferred while assemblies were
+        // locked — now, before anything is loaded. Installs (staged update swaps)
+        // first, then removals.
+        PluginInstaller.ProcessPendingInstalls(userPluginsRoot);
+        PluginInstaller.ProcessPendingRemovals(userPluginsRoot);
 
         var pluginsRoots = new[]
         {
@@ -100,12 +190,67 @@ public class PluginManager : IPluginManager
                     continue;
                 }
 
-                _plugins.Add(loaded);
+                loadedPlugins.Add(loaded);
             }
         }
 
-        var ok = _plugins.Count(p => p.Status == PluginLoadStatus.Loaded);
-        Console.WriteLine($"PluginManager: {ok}/{_plugins.Count} plugin(s) loaded.");
+        _plugins = loadedPlugins; // single atomic publish
+
+        var ok = loadedPlugins.Count(p => p.Status == PluginLoadStatus.Loaded);
+        Console.WriteLine($"PluginManager: {ok}/{loadedPlugins.Count} plugin(s) loaded.");
+    }
+
+    public LoadedPlugin LoadPlugin(string pluginId)
+    {
+        if (!TryResolvePluginDir(pluginId, out var dir, out var manifestPath))
+        {
+            Console.WriteLine($"PluginManager: cannot load '{pluginId}' — no manifest found.");
+            return null;
+        }
+
+        // Replace any prior entry for this id, then load fresh. LoadOne applies the
+        // enable/platform/SDK gates, so a disabled plugin produces a Disabled entry
+        // with no load context (nothing to unload, no file lock).
+        UnloadPlugin(pluginId);
+
+        var loaded = LoadOne(dir, manifestPath);
+        ReplacePlugins(list =>
+        {
+            list.RemoveAll(p => string.Equals(p.Manifest?.Id, pluginId, StringComparison.OrdinalIgnoreCase));
+            list.Add(loaded);
+        });
+
+        return loaded;
+    }
+
+    public bool UnloadPlugin(string pluginId)
+    {
+        var plugin = _plugins.FirstOrDefault(
+            p => string.Equals(p.Manifest?.Id, pluginId, StringComparison.OrdinalIgnoreCase));
+        if (plugin == null)
+            return false;
+
+        if (plugin.Status == PluginLoadStatus.Loaded)
+        {
+            try { plugin.Instance?.Shutdown(); }
+            catch (Exception ex) { Console.WriteLine($"PluginManager: '{pluginId}' Shutdown threw: {ex.Message}"); }
+        }
+
+        ReplacePlugins(list =>
+            list.RemoveAll(p => string.Equals(p.Manifest?.Id, pluginId, StringComparison.OrdinalIgnoreCase)));
+
+        // Drop every strong reference we own so the only roots left are external
+        // (in-flight Execute, etc.), then request the collectible unload.
+        var context = plugin.LoadContext;
+        plugin.Instance = null;
+        plugin.Host = null;
+        plugin.Commands = Array.Empty<IPluginCommand>();
+        plugin.LoadContext = null;
+
+        try { context?.Unload(); }
+        catch (Exception ex) { Console.WriteLine($"PluginManager: '{pluginId}' Unload threw: {ex.Message}"); }
+
+        return context != null;
     }
 
     private LoadedPlugin LoadOne(string dir, string manifestPath)

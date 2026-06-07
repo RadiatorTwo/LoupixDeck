@@ -29,6 +29,13 @@ public interface IDeviceController
     /// <summary>Restores brightness, LED colours and the current touch page.</summary>
     Task RestoreDeviceState();
 
+    /// <summary>
+    /// Repaints the current touch page from config. No-op while the device is off
+    /// or folder/exclusive mode owns the screen. Used after a plugin hot-reload so
+    /// added/removed command buttons reflect on the device. UI thread.
+    /// </summary>
+    Task RedrawCurrentTouchPage();
+
     /// <summary>Convenience: flips between Clear and Restore.</summary>
     Task ToggleDeviceState();
 }

@@ -23,9 +23,15 @@ public class SettingsViewModel : DialogViewModelBase<DialogResult>
     private readonly IPageManager _pageManager;
     private readonly IDialogService _dialogService;
     private readonly IInterceptionService _interceptionService;
+    private readonly IPluginReloadService _pluginReload;
+    private readonly IPluginManager _pluginManager;
 
-    /// <summary>All discovered plugins — drives the Plugins settings page.</summary>
-    public IReadOnlyList<LoadedPlugin> Plugins { get; }
+    /// <summary>
+    /// All discovered plugins — drives the Plugins settings page. Read live from the
+    /// manager (its list is swapped on hot-reload), never cached, so the UI re-reads
+    /// the current snapshot after an enable/disable/install/remove.
+    /// </summary>
+    public IReadOnlyList<LoadedPlugin> Plugins => _pluginManager.Plugins;
 
     public ICommand NavigateCommand { get; }
     public ICommand AddHapticStepCommand { get; }
@@ -55,6 +61,7 @@ public class SettingsViewModel : DialogViewModelBase<DialogResult>
         IPageManager pageManager,
         IDialogService dialogService,
         IPluginManager pluginManager,
+        IPluginReloadService pluginReload,
         IInterceptionService interceptionService)
     {
         Config = config;
@@ -62,7 +69,8 @@ public class SettingsViewModel : DialogViewModelBase<DialogResult>
         _pageManager = pageManager;
         _dialogService = dialogService;
         _interceptionService = interceptionService;
-        Plugins = pluginManager.Plugins;
+        _pluginReload = pluginReload;
+        _pluginManager = pluginManager;
 
         NavigateCommand = new RelayCommand<SettingsView>(Navigate);
         AddHapticStepCommand = new RelayCommand(AddHapticStep);
@@ -279,6 +287,22 @@ public class SettingsViewModel : DialogViewModelBase<DialogResult>
         }
         catch { }
     }
+
+    /// <summary>Installs (or updates) a plugin from the given zip and loads it live.</summary>
+    public Task<PluginActionResult> InstallPluginFromZipAsync(string zipPath) =>
+        _pluginReload.InstallAsync(zipPath);
+
+    /// <summary>Unloads and removes an installed (user) plugin live.</summary>
+    public Task<PluginActionResult> RemovePluginAsync(LoadedPlugin plugin) =>
+        _pluginReload.RemoveAsync(plugin);
+
+    /// <summary>Loads a plugin live (no restart).</summary>
+    public Task<PluginActionResult> EnablePluginAsync(string pluginId) =>
+        _pluginReload.EnableAsync(pluginId);
+
+    /// <summary>Unloads a plugin live (no restart).</summary>
+    public Task<PluginActionResult> DisablePluginAsync(string pluginId) =>
+        _pluginReload.DisableAsync(pluginId);
 
     private void RefreshInterceptionStatus()
     {

@@ -110,6 +110,24 @@ public class LoupedeckLiveSController(
 
     public Task ToggleDeviceState() => _isDeviceOff ? RestoreDeviceState() : ClearDeviceState();
 
+    public async Task RedrawCurrentTouchPage()
+    {
+        // No-op while something else owns the screen — the owner repaints when it
+        // releases (device-off → RestoreDeviceState, folder/exclusive → their exit
+        // handlers), so painting here would fight them.
+        if (_isDeviceOff || folderNav.IsActive || exclusiveMode.IsActive)
+            return;
+
+        var device = deviceService.Device;
+        if (device == null || config.CurrentTouchButtonPage?.TouchButtons == null)
+            return;
+
+        foreach (var tb in config.CurrentTouchButtonPage.TouchButtons)
+        {
+            await device.DrawTouchButton(tb, config, true, device.Columns);
+        }
+    }
+
     public async Task Initialize(string port = null, int baudrate = 0)
     {
         if (port != null)

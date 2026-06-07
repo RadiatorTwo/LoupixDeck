@@ -17,6 +17,13 @@ public interface IFolderNavigationService
     Task NavigateBack();
 
     /// <summary>
+    /// Pops every folder frame and exits folder mode entirely. Used before unloading
+    /// a plugin so a plugin-provided folder on the stack can't keep its assembly alive
+    /// (or leave a dead folder onscreen).
+    /// </summary>
+    Task ExitAll();
+
+    /// <summary>
     /// Fired when state changes: open, back, or a provider raised EntriesChanged.
     /// The controller subscribes and redraws the touch buttons.
     /// </summary>
