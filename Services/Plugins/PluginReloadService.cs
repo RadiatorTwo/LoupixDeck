@@ -136,15 +136,22 @@ public sealed class PluginReloadService : IPluginReloadService
     {
         var id = plugin?.Manifest?.Id;
 
-        // Tear down + unload live first so commands stop now and the folder is, where
-        // possible, unlocked for deletion. installer.Remove falls back to a
-        // pending-removal marker when the assembly is still locked.
+        // Tear down + unload live so commands stop now.
         TearDownOwnership(plugin);
         if (!string.IsNullOrWhiteSpace(id))
             _pluginManager.UnloadPlugin(id);
 
+        // Drop every remaining reference into the old context — the registry's
+        // RegisteredCommands and the dynamic-text entries — BEFORE nudging the GC,
+        // otherwise the assembly stays rooted and the folder can't be deleted live.
+        _commandRegistry.Initialize();
+        _dynamicText.Rescan();
+        TryCollectUnloaded();
+
+        // Now attempt the delete; a cleanly-collected plugin is removed live, a
+        // still-locked one falls back to the .pending-removals marker (next startup).
         var result = _installer.Remove(plugin);
-        await RefreshAsync();
+        await _deviceController.RedrawCurrentTouchPage();
         return result;
     });
 
@@ -174,6 +181,19 @@ public sealed class PluginReloadService : IPluginReloadService
 
         if (_folderNav.IsActive)
             _folderNav.ExitAll().GetAwaiter().GetResult(); // completes synchronously
+    }
+
+    /// <summary>
+    /// The standard collectible-AssemblyLoadContext unload nudge: two collections
+    /// around a finalizer drain so a cleanly-unloaded plugin's assembly is reclaimed
+    /// and its files unlocked. Best-effort — a plugin that leaks a reference simply
+    /// isn't collected, and the caller falls back to the pending-removal marker.
+    /// </summary>
+    private static void TryCollectUnloaded()
+    {
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+        GC.Collect();
     }
 
     private static bool Owns(LoadedPlugin plugin, object obj)
