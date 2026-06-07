@@ -124,6 +124,20 @@ The Command menu is filtered per OS — Windows-only and Linux-only commands onl
   saved layout is loaded on the next start.
 - Optional pre- and post-execution commands per page.
 
+### App-Focus Page Switching
+- **Automatic page switching** — when the OS foreground window changes, the deck switches
+  to a bound touch (and optionally rotary) page, so the right controls follow whatever app
+  you're in.
+- **Rule-based binding** — a simple editor on the *App Switching* settings page lets you map
+  rules (process name, optional title substring) to page indices; first match wins, so rule
+  order is priority. An optional fallback page handles the no-match case.
+- **Stays out of the way** — switching is skipped while the device is off, a plugin folder is
+  open, or a plugin holds exclusive mode; rapid Alt-Tab is debounced and re-focusing the same
+  app causes no flicker.
+- **Platforms** — Windows (via `SetWinEventHook`) and Linux under X11/XWayland (via `xprop`,
+  part of `x11-utils`). Pure Wayland sessions are not covered (no common focus protocol) and
+  fall back to a silent no-op; the settings page stays available either way.
+
 ### System Integration
 - **System tray** with Device On/Off toggle and window visibility.
 - **D-Bus notifications** (Linux).
@@ -137,7 +151,7 @@ The Command menu is filtered per OS — Windows-only and Linux-only commands onl
 ### Settings UI
 - Sidebar-driven navigation across settings categories.
 - Dedicated editors for touch wallpaper, haptic effects, rotary assignments, device colors,
-  OBS/Elgato/Argus integrations, and more.
+  app-focus page switching, OBS/Elgato/Argus integrations, and more.
 
 ---
 
