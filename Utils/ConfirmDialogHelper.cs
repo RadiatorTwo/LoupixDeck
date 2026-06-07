@@ -22,7 +22,7 @@ public static class ConfirmDialogHelper
             CanResize = false,
             ShowInTaskbar = false,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
-            SystemDecorations = SystemDecorations.Full
+            WindowDecorations = WindowDecorations.Full
         };
 
         var messageBlock = new TextBlock

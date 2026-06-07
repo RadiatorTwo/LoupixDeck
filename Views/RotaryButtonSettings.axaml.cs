@@ -59,7 +59,7 @@ public partial class RotaryButtonSettings : Window
         }
     }
 
-    public void TextBoxGotFocus(object sender, GotFocusEventArgs e)
+    public void TextBoxGotFocus(object sender, FocusChangedEventArgs e)
     {
         _lastFocusedTextBox = sender as TextBox;
 

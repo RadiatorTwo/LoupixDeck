@@ -10,7 +10,7 @@ public partial class SplashScreen : Window
     {
         InitializeComponent();
         
-        SystemDecorations = SystemDecorations.None;
+        WindowDecorations = WindowDecorations.None;
 
         // Don know if we need this.
         //this.TransparencyLevelHint = new[] { WindowTransparencyLevel.Transparent };
