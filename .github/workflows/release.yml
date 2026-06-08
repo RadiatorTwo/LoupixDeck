@@ -95,9 +95,9 @@ jobs:
               echo "Plugin $repo has no 'id' in plugin.json" >&2
               exit 1
             fi
-            dotnet build "src/$repo/$repo.csproj" -c Release -o "build/$repo"
+            dotnet build "src/$repo/$repo.csproj" -c Release -o "build/$repo" /p:DebugSymbols=false /p:DebugType=none
             mkdir -p "plugins/$id"
-            cp -r "build/$repo/." "plugins/$id/"
+            find "build/$repo" -maxdepth 1 ! -name '*.pdb' -exec cp -r {} "plugins/$id/" \;
             cp "$manifest" "plugins/$id/plugin.json"
             echo "::endgroup::"
           done
@@ -180,7 +180,9 @@ jobs:
           Copy-Item -Path plugins-artifact/* -Destination publish/win-x64/plugins -Recurse -Force
 
       - name: Zip Windows build
-        run: Compress-Archive -Path publish/win-x64/* -DestinationPath LoupixDeck-win-x64.zip
+        run: |
+          Get-ChildItem -Path publish/win-x64 -Filter *.pdb -Recurse | Remove-Item -Force
+          Compress-Archive -Path publish/win-x64/* -DestinationPath LoupixDeck-win-x64.zip
 
       - name: Upload Windows zip to release
         uses: softprops/action-gh-release@v3
@@ -253,6 +255,7 @@ jobs:
 
       - name: Tar Linux build
         run: |
+          find publish/linux-x64 -name '*.pdb' -delete
           cd publish/linux-x64
           tar -czvf ../../LoupixDeck-linux-x64.tar.gz .
 
