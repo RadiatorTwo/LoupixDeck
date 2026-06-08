@@ -248,12 +248,34 @@ public class LoupedeckLiveSController(
 
         await deviceService.Device.SetBrightness(config.Brightness / 100.0);
 
+        // Re-apply the simple-button LED colours now that the device is fully initialised.
+        // BUTTON0 is the device's boot status LED: the firmware holds it green during
+        // start-up and only releases LED control after init (brightness/first draw), so
+        // the colour set early in BuildSimpleButtons gets clobbered. Re-sending here (after
+        // the firmware has released it) makes BUTTON0 honour its configured colour like the
+        // others. See the bottom-left-button-always-green investigation.
+        await ReapplySimpleButtonColors();
+
         InitButtonEvents();
 
         // Save the initial configuration.
         SaveConfig();
 
         await Task.CompletedTask;
+    }
+
+    private async Task ReapplySimpleButtonColors()
+    {
+        if (config.SimpleButtons == null) return;
+
+        var device = deviceService.Device;
+        if (device == null) return;
+
+        foreach (var button in config.SimpleButtons)
+        {
+            if (button == null) continue;
+            await device.SetButtonColor(button.Id, button.ButtonColor);
+        }
     }
 
     private void InitButtonEvents()
