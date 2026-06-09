@@ -38,25 +38,6 @@ public class TouchButton : LoupedeckButton
         }
     }
 
-    /// <summary>
-    /// When the user enables EnableWhenOff we auto-enable vibration too: with
-    /// the screen black during OFF, the haptic pulse is the only feedback the
-    /// user gets that the touch was registered. Unchecking EnableWhenOff
-    /// leaves VibrationEnabled alone — the two are independent from that
-    /// direction.
-    /// </summary>
-    public override bool EnableWhenOff
-    {
-        get => base.EnableWhenOff;
-        set
-        {
-            var was = base.EnableWhenOff;
-            base.EnableWhenOff = value;
-            if (!was && value && !VibrationEnabled)
-                VibrationEnabled = true;
-        }
-    }
-
     private bool _vibrationEnabled;
 
     public bool VibrationEnabled

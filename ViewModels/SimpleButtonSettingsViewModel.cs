@@ -19,8 +19,18 @@ public class SimpleButtonSettingsViewModel : DialogViewModelBase<SimpleButton, D
 
     public SimpleButton ButtonData { get; set; }
 
-    /// <summary>Friendly label for the physical button id (BUTTON0 → "Button 0").</summary>
-    public string ButtonLabel => ButtonData?.Id.ToString().Replace("BUTTON", "Button ") ?? "Button";
+    /// <summary>Friendly label for the physical button id, displayed 1-based
+    /// (BUTTON0 → "Button 1"). The underlying enum stays 0-based.</summary>
+    public string ButtonLabel
+    {
+        get
+        {
+            var id = ButtonData?.Id.ToString();
+            if (id != null && id.StartsWith("BUTTON") && int.TryParse(id["BUTTON".Length..], out var n))
+                return $"Button {n + 1}";
+            return id?.Replace("BUTTON", "Button ") ?? "Button";
+        }
+    }
     public ObservableCollection<MenuEntry> SystemCommandMenus { get; set; }
     public MenuEntry CurrentMenuEntry { get; set; }
 

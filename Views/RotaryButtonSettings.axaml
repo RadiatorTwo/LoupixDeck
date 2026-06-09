@@ -29,14 +29,14 @@
         </Style>
         <Style Selector="Border.slot.active">
             <Setter Property="BorderBrush" Value="#FF66AAFF" />
-            <Setter Property="Background" Value="#1F2A3A" />
+            <Setter Property="Background" Value="{DynamicResource AppAccentSubtle}" />
         </Style>
     </Window.Styles>
 
     <Border BorderThickness="2"
             BorderBrush="DarkGray"
             Padding="4">
-        <Grid RowDefinitions="Auto,*" Margin="6">
+        <Grid RowDefinitions="Auto,Auto,*" Margin="6">
 
             <!-- Title -->
             <TextBlock Grid.Row="0"
@@ -44,12 +44,18 @@
                        FontSize="22" FontWeight="Bold"
                        Margin="0,0,0,8" />
 
-            <!-- Two columns: left = slot textboxes + OFF checkbox, right = command tree -->
-            <Grid Grid.Row="1" ColumnDefinitions="*,420">
+            <!-- OFF toggle sits directly under the title, above the command slots. -->
+            <CheckBox Grid.Row="1"
+                      Content="Run also when device is OFF"
+                      IsChecked="{Binding ButtonData.EnableWhenOff}"
+                      Margin="0,0,0,8" />
+
+            <!-- Two columns: left = slot textboxes, right = command tree -->
+            <Grid Grid.Row="2" ColumnDefinitions="*,420">
 
                 <!-- Left: three slots -->
-                <Grid Grid.Column="0" RowDefinitions="*,Auto" Margin="0,0,8,0">
-                    <StackPanel Grid.Row="0">
+                <Grid Grid.Column="0" Margin="0,0,8,0">
+                    <StackPanel>
 
                         <Border Classes="slot"
                                 Classes.active="{Binding SelectedCommandSlot,
@@ -121,11 +127,6 @@
                         </Border>
 
                     </StackPanel>
-
-                    <CheckBox Grid.Row="1"
-                              Content="Run also when device is OFF"
-                              IsChecked="{Binding ButtonData.EnableWhenOff}"
-                              Margin="0,4,0,0" />
                 </Grid>
 
                 <!-- Right: commands tree, full height -->

@@ -14,9 +14,10 @@ public class RotaryButtonSettingsViewModel : DialogViewModelBase<RotaryButton, D
         ButtonData = parameter;
     }
 
-    /// <summary>User-facing label, 0-based to match the System.UpdateButton
-    /// / GotoRotaryPage index space.</summary>
-    public string KnobLabel => $"Rotary Button {ButtonData?.Index ?? 0}";
+    /// <summary>User-facing label. Displayed 1-based so the first knob reads
+    /// "Rotary Button 1"; the underlying Index stays 0-based to match the
+    /// System.UpdateButton / GotoRotaryPage index space.</summary>
+    public string KnobLabel => $"Rotary Button {(ButtonData?.Index ?? 0) + 1}";
 
     private readonly ICommandBuilder _commandBuilder;
     private readonly IMenuTreeBuilder _menuTreeBuilder;

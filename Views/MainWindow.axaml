@@ -70,6 +70,7 @@
         <Style Selector="Button.PagerBtn:pointerover">
             <Setter Property="Background" Value="{DynamicResource AppControlBackgroundHover}" />
             <Setter Property="BorderBrush" Value="{StaticResource PageActiveBorderBrush}" />
+            <Setter Property="BorderThickness" Value="2" />
         </Style>
         <!-- Chevrons sit flush either side of the name field (no rounded outer edge). -->
         <Style Selector="Button.PagerNav">

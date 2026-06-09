@@ -130,8 +130,11 @@
              also has a ~63px transparent band above the visible body top (SVG y=75) that
              carries the body's drop shadow. The negative bottom margin pulls the strip
              down into that transparent band to close the gap (~10px left), while keeping
-             a buffer so the top shadow is never clipped. -->
-        <Border Classes="Pager" HorizontalAlignment="Left" Margin="63,12,12,-55">
+             a buffer so the top shadow is never clipped. ZIndex=1 lifts the strip above
+             the Viewbox that follows it: the negative bottom margin makes the Viewbox
+             overlap upward, and since it is drawn later its transparent shadow band would
+             otherwise swallow this pager's clicks and hover. -->
+        <Border Classes="Pager" HorizontalAlignment="Left" Margin="63,12,12,-55" ZIndex="1">
             <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
                 <Button Classes="PagerBtn PagerNav" Content="‹"
                         ToolTip.Tip="Previous rotary page"

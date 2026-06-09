@@ -57,6 +57,10 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
     public ICommand MoveLayerDownCommand { get; }
     public TouchButton ButtonData { get; set; }
 
+    /// <summary>Window title, displayed 1-based so the first touch button reads
+    /// "Touch Button 1"; the underlying Index stays 0-based.</summary>
+    public string ButtonLabel => $"Touch Button {(ButtonData?.Index ?? 0) + 1}";
+
     private LayerBase _selectedLayer;
     public LayerBase SelectedLayer
     {

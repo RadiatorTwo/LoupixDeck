@@ -29,7 +29,7 @@
     <Border BorderThickness="2"
             BorderBrush="DarkGray"
             Padding="4">
-        <Grid RowDefinitions="Auto,*" Margin="6">
+        <Grid RowDefinitions="Auto,Auto,*" Margin="6">
 
             <!-- Title -->
             <TextBlock Grid.Row="0"
@@ -37,8 +37,14 @@
                        FontSize="22" FontWeight="Bold"
                        Margin="0,0,0,8" />
 
-            <!-- Two columns: left = command + color + OFF checkbox, right = command tree -->
-            <Grid Grid.Row="1" ColumnDefinitions="*,420">
+            <!-- OFF toggle sits directly under the title, above the command slots. -->
+            <CheckBox Grid.Row="1"
+                      Content="Run also when device is OFF"
+                      IsChecked="{Binding ButtonData.EnableWhenOff}"
+                      Margin="0,0,0,8" />
+
+            <!-- Two columns: left = command + color, right = command tree -->
+            <Grid Grid.Row="2" ColumnDefinitions="*,420">
 
                 <!-- Left side -->
                 <StackPanel Grid.Column="0" Margin="0,0,8,0">
@@ -69,10 +75,6 @@
                                              Color="{Binding ButtonData.ButtonColor}" />
                         </StackPanel>
                     </Border>
-
-                    <CheckBox Content="Run also when device is OFF"
-                              IsChecked="{Binding ButtonData.EnableWhenOff}"
-                              Margin="0,4,0,0" />
                 </StackPanel>
 
                 <!-- Right: commands tree, full height -->

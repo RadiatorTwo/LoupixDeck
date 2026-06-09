@@ -9,7 +9,7 @@
     xmlns:vm="using:LoupixDeck.ViewModels"
     xmlns:layers="clr-namespace:LoupixDeck.Models.Layers"
     x:DataType="vm:TouchButtonSettingsViewModel"
-    Title="{Binding ButtonData.Index, StringFormat='Touch Button {0}'}"
+    Title="{Binding ButtonLabel}"
     Height="820"
     Width="1280"
     mc:Ignorable="d"
@@ -21,10 +21,32 @@
         <Grid RowDefinitions="*,60">
             <Grid Grid.Row="0" ColumnDefinitions="240,*,400">
 
-                <!-- Left: Layer list -->
-                <Grid Grid.Column="0" RowDefinitions="Auto,*,Auto" Margin="6">
-                    <TextBlock Grid.Row="0" Text="Layers" FontWeight="Bold" Margin="0,0,0,5" />
-                    <ListBox Grid.Row="1"
+                <!-- Left: button-wide settings + Layer list -->
+                <Grid Grid.Column="0" RowDefinitions="Auto,Auto,*,Auto" Margin="6">
+
+                    <!-- Button-wide settings (device OFF + vibration) sit above the
+                         layer list so they stay separate from the per-layer editor. -->
+                    <StackPanel Grid.Row="0" Margin="0,0,0,10">
+                        <CheckBox Content="Run also when device is OFF"
+                                  IsChecked="{Binding ButtonData.EnableWhenOff}"
+                                  Margin="0,0,0,8" />
+
+                        <TextBlock Text="Vibration Settings" FontWeight="Bold" Margin="0,0,0,4" />
+                        <CheckBox Content="Enable Vibration"
+                                  IsChecked="{Binding ButtonData.VibrationEnabled}"
+                                  Margin="0,0,0,5" />
+                        <StackPanel IsEnabled="{Binding ButtonData.VibrationEnabled}">
+                            <TextBlock Text="Pattern:" Margin="0,5,0,2" />
+                            <ComboBox ItemsSource="{Binding VibrationPatterns}"
+                                      SelectedItem="{Binding SelectedVibrationPattern}"
+                                      HorizontalAlignment="Stretch" />
+                        </StackPanel>
+
+                        <Separator Margin="0,10,0,0" />
+                    </StackPanel>
+
+                    <TextBlock Grid.Row="1" Text="Layers" FontWeight="Bold" Margin="0,0,0,5" />
+                    <ListBox Grid.Row="2"
                              ItemsSource="{Binding ButtonData.Layers}"
                              SelectedItem="{Binding SelectedLayer, Mode=TwoWay}">
                         <ListBox.ItemTemplate>
@@ -41,7 +63,7 @@
                             </DataTemplate>
                         </ListBox.ItemTemplate>
                     </ListBox>
-                    <UniformGrid Grid.Row="2" Columns="3" Rows="2" Margin="0,6,0,0">
+                    <UniformGrid Grid.Row="3" Columns="3" Rows="2" Margin="0,6,0,0">
                         <UniformGrid.Styles>
                             <Style Selector="Button">
                                 <Setter Property="Margin" Value="2" />
@@ -471,25 +493,6 @@
                                         </DataTemplate>
                                     </ContentControl.DataTemplates>
                                 </ContentControl>
-
-                                <Separator Margin="0,15,0,8" />
-
-                                <!-- Device OFF behavior -->
-                                <CheckBox Content="Run also when device is OFF"
-                                          IsChecked="{Binding ButtonData.EnableWhenOff}"
-                                          Margin="0,0,0,12" />
-
-                                <!-- Vibration Settings -->
-                                <TextBlock Text="Vibration Settings" FontWeight="Bold" Margin="0,0,0,4" />
-                                <CheckBox Content="Enable Vibration"
-                                          IsChecked="{Binding ButtonData.VibrationEnabled}"
-                                          Margin="0,0,0,5" />
-                                <StackPanel IsEnabled="{Binding ButtonData.VibrationEnabled}">
-                                    <TextBlock Text="Pattern:" Margin="0,5,0,2" />
-                                    <ComboBox ItemsSource="{Binding VibrationPatterns}"
-                                              SelectedItem="{Binding SelectedVibrationPattern}"
-                                              Width="200" HorizontalAlignment="Left" />
-                                </StackPanel>
                             </StackPanel>
                         </ScrollViewer>
                     </TabItem>
