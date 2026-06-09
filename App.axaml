@@ -65,6 +65,13 @@
                     <SolidColorBrush x:Key="DeviceScreenBackground" Color="#0F0F0F" />
                     <SolidColorBrush x:Key="DeviceButtonBorder" Color="#5A5A5A" />
                     <SolidColorBrush x:Key="DeviceBodyBrush" Color="#121212" />
+                    <!-- Screen bezel/recess + seam frame around the touch grid. -->
+                    <LinearGradientBrush x:Key="DeviceBezelBrush" StartPoint="0%,0%" EndPoint="0%,100%">
+                        <GradientStop Offset="0" Color="#101114" />
+                        <GradientStop Offset="1" Color="#16181d" />
+                    </LinearGradientBrush>
+                    <!-- Baked body artwork chosen per theme (see tools/BodyTextureBaker). -->
+                    <x:String x:Key="DeviceBodySvgPath">avares://LoupixDeck/Assets/loupedeck-gehaeuse.svg</x:String>
                 </ResourceDictionary>
                 <ResourceDictionary x:Key="Light">
                     <SolidColorBrush x:Key="AppWindowBackground" Color="#F3F3F3" />
@@ -82,6 +89,13 @@
                     <SolidColorBrush x:Key="DeviceScreenBackground" Color="#C8C8C8" />
                     <SolidColorBrush x:Key="DeviceButtonBorder" Color="#A8A8A8" />
                     <SolidColorBrush x:Key="DeviceBodyBrush" Color="#D6D6D6" />
+                    <!-- Screen bezel/recess + seam frame, rendered as a light recessed frame. -->
+                    <LinearGradientBrush x:Key="DeviceBezelBrush" StartPoint="0%,0%" EndPoint="0%,100%">
+                        <GradientStop Offset="0" Color="#C2C2C2" />
+                        <GradientStop Offset="1" Color="#B0B0B0" />
+                    </LinearGradientBrush>
+                    <!-- Baked body artwork chosen per theme (see tools/BodyTextureBaker). -->
+                    <x:String x:Key="DeviceBodySvgPath">avares://LoupixDeck/Assets/loupedeck-gehaeuse-light.svg</x:String>
                 </ResourceDictionary>
             </ResourceDictionary.ThemeDictionaries>
 

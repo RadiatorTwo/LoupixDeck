@@ -160,7 +160,7 @@
             <Grid Width="900" Height="540">
 
                 <!-- Gehäuse / body artwork. -->
-                <svg:Svg Path="avares://LoupixDeck/Assets/loupedeck-gehaeuse.svg"
+                <svg:Svg Path="{DynamicResource DeviceBodySvgPath}"
                          Stretch="Fill" Width="900" Height="540" />
 
                 <!-- Interactive controls in SVG-viewBox coordinates. -->
@@ -172,21 +172,15 @@
                          top/bottom that this bezel fills (bezel rect 200,125 - 700,415).
                          ===== -->
                     <Border Canvas.Left="200" Canvas.Top="125" Width="500" Height="290"
-                            CornerRadius="24">
-                        <Border.Background>
-                            <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
-                                <GradientStop Offset="0" Color="#101114" />
-                                <GradientStop Offset="1" Color="#16181d" />
-                            </LinearGradientBrush>
-                        </Border.Background>
-                    </Border>
+                            CornerRadius="24" Background="{DynamicResource DeviceBezelBrush}" />
 
                     <!-- ===== Touch screen: 5x3 grid (450x270) centred in the inner
                          screen rect (216,134)-(684,406). The buttons sit gapless so the
                          continuous wallpaper runs seamlessly across; the dark seam frame
                          is painted ON TOP as an overlay (IsHitTestVisible=False). ===== -->
                     <Border Canvas.Left="225" Canvas.Top="135" Width="450" Height="270"
-                            CornerRadius="8" ClipToBounds="True">
+                            CornerRadius="0" ClipToBounds="True"
+                            Background="{DynamicResource DeviceBezelBrush}">
                         <Grid>
                             <Grid ColumnDefinitions="90,90,90,90,90" RowDefinitions="90,90,90">
                                 <Button Tag="Touch" Grid.Row="0" Grid.Column="0" Width="90" Height="90"
@@ -301,17 +295,16 @@
                                  one rounded-rectangle hole per button (EvenOdd punches the holes
                                  out of the outer 450x270 rect) so each button keeps rounded
                                  corners while the wallpaper underneath stays continuous. Filled
-                                 with the SVG's bezelGrad (#101114 -> #000000) so the seam frame
-                                 matches the former screen bezel. IsHitTestVisible=False so clicks
-                                 pass through. -->
+                                 with the theme-aware DeviceBezelBrush so the seam is one piece
+                                 with the surrounding screen frame and follows Light/Dark.
+                                 The holes are inset 4.5 in each 90px cell (4.5px outer border,
+                                 9px seams between buttons) so the buttons keep their full visible
+                                 size. The inner hole edge is rounded (r=6) so each button reads as
+                                 a rounded tile.
+                                 IsHitTestVisible=False so clicks pass through. -->
                             <Path IsHitTestVisible="False"
-                                  HorizontalAlignment="Left" VerticalAlignment="Top">
-                                <Path.Fill>
-                                    <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
-                                        <GradientStop Offset="0" Color="#101114" />
-                                        <GradientStop Offset="1" Color="#16181d" />
-                                    </LinearGradientBrush>
-                                </Path.Fill>
+                                  HorizontalAlignment="Left" VerticalAlignment="Top"
+                                  Fill="{DynamicResource DeviceBezelBrush}">
                                 <Path.Data>
                                     <GeometryGroup FillRule="EvenOdd">
                                         <RectangleGeometry Rect="0,0,450,270" />
