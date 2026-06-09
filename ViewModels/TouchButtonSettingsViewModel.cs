@@ -20,6 +20,7 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
         if (ButtonData != null)
         {
             ButtonData.ItemChanged -= ButtonData_ItemChanged;
+            ButtonData.PropertyChanged -= ButtonData_PropertyChanged;
         }
 
         ButtonData = parameter;
@@ -27,12 +28,17 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
         if (ButtonData != null)
         {
             ButtonData.ItemChanged += ButtonData_ItemChanged;
+            ButtonData.PropertyChanged += ButtonData_PropertyChanged;
             UpdateEditorPreview();
 
             _selectedVibrationPattern = VibrationPatterns.FirstOrDefault(
                 p => p.Value == ButtonData.VibrationPattern);
             OnPropertyChanged(nameof(SelectedVibrationPattern));
         }
+
+        OnPropertyChanged(nameof(ButtonNumber));
+        OnPropertyChanged(nameof(ButtonLabel));
+        NotifyCommandChanged();
     }
 
     private readonly ICommandBuilder _commandBuilder;
@@ -55,11 +61,26 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
     public ICommand RemoveLayerCommand { get; }
     public ICommand MoveLayerUpCommand { get; }
     public ICommand MoveLayerDownCommand { get; }
+    public ICommand ClearCommandCommand { get; }
     public TouchButton ButtonData { get; set; }
 
-    /// <summary>Window title, displayed 1-based so the first touch button reads
-    /// "Touch Button 1"; the underlying Index stays 0-based.</summary>
-    public string ButtonLabel => $"Touch Button {(ButtonData?.Index ?? 0) + 1}";
+    /// <summary>1-based button number shared by the window title and the
+    /// properties panel so both read identically; the underlying Index stays
+    /// 0-based.</summary>
+    public int ButtonNumber => (ButtonData?.Index ?? 0) + 1;
+
+    /// <summary>Window title, e.g. "Touch Button 1".</summary>
+    public string ButtonLabel => $"Touch Button {ButtonNumber}";
+
+    /// <summary>True when the button has a non-empty command assigned.</summary>
+    public bool HasCommand => !string.IsNullOrWhiteSpace(ButtonData?.Command);
+
+    /// <summary>Read-only summary shown in the bottom command bar — the raw,
+    /// chained command string, or a placeholder when none is assigned.</summary>
+    public string CommandSummary => HasCommand ? ButtonData.Command : "No command assigned";
+
+    /// <summary>Resolution badge shown in the canvas corner, e.g. "90 × 90 px".</summary>
+    public string CanvasSizeText => $"{DeviceSize} × {DeviceSize} px";
 
     private LayerBase _selectedLayer;
     public LayerBase SelectedLayer
@@ -145,7 +166,7 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
     public double SelectionWidth => _selectionBounds.Width;
     public double SelectionHeight => _selectionBounds.Height;
 
-    public const double HandleSize = 10;
+    public const double HandleSize = 8;
     private double Hx(double cx) => cx - HandleSize / 2.0;
     private double Hy(double cy) => cy - HandleSize / 2.0;
     public double HandleNwLeft => Hx(SelectionLeft);
@@ -203,6 +224,7 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
         RemoveLayerCommand = new RelayCommand(RemoveSelectedLayer);
         MoveLayerUpCommand = new RelayCommand(MoveSelectedLayerUp);
         MoveLayerDownCommand = new RelayCommand(MoveSelectedLayerDown);
+        ClearCommandCommand = new RelayCommand(ClearCommandOnly);
 
         SystemCommandMenus = new ObservableCollection<MenuEntry>();
     }
@@ -313,6 +335,24 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
     {
         var formattedCommand = _commandBuilder.CreateCommandFromMenuEntry(menuEntry);
         ButtonData.Command = Utils.CommandChain.Append(ButtonData.Command, formattedCommand);
+        NotifyCommandChanged();
+    }
+
+    /// <summary>
+    /// Clears only the assigned command of the current button — leaves layers,
+    /// colors and all other settings untouched (unlike <see cref="ClearButton"/>).
+    /// </summary>
+    public void ClearCommandOnly()
+    {
+        if (ButtonData == null) return;
+        ButtonData.Command = null;
+        NotifyCommandChanged();
+    }
+
+    private void NotifyCommandChanged()
+    {
+        OnPropertyChanged(nameof(HasCommand));
+        OnPropertyChanged(nameof(CommandSummary));
     }
 
     /// <summary>
@@ -337,6 +377,15 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
         }
         b.Refresh();
         SelectedLayer = null;
+        NotifyCommandChanged();
+    }
+
+    private void ButtonData_PropertyChanged(object sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        // Keep the bottom summary bar in sync when the command is edited
+        // directly (Commands tab text box) or replaced programmatically.
+        if (e.PropertyName == nameof(TouchButton.Command))
+            Avalonia.Threading.Dispatcher.UIThread.Post(NotifyCommandChanged);
     }
 
     private void ButtonData_ItemChanged(object sender, EventArgs e)
@@ -400,6 +449,7 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
         if (ButtonData != null)
         {
             ButtonData.ItemChanged -= ButtonData_ItemChanged;
+            ButtonData.PropertyChanged -= ButtonData_PropertyChanged;
         }
     }
 }
