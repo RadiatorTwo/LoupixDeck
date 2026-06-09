@@ -19,40 +19,6 @@
     <Window.Styles>
         <StyleInclude Source="avares://LoupixDeck/Views/Styles/SettingsStyles.axaml" />
 
-        <!-- Editor panels reuse the settings card look but manage their own margins. -->
-        <Style Selector="Border.editor-panel">
-            <Setter Property="Background" Value="{DynamicResource AppSurface}" />
-            <Setter Property="BorderBrush" Value="{DynamicResource AppBorderSubtle}" />
-            <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="CornerRadius" Value="8" />
-            <Setter Property="Padding" Value="12" />
-        </Style>
-
-        <Style Selector="TextBlock.panel-title">
-            <Setter Property="FontSize" Value="14" />
-            <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="Margin" Value="0,0,0,8" />
-        </Style>
-
-        <!-- Small toolbar button (layer toolbar, preview toolbar). -->
-        <Style Selector="Button.toolbar">
-            <Setter Property="Height" Value="28" />
-            <Setter Property="Padding" Value="8,0" />
-            <Setter Property="FontSize" Value="12" />
-            <Setter Property="VerticalContentAlignment" Value="Center" />
-            <Setter Property="CornerRadius" Value="4" />
-        </Style>
-
-        <!-- Layer-type badge in the layer list ("T" / "I" / "S"). -->
-        <Style Selector="Border.layer-badge">
-            <Setter Property="Width" Value="20" />
-            <Setter Property="Height" Value="20" />
-            <Setter Property="CornerRadius" Value="4" />
-            <Setter Property="Background" Value="{DynamicResource AppSurfaceAlt}" />
-            <Setter Property="BorderBrush" Value="{DynamicResource AppBorderSubtle}" />
-            <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="Margin" Value="0,0,8,0" />
-        </Style>
         <!-- Selection resize handle — size must match TouchButtonSettingsViewModel.HandleSize. -->
         <Style Selector="Rectangle.handle">
             <Setter Property="Width" Value="8" />
@@ -60,13 +26,6 @@
             <Setter Property="Fill" Value="White" />
             <Setter Property="Stroke" Value="#FF5B9BD5" />
             <Setter Property="StrokeThickness" Value="1" />
-        </Style>
-
-        <Style Selector="Border.layer-badge TextBlock">
-            <Setter Property="FontSize" Value="11" />
-            <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="HorizontalAlignment" Value="Center" />
-            <Setter Property="VerticalAlignment" Value="Center" />
         </Style>
     </Window.Styles>
 
@@ -489,12 +448,12 @@
                                             </Grid>
 
                                             <StackPanel Orientation="Horizontal" Margin="0,4,0,4">
-                                                <TextBlock Text="Tint:" Width="60" VerticalAlignment="Center" />
+                                                <TextBlock Classes="label" Text="Tint" Width="60" VerticalAlignment="Center" />
                                                 <ccp:ColorPicker Color="{Binding Tint, Mode=TwoWay}" Width="80" />
                                             </StackPanel>
 
                                             <Separator Margin="0,6,0,6" />
-                                            <TextBlock Text="Style" FontWeight="Bold" Margin="0,0,0,4" />
+                                            <TextBlock Classes="label" Text="Style" Margin="0,0,0,4" />
 
                                             <!-- Gradient fill -->
                                             <CheckBox Content="Gradient fill"
