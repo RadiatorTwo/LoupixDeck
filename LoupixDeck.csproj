@@ -29,6 +29,17 @@
     <None Remove="Fork\**" />
   </ItemGroup>
 
+  <!-- Standalone dev tools (e.g. BodyTextureBaker) are not part of the app build:
+       exclude their sources and assets so they neither compile into the app nor
+       get embedded as Avalonia resources. -->
+  <ItemGroup>
+    <Compile Remove="tools\**" />
+    <AvaloniaXaml Remove="tools\**" />
+    <AvaloniaResource Remove="tools\**" />
+    <EmbeddedResource Remove="tools\**" />
+    <None Remove="tools\**" />
+  </ItemGroup>
+
   <ItemGroup>
     <Content Include="Assets\logo.ico">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
