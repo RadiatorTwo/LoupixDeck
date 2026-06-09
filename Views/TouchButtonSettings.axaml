@@ -286,188 +286,176 @@
                 <TabItem Header="Properties">
                     <ScrollViewer VerticalScrollBarVisibility="Auto"
                                   HorizontalScrollBarVisibility="Disabled">
-                        <StackPanel Margin="4">
+                        <StackPanel Margin="0,4,4,0" Spacing="12">
 
                             <!-- Button-wide settings -->
-                            <TextBlock Text="{Binding ButtonNumber, StringFormat='Button {0}'}"
-                                       FontWeight="Bold" Margin="0,0,0,4" />
-                            <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                                <TextBlock Text="Background:" Width="90" VerticalAlignment="Center" />
-                                <ccp:ColorPicker Color="{Binding ButtonData.BackColor}"
-                                                 Width="80" HorizontalAlignment="Left" />
-                            </StackPanel>
-                            <Button Content="Reset Button…"
-                                    Click="ResetButton_Click"
-                                    Background="#A03030" Foreground="White"
-                                    Margin="0,0,0,8"
-                                    ToolTip.Tip="Clears layers, colors and the command of this button" />
-
-                            <Separator Margin="0,4,0,8" />
+                            <Border Classes="editor-panel">
+                                <StackPanel>
+                                    <TextBlock Classes="panel-title"
+                                               Text="{Binding ButtonNumber, StringFormat='Button {0}'}" />
+                                    <Grid ColumnDefinitions="Auto,*,Auto">
+                                        <TextBlock Grid.Column="0" Classes="label" Text="Background"
+                                                   VerticalAlignment="Center" Margin="0,0,10,0" />
+                                        <ccp:ColorPicker Grid.Column="1"
+                                                         Color="{Binding ButtonData.BackColor}"
+                                                         Width="110" HorizontalAlignment="Left" />
+                                        <Button Grid.Column="2" Content="Reset…"
+                                                Click="ResetButton_Click"
+                                                Background="#A03030" Foreground="White"
+                                                ToolTip.Tip="Clears layers, colors and the command of this button" />
+                                    </Grid>
+                                </StackPanel>
+                            </Border>
 
                             <!-- Per-layer panel -->
-                            <ContentControl Content="{Binding SelectedLayer}">
+                            <Border Classes="editor-panel">
+                                <StackPanel>
+                                    <TextBlock Classes="hint"
+                                               Text="Select a layer to edit its properties."
+                                               IsVisible="{Binding SelectedLayer, Converter={x:Static ObjectConverters.IsNull}}" />
+                                    <ContentControl Content="{Binding SelectedLayer}">
                                 <ContentControl.DataTemplates>
 
                                     <!-- Image layer -->
                                     <DataTemplate DataType="layers:ImageLayer">
                                         <StackPanel>
-                                            <TextBlock Text="Image Layer" FontWeight="Bold" Margin="0,0,0,6" />
+                                            <TextBlock Classes="panel-title" Text="Selected Layer: Image" />
 
-                                            <TextBlock Text="Name" />
-                                            <TextBox Text="{Binding Name, Mode=TwoWay}" Margin="0,0,0,6" />
+                                            <TextBlock Classes="label" Text="Name" />
+                                            <TextBox Text="{Binding Name, Mode=TwoWay}" Margin="0,2,0,8" />
 
-                                            <TextBlock Text="Asset" />
+                                            <TextBlock Classes="label" Text="Asset" />
                                             <TextBlock Text="{Binding AssetRelativePath}"
-                                                       Foreground="{DynamicResource AppTextSecondary}" Margin="0,0,0,6" />
+                                                       Foreground="{DynamicResource AppTextSecondary}"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       Margin="0,2,0,8" />
 
-                                            <TextBlock Text="Position X" />
-                                            <Grid ColumnDefinitions="*,50">
-                                                <Slider Grid.Column="0"
-                                                        Minimum="-200" Maximum="200"
-                                                        Value="{Binding PositionX, Mode=TwoWay}"
-                                                        IsSnapToTickEnabled="True" TickFrequency="1" />
-                                                <TextBlock Grid.Column="1"
-                                                           Text="{Binding PositionX}"
-                                                           VerticalAlignment="Center"
-                                                           HorizontalAlignment="Right" />
+                                            <TextBlock Classes="label" Text="Position" />
+                                            <Grid ColumnDefinitions="Auto,*,12,Auto,*" Margin="0,2,0,8">
+                                                <TextBlock Grid.Column="0" Text="X" VerticalAlignment="Center" Margin="0,0,6,0" />
+                                                <NumericUpDown Grid.Column="1"
+                                                               Value="{Binding PositionX, Mode=TwoWay}"
+                                                               Minimum="-200" Maximum="200"
+                                                               Increment="1" FormatString="0" />
+                                                <TextBlock Grid.Column="3" Text="Y" VerticalAlignment="Center" Margin="0,0,6,0" />
+                                                <NumericUpDown Grid.Column="4"
+                                                               Value="{Binding PositionY, Mode=TwoWay}"
+                                                               Minimum="-200" Maximum="200"
+                                                               Increment="1" FormatString="0" />
                                             </Grid>
 
-                                            <TextBlock Text="Position Y" />
-                                            <Grid ColumnDefinitions="*,50">
-                                                <Slider Grid.Column="0"
-                                                        Minimum="-200" Maximum="200"
-                                                        Value="{Binding PositionY, Mode=TwoWay}"
-                                                        IsSnapToTickEnabled="True" TickFrequency="1" />
-                                                <TextBlock Grid.Column="1"
-                                                           Text="{Binding PositionY}"
-                                                           VerticalAlignment="Center"
-                                                           HorizontalAlignment="Right" />
+                                            <TextBlock Classes="label" Text="Size (px)" />
+                                            <Grid ColumnDefinitions="Auto,*,12,Auto,*" Margin="0,2,0,8">
+                                                <TextBlock Grid.Column="0" Text="W" VerticalAlignment="Center" Margin="0,0,6,0" />
+                                                <NumericUpDown Grid.Column="1"
+                                                               Value="{Binding DisplayWidth, Mode=TwoWay}"
+                                                               Minimum="1" Maximum="4000"
+                                                               Increment="1" FormatString="0" />
+                                                <TextBlock Grid.Column="3" Text="H" VerticalAlignment="Center" Margin="0,0,6,0" />
+                                                <NumericUpDown Grid.Column="4"
+                                                               Value="{Binding DisplayHeight, Mode=TwoWay}"
+                                                               Minimum="1" Maximum="4000"
+                                                               Increment="1" FormatString="0" />
                                             </Grid>
 
-                                            <TextBlock Text="Width (px)" />
-                                            <NumericUpDown Value="{Binding DisplayWidth, Mode=TwoWay}"
-                                                           Minimum="1" Maximum="4000"
-                                                           Increment="1" FormatString="0"
-                                                           Margin="0,0,0,6" />
-
-                                            <TextBlock Text="Height (px)" />
-                                            <NumericUpDown Value="{Binding DisplayHeight, Mode=TwoWay}"
-                                                           Minimum="1" Maximum="4000"
-                                                           Increment="1" FormatString="0"
-                                                           Margin="0,0,0,6" />
-
-                                            <TextBlock Text="Crop (Source-Rect)"
-                                                       FontWeight="Bold" Margin="0,10,0,4"
+                                            <TextBlock Classes="label" Text="Crop (source rect)" Margin="0,4,0,0"
                                                        ToolTip.Tip="Hold Alt + drag a handle to crop. Hold Shift to unlock aspect ratio while scaling." />
-                                            <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto" Margin="0,0,0,4">
-                                                <TextBlock Grid.Row="0" Grid.Column="0" Text="Left" Width="60" />
-                                                <NumericUpDown Grid.Row="0" Grid.Column="1"
+                                            <Grid ColumnDefinitions="Auto,*,12,Auto,*"
+                                                  RowDefinitions="Auto,Auto" Margin="0,2,0,4">
+                                                <TextBlock Grid.Row="0" Grid.Column="0" Text="L" VerticalAlignment="Center" Margin="0,0,6,4" />
+                                                <NumericUpDown Grid.Row="0" Grid.Column="1" Margin="0,0,0,4"
                                                                Value="{Binding SourceRect.Left, Mode=TwoWay}"
                                                                Minimum="0" />
-                                                <TextBlock Grid.Row="1" Grid.Column="0" Text="Top" Width="60" />
-                                                <NumericUpDown Grid.Row="1" Grid.Column="1"
+                                                <TextBlock Grid.Row="0" Grid.Column="3" Text="T" VerticalAlignment="Center" Margin="0,0,6,4" />
+                                                <NumericUpDown Grid.Row="0" Grid.Column="4" Margin="0,0,0,4"
                                                                Value="{Binding SourceRect.Top, Mode=TwoWay}"
                                                                Minimum="0" />
-                                                <TextBlock Grid.Row="2" Grid.Column="0" Text="Right" Width="60" />
-                                                <NumericUpDown Grid.Row="2" Grid.Column="1"
+                                                <TextBlock Grid.Row="1" Grid.Column="0" Text="R" VerticalAlignment="Center" Margin="0,0,6,0" />
+                                                <NumericUpDown Grid.Row="1" Grid.Column="1"
                                                                Value="{Binding SourceRect.Right, Mode=TwoWay}"
                                                                Minimum="0" />
-                                                <TextBlock Grid.Row="3" Grid.Column="0" Text="Bottom" Width="60" />
-                                                <NumericUpDown Grid.Row="3" Grid.Column="1"
+                                                <TextBlock Grid.Row="1" Grid.Column="3" Text="B" VerticalAlignment="Center" Margin="0,0,6,0" />
+                                                <NumericUpDown Grid.Row="1" Grid.Column="4"
                                                                Value="{Binding SourceRect.Bottom, Mode=TwoWay}"
                                                                Minimum="0" />
                                             </Grid>
-                                            <TextBlock Text="(All zeros = use full image)"
-                                                       Foreground="{DynamicResource AppTextSecondary}" FontStyle="Italic" />
+                                            <TextBlock Classes="hint"
+                                                       Text="All zeros = use full image." />
                                         </StackPanel>
                                     </DataTemplate>
 
                                     <!-- Text layer -->
                                     <DataTemplate DataType="layers:TextLayer">
                                         <StackPanel>
-                                            <TextBlock Text="Text Layer" FontWeight="Bold" Margin="0,0,0,6" />
+                                            <TextBlock Classes="panel-title" Text="Selected Layer: Text" />
 
-                                            <TextBlock Text="Name" />
-                                            <TextBox Text="{Binding Name, Mode=TwoWay}" Margin="0,0,0,6" />
+                                            <TextBlock Classes="label" Text="Name" />
+                                            <TextBox Text="{Binding Name, Mode=TwoWay}" Margin="0,2,0,8" />
 
-                                            <TextBlock Text="Text" />
-                                            <TextBox Text="{Binding Text, Mode=TwoWay}" Margin="0,0,0,6" />
+                                            <TextBlock Classes="label" Text="Text" />
+                                            <TextBox Text="{Binding Text, Mode=TwoWay}" Margin="0,2,0,8" />
 
-                                            <TextBlock Text="Size" />
-                                            <Grid ColumnDefinitions="*,50">
-                                                <Slider Grid.Column="0"
-                                                        Minimum="4" Maximum="80"
-                                                        Value="{Binding TextSize, Mode=TwoWay}" />
-                                                <TextBlock Grid.Column="1"
-                                                           Text="{Binding TextSize}"
-                                                           VerticalAlignment="Center"
-                                                           HorizontalAlignment="Right" />
+                                            <Grid ColumnDefinitions="*,12,*" Margin="0,0,0,8">
+                                                <StackPanel Grid.Column="0">
+                                                    <TextBlock Classes="label" Text="Size" />
+                                                    <NumericUpDown Value="{Binding TextSize, Mode=TwoWay}"
+                                                                   Minimum="4" Maximum="80"
+                                                                   Increment="1" FormatString="0"
+                                                                   Margin="0,2,0,0" />
+                                                </StackPanel>
+                                                <StackPanel Grid.Column="2">
+                                                    <TextBlock Classes="label" Text="Color" />
+                                                    <ccp:ColorPicker Color="{Binding TextColor, Mode=TwoWay}"
+                                                                     HorizontalAlignment="Stretch"
+                                                                     Margin="0,2,0,0" />
+                                                </StackPanel>
                                             </Grid>
 
-                                            <StackPanel Orientation="Horizontal" Margin="0,4,0,4">
-                                                <TextBlock Text="Color:" Width="60" VerticalAlignment="Center" />
-                                                <ccp:ColorPicker Color="{Binding TextColor, Mode=TwoWay}" Width="80" />
-                                            </StackPanel>
+                                            <TextBlock Classes="label" Text="Style" />
+                                            <WrapPanel Margin="0,2,0,4">
+                                                <CheckBox Content="Bold" IsChecked="{Binding Bold, Mode=TwoWay}"
+                                                          Margin="0,0,12,0" />
+                                                <CheckBox Content="Italic" IsChecked="{Binding Italic, Mode=TwoWay}"
+                                                          Margin="0,0,12,0" />
+                                                <CheckBox Content="Center in box" IsChecked="{Binding Centered, Mode=TwoWay}"
+                                                          ToolTip.Tip="Centers the text inside its box and positions relative to the button center" />
+                                            </WrapPanel>
 
-                                            <CheckBox Content="Bold" IsChecked="{Binding Bold, Mode=TwoWay}" />
-                                            <CheckBox Content="Italic" IsChecked="{Binding Italic, Mode=TwoWay}" />
-                                            <CheckBox Content="Centered" IsChecked="{Binding Centered, Mode=TwoWay}" />
-
-                                            <StackPanel Orientation="Horizontal" Margin="0,4,0,4">
-                                                <CheckBox Content="Outlined" IsChecked="{Binding Outlined, Mode=TwoWay}"
+                                            <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                                <CheckBox Content="Outline" IsChecked="{Binding Outlined, Mode=TwoWay}"
                                                           Margin="0,0,10,0" />
                                                 <ccp:ColorPicker Color="{Binding OutlineColor, Mode=TwoWay}"
                                                                  Width="80"
                                                                  IsVisible="{Binding Outlined}" />
                                             </StackPanel>
 
-                                            <TextBlock Text="Position X" />
-                                            <Grid ColumnDefinitions="*,50">
-                                                <Slider Grid.Column="0"
-                                                        Minimum="-100" Maximum="100"
-                                                        Value="{Binding PositionX, Mode=TwoWay}"
-                                                        IsSnapToTickEnabled="True" TickFrequency="1" />
-                                                <TextBlock Grid.Column="1"
-                                                           Text="{Binding PositionX}"
-                                                           VerticalAlignment="Center"
-                                                           HorizontalAlignment="Right" />
+                                            <TextBlock Classes="label" Text="Position" />
+                                            <Grid ColumnDefinitions="Auto,*,12,Auto,*" Margin="0,2,0,8">
+                                                <TextBlock Grid.Column="0" Text="X" VerticalAlignment="Center" Margin="0,0,6,0" />
+                                                <NumericUpDown Grid.Column="1"
+                                                               Value="{Binding PositionX, Mode=TwoWay}"
+                                                               Minimum="-100" Maximum="100"
+                                                               Increment="1" FormatString="0" />
+                                                <TextBlock Grid.Column="3" Text="Y" VerticalAlignment="Center" Margin="0,0,6,0" />
+                                                <NumericUpDown Grid.Column="4"
+                                                               Value="{Binding PositionY, Mode=TwoWay}"
+                                                               Minimum="-100" Maximum="100"
+                                                               Increment="1" FormatString="0" />
                                             </Grid>
 
-                                            <TextBlock Text="Position Y" />
-                                            <Grid ColumnDefinitions="*,50">
-                                                <Slider Grid.Column="0"
-                                                        Minimum="-100" Maximum="100"
-                                                        Value="{Binding PositionY, Mode=TwoWay}"
-                                                        IsSnapToTickEnabled="True" TickFrequency="1" />
-                                                <TextBlock Grid.Column="1"
-                                                           Text="{Binding PositionY}"
-                                                           VerticalAlignment="Center"
-                                                           HorizontalAlignment="Right" />
-                                            </Grid>
-
-                                            <TextBlock Text="Box Width" Margin="0,8,0,0"
+                                            <TextBlock Classes="label" Text="Box size"
                                                        ToolTip.Tip="Layout area for the text — drag handles in the preview to change." />
-                                            <Grid ColumnDefinitions="*,50">
-                                                <Slider Grid.Column="0"
-                                                        Minimum="10" Maximum="400"
-                                                        Value="{Binding BoxWidth, Mode=TwoWay}"
-                                                        IsSnapToTickEnabled="True" TickFrequency="1" />
-                                                <TextBlock Grid.Column="1"
-                                                           Text="{Binding BoxWidth}"
-                                                           VerticalAlignment="Center"
-                                                           HorizontalAlignment="Right" />
-                                            </Grid>
-
-                                            <TextBlock Text="Box Height" />
-                                            <Grid ColumnDefinitions="*,50">
-                                                <Slider Grid.Column="0"
-                                                        Minimum="10" Maximum="400"
-                                                        Value="{Binding BoxHeight, Mode=TwoWay}"
-                                                        IsSnapToTickEnabled="True" TickFrequency="1" />
-                                                <TextBlock Grid.Column="1"
-                                                           Text="{Binding BoxHeight}"
-                                                           VerticalAlignment="Center"
-                                                           HorizontalAlignment="Right" />
+                                            <Grid ColumnDefinitions="Auto,*,12,Auto,*" Margin="0,2,0,0">
+                                                <TextBlock Grid.Column="0" Text="W" VerticalAlignment="Center" Margin="0,0,6,0" />
+                                                <NumericUpDown Grid.Column="1"
+                                                               Value="{Binding BoxWidth, Mode=TwoWay}"
+                                                               Minimum="10" Maximum="400"
+                                                               Increment="1" FormatString="0" />
+                                                <TextBlock Grid.Column="3" Text="H" VerticalAlignment="Center" Margin="0,0,6,0" />
+                                                <NumericUpDown Grid.Column="4"
+                                                               Value="{Binding BoxHeight, Mode=TwoWay}"
+                                                               Minimum="10" Maximum="400"
+                                                               Increment="1" FormatString="0" />
                                             </Grid>
                                         </StackPanel>
                                     </DataTemplate>
@@ -475,12 +463,12 @@
                                     <!-- Symbol layer -->
                                     <DataTemplate DataType="layers:SymbolLayer">
                                         <StackPanel>
-                                            <TextBlock Text="Symbol Layer" FontWeight="Bold" Margin="0,0,0,6" />
+                                            <TextBlock Classes="panel-title" Text="Selected Layer: Symbol" />
 
-                                            <TextBlock Text="Name" />
-                                            <TextBox Text="{Binding Name, Mode=TwoWay}" Margin="0,0,0,6" />
+                                            <TextBlock Classes="label" Text="Name" />
+                                            <TextBox Text="{Binding Name, Mode=TwoWay}" Margin="0,2,0,8" />
 
-                                            <TextBlock Text="Symbol" />
+                                            <TextBlock Classes="label" Text="Symbol" />
                                             <Grid ColumnDefinitions="Auto,*" Margin="0,0,0,6">
                                                 <Border Grid.Column="0"
                                                         Width="48" Height="48"
@@ -599,47 +587,41 @@
                                                 </Grid>
                                             </StackPanel>
 
-                                            <Separator Margin="0,6,0,6" />
+                                            <Separator Margin="0,6,0,8" />
 
-                                            <TextBlock Text="Position X" />
-                                            <Grid ColumnDefinitions="*,50">
-                                                <Slider Grid.Column="0"
-                                                        Minimum="-200" Maximum="200"
-                                                        Value="{Binding PositionX, Mode=TwoWay}"
-                                                        IsSnapToTickEnabled="True" TickFrequency="1" />
-                                                <TextBlock Grid.Column="1"
-                                                           Text="{Binding PositionX}"
-                                                           VerticalAlignment="Center"
-                                                           HorizontalAlignment="Right" />
+                                            <TextBlock Classes="label" Text="Position" />
+                                            <Grid ColumnDefinitions="Auto,*,12,Auto,*" Margin="0,2,0,8">
+                                                <TextBlock Grid.Column="0" Text="X" VerticalAlignment="Center" Margin="0,0,6,0" />
+                                                <NumericUpDown Grid.Column="1"
+                                                               Value="{Binding PositionX, Mode=TwoWay}"
+                                                               Minimum="-200" Maximum="200"
+                                                               Increment="1" FormatString="0" />
+                                                <TextBlock Grid.Column="3" Text="Y" VerticalAlignment="Center" Margin="0,0,6,0" />
+                                                <NumericUpDown Grid.Column="4"
+                                                               Value="{Binding PositionY, Mode=TwoWay}"
+                                                               Minimum="-200" Maximum="200"
+                                                               Increment="1" FormatString="0" />
                                             </Grid>
 
-                                            <TextBlock Text="Position Y" />
-                                            <Grid ColumnDefinitions="*,50">
-                                                <Slider Grid.Column="0"
-                                                        Minimum="-200" Maximum="200"
-                                                        Value="{Binding PositionY, Mode=TwoWay}"
-                                                        IsSnapToTickEnabled="True" TickFrequency="1" />
-                                                <TextBlock Grid.Column="1"
-                                                           Text="{Binding PositionY}"
-                                                           VerticalAlignment="Center"
-                                                           HorizontalAlignment="Right" />
+                                            <TextBlock Classes="label" Text="Size (px)" />
+                                            <Grid ColumnDefinitions="Auto,*,12,Auto,*" Margin="0,2,0,0">
+                                                <TextBlock Grid.Column="0" Text="W" VerticalAlignment="Center" Margin="0,0,6,0" />
+                                                <NumericUpDown Grid.Column="1"
+                                                               Value="{Binding DisplayWidth, Mode=TwoWay}"
+                                                               Minimum="1" Maximum="4000"
+                                                               Increment="1" FormatString="0" />
+                                                <TextBlock Grid.Column="3" Text="H" VerticalAlignment="Center" Margin="0,0,6,0" />
+                                                <NumericUpDown Grid.Column="4"
+                                                               Value="{Binding DisplayHeight, Mode=TwoWay}"
+                                                               Minimum="1" Maximum="4000"
+                                                               Increment="1" FormatString="0" />
                                             </Grid>
-
-                                            <TextBlock Text="Width (px)" />
-                                            <NumericUpDown Value="{Binding DisplayWidth, Mode=TwoWay}"
-                                                           Minimum="1" Maximum="4000"
-                                                           Increment="1" FormatString="0"
-                                                           Margin="0,0,0,6" />
-
-                                            <TextBlock Text="Height (px)" />
-                                            <NumericUpDown Value="{Binding DisplayHeight, Mode=TwoWay}"
-                                                           Minimum="1" Maximum="4000"
-                                                           Increment="1" FormatString="0"
-                                                           Margin="0,0,0,6" />
                                         </StackPanel>
                                     </DataTemplate>
                                 </ContentControl.DataTemplates>
-                            </ContentControl>
+                                    </ContentControl>
+                                </StackPanel>
+                            </Border>
                         </StackPanel>
                     </ScrollViewer>
                 </TabItem>
