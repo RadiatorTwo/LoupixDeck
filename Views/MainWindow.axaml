@@ -106,14 +106,17 @@
         <vm:MainWindowViewModel />
     </Design.DataContext>
 
-    <Grid ColumnDefinitions="*,Auto">
-        <ContentControl Grid.Column="0" Name="DeviceLayoutHost" Padding="0" />
+    <!-- The hamburger overlays the device cell (rather than sitting in its own column)
+         so its right edge lines up with the body's right edge instead of widening the
+         window past the device. The body ends at SVG x=825 of the 900-wide viewBox,
+         ~63px in from the 760px Viewbox's right edge. -->
+    <Grid>
+        <ContentControl Name="DeviceLayoutHost" Padding="0" />
 
-        <Button Grid.Column="1"
-                VerticalAlignment="Top" HorizontalAlignment="Right"
+        <Button VerticalAlignment="Top" HorizontalAlignment="Right"
                 VerticalContentAlignment="Center" HorizontalContentAlignment="Center"
                 Width="50" Height="50"
-                Margin="0,4,4,0"
+                Margin="0,4,63,0"
                 Background="Transparent"
                 BorderBrush="Transparent"
                 BorderThickness="0">

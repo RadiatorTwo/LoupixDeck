@@ -113,17 +113,25 @@
          the SVG viewBox (900x540). Both share one Viewbox so the controls scale in
          lockstep with the body image — their relative alignment is resolution
          independent. The page pagers stay outside the Viewbox so their text never
-         scales. Key SVG landmarks used for placement:
-           body  rect (40,40)-(860,500)
-           screen recess (200,118)-(700,422), inner screen (216,134)-(684,406)
-         The 5x3 touch grid (450x270) is centred in the inner screen; the two dials
-         and bottom LED sit in the left body margin (centre x=118), the three LEDs in
-         the right body margin (centre x=782). -->
+         scales. Coordinates are SVG units at 5 units/mm (real device proportions).
+         Key landmarks used for placement:
+           body rect (75,75)-(825,495)  (750x420 = 150x84mm)
+           touch bezel (200,125)-(700,415)  (500x290 = 100x58mm), leaving 25/25/10/16mm
+             (125/125/50/80u) body margins around it
+         The 5x3 touch grid (450x270, 16mm tiles) is centred in the bezel; the two dials
+         and bottom LED sit in the left body margin (centre x=137.5), the three LEDs in
+         the right body margin (centre x=762.5). -->
     <StackPanel Orientation="Vertical" HorizontalAlignment="Center" Spacing="2">
 
         <!-- Rotary page controls as their own strip above the device (left, over the
              dials). The touch pager lives below the screen it controls (further down). -->
-        <Border Classes="Pager" HorizontalAlignment="Left" Margin="12,6,12,4">
+        <!-- Left edge flush with the body: SVG body starts at x=75 of the 900-wide
+             viewBox, which at the 760px Viewbox scale (760/900) is ~63px in. The Viewbox
+             also has a ~63px transparent band above the visible body top (SVG y=75) that
+             carries the body's drop shadow. The negative bottom margin pulls the strip
+             down into that transparent band to close the gap (~10px left), while keeping
+             a buffer so the top shadow is never clipped. -->
+        <Border Classes="Pager" HorizontalAlignment="Left" Margin="63,12,12,-55">
             <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
                 <Button Classes="PagerBtn PagerNav" Content="‹"
                         ToolTip.Tip="Previous rotary page"
@@ -159,11 +167,11 @@
                 <Canvas Width="900" Height="540">
 
                     <!-- ===== Screen bezel/recess behind the touch grid: the dark frame
-                         that surrounds the 450x270 button area on all sides (the former
-                         SVG bezelGrad rect at 200,118 - 700,422). The buttons (225,135)
-                         leave a 25px margin left/right and 17px top/bottom that this
-                         bezel fills. ===== -->
-                    <Border Canvas.Left="200" Canvas.Top="118" Width="500" Height="304"
+                         that surrounds the 450x270 button area on all sides. The buttons
+                         (225,135) leave a 25px margin left/right and a slimmer 10px
+                         top/bottom that this bezel fills (bezel rect 200,125 - 700,415).
+                         ===== -->
+                    <Border Canvas.Left="200" Canvas.Top="125" Width="500" Height="290"
                             CornerRadius="24">
                         <Border.Background>
                             <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
@@ -328,45 +336,49 @@
                         </Grid>
                     </Border>
 
-                    <!-- ===== Left body margin (centre x=118): two dials stacked, with the
-                         first LED button below. ===== -->
-                    <Button Classes="Dial" Canvas.Left="73" Canvas.Top="123" Width="90" Height="90"
+                    <!-- ===== Left body margin (centre x=137.5): two dials stacked, with the
+                         first LED button below. The dials/LED are raised so the first
+                         dial's visible knob top (Canvas.Top + 9px transparent pad) sits
+                         level with the touch-grid frame top (y=125 -> dial Top=116). The
+                         three right LEDs mirror these three controls' centres. ===== -->
+                    <Button Classes="Dial" Canvas.Left="92.5" Canvas.Top="116" Width="90" Height="90"
                             Command="{Binding RotaryButtonCommand}"
                             CommandParameter="{Binding LoupedeckController.Config.CurrentRotaryButtonPage.RotaryButtons[0], Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
                         <Image Source="{Binding RotaryKnobImage}" Width="90" Height="90" />
                     </Button>
-                    <Button Classes="Dial" Canvas.Left="73" Canvas.Top="241" Width="90" Height="90"
+                    <Button Classes="Dial" Canvas.Left="92.5" Canvas.Top="240" Width="90" Height="90"
                             Command="{Binding RotaryButtonCommand}"
                             CommandParameter="{Binding LoupedeckController.Config.CurrentRotaryButtonPage.RotaryButtons[1], Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
                         <Image Source="{Binding RotaryKnobImage}" Width="90" Height="90" />
                     </Button>
-                    <Button Tag="Led" Classes="Led" Canvas.Left="85" Canvas.Top="365" Width="66" Height="66"
+                    <Button Tag="Led" Classes="Led" Canvas.Left="107.5" Canvas.Top="379" Width="60" Height="60"
                             Command="{Binding SimpleButtonCommand}"
                             CommandParameter="{Binding LoupedeckController.Config.SimpleButtons[0]}">
-                        <Border Background="Transparent" Width="66" Height="66" CornerRadius="33">
+                        <Border Background="Transparent" Width="60" Height="60" CornerRadius="30">
                             <Image Source="{Binding LoupedeckController.Config.SimpleButtons[0].RenderedImage}" />
                         </Border>
                     </Button>
 
-                    <!-- ===== Right body margin (centre x=782): three LED buttons. ===== -->
-                    <Button Tag="Led" Classes="Led" Canvas.Left="749" Canvas.Top="142" Width="66" Height="66"
+                    <!-- ===== Right body margin (centre x=762.5): three LED buttons, their
+                         centres level with the left dial1/dial2/LED centres (161/285/409). ===== -->
+                    <Button Tag="Led" Classes="Led" Canvas.Left="732.5" Canvas.Top="131" Width="60" Height="60"
                             Command="{Binding SimpleButtonCommand}"
                             CommandParameter="{Binding LoupedeckController.Config.SimpleButtons[1]}">
-                        <Border Background="Transparent" Width="66" Height="66" CornerRadius="33">
+                        <Border Background="Transparent" Width="60" Height="60" CornerRadius="30">
                             <Image Source="{Binding LoupedeckController.Config.SimpleButtons[1].RenderedImage}" />
                         </Border>
                     </Button>
-                    <Button Tag="Led" Classes="Led" Canvas.Left="749" Canvas.Top="237" Width="66" Height="66"
+                    <Button Tag="Led" Classes="Led" Canvas.Left="732.5" Canvas.Top="255" Width="60" Height="60"
                             Command="{Binding SimpleButtonCommand}"
                             CommandParameter="{Binding LoupedeckController.Config.SimpleButtons[2]}">
-                        <Border Background="Transparent" Width="66" Height="66" CornerRadius="33">
+                        <Border Background="Transparent" Width="60" Height="60" CornerRadius="30">
                             <Image Source="{Binding LoupedeckController.Config.SimpleButtons[2].RenderedImage}" />
                         </Border>
                     </Button>
-                    <Button Tag="Led" Classes="Led" Canvas.Left="749" Canvas.Top="332" Width="66" Height="66"
+                    <Button Tag="Led" Classes="Led" Canvas.Left="732.5" Canvas.Top="379" Width="60" Height="60"
                             Command="{Binding SimpleButtonCommand}"
                             CommandParameter="{Binding LoupedeckController.Config.SimpleButtons[3]}">
-                        <Border Background="Transparent" Width="66" Height="66" CornerRadius="33">
+                        <Border Background="Transparent" Width="60" Height="60" CornerRadius="30">
                             <Image Source="{Binding LoupedeckController.Config.SimpleButtons[3].RenderedImage}" />
                         </Border>
                     </Button>
@@ -397,8 +409,11 @@
             </Grid>
         </Viewbox>
 
-        <!-- Touch page pager, centred below the touch screen it controls. -->
-        <Border Classes="Pager" HorizontalAlignment="Center" Margin="0,4,0,2">
+        <!-- Touch page pager, centred below the touch screen it controls. The negative
+             top margin pulls it up into the ~38px transparent band below the visible body
+             (SVG y=495) so the gap to the body (~10px) matches the top pager; the larger
+             bottom margin keeps it clear of the window edge. -->
+        <Border Classes="Pager" HorizontalAlignment="Center" Margin="0,-30,0,12">
             <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
                 <Button Classes="PagerBtn PagerNav" Content="‹"
                         ToolTip.Tip="Previous touch page"

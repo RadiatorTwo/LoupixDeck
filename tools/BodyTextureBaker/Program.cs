@@ -20,7 +20,7 @@
 // Options (defaults reproduce the committed SVG):
 //   --input  <path>   source texture        (default: texture-no-light.png next to the tool)
 //   --output <path>   SVG to write          (default: <repo>/Assets/loupedeck-gehaeuse.svg)
-//   --width  <int>    baked image width px  (default: 1100; height derived from body 820x460)
+//   --width  <int>    baked image width px  (default: 1100; height derived from body 750x420)
 //   --dark   <0..1>   brightness multiplier (default: 0.6)
 //   --grain  <0..1>   grain contrast        (default: 0.5; 1 = full texture grain, 0 = smooth)
 
@@ -43,8 +43,11 @@ if (!File.Exists(input))
     return 1;
 }
 
-// --- Body geometry in SVG viewBox units (matches the AXAML overlay). ---
-const int BodyW = 820, BodyH = 460;
+// --- Body geometry in SVG viewBox units (matches the AXAML overlay). Sized to the
+//     real device: at 5 units/mm the touch bezel is 500x290 (100x58mm) at (200,125),
+//     and the body leaves 25/25/10/16mm (125/125/50/80 units) margins around it ->
+//     body (75,75)-(825,495) = 750x420 within the unchanged 900x540 viewBox. ---
+const int BodyX = 75, BodyY = 75, BodyW = 750, BodyH = 420, BodyR = 60;
 int W = opts.Width;
 int H = (int)Math.Round(W * (double)BodyH / BodyW);
 
@@ -128,11 +131,11 @@ string head =
     "<defs>" +
     "<filter id=\"bodyShadow\" x=\"-25%\" y=\"-25%\" width=\"150%\" height=\"160%\">" +
     "<feDropShadow dx=\"0\" dy=\"8\" stdDeviation=\"14\" flood-color=\"#000000\" flood-opacity=\"0.45\"/></filter>" +
-    "<clipPath id=\"bodyClip\"><rect x=\"40\" y=\"40\" width=\"820\" height=\"460\" rx=\"60\" ry=\"60\"/></clipPath>" +
+    $"<clipPath id=\"bodyClip\"><rect x=\"{BodyX}\" y=\"{BodyY}\" width=\"{BodyW}\" height=\"{BodyH}\" rx=\"{BodyR}\" ry=\"{BodyR}\"/></clipPath>" +
     "</defs>" +
-    "<g filter=\"url(#bodyShadow)\"><rect x=\"40\" y=\"40\" width=\"820\" height=\"460\" rx=\"60\" ry=\"60\" fill=\"#151414\"/></g>" +
+    $"<g filter=\"url(#bodyShadow)\"><rect x=\"{BodyX}\" y=\"{BodyY}\" width=\"{BodyW}\" height=\"{BodyH}\" rx=\"{BodyR}\" ry=\"{BodyR}\" fill=\"#151414\"/></g>" +
     "<g clip-path=\"url(#bodyClip)\">" +
-    "<image x=\"40\" y=\"40\" width=\"820\" height=\"460\" preserveAspectRatio=\"none\" xlink:href=\"data:image/png;base64,";
+    $"<image x=\"{BodyX}\" y=\"{BodyY}\" width=\"{BodyW}\" height=\"{BodyH}\" preserveAspectRatio=\"none\" xlink:href=\"data:image/png;base64,";
 string tail = "\"/></g></svg>";
 File.WriteAllText(output, head + b64 + tail, new UTF8Encoding(false));
 
