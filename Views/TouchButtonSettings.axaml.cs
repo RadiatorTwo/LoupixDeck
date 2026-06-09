@@ -57,19 +57,24 @@ public partial class TouchButtonSettings : Window
         };
     }
 
-    private async void ClearButton_Click(object sender, RoutedEventArgs e)
+    private async void ResetButton_Click(object sender, RoutedEventArgs e)
     {
         if (DataContext is not TouchButtonSettingsViewModel vm) return;
 
         var confirmed = await ConfirmDialogHelper.AskYesNoAsync(
             this,
-            "Clear Button",
-            "Do you really want to clear this button? All settings, texts, images and the command will be lost.");
+            "Reset Button",
+            "Do you really want to reset this button? All settings, texts, images and the command will be lost.");
 
         if (!confirmed) return;
 
         Closed += (_, _) => vm.ClearButton();
         Close();
+    }
+
+    private void EditCommand_Click(object sender, RoutedEventArgs e)
+    {
+        RightTabs.SelectedIndex = 1;
     }
 
     private async void ChangeSymbol_Click(object sender, RoutedEventArgs e)
