@@ -44,7 +44,11 @@
     <PackageReference Include="Avalonia" Version="12.0.4" />
     <PackageReference Include="Avalonia.Controls.ColorPicker" Version="12.0.4" />
     <PackageReference Include="Avalonia.Desktop" Version="12.0.4" />
-    <PackageReference Include="Avalonia.Svg.Skia" Version="11.3.0" />
+    <!-- Avalonia 12-compatible SVG control. Supersedes the old Avalonia.Svg.Skia
+         (which stopped at 11.3.0 and is incompatible with the Avalonia 12 upgrade).
+         The control namespace stays Avalonia.Svg.Skia; only the assembly name changed
+         to Svg.Controls.Skia.Avalonia (see the svg: xmlns in the device layouts). -->
+    <PackageReference Include="Svg.Controls.Skia.Avalonia" Version="12.0.0.11" />
     <PackageReference Include="Avalonia.Themes.Fluent" Version="12.0.4" />
     <PackageReference Include="Avalonia.Fonts.Inter" Version="12.0.4" />
     <!--Condition below is needed to remove Avalonia.Diagnostics package from build output in Release configuration.-->

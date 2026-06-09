@@ -1,0 +1,63 @@
+<svg viewBox="0 0 900 540" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Bildschirm / screen -->
+    <linearGradient id="bezelGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#101114"/>
+      <stop offset="1" stop-color="#000000"/>
+    </linearGradient>
+    <linearGradient id="screenGrad" x1="0" y1="0" x2="0.35" y2="1">
+      <stop offset="0" stop-color="#1b1d23"/>
+      <stop offset="1" stop-color="#050507"/>
+    </linearGradient>
+
+    <!-- weiches Umgebungslicht auf matter Oberflaeche -->
+    <radialGradient id="sheen" cx="0.42" cy="0.30" r="0.85">
+      <stop offset="0"    stop-color="#ffffff" stop-opacity="0.13"/>
+      <stop offset="0.55" stop-color="#ffffff" stop-opacity="0.03"/>
+      <stop offset="1"    stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+    <!-- Abdunklung zu den Raendern (geformter Korpus) -->
+    <radialGradient id="vignette" cx="0.5" cy="0.5" r="0.72">
+      <stop offset="0.55" stop-color="#000000" stop-opacity="0"/>
+      <stop offset="1"    stop-color="#000000" stop-opacity="0.32"/>
+    </radialGradient>
+
+    <filter id="bodyShadow" x="-25%" y="-25%" width="150%" height="160%">
+      <feDropShadow dx="0" dy="8" stdDeviation="14" flood-color="#000000" flood-opacity="0.45"/>
+    </filter>
+    <filter id="screenRecess" x="-25%" y="-25%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#000000" flood-opacity="0.75"/>
+    </filter>
+
+    <!-- sehr feine, flache Mikro-Mattierung -->
+    <filter id="matte" x="-5%" y="-5%" width="110%" height="110%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.9 1.0" numOctaves="4" seed="3" result="h"/>
+      <feDiffuseLighting in="h" surfaceScale="0.28" diffuseConstant="1" lighting-color="#ffffff" result="diff">
+        <feDistantLight azimuth="235" elevation="80"/>
+      </feDiffuseLighting>
+      <feComposite in="diff" in2="SourceGraphic" operator="in" result="diffClip"/>
+      <feBlend in="SourceGraphic" in2="diffClip" mode="multiply" result="shaded"/>
+      <feSpecularLighting in="h" surfaceScale="0.28" specularConstant="0.08" specularExponent="8" lighting-color="#3c3a40" result="spec">
+        <feDistantLight azimuth="235" elevation="60"/>
+      </feSpecularLighting>
+      <feComposite in="spec" in2="SourceGraphic" operator="in" result="specClip"/>
+      <feBlend in="shaded" in2="specClip" mode="screen"/>
+    </filter>
+
+    <clipPath id="bodyClip">
+      <rect x="40" y="40" width="820" height="460" rx="60" ry="60"/>
+    </clipPath>
+  </defs>
+
+  <!-- ===== Gehäuse: matte Grundfläche ===== -->
+  <g filter="url(#bodyShadow)">
+    <rect x="40" y="40" width="820" height="460" rx="60" ry="60" fill="#151414" filter="url(#matte)"/>
+  </g>
+
+  <!-- ===== Lichtstimmung & Rundung ===== -->
+  <g clip-path="url(#bodyClip)">
+    <rect x="40" y="40" width="820" height="460" fill="url(#vignette)"/>
+    <rect x="40" y="40" width="820" height="460" fill="url(#sheen)"/>
+  </g>
+
+</svg>
