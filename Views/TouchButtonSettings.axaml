@@ -53,6 +53,15 @@
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="Margin" Value="0,0,8,0" />
         </Style>
+        <!-- Selection resize handle — size must match TouchButtonSettingsViewModel.HandleSize. -->
+        <Style Selector="Rectangle.handle">
+            <Setter Property="Width" Value="8" />
+            <Setter Property="Height" Value="8" />
+            <Setter Property="Fill" Value="White" />
+            <Setter Property="Stroke" Value="#FF5B9BD5" />
+            <Setter Property="StrokeThickness" Value="1" />
+        </Style>
+
         <Style Selector="Border.layer-badge TextBlock">
             <Setter Property="FontSize" Value="11" />
             <Setter Property="FontWeight" Value="SemiBold" />
@@ -64,7 +73,7 @@
     <Grid RowDefinitions="*,Auto" Margin="12">
 
         <!-- ===== Main area: left panel / preview / properties ===== -->
-        <Grid Grid.Row="0" ColumnDefinitions="240,*,380">
+        <Grid Grid.Row="0" ColumnDefinitions="240,*,360">
 
             <!-- Left: button settings + layer list -->
             <Border Grid.Column="0" Classes="editor-panel" Margin="0,0,12,0">
@@ -173,57 +182,102 @@
                 </Grid>
             </Border>
 
-            <!-- Center: Editor canvas with selection overlay -->
-            <Border Grid.Column="1"
-                    BorderThickness="1" BorderBrush="{DynamicResource AppBorderSubtle}"
-                    Background="#111"
-                    HorizontalAlignment="Center" VerticalAlignment="Center">
-                <Grid Name="EditorRoot"
-                      Width="600" Height="600"
-                      Background="Transparent"
-                      PointerPressed="Editor_PointerPressed"
-                      PointerMoved="Editor_PointerMoved"
-                      PointerReleased="Editor_PointerReleased">
-                    <Image Width="600" Height="600"
-                           Stretch="None"
-                           IsHitTestVisible="False"
-                           Source="{Binding EditorPreview, Converter={StaticResource SkiaToBitmapConverter}}" />
-                    <Canvas Width="600" Height="600" Background="Transparent">
-                        <Rectangle Stroke="#FF66AAFF"
-                                   StrokeThickness="1.5"
-                                   StrokeDashArray="3,2"
-                                   Fill="Transparent"
-                                   IsHitTestVisible="False"
-                                   IsVisible="{Binding SelectionVisible}"
-                                   Width="{Binding SelectionWidth}"
-                                   Height="{Binding SelectionHeight}"
-                                   Canvas.Left="{Binding SelectionLeft}"
-                                   Canvas.Top="{Binding SelectionTop}" />
-                        <Rectangle Tag="NW" Width="10" Height="10" Fill="#FF66AAFF" Stroke="White" StrokeThickness="1"
-                                   IsVisible="{Binding ScaleHandlesVisible}"
-                                   Canvas.Left="{Binding HandleNwLeft}" Canvas.Top="{Binding HandleNwTop}" />
-                        <Rectangle Tag="N"  Width="10" Height="10" Fill="#FF66AAFF" Stroke="White" StrokeThickness="1"
-                                   IsVisible="{Binding ScaleHandlesVisible}"
-                                   Canvas.Left="{Binding HandleNLeft}"  Canvas.Top="{Binding HandleNTop}" />
-                        <Rectangle Tag="NE" Width="10" Height="10" Fill="#FF66AAFF" Stroke="White" StrokeThickness="1"
-                                   IsVisible="{Binding ScaleHandlesVisible}"
-                                   Canvas.Left="{Binding HandleNeLeft}" Canvas.Top="{Binding HandleNeTop}" />
-                        <Rectangle Tag="W"  Width="10" Height="10" Fill="#FF66AAFF" Stroke="White" StrokeThickness="1"
-                                   IsVisible="{Binding ScaleHandlesVisible}"
-                                   Canvas.Left="{Binding HandleWLeft}"  Canvas.Top="{Binding HandleWTop}" />
-                        <Rectangle Tag="E"  Width="10" Height="10" Fill="#FF66AAFF" Stroke="White" StrokeThickness="1"
-                                   IsVisible="{Binding ScaleHandlesVisible}"
-                                   Canvas.Left="{Binding HandleELeft}"  Canvas.Top="{Binding HandleETop}" />
-                        <Rectangle Tag="SW" Width="10" Height="10" Fill="#FF66AAFF" Stroke="White" StrokeThickness="1"
-                                   IsVisible="{Binding ScaleHandlesVisible}"
-                                   Canvas.Left="{Binding HandleSwLeft}" Canvas.Top="{Binding HandleSwTop}" />
-                        <Rectangle Tag="S"  Width="10" Height="10" Fill="#FF66AAFF" Stroke="White" StrokeThickness="1"
-                                   IsVisible="{Binding ScaleHandlesVisible}"
-                                   Canvas.Left="{Binding HandleSLeft}"  Canvas.Top="{Binding HandleSTop}" />
-                        <Rectangle Tag="SE" Width="10" Height="10" Fill="#FF66AAFF" Stroke="White" StrokeThickness="1"
-                                   IsVisible="{Binding ScaleHandlesVisible}"
-                                   Canvas.Left="{Binding HandleSeLeft}" Canvas.Top="{Binding HandleSeTop}" />
-                    </Canvas>
+            <!-- Center: Preview panel with editor canvas + selection overlay -->
+            <Border Grid.Column="1" Classes="editor-panel" Padding="8">
+                <Grid RowDefinitions="Auto,*">
+
+                    <!-- Preview header + (placeholder) view toolbar -->
+                    <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="4,0,4,8">
+                        <TextBlock Grid.Column="0" Classes="panel-title" Text="Preview"
+                                   Margin="0" VerticalAlignment="Center" />
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4">
+                            <!-- View tools are not implemented yet — kept visible as
+                                 disabled placeholders so the layout is final. -->
+                            <Button Classes="toolbar" Content="Fit" IsEnabled="False"
+                                    ToolTip.Tip="Not available yet" />
+                            <Button Classes="toolbar" Content="100%" IsEnabled="False"
+                                    ToolTip.Tip="Not available yet" />
+                            <Button Classes="toolbar" Content="Grid" IsEnabled="False"
+                                    ToolTip.Tip="Not available yet" />
+                            <Button Classes="toolbar" Content="Snap" IsEnabled="False"
+                                    ToolTip.Tip="Not available yet" />
+                        </StackPanel>
+                    </Grid>
+
+                    <!-- Canvas area: lighter than the app chrome so black buttons stay
+                         visible; the Skia preview is transparent outside the frame. -->
+                    <Border Grid.Row="1"
+                            Background="{DynamicResource AppEditorCanvasBackground}"
+                            CornerRadius="6"
+                            ClipToBounds="True">
+                        <Grid>
+                            <!-- Button plate: border + shadow behind the rendered frame. -->
+                            <Border Width="300" Height="300"
+                                    HorizontalAlignment="Center" VerticalAlignment="Center"
+                                    BorderBrush="#55000000" BorderThickness="1"
+                                    BoxShadow="0 3 16 0 #50000000"
+                                    IsHitTestVisible="False" />
+
+                            <Grid Name="EditorRoot"
+                                  Width="600" Height="600"
+                                  HorizontalAlignment="Center" VerticalAlignment="Center"
+                                  Background="Transparent"
+                                  PointerPressed="Editor_PointerPressed"
+                                  PointerMoved="Editor_PointerMoved"
+                                  PointerReleased="Editor_PointerReleased">
+                                <Image Width="600" Height="600"
+                                       Stretch="None"
+                                       IsHitTestVisible="False"
+                                       Source="{Binding EditorPreview, Converter={StaticResource SkiaToBitmapConverter}}" />
+                                <Canvas Width="600" Height="600" Background="Transparent">
+                                    <Rectangle Stroke="#CC5B9BD5"
+                                               StrokeThickness="1"
+                                               StrokeDashArray="4,3"
+                                               Fill="Transparent"
+                                               IsHitTestVisible="False"
+                                               IsVisible="{Binding SelectionVisible}"
+                                               Width="{Binding SelectionWidth}"
+                                               Height="{Binding SelectionHeight}"
+                                               Canvas.Left="{Binding SelectionLeft}"
+                                               Canvas.Top="{Binding SelectionTop}" />
+                                    <Rectangle Tag="NW" Classes="handle"
+                                               IsVisible="{Binding ScaleHandlesVisible}"
+                                               Canvas.Left="{Binding HandleNwLeft}" Canvas.Top="{Binding HandleNwTop}" />
+                                    <Rectangle Tag="N" Classes="handle"
+                                               IsVisible="{Binding ScaleHandlesVisible}"
+                                               Canvas.Left="{Binding HandleNLeft}" Canvas.Top="{Binding HandleNTop}" />
+                                    <Rectangle Tag="NE" Classes="handle"
+                                               IsVisible="{Binding ScaleHandlesVisible}"
+                                               Canvas.Left="{Binding HandleNeLeft}" Canvas.Top="{Binding HandleNeTop}" />
+                                    <Rectangle Tag="W" Classes="handle"
+                                               IsVisible="{Binding ScaleHandlesVisible}"
+                                               Canvas.Left="{Binding HandleWLeft}" Canvas.Top="{Binding HandleWTop}" />
+                                    <Rectangle Tag="E" Classes="handle"
+                                               IsVisible="{Binding ScaleHandlesVisible}"
+                                               Canvas.Left="{Binding HandleELeft}" Canvas.Top="{Binding HandleETop}" />
+                                    <Rectangle Tag="SW" Classes="handle"
+                                               IsVisible="{Binding ScaleHandlesVisible}"
+                                               Canvas.Left="{Binding HandleSwLeft}" Canvas.Top="{Binding HandleSwTop}" />
+                                    <Rectangle Tag="S" Classes="handle"
+                                               IsVisible="{Binding ScaleHandlesVisible}"
+                                               Canvas.Left="{Binding HandleSLeft}" Canvas.Top="{Binding HandleSTop}" />
+                                    <Rectangle Tag="SE" Classes="handle"
+                                               IsVisible="{Binding ScaleHandlesVisible}"
+                                               Canvas.Left="{Binding HandleSeLeft}" Canvas.Top="{Binding HandleSeTop}" />
+                                </Canvas>
+                            </Grid>
+
+                            <!-- Resolution badge -->
+                            <Border HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                                    Margin="0,0,10,10"
+                                    Background="#66000000" CornerRadius="4"
+                                    Padding="8,3"
+                                    IsHitTestVisible="False">
+                                <TextBlock Text="{Binding CanvasSizeText}"
+                                           Foreground="#E0FFFFFF" FontSize="11" />
+                            </Border>
+                        </Grid>
+                    </Border>
                 </Grid>
             </Border>
 

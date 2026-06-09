@@ -58,6 +58,9 @@
                     <SolidColorBrush x:Key="AppControlBackgroundHover" Color="#4A4A4A" />
                     <SolidColorBrush x:Key="AppControlBackgroundActive" Color="#373737" />
                     <SolidColorBrush x:Key="AppBorderSubtle" Color="#3A3A3A" />
+                    <!-- Touch-button editor canvas: deliberately lighter than the app
+                         surfaces so a black button stays clearly visible. -->
+                    <SolidColorBrush x:Key="AppEditorCanvasBackground" Color="#3E4146" />
                     <!-- Subtle accent tint behind an active/selected slot (pairs with the
                          theme-invariant blue accent border). -->
                     <SolidColorBrush x:Key="AppAccentSubtle" Color="#1F2A3A" />
@@ -85,6 +88,9 @@
                     <SolidColorBrush x:Key="AppControlBackgroundHover" Color="#ECECEC" />
                     <SolidColorBrush x:Key="AppControlBackgroundActive" Color="#DCDCDC" />
                     <SolidColorBrush x:Key="AppBorderSubtle" Color="#CFCFCF" />
+                    <!-- Touch-button editor canvas: deliberately lighter than the app
+                         surfaces so a black button stays clearly visible. -->
+                    <SolidColorBrush x:Key="AppEditorCanvasBackground" Color="#DCDEE2" />
                     <!-- Subtle accent tint behind an active/selected slot (pairs with the
                          theme-invariant blue accent border). -->
                     <SolidColorBrush x:Key="AppAccentSubtle" Color="#D6E8FB" />

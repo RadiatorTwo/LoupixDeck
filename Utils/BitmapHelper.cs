@@ -640,7 +640,9 @@ public static class BitmapHelper
         var bmp = new SKBitmap(canvasSize, canvasSize);
         using var canvas = new SKCanvas(bmp);
 
-        canvas.Clear(new SKColor(0x22, 0x22, 0x22));
+        // Transparent outside the button frame — the editor window paints the
+        // theme-aware canvas background (and plate shadow) behind this bitmap.
+        canvas.Clear(SKColors.Transparent);
 
         var frameOffset = (canvasSize - frameSize) / 2f;
         var frameRect = new SKRect(frameOffset, frameOffset,
