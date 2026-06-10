@@ -12,6 +12,24 @@ public class RotaryButtonSettingsViewModel : DialogViewModelBase<RotaryButton, D
     public override void Initialize(RotaryButton parameter)
     {
         ButtonData = parameter;
+
+        RotaryLeftSlot = new CommandSequenceSlot("Rotate Left", _commandBuilder, _commandRegistry,
+            () => ButtonData.RotaryLeftCommand, v => ButtonData.RotaryLeftCommand = v);
+        RotaryRightSlot = new CommandSequenceSlot("Rotate Right", _commandBuilder, _commandRegistry,
+            () => ButtonData.RotaryRightCommand, v => ButtonData.RotaryRightCommand = v);
+        ButtonPressSlot = new CommandSequenceSlot("Button Press", _commandBuilder, _commandRegistry,
+            () => ButtonData.Command, v => ButtonData.Command = v);
+
+        Slots = [RotaryLeftSlot, RotaryRightSlot, ButtonPressSlot];
+
+        // The first slot is the default double-click target.
+        SetActiveSlot(RotaryLeftSlot);
+
+        OnPropertyChanged(nameof(KnobLabel));
+        OnPropertyChanged(nameof(RotaryLeftSlot));
+        OnPropertyChanged(nameof(RotaryRightSlot));
+        OnPropertyChanged(nameof(ButtonPressSlot));
+        OnPropertyChanged(nameof(Slots));
     }
 
     /// <summary>User-facing label. Displayed 1-based so the first knob reads
@@ -21,23 +39,33 @@ public class RotaryButtonSettingsViewModel : DialogViewModelBase<RotaryButton, D
 
     private readonly ICommandBuilder _commandBuilder;
     private readonly IMenuTreeBuilder _menuTreeBuilder;
+    private readonly ICommandRegistry _commandRegistry;
 
     public RotaryButton ButtonData { get; set; }
 
     public ObservableCollection<MenuEntry> SystemCommandMenus { get; set; }
     public MenuEntry CurrentMenuEntry { get; set; }
 
-    private SelectedCommand _selectedCommandSlot = SelectedCommand.RotaryLeft;
-    public SelectedCommand SelectedCommandSlot
-    {
-        get => _selectedCommandSlot;
-        set => SetProperty(ref _selectedCommandSlot, value);
-    }
+    /// <summary>The three command sequences of a rotary encoder: left turn, right
+    /// turn and the knob press. Each is an independent, editable chip pipeline.</summary>
+    public CommandSequenceSlot RotaryLeftSlot { get; private set; }
+    public CommandSequenceSlot RotaryRightSlot { get; private set; }
+    public CommandSequenceSlot ButtonPressSlot { get; private set; }
 
-    public RotaryButtonSettingsViewModel(ICommandBuilder commandBuilder, IMenuTreeBuilder menuTreeBuilder)
+    public IReadOnlyList<CommandSequenceSlot> Slots { get; private set; } = [];
+
+    /// <summary>The slot that a double-clicked command in the tree is appended to.
+    /// Set by clicking a sequence strip in the view.</summary>
+    public CommandSequenceSlot ActiveSlot { get; private set; }
+
+    public RotaryButtonSettingsViewModel(
+        ICommandBuilder commandBuilder,
+        IMenuTreeBuilder menuTreeBuilder,
+        ICommandRegistry commandRegistry)
     {
         _commandBuilder = commandBuilder;
         _menuTreeBuilder = menuTreeBuilder;
+        _commandRegistry = commandRegistry;
 
         SystemCommandMenus = new ObservableCollection<MenuEntry>();
     }
@@ -47,44 +75,25 @@ public class RotaryButtonSettingsViewModel : DialogViewModelBase<RotaryButton, D
         await _menuTreeBuilder.BuildInto(SystemCommandMenus, ButtonTargets.RotaryEncoder);
     }
 
-    public enum SelectedCommand
+    /// <summary>Marks <paramref name="slot"/> as the active double-click target and
+    /// clears the highlight on the others.</summary>
+    public void SetActiveSlot(CommandSequenceSlot slot)
     {
-        RotaryLeft,
-        RotaryRight,
-        ButtonPress
+        if (slot == null || ReferenceEquals(ActiveSlot, slot)) return;
+
+        ActiveSlot = slot;
+        foreach (var s in Slots)
+            s.IsActive = ReferenceEquals(s, slot);
+
+        OnPropertyChanged(nameof(ActiveSlot));
     }
 
-    public void InsertCommand(MenuEntry menuEntry, SelectedCommand selection)
-    {
-        var formattedCommand = _commandBuilder.CreateCommandFromMenuEntry(menuEntry);
+    /// <summary>Appends a command to the currently active slot (double-click in the tree).</summary>
+    public void InsertCommand(MenuEntry menuEntry) => ActiveSlot?.InsertCommand(menuEntry);
 
-        switch (selection)
-        {
-            case SelectedCommand.RotaryLeft:
-                ButtonData.RotaryLeftCommand = Utils.CommandChain.Append(ButtonData.RotaryLeftCommand, formattedCommand);
-                break;
-            case SelectedCommand.RotaryRight:
-                ButtonData.RotaryRightCommand = Utils.CommandChain.Append(ButtonData.RotaryRightCommand, formattedCommand);
-                break;
-            case SelectedCommand.ButtonPress:
-                ButtonData.Command = Utils.CommandChain.Append(ButtonData.Command, formattedCommand);
-                break;
-        }
-    }
-
-    public void ClearSlot(SelectedCommand slot)
+    public void Cleanup()
     {
-        switch (slot)
-        {
-            case SelectedCommand.RotaryLeft:
-                ButtonData.RotaryLeftCommand = string.Empty;
-                break;
-            case SelectedCommand.RotaryRight:
-                ButtonData.RotaryRightCommand = string.Empty;
-                break;
-            case SelectedCommand.ButtonPress:
-                ButtonData.Command = string.Empty;
-                break;
-        }
+        foreach (var slot in Slots)
+            slot.Cleanup();
     }
 }
