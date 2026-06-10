@@ -153,6 +153,20 @@
         <Setter Property="CornerRadius" Value="4" />
     </Style>
 
+    <!-- Toggle variant for the preview toolbar (Grid / Snap). Mirrors the button
+         metrics and highlights with the accent color when active. -->
+    <Style Selector="ToggleButton.toolbar">
+        <Setter Property="Height" Value="28" />
+        <Setter Property="Padding" Value="8,0" />
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="CornerRadius" Value="4" />
+    </Style>
+    <Style Selector="ToggleButton.toolbar:checked /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource AppAccentSubtle}" />
+        <Setter Property="Foreground" Value="{DynamicResource AppTextPrimary}" />
+    </Style>
+
     <!-- Layer-type badge in the layer list ("T" / "I" / "S"). -->
     <Style Selector="Border.layer-badge">
         <Setter Property="Width" Value="20" />
@@ -197,5 +211,205 @@
     </Style>
     <Style Selector="Button.row-action.danger:pointerover /template/ ContentPresenter">
         <Setter Property="Background" Value="#4A2A2A" />
+    </Style>
+
+    <!-- ===== Command-chain cards (touch-button command editor) ===== -->
+
+    <!-- Drop zone for the command chain; highlights while dragging a command over it.
+         The transparent border is always present so toggling the highlight adds no
+         layout shift. -->
+    <Style Selector="Border.command-drop">
+        <Setter Property="BorderBrush" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="6" />
+        <Setter Property="Padding" Value="4" />
+    </Style>
+    <Style Selector="Border.command-drop.drop-active">
+        <Setter Property="BorderBrush" Value="#4DA3FF" />
+    </Style>
+
+    <!-- One card per chained command, listed vertically. -->
+    <Style Selector="Border.command-card">
+        <Setter Property="Background" Value="{DynamicResource AppSurface}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource AppBorderSubtle}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="6" />
+        <Setter Property="Margin" Value="0,0,0,6" />
+        <Setter Property="Padding" Value="10,4" />
+    </Style>
+    <Style Selector="Border.command-card.dragging">
+        <Setter Property="Opacity" Value="0.55" />
+        <Setter Property="BorderBrush" Value="#4DA3FF" />
+    </Style>
+
+    <Style Selector="TextBlock.card-type">
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+    </Style>
+    <Style Selector="TextBlock.card-value">
+        <Setter Property="Foreground" Value="{DynamicResource AppTextSecondary}" />
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+    </Style>
+
+    <!-- Bottom pipeline strip holding the assigned command sequence. Same look
+         as an editor panel, plus a drop highlight while a tree drag hovers it.
+         The border is always present so toggling adds no layout shift. -->
+    <Style Selector="Border.sequence-strip">
+        <Setter Property="Background" Value="{DynamicResource AppSurface}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource AppBorderSubtle}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="Padding" Value="12,8" />
+    </Style>
+    <Style Selector="Border.sequence-strip.drop-active">
+        <Setter Property="BorderBrush" Value="#4DA3FF" />
+    </Style>
+
+    <!-- "→" connector drawn in the fixed-width gutter before each chip; hidden on
+         the first chip of each wrapped row so rows stay left-aligned. -->
+    <Style Selector="TextBlock.sequence-arrow">
+        <Setter Property="Foreground" Value="{DynamicResource AppTextMuted}" />
+        <Setter Property="FontSize" Value="16" />
+    </Style>
+
+    <!-- Round sequence-number badge inside a chip. -->
+    <Style Selector="Border.chip-index">
+        <Setter Property="Width" Value="18" />
+        <Setter Property="Height" Value="18" />
+        <Setter Property="CornerRadius" Value="9" />
+        <Setter Property="Background" Value="{DynamicResource AppSurfaceAlt}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource AppBorderSubtle}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="Margin" Value="0,0,2,0" />
+    </Style>
+    <Style Selector="Border.chip-index TextBlock">
+        <Setter Property="FontSize" Value="10" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Foreground" Value="{DynamicResource AppTextSecondary}" />
+        <Setter Property="HorizontalAlignment" Value="Center" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <!-- Chip used in the wrapped "Assigned commands" sequence. Fixed width so all
+         chips line up uniformly; long command names wrap and grow the chip
+         vertically instead of widening it. Vertical margins are symmetric so the
+         connector arrow lines up with the chip's center. -->
+    <Style Selector="Border.command-chip">
+        <Setter Property="Background" Value="{DynamicResource AppSurface}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource AppBorderSubtle}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="Padding" Value="4,3" />
+        <Setter Property="Margin" Value="0,3,6,3" />
+        <Setter Property="Width" Value="210" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+    <Style Selector="Border.command-chip.dragging">
+        <Setter Property="Opacity" Value="0.55" />
+        <Setter Property="BorderBrush" Value="#4DA3FF" />
+    </Style>
+    <Style Selector="TextBlock.chip-title">
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="TextWrapping" Value="Wrap" />
+        <Setter Property="Margin" Value="2,0" />
+    </Style>
+    <!-- Small icon button (edit / remove) inside a chip. -->
+    <Style Selector="Button.chip-action">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="CornerRadius" Value="10" />
+        <Setter Property="Width" Value="22" />
+        <Setter Property="Height" Value="22" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="HorizontalContentAlignment" Value="Center" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="Foreground" Value="{DynamicResource AppTextMuted}" />
+    </Style>
+    <Style Selector="Button.chip-action:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource AppControlBackgroundHover}" />
+    </Style>
+    <Style Selector="Button.chip-action.danger:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="#A03030" />
+        <Setter Property="Foreground" Value="White" />
+    </Style>
+    <!-- Compact grip variant of the drag handle for chips. -->
+    <Style Selector="Border.drag-handle.chip-grip">
+        <Setter Property="Padding" Value="2,0" />
+    </Style>
+    <Style Selector="Border.drag-handle.chip-grip TextBlock">
+        <Setter Property="FontSize" Value="16" />
+    </Style>
+
+    <!-- Floating chip that follows the cursor while dragging from the command
+         tree. Looks like a command chip but lifted off the surface (shadow +
+         slight transparency) so it reads as "in transit". -->
+    <Style Selector="Border.drag-ghost">
+        <Setter Property="Background" Value="{DynamicResource AppSurfaceAlt}" />
+        <Setter Property="BorderBrush" Value="#4DA3FF" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="14" />
+        <Setter Property="Padding" Value="8,4" />
+        <Setter Property="Opacity" Value="0.9" />
+        <Setter Property="BoxShadow" Value="0 4 14 0 #66000000" />
+    </Style>
+
+    <!-- Drag handle (reorder cards) -->
+    <Style Selector="Border.drag-handle">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Cursor" Value="SizeAll" />
+        <Setter Property="Padding" Value="6,0" />
+    </Style>
+    <Style Selector="Border.drag-handle TextBlock">
+        <Setter Property="FontFamily" Value="{DynamicResource MdiFont}" />
+        <Setter Property="FontSize" Value="20" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="Foreground" Value="{DynamicResource AppTextMuted}" />
+    </Style>
+    <Style Selector="Border.drag-handle:pointerover TextBlock">
+        <Setter Property="Foreground" Value="{DynamicResource AppTextPrimary}" />
+    </Style>
+
+    <!-- Inline editor revealed under a card -->
+    <Style Selector="Border.card-editor">
+        <Setter Property="BorderBrush" Value="{DynamicResource AppBorderSubtle}" />
+        <Setter Property="BorderThickness" Value="0,1,0,0" />
+        <Setter Property="Margin" Value="0,4,0,0" />
+        <Setter Property="Padding" Value="2,8,2,4" />
+    </Style>
+
+    <!-- Collapse/expand toggle on each card -->
+    <Style Selector="ToggleButton.card-expand">
+        <Setter Property="Background" Value="{DynamicResource AppControlBackground}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource AppBorderSubtle}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="4" />
+        <Setter Property="Width" Value="28" />
+        <Setter Property="Height" Value="28" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="HorizontalContentAlignment" Value="Center" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="Margin" Value="0,0,4,0" />
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="FontFamily" Value="{DynamicResource MdiFont}" />
+        <Setter Property="Content" Value="&#xF0140;" />
+        <!-- mdi-chevron-down -->
+    </Style>
+    <Style Selector="ToggleButton.card-expand:checked">
+        <Setter Property="Content" Value="&#xF0143;" />
+        <!-- mdi-chevron-up -->
+    </Style>
+    <Style Selector="ToggleButton.card-expand:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource AppControlBackgroundHover}" />
+    </Style>
+    <Style Selector="ToggleButton.card-expand:checked /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource AppControlBackgroundActive}" />
+        <Setter Property="Foreground" Value="{DynamicResource AppTextPrimary}" />
     </Style>
 </Styles>

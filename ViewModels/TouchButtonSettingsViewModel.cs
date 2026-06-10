@@ -36,6 +36,8 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
             OnPropertyChanged(nameof(SelectedVibrationPattern));
         }
 
+        LoadSegments();
+
         OnPropertyChanged(nameof(ButtonNumber));
         OnPropertyChanged(nameof(ButtonLabel));
         NotifyCommandChanged();
@@ -43,6 +45,7 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
 
     private readonly ICommandBuilder _commandBuilder;
     private readonly IMenuTreeBuilder _menuTreeBuilder;
+    private readonly ICommandRegistry _commandRegistry;
     private readonly IAssetService _assetService;
     private readonly IDialogService _dialogService;
     private readonly LoupedeckConfig _config;
@@ -53,6 +56,39 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
 
     /// <summary>Editor → device coordinate factor (canvas pixels per device pixel).</summary>
     public static double EditorToDeviceScale => (double)EditorFrameSize / DeviceSize;
+
+    /// <summary>Spacing of the editor's alignment grid in device pixels; also the
+    /// step used when <see cref="SnapToGrid"/> is active.</summary>
+    public const int GridStepDevice = 10;
+
+    private bool _showGrid;
+
+    /// <summary>Toggles the alignment grid overlay in the preview canvas.</summary>
+    public bool ShowGrid
+    {
+        get => _showGrid;
+        set
+        {
+            if (_showGrid == value) return;
+            _showGrid = value;
+            OnPropertyChanged(nameof(ShowGrid));
+            UpdateEditorPreview();
+        }
+    }
+
+    private bool _snapToGrid;
+
+    /// <summary>When enabled, dragging a layer snaps its top-left edge to the grid.</summary>
+    public bool SnapToGrid
+    {
+        get => _snapToGrid;
+        set
+        {
+            if (_snapToGrid == value) return;
+            _snapToGrid = value;
+            OnPropertyChanged(nameof(SnapToGrid));
+        }
+    }
 
 
     public ICommand AddImageLayerCommand { get; }
@@ -205,15 +241,22 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
         }
     }
 
+    /// <summary>The button's command chain as individual, editable cards. The raw
+    /// <see cref="TouchButton.Command"/> string stays the persisted source of truth;
+    /// this collection is a view over it that is recomposed on every edit.</summary>
+    public ObservableCollection<CommandSegment> Commands { get; } = [];
+
     public TouchButtonSettingsViewModel(
         ICommandBuilder commandBuilder,
         IMenuTreeBuilder menuTreeBuilder,
+        ICommandRegistry commandRegistry,
         IAssetService assetService,
         IDialogService dialogService,
         LoupedeckConfig config)
     {
         _commandBuilder = commandBuilder;
         _menuTreeBuilder = menuTreeBuilder;
+        _commandRegistry = commandRegistry;
         _assetService = assetService;
         _dialogService = dialogService;
         _config = config;
@@ -226,12 +269,39 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
         MoveLayerDownCommand = new RelayCommand(MoveSelectedLayerDown);
         ClearCommandCommand = new RelayCommand(ClearCommandOnly);
 
+        // Keep the 1-based sequence numbers on the chips in sync with the
+        // collection (insert, remove, move, clear, initial load).
+        Commands.CollectionChanged += (_, _) => RenumberSegments();
+
         SystemCommandMenus = new ObservableCollection<MenuEntry>();
     }
 
     public async Task InitializeAsync()
     {
         await _menuTreeBuilder.BuildInto(SystemCommandMenus, ButtonTargets.TouchButton);
+    }
+
+    /// <summary>
+    /// Returns a layer name that is unique within the current button. If the
+    /// base name is already taken, an incrementing suffix is appended
+    /// ("Text" → "Text 1" → "Text 2" …).
+    /// </summary>
+    private string GetUniqueLayerName(string baseName)
+    {
+        if (ButtonData?.Layers == null)
+            return baseName;
+
+        bool Exists(string name) =>
+            ButtonData.Layers.Any(l => string.Equals(l.Name, name, StringComparison.Ordinal));
+
+        if (!Exists(baseName))
+            return baseName;
+
+        var index = 1;
+        while (Exists($"{baseName} {index}"))
+            index++;
+
+        return $"{baseName} {index}";
     }
 
     private async Task AddImageLayer()
@@ -244,7 +314,7 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
 
         var layer = new ImageLayer
         {
-            Name = Path.GetFileNameWithoutExtension(path),
+            Name = GetUniqueLayerName(Path.GetFileNameWithoutExtension(path)),
             AssetRelativePath = relative,
             CachedImage = _assetService.Load(relative)
         };
@@ -257,7 +327,7 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
     {
         var layer = new TextLayer
         {
-            Name = "Text",
+            Name = GetUniqueLayerName("Text"),
             Text = "Text",
             BoxWidth = DeviceSize,
             BoxHeight = DeviceSize
@@ -279,7 +349,7 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
         var def = request.SelectedSymbol;
         var layer = new SymbolLayer
         {
-            Name = def.DisplayName,
+            Name = GetUniqueLayerName(def.DisplayName),
             SymbolId = def.Id,
             Scale = 0.7
         };
@@ -311,31 +381,129 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
         if (_selectedLayer == null) return;
         var idx = ButtonData.Layers.IndexOf(_selectedLayer);
         ButtonData.Layers.Remove(_selectedLayer);
-        SelectedLayer = (idx < ButtonData.Layers.Count) ? ButtonData.Layers[idx]
+        // Prefer the item that moved into the freed slot (the one below); fall back
+        // to the new last item (the one above) when the removed layer was last.
+        var next = (idx < ButtonData.Layers.Count) ? ButtonData.Layers[idx]
             : (ButtonData.Layers.Count > 0 ? ButtonData.Layers[^1] : null);
+        ReselectAfterMove(next);
     }
 
     private void MoveSelectedLayerUp()
     {
         if (_selectedLayer == null) return;
-        var idx = ButtonData.Layers.IndexOf(_selectedLayer);
+        var layer = _selectedLayer;
+        var idx = ButtonData.Layers.IndexOf(layer);
         if (idx <= 0) return;
         ButtonData.Layers.Move(idx, idx - 1);
+        ReselectAfterMove(layer);
     }
 
     private void MoveSelectedLayerDown()
     {
         if (_selectedLayer == null) return;
-        var idx = ButtonData.Layers.IndexOf(_selectedLayer);
+        var layer = _selectedLayer;
+        var idx = ButtonData.Layers.IndexOf(layer);
         if (idx < 0 || idx >= ButtonData.Layers.Count - 1) return;
         ButtonData.Layers.Move(idx, idx + 1);
+        ReselectAfterMove(layer);
     }
 
-    public void InsertCommand(MenuEntry menuEntry)
+    /// <summary>
+    /// Re-applies the selection after an <see cref="ObservableCollection{T}.Move"/>.
+    /// The ListBox processes the move (remove+add) on a later dispatcher cycle and
+    /// clears its selection in the process, so a synchronous re-assign gets
+    /// overwritten — posting it ensures it lands after the ListBox has caught up.
+    /// </summary>
+    private void ReselectAfterMove(LayerBase layer)
     {
-        var formattedCommand = _commandBuilder.CreateCommandFromMenuEntry(menuEntry);
-        ButtonData.Command = Utils.CommandChain.Append(ButtonData.Command, formattedCommand);
+        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        {
+            // Force the property to re-raise even if the value matches, so the
+            // ListBox is told to re-select after it cleared its own selection.
+            SelectedLayer = null;
+            SelectedLayer = layer;
+        });
+    }
+
+    /// <summary>Parses <see cref="TouchButton.Command"/> into editable segment cards.
+    /// Does not write back — opening (and closing without edits) leaves the persisted
+    /// string byte-for-byte unchanged.</summary>
+    private void LoadSegments()
+    {
+        foreach (var segment in Commands)
+            segment.Changed -= OnSegmentChanged;
+        Commands.Clear();
+
+        if (ButtonData == null) return;
+
+        foreach (var raw in Utils.CommandStringParser.SplitChain(ButtonData.Command))
+            Commands.Add(CreateSegment(raw));
+    }
+
+    /// <summary>Builds a <see cref="CommandSegment"/> from a raw segment, resolving its
+    /// <see cref="Commands.Base.CommandInfo"/> when the command name is a known system command.</summary>
+    private CommandSegment CreateSegment(string raw)
+    {
+        var name = Utils.CommandStringParser.GetName(raw);
+        var info = _commandRegistry.Get(name)?.Info;
+        var segment = CommandSegment.Create(_commandBuilder, info, raw);
+        segment.Changed += OnSegmentChanged;
+        return segment;
+    }
+
+    private void OnSegmentChanged(object sender, EventArgs e) => RebuildCommandString();
+
+    /// <summary>Reassigns the 1-based <see cref="CommandSegment.Position"/> shown
+    /// on every chip in the sequence strip.</summary>
+    private void RenumberSegments()
+    {
+        for (var i = 0; i < Commands.Count; i++)
+            Commands[i].Position = i + 1;
+    }
+
+    /// <summary>Recomposes the persisted <c>&amp;&amp;</c>-joined command string from the
+    /// current card order/values. Called after every add / remove / reorder / edit.</summary>
+    private void RebuildCommandString()
+    {
+        if (ButtonData == null) return;
+
+        var joined = string.Join(" && ",
+            Commands.Select(s => s.Raw).Where(r => !string.IsNullOrWhiteSpace(r)));
+
+        ButtonData.Command = string.IsNullOrWhiteSpace(joined) ? null : joined;
         NotifyCommandChanged();
+    }
+
+    /// <summary>Appends a command (double-click in the tree) to the end of the chain.</summary>
+    public void InsertCommand(MenuEntry menuEntry) => InsertCommandAt(menuEntry, Commands.Count);
+
+    /// <summary>Inserts a command (drag from the tree) at the given card index.</summary>
+    public void InsertCommandAt(MenuEntry menuEntry, int index)
+    {
+        if (ButtonData == null || menuEntry == null) return;
+
+        var formattedCommand = _commandBuilder.CreateCommandFromMenuEntry(menuEntry);
+        if (string.IsNullOrWhiteSpace(formattedCommand)) return;
+
+        index = Math.Clamp(index, 0, Commands.Count);
+        Commands.Insert(index, CreateSegment(formattedCommand));
+        RebuildCommandString();
+    }
+
+    public void RemoveSegment(CommandSegment segment)
+    {
+        if (segment == null || !Commands.Remove(segment)) return;
+        segment.Changed -= OnSegmentChanged;
+        RebuildCommandString();
+    }
+
+    public void MoveSegment(int from, int to)
+    {
+        if (from < 0 || from >= Commands.Count) return;
+        to = Math.Clamp(to, 0, Commands.Count - 1);
+        if (from == to) return;
+        Commands.Move(from, to);
+        RebuildCommandString();
     }
 
     /// <summary>
@@ -345,6 +513,9 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
     public void ClearCommandOnly()
     {
         if (ButtonData == null) return;
+        foreach (var segment in Commands)
+            segment.Changed -= OnSegmentChanged;
+        Commands.Clear();
         ButtonData.Command = null;
         NotifyCommandChanged();
     }
@@ -362,6 +533,10 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
     public void ClearButton()
     {
         if (ButtonData == null) return;
+
+        foreach (var segment in Commands)
+            segment.Changed -= OnSegmentChanged;
+        Commands.Clear();
 
         var b = ButtonData;
         b.IgnoreRefresh = true;
@@ -404,7 +579,7 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
     {
         if (ButtonData == null || _config == null) return;
         EditorPreview = BitmapHelper.RenderEditorCanvas(
-            ButtonData, _config, EditorCanvasSize, EditorFrameSize);
+            ButtonData, _config, EditorCanvasSize, EditorFrameSize, ShowGrid, GridStepDevice);
     }
 
     /// <summary>
@@ -451,5 +626,8 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
             ButtonData.ItemChanged -= ButtonData_ItemChanged;
             ButtonData.PropertyChanged -= ButtonData_PropertyChanged;
         }
+
+        foreach (var segment in Commands)
+            segment.Changed -= OnSegmentChanged;
     }
 }

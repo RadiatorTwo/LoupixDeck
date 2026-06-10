@@ -1,6 +1,6 @@
-using System.Text.RegularExpressions;
 using LoupixDeck.PluginSdk;
 using LoupixDeck.Services.Commands;
+using LoupixDeck.Utils;
 
 namespace LoupixDeck.Services;
 
@@ -28,11 +28,6 @@ public class CommandService : ICommandService
         _commandRunner = commandRunner;
     }
 
-    // Splits on "&&" with any amount of surrounding whitespace, so both
-    // "a && b" and "a&&b" work the same. Static so the compiled regex
-    // instance is reused across calls.
-    private static readonly Regex ChainSplitter = new(@"\s*&&\s*", RegexOptions.Compiled);
-
     public async Task ExecuteCommand(string command, ButtonTargets target, int? sourceIndex = null)
     {
         if (string.IsNullOrWhiteSpace(command))
@@ -43,11 +38,11 @@ public class CommandService : ICommandService
         // shell command exactly like before. Note: this changes shell semantics
         // — we no longer rely on the shell's own && short-circuit, the second
         // part runs even if the first failed. Acceptable for the desk-control
-        // commands this app targets.
-        foreach (var part in ChainSplitter.Split(command))
+        // commands this app targets. Splitting/dissecting is delegated to
+        // CommandStringParser so the command editor stays in lockstep.
+        foreach (var part in CommandStringParser.SplitChain(command))
         {
-            if (string.IsNullOrWhiteSpace(part)) continue;
-            await ExecuteSingle(part.Trim(), target, sourceIndex);
+            await ExecuteSingle(part, target, sourceIndex);
         }
     }
 
@@ -55,48 +50,16 @@ public class CommandService : ICommandService
     {
         if (string.IsNullOrWhiteSpace(command)) return;
 
-        var cleanCommand = GetCommandWithoutParameter(command);
+        var cleanCommand = CommandStringParser.GetName(command);
 
         if (_commandRegistry.Contains(cleanCommand))
         {
-            var parameters = GetCommandParameters(command);
+            var parameters = CommandStringParser.GetParameters(command);
             await _commandRegistry.Execute(cleanCommand, parameters, target, sourceIndex);
         }
         else
         {
             _commandRunner.EnqueueCommand(command);
         }
-    }
-
-    private string[] GetCommandParameters(string command)
-    {
-        if (string.IsNullOrWhiteSpace(command))
-        {
-            return Array.Empty<string>();
-        }
-
-        var start = command.IndexOf('(');
-        var end = command.IndexOf(')');
-        if (start == -1 || end == -1 || end <= start)
-        {
-            return Array.Empty<string>();
-        }
-
-        var parameterString = command.Substring(start + 1, end - start - 1);
-        return parameterString.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-    }
-
-    private string GetCommandWithoutParameter(string command)
-    {
-        if (string.IsNullOrWhiteSpace(command))
-        {
-            return string.Empty;
-        }
-
-        var end = command.IndexOf('(');
-        if (end == -1)
-            return command;
-
-        return command.Substring(0, end);
     }
 }

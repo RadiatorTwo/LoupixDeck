@@ -631,7 +631,9 @@ public static class BitmapHelper
         TouchButton touchButton,
         LoupedeckConfig config,
         int canvasSize = 600,
-        int frameSize = 300)
+        int frameSize = 300,
+        bool drawGrid = false,
+        int gridStepDevice = 10)
     {
         ArgumentNullException.ThrowIfNull(touchButton);
 
@@ -682,6 +684,28 @@ public static class BitmapHelper
         }
 
         canvas.Restore();
+
+        // Optional alignment grid, drawn on top of the layers but kept subtle so it
+        // never competes with the content. Lines are spaced in device pixels and
+        // mapped to canvas space so they line up with the snap lattice.
+        if (drawGrid && gridStepDevice > 0)
+        {
+            var scale = (float)frameSize / deviceSize;
+            using var gridPaint = new SKPaint
+            {
+                Color = new SKColor(255, 255, 255, 38),
+                StrokeWidth = 1,
+                IsAntialias = false,
+                Style = SKPaintStyle.Stroke
+            };
+
+            for (var d = 0; d <= deviceSize; d += gridStepDevice)
+            {
+                var p = frameOffset + d * scale;
+                canvas.DrawLine(p, frameOffset, p, frameOffset + frameSize, gridPaint);
+                canvas.DrawLine(frameOffset, p, frameOffset + frameSize, p, gridPaint);
+            }
+        }
 
         return bmp;
     }
