@@ -13,12 +13,32 @@ Argus Monitor, …) and manage dynamic page layouts for both touchscreen and rot
 
 ![LoupixDeck main window](docs/screenshots/main-window-loupedeck.png)
 
+LoupixDeck ships with both a dark and a light theme:
+
+
+![LoupixDeck main window — Light Mode](docs/screenshots/main-window-loupedeck-light.png)
+
 ---
 
 ## Disclaimer
 
 LoupixDeck is experimental but actively developed. Features evolve quickly between releases; expect
 the occasional rough edge. Bug reports and PRs are welcome.
+
+---
+
+## ⬇️ Download
+
+Pre-built binaries for the **latest release** are available on the GitHub Releases page:
+
+**👉 [github.com/RadiatorTwo/LoupixDeck/releases/latest](https://github.com/RadiatorTwo/LoupixDeck/releases/latest)**
+
+| Platform | Asset |
+|---|---|
+| **Windows** | `LoupixDeck-win-x64.zip` — unzip and run `LoupixDeck.exe` |
+| **Linux** | `LoupixDeck-linux-x64.tar.gz` — extract and run `LoupixDeck`, or use the [one-liner](#-quick-install-linux) below |
+
+The builds are self-contained — the .NET 9 runtime is bundled, so no separate install is required.
 
 ---
 
