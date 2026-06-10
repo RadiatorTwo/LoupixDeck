@@ -94,6 +94,14 @@
             <Setter Property="TextAlignment" Value="Center" />
             <Setter Property="VerticalContentAlignment" Value="Center" />
         </Style>
+        <!-- The placeholder (shown when no custom page name is set) defaults to a very
+             faint Fluent colour that is hard to read, especially in Light mode. Avalonia 12
+             exposes it as TextBox.PlaceholderForeground (an earlier attempt to restyle a
+             PART_Watermark TextBlock did nothing — that element no longer exists), so set it
+             to the primary text colour so the fallback page name reads like a typed name. -->
+        <Style Selector="TextBox.PageName">
+            <Setter Property="PlaceholderForeground" Value="{DynamicResource AppTextPrimary}" />
+        </Style>
 
         <!-- "current / total" page counter shown beside the name field. -->
         <Style Selector="TextBlock.PageCount">
