@@ -36,14 +36,14 @@
                                     <CheckBox Content="Run Pre Execution Commands"
                                               IsChecked="{Binding Wrap.PreEnabled, Mode=TwoWay}" />
                                     <TextBox Tag="pre" GotFocus="OnCommandBoxFocused"
-                                             Watermark="cmd1 &amp;&amp; cmd2 &amp;&amp; …"
+                                             PlaceholderText="cmd1 &amp;&amp; cmd2 &amp;&amp; …"
                                              Text="{Binding Wrap.PreCommands, Mode=TwoWay}"
                                              IsEnabled="{Binding Wrap.PreEnabled}" />
 
                                     <CheckBox Content="Run Post Execution Commands" Margin="0,6,0,0"
                                               IsChecked="{Binding Wrap.PostEnabled, Mode=TwoWay}" />
                                     <TextBox Tag="post" GotFocus="OnCommandBoxFocused"
-                                             Watermark="cmd1 &amp;&amp; cmd2 &amp;&amp; …"
+                                             PlaceholderText="cmd1 &amp;&amp; cmd2 &amp;&amp; …"
                                              Text="{Binding Wrap.PostCommands, Mode=TwoWay}"
                                              IsEnabled="{Binding Wrap.PostEnabled}" />
                                 </StackPanel>

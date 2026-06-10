@@ -19,7 +19,7 @@
             <!-- Search + category filter -->
             <Grid Grid.Row="0" ColumnDefinitions="*,180" Margin="0,0,0,8">
                 <TextBox Grid.Column="0"
-                         Watermark="Search symbols…"
+                         PlaceholderText="Search symbols…"
                          Text="{Binding SearchText, Mode=TwoWay}"
                          Margin="0,0,8,0" />
                 <ComboBox Grid.Column="1"

@@ -341,7 +341,7 @@ public partial class Settings : Window
         }
     }
 
-    private void BuildSettingsForm(IPluginSettingsPage page, IPluginSettings settings, string? initialStatus = null)
+    private void BuildSettingsForm(IPluginSettingsPage page, IPluginSettings settings, string initialStatus = null)
     {
         var editors = new List<(PluginSettingDescriptor Descriptor, Control Control)>();
 

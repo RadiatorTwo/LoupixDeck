@@ -12,7 +12,6 @@
     Width="1000"
     Height="700"
     mc:Ignorable="d"
-    SystemDecorations="Full"
     CanResize="False">
 
     <Window.Styles>

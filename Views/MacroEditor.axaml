@@ -12,7 +12,6 @@
     Width="980"
     Height="700"
     mc:Ignorable="d"
-    SystemDecorations="Full"
     CanResize="True"
     MinWidth="820"
     MinHeight="560">

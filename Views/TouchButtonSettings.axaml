@@ -14,7 +14,6 @@
     SizeToContent="Height"
     MaxHeight="1000"
     mc:Ignorable="d"
-    SystemDecorations="Full"
     CanResize="False">
 
     <Window.Styles>

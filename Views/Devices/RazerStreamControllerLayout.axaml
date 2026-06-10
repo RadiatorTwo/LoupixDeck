@@ -130,7 +130,7 @@
                         Command="{Binding PreviousRotaryPageCommand}" />
                 <TextBox Classes="PageName" Width="160"
                          Text="{Binding LoupedeckController.Config.CurrentRotaryButtonPage.Name, Mode=TwoWay}"
-                         Watermark="{Binding LoupedeckController.Config.CurrentRotaryButtonPage.PageName}"
+                         PlaceholderText="{Binding LoupedeckController.Config.CurrentRotaryButtonPage.PageName}"
                          KeyDown="OnPageNameKeyDown" LostFocus="OnPageNameCommit" />
                 <Button Classes="PagerBtn PagerNav" Content="›"
                         ToolTip.Tip="Next rotary page"
@@ -453,7 +453,7 @@
                         Command="{Binding PreviousTouchPageCommand}" />
                 <TextBox Classes="PageName"
                          Text="{Binding LoupedeckController.Config.CurrentTouchButtonPage.Name, Mode=TwoWay}"
-                         Watermark="{Binding LoupedeckController.Config.CurrentTouchButtonPage.PageName}"
+                         PlaceholderText="{Binding LoupedeckController.Config.CurrentTouchButtonPage.PageName}"
                          KeyDown="OnPageNameKeyDown" LostFocus="OnPageNameCommit" />
                 <Button Classes="PagerBtn PagerNav" Content="›"
                         ToolTip.Tip="Next touch page"

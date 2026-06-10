@@ -576,9 +576,9 @@
                                     <DataTemplate DataType="vm:AppBindingRow">
                                         <Border Background="{DynamicResource AppSurfaceAlt}" CornerRadius="4" Padding="8" Margin="0,0,0,6">
                                             <Grid ColumnDefinitions="*,*,120,120,40">
-                                                <TextBox Grid.Column="0" Watermark="chrome"
+                                                <TextBox Grid.Column="0" PlaceholderText="chrome"
                                                          Text="{Binding Binding.ProcessName, Mode=TwoWay}" />
-                                                <TextBox Grid.Column="1" Watermark="(optional)" Margin="8,0,0,0"
+                                                <TextBox Grid.Column="1" PlaceholderText="(optional)" Margin="8,0,0,0"
                                                          Text="{Binding Binding.TitleContains, Mode=TwoWay}" />
                                                 <ComboBox Grid.Column="2" Margin="8,0,0,0" HorizontalAlignment="Stretch"
                                                           ItemsSource="{Binding TouchPages}"

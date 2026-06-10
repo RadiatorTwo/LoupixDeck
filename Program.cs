@@ -148,7 +148,10 @@ sealed class Program
             client.Connect(2000);
             var bytes = Encoding.UTF8.GetBytes(string.Join(' ', args));
             client.Write(bytes, 0, bytes.Length);
-            client.WaitForPipeDrain();
+            // WaitForPipeDrain is Windows-only; this whole branch only compiles under
+            // the WINDOWS constant, but the analyzer needs an explicit OS guard.
+            if (OperatingSystem.IsWindows())
+                client.WaitForPipeDrain();
             var buf = new byte[4096];
             var n = client.Read(buf, 0, buf.Length);
             Console.WriteLine(Encoding.UTF8.GetString(buf, 0, n));
@@ -189,7 +192,10 @@ sealed class Program
             var response = CommandChannel.Dispatch(raw);
             var rb = Encoding.UTF8.GetBytes(response);
             pipe.Write(rb, 0, rb.Length);
-            pipe.WaitForPipeDrain();
+            // WaitForPipeDrain is Windows-only; this whole branch only compiles under
+            // the WINDOWS constant, but the analyzer needs an explicit OS guard.
+            if (OperatingSystem.IsWindows())
+                pipe.WaitForPipeDrain();
         }
         catch (Exception ex)
         {
