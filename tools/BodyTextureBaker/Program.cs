@@ -48,24 +48,60 @@ string toolDir = Path.Combine(repoRoot, "tools", "BodyTextureBaker");
 string assetsDir = Path.Combine(repoRoot, "Assets");
 
 // --- Per-variant defaults. The lighting stops below are shared; each variant
-//     scales the vignette/sheen and sets its own base brightness + shadow fill. ---
-var variants = new List<Variant>();
-if (opts.Variant is "dark" or "both")
-    variants.Add(new Variant(
-        Name: "dark",
-        Input: Path.Combine(toolDir, "texture-no-light.png"),
+//     scales the vignette/sheen, sets its own base brightness + shadow fill, and
+//     carries the body geometry (viewBox + rounded-rect) it bakes into.
+//
+//     The matte textures are generic surfaces (grain + lighting only), so the
+//     same two textures drive every device; only the geometry differs per model:
+//       Live S — viewBox 900x540, body (75,75)-(825,495) = 750x420, r60
+//                (touch bezel 500x290 at 5 units/mm; see LoupedeckLiveSLayout.axaml).
+//       Razer Stream Controller — viewBox 900x600, body (80,50)-(820,555) = 740x505,
+//                r42 (aspect 1.465, matched to the device top-view photo). The body
+//                is symmetric about x=450; the 480x270 display is centred (x=210-690,
+//                y130-400), a knob column sits on each side (centres x130/x770,
+//                y154/265/376), and the row of 8 round LED buttons + RAZER wordmark
+//                live in the taller bottom margin (button centres y473). ---
+var liveGeom = (VW: 900, VH: 540, BX: 75, BY: 75, BW: 750, BH: 420, BR: 60);
+var razerGeom = (VW: 900, VH: 600, BX: 80, BY: 50, BW: 740, BH: 505, BR: 42);
+
+string texDark = Path.Combine(toolDir, "texture-no-light.png");
+string texLight = Path.Combine(toolDir, "texture-light.png");
+
+var allVariants = new Dictionary<string, Variant>
+{
+    ["dark"] = new(
+        Name: "dark", Input: texDark,
         Output: Path.Combine(assetsDir, "loupedeck-gehaeuse.svg"),
         Dark: 0.6, Grain: 0.5,
-        BodyFill: "#151414", VignetteScale: 1.0, SheenScale: 1.0));
-if (opts.Variant is "light" or "both")
-    variants.Add(new Variant(
-        Name: "light",
-        Input: Path.Combine(toolDir, "texture-light.png"),
+        BodyFill: "#151414", VignetteScale: 1.0, SheenScale: 1.0, Geom: liveGeom),
+    // Keep the white texture bright; soften edge darkening and the white sheen so
+    // a light body does not read as dirty or blown out.
+    ["light"] = new(
+        Name: "light", Input: texLight,
         Output: Path.Combine(assetsDir, "loupedeck-gehaeuse-light.svg"),
-        // Keep the white texture bright; soften edge darkening and the white
-        // sheen so a light body does not read as dirty or blown out.
         Dark: 0.92, Grain: 0.5,
-        BodyFill: "#d9d9d9", VignetteScale: 0.55, SheenScale: 0.5));
+        BodyFill: "#d9d9d9", VignetteScale: 0.55, SheenScale: 0.5, Geom: liveGeom),
+    ["razer-dark"] = new(
+        Name: "razer-dark", Input: texDark,
+        Output: Path.Combine(assetsDir, "razer-gehaeuse.svg"),
+        Dark: 0.6, Grain: 0.5,
+        BodyFill: "#151414", VignetteScale: 1.0, SheenScale: 1.0, Geom: razerGeom),
+    ["razer-light"] = new(
+        Name: "razer-light", Input: texLight,
+        Output: Path.Combine(assetsDir, "razer-gehaeuse-light.svg"),
+        Dark: 0.92, Grain: 0.5,
+        BodyFill: "#d9d9d9", VignetteScale: 0.55, SheenScale: 0.5, Geom: razerGeom),
+};
+
+// Group selectors expand to one or more concrete variants; single names map 1:1.
+string[] selected = opts.Variant switch
+{
+    "both" => ["dark", "light"],
+    "razer" => ["razer-dark", "razer-light"],
+    "all" => ["dark", "light", "razer-dark", "razer-light"],
+    _ => [opts.Variant],
+};
+var variants = selected.Select(n => allVariants[n]).ToList();
 
 // CLI --input/--output target a single file, so they cannot be combined with "both".
 if ((opts.Input is not null || opts.Output is not null) && variants.Count != 1)
@@ -94,11 +130,9 @@ static int Bake(Variant variant, string input, string output, int W, double dark
         return 1;
     }
 
-    // --- Body geometry in SVG viewBox units (matches the AXAML overlay). Sized to the
-    //     real device: at 5 units/mm the touch bezel is 500x290 (100x58mm) at (200,125),
-    //     and the body leaves 25/25/10/16mm (125/125/50/80 units) margins around it ->
-    //     body (75,75)-(825,495) = 750x420 within the unchanged 900x540 viewBox. ---
-    const int BodyX = 75, BodyY = 75, BodyW = 750, BodyH = 420, BodyR = 60;
+    // --- Body geometry in SVG viewBox units (matches the AXAML overlay), supplied
+    //     per variant so the same texture/lighting pipeline bakes any device body. ---
+    var (ViewBoxW, ViewBoxH, BodyX, BodyY, BodyW, BodyH, BodyR) = variant.Geom;
     int H = (int)Math.Round(W * (double)BodyH / BodyW);
 
     // --- Lighting: same radial gradients the SVG used, evaluated in object-bounding-box
@@ -177,7 +211,7 @@ static int Bake(Variant variant, string input, string output, int W, double dark
 
     // --- Assemble the SVG: outer drop shadow + baked image clipped to the rounded body. ---
     string head =
-        "<svg viewBox=\"0 0 900 540\" xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\">" +
+        $"<svg viewBox=\"0 0 {ViewBoxW} {ViewBoxH}\" xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\">" +
         "<defs>" +
         "<filter id=\"bodyShadow\" x=\"-25%\" y=\"-25%\" width=\"150%\" height=\"160%\">" +
         "<feDropShadow dx=\"0\" dy=\"8\" stdDeviation=\"14\" flood-color=\"#000000\" flood-opacity=\"0.45\"/></filter>" +
@@ -242,8 +276,10 @@ static Options? ParseArgs(string[] args)
         {
             case "--variant":
                 o.Variant = Next().ToLowerInvariant();
-                if (o.Variant is not ("dark" or "light" or "both"))
-                    throw new ArgumentException("--variant must be dark, light or both");
+                if (o.Variant is not ("dark" or "light" or "both"
+                    or "razer-dark" or "razer-light" or "razer" or "all"))
+                    throw new ArgumentException(
+                        "--variant must be dark, light, both, razer-dark, razer-light, razer or all");
                 break;
             case "--input": o.Input = Next(); break;
             case "--output": o.Output = Next(); break;
@@ -251,8 +287,8 @@ static Options? ParseArgs(string[] args)
             case "--dark": o.Dark = double.Parse(Next(), CultureInfo.InvariantCulture); break;
             case "--grain": o.Grain = double.Parse(Next(), CultureInfo.InvariantCulture); break;
             case "-h" or "--help":
-                Console.WriteLine("Regenerates the Live S body SVGs (Dark + Light) from matte textures.");
-                Console.WriteLine("Options: --variant <dark|light|both> --input <path> --output <path> --width <int> --dark <0..1> --grain <0..1>");
+                Console.WriteLine("Regenerates the device body SVGs (Live S + Razer, Dark + Light) from matte textures.");
+                Console.WriteLine("Options: --variant <dark|light|both|razer-dark|razer-light|razer|all> --input <path> --output <path> --width <int> --dark <0..1> --grain <0..1>");
                 Console.WriteLine("Defaults reproduce the committed SVGs (width 1100; dark 0.6/grain 0.5 for dark, dark 0.92/grain 0.5 for light).");
                 return null;
             default:
@@ -280,4 +316,5 @@ sealed record Variant(
     double Grain,
     string BodyFill,
     double VignetteScale,
-    double SheenScale);
+    double SheenScale,
+    (int VW, int VH, int BX, int BY, int BW, int BH, int BR) Geom);

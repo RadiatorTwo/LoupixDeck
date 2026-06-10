@@ -5,6 +5,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:conv="clr-namespace:LoupixDeck.Models.Converter"
              xmlns:utils="clr-namespace:LoupixDeck.Utils"
+             xmlns:svg="clr-namespace:Avalonia.Svg.Skia;assembly=Svg.Controls.Skia.Avalonia"
              mc:Ignorable="d"
              x:Class="LoupixDeck.Views.Devices.RazerStreamControllerLayout"
              x:DataType="vm:MainWindowViewModel"
@@ -16,8 +17,7 @@
         <Style Selector="Button.Knob">
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderBrush" Value="Transparent" />
-            <Setter Property="Width" Value="80" />
-            <Setter Property="Height" Value="80" />
+            <Setter Property="BorderThickness" Value="0" />
             <Setter Property="Padding" Value="0" />
             <Setter Property="Focusable" Value="False" />
             <Setter Property="RenderTransformOrigin" Value="50%,50%" />
@@ -41,6 +41,7 @@
         <Style Selector="Button.Knob:pressed">
             <Setter Property="RenderTransform" Value="scale(0.96)" />
         </Style>
+
         <!-- RGB LED buttons: the colour/glow is baked into the rendered image. A bare
              template (no chrome border/background) guarantees no grey box ever appears
              in any state — hover, press, focus, or while a modal dialog disables the
@@ -48,8 +49,7 @@
         <Style Selector="Button.LedRound">
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderBrush" Value="Transparent" />
-            <Setter Property="Width" Value="72" />
-            <Setter Property="Height" Value="72" />
+            <Setter Property="BorderThickness" Value="0" />
             <Setter Property="Padding" Value="0" />
             <Setter Property="Focusable" Value="False" />
             <Setter Property="RenderTransformOrigin" Value="50%,50%" />
@@ -73,11 +73,25 @@
         <Style Selector="Button.LedRound:pressed">
             <Setter Property="RenderTransform" Value="scale(0.94)" />
         </Style>
-        <!-- Touch buttons keep their inline chrome (per-button bezel); add only the
-             same centred forward-zoom feedback as the knobs and LED buttons. The
-             grid has no gaps, so lift the hovered button above its neighbours. -->
+
+        <!-- Touch buttons: chrome-free so only the rendered image shows, with the
+             dark bezel behind it filling the gaps and rounded corners. No grey
+             button background in any state (hover, press, focus, dialog). -->
         <Style Selector="Button[Tag=Touch]">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Focusable" Value="False" />
             <Setter Property="RenderTransformOrigin" Value="50%,50%" />
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <ContentPresenter Content="{TemplateBinding Content}"
+                                      ContentTemplate="{TemplateBinding ContentTemplate}"
+                                      HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                      VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
+                </ControlTemplate>
+            </Setter>
             <Setter Property="Transitions">
                 <Transitions>
                     <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.08" />
@@ -85,6 +99,7 @@
             </Setter>
         </Style>
         <Style Selector="Button[Tag=Touch]:pointerover">
+            <!-- Lift above neighbours so the centred forward zoom is never clipped. -->
             <Setter Property="ZIndex" Value="1" />
             <Setter Property="RenderTransform" Value="scale(1.05)" />
         </Style>
@@ -93,170 +108,22 @@
         </Style>
     </UserControl.Styles>
 
-    <Grid RowDefinitions="Auto,Auto,Auto,Auto" Margin="10">
-
-        <!-- Main row: left knobs · left side panel · 4x3 grid · right side panel · right knobs -->
-        <Grid Grid.Row="1" HorizontalAlignment="Center"
-              ColumnDefinitions="90,60,360,60,90"
-              RowDefinitions="90,90,90">
-
-            <!-- Left knobs (KNOB_TL/CL/BL → rotary slots 0,1,2) -->
-            <Button Classes="Knob" Grid.Column="0" Grid.Row="0"
-                    HorizontalAlignment="Center" VerticalAlignment="Center"
-                    Command="{Binding RotaryButtonCommand}"
-                    CommandParameter="{Binding LoupedeckController.Config.CurrentRotaryButtonPage.RotaryButtons[0], Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
-                <Image Source="{Binding RotaryKnobImage}" Width="80" Height="80" />
-            </Button>
-            <Button Classes="Knob" Grid.Column="0" Grid.Row="1"
-                    HorizontalAlignment="Center" VerticalAlignment="Center"
-                    Command="{Binding RotaryButtonCommand}"
-                    CommandParameter="{Binding LoupedeckController.Config.CurrentRotaryButtonPage.RotaryButtons[1], Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
-                <Image Source="{Binding RotaryKnobImage}" Width="80" Height="80" />
-            </Button>
-            <Button Classes="Knob" Grid.Column="0" Grid.Row="2"
-                    HorizontalAlignment="Center" VerticalAlignment="Center"
-                    Command="{Binding RotaryButtonCommand}"
-                    CommandParameter="{Binding LoupedeckController.Config.CurrentRotaryButtonPage.RotaryButtons[2], Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
-                <Image Source="{Binding RotaryKnobImage}" Width="80" Height="80" />
-            </Button>
-
-            <!-- Left narrow display: TouchButtons[12] (60x270, full height) -->
-            <Button Tag="Touch" Grid.Column="1" Grid.Row="0" Grid.RowSpan="3"
-                    Width="60" Height="270" Padding="0"
-                    Background="{DynamicResource DeviceScreenBackground}" BorderBrush="{DynamicResource DeviceButtonBorder}" BorderThickness="2" CornerRadius="6"
-                    Command="{Binding TouchButtonCommand}"
-                    CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[12]}">
-                <Border CornerRadius="6" ClipToBounds="True">
-                    <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[12].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
-                </Border>
-            </Button>
-
-            <!-- Centre 4x3 touch grid -->
-            <Grid Grid.Column="2" Grid.Row="0" Grid.RowSpan="3"
-                  ColumnDefinitions="90,90,90,90" RowDefinitions="90,90,90">
-                <Button Tag="Touch" Grid.Row="0" Grid.Column="0" Width="90" Height="90"
-                        Command="{Binding TouchButtonCommand}"
-                        CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[0]}">
-                    <Border CornerRadius="6" ClipToBounds="True">
-                        <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[0].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
-                    </Border>
-                </Button>
-                <Button Tag="Touch" Grid.Row="0" Grid.Column="1" Width="90" Height="90"
-                        Command="{Binding TouchButtonCommand}"
-                        CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[1]}">
-                    <Border CornerRadius="6" ClipToBounds="True">
-                        <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[1].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
-                    </Border>
-                </Button>
-                <Button Tag="Touch" Grid.Row="0" Grid.Column="2" Width="90" Height="90"
-                        Command="{Binding TouchButtonCommand}"
-                        CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[2]}">
-                    <Border CornerRadius="6" ClipToBounds="True">
-                        <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[2].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
-                    </Border>
-                </Button>
-                <Button Tag="Touch" Grid.Row="0" Grid.Column="3" Width="90" Height="90"
-                        Command="{Binding TouchButtonCommand}"
-                        CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[3]}">
-                    <Border CornerRadius="6" ClipToBounds="True">
-                        <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[3].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
-                    </Border>
-                </Button>
-
-                <Button Tag="Touch" Grid.Row="1" Grid.Column="0" Width="90" Height="90"
-                        Command="{Binding TouchButtonCommand}"
-                        CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[4]}">
-                    <Border CornerRadius="6" ClipToBounds="True">
-                        <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[4].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
-                    </Border>
-                </Button>
-                <Button Tag="Touch" Grid.Row="1" Grid.Column="1" Width="90" Height="90"
-                        Command="{Binding TouchButtonCommand}"
-                        CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[5]}">
-                    <Border CornerRadius="6" ClipToBounds="True">
-                        <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[5].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
-                    </Border>
-                </Button>
-                <Button Tag="Touch" Grid.Row="1" Grid.Column="2" Width="90" Height="90"
-                        Command="{Binding TouchButtonCommand}"
-                        CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[6]}">
-                    <Border CornerRadius="6" ClipToBounds="True">
-                        <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[6].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
-                    </Border>
-                </Button>
-                <Button Tag="Touch" Grid.Row="1" Grid.Column="3" Width="90" Height="90"
-                        Command="{Binding TouchButtonCommand}"
-                        CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[7]}">
-                    <Border CornerRadius="6" ClipToBounds="True">
-                        <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[7].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
-                    </Border>
-                </Button>
-
-                <Button Tag="Touch" Grid.Row="2" Grid.Column="0" Width="90" Height="90"
-                        Command="{Binding TouchButtonCommand}"
-                        CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[8]}">
-                    <Border CornerRadius="6" ClipToBounds="True">
-                        <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[8].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
-                    </Border>
-                </Button>
-                <Button Tag="Touch" Grid.Row="2" Grid.Column="1" Width="90" Height="90"
-                        Command="{Binding TouchButtonCommand}"
-                        CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[9]}">
-                    <Border CornerRadius="6" ClipToBounds="True">
-                        <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[9].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
-                    </Border>
-                </Button>
-                <Button Tag="Touch" Grid.Row="2" Grid.Column="2" Width="90" Height="90"
-                        Command="{Binding TouchButtonCommand}"
-                        CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[10]}">
-                    <Border CornerRadius="6" ClipToBounds="True">
-                        <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[10].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
-                    </Border>
-                </Button>
-                <Button Tag="Touch" Grid.Row="2" Grid.Column="3" Width="90" Height="90"
-                        Command="{Binding TouchButtonCommand}"
-                        CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[11]}">
-                    <Border CornerRadius="6" ClipToBounds="True">
-                        <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[11].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
-                    </Border>
-                </Button>
-            </Grid>
-
-            <!-- Right narrow display: TouchButtons[13] -->
-            <Button Tag="Touch" Grid.Column="3" Grid.Row="0" Grid.RowSpan="3"
-                    Width="60" Height="270" Padding="0"
-                    Background="{DynamicResource DeviceScreenBackground}" BorderBrush="{DynamicResource DeviceButtonBorder}" BorderThickness="2" CornerRadius="6"
-                    Command="{Binding TouchButtonCommand}"
-                    CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[13]}">
-                <Border CornerRadius="6" ClipToBounds="True">
-                    <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[13].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
-                </Border>
-            </Button>
-
-            <!-- Right knobs (KNOB_TR/CR/BR → rotary slots 3,4,5) -->
-            <Button Classes="Knob" Grid.Column="4" Grid.Row="0"
-                    HorizontalAlignment="Center" VerticalAlignment="Center"
-                    Command="{Binding RotaryButtonCommand}"
-                    CommandParameter="{Binding LoupedeckController.Config.CurrentRotaryButtonPage.RotaryButtons[3], Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
-                <Image Source="{Binding RotaryKnobImage}" Width="80" Height="80" />
-            </Button>
-            <Button Classes="Knob" Grid.Column="4" Grid.Row="1"
-                    HorizontalAlignment="Center" VerticalAlignment="Center"
-                    Command="{Binding RotaryButtonCommand}"
-                    CommandParameter="{Binding LoupedeckController.Config.CurrentRotaryButtonPage.RotaryButtons[4], Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
-                <Image Source="{Binding RotaryKnobImage}" Width="80" Height="80" />
-            </Button>
-            <Button Classes="Knob" Grid.Column="4" Grid.Row="2"
-                    HorizontalAlignment="Center" VerticalAlignment="Center"
-                    Command="{Binding RotaryButtonCommand}"
-                    CommandParameter="{Binding LoupedeckController.Config.CurrentRotaryButtonPage.RotaryButtons[5], Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
-                <Image Source="{Binding RotaryKnobImage}" Width="80" Height="80" />
-            </Button>
-        </Grid>
+    <!-- The device is drawn from its baked SVG body (Assets/razer-gehaeuse.svg) and the
+         interactive controls are overlaid on a Canvas whose coordinate space matches
+         the SVG viewBox (900x600). Both share one Viewbox so the controls scale in
+         lockstep with the body image. The pagers stay outside the Viewbox so their
+         text never scales. Coordinates were derived from the device top-view photo:
+           body rect (80,50)-(820,555)  (740x505, aspect 1.465)
+           display (210,130)-(690,400)  (480x270 = left 60 panel + 4x3 grid + right 60 panel)
+         The 4x3 centre grid (360x270, 90u tiles) is flanked by two 60x270 side panels;
+         three knobs sit in each body side margin (centres x130 left / x770 right,
+         y154/265/376), and the row of eight round LED buttons spans the bottom margin
+         (centres y473, x140..760). -->
+    <StackPanel Orientation="Vertical" HorizontalAlignment="Center" Spacing="2">
 
         <!-- Rotary page controls as their own strip above the device (left, over the
-             knobs). The touch pager lives below the screen (further down). -->
-        <Border Grid.Row="0" Classes="Pager" HorizontalAlignment="Left" Margin="0,4,0,10">
+             left knob column). The touch pager lives below the screen (further down). -->
+        <Border Classes="Pager" HorizontalAlignment="Left" Margin="55,12,12,-24" ZIndex="1">
             <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
                 <Button Classes="PagerBtn PagerNav" Content="‹"
                         ToolTip.Tip="Previous rotary page"
@@ -280,8 +147,306 @@
             </StackPanel>
         </Border>
 
-        <!-- Touch page pager, centred below the touch screen it controls. -->
-        <Border Grid.Row="2" Classes="Pager" HorizontalAlignment="Center" Margin="0,10,0,4">
+        <!-- Device body (SVG) + control overlay, scaled together. -->
+        <Viewbox Width="760" Stretch="Uniform">
+            <Grid Width="900" Height="600">
+
+                <!-- Gehäuse / body artwork. -->
+                <svg:Svg Path="{DynamicResource RazerBodySvgPath}"
+                         Stretch="Fill" Width="900" Height="600" />
+
+                <!-- Interactive controls in SVG-viewBox coordinates. -->
+                <Canvas Width="900" Height="600">
+
+                    <!-- ===== Screen recess + seam frame as ONE bezel surface =====
+                         The display is the unified 480x270 screen (left 60 panel + 4x3 grid +
+                         right 60 panel), centred in a 512x302 recess that leaves a 16u frame
+                         on every side. Rather than a separate bezel Border behind a screen
+                         Border (whose two gradient fills meet in a faintly visible tonal seam),
+                         a single Path covers the WHOLE recess and punches one rounded hole per
+                         slot. So the outer frame and the inter-tile seams are one continuous
+                         fill — no internal line. The buttons sit gapless under the holes; the
+                         Path is on top and IsHitTestVisible=False so clicks pass through. ===== -->
+                    <Border Canvas.Left="194" Canvas.Top="114" Width="512" Height="302"
+                            CornerRadius="22" ClipToBounds="True"
+                            Background="{DynamicResource DeviceBezelBrush}">
+                        <Grid>
+                            <Grid Margin="16" ColumnDefinitions="60,360,60">
+                                <!-- Left narrow panel: TouchButtons[12] (60x270). -->
+                                <Button Tag="Touch" Grid.Column="0" Width="60" Height="270"
+                                        Command="{Binding TouchButtonCommand}"
+                                        CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[12]}">
+                                    <Border CornerRadius="0" ClipToBounds="True">
+                                        <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[12].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
+                                    </Border>
+                                </Button>
+
+                                <!-- Centre 4x3 grid: TouchButtons[0..11] (90x90 tiles). -->
+                                <Grid Grid.Column="1" ColumnDefinitions="90,90,90,90" RowDefinitions="90,90,90">
+                                    <Button Tag="Touch" Grid.Row="0" Grid.Column="0" Width="90" Height="90"
+                                            Command="{Binding TouchButtonCommand}"
+                                            CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[0]}">
+                                        <Border CornerRadius="0" ClipToBounds="True">
+                                            <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[0].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
+                                        </Border>
+                                    </Button>
+                                    <Button Tag="Touch" Grid.Row="0" Grid.Column="1" Width="90" Height="90"
+                                            Command="{Binding TouchButtonCommand}"
+                                            CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[1]}">
+                                        <Border CornerRadius="0" ClipToBounds="True">
+                                            <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[1].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
+                                        </Border>
+                                    </Button>
+                                    <Button Tag="Touch" Grid.Row="0" Grid.Column="2" Width="90" Height="90"
+                                            Command="{Binding TouchButtonCommand}"
+                                            CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[2]}">
+                                        <Border CornerRadius="0" ClipToBounds="True">
+                                            <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[2].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
+                                        </Border>
+                                    </Button>
+                                    <Button Tag="Touch" Grid.Row="0" Grid.Column="3" Width="90" Height="90"
+                                            Command="{Binding TouchButtonCommand}"
+                                            CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[3]}">
+                                        <Border CornerRadius="0" ClipToBounds="True">
+                                            <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[3].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
+                                        </Border>
+                                    </Button>
+
+                                    <Button Tag="Touch" Grid.Row="1" Grid.Column="0" Width="90" Height="90"
+                                            Command="{Binding TouchButtonCommand}"
+                                            CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[4]}">
+                                        <Border CornerRadius="0" ClipToBounds="True">
+                                            <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[4].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
+                                        </Border>
+                                    </Button>
+                                    <Button Tag="Touch" Grid.Row="1" Grid.Column="1" Width="90" Height="90"
+                                            Command="{Binding TouchButtonCommand}"
+                                            CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[5]}">
+                                        <Border CornerRadius="0" ClipToBounds="True">
+                                            <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[5].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
+                                        </Border>
+                                    </Button>
+                                    <Button Tag="Touch" Grid.Row="1" Grid.Column="2" Width="90" Height="90"
+                                            Command="{Binding TouchButtonCommand}"
+                                            CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[6]}">
+                                        <Border CornerRadius="0" ClipToBounds="True">
+                                            <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[6].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
+                                        </Border>
+                                    </Button>
+                                    <Button Tag="Touch" Grid.Row="1" Grid.Column="3" Width="90" Height="90"
+                                            Command="{Binding TouchButtonCommand}"
+                                            CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[7]}">
+                                        <Border CornerRadius="0" ClipToBounds="True">
+                                            <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[7].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
+                                        </Border>
+                                    </Button>
+
+                                    <Button Tag="Touch" Grid.Row="2" Grid.Column="0" Width="90" Height="90"
+                                            Command="{Binding TouchButtonCommand}"
+                                            CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[8]}">
+                                        <Border CornerRadius="0" ClipToBounds="True">
+                                            <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[8].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
+                                        </Border>
+                                    </Button>
+                                    <Button Tag="Touch" Grid.Row="2" Grid.Column="1" Width="90" Height="90"
+                                            Command="{Binding TouchButtonCommand}"
+                                            CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[9]}">
+                                        <Border CornerRadius="0" ClipToBounds="True">
+                                            <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[9].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
+                                        </Border>
+                                    </Button>
+                                    <Button Tag="Touch" Grid.Row="2" Grid.Column="2" Width="90" Height="90"
+                                            Command="{Binding TouchButtonCommand}"
+                                            CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[10]}">
+                                        <Border CornerRadius="0" ClipToBounds="True">
+                                            <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[10].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
+                                        </Border>
+                                    </Button>
+                                    <Button Tag="Touch" Grid.Row="2" Grid.Column="3" Width="90" Height="90"
+                                            Command="{Binding TouchButtonCommand}"
+                                            CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[11]}">
+                                        <Border CornerRadius="0" ClipToBounds="True">
+                                            <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[11].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
+                                        </Border>
+                                    </Button>
+                                </Grid>
+
+                                <!-- Right narrow panel: TouchButtons[13] (60x270). -->
+                                <Button Tag="Touch" Grid.Column="2" Width="60" Height="270"
+                                        Command="{Binding TouchButtonCommand}"
+                                        CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[13]}">
+                                    <Border CornerRadius="0" ClipToBounds="True">
+                                        <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[13].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
+                                    </Border>
+                                </Button>
+                            </Grid>
+
+                            <!-- Frame overlay covering the WHOLE 512x302 recess: a panel with
+                                 one rounded-rectangle hole per slot (EvenOdd punches the holes
+                                 out of the outer 512x302 rect) so the 16u outer frame and the
+                                 inter-tile seams are one continuous bezel fill, and each tile
+                                 keeps rounded corners while the wallpaper underneath stays
+                                 continuous. Filled with the theme-aware DeviceBezelBrush so it
+                                 follows Light/Dark. Hole positions are the gapless button cells
+                                 (offset +16 for the frame margin) inset 4.5 (4.5 tile border,
+                                 9px seams). The two tall holes are the 60x270 side panels; the
+                                 12 square holes are the 90x90 grid tiles. IsHitTestVisible=False
+                                 so clicks pass through. -->
+                            <Path IsHitTestVisible="False"
+                                  HorizontalAlignment="Left" VerticalAlignment="Top"
+                                  Fill="{DynamicResource DeviceBezelBrush}">
+                                <Path.Data>
+                                    <GeometryGroup FillRule="EvenOdd">
+                                        <RectangleGeometry Rect="0,0,512,302" />
+                                        <!-- Left side panel hole. -->
+                                        <RectangleGeometry Rect="20.5,20.5,51,261" RadiusX="6" RadiusY="6" />
+                                        <!-- Centre grid (frame 16 + side panel 60), row 0. -->
+                                        <RectangleGeometry Rect="80.5,20.5,81,81" RadiusX="6" RadiusY="6" />
+                                        <RectangleGeometry Rect="170.5,20.5,81,81" RadiusX="6" RadiusY="6" />
+                                        <RectangleGeometry Rect="260.5,20.5,81,81" RadiusX="6" RadiusY="6" />
+                                        <RectangleGeometry Rect="350.5,20.5,81,81" RadiusX="6" RadiusY="6" />
+                                        <!-- Row 1. -->
+                                        <RectangleGeometry Rect="80.5,110.5,81,81" RadiusX="6" RadiusY="6" />
+                                        <RectangleGeometry Rect="170.5,110.5,81,81" RadiusX="6" RadiusY="6" />
+                                        <RectangleGeometry Rect="260.5,110.5,81,81" RadiusX="6" RadiusY="6" />
+                                        <RectangleGeometry Rect="350.5,110.5,81,81" RadiusX="6" RadiusY="6" />
+                                        <!-- Row 2. -->
+                                        <RectangleGeometry Rect="80.5,200.5,81,81" RadiusX="6" RadiusY="6" />
+                                        <RectangleGeometry Rect="170.5,200.5,81,81" RadiusX="6" RadiusY="6" />
+                                        <RectangleGeometry Rect="260.5,200.5,81,81" RadiusX="6" RadiusY="6" />
+                                        <RectangleGeometry Rect="350.5,200.5,81,81" RadiusX="6" RadiusY="6" />
+                                        <!-- Right side panel hole (frame 16 + side 60 + grid 360). -->
+                                        <RectangleGeometry Rect="440.5,20.5,51,261" RadiusX="6" RadiusY="6" />
+                                    </GeometryGroup>
+                                </Path.Data>
+                            </Path>
+                        </Grid>
+                    </Border>
+
+                    <!-- ===== Left body margin (centre x=130): three knobs (KNOB_TL/CL/BL →
+                         rotary slots 0,1,2), centres at y154/265/376. ===== -->
+                    <Button Classes="Knob" Canvas.Left="90" Canvas.Top="114" Width="80" Height="80"
+                            Command="{Binding RotaryButtonCommand}"
+                            CommandParameter="{Binding LoupedeckController.Config.CurrentRotaryButtonPage.RotaryButtons[0], Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
+                        <Image Source="{Binding RotaryKnobImage}" Width="80" Height="80" />
+                    </Button>
+                    <Button Classes="Knob" Canvas.Left="90" Canvas.Top="225" Width="80" Height="80"
+                            Command="{Binding RotaryButtonCommand}"
+                            CommandParameter="{Binding LoupedeckController.Config.CurrentRotaryButtonPage.RotaryButtons[1], Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
+                        <Image Source="{Binding RotaryKnobImage}" Width="80" Height="80" />
+                    </Button>
+                    <Button Classes="Knob" Canvas.Left="90" Canvas.Top="336" Width="80" Height="80"
+                            Command="{Binding RotaryButtonCommand}"
+                            CommandParameter="{Binding LoupedeckController.Config.CurrentRotaryButtonPage.RotaryButtons[2], Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
+                        <Image Source="{Binding RotaryKnobImage}" Width="80" Height="80" />
+                    </Button>
+
+                    <!-- ===== Right body margin (centre x=770): three knobs (KNOB_TR/CR/BR →
+                         rotary slots 3,4,5), centres at y154/265/376. ===== -->
+                    <Button Classes="Knob" Canvas.Left="730" Canvas.Top="114" Width="80" Height="80"
+                            Command="{Binding RotaryButtonCommand}"
+                            CommandParameter="{Binding LoupedeckController.Config.CurrentRotaryButtonPage.RotaryButtons[3], Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
+                        <Image Source="{Binding RotaryKnobImage}" Width="80" Height="80" />
+                    </Button>
+                    <Button Classes="Knob" Canvas.Left="730" Canvas.Top="225" Width="80" Height="80"
+                            Command="{Binding RotaryButtonCommand}"
+                            CommandParameter="{Binding LoupedeckController.Config.CurrentRotaryButtonPage.RotaryButtons[4], Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
+                        <Image Source="{Binding RotaryKnobImage}" Width="80" Height="80" />
+                    </Button>
+                    <Button Classes="Knob" Canvas.Left="730" Canvas.Top="336" Width="80" Height="80"
+                            Command="{Binding RotaryButtonCommand}"
+                            CommandParameter="{Binding LoupedeckController.Config.CurrentRotaryButtonPage.RotaryButtons[5], Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
+                        <Image Source="{Binding RotaryKnobImage}" Width="80" Height="80" />
+                    </Button>
+
+                    <!-- ===== Bottom body margin: eight round LED buttons (BUTTON0..BUTTON7),
+                         centres y473, x140/229/317/406/494/583/671/760 (72u diameter). ===== -->
+                    <Button Tag="Led" Classes="LedRound" Canvas.Left="104" Canvas.Top="437" Width="72" Height="72"
+                            Command="{Binding SimpleButtonCommand}"
+                            CommandParameter="{Binding LoupedeckController.Config.SimpleButtons[0]}">
+                        <Border Background="Transparent" Width="72" Height="72" CornerRadius="36">
+                            <Image Source="{Binding LoupedeckController.Config.SimpleButtons[0].RenderedImage}" />
+                        </Border>
+                    </Button>
+                    <Button Tag="Led" Classes="LedRound" Canvas.Left="193" Canvas.Top="437" Width="72" Height="72"
+                            Command="{Binding SimpleButtonCommand}"
+                            CommandParameter="{Binding LoupedeckController.Config.SimpleButtons[1]}">
+                        <Border Background="Transparent" Width="72" Height="72" CornerRadius="36">
+                            <Image Source="{Binding LoupedeckController.Config.SimpleButtons[1].RenderedImage}" />
+                        </Border>
+                    </Button>
+                    <Button Tag="Led" Classes="LedRound" Canvas.Left="281" Canvas.Top="437" Width="72" Height="72"
+                            Command="{Binding SimpleButtonCommand}"
+                            CommandParameter="{Binding LoupedeckController.Config.SimpleButtons[2]}">
+                        <Border Background="Transparent" Width="72" Height="72" CornerRadius="36">
+                            <Image Source="{Binding LoupedeckController.Config.SimpleButtons[2].RenderedImage}" />
+                        </Border>
+                    </Button>
+                    <Button Tag="Led" Classes="LedRound" Canvas.Left="370" Canvas.Top="437" Width="72" Height="72"
+                            Command="{Binding SimpleButtonCommand}"
+                            CommandParameter="{Binding LoupedeckController.Config.SimpleButtons[3]}">
+                        <Border Background="Transparent" Width="72" Height="72" CornerRadius="36">
+                            <Image Source="{Binding LoupedeckController.Config.SimpleButtons[3].RenderedImage}" />
+                        </Border>
+                    </Button>
+                    <Button Tag="Led" Classes="LedRound" Canvas.Left="458" Canvas.Top="437" Width="72" Height="72"
+                            Command="{Binding SimpleButtonCommand}"
+                            CommandParameter="{Binding LoupedeckController.Config.SimpleButtons[4]}">
+                        <Border Background="Transparent" Width="72" Height="72" CornerRadius="36">
+                            <Image Source="{Binding LoupedeckController.Config.SimpleButtons[4].RenderedImage}" />
+                        </Border>
+                    </Button>
+                    <Button Tag="Led" Classes="LedRound" Canvas.Left="547" Canvas.Top="437" Width="72" Height="72"
+                            Command="{Binding SimpleButtonCommand}"
+                            CommandParameter="{Binding LoupedeckController.Config.SimpleButtons[5]}">
+                        <Border Background="Transparent" Width="72" Height="72" CornerRadius="36">
+                            <Image Source="{Binding LoupedeckController.Config.SimpleButtons[5].RenderedImage}" />
+                        </Border>
+                    </Button>
+                    <Button Tag="Led" Classes="LedRound" Canvas.Left="635" Canvas.Top="437" Width="72" Height="72"
+                            Command="{Binding SimpleButtonCommand}"
+                            CommandParameter="{Binding LoupedeckController.Config.SimpleButtons[6]}">
+                        <Border Background="Transparent" Width="72" Height="72" CornerRadius="36">
+                            <Image Source="{Binding LoupedeckController.Config.SimpleButtons[6].RenderedImage}" />
+                        </Border>
+                    </Button>
+                    <Button Tag="Led" Classes="LedRound" Canvas.Left="724" Canvas.Top="437" Width="72" Height="72"
+                            Command="{Binding SimpleButtonCommand}"
+                            CommandParameter="{Binding LoupedeckController.Config.SimpleButtons[7]}">
+                        <Border Background="Transparent" Width="72" Height="72" CornerRadius="36">
+                            <Image Source="{Binding LoupedeckController.Config.SimpleButtons[7].RenderedImage}" />
+                        </Border>
+                    </Button>
+                </Canvas>
+
+                <!-- Exclusive-mode overlay: while a provider owns the device, none of the
+                     on-screen controls reflect or affect it, so cover the whole device and
+                     swallow all input with a notice. -->
+                <Border IsVisible="{Binding IsExclusiveModeActive}"
+                        Background="#E60F0F0F"
+                        BorderBrush="{StaticResource SelectedBrush}"
+                        BorderThickness="2"
+                        CornerRadius="6">
+                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8">
+                        <TextBlock Text="Exclusive Mode Active"
+                                   FontSize="22" FontWeight="Bold" Foreground="White"
+                                   HorizontalAlignment="Center" />
+                        <TextBlock Text="{Binding ExclusiveModeTitle}"
+                                   FontSize="16" Foreground="#CCCCCC"
+                                   HorizontalAlignment="Center"
+                                   IsVisible="{Binding ExclusiveModeTitle, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                        <TextBlock Text="The device is being controlled. Its buttons are inactive."
+                                   FontSize="12" Foreground="#999999"
+                                   TextWrapping="Wrap" MaxWidth="420" TextAlignment="Center"
+                                   HorizontalAlignment="Center" />
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </Viewbox>
+
+        <!-- Touch page pager, centred below the display it controls. The negative top
+             margin pulls it up into the transparent band below the visible body. -->
+        <Border Classes="Pager" HorizontalAlignment="Center" Margin="0,-26,0,12">
             <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
                 <Button Classes="PagerBtn PagerNav" Content="‹"
                         ToolTip.Tip="Previous touch page"
@@ -305,72 +470,5 @@
             </StackPanel>
         </Border>
 
-        <!-- 8 LED buttons (BUTTON0..BUTTON7). -->
-        <UniformGrid Grid.Row="3" Columns="8" HorizontalAlignment="Center" Margin="0,16,0,0">
-            <Button Classes="LedRound" Margin="6,0"
-                    Command="{Binding SimpleButtonCommand}"
-                    CommandParameter="{Binding LoupedeckController.Config.SimpleButtons[0]}">
-                <Image Source="{Binding LoupedeckController.Config.SimpleButtons[0].RenderedImage}" />
-            </Button>
-            <Button Classes="LedRound" Margin="6,0"
-                    Command="{Binding SimpleButtonCommand}"
-                    CommandParameter="{Binding LoupedeckController.Config.SimpleButtons[1]}">
-                <Image Source="{Binding LoupedeckController.Config.SimpleButtons[1].RenderedImage}" />
-            </Button>
-            <Button Classes="LedRound" Margin="6,0"
-                    Command="{Binding SimpleButtonCommand}"
-                    CommandParameter="{Binding LoupedeckController.Config.SimpleButtons[2]}">
-                <Image Source="{Binding LoupedeckController.Config.SimpleButtons[2].RenderedImage}" />
-            </Button>
-            <Button Classes="LedRound" Margin="6,0"
-                    Command="{Binding SimpleButtonCommand}"
-                    CommandParameter="{Binding LoupedeckController.Config.SimpleButtons[3]}">
-                <Image Source="{Binding LoupedeckController.Config.SimpleButtons[3].RenderedImage}" />
-            </Button>
-            <Button Classes="LedRound" Margin="6,0"
-                    Command="{Binding SimpleButtonCommand}"
-                    CommandParameter="{Binding LoupedeckController.Config.SimpleButtons[4]}">
-                <Image Source="{Binding LoupedeckController.Config.SimpleButtons[4].RenderedImage}" />
-            </Button>
-            <Button Classes="LedRound" Margin="6,0"
-                    Command="{Binding SimpleButtonCommand}"
-                    CommandParameter="{Binding LoupedeckController.Config.SimpleButtons[5]}">
-                <Image Source="{Binding LoupedeckController.Config.SimpleButtons[5].RenderedImage}" />
-            </Button>
-            <Button Classes="LedRound" Margin="6,0"
-                    Command="{Binding SimpleButtonCommand}"
-                    CommandParameter="{Binding LoupedeckController.Config.SimpleButtons[6]}">
-                <Image Source="{Binding LoupedeckController.Config.SimpleButtons[6].RenderedImage}" />
-            </Button>
-            <Button Classes="LedRound" Margin="6,0"
-                    Command="{Binding SimpleButtonCommand}"
-                    CommandParameter="{Binding LoupedeckController.Config.SimpleButtons[7]}">
-                <Image Source="{Binding LoupedeckController.Config.SimpleButtons[7].RenderedImage}" />
-            </Button>
-        </UniformGrid>
-
-        <!-- Exclusive-mode overlay: while a provider owns the device, none of the
-             on-screen controls reflect or affect it, so cover the whole device and
-             swallow all input with a notice. -->
-        <Border Grid.Row="0" Grid.RowSpan="4"
-                IsVisible="{Binding IsExclusiveModeActive}"
-                Background="#E60F0F0F"
-                BorderBrush="{StaticResource SelectedBrush}"
-                BorderThickness="2"
-                CornerRadius="6">
-            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8">
-                <TextBlock Text="Exclusive Mode Active"
-                           FontSize="22" FontWeight="Bold" Foreground="White"
-                           HorizontalAlignment="Center" />
-                <TextBlock Text="{Binding ExclusiveModeTitle}"
-                           FontSize="16" Foreground="#CCCCCC"
-                           HorizontalAlignment="Center"
-                           IsVisible="{Binding ExclusiveModeTitle, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
-                <TextBlock Text="The device is being controlled. Its buttons are inactive."
-                           FontSize="12" Foreground="#999999"
-                           TextWrapping="Wrap" MaxWidth="420" TextAlignment="Center"
-                           HorizontalAlignment="Center" />
-            </StackPanel>
-        </Border>
-    </Grid>
+    </StackPanel>
 </UserControl>

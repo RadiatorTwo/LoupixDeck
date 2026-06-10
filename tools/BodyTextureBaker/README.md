@@ -1,16 +1,30 @@
 # BodyTextureBaker
 
-Regenerates the Loupedeck Live S device body images from matte source textures —
-one per app theme:
+Regenerates the device body images from matte source textures — one per device
+model and app theme. The textures are generic matte surfaces (grain + lighting
+only), so the same two textures drive every model; only the baked-in body
+geometry (viewBox + rounded-rect) differs per variant.
 
-| Variant | Source texture          | Output SVG                            |
-|---------|-------------------------|---------------------------------------|
-| dark    | `texture-no-light.png`  | `Assets/loupedeck-gehaeuse.svg`       |
-| light   | `texture-light.png`     | `Assets/loupedeck-gehaeuse-light.svg` |
+| Variant       | Source texture          | Output SVG                            |
+|---------------|-------------------------|---------------------------------------|
+| `dark`        | `texture-no-light.png`  | `Assets/loupedeck-gehaeuse.svg`       |
+| `light`       | `texture-light.png`     | `Assets/loupedeck-gehaeuse-light.svg` |
+| `razer-dark`  | `texture-no-light.png`  | `Assets/razer-gehaeuse.svg`           |
+| `razer-light` | `texture-light.png`     | `Assets/razer-gehaeuse-light.svg`     |
 
-The device layout (`Views/Devices/LoupedeckLiveSLayout.axaml`) binds the body SVG
-to the theme-aware `DeviceBodySvgPath` resource (defined per `ThemeVariant` in
-`App.axaml`), so Light mode shows the light body and Dark mode the dark one.
+Geometry per model (SVG viewBox units, matching the AXAML overlay):
+
+| Model | viewBox   | body rect                        | corner r |
+|-------|-----------|----------------------------------|----------|
+| Live S | 900×540  | (75,75)–(825,495) = 750×420      | 60       |
+| Razer  | 900×600  | (75,60)–(825,540) = 750×480      | 55       |
+
+The device layouts bind the body SVG to the theme-aware `DeviceBodySvgPath`
+resource (defined per `ThemeVariant` in `App.axaml`), so Light mode shows the
+light body and Dark mode the dark one.
+
+Group selectors: `--variant both` (Live S dark+light), `razer` (Razer dark+light),
+`all` (every variant).
 
 ## Why baking instead of SVG gradients
 
@@ -29,8 +43,12 @@ Run from anywhere in the repo (the tool locates the repo root via
 `LoupixDeck.csproj`):
 
 ```bash
-# Regenerate both variants with the committed defaults
+# Regenerate both Live S variants with the committed defaults
 dotnet run --project tools/BodyTextureBaker
+
+# Bake the Razer variants (dark + light), or every variant
+dotnet run --project tools/BodyTextureBaker -- --variant razer
+dotnet run --project tools/BodyTextureBaker -- --variant all
 
 # Bake just one variant
 dotnet run --project tools/BodyTextureBaker -- --variant light
