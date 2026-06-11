@@ -45,10 +45,8 @@ The builds are self-contained — the .NET 9 runtime is bundled, so no separate 
 ## 🚀 Quick Install (Linux)
 
 Distro-agnostic one-liner — downloads the latest release binary, installs it system-wide,
-sets up udev rules and a desktop entry, and installs the .NET 9 runtime if it's missing.
-Works on Arch/CachyOS/Manjaro, Debian/Ubuntu/Mint/Pop!_OS, Fedora/RHEL, openSUSE,
-Alpine, Void, Gentoo, Solus (anything with one of the common package managers; falls
-back to Microsoft's `dotnet-install.sh` otherwise).
+and sets up udev rules and a desktop entry. The release build is self-contained,
+so no separate .NET runtime is installed.
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/RadiatorTwo/LoupixDeck/master/install-loupixdeck.sh | bash
