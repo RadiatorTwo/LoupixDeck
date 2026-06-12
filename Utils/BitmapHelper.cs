@@ -630,17 +630,35 @@ public static class BitmapHelper
     /// images past the button edge — frame clipping happens only on the device-side
     /// render produced by <see cref="RenderTouchButtonContent"/>.
     /// </summary>
+    /// <summary>Largest editor-frame extent (canvas px). The frame's longer side maps
+    /// to this; the shorter side scales proportionally. A square 90×90 button yields a
+    /// 300×300 frame (scale 3.333), matching the original fixed layout.</summary>
+    public const int EditorFrameExtent = 300;
+
+    /// <summary>
+    /// Computes the editor frame geometry for a device surface of
+    /// <paramref name="deviceWidth"/>×<paramref name="deviceHeight"/>: a uniform
+    /// canvas-px-per-device-px scale (so aspect is preserved) and the resulting
+    /// frame width/height. Used by both the renderer and the View's overlay math.
+    /// </summary>
+    public static (float Scale, float FrameWidth, float FrameHeight) ComputeEditorFrame(int deviceWidth, int deviceHeight)
+    {
+        var scale = EditorFrameExtent / (float)Math.Max(deviceWidth, deviceHeight);
+        return (scale, deviceWidth * scale, deviceHeight * scale);
+    }
+
     public static SKBitmap RenderEditorCanvas(
         TouchButton touchButton,
         LoupedeckConfig config,
         int canvasSize = 600,
-        int frameSize = 300,
+        int deviceWidth = 90,
+        int deviceHeight = 90,
         bool drawGrid = false,
         int gridStepDevice = 10)
     {
         ArgumentNullException.ThrowIfNull(touchButton);
 
-        const int deviceSize = 90;
+        var (scale, frameW, frameH) = ComputeEditorFrame(deviceWidth, deviceHeight);
 
         var bmp = new SKBitmap(canvasSize, canvasSize);
         using var canvas = new SKCanvas(bmp);
@@ -649,9 +667,10 @@ public static class BitmapHelper
         // theme-aware canvas background (and plate shadow) behind this bitmap.
         canvas.Clear(SKColors.Transparent);
 
-        var frameOffset = (canvasSize - frameSize) / 2f;
-        var frameRect = new SKRect(frameOffset, frameOffset,
-            frameOffset + frameSize, frameOffset + frameSize);
+        var frameOffsetX = (canvasSize - frameW) / 2f;
+        var frameOffsetY = (canvasSize - frameH) / 2f;
+        var frameRect = new SKRect(frameOffsetX, frameOffsetY,
+            frameOffsetX + frameW, frameOffsetY + frameH);
 
         // Fill the frame with the button's background color (the device-pixel area).
         using (var bgPaint = new SKPaint { Color = touchButton.BackColor.ToSKColor() })
@@ -662,8 +681,8 @@ public static class BitmapHelper
         // Switch to device-pixel space inside the frame so layer positions/scale match
         // exactly what the device render produces.
         canvas.Save();
-        canvas.Translate(frameOffset, frameOffset);
-        canvas.Scale((float)frameSize / deviceSize);
+        canvas.Translate(frameOffsetX, frameOffsetY);
+        canvas.Scale(scale);
 
         if (touchButton.Layers != null)
         {
@@ -674,13 +693,13 @@ public static class BitmapHelper
                 switch (layer)
                 {
                     case ImageLayer image:
-                        DrawImageLayerExtended(canvas, image, deviceSize, deviceSize);
+                        DrawImageLayerExtended(canvas, image, deviceWidth, deviceHeight);
                         break;
                     case TextLayer text:
-                        DrawTextLayer(canvas, text, deviceSize, deviceSize);
+                        DrawTextLayer(canvas, text, deviceWidth, deviceHeight);
                         break;
                     case SymbolLayer symbol:
-                        DrawSymbolLayer(canvas, symbol, deviceSize, deviceSize);
+                        DrawSymbolLayer(canvas, symbol, deviceWidth, deviceHeight);
                         break;
                 }
             }
@@ -693,7 +712,6 @@ public static class BitmapHelper
         // mapped to canvas space so they line up with the snap lattice.
         if (drawGrid && gridStepDevice > 0)
         {
-            var scale = (float)frameSize / deviceSize;
             using var gridPaint = new SKPaint
             {
                 Color = new SKColor(255, 255, 255, 38),
@@ -702,11 +720,16 @@ public static class BitmapHelper
                 Style = SKPaintStyle.Stroke
             };
 
-            for (var d = 0; d <= deviceSize; d += gridStepDevice)
+            for (var dx = 0; dx <= deviceWidth; dx += gridStepDevice)
             {
-                var p = frameOffset + d * scale;
-                canvas.DrawLine(p, frameOffset, p, frameOffset + frameSize, gridPaint);
-                canvas.DrawLine(frameOffset, p, frameOffset + frameSize, p, gridPaint);
+                var x = frameOffsetX + dx * scale;
+                canvas.DrawLine(x, frameOffsetY, x, frameOffsetY + frameH, gridPaint);
+            }
+
+            for (var dy = 0; dy <= deviceHeight; dy += gridStepDevice)
+            {
+                var y = frameOffsetY + dy * scale;
+                canvas.DrawLine(frameOffsetX, y, frameOffsetX + frameW, y, gridPaint);
             }
         }
 
@@ -721,22 +744,23 @@ public static class BitmapHelper
     public static SKRect? GetLayerEditorBounds(
         LayerBase layer,
         int canvasSize = 600,
-        int frameSize = 300)
+        int deviceWidth = 90,
+        int deviceHeight = 90)
     {
         if (layer == null || !layer.Visible) return null;
 
-        const int deviceSize = 90;
-        var deviceRect = GetLayerDeviceRect(layer, deviceSize, deviceSize);
+        var deviceRect = GetLayerDeviceRect(layer, deviceWidth, deviceHeight);
         if (deviceRect == null) return null;
 
-        var frameOffset = (canvasSize - frameSize) / 2f;
-        var scale = (float)frameSize / deviceSize;
+        var (scale, frameW, frameH) = ComputeEditorFrame(deviceWidth, deviceHeight);
+        var frameOffsetX = (canvasSize - frameW) / 2f;
+        var frameOffsetY = (canvasSize - frameH) / 2f;
         var dr = deviceRect.Value;
         return new SKRect(
-            frameOffset + dr.Left * scale,
-            frameOffset + dr.Top * scale,
-            frameOffset + dr.Right * scale,
-            frameOffset + dr.Bottom * scale);
+            frameOffsetX + dr.Left * scale,
+            frameOffsetY + dr.Top * scale,
+            frameOffsetX + dr.Right * scale,
+            frameOffsetY + dr.Bottom * scale);
     }
 
     /// <summary>

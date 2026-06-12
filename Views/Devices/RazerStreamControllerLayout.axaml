@@ -4,6 +4,7 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:conv="clr-namespace:LoupixDeck.Models.Converter"
+             xmlns:models="clr-namespace:LoupixDeck.Models"
              xmlns:utils="clr-namespace:LoupixDeck.Utils"
              xmlns:svg="clr-namespace:Avalonia.Svg.Skia;assembly=Svg.Controls.Skia.Avalonia"
              mc:Ignorable="d"
@@ -210,10 +211,12 @@
                             Background="{DynamicResource DeviceBezelBrush}">
                         <Grid>
                             <Grid Margin="16" ColumnDefinitions="60,360,60">
-                                <!-- Left narrow panel: TouchButtons[12] (60x270). -->
+                                <!-- Left narrow panel (slot 12). Driven by the rotary-label
+                                     / free-draw renderer; clicking edits the free-draw canvas
+                                     (no-op in segmented mode). -->
                                 <Button Tag="Touch" Grid.Column="0" Width="60" Height="270"
-                                        Command="{Binding TouchButtonCommand}"
-                                        CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[12]}">
+                                        Command="{Binding EditStripCanvasCommand}"
+                                        CommandParameter="{x:Static models:RotarySide.Left}">
                                     <Border CornerRadius="0" ClipToBounds="True">
                                         <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[12].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
                                     </Border>
@@ -309,10 +312,12 @@
                                     </Button>
                                 </Grid>
 
-                                <!-- Right narrow panel: TouchButtons[13] (60x270). -->
+                                <!-- Right narrow panel (slot 13). Driven by the rotary-label
+                                     / free-draw renderer; clicking edits the free-draw canvas
+                                     (no-op in segmented mode). -->
                                 <Button Tag="Touch" Grid.Column="2" Width="60" Height="270"
-                                        Command="{Binding TouchButtonCommand}"
-                                        CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[13]}">
+                                        Command="{Binding EditStripCanvasCommand}"
+                                        CommandParameter="{x:Static models:RotarySide.Right}">
                                     <Border CornerRadius="0" ClipToBounds="True">
                                         <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[13].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
                                     </Border>

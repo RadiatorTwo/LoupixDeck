@@ -38,6 +38,10 @@ public class MainWindowViewModel : ViewModelBase
     public ICommand NextRightRotaryPageCommand { get; }
     public ICommand PreviousRightRotaryPageCommand { get; }
 
+    /// <summary>Opens the free-draw canvas editor for a side strip (Razer). No-op unless
+    /// that side is in FreeDraw mode.</summary>
+    public ICommand EditStripCanvasCommand { get; }
+
 
     public ICommand AddTouchPageCommand { get; }
     public ICommand DeleteTouchPageCommand { get; }
@@ -150,6 +154,8 @@ public class MainWindowViewModel : ViewModelBase
         DeleteRightRotaryPageCommand = new RelayCommand(() => DeleteRotaryPageForSide(RotarySide.Right));
         NextRightRotaryPageCommand = new RelayCommand(() => PageRotaryForSide(RotarySide.Right, next: true));
         PreviousRightRotaryPageCommand = new RelayCommand(() => PageRotaryForSide(RotarySide.Right, next: false));
+
+        EditStripCanvasCommand = new AsyncRelayCommand<RotarySide>(EditStripCanvas_Click);
 
         AddTouchPageCommand = new RelayCommand(AddTouchPageButton_Click);
         DeleteTouchPageCommand = new RelayCommand(DeleteTouchPageButton_Click);
@@ -317,6 +323,35 @@ public class MainWindowViewModel : ViewModelBase
 
         LoupedeckController.SaveConfig();
         _dynamicTextManager.Rescan();
+    }
+
+    /// <summary>
+    /// Opens the layer editor on the current rotary page's free-draw strip canvas
+    /// (60×270). Only meaningful while that side is in FreeDraw mode; otherwise the
+    /// strip is a label/swipe area and the click is ignored.
+    /// </summary>
+    private async Task EditStripCanvas_Click(RotarySide side)
+    {
+        var config = LoupedeckController.Config;
+        if (config.GetStripMode(side) != StripMode.FreeDraw) return;
+
+        var page = LoupedeckController.PageManager.GetCurrentRotaryPage(side);
+        if (page == null) return;
+
+        // The canvas is a TouchButton reused as a 60×270 layer surface; create it lazily.
+        page.StripCanvas ??= new TouchButton(
+            side == RotarySide.Left
+                ? LoupixDeck.LoupedeckDevice.Device.RazerStreamControllerDevice.LeftSideIndex
+                : LoupixDeck.LoupedeckDevice.Device.RazerStreamControllerDevice.RightSideIndex);
+
+        await _dialogService.ShowDialogAsync<TouchButtonSettingsViewModel, DialogResult>(vm =>
+        {
+            vm.SetCanvasSize(60, 270);
+            vm.Initialize(page.StripCanvas);
+        });
+
+        LoupedeckController.SaveConfig();
+        await LoupedeckController.RefreshSideStrip(side);
     }
 
     private async Task SettingsMenuButton_Click()

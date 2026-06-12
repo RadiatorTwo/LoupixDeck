@@ -181,8 +181,10 @@
                             CornerRadius="6"
                             ClipToBounds="True">
                         <Grid>
-                            <!-- Button plate: border + shadow behind the rendered frame. -->
-                            <Border Width="300" Height="300"
+                            <!-- Button plate: border + shadow behind the rendered frame.
+                                 Sized to the aspect-correct frame so non-square canvases
+                                 (e.g. 60×270 side strips) get a matching plate. -->
+                            <Border Width="{Binding FrameWidth}" Height="{Binding FrameHeight}"
                                     HorizontalAlignment="Center" VerticalAlignment="Center"
                                     BorderBrush="#55000000" BorderThickness="1"
                                     BoxShadow="0 3 16 0 #50000000"

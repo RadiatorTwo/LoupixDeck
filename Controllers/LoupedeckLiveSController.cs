@@ -429,6 +429,10 @@ public class LoupedeckLiveSController(
         await DrawSideStrip(RotarySide.Right);
     }
 
+    /// <summary>Repaints a single side strip — public entry for the UI after the user
+    /// edits that side's free-draw canvas. No-op on devices without side strips.</summary>
+    public Task RefreshSideStrip(RotarySide side) => DrawSideStrip(side);
+
     /// <summary>True for the Razer side-strip slots, which are driven by rotary labels.</summary>
     private bool IsSideStripSlot(int slot) =>
         deviceService.Device?.HasSideStrips == true &&

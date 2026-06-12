@@ -51,11 +51,42 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
     private readonly LoupedeckConfig _config;
 
     public const int EditorCanvasSize = 600;
-    public const int EditorFrameSize = 300;
-    public const int DeviceSize = 90;
+
+    // Device-pixel dimensions of the edited surface. 90×90 for grid touch buttons;
+    // set to 60×270 for a Razer side-strip free-draw canvas via SetCanvasSize.
+    public int DeviceWidth { get; private set; } = 90;
+    public int DeviceHeight { get; private set; } = 90;
 
     /// <summary>Editor → device coordinate factor (canvas pixels per device pixel).</summary>
-    public static double EditorToDeviceScale => (double)EditorFrameSize / DeviceSize;
+    public double EditorToDeviceScale => BitmapHelper.ComputeEditorFrame(DeviceWidth, DeviceHeight).Scale;
+
+    /// <summary>Rendered frame size (canvas px), aspect-correct for the device surface.</summary>
+    public double FrameWidth => BitmapHelper.ComputeEditorFrame(DeviceWidth, DeviceHeight).FrameWidth;
+    public double FrameHeight => BitmapHelper.ComputeEditorFrame(DeviceWidth, DeviceHeight).FrameHeight;
+
+    /// <summary>Top-left of the centered frame inside the square editor canvas.</summary>
+    public double FrameOffsetX => (EditorCanvasSize - FrameWidth) / 2.0;
+    public double FrameOffsetY => (EditorCanvasSize - FrameHeight) / 2.0;
+
+    /// <summary>
+    /// Sets the edited surface's device-pixel dimensions (e.g. 60×270 for a side-strip
+    /// free-draw canvas). Call before <see cref="Initialize"/>. Defaults to 90×90.
+    /// </summary>
+    public void SetCanvasSize(int deviceWidth, int deviceHeight)
+    {
+        DeviceWidth = Math.Max(1, deviceWidth);
+        DeviceHeight = Math.Max(1, deviceHeight);
+        OnPropertyChanged(nameof(DeviceWidth));
+        OnPropertyChanged(nameof(DeviceHeight));
+        OnPropertyChanged(nameof(EditorToDeviceScale));
+        OnPropertyChanged(nameof(FrameWidth));
+        OnPropertyChanged(nameof(FrameHeight));
+        OnPropertyChanged(nameof(FrameOffsetX));
+        OnPropertyChanged(nameof(FrameOffsetY));
+        OnPropertyChanged(nameof(CanvasSizeText));
+        UpdateEditorPreview();
+        UpdateSelectionBounds();
+    }
 
     /// <summary>Spacing of the editor's alignment grid in device pixels; also the
     /// step used when <see cref="SnapToGrid"/> is active.</summary>
@@ -116,7 +147,7 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
     public string CommandSummary => HasCommand ? ButtonData.Command : "No command assigned";
 
     /// <summary>Resolution badge shown in the canvas corner, e.g. "90 × 90 px".</summary>
-    public string CanvasSizeText => $"{DeviceSize} × {DeviceSize} px";
+    public string CanvasSizeText => $"{DeviceWidth} × {DeviceHeight} px";
 
     private LayerBase _selectedLayer;
     public LayerBase SelectedLayer
@@ -329,8 +360,8 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
         {
             Name = GetUniqueLayerName("Text"),
             Text = "Text",
-            BoxWidth = DeviceSize,
-            BoxHeight = DeviceSize
+            BoxWidth = DeviceWidth,
+            BoxHeight = DeviceHeight
         };
         ButtonData.Layers.Add(layer);
         SelectedLayer = layer;
@@ -579,7 +610,7 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
     {
         if (ButtonData == null || _config == null) return;
         EditorPreview = BitmapHelper.RenderEditorCanvas(
-            ButtonData, _config, EditorCanvasSize, EditorFrameSize, ShowGrid, GridStepDevice);
+            ButtonData, _config, EditorCanvasSize, DeviceWidth, DeviceHeight, ShowGrid, GridStepDevice);
     }
 
     /// <summary>
@@ -603,7 +634,7 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
         }
 
         var rect = BitmapHelper.GetLayerEditorBounds(
-            _selectedLayer, EditorCanvasSize, EditorFrameSize);
+            _selectedLayer, EditorCanvasSize, DeviceWidth, DeviceHeight);
 
         if (rect == null)
         {
