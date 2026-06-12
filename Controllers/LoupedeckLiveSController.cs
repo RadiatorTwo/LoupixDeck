@@ -404,7 +404,16 @@ public class LoupedeckLiveSController(
             ? LoupedeckDevice.Device.RazerStreamControllerDevice.LeftSideIndex
             : LoupedeckDevice.Device.RazerStreamControllerDevice.RightSideIndex;
 
-        using var strip = BitmapHelper.RenderRotaryStrip(page, config, 60, 270);
+        var strip = BitmapHelper.RenderRotaryStrip(page, config, 60, 270, side);
+
+        // Mirror the strip onto the on-screen mask: the side-panel buttons bind to
+        // their TouchButton.RenderedImage. The setter owns the bitmap's lifetime
+        // (deferred dispose), so don't dispose it here — it's also read by the device
+        // push below and held by the UI binding.
+        var slotButton = config.CurrentTouchButtonPage?.TouchButtons?.FindByIndex(slotIndex);
+        if (slotButton != null)
+            slotButton.RenderedImage = strip;
+
         await razer.DrawTouchSlot(slotIndex, strip);
     }
 
@@ -997,6 +1006,10 @@ public class LoupedeckLiveSController(
                 touchButton.ItemChanged += TouchItemChanged;
             }
         }
+
+        // The side strips share the page wallpaper, so repaint them for the new page.
+        if (!_isDeviceOff && !folderNav.IsActive && !exclusiveMode.IsActive)
+            _ = RedrawSideStrips();
     }
 
     private void TouchButtonPagesOnCollectionChanged(object sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
@@ -1049,6 +1062,8 @@ public class LoupedeckLiveSController(
                         await deviceService.Device.DrawTouchButton(touchButton, config, true, deviceService.Device.Columns);
                         await Task.Delay(0, token);
                     }
+                    // The side strips share the wallpaper — repaint them too.
+                    await RedrawSideStrips();
                     break;
             }
         }

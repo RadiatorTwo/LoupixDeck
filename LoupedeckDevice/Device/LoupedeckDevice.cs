@@ -64,6 +64,14 @@ public class LoupedeckDevice
     public virtual bool HasSideStrips => false;
 
     /// <summary>
+    /// X-offset (in panel/wallpaper pixels) at which the centre touch grid starts on
+    /// the unified panel. Devices with side strips reserve the leftmost strip width
+    /// (Razer: 60), so the page wallpaper maps to its true panel position and stays
+    /// continuous with the strips across the bezel. 0 (default) for full-width grids.
+    /// </summary>
+    public virtual int WallpaperGridXOffset => 0;
+
+    /// <summary>
     /// Returns the touch slot that physically sits next to the rotary at
     /// <paramref name="rotaryIndex"/>, or -1 when the device has no such
     /// neighbour. Plugins use this for transient feedback overlays (e.g. a
@@ -701,7 +709,7 @@ public class LoupedeckDevice
         if (refresh || touchButton.RenderedImage == null)
         {
             var renderedBitmap =
-                BitmapHelper.RenderTouchButtonContent(touchButton, config, 90, 90, columns);
+                BitmapHelper.RenderTouchButtonContent(touchButton, config, 90, 90, columns, WallpaperGridXOffset);
             if (renderedBitmap == null) return;
         }
 

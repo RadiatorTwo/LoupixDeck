@@ -542,7 +542,8 @@ public static class BitmapHelper
         LoupedeckConfig config,
         int width,
         int height,
-        int gridColumns = 0)
+        int gridColumns = 0,
+        int wallpaperXOffset = 0)
     {
         ArgumentNullException.ThrowIfNull(touchButton);
 
@@ -585,11 +586,13 @@ public static class BitmapHelper
                 var col = touchButton.Index % gridColumns;
                 var row = touchButton.Index / gridColumns;
 
-                // Calculate the section from the wallpaper
+                // Calculate the section from the wallpaper. wallpaperXOffset shifts the
+                // sampled region to the grid's true panel position so the wallpaper stays
+                // continuous with the side strips across the bezel (Razer: +60).
                 var srcRect = new SKRect(
-                    col * width,
+                    wallpaperXOffset + col * width,
                     row * height,
-                    (col + 1) * width,
+                    wallpaperXOffset + (col + 1) * width,
                     (row + 1) * height
                 );
                 var destRect = new SKRect(0, 0, width, height);
@@ -1347,15 +1350,17 @@ public static class BitmapHelper
     /// <summary>
     /// Renders a side strip in segmented mode: the strip's full height is split into
     /// one region per knob on that dial column (3 × 60×90 on the Razer), each showing
-    /// the knob's <see cref="RotaryButton.DisplayText"/> label centered, separated by
-    /// thin divider lines. Addressed by region/x-offset, not the per-key touch grid,
-    /// so no wallpaper tiling is applied.
+    /// the knob's <see cref="RotaryButton.DisplayText"/> label centered. The background
+    /// is the page wallpaper's true panel region for this strip (left = x 0–60, right =
+    /// x 420–480 of the 480-wide panel) so the image stays continuous with the centre
+    /// grid across the bezel; falls back to a solid dark fill when no wallpaper is set.
     /// </summary>
     public static SKBitmap RenderRotaryStrip(
         RotaryButtonPage page,
         LoupedeckConfig config,
         int width,
-        int height)
+        int height,
+        RotarySide side)
     {
         ArgumentNullException.ThrowIfNull(page);
 
@@ -1364,7 +1369,8 @@ public static class BitmapHelper
         lock (SkiaRenderGate.Sync)
         {
             using var canvas = new SKCanvas(bitmap);
-            canvas.Clear(new SKColor(20, 20, 20));
+
+            DrawStripWallpaperOrColor(canvas, config, side, width, height);
 
             var buttons = page.RotaryButtons;
             var count = buttons?.Count ?? 0;
@@ -1376,20 +1382,9 @@ public static class BitmapHelper
 
             var segmentHeight = height / (float)count;
 
-            using var divider = new SKPaint
-            {
-                Color = new SKColor(70, 70, 70),
-                Style = SKPaintStyle.Stroke,
-                StrokeWidth = 1,
-                IsAntialias = false
-            };
-
             for (var i = 0; i < count; i++)
             {
                 var top = i * segmentHeight;
-
-                if (i > 0)
-                    canvas.DrawLine(0, top, width, top, divider);
 
                 var text = buttons[i]?.DisplayText;
                 if (string.IsNullOrWhiteSpace(text))
@@ -1412,6 +1407,67 @@ public static class BitmapHelper
         }
 
         return bitmap;
+    }
+
+    // The unified panel is 480px wide; the side strips occupy its outer 60px columns.
+    private const int PanelWidth = 480;
+    private const int StripWidth = 60;
+
+    /// <summary>
+    /// Fills a side strip with its true region of the page wallpaper (left = panel
+    /// x 0–60, right = x 420–480), scaled from the stored 480×270 wallpaper, with the
+    /// page's opacity dim on top. Falls back to a solid dark fill when no wallpaper.
+    /// </summary>
+    private static void DrawStripWallpaperOrColor(
+        SKCanvas canvas,
+        LoupedeckConfig config,
+        RotarySide side,
+        int width,
+        int height)
+    {
+        SKBitmap wallpaper = null;
+        double opacity = 0;
+
+        if (config?.CurrentTouchButtonPage != null)
+        {
+            if (config.CurrentTouchButtonPage.Wallpaper != null)
+            {
+                wallpaper = config.CurrentTouchButtonPage.Wallpaper;
+                opacity = config.CurrentTouchButtonPage.WallpaperOpacity;
+            }
+            else if (config.TouchButtonPages is { Count: > 0 } &&
+                     config.TouchButtonPages[0].Wallpaper != null)
+            {
+                wallpaper = config.TouchButtonPages[0].Wallpaper;
+                opacity = config.TouchButtonPages[0].WallpaperOpacity;
+            }
+        }
+
+        if (wallpaper == null)
+        {
+            canvas.Clear(new SKColor(20, 20, 20));
+            return;
+        }
+
+        // Panel-space x where this strip starts: left at 0, right at 480-60=420.
+        var panelStartX = side == RotarySide.Right ? PanelWidth - StripWidth : 0;
+        var scaleX = wallpaper.Width / (float)PanelWidth;
+        var scaleY = wallpaper.Height / (float)height; // strip height == panel height (270)
+
+        var srcRect = new SKRect(
+            panelStartX * scaleX,
+            0,
+            (panelStartX + StripWidth) * scaleX,
+            height * scaleY);
+        var destRect = new SKRect(0, 0, width, height);
+
+        canvas.DrawBitmap(wallpaper, srcRect, destRect);
+
+        if (opacity > 0)
+        {
+            using var dim = new SKPaint { Color = new SKColor(0, 0, 0, (byte)(255 * opacity)) };
+            canvas.DrawRect(destRect, dim);
+        }
     }
 
     private static void DrawWallpaperOrColor(

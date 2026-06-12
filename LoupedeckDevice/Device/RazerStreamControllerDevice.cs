@@ -24,6 +24,10 @@ public class RazerStreamControllerDevice : LoupedeckDevice
     /// <inheritdoc />
     public override bool HasSideStrips => true;
 
+    /// <inheritdoc />
+    /// <remarks>The left strip occupies panel x 0–60, so the centre grid starts at 60.</remarks>
+    public override int WallpaperGridXOffset => 60;
+
     public RazerStreamControllerDevice(string host = null, string path = null, int baudrate = 0,
         bool autoConnect = true, int reconnectInterval = Constants.DefaultReconnectInterval)
         : base(host, path, baudrate, autoConnect, reconnectInterval)
