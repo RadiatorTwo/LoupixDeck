@@ -1344,6 +1344,76 @@ public static class BitmapHelper
         return bitmap;
     }
 
+    /// <summary>
+    /// Renders a side strip in segmented mode: the strip's full height is split into
+    /// one region per knob on that dial column (3 × 60×90 on the Razer), each showing
+    /// the knob's <see cref="RotaryButton.DisplayText"/> label centered, separated by
+    /// thin divider lines. Addressed by region/x-offset, not the per-key touch grid,
+    /// so no wallpaper tiling is applied.
+    /// </summary>
+    public static SKBitmap RenderRotaryStrip(
+        RotaryButtonPage page,
+        LoupedeckConfig config,
+        int width,
+        int height)
+    {
+        ArgumentNullException.ThrowIfNull(page);
+
+        var bitmap = new SKBitmap(width, height);
+
+        lock (SkiaRenderGate.Sync)
+        {
+            using var canvas = new SKCanvas(bitmap);
+            canvas.Clear(new SKColor(20, 20, 20));
+
+            var buttons = page.RotaryButtons;
+            var count = buttons?.Count ?? 0;
+            if (count == 0)
+            {
+                canvas.Flush();
+                return bitmap;
+            }
+
+            var segmentHeight = height / (float)count;
+
+            using var divider = new SKPaint
+            {
+                Color = new SKColor(70, 70, 70),
+                Style = SKPaintStyle.Stroke,
+                StrokeWidth = 1,
+                IsAntialias = false
+            };
+
+            for (var i = 0; i < count; i++)
+            {
+                var top = i * segmentHeight;
+
+                if (i > 0)
+                    canvas.DrawLine(0, top, width, top, divider);
+
+                var text = buttons[i]?.DisplayText;
+                if (string.IsNullOrWhiteSpace(text))
+                    continue;
+
+                DrawTextAt(
+                    canvas,
+                    text,
+                    SKColors.White,
+                    16,
+                    centered: true,
+                    posX: 0,
+                    posY: top,
+                    imageWidth: width,
+                    imageHeight: segmentHeight,
+                    bold: false);
+            }
+
+            canvas.Flush();
+        }
+
+        return bitmap;
+    }
+
     private static void DrawWallpaperOrColor(
         SKCanvas canvas,
         LoupedeckConfig config,

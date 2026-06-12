@@ -47,6 +47,13 @@ public class SettingsViewModel : DialogViewModelBase<DialogResult>
     public ICommand RemoveRotaryPageCommand { get; }
     public ICommand MoveRotaryPageUpCommand { get; }
     public ICommand MoveRotaryPageDownCommand { get; }
+
+    // Side-specific rotary page management for devices with independent dial columns (Razer).
+    public ICommand AddLeftRotaryPageCommand { get; }
+    public ICommand RemoveLeftRotaryPageCommand { get; }
+    public ICommand AddRightRotaryPageCommand { get; }
+    public ICommand RemoveRightRotaryPageCommand { get; }
+
     public ICommand OpenWebsiteCommand { get; }
     public ICommand OpenPluginsFolderCommand { get; }
     public ICommand InstallInterceptionCommand { get; }
@@ -116,6 +123,15 @@ public class SettingsViewModel : DialogViewModelBase<DialogResult>
             p => MovePage(_pageManager.RotaryButtonPages, p, +1),
             p => p != null && _pageManager.RotaryButtonPages.IndexOf(p) < _pageManager.RotaryButtonPages.Count - 1);
 
+        AddLeftRotaryPageCommand = new RelayCommand(() => _pageManager.AddRotaryButtonPage(RotarySide.Left));
+        RemoveLeftRotaryPageCommand = new RelayCommand<RotaryButtonPage>(
+            p => RemoveSideRotaryPage(RotarySide.Left, p),
+            p => p != null && LeftRotaryPages.Count > 1);
+        AddRightRotaryPageCommand = new RelayCommand(() => _pageManager.AddRotaryButtonPage(RotarySide.Right));
+        RemoveRightRotaryPageCommand = new RelayCommand<RotaryButtonPage>(
+            p => RemoveSideRotaryPage(RotarySide.Right, p),
+            p => p != null && RightRotaryPages.Count > 1);
+
         // CollectionChanged can fire from a background thread (the parameterless
         // RelayCommand runs Execute via Task.Run). Marshal the CanExecute refresh
         // back to the UI thread so Avalonia's Button.IsEnabled update is safe.
@@ -131,6 +147,17 @@ public class SettingsViewModel : DialogViewModelBase<DialogResult>
                 RefreshRotaryPageCommands();
                 SyncRotaryPageOptions();
             });
+
+        // Side-page lists drive the Remove buttons' CanExecute on side-strip devices.
+        if (HasIndependentRotarySides)
+        {
+            LeftRotaryPages.CollectionChanged += (_, _) =>
+                Dispatcher.UIThread.Post(() =>
+                    (RemoveLeftRotaryPageCommand as RelayCommand<RotaryButtonPage>)?.RaiseCanExecuteChanged());
+            RightRotaryPages.CollectionChanged += (_, _) =>
+                Dispatcher.UIThread.Post(() =>
+                    (RemoveRightRotaryPageCommand as RelayCommand<RotaryButtonPage>)?.RaiseCanExecuteChanged());
+        }
 
         SyncRotaryPageOptions();
         SyncFallbackPageOptions();
@@ -376,6 +403,12 @@ public class SettingsViewModel : DialogViewModelBase<DialogResult>
     public ObservableCollection<TouchButtonPage> TouchPages => _pageManager.TouchButtonPages;
     public ObservableCollection<RotaryButtonPage> RotaryPages => _pageManager.RotaryButtonPages;
 
+    /// <summary>True for devices that page their two dial columns independently (Razer):
+    /// the rotary settings show separate left/right page lists instead of one.</summary>
+    public bool HasIndependentRotarySides => _pageManager.HasIndependentRotarySides;
+    public ObservableCollection<RotaryButtonPage> LeftRotaryPages => _pageManager.GetRotaryPages(RotarySide.Left);
+    public ObservableCollection<RotaryButtonPage> RightRotaryPages => _pageManager.GetRotaryPages(RotarySide.Right);
+
     public ObservableCollection<int> TouchPageIndices
     {
         get
@@ -471,6 +504,17 @@ public class SettingsViewModel : DialogViewModelBase<DialogResult>
         if (idx < 0) return;
         _pageManager.CurrentRotaryPageIndex = idx;
         _pageManager.DeleteRotaryButtonPage();
+    }
+
+    private void RemoveSideRotaryPage(RotarySide side, RotaryButtonPage page)
+    {
+        var pages = _pageManager.GetRotaryPages(side);
+        if (page == null || pages.Count <= 1) return;
+        var idx = pages.IndexOf(page);
+        if (idx < 0) return;
+        // Point the side's current index at the page to delete, then delete it.
+        _pageManager.ApplyRotaryPage(side, idx);
+        _pageManager.DeleteRotaryButtonPage(side);
     }
 
     private void MovePage<T>(ObservableCollection<T> coll, T page, int delta)

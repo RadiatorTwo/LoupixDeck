@@ -23,6 +23,14 @@ public class RotaryButtonPage : INotifyPropertyChanged
     private bool _selected;
 
     /// <summary>
+    /// Which dial column this page belongs to. Defaults to <see cref="RotarySide.Both"/>
+    /// so configs written before the side split (and devices without side strips,
+    /// e.g. the Live S) keep the single-column behaviour. The v3→v4 migration tags
+    /// Razer pages <see cref="RotarySide.Left"/> / <see cref="RotarySide.Right"/>.
+    /// </summary>
+    public RotarySide Side { get; set; } = RotarySide.Both;
+
+    /// <summary>
     /// Optional user-assigned page name. Persisted; when empty the page falls back
     /// to its number, so configs written before naming existed load unchanged.
     /// </summary>

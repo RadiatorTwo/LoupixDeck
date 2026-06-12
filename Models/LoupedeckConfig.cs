@@ -14,6 +14,8 @@ namespace LoupixDeck.Models;
 public class LoupedeckConfig : INotifyPropertyChanged
 {
     private int _currentRotaryPageIndex = -1;
+    private int _currentLeftRotaryPageIndex = -1;
+    private int _currentRightRotaryPageIndex = -1;
     private int _currentTouchPageIndex = -1;
 
     private int _brightness = 100;
@@ -24,6 +26,8 @@ public class LoupedeckConfig : INotifyPropertyChanged
         // ObjectCreationHandling.Replace), so the property setters never fire on
         // load — subscribe here to keep the page-count labels in sync.
         _rotaryButtonPages.CollectionChanged += OnRotaryPagesChanged;
+        _leftRotaryButtonPages.CollectionChanged += OnLeftRotaryPagesChanged;
+        _rightRotaryButtonPages.CollectionChanged += OnRightRotaryPagesChanged;
         _touchButtonPages.CollectionChanged += OnTouchPagesChanged;
     }
 
@@ -32,8 +36,11 @@ public class LoupedeckConfig : INotifyPropertyChanged
     /// the migration chain for older versions (see <c>Services/Migrations</c>).
     /// v3 introduced the plugin system: the integration-specific fields were
     /// removed and the per-integration enable flags became <see cref="EnabledPlugins"/>.
+    /// v4 split the single <see cref="RotaryButtonPages"/> list into independent
+    /// <see cref="LeftRotaryButtonPages"/> / <see cref="RightRotaryButtonPages"/> sets
+    /// for devices with side strips (Razer); see <c>RotaryPageSideSplitMigrator</c>.
     /// </summary>
-    public const int CurrentVersion = 3;
+    public const int CurrentVersion = 4;
 
     public int Version { get; set; } = CurrentVersion;
 
@@ -147,6 +154,110 @@ public class LoupedeckConfig : INotifyPropertyChanged
     public string RotaryPageLabel =>
         RotaryButtonPages is { Count: > 0 }
             ? $"{Math.Clamp(_currentRotaryPageIndex + 1, 1, RotaryButtonPages.Count)} / {RotaryButtonPages.Count}"
+            : "0 / 0";
+
+    // --- Independent left/right rotary pages (devices with side strips) -------
+    // Devices with side strips (Razer Stream Controller) page each dial column on
+    // its own: LeftRotaryButtonPages / RightRotaryButtonPages each hold that side's
+    // knobs (3 on the Razer, re-indexed 0-based per side). Devices without side
+    // strips (Live S) leave these empty and keep using RotaryButtonPages (Both).
+
+    private ObservableCollection<RotaryButtonPage> _leftRotaryButtonPages = [];
+    public ObservableCollection<RotaryButtonPage> LeftRotaryButtonPages
+    {
+        get => _leftRotaryButtonPages;
+        set
+        {
+            if (ReferenceEquals(_leftRotaryButtonPages, value)) return;
+            if (_leftRotaryButtonPages != null)
+                _leftRotaryButtonPages.CollectionChanged -= OnLeftRotaryPagesChanged;
+            _leftRotaryButtonPages = value;
+            if (_leftRotaryButtonPages != null)
+                _leftRotaryButtonPages.CollectionChanged += OnLeftRotaryPagesChanged;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(LeftRotaryPageLabel));
+        }
+    }
+
+    private void OnLeftRotaryPagesChanged(object sender, NotifyCollectionChangedEventArgs e)
+        => OnPropertyChanged(nameof(LeftRotaryPageLabel));
+
+    private ObservableCollection<RotaryButtonPage> _rightRotaryButtonPages = [];
+    public ObservableCollection<RotaryButtonPage> RightRotaryButtonPages
+    {
+        get => _rightRotaryButtonPages;
+        set
+        {
+            if (ReferenceEquals(_rightRotaryButtonPages, value)) return;
+            if (_rightRotaryButtonPages != null)
+                _rightRotaryButtonPages.CollectionChanged -= OnRightRotaryPagesChanged;
+            _rightRotaryButtonPages = value;
+            if (_rightRotaryButtonPages != null)
+                _rightRotaryButtonPages.CollectionChanged += OnRightRotaryPagesChanged;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(RightRotaryPageLabel));
+        }
+    }
+
+    private void OnRightRotaryPagesChanged(object sender, NotifyCollectionChangedEventArgs e)
+        => OnPropertyChanged(nameof(RightRotaryPageLabel));
+
+    [JsonIgnore]
+    public int CurrentLeftRotaryPageIndex
+    {
+        get => _currentLeftRotaryPageIndex;
+        set
+        {
+            if (_currentLeftRotaryPageIndex == value) return;
+            _currentLeftRotaryPageIndex = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(CurrentLeftRotaryButtonPage));
+            OnPropertyChanged(nameof(LeftRotaryPageLabel));
+        }
+    }
+
+    [JsonIgnore]
+    public int CurrentRightRotaryPageIndex
+    {
+        get => _currentRightRotaryPageIndex;
+        set
+        {
+            if (_currentRightRotaryPageIndex == value) return;
+            _currentRightRotaryPageIndex = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(CurrentRightRotaryButtonPage));
+            OnPropertyChanged(nameof(RightRotaryPageLabel));
+        }
+    }
+
+    [JsonIgnore]
+    public RotaryButtonPage CurrentLeftRotaryButtonPage =>
+        (LeftRotaryButtonPages != null &&
+         _currentLeftRotaryPageIndex >= 0 &&
+         _currentLeftRotaryPageIndex < LeftRotaryButtonPages.Count)
+            ? LeftRotaryButtonPages[_currentLeftRotaryPageIndex]
+            : null;
+
+    [JsonIgnore]
+    public RotaryButtonPage CurrentRightRotaryButtonPage =>
+        (RightRotaryButtonPages != null &&
+         _currentRightRotaryPageIndex >= 0 &&
+         _currentRightRotaryPageIndex < RightRotaryButtonPages.Count)
+            ? RightRotaryButtonPages[_currentRightRotaryPageIndex]
+            : null;
+
+    /// <summary>"current / total" label for the left rotary pager (1-based).</summary>
+    [JsonIgnore]
+    public string LeftRotaryPageLabel =>
+        LeftRotaryButtonPages is { Count: > 0 }
+            ? $"{Math.Clamp(_currentLeftRotaryPageIndex + 1, 1, LeftRotaryButtonPages.Count)} / {LeftRotaryButtonPages.Count}"
+            : "0 / 0";
+
+    /// <summary>"current / total" label for the right rotary pager (1-based).</summary>
+    [JsonIgnore]
+    public string RightRotaryPageLabel =>
+        RightRotaryButtonPages is { Count: > 0 }
+            ? $"{Math.Clamp(_currentRightRotaryPageIndex + 1, 1, RightRotaryButtonPages.Count)} / {RightRotaryButtonPages.Count}"
             : "0 / 0";
 
     private ObservableCollection<TouchButtonPage> _touchButtonPages = [];

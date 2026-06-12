@@ -27,6 +27,17 @@ public class MainWindowViewModel : ViewModelBase
     public ICommand NextRotaryPageCommand { get; }
     public ICommand PreviousRotaryPageCommand { get; }
 
+    // Side-specific rotary paging — used by the Razer layout, whose two dial columns
+    // page independently. Bound per side (Left/Right) in the device layout.
+    public ICommand AddLeftRotaryPageCommand { get; }
+    public ICommand DeleteLeftRotaryPageCommand { get; }
+    public ICommand NextLeftRotaryPageCommand { get; }
+    public ICommand PreviousLeftRotaryPageCommand { get; }
+    public ICommand AddRightRotaryPageCommand { get; }
+    public ICommand DeleteRightRotaryPageCommand { get; }
+    public ICommand NextRightRotaryPageCommand { get; }
+    public ICommand PreviousRightRotaryPageCommand { get; }
+
 
     public ICommand AddTouchPageCommand { get; }
     public ICommand DeleteTouchPageCommand { get; }
@@ -131,6 +142,15 @@ public class MainWindowViewModel : ViewModelBase
         NextRotaryPageCommand = new RelayCommand(NextRotaryPage_Click);
         PreviousRotaryPageCommand = new RelayCommand(PreviousRotaryPage_Click);
 
+        AddLeftRotaryPageCommand = new RelayCommand(() => AddRotaryPageForSide(RotarySide.Left));
+        DeleteLeftRotaryPageCommand = new RelayCommand(() => DeleteRotaryPageForSide(RotarySide.Left));
+        NextLeftRotaryPageCommand = new RelayCommand(() => PageRotaryForSide(RotarySide.Left, next: true));
+        PreviousLeftRotaryPageCommand = new RelayCommand(() => PageRotaryForSide(RotarySide.Left, next: false));
+        AddRightRotaryPageCommand = new RelayCommand(() => AddRotaryPageForSide(RotarySide.Right));
+        DeleteRightRotaryPageCommand = new RelayCommand(() => DeleteRotaryPageForSide(RotarySide.Right));
+        NextRightRotaryPageCommand = new RelayCommand(() => PageRotaryForSide(RotarySide.Right, next: true));
+        PreviousRightRotaryPageCommand = new RelayCommand(() => PageRotaryForSide(RotarySide.Right, next: false));
+
         AddTouchPageCommand = new RelayCommand(AddTouchPageButton_Click);
         DeleteTouchPageCommand = new RelayCommand(DeleteTouchPageButton_Click);
         TouchPageButtonCommand = new RelayCommand<int>(TouchPageButton_Click);
@@ -205,6 +225,35 @@ public class MainWindowViewModel : ViewModelBase
     {
         Avalonia.Threading.Dispatcher.UIThread.Post(() =>
             LoupedeckController.PageManager.PreviousRotaryPage());
+    }
+
+    private void AddRotaryPageForSide(RotarySide side)
+    {
+        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        {
+            LoupedeckController.PageManager.AddRotaryButtonPage(side);
+            LoupedeckController.SaveConfig();
+        });
+    }
+
+    private void DeleteRotaryPageForSide(RotarySide side)
+    {
+        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        {
+            LoupedeckController.PageManager.DeleteRotaryButtonPage(side);
+            LoupedeckController.SaveConfig();
+        });
+    }
+
+    private void PageRotaryForSide(RotarySide side, bool next)
+    {
+        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        {
+            if (next)
+                LoupedeckController.PageManager.NextRotaryPage(side);
+            else
+                LoupedeckController.PageManager.PreviousRotaryPage(side);
+        });
     }
 
     private void AddTouchPageButton_Click()

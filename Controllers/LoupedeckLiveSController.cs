@@ -99,6 +99,7 @@ public class LoupedeckLiveSController(
                     await device.DrawTouchButton(tb, config, true, device.Columns);
                 }
             }
+            await RedrawSideStrips();
             // Re-program firmware haptic from the persisted config.
             nativeHapticService.Apply();
         }
@@ -126,6 +127,8 @@ public class LoupedeckLiveSController(
         {
             await device.DrawTouchButton(tb, config, true, device.Columns);
         }
+
+        await RedrawSideStrips();
     }
 
     public async Task Initialize(string port = null, int baudrate = 0)
@@ -206,16 +209,7 @@ public class LoupedeckLiveSController(
 
         config.SimpleButtons = await BuildSimpleButtons();
 
-        if (config.RotaryButtonPages == null || config.RotaryButtonPages.Count == 0)
-        {
-            pageManager.AddRotaryButtonPage(true);
-        }
-        else
-        {
-            // Existing config Init always page 0.
-            config.CurrentRotaryPageIndex = 0;
-            pageManager.ApplyRotaryPage(config.CurrentRotaryPageIndex, true);
-        }
+        InitializeRotaryPages();
 
         if (config.TouchButtonPages == null || config.TouchButtonPages.Count == 0)
         {
@@ -241,7 +235,10 @@ public class LoupedeckLiveSController(
             }
         }
 
-        config.CurrentRotaryButtonPage.Selected = true;
+        // Rotary selection is already set by InitializeRotaryPages (per side on
+        // side-strip devices, where CurrentRotaryButtonPage/Both is intentionally null).
+        if (config.CurrentRotaryButtonPage != null)
+            config.CurrentRotaryButtonPage.Selected = true;
         config.CurrentTouchButtonPage.Selected = true;
 
         config.PropertyChanged += ConfigOnPropertyChanged;
@@ -255,6 +252,9 @@ public class LoupedeckLiveSController(
         // the firmware has released it) makes BUTTON0 honour its configured colour like the
         // others. See the bottom-left-button-always-green investigation.
         await ReapplySimpleButtonColors();
+
+        // Paint the initial segmented rotary labels onto the side strips (Razer).
+        await RedrawSideStrips();
 
         InitButtonEvents();
 
@@ -284,7 +284,143 @@ public class LoupedeckLiveSController(
         device.OnButton += OnSimpleButtonPress;
         device.OnTouch += OnTouchButtonPress;
         device.OnRotate += OnRotate;
+        device.OnSwipe += OnSwipe;
+
+        // Repaint the affected side strip whenever its rotary page changes.
+        pageManager.OnRotaryPageChanged += OnRotaryPageChanged;
     }
+
+    /// <summary>
+    /// Sets up the rotary pages for the active device. Devices with side strips
+    /// (Razer) page their two dial columns independently, so each side gets its own
+    /// page set; other devices keep the single shared page list.
+    /// </summary>
+    private void InitializeRotaryPages()
+    {
+        if (deviceService.Device?.HasSideStrips == true)
+        {
+            foreach (var side in new[] { RotarySide.Left, RotarySide.Right })
+            {
+                if (pageManager.GetRotaryPages(side).Count == 0)
+                    pageManager.AddRotaryButtonPage(side, true);
+                else
+                    pageManager.ApplyRotaryPage(side, 0, true);
+            }
+            return;
+        }
+
+        if (config.RotaryButtonPages == null || config.RotaryButtonPages.Count == 0)
+            pageManager.AddRotaryButtonPage(RotarySide.Both, true);
+        else
+            pageManager.ApplyRotaryPage(RotarySide.Both, 0, true);
+    }
+
+    private static RotarySide ToRotarySide(SideStrip strip) =>
+        strip == SideStrip.Left ? RotarySide.Left : RotarySide.Right;
+
+    /// <summary>
+    /// Maps a global knob index (0–2 left, 3–5 right) to its dial column and the
+    /// per-side 0-based index used inside a side page.
+    /// </summary>
+    private static (RotarySide Side, int LocalIndex) ResolveRotary(int globalIndex) =>
+        globalIndex < 3
+            ? (RotarySide.Left, globalIndex)
+            : (RotarySide.Right, globalIndex - 3);
+
+    /// <summary>
+    /// Resolves the rotary button for a global knob index (0–5) against the active
+    /// rotary page. On side-strip devices this picks the matching column's current
+    /// page and the per-side local index; otherwise the shared page and the index
+    /// as-is. Returns null when no page/button is available.
+    /// </summary>
+    private (RotaryButtonPage Page, RotaryButton Button)? ResolveRotaryButton(int globalIndex)
+    {
+        RotaryButtonPage page;
+        int localIndex;
+
+        if (deviceService.Device?.HasSideStrips == true)
+        {
+            var (side, local) = ResolveRotary(globalIndex);
+            page = pageManager.GetCurrentRotaryPage(side);
+            localIndex = local;
+        }
+        else
+        {
+            page = config.CurrentRotaryButtonPage;
+            localIndex = globalIndex;
+        }
+
+        if (page?.RotaryButtons == null || localIndex < 0 || localIndex >= page.RotaryButtons.Count)
+            return null;
+
+        return (page, page.RotaryButtons[localIndex]);
+    }
+
+    private void OnSwipe(object sender, SwipeEventArgs e)
+    {
+        if (_isDeviceOff || exclusiveMode.IsActive || folderNav.IsActive)
+            return;
+
+        var side = ToRotarySide(e.Side);
+        if (e.Direction == SwipeDirection.Up)
+            pageManager.NextRotaryPage(side);
+        else
+            pageManager.PreviousRotaryPage(side);
+    }
+
+    private async void OnRotaryPageChanged(RotarySide side, int previousIndex, int newIndex)
+    {
+        // Only side-strip devices render rotary labels onto a strip.
+        if (deviceService.Device?.HasSideStrips != true || side == RotarySide.Both)
+            return;
+
+        if (_isDeviceOff || exclusiveMode.IsActive || folderNav.IsActive)
+            return;
+
+        try
+        {
+            await DrawSideStrip(side);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Side-strip redraw failed ({side}): {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Renders the segmented label strip for one dial column (3 stacked 60×90 knob
+    /// labels) and pushes it to the matching side panel region of the unified display.
+    /// </summary>
+    private async Task DrawSideStrip(RotarySide side)
+    {
+        var device = deviceService.Device;
+        if (device is not LoupedeckDevice.Device.RazerStreamControllerDevice razer)
+            return;
+
+        var page = pageManager.GetCurrentRotaryPage(side);
+        if (page == null) return;
+
+        var slotIndex = side == RotarySide.Left
+            ? LoupedeckDevice.Device.RazerStreamControllerDevice.LeftSideIndex
+            : LoupedeckDevice.Device.RazerStreamControllerDevice.RightSideIndex;
+
+        using var strip = BitmapHelper.RenderRotaryStrip(page, config, 60, 270);
+        await razer.DrawTouchSlot(slotIndex, strip);
+    }
+
+    /// <summary>Repaints both side strips (no-op on devices without side strips).</summary>
+    private async Task RedrawSideStrips()
+    {
+        if (deviceService.Device?.HasSideStrips != true) return;
+        await DrawSideStrip(RotarySide.Left);
+        await DrawSideStrip(RotarySide.Right);
+    }
+
+    /// <summary>True for the Razer side-strip slots, which are driven by rotary labels.</summary>
+    private bool IsSideStripSlot(int slot) =>
+        deviceService.Device?.HasSideStrips == true &&
+        slot is LoupedeckDevice.Device.RazerStreamControllerDevice.LeftSideIndex
+             or LoupedeckDevice.Device.RazerStreamControllerDevice.RightSideIndex;
 
     private void OnSimpleButtonPress(object sender, ButtonEventArgs e)
     {
@@ -338,9 +474,9 @@ public class LoupedeckLiveSController(
         }
 
         if (!TryGetRotaryIndex(e.ButtonId, out var idx)) return;
-        var page = config.RotaryButtonPages[config.CurrentRotaryPageIndex];
-        if (page?.RotaryButtons == null || idx >= page.RotaryButtons.Count) return;
-        var rotary = page.RotaryButtons[idx];
+        var resolved = ResolveRotaryButton(idx);
+        if (resolved == null) return;
+        var (page, rotary) = resolved.Value;
         if (_isDeviceOff && !rotary.EnableWhenOff) return;
         var cmd = rotary.Command;
         if (string.IsNullOrEmpty(cmd)) return;
@@ -409,6 +545,12 @@ public class LoupedeckLiveSController(
         foreach (var touch in e.Touches)
         {
             var slot = touch.Target.Key;
+
+            // Side strips are label + swipe areas, not command buttons: a tap does
+            // nothing (paging happens on swipe via OnSwipe) and must not arm the
+            // sliding-prevention slot, which guards the centre grid.
+            if (IsSideStripSlot(slot))
+                continue;
 
             if (config.TouchSlidingPreventionEnabled && _activeTouchSlot.HasValue)
                 continue;
@@ -529,10 +671,9 @@ public class LoupedeckLiveSController(
         }
 
         if (!TryGetRotaryIndex(e.ButtonId, out var idx)) return;
-        var page = config.RotaryButtonPages[config.CurrentRotaryPageIndex];
-        if (page?.RotaryButtons == null || idx >= page.RotaryButtons.Count) return;
-
-        var btn = page.RotaryButtons[idx];
+        var resolved = ResolveRotaryButton(idx);
+        if (resolved == null) return;
+        var (page, btn) = resolved.Value;
         if (_isDeviceOff && !btn.EnableWhenOff) return;
         var leftTurn = e.Delta < 0;
         var command = leftTurn ? btn.RotaryLeftCommand : btn.RotaryRightCommand;
@@ -674,6 +815,8 @@ public class LoupedeckLiveSController(
                 await device.DrawTouchButton(touchButton, config, true, device.Columns);
             }
         }
+
+        await RedrawSideStrips();
     }
 
     // FullScreen: render every slot, push the whole frame in ONE atomic blit + DRAW.
@@ -827,6 +970,8 @@ public class LoupedeckLiveSController(
                 {
                     await device.DrawTouchButton(touchButton, config, true, device.Columns);
                 }
+
+                await RedrawSideStrips();
             }
         }
         catch (Exception ex)

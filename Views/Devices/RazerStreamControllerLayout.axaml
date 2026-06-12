@@ -121,34 +121,72 @@
          (centres y473, x140..760). -->
     <StackPanel Orientation="Vertical" HorizontalAlignment="Center" Spacing="2">
 
-        <!-- Rotary page controls as their own strip above the device (left, over the
-             left knob column). The touch pager lives below the screen (further down). -->
-        <Border Classes="Pager" HorizontalAlignment="Left" Margin="55,12,12,-24" ZIndex="1">
-            <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
-                <Button Classes="PagerBtn PagerNav" Content="‹"
-                        ToolTip.Tip="Previous rotary page"
-                        Command="{Binding PreviousRotaryPageCommand}" />
-                <TextBox Classes="PageName" Width="160"
-                         Text="{Binding LoupedeckController.Config.CurrentRotaryButtonPage.Name, Mode=TwoWay}"
-                         PlaceholderText="{Binding LoupedeckController.Config.CurrentRotaryButtonPage.PageName}"
-                         KeyDown="OnPageNameKeyDown" LostFocus="OnPageNameCommit" />
-                <Button Classes="PagerBtn PagerNav" Content="›"
-                        ToolTip.Tip="Next rotary page"
-                        Command="{Binding NextRotaryPageCommand}" />
-                <TextBlock Classes="PageCount"
-                           Text="{Binding LoupedeckController.Config.RotaryPageLabel}"
-                           ToolTip.Tip="Current / total rotary pages" />
-                <Button Classes="PagerBtn" Content="+"
-                        ToolTip.Tip="Add rotary page"
-                        Command="{Binding AddRotaryPageCommand}" />
-                <Button Classes="PagerBtn delete" Content="✕"
-                        ToolTip.Tip="Delete current rotary page"
-                        Command="{Binding DeleteRotaryPageCommand}" />
-            </StackPanel>
-        </Border>
+        <!-- Independent rotary pagers: the left column and the right column page
+             separately (mirroring the device's per-strip swipe). Left pager sits over
+             the left knob column, right pager over the right column. Two real columns
+             (with a min-width spacer) keep them from overlapping; the spacer also widens
+             the window past the 760-wide device body so both pagers fit. The touch pager
+             lives below the screen (further down). -->
+        <Grid Margin="55,12,0,-24" ZIndex="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" MinWidth="40" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <Border Grid.Column="0" Classes="Pager" HorizontalAlignment="Left">
+                <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                    <Button Classes="PagerBtn PagerNav" Content="‹"
+                            ToolTip.Tip="Previous left rotary page"
+                            Command="{Binding PreviousLeftRotaryPageCommand}" />
+                    <TextBox Classes="PageName" Width="130"
+                             Text="{Binding LoupedeckController.Config.CurrentLeftRotaryButtonPage.Name, Mode=TwoWay}"
+                             PlaceholderText="{Binding LoupedeckController.Config.CurrentLeftRotaryButtonPage.PageName}"
+                             KeyDown="OnPageNameKeyDown" LostFocus="OnPageNameCommit" />
+                    <Button Classes="PagerBtn PagerNav" Content="›"
+                            ToolTip.Tip="Next left rotary page"
+                            Command="{Binding NextLeftRotaryPageCommand}" />
+                    <TextBlock Classes="PageCount"
+                               Text="{Binding LoupedeckController.Config.LeftRotaryPageLabel}"
+                               ToolTip.Tip="Current / total left rotary pages" />
+                    <Button Classes="PagerBtn" Content="+"
+                            ToolTip.Tip="Add left rotary page"
+                            Command="{Binding AddLeftRotaryPageCommand}" />
+                    <Button Classes="PagerBtn delete" Content="✕"
+                            ToolTip.Tip="Delete current left rotary page"
+                            Command="{Binding DeleteLeftRotaryPageCommand}" />
+                </StackPanel>
+            </Border>
 
-        <!-- Device body (SVG) + control overlay, scaled together. -->
-        <Viewbox Width="760" Stretch="Uniform">
+            <!-- Right margin clears the hamburger menu, which overlays the top-right
+                 and spans 63–113px in from the window edge. -->
+            <Border Grid.Column="2" Classes="Pager" HorizontalAlignment="Right" Margin="0,0,120,0">
+                <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                    <Button Classes="PagerBtn PagerNav" Content="‹"
+                            ToolTip.Tip="Previous right rotary page"
+                            Command="{Binding PreviousRightRotaryPageCommand}" />
+                    <TextBox Classes="PageName" Width="130"
+                             Text="{Binding LoupedeckController.Config.CurrentRightRotaryButtonPage.Name, Mode=TwoWay}"
+                             PlaceholderText="{Binding LoupedeckController.Config.CurrentRightRotaryButtonPage.PageName}"
+                             KeyDown="OnPageNameKeyDown" LostFocus="OnPageNameCommit" />
+                    <Button Classes="PagerBtn PagerNav" Content="›"
+                            ToolTip.Tip="Next right rotary page"
+                            Command="{Binding NextRightRotaryPageCommand}" />
+                    <TextBlock Classes="PageCount"
+                               Text="{Binding LoupedeckController.Config.RightRotaryPageLabel}"
+                               ToolTip.Tip="Current / total right rotary pages" />
+                    <Button Classes="PagerBtn" Content="+"
+                            ToolTip.Tip="Add right rotary page"
+                            Command="{Binding AddRightRotaryPageCommand}" />
+                    <Button Classes="PagerBtn delete" Content="✕"
+                            ToolTip.Tip="Delete current right rotary page"
+                            Command="{Binding DeleteRightRotaryPageCommand}" />
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <!-- Device body (SVG) + control overlay, scaled together. Centered so the
+             body stays put when the rotary pagers widen the window past 760. -->
+        <Viewbox Width="760" Stretch="Uniform" HorizontalAlignment="Center">
             <Grid Width="900" Height="600">
 
                 <!-- Gehäuse / body artwork. -->
@@ -324,38 +362,38 @@
                     </Border>
 
                     <!-- ===== Left body margin (centre x=130): three knobs (KNOB_TL/CL/BL →
-                         rotary slots 0,1,2), centres at y154/265/376. ===== -->
+                         left rotary page slots 0,1,2), centres at y154/265/376. ===== -->
                     <Button Classes="Knob" Canvas.Left="90" Canvas.Top="114" Width="80" Height="80"
                             Command="{Binding RotaryButtonCommand}"
-                            CommandParameter="{Binding LoupedeckController.Config.CurrentRotaryButtonPage.RotaryButtons[0], Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
+                            CommandParameter="{Binding LoupedeckController.Config.CurrentLeftRotaryButtonPage.RotaryButtons[0], Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
                         <Image Source="{Binding RotaryKnobImage}" Width="80" Height="80" />
                     </Button>
                     <Button Classes="Knob" Canvas.Left="90" Canvas.Top="225" Width="80" Height="80"
                             Command="{Binding RotaryButtonCommand}"
-                            CommandParameter="{Binding LoupedeckController.Config.CurrentRotaryButtonPage.RotaryButtons[1], Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
+                            CommandParameter="{Binding LoupedeckController.Config.CurrentLeftRotaryButtonPage.RotaryButtons[1], Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
                         <Image Source="{Binding RotaryKnobImage}" Width="80" Height="80" />
                     </Button>
                     <Button Classes="Knob" Canvas.Left="90" Canvas.Top="336" Width="80" Height="80"
                             Command="{Binding RotaryButtonCommand}"
-                            CommandParameter="{Binding LoupedeckController.Config.CurrentRotaryButtonPage.RotaryButtons[2], Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
+                            CommandParameter="{Binding LoupedeckController.Config.CurrentLeftRotaryButtonPage.RotaryButtons[2], Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
                         <Image Source="{Binding RotaryKnobImage}" Width="80" Height="80" />
                     </Button>
 
                     <!-- ===== Right body margin (centre x=770): three knobs (KNOB_TR/CR/BR →
-                         rotary slots 3,4,5), centres at y154/265/376. ===== -->
+                         right rotary page slots 0,1,2), centres at y154/265/376. ===== -->
                     <Button Classes="Knob" Canvas.Left="730" Canvas.Top="114" Width="80" Height="80"
                             Command="{Binding RotaryButtonCommand}"
-                            CommandParameter="{Binding LoupedeckController.Config.CurrentRotaryButtonPage.RotaryButtons[3], Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
+                            CommandParameter="{Binding LoupedeckController.Config.CurrentRightRotaryButtonPage.RotaryButtons[0], Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
                         <Image Source="{Binding RotaryKnobImage}" Width="80" Height="80" />
                     </Button>
                     <Button Classes="Knob" Canvas.Left="730" Canvas.Top="225" Width="80" Height="80"
                             Command="{Binding RotaryButtonCommand}"
-                            CommandParameter="{Binding LoupedeckController.Config.CurrentRotaryButtonPage.RotaryButtons[4], Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
+                            CommandParameter="{Binding LoupedeckController.Config.CurrentRightRotaryButtonPage.RotaryButtons[1], Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
                         <Image Source="{Binding RotaryKnobImage}" Width="80" Height="80" />
                     </Button>
                     <Button Classes="Knob" Canvas.Left="730" Canvas.Top="336" Width="80" Height="80"
                             Command="{Binding RotaryButtonCommand}"
-                            CommandParameter="{Binding LoupedeckController.Config.CurrentRotaryButtonPage.RotaryButtons[5], Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
+                            CommandParameter="{Binding LoupedeckController.Config.CurrentRightRotaryButtonPage.RotaryButtons[2], Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
                         <Image Source="{Binding RotaryKnobImage}" Width="80" Height="80" />
                     </Button>
 

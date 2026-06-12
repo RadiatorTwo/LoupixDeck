@@ -261,35 +261,89 @@
 
                         <Border Grid.Column="2" Classes="card">
                             <StackPanel>
-                                <Grid ColumnDefinitions="*,Auto">
-                                    <TextBlock Grid.Column="0" Classes="card-title" Text="Rotary pages" />
-                                    <Button Grid.Column="1" Content="+ Add" Command="{Binding AddRotaryPageCommand}" />
-                                </Grid>
-                                <ItemsControl ItemsSource="{Binding RotaryPages}" Margin="0,8,0,0">
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate DataType="m:RotaryButtonPage">
-                                            <Border Background="{DynamicResource AppSurfaceAlt}" CornerRadius="4" Padding="8" Margin="0,0,0,6">
-                                                <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto">
-                                                    <TextBlock Grid.Column="0" Text="{Binding PageName}" VerticalAlignment="Center" />
-                                                    <Button Grid.Column="1" Classes="row-action" ToolTip.Tip="Edit page commands"
-                                                            Command="{Binding $parent[Window].DataContext.EditPageCommandsCommand}"
-                                                            CommandParameter="{Binding}">
-                                                        <TextBlock FontFamily="{StaticResource MdiFont}" Text="&#xF18D8;" FontSize="16" VerticalAlignment="Center" HorizontalAlignment="Center" />
-                                                    </Button>
-                                                    <Button Grid.Column="2" Classes="row-action" Content="↑" ToolTip.Tip="Move up"
-                                                            Command="{Binding $parent[Window].DataContext.MoveRotaryPageUpCommand}"
-                                                            CommandParameter="{Binding}" />
-                                                    <Button Grid.Column="3" Classes="row-action" Content="↓" ToolTip.Tip="Move down"
-                                                            Command="{Binding $parent[Window].DataContext.MoveRotaryPageDownCommand}"
-                                                            CommandParameter="{Binding}" />
-                                                    <Button Grid.Column="4" Classes="row-action danger" Content="✕" ToolTip.Tip="Remove rotary page"
-                                                            Command="{Binding $parent[Window].DataContext.RemoveRotaryPageCommand}"
-                                                            CommandParameter="{Binding}" />
-                                                </Grid>
-                                            </Border>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
+                                <!-- Single shared list — devices without side strips (Live S). -->
+                                <StackPanel IsVisible="{Binding !HasIndependentRotarySides}">
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <TextBlock Grid.Column="0" Classes="card-title" Text="Rotary pages" />
+                                        <Button Grid.Column="1" Content="+ Add" Command="{Binding AddRotaryPageCommand}" />
+                                    </Grid>
+                                    <ItemsControl ItemsSource="{Binding RotaryPages}" Margin="0,8,0,0">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate DataType="m:RotaryButtonPage">
+                                                <Border Background="{DynamicResource AppSurfaceAlt}" CornerRadius="4" Padding="8" Margin="0,0,0,6">
+                                                    <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto">
+                                                        <TextBlock Grid.Column="0" Text="{Binding PageName}" VerticalAlignment="Center" />
+                                                        <Button Grid.Column="1" Classes="row-action" ToolTip.Tip="Edit page commands"
+                                                                Command="{Binding $parent[Window].DataContext.EditPageCommandsCommand}"
+                                                                CommandParameter="{Binding}">
+                                                            <TextBlock FontFamily="{StaticResource MdiFont}" Text="&#xF18D8;" FontSize="16" VerticalAlignment="Center" HorizontalAlignment="Center" />
+                                                        </Button>
+                                                        <Button Grid.Column="2" Classes="row-action" Content="↑" ToolTip.Tip="Move up"
+                                                                Command="{Binding $parent[Window].DataContext.MoveRotaryPageUpCommand}"
+                                                                CommandParameter="{Binding}" />
+                                                        <Button Grid.Column="3" Classes="row-action" Content="↓" ToolTip.Tip="Move down"
+                                                                Command="{Binding $parent[Window].DataContext.MoveRotaryPageDownCommand}"
+                                                                CommandParameter="{Binding}" />
+                                                        <Button Grid.Column="4" Classes="row-action danger" Content="✕" ToolTip.Tip="Remove rotary page"
+                                                                Command="{Binding $parent[Window].DataContext.RemoveRotaryPageCommand}"
+                                                                CommandParameter="{Binding}" />
+                                                    </Grid>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+
+                                <!-- Independent left/right lists — devices with side strips (Razer). -->
+                                <StackPanel IsVisible="{Binding HasIndependentRotarySides}">
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <TextBlock Grid.Column="0" Classes="card-title" Text="Left rotary pages" />
+                                        <Button Grid.Column="1" Content="+ Add" Command="{Binding AddLeftRotaryPageCommand}" />
+                                    </Grid>
+                                    <ItemsControl ItemsSource="{Binding LeftRotaryPages}" Margin="0,8,0,0">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate DataType="m:RotaryButtonPage">
+                                                <Border Background="{DynamicResource AppSurfaceAlt}" CornerRadius="4" Padding="8" Margin="0,0,0,6">
+                                                    <Grid ColumnDefinitions="*,Auto,Auto">
+                                                        <TextBlock Grid.Column="0" Text="{Binding PageName}" VerticalAlignment="Center" />
+                                                        <Button Grid.Column="1" Classes="row-action" ToolTip.Tip="Edit page commands"
+                                                                Command="{Binding $parent[Window].DataContext.EditPageCommandsCommand}"
+                                                                CommandParameter="{Binding}">
+                                                            <TextBlock FontFamily="{StaticResource MdiFont}" Text="&#xF18D8;" FontSize="16" VerticalAlignment="Center" HorizontalAlignment="Center" />
+                                                        </Button>
+                                                        <Button Grid.Column="2" Classes="row-action danger" Content="✕" ToolTip.Tip="Remove rotary page"
+                                                                Command="{Binding $parent[Window].DataContext.RemoveLeftRotaryPageCommand}"
+                                                                CommandParameter="{Binding}" />
+                                                    </Grid>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+
+                                    <Grid ColumnDefinitions="*,Auto" Margin="0,12,0,0">
+                                        <TextBlock Grid.Column="0" Classes="card-title" Text="Right rotary pages" />
+                                        <Button Grid.Column="1" Content="+ Add" Command="{Binding AddRightRotaryPageCommand}" />
+                                    </Grid>
+                                    <ItemsControl ItemsSource="{Binding RightRotaryPages}" Margin="0,8,0,0">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate DataType="m:RotaryButtonPage">
+                                                <Border Background="{DynamicResource AppSurfaceAlt}" CornerRadius="4" Padding="8" Margin="0,0,0,6">
+                                                    <Grid ColumnDefinitions="*,Auto,Auto">
+                                                        <TextBlock Grid.Column="0" Text="{Binding PageName}" VerticalAlignment="Center" />
+                                                        <Button Grid.Column="1" Classes="row-action" ToolTip.Tip="Edit page commands"
+                                                                Command="{Binding $parent[Window].DataContext.EditPageCommandsCommand}"
+                                                                CommandParameter="{Binding}">
+                                                            <TextBlock FontFamily="{StaticResource MdiFont}" Text="&#xF18D8;" FontSize="16" VerticalAlignment="Center" HorizontalAlignment="Center" />
+                                                        </Button>
+                                                        <Button Grid.Column="2" Classes="row-action danger" Content="✕" ToolTip.Tip="Remove rotary page"
+                                                                Command="{Binding $parent[Window].DataContext.RemoveRightRotaryPageCommand}"
+                                                                CommandParameter="{Binding}" />
+                                                    </Grid>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
                             </StackPanel>
                         </Border>
                     </Grid>
