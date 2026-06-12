@@ -97,7 +97,7 @@ jobs:
             fi
             dotnet build "src/$repo/$repo.csproj" -c Release -o "build/$repo" /p:DebugSymbols=false /p:DebugType=none
             mkdir -p "plugins/$id"
-            find "build/$repo" -maxdepth 1 ! -name '*.pdb' -exec cp -r {} "plugins/$id/" \;
+            find "build/$repo" -mindepth 1 -maxdepth 1 ! -name '*.pdb' ! -name '*.runtimeconfig.json' -exec cp -r {} "plugins/$id/" \;
             cp "$manifest" "plugins/$id/plugin.json"
             echo "::endgroup::"
           done
