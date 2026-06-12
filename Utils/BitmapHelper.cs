@@ -1414,6 +1414,37 @@ public static class BitmapHelper
     private const int StripWidth = 60;
 
     /// <summary>
+    /// Renders a side strip in free-draw mode: the strip's wallpaper region as the
+    /// background, with the page's <see cref="RotaryButtonPage.StripCanvas"/> layers
+    /// (image/text/symbol) composited on top across the full 60×270 surface. The dials
+    /// are decoupled — no per-knob labels are drawn. Falls back to just the background
+    /// when the canvas is empty.
+    /// </summary>
+    public static SKBitmap RenderStripCanvas(
+        TouchButton canvas,
+        LoupedeckConfig config,
+        int width,
+        int height,
+        RotarySide side)
+    {
+        var bitmap = new SKBitmap(width, height);
+
+        lock (SkiaRenderGate.Sync)
+        {
+            using var skCanvas = new SKCanvas(bitmap);
+
+            DrawStripWallpaperOrColor(skCanvas, config, side, width, height);
+
+            if (canvas?.Layers != null)
+                DrawLayers(skCanvas, canvas.Layers, width, height);
+
+            skCanvas.Flush();
+        }
+
+        return bitmap;
+    }
+
+    /// <summary>
     /// Fills a side strip with its true region of the page wallpaper (left = panel
     /// x 0–60, right = x 420–480), scaled from the stored 480×270 wallpaper, with the
     /// page's opacity dim on top. Falls back to a solid dark fill when no wallpaper.

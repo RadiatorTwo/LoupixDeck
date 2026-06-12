@@ -75,6 +75,14 @@ public class RotaryButtonPage : INotifyPropertyChanged
 
     public ObservableCollection<RotaryButton> RotaryButtons { get; set; }
 
+    /// <summary>
+    /// Free-draw canvas for this page's side strip: a 60×270 layer surface (image/
+    /// text/symbol) edited like a touch button, shown when the side's
+    /// <see cref="StripMode"/> is <see cref="StripMode.FreeDraw"/>. Null/absent in
+    /// older configs and in segmented mode; created on demand by the editor.
+    /// </summary>
+    public TouchButton StripCanvas { get; set; }
+
     // Pre/Post-command wraps applied per input type when a button on this page fires.
     public CommandWrap SimpleButtonWrap { get; set; } = new();
     public CommandWrap KnobLeftWrap { get; set; } = new();

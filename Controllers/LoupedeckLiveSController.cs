@@ -404,7 +404,11 @@ public class LoupedeckLiveSController(
             ? LoupedeckDevice.Device.RazerStreamControllerDevice.LeftSideIndex
             : LoupedeckDevice.Device.RazerStreamControllerDevice.RightSideIndex;
 
-        var strip = BitmapHelper.RenderRotaryStrip(page, config, 60, 270, side);
+        // Free-draw mode paints the page's editable canvas across the whole strip;
+        // segmented mode (default) paints the three adjacent dial labels.
+        var strip = config.GetStripMode(side) == StripMode.FreeDraw
+            ? BitmapHelper.RenderStripCanvas(page.StripCanvas, config, 60, 270, side)
+            : BitmapHelper.RenderRotaryStrip(page, config, 60, 270, side);
 
         // Mirror the strip onto the on-screen mask: the side-panel buttons bind to
         // their TouchButton.RenderedImage. The setter owns the bitmap's lifetime
@@ -1239,6 +1243,16 @@ public class LoupedeckLiveSController(
                 case nameof(LoupedeckConfig.Brightness):
                     await Task.Delay(100, token); // Debounce
                     await deviceService.Device.SetBrightness(config.Brightness / 100.0);
+                    break;
+
+                case nameof(LoupedeckConfig.LeftStripMode):
+                    if (!_isDeviceOff && !folderNav.IsActive && !exclusiveMode.IsActive)
+                        await DrawSideStrip(RotarySide.Left);
+                    break;
+
+                case nameof(LoupedeckConfig.RightStripMode):
+                    if (!_isDeviceOff && !folderNav.IsActive && !exclusiveMode.IsActive)
+                        await DrawSideStrip(RotarySide.Right);
                     break;
             }
         }

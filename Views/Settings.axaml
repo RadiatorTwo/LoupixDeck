@@ -296,6 +296,12 @@
 
                                 <!-- Independent left/right lists — devices with side strips (Razer). -->
                                 <StackPanel IsVisible="{Binding HasIndependentRotarySides}">
+                                    <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,8">
+                                        <TextBlock Grid.Column="0" Classes="card-title" Text="Left strip mode" VerticalAlignment="Center" />
+                                        <ComboBox Grid.Column="1" MinWidth="140"
+                                                  ItemsSource="{Binding AvailableStripModes}"
+                                                  SelectedItem="{Binding LeftStripMode, Mode=TwoWay}" />
+                                    </Grid>
                                     <Grid ColumnDefinitions="*,Auto">
                                         <TextBlock Grid.Column="0" Classes="card-title" Text="Left rotary pages" />
                                         <Button Grid.Column="1" Content="+ Add" Command="{Binding AddLeftRotaryPageCommand}" />
@@ -320,7 +326,13 @@
                                         </ItemsControl.ItemTemplate>
                                     </ItemsControl>
 
-                                    <Grid ColumnDefinitions="*,Auto" Margin="0,12,0,0">
+                                    <Grid ColumnDefinitions="*,Auto" Margin="0,12,0,8">
+                                        <TextBlock Grid.Column="0" Classes="card-title" Text="Right strip mode" VerticalAlignment="Center" />
+                                        <ComboBox Grid.Column="1" MinWidth="140"
+                                                  ItemsSource="{Binding AvailableStripModes}"
+                                                  SelectedItem="{Binding RightStripMode, Mode=TwoWay}" />
+                                    </Grid>
+                                    <Grid ColumnDefinitions="*,Auto">
                                         <TextBlock Grid.Column="0" Classes="card-title" Text="Right rotary pages" />
                                         <Button Grid.Column="1" Content="+ Add" Command="{Binding AddRightRotaryPageCommand}" />
                                     </Grid>
