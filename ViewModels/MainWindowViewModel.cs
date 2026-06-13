@@ -326,15 +326,13 @@ public class MainWindowViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// Opens the layer editor on the current rotary page's free-draw strip canvas
-    /// (60×270). Only meaningful while that side is in FreeDraw mode; otherwise the
-    /// strip is a label/swipe area and the click is ignored.
+    /// Opens the layer editor on the current rotary page's strip canvas (60×270).
+    /// Always available — the canvas is editable regardless of the page's
+    /// <see cref="StripMode"/>; the mode only controls whether that canvas is shown
+    /// on the device (FreeDraw) or replaced by the auto dial labels (Segmented).
     /// </summary>
     private async Task EditStripCanvas_Click(RotarySide side)
     {
-        var config = LoupedeckController.Config;
-        if (config.GetStripMode(side) != StripMode.FreeDraw) return;
-
         var page = LoupedeckController.PageManager.GetCurrentRotaryPage(side);
         if (page == null) return;
 
@@ -344,9 +342,14 @@ public class MainWindowViewModel : ViewModelBase
                 ? LoupixDeck.LoupedeckDevice.Device.RazerStreamControllerDevice.LeftSideIndex
                 : LoupixDeck.LoupedeckDevice.Device.RazerStreamControllerDevice.RightSideIndex);
 
+        // Wire the canvas into the live-redraw pipeline so layer edits paint the strip
+        // immediately, just like grid touch buttons (instead of only on dialog close).
+        LoupedeckController.RegisterStripCanvas(page);
+
         await _dialogService.ShowDialogAsync<TouchButtonSettingsViewModel, DialogResult>(vm =>
         {
             vm.SetCanvasSize(60, 270);
+            vm.ConfigureStrip(page);
             vm.Initialize(page.StripCanvas);
         });
 

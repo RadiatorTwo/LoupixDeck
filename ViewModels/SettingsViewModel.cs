@@ -409,21 +409,6 @@ public class SettingsViewModel : DialogViewModelBase<DialogResult>
     public ObservableCollection<RotaryButtonPage> LeftRotaryPages => _pageManager.GetRotaryPages(RotarySide.Left);
     public ObservableCollection<RotaryButtonPage> RightRotaryPages => _pageManager.GetRotaryPages(RotarySide.Right);
 
-    /// <summary>Strip modes offered in the UI. PluginOverride is hidden until phase 2b.</summary>
-    public IReadOnlyList<StripMode> AvailableStripModes { get; } = new[] { StripMode.Segmented, StripMode.FreeDraw };
-
-    public StripMode LeftStripMode
-    {
-        get => Config.LeftStripMode;
-        set { if (Config.LeftStripMode == value) return; Config.LeftStripMode = value; OnPropertyChanged(); }
-    }
-
-    public StripMode RightStripMode
-    {
-        get => Config.RightStripMode;
-        set { if (Config.RightStripMode == value) return; Config.RightStripMode = value; OnPropertyChanged(); }
-    }
-
     public ObservableCollection<int> TouchPageIndices
     {
         get

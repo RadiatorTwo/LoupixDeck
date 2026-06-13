@@ -41,6 +41,21 @@
                 <Grid RowDefinitions="Auto,Auto,Auto,*,Auto">
 
                     <StackPanel Grid.Row="0">
+                        <!-- Side-strip (Razer) mode picker — only when editing a strip
+                             canvas. Segmented locks the canvas (the strip shows the dial
+                             labels); FreeDraw unlocks layer editing. -->
+                        <StackPanel IsVisible="{Binding IsStripCanvas}" Margin="0,0,0,12">
+                            <TextBlock Classes="panel-title" Text="Side strip" />
+                            <TextBlock Classes="label" Text="Mode" Margin="0,0,0,2" />
+                            <ComboBox ItemsSource="{Binding AvailableStripModes}"
+                                      SelectedItem="{Binding StripMode, Mode=TwoWay}"
+                                      HorizontalAlignment="Stretch" />
+                            <TextBlock Classes="hint" Margin="0,4,0,0" TextWrapping="Wrap"
+                                       Text="Switch to FreeDraw to edit the strip canvas. In Segmented mode the strip shows the three dial labels."
+                                       IsVisible="{Binding IsDrawDisabledHintVisible}" />
+                            <Separator Margin="0,12,0,0" />
+                        </StackPanel>
+
                         <TextBlock Classes="panel-title" Text="Button" />
                         <CheckBox Content="Run while device is off"
                                   IsChecked="{Binding ButtonData.EnableWhenOff}"
@@ -58,7 +73,7 @@
 
                     <Separator Grid.Row="1" Margin="0,12,0,12" />
 
-                    <StackPanel Grid.Row="2">
+                    <StackPanel Grid.Row="2" IsEnabled="{Binding CanEditCanvas}">
                         <TextBlock Classes="panel-title" Text="Layers" />
                         <StackPanel Orientation="Horizontal" Spacing="4" Margin="0,0,0,8">
                             <Button Classes="toolbar" Content="+ Text"
@@ -71,6 +86,7 @@
                     </StackPanel>
 
                     <ListBox Grid.Row="3"
+                             IsEnabled="{Binding CanEditCanvas}"
                              ItemsSource="{Binding ButtonData.Layers}"
                              SelectedItem="{Binding SelectedLayer, Mode=TwoWay}"
                              Background="{DynamicResource AppSurfaceLow}"
@@ -130,7 +146,8 @@
                         </ListBox.DataTemplates>
                     </ListBox>
 
-                    <StackPanel Grid.Row="4" Orientation="Horizontal" Margin="0,8,0,0">
+                    <StackPanel Grid.Row="4" Orientation="Horizontal" Margin="0,8,0,0"
+                                IsEnabled="{Binding CanEditCanvas}">
                         <Button Classes="row-action" Content="▲"
                                 Command="{Binding MoveLayerUpCommand}"
                                 ToolTip.Tip="Move layer up" />
@@ -194,6 +211,7 @@
                                   Width="600" Height="600"
                                   HorizontalAlignment="Center" VerticalAlignment="Center"
                                   Background="Transparent"
+                                  IsEnabled="{Binding CanEditCanvas}"
                                   PointerPressed="Editor_PointerPressed"
                                   PointerMoved="Editor_PointerMoved"
                                   PointerReleased="Editor_PointerReleased">
@@ -239,6 +257,25 @@
                                 </Canvas>
                             </Grid>
 
+                            <!-- Locked overlay: shown while a side strip is in Segmented
+                                 mode, where the canvas must not be edited. Swallows
+                                 pointer input as a backstop (EditorRoot is also disabled). -->
+                            <Border IsVisible="{Binding IsDrawDisabledHintVisible}"
+                                    Background="#AA101010" CornerRadius="6">
+                                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="6">
+                                    <TextBlock Text="&#xF033E;" FontFamily="{StaticResource MdiFont}"
+                                               FontSize="34" Foreground="#E0FFFFFF"
+                                               HorizontalAlignment="Center" />
+                                    <TextBlock Text="Strip is in Segmented mode"
+                                               Foreground="#E0FFFFFF" FontSize="13" FontWeight="SemiBold"
+                                               HorizontalAlignment="Center" />
+                                    <TextBlock Text="Switch Mode to FreeDraw to edit this canvas."
+                                               Foreground="#B0FFFFFF" FontSize="11"
+                                               TextWrapping="Wrap" MaxWidth="240" TextAlignment="Center"
+                                               HorizontalAlignment="Center" />
+                                </StackPanel>
+                            </Border>
+
                             <!-- Resolution badge -->
                             <Border HorizontalAlignment="Right" VerticalAlignment="Bottom"
                                     Margin="0,0,10,10"
@@ -261,7 +298,7 @@
                         <StackPanel Margin="0,4,4,0" Spacing="12">
 
                             <!-- Button-wide settings -->
-                            <Border Classes="editor-panel">
+                            <Border Classes="editor-panel" IsEnabled="{Binding CanEditCanvas}">
                                 <StackPanel>
                                     <TextBlock Classes="panel-title"
                                                Text="{Binding ButtonNumber, StringFormat='Button {0}'}" />

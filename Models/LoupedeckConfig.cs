@@ -260,25 +260,8 @@ public class LoupedeckConfig : INotifyPropertyChanged
             ? $"{Math.Clamp(_currentRightRotaryPageIndex + 1, 1, RightRotaryButtonPages.Count)} / {RightRotaryButtonPages.Count}"
             : "0 / 0";
 
-    // Per-side rendering mode of the side strips (Razer). Additive: missing in old
-    // JSON defaults to Segmented, preserving the prior behaviour.
-    private StripMode _leftStripMode = StripMode.Segmented;
-    public StripMode LeftStripMode
-    {
-        get => _leftStripMode;
-        set { if (_leftStripMode == value) return; _leftStripMode = value; OnPropertyChanged(); }
-    }
-
-    private StripMode _rightStripMode = StripMode.Segmented;
-    public StripMode RightStripMode
-    {
-        get => _rightStripMode;
-        set { if (_rightStripMode == value) return; _rightStripMode = value; OnPropertyChanged(); }
-    }
-
-    /// <summary>Returns the configured <see cref="StripMode"/> for a dial column.</summary>
-    public StripMode GetStripMode(RotarySide side) =>
-        side == RotarySide.Right ? RightStripMode : LeftStripMode;
+    // Strip rendering mode is per rotary page (see RotaryButtonPage.StripMode), not
+    // global per side — each page on a column can independently be Segmented/FreeDraw.
 
     private ObservableCollection<TouchButtonPage> _touchButtonPages = [];
     public ObservableCollection<TouchButtonPage> TouchButtonPages

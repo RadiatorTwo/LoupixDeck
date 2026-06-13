@@ -406,7 +406,7 @@ public class LoupedeckLiveSController(
 
         // Free-draw mode paints the page's editable canvas across the whole strip;
         // segmented mode (default) paints the three adjacent dial labels.
-        var strip = config.GetStripMode(side) == StripMode.FreeDraw
+        var strip = page.StripMode == StripMode.FreeDraw
             ? BitmapHelper.RenderStripCanvas(page.StripCanvas, config, 60, 270, side)
             : BitmapHelper.RenderRotaryStrip(page, config, 60, 270, side);
 
@@ -1098,6 +1098,33 @@ public class LoupedeckLiveSController(
     }
 
     /// <summary>
+    /// Subscribes a page's free-draw <see cref="RotaryButtonPage.StripCanvas"/> to the
+    /// live-redraw pipeline, so editing its layers repaints the side strip immediately
+    /// (mirroring <see cref="TouchItemChanged"/> for grid buttons). Idempotent; safe to
+    /// call each time the strip editor opens. No-op without side strips / no canvas.
+    /// </summary>
+    public void RegisterStripCanvas(RotaryButtonPage page)
+    {
+        if (deviceService.Device?.HasSideStrips != true || page?.StripCanvas == null) return;
+        page.StripCanvas.ItemChanged -= StripCanvasItemChanged;
+        page.StripCanvas.ItemChanged += StripCanvasItemChanged;
+    }
+
+    private async void StripCanvasItemChanged(object sender, EventArgs e)
+    {
+        if (sender is not TouchButton canvas) return;
+        if (_isDeviceOff || folderNav.IsActive || exclusiveMode.IsActive) return;
+
+        // The canvas Index encodes its column (LeftSideIndex / RightSideIndex), so the
+        // strip is repainted via the free-draw renderer, not the grid touch path.
+        var side = canvas.Index == LoupedeckDevice.Device.RazerStreamControllerDevice.RightSideIndex
+            ? RotarySide.Right
+            : RotarySide.Left;
+
+        await DrawSideStrip(side);
+    }
+
+    /// <summary>
     /// Builds the SimpleButton array sized to the active device's physical button count.
     /// The first four slots get the page-navigation defaults that existed for the Live S;
     /// any additional slots (e.g. Razer's BUTTON4–BUTTON7) are created blank for the
@@ -1247,16 +1274,6 @@ public class LoupedeckLiveSController(
                 case nameof(LoupedeckConfig.Brightness):
                     await Task.Delay(100, token); // Debounce
                     await deviceService.Device.SetBrightness(config.Brightness / 100.0);
-                    break;
-
-                case nameof(LoupedeckConfig.LeftStripMode):
-                    if (!_isDeviceOff && !folderNav.IsActive && !exclusiveMode.IsActive)
-                        await DrawSideStrip(RotarySide.Left);
-                    break;
-
-                case nameof(LoupedeckConfig.RightStripMode):
-                    if (!_isDeviceOff && !folderNav.IsActive && !exclusiveMode.IsActive)
-                        await DrawSideStrip(RotarySide.Right);
                     break;
             }
         }

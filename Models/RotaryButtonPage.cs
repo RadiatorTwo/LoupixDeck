@@ -21,6 +21,7 @@ public class RotaryButtonPage : INotifyPropertyChanged
     private int _page;
     private string _name;
     private bool _selected;
+    private StripMode _stripMode = StripMode.Segmented;
 
     /// <summary>
     /// Which dial column this page belongs to. Defaults to <see cref="RotarySide.Both"/>
@@ -76,8 +77,25 @@ public class RotaryButtonPage : INotifyPropertyChanged
     public ObservableCollection<RotaryButton> RotaryButtons { get; set; }
 
     /// <summary>
+    /// Rendering mode of this page's side strip (Razer). Per page, not per device:
+    /// each rotary page on a column independently chooses Segmented (auto dial labels)
+    /// or FreeDraw (the <see cref="StripCanvas"/>). Additive — missing in older JSON
+    /// defaults to <see cref="StripMode.Segmented"/>, preserving prior behaviour.
+    /// </summary>
+    public StripMode StripMode
+    {
+        get => _stripMode;
+        set
+        {
+            if (_stripMode == value) return;
+            _stripMode = value;
+            OnPropertyChanged();
+        }
+    }
+
+    /// <summary>
     /// Free-draw canvas for this page's side strip: a 60×270 layer surface (image/
-    /// text/symbol) edited like a touch button, shown when the side's
+    /// text/symbol) edited like a touch button, shown when this page's
     /// <see cref="StripMode"/> is <see cref="StripMode.FreeDraw"/>. Null/absent in
     /// older configs and in segmented mode; created on demand by the editor.
     /// </summary>

@@ -88,6 +88,69 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
         UpdateSelectionBounds();
     }
 
+    // ───────── Side-strip (Razer) mode ─────────
+
+    private RotaryButtonPage _stripPage;
+
+    /// <summary>
+    /// True when this editor instance is editing a Razer side-strip canvas (rather
+    /// than an ordinary grid touch button). Drives the strip-mode picker and the
+    /// draw-mode gate; false for normal buttons, so their behaviour is unchanged.
+    /// </summary>
+    public bool IsStripCanvas => _stripPage != null;
+
+    /// <summary>Strip modes offered in the editor's picker. PluginOverride is hidden
+    /// until phase 2b.</summary>
+    public IReadOnlyList<StripMode> AvailableStripModes { get; } =
+        new[] { StripMode.Segmented, StripMode.FreeDraw };
+
+    /// <summary>
+    /// The edited side strip's per-page <see cref="StripMode"/>. Writes straight
+    /// through to the owning <see cref="RotaryButtonPage"/>. Segmented shows the dial
+    /// labels; FreeDraw shows (and allows editing of) this page's canvas.
+    /// </summary>
+    public StripMode StripMode
+    {
+        get => _stripPage?.StripMode ?? StripMode.Segmented;
+        set
+        {
+            if (_stripPage == null || _stripPage.StripMode == value) return;
+            _stripPage.StripMode = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(CanEditCanvas));
+            OnPropertyChanged(nameof(IsDrawDisabledHintVisible));
+
+            // Repaint the strip immediately via the canvas's live-redraw subscription
+            // (the controller reads the new mode and renders labels vs. canvas), instead
+            // of waiting for the dialog to close.
+            _stripPage.StripCanvas?.Refresh();
+        }
+    }
+
+    /// <summary>
+    /// Whether the canvas and its layers may be edited. Always true for normal touch
+    /// buttons; for a side strip only while it is in <see cref="StripMode.FreeDraw"/>
+    /// — in Segmented mode the strip renders the dial labels, so its canvas is locked.
+    /// </summary>
+    public bool CanEditCanvas => !IsStripCanvas || StripMode == StripMode.FreeDraw;
+
+    /// <summary>Shows the "switch to FreeDraw" hint while a strip's editing is locked.</summary>
+    public bool IsDrawDisabledHintVisible => IsStripCanvas && StripMode != StripMode.FreeDraw;
+
+    /// <summary>
+    /// Marks this editor as editing the side-strip canvas of <paramref name="page"/>,
+    /// enabling the strip-mode picker and the draw-mode gate. Call before
+    /// <see cref="Initialize"/>.
+    /// </summary>
+    public void ConfigureStrip(RotaryButtonPage page)
+    {
+        _stripPage = page;
+        OnPropertyChanged(nameof(IsStripCanvas));
+        OnPropertyChanged(nameof(StripMode));
+        OnPropertyChanged(nameof(CanEditCanvas));
+        OnPropertyChanged(nameof(IsDrawDisabledHintVisible));
+    }
+
     /// <summary>Spacing of the editor's alignment grid in device pixels; also the
     /// step used when <see cref="SnapToGrid"/> is active.</summary>
     public const int GridStepDevice = 10;
