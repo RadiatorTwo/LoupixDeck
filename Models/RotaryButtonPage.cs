@@ -101,6 +101,26 @@ public class RotaryButtonPage : INotifyPropertyChanged
     /// </summary>
     public TouchButton StripCanvas { get; set; }
 
+    private string _stripPluginId;
+
+    /// <summary>
+    /// Id of the side-strip provider bound when <see cref="StripMode"/> is
+    /// <see cref="StripMode.PluginOverride"/>. Persisted; null/absent in older configs
+    /// and in non-plugin modes. An orphan id (the plugin is not installed) falls back
+    /// to segmented rendering at runtime, and the id is preserved so re-installing the
+    /// plugin restores the binding.
+    /// </summary>
+    public string StripPluginId
+    {
+        get => _stripPluginId;
+        set
+        {
+            if (_stripPluginId == value) return;
+            _stripPluginId = value;
+            OnPropertyChanged();
+        }
+    }
+
     // Pre/Post-command wraps applied per input type when a button on this page fires.
     public CommandWrap SimpleButtonWrap { get; set; } = new();
     public CommandWrap KnobLeftWrap { get; set; } = new();

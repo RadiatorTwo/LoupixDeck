@@ -125,6 +125,10 @@ public partial class App : Application
         // commands are picked up alongside the core commands.
         services.GetRequiredService<Services.Plugins.IPluginManager>().LoadPlugins();
 
+        // Build the side-strip provider lookup from the freshly loaded plugins so the
+        // editor picker and the controller can resolve plugin-override strip bindings.
+        services.GetRequiredService<Services.Plugins.ISideStripProviderRegistry>().Rebuild();
+
         // Expose the DI container so the CLI command channel in Program.cs can
         // resolve ICommandService for incoming "loupixdeck show / wakeup / …".
         Program.AppServices = services;

@@ -68,6 +68,7 @@ public static class ServiceCollectionExtensions
         // CoreCommandProvider wraps the reflection-based scanner;
         // PluginCommandProvider feeds in commands from loaded plugins.
         collection.AddSingleton<IPluginManager, PluginManager>();
+        collection.AddSingleton<ISideStripProviderRegistry, SideStripProviderRegistry>();
         collection.AddSingleton<IPluginInstaller, PluginInstaller>();
         collection.AddSingleton<IPluginReloadService, PluginReloadService>();
         collection.AddSingleton<ICommandProvider, CoreCommandProvider>();

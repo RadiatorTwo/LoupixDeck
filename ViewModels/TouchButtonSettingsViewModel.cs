@@ -6,6 +6,7 @@ using LoupixDeck.Models.Layers;
 using LoupixDeck.PluginSdk;
 using LoupixDeck.Services;
 using LoupixDeck.Services.Commands;
+using LoupixDeck.Services.Plugins;
 using LoupixDeck.Utils;
 using LoupixDeck.ViewModels.Base;
 using SkiaSharp;
@@ -48,6 +49,7 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
     private readonly ICommandRegistry _commandRegistry;
     private readonly IAssetService _assetService;
     private readonly IDialogService _dialogService;
+    private readonly ISideStripProviderRegistry _sideStripRegistry;
     private readonly LoupedeckConfig _config;
 
     public const int EditorCanvasSize = 600;
@@ -99,10 +101,35 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
     /// </summary>
     public bool IsStripCanvas => _stripPage != null;
 
-    /// <summary>Strip modes offered in the editor's picker. PluginOverride is hidden
-    /// until phase 2b.</summary>
+    /// <summary>Strip modes offered in the editor's picker.</summary>
     public IReadOnlyList<StripMode> AvailableStripModes { get; } =
-        new[] { StripMode.Segmented, StripMode.FreeDraw };
+        new[] { StripMode.Segmented, StripMode.FreeDraw, StripMode.PluginOverride };
+
+    /// <summary>Plugin side-strip providers bindable in PluginOverride mode.</summary>
+    public IReadOnlyList<ISideStripProvider> AvailableStripProviders => _sideStripRegistry.Providers;
+
+    /// <summary>True while editing a strip whose mode is PluginOverride — shows the
+    /// provider picker.</summary>
+    public bool IsPluginOverride => IsStripCanvas && StripMode == StripMode.PluginOverride;
+
+    /// <summary>
+    /// The provider bound to this page in PluginOverride mode. Reads/writes
+    /// <see cref="RotaryButtonPage.StripPluginId"/> by id. Setting it repaints the strip
+    /// live via the canvas refresh subscription.
+    /// </summary>
+    public ISideStripProvider SelectedStripProvider
+    {
+        get => _stripPage == null ? null : _sideStripRegistry.Get(_stripPage.StripPluginId);
+        set
+        {
+            if (_stripPage == null) return;
+            var id = value?.Id;
+            if (_stripPage.StripPluginId == id) return;
+            _stripPage.StripPluginId = id;
+            OnPropertyChanged();
+            _stripPage.StripCanvas?.Refresh();
+        }
+    }
 
     /// <summary>
     /// The edited side strip's per-page <see cref="StripMode"/>. Writes straight
@@ -119,6 +146,8 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
             OnPropertyChanged();
             OnPropertyChanged(nameof(CanEditCanvas));
             OnPropertyChanged(nameof(IsDrawDisabledHintVisible));
+            OnPropertyChanged(nameof(IsPluginOverride));
+            OnPropertyChanged(nameof(SelectedStripProvider));
 
             // Repaint the strip immediately via the canvas's live-redraw subscription
             // (the controller reads the new mode and renders labels vs. canvas), instead
@@ -149,6 +178,9 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
         OnPropertyChanged(nameof(StripMode));
         OnPropertyChanged(nameof(CanEditCanvas));
         OnPropertyChanged(nameof(IsDrawDisabledHintVisible));
+        OnPropertyChanged(nameof(IsPluginOverride));
+        OnPropertyChanged(nameof(AvailableStripProviders));
+        OnPropertyChanged(nameof(SelectedStripProvider));
     }
 
     /// <summary>Spacing of the editor's alignment grid in device pixels; also the
@@ -346,6 +378,7 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
         ICommandRegistry commandRegistry,
         IAssetService assetService,
         IDialogService dialogService,
+        ISideStripProviderRegistry sideStripRegistry,
         LoupedeckConfig config)
     {
         _commandBuilder = commandBuilder;
@@ -353,7 +386,11 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
         _commandRegistry = commandRegistry;
         _assetService = assetService;
         _dialogService = dialogService;
+        _sideStripRegistry = sideStripRegistry;
         _config = config;
+
+        // The provider list can change on a plugin hot-reload while the editor is open.
+        _sideStripRegistry.ProvidersChanged += OnStripProvidersChanged;
 
         AddImageLayerCommand = new AsyncRelayCommand(AddImageLayer);
         AddTextLayerCommand = new RelayCommand(AddTextLayer);
@@ -721,7 +758,18 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
             ButtonData.PropertyChanged -= ButtonData_PropertyChanged;
         }
 
+        _sideStripRegistry.ProvidersChanged -= OnStripProvidersChanged;
+
         foreach (var segment in Commands)
             segment.Changed -= OnSegmentChanged;
+    }
+
+    private void OnStripProvidersChanged()
+    {
+        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        {
+            OnPropertyChanged(nameof(AvailableStripProviders));
+            OnPropertyChanged(nameof(SelectedStripProvider));
+        });
     }
 }

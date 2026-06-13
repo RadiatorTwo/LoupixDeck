@@ -53,6 +53,19 @@
                             <TextBlock Classes="hint" Margin="0,4,0,0" TextWrapping="Wrap"
                                        Text="Switch to FreeDraw to edit the strip canvas. In Segmented mode the strip shows the three dial labels."
                                        IsVisible="{Binding IsDrawDisabledHintVisible}" />
+
+                            <!-- Provider picker — only in PluginOverride mode. The plugin
+                                 renders this strip and handles its taps/swipes. -->
+                            <StackPanel IsVisible="{Binding IsPluginOverride}" Margin="0,8,0,0">
+                                <TextBlock Classes="label" Text="Provider" Margin="0,0,0,2" />
+                                <ComboBox ItemsSource="{Binding AvailableStripProviders}"
+                                          SelectedItem="{Binding SelectedStripProvider, Mode=TwoWay}"
+                                          DisplayMemberBinding="{Binding Title}"
+                                          HorizontalAlignment="Stretch" />
+                                <TextBlock Classes="hint" Margin="0,4,0,0" TextWrapping="Wrap"
+                                           Text="The selected plugin renders this strip and handles its taps and swipes." />
+                            </StackPanel>
+
                             <Separator Margin="0,12,0,0" />
                         </StackPanel>
 
@@ -266,10 +279,10 @@
                                     <TextBlock Text="&#xF033E;" FontFamily="{StaticResource MdiFont}"
                                                FontSize="34" Foreground="#E0FFFFFF"
                                                HorizontalAlignment="Center" />
-                                    <TextBlock Text="Strip is in Segmented mode"
+                                    <TextBlock Text="Canvas locked"
                                                Foreground="#E0FFFFFF" FontSize="13" FontWeight="SemiBold"
                                                HorizontalAlignment="Center" />
-                                    <TextBlock Text="Switch Mode to FreeDraw to edit this canvas."
+                                    <TextBlock Text="This strip isn't in FreeDraw mode. Switch Mode to FreeDraw to draw on it."
                                                Foreground="#B0FFFFFF" FontSize="11"
                                                TextWrapping="Wrap" MaxWidth="240" TextAlignment="Center"
                                                HorizontalAlignment="Center" />
