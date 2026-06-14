@@ -50,6 +50,7 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
     private readonly IAssetService _assetService;
     private readonly IDialogService _dialogService;
     private readonly ISideStripProviderRegistry _sideStripRegistry;
+    private readonly IDynamicTextManager _dynamicTextManager;
     private readonly LoupedeckConfig _config;
 
     public const int EditorCanvasSize = 600;
@@ -256,12 +257,20 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
             OnPropertyChanged(nameof(SelectedImageLayer));
             OnPropertyChanged(nameof(SelectedTextLayer));
             OnPropertyChanged(nameof(ScaleHandlesVisible));
+            OnPropertyChanged(nameof(CanDeleteSelectedLayer));
             UpdateSelectionBounds();
         }
     }
 
     public ImageLayer SelectedImageLayer => _selectedLayer as ImageLayer;
     public TextLayer SelectedTextLayer => _selectedLayer as TextLayer;
+
+    /// <summary>
+    /// True when a deletable (user-created) layer is selected. Command-owned layers
+    /// (<see cref="LayerBase.IsCommandOwned"/>) cannot be deleted manually — they are
+    /// removed by unbinding the button's command — so the delete button is disabled for them.
+    /// </summary>
+    public bool CanDeleteSelectedLayer => _selectedLayer != null && !_selectedLayer.IsCommandOwned;
 
     private SKBitmap _editorPreview;
 
@@ -379,6 +388,7 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
         IAssetService assetService,
         IDialogService dialogService,
         ISideStripProviderRegistry sideStripRegistry,
+        IDynamicTextManager dynamicTextManager,
         LoupedeckConfig config)
     {
         _commandBuilder = commandBuilder;
@@ -387,6 +397,7 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
         _assetService = assetService;
         _dialogService = dialogService;
         _sideStripRegistry = sideStripRegistry;
+        _dynamicTextManager = dynamicTextManager;
         _config = config;
 
         // The provider list can change on a plugin hot-reload while the editor is open.
@@ -509,7 +520,9 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
 
     private void RemoveSelectedLayer()
     {
-        if (_selectedLayer == null) return;
+        // Command-owned layers are owned by their bound command; they are removed by unbinding
+        // the command (the dynamic-text manager's orphan sweep), never via the editor.
+        if (_selectedLayer == null || _selectedLayer.IsCommandOwned) return;
         var idx = ButtonData.Layers.IndexOf(_selectedLayer);
         ButtonData.Layers.Remove(_selectedLayer);
         // Prefer the item that moved into the freed slot (the one below); fall back
@@ -691,7 +704,15 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
         // Keep the bottom summary bar in sync when the command is edited
         // directly (Commands tab text box) or replaced programmatically.
         if (e.PropertyName == nameof(TouchButton.Command))
+        {
             Avalonia.Threading.Dispatcher.UIThread.Post(NotifyCommandChanged);
+
+            // Re-scan dynamic-text/-image commands so a display command's layer appears (or its
+            // orphaned layer disappears) immediately while the editor is open, instead of only
+            // after it closes. The strip-canvas surface is not a real page button, so skip it.
+            if (!IsStripCanvas)
+                Avalonia.Threading.Dispatcher.UIThread.Post(() => _dynamicTextManager.Rescan());
+        }
     }
 
     private void ButtonData_ItemChanged(object sender, EventArgs e)

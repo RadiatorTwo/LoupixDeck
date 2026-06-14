@@ -65,6 +65,17 @@ public class LoupedeckLiveSController(
     private readonly long[] _stripLastDrawTick = new long[2];
     private const int StripMinRedrawMs = 33; // ~30 fps floor per strip
 
+    // ───────── Segmented-mode per-segment providers (Razer) ─────────
+    // In segmented strip mode a provider may render individual segments (e.g. an audio dial's
+    // volume bar) while the host draws the other dials' labels. Kept separate from the
+    // override session above so swipe stays default paging in segmented mode (only tap is
+    // routed to the segment session). Rebuilt when the page object or the rotaries' command
+    // bindings change (an editor edit), detected via _segmentBindingSig.
+    private readonly ISideStripSession[] _segmentSession = new ISideStripSession[2];
+    private readonly ISegmentStripProvider[] _segmentProvider = new ISegmentStripProvider[2];
+    private readonly RotaryButtonPage[] _segmentPage = new RotaryButtonPage[2];
+    private readonly string[] _segmentBindingSig = new string[2];
+
     private static int SideIndex(RotarySide side) => side == RotarySide.Right ? 1 : 0;
 
     public async Task ClearDeviceState()
@@ -411,6 +422,7 @@ public class LoupedeckLiveSController(
         try
         {
             EnsureStripAttachment(side);
+            EnsureSegmentAttachment(side);
             await DrawSideStrip(side);
         }
         catch (Exception ex)
@@ -442,7 +454,8 @@ public class LoupedeckLiveSController(
         {
             StripMode.PluginOverride => RenderPluginStripOrFallback(page, side),
             StripMode.FreeDraw => BitmapHelper.RenderStripCanvas(page.StripCanvas, config, 60, 270, side),
-            _ => BitmapHelper.RenderRotaryStrip(page, config, 60, 270, side)
+            _ => BitmapHelper.RenderRotaryStrip(page, config, 60, 270, side,
+                (i, rc) => (_segmentSession[SideIndex(side)] as ISegmentStripSession)?.RenderSegment(i, rc) ?? false)
         };
 
         // Mirror the strip onto the on-screen mask: the side-panel buttons bind to
@@ -463,6 +476,8 @@ public class LoupedeckLiveSController(
         if (deviceService.Device?.HasSideStrips != true) return;
         EnsureStripAttachment(RotarySide.Left);
         EnsureStripAttachment(RotarySide.Right);
+        EnsureSegmentAttachment(RotarySide.Left);
+        EnsureSegmentAttachment(RotarySide.Right);
         await DrawSideStrip(RotarySide.Left);
         await DrawSideStrip(RotarySide.Right);
     }
@@ -474,6 +489,7 @@ public class LoupedeckLiveSController(
     public Task RefreshSideStrip(RotarySide side)
     {
         EnsureStripAttachment(side);
+        EnsureSegmentAttachment(side);
         return DrawSideStrip(side);
     }
 
@@ -489,65 +505,46 @@ public class LoupedeckLiveSController(
     {
         DetachStripAt(0);
         DetachStripAt(1);
+        DetachSegmentAt(0);
+        DetachSegmentAt(1);
     }
 
     /// <summary>
-    /// Renders a plugin-override strip: the attached provider's image, normalized to
-    /// 60×270. Falls back to the segmented dial labels when no provider is attached or
-    /// the provider yields nothing / throws / hands back an unusable image.
+    /// Renders a plugin-override strip: the attached provider draws the whole 60×270 strip onto a
+    /// host canvas. Falls back to the segmented dial labels when no provider is attached or the
+    /// provider declines (returns false) / throws.
     /// </summary>
     private SkiaSharp.SKBitmap RenderPluginStripOrFallback(RotaryButtonPage page, RotarySide side)
     {
         var session = _stripSession[SideIndex(side)];
         if (session != null)
         {
+            // The session draws with SkiaSharp via the canvas; serialize with all other Skia work
+            // so a plugin frame can't race the host's render pipeline (caches aren't thread-safe).
+            var bitmap = new SkiaSharp.SKBitmap(60, 270);
             try
             {
-                // The session draws with SkiaSharp internally; serialize that (and the
-                // decode) with all other Skia work so a plugin frame can't race the
-                // host's render pipeline (font/glyph caches are not thread-safe).
                 lock (SkiaRenderGate.Sync)
                 {
-                    var bytes = session.RenderStrip();
-                    if (bytes is { Length: > 0 })
+                    using var canvas = new SkiaSharp.SKCanvas(bitmap);
+                    var rc = new SkiaRenderCanvas(canvas, 60, 270);
+                    if (session.RenderStrip(rc))
                     {
-                        var decoded = SkiaSharp.SKBitmap.Decode(bytes);
-                        if (decoded != null)
-                            return NormalizeStrip(decoded, 60, 270);
+                        canvas.Flush();
+                        return bitmap;
                     }
                 }
+                bitmap.Dispose();
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"Side-strip session RenderStrip failed ({side}): {ex.Message}");
+                bitmap.Dispose();
             }
         }
 
-        // Unbound / orphaned id / empty / failed → segmented labels.
+        // Unbound / orphaned id / declined / failed → segmented labels.
         return BitmapHelper.RenderRotaryStrip(page, config, 60, 270, side);
-    }
-
-    /// <summary>Returns <paramref name="src"/> if already w×h, else scales it
-    /// aspect-fit (letterboxed on black) into a fresh w×h bitmap and disposes the source.</summary>
-    private static SkiaSharp.SKBitmap NormalizeStrip(SkiaSharp.SKBitmap src, int w, int h)
-    {
-        if (src.Width == w && src.Height == h) return src;
-
-        var dst = new SkiaSharp.SKBitmap(w, h);
-        lock (SkiaRenderGate.Sync)
-        {
-            using var canvas = new SkiaSharp.SKCanvas(dst);
-            canvas.Clear(SkiaSharp.SKColors.Black);
-            var scale = Math.Min(w / (float)src.Width, h / (float)src.Height);
-            var dw = src.Width * scale;
-            var dh = src.Height * scale;
-            var left = (w - dw) / 2f;
-            var top = (h - dh) / 2f;
-            canvas.DrawBitmap(src, new SkiaSharp.SKRect(left, top, left + dw, top + dh));
-            canvas.Flush();
-        }
-        src.Dispose();
-        return dst;
     }
 
     /// <summary>
@@ -636,6 +633,94 @@ public class LoupedeckLiveSController(
         catch (Exception ex) { Console.WriteLine($"Side-strip session dispose failed: {ex.Message}"); }
     }
 
+    /// <summary>
+    /// Creates/disposes the per-segment session for one side in <see cref="StripMode.Segmented"/>
+    /// mode: when the side's current page is segmented and a segment-capable provider is loaded,
+    /// a session is attached so individual segments (e.g. an audio dial's volume bar) can be
+    /// plugin-rendered while the host draws the other dials' labels. Rebuilt when the page object,
+    /// the resolved provider, or the rotaries' command bindings change (an editor edit); any
+    /// non-segmented page detaches it. Distinct from the override session so swipe stays default
+    /// paging in segmented mode.
+    /// </summary>
+    private void EnsureSegmentAttachment(RotarySide side)
+    {
+        if (deviceService.Device?.HasSideStrips != true || side == RotarySide.Both) return;
+
+        var idx = SideIndex(side);
+        var page = pageManager.GetCurrentRotaryPage(side);
+
+        ISegmentStripProvider desired = null;
+        if (page is { StripMode: StripMode.Segmented })
+            desired = sideStripRegistry.Providers.OfType<ISegmentStripProvider>().FirstOrDefault();
+
+        // A binding signature detects an editor edit (commands changed on the same page object).
+        var sig = desired == null ? null : BuildBindingSignature(page);
+
+        if (ReferenceEquals(_segmentPage[idx], page)
+            && ReferenceEquals(_segmentProvider[idx], desired)
+            && _segmentBindingSig[idx] == sig)
+            return;
+
+        DetachSegmentAt(idx);
+        _segmentPage[idx] = page;
+        _segmentProvider[idx] = desired;
+        _segmentBindingSig[idx] = sig;
+        if (desired == null) return;
+
+        var context = new SideStripContext
+        {
+            Side = side == RotarySide.Right ? StripSide.Right : StripSide.Left,
+            Width = 60,
+            Height = 270,
+            Rotaries = BuildStripRotaries(page),
+            RequestNextPage = () => pageManager.NextRotaryPage(side),
+            RequestPreviousPage = () => pageManager.PreviousRotaryPage(side)
+        };
+
+        try
+        {
+            var session = desired.CreateSession(context);
+            if (session == null) return;
+            _segmentSession[idx] = session;
+            session.StripChanged += OnStripSessionChanged;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Segment-strip provider '{desired.Id}' CreateSession failed: {ex.Message}");
+        }
+    }
+
+    /// <summary>Concatenates the 3 dials' Left/Right/Press command strings so a binding change
+    /// (e.g. assigning an audio command in the editor) is detectable without a page-object swap.</summary>
+    private static string BuildBindingSignature(RotaryButtonPage page)
+    {
+        var rotaries = page?.RotaryButtons;
+        if (rotaries == null || rotaries.Count == 0) return string.Empty;
+
+        var parts = new List<string>(rotaries.Count * 3);
+        foreach (var r in rotaries)
+        {
+            parts.Add(r?.RotaryLeftCommand ?? string.Empty);
+            parts.Add(r?.RotaryRightCommand ?? string.Empty);
+            parts.Add(r?.Command ?? string.Empty);
+        }
+        return string.Join("|", parts);
+    }
+
+    private void DetachSegmentAt(int idx)
+    {
+        var session = _segmentSession[idx];
+        _segmentSession[idx] = null;
+        _segmentProvider[idx] = null;
+        _segmentPage[idx] = null;
+        _segmentBindingSig[idx] = null;
+        if (session == null) return;
+
+        session.StripChanged -= OnStripSessionChanged;
+        try { session.Dispose(); }
+        catch (Exception ex) { Console.WriteLine($"Segment-strip session dispose failed: {ex.Message}"); }
+    }
+
     /// <summary>True when the side's current page is PluginOverride and a session is
     /// active; outputs the session for input routing.</summary>
     private bool IsPluginStripActive(RotarySide side, out ISideStripSession session)
@@ -654,7 +739,9 @@ public class LoupedeckLiveSController(
     {
         if (sender is not ISideStripSession session) return;
         var idx = ReferenceEquals(_stripSession[0], session) ? 0
-                : ReferenceEquals(_stripSession[1], session) ? 1 : -1;
+                : ReferenceEquals(_stripSession[1], session) ? 1
+                : ReferenceEquals(_segmentSession[0], session) ? 0
+                : ReferenceEquals(_segmentSession[1], session) ? 1 : -1;
         if (idx < 0) return;
         _ = RedrawStripCoalesced(idx == 0 ? RotarySide.Left : RotarySide.Right, idx);
     }
@@ -819,20 +906,28 @@ public class LoupedeckLiveSController(
         {
             var slot = touch.Target.Key;
 
-            // Side strips are label + swipe areas, not command buttons. A tap does
-            // nothing in segmented/free-draw mode, but in plugin-override mode it goes
-            // to the owning provider (strip-local coords). Either way it must not arm
-            // the sliding-prevention slot, which guards the centre grid.
+            // Side strips are label + swipe areas, not command buttons. A tap does nothing
+            // in free-draw mode; in plugin-override mode it goes to the owning provider; in
+            // segmented mode it goes to the per-segment session (e.g. tap an audio segment to
+            // toggle mute — a non-audio segment's session call is a no-op). Either way it must
+            // not arm the sliding-prevention slot, which guards the centre grid.
             if (IsSideStripSlot(slot))
             {
                 var stripSide = slot == LoupedeckDevice.Device.RazerStreamControllerDevice.RightSideIndex
                     ? RotarySide.Right
                     : RotarySide.Left;
+                var localX = stripSide == RotarySide.Right ? touch.X - 420 : touch.X;
+                var tapX = Math.Clamp(localX, 0, 60);
+                var tapY = Math.Clamp(touch.Y, 0, 270);
                 if (IsPluginStripActive(stripSide, out var stripSession))
                 {
-                    var localX = stripSide == RotarySide.Right ? touch.X - 420 : touch.X;
-                    try { stripSession.OnStripTapped(Math.Clamp(localX, 0, 60), Math.Clamp(touch.Y, 0, 270)); }
+                    try { stripSession.OnStripTapped(tapX, tapY); }
                     catch (Exception ex) { Console.WriteLine($"Side-strip session tap failed: {ex.Message}"); }
+                }
+                else if (_segmentSession[SideIndex(stripSide)] is { } segmentSession)
+                {
+                    try { segmentSession.OnStripTapped(tapX, tapY); }
+                    catch (Exception ex) { Console.WriteLine($"Segment-strip session tap failed: {ex.Message}"); }
                 }
                 continue;
             }

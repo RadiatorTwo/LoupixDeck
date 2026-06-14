@@ -112,7 +112,7 @@
                         </ListBox.Styles>
                         <ListBox.DataTemplates>
                             <DataTemplate DataType="layers:TextLayer">
-                                <Grid ColumnDefinitions="Auto,Auto,*">
+                                <Grid ColumnDefinitions="Auto,Auto,*,Auto">
                                     <CheckBox Grid.Column="0"
                                               IsChecked="{Binding Visible, Mode=TwoWay}"
                                               MinWidth="0" Margin="0,0,6,0"
@@ -124,6 +124,11 @@
                                     <TextBlock Grid.Column="2" Text="{Binding Name}"
                                                VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
                                                ToolTip.Tip="{Binding Name}" />
+                                    <TextBlock Grid.Column="3" Text="&#xF033E;"
+                                               FontFamily="{StaticResource MdiFont}"
+                                               VerticalAlignment="Center" Margin="6,0,0,0"
+                                               IsVisible="{Binding IsCommandOwned}"
+                                               ToolTip.Tip="{Binding CommandName, StringFormat='Text supplied by {0}'}" />
                                 </Grid>
                             </DataTemplate>
                             <DataTemplate DataType="layers:ImageLayer">
@@ -156,6 +161,26 @@
                                                ToolTip.Tip="{Binding Name}" />
                                 </Grid>
                             </DataTemplate>
+                            <!-- Plugin-owned layer: rendered by a plugin command, not user-addable. -->
+                            <DataTemplate DataType="layers:PluginLayer">
+                                <Grid ColumnDefinitions="Auto,Auto,*,Auto">
+                                    <CheckBox Grid.Column="0"
+                                              IsChecked="{Binding Visible, Mode=TwoWay}"
+                                              MinWidth="0" Margin="0,0,6,0"
+                                              VerticalAlignment="Center"
+                                              ToolTip.Tip="Layer visibility" />
+                                    <Border Grid.Column="1" Classes="layer-badge">
+                                        <TextBlock Text="P" />
+                                    </Border>
+                                    <TextBlock Grid.Column="2" Text="{Binding Name}"
+                                               VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                                               ToolTip.Tip="{Binding CommandName}" />
+                                    <TextBlock Grid.Column="3" Text="&#xF033E;"
+                                               FontFamily="{StaticResource MdiFont}"
+                                               VerticalAlignment="Center" Margin="6,0,0,0"
+                                               ToolTip.Tip="Content rendered by a plugin command" />
+                                </Grid>
+                            </DataTemplate>
                         </ListBox.DataTemplates>
                     </ListBox>
 
@@ -169,7 +194,8 @@
                                 ToolTip.Tip="Move layer down" />
                         <Button Classes="row-action danger"
                                 Command="{Binding RemoveLayerCommand}"
-                                ToolTip.Tip="Remove layer">
+                                IsEnabled="{Binding CanDeleteSelectedLayer}"
+                                ToolTip.Tip="Remove layer (plugin-owned layers are removed by unbinding the command)">
                             <TextBlock Text="&#xF01B4;" FontFamily="{StaticResource MdiFont}" />
                         </Button>
                     </StackPanel>
@@ -415,7 +441,11 @@
                                             <TextBox Text="{Binding Name, Mode=TwoWay}" Margin="0,2,0,8" />
 
                                             <TextBlock Classes="label" Text="Text" />
-                                            <TextBox Text="{Binding Text, Mode=TwoWay}" Margin="0,2,0,8" />
+                                            <TextBox Text="{Binding Text, Mode=TwoWay}" Margin="0,2,0,2"
+                                                     IsReadOnly="{Binding IsCommandOwned}" />
+                                            <TextBlock Classes="hint" Margin="0,0,0,8"
+                                                       IsVisible="{Binding IsCommandOwned}"
+                                                       Text="{Binding CommandName, StringFormat='Text supplied by {0}'}" />
 
                                             <Grid ColumnDefinitions="*,12,*" Margin="0,0,0,8">
                                                 <StackPanel Grid.Column="0">
@@ -637,6 +667,70 @@
                                                                Value="{Binding DisplayHeight, Mode=TwoWay}"
                                                                Minimum="1" Maximum="4000"
                                                                Increment="1" FormatString="0" />
+                                            </Grid>
+                                        </StackPanel>
+                                    </DataTemplate>
+
+                                    <!-- Plugin layer: content is rendered by a plugin command
+                                         (read-only); the user may move/scale/rotate/hide it. -->
+                                    <DataTemplate DataType="layers:PluginLayer">
+                                        <StackPanel>
+                                            <TextBlock Classes="panel-title" Text="Selected Layer: Plugin" />
+
+                                            <Border Background="{DynamicResource AppSurfaceLow}"
+                                                    CornerRadius="6" Padding="8" Margin="0,0,0,8">
+                                                <StackPanel>
+                                                    <TextBlock Classes="label" Text="Rendered by plugin command" />
+                                                    <TextBlock Text="{Binding CommandName}"
+                                                               Foreground="{DynamicResource AppTextSecondary}"
+                                                               TextTrimming="CharacterEllipsis" Margin="0,2,0,0"
+                                                               ToolTip.Tip="{Binding OwnerKey}" />
+                                                    <TextBlock Classes="hint" Margin="0,4,0,0"
+                                                               Text="Content is owned by the plugin. Move, scale, rotate or hide it here; remove it by unbinding the button's command." />
+                                                </StackPanel>
+                                            </Border>
+
+                                            <TextBlock Classes="label" Text="Name" />
+                                            <TextBox Text="{Binding Name, Mode=TwoWay}" Margin="0,2,0,8" />
+
+                                            <TextBlock Classes="label" Text="Position" />
+                                            <Grid ColumnDefinitions="16,*,12,16,*" Margin="0,2,0,8">
+                                                <TextBlock Grid.Column="0" Text="X" VerticalAlignment="Center" Margin="0,0,6,0" />
+                                                <NumericUpDown Grid.Column="1"
+                                                               Value="{Binding PositionX, Mode=TwoWay}"
+                                                               Minimum="-200" Maximum="200"
+                                                               Increment="1" FormatString="0" />
+                                                <TextBlock Grid.Column="3" Text="Y" VerticalAlignment="Center" Margin="0,0,6,0" />
+                                                <NumericUpDown Grid.Column="4"
+                                                               Value="{Binding PositionY, Mode=TwoWay}"
+                                                               Minimum="-200" Maximum="200"
+                                                               Increment="1" FormatString="0" />
+                                            </Grid>
+
+                                            <TextBlock Classes="label" Text="Size (px)" />
+                                            <Grid ColumnDefinitions="16,*,12,16,*" Margin="0,2,0,8">
+                                                <TextBlock Grid.Column="0" Text="W" VerticalAlignment="Center" Margin="0,0,6,0" />
+                                                <NumericUpDown Grid.Column="1"
+                                                               Value="{Binding DisplayWidth, Mode=TwoWay}"
+                                                               Minimum="1" Maximum="4000"
+                                                               Increment="1" FormatString="0" />
+                                                <TextBlock Grid.Column="3" Text="H" VerticalAlignment="Center" Margin="0,0,6,0" />
+                                                <NumericUpDown Grid.Column="4"
+                                                               Value="{Binding DisplayHeight, Mode=TwoWay}"
+                                                               Minimum="1" Maximum="4000"
+                                                               Increment="1" FormatString="0" />
+                                            </Grid>
+
+                                            <TextBlock Classes="label" Text="Rotation" />
+                                            <Grid ColumnDefinitions="*,50" Margin="0,2,0,0">
+                                                <Slider Grid.Column="0"
+                                                        Minimum="0" Maximum="360"
+                                                        Value="{Binding Rotation, Mode=TwoWay}"
+                                                        IsSnapToTickEnabled="True" TickFrequency="1" />
+                                                <TextBlock Grid.Column="1"
+                                                           Text="{Binding Rotation, StringFormat={}{0:0}°}"
+                                                           VerticalAlignment="Center"
+                                                           HorizontalAlignment="Right" />
                                             </Grid>
                                         </StackPanel>
                                     </DataTemplate>

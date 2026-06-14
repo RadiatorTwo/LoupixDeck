@@ -29,6 +29,15 @@ public sealed class RegisteredCommand
     /// <summary>True when the command renders dynamic text onto a touch button.</summary>
     public bool IsDisplayCommand { get; init; }
 
+    /// <summary>
+    /// True when the command renders a dynamic image (plugin-supplied PNG) onto a touch
+    /// button — adapted from an <c>IDisplayImageCommand</c>. The bytes are pushed onto a
+    /// plugin-managed <see cref="LoupixDeck.Models.Layers.PluginLayer"/>; an optional
+    /// <see cref="GetText"/> is drawn as an overlay. Mutually exclusive with
+    /// <see cref="IsDisplayCommand"/> so the text-only path does not also fire.
+    /// </summary>
+    public bool IsImageDisplayCommand { get; init; }
+
     /// <summary>Poll interval for display commands; ignored otherwise.</summary>
     public TimeSpan UpdateInterval { get; init; }
 
@@ -43,4 +52,10 @@ public sealed class RegisteredCommand
 
     /// <summary>For display commands: produces the current text. Null otherwise.</summary>
     public Func<string[], string> GetText { get; init; }
+
+    /// <summary>
+    /// For image display commands: draws the current button content onto a host canvas, returning
+    /// true when drawn (false → leave the button unchanged). Null for non-image commands.
+    /// </summary>
+    public Func<string[], LoupixDeck.PluginSdk.IRenderCanvas, bool> RenderImage { get; init; }
 }

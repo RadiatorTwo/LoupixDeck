@@ -81,20 +81,33 @@ public class PluginCommandProvider : ICommandProvider
         };
 
         var isDisplay = false;
+        var isImageDisplay = false;
         var interval = TimeSpan.Zero;
         Func<string[], string> getText = null;
+        Func<string[], IRenderCanvas, bool> renderImage = null;
 
-        if (command is IDisplayCommand displayCommand)
+        CommandContext DisplayContext(string[] parameters) => new()
+        {
+            Parameters = parameters ?? Array.Empty<string>(),
+            Target = ButtonTargets.TouchButton,
+            Device = host?.ActiveDevice,
+            Host = host
+        };
+
+        // Prefer the image path when a command implements both: it draws the whole button onto
+        // the host canvas (without setting IsDisplayCommand, so the text-only path does not also
+        // fire on this command).
+        if (command is IDisplayImageCommand imageCommand)
+        {
+            isImageDisplay = true;
+            interval = imageCommand.UpdateInterval;
+            renderImage = (parameters, canvas) => imageCommand.RenderImage(DisplayContext(parameters), canvas);
+        }
+        else if (command is IDisplayCommand displayCommand)
         {
             isDisplay = true;
             interval = displayCommand.UpdateInterval;
-            getText = parameters => displayCommand.GetText(new CommandContext
-            {
-                Parameters = parameters ?? Array.Empty<string>(),
-                Target = ButtonTargets.TouchButton,
-                Device = host?.ActiveDevice,
-                Host = host
-            });
+            getText = parameters => displayCommand.GetText(DisplayContext(parameters));
         }
 
         return new RegisteredCommand
@@ -104,9 +117,11 @@ public class PluginCommandProvider : ICommandProvider
             SupportedTargets = command.SupportedTargets,
             HiddenFromMenu = descriptor.HiddenFromMenu,
             IsDisplayCommand = isDisplay,
+            IsImageDisplayCommand = isImageDisplay,
             UpdateInterval = interval,
             Execute = execute,
-            GetText = getText
+            GetText = getText,
+            RenderImage = renderImage
         };
     }
 }

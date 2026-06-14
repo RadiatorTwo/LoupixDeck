@@ -701,6 +701,9 @@ public static class BitmapHelper
                     case SymbolLayer symbol:
                         DrawSymbolLayer(canvas, symbol, deviceWidth, deviceHeight);
                         break;
+                    case PluginLayer plugin:
+                        DrawPluginLayerExtended(canvas, plugin, deviceWidth, deviceHeight);
+                        break;
                 }
             }
         }
@@ -816,6 +819,20 @@ public static class BitmapHelper
             }
             case TextLayer text:
                 return MeasureTextDeviceRect(text, deviceW, deviceH);
+            case PluginLayer plugin:
+            {
+                var bmp = plugin.RenderedBitmap;
+                if (bmp is not { Width: > 0, Height: > 0 }) return null;
+
+                var fit = Math.Min(deviceW / (float)bmp.Width, deviceH / (float)bmp.Height);
+                var scaleX = (float)Math.Max(0.01, plugin.EffectiveScaleX);
+                var scaleY = (float)Math.Max(0.01, plugin.EffectiveScaleY);
+                var dstW = bmp.Width * fit * scaleX;
+                var dstH = bmp.Height * fit * scaleY;
+                var drawX = (deviceW - dstW) / 2f + plugin.PositionX;
+                var drawY = (deviceH - dstH) / 2f + plugin.PositionY;
+                return new SKRect(drawX, drawY, drawX + dstW, drawY + dstH);
+            }
             default:
                 return null;
         }
@@ -901,6 +918,9 @@ public static class BitmapHelper
                 case SymbolLayer symbol:
                     DrawSymbolLayer(canvas, symbol, width, height);
                     break;
+                case PluginLayer plugin:
+                    DrawPluginLayer(canvas, plugin, width, height);
+                    break;
             }
         }
     }
@@ -936,6 +956,65 @@ public static class BitmapHelper
         canvas.ClipRect(new SKRect(0, 0, width, height));
         canvas.DrawBitmap(bmp, srcRect, new SKRect(drawX, drawY, drawX + dstW, drawY + dstH));
         canvas.Restore();
+    }
+
+    /// <summary>
+    /// Device renderer for a <see cref="PluginLayer"/>: blits the plugin-pushed
+    /// <see cref="PluginLayer.RenderedBitmap"/> with the same aspect-fit + scale + position
+    /// math as <see cref="DrawImageLayer"/> (clipped to the button). Draws nothing until the
+    /// plugin pushes its first bitmap.
+    /// </summary>
+    private static void DrawPluginLayer(SKCanvas canvas, PluginLayer layer, int width, int height)
+    {
+        var bmp = layer.RenderedBitmap;
+        if (bmp is { Width: > 0, Height: > 0 })
+        {
+            var fit = Math.Min(width / (float)bmp.Width, height / (float)bmp.Height);
+            var scaleX = (float)Math.Max(0.01, layer.EffectiveScaleX);
+            var scaleY = (float)Math.Max(0.01, layer.EffectiveScaleY);
+            var dstW = bmp.Width * fit * scaleX;
+            var dstH = bmp.Height * fit * scaleY;
+            var drawX = (width - dstW) / 2f + layer.PositionX;
+            var drawY = (height - dstH) / 2f + layer.PositionY;
+
+            canvas.Save();
+            canvas.ClipRect(new SKRect(0, 0, width, height));
+            ApplyRotation(canvas, layer.Rotation, drawX + dstW / 2f, drawY + dstH / 2f);
+            canvas.DrawBitmap(bmp, new SKRect(drawX, drawY, drawX + dstW, drawY + dstH));
+            canvas.Restore();
+        }
+    }
+
+    /// <summary>Rotates the canvas by <paramref name="degrees"/> around (cx, cy) when non-zero.</summary>
+    private static void ApplyRotation(SKCanvas canvas, double degrees, float cx, float cy)
+    {
+        if (Math.Abs(degrees) < 0.01) return;
+        canvas.RotateDegrees((float)degrees, cx, cy);
+    }
+
+    /// <summary>
+    /// Editor-canvas variant of <see cref="DrawPluginLayer"/> that does NOT clip to the
+    /// device area (so the user sees content dragged past the frame), mirroring
+    /// <see cref="DrawImageLayerExtended"/>.
+    /// </summary>
+    private static void DrawPluginLayerExtended(SKCanvas canvas, PluginLayer layer, int deviceW, int deviceH)
+    {
+        var bmp = layer.RenderedBitmap;
+        if (bmp is { Width: > 0, Height: > 0 })
+        {
+            var fit = Math.Min(deviceW / (float)bmp.Width, deviceH / (float)bmp.Height);
+            var scaleX = (float)Math.Max(0.01, layer.EffectiveScaleX);
+            var scaleY = (float)Math.Max(0.01, layer.EffectiveScaleY);
+            var dstW = bmp.Width * fit * scaleX;
+            var dstH = bmp.Height * fit * scaleY;
+            var drawX = (deviceW - dstW) / 2f + layer.PositionX;
+            var drawY = (deviceH - dstH) / 2f + layer.PositionY;
+
+            canvas.Save();
+            ApplyRotation(canvas, layer.Rotation, drawX + dstW / 2f, drawY + dstH / 2f);
+            canvas.DrawBitmap(bmp, new SKRect(drawX, drawY, drawX + dstW, drawY + dstH));
+            canvas.Restore();
+        }
     }
 
     private static void DrawTextLayer(SKCanvas canvas, TextLayer layer, int width, int height)
@@ -991,16 +1070,50 @@ public static class BitmapHelper
     /// </summary>
     private static void DrawSymbolLayer(SKCanvas canvas, SymbolLayer layer, int width, int height)
     {
-        if (!SymbolLibrary.TryGet(layer.SymbolId, out var def))
+        var baseSize = Math.Min(width, height);
+        var dstW = baseSize * (float)Math.Max(0.01, layer.EffectiveScaleX);
+        var dstH = baseSize * (float)Math.Max(0.01, layer.EffectiveScaleY);
+        var cx = width / 2f + layer.PositionX;
+        var cy = height / 2f + layer.PositionY;
+        var rect = new SKRect(cx - dstW / 2f, cy - dstH / 2f, cx + dstW / 2f, cy + dstH / 2f);
+
+        DrawSymbolGlyph(
+            canvas, layer.SymbolId, rect, layer.Tint.ToSKColor(),
+            rotation: (float)layer.Rotation,
+            outlined: layer.Outlined, outlineColor: layer.OutlineColor.ToSKColor(), outlineWidth: (float)layer.OutlineWidth,
+            shadow: layer.Shadow, shadowColor: layer.ShadowColor.ToSKColor(), shadowBlur: (float)layer.ShadowBlur,
+            shadowOffsetX: layer.ShadowOffsetX, shadowOffsetY: layer.ShadowOffsetY,
+            useGradient: layer.UseGradient, gradientStart: layer.GradientStartColor.ToSKColor(),
+            gradientEnd: layer.GradientEndColor.ToSKColor(), gradientAngle: (float)layer.GradientAngle);
+    }
+
+    /// <summary>
+    /// Renders a symbol glyph (from <see cref="SymbolLibrary"/>) fitted into <paramref name="rect"/>,
+    /// drawn shadow → outline → fill (solid tint or linear gradient). Shared by the symbol layer
+    /// renderer and the plugin draw-canvas (<c>IRenderCanvas.DrawSymbol</c>, which passes tint only).
+    /// Falls back to a dashed placeholder when the id is unknown or the font/glyph is missing.
+    /// </summary>
+    internal static void DrawSymbolGlyph(
+        SKCanvas canvas, string symbolId, SKRect rect, SKColor tint,
+        float rotation = 0,
+        bool outlined = false, SKColor outlineColor = default, float outlineWidth = 0,
+        bool shadow = false, SKColor shadowColor = default, float shadowBlur = 0,
+        float shadowOffsetX = 0, float shadowOffsetY = 0,
+        bool useGradient = false, SKColor gradientStart = default, SKColor gradientEnd = default,
+        float gradientAngle = 0)
+    {
+        if (rect.Width <= 0 || rect.Height <= 0) return;
+
+        if (!SymbolLibrary.TryGet(symbolId, out var def))
         {
-            DrawSymbolPlaceholder(canvas, layer, width, height);
+            DrawSymbolPlaceholderRect(canvas, rect, tint);
             return;
         }
 
         var typeface = SymbolLibrary.GetTypeface();
         if (typeface == null)
         {
-            DrawSymbolPlaceholder(canvas, layer, width, height);
+            DrawSymbolPlaceholderRect(canvas, rect, tint);
             return;
         }
 
@@ -1019,69 +1132,63 @@ public static class BitmapHelper
         var glyphIds = font.GetGlyphs(glyph);
         if (glyphIds.Length == 0)
         {
-            DrawSymbolPlaceholder(canvas, layer, width, height);
+            DrawSymbolPlaceholderRect(canvas, rect, tint);
             return;
         }
 
         using var path = font.GetGlyphPath(glyphIds[0]);
         if (path == null || path.IsEmpty)
         {
-            DrawSymbolPlaceholder(canvas, layer, width, height);
+            DrawSymbolPlaceholderRect(canvas, rect, tint);
             return;
         }
 
         var gb = path.TightBounds;
         if (gb.Width <= 0 || gb.Height <= 0)
         {
-            DrawSymbolPlaceholder(canvas, layer, width, height);
+            DrawSymbolPlaceholderRect(canvas, rect, tint);
             return;
         }
 
-        var baseSize = Math.Min(width, height);
-        var dstW = baseSize * (float)Math.Max(0.01, layer.EffectiveScaleX);
-        var dstH = baseSize * (float)Math.Max(0.01, layer.EffectiveScaleY);
-
-        var cx = width / 2f + layer.PositionX;
-        var cy = height / 2f + layer.PositionY;
-
-        var sx = dstW / gb.Width;
-        var sy = dstH / gb.Height;
+        var cx = rect.MidX;
+        var cy = rect.MidY;
+        var sx = rect.Width / gb.Width;
+        var sy = rect.Height / gb.Height;
 
         // Transform the glyph path into device-pixel space:
         // translate(-tightCenter) -> scale -> rotate -> translate(cx,cy).
         var m = SKMatrix.CreateTranslation(cx, cy);
-        m = SKMatrix.Concat(m, SKMatrix.CreateRotationDegrees((float)layer.Rotation));
+        m = SKMatrix.Concat(m, SKMatrix.CreateRotationDegrees(rotation));
         m = SKMatrix.Concat(m, SKMatrix.CreateScale(sx, sy));
         m = SKMatrix.Concat(m, SKMatrix.CreateTranslation(-gb.MidX, -gb.MidY));
         path.Transform(m);
 
         // 1) Drop shadow.
-        if (layer.Shadow)
+        if (shadow)
         {
             using var shadowPaint = new SKPaint
             {
-                Color = layer.ShadowColor.ToSKColor(),
+                Color = shadowColor,
                 Style = SKPaintStyle.Fill,
                 IsAntialias = true
             };
-            if (layer.ShadowBlur > 0)
-                shadowPaint.MaskFilter = SKMaskFilter.CreateBlur(
-                    SKBlurStyle.Normal, (float)layer.ShadowBlur);
+            if (shadowBlur > 0)
+                shadowPaint.MaskFilter = SKMaskFilter.CreateBlur(SKBlurStyle.Normal, shadowBlur);
 
             var saved = canvas.Save();
-            canvas.Translate(layer.ShadowOffsetX, layer.ShadowOffsetY);
+            canvas.Translate(shadowOffsetX, shadowOffsetY);
             canvas.DrawPath(path, shadowPaint);
             canvas.RestoreToCount(saved);
         }
 
         // 2) Outline.
-        if (layer.Outlined && layer.OutlineWidth > 0)
+        if (outlined && outlineWidth > 0)
         {
             using var outlinePaint = new SKPaint
             {
-                Color = layer.OutlineColor.ToSKColor(),
+                Color = outlineColor,
                 Style = SKPaintStyle.Stroke,
-                StrokeWidth = (float)layer.OutlineWidth,
+                StrokeWidth = outlineWidth,
                 StrokeJoin = SKStrokeJoin.Round,
                 StrokeCap = SKStrokeCap.Round,
                 IsAntialias = true
@@ -1097,10 +1204,10 @@ public static class BitmapHelper
         };
 
         SKShader gradientShader = null;
-        if (layer.UseGradient)
+        if (useGradient)
         {
             var db = path.Bounds;
-            var rad = layer.GradientAngle * Math.PI / 180.0;
+            var rad = gradientAngle * Math.PI / 180.0;
             var dx = (float)Math.Cos(rad);
             var dy = (float)Math.Sin(rad);
             var half = 0.5f * (Math.Abs(dx) * db.Width + Math.Abs(dy) * db.Height);
@@ -1110,39 +1217,31 @@ public static class BitmapHelper
                 var p0 = new SKPoint(center.X - dx * half, center.Y - dy * half);
                 var p1 = new SKPoint(center.X + dx * half, center.Y + dy * half);
                 gradientShader = SKShader.CreateLinearGradient(
-                    p0, p1,
-                    new[] { layer.GradientStartColor.ToSKColor(), layer.GradientEndColor.ToSKColor() },
-                    null,
-                    SKShaderTileMode.Clamp);
+                    p0, p1, new[] { gradientStart, gradientEnd }, null, SKShaderTileMode.Clamp);
             }
         }
 
         if (gradientShader != null)
             fillPaint.Shader = gradientShader;
         else
-            fillPaint.Color = (layer.UseGradient ? layer.GradientStartColor : layer.Tint).ToSKColor();
+            fillPaint.Color = useGradient ? gradientStart : tint;
 
         canvas.DrawPath(path, fillPaint);
         gradientShader?.Dispose();
     }
 
-    private static void DrawSymbolPlaceholder(SKCanvas canvas, SymbolLayer layer, int width, int height)
+    /// <summary>Fallback renderer: a dashed box in <paramref name="rect"/>, drawn when a symbol
+    /// id is unknown or the icon font could not be loaded.</summary>
+    private static void DrawSymbolPlaceholderRect(SKCanvas canvas, SKRect rect, SKColor tint)
     {
-        // Fallback renderer: a dashed box, drawn when the symbol id is unknown
-        // or the icon font could not be loaded.
         using var paint = new SKPaint
         {
-            Color = layer.Tint.ToSKColor(),
+            Color = tint,
             Style = SKPaintStyle.Stroke,
             StrokeWidth = 2,
             IsAntialias = true,
             PathEffect = SKPathEffect.CreateDash(new float[] { 4, 4 }, 0)
         };
-
-        var size = Math.Min(width, height) * (float)Math.Max(0.05, layer.EffectiveScaleX);
-        var cx = width / 2f + layer.PositionX;
-        var cy = height / 2f + layer.PositionY;
-        var rect = new SKRect(cx - size / 2f, cy - size / 2f, cx + size / 2f, cy + size / 2f);
         canvas.DrawRect(rect, paint);
     }
 
@@ -1384,7 +1483,8 @@ public static class BitmapHelper
         LoupedeckConfig config,
         int width,
         int height,
-        RotarySide side)
+        RotarySide side,
+        Func<int, LoupixDeck.PluginSdk.IRenderCanvas, bool> drawSegment = null)
     {
         ArgumentNullException.ThrowIfNull(page);
 
@@ -1409,6 +1509,22 @@ public static class BitmapHelper
             for (var i = 0; i < count; i++)
             {
                 var top = i * segmentHeight;
+
+                // A segment provider (segmented mode) may own this segment — e.g. an audio
+                // dial's volume bar. It draws onto a canvas clipped to the segment; if it
+                // returns true we skip the label, otherwise fall through to the dial label.
+                if (drawSegment != null)
+                {
+                    var rc = new SkiaRenderCanvas(canvas, width, (int)Math.Round(segmentHeight), 0, top);
+                    bool drawn;
+                    try { drawn = drawSegment(i, rc); }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"RenderRotaryStrip: segment {i} override failed: {ex.Message}");
+                        drawn = false;
+                    }
+                    if (drawn) continue;
+                }
 
                 var text = buttons[i]?.DisplayText;
                 if (string.IsNullOrWhiteSpace(text))
@@ -1606,7 +1722,59 @@ public static class BitmapHelper
     /// <summary>
     /// Draws text at the given position in the specified DrawingContext.
     /// </summary>
-    private static void DrawTextAt(
+    // Small reference-keyed LRU of decoded plugin images, so a plugin that holds a static image
+    // and draws it every frame (via IRenderCanvas.DrawImage(byte[])) only pays the decode once.
+    // Keyed by the byte[] instance (treat the array as immutable). All access + the Skia
+    // Decode/Dispose happen under SkiaRenderGate.Sync (callers already hold it; the lock is
+    // re-entrant), so evicted bitmaps are disposed without racing an active render.
+    private const int ImageCacheCapacity = 32;
+    private static readonly LinkedList<KeyValuePair<byte[], SKBitmap>> ImageLru = new();
+    private static readonly Dictionary<byte[], LinkedListNode<KeyValuePair<byte[], SKBitmap>>> ImageCache
+        = new(ReferenceEqualityComparer.Instance);
+
+    /// <summary>Decodes <paramref name="bytes"/> to an <see cref="SKBitmap"/>, caching by array
+    /// reference. The returned bitmap is owned by the cache — callers must NOT dispose it. Returns
+    /// null on empty/undecodable input. Must be called under <see cref="SkiaRenderGate"/>.Sync.</summary>
+    internal static SKBitmap DecodeCached(byte[] bytes)
+    {
+        if (bytes is not { Length: > 0 }) return null;
+
+        lock (SkiaRenderGate.Sync)
+        {
+            if (ImageCache.TryGetValue(bytes, out var existing))
+            {
+                ImageLru.Remove(existing);
+                ImageLru.AddFirst(existing);
+                return existing.Value.Value;
+            }
+
+            var bmp = SKBitmap.Decode(bytes);
+            if (bmp == null) return null;
+
+            var node = ImageLru.AddFirst(new KeyValuePair<byte[], SKBitmap>(bytes, bmp));
+            ImageCache[bytes] = node;
+
+            while (ImageCache.Count > ImageCacheCapacity && ImageLru.Last is { } last)
+            {
+                ImageLru.RemoveLast();
+                ImageCache.Remove(last.Value.Key);
+                last.Value.Value.Dispose();
+            }
+
+            return bmp;
+        }
+    }
+
+    /// <summary>Single-line advance width of <paramref name="text"/> in the UI font (no wrap).
+    /// Backs <c>IRenderCanvas.MeasureText</c> so plugins can fit/ellipsize without their own Skia.</summary>
+    internal static float MeasureTextWidth(string text, float fontSize, bool bold = false, bool italic = false)
+    {
+        if (string.IsNullOrEmpty(text)) return 0f;
+        using var font = new SKFont(GetTextTypeface(bold, italic), fontSize);
+        return font.MeasureText(text);
+    }
+
+    internal static void DrawTextAt(
         SKCanvas canvas,
         string text,
         SKColor color,
@@ -1620,6 +1788,23 @@ public static class BitmapHelper
         bool italic = false,
         bool outlined = false,
         SKColor outlineColor = default)
+    {
+        // Center maps to (Center, Middle); top-left to (Left, Top).
+        DrawTextAligned(canvas, text, color, textSize, centered ? 1 : 0, centered ? 1 : 0,
+            posX, posY, imageWidth, imageHeight, bold, italic, outlined, outlineColor);
+    }
+
+    /// <summary>
+    /// Core wrapped-text renderer with independent horizontal (<paramref name="hAlign"/>:
+    /// 0=Left, 1=Center, 2=Right) and vertical (<paramref name="vAlign"/>: 0=Top, 1=Middle,
+    /// 2=Bottom) alignment within the box. Backs both <see cref="DrawTextAt"/> and the canvas
+    /// alignment overload.
+    /// </summary>
+    internal static void DrawTextAligned(
+        SKCanvas canvas, string text, SKColor color, float textSize,
+        int hAlign, int vAlign,
+        float posX = 0, float posY = 0, float imageWidth = 90, float imageHeight = 90,
+        bool bold = false, bool italic = false, bool outlined = false, SKColor outlineColor = default)
     {
         if (canvas == null || string.IsNullOrEmpty(text))
             throw new ArgumentException("Canvas and text must not be null!");
@@ -1647,9 +1832,12 @@ public static class BitmapHelper
         var lines = WrapText(text, font, imageWidth);
         var lineHeight = font.Spacing;
         var totalHeight = lineHeight * lines.Count;
-        var startY = centered
-            ? posY + (imageHeight - totalHeight) / 2 - font.Metrics.Ascent
-            : posY - font.Metrics.Ascent;
+        var startY = vAlign switch
+        {
+            0 => posY - font.Metrics.Ascent,                                   // Top
+            2 => posY + (imageHeight - totalHeight) - font.Metrics.Ascent,     // Bottom
+            _ => posY + (imageHeight - totalHeight) / 2 - font.Metrics.Ascent  // Middle
+        };
 
         // Draw every line
         for (var i = 0; i < lines.Count; i++)
@@ -1657,9 +1845,12 @@ public static class BitmapHelper
             var line = lines[i];
 
             var textWidth = font.MeasureText(line);
-            var drawX = centered
-                ? posX + (imageWidth - textWidth) / 2f
-                : posX;
+            var drawX = hAlign switch
+            {
+                0 => posX,                                  // Left
+                2 => posX + (imageWidth - textWidth),       // Right
+                _ => posX + (imageWidth - textWidth) / 2f   // Center
+            };
 
             var drawY = startY + (i * lineHeight);
 
