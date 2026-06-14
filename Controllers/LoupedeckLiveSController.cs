@@ -894,8 +894,11 @@ public partial class LoupedeckLiveSController(
         // drive the legacy software Vibrate() pulse on both touch start and end.
         if (e.EventType == Constants.TouchEventType.TOUCH_END)
         {
-            // A side-strip swipe-follow drag commits/snaps-back (or taps) on release.
+            // A side-strip swipe-follow drag commits/snaps-back (or taps) on release;
+            // non-animated strips (plugin-override / single-page segmented) resolve their
+            // deferred tap-vs-swipe here so a swipe doesn't fire the strip command.
             HandleStripDragEnd(e.ChangedTouch);
+            HandleStripTapEnd(e.ChangedTouch);
 
             foreach (var touch in e.Touches)
             {
@@ -949,27 +952,18 @@ public partial class LoupedeckLiveSController(
 
                 // Segmented / free-draw strips run the finger-follow swipe animation: each
                 // TOUCH_START packet (start + the device's mid-drag run) feeds the drag,
-                // which renders the slide and routes taps on release. Plugin strips fall
-                // through to the legacy immediate tap routing below.
+                // which renders the slide and routes taps on release.
                 if (StripAnimationApplicable(stripSide))
                 {
                     OnStripTouchSample(stripSide, SideIndex(stripSide), touch.Y, touch.Id);
                     continue;
                 }
 
-                var localX = stripSide == RotarySide.Right ? touch.X - 420 : touch.X;
-                var tapX = Math.Clamp(localX, 0, 60);
-                var tapY = Math.Clamp(touch.Y, 0, 270);
-                if (IsPluginStripActive(stripSide, out var stripSession))
-                {
-                    try { stripSession.OnStripTapped(tapX, tapY); }
-                    catch (Exception ex) { Console.WriteLine($"Side-strip session tap failed: {ex.Message}"); }
-                }
-                else if (_segmentSession[SideIndex(stripSide)] is { } segmentSession)
-                {
-                    try { segmentSession.OnStripTapped(tapX, tapY); }
-                    catch (Exception ex) { Console.WriteLine($"Segment-strip session tap failed: {ex.Message}"); }
-                }
+                // Non-animated strips (plugin-override, or segmented with a single rotary
+                // page): track the gesture and defer the tap to release. HandleStripTapEnd
+                // only routes it to the owning session if the finger barely moved, so a swipe
+                // doesn't fire the strip command (e.g. an audio segment muting on a swipe).
+                TrackStripTapSample(SideIndex(stripSide), touch.Y, touch.Id);
                 continue;
             }
 

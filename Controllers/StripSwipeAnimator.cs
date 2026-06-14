@@ -57,6 +57,22 @@ public partial class LoupedeckLiveSController
 
     private readonly StripDragState[] _drag = [new(), new()];
 
+    /// <summary>Lightweight gesture tracking for strips that do NOT run the finger-follow
+    /// animation (plugin-override, and segmented pages with a single rotary page so there's
+    /// nothing to slide to). Without this, a tap fired immediately on TOUCH_START, so a swipe
+    /// — which also starts with a TOUCH_START — wrongly triggered the strip command (e.g. an
+    /// audio segment muting on a swipe). Here the tap is deferred to release and suppressed
+    /// when the finger moved, so only a genuine tap runs the command.</summary>
+    private sealed class StripTapState
+    {
+        public bool Active;
+        public byte TouchId;
+        public int StartY;
+        public bool Moved;
+    }
+
+    private readonly StripTapState[] _tapTrack = [new(), new()];
+
     // Bitmaps awaiting disposal, freed only under _stripRedrawGate[idx].
     private readonly List<SKBitmap>[] _stripDisposeQueue = [new(), new()];
 
@@ -295,6 +311,75 @@ public partial class LoupedeckLiveSController
         }
     }
 
+    /// <summary>Feeds one touch sample (start or mid-drag) into the tap tracker for a strip
+    /// that doesn't animate. Records the start position and flags any travel past the tap
+    /// threshold so the release can tell a tap from a swipe.</summary>
+    private void TrackStripTapSample(int idx, int y, byte touchId)
+    {
+        var st = _tapTrack[idx];
+        if (!st.Active || st.TouchId != touchId)
+        {
+            st.Active = true;
+            st.TouchId = touchId;
+            st.StartY = y;
+            st.Moved = false;
+            return;
+        }
+
+        if (Math.Abs(y - st.StartY) > StripTapMaxMove)
+            st.Moved = true;
+    }
+
+    /// <summary>Handles the release of a tracked (non-animated) strip gesture: routes the tap
+    /// to the owning session only when the finger barely moved, so a swipe doesn't trigger the
+    /// strip command. Paging on a swipe is owned by the page/plugin (via the device swipe
+    /// event), so a suppressed swipe here is intentional. Returns true when it consumed the
+    /// release.</summary>
+    private bool HandleStripTapEnd(TouchInfo changedTouch)
+    {
+        if (changedTouch == null) return false;
+
+        for (var idx = 0; idx < 2; idx++)
+        {
+            var st = _tapTrack[idx];
+            if (!st.Active || st.TouchId != changedTouch.Id) continue;
+
+            st.Active = false;
+            var side = idx == 0 ? RotarySide.Left : RotarySide.Right;
+            var endDy = changedTouch.Y - st.StartY;
+
+            // Moved beyond the tap threshold → it was a swipe; suppress the command.
+            if (st.Moved || Math.Abs(endDy) >= StripTapMaxMove)
+                return true;
+
+            RouteNonAnimatedStripTap(side, idx, changedTouch);
+            return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>Routes a tap on a non-animated strip to its owning session: the plugin-override
+    /// provider when active, otherwise the per-segment session (segmented mode). Mirrors the
+    /// hit-test math of the legacy immediate-tap path in <c>OnTouchButtonPress</c>.</summary>
+    private void RouteNonAnimatedStripTap(RotarySide side, int idx, TouchInfo touch)
+    {
+        var localX = side == RotarySide.Right ? touch.X - 420 : touch.X;
+        var tapX = Math.Clamp(localX, 0, 60);
+        var tapY = Math.Clamp(touch.Y, 0, StripHeight);
+
+        if (IsPluginStripActive(side, out var stripSession))
+        {
+            try { stripSession.OnStripTapped(tapX, tapY); }
+            catch (Exception ex) { Console.WriteLine($"Side-strip session tap failed: {ex.Message}"); }
+        }
+        else if (_segmentSession[idx] is { } segmentSession)
+        {
+            try { segmentSession.OnStripTapped(tapX, tapY); }
+            catch (Exception ex) { Console.WriteLine($"Segment-strip session tap failed: {ex.Message}"); }
+        }
+    }
+
     /// <summary>Routes a strip tap to the segment session (segmented mode); a no-op in
     /// free-draw mode. Mirrors the legacy tap routing in <c>OnTouchButtonPress</c>.</summary>
     private void RouteStripTap(RotarySide side, int idx, TouchInfo touch)
@@ -337,6 +422,7 @@ public partial class LoupedeckLiveSController
         for (var idx = 0; idx < 2; idx++)
         {
             _drag[idx].Active = false;
+            _tapTrack[idx].Active = false;
             CancelSettle(idx);
             RetireDragBitmaps(idx);
         }
