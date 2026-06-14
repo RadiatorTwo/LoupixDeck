@@ -245,6 +245,7 @@ public class PluginManager : IPluginManager
         plugin.Instance = null;
         plugin.Host = null;
         plugin.Commands = Array.Empty<IPluginCommand>();
+        plugin.SideStripProviders = Array.Empty<ISideStripProvider>();
         plugin.LoadContext = null;
 
         try { context?.Unload(); }
@@ -336,6 +337,9 @@ public class PluginManager : IPluginManager
             var commands = instance.GetCommands()?.Where(c => c != null).ToList()
                            ?? new List<IPluginCommand>();
 
+            var stripProviders = instance.GetSideStripProviders()?.Where(p => p != null).ToList()
+                                 ?? new List<ISideStripProvider>();
+
             return new LoadedPlugin
             {
                 Manifest = manifest,
@@ -344,7 +348,8 @@ public class PluginManager : IPluginManager
                 Instance = instance,
                 LoadContext = context,
                 Host = host,
-                Commands = commands
+                Commands = commands,
+                SideStripProviders = stripProviders
             };
         }
         catch (Exception ex)

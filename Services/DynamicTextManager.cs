@@ -1,6 +1,9 @@
 using Avalonia.Threading;
 using LoupixDeck.Models;
+using LoupixDeck.Models.Layers;
 using LoupixDeck.Services.Commands;
+using LoupixDeck.Utils;
+using SkiaSharp;
 
 namespace LoupixDeck.Services;
 
@@ -27,6 +30,12 @@ public class DynamicTextManager : IDynamicTextManager, IDisposable
         public string[] Parameters;
         public TimeSpan Interval;
         public DateTime NextDueUtc;
+
+        /// <summary>
+        /// Canonical owner key (<c>name(p1,p2,…)</c>) tying this command's content to its
+        /// own layer, so an update targets exactly that layer instead of "the first match".
+        /// </summary>
+        public string OwnerKey;
     }
 
     private readonly IPageManager _pageManager;
@@ -73,7 +82,12 @@ public class DynamicTextManager : IDynamicTextManager, IDisposable
                     continue;
 
                 var command = _commandRegistry.Get(name);
-                if (command == null || !command.IsDisplayCommand || command.GetText == null)
+                if (command == null)
+                    continue;
+
+                var isText = command.IsDisplayCommand && command.GetText != null;
+                var isImage = command.IsImageDisplayCommand && command.RenderImage != null;
+                if (!isText && !isImage)
                     continue;
 
                 var parms = ParseParameters(button.Command);
@@ -87,10 +101,15 @@ public class DynamicTextManager : IDynamicTextManager, IDisposable
                     Command = command,
                     Parameters = parms,
                     Interval = interval,
-                    NextDueUtc = DateTime.UtcNow
+                    NextDueUtc = DateTime.UtcNow,
+                    OwnerKey = PluginLayerKey.For(button.Command)
                 });
             }
         }
+
+        // Remove/demote plugin-managed layers whose owning command is no longer bound
+        // (command changed/cleared, or its plugin was uninstalled) before (re)starting the loop.
+        SweepOrphanLayers(page);
 
         if (entries.Count == 0)
             return;
@@ -140,19 +159,7 @@ public class DynamicTextManager : IDynamicTextManager, IDisposable
             if (!string.Equals(entry.Command?.CommandName, commandName, StringComparison.Ordinal))
                 continue;
 
-            string newText;
-            try
-            {
-                newText = entry.Command.GetText(entry.Parameters) ?? string.Empty;
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"DynamicTextManager.RefreshCommand: '{commandName}' threw: {ex.Message}");
-                continue;
-            }
-
-            var button = entry.Button;
-            Dispatcher.UIThread.Post(() => button.GetOrCreatePrimaryTextLayer().Text = newText);
+            RenderEntry(entry);
 
             // Re-align the next poll so we don't fire again immediately after this push.
             entry.NextDueUtc = AlignedNext(now, entry.Interval);
@@ -207,20 +214,7 @@ public class DynamicTextManager : IDynamicTextManager, IDisposable
             if (!initial && now < entry.NextDueUtc)
                 continue;
 
-            string newText;
-            try
-            {
-                newText = entry.Command.GetText(entry.Parameters) ?? string.Empty;
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"DynamicTextManager: command '{entry.Command.CommandName}' threw: {ex.Message}");
-                entry.NextDueUtc = AlignedNext(now, entry.Interval);
-                continue;
-            }
-
-            var button = entry.Button;
-            Dispatcher.UIThread.Post(() => button.GetOrCreatePrimaryTextLayer().Text = newText);
+            RenderEntry(entry);
 
             // Advance NextDue by exactly one interval to stay aligned to the wall clock.
             // If we fell behind by more than one interval, snap forward.
@@ -228,6 +222,150 @@ public class DynamicTextManager : IDynamicTextManager, IDisposable
             if (entry.NextDueUtc <= now)
                 entry.NextDueUtc = AlignedNext(now, entry.Interval);
         }
+    }
+
+    /// <summary>
+    /// Pulls the current content for one entry and pushes it onto the entry's owner-keyed
+    /// layer on the UI thread: a text command updates its <see cref="TextLayer"/>, an image
+    /// command decodes the PNG and updates its <see cref="PluginLayer"/> (plus optional
+    /// overlay text). Each command's content targets exactly its own layer (no first-match).
+    /// </summary>
+    private void RenderEntry(Entry entry)
+    {
+        var command = entry.Command;
+        var button = entry.Button;
+        if (command == null || button == null)
+            return;
+
+        if (command.IsImageDisplayCommand && command.RenderImage != null)
+        {
+            // The plugin draws the 90×90 button onto a host canvas; serialize with all other Skia
+            // work (font/glyph caches + the layer's gated bitmap swap) so it can't race the pipeline.
+            var bitmap = new SKBitmap(90, 90);
+            bool drew;
+            try
+            {
+                lock (SkiaRenderGate.Sync)
+                {
+                    using var canvas = new SKCanvas(bitmap);
+                    var rc = new SkiaRenderCanvas(canvas, 90, 90);
+                    drew = command.RenderImage(entry.Parameters, rc);
+                    if (drew) canvas.Flush();
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"DynamicTextManager: image command '{command.CommandName}' threw: {ex.Message}");
+                bitmap.Dispose();
+                return;
+            }
+
+            if (!drew)
+            {
+                bitmap.Dispose(); // plugin declined (no data yet) → leave the button unchanged
+                return;
+            }
+
+            var ownerKey = entry.OwnerKey;
+            var name = command.CommandName;
+            Dispatcher.UIThread.Post(() =>
+                button.GetOrCreatePluginLayer(ownerKey, name).RenderedBitmap = bitmap); // setter retires the old bitmap under the gate
+            return;
+        }
+
+        // Text path.
+        string newText;
+        try
+        {
+            newText = command.GetText(entry.Parameters) ?? string.Empty;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"DynamicTextManager: command '{command.CommandName}' threw: {ex.Message}");
+            return;
+        }
+
+        // Every display command (core or plugin) targets its own owner-keyed layer so an
+        // update lands on exactly that layer instead of "the first matching text layer".
+        var key = entry.OwnerKey;
+        var cmdName = command.CommandName;
+        Dispatcher.UIThread.Post(() => button.GetOrAdoptOwnedTextLayer(key, cmdName).Text = newText);
+    }
+
+    /// <summary>
+    /// Removes/demotes command-owned layers on <paramref name="page"/> whose owning command
+    /// is no longer bound to their button: a <see cref="PluginLayer"/> is disposed and removed,
+    /// a command-created <see cref="TextLayer"/> is removed, and a TextLayer that was adopted from
+    /// a pre-existing user layer is demoted to a normal user layer (owner cleared, text + styling
+    /// kept). Runs on the UI thread since it mutates layer collections bound to the editor.
+    /// </summary>
+    private void SweepOrphanLayers(TouchButtonPage page)
+    {
+        if (page?.TouchButtons == null)
+            return;
+
+        var buttons = page.TouchButtons.ToArray();
+        Dispatcher.UIThread.Post(() =>
+        {
+            foreach (var button in buttons)
+            {
+                if (button?.Layers == null)
+                    continue;
+
+                var validKey = ResolveDisplayKey(button);
+
+                foreach (var layer in button.Layers.ToArray())
+                {
+                    if (!layer.IsCommandOwned)
+                        continue;
+                    if (validKey != null && string.Equals(layer.OwnerKey, validKey, StringComparison.Ordinal))
+                        continue;
+
+                    switch (layer)
+                    {
+                        case PluginLayer plugin:
+                            button.Layers.Remove(plugin);
+                            plugin.DisposeBitmaps();
+                            break;
+                        // A layer the command created is removed with the command; a layer that
+                        // was adopted from a pre-existing user layer is only demoted (owner cleared,
+                        // text + styling kept) so the user's work is never destroyed.
+                        case TextLayer text when text.OwnerCreated:
+                            button.Layers.Remove(text);
+                            break;
+                        case TextLayer text:
+                            text.OwnerKey = null;
+                            text.CommandName = null;
+                            break;
+                    }
+                }
+            }
+        });
+    }
+
+    /// <summary>
+    /// The owner key the button's currently bound command would produce, or <c>null</c> when
+    /// the button is not bound to a registered text/image display command.
+    /// </summary>
+    private string ResolveDisplayKey(TouchButton button)
+    {
+        if (button == null || string.IsNullOrWhiteSpace(button.Command))
+            return null;
+
+        var name = ParseCommandName(button.Command);
+        if (string.IsNullOrEmpty(name))
+            return null;
+
+        var command = _commandRegistry.Get(name);
+        if (command == null)
+            return null;
+
+        var isText = command.IsDisplayCommand && command.GetText != null;
+        var isImage = command.IsImageDisplayCommand && command.RenderImage != null;
+        if (!isText && !isImage)
+            return null;
+
+        return PluginLayerKey.For(button.Command);
     }
 
     private void StopLoop()

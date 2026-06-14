@@ -27,6 +27,21 @@ public class MainWindowViewModel : ViewModelBase
     public ICommand NextRotaryPageCommand { get; }
     public ICommand PreviousRotaryPageCommand { get; }
 
+    // Side-specific rotary paging — used by the Razer layout, whose two dial columns
+    // page independently. Bound per side (Left/Right) in the device layout.
+    public ICommand AddLeftRotaryPageCommand { get; }
+    public ICommand DeleteLeftRotaryPageCommand { get; }
+    public ICommand NextLeftRotaryPageCommand { get; }
+    public ICommand PreviousLeftRotaryPageCommand { get; }
+    public ICommand AddRightRotaryPageCommand { get; }
+    public ICommand DeleteRightRotaryPageCommand { get; }
+    public ICommand NextRightRotaryPageCommand { get; }
+    public ICommand PreviousRightRotaryPageCommand { get; }
+
+    /// <summary>Opens the free-draw canvas editor for a side strip (Razer). No-op unless
+    /// that side is in FreeDraw mode.</summary>
+    public ICommand EditStripCanvasCommand { get; }
+
 
     public ICommand AddTouchPageCommand { get; }
     public ICommand DeleteTouchPageCommand { get; }
@@ -131,6 +146,17 @@ public class MainWindowViewModel : ViewModelBase
         NextRotaryPageCommand = new RelayCommand(NextRotaryPage_Click);
         PreviousRotaryPageCommand = new RelayCommand(PreviousRotaryPage_Click);
 
+        AddLeftRotaryPageCommand = new RelayCommand(() => AddRotaryPageForSide(RotarySide.Left));
+        DeleteLeftRotaryPageCommand = new RelayCommand(() => DeleteRotaryPageForSide(RotarySide.Left));
+        NextLeftRotaryPageCommand = new RelayCommand(() => PageRotaryForSide(RotarySide.Left, next: true));
+        PreviousLeftRotaryPageCommand = new RelayCommand(() => PageRotaryForSide(RotarySide.Left, next: false));
+        AddRightRotaryPageCommand = new RelayCommand(() => AddRotaryPageForSide(RotarySide.Right));
+        DeleteRightRotaryPageCommand = new RelayCommand(() => DeleteRotaryPageForSide(RotarySide.Right));
+        NextRightRotaryPageCommand = new RelayCommand(() => PageRotaryForSide(RotarySide.Right, next: true));
+        PreviousRightRotaryPageCommand = new RelayCommand(() => PageRotaryForSide(RotarySide.Right, next: false));
+
+        EditStripCanvasCommand = new AsyncRelayCommand<RotarySide>(EditStripCanvas_Click);
+
         AddTouchPageCommand = new RelayCommand(AddTouchPageButton_Click);
         DeleteTouchPageCommand = new RelayCommand(DeleteTouchPageButton_Click);
         TouchPageButtonCommand = new RelayCommand<int>(TouchPageButton_Click);
@@ -207,6 +233,35 @@ public class MainWindowViewModel : ViewModelBase
             LoupedeckController.PageManager.PreviousRotaryPage());
     }
 
+    private void AddRotaryPageForSide(RotarySide side)
+    {
+        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        {
+            LoupedeckController.PageManager.AddRotaryButtonPage(side);
+            LoupedeckController.SaveConfig();
+        });
+    }
+
+    private void DeleteRotaryPageForSide(RotarySide side)
+    {
+        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        {
+            LoupedeckController.PageManager.DeleteRotaryButtonPage(side);
+            LoupedeckController.SaveConfig();
+        });
+    }
+
+    private void PageRotaryForSide(RotarySide side, bool next)
+    {
+        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        {
+            if (next)
+                LoupedeckController.PageManager.NextRotaryPage(side);
+            else
+                LoupedeckController.PageManager.PreviousRotaryPage(side);
+        });
+    }
+
     private void AddTouchPageButton_Click()
     {
         Avalonia.Threading.Dispatcher.UIThread.Post(() =>
@@ -251,6 +306,19 @@ public class MainWindowViewModel : ViewModelBase
         );
 
         LoupedeckController.SaveConfig();
+
+        // Refresh the side strip so a command change on this dial (e.g. assigning an audio
+        // command) updates its segment immediately. Resolve which side the dial belongs to;
+        // RefreshSideStrip is a no-op on devices without side strips.
+        var pageManager = LoupedeckController.PageManager;
+        foreach (var side in new[] { RotarySide.Left, RotarySide.Right })
+        {
+            if (pageManager.GetCurrentRotaryPage(side)?.RotaryButtons?.Contains(button) == true)
+            {
+                await LoupedeckController.RefreshSideStrip(side);
+                break;
+            }
+        }
     }
 
     private async Task SimpleButton_Click(SimpleButton button)
@@ -268,6 +336,38 @@ public class MainWindowViewModel : ViewModelBase
 
         LoupedeckController.SaveConfig();
         _dynamicTextManager.Rescan();
+    }
+
+    /// <summary>
+    /// Opens the layer editor on the current rotary page's strip canvas (60×270).
+    /// Always available — the canvas is editable regardless of the page's
+    /// <see cref="StripMode"/>; the mode only controls whether that canvas is shown
+    /// on the device (FreeDraw) or replaced by the auto dial labels (Segmented).
+    /// </summary>
+    private async Task EditStripCanvas_Click(RotarySide side)
+    {
+        var page = LoupedeckController.PageManager.GetCurrentRotaryPage(side);
+        if (page == null) return;
+
+        // The canvas is a TouchButton reused as a 60×270 layer surface; create it lazily.
+        page.StripCanvas ??= new TouchButton(
+            side == RotarySide.Left
+                ? LoupixDeck.LoupedeckDevice.Device.RazerStreamControllerDevice.LeftSideIndex
+                : LoupixDeck.LoupedeckDevice.Device.RazerStreamControllerDevice.RightSideIndex);
+
+        // Wire the canvas into the live-redraw pipeline so layer edits paint the strip
+        // immediately, just like grid touch buttons (instead of only on dialog close).
+        LoupedeckController.RegisterStripCanvas(page);
+
+        await _dialogService.ShowDialogAsync<TouchButtonSettingsViewModel, DialogResult>(vm =>
+        {
+            vm.SetCanvasSize(60, 270);
+            vm.ConfigureStrip(page);
+            vm.Initialize(page.StripCanvas);
+        });
+
+        LoupedeckController.SaveConfig();
+        await LoupedeckController.RefreshSideStrip(side);
     }
 
     private async Task SettingsMenuButton_Click()

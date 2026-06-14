@@ -19,6 +19,8 @@ public abstract class LayerBase : INotifyPropertyChanged
     private double _scale = 1.0;
     private double _scaleY;
     private double _rotation;
+    private string _ownerKey;
+    private string _commandName;
 
     public Guid Id { get; set; } = Guid.NewGuid();
 
@@ -27,6 +29,50 @@ public abstract class LayerBase : INotifyPropertyChanged
         get => _name;
         set => SetField(ref _name, value);
     }
+
+    /// <summary>
+    /// Identifies the display command (core or plugin) that owns this layer's content.
+    /// <c>null</c> for a normal user-created layer; non-null marks the layer as
+    /// <b>command-owned</b>: its content is driven by the bound command, it cannot be deleted
+    /// manually in the editor, and it is swept/demoted when the command unbinds (see the
+    /// dynamic-text manager). The value is the canonical <c>name(p1,p2,…)</c> form produced by
+    /// <see cref="PluginLayerKey.For"/>. Persisted; absent in older configs (defaults null).
+    /// </summary>
+    [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+    public string OwnerKey
+    {
+        get => _ownerKey;
+        set
+        {
+            if (SetField(ref _ownerKey, value))
+                OnPropertyChanged(nameof(IsCommandOwned));
+        }
+    }
+
+    /// <summary>
+    /// Human-readable name of the owning display command (e.g. for the editor badge/info
+    /// card). Set alongside <see cref="OwnerKey"/> on command-owned layers; <c>null</c>
+    /// otherwise. Persisted; absent in older configs.
+    /// </summary>
+    [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+    public string CommandName
+    {
+        get => _commandName;
+        set => SetField(ref _commandName, value);
+    }
+
+    /// <summary>True when this layer's content is owned by a display command (core or plugin).</summary>
+    [JsonIgnore]
+    public bool IsCommandOwned => !string.IsNullOrEmpty(_ownerKey);
+
+    /// <summary>
+    /// True when the layer was created by its owning command (vs adopted from a pre-existing
+    /// user layer). On orphan, a created layer is removed entirely, while an adopted one is only
+    /// demoted back to a normal user layer so the user's styling is never destroyed. Persisted so
+    /// the distinction survives a save; omitted when false. Only meaningful with <see cref="OwnerKey"/>.
+    /// </summary>
+    [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
+    public bool OwnerCreated { get; set; }
 
     public bool Visible
     {

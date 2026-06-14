@@ -21,6 +21,15 @@ public class RotaryButtonPage : INotifyPropertyChanged
     private int _page;
     private string _name;
     private bool _selected;
+    private StripMode _stripMode = StripMode.Segmented;
+
+    /// <summary>
+    /// Which dial column this page belongs to. Defaults to <see cref="RotarySide.Both"/>
+    /// so configs written before the side split (and devices without side strips,
+    /// e.g. the Live S) keep the single-column behaviour. The v3→v4 migration tags
+    /// Razer pages <see cref="RotarySide.Left"/> / <see cref="RotarySide.Right"/>.
+    /// </summary>
+    public RotarySide Side { get; set; } = RotarySide.Both;
 
     /// <summary>
     /// Optional user-assigned page name. Persisted; when empty the page falls back
@@ -66,6 +75,51 @@ public class RotaryButtonPage : INotifyPropertyChanged
     }
 
     public ObservableCollection<RotaryButton> RotaryButtons { get; set; }
+
+    /// <summary>
+    /// Rendering mode of this page's side strip (Razer). Per page, not per device:
+    /// each rotary page on a column independently chooses Segmented (auto dial labels)
+    /// or FreeDraw (the <see cref="StripCanvas"/>). Additive — missing in older JSON
+    /// defaults to <see cref="StripMode.Segmented"/>, preserving prior behaviour.
+    /// </summary>
+    public StripMode StripMode
+    {
+        get => _stripMode;
+        set
+        {
+            if (_stripMode == value) return;
+            _stripMode = value;
+            OnPropertyChanged();
+        }
+    }
+
+    /// <summary>
+    /// Free-draw canvas for this page's side strip: a 60×270 layer surface (image/
+    /// text/symbol) edited like a touch button, shown when this page's
+    /// <see cref="StripMode"/> is <see cref="StripMode.FreeDraw"/>. Null/absent in
+    /// older configs and in segmented mode; created on demand by the editor.
+    /// </summary>
+    public TouchButton StripCanvas { get; set; }
+
+    private string _stripPluginId;
+
+    /// <summary>
+    /// Id of the side-strip provider bound when <see cref="StripMode"/> is
+    /// <see cref="StripMode.PluginOverride"/>. Persisted; null/absent in older configs
+    /// and in non-plugin modes. An orphan id (the plugin is not installed) falls back
+    /// to segmented rendering at runtime, and the id is preserved so re-installing the
+    /// plugin restores the binding.
+    /// </summary>
+    public string StripPluginId
+    {
+        get => _stripPluginId;
+        set
+        {
+            if (_stripPluginId == value) return;
+            _stripPluginId = value;
+            OnPropertyChanged();
+        }
+    }
 
     // Pre/Post-command wraps applied per input type when a button on this page fires.
     public CommandWrap SimpleButtonWrap { get; set; } = new();

@@ -29,6 +29,7 @@ public class LoupedeckLiveSController(
     IConfigService configService,
     IFolderNavigationService folderNav,
     IExclusiveModeService exclusiveMode,
+    ISideStripProviderRegistry sideStripRegistry,
     IAssetService assetService,
     INativeHapticService nativeHapticService,
     LoupedeckConfig config,
@@ -49,10 +50,40 @@ public class LoupedeckLiveSController(
     // first TOUCH_START of a finger-down sequence, cleared on TOUCH_END.
     private int? _activeTouchSlot;
 
+    // ───────── Plugin-override side strips (Razer) ─────────
+    // Live session driving each side strip ([0]=Left, [1]=Right), or null. Created
+    // when the side's current page is a PluginOverride page with a resolvable provider,
+    // disposed when navigating away / the device is taken over. The provider+page the
+    // session was created for are tracked so an idempotent refresh doesn't recreate it,
+    // while a real page or binding change does.
+    private readonly ISideStripSession[] _stripSession = new ISideStripSession[2];
+    private readonly ISideStripProvider[] _stripProvider = new ISideStripProvider[2];
+    private readonly RotaryButtonPage[] _stripPage = new RotaryButtonPage[2];
+    private readonly SemaphoreSlim[] _stripRedrawGate = [new(1, 1), new(1, 1)];
+    private readonly long[] _stripRedrawGen = new long[2];
+    private readonly long[] _stripDrawnGen = new long[2];
+    private readonly long[] _stripLastDrawTick = new long[2];
+    private const int StripMinRedrawMs = 33; // ~30 fps floor per strip
+
+    // ───────── Segmented-mode per-segment providers (Razer) ─────────
+    // In segmented strip mode a provider may render individual segments (e.g. an audio dial's
+    // volume bar) while the host draws the other dials' labels. Kept separate from the
+    // override session above so swipe stays default paging in segmented mode (only tap is
+    // routed to the segment session). Rebuilt when the page object or the rotaries' command
+    // bindings change (an editor edit), detected via _segmentBindingSig.
+    private readonly ISideStripSession[] _segmentSession = new ISideStripSession[2];
+    private readonly ISegmentStripProvider[] _segmentProvider = new ISegmentStripProvider[2];
+    private readonly RotaryButtonPage[] _segmentPage = new RotaryButtonPage[2];
+    private readonly string[] _segmentBindingSig = new string[2];
+
+    private static int SideIndex(RotarySide side) => side == RotarySide.Right ? 1 : 0;
+
     public async Task ClearDeviceState()
     {
         if (_isDeviceOff) return;
         _isDeviceOff = true;
+        // Stop any plugin-strip providers so their timers don't churn while off.
+        DetachAllSideStripProviders();
         try
         {
             var device = deviceService.Device;
@@ -99,6 +130,7 @@ public class LoupedeckLiveSController(
                     await device.DrawTouchButton(tb, config, true, device.Columns);
                 }
             }
+            await RedrawSideStrips();
             // Re-program firmware haptic from the persisted config.
             nativeHapticService.Apply();
         }
@@ -126,6 +158,8 @@ public class LoupedeckLiveSController(
         {
             await device.DrawTouchButton(tb, config, true, device.Columns);
         }
+
+        await RedrawSideStrips();
     }
 
     public async Task Initialize(string port = null, int baudrate = 0)
@@ -206,16 +240,7 @@ public class LoupedeckLiveSController(
 
         config.SimpleButtons = await BuildSimpleButtons();
 
-        if (config.RotaryButtonPages == null || config.RotaryButtonPages.Count == 0)
-        {
-            pageManager.AddRotaryButtonPage(true);
-        }
-        else
-        {
-            // Existing config Init always page 0.
-            config.CurrentRotaryPageIndex = 0;
-            pageManager.ApplyRotaryPage(config.CurrentRotaryPageIndex, true);
-        }
+        InitializeRotaryPages();
 
         if (config.TouchButtonPages == null || config.TouchButtonPages.Count == 0)
         {
@@ -241,7 +266,10 @@ public class LoupedeckLiveSController(
             }
         }
 
-        config.CurrentRotaryButtonPage.Selected = true;
+        // Rotary selection is already set by InitializeRotaryPages (per side on
+        // side-strip devices, where CurrentRotaryButtonPage/Both is intentionally null).
+        if (config.CurrentRotaryButtonPage != null)
+            config.CurrentRotaryButtonPage.Selected = true;
         config.CurrentTouchButtonPage.Selected = true;
 
         config.PropertyChanged += ConfigOnPropertyChanged;
@@ -255,6 +283,9 @@ public class LoupedeckLiveSController(
         // the firmware has released it) makes BUTTON0 honour its configured colour like the
         // others. See the bottom-left-button-always-green investigation.
         await ReapplySimpleButtonColors();
+
+        // Paint the initial segmented rotary labels onto the side strips (Razer).
+        await RedrawSideStrips();
 
         InitButtonEvents();
 
@@ -284,7 +315,472 @@ public class LoupedeckLiveSController(
         device.OnButton += OnSimpleButtonPress;
         device.OnTouch += OnTouchButtonPress;
         device.OnRotate += OnRotate;
+        device.OnSwipe += OnSwipe;
+
+        // Repaint the affected side strip whenever its rotary page changes.
+        pageManager.OnRotaryPageChanged += OnRotaryPageChanged;
     }
+
+    /// <summary>
+    /// Sets up the rotary pages for the active device. Devices with side strips
+    /// (Razer) page their two dial columns independently, so each side gets its own
+    /// page set; other devices keep the single shared page list.
+    /// </summary>
+    private void InitializeRotaryPages()
+    {
+        if (deviceService.Device?.HasSideStrips == true)
+        {
+            foreach (var side in new[] { RotarySide.Left, RotarySide.Right })
+            {
+                if (pageManager.GetRotaryPages(side).Count == 0)
+                    pageManager.AddRotaryButtonPage(side, true);
+                else
+                    pageManager.ApplyRotaryPage(side, 0, true);
+            }
+            return;
+        }
+
+        if (config.RotaryButtonPages == null || config.RotaryButtonPages.Count == 0)
+            pageManager.AddRotaryButtonPage(RotarySide.Both, true);
+        else
+            pageManager.ApplyRotaryPage(RotarySide.Both, 0, true);
+    }
+
+    private static RotarySide ToRotarySide(SideStrip strip) =>
+        strip == SideStrip.Left ? RotarySide.Left : RotarySide.Right;
+
+    /// <summary>
+    /// Maps a global knob index (0–2 left, 3–5 right) to its dial column and the
+    /// per-side 0-based index used inside a side page.
+    /// </summary>
+    private static (RotarySide Side, int LocalIndex) ResolveRotary(int globalIndex) =>
+        globalIndex < 3
+            ? (RotarySide.Left, globalIndex)
+            : (RotarySide.Right, globalIndex - 3);
+
+    /// <summary>
+    /// Resolves the rotary button for a global knob index (0–5) against the active
+    /// rotary page. On side-strip devices this picks the matching column's current
+    /// page and the per-side local index; otherwise the shared page and the index
+    /// as-is. Returns null when no page/button is available.
+    /// </summary>
+    private (RotaryButtonPage Page, RotaryButton Button)? ResolveRotaryButton(int globalIndex)
+    {
+        RotaryButtonPage page;
+        int localIndex;
+
+        if (deviceService.Device?.HasSideStrips == true)
+        {
+            var (side, local) = ResolveRotary(globalIndex);
+            page = pageManager.GetCurrentRotaryPage(side);
+            localIndex = local;
+        }
+        else
+        {
+            page = config.CurrentRotaryButtonPage;
+            localIndex = globalIndex;
+        }
+
+        if (page?.RotaryButtons == null || localIndex < 0 || localIndex >= page.RotaryButtons.Count)
+            return null;
+
+        return (page, page.RotaryButtons[localIndex]);
+    }
+
+    private void OnSwipe(object sender, SwipeEventArgs e)
+    {
+        if (_isDeviceOff || exclusiveMode.IsActive || folderNav.IsActive)
+            return;
+
+        var side = ToRotarySide(e.Side);
+
+        // A plugin-override strip owns its gestures: the provider decides whether to
+        // page (via the context callbacks) or consume the swipe.
+        if (IsPluginStripActive(side, out var session))
+        {
+            var direction = e.Direction == SwipeDirection.Up ? StripSwipeDirection.Up : StripSwipeDirection.Down;
+            try { session.OnStripSwiped(direction); }
+            catch (Exception ex) { Console.WriteLine($"Side-strip session swipe failed: {ex.Message}"); }
+            return;
+        }
+
+        if (e.Direction == SwipeDirection.Up)
+            pageManager.NextRotaryPage(side);
+        else
+            pageManager.PreviousRotaryPage(side);
+    }
+
+    private async void OnRotaryPageChanged(RotarySide side, int previousIndex, int newIndex)
+    {
+        // Only side-strip devices render rotary labels onto a strip.
+        if (deviceService.Device?.HasSideStrips != true || side == RotarySide.Both)
+            return;
+
+        if (_isDeviceOff || exclusiveMode.IsActive || folderNav.IsActive)
+            return;
+
+        try
+        {
+            EnsureStripAttachment(side);
+            EnsureSegmentAttachment(side);
+            await DrawSideStrip(side);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Side-strip redraw failed ({side}): {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Renders the segmented label strip for one dial column (3 stacked 60×90 knob
+    /// labels) and pushes it to the matching side panel region of the unified display.
+    /// </summary>
+    private async Task DrawSideStrip(RotarySide side)
+    {
+        var device = deviceService.Device;
+        if (device is not LoupedeckDevice.Device.RazerStreamControllerDevice razer)
+            return;
+
+        var page = pageManager.GetCurrentRotaryPage(side);
+        if (page == null) return;
+
+        var slotIndex = side == RotarySide.Left
+            ? LoupedeckDevice.Device.RazerStreamControllerDevice.LeftSideIndex
+            : LoupedeckDevice.Device.RazerStreamControllerDevice.RightSideIndex;
+
+        // PluginOverride: a plugin provider renders the strip; FreeDraw: the page's
+        // editable canvas; Segmented (default): the three adjacent dial labels.
+        var strip = page.StripMode switch
+        {
+            StripMode.PluginOverride => RenderPluginStripOrFallback(page, side),
+            StripMode.FreeDraw => BitmapHelper.RenderStripCanvas(page.StripCanvas, config, 60, 270, side),
+            _ => BitmapHelper.RenderRotaryStrip(page, config, 60, 270, side,
+                (i, rc) => (_segmentSession[SideIndex(side)] as ISegmentStripSession)?.RenderSegment(i, rc) ?? false)
+        };
+
+        // Mirror the strip onto the on-screen mask: the side-panel buttons bind to
+        // their TouchButton.RenderedImage. The setter owns the bitmap's lifetime
+        // (deferred dispose), so don't dispose it here — it's also read by the device
+        // push below and held by the UI binding.
+        var slotButton = config.CurrentTouchButtonPage?.TouchButtons?.FindByIndex(slotIndex);
+        if (slotButton != null)
+            slotButton.RenderedImage = strip;
+
+        await razer.DrawTouchSlot(slotIndex, strip);
+    }
+
+    /// <summary>Re-evaluates plugin-override attachment for both strips, then repaints
+    /// them (no-op on devices without side strips).</summary>
+    private async Task RedrawSideStrips()
+    {
+        if (deviceService.Device?.HasSideStrips != true) return;
+        EnsureStripAttachment(RotarySide.Left);
+        EnsureStripAttachment(RotarySide.Right);
+        EnsureSegmentAttachment(RotarySide.Left);
+        EnsureSegmentAttachment(RotarySide.Right);
+        await DrawSideStrip(RotarySide.Left);
+        await DrawSideStrip(RotarySide.Right);
+    }
+
+    /// <summary>Repaints a single side strip — public entry for the UI after the user
+    /// edits that side's strip (free-draw canvas or plugin-override binding). Re-evaluates
+    /// plugin attachment first so a just-changed mode/provider takes effect immediately.
+    /// No-op on devices without side strips.</summary>
+    public Task RefreshSideStrip(RotarySide side)
+    {
+        EnsureStripAttachment(side);
+        EnsureSegmentAttachment(side);
+        return DrawSideStrip(side);
+    }
+
+    /// <inheritdoc/>
+    public async Task RefreshSideStrips()
+    {
+        if (_isDeviceOff || folderNav.IsActive || exclusiveMode.IsActive) return;
+        await RedrawSideStrips();
+    }
+
+    /// <inheritdoc/>
+    public void DetachAllSideStripProviders()
+    {
+        DetachStripAt(0);
+        DetachStripAt(1);
+        DetachSegmentAt(0);
+        DetachSegmentAt(1);
+    }
+
+    /// <summary>
+    /// Renders a plugin-override strip: the attached provider draws the whole 60×270 strip onto a
+    /// host canvas. Falls back to the segmented dial labels when no provider is attached or the
+    /// provider declines (returns false) / throws.
+    /// </summary>
+    private SkiaSharp.SKBitmap RenderPluginStripOrFallback(RotaryButtonPage page, RotarySide side)
+    {
+        var session = _stripSession[SideIndex(side)];
+        if (session != null)
+        {
+            // The session draws with SkiaSharp via the canvas; serialize with all other Skia work
+            // so a plugin frame can't race the host's render pipeline (caches aren't thread-safe).
+            var bitmap = new SkiaSharp.SKBitmap(60, 270);
+            try
+            {
+                lock (SkiaRenderGate.Sync)
+                {
+                    using var canvas = new SkiaSharp.SKCanvas(bitmap);
+                    var rc = new SkiaRenderCanvas(canvas, 60, 270);
+                    if (session.RenderStrip(rc))
+                    {
+                        canvas.Flush();
+                        return bitmap;
+                    }
+                }
+                bitmap.Dispose();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Side-strip session RenderStrip failed ({side}): {ex.Message}");
+                bitmap.Dispose();
+            }
+        }
+
+        // Unbound / orphaned id / declined / failed → segmented labels.
+        return BitmapHelper.RenderRotaryStrip(page, config, 60, 270, side);
+    }
+
+    /// <summary>
+    /// Creates/disposes the plugin-override session for one side so it matches the side's
+    /// current rotary page: a PluginOverride page with a resolvable provider gets a fresh
+    /// session (with that page's dial bindings in the context); any other state disposes
+    /// the previous one. Recreates when the page object or bound provider changes — so
+    /// navigating between two plugin pages rebinds the session to the new page's dials —
+    /// but an idempotent refresh on the same page/provider is a no-op.
+    /// </summary>
+    private void EnsureStripAttachment(RotarySide side)
+    {
+        if (deviceService.Device?.HasSideStrips != true || side == RotarySide.Both) return;
+
+        var idx = SideIndex(side);
+        var page = pageManager.GetCurrentRotaryPage(side);
+
+        ISideStripProvider desired = null;
+        if (page is { StripMode: StripMode.PluginOverride })
+            desired = sideStripRegistry.Get(page.StripPluginId);
+
+        // Nothing changed (same page object, same resolved provider) → keep the session.
+        if (ReferenceEquals(_stripPage[idx], page) && ReferenceEquals(_stripProvider[idx], desired))
+            return;
+
+        DetachStripAt(idx);
+        _stripPage[idx] = page;
+        _stripProvider[idx] = desired;
+        if (desired == null) return;
+
+        var context = new SideStripContext
+        {
+            Side = side == RotarySide.Right ? StripSide.Right : StripSide.Left,
+            Width = 60,
+            Height = 270,
+            Rotaries = BuildStripRotaries(page),
+            RequestNextPage = () => pageManager.NextRotaryPage(side),
+            RequestPreviousPage = () => pageManager.PreviousRotaryPage(side)
+        };
+
+        try
+        {
+            var session = desired.CreateSession(context);
+            if (session == null) return;
+            _stripSession[idx] = session;
+            session.StripChanged += OnStripSessionChanged;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Side-strip provider '{desired.Id}' CreateSession failed: {ex.Message}");
+        }
+    }
+
+    /// <summary>Maps a side page's dials to the SDK's rotary context (top-to-bottom).</summary>
+    private static IReadOnlyList<SideStripRotary> BuildStripRotaries(RotaryButtonPage page)
+    {
+        var rotaries = page.RotaryButtons;
+        if (rotaries == null || rotaries.Count == 0) return Array.Empty<SideStripRotary>();
+
+        var list = new List<SideStripRotary>(rotaries.Count);
+        for (var i = 0; i < rotaries.Count; i++)
+        {
+            var r = rotaries[i];
+            list.Add(new SideStripRotary
+            {
+                Index = i,
+                Label = r.DisplayText ?? string.Empty,
+                LeftCommand = r.RotaryLeftCommand ?? string.Empty,
+                RightCommand = r.RotaryRightCommand ?? string.Empty,
+                PressCommand = r.Command ?? string.Empty
+            });
+        }
+        return list;
+    }
+
+    private void DetachStripAt(int idx)
+    {
+        var session = _stripSession[idx];
+        _stripSession[idx] = null;
+        _stripProvider[idx] = null;
+        _stripPage[idx] = null;
+        if (session == null) return;
+
+        session.StripChanged -= OnStripSessionChanged;
+        try { session.Dispose(); }
+        catch (Exception ex) { Console.WriteLine($"Side-strip session dispose failed: {ex.Message}"); }
+    }
+
+    /// <summary>
+    /// Creates/disposes the per-segment session for one side in <see cref="StripMode.Segmented"/>
+    /// mode: when the side's current page is segmented and a segment-capable provider is loaded,
+    /// a session is attached so individual segments (e.g. an audio dial's volume bar) can be
+    /// plugin-rendered while the host draws the other dials' labels. Rebuilt when the page object,
+    /// the resolved provider, or the rotaries' command bindings change (an editor edit); any
+    /// non-segmented page detaches it. Distinct from the override session so swipe stays default
+    /// paging in segmented mode.
+    /// </summary>
+    private void EnsureSegmentAttachment(RotarySide side)
+    {
+        if (deviceService.Device?.HasSideStrips != true || side == RotarySide.Both) return;
+
+        var idx = SideIndex(side);
+        var page = pageManager.GetCurrentRotaryPage(side);
+
+        ISegmentStripProvider desired = null;
+        if (page is { StripMode: StripMode.Segmented })
+            desired = sideStripRegistry.Providers.OfType<ISegmentStripProvider>().FirstOrDefault();
+
+        // A binding signature detects an editor edit (commands changed on the same page object).
+        var sig = desired == null ? null : BuildBindingSignature(page);
+
+        if (ReferenceEquals(_segmentPage[idx], page)
+            && ReferenceEquals(_segmentProvider[idx], desired)
+            && _segmentBindingSig[idx] == sig)
+            return;
+
+        DetachSegmentAt(idx);
+        _segmentPage[idx] = page;
+        _segmentProvider[idx] = desired;
+        _segmentBindingSig[idx] = sig;
+        if (desired == null) return;
+
+        var context = new SideStripContext
+        {
+            Side = side == RotarySide.Right ? StripSide.Right : StripSide.Left,
+            Width = 60,
+            Height = 270,
+            Rotaries = BuildStripRotaries(page),
+            RequestNextPage = () => pageManager.NextRotaryPage(side),
+            RequestPreviousPage = () => pageManager.PreviousRotaryPage(side)
+        };
+
+        try
+        {
+            var session = desired.CreateSession(context);
+            if (session == null) return;
+            _segmentSession[idx] = session;
+            session.StripChanged += OnStripSessionChanged;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Segment-strip provider '{desired.Id}' CreateSession failed: {ex.Message}");
+        }
+    }
+
+    /// <summary>Concatenates the 3 dials' Left/Right/Press command strings so a binding change
+    /// (e.g. assigning an audio command in the editor) is detectable without a page-object swap.</summary>
+    private static string BuildBindingSignature(RotaryButtonPage page)
+    {
+        var rotaries = page?.RotaryButtons;
+        if (rotaries == null || rotaries.Count == 0) return string.Empty;
+
+        var parts = new List<string>(rotaries.Count * 3);
+        foreach (var r in rotaries)
+        {
+            parts.Add(r?.RotaryLeftCommand ?? string.Empty);
+            parts.Add(r?.RotaryRightCommand ?? string.Empty);
+            parts.Add(r?.Command ?? string.Empty);
+        }
+        return string.Join("|", parts);
+    }
+
+    private void DetachSegmentAt(int idx)
+    {
+        var session = _segmentSession[idx];
+        _segmentSession[idx] = null;
+        _segmentProvider[idx] = null;
+        _segmentPage[idx] = null;
+        _segmentBindingSig[idx] = null;
+        if (session == null) return;
+
+        session.StripChanged -= OnStripSessionChanged;
+        try { session.Dispose(); }
+        catch (Exception ex) { Console.WriteLine($"Segment-strip session dispose failed: {ex.Message}"); }
+    }
+
+    /// <summary>True when the side's current page is PluginOverride and a session is
+    /// active; outputs the session for input routing.</summary>
+    private bool IsPluginStripActive(RotarySide side, out ISideStripSession session)
+    {
+        session = null;
+        if (deviceService.Device?.HasSideStrips != true || side == RotarySide.Both) return false;
+        var page = pageManager.GetCurrentRotaryPage(side);
+        if (page is not { StripMode: StripMode.PluginOverride }) return false;
+        session = _stripSession[SideIndex(side)];
+        return session != null;
+    }
+
+    /// <summary>StripChanged handler — coalesced, rate-limited per-side redraw. May be
+    /// invoked from a plugin background thread.</summary>
+    private void OnStripSessionChanged(object sender, EventArgs e)
+    {
+        if (sender is not ISideStripSession session) return;
+        var idx = ReferenceEquals(_stripSession[0], session) ? 0
+                : ReferenceEquals(_stripSession[1], session) ? 1
+                : ReferenceEquals(_segmentSession[0], session) ? 0
+                : ReferenceEquals(_segmentSession[1], session) ? 1 : -1;
+        if (idx < 0) return;
+        _ = RedrawStripCoalesced(idx == 0 ? RotarySide.Left : RotarySide.Right, idx);
+    }
+
+    private async Task RedrawStripCoalesced(RotarySide side, int idx)
+    {
+        var requested = Interlocked.Increment(ref _stripRedrawGen[idx]);
+        await _stripRedrawGate[idx].WaitAsync();
+        try
+        {
+            // A later request already rendered at least this fresh (RenderStrip reads
+            // live provider state, so the newest frame is always what gets drawn).
+            if (Interlocked.Read(ref _stripDrawnGen[idx]) >= requested) return;
+            if (_isDeviceOff || folderNav.IsActive || exclusiveMode.IsActive) return;
+
+            var since = Environment.TickCount64 - _stripLastDrawTick[idx];
+            if (since < StripMinRedrawMs)
+                await Task.Delay((int)(StripMinRedrawMs - since));
+
+            var snapshot = Interlocked.Read(ref _stripRedrawGen[idx]);
+            await DrawSideStrip(side);
+            Interlocked.Exchange(ref _stripDrawnGen[idx], snapshot);
+            _stripLastDrawTick[idx] = Environment.TickCount64;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Side-strip provider redraw failed ({side}): {ex.Message}");
+        }
+        finally
+        {
+            _stripRedrawGate[idx].Release();
+        }
+    }
+
+    /// <summary>True for the Razer side-strip slots, which are driven by rotary labels.</summary>
+    private bool IsSideStripSlot(int slot) =>
+        deviceService.Device?.HasSideStrips == true &&
+        slot is LoupedeckDevice.Device.RazerStreamControllerDevice.LeftSideIndex
+             or LoupedeckDevice.Device.RazerStreamControllerDevice.RightSideIndex;
 
     private void OnSimpleButtonPress(object sender, ButtonEventArgs e)
     {
@@ -338,9 +834,9 @@ public class LoupedeckLiveSController(
         }
 
         if (!TryGetRotaryIndex(e.ButtonId, out var idx)) return;
-        var page = config.RotaryButtonPages[config.CurrentRotaryPageIndex];
-        if (page?.RotaryButtons == null || idx >= page.RotaryButtons.Count) return;
-        var rotary = page.RotaryButtons[idx];
+        var resolved = ResolveRotaryButton(idx);
+        if (resolved == null) return;
+        var (page, rotary) = resolved.Value;
         if (_isDeviceOff && !rotary.EnableWhenOff) return;
         var cmd = rotary.Command;
         if (string.IsNullOrEmpty(cmd)) return;
@@ -409,6 +905,32 @@ public class LoupedeckLiveSController(
         foreach (var touch in e.Touches)
         {
             var slot = touch.Target.Key;
+
+            // Side strips are label + swipe areas, not command buttons. A tap does nothing
+            // in free-draw mode; in plugin-override mode it goes to the owning provider; in
+            // segmented mode it goes to the per-segment session (e.g. tap an audio segment to
+            // toggle mute — a non-audio segment's session call is a no-op). Either way it must
+            // not arm the sliding-prevention slot, which guards the centre grid.
+            if (IsSideStripSlot(slot))
+            {
+                var stripSide = slot == LoupedeckDevice.Device.RazerStreamControllerDevice.RightSideIndex
+                    ? RotarySide.Right
+                    : RotarySide.Left;
+                var localX = stripSide == RotarySide.Right ? touch.X - 420 : touch.X;
+                var tapX = Math.Clamp(localX, 0, 60);
+                var tapY = Math.Clamp(touch.Y, 0, 270);
+                if (IsPluginStripActive(stripSide, out var stripSession))
+                {
+                    try { stripSession.OnStripTapped(tapX, tapY); }
+                    catch (Exception ex) { Console.WriteLine($"Side-strip session tap failed: {ex.Message}"); }
+                }
+                else if (_segmentSession[SideIndex(stripSide)] is { } segmentSession)
+                {
+                    try { segmentSession.OnStripTapped(tapX, tapY); }
+                    catch (Exception ex) { Console.WriteLine($"Segment-strip session tap failed: {ex.Message}"); }
+                }
+                continue;
+            }
 
             if (config.TouchSlidingPreventionEnabled && _activeTouchSlot.HasValue)
                 continue;
@@ -529,10 +1051,9 @@ public class LoupedeckLiveSController(
         }
 
         if (!TryGetRotaryIndex(e.ButtonId, out var idx)) return;
-        var page = config.RotaryButtonPages[config.CurrentRotaryPageIndex];
-        if (page?.RotaryButtons == null || idx >= page.RotaryButtons.Count) return;
-
-        var btn = page.RotaryButtons[idx];
+        var resolved = ResolveRotaryButton(idx);
+        if (resolved == null) return;
+        var (page, btn) = resolved.Value;
         if (_isDeviceOff && !btn.EnableWhenOff) return;
         var leftTurn = e.Delta < 0;
         var command = leftTurn ? btn.RotaryLeftCommand : btn.RotaryRightCommand;
@@ -582,6 +1103,11 @@ public class LoupedeckLiveSController(
 
     private async void OnExclusiveStateChanged()
     {
+        // A whole-device takeover owns the strips too: stop any plugin-strip providers
+        // (idempotent). They re-attach when exclusive mode exits via RedrawSideStrips.
+        if (exclusiveMode.IsActive)
+            DetachAllSideStripProviders();
+
         var requested = Interlocked.Increment(ref _exclusiveGen);
 
         await _exclusiveRedrawGate.WaitAsync();
@@ -674,6 +1200,8 @@ public class LoupedeckLiveSController(
                 await device.DrawTouchButton(touchButton, config, true, device.Columns);
             }
         }
+
+        await RedrawSideStrips();
     }
 
     // FullScreen: render every slot, push the whole frame in ONE atomic blit + DRAW.
@@ -801,6 +1329,10 @@ public class LoupedeckLiveSController(
 
             if (folderNav.IsActive)
             {
+                // Folder navigation paints the whole screen including the strips, so
+                // stop any plugin-strip providers; they re-attach on folder exit.
+                DetachAllSideStripProviders();
+
                 for (var slot = 0; slot < FolderConstants.TotalSlots; slot++)
                 {
                     SkiaSharp.SKBitmap bmp;
@@ -827,6 +1359,8 @@ public class LoupedeckLiveSController(
                 {
                     await device.DrawTouchButton(touchButton, config, true, device.Columns);
                 }
+
+                await RedrawSideStrips();
             }
         }
         catch (Exception ex)
@@ -852,6 +1386,10 @@ public class LoupedeckLiveSController(
                 touchButton.ItemChanged += TouchItemChanged;
             }
         }
+
+        // The side strips share the page wallpaper, so repaint them for the new page.
+        if (!_isDeviceOff && !folderNav.IsActive && !exclusiveMode.IsActive)
+            _ = RedrawSideStrips();
     }
 
     private void TouchButtonPagesOnCollectionChanged(object sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
@@ -904,6 +1442,8 @@ public class LoupedeckLiveSController(
                         await deviceService.Device.DrawTouchButton(touchButton, config, true, deviceService.Device.Columns);
                         await Task.Delay(0, token);
                     }
+                    // The side strips share the wallpaper — repaint them too.
+                    await RedrawSideStrips();
                     break;
             }
         }
@@ -927,6 +1467,33 @@ public class LoupedeckLiveSController(
         if (button == null) return;
 
         await deviceService.Device.DrawTouchButton(button, config, true, deviceService.Device.Columns);
+    }
+
+    /// <summary>
+    /// Subscribes a page's free-draw <see cref="RotaryButtonPage.StripCanvas"/> to the
+    /// live-redraw pipeline, so editing its layers repaints the side strip immediately
+    /// (mirroring <see cref="TouchItemChanged"/> for grid buttons). Idempotent; safe to
+    /// call each time the strip editor opens. No-op without side strips / no canvas.
+    /// </summary>
+    public void RegisterStripCanvas(RotaryButtonPage page)
+    {
+        if (deviceService.Device?.HasSideStrips != true || page?.StripCanvas == null) return;
+        page.StripCanvas.ItemChanged -= StripCanvasItemChanged;
+        page.StripCanvas.ItemChanged += StripCanvasItemChanged;
+    }
+
+    private async void StripCanvasItemChanged(object sender, EventArgs e)
+    {
+        if (sender is not TouchButton canvas) return;
+        if (_isDeviceOff || folderNav.IsActive || exclusiveMode.IsActive) return;
+
+        // The canvas Index encodes its column (LeftSideIndex / RightSideIndex), so the
+        // strip is repainted via the free-draw renderer, not the grid touch path.
+        var side = canvas.Index == LoupedeckDevice.Device.RazerStreamControllerDevice.RightSideIndex
+            ? RotarySide.Right
+            : RotarySide.Left;
+
+        await DrawSideStrip(side);
     }
 
     /// <summary>

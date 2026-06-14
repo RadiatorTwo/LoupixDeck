@@ -14,9 +14,24 @@ public interface IPageManager
     TouchButtonPage CurrentTouchButtonPage { get; }
     SimpleButton[] SimpleButtons { get; }
 
+    /// <summary>True when the active device pages its dial columns independently (side strips).</summary>
+    bool HasIndependentRotarySides { get; }
+
     void NextRotaryPage();
     void PreviousRotaryPage();
     void ApplyRotaryPage(int pageIndex, bool init = false);
+
+    // Side-aware paging — used by devices with side strips (Razer). RotarySide.Both
+    // falls back to the single shared list (Live S and legacy behaviour).
+    ObservableCollection<RotaryButtonPage> GetRotaryPages(RotarySide side);
+    RotaryButtonPage GetCurrentRotaryPage(RotarySide side);
+    int GetCurrentRotaryPageIndex(RotarySide side);
+    void NextRotaryPage(RotarySide side);
+    void PreviousRotaryPage(RotarySide side);
+    void ApplyRotaryPage(RotarySide side, int pageIndex, bool init = false);
+    void AddRotaryButtonPage(RotarySide side, bool init = false);
+    void DeleteRotaryButtonPage(RotarySide side);
+
     Task NextTouchPage();
     Task PreviousTouchPage();
     Task ApplyTouchPage(int pageIndex, bool init = false);
@@ -28,7 +43,9 @@ public interface IPageManager
 
     void RefreshTouchButtons();
     void RefreshSimpleButtons();
-    event Action<int, int> OnRotaryPageChanged;
+
+    /// <summary>Fired when a rotary page changes: (side, previousIndex, newIndex).</summary>
+    event Action<RotarySide, int, int> OnRotaryPageChanged;
     event Action<int, int> OnTouchPageChanged;
 }
 
@@ -63,35 +80,112 @@ public class PageManager : IPageManager
     public TouchButtonPage CurrentTouchButtonPage => _config.CurrentTouchButtonPage;
     public SimpleButton[] SimpleButtons => _config.SimpleButtons;
 
+    public bool HasIndependentRotarySides => _deviceService.Device?.HasSideStrips ?? false;
+
+    // Number of knobs per side page on a side-strip device (3 on the Razer's 6).
+    private int SideRotaryButtonCount => Math.Max(1, _deviceService.RotaryButtonCount / 2);
+
+    public ObservableCollection<RotaryButtonPage> GetRotaryPages(RotarySide side) => side switch
+    {
+        RotarySide.Left => _config.LeftRotaryButtonPages,
+        RotarySide.Right => _config.RightRotaryButtonPages,
+        _ => _config.RotaryButtonPages
+    };
+
+    public RotaryButtonPage GetCurrentRotaryPage(RotarySide side) => side switch
+    {
+        RotarySide.Left => _config.CurrentLeftRotaryButtonPage,
+        RotarySide.Right => _config.CurrentRightRotaryButtonPage,
+        _ => _config.CurrentRotaryButtonPage
+    };
+
+    public int GetCurrentRotaryPageIndex(RotarySide side) => side switch
+    {
+        RotarySide.Left => _config.CurrentLeftRotaryPageIndex,
+        RotarySide.Right => _config.CurrentRightRotaryPageIndex,
+        _ => _config.CurrentRotaryPageIndex
+    };
+
+    private void SetCurrentRotaryPageIndex(RotarySide side, int value)
+    {
+        switch (side)
+        {
+            case RotarySide.Left: _config.CurrentLeftRotaryPageIndex = value; break;
+            case RotarySide.Right: _config.CurrentRightRotaryPageIndex = value; break;
+            default: _config.CurrentRotaryPageIndex = value; break;
+        }
+    }
+
+    // --- Parameterless (legacy / global) paging ------------------------------
+    // On a side-strip device the shared list is empty, so page both columns in
+    // lockstep — this keeps the default Next/Previous-Rotary-Page side buttons
+    // useful while swipes still page each column on its own.
+
     public void NextRotaryPage()
     {
-        ApplyRotaryPage((CurrentRotaryPageIndex + 1) % RotaryButtonPages.Count);
+        if (HasIndependentRotarySides)
+        {
+            NextRotaryPage(RotarySide.Left);
+            NextRotaryPage(RotarySide.Right);
+            return;
+        }
+
+        NextRotaryPage(RotarySide.Both);
     }
 
     public void PreviousRotaryPage()
     {
-        ApplyRotaryPage((CurrentRotaryPageIndex - 1 + RotaryButtonPages.Count) % RotaryButtonPages.Count);
+        if (HasIndependentRotarySides)
+        {
+            PreviousRotaryPage(RotarySide.Left);
+            PreviousRotaryPage(RotarySide.Right);
+            return;
+        }
+
+        PreviousRotaryPage(RotarySide.Both);
     }
 
     public void ApplyRotaryPage(int pageIndex, bool init = false)
+        => ApplyRotaryPage(RotarySide.Both, pageIndex, init);
+
+    // --- Side-aware paging ----------------------------------------------------
+
+    public void NextRotaryPage(RotarySide side)
     {
-        if (CurrentRotaryPageIndex == pageIndex) return;
+        var pages = GetRotaryPages(side);
+        if (pages.Count == 0) return;
+        ApplyRotaryPage(side, (GetCurrentRotaryPageIndex(side) + 1) % pages.Count);
+    }
 
-        var previousRotaryPageIndex = CurrentRotaryPageIndex;
-        CurrentRotaryPageIndex = pageIndex;
+    public void PreviousRotaryPage(RotarySide side)
+    {
+        var pages = GetRotaryPages(side);
+        if (pages.Count == 0) return;
+        ApplyRotaryPage(side, (GetCurrentRotaryPageIndex(side) - 1 + pages.Count) % pages.Count);
+    }
 
-        foreach (var page in RotaryButtonPages)
-        {
+    public void ApplyRotaryPage(RotarySide side, int pageIndex, bool init = false)
+    {
+        if (GetCurrentRotaryPageIndex(side) == pageIndex && !init) return;
+
+        var pages = GetRotaryPages(side);
+        if (pageIndex < 0 || pageIndex >= pages.Count) return;
+
+        var previousIndex = GetCurrentRotaryPageIndex(side);
+        SetCurrentRotaryPageIndex(side, pageIndex);
+
+        foreach (var page in pages)
             page.Selected = false;
-        }
 
-        CurrentRotaryButtonPage.Selected = true;
+        var current = GetCurrentRotaryPage(side);
+        if (current != null)
+            current.Selected = true;
 
-        OnRotaryPageChanged?.Invoke(previousRotaryPageIndex, CurrentRotaryPageIndex);
+        OnRotaryPageChanged?.Invoke(side, previousIndex, pageIndex);
 
-        if (!init && _config.ShowPageNameOverlayEnabled)
+        if (!init && _config.ShowPageNameOverlayEnabled && current != null)
         {
-            _deviceService.ShowTemporaryTextButton(0, CurrentRotaryButtonPage.PageName, 2000);
+            _deviceService.ShowTemporaryTextButton(0, current.PageName, 2000);
         }
     }
 
@@ -142,37 +236,66 @@ public class PageManager : IPageManager
 
     public void AddRotaryButtonPage(bool init = false)
     {
-        var newPage = new RotaryButtonPage(_deviceService.RotaryButtonCount)
+        // On a side-strip device, the shared list is unused — add a page to each
+        // column so the global "add rotary page" control keeps both sides in sync.
+        if (HasIndependentRotarySides)
         {
-            Page = RotaryButtonPages.Count + 1
-        };
+            AddRotaryButtonPage(RotarySide.Left, init);
+            AddRotaryButtonPage(RotarySide.Right, init);
+            return;
+        }
 
-        RotaryButtonPages.Add(newPage);
-        ApplyRotaryPage(RotaryButtonPages.Count - 1, init);
+        AddRotaryButtonPage(RotarySide.Both, init);
     }
 
     public void DeleteRotaryButtonPage()
     {
-        if (RotaryButtonPages.Count == 1)
+        if (HasIndependentRotarySides)
+        {
+            DeleteRotaryButtonPage(RotarySide.Left);
+            DeleteRotaryButtonPage(RotarySide.Right);
+            return;
+        }
+
+        DeleteRotaryButtonPage(RotarySide.Both);
+    }
+
+    public void AddRotaryButtonPage(RotarySide side, bool init = false)
+    {
+        // Side pages hold only that column's knobs; the shared list holds them all.
+        var size = side == RotarySide.Both ? _deviceService.RotaryButtonCount : SideRotaryButtonCount;
+        var pages = GetRotaryPages(side);
+
+        var newPage = new RotaryButtonPage(size)
+        {
+            Page = pages.Count + 1,
+            Side = side
+        };
+
+        pages.Add(newPage);
+        ApplyRotaryPage(side, pages.Count - 1, init);
+    }
+
+    public void DeleteRotaryButtonPage(RotarySide side)
+    {
+        var pages = GetRotaryPages(side);
+        if (pages.Count <= 1)
             return;
 
-        RotaryButtonPages.RemoveAt(CurrentRotaryPageIndex);
+        pages.RemoveAt(GetCurrentRotaryPageIndex(side));
 
-        int counter = 0;
-        foreach (var page in RotaryButtonPages)
+        var counter = 0;
+        foreach (var page in pages)
         {
             counter++;
             page.Page = counter;
         }
 
-        if (CurrentRotaryPageIndex < RotaryButtonPages.Count)
-        {
-            ApplyRotaryPage(CurrentRotaryPageIndex);
-        }
+        var currentIndex = GetCurrentRotaryPageIndex(side);
+        if (currentIndex < pages.Count)
+            ApplyRotaryPage(side, currentIndex, init: true);
         else
-        {
-            ApplyRotaryPage(RotaryButtonPages.Count - 1);
-        }
+            ApplyRotaryPage(side, pages.Count - 1, init: true);
     }
 
     public async Task AddTouchButtonPage(bool init = false)
@@ -238,7 +361,7 @@ public class PageManager : IPageManager
         }
     }
 
-    public event Action<int, int> OnRotaryPageChanged;
+    public event Action<RotarySide, int, int> OnRotaryPageChanged;
 
     public event Action<int, int> OnTouchPageChanged;
 }
