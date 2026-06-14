@@ -22,7 +22,7 @@ namespace LoupixDeck.Controllers;
 /// The class name is kept for source-history continuity (originally Live-S-only);
 /// it now handles any device exposed via <see cref="IDeviceService"/>.
 /// </summary>
-public class LoupedeckLiveSController(
+public partial class LoupedeckLiveSController(
     IDeviceService deviceService,
     ICommandService commandService,
     IPageManager pageManager,
@@ -404,6 +404,13 @@ public class LoupedeckLiveSController(
             return;
         }
 
+        // Non-plugin strips: the finger-follow drag state machine (OnTouchButtonPress →
+        // HandleStripDragEnd) owns paging and commits distance-based on release. Ignore
+        // the device-layer swipe here so the page isn't changed twice (OnSwipe fires
+        // just before the TOUCH_END that the drag machine consumes).
+        if (StripAnimationApplicable(side))
+            return;
+
         if (e.Direction == SwipeDirection.Up)
             pageManager.NextRotaryPage(side);
         else
@@ -448,15 +455,7 @@ public class LoupedeckLiveSController(
             ? LoupedeckDevice.Device.RazerStreamControllerDevice.LeftSideIndex
             : LoupedeckDevice.Device.RazerStreamControllerDevice.RightSideIndex;
 
-        // PluginOverride: a plugin provider renders the strip; FreeDraw: the page's
-        // editable canvas; Segmented (default): the three adjacent dial labels.
-        var strip = page.StripMode switch
-        {
-            StripMode.PluginOverride => RenderPluginStripOrFallback(page, side),
-            StripMode.FreeDraw => BitmapHelper.RenderStripCanvas(page.StripCanvas, config, 60, 270, side),
-            _ => BitmapHelper.RenderRotaryStrip(page, config, 60, 270, side,
-                (i, rc) => (_segmentSession[SideIndex(side)] as ISegmentStripSession)?.RenderSegment(i, rc) ?? false)
-        };
+        var strip = RenderStripFor(page, side, useSessions: true);
 
         // Mirror the strip onto the on-screen mask: the side-panel buttons bind to
         // their TouchButton.RenderedImage. The setter owns the bitmap's lifetime
@@ -467,6 +466,30 @@ public class LoupedeckLiveSController(
             slotButton.RenderedImage = strip;
 
         await razer.DrawTouchSlot(slotIndex, strip);
+    }
+
+    /// <summary>
+    /// Renders a single 60×270 strip bitmap for the given page and side, per its
+    /// <see cref="StripMode"/>. <paramref name="useSessions"/> drives whether the live
+    /// plugin/segment sessions (bound to the side's *current* page) contribute: the
+    /// authoritative current-page render passes true; transient neighbour frames for a
+    /// swipe animation pass false and render the page's own content as plain labels.
+    /// </summary>
+    private SkiaSharp.SKBitmap RenderStripFor(RotaryButtonPage page, RotarySide side, bool useSessions)
+    {
+        // PluginOverride: a plugin provider renders the strip; FreeDraw: the page's
+        // editable canvas; Segmented (default): the three adjacent dial labels.
+        return page.StripMode switch
+        {
+            StripMode.PluginOverride => useSessions
+                ? RenderPluginStripOrFallback(page, side)
+                : BitmapHelper.RenderRotaryStrip(page, config, 60, 270, side),
+            StripMode.FreeDraw => BitmapHelper.RenderStripCanvas(page.StripCanvas, config, 60, 270, side),
+            _ => useSessions
+                ? BitmapHelper.RenderRotaryStrip(page, config, 60, 270, side,
+                    (i, rc) => (_segmentSession[SideIndex(side)] as ISegmentStripSession)?.RenderSegment(i, rc) ?? false)
+                : BitmapHelper.RenderRotaryStrip(page, config, 60, 270, side)
+        };
     }
 
     /// <summary>Re-evaluates plugin-override attachment for both strips, then repaints
@@ -503,6 +526,7 @@ public class LoupedeckLiveSController(
     /// <inheritdoc/>
     public void DetachAllSideStripProviders()
     {
+        ResetStripDrags();
         DetachStripAt(0);
         DetachStripAt(1);
         DetachSegmentAt(0);
@@ -743,6 +767,9 @@ public class LoupedeckLiveSController(
                 : ReferenceEquals(_segmentSession[0], session) ? 0
                 : ReferenceEquals(_segmentSession[1], session) ? 1 : -1;
         if (idx < 0) return;
+        // A provider frame mid-swipe would draw the page flat at offset 0 and fight the
+        // slide; the drag owns the strip until it settles, then the next change repaints.
+        if (IsStripDragBusy(idx)) return;
         _ = RedrawStripCoalesced(idx == 0 ? RotarySide.Left : RotarySide.Right, idx);
     }
 
@@ -867,6 +894,9 @@ public class LoupedeckLiveSController(
         // drive the legacy software Vibrate() pulse on both touch start and end.
         if (e.EventType == Constants.TouchEventType.TOUCH_END)
         {
+            // A side-strip swipe-follow drag commits/snaps-back (or taps) on release.
+            HandleStripDragEnd(e.ChangedTouch);
+
             foreach (var touch in e.Touches)
             {
                 var btn = config.CurrentTouchButtonPage?.TouchButtons?.FindByIndex(touch.Target.Key);
@@ -916,6 +946,17 @@ public class LoupedeckLiveSController(
                 var stripSide = slot == LoupedeckDevice.Device.RazerStreamControllerDevice.RightSideIndex
                     ? RotarySide.Right
                     : RotarySide.Left;
+
+                // Segmented / free-draw strips run the finger-follow swipe animation: each
+                // TOUCH_START packet (start + the device's mid-drag run) feeds the drag,
+                // which renders the slide and routes taps on release. Plugin strips fall
+                // through to the legacy immediate tap routing below.
+                if (StripAnimationApplicable(stripSide))
+                {
+                    OnStripTouchSample(stripSide, SideIndex(stripSide), touch.Y, touch.Id);
+                    continue;
+                }
+
                 var localX = stripSide == RotarySide.Right ? touch.X - 420 : touch.X;
                 var tapX = Math.Clamp(localX, 0, 60);
                 var tapY = Math.Clamp(touch.Y, 0, 270);

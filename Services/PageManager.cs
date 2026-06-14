@@ -26,6 +26,11 @@ public interface IPageManager
     ObservableCollection<RotaryButtonPage> GetRotaryPages(RotarySide side);
     RotaryButtonPage GetCurrentRotaryPage(RotarySide side);
     int GetCurrentRotaryPageIndex(RotarySide side);
+
+    /// <summary>Returns the page <paramref name="direction"/> steps from the side's
+    /// current page (wrapping), without changing the active page — used to pre-render
+    /// the neighbour for a swipe animation. Returns null when the side has ≤1 page.</summary>
+    RotaryButtonPage PeekRotaryPage(RotarySide side, int direction);
     void NextRotaryPage(RotarySide side);
     void PreviousRotaryPage(RotarySide side);
     void ApplyRotaryPage(RotarySide side, int pageIndex, bool init = false);
@@ -105,6 +110,16 @@ public class PageManager : IPageManager
         RotarySide.Right => _config.CurrentRightRotaryPageIndex,
         _ => _config.CurrentRotaryPageIndex
     };
+
+    public RotaryButtonPage PeekRotaryPage(RotarySide side, int direction)
+    {
+        var pages = GetRotaryPages(side);
+        var n = pages.Count;
+        if (n <= 1) return null;
+        var idx = GetCurrentRotaryPageIndex(side);
+        var target = (((idx + direction) % n) + n) % n;
+        return pages[target];
+    }
 
     private void SetCurrentRotaryPageIndex(RotarySide side, int value)
     {

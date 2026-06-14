@@ -1549,6 +1549,39 @@ public static class BitmapHelper
         return bitmap;
     }
 
+    /// <summary>
+    /// Composites two side-strip bitmaps into a single frame for a swipe-follow
+    /// animation. <paramref name="current"/> is drawn shifted vertically by
+    /// <paramref name="offsetY"/> and <paramref name="neighbor"/> fills the gap it
+    /// leaves: a negative offset (finger moving up, paging to the next page) reveals
+    /// the neighbor entering from below; a positive offset (finger down, previous page)
+    /// reveals it from above. <paramref name="neighbor"/> may be null (no adjacent
+    /// page) — then only the shifted current page is drawn over black.
+    /// </summary>
+    public static SKBitmap ComposeVerticalSlide(SKBitmap current, SKBitmap neighbor, int offsetY)
+    {
+        ArgumentNullException.ThrowIfNull(current);
+
+        var width = current.Width;
+        var height = current.Height;
+        var bitmap = new SKBitmap(width, height);
+
+        lock (SkiaRenderGate.Sync)
+        {
+            using var canvas = new SKCanvas(bitmap);
+            canvas.Clear(SKColors.Black);
+            canvas.DrawBitmap(current, 0, offsetY);
+            if (neighbor != null)
+            {
+                var neighborY = offsetY < 0 ? offsetY + height : offsetY - height;
+                canvas.DrawBitmap(neighbor, 0, neighborY);
+            }
+            canvas.Flush();
+        }
+
+        return bitmap;
+    }
+
     // The unified panel is 480px wide; the side strips occupy its outer 60px columns.
     private const int PanelWidth = 480;
     private const int StripWidth = 60;
