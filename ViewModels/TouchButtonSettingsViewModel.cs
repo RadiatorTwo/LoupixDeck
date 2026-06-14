@@ -6,6 +6,7 @@ using LoupixDeck.Models.Layers;
 using LoupixDeck.PluginSdk;
 using LoupixDeck.Services;
 using LoupixDeck.Services.Commands;
+using LoupixDeck.Services.Plugins;
 using LoupixDeck.Utils;
 using LoupixDeck.ViewModels.Base;
 using SkiaSharp;
@@ -48,14 +49,140 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
     private readonly ICommandRegistry _commandRegistry;
     private readonly IAssetService _assetService;
     private readonly IDialogService _dialogService;
+    private readonly ISideStripProviderRegistry _sideStripRegistry;
+    private readonly IDynamicTextManager _dynamicTextManager;
     private readonly LoupedeckConfig _config;
 
     public const int EditorCanvasSize = 600;
-    public const int EditorFrameSize = 300;
-    public const int DeviceSize = 90;
+
+    // Device-pixel dimensions of the edited surface. 90×90 for grid touch buttons;
+    // set to 60×270 for a Razer side-strip free-draw canvas via SetCanvasSize.
+    public int DeviceWidth { get; private set; } = 90;
+    public int DeviceHeight { get; private set; } = 90;
 
     /// <summary>Editor → device coordinate factor (canvas pixels per device pixel).</summary>
-    public static double EditorToDeviceScale => (double)EditorFrameSize / DeviceSize;
+    public double EditorToDeviceScale => BitmapHelper.ComputeEditorFrame(DeviceWidth, DeviceHeight).Scale;
+
+    /// <summary>Rendered frame size (canvas px), aspect-correct for the device surface.</summary>
+    public double FrameWidth => BitmapHelper.ComputeEditorFrame(DeviceWidth, DeviceHeight).FrameWidth;
+    public double FrameHeight => BitmapHelper.ComputeEditorFrame(DeviceWidth, DeviceHeight).FrameHeight;
+
+    /// <summary>Top-left of the centered frame inside the square editor canvas.</summary>
+    public double FrameOffsetX => (EditorCanvasSize - FrameWidth) / 2.0;
+    public double FrameOffsetY => (EditorCanvasSize - FrameHeight) / 2.0;
+
+    /// <summary>
+    /// Sets the edited surface's device-pixel dimensions (e.g. 60×270 for a side-strip
+    /// free-draw canvas). Call before <see cref="Initialize"/>. Defaults to 90×90.
+    /// </summary>
+    public void SetCanvasSize(int deviceWidth, int deviceHeight)
+    {
+        DeviceWidth = Math.Max(1, deviceWidth);
+        DeviceHeight = Math.Max(1, deviceHeight);
+        OnPropertyChanged(nameof(DeviceWidth));
+        OnPropertyChanged(nameof(DeviceHeight));
+        OnPropertyChanged(nameof(EditorToDeviceScale));
+        OnPropertyChanged(nameof(FrameWidth));
+        OnPropertyChanged(nameof(FrameHeight));
+        OnPropertyChanged(nameof(FrameOffsetX));
+        OnPropertyChanged(nameof(FrameOffsetY));
+        OnPropertyChanged(nameof(CanvasSizeText));
+        UpdateEditorPreview();
+        UpdateSelectionBounds();
+    }
+
+    // ───────── Side-strip (Razer) mode ─────────
+
+    private RotaryButtonPage _stripPage;
+
+    /// <summary>
+    /// True when this editor instance is editing a Razer side-strip canvas (rather
+    /// than an ordinary grid touch button). Drives the strip-mode picker and the
+    /// draw-mode gate; false for normal buttons, so their behaviour is unchanged.
+    /// </summary>
+    public bool IsStripCanvas => _stripPage != null;
+
+    /// <summary>Strip modes offered in the editor's picker.</summary>
+    public IReadOnlyList<StripMode> AvailableStripModes { get; } =
+        new[] { StripMode.Segmented, StripMode.FreeDraw, StripMode.PluginOverride };
+
+    /// <summary>Plugin side-strip providers bindable in PluginOverride mode.</summary>
+    public IReadOnlyList<ISideStripProvider> AvailableStripProviders => _sideStripRegistry.Providers;
+
+    /// <summary>True while editing a strip whose mode is PluginOverride — shows the
+    /// provider picker.</summary>
+    public bool IsPluginOverride => IsStripCanvas && StripMode == StripMode.PluginOverride;
+
+    /// <summary>
+    /// The provider bound to this page in PluginOverride mode. Reads/writes
+    /// <see cref="RotaryButtonPage.StripPluginId"/> by id. Setting it repaints the strip
+    /// live via the canvas refresh subscription.
+    /// </summary>
+    public ISideStripProvider SelectedStripProvider
+    {
+        get => _stripPage == null ? null : _sideStripRegistry.Get(_stripPage.StripPluginId);
+        set
+        {
+            if (_stripPage == null) return;
+            var id = value?.Id;
+            if (_stripPage.StripPluginId == id) return;
+            _stripPage.StripPluginId = id;
+            OnPropertyChanged();
+            _stripPage.StripCanvas?.Refresh();
+        }
+    }
+
+    /// <summary>
+    /// The edited side strip's per-page <see cref="StripMode"/>. Writes straight
+    /// through to the owning <see cref="RotaryButtonPage"/>. Segmented shows the dial
+    /// labels; FreeDraw shows (and allows editing of) this page's canvas.
+    /// </summary>
+    public StripMode StripMode
+    {
+        get => _stripPage?.StripMode ?? StripMode.Segmented;
+        set
+        {
+            if (_stripPage == null || _stripPage.StripMode == value) return;
+            _stripPage.StripMode = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(CanEditCanvas));
+            OnPropertyChanged(nameof(IsDrawDisabledHintVisible));
+            OnPropertyChanged(nameof(IsPluginOverride));
+            OnPropertyChanged(nameof(SelectedStripProvider));
+
+            // Repaint the strip immediately via the canvas's live-redraw subscription
+            // (the controller reads the new mode and renders labels vs. canvas), instead
+            // of waiting for the dialog to close.
+            _stripPage.StripCanvas?.Refresh();
+        }
+    }
+
+    /// <summary>
+    /// Whether the canvas and its layers may be edited. Always true for normal touch
+    /// buttons; for a side strip only while it is in <see cref="StripMode.FreeDraw"/>
+    /// — in Segmented mode the strip renders the dial labels, so its canvas is locked.
+    /// </summary>
+    public bool CanEditCanvas => !IsStripCanvas || StripMode == StripMode.FreeDraw;
+
+    /// <summary>Shows the "switch to FreeDraw" hint while a strip's editing is locked.</summary>
+    public bool IsDrawDisabledHintVisible => IsStripCanvas && StripMode != StripMode.FreeDraw;
+
+    /// <summary>
+    /// Marks this editor as editing the side-strip canvas of <paramref name="page"/>,
+    /// enabling the strip-mode picker and the draw-mode gate. Call before
+    /// <see cref="Initialize"/>.
+    /// </summary>
+    public void ConfigureStrip(RotaryButtonPage page)
+    {
+        _stripPage = page;
+        OnPropertyChanged(nameof(IsStripCanvas));
+        OnPropertyChanged(nameof(StripMode));
+        OnPropertyChanged(nameof(CanEditCanvas));
+        OnPropertyChanged(nameof(IsDrawDisabledHintVisible));
+        OnPropertyChanged(nameof(IsPluginOverride));
+        OnPropertyChanged(nameof(AvailableStripProviders));
+        OnPropertyChanged(nameof(SelectedStripProvider));
+    }
 
     /// <summary>Spacing of the editor's alignment grid in device pixels; also the
     /// step used when <see cref="SnapToGrid"/> is active.</summary>
@@ -116,7 +243,7 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
     public string CommandSummary => HasCommand ? ButtonData.Command : "No command assigned";
 
     /// <summary>Resolution badge shown in the canvas corner, e.g. "90 × 90 px".</summary>
-    public string CanvasSizeText => $"{DeviceSize} × {DeviceSize} px";
+    public string CanvasSizeText => $"{DeviceWidth} × {DeviceHeight} px";
 
     private LayerBase _selectedLayer;
     public LayerBase SelectedLayer
@@ -130,12 +257,20 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
             OnPropertyChanged(nameof(SelectedImageLayer));
             OnPropertyChanged(nameof(SelectedTextLayer));
             OnPropertyChanged(nameof(ScaleHandlesVisible));
+            OnPropertyChanged(nameof(CanDeleteSelectedLayer));
             UpdateSelectionBounds();
         }
     }
 
     public ImageLayer SelectedImageLayer => _selectedLayer as ImageLayer;
     public TextLayer SelectedTextLayer => _selectedLayer as TextLayer;
+
+    /// <summary>
+    /// True when a deletable (user-created) layer is selected. Command-owned layers
+    /// (<see cref="LayerBase.IsCommandOwned"/>) cannot be deleted manually — they are
+    /// removed by unbinding the button's command — so the delete button is disabled for them.
+    /// </summary>
+    public bool CanDeleteSelectedLayer => _selectedLayer != null && !_selectedLayer.IsCommandOwned;
 
     private SKBitmap _editorPreview;
 
@@ -252,6 +387,8 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
         ICommandRegistry commandRegistry,
         IAssetService assetService,
         IDialogService dialogService,
+        ISideStripProviderRegistry sideStripRegistry,
+        IDynamicTextManager dynamicTextManager,
         LoupedeckConfig config)
     {
         _commandBuilder = commandBuilder;
@@ -259,7 +396,12 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
         _commandRegistry = commandRegistry;
         _assetService = assetService;
         _dialogService = dialogService;
+        _sideStripRegistry = sideStripRegistry;
+        _dynamicTextManager = dynamicTextManager;
         _config = config;
+
+        // The provider list can change on a plugin hot-reload while the editor is open.
+        _sideStripRegistry.ProvidersChanged += OnStripProvidersChanged;
 
         AddImageLayerCommand = new AsyncRelayCommand(AddImageLayer);
         AddTextLayerCommand = new RelayCommand(AddTextLayer);
@@ -329,8 +471,8 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
         {
             Name = GetUniqueLayerName("Text"),
             Text = "Text",
-            BoxWidth = DeviceSize,
-            BoxHeight = DeviceSize
+            BoxWidth = DeviceWidth,
+            BoxHeight = DeviceHeight
         };
         ButtonData.Layers.Add(layer);
         SelectedLayer = layer;
@@ -378,7 +520,9 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
 
     private void RemoveSelectedLayer()
     {
-        if (_selectedLayer == null) return;
+        // Command-owned layers are owned by their bound command; they are removed by unbinding
+        // the command (the dynamic-text manager's orphan sweep), never via the editor.
+        if (_selectedLayer == null || _selectedLayer.IsCommandOwned) return;
         var idx = ButtonData.Layers.IndexOf(_selectedLayer);
         ButtonData.Layers.Remove(_selectedLayer);
         // Prefer the item that moved into the freed slot (the one below); fall back
@@ -560,7 +704,15 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
         // Keep the bottom summary bar in sync when the command is edited
         // directly (Commands tab text box) or replaced programmatically.
         if (e.PropertyName == nameof(TouchButton.Command))
+        {
             Avalonia.Threading.Dispatcher.UIThread.Post(NotifyCommandChanged);
+
+            // Re-scan dynamic-text/-image commands so a display command's layer appears (or its
+            // orphaned layer disappears) immediately while the editor is open, instead of only
+            // after it closes. The strip-canvas surface is not a real page button, so skip it.
+            if (!IsStripCanvas)
+                Avalonia.Threading.Dispatcher.UIThread.Post(() => _dynamicTextManager.Rescan());
+        }
     }
 
     private void ButtonData_ItemChanged(object sender, EventArgs e)
@@ -579,7 +731,7 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
     {
         if (ButtonData == null || _config == null) return;
         EditorPreview = BitmapHelper.RenderEditorCanvas(
-            ButtonData, _config, EditorCanvasSize, EditorFrameSize, ShowGrid, GridStepDevice);
+            ButtonData, _config, EditorCanvasSize, DeviceWidth, DeviceHeight, ShowGrid, GridStepDevice);
     }
 
     /// <summary>
@@ -603,7 +755,7 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
         }
 
         var rect = BitmapHelper.GetLayerEditorBounds(
-            _selectedLayer, EditorCanvasSize, EditorFrameSize);
+            _selectedLayer, EditorCanvasSize, DeviceWidth, DeviceHeight);
 
         if (rect == null)
         {
@@ -627,7 +779,18 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
             ButtonData.PropertyChanged -= ButtonData_PropertyChanged;
         }
 
+        _sideStripRegistry.ProvidersChanged -= OnStripProvidersChanged;
+
         foreach (var segment in Commands)
             segment.Changed -= OnSegmentChanged;
+    }
+
+    private void OnStripProvidersChanged()
+    {
+        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        {
+            OnPropertyChanged(nameof(AvailableStripProviders));
+            OnPropertyChanged(nameof(SelectedStripProvider));
+        });
     }
 }

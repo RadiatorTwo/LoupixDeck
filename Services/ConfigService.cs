@@ -22,7 +22,8 @@ public class ConfigService : IConfigService
     /// </summary>
     private readonly List<IConfigMigration> _migrations =
     [
-        new PluginConfigMigrator()
+        new PluginConfigMigrator(),
+        new RotaryPageSideSplitMigrator()
     ];
 
     public ConfigService()

@@ -42,4 +42,9 @@ public sealed class LoadedPlugin
 
     /// <summary>Commands contributed by the plugin.</summary>
     public IReadOnlyList<IPluginCommand> Commands { get; set; } = Array.Empty<IPluginCommand>();
+
+    /// <summary>Side-strip providers contributed by the plugin (bindable to a Razer
+    /// side display strip in plugin-override mode).</summary>
+    public IReadOnlyList<ISideStripProvider> SideStripProviders { get; set; } =
+        Array.Empty<ISideStripProvider>();
 }

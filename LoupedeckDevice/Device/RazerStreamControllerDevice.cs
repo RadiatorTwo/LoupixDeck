@@ -1,5 +1,4 @@
 using LoupixDeck.Models;
-using LoupixDeck.Utils;
 using SkiaSharp;
 
 namespace LoupixDeck.LoupedeckDevice.Device;
@@ -21,6 +20,13 @@ public class RazerStreamControllerDevice : LoupedeckDevice
 
     /// <summary>Touch index for the right narrow panel.</summary>
     public const int RightSideIndex = 13;
+
+    /// <inheritdoc />
+    public override bool HasSideStrips => true;
+
+    /// <inheritdoc />
+    /// <remarks>The left strip occupies panel x 0–60, so the centre grid starts at 60.</remarks>
+    public override int WallpaperGridXOffset => 60;
 
     public RazerStreamControllerDevice(string host = null, string path = null, int baudrate = 0,
         bool autoConnect = true, int reconnectInterval = Constants.DefaultReconnectInterval)
@@ -89,9 +95,11 @@ public class RazerStreamControllerDevice : LoupedeckDevice
     }
 
     /// <summary>
-    /// Overrides the base grid renderer so indices 12/13 paint the 60×270 side
-    /// panels at their unified-display X offsets. Other indices fall through to
-    /// the base 90×90 grid path (which honours Columns/VisibleX from this class).
+    /// Overrides the base grid renderer for the 4×3 centre grid. The side panels
+    /// (indices 12/13) are NOT painted from the touch-button pipeline: in segmented
+    /// mode they show the adjacent dial labels, driven by the controller via
+    /// <see cref="DrawTouchSlot"/> on rotary-page changes. Skipping them here keeps
+    /// touch-page redraws from overwriting the rotary labels.
     /// </summary>
     public override async Task DrawTouchButton(TouchButton touchButton, LoupedeckConfig config, bool refresh, int columns)
     {
@@ -103,28 +111,6 @@ public class RazerStreamControllerDevice : LoupedeckDevice
             return;
         }
 
-        if (touchButton.Index != LeftSideIndex && touchButton.Index != RightSideIndex)
-            return;
-
-        const int sideW = 60;
-        const int sideH = 270;
-
-        if (refresh || touchButton.RenderedImage == null)
-        {
-            var rendered = BitmapHelper.RenderTouchButtonContent(touchButton, config, sideW, sideH, columns);
-            if (rendered == null) return;
-        }
-
-        if (touchButton.RenderedImage == null) return;
-
-        try
-        {
-            var destX = touchButton.Index == LeftSideIndex ? 0 : 420;
-            await DrawCanvas("center", sideW, sideH, touchButton.RenderedImage, destX, 0);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Razer side-panel draw failed for index {touchButton.Index}: {ex.Message}");
-        }
+        // Side panels are owned by the rotary-label renderer; ignore here.
     }
 }

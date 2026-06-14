@@ -144,11 +144,22 @@
                            FontSize="22" FontWeight="Bold"
                            Margin="0,0,0,8" />
 
-                <!-- OFF toggle sits directly under the title, above the command slots. -->
-                <CheckBox Grid.Row="1"
-                          Content="Run also when device is OFF"
-                          IsChecked="{Binding ButtonData.EnableWhenOff}"
-                          Margin="0,0,0,8" />
+                <!-- OFF toggle + side-strip label sit directly under the title, above
+                     the command slots. The label shows on the dial's side-strip segment
+                     (segmented mode, Razer); ignored on devices without side strips. -->
+                <Grid Grid.Row="1" ColumnDefinitions="Auto,*" Margin="0,0,0,8">
+                    <CheckBox Grid.Column="0"
+                              Content="Run also when device is OFF"
+                              IsChecked="{Binding ButtonData.EnableWhenOff}"
+                              VerticalAlignment="Center" />
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8"
+                                HorizontalAlignment="Right" VerticalAlignment="Center">
+                        <TextBlock Text="Strip label" VerticalAlignment="Center" />
+                        <TextBox Width="200"
+                                 Text="{Binding ButtonData.DisplayText, Mode=TwoWay}"
+                                 ToolTip.Tip="Label shown for this knob on the side strip (Razer, segmented mode)" />
+                    </StackPanel>
+                </Grid>
 
                 <!-- Two columns: left = the three command sequences, right = the
                      command library to pick from. -->

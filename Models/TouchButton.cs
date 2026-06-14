@@ -163,18 +163,64 @@ public class TouchButton : LoupedeckButton
     }
 
     /// <summary>
-    /// Returns the first <see cref="TextLayer"/> on this button, creating one
-    /// (and appending it as the top-most layer) if none exists. Intended for
-    /// dynamic-text providers that need a stable text target.
+    /// Returns the plugin-managed <see cref="PluginLayer"/> bound to <paramref name="ownerKey"/>,
+    /// creating one (appended on top) if none exists. Used by image display commands so each
+    /// command's bitmap targets exactly its own layer instead of "the first matching one".
     /// </summary>
-    public TextLayer GetOrCreatePrimaryTextLayer()
+    public PluginLayer GetOrCreatePluginLayer(string ownerKey, string commandName)
     {
         foreach (var layer in Layers)
         {
-            if (layer is TextLayer text) return text;
+            if (layer is PluginLayer plugin &&
+                string.Equals(plugin.OwnerKey, ownerKey, StringComparison.Ordinal))
+                return plugin;
         }
 
-        var created = new TextLayer { Name = "Text", BoxWidth = 90, BoxHeight = 90 };
+        var created = new PluginLayer
+        {
+            Name = string.IsNullOrEmpty(commandName) ? "Plugin" : commandName,
+            OwnerKey = ownerKey,
+            CommandName = commandName,
+            OwnerCreated = true
+        };
+        Layers.Add(created);
+        return created;
+    }
+
+    /// <summary>
+    /// Returns the command-owned <see cref="TextLayer"/> bound to <paramref name="ownerKey"/>.
+    /// If none is tagged yet, adopts the existing primary text layer (tagging it) so styling and
+    /// position of buttons configured before owner-keying are preserved; only when the button has
+    /// no text layer at all is a new one created. Used by every text display command (core or
+    /// plugin) for unique targeting in place of the former first-matching-text-layer lookup.
+    /// </summary>
+    public TextLayer GetOrAdoptOwnedTextLayer(string ownerKey, string commandName)
+    {
+        TextLayer firstUntagged = null;
+        foreach (var layer in Layers)
+        {
+            if (layer is not TextLayer text) continue;
+            if (string.Equals(text.OwnerKey, ownerKey, StringComparison.Ordinal))
+                return text;
+            firstUntagged ??= string.IsNullOrEmpty(text.OwnerKey) ? text : null;
+        }
+
+        if (firstUntagged != null)
+        {
+            firstUntagged.OwnerKey = ownerKey;
+            firstUntagged.CommandName = commandName;
+            return firstUntagged;
+        }
+
+        var created = new TextLayer
+        {
+            Name = string.IsNullOrEmpty(commandName) ? "Text" : commandName,
+            BoxWidth = 90,
+            BoxHeight = 90,
+            OwnerCreated = true,
+            OwnerKey = ownerKey,
+            CommandName = commandName
+        };
         Layers.Add(created);
         return created;
     }

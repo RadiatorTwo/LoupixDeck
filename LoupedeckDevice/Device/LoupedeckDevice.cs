@@ -56,6 +56,22 @@ public class LoupedeckDevice
     public int RotaryCount { get; protected init; }
 
     /// <summary>
+    /// True when the device has the two narrow side display strips next to the dial
+    /// columns (Razer Stream Controller). Gates side-strip-only behaviour — independent
+    /// left/right rotary paging, swipe-to-page, full-height strip rendering — so devices
+    /// without strips (Live S) are untouched. Base returns false; Razer overrides.
+    /// </summary>
+    public virtual bool HasSideStrips => false;
+
+    /// <summary>
+    /// X-offset (in panel/wallpaper pixels) at which the centre touch grid starts on
+    /// the unified panel. Devices with side strips reserve the leftmost strip width
+    /// (Razer: 60), so the page wallpaper maps to its true panel position and stays
+    /// continuous with the strips across the bezel. 0 (default) for full-width grids.
+    /// </summary>
+    public virtual int WallpaperGridXOffset => 0;
+
+    /// <summary>
     /// Returns the touch slot that physically sits next to the rotary at
     /// <paramref name="rotaryIndex"/>, or -1 when the device has no such
     /// neighbour. Plugins use this for transient feedback overlays (e.g. a
@@ -75,6 +91,12 @@ public class LoupedeckDevice
     public event EventHandler<ButtonEventArgs> OnButton; // "down" or "up"
     public event EventHandler<RotateEventArgs> OnRotate;
     public event EventHandler<TouchEventArgs> OnTouch;
+
+    /// <summary>
+    /// Fired when a vertical swipe is detected on a side strip. Only devices with
+    /// <see cref="HasSideStrips"/> raise this; consumers page the matching dial column.
+    /// </summary>
+    public event EventHandler<SwipeEventArgs> OnSwipe;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="LoupedeckDevice"/> class.
@@ -434,11 +456,22 @@ public class LoupedeckDevice
         if (eventType == Constants.TouchEventType.TOUCH_END)
         {
             _touches.Remove(touchId);
+
+            // Side-strip swipe: compare this end point against where the finger went
+            // down. A dominant vertical move on a strip pages that dial column; the
+            // OnTouch consumer ignores strip slots, so taps and swipes don't collide.
+            if (HasSideStrips && _touchStarts.TryGetValue(touchId, out var start))
+                DetectSideStripSwipe(start, x, y);
+            _touchStarts.Remove(touchId);
         }
         else
         {
             if (!_touches.ContainsKey(touchId))
+            {
                 eventType = Constants.TouchEventType.TOUCH_START;
+                if (HasSideStrips)
+                    _touchStarts[touchId] = (x, y);
+            }
             _touches[touchId] = touch;
         }
 
@@ -447,6 +480,46 @@ public class LoupedeckDevice
             EventType = eventType,
             Touches = _touches.Values.ToList(),
             ChangedTouch = touch
+        });
+    }
+
+    // Per-finger down position, kept only while HasSideStrips, to classify the
+    // release as a tap vs. a vertical swipe on a side strip.
+    private readonly Dictionary<byte, (int X, int Y)> _touchStarts = new();
+
+    // A swipe must move at least this far vertically and dominate the horizontal
+    // movement; below this, the gesture is treated as a tap (no paging).
+    private const int SwipeMinVertical = 30;
+
+    /// <summary>
+    /// Classifies a finger release that started and ended on the same side strip as
+    /// an up/down swipe and raises <see cref="OnSwipe"/>. Only the strip x-ranges
+    /// (left &lt; VisibleX[0], right ≥ VisibleX[1]) qualify, so the centre grid is
+    /// never affected.
+    /// </summary>
+    private void DetectSideStripSwipe(in (int X, int Y) start, int endX, int endY)
+    {
+        if (VisibleX == null) return;
+
+        SideStrip? StripOf(int x) =>
+            x < VisibleX[0] ? SideStrip.Left :
+            x >= VisibleX[1] ? SideStrip.Right :
+            null;
+
+        var startStrip = StripOf(start.X);
+        // Require the gesture to stay on the same strip it began on.
+        if (startStrip == null || startStrip != StripOf(endX))
+            return;
+
+        var dy = endY - start.Y;
+        var dx = endX - start.X;
+        if (Math.Abs(dy) < SwipeMinVertical || Math.Abs(dy) <= Math.Abs(dx))
+            return;
+
+        OnSwipe?.Invoke(this, new SwipeEventArgs
+        {
+            Side = startStrip.Value,
+            Direction = dy < 0 ? SwipeDirection.Up : SwipeDirection.Down
         });
     }
 
@@ -636,7 +709,7 @@ public class LoupedeckDevice
         if (refresh || touchButton.RenderedImage == null)
         {
             var renderedBitmap =
-                BitmapHelper.RenderTouchButtonContent(touchButton, config, 90, 90, columns);
+                BitmapHelper.RenderTouchButtonContent(touchButton, config, 90, 90, columns, WallpaperGridXOffset);
             if (renderedBitmap == null) return;
         }
 

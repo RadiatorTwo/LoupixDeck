@@ -33,6 +33,7 @@ public sealed class PluginReloadService : IPluginReloadService
 {
     private readonly IPluginManager _pluginManager;
     private readonly ICommandRegistry _commandRegistry;
+    private readonly ISideStripProviderRegistry _sideStripRegistry;
     private readonly IDynamicTextManager _dynamicText;
     private readonly IExclusiveModeService _exclusiveMode;
     private readonly IFolderNavigationService _folderNav;
@@ -45,6 +46,7 @@ public sealed class PluginReloadService : IPluginReloadService
     public PluginReloadService(
         IPluginManager pluginManager,
         ICommandRegistry commandRegistry,
+        ISideStripProviderRegistry sideStripRegistry,
         IDynamicTextManager dynamicText,
         IExclusiveModeService exclusiveMode,
         IFolderNavigationService folderNav,
@@ -54,6 +56,7 @@ public sealed class PluginReloadService : IPluginReloadService
     {
         _pluginManager = pluginManager;
         _commandRegistry = commandRegistry;
+        _sideStripRegistry = sideStripRegistry;
         _dynamicText = dynamicText;
         _exclusiveMode = exclusiveMode;
         _folderNav = folderNav;
@@ -157,12 +160,16 @@ public sealed class PluginReloadService : IPluginReloadService
 
     // ───────── internals ─────────
 
-    /// <summary>Registry rebuild + dynamic-text rescan + current-page repaint.</summary>
+    /// <summary>Registry rebuild + dynamic-text rescan + current-page repaint, plus
+    /// side-strip provider rebuild and re-attachment (so a reloaded provider re-binds
+    /// and orphaned bindings fall back to segmented).</summary>
     private async Task RefreshAsync()
     {
         _commandRegistry.Initialize();
+        _sideStripRegistry.Rebuild();
         _dynamicText.Rescan();
         await _deviceController.RedrawCurrentTouchPage();
+        await _deviceController.RefreshSideStrips();
     }
 
     /// <summary>
@@ -178,6 +185,10 @@ public sealed class PluginReloadService : IPluginReloadService
         var current = _exclusiveMode.Current;
         if (current != null && Owns(plugin, current))
             _exclusiveMode.Exit(current);
+
+        // A live side-strip provider attached to a strip roots this plugin's load
+        // context. Detach all (cheap; RefreshAsync re-attaches the still-loaded ones).
+        _deviceController.DetachAllSideStripProviders();
 
         if (_folderNav.IsActive)
             _folderNav.ExitAll().GetAwaiter().GetResult(); // completes synchronously

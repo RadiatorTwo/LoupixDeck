@@ -446,7 +446,7 @@ public partial class TouchButtonSettings : Window
         if (DataContext is not TouchButtonSettingsViewModel vm || vm.SelectedLayer == null) return;
 
         var pos = e.GetPosition(EditorRoot);
-        var canvasToDevice = 1.0 / TouchButtonSettingsViewModel.EditorToDeviceScale;
+        var canvasToDevice = 1.0 / vm.EditorToDeviceScale;
 
         switch (_dragMode)
         {
@@ -535,14 +535,13 @@ public partial class TouchButtonSettings : Window
         var bounds = BitmapHelper.GetLayerEditorBounds(
             layer,
             TouchButtonSettingsViewModel.EditorCanvasSize,
-            TouchButtonSettingsViewModel.EditorFrameSize);
+            vm.DeviceWidth,
+            vm.DeviceHeight);
         if (bounds is { } b)
         {
-            var scale = TouchButtonSettingsViewModel.EditorToDeviceScale;
-            var frameOffset = (TouchButtonSettingsViewModel.EditorCanvasSize -
-                               TouchButtonSettingsViewModel.EditorFrameSize) / 2.0;
-            _moveBaseLeftDev = (b.Left - frameOffset) / scale - _startPosX;
-            _moveBaseTopDev = (b.Top - frameOffset) / scale - _startPosY;
+            var scale = vm.EditorToDeviceScale;
+            _moveBaseLeftDev = (b.Left - vm.FrameOffsetX) / scale - _startPosX;
+            _moveBaseTopDev = (b.Top - vm.FrameOffsetY) / scale - _startPosY;
             _moveHasBase = true;
         }
         else
@@ -570,7 +569,8 @@ public partial class TouchButtonSettings : Window
         // Compute the layer's current display rect in device-pixel space.
         // For image layers we also resolve the effective source rect so the
         // crop math operates on absolute source pixel coordinates.
-        const int deviceSize = TouchButtonSettingsViewModel.DeviceSize;
+        var deviceWidth = vm.DeviceWidth;
+        var deviceHeight = vm.DeviceHeight;
         if (layer is ImageLayer img && img.CachedImage != null)
         {
             _bmpWidth = img.CachedImage.Width;
@@ -593,11 +593,11 @@ public partial class TouchButtonSettings : Window
 
             var srcW = _startSrcRight - _startSrcLeft;
             var srcH = _startSrcBottom - _startSrcTop;
-            var fit = Math.Min(deviceSize / srcW, deviceSize / srcH);
+            var fit = Math.Min(deviceWidth / srcW, deviceHeight / srcH);
             _startDstW = srcW * fit * _startScaleX;
             _startDstH = srcH * fit * _startScaleY;
-            _startDrawX = (deviceSize - _startDstW) / 2.0 + _startPosX;
-            _startDrawY = (deviceSize - _startDstH) / 2.0 + _startPosY;
+            _startDrawX = (deviceWidth - _startDstW) / 2.0 + _startPosX;
+            _startDrawY = (deviceHeight - _startDstH) / 2.0 + _startPosY;
         }
         else if (layer is TextLayer text)
         {
@@ -607,8 +607,8 @@ public partial class TouchButtonSettings : Window
             _startDstH = _startBoxH;
             if (text.Centered)
             {
-                _startDrawX = (deviceSize - _startBoxW) / 2.0 + text.PositionX;
-                _startDrawY = (deviceSize - _startBoxH) / 2.0 + text.PositionY;
+                _startDrawX = (deviceWidth - _startBoxW) / 2.0 + text.PositionX;
+                _startDrawY = (deviceHeight - _startBoxH) / 2.0 + text.PositionY;
             }
             else
             {
@@ -619,13 +619,11 @@ public partial class TouchButtonSettings : Window
         else
         {
             // Symbol or other future layer: use the selection bounds.
-            var canvasToDevice = 1.0 / TouchButtonSettingsViewModel.EditorToDeviceScale;
-            var frameOffset = (TouchButtonSettingsViewModel.EditorCanvasSize -
-                               TouchButtonSettingsViewModel.EditorFrameSize) / 2.0;
+            var canvasToDevice = 1.0 / vm.EditorToDeviceScale;
             _startDstW = vm.SelectionWidth * canvasToDevice;
             _startDstH = vm.SelectionHeight * canvasToDevice;
-            _startDrawX = (vm.SelectionLeft - frameOffset) * canvasToDevice;
-            _startDrawY = (vm.SelectionTop - frameOffset) * canvasToDevice;
+            _startDrawX = (vm.SelectionLeft - vm.FrameOffsetX) * canvasToDevice;
+            _startDrawY = (vm.SelectionTop - vm.FrameOffsetY) * canvasToDevice;
         }
 
         vm.ButtonData.IgnoreRefresh = true;
@@ -754,10 +752,10 @@ public partial class TouchButtonSettings : Window
 
         // 3) Recompute scale + position so the renderer reproduces the desired
         //    display rect after re-fitting the cropped source.
-        const int deviceSize = TouchButtonSettingsViewModel.DeviceSize;
+        var (deviceWidth, deviceHeight) = CanvasDeviceSize();
         var actualSrcW = newSrcRight - newSrcLeft;
         var actualSrcH = newSrcBottom - newSrcTop;
-        var newFit = Math.Min(deviceSize / actualSrcW, deviceSize / actualSrcH);
+        var newFit = Math.Min(deviceWidth / actualSrcW, deviceHeight / actualSrcH);
 
         var newScaleX = newDstW / (actualSrcW * newFit);
         var newScaleY = newDstH / (actualSrcH * newFit);
@@ -776,7 +774,7 @@ public partial class TouchButtonSettings : Window
     /// </summary>
     private void UpdatePositionForResize(LayerBase layer, double newDstW, double newDstH)
     {
-        const int deviceSize = TouchButtonSettingsViewModel.DeviceSize;
+        var (deviceWidth, deviceHeight) = CanvasDeviceSize();
 
         // Pivot side fractions inside the rect: 0 = left/top, 1 = right/bottom, 0.5 = centered.
         double pivotFracX = _handleSignX switch { +1 => 0.0, -1 => 1.0, _ => 0.5 };
@@ -798,10 +796,15 @@ public partial class TouchButtonSettings : Window
         }
         else
         {
-            layer.PositionX = (int)Math.Round(newDrawX - (deviceSize - newDstW) / 2.0);
-            layer.PositionY = (int)Math.Round(newDrawY - (deviceSize - newDstH) / 2.0);
+            layer.PositionX = (int)Math.Round(newDrawX - (deviceWidth - newDstW) / 2.0);
+            layer.PositionY = (int)Math.Round(newDrawY - (deviceHeight - newDstH) / 2.0);
         }
     }
+
+    /// <summary>Device-pixel dimensions of the edited surface (90×90 by default,
+    /// 60×270 for a side-strip canvas), read from the bound view model.</summary>
+    private (int Width, int Height) CanvasDeviceSize() =>
+        DataContext is TouchButtonSettingsViewModel vm ? (vm.DeviceWidth, vm.DeviceHeight) : (90, 90);
 
     private static bool TryParseHandleSign(string tag, out int signX, out int signY)
     {
@@ -835,7 +838,8 @@ public partial class TouchButtonSettings : Window
             var rect = BitmapHelper.GetLayerEditorBounds(
                 layer,
                 TouchButtonSettingsViewModel.EditorCanvasSize,
-                TouchButtonSettingsViewModel.EditorFrameSize);
+                vm.DeviceWidth,
+                vm.DeviceHeight);
 
             if (rect == null) continue;
 

@@ -38,4 +38,19 @@ public interface IDeviceController
 
     /// <summary>Convenience: flips between Clear and Restore.</summary>
     Task ToggleDeviceState();
+
+    /// <summary>
+    /// Detaches any plugin-override side-strip providers currently driving a strip
+    /// (calls their OnDetach). Used before a plugin unload so a live provider can't
+    /// pin its collectible load context. No-op on devices without side strips.
+    /// </summary>
+    void DetachAllSideStripProviders();
+
+    /// <summary>
+    /// Re-evaluates plugin-override attachment for both side strips and repaints them
+    /// (a reloaded provider re-attaches; an orphaned binding falls back to segmented).
+    /// No-op while the device is off / folder / exclusive mode owns it, or on devices
+    /// without side strips.
+    /// </summary>
+    Task RefreshSideStrips();
 }
