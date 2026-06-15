@@ -1460,8 +1460,7 @@ public partial class LoupedeckLiveSController(
         {
             switch (e.PropertyName)
             {
-                case nameof(TouchButtonPage.Wallpaper):
-                case nameof(TouchButtonPage.WallpaperOpacity):
+                case nameof(TouchButtonPage.WallpaperInvalidated):
                     await Task.Delay(100, token); // Debounce
                     foreach (var touchButton in config.CurrentTouchButtonPage.TouchButtons)
                     {
@@ -1646,9 +1645,14 @@ public partial class LoupedeckLiveSController(
         {
             if (page == null) continue;
 
-            // The page wallpaper's original now lives in the asset folder too.
-            if (!string.IsNullOrWhiteSpace(page.WallpaperAssetPath))
-                yield return page.WallpaperAssetPath;
+            // The page wallpapers' originals (main + optional side displays) live in
+            // the asset folder too.
+            if (!string.IsNullOrWhiteSpace(page.MainWallpaper?.AssetPath))
+                yield return page.MainWallpaper.AssetPath;
+            if (!string.IsNullOrWhiteSpace(page.LeftWallpaper?.AssetPath))
+                yield return page.LeftWallpaper.AssetPath;
+            if (!string.IsNullOrWhiteSpace(page.RightWallpaper?.AssetPath))
+                yield return page.RightWallpaper.AssetPath;
 
             if (page.TouchButtons == null) continue;
             foreach (var button in page.TouchButtons)

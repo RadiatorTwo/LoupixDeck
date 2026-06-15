@@ -535,55 +535,101 @@ public static class BitmapHelper
     }
 
     /// <summary>
-    /// Returns the page's baked 480×270 wallpaper, computing and caching it on first
-    /// use. The original image is resolved from the asset folder via
-    /// <see cref="AssetResolver"/> and scaled/positioned with the page's wallpaper
-    /// parameters. Returns null when the page has no wallpaper or the asset is missing.
+    /// Returns the slot's baked bitmap at <paramref name="width"/>×<paramref name="height"/>
+    /// (480×270 for the main panel, 60×270 for a side display), computing and caching it
+    /// on first use. The original image is resolved from the asset folder via
+    /// <see cref="AssetResolver"/>, scaled/positioned with the slot's parameters and
+    /// optionally horizontally mirrored. Returns null when the slot has no image or the
+    /// asset is missing.
     /// </summary>
-    public static SKBitmap GetOrBakeWallpaper(TouchButtonPage page)
+    public static SKBitmap GetOrBakeSlot(WallpaperSlot slot, int width, int height)
     {
-        if (page == null) return null;
-        if (page.Wallpaper != null) return page.Wallpaper;
-        if (string.IsNullOrWhiteSpace(page.WallpaperAssetPath)) return null;
+        if (slot == null || !slot.HasImage) return null;
+        if (slot.Baked != null) return slot.Baked;
 
-        var original = AssetResolver?.Invoke(page.WallpaperAssetPath);
+        var original = AssetResolver?.Invoke(slot.AssetPath);
         if (original == null) return null;
 
         SKBitmap baked;
         lock (SkiaRenderGate.Sync)
         {
             baked = ScaleAndPositionBitmap(
-                original, 480, 270,
-                page.WallpaperScaling, page.WallpaperPositionX, page.WallpaperPositionY,
-                page.WallpaperScalingOption);
+                original, width, height,
+                slot.Scaling, slot.PositionX, slot.PositionY, slot.ScalingOption);
+
+            if (slot.Mirror)
+            {
+                var flipped = FlipHorizontal(baked);
+                baked.Dispose();
+                baked = flipped;
+            }
         }
 
-        page.Wallpaper = baked;
+        slot.Baked = baked;
         return baked;
     }
 
+    /// <summary>Returns a horizontally mirrored copy of <paramref name="source"/>.</summary>
+    private static SKBitmap FlipHorizontal(SKBitmap source)
+    {
+        var dst = new SKBitmap(source.Width, source.Height, source.ColorType, source.AlphaType);
+        using var canvas = new SKCanvas(dst);
+        canvas.Translate(source.Width, 0);
+        canvas.Scale(-1, 1);
+        canvas.DrawBitmap(source, 0, 0);
+        canvas.Flush();
+        return dst;
+    }
+
+    private static bool HasAnyWallpaper(TouchButtonPage page) =>
+        page != null &&
+        ((page.MainWallpaper?.HasImage ?? false) ||
+         (page.LeftWallpaper?.HasImage ?? false) ||
+         (page.RightWallpaper?.HasImage ?? false));
+
     /// <summary>
-    /// Resolves the baked wallpaper (and its opacity) to draw for the current page,
-    /// falling back to page 0's wallpaper. Returns (null, 0) when none is set.
-    /// Shared by the centre grid and the Razer side strips so they stay in sync.
+    /// Picks the page whose wallpapers should be drawn for the current view: the current
+    /// page when it has <b>any</b> of its three wallpapers set, otherwise page 0 as a
+    /// fallback. Once a page defines a wallpaper it is self-contained — its empty slots
+    /// stay empty rather than borrowing from page 0 (so a page that only sets a main
+    /// wallpaper does not inherit another page's side wallpapers).
+    /// </summary>
+    private static TouchButtonPage ResolveWallpaperSourcePage(LoupedeckConfig config)
+    {
+        var current = config?.CurrentTouchButtonPage;
+        if (HasAnyWallpaper(current)) return current;
+        if (config?.TouchButtonPages is { Count: > 0 }) return config.TouchButtonPages[0];
+        return current;
+    }
+
+    /// <summary>
+    /// Resolves the baked main wallpaper (and its opacity dim) to draw for the current
+    /// view. Returns (null, 0) when the source page has no main wallpaper. Shared by the
+    /// centre grid and the Razer side strips so they stay in sync.
     /// </summary>
     private static (SKBitmap wallpaper, double opacity) ResolveWallpaper(LoupedeckConfig config)
     {
-        if (config?.CurrentTouchButtonPage == null)
-            return (null, 0);
+        var page = ResolveWallpaperSourcePage(config);
+        if (page == null) return (null, 0);
 
-        var current = GetOrBakeWallpaper(config.CurrentTouchButtonPage);
-        if (current != null)
-            return (current, config.CurrentTouchButtonPage.WallpaperOpacity);
+        var baked = GetOrBakeSlot(page.MainWallpaper, PanelWidth, PanelHeight);
+        return baked != null ? (baked, page.MainWallpaper.Opacity) : (null, 0);
+    }
 
-        if (config.TouchButtonPages is { Count: > 0 })
-        {
-            var first = GetOrBakeWallpaper(config.TouchButtonPages[0]);
-            if (first != null)
-                return (first, config.TouchButtonPages[0].WallpaperOpacity);
-        }
+    /// <summary>
+    /// Resolves the optional side-display wallpaper for <paramref name="side"/> on the
+    /// source page, baked to the strip size. Returns (null, 0) when that side has no
+    /// dedicated wallpaper — callers then fall back to the main wallpaper's panel region.
+    /// </summary>
+    private static (SKBitmap wallpaper, double opacity) ResolveSideWallpaper(
+        LoupedeckConfig config, RotarySide side, int width, int height)
+    {
+        var page = ResolveWallpaperSourcePage(config);
+        if (page == null) return (null, 0);
 
-        return (null, 0);
+        var slot = side == RotarySide.Left ? page.LeftWallpaper : page.RightWallpaper;
+        var baked = GetOrBakeSlot(slot, width, height);
+        return baked != null ? (baked, slot.Opacity) : (null, 0);
     }
 
     /// <summary>
@@ -1617,7 +1663,8 @@ public static class BitmapHelper
     }
 
     // The unified panel is 480px wide; the side strips occupy its outer 60px columns.
-    private const int PanelWidth = 480;
+    public const int PanelWidth = 480;
+    public const int PanelHeight = 270;
     private const int StripWidth = 60;
 
     /// <summary>
@@ -1663,6 +1710,20 @@ public static class BitmapHelper
         int width,
         int height)
     {
+        // A dedicated side-display wallpaper overdraws the main wallpaper's region.
+        var (sideWallpaper, sideOpacity) = ResolveSideWallpaper(config, side, width, height);
+        if (sideWallpaper != null)
+        {
+            var sideDest = new SKRect(0, 0, width, height);
+            canvas.DrawBitmap(sideWallpaper, sideDest);
+            if (sideOpacity > 0)
+            {
+                using var dim = new SKPaint { Color = new SKColor(0, 0, 0, (byte)(255 * sideOpacity)) };
+                canvas.DrawRect(sideDest, dim);
+            }
+            return;
+        }
+
         var (wallpaper, opacity) = ResolveWallpaper(config);
 
         if (wallpaper == null)

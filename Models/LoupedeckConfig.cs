@@ -41,8 +41,10 @@ public class LoupedeckConfig : INotifyPropertyChanged
     /// for devices with side strips (Razer); see <c>RotaryPageSideSplitMigrator</c>.
     /// v5 moved page wallpapers from inline Base64 into the asset folder (relative path
     /// + scaling parameters on each page); see <c>WallpaperAssetMigrator</c>.
+    /// v6 nested the flat main-wallpaper fields into a <c>MainWallpaper</c> slot and added
+    /// optional left/right side-display wallpapers; see <c>WallpaperSlotMigrator</c>.
     /// </summary>
-    public const int CurrentVersion = 5;
+    public const int CurrentVersion = 6;
 
     public int Version { get; set; } = CurrentVersion;
 

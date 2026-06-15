@@ -18,18 +18,18 @@ public class TouchButtonPage : INotifyPropertyChanged
             var newButton = new TouchButton(i);
             TouchButtons.Add(newButton);
         }
+
+        MainWallpaper = new WallpaperSlot();
+        LeftWallpaper = new WallpaperSlot();
+        RightWallpaper = new WallpaperSlot();
     }
 
     private int _page;
     private string _name;
     private bool _selected;
-    private SKBitmap _wallpaper;
-    private double _wallpaperOpacity;
-    private string _wallpaperAssetPath;
-    private int _wallpaperScaling = 100;
-    private int _wallpaperPositionX;
-    private int _wallpaperPositionY;
-    private BitmapHelper.ScalingOption _wallpaperScalingOption = BitmapHelper.ScalingOption.Fit;
+    private WallpaperSlot _mainWallpaper;
+    private WallpaperSlot _leftWallpaper;
+    private WallpaperSlot _rightWallpaper;
 
     /// <summary>
     /// Optional user-assigned page name. Persisted; when empty the page falls back
@@ -75,106 +75,74 @@ public class TouchButtonPage : INotifyPropertyChanged
     }
 
     /// <summary>
-    /// Relative path of the wallpaper's <b>original</b> image inside the asset
-    /// folder (e.g. "assets/abc123.png"), or null when no wallpaper is set. The
-    /// scaled 480×270 bitmap actually drawn is computed on demand from this plus
-    /// the scaling parameters below — see <see cref="Wallpaper"/>.
+    /// Main 480×270 wallpaper. Always non-null; an empty slot (no
+    /// <see cref="WallpaperSlot.AssetPath"/>) means "no wallpaper".
     /// </summary>
-    public string WallpaperAssetPath
+    public WallpaperSlot MainWallpaper
     {
-        get => _wallpaperAssetPath;
+        get => _mainWallpaper;
         set
         {
-            if (_wallpaperAssetPath == value) return;
-            _wallpaperAssetPath = value;
-            InvalidateWallpaper();
+            if (ReferenceEquals(_mainWallpaper, value)) return;
+            if (_mainWallpaper != null) _mainWallpaper.Changed -= OnWallpaperSlotChanged;
+            _mainWallpaper = value;
+            if (_mainWallpaper != null) _mainWallpaper.Changed += OnWallpaperSlotChanged;
             OnPropertyChanged();
-        }
-    }
-
-    public int WallpaperScaling
-    {
-        get => _wallpaperScaling;
-        set
-        {
-            if (_wallpaperScaling == value) return;
-            _wallpaperScaling = value;
-            InvalidateWallpaper();
-            OnPropertyChanged();
-        }
-    }
-
-    public int WallpaperPositionX
-    {
-        get => _wallpaperPositionX;
-        set
-        {
-            if (_wallpaperPositionX == value) return;
-            _wallpaperPositionX = value;
-            InvalidateWallpaper();
-            OnPropertyChanged();
-        }
-    }
-
-    public int WallpaperPositionY
-    {
-        get => _wallpaperPositionY;
-        set
-        {
-            if (_wallpaperPositionY == value) return;
-            _wallpaperPositionY = value;
-            InvalidateWallpaper();
-            OnPropertyChanged();
-        }
-    }
-
-    public BitmapHelper.ScalingOption WallpaperScalingOption
-    {
-        get => _wallpaperScalingOption;
-        set
-        {
-            if (_wallpaperScalingOption == value) return;
-            _wallpaperScalingOption = value;
-            InvalidateWallpaper();
-            OnPropertyChanged();
+            OnWallpaperSlotChanged(this, EventArgs.Empty);
         }
     }
 
     /// <summary>
-    /// Cached 480×270 wallpaper bitmap baked from the original asset and the
-    /// scaling parameters. NOT serialized — loaded/computed lazily via
-    /// <see cref="BitmapHelper.GetOrBakeWallpaper"/>. Mirrors the
-    /// <c>ImageLayer.CachedImage</c> pattern.
+    /// Optional wallpaper for the left Razer side display (60×270). When set it
+    /// overdraws the main wallpaper's left region; empty falls back to the main.
+    /// </summary>
+    public WallpaperSlot LeftWallpaper
+    {
+        get => _leftWallpaper;
+        set
+        {
+            if (ReferenceEquals(_leftWallpaper, value)) return;
+            if (_leftWallpaper != null) _leftWallpaper.Changed -= OnWallpaperSlotChanged;
+            _leftWallpaper = value;
+            if (_leftWallpaper != null) _leftWallpaper.Changed += OnWallpaperSlotChanged;
+            OnPropertyChanged();
+            OnWallpaperSlotChanged(this, EventArgs.Empty);
+        }
+    }
+
+    /// <summary>Optional wallpaper for the right Razer side display (60×270).</summary>
+    public WallpaperSlot RightWallpaper
+    {
+        get => _rightWallpaper;
+        set
+        {
+            if (ReferenceEquals(_rightWallpaper, value)) return;
+            if (_rightWallpaper != null) _rightWallpaper.Changed -= OnWallpaperSlotChanged;
+            _rightWallpaper = value;
+            if (_rightWallpaper != null) _rightWallpaper.Changed += OnWallpaperSlotChanged;
+            OnPropertyChanged();
+            OnWallpaperSlotChanged(this, EventArgs.Empty);
+        }
+    }
+
+    /// <summary>
+    /// Baked main wallpaper, used for thumbnails/previews (settings list). Read-only;
+    /// computed on demand from <see cref="MainWallpaper"/>. Returns null when unset.
     /// </summary>
     [JsonIgnore]
-    public SKBitmap Wallpaper
-    {
-        get => _wallpaper;
-        set
-        {
-            if (Equals(value, _wallpaper)) return;
-            _wallpaper = value;
-            OnPropertyChanged();
-        }
-    }
+    public SKBitmap Wallpaper =>
+        BitmapHelper.GetOrBakeSlot(MainWallpaper, BitmapHelper.PanelWidth, BitmapHelper.PanelHeight);
 
-    /// <summary>Drops the cached baked wallpaper so it is re-computed on the next
-    /// render; raises <see cref="Wallpaper"/> so the controller repaints.</summary>
-    private void InvalidateWallpaper()
+    /// <summary>Change signal (no value) raised whenever any wallpaper slot's
+    /// rendered result changes, so the controller repaints. JsonIgnore — purely a
+    /// notification, never persisted.</summary>
+    [JsonIgnore]
+    public bool WallpaperInvalidated => false;
+
+    private void OnWallpaperSlotChanged(object sender, EventArgs e)
     {
-        _wallpaper = null;
         OnPropertyChanged(nameof(Wallpaper));
-    }
-
-    public double WallpaperOpacity
-    {
-        get => _wallpaperOpacity;
-        set
-        {
-            if (!(Math.Abs(_wallpaperOpacity - value) > 0.0001)) return;
-            _wallpaperOpacity = value;
-            OnPropertyChanged();
-        }
+        OnPropertyChanged(nameof(WallpaperInvalidated));
     }
 
     public ObservableCollection<TouchButton> TouchButtons { get; set; }
