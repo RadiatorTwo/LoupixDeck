@@ -17,78 +17,92 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace LoupixDeck;
 
+/// <summary>
+/// DI wiring for the issue #116 root + per-device topology.
+///
+/// <see cref="AddRootServices"/> registers the device-agnostic singletons (OS input,
+/// config/asset IO, macro store, plugin discovery). <see cref="AddDeviceServices"/>
+/// builds one child collection per device: it forwards the root singletons in via
+/// <see cref="Forward{T}"/> and registers everything device-bound — including the
+/// command catalog and the plugin-host wiring — so command activation and plugin
+/// delegates resolve through THIS device's provider. Phase 1 instantiates exactly one
+/// device; Phase 2 starts N child providers.
+/// </summary>
 public static class ServiceCollectionExtensions
 {
-    /// <summary>
-    /// Wires every service. <paramref name="resolved"/> selects the physical device
-    /// instance (type + serial) whose per-device config file will be loaded. Both
-    /// the <see cref="ResolvedDevice"/> and its <see cref="DeviceRegistry.DeviceInfo"/>
-    /// are registered, so services that inject either keep working.
-    /// </summary>
-    public static void AddCommonServices(this IServiceCollection collection, ResolvedDevice resolved)
+    /// <summary>Re-expose a root-container singleton inside a device child collection.
+    /// The instance stays the single root instance; only the resolution is forwarded.</summary>
+    private static void Forward<T>(this IServiceCollection collection, IServiceProvider root)
+        where T : class
+        => collection.AddSingleton(_ => root.GetRequiredService<T>());
+
+    // ───────────────────────── Root (device-agnostic) ─────────────────────────
+
+    public static void AddRootServices(this IServiceCollection collection)
     {
-        ArgumentNullException.ThrowIfNull(resolved);
-        var deviceInfo = resolved.Info;
-        collection.AddSingleton(resolved);
-        collection.AddSingleton(deviceInfo);
-
-        collection.AddSingleton(provider =>
-        {
-            var configService = provider.GetRequiredService<IConfigService>();
-            var configPath = FileDialogHelper.GetConfigPath(deviceInfo, resolved.Serial);
-            var config = configService.LoadConfig<LoupedeckConfig>(configPath);
-            if (config == null)
-            {
-                config = new LoupedeckConfig
-                {
-                    DeviceVid = deviceInfo.VendorId,
-                    DevicePid = deviceInfo.ProductId,
-                    DeviceSerial = resolved.Serial
-                };
-
-                // First launch for this device — seed the serial port/baud from any
-                // existing sibling config so the user does not have to re-run InitSetup
-                // just because they switched device type (the port is hardware, not
-                // device-type-specific). Crucial for the LOUPIXDECK_FAKE_DEVICE flow:
-                // without this the fresh config has no port → device times out →
-                // App.CreateMainWindowViewModel catches and shuts down silently.
-                SeedSerialPortFromSibling(config, configService, deviceInfo);
-            }
-            return config;
-        });
+        // Holder for the active device's child provider — root-resident services
+        // (PluginManager host delegates) reach device-bound services through it.
+        collection.AddSingleton<IActiveDeviceProvider, ActiveDeviceProvider>();
 
         collection.AddSingleton<IConfigService, ConfigService>();
         collection.AddSingleton<IAssetService, AssetService>();
-        collection.AddSingleton<ICommandService, CommandService>();
-        collection.AddSingleton<IDeviceService, LoupedeckDeviceService>();
-        collection.AddSingleton<IPageManager, PageManager>();
 
-        collection.AddSingleton<ICommandBuilder, CommandBuilder>();
-        collection.AddSingleton<ISysCommandService, SysCommandService>();
+        collection.AddSingleton<IDBusController, DBusController>();
+        collection.AddSingleton<ICommandRunner, CommandRunner>();
 
-        // The command registry unifies built-in commands and plugin commands.
-        // CoreCommandProvider wraps the reflection-based scanner;
-        // PluginCommandProvider feeds in commands from loaded plugins.
-        collection.AddSingleton<IPluginManager, PluginManager>();
-        collection.AddSingleton<ISideStripProviderRegistry, SideStripProviderRegistry>();
-        collection.AddSingleton<IPluginInstaller, PluginInstaller>();
-        collection.AddSingleton<IPluginReloadService, PluginReloadService>();
-        collection.AddSingleton<ICommandProvider, CoreCommandProvider>();
-        collection.AddSingleton<ICommandProvider, PluginCommandProvider>();
-        collection.AddSingleton<ICommandRegistry, CommandRegistry>();
+        if (OperatingSystem.IsLinux())
+            collection.AddSingleton<ISystemPowerService, LinuxSystemPowerService>();
+#if WINDOWS
+        else if (OperatingSystem.IsWindows())
+            collection.AddSingleton<ISystemPowerService, WindowsSystemPowerService>();
+#endif
+        else
+            collection.AddSingleton<ISystemPowerService, NoOpSystemPowerService>();
 
-        // The command-selection menu is assembled generically from these
-        // contributors instead of the former per-ViewModel hard-coded logic.
-        collection.AddSingleton<IMenuContributor, CommandGroupMenuContributor>();
-        collection.AddSingleton<IMenuContributor, UserMacroMenuContributor>();
-        collection.AddSingleton<IPluginMenuSource, PluginMenuContributor>();
-        collection.AddSingleton<IMenuTreeBuilder, MenuTreeBuilder>();
+        // Foreground-window monitor. The Linux monitor needs no #if guard (it only uses
+        // Process + /proc); only the Windows type lives behind #if WINDOWS.
+        if (OperatingSystem.IsLinux())
+            collection.AddSingleton<IActiveWindowMonitor, LinuxActiveWindowMonitor>();
+#if WINDOWS
+        else if (OperatingSystem.IsWindows())
+            collection.AddSingleton<IActiveWindowMonitor, WindowsActiveWindowMonitor>();
+#endif
+        else
+            collection.AddSingleton<IActiveWindowMonitor, NoOpActiveWindowMonitor>();
 
-        // User-defined macros: in-memory store (macros.json) + sequential step executor.
+        // User-defined macros: in-memory store (macros.json), shared across devices.
         collection.AddSingleton<IMacroManager, MacroManager>();
-        collection.AddSingleton<MacroRunner>();
 
-        // UInputKeyboard is only available on Linux
+        // Plugins are discovered/loaded once; per-device hosts are wired via the
+        // active device provider (see PluginManager).
+        collection.AddSingleton<IPluginManager, PluginManager>();
+    }
+
+    // ───────────────────────── Device (per-device child) ─────────────────────────
+
+    public static void AddDeviceServices(this IServiceCollection collection, ResolvedDevice resolved,
+        IServiceProvider root)
+    {
+        ArgumentNullException.ThrowIfNull(resolved);
+        ArgumentNullException.ThrowIfNull(root);
+        var deviceInfo = resolved.Info;
+
+        collection.AddSingleton(resolved);
+        collection.AddSingleton(deviceInfo);
+
+        // Re-expose the root singletons device-bound services depend on.
+        collection.Forward<IConfigService>(root);
+        collection.Forward<IAssetService>(root);
+        collection.Forward<IDBusController>(root);
+        collection.Forward<ICommandRunner>(root);
+        collection.Forward<ISystemPowerService>(root);
+        collection.Forward<IActiveWindowMonitor>(root);
+        collection.Forward<IMacroManager>(root);
+        collection.Forward<IPluginManager>(root);
+
+        // OS input injection. Device-bound because the Windows routers read this
+        // device's LoupedeckConfig.InterceptionEnabled to pick SendInput vs the
+        // Interception driver per call.
         if (OperatingSystem.IsLinux())
         {
             collection.AddSingleton<IUInputKeyboard, UInputKeyboard>();
@@ -116,35 +130,62 @@ public static class ServiceCollectionExtensions
             collection.AddSingleton<IVirtualMouse, WindowsMouseRouter>();
         }
 
-        collection.AddSingleton<IDBusController, DBusController>();
-        collection.AddSingleton<ICommandRunner, CommandRunner>();
+        collection.AddSingleton(provider =>
+        {
+            var configService = provider.GetRequiredService<IConfigService>();
+            var configPath = FileDialogHelper.GetConfigPath(deviceInfo, resolved.Serial);
+            var config = configService.LoadConfig<LoupedeckConfig>(configPath);
+            if (config == null)
+            {
+                config = new LoupedeckConfig
+                {
+                    DeviceVid = deviceInfo.VendorId,
+                    DevicePid = deviceInfo.ProductId,
+                    DeviceSerial = resolved.Serial
+                };
+
+                // First launch for this device — seed the serial port/baud from any
+                // existing sibling config so the user does not have to re-run InitSetup
+                // just because they switched device type (the port is hardware, not
+                // device-type-specific). Crucial for the LOUPIXDECK_FAKE_DEVICE flow:
+                // without this the fresh config has no port → device times out →
+                // App.CreateMainWindowViewModel catches and shuts down silently.
+                SeedSerialPortFromSibling(config, configService, deviceInfo);
+            }
+            return config;
+        });
+
+        collection.AddSingleton<IDeviceService, LoupedeckDeviceService>();
+        collection.AddSingleton<IPageManager, PageManager>();
+
+        // Command catalog — device-scoped so command activation
+        // (SysCommandService → ActivatorUtilities.CreateInstance(this provider))
+        // resolves the device-bound services commands inject.
+        collection.AddSingleton<ICommandService, CommandService>();
+        collection.AddSingleton<ICommandBuilder, CommandBuilder>();
+        collection.AddSingleton<ISysCommandService, SysCommandService>();
+        collection.AddSingleton<ICommandProvider, CoreCommandProvider>();
+        collection.AddSingleton<ICommandProvider, PluginCommandProvider>();
+        collection.AddSingleton<ICommandRegistry, CommandRegistry>();
+
+        // The command-selection menu is assembled generically from these contributors.
+        collection.AddSingleton<IMenuContributor, CommandGroupMenuContributor>();
+        collection.AddSingleton<IMenuContributor, UserMacroMenuContributor>();
+        collection.AddSingleton<IPluginMenuSource, PluginMenuContributor>();
+        collection.AddSingleton<IMenuTreeBuilder, MenuTreeBuilder>();
+
+        // Sequential macro-step executor (uses this device's command service).
+        collection.AddSingleton<MacroRunner>();
+
+        // Per-device plugin state: side-strip attachment, install/enable, hot-reload.
+        collection.AddSingleton<ISideStripProviderRegistry, SideStripProviderRegistry>();
+        collection.AddSingleton<IPluginInstaller, PluginInstaller>();
+        collection.AddSingleton<IPluginReloadService, PluginReloadService>();
+
         collection.AddSingleton<IDynamicTextManager, DynamicTextManager>();
         collection.AddSingleton<IFolderNavigationService, FolderNavigationService>();
         collection.AddSingleton<IExclusiveModeService, ExclusiveModeService>();
-
         collection.AddSingleton<INativeHapticService, NativeHapticService>();
-
-        if (OperatingSystem.IsLinux())
-            collection.AddSingleton<ISystemPowerService, LinuxSystemPowerService>();
-#if WINDOWS
-        else if (OperatingSystem.IsWindows())
-            collection.AddSingleton<ISystemPowerService, WindowsSystemPowerService>();
-#endif
-        else
-            collection.AddSingleton<ISystemPowerService, NoOpSystemPowerService>();
-
-        // Foreground-window monitor + app-switching driver. The Linux monitor needs
-        // no #if guard (it only uses Process + /proc, compiles platform-neutrally);
-        // only the Windows type lives behind #if WINDOWS.
-        if (OperatingSystem.IsLinux())
-            collection.AddSingleton<IActiveWindowMonitor, LinuxActiveWindowMonitor>();
-#if WINDOWS
-        else if (OperatingSystem.IsWindows())
-            collection.AddSingleton<IActiveWindowMonitor, WindowsActiveWindowMonitor>();
-#endif
-        else
-            collection.AddSingleton<IActiveWindowMonitor, NoOpActiveWindowMonitor>();
-
         collection.AddSingleton<IAppSwitchingService, AppSwitchingService>();
 
         collection.AddSingleton<LoupedeckLiveSController>();
@@ -160,7 +201,6 @@ public static class ServiceCollectionExtensions
     {
         try
         {
-            var dir = FileDialogHelper.GetConfigDir();
             var candidates = DeviceRegistry.SupportedDevices
                 .Where(d => d.Slug != self.Slug)
                 .Select(d => FileDialogHelper.GetConfigPath(d))
@@ -212,11 +252,25 @@ public static class ServiceCollectionExtensions
 
         collection.AddTransient<About>();
         collection.AddTransient<AboutViewModel>();
-        
+
         collection.AddSingleton<IDialogService, DialogService>();
     }
 
-    public static void PostInit(this IServiceProvider services)
+    /// <summary>Root-level one-time init: shared macro store + the static bitmap
+    /// renderer's asset resolver. Runs once on the root provider.</summary>
+    public static void RootPostInit(this IServiceProvider root)
+    {
+        // Load user macros once — execution and menus read from memory afterwards.
+        root.GetRequiredService<IMacroManager>().Load();
+
+        // Let the (static) bitmap renderer resolve image-layer assets via DI.
+        var assetService = root.GetRequiredService<IAssetService>();
+        BitmapHelper.AssetResolver = assetService.Load;
+    }
+
+    /// <summary>Per-device one-time init: dialog registration, haptic materialization,
+    /// config self-heal, layer-handler rewiring. Runs on each device provider.</summary>
+    public static void DevicePostInit(this IServiceProvider services)
     {
         var dialogService = services.GetRequiredService<IDialogService>();
 
@@ -229,13 +283,6 @@ public static class ServiceCollectionExtensions
         dialogService.Register<SettingsViewModel, Settings>();
         dialogService.Register<MacroEditorViewModel, MacroEditor>();
         dialogService.Register<AboutViewModel, About>();
-
-        // Load user macros once — execution and menus read from memory afterwards.
-        services.GetRequiredService<IMacroManager>().Load();
-
-        // Let the (static) bitmap renderer resolve image-layer assets via DI.
-        var assetService = services.GetRequiredService<IAssetService>();
-        BitmapHelper.AssetResolver = assetService.Load;
 
         // Heal configs that were saved before HapticSteps had ObjectCreationHandling.Replace —
         // those files accumulated duplicate steps on every save+load round.

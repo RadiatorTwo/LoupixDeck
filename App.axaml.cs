@@ -114,24 +114,37 @@ public partial class App : Application
     private async Task<MainWindowViewModel> CreateMainWindowViewModel(ResolvedDevice resolved,
         string port = null, int baudrate = 0)
     {
-        var collection = new ServiceCollection();
-        collection.AddCommonServices(resolved);
+        // Root container: device-agnostic singletons (OS input, config/asset IO,
+        // macro store, plugin discovery). Built once for the app lifetime.
+        var rootCollection = new ServiceCollection();
+        rootCollection.AddRootServices();
+        var root = rootCollection.BuildServiceProvider();
+        root.RootPostInit();
 
-        var services = collection.BuildServiceProvider();
+        // Device child container: device-bound services + command catalog + plugin
+        // host wiring, forwarding the root singletons in. One per device (phase 1: one).
+        var deviceCollection = new ServiceCollection();
+        deviceCollection.AddDeviceServices(resolved, root);
+        var services = deviceCollection.BuildServiceProvider();
 
-        services.PostInit();
+        // Plugin host delegates and root-resident lookups reach this device's services
+        // through the holder — MUST be set before plugins load or any command executes.
+        root.GetRequiredService<IActiveDeviceProvider>().Current = services;
+
+        services.DevicePostInit();
 
         // Discover and load plugins before the command registry is built
         // (MainWindowViewModel's constructor initializes it), so plugin
-        // commands are picked up alongside the core commands.
-        services.GetRequiredService<Services.Plugins.IPluginManager>().LoadPlugins();
+        // commands are picked up alongside the core commands. Discovery is once,
+        // in the root; the per-device hosts were wired via the holder above.
+        root.GetRequiredService<Services.Plugins.IPluginManager>().LoadPlugins();
 
         // Build the side-strip provider lookup from the freshly loaded plugins so the
         // editor picker and the controller can resolve plugin-override strip bindings.
         services.GetRequiredService<Services.Plugins.ISideStripProviderRegistry>().Rebuild();
 
-        // Expose the DI container so the CLI command channel in Program.cs can
-        // resolve ICommandService for incoming "loupixdeck show / wakeup / …".
+        // Expose the active device's container so the CLI command channel in Program.cs
+        // can resolve ICommandService for incoming "loupixdeck show / wakeup / …".
         Program.AppServices = services;
 
         // Apply persisted theme variant before showing UI.

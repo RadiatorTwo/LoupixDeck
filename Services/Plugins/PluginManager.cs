@@ -47,22 +47,25 @@ public interface IPluginManager
 /// <inheritdoc cref="IPluginManager"/>
 public class PluginManager : IPluginManager
 {
-    private readonly IServiceProvider _serviceProvider;
-    private readonly DeviceRegistry.DeviceInfo _deviceInfo;
-    private readonly Models.LoupedeckConfig _config;
+    // Root-resident: device-bound services (config, device service, command service,
+    // …) are reached through the active device's child provider, never captured
+    // directly, so plugins loaded once in the root address the right device. See
+    // IActiveDeviceProvider.
+    private readonly IActiveDeviceProvider _active;
 
     // Copy-on-write snapshot. Every mutation builds a new list and swaps this
     // reference, so readers (e.g. PluginCommandProvider during a registry rebuild)
     // always see a consistent, immutable list — never a torn mid-mutation state.
     private volatile IReadOnlyList<LoadedPlugin> _plugins = Array.Empty<LoadedPlugin>();
 
-    public PluginManager(IServiceProvider serviceProvider, DeviceRegistry.DeviceInfo deviceInfo,
-        Models.LoupedeckConfig config)
+    public PluginManager(IActiveDeviceProvider active)
     {
-        _serviceProvider = serviceProvider;
-        _deviceInfo = deviceInfo;
-        _config = config;
+        _active = active;
     }
+
+    private IServiceProvider Device => _active.Current
+        ?? throw new InvalidOperationException(
+            "PluginManager used before the active device provider was set.");
 
     public IReadOnlyList<LoadedPlugin> Plugins => _plugins;
 
@@ -363,8 +366,9 @@ public class PluginManager : IPluginManager
     {
         var logger = new PluginLogger(manifest.Id);
         var settings = new PluginSettingsStore(Path.Combine(dir, "settings.json"));
+        var deviceInfo = Device.GetRequiredService<DeviceRegistry.DeviceInfo>();
         var device = new SdkDeviceInfo(
-            _deviceInfo.Name, _deviceInfo.VendorId, _deviceInfo.ProductId, _deviceInfo.Slug);
+            deviceInfo.Name, deviceInfo.VendorId, deviceInfo.ProductId, deviceInfo.Slug);
 
         // Resolved lazily at call time so host operations work regardless of
         // service construction order.
@@ -373,7 +377,7 @@ public class PluginManager : IPluginManager
             try
             {
                 // Chained from a plugin — there's no triggering button.
-                _ = _serviceProvider.GetRequiredService<ICommandService>().ExecuteCommand(command, ButtonTargets.None);
+                _ = Device.GetRequiredService<ICommandService>().ExecuteCommand(command, ButtonTargets.None);
             }
             catch (Exception ex)
             {
@@ -385,7 +389,7 @@ public class PluginManager : IPluginManager
         {
             try
             {
-                _serviceProvider.GetRequiredService<IDynamicTextManager>().RefreshCommand(commandName);
+                Device.GetRequiredService<IDynamicTextManager>().RefreshCommand(commandName);
             }
             catch (Exception ex)
             {
@@ -397,7 +401,7 @@ public class PluginManager : IPluginManager
         {
             try
             {
-                var nav = _serviceProvider.GetRequiredService<FolderNavigation.IFolderNavigationService>();
+                var nav = Device.GetRequiredService<FolderNavigation.IFolderNavigationService>();
                 _ = nav.OpenFolder(new PluginFolderAdapter(provider));
             }
             catch (Exception ex)
@@ -410,7 +414,7 @@ public class PluginManager : IPluginManager
         {
             try
             {
-                var devSvc = _serviceProvider.GetRequiredService<IDeviceService>();
+                var devSvc = Device.GetRequiredService<IDeviceService>();
                 // Fire and forget — the host's ShowTemporaryTextButton already
                 // self-supersedes via its internal call-ID counter, so quick
                 // repeated invocations don't queue up restore-races.
@@ -427,7 +431,7 @@ public class PluginManager : IPluginManager
         {
             try
             {
-                return _serviceProvider.GetRequiredService<IDeviceService>().Device?
+                return Device.GetRequiredService<IDeviceService>().Device?
                     .GetTouchSlotForRotary(rotaryIndex) ?? -1;
             }
             catch (Exception ex)
@@ -441,7 +445,7 @@ public class PluginManager : IPluginManager
         {
             try
             {
-                return _serviceProvider.GetRequiredService<IExclusiveModeService>().TryEnter(provider);
+                return Device.GetRequiredService<IExclusiveModeService>().TryEnter(provider);
             }
             catch (Exception ex)
             {
@@ -454,7 +458,7 @@ public class PluginManager : IPluginManager
         {
             try
             {
-                _serviceProvider.GetRequiredService<IExclusiveModeService>().Exit(provider);
+                Device.GetRequiredService<IExclusiveModeService>().Exit(provider);
             }
             catch (Exception ex)
             {
@@ -464,7 +468,7 @@ public class PluginManager : IPluginManager
 
         bool IsInExclusiveMode()
         {
-            try { return _serviceProvider.GetRequiredService<IExclusiveModeService>().IsActive; }
+            try { return Device.GetRequiredService<IExclusiveModeService>().IsActive; }
             catch { return false; }
         }
 
@@ -499,8 +503,9 @@ public class PluginManager : IPluginManager
 
     private bool IsEnabled(string pluginId)
     {
-        return _config.EnabledPlugins != null
-               && _config.EnabledPlugins.Any(id => string.Equals(id, pluginId, StringComparison.OrdinalIgnoreCase));
+        var enabled = Device.GetRequiredService<Models.LoupedeckConfig>().EnabledPlugins;
+        return enabled != null
+               && enabled.Any(id => string.Equals(id, pluginId, StringComparison.OrdinalIgnoreCase));
     }
 
     private static bool PlatformMatches(string platform)
