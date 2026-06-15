@@ -52,14 +52,20 @@ public class PluginManager : IPluginManager
     // during a dispatch/input flow, else the primary). See IDeviceRouter.
     private readonly IDeviceRouter _router;
 
+    // Every running device's host — used to read the union of per-device enabled sets
+    // (see IsEnabled). Plugins are shared/loaded once, so a plugin enabled on ANY
+    // device must load, not only the primary.
+    private readonly IDeviceHostRegistry _hostRegistry;
+
     // Copy-on-write snapshot. Every mutation builds a new list and swaps this
     // reference, so readers (e.g. PluginCommandProvider during a registry rebuild)
     // always see a consistent, immutable list — never a torn mid-mutation state.
     private volatile IReadOnlyList<LoadedPlugin> _plugins = Array.Empty<LoadedPlugin>();
 
-    public PluginManager(IDeviceRouter router)
+    public PluginManager(IDeviceRouter router, IDeviceHostRegistry hostRegistry)
     {
         _router = router;
+        _hostRegistry = hostRegistry;
     }
 
     /// <summary>The provider of the device this host call should act on.</summary>
@@ -444,11 +450,26 @@ public class PluginManager : IPluginManager
             }
         }
 
+        // A takeover must hit the device that ENABLED this plugin — not just whatever
+        // the router resolves at call time. When the request comes from a button press
+        // the ambient is already that device, but a plugin's own worker thread (e.g. a
+        // telemetry listener that auto-engages) runs with no ambient and would otherwise
+        // fall back to the primary device. We pin the entered device here so Release /
+        // IsActive stay consistent with Enter even if the ambient changes meanwhile.
+        IServiceProvider exclusiveTarget = null;
+
         bool RequestExclusiveMode(IExclusiveModeProvider provider)
         {
             try
             {
-                return Device.GetRequiredService<IExclusiveModeService>().TryEnter(provider);
+                var target = ResolveEnablingDevice(manifest.Id);
+                if (target.GetRequiredService<IExclusiveModeService>().TryEnter(provider))
+                {
+                    exclusiveTarget = target;
+                    return true;
+                }
+
+                return false;
             }
             catch (Exception ex)
             {
@@ -461,7 +482,8 @@ public class PluginManager : IPluginManager
         {
             try
             {
-                Device.GetRequiredService<IExclusiveModeService>().Exit(provider);
+                (exclusiveTarget ?? Device).GetRequiredService<IExclusiveModeService>().Exit(provider);
+                exclusiveTarget = null;
             }
             catch (Exception ex)
             {
@@ -471,7 +493,7 @@ public class PluginManager : IPluginManager
 
         bool IsInExclusiveMode()
         {
-            try { return Device.GetRequiredService<IExclusiveModeService>().IsActive; }
+            try { return (exclusiveTarget ?? Device).GetRequiredService<IExclusiveModeService>().IsActive; }
             catch { return false; }
         }
 
@@ -506,8 +528,48 @@ public class PluginManager : IPluginManager
 
     private bool IsEnabled(string pluginId)
     {
-        // Plugins load once; the primary device's enabled set governs what loads.
-        var enabled = Device.GetRequiredService<Models.LoupedeckConfig>().EnabledPlugins;
+        // Plugins load once and are shared across devices, but the enabled set is
+        // persisted per device (LoupedeckConfig.EnabledPlugins). A plugin must load
+        // when ANY running device enables it — otherwise enabling it from a non-primary
+        // device's Settings page writes the flag to that device's config while this gate
+        // (formerly primary-only) never sees it, leaving the plugin stuck "Disabled".
+        // Union semantics also make disable correct: a plugin only stops loading once no
+        // device still enables it.
+        foreach (var host in _hostRegistry.Hosts)
+        {
+            if (DeviceEnables(host.Provider, pluginId))
+                return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// The device a shared plugin should act on for ownership operations (exclusive
+    /// mode): the device that enabled it. Prefers the ambient device when it is itself
+    /// an enabler (a takeover triggered by a button press on that device), otherwise the
+    /// single device whose config enables the plugin. Falls back to the ambient/primary
+    /// when nothing enables it (shouldn't happen for a loaded plugin) so the call still
+    /// resolves a provider rather than throwing.
+    /// </summary>
+    private IServiceProvider ResolveEnablingDevice(string pluginId)
+    {
+        var current = _router.Current;
+        if (DeviceEnables(current, pluginId))
+            return current;
+
+        foreach (var host in _hostRegistry.Hosts)
+        {
+            if (DeviceEnables(host.Provider, pluginId))
+                return host.Provider;
+        }
+
+        return current;
+    }
+
+    private static bool DeviceEnables(IServiceProvider provider, string pluginId)
+    {
+        var enabled = provider?.GetService<Models.LoupedeckConfig>()?.EnabledPlugins;
         return enabled != null
                && enabled.Any(id => string.Equals(id, pluginId, StringComparison.OrdinalIgnoreCase));
     }
