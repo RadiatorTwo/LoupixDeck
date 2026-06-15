@@ -26,6 +26,16 @@ public interface IDeviceHostRegistry
     DeviceHost Primary { get; }
 
     void Add(DeviceHost host);
+
+    /// <summary>Drop a host (hot-unplug). No-op if it isn't registered.</summary>
+    void Remove(DeviceHost host);
+
+    /// <summary>
+    /// Resolve a host from a CLI/user selector matched case-insensitively against
+    /// its scope key (slug+serial), bare serial, or slug. Returns null when nothing
+    /// matches; an ambiguous slug match (two identical units) yields the first.
+    /// </summary>
+    DeviceHost Find(string selector);
 }
 
 public sealed class DeviceHostRegistry : IDeviceHostRegistry
@@ -47,5 +57,27 @@ public sealed class DeviceHostRegistry : IDeviceHostRegistry
     {
         if (host == null) return;
         lock (_gate) _hosts.Add(host);
+    }
+
+    public void Remove(DeviceHost host)
+    {
+        if (host == null) return;
+        lock (_gate) _hosts.Remove(host);
+    }
+
+    public DeviceHost Find(string selector)
+    {
+        if (string.IsNullOrWhiteSpace(selector)) return null;
+        selector = selector.Trim();
+        lock (_gate)
+        {
+            return _hosts.FirstOrDefault(h =>
+                       string.Equals(h.Device.ScopeKey, selector, StringComparison.OrdinalIgnoreCase))
+                   ?? _hosts.FirstOrDefault(h =>
+                       !string.IsNullOrEmpty(h.Device.Serial) &&
+                       string.Equals(h.Device.Serial, selector, StringComparison.OrdinalIgnoreCase))
+                   ?? _hosts.FirstOrDefault(h =>
+                       string.Equals(h.Device.Slug, selector, StringComparison.OrdinalIgnoreCase));
+        }
     }
 }

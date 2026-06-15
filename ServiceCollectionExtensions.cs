@@ -80,6 +80,12 @@ public static class ServiceCollectionExtensions
 
         // User-defined macros: in-memory store (macros.json), shared across devices.
         collection.AddSingleton<IMacroManager, MacroManager>();
+
+        // Runtime USB hot-plug (issue #116 phase 3b): the OS-native watcher signals
+        // topology changes; the manager diffs them against the running device set and
+        // raises attach/detach events App turns into provider/VM bring-up + teardown.
+        collection.AddSingleton<Services.HotPlug.IDeviceWatcher>(_ => Services.HotPlug.DeviceWatcher.Create());
+        collection.AddSingleton<Services.HotPlug.IHotPlugManager, Services.HotPlug.HotPlugManager>();
     }
 
     // ───────────────────────── Device (per-device child) ─────────────────────────

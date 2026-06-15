@@ -34,4 +34,16 @@ public sealed class MainShellViewModel : ViewModelBase
         _selectedDevice ??= device;
         OnPropertyChanged(nameof(HasMultipleDevices));
     }
+
+    /// <summary>Drop a device's VM (hot-unplug). If it was the selected one, fall back
+    /// to the first remaining device (or null when none are left).</summary>
+    public void Remove(MainWindowViewModel device)
+    {
+        if (device == null) return;
+        var wasSelected = ReferenceEquals(_selectedDevice, device);
+        Devices.Remove(device);
+        if (wasSelected)
+            SelectedDevice = Devices.FirstOrDefault();
+        OnPropertyChanged(nameof(HasMultipleDevices));
+    }
 }

@@ -145,6 +145,40 @@ public partial class LoupedeckLiveSController(
 
     public Task ToggleDeviceState() => _isDeviceOff ? RestoreDeviceState() : ClearDeviceState();
 
+    public void Shutdown()
+    {
+        // Persist any last runtime state before we close.
+        try { SaveConfig(); } catch (Exception ex) { Console.WriteLine($"Shutdown SaveConfig failed: {ex.Message}"); }
+
+        // Stop plugin strips so their timers don't keep churning against a dead device.
+        try { DetachAllSideStripProviders(); } catch { /* best effort */ }
+
+        var device = deviceService.Device;
+        if (device != null)
+        {
+            device.OnButton -= OnSimpleButtonPress;
+            device.OnTouch -= OnTouchButtonPress;
+            device.OnRotate -= OnRotate;
+            device.OnSwipe -= OnSwipe;
+            // Close() suppresses the device's auto-reconnect loop and releases the port.
+            try { device.Close(); } catch (Exception ex) { Console.WriteLine($"Shutdown device close failed: {ex.Message}"); }
+        }
+
+        // Unsubscribe app-level events so nothing tries to repaint the gone device.
+        pageManager.OnTouchPageChanged -= OnTouchPageChanged;
+        pageManager.OnRotaryPageChanged -= OnRotaryPageChanged;
+        folderNav.StateChanged -= OnFolderStateChanged;
+        exclusiveMode.StateChanged -= OnExclusiveStateChanged;
+        config.PropertyChanged -= ConfigOnPropertyChanged;
+
+        if (config.TouchButtonPages != null)
+        {
+            config.TouchButtonPages.CollectionChanged -= TouchButtonPagesOnCollectionChanged;
+            foreach (var page in config.TouchButtonPages)
+                page.PropertyChanged -= TouchButtonPageOnPropertyChanged;
+        }
+    }
+
     public async Task RedrawCurrentTouchPage()
     {
         // No-op while something else owns the screen — the owner repaints when it

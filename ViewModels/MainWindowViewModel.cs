@@ -64,6 +64,10 @@ public class MainWindowViewModel : ViewModelBase
     /// Two identical units are disambiguated by a trimmed serial suffix.</summary>
     public string DeviceName { get; }
 
+    /// <summary>Scope key (slug + serial) of this VM's device — lets App match a
+    /// <see cref="LoupixDeck.Services.DeviceHost"/> back to its VM on hot-unplug.</summary>
+    public string ScopeKey { get; }
+
     private static string ShortSerial(string serial) =>
         serial.Length <= 8 ? serial : serial[^8..];
 
@@ -116,6 +120,7 @@ public class MainWindowViewModel : ViewModelBase
         DeviceName = string.IsNullOrEmpty(resolved?.Serial)
             ? deviceInfo.Name
             : $"{deviceInfo.Name} · {ShortSerial(resolved.Serial)}";
+        ScopeKey = resolved?.ScopeKey ?? deviceInfo.Slug;
         _dynamicTextManager = dynamicTextManager;
         _exclusiveMode = exclusiveMode;
 
@@ -184,6 +189,19 @@ public class MainWindowViewModel : ViewModelBase
         // whose bitmaps bake in their colours and so can't react to DynamicResource.
         if (Avalonia.Application.Current is { } currentApp)
             currentApp.ActualThemeVariantChanged += OnThemeVariantChanged;
+    }
+
+    /// <summary>
+    /// Detaches the process-global event subscriptions this VM holds (theme variant,
+    /// exclusive-mode) so an unplugged device's VM stops reacting and can be collected
+    /// (issue #116 phase 3b). The power/app-switching subscriptions can't be undone
+    /// (lambdas / no Stop API); they fire harmlessly against the now-closed device.
+    /// </summary>
+    public void Detach()
+    {
+        if (Avalonia.Application.Current is { } app)
+            app.ActualThemeVariantChanged -= OnThemeVariantChanged;
+        _exclusiveMode.StateChanged -= OnExclusiveModeStateChanged;
     }
 
     private void OnThemeVariantChanged(object sender, EventArgs e)

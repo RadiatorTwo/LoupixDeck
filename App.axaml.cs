@@ -18,6 +18,12 @@ namespace LoupixDeck;
 
 public partial class App : Application
 {
+    // Kept for runtime hot-plug (issue #116 phase 3b): attach/detach handlers need the
+    // shared root provider, the shell that hosts per-device VMs, and the desktop lifetime.
+    private IServiceProvider _root;
+    private MainShellViewModel _shell;
+    private IClassicDesktopStyleApplicationLifetime _desktop;
+
     public override void Initialize()
     {
         Console.WriteLine($"App.Initialize {DateTime.Now:HH:mm:ss}");
@@ -93,6 +99,8 @@ public partial class App : Application
             rootCollection.AddRootServices();
             var root = rootCollection.BuildServiceProvider();
             root.RootPostInit();
+            _root = root;
+            _desktop = desktop;
             var registry = root.GetRequiredService<IDeviceHostRegistry>();
             var router = root.GetRequiredService<IDeviceRouter>();
 
@@ -119,6 +127,7 @@ public partial class App : Application
             // wires the command registry / power / app-switching (StartMonitoring is idempotent),
             // so a secondary device needs no special headless path — only its own window tab.
             var shell = new MainShellViewModel();
+            _shell = shell;
             foreach (var host in registry.Hosts)
             {
                 host.Provider.GetRequiredService<Services.Plugins.ISideStripProviderRegistry>().Rebuild();
@@ -153,12 +162,120 @@ public partial class App : Application
             }
 
             OnViewModelCreated(shell, splashScreen, desktop);
+
+            // Arm runtime hot-plug now that the initial device set is up.
+            StartHotPlug();
         }
         catch (Exception ex)
         {
             Console.WriteLine($"InitializeDevices failed: {ex}");
             desktop.Shutdown();
         }
+    }
+
+    // ──────── Runtime hot-plug (issue #116 phase 3b) ────────
+
+    /// <summary>Subscribe to the hot-plug manager and start watching. Attach/detach
+    /// land on a background timer thread, so each handler marshals to the UI thread
+    /// before touching view models / the device.</summary>
+    private void StartHotPlug()
+    {
+        var manager = _root.GetRequiredService<Services.HotPlug.IHotPlugManager>();
+
+        manager.DeviceAttached += device =>
+            Avalonia.Threading.Dispatcher.UIThread.Post(async () =>
+            {
+                try { await AttachDeviceAsync(device); }
+                catch (Exception ex) { Console.WriteLine($"[HotPlug] attach failed: {ex}"); }
+            });
+
+        manager.DeviceDetached += host =>
+            Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+            {
+                try { DetachDevice(host); }
+                catch (Exception ex) { Console.WriteLine($"[HotPlug] detach failed: {ex}"); }
+            });
+
+        manager.Start();
+    }
+
+    /// <summary>Bring up a newly-connected device on its own child provider and add it
+    /// to the shell. If it's the only device (all others were unplugged), it becomes
+    /// the new primary (CLI/UI default + plugin fallback target). UI thread.</summary>
+    private async Task AttachDeviceAsync(ResolvedDevice device)
+    {
+        var registry = _root.GetRequiredService<IDeviceHostRegistry>();
+        if (registry.Find(device.ScopeKey) != null)
+            return; // already running (raced reconcile)
+
+        Console.WriteLine($"[HotPlug] attaching {device.Info.Name} ({device.ScopeKey})");
+
+        var provider = BuildDeviceProvider(device, _root);
+        var controller = provider.GetRequiredService<IDeviceController>();
+
+        // First device after a full unplug → it owns the window again.
+        var becomesPrimary = registry.Hosts.Count == 0;
+        // Add synchronously (before any await) so a second reconcile can't double-attach.
+        registry.Add(new DeviceHost(device, provider, controller, becomesPrimary));
+
+        provider.GetRequiredService<Services.Plugins.ISideStripProviderRegistry>().Rebuild();
+        var vm = provider.GetRequiredService<MainWindowViewModel>();
+        _shell.Add(vm);
+
+        if (becomesPrimary)
+        {
+            Program.AppServices = provider;
+            _root.GetRequiredService<IDeviceRouter>().Default = provider;
+            _shell.SelectedDevice = vm;
+            ActiveDeviceResolver.RememberActive(device);
+        }
+
+        await controller.Initialize(null, 0);
+        provider.GetRequiredService<IDynamicTextManager>().Start();
+    }
+
+    /// <summary>Tear a hot-unplugged device down: close its controller, stop its dynamic
+    /// text loop, drop its VM + registry entry, and hand the primary role to a survivor
+    /// if it owned it. The child provider is deliberately NOT disposed — Forward&lt;T&gt;
+    /// would dispose the shared root singletons it re-exposes. UI thread.</summary>
+    private void DetachDevice(DeviceHost host)
+    {
+        var registry = _root.GetRequiredService<IDeviceHostRegistry>();
+        if (!registry.Hosts.Contains(host))
+            return; // already detached (raced reconcile)
+        Console.WriteLine($"[HotPlug] detaching {host.Device.Info.Name} ({host.Device.ScopeKey})");
+
+        try { host.Controller.Shutdown(); }
+        catch (Exception ex) { Console.WriteLine($"[HotPlug] controller shutdown failed: {ex.Message}"); }
+
+        (host.Provider.GetService(typeof(IDynamicTextManager)) as IDisposable)?.Dispose();
+
+        var vm = _shell.Devices.FirstOrDefault(v =>
+            string.Equals(v.ScopeKey, host.Device.ScopeKey, StringComparison.OrdinalIgnoreCase));
+        if (vm != null)
+        {
+            vm.Detach();
+            _shell.Remove(vm);
+        }
+
+        var wasPrimary = ReferenceEquals(Program.AppServices, host.Provider);
+        registry.Remove(host);
+
+        if (!wasPrimary)
+            return;
+
+        // The window's owner is gone — promote a survivor.
+        var next = registry.Primary;
+        if (next == null)
+            return;
+
+        Program.AppServices = next.Provider;
+        _root.GetRequiredService<IDeviceRouter>().Default = next.Provider;
+        var nextVm = _shell.Devices.FirstOrDefault(v =>
+            string.Equals(v.ScopeKey, next.Device.ScopeKey, StringComparison.OrdinalIgnoreCase));
+        if (nextVm != null)
+            _shell.SelectedDevice = nextVm;
+        ActiveDeviceResolver.RememberActive(next.Device);
     }
 
     /// <summary>Build and prime a device's child provider: device services + command
