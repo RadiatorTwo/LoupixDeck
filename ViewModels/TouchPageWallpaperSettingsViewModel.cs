@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Windows.Input;
 using LoupixDeck.Models;
+using LoupixDeck.Services;
 using LoupixDeck.Utils;
 using LoupixDeck.ViewModels.Base;
 using SkiaSharp;
@@ -13,10 +14,26 @@ namespace LoupixDeck.ViewModels;
 
 public class TouchPageWallpaperSettingsViewModel : DialogViewModelBase<TouchButtonPage, DialogResult>
 {
+    // Asset sub-folder for page wallpapers — kept in sync with WallpaperAssetMigrator.
+    private const string WallpapersSubFolder = "wallpapers";
+
+    private readonly IAssetService _assetService;
+
     private TouchButtonPage _targetPage;
+    // The original (un-scaled) image, loaded from the asset folder. Scaling is
+    // applied on top of this so the wallpaper stays fully re-editable.
     private SKBitmap _wallpaperBitmap;
-    private SKBitmap _originalWallpaper;
+
+    // Snapshot for Cancel — restore the page's persisted state.
+    private string _originalAssetPath;
+    private int _originalScaling;
+    private int _originalPositionX;
+    private int _originalPositionY;
+    private BitmapHelper.ScalingOption _originalScalingOption;
     private double _originalOpacity;
+
+    // Suppresses ApplyScaling while Initialize seeds the sliders from the page.
+    private bool _suppressApply;
 
     public ICommand SelectImageCommand { get; }
     public ICommand RemoveWallpaperCommand { get; }
@@ -35,8 +52,9 @@ public class TouchPageWallpaperSettingsViewModel : DialogViewModelBase<TouchButt
         BitmapHelper.ScalingOption.Center,
     ];
 
-    public TouchPageWallpaperSettingsViewModel()
+    public TouchPageWallpaperSettingsViewModel(IAssetService assetService)
     {
+        _assetService = assetService;
         SelectImageCommand = new AsyncRelayCommand(SelectImage);
         RemoveWallpaperCommand = new RelayCommand(RemoveWallpaper);
         ConfirmCommand = new RelayCommand(ConfirmDialog);
@@ -46,9 +64,29 @@ public class TouchPageWallpaperSettingsViewModel : DialogViewModelBase<TouchButt
     public override void Initialize(TouchButtonPage parameter)
     {
         _targetPage = parameter;
-        _wallpaperBitmap = parameter?.Wallpaper;
-        _originalWallpaper = parameter?.Wallpaper;
+
+        // Seed the sliders from the page's persisted parameters so the wallpaper
+        // is re-editable. Suppress baking while assigning — we bake once below.
+        _suppressApply = true;
+        WallpaperScaling = parameter?.WallpaperScaling ?? 100;
+        WallpaperPositionX = parameter?.WallpaperPositionX ?? 0;
+        WallpaperPositionY = parameter?.WallpaperPositionY ?? 0;
+        SelectedWallpaperScalingOption = parameter?.WallpaperScalingOption ?? BitmapHelper.ScalingOption.Fit;
+        _suppressApply = false;
+
+        // Snapshot for Cancel.
+        _originalAssetPath = parameter?.WallpaperAssetPath;
+        _originalScaling = WallpaperScaling;
+        _originalPositionX = WallpaperPositionX;
+        _originalPositionY = WallpaperPositionY;
+        _originalScalingOption = SelectedWallpaperScalingOption;
         _originalOpacity = parameter?.WallpaperOpacity ?? 0;
+
+        // Load the original image and render the preview from the seeded parameters.
+        _wallpaperBitmap = string.IsNullOrWhiteSpace(parameter?.WallpaperAssetPath)
+            ? null
+            : _assetService.Load(parameter.WallpaperAssetPath);
+        ApplyScaling();
 
         OnPropertyChanged(nameof(PageName));
         OnPropertyChanged(nameof(Wallpaper));
@@ -87,43 +125,52 @@ public class TouchPageWallpaperSettingsViewModel : DialogViewModelBase<TouchButt
     public BitmapHelper.ScalingOption SelectedWallpaperScalingOption
     {
         get => _selectedWallpaperScalingOption;
-        set { SetProperty(ref _selectedWallpaperScalingOption, value); ApplyScaling(); }
+        set { if (SetProperty(ref _selectedWallpaperScalingOption, value) && !_suppressApply) ApplyScaling(); }
     }
 
     private int _wallpaperScaling = 100;
     public int WallpaperScaling
     {
         get => _wallpaperScaling;
-        set { SetProperty(ref _wallpaperScaling, value); ApplyScaling(); }
+        set { if (SetProperty(ref _wallpaperScaling, value) && !_suppressApply) ApplyScaling(); }
     }
 
     private int _wallpaperPositionX;
     public int WallpaperPositionX
     {
         get => _wallpaperPositionX;
-        set { SetProperty(ref _wallpaperPositionX, value); ApplyScaling(); }
+        set { if (SetProperty(ref _wallpaperPositionX, value) && !_suppressApply) ApplyScaling(); }
     }
 
     private int _wallpaperPositionY;
     public int WallpaperPositionY
     {
         get => _wallpaperPositionY;
-        set { SetProperty(ref _wallpaperPositionY, value); ApplyScaling(); }
+        set { if (SetProperty(ref _wallpaperPositionY, value) && !_suppressApply) ApplyScaling(); }
     }
 
     private async Task SelectImage()
     {
         var result = await FileDialogHelper.OpenFileDialog();
         if (string.IsNullOrEmpty(result) || !File.Exists(result)) return;
-        _wallpaperBitmap = SKBitmap.Decode(result);
+
+        // Copy the original into the asset folder (content-hashed) and reference it
+        // by relative path, like image layers — but kept under a dedicated
+        // "wallpapers" sub-folder so page wallpapers stay separated from layers.
+        var relative = _assetService.Import(result, WallpapersSubFolder);
+        if (string.IsNullOrEmpty(relative)) return;
+
+        _targetPage.WallpaperAssetPath = relative;
+        _wallpaperBitmap = _assetService.Load(relative);
         ApplyScaling();
     }
 
     private void RemoveWallpaper()
     {
         if (_targetPage == null) return;
-        _targetPage.Wallpaper = null;
+        _targetPage.WallpaperAssetPath = null;
         _targetPage.WallpaperOpacity = 0;
+        _targetPage.Wallpaper = null;
         _wallpaperBitmap = null;
         OnPropertyChanged(nameof(Wallpaper));
         OnPropertyChanged(nameof(WallpaperOpacity));
@@ -131,7 +178,15 @@ public class TouchPageWallpaperSettingsViewModel : DialogViewModelBase<TouchButt
 
     private void ApplyScaling()
     {
-        if (_wallpaperBitmap == null || _targetPage == null) return;
+        if (_targetPage == null) return;
+
+        // Persist the scaling parameters on the page (re-editable across sessions).
+        _targetPage.WallpaperScaling = WallpaperScaling;
+        _targetPage.WallpaperPositionX = WallpaperPositionX;
+        _targetPage.WallpaperPositionY = WallpaperPositionY;
+        _targetPage.WallpaperScalingOption = SelectedWallpaperScalingOption;
+
+        if (_wallpaperBitmap == null) return;
 
         var scaledImage = BitmapHelper.ScaleAndPositionBitmap(
             _wallpaperBitmap, 480, 270,
@@ -152,8 +207,13 @@ public class TouchPageWallpaperSettingsViewModel : DialogViewModelBase<TouchButt
     {
         if (_targetPage != null)
         {
-            _targetPage.Wallpaper = _originalWallpaper;
+            _targetPage.WallpaperAssetPath = _originalAssetPath;
+            _targetPage.WallpaperScaling = _originalScaling;
+            _targetPage.WallpaperPositionX = _originalPositionX;
+            _targetPage.WallpaperPositionY = _originalPositionY;
+            _targetPage.WallpaperScalingOption = _originalScalingOption;
             _targetPage.WallpaperOpacity = _originalOpacity;
+            _targetPage.Wallpaper = null; // drop the preview cache → re-bake from restored params
         }
         Cancel();
         CloseRequested?.Invoke();

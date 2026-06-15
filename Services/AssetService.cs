@@ -23,7 +23,7 @@ public class AssetService : IAssetService
         Directory.CreateDirectory(AssetsRoot);
     }
 
-    public string Import(string sourcePath)
+    public string Import(string sourcePath, string subFolder = null)
     {
         if (string.IsNullOrWhiteSpace(sourcePath) || !File.Exists(sourcePath))
             return null;
@@ -40,7 +40,20 @@ public class AssetService : IAssetService
         ext = ext.ToLowerInvariant();
 
         var targetFileName = hash + ext;
-        var targetAbsolute = Path.Combine(AssetsRoot, targetFileName);
+
+        // Optional sub-folder lets callers keep asset kinds apart (e.g. page
+        // wallpapers under "assets/wallpapers/"); the relative path stays portable.
+        var targetDir = AssetsRoot;
+        var relativeDir = AssetsFolderName;
+        if (!string.IsNullOrWhiteSpace(subFolder))
+        {
+            var normalizedSub = subFolder.Replace('\\', '/').Trim('/');
+            targetDir = Path.Combine(AssetsRoot, normalizedSub.Replace('/', Path.DirectorySeparatorChar));
+            relativeDir = AssetsFolderName + "/" + normalizedSub;
+            Directory.CreateDirectory(targetDir);
+        }
+
+        var targetAbsolute = Path.Combine(targetDir, targetFileName);
 
         if (!File.Exists(targetAbsolute))
         {
@@ -48,7 +61,7 @@ public class AssetService : IAssetService
         }
 
         // Relative path is stored in the config so the folder remains portable.
-        return Path.Combine(AssetsFolderName, targetFileName).Replace('\\', '/');
+        return (relativeDir + "/" + targetFileName).Replace('\\', '/');
     }
 
     public SKBitmap Load(string relativePath)
@@ -79,33 +92,74 @@ public class AssetService : IAssetService
     {
         if (!Directory.Exists(AssetsRoot)) return;
 
+        // Match by full relative path (e.g. "assets/wallpapers/abc.png"), not just
+        // the file name: with sub-folders two different assets can share a name, so
+        // a name-only compare would wrongly keep an orphan alive.
         var referenced = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var rel in referencedRelativePaths ?? Array.Empty<string>())
         {
             if (string.IsNullOrWhiteSpace(rel)) continue;
-            referenced.Add(Path.GetFileName(rel));
+            referenced.Add(NormalizeRelative(rel));
         }
 
-        foreach (var file in Directory.EnumerateFiles(AssetsRoot))
+        // Recurse so wallpapers (and any future sub-folders) are reached too.
+        foreach (var file in Directory.EnumerateFiles(AssetsRoot, "*", SearchOption.AllDirectories))
         {
-            var name = Path.GetFileName(file);
-            if (referenced.Contains(name)) continue;
+            var relative = NormalizeRelative(
+                AssetsFolderName + "/" + Path.GetRelativePath(AssetsRoot, file).Replace('\\', '/'));
+            if (referenced.Contains(relative)) continue;
 
             try
             {
-                File.Delete(file);
-                // Drop any cached bitmaps that pointed at this asset.
+                // Drop (and dispose) any cached bitmap that pointed at this asset
+                // BEFORE deleting: on Windows a live SKBitmap can hold the file
+                // open, which would make File.Delete throw and silently keep the
+                // orphan around.
                 foreach (var key in _cache.Keys)
                 {
-                    if (string.Equals(Path.GetFileName(key), name, StringComparison.OrdinalIgnoreCase))
-                        _cache.TryRemove(key, out _);
+                    if (string.Equals(NormalizeRelative(key), relative, StringComparison.OrdinalIgnoreCase) &&
+                        _cache.TryRemove(key, out var cached))
+                    {
+                        cached?.Dispose();
+                    }
                 }
+
+                File.Delete(file);
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"AssetService: failed to delete orphan '{file}': {ex.Message}");
             }
         }
+
+        // Remove now-empty sub-folders so the asset tree doesn't accumulate stale dirs.
+        foreach (var dir in Directory.EnumerateDirectories(AssetsRoot, "*", SearchOption.AllDirectories)
+                     .OrderByDescending(d => d.Length))
+        {
+            try
+            {
+                if (!Directory.EnumerateFileSystemEntries(dir).Any())
+                    Directory.Delete(dir);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"AssetService: failed to remove empty asset dir '{dir}': {ex.Message}");
+            }
+        }
+    }
+
+    /// <summary>
+    /// Normalises a stored relative asset path for comparison: forward slashes,
+    /// trimmed, and guaranteed to carry the leading "assets/" prefix. Case is
+    /// handled by the caller's <see cref="StringComparer.OrdinalIgnoreCase"/>.
+    /// </summary>
+    private static string NormalizeRelative(string relativePath)
+    {
+        var normalized = relativePath.Replace('\\', '/').Trim();
+        var prefix = AssetsFolderName + "/";
+        if (!normalized.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            normalized = prefix + normalized.TrimStart('/');
+        return normalized;
     }
 
     private string ResolveAbsolute(string relativePath)

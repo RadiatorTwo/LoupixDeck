@@ -23,7 +23,8 @@ public class ConfigService : IConfigService
     private readonly List<IConfigMigration> _migrations =
     [
         new PluginConfigMigrator(),
-        new RotaryPageSideSplitMigrator()
+        new RotaryPageSideSplitMigrator(),
+        new WallpaperAssetMigrator()
     ];
 
     public ConfigService()

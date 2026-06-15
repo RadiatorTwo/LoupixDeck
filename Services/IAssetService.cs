@@ -14,9 +14,11 @@ public interface IAssetService
 
     /// <summary>
     /// Copies <paramref name="sourcePath"/> into the asset folder under a hashed
-    /// filename and returns the relative path to use in a layer.
+    /// filename and returns the relative path to use in a layer. Pass
+    /// <paramref name="subFolder"/> to store the asset in a sub-folder of the asset
+    /// root (e.g. "wallpapers") so different asset kinds stay separated.
     /// </summary>
-    string Import(string sourcePath);
+    string Import(string sourcePath, string subFolder = null);
 
     /// <summary>
     /// Loads (and caches) the bitmap for the given relative asset path.

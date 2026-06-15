@@ -213,17 +213,8 @@ public partial class LoupedeckLiveSController(
         // Start the device using the configuration
         deviceService.StartDevice(config.DevicePort, config.DeviceBaudrate);
 
-        // Migrate old wallpaper configuration to first page if needed
-        if (config.Wallpaper != null && config.TouchButtonPages != null && config.TouchButtonPages.Count > 0)
-        {
-            if (config.TouchButtonPages[0].Wallpaper == null)
-            {
-                config.TouchButtonPages[0].Wallpaper = config.Wallpaper;
-                config.TouchButtonPages[0].WallpaperOpacity = config.WallpaperOpacity;
-                config.Wallpaper = null; // Clear old property
-                config.WallpaperOpacity = 0;
-            }
-        }
+        // (The legacy root-level → page-0 wallpaper migration now lives in
+        //  WallpaperAssetMigrator, which also moves wallpapers into the asset folder.)
 
         pageManager.OnTouchPageChanged += OnTouchPageChanged;
         folderNav.StateChanged += OnFolderStateChanged;
@@ -1653,7 +1644,13 @@ public partial class LoupedeckLiveSController(
 
         foreach (var page in config.TouchButtonPages)
         {
-            if (page?.TouchButtons == null) continue;
+            if (page == null) continue;
+
+            // The page wallpaper's original now lives in the asset folder too.
+            if (!string.IsNullOrWhiteSpace(page.WallpaperAssetPath))
+                yield return page.WallpaperAssetPath;
+
+            if (page.TouchButtons == null) continue;
             foreach (var button in page.TouchButtons)
             {
                 if (button?.Layers == null) continue;

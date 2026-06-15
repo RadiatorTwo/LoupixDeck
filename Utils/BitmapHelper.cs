@@ -535,6 +535,58 @@ public static class BitmapHelper
     }
 
     /// <summary>
+    /// Returns the page's baked 480×270 wallpaper, computing and caching it on first
+    /// use. The original image is resolved from the asset folder via
+    /// <see cref="AssetResolver"/> and scaled/positioned with the page's wallpaper
+    /// parameters. Returns null when the page has no wallpaper or the asset is missing.
+    /// </summary>
+    public static SKBitmap GetOrBakeWallpaper(TouchButtonPage page)
+    {
+        if (page == null) return null;
+        if (page.Wallpaper != null) return page.Wallpaper;
+        if (string.IsNullOrWhiteSpace(page.WallpaperAssetPath)) return null;
+
+        var original = AssetResolver?.Invoke(page.WallpaperAssetPath);
+        if (original == null) return null;
+
+        SKBitmap baked;
+        lock (SkiaRenderGate.Sync)
+        {
+            baked = ScaleAndPositionBitmap(
+                original, 480, 270,
+                page.WallpaperScaling, page.WallpaperPositionX, page.WallpaperPositionY,
+                page.WallpaperScalingOption);
+        }
+
+        page.Wallpaper = baked;
+        return baked;
+    }
+
+    /// <summary>
+    /// Resolves the baked wallpaper (and its opacity) to draw for the current page,
+    /// falling back to page 0's wallpaper. Returns (null, 0) when none is set.
+    /// Shared by the centre grid and the Razer side strips so they stay in sync.
+    /// </summary>
+    private static (SKBitmap wallpaper, double opacity) ResolveWallpaper(LoupedeckConfig config)
+    {
+        if (config?.CurrentTouchButtonPage == null)
+            return (null, 0);
+
+        var current = GetOrBakeWallpaper(config.CurrentTouchButtonPage);
+        if (current != null)
+            return (current, config.CurrentTouchButtonPage.WallpaperOpacity);
+
+        if (config.TouchButtonPages is { Count: > 0 })
+        {
+            var first = GetOrBakeWallpaper(config.TouchButtonPages[0]);
+            if (first != null)
+                return (first, config.TouchButtonPages[0].WallpaperOpacity);
+        }
+
+        return (null, 0);
+    }
+
+    /// <summary>
     /// Renders the content of a TouchButton (background, image, text) into an Avalonia bitmap.
     /// </summary>
     public static SKBitmap RenderTouchButtonContent(
@@ -547,27 +599,9 @@ public static class BitmapHelper
     {
         ArgumentNullException.ThrowIfNull(touchButton);
 
-        // Determine which wallpaper to use: current page's or fallback to first page's
-        SKBitmap wallpaperToUse = null;
-        double opacityToUse = 0;
-
-        if (config.CurrentTouchButtonPage != null)
-        {
-            // Try to use the current page's wallpaper
-            if (config.CurrentTouchButtonPage.Wallpaper != null)
-            {
-                wallpaperToUse = config.CurrentTouchButtonPage.Wallpaper;
-                opacityToUse = config.CurrentTouchButtonPage.WallpaperOpacity;
-            }
-            // Fallback to first page's wallpaper if current page has none
-            else if (config.TouchButtonPages != null &&
-                     config.TouchButtonPages.Count > 0 &&
-                     config.TouchButtonPages[0].Wallpaper != null)
-            {
-                wallpaperToUse = config.TouchButtonPages[0].Wallpaper;
-                opacityToUse = config.TouchButtonPages[0].WallpaperOpacity;
-            }
-        }
+        // Determine which wallpaper to use: current page's or fallback to first page's.
+        // ResolveWallpaper bakes the 480×270 bitmap from the page's asset on demand.
+        var (wallpaperToUse, opacityToUse) = ResolveWallpaper(config);
 
         // All SkiaSharp drawing happens under the shared render gate so it can never
         // overlap another render/convert running on a different thread (see
@@ -1629,23 +1663,7 @@ public static class BitmapHelper
         int width,
         int height)
     {
-        SKBitmap wallpaper = null;
-        double opacity = 0;
-
-        if (config?.CurrentTouchButtonPage != null)
-        {
-            if (config.CurrentTouchButtonPage.Wallpaper != null)
-            {
-                wallpaper = config.CurrentTouchButtonPage.Wallpaper;
-                opacity = config.CurrentTouchButtonPage.WallpaperOpacity;
-            }
-            else if (config.TouchButtonPages is { Count: > 0 } &&
-                     config.TouchButtonPages[0].Wallpaper != null)
-            {
-                wallpaper = config.TouchButtonPages[0].Wallpaper;
-                opacity = config.TouchButtonPages[0].WallpaperOpacity;
-            }
-        }
+        var (wallpaper, opacity) = ResolveWallpaper(config);
 
         if (wallpaper == null)
         {
@@ -1683,24 +1701,7 @@ public static class BitmapHelper
         int gridColumns,
         Color fallbackColor)
     {
-        SKBitmap wallpaperToUse = null;
-        double opacityToUse = 0;
-
-        if (config?.CurrentTouchButtonPage != null)
-        {
-            if (config.CurrentTouchButtonPage.Wallpaper != null)
-            {
-                wallpaperToUse = config.CurrentTouchButtonPage.Wallpaper;
-                opacityToUse = config.CurrentTouchButtonPage.WallpaperOpacity;
-            }
-            else if (config.TouchButtonPages != null &&
-                     config.TouchButtonPages.Count > 0 &&
-                     config.TouchButtonPages[0].Wallpaper != null)
-            {
-                wallpaperToUse = config.TouchButtonPages[0].Wallpaper;
-                opacityToUse = config.TouchButtonPages[0].WallpaperOpacity;
-            }
-        }
+        var (wallpaperToUse, opacityToUse) = ResolveWallpaper(config);
 
         if (wallpaperToUse != null && gridColumns > 0)
         {

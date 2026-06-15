@@ -323,7 +323,13 @@ public class PageManager : IPageManager
         var newPage = new TouchButtonPage(touchCount)
         {
             Page = TouchButtonPages.Count + 1,
-            Wallpaper = previous?.Wallpaper,
+            // Carry over the wallpaper by its persistent reference + parameters
+            // (the baked bitmap is just a render cache).
+            WallpaperAssetPath = previous?.WallpaperAssetPath,
+            WallpaperScaling = previous?.WallpaperScaling ?? 100,
+            WallpaperPositionX = previous?.WallpaperPositionX ?? 0,
+            WallpaperPositionY = previous?.WallpaperPositionY ?? 0,
+            WallpaperScalingOption = previous?.WallpaperScalingOption ?? LoupixDeck.Utils.BitmapHelper.ScalingOption.Fit,
             WallpaperOpacity = previous?.WallpaperOpacity ?? 0
         };
 

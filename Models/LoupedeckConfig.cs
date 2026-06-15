@@ -39,8 +39,10 @@ public class LoupedeckConfig : INotifyPropertyChanged
     /// v4 split the single <see cref="RotaryButtonPages"/> list into independent
     /// <see cref="LeftRotaryButtonPages"/> / <see cref="RightRotaryButtonPages"/> sets
     /// for devices with side strips (Razer); see <c>RotaryPageSideSplitMigrator</c>.
+    /// v5 moved page wallpapers from inline Base64 into the asset folder (relative path
+    /// + scaling parameters on each page); see <c>WallpaperAssetMigrator</c>.
     /// </summary>
-    public const int CurrentVersion = 4;
+    public const int CurrentVersion = 5;
 
     public int Version { get; set; } = CurrentVersion;
 
@@ -325,19 +327,6 @@ public class LoupedeckConfig : INotifyPropertyChanged
         }
     }
 
-    private SKBitmap _wallpaper;
-
-    public SKBitmap Wallpaper
-    {
-        get => _wallpaper;
-        set
-        {
-            if (Equals(value, _wallpaper)) return;
-            _wallpaper = value;
-            OnPropertyChanged();
-        }
-    }
-
     // Briefly draws the page name on touch button 0 after switching pages.
     // Opt-in: many users find the 2s overlay distracting and prefer to keep
     // their layout visible.
@@ -388,19 +377,6 @@ public class LoupedeckConfig : INotifyPropertyChanged
 
     // Touch page to switch to when no rule matches. null = do nothing on no-match.
     public int? AppSwitchingFallbackTouchPageIndex { get; set; }
-
-    private double _wallpaperOpacity;
-
-    public double WallpaperOpacity
-    {
-        get => _wallpaperOpacity;
-        set
-        {
-            if (!(Math.Abs(_wallpaperOpacity - value) > 0.0001)) return;
-            _wallpaperOpacity = value;
-            OnPropertyChanged();
-        }
-    }
 
     public event PropertyChangedEventHandler PropertyChanged;
 
