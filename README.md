@@ -77,10 +77,12 @@ After install, launch with `loupixdeck` or from your application menu.
 | **Loupedeck Live S** | `2ec2:0006` | 5×3 touch grid, 2 rotary encoders, 8 physical buttons |
 | **Razer Stream Controller** | `1532:0d06` | 4×3 touch grid, 2 side panels, 6 rotary encoders, 8 LED buttons |
 
-Only one device is driven per app session. Each supported model keeps its own persisted
-configuration (`config_loupedeck-live-s.json`, `config_razer-stream-controller.json`, …),
-so switching the connected hardware and restarting the app picks up the matching layout
-automatically. See [`Registry/DeviceRegistry.cs`](Registry/DeviceRegistry.cs).
+**Multiple devices run in parallel** in a single instance — connect two or more and each drives
+its own profile at the same time, including two identical units (e.g. two Live S), told apart by
+their USB serial. Each device keeps its own serial-scoped configuration
+(`config_loupedeck-live-s_<serial>.json`, …; a device without a readable serial falls back to a
+model-only file), so layouts never mix. See [`Registry/DeviceRegistry.cs`](Registry/DeviceRegistry.cs)
+and the [Multi-Device](#multi-device) feature section.
 
 ---
 
@@ -136,10 +138,24 @@ The Command menu is filtered per OS — Windows-only and Linux-only commands onl
   that get chained around every button command on that page (`pre && command && post`),
   with independent enable flags so you can park a definition without losing the text.
 
+### Multi-Device
+- **Run several devices at once** — every connected supported device comes up in parallel in a
+  single instance, each driving its own profile. Two identical units are disambiguated by USB
+  serial and keep fully separate, serial-scoped configs, so nothing mixes. A single connected
+  device behaves exactly as before.
+- **Device switcher** — with more than one device connected, a dropdown above the layout lets you
+  view and edit each device's pages, buttons and settings independently. With one device the
+  switcher is hidden and the UI is unchanged.
+- **Hot-plug** — connect or disconnect a device while the app is running; it appears or disappears
+  on its own within about a second, the others keep running, and unplugging everything then
+  reconnecting one promotes it to the primary device. Detection uses native OS device
+  notifications (WMI on Windows, udev on Linux), so it stays idle when nothing changes.
+- **Per-device CLI addressing** — target a specific device from the command channel with a
+  `--device <serial-or-name>` prefix (see [CLI / IPC Channel](#-cli--ipc-channel)).
+
 ### Multi-Page
 - Independent page sets for touch buttons and rotary encoders.
-- Per-device configuration files — when a different supported model is connected, its
-  saved layout is loaded on the next start.
+- Each device's pages are saved in its own serial-scoped configuration file.
 - Optional pre- and post-execution commands per page.
 
 ### App-Focus Page Switching
@@ -283,16 +299,17 @@ dotnet publish LoupixDeck.csproj -c Release -r win-x64 --self-contained true `
 
 ## ⚙️ Configuration
 
-LoupixDeck auto-detects supported devices by USB VID/PID on startup. If exactly one supported
-device is connected, it is used immediately; subsequent launches remember the last-used model
-via an `.active-device` marker file. The setup dialog (serial port + baud rate) only appears
-when auto-detection is ambiguous — multiple supported devices without a saved choice, or no
-device detected and no existing configuration.
+LoupixDeck auto-detects supported devices by USB VID/PID on startup and brings up **all** connected
+devices in parallel. The most recently used device is remembered as the primary via an
+`.active-device` marker file. The setup dialog (serial port + baud rate) only appears as a fallback
+when no device is detected and there is no existing configuration.
 
 Configuration is stored as JSON files in the user-config directory:
 
 - `config.json` — global application settings.
-- `config_<device-slug>.json` — per-device layout (touch pages, rotary pages, button colors, …).
+- `config_<device-slug>_<serial>.json` — per-device layout (touch pages, rotary pages, button
+  colors, …), scoped by USB serial so two identical units stay separate. A device without a
+  readable serial falls back to a model-only `config_<device-slug>.json`.
 - `obs.json`, `elgato.json`, … — integration-specific data.
 
 If a config file becomes corrupted it is backed up automatically before a fresh one is written.
@@ -339,6 +356,17 @@ to the running instance and exits — no separate CLI tool, no `nc`, no PowerShe
 
 The reply from the running instance is printed to stdout. Exit code is non-zero if the channel
 can't be reached. The second instance neither opens a window nor touches the device.
+
+### Targeting a specific device (multi-device)
+
+When more than one device is connected, prefix any command with `--device <serial-or-name>` (or
+`-d <serial-or-name>`) to route it to that device. Without the prefix the command goes to the
+primary device. Window visibility (`show`/`hide`/`toggle`) and `quit` always act globally.
+
+```bash
+./LoupixDeck --device A1B2C3 page 3
+./LoupixDeck -d "Loupedeck Live S" nextpage
+```
 
 ### Linux — send a command via socket (advanced)
 
