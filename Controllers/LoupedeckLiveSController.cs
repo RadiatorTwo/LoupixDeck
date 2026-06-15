@@ -33,10 +33,11 @@ public partial class LoupedeckLiveSController(
     IAssetService assetService,
     INativeHapticService nativeHapticService,
     LoupedeckConfig config,
-    DeviceRegistry.DeviceInfo deviceInfo) : IDeviceController
+    DeviceRegistry.DeviceInfo deviceInfo,
+    ResolvedDevice resolved) : IDeviceController
 {
     private readonly string _configPath = deviceInfo != null
-        ? FileDialogHelper.GetConfigPath(deviceInfo)
+        ? FileDialogHelper.GetConfigPath(deviceInfo, resolved?.Serial)
         : FileDialogHelper.GetConfigPath("config.json");
 
     public IPageManager PageManager => pageManager;
@@ -176,26 +177,38 @@ public partial class LoupedeckLiveSController(
         if (Config.DeviceBaudrate <= 0)
             Config.DeviceBaudrate = 115200;
 
-        // Stamp the active device's VID/PID into the config so subsequent
-        // launches load the right per-device file via ActiveDeviceResolver.
+        // Stamp the active device's VID/PID (and serial) into the config so
+        // subsequent launches load the right per-device file via ActiveDeviceResolver.
         if (deviceInfo != null)
         {
             Config.DeviceVid = deviceInfo.VendorId;
             Config.DevicePid = deviceInfo.ProductId;
         }
 
-        // Re-detect the current port via VID/PID. The OS may have assigned a
-        // different COM/ttyACM number since the last save (USB reconnect, suspend
-        // wake-up, hub change). Skip when the user just picked a port explicitly
-        // via InitSetup — that's an authoritative override.
+        if (!string.IsNullOrEmpty(resolved?.Serial))
+            Config.DeviceSerial = resolved.Serial;
+
+        // Re-detect the current port. The OS may have assigned a different
+        // COM/ttyACM number since the last save (USB reconnect, suspend wake-up,
+        // hub change). When the config knows this unit's serial, match on it first
+        // so two identical devices can't steal each other's port; fall back to
+        // VID/PID otherwise. Skip when the user just picked a port explicitly via
+        // InitSetup — that's an authoritative override.
         if (port == null && !string.IsNullOrEmpty(Config.DeviceVid) && !string.IsNullOrEmpty(Config.DevicePid))
         {
             try
             {
-                var current = SerialDeviceHelper.ListSerialUsbDevices()
-                    .FirstOrDefault(d =>
+                var candidates = SerialDeviceHelper.ListSerialUsbDevices()
+                    .Where(d =>
                         string.Equals(d.Vid, Config.DeviceVid, StringComparison.OrdinalIgnoreCase) &&
-                        string.Equals(d.Pid, Config.DevicePid, StringComparison.OrdinalIgnoreCase));
+                        string.Equals(d.Pid, Config.DevicePid, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+
+                var current = (!string.IsNullOrEmpty(Config.DeviceSerial)
+                                  ? candidates.FirstOrDefault(d =>
+                                      string.Equals(d.NormalizedSerial, Config.DeviceSerial, StringComparison.OrdinalIgnoreCase))
+                                  : null)
+                              ?? candidates.FirstOrDefault();
 
                 if (current != null && !string.IsNullOrEmpty(current.DevNode) &&
                     !string.Equals(current.DevNode, Config.DevicePort, StringComparison.Ordinal))

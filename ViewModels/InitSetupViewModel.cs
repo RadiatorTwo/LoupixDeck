@@ -8,11 +8,14 @@ using LoupixDeck.ViewModels.Base;
 
 namespace LoupixDeck.ViewModels;
 
-public class DeviceItem(string name, string path, DeviceRegistry.DeviceInfo info)
+public class DeviceItem(string name, string path, DeviceRegistry.DeviceInfo info, string serial)
 {
     private string Name { get; } = name;
     public string Path { get; } = path;
     public DeviceRegistry.DeviceInfo Info { get; } = info;
+
+    /// <summary>Normalized USB serial of this physical unit (null when none).</summary>
+    public string Serial { get; } = serial;
 
     public override string ToString() => Name;
 }
@@ -52,15 +55,17 @@ public partial class InitSetupViewModel : ViewModelBase
 
             if (matchingDevice == null) continue;
 
+            var resolved = new ResolvedDevice(matchingDevice, device.NormalizedSerial);
+
 #if DEBUG
             // Hardware-less testing: env var LOUPIXDECK_FAKE_DEVICE=<slug> coerces
             // any detected supported device into that type so the multi-device
             // plumbing can be exercised against whatever's actually plugged in.
-            matchingDevice = FakeDeviceOverride.Apply(matchingDevice);
+            resolved = FakeDeviceOverride.Apply(resolved);
 #endif
 
-            var name = $"{matchingDevice.Name} ({device.Vid}:{device.Pid})";
-            SerialDevices.Add(new DeviceItem(name, device.DevNode, matchingDevice));
+            var name = $"{resolved.Info.Name} ({device.Vid}:{device.Pid})";
+            SerialDevices.Add(new DeviceItem(name, device.DevNode, resolved.Info, resolved.Serial));
         }
 
         if (SerialDevices.Count == 0) return;

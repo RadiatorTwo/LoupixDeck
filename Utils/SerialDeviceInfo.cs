@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using LoupixDeck.Utils;
 
 #if WINDOWS
 using System.Diagnostics.CodeAnalysis;
@@ -8,11 +9,15 @@ using System.Text.RegularExpressions;
 
 public static class SerialDeviceHelper
 {
+    // NormalizedSerial is the platform-uniform identity value (Windows hex→ASCII
+    // decoded, '&'-synthesized location ids → null); Serial keeps the raw value
+    // for debugging. See LoupixDeck.Utils.SerialNormalizer.
     public record SerialDeviceInfo(
         string DevNode,
         string Vid,
         string Pid,
         string Serial,
+        string NormalizedSerial,
         string Manufacturer,
         string Product,
         string[] Aliases
@@ -62,6 +67,7 @@ public static class SerialDeviceHelper
                     Vid: vid,
                     Pid: pid,
                     Serial: serial,
+                    NormalizedSerial: SerialNormalizer.NormalizeWindowsPnpSegment(serial),
                     Manufacturer: manufacturer,
                     Product: product,
                     Aliases: null
@@ -88,11 +94,16 @@ public static class SerialDeviceHelper
 
             var aliases = Get("DEVLINKS")?.Split(' ', StringSplitOptions.RemoveEmptyEntries);
 
+            var serialShort = Get("ID_SERIAL_SHORT");
+
             result.Add(new SerialDeviceInfo(
                 DevNode: dev,
                 Vid: Get("ID_VENDOR_ID"),
                 Pid: Get("ID_MODEL_ID"),
-                Serial: Get("ID_SERIAL_SHORT"),
+                Serial: serialShort,
+                // Linux udev already yields decoded ASCII — use it as-is, but route
+                // empty/whitespace to null so it matches the Windows null fallback.
+                NormalizedSerial: string.IsNullOrWhiteSpace(serialShort) ? null : serialShort,
                 Manufacturer: Get("ID_VENDOR"),
                 Product: Get("ID_MODEL"),
                 Aliases: aliases

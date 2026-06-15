@@ -20,28 +20,30 @@ namespace LoupixDeck;
 public static class ServiceCollectionExtensions
 {
     /// <summary>
-    /// Wires every service. <paramref name="deviceInfo"/> selects the device
-    /// whose per-device config file will be loaded; when null we fall back to
-    /// the legacy "config.json" path so an existing single-device install
-    /// boots even before the resolver has run (defensive — App resolves first
-    /// in normal flow).
+    /// Wires every service. <paramref name="resolved"/> selects the physical device
+    /// instance (type + serial) whose per-device config file will be loaded. Both
+    /// the <see cref="ResolvedDevice"/> and its <see cref="DeviceRegistry.DeviceInfo"/>
+    /// are registered, so services that inject either keep working.
     /// </summary>
-    public static void AddCommonServices(this IServiceCollection collection, DeviceRegistry.DeviceInfo deviceInfo)
+    public static void AddCommonServices(this IServiceCollection collection, ResolvedDevice resolved)
     {
-        ArgumentNullException.ThrowIfNull(deviceInfo);
+        ArgumentNullException.ThrowIfNull(resolved);
+        var deviceInfo = resolved.Info;
+        collection.AddSingleton(resolved);
         collection.AddSingleton(deviceInfo);
 
         collection.AddSingleton(provider =>
         {
             var configService = provider.GetRequiredService<IConfigService>();
-            var configPath = FileDialogHelper.GetConfigPath(deviceInfo);
+            var configPath = FileDialogHelper.GetConfigPath(deviceInfo, resolved.Serial);
             var config = configService.LoadConfig<LoupedeckConfig>(configPath);
             if (config == null)
             {
                 config = new LoupedeckConfig
                 {
                     DeviceVid = deviceInfo.VendorId,
-                    DevicePid = deviceInfo.ProductId
+                    DevicePid = deviceInfo.ProductId,
+                    DeviceSerial = resolved.Serial
                 };
 
                 // First launch for this device — seed the serial port/baud from any

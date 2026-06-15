@@ -27,9 +27,9 @@ public partial class App : Application
             // Decide which device's config we're booting with BEFORE building DI:
             // existing per-device file (preferred), legacy config.json (migrated),
             // or null → user must pick via InitSetup.
-            var deviceInfo = ActiveDeviceResolver.Resolve();
+            var resolved = ActiveDeviceResolver.Resolve();
 
-            if (deviceInfo == null)
+            if (resolved == null)
             {
                 var initWindow = new InitSetup
                 {
@@ -41,7 +41,8 @@ public partial class App : Application
                     if (initWindow.DataContext is InitSetupViewModel { ConnectionWorking: true } vm
                         && vm.SelectedDevice?.Info != null)
                     {
-                        await InitializeMainWindow(vm.SelectedDevice.Path, vm.SelectedBaudRate, vm.SelectedDevice.Info, desktop);
+                        var picked = new ResolvedDevice(vm.SelectedDevice.Info, vm.SelectedDevice.Serial);
+                        await InitializeMainWindow(vm.SelectedDevice.Path, vm.SelectedBaudRate, picked, desktop);
                     }
                     else
                     {
@@ -53,14 +54,14 @@ public partial class App : Application
             }
             else
             {
-                await InitializeMainWindow(null, 0, deviceInfo, desktop);
+                await InitializeMainWindow(null, 0, resolved, desktop);
             }
         }
 
         base.OnFrameworkInitializationCompleted();
     }
 
-    private async Task InitializeMainWindow(string port, int baudRate, DeviceRegistry.DeviceInfo deviceInfo,
+    private async Task InitializeMainWindow(string port, int baudRate, ResolvedDevice resolved,
         IClassicDesktopStyleApplicationLifetime desktop)
     {
         var splashScreen = new SplashScreen();
@@ -69,7 +70,7 @@ public partial class App : Application
 
         try
         {
-            var viewModel = await CreateMainWindowViewModel(deviceInfo, port, baudRate);
+            var viewModel = await CreateMainWindowViewModel(resolved, port, baudRate);
             OnViewModelCreated(viewModel, splashScreen, desktop);
         }
         catch (Exception ex)
@@ -110,11 +111,11 @@ public partial class App : Application
         });
     }
 
-    private async Task<MainWindowViewModel> CreateMainWindowViewModel(DeviceRegistry.DeviceInfo deviceInfo,
+    private async Task<MainWindowViewModel> CreateMainWindowViewModel(ResolvedDevice resolved,
         string port = null, int baudrate = 0)
     {
         var collection = new ServiceCollection();
-        collection.AddCommonServices(deviceInfo);
+        collection.AddCommonServices(resolved);
 
         var services = collection.BuildServiceProvider();
 
@@ -148,7 +149,7 @@ public partial class App : Application
 
         // Persist the just-booted device so the next launch can disambiguate
         // when multiple devices are plugged in (or none).
-        ActiveDeviceResolver.RememberActive(deviceInfo);
+        ActiveDeviceResolver.RememberActive(resolved);
 
         // Start dynamic-text providers AFTER the controller has wired up its
         // ItemChanged subscribers and drawn the initial page. Otherwise the very
