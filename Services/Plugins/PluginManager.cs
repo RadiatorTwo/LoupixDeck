@@ -47,25 +47,25 @@ public interface IPluginManager
 /// <inheritdoc cref="IPluginManager"/>
 public class PluginManager : IPluginManager
 {
-    // Root-resident: device-bound services (config, device service, command service,
-    // …) are reached through the active device's child provider, never captured
-    // directly, so plugins loaded once in the root address the right device. See
-    // IActiveDeviceProvider.
-    private readonly IActiveDeviceProvider _active;
+    // Root-resident (issue #116 phase 2): plugins are loaded once. Host delegates
+    // reach the device that triggered the call through the router (ambient device
+    // during a dispatch/input flow, else the primary). See IDeviceRouter.
+    private readonly IDeviceRouter _router;
 
     // Copy-on-write snapshot. Every mutation builds a new list and swaps this
     // reference, so readers (e.g. PluginCommandProvider during a registry rebuild)
     // always see a consistent, immutable list — never a torn mid-mutation state.
     private volatile IReadOnlyList<LoadedPlugin> _plugins = Array.Empty<LoadedPlugin>();
 
-    public PluginManager(IActiveDeviceProvider active)
+    public PluginManager(IDeviceRouter router)
     {
-        _active = active;
+        _router = router;
     }
 
-    private IServiceProvider Device => _active.Current
+    /// <summary>The provider of the device this host call should act on.</summary>
+    private IServiceProvider Device => _router.Current
         ?? throw new InvalidOperationException(
-            "PluginManager used before the active device provider was set.");
+            "PluginManager used before the device router's default was set.");
 
     public IReadOnlyList<LoadedPlugin> Plugins => _plugins;
 
@@ -366,6 +366,9 @@ public class PluginManager : IPluginManager
     {
         var logger = new PluginLogger(manifest.Id);
         var settings = new PluginSettingsStore(Path.Combine(dir, "settings.json"));
+        // Shared host (plugins load once): ActiveDevice reflects the primary device's
+        // identity. Per-call device targeting is handled by the host delegates resolving
+        // through the router's ambient device, not by this static value.
         var deviceInfo = Device.GetRequiredService<DeviceRegistry.DeviceInfo>();
         var device = new SdkDeviceInfo(
             deviceInfo.Name, deviceInfo.VendorId, deviceInfo.ProductId, deviceInfo.Slug);
@@ -503,6 +506,7 @@ public class PluginManager : IPluginManager
 
     private bool IsEnabled(string pluginId)
     {
+        // Plugins load once; the primary device's enabled set governs what loads.
         var enabled = Device.GetRequiredService<Models.LoupedeckConfig>().EnabledPlugins;
         return enabled != null
                && enabled.Any(id => string.Equals(id, pluginId, StringComparison.OrdinalIgnoreCase));

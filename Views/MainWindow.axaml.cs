@@ -155,8 +155,8 @@ public partial class MainWindow : Window
         _trayIcon?.Dispose();
         _trayIcon = null;
 
-        // Give loaded plugins a chance to shut down cleanly (close connections,
-        // stop poll loops) before the process exits.
+        // Give the (shared, root-resident) loaded plugins a chance to shut down
+        // cleanly (close connections, stop poll loops) before the process exits.
         try
         {
             (Program.AppServices?.GetService(typeof(Services.Plugins.IPluginManager))

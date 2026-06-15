@@ -53,25 +53,57 @@ public static class ActiveDeviceResolver
         }
     }
 
+    /// <summary>
+    /// Enumerate ALL currently connected supported devices, each scoped onto its
+    /// serial-keyed config (issue #116 phase 2). Used to bring up every device in
+    /// parallel; falls back via <see cref="Resolve"/> when nothing is connected.
+    /// </summary>
+    public static List<ResolvedDevice> ResolveAll()
+    {
+        MigrateLegacyConfigJson();
+
+        var result = new List<ResolvedDevice>();
+        foreach (var d in ScanConnectedDevices())
+        {
+#if DEBUG
+            var dev = FakeDeviceOverride.Apply(d);
+#else
+            var dev = d;
+#endif
+            result.Add(Scope(dev));
+        }
+        return result;
+    }
+
+    /// <summary>Pick which connected device owns the config window: the marker match,
+    /// else the first. Returns null for an empty list.</summary>
+    public static ResolvedDevice PickPrimary(IReadOnlyList<ResolvedDevice> devices)
+    {
+        if (devices == null || devices.Count == 0) return null;
+        var marker = ReadMarker();
+        return devices.FirstOrDefault(d => MarkerMatches(d, marker)) ?? devices[0];
+    }
+
+    /// <summary>Legacy config.json (pre-per-device) → Live S's slug-only path. Idempotent.</summary>
+    private static void MigrateLegacyConfigJson()
+    {
+        var legacy = Path.Combine(FileDialogHelper.GetConfigDir(), "config.json");
+        if (!File.Exists(legacy)) return;
+
+        var liveS = DeviceRegistry.GetDeviceByVidPid("2ec2", "0006");
+        if (liveS == null) return;
+
+        var target = FileDialogHelper.GetConfigPath(liveS);
+        if (File.Exists(target)) return;
+
+        try { File.Move(legacy, target); }
+        catch (Exception ex) { Console.WriteLine($"Legacy config migration failed: {ex.Message}"); }
+    }
+
     private static ResolvedDevice ResolveCore()
     {
-        var dir = FileDialogHelper.GetConfigDir();
-
         // 1a. Legacy config.json — migrate to Live S's per-device (slug-only) path.
-        var legacy = Path.Combine(dir, "config.json");
-        if (File.Exists(legacy))
-        {
-            var liveS = DeviceRegistry.GetDeviceByVidPid("2ec2", "0006");
-            if (liveS != null)
-            {
-                var target = FileDialogHelper.GetConfigPath(liveS);
-                if (!File.Exists(target))
-                {
-                    try { File.Move(legacy, target); }
-                    catch (Exception ex) { Console.WriteLine($"Legacy config migration failed: {ex.Message}"); }
-                }
-            }
-        }
+        MigrateLegacyConfigJson();
 
         var connected = ScanConnectedDevices();
         var marker = ReadMarker();

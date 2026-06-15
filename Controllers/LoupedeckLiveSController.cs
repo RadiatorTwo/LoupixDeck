@@ -34,7 +34,9 @@ public partial class LoupedeckLiveSController(
     INativeHapticService nativeHapticService,
     LoupedeckConfig config,
     DeviceRegistry.DeviceInfo deviceInfo,
-    ResolvedDevice resolved) : IDeviceController
+    ResolvedDevice resolved,
+    IServiceProvider serviceProvider,
+    IDeviceRouter router) : IDeviceController
 {
     private readonly string _configPath = deviceInfo != null
         ? FileDialogHelper.GetConfigPath(deviceInfo, resolved?.Serial)
@@ -393,6 +395,10 @@ public partial class LoupedeckLiveSController(
 
     private void OnSwipe(object sender, SwipeEventArgs e)
     {
+        // Mark this device as the ambient target so any plugin (side-strip session,
+        // exclusive provider) reached while handling this input acts on THIS device.
+        using var _routerScope = router.Enter(serviceProvider);
+
         if (_isDeviceOff || exclusiveMode.IsActive || folderNav.IsActive)
             return;
 
@@ -815,6 +821,8 @@ public partial class LoupedeckLiveSController(
 
     private void OnSimpleButtonPress(object sender, ButtonEventArgs e)
     {
+        using var _routerScope = router.Enter(serviceProvider);
+
         if (e.EventType != Constants.ButtonEventType.BUTTON_DOWN)
             return;
 
@@ -894,6 +902,8 @@ public partial class LoupedeckLiveSController(
 
     private void OnTouchButtonPress(object sender, TouchEventArgs e)
     {
+        using var _routerScope = router.Enter(serviceProvider);
+
         // Per-button override: native haptic skips these buttons entirely, so we
         // drive the legacy software Vibrate() pulse on both touch start and end.
         if (e.EventType == Constants.TouchEventType.TOUCH_END)
@@ -1063,6 +1073,8 @@ public partial class LoupedeckLiveSController(
 
     private void OnRotate(object sender, RotateEventArgs e)
     {
+        using var _routerScope = router.Enter(serviceProvider);
+
         if (exclusiveMode.IsActive)
         {
             if (TryGetRotaryIndex(e.ButtonId, out var rIdx))

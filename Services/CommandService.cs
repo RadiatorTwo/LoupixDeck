@@ -21,17 +21,27 @@ public class CommandService : ICommandService
 {
     private readonly ICommandRegistry _commandRegistry;
     private readonly ICommandRunner _commandRunner;
+    private readonly IServiceProvider _deviceProvider;
+    private readonly IDeviceRouter _router;
 
-    public CommandService(ICommandRegistry commandRegistry, ICommandRunner commandRunner)
+    public CommandService(ICommandRegistry commandRegistry, ICommandRunner commandRunner,
+        IServiceProvider deviceProvider, IDeviceRouter router)
     {
         _commandRegistry = commandRegistry;
         _commandRunner = commandRunner;
+        _deviceProvider = deviceProvider;
+        _router = router;
     }
 
     public async Task ExecuteCommand(string command, ButtonTargets target, int? sourceIndex = null)
     {
         if (string.IsNullOrWhiteSpace(command))
             return;
+
+        // Mark this device as the ambient target for the whole dispatch, so any
+        // plugin host call made while a command runs (incl. nested/chained) reaches
+        // THIS device's services (issue #116 phase 2). Flows across awaits.
+        using var _routerScope = _router.Enter(_deviceProvider);
 
         // Per-page Pre/Post wraps and inline chains in a single button command
         // both run sequentially. Each part is dispatched as either a System or

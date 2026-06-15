@@ -40,9 +40,17 @@ public static class ServiceCollectionExtensions
 
     public static void AddRootServices(this IServiceCollection collection)
     {
-        // Holder for the active device's child provider — root-resident services
-        // (PluginManager host delegates) reach device-bound services through it.
-        collection.AddSingleton<IActiveDeviceProvider, ActiveDeviceProvider>();
+        // Registry of every device brought up this session — process-wide concerns
+        // (quit → shut down all devices' plugins) and phase-3 UI/CLI reach devices through it.
+        collection.AddSingleton<IDeviceHostRegistry, DeviceHostRegistry>();
+
+        // Routes the shared plugins' host calls to the device that triggered them.
+        collection.AddSingleton<IDeviceRouter, DeviceRouter>();
+
+        // Plugins are loaded once (shared instances); per-call device targeting is via
+        // the router. Loading natively-interop deps (e.g. NAudio/COM) per device would
+        // clash across collectible load contexts, so a single shared load is required.
+        collection.AddSingleton<IPluginManager, PluginManager>();
 
         collection.AddSingleton<IConfigService, ConfigService>();
         collection.AddSingleton<IAssetService, AssetService>();
@@ -72,10 +80,6 @@ public static class ServiceCollectionExtensions
 
         // User-defined macros: in-memory store (macros.json), shared across devices.
         collection.AddSingleton<IMacroManager, MacroManager>();
-
-        // Plugins are discovered/loaded once; per-device hosts are wired via the
-        // active device provider (see PluginManager).
-        collection.AddSingleton<IPluginManager, PluginManager>();
     }
 
     // ───────────────────────── Device (per-device child) ─────────────────────────
@@ -98,6 +102,8 @@ public static class ServiceCollectionExtensions
         collection.Forward<ISystemPowerService>(root);
         collection.Forward<IActiveWindowMonitor>(root);
         collection.Forward<IMacroManager>(root);
+        collection.Forward<IDeviceHostRegistry>(root);
+        collection.Forward<IDeviceRouter>(root);
         collection.Forward<IPluginManager>(root);
 
         // OS input injection. Device-bound because the Windows routers read this
@@ -149,7 +155,7 @@ public static class ServiceCollectionExtensions
                 // just because they switched device type (the port is hardware, not
                 // device-type-specific). Crucial for the LOUPIXDECK_FAKE_DEVICE flow:
                 // without this the fresh config has no port → device times out →
-                // App.CreateMainWindowViewModel catches and shuts down silently.
+                // App.InitializeDevices catches and shuts down silently.
                 SeedSerialPortFromSibling(config, configService, deviceInfo);
             }
             return config;
@@ -177,7 +183,8 @@ public static class ServiceCollectionExtensions
         // Sequential macro-step executor (uses this device's command service).
         collection.AddSingleton<MacroRunner>();
 
-        // Per-device plugin state: side-strip attachment, install/enable, hot-reload.
+        // Per-device plugin state: side-strip attachment (reads the shared root
+        // plugin list), install/enable, hot-reload.
         collection.AddSingleton<ISideStripProviderRegistry, SideStripProviderRegistry>();
         collection.AddSingleton<IPluginInstaller, PluginInstaller>();
         collection.AddSingleton<IPluginReloadService, PluginReloadService>();
