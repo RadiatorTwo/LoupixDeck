@@ -11,6 +11,10 @@ Built with Avalonia and .NET 9, it provides a fully customizable interface to de
 multi-layered touch buttons, assign commands, drive external tools (OBS, Elgato, Cooler Control,
 Argus Monitor, …) and manage dynamic page layouts for both touchscreen and rotary inputs.
 
+**Drive multiple devices at once** — connect several decks (even two identical units) and each
+runs in parallel with its own profile, switchable from a single window and hot-pluggable at
+runtime. See [Multi-Device](#multi-device-support).
+
 ![LoupixDeck main window](docs/screenshots/main-window-loupedeck.png)
 
 LoupixDeck ships with both a dark and a light theme:
@@ -82,11 +86,26 @@ its own profile at the same time, including two identical units (e.g. two Live S
 their USB serial. Each device keeps its own serial-scoped configuration
 (`config_loupedeck-live-s_<serial>.json`, …; a device without a readable serial falls back to a
 model-only file), so layouts never mix. See [`Registry/DeviceRegistry.cs`](Registry/DeviceRegistry.cs)
-and the [Multi-Device](#multi-device) feature section.
+and the [Multi-Device](#multi-device-support) feature section.
 
 ---
 
 ## ✨ Features
+
+### Multi-Device Support
+- **Run several devices at once** — every connected supported device comes up in parallel in a
+  single instance, each driving its own profile. Two identical units are disambiguated by USB
+  serial and keep fully separate, serial-scoped configs, so nothing mixes. A single connected
+  device behaves exactly as before.
+- **Device switcher** — with more than one device connected, a dropdown above the layout lets you
+  view and edit each device's pages, buttons and settings independently. With one device the
+  switcher is hidden and the UI is unchanged.
+- **Hot-plug** — connect or disconnect a device while the app is running; it appears or disappears
+  on its own within about a second, the others keep running, and unplugging everything then
+  reconnecting one promotes it to the primary device. Detection uses native OS device
+  notifications (WMI on Windows, udev on Linux), so it stays idle when nothing changes.
+- **Per-device CLI addressing** — target a specific device from the command channel with a
+  `--device <serial-or-name>` prefix (see [CLI / IPC Channel](#-cli--ipc-channel)).
 
 ### Touch Buttons
 - **Layer-based editor** — stack image, text, and symbol layers per button.
@@ -137,21 +156,6 @@ The Command menu is filtered per OS — Windows-only and Linux-only commands onl
 - **Per-page command wraps** — each touch and rotary page can define pre- and post-commands
   that get chained around every button command on that page (`pre && command && post`),
   with independent enable flags so you can park a definition without losing the text.
-
-### Multi-Device
-- **Run several devices at once** — every connected supported device comes up in parallel in a
-  single instance, each driving its own profile. Two identical units are disambiguated by USB
-  serial and keep fully separate, serial-scoped configs, so nothing mixes. A single connected
-  device behaves exactly as before.
-- **Device switcher** — with more than one device connected, a dropdown above the layout lets you
-  view and edit each device's pages, buttons and settings independently. With one device the
-  switcher is hidden and the UI is unchanged.
-- **Hot-plug** — connect or disconnect a device while the app is running; it appears or disappears
-  on its own within about a second, the others keep running, and unplugging everything then
-  reconnecting one promotes it to the primary device. Detection uses native OS device
-  notifications (WMI on Windows, udev on Linux), so it stays idle when nothing changes.
-- **Per-device CLI addressing** — target a specific device from the command channel with a
-  `--device <serial-or-name>` prefix (see [CLI / IPC Channel](#-cli--ipc-channel)).
 
 ### Multi-Page
 - Independent page sets for touch buttons and rotary encoders.
