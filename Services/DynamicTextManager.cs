@@ -40,6 +40,8 @@ public class DynamicTextManager : IDynamicTextManager, IDisposable
 
     private readonly IPageManager _pageManager;
     private readonly ICommandRegistry _commandRegistry;
+    private readonly IServiceProvider _deviceProvider;
+    private readonly IDeviceRouter _router;
 
     private readonly object _gate = new();
     private List<Entry> _active = new();
@@ -49,10 +51,14 @@ public class DynamicTextManager : IDynamicTextManager, IDisposable
 
     public DynamicTextManager(
         IPageManager pageManager,
-        ICommandRegistry commandRegistry)
+        ICommandRegistry commandRegistry,
+        IServiceProvider deviceProvider,
+        IDeviceRouter router)
     {
         _pageManager = pageManager;
         _commandRegistry = commandRegistry;
+        _deviceProvider = deviceProvider;
+        _router = router;
     }
 
     public void Start()
@@ -236,6 +242,11 @@ public class DynamicTextManager : IDynamicTextManager, IDisposable
         var button = entry.Button;
         if (command == null || button == null)
             return;
+
+        // Plugin display commands run plugin code (GetText/RenderImage) that may call
+        // back into the host — mark this device as the ambient target so those calls
+        // reach THIS device (issue #116 phase 2).
+        using var _routerScope = _router.Enter(_deviceProvider);
 
         if (command.IsImageDisplayCommand && command.RenderImage != null)
         {

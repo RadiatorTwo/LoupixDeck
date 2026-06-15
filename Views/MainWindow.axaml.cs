@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Windows.Input;
 using Avalonia.Controls;
 using Avalonia.Platform;
@@ -20,7 +21,9 @@ public partial class MainWindow : Window
 
     private static MainWindow Instance { get; set; }
 
-    public MainWindowViewModel ViewModel => (MainWindowViewModel)DataContext;
+    public MainShellViewModel ViewModel => DataContext as MainShellViewModel;
+
+    private MainShellViewModel _shell;
 
     public MainWindow()
     {
@@ -32,7 +35,7 @@ public partial class MainWindow : Window
         QuitCommand = new RelayCommand(() => Instance?.QuitApplication());
         ToggleDeviceCommand = new RelayCommand(() =>
             Avalonia.Threading.Dispatcher.UIThread.Post(() =>
-                Instance?.ViewModel?.ToggleDeviceStateCommand?.Execute(null)));
+                Instance?.ViewModel?.SelectedDevice?.ToggleDeviceStateCommand?.Execute(null)));
 
         CreateTrayIcon();
 
@@ -48,13 +51,38 @@ public partial class MainWindow : Window
     /// </summary>
     private void OnDataContextChanged(object sender, System.EventArgs e)
     {
+        if (_shell != null) _shell.PropertyChanged -= OnShellPropertyChanged;
+        _shell = DataContext as MainShellViewModel;
+        if (_shell != null) _shell.PropertyChanged += OnShellPropertyChanged;
+
+        UpdateDeviceLayout();
+    }
+
+    private void OnShellPropertyChanged(object sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(MainShellViewModel.SelectedDevice))
+            UpdateDeviceLayout();
+    }
+
+    /// <summary>Swap the DeviceLayoutHost to the selected device's layout, with that
+    /// device's view model as its DataContext (the layout binds MainWindowViewModel
+    /// members, but the window DataContext is the shell).</summary>
+    private void UpdateDeviceLayout()
+    {
         var host = this.FindControl<ContentControl>("DeviceLayoutHost");
-        if (host == null || DataContext is not MainWindowViewModel vm) return;
+        if (host == null) return;
+
+        var vm = _shell?.SelectedDevice;
+        if (vm == null)
+        {
+            host.Content = null;
+            return;
+        }
 
         host.Content = vm.DeviceSlug switch
         {
-            "razer-stream-controller" => new RazerStreamControllerLayout(),
-            _ => new LoupedeckLiveSLayout()
+            "razer-stream-controller" => new RazerStreamControllerLayout { DataContext = vm },
+            _ => new LoupedeckLiveSLayout { DataContext = vm }
         };
     }
 
@@ -97,7 +125,7 @@ public partial class MainWindow : Window
         // Already on the way out (via tray Quit / hamburger Quit) — let it close.
         if (_isQuitting) return;
 
-        var behavior = (DataContext as MainWindowViewModel)?.LoupedeckController?.Config?.CloseButtonBehavior
+        var behavior = ViewModel?.SelectedDevice?.LoupedeckController?.Config?.CloseButtonBehavior
                        ?? CloseButtonBehavior.MinimizeToTray;
 
         if (behavior == CloseButtonBehavior.Quit)
@@ -155,8 +183,8 @@ public partial class MainWindow : Window
         _trayIcon?.Dispose();
         _trayIcon = null;
 
-        // Give loaded plugins a chance to shut down cleanly (close connections,
-        // stop poll loops) before the process exits.
+        // Give the (shared, root-resident) loaded plugins a chance to shut down
+        // cleanly (close connections, stop poll loops) before the process exits.
         try
         {
             (Program.AppServices?.GetService(typeof(Services.Plugins.IPluginManager))

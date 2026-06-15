@@ -79,6 +79,22 @@ public abstract class FileDialogHelper
         return Path.Combine(GetConfigDir(), $"config_{deviceInfo.Slug}.json");
     }
 
+    /// <summary>
+    /// Path to the per-instance config file, scoped by device type AND serial
+    /// (e.g. config_loupedeck-live-s_rz2004.json). Falls back to the slug-only path
+    /// when the device has no usable serial, so a device without a real iSerial
+    /// behaves exactly as before. Use this for everything except first-launch
+    /// detection / legacy migration.
+    /// </summary>
+    public static string GetConfigPath(LoupixDeck.Registry.DeviceRegistry.DeviceInfo deviceInfo, string serial)
+    {
+        ArgumentNullException.ThrowIfNull(deviceInfo);
+        var safe = SerialNormalizer.ForFilename(serial);
+        return string.IsNullOrEmpty(safe)
+            ? GetConfigPath(deviceInfo)
+            : Path.Combine(GetConfigDir(), $"config_{deviceInfo.Slug}_{safe}.json");
+    }
+
     public static string GetConfigDir()
     {
         var homePath = Environment.GetEnvironmentVariable("HOME")

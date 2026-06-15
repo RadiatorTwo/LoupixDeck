@@ -57,6 +57,14 @@ public class LoupedeckConfig : INotifyPropertyChanged
     /// <summary>USB product ID of the device this config belongs to (hex, e.g. "0006").</summary>
     public string DevicePid { get; set; }
 
+    /// <summary>
+    /// Normalized USB iSerialNumber of the physical device this config belongs to
+    /// (platform-uniform; see <c>SerialNormalizer</c>). Null for devices without a
+    /// real serial. Used to scope the config file and to re-detect the right port
+    /// when two identical devices are present. Additive — absent in older configs.
+    /// </summary>
+    public string DeviceSerial { get; set; }
+
     public int StartupTouchPageIndex { get; set; }
     public string ThemeVariant { get; set; } = "Dark";
 

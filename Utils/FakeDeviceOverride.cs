@@ -16,11 +16,13 @@ public static class FakeDeviceOverride
     private const string EnvVar = "LOUPIXDECK_FAKE_DEVICE";
 
     /// <summary>
-    /// Returns the overridden DeviceInfo when the env var is set to a known slug,
-    /// otherwise returns <paramref name="actual"/> unchanged. Release builds are a
-    /// no-op (this whole class is only compiled in for #if DEBUG callers).
+    /// Returns the resolved device with its type swapped when the env var is set to
+    /// a known slug, otherwise returns <paramref name="actual"/> unchanged. Only the
+    /// device <em>type</em> is coerced — the real serial flows through, so per-device
+    /// config scoping stays stable. Release builds are a no-op (this whole class is
+    /// only compiled in for #if DEBUG callers).
     /// </summary>
-    public static DeviceRegistry.DeviceInfo Apply(DeviceRegistry.DeviceInfo actual)
+    public static ResolvedDevice Apply(ResolvedDevice actual)
     {
         var slug = Environment.GetEnvironmentVariable(EnvVar);
         if (string.IsNullOrWhiteSpace(slug)) return actual;
@@ -33,9 +35,9 @@ public static class FakeDeviceOverride
             return actual;
         }
 
-        if (actual != null && actual.Slug == match.Slug) return actual;
+        if (actual != null && actual.Info.Slug == match.Slug) return actual;
 
-        Console.WriteLine($"[FakeDeviceOverride] Pretending the connected device is '{match.Name}' (was: {actual?.Name ?? "<unresolved>"}).");
-        return match;
+        Console.WriteLine($"[FakeDeviceOverride] Pretending the connected device is '{match.Name}' (was: {actual?.Info.Name ?? "<unresolved>"}).");
+        return new ResolvedDevice(match, actual?.Serial);
     }
 }

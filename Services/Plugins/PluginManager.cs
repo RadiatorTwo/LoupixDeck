@@ -47,22 +47,25 @@ public interface IPluginManager
 /// <inheritdoc cref="IPluginManager"/>
 public class PluginManager : IPluginManager
 {
-    private readonly IServiceProvider _serviceProvider;
-    private readonly DeviceRegistry.DeviceInfo _deviceInfo;
-    private readonly Models.LoupedeckConfig _config;
+    // Root-resident (issue #116 phase 2): plugins are loaded once. Host delegates
+    // reach the device that triggered the call through the router (ambient device
+    // during a dispatch/input flow, else the primary). See IDeviceRouter.
+    private readonly IDeviceRouter _router;
 
     // Copy-on-write snapshot. Every mutation builds a new list and swaps this
     // reference, so readers (e.g. PluginCommandProvider during a registry rebuild)
     // always see a consistent, immutable list — never a torn mid-mutation state.
     private volatile IReadOnlyList<LoadedPlugin> _plugins = Array.Empty<LoadedPlugin>();
 
-    public PluginManager(IServiceProvider serviceProvider, DeviceRegistry.DeviceInfo deviceInfo,
-        Models.LoupedeckConfig config)
+    public PluginManager(IDeviceRouter router)
     {
-        _serviceProvider = serviceProvider;
-        _deviceInfo = deviceInfo;
-        _config = config;
+        _router = router;
     }
+
+    /// <summary>The provider of the device this host call should act on.</summary>
+    private IServiceProvider Device => _router.Current
+        ?? throw new InvalidOperationException(
+            "PluginManager used before the device router's default was set.");
 
     public IReadOnlyList<LoadedPlugin> Plugins => _plugins;
 
@@ -363,8 +366,12 @@ public class PluginManager : IPluginManager
     {
         var logger = new PluginLogger(manifest.Id);
         var settings = new PluginSettingsStore(Path.Combine(dir, "settings.json"));
+        // Shared host (plugins load once): ActiveDevice reflects the primary device's
+        // identity. Per-call device targeting is handled by the host delegates resolving
+        // through the router's ambient device, not by this static value.
+        var deviceInfo = Device.GetRequiredService<DeviceRegistry.DeviceInfo>();
         var device = new SdkDeviceInfo(
-            _deviceInfo.Name, _deviceInfo.VendorId, _deviceInfo.ProductId, _deviceInfo.Slug);
+            deviceInfo.Name, deviceInfo.VendorId, deviceInfo.ProductId, deviceInfo.Slug);
 
         // Resolved lazily at call time so host operations work regardless of
         // service construction order.
@@ -373,7 +380,7 @@ public class PluginManager : IPluginManager
             try
             {
                 // Chained from a plugin — there's no triggering button.
-                _ = _serviceProvider.GetRequiredService<ICommandService>().ExecuteCommand(command, ButtonTargets.None);
+                _ = Device.GetRequiredService<ICommandService>().ExecuteCommand(command, ButtonTargets.None);
             }
             catch (Exception ex)
             {
@@ -385,7 +392,7 @@ public class PluginManager : IPluginManager
         {
             try
             {
-                _serviceProvider.GetRequiredService<IDynamicTextManager>().RefreshCommand(commandName);
+                Device.GetRequiredService<IDynamicTextManager>().RefreshCommand(commandName);
             }
             catch (Exception ex)
             {
@@ -397,7 +404,7 @@ public class PluginManager : IPluginManager
         {
             try
             {
-                var nav = _serviceProvider.GetRequiredService<FolderNavigation.IFolderNavigationService>();
+                var nav = Device.GetRequiredService<FolderNavigation.IFolderNavigationService>();
                 _ = nav.OpenFolder(new PluginFolderAdapter(provider));
             }
             catch (Exception ex)
@@ -410,7 +417,7 @@ public class PluginManager : IPluginManager
         {
             try
             {
-                var devSvc = _serviceProvider.GetRequiredService<IDeviceService>();
+                var devSvc = Device.GetRequiredService<IDeviceService>();
                 // Fire and forget — the host's ShowTemporaryTextButton already
                 // self-supersedes via its internal call-ID counter, so quick
                 // repeated invocations don't queue up restore-races.
@@ -427,7 +434,7 @@ public class PluginManager : IPluginManager
         {
             try
             {
-                return _serviceProvider.GetRequiredService<IDeviceService>().Device?
+                return Device.GetRequiredService<IDeviceService>().Device?
                     .GetTouchSlotForRotary(rotaryIndex) ?? -1;
             }
             catch (Exception ex)
@@ -441,7 +448,7 @@ public class PluginManager : IPluginManager
         {
             try
             {
-                return _serviceProvider.GetRequiredService<IExclusiveModeService>().TryEnter(provider);
+                return Device.GetRequiredService<IExclusiveModeService>().TryEnter(provider);
             }
             catch (Exception ex)
             {
@@ -454,7 +461,7 @@ public class PluginManager : IPluginManager
         {
             try
             {
-                _serviceProvider.GetRequiredService<IExclusiveModeService>().Exit(provider);
+                Device.GetRequiredService<IExclusiveModeService>().Exit(provider);
             }
             catch (Exception ex)
             {
@@ -464,7 +471,7 @@ public class PluginManager : IPluginManager
 
         bool IsInExclusiveMode()
         {
-            try { return _serviceProvider.GetRequiredService<IExclusiveModeService>().IsActive; }
+            try { return Device.GetRequiredService<IExclusiveModeService>().IsActive; }
             catch { return false; }
         }
 
@@ -499,8 +506,10 @@ public class PluginManager : IPluginManager
 
     private bool IsEnabled(string pluginId)
     {
-        return _config.EnabledPlugins != null
-               && _config.EnabledPlugins.Any(id => string.Equals(id, pluginId, StringComparison.OrdinalIgnoreCase));
+        // Plugins load once; the primary device's enabled set governs what loads.
+        var enabled = Device.GetRequiredService<Models.LoupedeckConfig>().EnabledPlugins;
+        return enabled != null
+               && enabled.Any(id => string.Equals(id, pluginId, StringComparison.OrdinalIgnoreCase));
     }
 
     private static bool PlatformMatches(string platform)

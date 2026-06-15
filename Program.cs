@@ -396,6 +396,24 @@ internal static class CommandChannel
         if (string.IsNullOrWhiteSpace(raw)) return "ERROR: empty command";
         Console.WriteLine($"[CLI] received: {raw}");
 
+        // Optional device selector (issue #116 phase 3b): "--device <serialOrSlug> <command…>"
+        // routes the command to that device's own ICommandService; without it the
+        // primary device is targeted. Quit/window toggle stay global regardless.
+        var target = Program.AppServices;
+        var selToken = raw.Split(' ', 3, StringSplitOptions.RemoveEmptyEntries);
+        if (selToken.Length >= 2 &&
+            (selToken[0].Equals("--device", StringComparison.OrdinalIgnoreCase) ||
+             selToken[0].Equals("-d", StringComparison.OrdinalIgnoreCase)))
+        {
+            var selector = selToken[1];
+            var host = Program.AppServices?.GetService<IDeviceHostRegistry>()?.Find(selector);
+            if (host == null) return $"ERROR: no device matching '{selector}'";
+            target = host.Provider;
+            raw = selToken.Length >= 3 ? selToken[2].Trim() : string.Empty;
+            if (string.IsNullOrWhiteSpace(raw)) return "ERROR: no command after --device";
+            Console.WriteLine($"[CLI] routed to device {host.Device.ScopeKey}");
+        }
+
         var head = raw.Split(' ', 2)[0];
         var lower = head.ToLowerInvariant();
         string command;
@@ -446,7 +464,7 @@ internal static class CommandChannel
             return "OK: quitting";
         }
 
-        var svc = Program.AppServices?.GetService<ICommandService>();
+        var svc = target?.GetService<ICommandService>();
         if (svc == null) return "ERROR: app not ready yet";
 
         // Fire on the UI thread so we don't block the listener thread.

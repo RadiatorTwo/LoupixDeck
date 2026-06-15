@@ -33,10 +33,13 @@ public partial class LoupedeckLiveSController(
     IAssetService assetService,
     INativeHapticService nativeHapticService,
     LoupedeckConfig config,
-    DeviceRegistry.DeviceInfo deviceInfo) : IDeviceController
+    DeviceRegistry.DeviceInfo deviceInfo,
+    ResolvedDevice resolved,
+    IServiceProvider serviceProvider,
+    IDeviceRouter router) : IDeviceController
 {
     private readonly string _configPath = deviceInfo != null
-        ? FileDialogHelper.GetConfigPath(deviceInfo)
+        ? FileDialogHelper.GetConfigPath(deviceInfo, resolved?.Serial)
         : FileDialogHelper.GetConfigPath("config.json");
 
     public IPageManager PageManager => pageManager;
@@ -142,6 +145,40 @@ public partial class LoupedeckLiveSController(
 
     public Task ToggleDeviceState() => _isDeviceOff ? RestoreDeviceState() : ClearDeviceState();
 
+    public void Shutdown()
+    {
+        // Persist any last runtime state before we close.
+        try { SaveConfig(); } catch (Exception ex) { Console.WriteLine($"Shutdown SaveConfig failed: {ex.Message}"); }
+
+        // Stop plugin strips so their timers don't keep churning against a dead device.
+        try { DetachAllSideStripProviders(); } catch { /* best effort */ }
+
+        var device = deviceService.Device;
+        if (device != null)
+        {
+            device.OnButton -= OnSimpleButtonPress;
+            device.OnTouch -= OnTouchButtonPress;
+            device.OnRotate -= OnRotate;
+            device.OnSwipe -= OnSwipe;
+            // Close() suppresses the device's auto-reconnect loop and releases the port.
+            try { device.Close(); } catch (Exception ex) { Console.WriteLine($"Shutdown device close failed: {ex.Message}"); }
+        }
+
+        // Unsubscribe app-level events so nothing tries to repaint the gone device.
+        pageManager.OnTouchPageChanged -= OnTouchPageChanged;
+        pageManager.OnRotaryPageChanged -= OnRotaryPageChanged;
+        folderNav.StateChanged -= OnFolderStateChanged;
+        exclusiveMode.StateChanged -= OnExclusiveStateChanged;
+        config.PropertyChanged -= ConfigOnPropertyChanged;
+
+        if (config.TouchButtonPages != null)
+        {
+            config.TouchButtonPages.CollectionChanged -= TouchButtonPagesOnCollectionChanged;
+            foreach (var page in config.TouchButtonPages)
+                page.PropertyChanged -= TouchButtonPageOnPropertyChanged;
+        }
+    }
+
     public async Task RedrawCurrentTouchPage()
     {
         // No-op while something else owns the screen — the owner repaints when it
@@ -176,26 +213,38 @@ public partial class LoupedeckLiveSController(
         if (Config.DeviceBaudrate <= 0)
             Config.DeviceBaudrate = 115200;
 
-        // Stamp the active device's VID/PID into the config so subsequent
-        // launches load the right per-device file via ActiveDeviceResolver.
+        // Stamp the active device's VID/PID (and serial) into the config so
+        // subsequent launches load the right per-device file via ActiveDeviceResolver.
         if (deviceInfo != null)
         {
             Config.DeviceVid = deviceInfo.VendorId;
             Config.DevicePid = deviceInfo.ProductId;
         }
 
-        // Re-detect the current port via VID/PID. The OS may have assigned a
-        // different COM/ttyACM number since the last save (USB reconnect, suspend
-        // wake-up, hub change). Skip when the user just picked a port explicitly
-        // via InitSetup — that's an authoritative override.
+        if (!string.IsNullOrEmpty(resolved?.Serial))
+            Config.DeviceSerial = resolved.Serial;
+
+        // Re-detect the current port. The OS may have assigned a different
+        // COM/ttyACM number since the last save (USB reconnect, suspend wake-up,
+        // hub change). When the config knows this unit's serial, match on it first
+        // so two identical devices can't steal each other's port; fall back to
+        // VID/PID otherwise. Skip when the user just picked a port explicitly via
+        // InitSetup — that's an authoritative override.
         if (port == null && !string.IsNullOrEmpty(Config.DeviceVid) && !string.IsNullOrEmpty(Config.DevicePid))
         {
             try
             {
-                var current = SerialDeviceHelper.ListSerialUsbDevices()
-                    .FirstOrDefault(d =>
+                var candidates = SerialDeviceHelper.ListSerialUsbDevices()
+                    .Where(d =>
                         string.Equals(d.Vid, Config.DeviceVid, StringComparison.OrdinalIgnoreCase) &&
-                        string.Equals(d.Pid, Config.DevicePid, StringComparison.OrdinalIgnoreCase));
+                        string.Equals(d.Pid, Config.DevicePid, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+
+                var current = (!string.IsNullOrEmpty(Config.DeviceSerial)
+                                  ? candidates.FirstOrDefault(d =>
+                                      string.Equals(d.NormalizedSerial, Config.DeviceSerial, StringComparison.OrdinalIgnoreCase))
+                                  : null)
+                              ?? candidates.FirstOrDefault();
 
                 if (current != null && !string.IsNullOrEmpty(current.DevNode) &&
                     !string.Equals(current.DevNode, Config.DevicePort, StringComparison.Ordinal))
@@ -380,6 +429,10 @@ public partial class LoupedeckLiveSController(
 
     private void OnSwipe(object sender, SwipeEventArgs e)
     {
+        // Mark this device as the ambient target so any plugin (side-strip session,
+        // exclusive provider) reached while handling this input acts on THIS device.
+        using var _routerScope = router.Enter(serviceProvider);
+
         if (_isDeviceOff || exclusiveMode.IsActive || folderNav.IsActive)
             return;
 
@@ -802,6 +855,8 @@ public partial class LoupedeckLiveSController(
 
     private void OnSimpleButtonPress(object sender, ButtonEventArgs e)
     {
+        using var _routerScope = router.Enter(serviceProvider);
+
         if (e.EventType != Constants.ButtonEventType.BUTTON_DOWN)
             return;
 
@@ -881,6 +936,8 @@ public partial class LoupedeckLiveSController(
 
     private void OnTouchButtonPress(object sender, TouchEventArgs e)
     {
+        using var _routerScope = router.Enter(serviceProvider);
+
         // Per-button override: native haptic skips these buttons entirely, so we
         // drive the legacy software Vibrate() pulse on both touch start and end.
         if (e.EventType == Constants.TouchEventType.TOUCH_END)
@@ -1050,6 +1107,8 @@ public partial class LoupedeckLiveSController(
 
     private void OnRotate(object sender, RotateEventArgs e)
     {
+        using var _routerScope = router.Enter(serviceProvider);
+
         if (exclusiveMode.IsActive)
         {
             if (TryGetRotaryIndex(e.ButtonId, out var rIdx))

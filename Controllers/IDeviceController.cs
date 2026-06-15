@@ -22,6 +22,16 @@ public interface IDeviceController
     Task Initialize(string port = null, int baudrate = 0);
     void SaveConfig();
 
+    /// <summary>
+    /// Tears the controller down for a hot-unplug (issue #116 phase 3b): closes the
+    /// serial connection (stopping the device's auto-reconnect loop), detaches any
+    /// plugin side-strip providers, and unsubscribes from page/config/device events
+    /// so nothing keeps drawing to the gone device. The owning child provider is
+    /// intentionally NOT disposed (it would dispose the shared root singletons it
+    /// forwards), so this method is the full device-local cleanup.
+    /// </summary>
+    void Shutdown();
+
     /// <summary>Sets brightness to 0 and turns off all LED buttons. Input from
     /// the device is then ignored unless a button opts in via EnableWhenOff.</summary>
     Task ClearDeviceState();
