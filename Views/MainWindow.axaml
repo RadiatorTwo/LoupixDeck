@@ -7,8 +7,8 @@
         SizeToContent="WidthAndHeight"
         WindowStartupLocation="CenterScreen"
         x:Class="LoupixDeck.Views.MainWindow"
-        x:DataType="vm:MainWindowViewModel"
-        d:DataContext="{d:DesignInstance Type=vm:MainWindowViewModel, IsDesignTimeCreatable=True}"
+        x:DataType="vm:MainShellViewModel"
+        d:DataContext="{d:DesignInstance Type=vm:MainShellViewModel, IsDesignTimeCreatable=True}"
         Icon="avares://LoupixDeck/Assets/logo.ico"
         Title="LoupixDeck"
         x:Name="RootWindow">
@@ -112,17 +112,34 @@
         </Style>
     </Window.Styles>
     <Design.DataContext>
-        <vm:MainWindowViewModel />
+        <vm:MainShellViewModel />
     </Design.DataContext>
 
     <!-- The hamburger overlays the device cell (rather than sitting in its own column)
          so its right edge lines up with the body's right edge instead of widening the
          window past the device. The body ends at SVG x=825 of the 900-wide viewBox,
          ~63px in from the 760px Viewbox's right edge. -->
-    <Grid>
-        <ContentControl Name="DeviceLayoutHost" Padding="0" />
+    <Grid RowDefinitions="Auto,*">
+        <!-- Device switcher: a dropdown of the running devices. Hidden for a single
+             device so the window looks exactly as before (issue #116 phase 3). -->
+        <ComboBox Grid.Row="0"
+                  HorizontalAlignment="Center"
+                  MinWidth="220"
+                  Margin="0,6,0,2"
+                  IsVisible="{Binding HasMultipleDevices}"
+                  ItemsSource="{Binding Devices}"
+                  SelectedItem="{Binding SelectedDevice}">
+            <ComboBox.ItemTemplate>
+                <DataTemplate x:DataType="vm:MainWindowViewModel">
+                    <TextBlock Text="{Binding DeviceName}" />
+                </DataTemplate>
+            </ComboBox.ItemTemplate>
+        </ComboBox>
 
-        <Button VerticalAlignment="Top" HorizontalAlignment="Right"
+        <Grid Grid.Row="1">
+            <ContentControl Name="DeviceLayoutHost" Padding="0" />
+
+            <Button VerticalAlignment="Top" HorizontalAlignment="Right"
                 VerticalContentAlignment="Center" HorizontalContentAlignment="Center"
                 Width="50" Height="50"
                 Margin="0,4,63,0"
@@ -143,26 +160,27 @@
                                 HorizontalContentAlignment="Center"
                                 FontSize="18"
                                 Content="Settings"
-                                Command="{Binding SettingsMenuCommand}" />
+                                Command="{Binding SelectedDevice.SettingsMenuCommand}" />
                         <Button Width="100" Height="40" VerticalContentAlignment="Center" Margin="0,5,0,0"
                                 HorizontalContentAlignment="Center"
                                 FontSize="18"
                                 Content="Macros"
-                                Command="{Binding MacroEditorMenuCommand}" />
+                                Command="{Binding SelectedDevice.MacroEditorMenuCommand}" />
                         <Separator />
                         <Button Width="100" Height="40" VerticalContentAlignment="Center"
                                 HorizontalContentAlignment="Center"
                                 FontSize="18"
                                 Content="About"
-                                Command="{Binding AboutMenuCommand}" />
+                                Command="{Binding SelectedDevice.AboutMenuCommand}" />
                         <Button Width="100" Height="40" VerticalContentAlignment="Center" Margin="0,5,0,0"
                                 HorizontalContentAlignment="Center"
                                 FontSize="18"
                                 Content="Quit"
-                                Command="{Binding QuitApplicationCommand}" />
+                                Command="{Binding SelectedDevice.QuitApplicationCommand}" />
                     </StackPanel>
                 </Flyout>
             </Button.Flyout>
-        </Button>
+            </Button>
+        </Grid>
     </Grid>
 </Window>

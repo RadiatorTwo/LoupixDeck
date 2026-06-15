@@ -114,18 +114,24 @@ public partial class App : Application
             // Load the shared plugin set ONCE (root) now that the fallback device is set.
             root.GetRequiredService<Services.Plugins.IPluginManager>().LoadPlugins();
 
-            // Pass 2: build each device's side-strip lookup from the loaded plugins, then
-            // bring the device up — primary gets the config window, the rest run headless.
-            MainWindowViewModel primaryViewModel = null;
+            // Pass 2: build each device's side-strip lookup from the loaded plugins, build a
+            // view model per device into the shell, and bring every device up. The VM ctor
+            // wires the command registry / power / app-switching (StartMonitoring is idempotent),
+            // so a secondary device needs no special headless path — only its own window tab.
+            var shell = new MainShellViewModel();
             foreach (var host in registry.Hosts)
             {
                 host.Provider.GetRequiredService<Services.Plugins.ISideStripProviderRegistry>().Rebuild();
+
+                var vm = host.Provider.GetRequiredService<MainWindowViewModel>();
+                shell.Add(vm);
 
                 if (host.IsPrimary)
                 {
                     // Expose the primary's container so the CLI command channel resolves
                     // its ICommandService (phase 2: CLI targets the primary device).
                     Program.AppServices = host.Provider;
+                    shell.SelectedDevice = vm;
 
                     var cfg = host.Provider.GetRequiredService<LoupedeckConfig>();
                     RequestedThemeVariant = cfg.ThemeVariant switch
@@ -135,20 +141,18 @@ public partial class App : Application
                         _ => ThemeVariant.Default
                     };
 
-                    // The VM ctor initializes the command registry and wires power /
-                    // app-switching; controller.Initialize opens the serial connection.
-                    primaryViewModel = host.Provider.GetRequiredService<MainWindowViewModel>();
-                    await primaryViewModel.LoupedeckController.Initialize(port, baudRate);
+                    await vm.LoupedeckController.Initialize(port, baudRate);
                     ActiveDeviceResolver.RememberActive(host.Device);
-                    host.Provider.GetRequiredService<IDynamicTextManager>().Start();
                 }
                 else
                 {
-                    await BringUpSecondaryDevice(host.Provider, host.Controller);
+                    await vm.LoupedeckController.Initialize(null, 0);
                 }
+
+                host.Provider.GetRequiredService<IDynamicTextManager>().Start();
             }
 
-            OnViewModelCreated(primaryViewModel, splashScreen, desktop);
+            OnViewModelCreated(shell, splashScreen, desktop);
         }
         catch (Exception ex)
         {
@@ -169,34 +173,10 @@ public partial class App : Application
         return provider;
     }
 
-    /// <summary>Non-UI bring-up for a device without a config window — replicates the
-    /// essential wiring the primary's MainWindowViewModel ctor performs.</summary>
-    private static async Task BringUpSecondaryDevice(IServiceProvider provider, IDeviceController controller)
-    {
-        provider.GetRequiredService<ICommandRegistry>().Initialize();
-
-        // The shared power service is started once by the primary VM; secondaries just
-        // attach their own clear/restore handlers so suspend/resume covers them too.
-        var power = provider.GetRequiredService<ISystemPowerService>();
-        power.Suspending += (_, _) =>
-            Avalonia.Threading.Dispatcher.UIThread.Post(() => _ = controller.ClearDeviceState());
-        power.Resuming += (_, _) =>
-            Avalonia.Threading.Dispatcher.UIThread.Post(async () =>
-            {
-                await Task.Delay(1000);
-                await controller.RestoreDeviceState();
-            });
-
-        provider.GetRequiredService<IAppSwitchingService>().Start();
-
-        await controller.Initialize(null, 0);
-        provider.GetRequiredService<IDynamicTextManager>().Start();
-    }
-
-    private void OnViewModelCreated(MainWindowViewModel viewModel, SplashScreen splashScreen,
+    private void OnViewModelCreated(MainShellViewModel shell, SplashScreen splashScreen,
         IClassicDesktopStyleApplicationLifetime desktop)
     {
-        if (viewModel == null)
+        if (shell?.SelectedDevice == null)
         {
             // No primary device resolved (shouldn't happen for a non-empty device set).
             splashScreen.Close();
@@ -209,7 +189,7 @@ public partial class App : Application
         {
             var mainWindow = new MainWindow
             {
-                DataContext = viewModel
+                DataContext = shell
             };
 
             desktop.MainWindow = mainWindow;
@@ -219,7 +199,7 @@ public partial class App : Application
             // We also switch to OnExplicitShutdown so the lifetime doesn't end the
             // moment the splash closes with no visible window — the tray-icon is
             // the only entry point and Environment.Exit(0) is the only exit path.
-            if (viewModel.LoupedeckController?.Config?.StartMinimizedToTray == true)
+            if (shell.SelectedDevice.LoupedeckController?.Config?.StartMinimizedToTray == true)
             {
                 desktop.ShutdownMode = Avalonia.Controls.ShutdownMode.OnExplicitShutdown;
                 mainWindow.MarkStartedMinimized();

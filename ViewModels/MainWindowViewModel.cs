@@ -60,6 +60,13 @@ public class MainWindowViewModel : ViewModelBase
     /// <summary>Slug of the active device — drives MainWindow's device-layout selector.</summary>
     public string DeviceSlug { get; }
 
+    /// <summary>Human label for this device's tab in the shell's device switcher.
+    /// Two identical units are disambiguated by a trimmed serial suffix.</summary>
+    public string DeviceName { get; }
+
+    private static string ShortSerial(string serial) =>
+        serial.Length <= 8 ? serial : serial[^8..];
+
     /// <summary>
     /// The shared rotary-knob image. Bound by every dial in both device layouts.
     /// Re-fetched whenever the theme variant changes (see <see cref="OnThemeVariantChanged"/>)
@@ -101,10 +108,14 @@ public class MainWindowViewModel : ViewModelBase
         IExclusiveModeService exclusiveMode,
         IAppSwitchingService appSwitching,
         LoupedeckConfig config,
-        LoupixDeck.Registry.DeviceRegistry.DeviceInfo deviceInfo)
+        LoupixDeck.Registry.DeviceRegistry.DeviceInfo deviceInfo,
+        LoupixDeck.Registry.ResolvedDevice resolved)
     {
         LoupedeckController = loupedeck;
         DeviceSlug = deviceInfo.Slug;
+        DeviceName = string.IsNullOrEmpty(resolved?.Serial)
+            ? deviceInfo.Name
+            : $"{deviceInfo.Name} · {ShortSerial(resolved.Serial)}";
         _dynamicTextManager = dynamicTextManager;
         _exclusiveMode = exclusiveMode;
 
