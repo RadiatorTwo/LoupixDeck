@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using LoupixDeck.Commands;
 using LoupixDeck.Commands.Base;
 using LoupixDeck.Services;
 using LoupixDeck.Utils;
@@ -110,12 +111,20 @@ public class CommandSegment : INotifyPropertyChanged
         raw = (raw ?? string.Empty).Trim();
         var name = CommandStringParser.GetName(raw);
 
-        if (info == null)
+        // Unknown commands and the dedicated Shell command are both edited as free text and
+        // stored verbatim as their own segment (like the legacy free-text command field),
+        // bypassing the comma-/parenthesis-sensitive parameter editor. A Shell command freshly
+        // picked from the menu arrives wrapped as "System.Shell(Shell Command)" — collapse it
+        // to an empty free-text card so the user can type the actual command.
+        if (info == null || info.CommandName == ShellCommand.CommandName)
         {
-            // Unknown / shell command → free-text card.
-            var shell = new CommandSegment(commandBuilder, null, name, raw, raw)
+            var fromMenu = info != null;
+            var shellRaw = fromMenu ? string.Empty : raw;
+            var shellDisplay = fromMenu ? info.DisplayName : shellRaw;
+            var shell = new CommandSegment(commandBuilder, null,
+                CommandStringParser.GetName(shellRaw), shellDisplay, shellRaw)
             {
-                _shellText = raw
+                _shellText = shellRaw
             };
             return shell;
         }

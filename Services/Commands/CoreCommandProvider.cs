@@ -91,6 +91,8 @@ public class CoreCommandProvider : ICommandProvider
         {
             "Pages" => ButtonTargets.All,
             "Device Control" => ButtonTargets.All,
+            // Arbitrary shell command — assignable to every button type.
+            "Shell" => ButtonTargets.All,
             "Macros" => ButtonTargets.TouchButton,
             // User-defined macros (System.Macro) are generic input automation —
             // assignable to every button type.
