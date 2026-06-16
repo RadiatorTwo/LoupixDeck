@@ -734,7 +734,8 @@ public static class BitmapHelper
         int deviceWidth = 90,
         int deviceHeight = 90,
         bool drawGrid = false,
-        int gridStepDevice = 10)
+        int gridStepDevice = 10,
+        int segmentCount = 0)
     {
         ArgumentNullException.ThrowIfNull(touchButton);
 
@@ -813,6 +814,27 @@ public static class BitmapHelper
             {
                 var y = frameOffsetY + dy * scale;
                 canvas.DrawLine(frameOffsetX, y, frameOffsetX + frameW, y, gridPaint);
+            }
+
+            // Segment dividers (free-draw side strips): stronger horizontal lines marking
+            // the boundaries between the tap zones, so the three segments read clearly.
+            // Gated on the grid toggle, per the editor's "show only with grid" behaviour.
+            if (segmentCount > 1)
+            {
+                using var segPaint = new SKPaint
+                {
+                    Color = new SKColor(91, 155, 213, 220),
+                    StrokeWidth = 2,
+                    IsAntialias = false,
+                    Style = SKPaintStyle.Stroke
+                };
+
+                for (var k = 1; k < segmentCount; k++)
+                {
+                    var dy = deviceHeight * k / (float)segmentCount;
+                    var y = frameOffsetY + dy * scale;
+                    canvas.DrawLine(frameOffsetX, y, frameOffsetX + frameW, y, segPaint);
+                }
             }
         }
 

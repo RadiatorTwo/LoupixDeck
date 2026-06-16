@@ -2,6 +2,7 @@ using System.Diagnostics;
 using LoupixDeck.LoupedeckDevice;
 using LoupixDeck.Models;
 using LoupixDeck.Models.Extensions;
+using LoupixDeck.PluginSdk;
 using LoupixDeck.Utils;
 using SkiaSharp;
 
@@ -373,6 +374,10 @@ public partial class LoupedeckLiveSController
             try { stripSession.OnStripTapped(tapX, tapY); }
             catch (Exception ex) { Console.WriteLine($"Side-strip session tap failed: {ex.Message}"); }
         }
+        else if (RouteFreeDrawSegmentTap(side, tapY))
+        {
+            // Free-draw tap consumed by a per-segment command.
+        }
         else if (_segmentSession[idx] is { } segmentSession)
         {
             try { segmentSession.OnStripTapped(tapX, tapY); }
@@ -380,16 +385,43 @@ public partial class LoupedeckLiveSController
         }
     }
 
-    /// <summary>Routes a strip tap to the segment session (segmented mode); a no-op in
-    /// free-draw mode. Mirrors the legacy tap routing in <c>OnTouchButtonPress</c>.</summary>
+    /// <summary>Routes a strip tap to its owning consumer: a free-draw per-segment command
+    /// when the page is in <see cref="StripMode.FreeDraw"/>, otherwise the segment session
+    /// (segmented mode). Mirrors the legacy tap routing in <c>OnTouchButtonPress</c>.</summary>
     private void RouteStripTap(RotarySide side, int idx, TouchInfo touch)
     {
+        var tapY = Math.Clamp(touch.Y, 0, StripHeight);
+        if (RouteFreeDrawSegmentTap(side, tapY)) return;
+
         if (_segmentSession[idx] is not { } segmentSession) return;
         var localX = side == RotarySide.Right ? touch.X - 420 : touch.X;
         var tapX = Math.Clamp(localX, 0, 60);
-        var tapY = Math.Clamp(touch.Y, 0, StripHeight);
         try { segmentSession.OnStripTapped(tapX, tapY); }
         catch (Exception ex) { Console.WriteLine($"Segment-strip session tap failed: {ex.Message}"); }
+    }
+
+    /// <summary>When the side's current page is in <see cref="StripMode.FreeDraw"/>, maps the
+    /// tap's Y to one of three equal vertical segments (top/middle/bottom) and fires that
+    /// segment's command. Returns true when a free-draw page consumed the tap (even with no
+    /// command bound), so the caller skips the segment/plugin session paths.</summary>
+    private bool RouteFreeDrawSegmentTap(RotarySide side, int tapY)
+    {
+        var page = pageManager.GetCurrentRotaryPage(side);
+        if (page is not { StripMode: StripMode.FreeDraw }) return false;
+
+        var segment = Math.Clamp(tapY * RotaryButtonPage.StripSegmentCount / StripHeight,
+            0, RotaryButtonPage.StripSegmentCount - 1);
+
+        var command = page.GetStripSegmentCommand(segment);
+        if (!string.IsNullOrEmpty(command))
+        {
+            // Global knob index space (Left 0–2, Right 3–5) so command context / dynamic-text
+            // resolution matches a dial press for this segment's position.
+            var globalIndex = (side == RotarySide.Right ? RotaryButtonPage.StripSegmentCount : 0) + segment;
+            FireAndForget(command, ButtonTargets.RotaryEncoder, globalIndex);
+        }
+
+        return true;
     }
 
     private static double NowMs() => Stopwatch.GetTimestamp() * 1000.0 / Stopwatch.Frequency;

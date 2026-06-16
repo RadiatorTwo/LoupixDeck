@@ -43,6 +43,7 @@ public class CommandRunner : ICommandRunner
 
     public void ExecuteCommand(string command)
     {
+        Process process = null;
         try
         {
             var psi = new ProcessStartInfo
@@ -55,25 +56,43 @@ public class CommandRunner : ICommandRunner
                 CreateNoWindow = true
             };
 
-            using var process = new Process();
-            process.StartInfo = psi;
+            process = new Process { StartInfo = psi, EnableRaisingEvents = true };
+
+            // Stream output/error asynchronously instead of ReadToEnd(): the worker must
+            // not block, and reading both pipes sequentially could otherwise deadlock on a
+            // chatty child. Same code path on Windows and Linux.
+            process.OutputDataReceived += (_, e) =>
+            {
+                if (!string.IsNullOrWhiteSpace(e.Data))
+                    Console.WriteLine($"Output: {e.Data}");
+            };
+            process.ErrorDataReceived += (_, e) =>
+            {
+                if (!string.IsNullOrWhiteSpace(e.Data))
+                    Console.WriteLine($"Error: {e.Data}");
+            };
 
             process.Start();
-            
-            var output = process.StandardOutput.ReadToEnd();
-            var error = process.StandardError.ReadToEnd();
-            
-            process.WaitForExit();
+            process.BeginOutputReadLine();
+            process.BeginErrorReadLine();
 
-            if (!string.IsNullOrWhiteSpace(output))
-                Console.WriteLine($"Output: {output}");
-
-            if (!string.IsNullOrWhiteSpace(error))
-                Console.WriteLine($"Error: {error}");
+            // Fire-and-forget: do NOT WaitForExit() here. Launching a long-lived process
+            // (e.g. `notepad`, a GUI app, a watcher) must not stall the queue — subsequent
+            // shell commands have to run without first closing that window. The process
+            // keeps running independently; we just dispose the wrapper once it exits.
+            var launched = process;
+            process = null; // ownership moves to the continuation; don't dispose in catch
+            _ = launched.WaitForExitAsync().ContinueWith(_ =>
+            {
+                try { launched.Dispose(); }
+                catch { /* already disposed */ }
+            }, TaskScheduler.Default);
         }
         catch (Exception ex)
         {
             Console.WriteLine($"Exception: {ex.Message}");
+            try { process?.Dispose(); }
+            catch { /* ignore */ }
         }
     }
 

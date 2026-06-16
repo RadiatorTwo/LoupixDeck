@@ -37,11 +37,10 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
             OnPropertyChanged(nameof(SelectedVibrationPattern));
         }
 
-        LoadSegments();
+        BuildCommandSlots();
 
         OnPropertyChanged(nameof(ButtonNumber));
         OnPropertyChanged(nameof(ButtonLabel));
-        NotifyCommandChanged();
     }
 
     private readonly ICommandBuilder _commandBuilder;
@@ -89,7 +88,71 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
         OnPropertyChanged(nameof(CanvasSizeText));
         UpdateEditorPreview();
         UpdateSelectionBounds();
+
+        // A narrow strip (60×270) is small at 1:1 — open it fitted to the viewport.
+        if (!_userAdjustedZoom) FitToViewport();
     }
+
+    // ───────── Editor zoom ─────────
+
+    public const double MinZoom = 0.25;
+    public const double MaxZoom = 4.0;
+
+    private double _zoomFactor = 1.0;
+
+    /// <summary>Uniform scale applied to the editor canvas (via a LayoutTransform, so the
+    /// children keep their unscaled local coordinates and the pointer math is unaffected).</summary>
+    public double ZoomFactor
+    {
+        get => _zoomFactor;
+        private set
+        {
+            var clamped = Math.Clamp(value, MinZoom, MaxZoom);
+            if (Math.Abs(_zoomFactor - clamped) < 0.0001) return;
+            _zoomFactor = clamped;
+            OnPropertyChanged(nameof(ZoomFactor));
+            OnPropertyChanged(nameof(ZoomPercentText));
+        }
+    }
+
+    public string ZoomPercentText => $"{Math.Round(ZoomFactor * 100)}%";
+
+    // Viewport of the scroll area, pushed from the View so Fit can size to it.
+    private Avalonia.Size _viewport;
+    private bool _userAdjustedZoom;
+
+    /// <summary>Called by the View when the preview viewport is measured/resized; auto-fits
+    /// until the user manually changes the zoom.</summary>
+    public void SetViewport(double width, double height)
+    {
+        if (width <= 0 || height <= 0) return;
+        var changed = Math.Abs(_viewport.Width - width) > 0.5 || Math.Abs(_viewport.Height - height) > 0.5;
+        _viewport = new Avalonia.Size(width, height);
+        // Auto-fit only the narrow side-strip canvas; normal buttons keep their natural 1:1
+        // size unless the user clicks Fit (which clears _userAdjustedZoom and re-fits).
+        if (changed && !_userAdjustedZoom && IsStripCanvas) FitToViewport();
+    }
+
+    private void FitToViewport()
+    {
+        if (_viewport.Width <= 0 || _viewport.Height <= 0) return;
+        var fw = FrameWidth;
+        var fh = FrameHeight;
+        if (fw <= 0 || fh <= 0) return;
+        const double pad = 0.92;
+        var fit = Math.Min(_viewport.Width * pad / fw, _viewport.Height * pad / fh);
+        ZoomFactor = fit;
+    }
+
+    private void ZoomIn() { _userAdjustedZoom = true; ZoomFactor *= 1.25; }
+    private void ZoomOut() { _userAdjustedZoom = true; ZoomFactor /= 1.25; }
+    private void ResetZoom() { _userAdjustedZoom = true; ZoomFactor = 1.0; }
+    private void Fit() { _userAdjustedZoom = false; FitToViewport(); }
+
+    public ICommand ZoomInCommand { get; }
+    public ICommand ZoomOutCommand { get; }
+    public ICommand ResetZoomCommand { get; }
+    public ICommand FitCommand { get; }
 
     // ───────── Side-strip (Razer) mode ─────────
 
@@ -150,11 +213,80 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
             OnPropertyChanged(nameof(IsPluginOverride));
             OnPropertyChanged(nameof(SelectedStripProvider));
 
-            // Repaint the strip immediately via the canvas's live-redraw subscription
-            // (the controller reads the new mode and renders labels vs. canvas), instead
-            // of waiting for the dialog to close.
+            OnPropertyChanged(nameof(IsSegmentCommandMode));
+
+            // The bottom area shows a single command sequence for a normal button / non-FreeDraw
+            // strip, and three (top/middle/bottom) for a FreeDraw strip — rebuild for the new mode.
+            BuildCommandSlots();
+
+            // Repaint the preview so the segment dividers appear/disappear, and the strip on
+            // the device via the canvas's live-redraw subscription (the controller reads the new
+            // mode and renders labels vs. canvas), instead of waiting for the dialog to close.
+            UpdateEditorPreview();
             _stripPage.StripCanvas?.Refresh();
         }
+    }
+
+    // ───────── Command sequences (single, or three FreeDraw segments) ─────────
+
+    /// <summary>True when the bottom area edits a FreeDraw strip's three per-segment command
+    /// sequences (top/middle/bottom) instead of the single <see cref="TouchButton.Command"/>.</summary>
+    public bool IsSegmentCommandMode => IsStripCanvas && StripMode == StripMode.FreeDraw;
+
+    private static readonly string[] SegmentTitles = ["Top segment", "Middle segment", "Bottom segment"];
+
+    /// <summary>The editable command sequence strips: one (<see cref="TouchButton.Command"/>)
+    /// for a normal button / non-FreeDraw strip, or three (the FreeDraw segments) bound to the
+    /// page's <see cref="RotaryButtonPage.StripSegmentCommands"/>.</summary>
+    public ObservableCollection<CommandSequenceSlot> CommandSlots { get; } = [];
+
+    /// <summary>The slot a double-clicked tree command appends to; set by clicking a strip.</summary>
+    public CommandSequenceSlot ActiveSlot { get; private set; }
+
+    /// <summary>Marks <paramref name="slot"/> as the active double-click target.</summary>
+    public void SetActiveSlot(CommandSequenceSlot slot)
+    {
+        if (slot == null || ReferenceEquals(ActiveSlot, slot)) return;
+        ActiveSlot = slot;
+        foreach (var s in CommandSlots)
+            s.IsActive = ReferenceEquals(s, slot);
+        OnPropertyChanged(nameof(ActiveSlot));
+    }
+
+    /// <summary>Appends a command (double-click in the tree) to the active slot.</summary>
+    public void InsertCommand(MenuEntry menuEntry) => ActiveSlot?.InsertCommand(menuEntry);
+
+    /// <summary>(Re)builds the command sequence slots for the current mode and selects the first.</summary>
+    private void BuildCommandSlots()
+    {
+        foreach (var slot in CommandSlots)
+            slot.Cleanup();
+        CommandSlots.Clear();
+        ActiveSlot = null;
+
+        if (ButtonData == null) return;
+
+        if (IsSegmentCommandMode && _stripPage != null)
+        {
+            for (var i = 0; i < RotaryButtonPage.StripSegmentCount; i++)
+            {
+                var index = i;
+                CommandSlots.Add(new CommandSequenceSlot(
+                    SegmentTitles[index], _commandBuilder, _commandRegistry,
+                    () => _stripPage.GetStripSegmentCommand(index),
+                    v => _stripPage.SetStripSegmentCommand(index, string.IsNullOrWhiteSpace(v) ? null : v)));
+            }
+        }
+        else
+        {
+            CommandSlots.Add(new CommandSequenceSlot(
+                "Command sequence", _commandBuilder, _commandRegistry,
+                () => ButtonData.Command,
+                v => ButtonData.Command = string.IsNullOrWhiteSpace(v) ? null : v));
+        }
+
+        if (CommandSlots.Count > 0)
+            SetActiveSlot(CommandSlots[0]);
     }
 
     /// <summary>
@@ -182,6 +314,7 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
         OnPropertyChanged(nameof(IsPluginOverride));
         OnPropertyChanged(nameof(AvailableStripProviders));
         OnPropertyChanged(nameof(SelectedStripProvider));
+        OnPropertyChanged(nameof(IsSegmentCommandMode));
     }
 
     /// <summary>Spacing of the editor's alignment grid in device pixels; also the
@@ -224,7 +357,6 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
     public ICommand RemoveLayerCommand { get; }
     public ICommand MoveLayerUpCommand { get; }
     public ICommand MoveLayerDownCommand { get; }
-    public ICommand ClearCommandCommand { get; }
     public TouchButton ButtonData { get; set; }
 
     /// <summary>1-based button number shared by the window title and the
@@ -234,13 +366,6 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
 
     /// <summary>Window title, e.g. "Touch Button 1".</summary>
     public string ButtonLabel => $"Touch Button {ButtonNumber}";
-
-    /// <summary>True when the button has a non-empty command assigned.</summary>
-    public bool HasCommand => !string.IsNullOrWhiteSpace(ButtonData?.Command);
-
-    /// <summary>Read-only summary shown in the bottom command bar — the raw,
-    /// chained command string, or a placeholder when none is assigned.</summary>
-    public string CommandSummary => HasCommand ? ButtonData.Command : "No command assigned";
 
     /// <summary>Resolution badge shown in the canvas corner, e.g. "90 × 90 px".</summary>
     public string CanvasSizeText => $"{DeviceWidth} × {DeviceHeight} px";
@@ -376,11 +501,6 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
         }
     }
 
-    /// <summary>The button's command chain as individual, editable cards. The raw
-    /// <see cref="TouchButton.Command"/> string stays the persisted source of truth;
-    /// this collection is a view over it that is recomposed on every edit.</summary>
-    public ObservableCollection<CommandSegment> Commands { get; } = [];
-
     public TouchButtonSettingsViewModel(
         ICommandBuilder commandBuilder,
         IMenuTreeBuilder menuTreeBuilder,
@@ -409,11 +529,10 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
         RemoveLayerCommand = new RelayCommand(RemoveSelectedLayer);
         MoveLayerUpCommand = new RelayCommand(MoveSelectedLayerUp);
         MoveLayerDownCommand = new RelayCommand(MoveSelectedLayerDown);
-        ClearCommandCommand = new RelayCommand(ClearCommandOnly);
-
-        // Keep the 1-based sequence numbers on the chips in sync with the
-        // collection (insert, remove, move, clear, initial load).
-        Commands.CollectionChanged += (_, _) => RenumberSegments();
+        ZoomInCommand = new RelayCommand(ZoomIn);
+        ZoomOutCommand = new RelayCommand(ZoomOut);
+        ResetZoomCommand = new RelayCommand(ResetZoom);
+        FitCommand = new RelayCommand(Fit);
 
         SystemCommandMenus = new ObservableCollection<MenuEntry>();
     }
@@ -569,107 +688,6 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
         });
     }
 
-    /// <summary>Parses <see cref="TouchButton.Command"/> into editable segment cards.
-    /// Does not write back — opening (and closing without edits) leaves the persisted
-    /// string byte-for-byte unchanged.</summary>
-    private void LoadSegments()
-    {
-        foreach (var segment in Commands)
-            segment.Changed -= OnSegmentChanged;
-        Commands.Clear();
-
-        if (ButtonData == null) return;
-
-        foreach (var raw in Utils.CommandStringParser.SplitChain(ButtonData.Command))
-            Commands.Add(CreateSegment(raw));
-    }
-
-    /// <summary>Builds a <see cref="CommandSegment"/> from a raw segment, resolving its
-    /// <see cref="Commands.Base.CommandInfo"/> when the command name is a known system command.</summary>
-    private CommandSegment CreateSegment(string raw)
-    {
-        var name = Utils.CommandStringParser.GetName(raw);
-        var info = _commandRegistry.Get(name)?.Info;
-        var segment = CommandSegment.Create(_commandBuilder, info, raw);
-        segment.Changed += OnSegmentChanged;
-        return segment;
-    }
-
-    private void OnSegmentChanged(object sender, EventArgs e) => RebuildCommandString();
-
-    /// <summary>Reassigns the 1-based <see cref="CommandSegment.Position"/> shown
-    /// on every chip in the sequence strip.</summary>
-    private void RenumberSegments()
-    {
-        for (var i = 0; i < Commands.Count; i++)
-            Commands[i].Position = i + 1;
-    }
-
-    /// <summary>Recomposes the persisted <c>&amp;&amp;</c>-joined command string from the
-    /// current card order/values. Called after every add / remove / reorder / edit.</summary>
-    private void RebuildCommandString()
-    {
-        if (ButtonData == null) return;
-
-        var joined = string.Join(" && ",
-            Commands.Select(s => s.Raw).Where(r => !string.IsNullOrWhiteSpace(r)));
-
-        ButtonData.Command = string.IsNullOrWhiteSpace(joined) ? null : joined;
-        NotifyCommandChanged();
-    }
-
-    /// <summary>Appends a command (double-click in the tree) to the end of the chain.</summary>
-    public void InsertCommand(MenuEntry menuEntry) => InsertCommandAt(menuEntry, Commands.Count);
-
-    /// <summary>Inserts a command (drag from the tree) at the given card index.</summary>
-    public void InsertCommandAt(MenuEntry menuEntry, int index)
-    {
-        if (ButtonData == null || menuEntry == null) return;
-
-        var formattedCommand = _commandBuilder.CreateCommandFromMenuEntry(menuEntry);
-        if (string.IsNullOrWhiteSpace(formattedCommand)) return;
-
-        index = Math.Clamp(index, 0, Commands.Count);
-        Commands.Insert(index, CreateSegment(formattedCommand));
-        RebuildCommandString();
-    }
-
-    public void RemoveSegment(CommandSegment segment)
-    {
-        if (segment == null || !Commands.Remove(segment)) return;
-        segment.Changed -= OnSegmentChanged;
-        RebuildCommandString();
-    }
-
-    public void MoveSegment(int from, int to)
-    {
-        if (from < 0 || from >= Commands.Count) return;
-        to = Math.Clamp(to, 0, Commands.Count - 1);
-        if (from == to) return;
-        Commands.Move(from, to);
-        RebuildCommandString();
-    }
-
-    /// <summary>
-    /// Clears only the assigned command of the current button — leaves layers,
-    /// colors and all other settings untouched (unlike <see cref="ClearButton"/>).
-    /// </summary>
-    public void ClearCommandOnly()
-    {
-        if (ButtonData == null) return;
-        foreach (var segment in Commands)
-            segment.Changed -= OnSegmentChanged;
-        Commands.Clear();
-        ButtonData.Command = null;
-        NotifyCommandChanged();
-    }
-
-    private void NotifyCommandChanged()
-    {
-        OnPropertyChanged(nameof(HasCommand));
-        OnPropertyChanged(nameof(CommandSummary));
-    }
-
     /// <summary>
     /// Resets the touch button to a blank default state — clears command, text, image and
     /// all visual settings. Triggers a single redraw at the end via Refresh().
@@ -678,9 +696,11 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
     {
         if (ButtonData == null) return;
 
-        foreach (var segment in Commands)
-            segment.Changed -= OnSegmentChanged;
-        Commands.Clear();
+        // For a free-draw strip, also clear all three per-segment commands (the strip's
+        // "command" is the three segments, not ButtonData.Command).
+        if (IsSegmentCommandMode && _stripPage != null)
+            for (var i = 0; i < RotaryButtonPage.StripSegmentCount; i++)
+                _stripPage.SetStripSegmentCommand(i, null);
 
         var b = ButtonData;
         b.IgnoreRefresh = true;
@@ -696,17 +716,15 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
         }
         b.Refresh();
         SelectedLayer = null;
-        NotifyCommandChanged();
+
+        // Reload the sequence strips from the now-cleared sources.
+        BuildCommandSlots();
     }
 
     private void ButtonData_PropertyChanged(object sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
-        // Keep the bottom summary bar in sync when the command is edited
-        // directly (Commands tab text box) or replaced programmatically.
         if (e.PropertyName == nameof(TouchButton.Command))
         {
-            Avalonia.Threading.Dispatcher.UIThread.Post(NotifyCommandChanged);
-
             // Re-scan dynamic-text/-image commands so a display command's layer appears (or its
             // orphaned layer disappears) immediately while the editor is open, instead of only
             // after it closes. The strip-canvas surface is not a real page button, so skip it.
@@ -730,8 +748,12 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
     private void UpdateEditorPreview()
     {
         if (ButtonData == null || _config == null) return;
+        // Segment dividers only make sense (and are only drawn) for a free-draw side
+        // strip; the renderer further gates them on the grid toggle.
+        var segmentCount = IsSegmentCommandMode ? RotaryButtonPage.StripSegmentCount : 0;
         EditorPreview = BitmapHelper.RenderEditorCanvas(
-            ButtonData, _config, EditorCanvasSize, DeviceWidth, DeviceHeight, ShowGrid, GridStepDevice);
+            ButtonData, _config, EditorCanvasSize, DeviceWidth, DeviceHeight, ShowGrid, GridStepDevice,
+            segmentCount);
     }
 
     /// <summary>
@@ -781,8 +803,8 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
 
         _sideStripRegistry.ProvidersChanged -= OnStripProvidersChanged;
 
-        foreach (var segment in Commands)
-            segment.Changed -= OnSegmentChanged;
+        foreach (var slot in CommandSlots)
+            slot.Cleanup();
     }
 
     private void OnStripProvidersChanged()

@@ -46,10 +46,16 @@ public partial class TouchButtonSettings : Window
 
     // ───────── Command-chain drag state ─────────
 
-    // Command-card currently reordered via its drag handle; null when idle.
+    // Command-card currently reordered via its drag handle; null when idle. The
+    // owning chip list + slot are captured so a reorder targets the right segment.
     private CommandSegment _draggedSegment;
+    private ItemsControl _dragList;
+    private CommandSequenceSlot _dragSlot;
     private Point _segmentDragStart;
     private bool _segmentDragging;
+
+    // Chip lists already hooked for connector-visibility upkeep (one per realized strip).
+    private readonly HashSet<ItemsControl> _hookedChipLists = [];
 
     // Tree node armed for a drag-to-insert; promoted to a real drag once the pointer
     // moves past the threshold (so a click/double-click is not swallowed). We use the
@@ -66,7 +72,18 @@ public partial class TouchButtonSettings : Window
         // Re-evaluate which chips start a wrapped row (and thus shouldn't draw a
         // leading arrow) after every layout pass — covers adds, removes, reorders
         // and window/strip resizes that re-wrap the sequence.
-        CommandList.LayoutUpdated += (_, _) => UpdateConnectorVisibility();
+        // Feed the preview viewport size to the VM so "Fit" (and the auto-fit on open)
+        // can scale the canvas to the available space.
+        PreviewScroll.SizeChanged += (_, _) =>
+        {
+            if (DataContext is TouchButtonSettingsViewModel vm)
+                vm.SetViewport(PreviewScroll.Bounds.Width, PreviewScroll.Bounds.Height);
+        };
+
+        // Clicking anywhere inside a sequence strip makes it the double-click-append
+        // target. Tunnel so it fires even when a child (button, chip grip) handles the
+        // press itself.
+        AddHandler(PointerPressedEvent, OnAnyPointerPressed, RoutingStrategies.Tunnel);
 
         Closing += (_, _) =>
         {
@@ -97,39 +114,70 @@ public partial class TouchButtonSettings : Window
         Close();
     }
 
-    // ───────── Command chain: remove / reorder / drag-insert ─────────
+    // ───────── Command chain: active slot / remove / reorder / drag-insert ─────────
+
+    /// <summary>Clicking anywhere inside a sequence strip makes it the double-click target.</summary>
+    private void OnAnyPointerPressed(object sender, PointerPressedEventArgs e)
+    {
+        if (DataContext is not TouchButtonSettingsViewModel vm)
+            return;
+
+        var visual = e.Source as Visual;
+        while (visual != null)
+        {
+            if (visual is Control { DataContext: CommandSequenceSlot slot })
+            {
+                vm.SetActiveSlot(slot);
+                return;
+            }
+
+            visual = visual.GetVisualParent();
+        }
+    }
+
+    /// <summary>Hooks a realized strip's chip list for connector-visibility upkeep.</summary>
+    private void SlotChipList_Loaded(object sender, RoutedEventArgs e)
+    {
+        if (sender is not ItemsControl list || !_hookedChipLists.Add(list))
+            return;
+
+        list.LayoutUpdated += (_, _) => UpdateConnectorVisibility(list);
+    }
 
     private void RemoveCommand_Click(object sender, RoutedEventArgs e)
     {
-        if (sender is Button { DataContext: CommandSegment segment } &&
-            DataContext is TouchButtonSettingsViewModel vm)
-            vm.RemoveSegment(segment);
+        if (sender is Button { DataContext: CommandSegment segment } button &&
+            ResolveSlot(button) is { } slot)
+            slot.RemoveSegment(segment);
     }
 
-    // Live reorder of chain cards — mirrors the macro editor: the drag handle
-    // captures the pointer onto the (stable) ItemsControl, then every move maps
-    // the pointer to a target index and moves the card there immediately.
+    // Live reorder of chain cards — the drag handle captures the pointer onto the
+    // owning (stable) ItemsControl, then every move maps the pointer to a target
+    // index and moves the card within its slot immediately.
 
     private void CommandDragHandle_PointerPressed(object sender, PointerPressedEventArgs e)
     {
-        if (sender is not Control { DataContext: CommandSegment segment })
+        if (sender is not Control { DataContext: CommandSegment segment } control)
             return;
         if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
             return;
 
-        // Arm the reorder; the dim + ghost + insertion marker only appear once
-        // the pointer moves past the threshold (CommandList_PointerMoved), so a
-        // plain click on the grip doesn't flash any drag chrome.
+        var list = control.FindAncestorOfType<ItemsControl>();
+        if (list == null)
+            return;
+
         _draggedSegment = segment;
+        _dragList = list;
+        _dragSlot = list.DataContext as CommandSequenceSlot;
         _segmentDragStart = e.GetPosition(this);
         _segmentDragging = false;
-        e.Pointer.Capture(CommandList);
+        e.Pointer.Capture(list);
         e.Handled = true;
     }
 
     private void CommandList_PointerMoved(object sender, PointerEventArgs e)
     {
-        if (_draggedSegment == null)
+        if (_draggedSegment == null || _dragList == null)
             return;
 
         if (!_segmentDragging)
@@ -144,22 +192,21 @@ public partial class TouchButtonSettings : Window
         }
 
         UpdateDragGhost(e);
-        UpdateDropMarker(FindDropIndex(e));
+        UpdateDropMarker(_dragList, FindDropIndex(_dragList, e));
     }
 
     private void CommandList_PointerReleased(object sender, PointerReleasedEventArgs e)
     {
-        if (_segmentDragging && _draggedSegment != null &&
-            DataContext is TouchButtonSettingsViewModel vm)
+        if (_segmentDragging && _draggedSegment != null && _dragList != null && _dragSlot != null)
         {
-            var from = vm.Commands.IndexOf(_draggedSegment);
+            var from = _dragSlot.Commands.IndexOf(_draggedSegment);
             if (from >= 0)
             {
                 // Drop index counts slots in the full list; account for the
                 // dragged item being removed from before the target first.
-                var dropIndex = FindDropIndex(e);
+                var dropIndex = FindDropIndex(_dragList, e);
                 var to = dropIndex > from ? dropIndex - 1 : dropIndex;
-                vm.MoveSegment(from, to);
+                _dragSlot.MoveSegment(from, to);
             }
         }
 
@@ -176,29 +223,29 @@ public partial class TouchButtonSettings : Window
 
         _draggedSegment.IsDragging = false;
         _draggedSegment = null;
+        _dragList = null;
+        _dragSlot = null;
         _segmentDragging = false;
         HideDragGhost();
         HideDropMarker();
         pointer?.Capture(null);
     }
 
-    /// <summary>Insertion index (0..count) for the pointer, in reading order over
-    /// the wrapped chip rows: a chip counts as "after" the pointer if it sits on a
-    /// lower row, or on the same row past the pointer's X. The first such chip is
-    /// the slot; if none, the drop appends at the end.</summary>
-    private int FindDropIndex(PointerEventArgs e)
+    /// <summary>Insertion index (0..count) for the pointer over <paramref name="list"/>,
+    /// in reading order over the wrapped chip rows: a chip counts as "after" the pointer
+    /// if it sits on a lower row, or on the same row past its midpoint. The first such
+    /// chip is the slot; if none, the drop appends at the end.</summary>
+    private static int FindDropIndex(ItemsControl list, PointerEventArgs e)
     {
-        var count = CommandList.ItemCount;
+        var count = list.ItemCount;
         for (var i = 0; i < count; i++)
         {
-            if (CommandList.ContainerFromIndex(i) is not Control container)
+            if (list.ContainerFromIndex(i) is not Control container)
                 continue;
 
             var p = e.GetPosition(container);
-            // Pointer is on a row above this chip → insert before it.
             if (p.Y < 0)
                 return i;
-            // Pointer is within this chip's row, left of its midpoint.
             if (p.Y <= container.Bounds.Height && p.X < container.Bounds.Width / 2)
                 return i;
         }
@@ -207,11 +254,11 @@ public partial class TouchButtonSettings : Window
     }
 
     /// <summary>Places the vertical insertion bar at the left edge of the chip at
-    /// <paramref name="dropIndex"/> (or the right edge of the last chip when
-    /// appending), translated into the overlay canvas.</summary>
-    private void UpdateDropMarker(int dropIndex)
+    /// <paramref name="dropIndex"/> (or the right edge of the last chip when appending)
+    /// in <paramref name="list"/>, translated into the overlay canvas.</summary>
+    private void UpdateDropMarker(ItemsControl list, int dropIndex)
     {
-        var count = CommandList.ItemCount;
+        var count = list.ItemCount;
         if (count == 0)
         {
             HideDropMarker();
@@ -220,7 +267,7 @@ public partial class TouchButtonSettings : Window
 
         var trailing = dropIndex >= count;
         var index = trailing ? count - 1 : dropIndex;
-        if (CommandList.ContainerFromIndex(index) is not Control container)
+        if (list.ContainerFromIndex(index) is not Control container)
         {
             HideDropMarker();
             return;
@@ -243,19 +290,19 @@ public partial class TouchButtonSettings : Window
     private void HideDropMarker() => DropMarker.IsVisible = false;
 
     /// <summary>
-    /// Hides the leading connector arrow on the first chip of each wrapped row, so
-    /// it never dangles at a row's left edge. The arrow's gutter has a fixed width,
-    /// so toggling the glyph never changes how the chips pack — row assignments stay
-    /// stable and this converges instead of oscillating.
+    /// Hides the leading connector arrow on the first chip of each wrapped row of
+    /// <paramref name="list"/>, so it never dangles at a row's left edge. The arrow's
+    /// gutter has a fixed width, so toggling the glyph never re-packs the chips —
+    /// row assignments stay stable and this converges instead of oscillating.
     /// </summary>
-    private void UpdateConnectorVisibility()
+    private static void UpdateConnectorVisibility(ItemsControl list)
     {
-        var count = CommandList.ItemCount;
+        var count = list.ItemCount;
         var prevY = double.NaN;
 
         for (var i = 0; i < count; i++)
         {
-            if (CommandList.ContainerFromIndex(i) is not Control container)
+            if (list.ContainerFromIndex(i) is not Control container)
                 continue;
 
             // Chips on the same row share a top (Y); a larger Y means a new row.
@@ -268,9 +315,9 @@ public partial class TouchButtonSettings : Window
         }
     }
 
-    // Drag a command from the tree into the chain at a specific position. Mirrors the
-    // card reorder: arm on press, promote to a drag past a small threshold, then track
-    // the pointer (captured on the tree) and insert on release when over the chain.
+    // Drag a command from the tree into a sequence strip. Mirrors the card reorder:
+    // arm on press, promote to a drag past a small threshold, then track the pointer
+    // (captured on the tree) and insert on release into whichever strip it's over.
 
     private void SystemCommandsTree_PointerMoved(object sender, PointerEventArgs e)
     {
@@ -297,10 +344,12 @@ public partial class TouchButtonSettings : Window
 
         UpdateDragGhost(e);
 
-        var over = IsOverDropZone(e);
-        CommandDropZone.Classes.Set("drop-active", over);
-        if (over)
-            UpdateDropMarker(FindDropIndex(e));
+        var target = StripUnderPointer(e);
+        foreach (var (zone, _) in SlotStrips())
+            zone.Classes.Set("drop-active", target.HasValue && ReferenceEquals(zone, target.Value.Zone));
+
+        if (target.HasValue)
+            UpdateDropMarker(target.Value.List, FindDropIndex(target.Value.List, e));
         else
             HideDropMarker();
     }
@@ -326,10 +375,10 @@ public partial class TouchButtonSettings : Window
 
     private void SystemCommandsTree_PointerReleased(object sender, PointerReleasedEventArgs e)
     {
-        if (_treeDragging && _treeDragCandidate != null &&
-            DataContext is TouchButtonSettingsViewModel vm && IsOverDropZone(e))
+        if (_treeDragging && _treeDragCandidate != null && StripUnderPointer(e) is { } target &&
+            target.List.DataContext is CommandSequenceSlot slot)
         {
-            vm.InsertCommandAt(_treeDragCandidate, FindDropIndex(e));
+            slot.InsertCommandAt(_treeDragCandidate, FindDropIndex(target.List, e));
         }
 
         EndTreeDrag(e.Pointer);
@@ -344,16 +393,42 @@ public partial class TouchButtonSettings : Window
         _treeDragging = false;
         HideDragGhost();
         HideDropMarker();
-        CommandDropZone.Classes.Set("drop-active", false);
+        foreach (var (zone, _) in SlotStrips())
+            zone.Classes.Set("drop-active", false);
         pointer?.Capture(null);
     }
 
-    private bool IsOverDropZone(PointerEventArgs e)
+    /// <summary>Resolves the <see cref="CommandSequenceSlot"/> that owns a chip control
+    /// by walking up to its <see cref="ItemsControl"/>.</summary>
+    private static CommandSequenceSlot ResolveSlot(Control control)
+        => control.FindAncestorOfType<ItemsControl>()?.DataContext as CommandSequenceSlot;
+
+    /// <summary>The realized sequence strips: each slot's chip list paired with the
+    /// strip Border that contains it. Enumerated from the live visual tree because the
+    /// strips are generated by an ItemsControl over the slots (1 or 3 of them).</summary>
+    private IEnumerable<(Border Zone, ItemsControl List)> SlotStrips()
     {
-        var pos = e.GetPosition(CommandDropZone);
-        return pos.X >= 0 && pos.Y >= 0 &&
-               pos.X <= CommandDropZone.Bounds.Width &&
-               pos.Y <= CommandDropZone.Bounds.Height;
+        foreach (var list in SlotsHost.GetVisualDescendants().OfType<ItemsControl>())
+        {
+            if (list.DataContext is not CommandSequenceSlot)
+                continue;
+            if (list.FindAncestorOfType<Border>() is { } zone)
+                yield return (zone, list);
+        }
+    }
+
+    /// <summary>The strip whose Border currently contains the pointer, or null.</summary>
+    private (Border Zone, ItemsControl List)? StripUnderPointer(PointerEventArgs e)
+    {
+        foreach (var (zone, list) in SlotStrips())
+        {
+            var pos = e.GetPosition(zone);
+            if (pos.X >= 0 && pos.Y >= 0 &&
+                pos.X <= zone.Bounds.Width && pos.Y <= zone.Bounds.Height)
+                return (zone, list);
+        }
+
+        return null;
     }
 
     private async void ChangeSymbol_Click(object sender, RoutedEventArgs e)

@@ -16,8 +16,157 @@
     mc:Ignorable="d"
     CanResize="False">
 
+    <Window.Resources>
+        <!-- Wrapped, left → top-to-bottom execution order, shared by all sequence strips. -->
+        <ItemsPanelTemplate x:Key="ChipPanel">
+            <WrapPanel Orientation="Horizontal" />
+        </ItemsPanelTemplate>
+
+        <!-- One chip per chained command. Shared by every sequence strip; the event
+             handlers resolve their owning strip/slot from the visual tree. -->
+        <DataTemplate x:Key="CommandChipTemplate" DataType="{x:Type vm:CommandSegment}">
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                <Panel Width="22">
+                    <TextBlock Classes="sequence-arrow" Text="&#x2192;"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"
+                               IsVisible="{Binding ShowConnector}" />
+                </Panel>
+                <Border Classes="command-chip"
+                        Classes.dragging="{Binding IsDragging}"
+                        ToolTip.Tip="{Binding DisplayName}">
+                    <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto">
+                        <Border Grid.Column="0" Classes="drag-handle chip-grip"
+                                VerticalAlignment="Center"
+                                ToolTip.Tip="Drag to reorder"
+                                PointerPressed="CommandDragHandle_PointerPressed">
+                            <TextBlock Text="&#xF01DB;" />
+                        </Border>
+
+                        <Border Grid.Column="1" Classes="chip-index"
+                                VerticalAlignment="Center">
+                            <TextBlock Text="{Binding Position}" />
+                        </Border>
+
+                        <TextBlock Grid.Column="2" Classes="chip-title"
+                                   Text="{Binding DisplayName}"
+                                   VerticalAlignment="Center" />
+
+                        <Button Grid.Column="3" Classes="chip-action"
+                                VerticalAlignment="Center"
+                                FontFamily="{StaticResource MdiFont}"
+                                Content="&#xF0140;"
+                                ToolTip.Tip="Edit parameters">
+                            <Button.Flyout>
+                                <Flyout Placement="Top">
+                                    <Panel Width="300">
+                                        <StackPanel Spacing="4" IsVisible="{Binding IsKnown}">
+                                            <ItemsControl ItemsSource="{Binding Parameters}">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate DataType="{x:Type vm:CommandParameter}">
+                                                        <Grid ColumnDefinitions="120,*" Margin="0,0,0,4">
+                                                            <TextBlock Grid.Column="0"
+                                                                       Classes="editor-label"
+                                                                       Text="{Binding Name}"
+                                                                       VerticalAlignment="Center"
+                                                                       Margin="0,0,10,0" />
+                                                            <TextBox Grid.Column="1"
+                                                                     Text="{Binding Value, Mode=TwoWay}"
+                                                                     IsVisible="{Binding IsText}" />
+                                                            <ComboBox Grid.Column="1"
+                                                                      HorizontalAlignment="Stretch"
+                                                                      ItemsSource="{Binding Options}"
+                                                                      SelectedItem="{Binding Value, Mode=TwoWay}"
+                                                                      IsVisible="{Binding IsEnum}" />
+                                                            <CheckBox Grid.Column="1"
+                                                                      IsChecked="{Binding BoolValue, Mode=TwoWay}"
+                                                                      IsVisible="{Binding IsBool}" />
+                                                        </Grid>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                            <TextBlock Classes="hint"
+                                                       Text="This command has no parameters."
+                                                       IsVisible="{Binding !Parameters.Count}" />
+                                        </StackPanel>
+
+                                        <Grid ColumnDefinitions="120,*" IsVisible="{Binding !IsKnown}">
+                                            <TextBlock Grid.Column="0"
+                                                       Classes="editor-label"
+                                                       Text="Command"
+                                                       VerticalAlignment="Center"
+                                                       Margin="0,0,10,0" />
+                                            <TextBox Grid.Column="1"
+                                                     Text="{Binding ShellText, Mode=TwoWay}" />
+                                        </Grid>
+                                    </Panel>
+                                </Flyout>
+                            </Button.Flyout>
+                        </Button>
+
+                        <Button Grid.Column="4" Classes="chip-action danger"
+                                VerticalAlignment="Center"
+                                FontFamily="{StaticResource MdiFont}"
+                                Content="&#xF01B4;"
+                                ToolTip.Tip="Remove command"
+                                Click="RemoveCommand_Click" />
+                    </Grid>
+                </Border>
+            </StackPanel>
+        </DataTemplate>
+
+        <!-- One sequence strip per slot (1 for a normal button, 3 for FreeDraw segments).
+             Click anywhere on a strip to make it the double-click-append target. -->
+        <DataTemplate x:Key="SequenceStripTemplate" DataType="{x:Type vm:CommandSequenceSlot}">
+            <Border Classes="sequence-strip"
+                    Classes.active="{Binding IsActive}"
+                    Margin="0,0,0,10">
+                <Grid ColumnDefinitions="Auto,*,Auto">
+                    <StackPanel Grid.Column="0" VerticalAlignment="Top" Margin="0,0,16,0">
+                        <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
+                        <TextBlock Classes="hint"
+                                   Text="{Binding Commands.Count, StringFormat='{}{0} command(s)'}" />
+                    </StackPanel>
+
+                    <Panel Grid.Column="1" MinHeight="40">
+                        <ScrollViewer HorizontalScrollBarVisibility="Disabled"
+                                      VerticalScrollBarVisibility="Auto"
+                                      MaxHeight="320">
+                            <ItemsControl Tag="chips"
+                                          Loaded="SlotChipList_Loaded"
+                                          ItemsSource="{Binding Commands}"
+                                          VerticalAlignment="Top"
+                                          ItemsPanel="{StaticResource ChipPanel}"
+                                          ItemTemplate="{StaticResource CommandChipTemplate}"
+                                          PointerMoved="CommandList_PointerMoved"
+                                          PointerReleased="CommandList_PointerReleased"
+                                          PointerCaptureLost="CommandList_PointerCaptureLost" />
+                        </ScrollViewer>
+                        <TextBlock Classes="hint" VerticalAlignment="Center"
+                                   Text="Empty — click this strip, then double-click a command in the Commands tab, or drag one here."
+                                   IsVisible="{Binding !Commands.Count}" />
+                    </Panel>
+
+                    <Button Grid.Column="2" Content="Clear"
+                            Command="{Binding ClearCommandCommand}"
+                            IsEnabled="{Binding HasCommand}"
+                            VerticalAlignment="Top"
+                            Margin="16,0,0,0" MinWidth="80"
+                            HorizontalContentAlignment="Center"
+                            ToolTip.Tip="Remove all commands in this sequence" />
+                </Grid>
+            </Border>
+        </DataTemplate>
+    </Window.Resources>
+
     <Window.Styles>
         <StyleInclude Source="avares://LoupixDeck/Views/Styles/SettingsStyles.axaml" />
+
+        <!-- Highlights the sequence strip that double-click-to-append targets. -->
+        <Style Selector="Border.sequence-strip.active">
+            <Setter Property="BorderBrush" Value="#FF66AAFF" />
+            <Setter Property="Background" Value="{DynamicResource AppAccentSubtle}" />
+        </Style>
 
         <!-- Selection resize handle — size must match TouchButtonSettingsViewModel.HandleSize. -->
         <Style Selector="Rectangle.handle">
@@ -65,6 +214,12 @@
                                 <TextBlock Classes="hint" Margin="0,4,0,0" TextWrapping="Wrap"
                                            Text="The selected plugin renders this strip and handles its taps and swipes." />
                             </StackPanel>
+
+                            <!-- FreeDraw splits the strip into three vertical tap zones; each
+                                 zone has its own command sequence (shown at the bottom). -->
+                            <TextBlock Classes="hint" Margin="0,8,0,0" TextWrapping="Wrap"
+                                       IsVisible="{Binding IsSegmentCommandMode}"
+                                       Text="This strip has three tap zones (top/middle/bottom), each with its own command sequence below. Enable Grid to see the segment boundaries." />
 
                             <Separator Margin="0,12,0,0" />
                         </StackPanel>
@@ -211,16 +366,22 @@
                         <TextBlock Grid.Column="0" Classes="panel-title" Text="Preview"
                                    Margin="0" VerticalAlignment="Center" />
                         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4">
-                            <!-- Zoom tools are not implemented yet — kept visible as
-                                 disabled placeholders so the layout is final. The tooltip
-                                 sits on a wrapper because a disabled control receives no
-                                 pointer events and would never show one itself. -->
-                            <Border ToolTip.Tip="Not available yet">
-                                <Button Classes="toolbar" Content="Fit" IsEnabled="False" />
-                            </Border>
-                            <Border ToolTip.Tip="Not available yet">
-                                <Button Classes="toolbar" Content="100%" IsEnabled="False" />
-                            </Border>
+                            <Button Classes="toolbar" Content="&#x2212;"
+                                    Command="{Binding ZoomOutCommand}"
+                                    ToolTip.Tip="Zoom out" />
+                            <TextBlock Text="{Binding ZoomPercentText}"
+                                       VerticalAlignment="Center" MinWidth="42"
+                                       TextAlignment="Center"
+                                       ToolTip.Tip="Current zoom" />
+                            <Button Classes="toolbar" Content="+"
+                                    Command="{Binding ZoomInCommand}"
+                                    ToolTip.Tip="Zoom in" />
+                            <Button Classes="toolbar" Content="Fit"
+                                    Command="{Binding FitCommand}"
+                                    ToolTip.Tip="Fit the canvas to the view" />
+                            <Button Classes="toolbar" Content="100%"
+                                    Command="{Binding ResetZoomCommand}"
+                                    ToolTip.Tip="Reset zoom to 100%" />
                             <ToggleButton Classes="toolbar" Content="Grid"
                                           IsChecked="{Binding ShowGrid, Mode=TwoWay}"
                                           ToolTip.Tip="Toggle alignment grid" />
@@ -237,23 +398,39 @@
                             CornerRadius="6"
                             ClipToBounds="True">
                         <Grid>
-                            <!-- Button plate: border + shadow behind the rendered frame.
-                                 Sized to the aspect-correct frame so non-square canvases
-                                 (e.g. 60×270 side strips) get a matching plate. -->
-                            <Border Width="{Binding FrameWidth}" Height="{Binding FrameHeight}"
-                                    HorizontalAlignment="Center" VerticalAlignment="Center"
-                                    BorderBrush="#55000000" BorderThickness="1"
-                                    BoxShadow="0 3 16 0 #50000000"
-                                    IsHitTestVisible="False" />
+                            <!-- Zoomable preview: a ScrollViewer pans when the canvas is
+                                 scaled past the viewport; the LayoutTransform scales the plate
+                                 + editor together. Using LayoutTransform (not RenderTransform)
+                                 keeps the children's local 600×600 coordinate space, so the
+                                 pointer math in the code-behind needs no zoom adjustment. -->
+                            <ScrollViewer Name="PreviewScroll"
+                                          HorizontalScrollBarVisibility="Auto"
+                                          VerticalScrollBarVisibility="Auto">
+                                <LayoutTransformControl HorizontalAlignment="Center"
+                                                        VerticalAlignment="Center">
+                                    <LayoutTransformControl.LayoutTransform>
+                                        <ScaleTransform ScaleX="{Binding ZoomFactor}"
+                                                        ScaleY="{Binding ZoomFactor}" />
+                                    </LayoutTransformControl.LayoutTransform>
 
-                            <Grid Name="EditorRoot"
-                                  Width="600" Height="600"
-                                  HorizontalAlignment="Center" VerticalAlignment="Center"
-                                  Background="Transparent"
-                                  IsEnabled="{Binding CanEditCanvas}"
-                                  PointerPressed="Editor_PointerPressed"
-                                  PointerMoved="Editor_PointerMoved"
-                                  PointerReleased="Editor_PointerReleased">
+                                    <Grid Width="600" Height="600">
+                                        <!-- Button plate: border + shadow behind the rendered
+                                             frame. Sized to the aspect-correct frame so non-square
+                                             canvases (e.g. 60×270 side strips) get a matching plate. -->
+                                        <Border Width="{Binding FrameWidth}" Height="{Binding FrameHeight}"
+                                                HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                BorderBrush="#55000000" BorderThickness="1"
+                                                BoxShadow="0 3 16 0 #50000000"
+                                                IsHitTestVisible="False" />
+
+                                        <Grid Name="EditorRoot"
+                                              Width="600" Height="600"
+                                              HorizontalAlignment="Center" VerticalAlignment="Center"
+                                              Background="Transparent"
+                                              IsEnabled="{Binding CanEditCanvas}"
+                                              PointerPressed="Editor_PointerPressed"
+                                              PointerMoved="Editor_PointerMoved"
+                                              PointerReleased="Editor_PointerReleased">
                                 <Image Width="600" Height="600"
                                        Stretch="None"
                                        IsHitTestVisible="False"
@@ -294,7 +471,10 @@
                                                IsVisible="{Binding ScaleHandlesVisible}"
                                                Canvas.Left="{Binding HandleSeLeft}" Canvas.Top="{Binding HandleSeTop}" />
                                 </Canvas>
-                            </Grid>
+                                        </Grid>
+                                    </Grid>
+                                </LayoutTransformControl>
+                            </ScrollViewer>
 
                             <!-- Locked overlay: shown while a side strip is in Segmented
                                  mode, where the canvas must not be edited. Swallows
@@ -779,158 +959,14 @@
             </TabControl>
         </Grid>
 
-        <!-- ===== Bottom: command sequence pipeline strip =====
-             The assigned commands as a left-to-right execution chain. Fixed
-             height, scrolls horizontally — adding commands never reflows the
-             rest of the window. Doubles as the drop target for tree drags. -->
-        <Border Grid.Row="1" Name="CommandDropZone"
-                Classes="sequence-strip" Margin="0,12,0,0">
-            <Grid ColumnDefinitions="Auto,*,Auto">
-
-                <StackPanel Grid.Column="0" VerticalAlignment="Top" Margin="0,0,16,0">
-                    <TextBlock Text="Sequence" FontWeight="SemiBold" />
-                    <TextBlock Classes="hint"
-                               Text="{Binding Commands.Count, StringFormat='{}{0} command(s)'}" />
-                </StackPanel>
-
-                <Panel Grid.Column="1" MinHeight="40">
-                    <ScrollViewer HorizontalScrollBarVisibility="Disabled"
-                                  VerticalScrollBarVisibility="Auto"
-                                  MaxHeight="320">
-                        <ItemsControl Name="CommandList"
-                                      ItemsSource="{Binding Commands}"
-                                      VerticalAlignment="Top"
-                                      PointerMoved="CommandList_PointerMoved"
-                                      PointerReleased="CommandList_PointerReleased"
-                                      PointerCaptureLost="CommandList_PointerCaptureLost">
-                            <ItemsControl.ItemsPanel>
-                                <ItemsPanelTemplate>
-                                    <!-- Chips wrap onto multiple rows; the chain
-                                         still reads left → right, top → bottom in
-                                         execution order. -->
-                                    <WrapPanel Orientation="Horizontal" />
-                                </ItemsPanelTemplate>
-                            </ItemsControl.ItemsPanel>
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate DataType="{x:Type vm:CommandSegment}">
-                                    <!-- Connector gutter + chip. The arrow lives in a
-                                         fixed-width gutter so showing/hiding it never
-                                         re-packs the row; it is hidden on the first chip
-                                         of each wrapped row (ShowConnector, maintained
-                                         from layout in code-behind), which keeps every
-                                         row left-aligned. -->
-                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                        <Panel Width="22">
-                                            <TextBlock Classes="sequence-arrow" Text="&#x2192;"
-                                                       HorizontalAlignment="Center"
-                                                       VerticalAlignment="Center"
-                                                       IsVisible="{Binding ShowConnector}" />
-                                        </Panel>
-                                        <Border Classes="command-chip"
-                                                Classes.dragging="{Binding IsDragging}"
-                                                ToolTip.Tip="{Binding DisplayName}">
-                                            <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto">
-                                                <Border Grid.Column="0" Classes="drag-handle chip-grip"
-                                                        VerticalAlignment="Center"
-                                                        ToolTip.Tip="Drag to reorder"
-                                                        PointerPressed="CommandDragHandle_PointerPressed">
-                                                    <TextBlock Text="&#xF01DB;" />
-                                                </Border>
-
-                                                <Border Grid.Column="1" Classes="chip-index"
-                                                        VerticalAlignment="Center">
-                                                    <TextBlock Text="{Binding Position}" />
-                                                </Border>
-
-                                                <TextBlock Grid.Column="2" Classes="chip-title"
-                                                           Text="{Binding DisplayName}"
-                                                           VerticalAlignment="Center" />
-
-                                                <Button Grid.Column="3" Classes="chip-action"
-                                                        VerticalAlignment="Center"
-                                                        FontFamily="{StaticResource MdiFont}"
-                                                        Content="&#xF0140;"
-                                                        ToolTip.Tip="Edit parameters">
-                                                    <Button.Flyout>
-                                                        <Flyout Placement="Top">
-                                                            <Panel Width="300">
-                                                                <!-- Known command: structured parameter fields -->
-                                                                <StackPanel Spacing="4"
-                                                                            IsVisible="{Binding IsKnown}">
-                                                                    <ItemsControl ItemsSource="{Binding Parameters}">
-                                                                        <ItemsControl.ItemTemplate>
-                                                                            <DataTemplate DataType="{x:Type vm:CommandParameter}">
-                                                                                <Grid ColumnDefinitions="120,*"
-                                                                                      Margin="0,0,0,4">
-                                                                                    <TextBlock Grid.Column="0"
-                                                                                               Classes="editor-label"
-                                                                                               Text="{Binding Name}"
-                                                                                               VerticalAlignment="Center"
-                                                                                               Margin="0,0,10,0" />
-                                                                                    <TextBox Grid.Column="1"
-                                                                                             Text="{Binding Value, Mode=TwoWay}"
-                                                                                             IsVisible="{Binding IsText}" />
-                                                                                    <ComboBox Grid.Column="1"
-                                                                                              HorizontalAlignment="Stretch"
-                                                                                              ItemsSource="{Binding Options}"
-                                                                                              SelectedItem="{Binding Value, Mode=TwoWay}"
-                                                                                              IsVisible="{Binding IsEnum}" />
-                                                                                    <CheckBox Grid.Column="1"
-                                                                                              IsChecked="{Binding BoolValue, Mode=TwoWay}"
-                                                                                              IsVisible="{Binding IsBool}" />
-                                                                                </Grid>
-                                                                            </DataTemplate>
-                                                                        </ItemsControl.ItemTemplate>
-                                                                    </ItemsControl>
-                                                                    <TextBlock Classes="hint"
-                                                                               Text="This command has no parameters."
-                                                                               IsVisible="{Binding !Parameters.Count}" />
-                                                                </StackPanel>
-
-                                                                <!-- Unknown / shell command: single free-text field -->
-                                                                <Grid ColumnDefinitions="120,*"
-                                                                      IsVisible="{Binding !IsKnown}">
-                                                                    <TextBlock Grid.Column="0"
-                                                                               Classes="editor-label"
-                                                                               Text="Command"
-                                                                               VerticalAlignment="Center"
-                                                                               Margin="0,0,10,0" />
-                                                                    <TextBox Grid.Column="1"
-                                                                             Text="{Binding ShellText, Mode=TwoWay}" />
-                                                                </Grid>
-                                                            </Panel>
-                                                        </Flyout>
-                                                    </Button.Flyout>
-                                                </Button>
-
-                                                <Button Grid.Column="4" Classes="chip-action danger"
-                                                        VerticalAlignment="Center"
-                                                        FontFamily="{StaticResource MdiFont}"
-                                                        Content="&#xF01B4;"
-                                                        ToolTip.Tip="Remove command"
-                                                        Click="RemoveCommand_Click" />
-                                            </Grid>
-                                        </Border>
-                                    </StackPanel>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                    </ScrollViewer>
-
-                    <TextBlock Classes="hint" VerticalAlignment="Center"
-                               Text="No commands yet — double-click an entry in the Commands tab to add one, or drag it down here."
-                               IsVisible="{Binding !Commands.Count}" />
-                </Panel>
-
-                <Button Grid.Column="2" Content="Clear"
-                        Command="{Binding ClearCommandCommand}"
-                        IsEnabled="{Binding HasCommand}"
-                        VerticalAlignment="Top"
-                        Margin="16,0,0,0" MinWidth="80"
-                        HorizontalContentAlignment="Center"
-                        ToolTip.Tip="Remove all assigned commands (keeps layers and colors)" />
-            </Grid>
-        </Border>
+        <!-- ===== Bottom: command sequence strips =====
+             One strip for a normal button, three (top/middle/bottom segments) for a
+             FreeDraw side strip. Each strip wraps its chips and grows; the window grows
+             downward with them (SizeToContent). Each is a drop target for tree drags. -->
+        <ItemsControl Grid.Row="1" Name="SlotsHost"
+                      Margin="0,12,0,0"
+                      ItemsSource="{Binding CommandSlots}"
+                      ItemTemplate="{StaticResource SequenceStripTemplate}" />
 
         <!-- ===== Drag ghost =====
              Floating chip that follows the cursor while dragging a command from
