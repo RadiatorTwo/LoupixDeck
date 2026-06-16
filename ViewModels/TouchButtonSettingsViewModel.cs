@@ -88,9 +88,6 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
         OnPropertyChanged(nameof(CanvasSizeText));
         UpdateEditorPreview();
         UpdateSelectionBounds();
-
-        // A narrow strip (60×270) is small at 1:1 — open it fitted to the viewport.
-        if (!_userAdjustedZoom) FitToViewport();
     }
 
     // ───────── Editor zoom ─────────
@@ -119,18 +116,14 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
 
     // Viewport of the scroll area, pushed from the View so Fit can size to it.
     private Avalonia.Size _viewport;
-    private bool _userAdjustedZoom;
 
-    /// <summary>Called by the View when the preview viewport is measured/resized; auto-fits
-    /// until the user manually changes the zoom.</summary>
+    /// <summary>Called by the View when the preview viewport is measured/resized so the
+    /// Fit command knows the available space. Opening does NOT auto-zoom — every canvas
+    /// (touch button or side strip) opens at 100%; the user fits/zooms manually.</summary>
     public void SetViewport(double width, double height)
     {
         if (width <= 0 || height <= 0) return;
-        var changed = Math.Abs(_viewport.Width - width) > 0.5 || Math.Abs(_viewport.Height - height) > 0.5;
         _viewport = new Avalonia.Size(width, height);
-        // Auto-fit only the narrow side-strip canvas; normal buttons keep their natural 1:1
-        // size unless the user clicks Fit (which clears _userAdjustedZoom and re-fits).
-        if (changed && !_userAdjustedZoom && IsStripCanvas) FitToViewport();
     }
 
     private void FitToViewport()
@@ -144,10 +137,10 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
         ZoomFactor = fit;
     }
 
-    private void ZoomIn() { _userAdjustedZoom = true; ZoomFactor *= 1.25; }
-    private void ZoomOut() { _userAdjustedZoom = true; ZoomFactor /= 1.25; }
-    private void ResetZoom() { _userAdjustedZoom = true; ZoomFactor = 1.0; }
-    private void Fit() { _userAdjustedZoom = false; FitToViewport(); }
+    private void ZoomIn() => ZoomFactor *= 1.25;
+    private void ZoomOut() => ZoomFactor /= 1.25;
+    private void ResetZoom() => ZoomFactor = 1.0;
+    private void Fit() => FitToViewport();
 
     public ICommand ZoomInCommand { get; }
     public ICommand ZoomOutCommand { get; }
@@ -586,12 +579,16 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
 
     private void AddTextLayer()
     {
+        // Cap the default box to a compact, square-ish size so a tall surface (e.g. the
+        // 60×270 side strip) doesn't get a text box spanning the whole panel. A normal
+        // 90×90 button is unaffected (min(90,90) = 90).
+        var box = Math.Min(DeviceWidth, DeviceHeight);
         var layer = new TextLayer
         {
             Name = GetUniqueLayerName("Text"),
             Text = "Text",
-            BoxWidth = DeviceWidth,
-            BoxHeight = DeviceHeight
+            BoxWidth = box,
+            BoxHeight = box
         };
         ButtonData.Layers.Add(layer);
         SelectedLayer = layer;

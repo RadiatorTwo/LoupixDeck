@@ -1596,7 +1596,7 @@ public static class BitmapHelper
         {
             using var canvas = new SKCanvas(bitmap);
 
-            DrawStripWallpaperOrColor(canvas, config, side, width, height);
+            DrawStripWallpaperOrColor(canvas, config, side, width, height, SKColors.Black);
 
             var buttons = page.RotaryButtons;
             var count = buttons?.Count ?? 0;
@@ -1709,7 +1709,10 @@ public static class BitmapHelper
         {
             using var skCanvas = new SKCanvas(bitmap);
 
-            DrawStripWallpaperOrColor(skCanvas, config, side, width, height);
+            // No wallpaper → fall back to the canvas's own background colour (default black),
+            // matching touch-button behaviour. Avoids sending a washed-out grey to the device.
+            var fallback = canvas?.BackColor.ToSKColor() ?? SKColors.Black;
+            DrawStripWallpaperOrColor(skCanvas, config, side, width, height, fallback);
 
             if (canvas?.Layers != null)
                 DrawLayers(skCanvas, canvas.Layers, width, height);
@@ -1723,14 +1726,16 @@ public static class BitmapHelper
     /// <summary>
     /// Fills a side strip with its true region of the page wallpaper (left = panel
     /// x 0–60, right = x 420–480), scaled from the stored 480×270 wallpaper, with the
-    /// page's opacity dim on top. Falls back to a solid dark fill when no wallpaper.
+    /// page's opacity dim on top. Falls back to <paramref name="fallbackColor"/> (black,
+    /// or the free-draw canvas's own background) when no wallpaper is set.
     /// </summary>
     private static void DrawStripWallpaperOrColor(
         SKCanvas canvas,
         LoupedeckConfig config,
         RotarySide side,
         int width,
-        int height)
+        int height,
+        SKColor fallbackColor)
     {
         // A dedicated side-display wallpaper overdraws the main wallpaper's region.
         var (sideWallpaper, sideOpacity) = ResolveSideWallpaper(config, side, width, height);
@@ -1750,7 +1755,7 @@ public static class BitmapHelper
 
         if (wallpaper == null)
         {
-            canvas.Clear(new SKColor(20, 20, 20));
+            canvas.Clear(fallbackColor);
             return;
         }
 

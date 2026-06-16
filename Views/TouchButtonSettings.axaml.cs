@@ -1,3 +1,4 @@
+using System;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Shapes;
@@ -57,6 +58,10 @@ public partial class TouchButtonSettings : Window
     // Chip lists already hooked for connector-visibility upkeep (one per realized strip).
     private readonly HashSet<ItemsControl> _hookedChipLists = [];
 
+    // Last observed preview content size, so zoom (which changes it) recenters the view
+    // while panning (which doesn't) is left alone.
+    private Size _lastPreviewExtent;
+
     // Tree node armed for a drag-to-insert; promoted to a real drag once the pointer
     // moves past the threshold (so a click/double-click is not swallowed). We use the
     // same pointer-capture approach as the card reorder rather than the OS drag loop,
@@ -72,12 +77,21 @@ public partial class TouchButtonSettings : Window
         // Re-evaluate which chips start a wrapped row (and thus shouldn't draw a
         // leading arrow) after every layout pass — covers adds, removes, reorders
         // and window/strip resizes that re-wrap the sequence.
-        // Feed the preview viewport size to the VM so "Fit" (and the auto-fit on open)
-        // can scale the canvas to the available space.
+        // Feed the preview viewport size to the VM so "Fit" can scale to the available space.
         PreviewScroll.SizeChanged += (_, _) =>
         {
             if (DataContext is TouchButtonSettingsViewModel vm)
                 vm.SetViewport(PreviewScroll.Bounds.Width, PreviewScroll.Bounds.Height);
+        };
+
+        // Re-center the preview whenever the zoom changes the content size. Zoom changes the
+        // Extent (content grows/shrinks); panning only changes the Offset — so recentering on
+        // Extent changes keeps zoom anchored on the canvas center without fighting user pans.
+        PreviewScroll.LayoutUpdated += (_, _) =>
+        {
+            if (PreviewScroll.Extent == _lastPreviewExtent) return;
+            _lastPreviewExtent = PreviewScroll.Extent;
+            CenterPreview();
         };
 
         // Clicking anywhere inside a sequence strip makes it the double-click-append
@@ -429,6 +443,18 @@ public partial class TouchButtonSettings : Window
         }
 
         return null;
+    }
+
+    /// <summary>Centers the zoomable preview content in the ScrollViewer so zooming grows
+    /// from the canvas center, not the top-left. No-op while content fits (Offset clamps to 0
+    /// and the centered LayoutTransformControl handles alignment).</summary>
+    private void CenterPreview()
+    {
+        var extent = PreviewScroll.Extent;
+        var viewport = PreviewScroll.Viewport;
+        var x = Math.Max(0, (extent.Width - viewport.Width) / 2);
+        var y = Math.Max(0, (extent.Height - viewport.Height) / 2);
+        PreviewScroll.Offset = new Vector(x, y);
     }
 
     private async void ChangeSymbol_Click(object sender, RoutedEventArgs e)
