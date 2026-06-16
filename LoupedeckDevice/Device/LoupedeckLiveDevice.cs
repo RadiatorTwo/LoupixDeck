@@ -10,9 +10,9 @@ namespace LoupixDeck.LoupedeckDevice.Device;
 /// are the same, this simply reuses the Razer implementation and only re-labels the
 /// device identity (<see cref="LoupedeckDevice.Type"/> / <see cref="LoupedeckDevice.ProductId"/>).
 ///
-/// Note: on the original Live the two side displays are NOT touch-capable. The
-/// side-strip rendering (segmented / free-draw) still applies, but strip swipe
-/// paging will not fire — that is expected, not a bug.
+/// The side displays ARE touch-capable on the Live (only Loupedeck's own software
+/// chose not to use them), so the inherited side-strip touch + swipe-paging behaviour
+/// applies unchanged.
 /// </summary>
 public class LoupedeckLiveDevice : RazerStreamControllerDevice
 {
