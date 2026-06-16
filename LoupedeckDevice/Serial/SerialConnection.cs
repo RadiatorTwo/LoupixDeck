@@ -1,4 +1,5 @@
 using System.IO.Ports;
+using System.Security.Cryptography;
 using System.Text;
 
 namespace LoupixDeck.LoupedeckDevice.Serial
@@ -12,13 +13,12 @@ namespace LoupixDeck.LoupedeckDevice.Serial
         /// HTTP request header for the WebSocket upgrade handshake.
         /// </summary>
         private const string WS_UPGRADE_HEADER =
-            @"GET /index.html
-HTTP/1.1
-Connection: Upgrade
-Upgrade: websocket
-Sec-WebSocket-Key: 123abc
-
-";
+            "GET /index.html HTTP/1.1\r\n" +
+            "Connection: Upgrade\r\n" +
+            "Upgrade: websocket\r\n" +
+            "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n" +
+            "Sec-WebSocket-Version: 13\r\n" +
+            "\r\n";
 
         /// <summary>
         /// Partial expected response from the device to confirm the handshake.
@@ -169,32 +169,49 @@ Sec-WebSocket-Key: 123abc
 
             try
             {
-                // Similar to the Node.js code:
-                // - Magic byte 0x82
-                // - Length information, depending on the total size.
-                if (data.Length > 0xFF)
+                // Binary WebSocket frame (opcode 0x2). As a client we MUST mask the
+                // payload (RFC 6455 §5.2/§5.3): a 4-byte mask key follows the length
+                // field and each payload byte is XOR'd with mask[i % 4]. The mask bit
+                // (0x80) is set in the length byte. Newer Loupedeck firmware (>=0.2.26)
+                // rejects unmasked frames, so the whole frame is written in one call.
+                var mask = RandomNumberGenerator.GetBytes(4);
+                var maskedPayload = new byte[data.Length];
+                for (var i = 0; i < data.Length; i++)
+                    maskedPayload[i] = (byte)(data[i] ^ mask[i % 4]);
+
+                byte[] frame;
+                if (data.Length <= 125)
                 {
-                    // 14-byte header:
-                    // [0] = 0x82, [1] = 0xFF, [6..9] = packet length (Big Endian)
-                    var header = new byte[14];
-                    header[0] = 0x82;
-                    header[1] = 0xFF;
-                    WriteUInt32Be(header, 6, (uint)data.Length);
-                    // Adjust the remaining part of the header as needed, if your protocol requires it.
-                    _serialPort?.Write(header, 0, header.Length);
+                    // 2-byte header + 4-byte mask + payload.
+                    frame = new byte[6 + data.Length];
+                    frame[0] = 0x82;
+                    frame[1] = (byte)(0x80 | data.Length);
+                    Buffer.BlockCopy(mask, 0, frame, 2, 4);
+                    Buffer.BlockCopy(maskedPayload, 0, frame, 6, data.Length);
+                }
+                else if (data.Length <= 0xFFFF)
+                {
+                    // 0xFE = masked + 16-bit extended length.
+                    frame = new byte[8 + data.Length];
+                    frame[0] = 0x82;
+                    frame[1] = 0xFE;
+                    frame[2] = (byte)((data.Length >> 8) & 0xFF);
+                    frame[3] = (byte)(data.Length & 0xFF);
+                    Buffer.BlockCopy(mask, 0, frame, 4, 4);
+                    Buffer.BlockCopy(maskedPayload, 0, frame, 8, data.Length);
                 }
                 else
                 {
-                    // 6-byte header:
-                    // [0] = 0x82, [1] = 0x80 + length
-                    var header = new byte[6];
-                    header[0] = 0x82;
-                    header[1] = (byte)(0x80 + data.Length);
-                    _serialPort?.Write(header, 0, header.Length);
+                    // 0xFF = masked + 64-bit extended length.
+                    frame = new byte[14 + data.Length];
+                    frame[0] = 0x82;
+                    frame[1] = 0xFF;
+                    WriteUInt64Be(frame, 2, (ulong)data.Length);
+                    Buffer.BlockCopy(mask, 0, frame, 10, 4);
+                    Buffer.BlockCopy(maskedPayload, 0, frame, 14, data.Length);
                 }
 
-                // Write payload
-                _serialPort?.Write(data, 0, data.Length);
+                _serialPort?.Write(frame, 0, frame.Length);
             }
             catch (Exception ex)
             {
@@ -259,9 +276,15 @@ Sec-WebSocket-Key: 123abc
 
                     // Sending Header
                     _serialPort.BaseStream.Write(buffer, 0, buffer.Length);
+                    _serialPort.BaseStream.Flush();
 
-                    // Read answer
-                    _serialPort.ReadTimeout = 500; // Timeout for the handshake response
+                    // Read answer.
+                    // The first handshake after a (re)start always times out — the initial
+                    // header write wakes/resets the device and it only replies on the second
+                    // attempt. So this timeout is paid in full on every startup; it must stay
+                    // small. When the device DOES reply, Read returns immediately, so the value
+                    // only bounds the wait on the guaranteed-silent first attempt.
+                    _serialPort.ReadTimeout = 250; // Timeout for the handshake response
                     var readBuf = new byte[1024];
                     var responseBuilder = new StringBuilder();
 
@@ -324,7 +347,7 @@ Sec-WebSocket-Key: 123abc
                 //var wakeSignal = Encoding.ASCII.GetBytes("HELO");
                 _serialPort.BaseStream.Write(wakeSignal, 0, wakeSignal.Length);
 
-                // Optional: Kurze Pause, um dem Ger�t Zeit zu geben, zu reagieren
+                // Optional: Kurze Pause, um dem Ger�t Zeit zu geben, zu reagieren
                 Thread.Sleep(100);
             }
             catch (Exception ex)
@@ -391,6 +414,25 @@ Sec-WebSocket-Key: 123abc
             buffer[startIndex + 1] = (byte)((value >> 16) & 0xFF);
             buffer[startIndex + 2] = (byte)((value >> 8) & 0xFF);
             buffer[startIndex + 3] = (byte)(value & 0xFF);
+        }
+
+        /// <summary>
+        /// Writes a 64-bit unsigned integer into the specified buffer using big-endian format.
+        /// Used for WebSocket frames whose payload exceeds 0xFFFF bytes.
+        /// </summary>
+        /// <param name="buffer">The target buffer.</param>
+        /// <param name="startIndex">Position to begin writing in the buffer.</param>
+        /// <param name="value">The 64-bit unsigned integer value.</param>
+        private static void WriteUInt64Be(byte[] buffer, int startIndex, ulong value)
+        {
+            buffer[startIndex] = (byte)((value >> 56) & 0xFF);
+            buffer[startIndex + 1] = (byte)((value >> 48) & 0xFF);
+            buffer[startIndex + 2] = (byte)((value >> 40) & 0xFF);
+            buffer[startIndex + 3] = (byte)((value >> 32) & 0xFF);
+            buffer[startIndex + 4] = (byte)((value >> 24) & 0xFF);
+            buffer[startIndex + 5] = (byte)((value >> 16) & 0xFF);
+            buffer[startIndex + 6] = (byte)((value >> 8) & 0xFF);
+            buffer[startIndex + 7] = (byte)(value & 0xFF);
         }
 
     }

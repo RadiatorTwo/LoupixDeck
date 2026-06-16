@@ -81,7 +81,11 @@ public partial class MainWindow : Window
 
         host.Content = vm.DeviceSlug switch
         {
-            "razer-stream-controller" => new RazerStreamControllerLayout { DataContext = vm },
+            // The Loupedeck Live is hardware-identical to the Razer Stream Controller
+            // (480×270 split display, 4×3 grid, 2 side strips, 6 knobs, 8 LED buttons),
+            // so it reuses the Razer editor layout. The on-screen chassis art is the
+            // Razer body until a dedicated Loupedeck Live SVG is added.
+            "razer-stream-controller" or "loupedeck-live" => new RazerStreamControllerLayout { DataContext = vm },
             _ => new LoupedeckLiveSLayout { DataContext = vm }
         };
     }

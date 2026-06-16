@@ -1588,19 +1588,36 @@ public partial class LoupedeckLiveSController(
     /// </summary>
     private async Task<SimpleButton[]> BuildSimpleButtons()
     {
-        var defaults = new (Constants.ButtonType Id, string Cmd)[]
-        {
-            (Constants.ButtonType.BUTTON0, "System.PreviousPage"),
-            (Constants.ButtonType.BUTTON1, "System.PreviousRotaryPage"),
-            (Constants.ButtonType.BUTTON2, "System.NextRotaryPage"),
-            (Constants.ButtonType.BUTTON3, "System.NextPage"),
-            (Constants.ButtonType.BUTTON4, null),
-            (Constants.ButtonType.BUTTON5, null),
-            (Constants.ButtonType.BUTTON6, null),
-            (Constants.ButtonType.BUTTON7, null)
-        };
-
         var device = deviceService.Device;
+
+        // The Loupedeck Live's eight buttons default to numeric profile (touch-page)
+        // selectors; every other device keeps the classic page-nav layout. Gated on the
+        // concrete Live type — NOT on button count — because the Razer also has eight
+        // buttons and must keep its nav defaults.
+        var defaults = device is LoupedeckDevice.Device.LoupedeckLiveDevice
+            ? new (Constants.ButtonType Id, string Cmd)[]
+            {
+                (Constants.ButtonType.BUTTON0, "System.GotoPage(1)"),
+                (Constants.ButtonType.BUTTON1, "System.GotoPage(2)"),
+                (Constants.ButtonType.BUTTON2, "System.GotoPage(3)"),
+                (Constants.ButtonType.BUTTON3, "System.GotoPage(4)"),
+                (Constants.ButtonType.BUTTON4, "System.GotoPage(5)"),
+                (Constants.ButtonType.BUTTON5, "System.GotoPage(6)"),
+                (Constants.ButtonType.BUTTON6, "System.GotoPage(7)"),
+                (Constants.ButtonType.BUTTON7, "System.NextPage")
+            }
+            : new (Constants.ButtonType Id, string Cmd)[]
+            {
+                (Constants.ButtonType.BUTTON0, "System.PreviousPage"),
+                (Constants.ButtonType.BUTTON1, "System.PreviousRotaryPage"),
+                (Constants.ButtonType.BUTTON2, "System.NextRotaryPage"),
+                (Constants.ButtonType.BUTTON3, "System.NextPage"),
+                (Constants.ButtonType.BUTTON4, null),
+                (Constants.ButtonType.BUTTON5, null),
+                (Constants.ButtonType.BUTTON6, null),
+                (Constants.ButtonType.BUTTON7, null)
+            };
+
         var count = device.Buttons?.Length ?? 0;
         var result = new SimpleButton[count];
         for (var i = 0; i < count && i < defaults.Length; i++)
