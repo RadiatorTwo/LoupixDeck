@@ -1590,11 +1590,10 @@ public partial class LoupedeckLiveSController(
     {
         var device = deviceService.Device;
 
-        // The Loupedeck Live's eight buttons default to numeric profile (touch-page)
-        // selectors; every other device keeps the classic page-nav layout. Gated on the
-        // concrete Live type — NOT on button count — because the Razer also has eight
-        // buttons and must keep its nav defaults.
-        var defaults = device is LoupedeckDevice.Device.LoupedeckLiveDevice
+        // The eight-button devices (Razer Stream Controller and Loupedeck Live, which
+        // subclasses it) default their buttons to numeric profile (touch-page) selectors;
+        // the six-button Live S keeps the classic page-nav layout.
+        var defaults = device is LoupedeckDevice.Device.RazerStreamControllerDevice
             ? new (Constants.ButtonType Id, string Cmd)[]
             {
                 (Constants.ButtonType.BUTTON0, "System.GotoPage(1)"),
