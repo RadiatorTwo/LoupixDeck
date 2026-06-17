@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using Newtonsoft.Json.Linq;
 using LoupixDeck.LoupedeckDevice;
 using LoupixDeck.Models;
 using LoupixDeck.Models.Extensions;
@@ -1740,6 +1741,84 @@ public partial class LoupedeckLiveSController(
                 }
             }
         }
+
+        // The asset folder is shared by EVERY per-device config file
+        // (config_<slug>[_<serial>].json) in the same config dir, but the live
+        // `config` object only represents the active device. Without also honouring
+        // the other devices' configs, this device's startup cleanup would delete
+        // wallpapers/images that are still referenced by another device's config —
+        // even though their AssetPath is intact on disk. Harvest those references too.
+        foreach (var path in HarvestAssetPathsFromOtherConfigs())
+            yield return path;
+    }
+
+    /// <summary>
+    /// Scans sibling config files (all <c>config*.json</c> in the config dir except
+    /// the one this controller owns) and returns every stored asset-relative path
+    /// found anywhere in them. Done as a schema-agnostic string walk (any JSON value
+    /// under the "assets/" prefix) so it stays correct for wallpapers, image layers,
+    /// and any future asset reference without having to mirror the config schema here.
+    /// </summary>
+    private IEnumerable<string> HarvestAssetPathsFromOtherConfigs()
+    {
+        string configDir;
+        try
+        {
+            configDir = FileDialogHelper.GetConfigDir();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Asset cleanup: could not resolve config dir: {ex.Message}");
+            yield break;
+        }
+
+        IEnumerable<string> files;
+        try
+        {
+            files = Directory.EnumerateFiles(configDir, "config*.json", SearchOption.TopDirectoryOnly);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Asset cleanup: could not enumerate config files: {ex.Message}");
+            yield break;
+        }
+
+        foreach (var file in files)
+        {
+            // Skip the active config — its references already came from the live object.
+            if (string.Equals(Path.GetFullPath(file), Path.GetFullPath(_configPath), StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            List<string> harvested;
+            try
+            {
+                var root = JToken.Parse(File.ReadAllText(file)) as JContainer;
+                harvested = (root?.DescendantsAndSelf() ?? Enumerable.Empty<JToken>())
+                    .OfType<JValue>()
+                    .Where(v => v.Type == JTokenType.String)
+                    .Select(v => (string)v.Value)
+                    .Where(IsAssetPath)
+                    .ToList();
+            }
+            catch (Exception ex)
+            {
+                // A corrupt/unreadable sibling config must not abort cleanup — but
+                // it also must not cause its assets to be deleted, so log and skip.
+                Console.WriteLine($"Asset cleanup: skipping unreadable config '{file}': {ex.Message}");
+                continue;
+            }
+
+            foreach (var path in harvested)
+                yield return path;
+        }
+    }
+
+    /// <summary>True when a stored string looks like an asset-folder relative path.</summary>
+    private static bool IsAssetPath(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return false;
+        var normalized = value.Replace('\\', '/').TrimStart('/');
+        return normalized.StartsWith("assets/", StringComparison.OrdinalIgnoreCase);
     }
 
     private CancellationTokenSource _propertyChangedCts;
