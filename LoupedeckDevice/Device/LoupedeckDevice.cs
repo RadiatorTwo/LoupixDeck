@@ -93,6 +93,17 @@ public class LoupedeckDevice
     public event EventHandler<TouchEventArgs> OnTouch;
 
     /// <summary>
+    /// Fired for touches on the Loupedeck CT's centre wheel screen (command bytes
+    /// WHEEL_TOUCH/WHEEL_TOUCH_END, confirmed via hardware trace) — kept separate
+    /// from <see cref="OnTouch"/> because the wheel's coordinate space (0-240) and
+    /// touch-id namespace are independent of the main grid's, and the wheel has no
+    /// dedicated "click" signal: a press shows up as a tight cluster of touch
+    /// start/end events near the screen's centre, which a consumer can detect from
+    /// this event's coordinates rather than from a button code.
+    /// </summary>
+    public event EventHandler<TouchEventArgs> OnWheelTouch;
+
+    /// <summary>
     /// Fired when a vertical swipe is detected on a side strip. Only devices with
     /// <see cref="HasSideStrips"/> raise this; consumers page the matching dial column.
     /// </summary>
@@ -362,6 +373,14 @@ public class LoupedeckDevice
     /// <summary>
     /// Handles incoming data packets, dispatching them based on the command byte.
     /// </summary>
+    // Set LOUPIXDECK_DEBUG_PROTOCOL=1 to log raw incoming frames (button/rotate
+    // byte codes, touch coordinates, and any command byte not in Constants.Command)
+    // straight to the console. Used to map an unfamiliar device's protocol (e.g.
+    // the Loupedeck CT's named buttons and wheel) by pressing each control and
+    // reading the byte off here, instead of needing the vendor's own software.
+    private static readonly bool DebugProtocol =
+        Environment.GetEnvironmentVariable("LOUPIXDECK_DEBUG_PROTOCOL") == "1";
+
     private void OnReceive(byte[] buff)
     {
         if (buff.Length < 3) return;
@@ -370,6 +389,11 @@ public class LoupedeckDevice
         var command = buff[1];
         var transactionId = buff[2];
         var payload = buff.Skip(3).Take(msgLength - 3).ToArray();
+
+        if (DebugProtocol && !Enum.IsDefined(typeof(Constants.Command), command))
+        {
+            Console.WriteLine($"[Protocol] Unrecognized command 0x{command:x2} payload=[{string.Join(",", payload.Select(b => b.ToString("x2")))}]");
+        }
 
         if (_pendingTransactions.TryRemove(transactionId, out var transaction))
         {
@@ -403,6 +427,12 @@ public class LoupedeckDevice
             case (byte)Constants.Command.TOUCH_END:
                 OnTouchReceived(Constants.TouchEventType.TOUCH_END, payload);
                 break;
+            case (byte)Constants.Command.WHEEL_TOUCH:
+                OnWheelTouchReceived(Constants.TouchEventType.TOUCH_START, payload);
+                break;
+            case (byte)Constants.Command.WHEEL_TOUCH_END:
+                OnWheelTouchReceived(Constants.TouchEventType.TOUCH_END, payload);
+                break;
             case (byte)Constants.Command.VERSION:
                 // The version can be handled directly by the return value
                 break;
@@ -416,10 +446,18 @@ public class LoupedeckDevice
     {
         if (buff.Length < 2) return;
         var btn = buff[0];
-
-        if (!Constants.Buttons.TryGetValue(btn, out var id)) return;
-
         var evt = (buff[1] == 0x00) ? Constants.ButtonEventType.BUTTON_DOWN : Constants.ButtonEventType.BUTTON_UP;
+
+        if (!Constants.Buttons.TryGetValue(btn, out var id))
+        {
+            if (DebugProtocol)
+                Console.WriteLine($"[Protocol] BUTTON_PRESS unmapped byte 0x{btn:x2} ({evt})");
+            return;
+        }
+
+        if (DebugProtocol)
+            Console.WriteLine($"[Protocol] BUTTON_PRESS byte 0x{btn:x2} -> {id} ({evt})");
+
         OnButton?.Invoke(this, new ButtonEventArgs { ButtonId = id, EventType = evt });
     }
 
@@ -430,8 +468,18 @@ public class LoupedeckDevice
     {
         if (buff.Length < 2) return;
         var btn = buff[0];
-        if (!Constants.Buttons.TryGetValue(btn, out var id)) return;
         var delta = (sbyte)buff[1];
+
+        if (!Constants.Buttons.TryGetValue(btn, out var id))
+        {
+            if (DebugProtocol)
+                Console.WriteLine($"[Protocol] KNOB_ROTATE unmapped byte 0x{btn:x2} delta={delta}");
+            return;
+        }
+
+        if (DebugProtocol)
+            Console.WriteLine($"[Protocol] KNOB_ROTATE byte 0x{btn:x2} -> {id} delta={delta}");
+
         OnRotate?.Invoke(this, new RotateEventArgs { ButtonId = id, Delta = delta });
     }
 
@@ -444,6 +492,9 @@ public class LoupedeckDevice
         var x = (buff[1] << 8) | buff[2];
         var y = (buff[3] << 8) | buff[4];
         var touchId = buff[5];
+
+        if (DebugProtocol)
+            Console.WriteLine($"[Protocol] {eventType} x={x} y={y} touchId={touchId} raw0=0x{buff[0]:x2}");
 
         var touch = new TouchInfo
         {
@@ -479,6 +530,56 @@ public class LoupedeckDevice
         {
             EventType = eventType,
             Touches = _touches.Values.ToList(),
+            ChangedTouch = touch
+        });
+    }
+
+    // Separate from _touches: the wheel screen has its own touch-id namespace and
+    // coordinate space (0-240), so mixing it into the grid's dictionary could let a
+    // wheel touch and a grid touch with the same firmware-assigned id clobber each
+    // other.
+    private readonly Dictionary<byte, TouchInfo> _wheelTouches = new();
+
+    /// <summary>
+    /// Handles touches on the CT centre wheel's own screen. Coordinates are local
+    /// to that 240x240 display, so this deliberately does NOT call <see cref="GetTarget"/>
+    /// (which maps the main grid's 0-360x270 space) — Target is a fixed "knob"
+    /// marker with no slot index. Click-vs-drag gesture detection is left to the
+    /// consumer (see <see cref="OnWheelTouch"/> doc).
+    /// </summary>
+    private void OnWheelTouchReceived(Constants.TouchEventType eventType, byte[] buff)
+    {
+        if (buff.Length < 6) return;
+        var x = (buff[1] << 8) | buff[2];
+        var y = (buff[3] << 8) | buff[4];
+        var touchId = buff[5];
+
+        if (DebugProtocol)
+            Console.WriteLine($"[Protocol] WHEEL {eventType} x={x} y={y} touchId={touchId} raw0=0x{buff[0]:x2}");
+
+        var touch = new TouchInfo
+        {
+            X = x,
+            Y = y,
+            Id = touchId,
+            Target = new TouchTarget { Screen = "knob", Key = -1 }
+        };
+
+        if (eventType == Constants.TouchEventType.TOUCH_END)
+        {
+            _wheelTouches.Remove(touchId);
+        }
+        else
+        {
+            if (!_wheelTouches.ContainsKey(touchId))
+                eventType = Constants.TouchEventType.TOUCH_START;
+            _wheelTouches[touchId] = touch;
+        }
+
+        OnWheelTouch?.Invoke(this, new TouchEventArgs
+        {
+            EventType = eventType,
+            Touches = _wheelTouches.Values.ToList(),
             ChangedTouch = touch
         });
     }

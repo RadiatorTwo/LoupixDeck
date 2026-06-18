@@ -19,7 +19,28 @@ public static class Constants
         BUTTON4 = 10,
         BUTTON5 = 11,
         BUTTON6 = 12,
-        BUTTON7 = 13
+        BUTTON7 = 13,
+
+        // Loupedeck CT only. The 12 named square buttons plus KNOB_CT (the centre
+        // wheel's rotate identity) — confirmed against real hardware via a serial
+        // trace (LOUPIXDECK_DEBUG_PROTOCOL=1). The wheel has no separate "click"
+        // button code: pressing it shows up as a tight cluster of touch
+        // start/end events near the centre of its own screen (command bytes
+        // 0x52/0x72 — see Command.WHEEL_TOUCH below), not as a BUTTON_PRESS.
+        // Detecting a "click" from that touch cluster is not yet implemented.
+        CT_HOME = 14,
+        CT_UNDO = 15,
+        CT_KEYBOARD = 16,
+        CT_ENTER = 17,
+        CT_SAVE = 18,
+        CT_FN_L = 19,
+        CT_A = 20,
+        CT_B = 21,
+        CT_C = 22,
+        CT_D = 23,
+        CT_FN_R = 24,
+        CT_E = 25,
+        KNOB_CT = 26
     }
 
     public static readonly Dictionary<byte, ButtonType> Buttons = new()
@@ -37,7 +58,24 @@ public static class Constants
         { 0x0b, ButtonType.BUTTON4 },
         { 0x0c, ButtonType.BUTTON5 },
         { 0x0d, ButtonType.BUTTON6 },
-        { 0x0e, ButtonType.BUTTON7 }
+        { 0x0e, ButtonType.BUTTON7 },
+
+        // Confirmed via serial trace on real hardware (2026-06-18).
+        { 0x0f, ButtonType.CT_HOME },
+        { 0x10, ButtonType.CT_UNDO },
+        { 0x11, ButtonType.CT_KEYBOARD },
+        { 0x12, ButtonType.CT_ENTER },
+        { 0x13, ButtonType.CT_SAVE },
+        { 0x14, ButtonType.CT_FN_L },
+        { 0x15, ButtonType.CT_A },
+        { 0x16, ButtonType.CT_B },
+        { 0x17, ButtonType.CT_C },
+        { 0x18, ButtonType.CT_D },
+        { 0x19, ButtonType.CT_FN_R },
+        { 0x1a, ButtonType.CT_E },
+        // The wheel's KNOB_ROTATE frames report button-byte 0x00 (confirmed via
+        // trace) — not 0x1b as originally guessed from the community drivers.
+        { 0x00, ButtonType.KNOB_CT }
     };
 
     public const int ConnectionTimeout = 3000;
@@ -60,7 +98,14 @@ public static class Constants
         MCU = 0x0d,
         DRAW = 0x0f,
         TOUCH = 0x4d,
-        TOUCH_END = 0x6d
+        TOUCH_END = 0x6d,
+
+        // Loupedeck CT only: the centre wheel's own 240x240 touchscreen reports
+        // touch start/move and end on these bytes instead of TOUCH/TOUCH_END —
+        // confirmed via serial trace on real hardware (2026-06-18). Payload format
+        // is identical to TOUCH/TOUCH_END (x/y/touchId).
+        WHEEL_TOUCH = 0x52,
+        WHEEL_TOUCH_END = 0x72
     }
 
     // Vibration patterns map directly to effect IDs in the DRV2605 haptic chip
