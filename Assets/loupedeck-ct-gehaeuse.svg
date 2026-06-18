@@ -1,0 +1,14 @@
+<!-- Placeholder chassis art for the Loupedeck CT — a flat shape, not a baked product
+     photo like the other devices' *-gehaeuse.svg (see tools/BodyTextureBaker). No CT
+     product photo was available while adding this device; replace with a baked
+     texture once one is. ViewBox matches LoupedeckCtLayout.axaml's 900x760 Grid. -->
+<svg viewBox="0 0 900 760" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+        <filter id="bodyShadow" x="-25%" y="-25%" width="150%" height="160%">
+            <feDropShadow dx="0" dy="8" stdDeviation="14" flood-color="#000000" flood-opacity="0.45"/>
+        </filter>
+    </defs>
+    <g filter="url(#bodyShadow)">
+        <rect x="60" y="40" width="780" height="690" rx="42" ry="42" fill="#151414"/>
+    </g>
+</svg>

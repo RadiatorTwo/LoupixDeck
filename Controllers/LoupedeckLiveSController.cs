@@ -1165,6 +1165,8 @@ public partial class LoupedeckLiveSController(
             case Constants.ButtonType.KNOB_TR: index = 3; return true;
             case Constants.ButtonType.KNOB_CR: index = 4; return true;
             case Constants.ButtonType.KNOB_BR: index = 5; return true;
+            // Loupedeck CT's centre wheel is a 7th rotary, slotted after the 6 side dials.
+            case Constants.ButtonType.KNOB_CT: index = 6; return true;
             default: index = -1; return false;
         }
     }
@@ -1584,12 +1586,53 @@ public partial class LoupedeckLiveSController(
     /// <summary>
     /// Builds the SimpleButton array sized to the active device's physical button count.
     /// The first four slots get the page-navigation defaults that existed for the Live S;
-    /// any additional slots (e.g. Razer's BUTTON4–BUTTON7) are created blank for the
-    /// user to assign — preserves saved bindings via SimpleButtonExtensions.FindById.
+    /// any additional slots (e.g. Razer's BUTTON4–BUTTON7, the CT's 12 named buttons) are
+    /// created blank for the user to assign — preserves saved bindings via
+    /// SimpleButtonExtensions.FindById.
     /// </summary>
     private async Task<SimpleButton[]> BuildSimpleButtons()
     {
         var device = deviceService.Device;
+
+        // The Loupedeck CT has 8 round + 12 named square buttons (20 total, sized via
+        // its own Buttons[] in LoupedeckCtDevice) — give the 8 round ones the same
+        // numeric-page-selector defaults as Razer/Live, and leave the 12 named ones
+        // blank since their physical labels (home/undo/save/...) don't map to an
+        // obvious default command.
+        if (device is LoupedeckDevice.Device.LoupedeckCtDevice)
+        {
+            var ctDefaults = new (Constants.ButtonType Id, string Cmd)[]
+            {
+                (Constants.ButtonType.BUTTON0, "System.GotoPage(1)"),
+                (Constants.ButtonType.BUTTON1, "System.GotoPage(2)"),
+                (Constants.ButtonType.BUTTON2, "System.GotoPage(3)"),
+                (Constants.ButtonType.BUTTON3, "System.GotoPage(4)"),
+                (Constants.ButtonType.BUTTON4, "System.GotoPage(5)"),
+                (Constants.ButtonType.BUTTON5, "System.GotoPage(6)"),
+                (Constants.ButtonType.BUTTON6, "System.GotoPage(7)"),
+                (Constants.ButtonType.BUTTON7, "System.NextPage"),
+                (Constants.ButtonType.CT_HOME, null),
+                (Constants.ButtonType.CT_UNDO, null),
+                (Constants.ButtonType.CT_KEYBOARD, null),
+                (Constants.ButtonType.CT_ENTER, null),
+                (Constants.ButtonType.CT_SAVE, null),
+                (Constants.ButtonType.CT_FN_L, null),
+                (Constants.ButtonType.CT_A, null),
+                (Constants.ButtonType.CT_B, null),
+                (Constants.ButtonType.CT_C, null),
+                (Constants.ButtonType.CT_D, null),
+                (Constants.ButtonType.CT_FN_R, null),
+                (Constants.ButtonType.CT_E, null)
+            };
+
+            var ctCount = device.Buttons?.Length ?? 0;
+            var ctResult = new SimpleButton[ctCount];
+            for (var i = 0; i < ctCount && i < ctDefaults.Length; i++)
+            {
+                ctResult[i] = await CreateSimpleButton(ctDefaults[i].Id, Avalonia.Media.Colors.Blue, ctDefaults[i].Cmd ?? string.Empty);
+            }
+            return ctResult;
+        }
 
         // The eight-button devices (Razer Stream Controller and Loupedeck Live, which
         // subclasses it) default their buttons to numeric profile (touch-page) selectors;
