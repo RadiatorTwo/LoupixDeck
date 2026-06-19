@@ -216,6 +216,59 @@ public class MouseStep : MacroStep
     };
 }
 
+/// <summary>
+/// Marks the start of a repeated block. Every step up to the matching
+/// <see cref="RepeatEndStep"/> runs <see cref="Count"/> times, with an optional
+/// delay between iterations. Markers are matched by order (nesting supported);
+/// an unmatched start simply runs its body to the end of the macro once.
+/// </summary>
+public class RepeatStartStep : MacroStep
+{
+    private int _count = 2;
+
+    /// <summary>Number of times the block runs (clamped to at least 1 at execution time).</summary>
+    public int Count
+    {
+        get => _count;
+        set
+        {
+            if (_count == value) return;
+            _count = value;
+            OnValueChanged();
+        }
+    }
+
+    private int _loopDelayMilliseconds;
+
+    /// <summary>Optional pause inserted between iterations (not after the last one).</summary>
+    public int LoopDelayMilliseconds
+    {
+        get => _loopDelayMilliseconds;
+        set
+        {
+            if (_loopDelayMilliseconds == value) return;
+            _loopDelayMilliseconds = value;
+            OnValueChanged();
+        }
+    }
+
+    public override MacroStepType StepType => MacroStepType.RepeatStart;
+    public override string Icon => Glyph(0xF0456); // mdi-repeat
+    public override string TypeText => "Repeat Start";
+
+    public override string ValueText =>
+        LoopDelayMilliseconds > 0 ? $"{Count}×  (+{LoopDelayMilliseconds} ms)" : $"{Count}×";
+}
+
+/// <summary>Marks the end of the block opened by the nearest open <see cref="RepeatStartStep"/>.</summary>
+public class RepeatEndStep : MacroStep
+{
+    public override MacroStepType StepType => MacroStepType.RepeatEnd;
+    public override string Icon => Glyph(0xF0457); // mdi-repeat-off
+    public override string TypeText => "Repeat End";
+    public override string ValueText => string.Empty;
+}
+
 /// <summary>Runs an arbitrary LoupixDeck command string or shell command.</summary>
 public class CommandStep : MacroStep
 {

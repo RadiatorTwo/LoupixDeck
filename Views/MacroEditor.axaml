@@ -206,6 +206,9 @@
                                     <MenuItem Header="Delay" Tag="Delay" Click="AddStepMenu_Click" />
                                     <MenuItem Header="Mouse" Tag="Mouse" Click="AddStepMenu_Click" />
                                     <MenuItem Header="Command" Tag="Command" Click="AddStepMenu_Click" />
+                                    <Separator />
+                                    <MenuItem Header="Repeat Start" Tag="RepeatStart" Click="AddStepMenu_Click" />
+                                    <MenuItem Header="Repeat End" Tag="RepeatEnd" Click="AddStepMenu_Click" />
                                 </MenuFlyout>
                             </Button.Flyout>
                         </Button>
@@ -486,6 +489,36 @@
                                                                         </TreeView>
                                                                     </Expander>
                                                                 </StackPanel>
+                                                            </DataTemplate>
+
+                                                            <DataTemplate DataType="{x:Type macros:RepeatStartStep}">
+                                                                <StackPanel Spacing="6">
+                                                                    <Grid ColumnDefinitions="Auto,140,Auto,Auto,140,Auto">
+                                                                        <TextBlock Grid.Column="0" Classes="editor-label"
+                                                                                   Text="Repeat" Margin="0,0,10,0" />
+                                                                        <NumericUpDown Grid.Column="1"
+                                                                                       Minimum="1" Maximum="100000"
+                                                                                       Increment="1" FormatString="0"
+                                                                                       Value="{Binding Count, Mode=TwoWay}" />
+                                                                        <TextBlock Grid.Column="2" Classes="editor-label"
+                                                                                   Text="times" Margin="8,0,20,0" />
+                                                                        <TextBlock Grid.Column="3" Classes="editor-label"
+                                                                                   Text="Loop delay" Margin="0,0,10,0" />
+                                                                        <NumericUpDown Grid.Column="4"
+                                                                                       Minimum="0" Maximum="600000"
+                                                                                       Increment="50" FormatString="0"
+                                                                                       Value="{Binding LoopDelayMilliseconds, Mode=TwoWay}" />
+                                                                        <TextBlock Grid.Column="5" Classes="editor-label"
+                                                                                   Text="ms" Margin="8,0,0,0" />
+                                                                    </Grid>
+                                                                    <TextBlock Classes="hint"
+                                                                               Text="Steps between this and the matching Repeat End run the given number of times. Loop delay pauses between iterations." />
+                                                                </StackPanel>
+                                                            </DataTemplate>
+
+                                                            <DataTemplate DataType="{x:Type macros:RepeatEndStep}">
+                                                                <TextBlock Classes="hint"
+                                                                           Text="Ends the block opened by the nearest Repeat Start above." />
                                                             </DataTemplate>
 
                                                         </ContentControl.DataTemplates>

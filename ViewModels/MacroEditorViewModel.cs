@@ -229,6 +229,8 @@ public class MacroEditorViewModel : DialogViewModelBase<DialogResult>, IAsyncIni
             MacroStepType.KeyUp => new KeyUpStep(),
             MacroStepType.Mouse => new MouseStep(),
             MacroStepType.Command => new CommandStep(),
+            MacroStepType.RepeatStart => new RepeatStartStep(),
+            MacroStepType.RepeatEnd => new RepeatEndStep(),
             _ => null
         };
 
@@ -435,6 +437,8 @@ public class MacroEditorViewModel : DialogViewModelBase<DialogResult>, IAsyncIni
         DelayStep d => $"{d.Milliseconds} ms",
         KeyDownStep kd => $"↓{kd.Key}",
         KeyUpStep ku => $"↑{ku.Key}",
+        RepeatStartStep rs => $"Repeat {rs.Count}× [",
+        RepeatEndStep => "]",
         _ => step.ValueText is { Length: > 0 } v ? Truncate(v) : step.TypeText
     };
 

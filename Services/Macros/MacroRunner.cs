@@ -23,7 +23,18 @@ public class MacroRunner
         _commandService = commandService;
     }
 
-    public async Task Run(Macro macro)
+    // Hard cap on total executed steps so a runaway/huge repeat count can never hang forever.
+    private const int MaxExecutedSteps = 100_000;
+
+    // One active Repeat block. Mutable so the interpreter can decrement Remaining in place.
+    private sealed class LoopFrame
+    {
+        public int StartIndex;
+        public int Remaining;
+        public int LoopDelayMs;
+    }
+
+    public async Task Run(Macro macro, CancellationToken cancellationToken = default)
     {
         if (macro == null)
         {
@@ -31,18 +42,67 @@ public class MacroRunner
             return;
         }
 
-        foreach (var step in macro.Steps)
-        {
-            if (step == null) continue;
+        // Snapshot the steps so concurrent edits in the editor can't shift indices mid-run.
+        var steps = macro.Steps.ToList();
+        var frames = new Stack<LoopFrame>();
+        var executed = 0;
 
-            try
-            {
-                await ExecuteStep(step);
-            }
-            catch (Exception ex)
+        for (var i = 0; i < steps.Count; i++)
+        {
+            if (cancellationToken.IsCancellationRequested)
+                break;
+
+            if (++executed > MaxExecutedSteps)
             {
                 Console.Error.WriteLine(
-                    $"[MacroRunner] Step '{step.TypeText}' in macro '{macro.Name}' failed: {ex.Message}");
+                    $"[MacroRunner] Macro '{macro.Name}' exceeded {MaxExecutedSteps} steps — aborting (possible runaway repeat).");
+                break;
+            }
+
+            var step = steps[i];
+            if (step == null) continue;
+
+            switch (step)
+            {
+                case RepeatStartStep repeatStart:
+                    frames.Push(new LoopFrame
+                    {
+                        StartIndex = i,
+                        Remaining = Math.Max(1, repeatStart.Count),
+                        LoopDelayMs = repeatStart.LoopDelayMilliseconds
+                    });
+                    break;
+
+                case RepeatEndStep:
+                    // Unmatched end → ignore. Otherwise loop back until the frame is spent.
+                    if (frames.Count > 0)
+                    {
+                        var frame = frames.Peek();
+                        frame.Remaining--;
+                        if (frame.Remaining > 0)
+                        {
+                            if (frame.LoopDelayMs > 0)
+                                await Delay(frame.LoopDelayMs);
+                            i = frame.StartIndex; // for-loop's i++ resumes just after the start marker
+                        }
+                        else
+                        {
+                            frames.Pop();
+                        }
+                    }
+                    break;
+
+                default:
+                    try
+                    {
+                        await ExecuteStep(step);
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.Error.WriteLine(
+                            $"[MacroRunner] Step '{step.TypeText}' in macro '{macro.Name}' failed: {ex.Message}");
+                    }
+                    break;
             }
         }
     }
