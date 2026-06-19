@@ -9,12 +9,12 @@
     xmlns:models="using:LoupixDeck.Models"
     x:DataType="vm:MacroEditorViewModel"
     Title="Macro Editor"
-    Width="980"
-    Height="700"
+    Width="1280"
+    Height="760"
     mc:Ignorable="d"
     CanResize="True"
-    MinWidth="820"
-    MinHeight="560">
+    MinWidth="1100"
+    MinHeight="620">
 
     <Window.Styles>
         <StyleInclude Source="avares://LoupixDeck/Views/Styles/SettingsStyles.axaml" />
@@ -131,8 +131,8 @@
         <!-- Title -->
         <TextBlock Grid.Row="0" Classes="page-title" Text="Macro Editor" />
 
-        <!-- Main content: macro list | step editor -->
-        <Grid Grid.Row="1" ColumnDefinitions="260,*">
+        <!-- Main content: macro list | step editor | sequence preview -->
+        <Grid Grid.Row="1" ColumnDefinitions="260,*,320">
 
             <!-- Left: macro list -->
             <Border Grid.Column="0" Classes="card" Margin="0,0,12,0" Padding="10">
@@ -169,10 +169,10 @@
                 </Grid>
             </Border>
 
-            <!-- Right: steps of the selected macro -->
-            <Border Grid.Column="1" Classes="card" Margin="0" Padding="14"
+            <!-- Middle: steps of the selected macro -->
+            <Border Grid.Column="1" Classes="card" Margin="0,0,12,0" Padding="14"
                     IsVisible="{Binding HasSelectedMacro}">
-                <Grid RowDefinitions="Auto,Auto,Auto,Auto,*">
+                <Grid RowDefinitions="Auto,Auto,Auto,*">
 
                     <!-- Name -->
                     <Grid Grid.Row="0" RowDefinitions="Auto,Auto" ColumnDefinitions="Auto,*" Margin="0,0,0,10">
@@ -211,16 +211,8 @@
                         </Button>
                     </Grid>
 
-                    <!-- Compact sequence preview -->
-                    <Border Grid.Row="2" Classes="step-panel" Margin="0,0,0,8" Padding="10,6"
-                            IsVisible="{Binding SelectedMacro.Steps.Count}">
-                        <TextBlock Classes="step-value" TextTrimming="CharacterEllipsis"
-                                   ToolTip.Tip="{Binding MacroPreview}"
-                                   Text="{Binding MacroPreview}" />
-                    </Border>
-
                     <!-- Bulk action toolbar: permanent select row, bulk actions below -->
-                    <StackPanel Grid.Row="3" Orientation="Vertical" Margin="0,0,0,4"
+                    <StackPanel Grid.Row="2" Orientation="Vertical" Margin="0,0,0,4"
                                 IsVisible="{Binding SelectedMacro.Steps.Count}">
                         <StackPanel.Styles>
                             <Style Selector="WrapPanel > Button">
@@ -269,7 +261,7 @@
                     </StackPanel>
 
                     <!-- Step list -->
-                    <ScrollViewer Grid.Row="4"
+                    <ScrollViewer Grid.Row="3"
                                   VerticalScrollBarVisibility="Auto"
                                   HorizontalScrollBarVisibility="Disabled">
                         <StackPanel>
@@ -511,6 +503,29 @@
                                        Text="No steps yet — use “Add Step” to build the macro. Drag the handle on the right of a step to reorder."
                                        IsVisible="{Binding !SelectedMacro.Steps.Count}" />
                         </StackPanel>
+                    </ScrollViewer>
+                </Grid>
+            </Border>
+
+            <!-- Right: full sequence preview (wraps, scrolls) -->
+            <Border Grid.Column="2" Classes="card" Margin="0" Padding="14"
+                    IsVisible="{Binding HasSelectedMacro}">
+                <Grid RowDefinitions="Auto,*">
+                    <TextBlock Grid.Row="0" Classes="card-title" Text="Preview" Margin="0,0,0,8" />
+
+                    <ScrollViewer Grid.Row="1"
+                                  VerticalScrollBarVisibility="Auto"
+                                  HorizontalScrollBarVisibility="Disabled">
+                        <Panel>
+                            <TextBlock Classes="step-value"
+                                       TextWrapping="Wrap"
+                                       LineHeight="22"
+                                       Text="{Binding MacroPreview}"
+                                       IsVisible="{Binding SelectedMacro.Steps.Count}" />
+                            <TextBlock Classes="hint"
+                                       Text="No steps yet."
+                                       IsVisible="{Binding !SelectedMacro.Steps.Count}" />
+                        </Panel>
                     </ScrollViewer>
                 </Grid>
             </Border>
