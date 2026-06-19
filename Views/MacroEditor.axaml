@@ -516,8 +516,9 @@
                     <ScrollViewer Grid.Row="1"
                                   VerticalScrollBarVisibility="Auto"
                                   HorizontalScrollBarVisibility="Disabled">
-                        <Panel>
+                        <StackPanel VerticalAlignment="Top">
                             <TextBlock Classes="step-value"
+                                       VerticalAlignment="Top"
                                        TextWrapping="Wrap"
                                        LineHeight="22"
                                        Text="{Binding MacroPreview}"
@@ -525,7 +526,7 @@
                             <TextBlock Classes="hint"
                                        Text="No steps yet."
                                        IsVisible="{Binding !SelectedMacro.Steps.Count}" />
-                        </Panel>
+                        </StackPanel>
                     </ScrollViewer>
                 </Grid>
             </Border>
