@@ -81,6 +81,11 @@ public static class ServiceCollectionExtensions
         // User-defined macros: in-memory store (macros.json), shared across devices.
         collection.AddSingleton<IMacroManager, MacroManager>();
 
+        // App-global macro cancellation: per-device runners register here so the global
+        // stop hotkey (a single process-wide listener) can cancel macros on every device.
+        collection.AddSingleton<IMacroStopCoordinator, MacroStopCoordinator>();
+        collection.AddSingleton<IMacroStopHotkeyService, MacroStopHotkeyService>();
+
         // Runtime USB hot-plug (issue #116 phase 3b): the OS-native watcher signals
         // topology changes; the manager diffs them against the running device set and
         // raises attach/detach events App turns into provider/VM bring-up + teardown.
@@ -281,6 +286,9 @@ public static class ServiceCollectionExtensions
     {
         // Load user macros once — execution and menus read from memory afterwards.
         root.GetRequiredService<IMacroManager>().Load();
+
+        // Begin listening for the global stop hotkey (no-op until one is configured).
+        root.GetRequiredService<IMacroStopHotkeyService>().Start();
 
         // Let the (static) bitmap renderer resolve image-layer assets via DI.
         var assetService = root.GetRequiredService<IAssetService>();

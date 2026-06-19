@@ -10,17 +10,28 @@ namespace LoupixDeck.Services.Macros;
 /// its own try/catch so a faulty step (unknown key, failing command) does not abort
 /// the rest of the macro.
 /// </summary>
-public class MacroRunner
+public class MacroRunner : IDisposable
 {
     private readonly IUInputKeyboard _keyboard;
     private readonly IVirtualMouse _mouse;
     private readonly ICommandService _commandService;
+    private readonly IMacroStopCoordinator _stopCoordinator;
 
-    public MacroRunner(IUInputKeyboard keyboard, IVirtualMouse mouse, ICommandService commandService)
+    public MacroRunner(IUInputKeyboard keyboard, IVirtualMouse mouse, ICommandService commandService,
+        IMacroStopCoordinator stopCoordinator)
     {
         _keyboard = keyboard;
         _mouse = mouse;
         _commandService = commandService;
+        _stopCoordinator = stopCoordinator;
+
+        // Join the app-global registry so the global stop hotkey can reach this runner.
+        _stopCoordinator.Register(this);
+    }
+
+    public void Dispose()
+    {
+        _stopCoordinator.Unregister(this);
     }
 
     // Cancellation tokens of every in-flight Run, so CancelAll() can stop them all.

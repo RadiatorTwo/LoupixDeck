@@ -167,6 +167,23 @@ public class MacroEditorViewModel : DialogViewModelBase<DialogResult>, IAsyncIni
 
     public string RecordButtonText => IsRecording ? "Stop Recording" : "Record";
 
+    /// <summary>
+    /// App-global hotkey (e.g. "Ctrl+Alt+Esc") that cancels all running macros; empty = off.
+    /// Bound directly to the shared macro store, so it persists immediately.
+    /// </summary>
+    public string StopHotkey
+    {
+        get => _macroManager.StopHotkey;
+        set
+        {
+            var normalized = value?.Trim() ?? string.Empty;
+            if (_macroManager.StopHotkey == normalized)
+                return;
+            _macroManager.StopHotkey = normalized; // persists + reconfigures the hotkey service
+            OnPropertyChanged();
+        }
+    }
+
     private bool _captureRecordedDelays = true;
 
     /// <summary>When on, gaps between recorded key events become Delay steps.</summary>

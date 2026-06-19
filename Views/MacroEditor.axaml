@@ -136,7 +136,7 @@
 
             <!-- Left: macro list -->
             <Border Grid.Column="0" Classes="card" Margin="0,0,12,0" Padding="10">
-                <Grid RowDefinitions="Auto,*,Auto">
+                <Grid RowDefinitions="Auto,*,Auto,Auto">
                     <TextBlock Grid.Row="0" Classes="card-title" Text="Macros" />
 
                     <ListBox Grid.Row="1"
@@ -166,6 +166,15 @@
                                 IsEnabled="{Binding HasSelectedMacro}"
                                 Command="{Binding RemoveMacroCommand}" />
                     </Grid>
+
+                    <!-- Global stop hotkey -->
+                    <StackPanel Grid.Row="3" Spacing="4" Margin="0,12,0,0">
+                        <TextBlock Classes="editor-label" Text="Global stop hotkey" />
+                        <TextBox Text="{Binding StopHotkey, Mode=TwoWay}"
+                                 PlaceholderText="e.g. Ctrl+Alt+Esc (empty = off)" />
+                        <TextBlock Classes="hint"
+                                   Text="Cancels all running macros from anywhere. Key names joined with '+'." />
+                    </StackPanel>
                 </Grid>
             </Border>
 
