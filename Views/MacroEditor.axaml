@@ -328,14 +328,21 @@
 
                                                             <DataTemplate DataType="{x:Type macros:KeyCombinationStep}">
                                                                 <StackPanel Spacing="4">
-                                                                    <Grid ColumnDefinitions="Auto,*">
+                                                                    <Grid ColumnDefinitions="Auto,*,Auto">
                                                                         <TextBlock Grid.Column="0" Classes="editor-label"
                                                                                    Text="Keys" Margin="0,0,10,0" />
                                                                         <TextBox Grid.Column="1"
                                                                                  Text="{Binding Keys, Mode=TwoWay}" />
+                                                                        <ToggleButton Grid.Column="2" Margin="8,0,0,0"
+                                                                                      Content="⌨ Capture"
+                                                                                      ToolTip.Tip="Press the key combination to assign it"
+                                                                                      IsCheckedChanged="CaptureToggle_IsCheckedChanged"
+                                                                                      KeyDown="Capture_KeyDown"
+                                                                                      KeyUp="Capture_KeyUp"
+                                                                                      LostFocus="Capture_LostFocus" />
                                                                     </Grid>
                                                                     <TextBlock Classes="hint"
-                                                                               Text="Key names joined with '+', e.g. Ctrl+Shift+Esc or Tab or Enter." />
+                                                                               Text="Key names joined with '+', e.g. Ctrl+Shift+Esc or Tab or Enter. Or click Capture and press the keys." />
                                                                 </StackPanel>
                                                             </DataTemplate>
 
@@ -354,11 +361,18 @@
 
                                                             <DataTemplate DataType="{x:Type macros:KeyDownStep}">
                                                                 <StackPanel Spacing="4">
-                                                                    <Grid ColumnDefinitions="Auto,*">
+                                                                    <Grid ColumnDefinitions="Auto,*,Auto">
                                                                         <TextBlock Grid.Column="0" Classes="editor-label"
                                                                                    Text="Key" Margin="0,0,10,0" />
                                                                         <TextBox Grid.Column="1"
                                                                                  Text="{Binding Key, Mode=TwoWay}" />
+                                                                        <ToggleButton Grid.Column="2" Margin="8,0,0,0"
+                                                                                      Content="⌨ Capture"
+                                                                                      ToolTip.Tip="Press a key to assign it"
+                                                                                      IsCheckedChanged="CaptureToggle_IsCheckedChanged"
+                                                                                      KeyDown="Capture_KeyDown"
+                                                                                      KeyUp="Capture_KeyUp"
+                                                                                      LostFocus="Capture_LostFocus" />
                                                                     </Grid>
                                                                     <TextBlock Classes="hint"
                                                                                Text="Single key name to hold down, e.g. Shift, Ctrl, A. Release it with a Key Up step." />
@@ -367,11 +381,18 @@
 
                                                             <DataTemplate DataType="{x:Type macros:KeyUpStep}">
                                                                 <StackPanel Spacing="4">
-                                                                    <Grid ColumnDefinitions="Auto,*">
+                                                                    <Grid ColumnDefinitions="Auto,*,Auto">
                                                                         <TextBlock Grid.Column="0" Classes="editor-label"
                                                                                    Text="Key" Margin="0,0,10,0" />
                                                                         <TextBox Grid.Column="1"
                                                                                  Text="{Binding Key, Mode=TwoWay}" />
+                                                                        <ToggleButton Grid.Column="2" Margin="8,0,0,0"
+                                                                                      Content="⌨ Capture"
+                                                                                      ToolTip.Tip="Press a key to assign it"
+                                                                                      IsCheckedChanged="CaptureToggle_IsCheckedChanged"
+                                                                                      KeyDown="Capture_KeyDown"
+                                                                                      KeyUp="Capture_KeyUp"
+                                                                                      LostFocus="Capture_LostFocus" />
                                                                     </Grid>
                                                                     <TextBlock Classes="hint"
                                                                                Text="Single key name to release, e.g. Shift, Ctrl, A." />
