@@ -532,26 +532,30 @@
 
                                                             <DataTemplate DataType="{x:Type macros:RepeatStartStep}">
                                                                 <StackPanel Spacing="6">
-                                                                    <Grid ColumnDefinitions="Auto,140,Auto,Auto,140,Auto">
+                                                                    <Grid ColumnDefinitions="Auto,140,Auto,Auto,Auto,140,Auto">
                                                                         <TextBlock Grid.Column="0" Classes="editor-label"
                                                                                    Text="Repeat" Margin="0,0,10,0" />
                                                                         <NumericUpDown Grid.Column="1"
                                                                                        Minimum="1" Maximum="100000"
                                                                                        Increment="1" FormatString="0"
+                                                                                       IsEnabled="{Binding !Infinite}"
                                                                                        Value="{Binding Count, Mode=TwoWay}" />
                                                                         <TextBlock Grid.Column="2" Classes="editor-label"
                                                                                    Text="times" Margin="8,0,20,0" />
-                                                                        <TextBlock Grid.Column="3" Classes="editor-label"
+                                                                        <CheckBox Grid.Column="3" Content="∞ Infinite" Margin="0,0,20,0"
+                                                                                  ToolTip.Tip="Repeat forever until stopped (Stop command / hotkey)"
+                                                                                  IsChecked="{Binding Infinite, Mode=TwoWay}" />
+                                                                        <TextBlock Grid.Column="4" Classes="editor-label"
                                                                                    Text="Loop delay" Margin="0,0,10,0" />
-                                                                        <NumericUpDown Grid.Column="4"
+                                                                        <NumericUpDown Grid.Column="5"
                                                                                        Minimum="0" Maximum="600000"
                                                                                        Increment="50" FormatString="0"
                                                                                        Value="{Binding LoopDelayMilliseconds, Mode=TwoWay}" />
-                                                                        <TextBlock Grid.Column="5" Classes="editor-label"
+                                                                        <TextBlock Grid.Column="6" Classes="editor-label"
                                                                                    Text="ms" Margin="8,0,0,0" />
                                                                     </Grid>
                                                                     <TextBlock Classes="hint"
-                                                                               Text="Steps between this and the matching Repeat End run the given number of times. Loop delay pauses between iterations." />
+                                                                               Text="Steps between this and the matching Repeat End repeat. Use Infinite + a Stop command/hotkey for endless loops; loop delay pauses between iterations." />
                                                                 </StackPanel>
                                                             </DataTemplate>
 

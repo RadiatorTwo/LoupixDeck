@@ -252,12 +252,35 @@ public class RepeatStartStep : MacroStep
         }
     }
 
+    private bool _infinite;
+
+    /// <summary>
+    /// When true the block repeats forever (until the macro is stopped via the Stop
+    /// command or global hotkey), ignoring <see cref="Count"/>.
+    /// </summary>
+    public bool Infinite
+    {
+        get => _infinite;
+        set
+        {
+            if (_infinite == value) return;
+            _infinite = value;
+            OnValueChanged();
+        }
+    }
+
     public override MacroStepType StepType => MacroStepType.RepeatStart;
     public override string Icon => Glyph(0xF0456); // mdi-repeat
     public override string TypeText => "Repeat Start";
 
-    public override string ValueText =>
-        LoopDelayMilliseconds > 0 ? $"{Count}×  (+{LoopDelayMilliseconds} ms)" : $"{Count}×";
+    public override string ValueText
+    {
+        get
+        {
+            var count = Infinite ? "∞" : $"{Count}×";
+            return LoopDelayMilliseconds > 0 ? $"{count}  (+{LoopDelayMilliseconds} ms)" : count;
+        }
+    }
 }
 
 /// <summary>Marks the end of the block opened by the nearest open <see cref="RepeatStartStep"/>.</summary>

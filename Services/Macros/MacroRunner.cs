@@ -70,6 +70,7 @@ public class MacroRunner : IDisposable
         public int StartIndex;
         public int Remaining;
         public int LoopDelayMs;
+        public bool Infinite;
     }
 
     public async Task Run(Macro macro, CancellationToken cancellationToken = default)
@@ -107,7 +108,9 @@ public class MacroRunner : IDisposable
             if (token.IsCancellationRequested)
                 break;
 
-            if (++executed > MaxExecutedSteps)
+            // The step cap guards against accidental runaway finite repeats. A deliberate
+            // infinite loop is exempt — it runs until the user stops it (Stop command/hotkey).
+            if (!frames.Any(f => f.Infinite) && ++executed > MaxExecutedSteps)
             {
                 Console.Error.WriteLine(
                     $"[MacroRunner] Macro '{macro.Name}' exceeded {MaxExecutedSteps} steps — aborting (possible runaway repeat).");
@@ -124,7 +127,8 @@ public class MacroRunner : IDisposable
                     {
                         StartIndex = i,
                         Remaining = Math.Max(1, repeatStart.Count),
-                        LoopDelayMs = repeatStart.LoopDelayMilliseconds
+                        LoopDelayMs = repeatStart.LoopDelayMilliseconds,
+                        Infinite = repeatStart.Infinite
                     });
                     break;
 
@@ -133,16 +137,30 @@ public class MacroRunner : IDisposable
                     if (frames.Count > 0)
                     {
                         var frame = frames.Peek();
-                        frame.Remaining--;
-                        if (frame.Remaining > 0)
+
+                        if (frame.Infinite)
                         {
                             if (frame.LoopDelayMs > 0)
                                 await Delay(frame.LoopDelayMs, token);
-                            i = frame.StartIndex; // for-loop's i++ resumes just after the start marker
+                            else
+                                // Throttle a no-delay infinite loop so it can't peg a core and
+                                // stays responsive to cancellation (checked at the loop top).
+                                await Task.Delay(1);
+                            i = frame.StartIndex;
                         }
                         else
                         {
-                            frames.Pop();
+                            frame.Remaining--;
+                            if (frame.Remaining > 0)
+                            {
+                                if (frame.LoopDelayMs > 0)
+                                    await Delay(frame.LoopDelayMs, token);
+                                i = frame.StartIndex; // for-loop's i++ resumes just after the start marker
+                            }
+                            else
+                            {
+                                frames.Pop();
+                            }
                         }
                     }
                     break;
