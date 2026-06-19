@@ -12,4 +12,10 @@ public class MacroSettings
     public int Version { get; set; } = CurrentVersion;
 
     public List<Macro> Macros { get; set; } = [];
+
+    /// <summary>
+    /// Optional global hotkey (e.g. "Ctrl+Alt+Esc") that cancels all running macros.
+    /// Empty disables the hotkey. Additive — older files default to disabled.
+    /// </summary>
+    public string StopHotkey { get; set; } = string.Empty;
 }

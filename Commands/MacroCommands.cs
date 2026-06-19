@@ -88,3 +88,18 @@ public class MacroCommand(IMacroManager macroManager, MacroRunner macroRunner) :
         return macroRunner.Run(macro);
     }
 }
+
+[Command(
+    "System.StopMacros",
+    "Stop Macros",
+    "User Macros",
+    Platform = CommandPlatform.All)]
+public class StopMacrosCommand(MacroRunner macroRunner) : IExecutableCommand
+{
+    public Task Execute(string[] parameters)
+    {
+        // Cancels every running macro — the user-assignable Stop trigger.
+        macroRunner.CancelAll();
+        return Task.CompletedTask;
+    }
+}

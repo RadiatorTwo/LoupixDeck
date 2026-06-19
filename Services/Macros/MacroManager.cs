@@ -26,6 +26,28 @@ public class MacroManager : IMacroManager
 
     private List<Macro> _macros = [];
     private Dictionary<string, Macro> _byName = new(StringComparer.OrdinalIgnoreCase);
+    private string _stopHotkey = string.Empty;
+
+    public string StopHotkey
+    {
+        get
+        {
+            lock (_lock)
+                return _stopHotkey;
+        }
+        set
+        {
+            var normalized = value?.Trim() ?? string.Empty;
+            lock (_lock)
+            {
+                if (_stopHotkey == normalized)
+                    return;
+                _stopHotkey = normalized;
+            }
+
+            Save();
+        }
+    }
 
     public IReadOnlyList<Macro> Macros
     {
@@ -63,6 +85,8 @@ public class MacroManager : IMacroManager
 
         lock (_lock)
         {
+            _stopHotkey = settings.StopHotkey?.Trim() ?? string.Empty;
+
             // Steps with unknown discriminators deserialize to null — drop them.
             _macros = settings.Macros?
                 .Where(m => m != null && !string.IsNullOrWhiteSpace(m.Name))
@@ -109,7 +133,7 @@ public class MacroManager : IMacroManager
         MacroSettings settings;
         lock (_lock)
         {
-            settings = new MacroSettings { Macros = _macros.ToList() };
+            settings = new MacroSettings { Macros = _macros.ToList(), StopHotkey = _stopHotkey };
         }
 
         try

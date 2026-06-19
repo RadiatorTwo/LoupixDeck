@@ -81,6 +81,11 @@ public static class ServiceCollectionExtensions
         // User-defined macros: in-memory store (macros.json), shared across devices.
         collection.AddSingleton<IMacroManager, MacroManager>();
 
+        // App-global macro cancellation: per-device runners register here so the global
+        // stop hotkey (a single process-wide listener) can cancel macros on every device.
+        collection.AddSingleton<IMacroStopCoordinator, MacroStopCoordinator>();
+        collection.AddSingleton<IMacroStopHotkeyService, MacroStopHotkeyService>();
+
         // Runtime USB hot-plug (issue #116 phase 3b): the OS-native watcher signals
         // topology changes; the manager diffs them against the running device set and
         // raises attach/detach events App turns into provider/VM bring-up + teardown.
@@ -108,6 +113,7 @@ public static class ServiceCollectionExtensions
         collection.Forward<ISystemPowerService>(root);
         collection.Forward<IActiveWindowMonitor>(root);
         collection.Forward<IMacroManager>(root);
+        collection.Forward<IMacroStopCoordinator>(root);
         collection.Forward<IDeviceHostRegistry>(root);
         collection.Forward<IDeviceRouter>(root);
         collection.Forward<IPluginManager>(root);
@@ -123,6 +129,9 @@ public static class ServiceCollectionExtensions
 
             // Virtual mouse for macro mouse steps (uinput-backed).
             collection.AddSingleton<IVirtualMouse, UInputMouse>();
+
+            // Global keyboard recorder for the macro editor (evdev /dev/input/event*).
+            collection.AddSingleton<IInputRecorder, LinuxInputRecorder>();
         }
         else
         {
@@ -140,6 +149,9 @@ public static class ServiceCollectionExtensions
             collection.AddSingleton<WindowsVirtualMouse>();
             collection.AddSingleton<InterceptionMouse>();
             collection.AddSingleton<IVirtualMouse, WindowsMouseRouter>();
+
+            // Global keyboard recorder for the macro editor (low-level hook).
+            collection.AddSingleton<IInputRecorder, WindowsInputRecorder>();
         }
 
         collection.AddSingleton(provider =>
@@ -275,6 +287,9 @@ public static class ServiceCollectionExtensions
     {
         // Load user macros once — execution and menus read from memory afterwards.
         root.GetRequiredService<IMacroManager>().Load();
+
+        // Begin listening for the global stop hotkey (no-op until one is configured).
+        root.GetRequiredService<IMacroStopHotkeyService>().Start();
 
         // Let the (static) bitmap renderer resolve image-layer assets via DI.
         var assetService = root.GetRequiredService<IAssetService>();

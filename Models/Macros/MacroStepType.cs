@@ -13,7 +13,9 @@ public enum MacroStepType
     KeyDown,
     KeyUp,
     Mouse,
-    Command
+    Command,
+    RepeatStart,
+    RepeatEnd
 }
 
 /// <summary>What a <see cref="MouseStep"/> does.</summary>

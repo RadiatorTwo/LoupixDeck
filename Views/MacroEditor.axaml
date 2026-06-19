@@ -9,12 +9,12 @@
     xmlns:models="using:LoupixDeck.Models"
     x:DataType="vm:MacroEditorViewModel"
     Title="Macro Editor"
-    Width="980"
-    Height="700"
+    Width="1280"
+    Height="760"
     mc:Ignorable="d"
     CanResize="True"
-    MinWidth="820"
-    MinHeight="560">
+    MinWidth="1100"
+    MinHeight="620">
 
     <Window.Styles>
         <StyleInclude Source="avares://LoupixDeck/Views/Styles/SettingsStyles.axaml" />
@@ -131,12 +131,12 @@
         <!-- Title -->
         <TextBlock Grid.Row="0" Classes="page-title" Text="Macro Editor" />
 
-        <!-- Main content: macro list | step editor -->
-        <Grid Grid.Row="1" ColumnDefinitions="260,*">
+        <!-- Main content: macro list | step editor | sequence preview -->
+        <Grid Grid.Row="1" ColumnDefinitions="260,*,320">
 
             <!-- Left: macro list -->
             <Border Grid.Column="0" Classes="card" Margin="0,0,12,0" Padding="10">
-                <Grid RowDefinitions="Auto,*,Auto">
+                <Grid RowDefinitions="Auto,*,Auto,Auto">
                     <TextBlock Grid.Row="0" Classes="card-title" Text="Macros" />
 
                     <ListBox Grid.Row="1"
@@ -166,13 +166,22 @@
                                 IsEnabled="{Binding HasSelectedMacro}"
                                 Command="{Binding RemoveMacroCommand}" />
                     </Grid>
+
+                    <!-- Global stop hotkey -->
+                    <StackPanel Grid.Row="3" Spacing="4" Margin="0,12,0,0">
+                        <TextBlock Classes="editor-label" Text="Global stop hotkey" />
+                        <TextBox Text="{Binding StopHotkey, Mode=TwoWay}"
+                                 PlaceholderText="e.g. Ctrl+Alt+Esc (empty = off)" />
+                        <TextBlock Classes="hint"
+                                   Text="Cancels all running macros from anywhere. Key names joined with '+'." />
+                    </StackPanel>
                 </Grid>
             </Border>
 
-            <!-- Right: steps of the selected macro -->
-            <Border Grid.Column="1" Classes="card" Margin="0" Padding="14"
+            <!-- Middle: steps of the selected macro -->
+            <Border Grid.Column="1" Classes="card" Margin="0,0,12,0" Padding="14"
                     IsVisible="{Binding HasSelectedMacro}">
-                <Grid RowDefinitions="Auto,Auto,*">
+                <Grid RowDefinitions="Auto,Auto,Auto,*">
 
                     <!-- Name -->
                     <Grid Grid.Row="0" RowDefinitions="Auto,Auto" ColumnDefinitions="Auto,*" Margin="0,0,0,10">
@@ -187,11 +196,33 @@
                                    IsVisible="{Binding HasValidationMessage}" />
                     </Grid>
 
-                    <!-- Steps header + add button -->
-                    <Grid Grid.Row="1" ColumnDefinitions="*,Auto" Margin="0,0,0,8">
-                        <TextBlock Grid.Column="0" Classes="card-title" Text="Steps" VerticalAlignment="Center"
-                                   Margin="0" />
-                        <Button Grid.Column="1" Content="Add Step ▾">
+                    <!-- Steps header + record / test / add button -->
+                    <StackPanel Grid.Row="1" Spacing="6" Margin="0,0,0,8">
+                      <Grid ColumnDefinitions="*,Auto,Auto,Auto">
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                            <TextBlock Classes="card-title" Text="Steps" VerticalAlignment="Center" Margin="0" />
+                            <Button Classes="row-action" FontFamily="{StaticResource MdiFont}"
+                                    Content="&#xF054C;" Margin="6,0,0,0"
+                                    ToolTip.Tip="Undo"
+                                    IsEnabled="{Binding CanUndo}"
+                                    Command="{Binding UndoCommand}" />
+                            <Button Classes="row-action" FontFamily="{StaticResource MdiFont}"
+                                    Content="&#xF054D;"
+                                    ToolTip.Tip="Redo"
+                                    IsEnabled="{Binding CanRedo}"
+                                    Command="{Binding RedoCommand}" />
+                        </StackPanel>
+                        <Button Grid.Column="1" Margin="0,0,8,0"
+                                Content="{Binding RecordButtonText}"
+                                IsVisible="{Binding IsRecordingSupported}"
+                                ToolTip.Tip="Record real key presses as Key Down / Key Up steps"
+                                Command="{Binding ToggleRecordingCommand}" />
+                        <Button Grid.Column="2" Margin="0,0,8,0"
+                                Content="{Binding TestButtonText}"
+                                ToolTip.Tip="Run this macro after a short countdown — focus your target window first"
+                                IsEnabled="{Binding SelectedMacro.Steps.Count}"
+                                Command="{Binding TestMacroCommand}" />
+                        <Button Grid.Column="3" Content="Add Step ▾">
                             <Button.Flyout>
                                 <MenuFlyout Placement="BottomEdgeAlignedRight">
                                     <MenuItem Header="Type Text" Tag="Text" Click="AddStepMenu_Click" />
@@ -201,13 +232,78 @@
                                     <MenuItem Header="Delay" Tag="Delay" Click="AddStepMenu_Click" />
                                     <MenuItem Header="Mouse" Tag="Mouse" Click="AddStepMenu_Click" />
                                     <MenuItem Header="Command" Tag="Command" Click="AddStepMenu_Click" />
+                                    <Separator />
+                                    <MenuItem Header="Repeat Start" Tag="RepeatStart" Click="AddStepMenu_Click" />
+                                    <MenuItem Header="Repeat End" Tag="RepeatEnd" Click="AddStepMenu_Click" />
                                 </MenuFlyout>
                             </Button.Flyout>
                         </Button>
-                    </Grid>
+                      </Grid>
+
+                      <!-- Recording options + live status -->
+                      <StackPanel Orientation="Horizontal" Spacing="14"
+                                  IsVisible="{Binding IsRecordingSupported}">
+                          <CheckBox Content="Capture delays"
+                                    ToolTip.Tip="Record the pauses between key presses as Delay steps"
+                                    IsChecked="{Binding CaptureRecordedDelays, Mode=TwoWay}" />
+                          <TextBlock Classes="hint" VerticalAlignment="Center"
+                                     Foreground="#E07A7A"
+                                     IsVisible="{Binding IsRecording}"
+                                     Text="● Recording — keys are added live. Click Stop Recording to finish." />
+                      </StackPanel>
+                    </StackPanel>
+
+                    <!-- Bulk action toolbar: permanent select row, bulk actions below -->
+                    <StackPanel Grid.Row="2" Orientation="Vertical" Margin="0,0,0,4"
+                                IsVisible="{Binding SelectedMacro.Steps.Count}">
+                        <StackPanel.Styles>
+                            <Style Selector="WrapPanel > Button">
+                                <Setter Property="Margin" Value="0,0,4,4" />
+                            </Style>
+                        </StackPanel.Styles>
+
+                        <!-- Permanent selection controls -->
+                        <WrapPanel Orientation="Horizontal">
+                            <Button Content="Select All" ToolTip.Tip="Select all steps"
+                                    Command="{Binding SelectAllStepsCommand}" />
+                            <Button Content="Select None" ToolTip.Tip="Clear selection"
+                                    IsEnabled="{Binding HasSelectedSteps}" Command="{Binding ClearSelectionCommand}" />
+                            <TextBlock Classes="editor-label" VerticalAlignment="Center" Margin="6,0,0,4"
+                                       IsVisible="{Binding HasSelectedSteps}"
+                                       Text="{Binding SelectedStepCount, StringFormat='{}{0} selected'}" />
+                        </WrapPanel>
+
+                        <!-- Bulk actions (only when actionable) -->
+                        <WrapPanel Orientation="Horizontal" IsVisible="{Binding HasBulkActions}">
+                            <Button Content="Duplicate" IsEnabled="{Binding HasSelectedSteps}"
+                                    Command="{Binding DuplicateSelectedCommand}" />
+                            <Button Content="Copy" IsEnabled="{Binding HasSelectedSteps}"
+                                    Command="{Binding CopySelectedCommand}" />
+                            <Button Content="Paste" IsEnabled="{Binding HasClipboard}"
+                                    Command="{Binding PasteStepsCommand}" />
+                            <Button Content="Delete" Background="#3A2424" Foreground="#E08A8A"
+                                    IsEnabled="{Binding HasSelectedSteps}" Command="{Binding DeleteSelectedCommand}" />
+
+                            <Border Width="1" Margin="4,2,8,6" Background="{DynamicResource AppBorderSubtle}"
+                                    IsVisible="{Binding HasSelectedSteps}" />
+
+                            <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,0,0,4"
+                                        IsVisible="{Binding HasSelectedSteps}">
+                                <NumericUpDown Width="120" Minimum="0" Maximum="600000" Increment="50"
+                                               FormatString="0" Value="{Binding BulkDelayMs, Mode=TwoWay}"
+                                               ToolTip.Tip="Delay (ms) used by the Insert / Set Delay actions" />
+                                <TextBlock Classes="editor-label" VerticalAlignment="Center" Text="ms" />
+                                <Button Margin="0" Content="Insert Delay" ToolTip.Tip="Insert a Delay step of this duration after each selected step"
+                                        Command="{Binding InsertDelayAfterSelectedCommand}" />
+                                <Button Margin="0" Content="Set Delay" ToolTip.Tip="Set every selected Delay step to this duration"
+                                        IsVisible="{Binding HasSelectedDelay}"
+                                        Command="{Binding SetDelayOnSelectedCommand}" />
+                            </StackPanel>
+                        </WrapPanel>
+                    </StackPanel>
 
                     <!-- Step list -->
-                    <ScrollViewer Grid.Row="2"
+                    <ScrollViewer Grid.Row="3"
                                   VerticalScrollBarVisibility="Auto"
                                   HorizontalScrollBarVisibility="Disabled">
                         <StackPanel>
@@ -221,30 +317,43 @@
                                         <Border Classes="step-panel" Classes.dragging="{Binding IsDragging}">
                                             <Grid RowDefinitions="Auto,Auto">
 
-                                                <!-- Panel row: icon | type | value | expand | remove | drag handle -->
+                                                <!-- Panel row: select | icon | type | value | expand | duplicate | remove | drag handle -->
                                                 <Grid Grid.Row="0"
-                                                      ColumnDefinitions="36,150,*,Auto,Auto,Auto"
+                                                      ColumnDefinitions="Auto,36,150,*,Auto,Auto,Auto,Auto"
                                                       MinHeight="36">
-                                                    <TextBlock Grid.Column="0" Classes="step-icon"
+                                                    <CheckBox Grid.Column="0"
+                                                              VerticalAlignment="Center"
+                                                              Margin="0,0,6,0"
+                                                              ToolTip.Tip="Select step for bulk actions"
+                                                              IsChecked="{Binding IsSelected, Mode=TwoWay}" />
+                                                    <TextBlock Grid.Column="1" Classes="step-icon"
                                                                Text="{Binding Icon}" />
-                                                    <TextBlock Grid.Column="1" Classes="step-type"
+                                                    <TextBlock Grid.Column="2" Classes="step-type"
                                                                Text="{Binding TypeText}" />
-                                                    <TextBlock Grid.Column="2" Classes="step-value"
+                                                    <TextBlock Grid.Column="3" Classes="step-value"
                                                                Text="{Binding ValueText}" />
 
-                                                    <ToggleButton Grid.Column="3" Classes="step-expand"
+                                                    <ToggleButton Grid.Column="4" Classes="step-expand"
                                                                   VerticalAlignment="Center"
                                                                   ToolTip.Tip="Expand / collapse step editor"
                                                                   IsChecked="{Binding IsEditing, Mode=TwoWay}" />
 
-                                                    <Button Grid.Column="4" Classes="row-action danger"
+                                                    <Button Grid.Column="5" Classes="row-action"
+                                                            FontFamily="{StaticResource MdiFont}"
+                                                            Content="&#xF018F;"
+                                                            VerticalAlignment="Center"
+                                                            ToolTip.Tip="Duplicate step"
+                                                            Command="{Binding $parent[Window].((vm:MacroEditorViewModel)DataContext).DuplicateStepCommand}"
+                                                            CommandParameter="{Binding}" />
+
+                                                    <Button Grid.Column="6" Classes="row-action danger"
                                                             FontFamily="{StaticResource MdiFont}"
                                                             Content="&#xF01B4;"
                                                             VerticalAlignment="Center"
                                                             ToolTip.Tip="Remove step"
                                                             Click="RemoveStep_Click" />
 
-                                                    <Border Grid.Column="5" Classes="drag-handle"
+                                                    <Border Grid.Column="7" Classes="drag-handle"
                                                             VerticalAlignment="Stretch"
                                                             PointerPressed="DragHandle_PointerPressed">
                                                         <TextBlock Classes="step-icon" Text="&#xF01DB;" />
@@ -268,14 +377,21 @@
 
                                                             <DataTemplate DataType="{x:Type macros:KeyCombinationStep}">
                                                                 <StackPanel Spacing="4">
-                                                                    <Grid ColumnDefinitions="Auto,*">
+                                                                    <Grid ColumnDefinitions="Auto,*,Auto">
                                                                         <TextBlock Grid.Column="0" Classes="editor-label"
                                                                                    Text="Keys" Margin="0,0,10,0" />
                                                                         <TextBox Grid.Column="1"
                                                                                  Text="{Binding Keys, Mode=TwoWay}" />
+                                                                        <ToggleButton Grid.Column="2" Margin="8,0,0,0"
+                                                                                      Content="⌨ Capture"
+                                                                                      ToolTip.Tip="Press the key combination to assign it"
+                                                                                      IsCheckedChanged="CaptureToggle_IsCheckedChanged"
+                                                                                      KeyDown="Capture_KeyDown"
+                                                                                      KeyUp="Capture_KeyUp"
+                                                                                      LostFocus="Capture_LostFocus" />
                                                                     </Grid>
                                                                     <TextBlock Classes="hint"
-                                                                               Text="Key names joined with '+', e.g. Ctrl+Shift+Esc or Tab or Enter." />
+                                                                               Text="Key names joined with '+', e.g. Ctrl+Shift+Esc or Tab or Enter. Or click Capture and press the keys." />
                                                                 </StackPanel>
                                                             </DataTemplate>
 
@@ -294,11 +410,18 @@
 
                                                             <DataTemplate DataType="{x:Type macros:KeyDownStep}">
                                                                 <StackPanel Spacing="4">
-                                                                    <Grid ColumnDefinitions="Auto,*">
+                                                                    <Grid ColumnDefinitions="Auto,*,Auto">
                                                                         <TextBlock Grid.Column="0" Classes="editor-label"
                                                                                    Text="Key" Margin="0,0,10,0" />
                                                                         <TextBox Grid.Column="1"
                                                                                  Text="{Binding Key, Mode=TwoWay}" />
+                                                                        <ToggleButton Grid.Column="2" Margin="8,0,0,0"
+                                                                                      Content="⌨ Capture"
+                                                                                      ToolTip.Tip="Press a key to assign it"
+                                                                                      IsCheckedChanged="CaptureToggle_IsCheckedChanged"
+                                                                                      KeyDown="Capture_KeyDown"
+                                                                                      KeyUp="Capture_KeyUp"
+                                                                                      LostFocus="Capture_LostFocus" />
                                                                     </Grid>
                                                                     <TextBlock Classes="hint"
                                                                                Text="Single key name to hold down, e.g. Shift, Ctrl, A. Release it with a Key Up step." />
@@ -307,11 +430,18 @@
 
                                                             <DataTemplate DataType="{x:Type macros:KeyUpStep}">
                                                                 <StackPanel Spacing="4">
-                                                                    <Grid ColumnDefinitions="Auto,*">
+                                                                    <Grid ColumnDefinitions="Auto,*,Auto">
                                                                         <TextBlock Grid.Column="0" Classes="editor-label"
                                                                                    Text="Key" Margin="0,0,10,0" />
                                                                         <TextBox Grid.Column="1"
                                                                                  Text="{Binding Key, Mode=TwoWay}" />
+                                                                        <ToggleButton Grid.Column="2" Margin="8,0,0,0"
+                                                                                      Content="⌨ Capture"
+                                                                                      ToolTip.Tip="Press a key to assign it"
+                                                                                      IsCheckedChanged="CaptureToggle_IsCheckedChanged"
+                                                                                      KeyDown="Capture_KeyDown"
+                                                                                      KeyUp="Capture_KeyUp"
+                                                                                      LostFocus="Capture_LostFocus" />
                                                                     </Grid>
                                                                     <TextBlock Classes="hint"
                                                                                Text="Single key name to release, e.g. Shift, Ctrl, A." />
@@ -400,6 +530,40 @@
                                                                 </StackPanel>
                                                             </DataTemplate>
 
+                                                            <DataTemplate DataType="{x:Type macros:RepeatStartStep}">
+                                                                <StackPanel Spacing="6">
+                                                                    <Grid ColumnDefinitions="Auto,140,Auto,Auto,Auto,140,Auto">
+                                                                        <TextBlock Grid.Column="0" Classes="editor-label"
+                                                                                   Text="Repeat" Margin="0,0,10,0" />
+                                                                        <NumericUpDown Grid.Column="1"
+                                                                                       Minimum="1" Maximum="100000"
+                                                                                       Increment="1" FormatString="0"
+                                                                                       IsEnabled="{Binding !Infinite}"
+                                                                                       Value="{Binding Count, Mode=TwoWay}" />
+                                                                        <TextBlock Grid.Column="2" Classes="editor-label"
+                                                                                   Text="times" Margin="8,0,20,0" />
+                                                                        <CheckBox Grid.Column="3" Content="∞ Infinite" Margin="0,0,20,0"
+                                                                                  ToolTip.Tip="Repeat forever until stopped (Stop command / hotkey)"
+                                                                                  IsChecked="{Binding Infinite, Mode=TwoWay}" />
+                                                                        <TextBlock Grid.Column="4" Classes="editor-label"
+                                                                                   Text="Loop delay" Margin="0,0,10,0" />
+                                                                        <NumericUpDown Grid.Column="5"
+                                                                                       Minimum="0" Maximum="600000"
+                                                                                       Increment="50" FormatString="0"
+                                                                                       Value="{Binding LoopDelayMilliseconds, Mode=TwoWay}" />
+                                                                        <TextBlock Grid.Column="6" Classes="editor-label"
+                                                                                   Text="ms" Margin="8,0,0,0" />
+                                                                    </Grid>
+                                                                    <TextBlock Classes="hint"
+                                                                               Text="Steps between this and the matching Repeat End repeat. Use Infinite + a Stop command/hotkey for endless loops; loop delay pauses between iterations." />
+                                                                </StackPanel>
+                                                            </DataTemplate>
+
+                                                            <DataTemplate DataType="{x:Type macros:RepeatEndStep}">
+                                                                <TextBlock Classes="hint"
+                                                                           Text="Ends the block opened by the nearest Repeat Start above." />
+                                                            </DataTemplate>
+
                                                         </ContentControl.DataTemplates>
                                                     </ContentControl>
                                                 </Border>
@@ -413,6 +577,30 @@
                             <TextBlock Classes="hint"
                                        Margin="2,4,0,0"
                                        Text="No steps yet — use “Add Step” to build the macro. Drag the handle on the right of a step to reorder."
+                                       IsVisible="{Binding !SelectedMacro.Steps.Count}" />
+                        </StackPanel>
+                    </ScrollViewer>
+                </Grid>
+            </Border>
+
+            <!-- Right: full sequence preview (wraps, scrolls) -->
+            <Border Grid.Column="2" Classes="card" Margin="0" Padding="14"
+                    IsVisible="{Binding HasSelectedMacro}">
+                <Grid RowDefinitions="Auto,*">
+                    <TextBlock Grid.Row="0" Classes="card-title" Text="Preview" Margin="0,0,0,8" />
+
+                    <ScrollViewer Grid.Row="1"
+                                  VerticalScrollBarVisibility="Auto"
+                                  HorizontalScrollBarVisibility="Disabled">
+                        <StackPanel VerticalAlignment="Top">
+                            <TextBlock Classes="step-value"
+                                       VerticalAlignment="Top"
+                                       TextWrapping="Wrap"
+                                       LineHeight="22"
+                                       Text="{Binding MacroPreview}"
+                                       IsVisible="{Binding SelectedMacro.Steps.Count}" />
+                            <TextBlock Classes="hint"
+                                       Text="No steps yet."
                                        IsVisible="{Binding !SelectedMacro.Steps.Count}" />
                         </StackPanel>
                     </ScrollViewer>

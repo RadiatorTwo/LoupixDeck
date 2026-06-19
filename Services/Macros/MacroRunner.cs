@@ -10,20 +10,70 @@ namespace LoupixDeck.Services.Macros;
 /// its own try/catch so a faulty step (unknown key, failing command) does not abort
 /// the rest of the macro.
 /// </summary>
-public class MacroRunner
+public class MacroRunner : IDisposable
 {
     private readonly IUInputKeyboard _keyboard;
     private readonly IVirtualMouse _mouse;
     private readonly ICommandService _commandService;
+    private readonly IMacroStopCoordinator _stopCoordinator;
 
-    public MacroRunner(IUInputKeyboard keyboard, IVirtualMouse mouse, ICommandService commandService)
+    public MacroRunner(IUInputKeyboard keyboard, IVirtualMouse mouse, ICommandService commandService,
+        IMacroStopCoordinator stopCoordinator)
     {
         _keyboard = keyboard;
         _mouse = mouse;
         _commandService = commandService;
+        _stopCoordinator = stopCoordinator;
+
+        // Join the app-global registry so the global stop hotkey can reach this runner.
+        _stopCoordinator.Register(this);
     }
 
-    public async Task Run(Macro macro)
+    public void Dispose()
+    {
+        _stopCoordinator.Unregister(this);
+    }
+
+    // Cancellation tokens of every in-flight Run, so CancelAll() can stop them all.
+    private readonly object _runLock = new();
+    private readonly List<CancellationTokenSource> _activeRuns = [];
+
+    /// <summary>True while at least one macro is currently executing.</summary>
+    public bool IsRunning
+    {
+        get
+        {
+            lock (_runLock)
+                return _activeRuns.Count > 0;
+        }
+    }
+
+    /// <summary>Cancels every running macro (the Stop command / hotkey entry point).</summary>
+    public void CancelAll()
+    {
+        lock (_runLock)
+        {
+            foreach (var cts in _activeRuns)
+            {
+                try { cts.Cancel(); }
+                catch (ObjectDisposedException) { /* run already finished */ }
+            }
+        }
+    }
+
+    // Hard cap on total executed steps so a runaway/huge repeat count can never hang forever.
+    private const int MaxExecutedSteps = 100_000;
+
+    // One active Repeat block. Mutable so the interpreter can decrement Remaining in place.
+    private sealed class LoopFrame
+    {
+        public int StartIndex;
+        public int Remaining;
+        public int LoopDelayMs;
+        public bool Infinite;
+    }
+
+    public async Task Run(Macro macro, CancellationToken cancellationToken = default)
     {
         if (macro == null)
         {
@@ -31,23 +81,106 @@ public class MacroRunner
             return;
         }
 
-        foreach (var step in macro.Steps)
-        {
-            if (step == null) continue;
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        lock (_runLock)
+            _activeRuns.Add(cts);
 
-            try
-            {
-                await ExecuteStep(step);
-            }
-            catch (Exception ex)
+        try
+        {
+            await RunSteps(macro, cts.Token);
+        }
+        finally
+        {
+            lock (_runLock)
+                _activeRuns.Remove(cts);
+        }
+    }
+
+    private async Task RunSteps(Macro macro, CancellationToken token)
+    {
+        // Snapshot the steps so concurrent edits in the editor can't shift indices mid-run.
+        var steps = macro.Steps.ToList();
+        var frames = new Stack<LoopFrame>();
+        var executed = 0;
+
+        for (var i = 0; i < steps.Count; i++)
+        {
+            if (token.IsCancellationRequested)
+                break;
+
+            // The step cap guards against accidental runaway finite repeats. A deliberate
+            // infinite loop is exempt — it runs until the user stops it (Stop command/hotkey).
+            if (!frames.Any(f => f.Infinite) && ++executed > MaxExecutedSteps)
             {
                 Console.Error.WriteLine(
-                    $"[MacroRunner] Step '{step.TypeText}' in macro '{macro.Name}' failed: {ex.Message}");
+                    $"[MacroRunner] Macro '{macro.Name}' exceeded {MaxExecutedSteps} steps — aborting (possible runaway repeat).");
+                break;
+            }
+
+            var step = steps[i];
+            if (step == null) continue;
+
+            switch (step)
+            {
+                case RepeatStartStep repeatStart:
+                    frames.Push(new LoopFrame
+                    {
+                        StartIndex = i,
+                        Remaining = Math.Max(1, repeatStart.Count),
+                        LoopDelayMs = repeatStart.LoopDelayMilliseconds,
+                        Infinite = repeatStart.Infinite
+                    });
+                    break;
+
+                case RepeatEndStep:
+                    // Unmatched end → ignore. Otherwise loop back until the frame is spent.
+                    if (frames.Count > 0)
+                    {
+                        var frame = frames.Peek();
+
+                        if (frame.Infinite)
+                        {
+                            if (frame.LoopDelayMs > 0)
+                                await Delay(frame.LoopDelayMs, token);
+                            else
+                                // Throttle a no-delay infinite loop so it can't peg a core and
+                                // stays responsive to cancellation (checked at the loop top).
+                                await Task.Delay(1);
+                            i = frame.StartIndex;
+                        }
+                        else
+                        {
+                            frame.Remaining--;
+                            if (frame.Remaining > 0)
+                            {
+                                if (frame.LoopDelayMs > 0)
+                                    await Delay(frame.LoopDelayMs, token);
+                                i = frame.StartIndex; // for-loop's i++ resumes just after the start marker
+                            }
+                            else
+                            {
+                                frames.Pop();
+                            }
+                        }
+                    }
+                    break;
+
+                default:
+                    try
+                    {
+                        await ExecuteStep(step, token);
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.Error.WriteLine(
+                            $"[MacroRunner] Step '{step.TypeText}' in macro '{macro.Name}' failed: {ex.Message}");
+                    }
+                    break;
             }
         }
     }
 
-    private async Task ExecuteStep(MacroStep step)
+    private async Task ExecuteStep(MacroStep step, CancellationToken token)
     {
         switch (step)
         {
@@ -64,7 +197,7 @@ public class MacroRunner
                 break;
 
             case DelayStep delay:
-                await Delay(delay.Milliseconds);
+                await Delay(delay.Milliseconds, token);
                 break;
 
             case KeyDownStep keyDown:
@@ -115,7 +248,7 @@ public class MacroRunner
 
     // Coarse Task.Delay for the bulk, short spin for the tail — Task.Delay alone has
     // ~15 ms granularity on Windows (same pattern as DeviceControlCommands.WaitUntilMs).
-    private static async Task Delay(int milliseconds)
+    private static async Task Delay(int milliseconds, CancellationToken token)
     {
         if (milliseconds <= 0)
             return;
@@ -123,6 +256,7 @@ public class MacroRunner
         var sw = Stopwatch.StartNew();
         while (true)
         {
+            if (token.IsCancellationRequested) return;
             var remain = milliseconds - sw.Elapsed.TotalMilliseconds;
             if (remain <= 0) return;
             if (remain > 3) await Task.Delay(1);

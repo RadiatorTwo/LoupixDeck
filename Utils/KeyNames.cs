@@ -222,6 +222,16 @@ public static class KeyNames
         return Aliases.TryGetValue(key, out var canonical) ? canonical : key;
     }
 
+    /// <summary>
+    /// Resolves a key name to a stable lower-case token (aliases applied), so names that
+    /// mean the same key compare equal regardless of spelling or casing — e.g. "Escape",
+    /// "escape" and "Esc" all map to "esc". Used for hotkey matching.
+    /// </summary>
+    public static string Canonicalize(string name)
+    {
+        return string.IsNullOrWhiteSpace(name) ? string.Empty : Normalize(name).ToLowerInvariant();
+    }
+
     /// <summary>Resolves a key name to its Linux evdev key code.</summary>
     public static bool TryGetLinux(string name, out int keyCode)
     {
@@ -260,4 +270,19 @@ public static class KeyNames
 
     /// <summary>All Linux evdev key codes used by the name table (for uinput keybit registration).</summary>
     public static IEnumerable<int> AllLinuxKeyCodes => Linux.Values;
+
+    // Reverse of the Linux table (code -> canonical name); codes are unique so this is 1:1.
+    private static readonly Lazy<Dictionary<int, string>> LinuxReverse = new(() =>
+    {
+        var map = new Dictionary<int, string>();
+        foreach (var pair in Linux)
+            map.TryAdd(pair.Value, pair.Key);
+        return map;
+    });
+
+    /// <summary>Resolves a Linux evdev key code back to its canonical key name (for recording).</summary>
+    public static bool TryGetLinuxName(int keyCode, out string name)
+    {
+        return LinuxReverse.Value.TryGetValue(keyCode, out name);
+    }
 }

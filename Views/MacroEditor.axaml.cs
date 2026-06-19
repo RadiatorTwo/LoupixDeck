@@ -1,9 +1,11 @@
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.VisualTree;
 using LoupixDeck.Models;
 using LoupixDeck.Models.Macros;
+using LoupixDeck.Utils;
 using LoupixDeck.ViewModels;
 using LoupixDeck.ViewModels.Base;
 
@@ -13,6 +15,14 @@ public partial class MacroEditor : Window
 {
     // Step currently being dragged via its drag handle; null when no drag is active.
     private MacroStep _draggedStep;
+
+    // ───────── Key capture state ─────────
+    // The step a "Capture keys" toggle is currently recording into; null when idle.
+    private MacroStep _captureStep;
+    private ToggleButton _captureToggle;
+    // Keys currently held down (canonical names) and the largest combo seen this capture.
+    private readonly List<string> _pressedKeys = [];
+    private List<string> _maxCombo = [];
 
     public MacroEditor() : this(null)
     {
@@ -29,6 +39,12 @@ public partial class MacroEditor : Window
 
         Closing += (_, _) =>
         {
+            // Stop any active recording so the global hook is uninstalled with the window.
+            ViewModel?.StopRecording();
+
+            // Cancel a running/counting-down test so playback doesn't outlive the editor.
+            ViewModel?.CancelTest();
+
             // Changes apply instantly (debounced) — persist anything still pending.
             ViewModel?.FlushPendingChanges();
 
@@ -70,6 +86,119 @@ public partial class MacroEditor : Window
         var treeView = textBlock.FindAncestorOfType<TreeView>();
         if (treeView?.Tag is CommandStep step)
             ViewModel?.InsertCommandIntoStep(step, menuEntry);
+    }
+
+    // ───────── Key capture ─────────
+    //
+    // A "Capture keys" toggle in the KeyCombination / KeyDown / KeyUp editors records
+    // real key presses instead of forcing the user to type names. For combination steps
+    // the full chord is captured (committed once all keys are released); for single-key
+    // steps the first key wins and capture ends immediately.
+
+    private void CaptureToggle_IsCheckedChanged(object sender, RoutedEventArgs e)
+    {
+        if (sender is not ToggleButton { DataContext: MacroStep step } toggle)
+            return;
+
+        if (toggle.IsChecked == true)
+            BeginCapture(step, toggle);
+        else if (ReferenceEquals(toggle, _captureToggle))
+            ResetCaptureState();
+    }
+
+    private void BeginCapture(MacroStep step, ToggleButton toggle)
+    {
+        _captureStep = step;
+        _captureToggle = toggle;
+        _pressedKeys.Clear();
+        _maxCombo = [];
+        toggle.Focus();
+    }
+
+    private void Capture_KeyDown(object sender, KeyEventArgs e)
+    {
+        if (_captureStep == null)
+            return;
+
+        // Swallow every key so it neither toggles the button nor fires app shortcuts.
+        e.Handled = true;
+
+        if (!KeyCaptureMap.TryGet(e.Key, out var name))
+            return;
+
+        if (_captureStep is KeyCombinationStep combo)
+        {
+            if (!_pressedKeys.Contains(name))
+                _pressedKeys.Add(name);
+
+            // Remember the chord at its widest extent; releasing keys must not shrink it.
+            if (_pressedKeys.Count >= _maxCombo.Count)
+            {
+                _maxCombo = SortModifiersFirst(_pressedKeys);
+                combo.Keys = string.Join("+", _maxCombo);
+            }
+        }
+        else
+        {
+            SetSingleKey(_captureStep, name);
+            EndCapture();
+        }
+    }
+
+    private void Capture_KeyUp(object sender, KeyEventArgs e)
+    {
+        if (_captureStep == null)
+            return;
+
+        e.Handled = true;
+
+        if (KeyCaptureMap.TryGet(e.Key, out var name))
+            _pressedKeys.Remove(name);
+
+        // Whole chord released → commit (combo.Keys already holds _maxCombo) and stop.
+        if (_captureStep is KeyCombinationStep && _pressedKeys.Count == 0 && _maxCombo.Count > 0)
+            EndCapture();
+    }
+
+    private void Capture_LostFocus(object sender, RoutedEventArgs e)
+    {
+        if (_captureStep != null)
+            EndCapture();
+    }
+
+    private static List<string> SortModifiersFirst(IEnumerable<string> keys)
+    {
+        // Keep press order but float modifiers to the front (Ctrl+Shift+S, not S+Ctrl).
+        return keys.OrderBy(k => IsModifierName(k) ? 0 : 1).ToList();
+    }
+
+    private static bool IsModifierName(string name) => name is
+        "Ctrl" or "RCtrl" or "Shift" or "RShift" or "Alt" or "AltGr" or "Win" or "Menu";
+
+    private static void SetSingleKey(MacroStep step, string name)
+    {
+        switch (step)
+        {
+            case KeyDownStep down: down.Key = name; break;
+            case KeyUpStep up: up.Key = name; break;
+        }
+    }
+
+    private void EndCapture()
+    {
+        // Unchecking raises CaptureToggle_Unchecked which resets the rest of the state.
+        if (_captureToggle != null)
+            _captureToggle.IsChecked = false;
+        else
+            ResetCaptureState();
+    }
+
+    private void ResetCaptureState()
+    {
+        _captureStep = null;
+        _captureToggle = null;
+        _pressedKeys.Clear();
+        _maxCombo = [];
     }
 
     // ───────── Drag & drop live reorder ─────────

@@ -102,6 +102,8 @@ SUBSYSTEM=="usb", ATTRS{idVendor}=="1532", ATTRS{idProduct}=="0d06", MODE="0666"
 # Loupedeck Live S (USB + serial tty)
 SUBSYSTEM=="usb", ATTRS{idVendor}=="2ec2", ATTRS{idProduct}=="0006", MODE="0666"
 SUBSYSTEM=="tty", ATTRS{idVendor}=="2ec2", ATTRS{idProduct}=="0006", MODE="0666"
+# uinput – virtual keyboard/mouse for macro execution (granted to the 'input' group)
+KERNEL=="uinput", SUBSYSTEM=="misc", GROUP="input", MODE="0660", OPTIONS+="static_node=uinput"
 EOF
     if command -v udevadm >/dev/null 2>&1; then
         $SUDO udevadm control --reload-rules || true
@@ -111,6 +113,35 @@ EOF
     fi
 else
     warn "/etc/udev/rules.d does not exist – skipping udev rules."
+fi
+
+# ---------- input group membership ----------
+# Both macro execution (/dev/uinput, via the rule above) and macro recording
+# (reading /dev/input/event*) are gated behind the 'input' group. Add the invoking
+# user so neither needs root or world-writable nodes.
+TARGET_USER="${SUDO_USER:-}"
+if [ -z "$TARGET_USER" ] && command -v logname >/dev/null 2>&1; then
+    TARGET_USER="$(logname 2>/dev/null || true)"
+fi
+
+if [ -n "$TARGET_USER" ] && [ "$TARGET_USER" != "root" ]; then
+    if ! getent group input >/dev/null 2>&1; then
+        log "Creating 'input' group ..."
+        $SUDO groupadd -r input || warn "Could not create 'input' group."
+    fi
+
+    if id -nG "$TARGET_USER" 2>/dev/null | tr ' ' '\n' | grep -qx input; then
+        log "User '$TARGET_USER' is already in the 'input' group."
+    else
+        log "Adding user '$TARGET_USER' to the 'input' group ..."
+        if $SUDO usermod -aG input "$TARGET_USER"; then
+            warn "Log out and back in for the 'input' group to take effect (needed for macros and recording)."
+        else
+            warn "Could not add '$TARGET_USER' to the 'input' group – add it manually: sudo usermod -aG input $TARGET_USER"
+        fi
+    fi
+else
+    warn "Could not determine the target user – add yourself to the 'input' group manually: sudo usermod -aG input <user>"
 fi
 
 # ---------- Desktop entry ----------

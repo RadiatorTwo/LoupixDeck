@@ -66,6 +66,8 @@ public class MacroStepJsonConverter : JsonConverter
             MacroStepType.KeyUp => new KeyUpStep(),
             MacroStepType.Mouse => new MouseStep(),
             MacroStepType.Command => new CommandStep(),
+            MacroStepType.RepeatStart => new RepeatStartStep(),
+            MacroStepType.RepeatEnd => new RepeatEndStep(),
             _ => null
         };
 

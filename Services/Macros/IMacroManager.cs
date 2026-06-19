@@ -24,6 +24,12 @@ public interface IMacroManager
     void Save();
 
     /// <summary>
+    /// Global hotkey (e.g. "Ctrl+Alt+Esc") that cancels all running macros; empty = disabled.
+    /// Setting it persists macros.json and raises <see cref="MacrosChanged"/>.
+    /// </summary>
+    string StopHotkey { get; set; }
+
+    /// <summary>
     /// True when <paramref name="name"/> is a usable macro name: non-empty, free of
     /// command-parser characters ( ) , &amp; and unique among all macros except
     /// <paramref name="ignore"/>.

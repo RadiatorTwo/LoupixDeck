@@ -317,9 +317,25 @@ dotnet publish LoupixDeck.csproj -c Release -r linux-x64 --self-contained true \
   -o publish/linux-x64
 ```
 
-On Linux, macros require access to `/dev/uinput`.
+On Linux, macro **execution** writes to `/dev/uinput` and macro **recording** reads
+`/dev/input/event*`. Both are gated behind the `input` group, so the recommended setup
+is a udev rule that grants `uinput` to the `input` group plus membership in that group:
 
-If the device is not accessible without `sudo`, add a udev rule for the device VID/PID.
+```text
+# Grant uinput to the 'input' group (macro execution)
+KERNEL=="uinput", SUBSYSTEM=="misc", GROUP="input", MODE="0660", OPTIONS+="static_node=uinput"
+```
+
+```bash
+sudo usermod -aG input "$USER"   # then log out and back in
+```
+
+> The bundled `install-loupixdeck.sh` already writes this uinput rule and adds the
+> invoking user to the `input` group. Note: being able to run macros does **not**
+> automatically mean recording works — recording additionally needs read access to
+> `/dev/input/event*`, which the `input` group provides.
+
+If the **device** itself is not accessible without `sudo`, add a udev rule for its VID/PID.
 
 Example for the Loupedeck Live S:
 

@@ -59,6 +59,21 @@ public abstract class MacroStep : INotifyPropertyChanged
         }
     }
 
+    private bool _isSelected;
+
+    /// <summary>True while the step is checked for a bulk action (editor UI state only).</summary>
+    [JsonIgnore]
+    public bool IsSelected
+    {
+        get => _isSelected;
+        set
+        {
+            if (_isSelected == value) return;
+            _isSelected = value;
+            OnPropertyChanged();
+        }
+    }
+
     public event PropertyChangedEventHandler PropertyChanged;
 
     protected void OnPropertyChanged([CallerMemberName] string propertyName = null)
