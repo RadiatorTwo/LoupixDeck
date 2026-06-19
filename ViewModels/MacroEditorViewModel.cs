@@ -34,15 +34,24 @@ public class MacroEditorViewModel : DialogViewModelBase<DialogResult>, IAsyncIni
     [
         nameof(MacroStep.IsEditing),
         nameof(MacroStep.IsDragging),
+        nameof(MacroStep.IsSelected),
         nameof(MacroStep.ValueText)
     ];
 
     private readonly IMacroManager _macroManager;
     private readonly ICommandBuilder _commandBuilder;
     private readonly IMenuTreeBuilder _menuTreeBuilder;
+    private readonly MacroRunner _macroRunner;
 
     // Debounces persisting while the user is typing; flushed on window close.
     private readonly DispatcherTimer _applyTimer;
+
+    // Counts down before a test run so the user can focus the target window.
+    private readonly DispatcherTimer _testTimer;
+    private int _testCountdown;
+
+    // Editor-local clipboard for copy/paste of steps (deep clones, cross-macro).
+    private readonly List<MacroStep> _clipboard = [];
 
     /// <summary>Editable working copies of all macros.</summary>
     public ObservableCollection<Macro> Macros { get; } = [];
@@ -58,7 +67,12 @@ public class MacroEditorViewModel : DialogViewModelBase<DialogResult>, IAsyncIni
         set
         {
             if (SetProperty(ref _selectedMacro, value))
+            {
                 OnPropertyChanged(nameof(HasSelectedMacro));
+                OnPropertyChanged(nameof(SelectedStepCount));
+                OnPropertyChanged(nameof(HasSelectedSteps));
+                OnPropertyChanged(nameof(MacroPreview));
+            }
         }
     }
 
@@ -78,16 +92,60 @@ public class MacroEditorViewModel : DialogViewModelBase<DialogResult>, IAsyncIni
 
     public bool HasValidationMessage => !string.IsNullOrEmpty(ValidationMessage);
 
+    /// <summary>Default delay (ms) applied by the bulk "set / insert delay" actions.</summary>
+    private int _bulkDelayMs = 100;
+
+    public int BulkDelayMs
+    {
+        get => _bulkDelayMs;
+        set => SetProperty(ref _bulkDelayMs, value);
+    }
+
+    /// <summary>Number of currently checked steps in the selected macro.</summary>
+    public int SelectedStepCount =>
+        SelectedMacro?.Steps.Count(s => s.IsSelected) ?? 0;
+
+    public bool HasSelectedSteps => SelectedStepCount > 0;
+
+    public bool HasClipboard => _clipboard.Count > 0;
+
+    /// <summary>One-line summary of the selected macro's steps, e.g. "Type 'hi' → Ctrl+C → 100 ms".</summary>
+    public string MacroPreview
+    {
+        get
+        {
+            var steps = SelectedMacro?.Steps;
+            if (steps == null || steps.Count == 0)
+                return string.Empty;
+            return string.Join("  →  ", steps.Select(StepSummary));
+        }
+    }
+
+    public bool IsTesting => _testCountdown > 0;
+
+    public string TestButtonText => IsTesting ? $"Cancel ({_testCountdown})" : "Test";
+
     public ICommand AddMacroCommand { get; }
     public ICommand RemoveMacroCommand { get; }
     public ICommand AddStepCommand { get; }
+    public ICommand DuplicateStepCommand { get; }
+    public ICommand SelectAllStepsCommand { get; }
+    public ICommand ClearSelectionCommand { get; }
+    public ICommand DuplicateSelectedCommand { get; }
+    public ICommand CopySelectedCommand { get; }
+    public ICommand PasteStepsCommand { get; }
+    public ICommand DeleteSelectedCommand { get; }
+    public ICommand SetDelayOnSelectedCommand { get; }
+    public ICommand InsertDelayAfterSelectedCommand { get; }
+    public ICommand TestMacroCommand { get; }
 
     public MacroEditorViewModel(IMacroManager macroManager, ICommandBuilder commandBuilder,
-        IMenuTreeBuilder menuTreeBuilder)
+        IMenuTreeBuilder menuTreeBuilder, MacroRunner macroRunner)
     {
         _macroManager = macroManager;
         _commandBuilder = commandBuilder;
         _menuTreeBuilder = menuTreeBuilder;
+        _macroRunner = macroRunner;
 
         foreach (var macro in macroManager.Macros)
         {
@@ -107,9 +165,22 @@ public class MacroEditorViewModel : DialogViewModelBase<DialogResult>, IAsyncIni
             Apply();
         };
 
+        _testTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+        _testTimer.Tick += TestTimer_Tick;
+
         AddMacroCommand = new RelayCommand(AddMacro);
         RemoveMacroCommand = new RelayCommand(RemoveMacro);
         AddStepCommand = new RelayCommand<string>(AddStep);
+        DuplicateStepCommand = new RelayCommand<MacroStep>(DuplicateStep);
+        SelectAllStepsCommand = new RelayCommand(SelectAllSteps);
+        ClearSelectionCommand = new RelayCommand(ClearSelection);
+        DuplicateSelectedCommand = new RelayCommand(DuplicateSelected);
+        CopySelectedCommand = new RelayCommand(CopySelected);
+        PasteStepsCommand = new RelayCommand(PasteSteps);
+        DeleteSelectedCommand = new RelayCommand(DeleteSelected);
+        SetDelayOnSelectedCommand = new RelayCommand(SetDelayOnSelected);
+        InsertDelayAfterSelectedCommand = new RelayCommand(InsertDelayAfterSelected);
+        TestMacroCommand = new RelayCommand(ToggleTest);
     }
 
     public async Task InitializeAsync()
@@ -180,6 +251,189 @@ public class MacroEditorViewModel : DialogViewModelBase<DialogResult>, IAsyncIni
         step.CommandString = Utils.CommandChain.Append(step.CommandString, formattedCommand);
     }
 
+    // ───────── Step bulk operations ─────────
+
+    /// <summary>Inserts a deep copy of the step right after the original.</summary>
+    public void DuplicateStep(MacroStep step)
+    {
+        var steps = SelectedMacro?.Steps;
+        if (step == null || steps == null)
+            return;
+
+        var index = steps.IndexOf(step);
+        if (index < 0)
+            return;
+
+        steps.Insert(index + 1, CloneStep(step));
+    }
+
+    private void SelectAllSteps()
+    {
+        if (SelectedMacro == null)
+            return;
+        foreach (var step in SelectedMacro.Steps)
+            step.IsSelected = true;
+    }
+
+    private void ClearSelection()
+    {
+        if (SelectedMacro == null)
+            return;
+        foreach (var step in SelectedMacro.Steps)
+            step.IsSelected = false;
+    }
+
+    private void DuplicateSelected()
+    {
+        var steps = SelectedMacro?.Steps;
+        if (steps == null)
+            return;
+
+        // Iterate over a snapshot so freshly inserted clones aren't duplicated again.
+        foreach (var step in Selected().ToList())
+        {
+            var index = steps.IndexOf(step);
+            if (index < 0)
+                continue;
+            var clone = CloneStep(step);
+            clone.IsSelected = false;
+            steps.Insert(index + 1, clone);
+        }
+    }
+
+    private void CopySelected()
+    {
+        _clipboard.Clear();
+        foreach (var step in Selected())
+            _clipboard.Add(CloneStep(step));
+        OnPropertyChanged(nameof(HasClipboard));
+    }
+
+    /// <summary>Pastes clipboard steps after the last selected step, or at the end.</summary>
+    private void PasteSteps()
+    {
+        var steps = SelectedMacro?.Steps;
+        if (steps == null || _clipboard.Count == 0)
+            return;
+
+        var lastSelected = Selected().LastOrDefault();
+        var insertAt = lastSelected != null ? steps.IndexOf(lastSelected) + 1 : steps.Count;
+
+        foreach (var step in steps)
+            step.IsSelected = false;
+
+        foreach (var template in _clipboard)
+        {
+            var clone = CloneStep(template);
+            clone.IsSelected = true;
+            steps.Insert(insertAt++, clone);
+        }
+    }
+
+    private void DeleteSelected()
+    {
+        var steps = SelectedMacro?.Steps;
+        if (steps == null)
+            return;
+        foreach (var step in Selected().ToList())
+            steps.Remove(step);
+    }
+
+    /// <summary>Sets the duration of every selected Delay step to <see cref="BulkDelayMs"/>.</summary>
+    private void SetDelayOnSelected()
+    {
+        foreach (var delay in Selected().OfType<DelayStep>())
+            delay.Milliseconds = BulkDelayMs;
+    }
+
+    /// <summary>Inserts a Delay step after each selected step (delays between actions).</summary>
+    private void InsertDelayAfterSelected()
+    {
+        var steps = SelectedMacro?.Steps;
+        if (steps == null)
+            return;
+
+        foreach (var step in Selected().ToList())
+        {
+            var index = steps.IndexOf(step);
+            if (index < 0)
+                continue;
+            steps.Insert(index + 1, new DelayStep { Milliseconds = BulkDelayMs });
+        }
+    }
+
+    private IEnumerable<MacroStep> Selected() =>
+        SelectedMacro?.Steps.Where(s => s.IsSelected) ?? [];
+
+    // ───────── In-editor test playback ─────────
+
+    private void ToggleTest()
+    {
+        if (IsTesting)
+        {
+            StopTestCountdown();
+            return;
+        }
+
+        if (SelectedMacro == null || SelectedMacro.Steps.Count == 0)
+            return;
+
+        _testCountdown = 3;
+        _testTimer.Start();
+        OnPropertyChanged(nameof(IsTesting));
+        OnPropertyChanged(nameof(TestButtonText));
+    }
+
+    private void TestTimer_Tick(object sender, EventArgs e)
+    {
+        _testCountdown--;
+        if (_testCountdown > 0)
+        {
+            OnPropertyChanged(nameof(TestButtonText));
+            return;
+        }
+
+        StopTestCountdown();
+        RunTest();
+    }
+
+    private void StopTestCountdown()
+    {
+        _testTimer.Stop();
+        _testCountdown = 0;
+        OnPropertyChanged(nameof(IsTesting));
+        OnPropertyChanged(nameof(TestButtonText));
+    }
+
+    private void RunTest()
+    {
+        // Run a clone so the live editing copy is never mutated by playback.
+        var macro = DeepClone(SelectedMacro);
+        _ = _macroRunner.Run(macro);
+    }
+
+    private static MacroStep CloneStep(MacroStep step)
+    {
+        var json = JsonConvert.SerializeObject(step, CloneSettings);
+        return JsonConvert.DeserializeObject<MacroStep>(json, CloneSettings);
+    }
+
+    private static string StepSummary(MacroStep step) => step switch
+    {
+        TextStep t => $"Type \"{Truncate(t.Text)}\"",
+        KeyCombinationStep k => string.IsNullOrWhiteSpace(k.Keys) ? "Keys" : k.Keys,
+        DelayStep d => $"{d.Milliseconds} ms",
+        KeyDownStep kd => $"↓{kd.Key}",
+        KeyUpStep ku => $"↑{ku.Key}",
+        _ => step.ValueText is { Length: > 0 } v ? Truncate(v) : step.TypeText
+    };
+
+    private static string Truncate(string value)
+    {
+        value ??= string.Empty;
+        return value.Length <= 20 ? value : value[..20] + "…";
+    }
+
     // ───────── Instant apply ─────────
 
     private void Macros_CollectionChanged(object sender, NotifyCollectionChangedEventArgs e)
@@ -227,13 +481,32 @@ public class MacroEditorViewModel : DialogViewModelBase<DialogResult>, IAsyncIni
             foreach (MacroStep step in e.NewItems)
                 step.PropertyChanged += Step_PropertyChanged;
 
+        RefreshSelectionState();
+        OnPropertyChanged(nameof(MacroPreview));
         ScheduleApply();
     }
 
     private void Step_PropertyChanged(object sender, PropertyChangedEventArgs e)
     {
+        if (e.PropertyName == nameof(MacroStep.IsSelected))
+        {
+            RefreshSelectionState();
+            return;
+        }
+
+        // Any value change (the data property fires alongside ValueText) refreshes the preview.
+        if (e.PropertyName != nameof(MacroStep.IsEditing) &&
+            e.PropertyName != nameof(MacroStep.IsDragging))
+            OnPropertyChanged(nameof(MacroPreview));
+
         if (!NonPersistedStepProperties.Contains(e.PropertyName))
             ScheduleApply();
+    }
+
+    private void RefreshSelectionState()
+    {
+        OnPropertyChanged(nameof(SelectedStepCount));
+        OnPropertyChanged(nameof(HasSelectedSteps));
     }
 
     /// <summary>

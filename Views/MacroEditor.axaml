@@ -172,7 +172,7 @@
             <!-- Right: steps of the selected macro -->
             <Border Grid.Column="1" Classes="card" Margin="0" Padding="14"
                     IsVisible="{Binding HasSelectedMacro}">
-                <Grid RowDefinitions="Auto,Auto,*">
+                <Grid RowDefinitions="Auto,Auto,Auto,Auto,*">
 
                     <!-- Name -->
                     <Grid Grid.Row="0" RowDefinitions="Auto,Auto" ColumnDefinitions="Auto,*" Margin="0,0,0,10">
@@ -187,11 +187,16 @@
                                    IsVisible="{Binding HasValidationMessage}" />
                     </Grid>
 
-                    <!-- Steps header + add button -->
-                    <Grid Grid.Row="1" ColumnDefinitions="*,Auto" Margin="0,0,0,8">
+                    <!-- Steps header + test + add button -->
+                    <Grid Grid.Row="1" ColumnDefinitions="*,Auto,Auto" Margin="0,0,0,8">
                         <TextBlock Grid.Column="0" Classes="card-title" Text="Steps" VerticalAlignment="Center"
                                    Margin="0" />
-                        <Button Grid.Column="1" Content="Add Step ▾">
+                        <Button Grid.Column="1" Margin="0,0,8,0"
+                                Content="{Binding TestButtonText}"
+                                ToolTip.Tip="Run this macro after a short countdown — focus your target window first"
+                                IsEnabled="{Binding SelectedMacro.Steps.Count}"
+                                Command="{Binding TestMacroCommand}" />
+                        <Button Grid.Column="2" Content="Add Step ▾">
                             <Button.Flyout>
                                 <MenuFlyout Placement="BottomEdgeAlignedRight">
                                     <MenuItem Header="Type Text" Tag="Text" Click="AddStepMenu_Click" />
@@ -206,8 +211,50 @@
                         </Button>
                     </Grid>
 
+                    <!-- Compact sequence preview -->
+                    <Border Grid.Row="2" Classes="step-panel" Margin="0,0,0,8" Padding="10,6"
+                            IsVisible="{Binding SelectedMacro.Steps.Count}">
+                        <TextBlock Classes="step-value" TextTrimming="CharacterEllipsis"
+                                   ToolTip.Tip="{Binding MacroPreview}"
+                                   Text="{Binding MacroPreview}" />
+                    </Border>
+
+                    <!-- Bulk action toolbar -->
+                    <Grid Grid.Row="3" ColumnDefinitions="Auto,Auto,*,Auto,Auto,Auto,Auto" Margin="0,0,0,8"
+                          IsVisible="{Binding SelectedMacro.Steps.Count}">
+                        <Button Grid.Column="0" Content="All" Margin="0,0,4,0"
+                                ToolTip.Tip="Select all steps" Command="{Binding SelectAllStepsCommand}" />
+                        <Button Grid.Column="1" Content="None" Margin="0,0,4,0"
+                                ToolTip.Tip="Clear selection"
+                                IsEnabled="{Binding HasSelectedSteps}" Command="{Binding ClearSelectionCommand}" />
+
+                        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6"
+                                    VerticalAlignment="Center" Margin="10,0"
+                                    IsVisible="{Binding HasSelectedSteps}">
+                            <TextBlock Classes="editor-label" Text="{Binding SelectedStepCount, StringFormat='{}{0} selected'}" />
+                            <NumericUpDown Width="120" Minimum="0" Maximum="600000" Increment="50"
+                                           FormatString="0" Value="{Binding BulkDelayMs, Mode=TwoWay}"
+                                           ToolTip.Tip="Delay (ms) used by the set/insert-delay actions" />
+                            <TextBlock Classes="editor-label" Text="ms" />
+                            <Button Content="Set Delay" ToolTip.Tip="Set every selected Delay step to this value"
+                                    Command="{Binding SetDelayOnSelectedCommand}" />
+                            <Button Content="Insert Delay" ToolTip.Tip="Insert a Delay step after each selected step"
+                                    Command="{Binding InsertDelayAfterSelectedCommand}" />
+                        </StackPanel>
+
+                        <Button Grid.Column="3" Content="Duplicate" Margin="4,0,0,0"
+                                IsEnabled="{Binding HasSelectedSteps}" Command="{Binding DuplicateSelectedCommand}" />
+                        <Button Grid.Column="4" Content="Copy" Margin="4,0,0,0"
+                                IsEnabled="{Binding HasSelectedSteps}" Command="{Binding CopySelectedCommand}" />
+                        <Button Grid.Column="5" Content="Paste" Margin="4,0,0,0"
+                                IsEnabled="{Binding HasClipboard}" Command="{Binding PasteStepsCommand}" />
+                        <Button Grid.Column="6" Content="Delete" Margin="4,0,0,0"
+                                Background="#3A2424" Foreground="#E08A8A"
+                                IsEnabled="{Binding HasSelectedSteps}" Command="{Binding DeleteSelectedCommand}" />
+                    </Grid>
+
                     <!-- Step list -->
-                    <ScrollViewer Grid.Row="2"
+                    <ScrollViewer Grid.Row="4"
                                   VerticalScrollBarVisibility="Auto"
                                   HorizontalScrollBarVisibility="Disabled">
                         <StackPanel>
@@ -221,30 +268,43 @@
                                         <Border Classes="step-panel" Classes.dragging="{Binding IsDragging}">
                                             <Grid RowDefinitions="Auto,Auto">
 
-                                                <!-- Panel row: icon | type | value | expand | remove | drag handle -->
+                                                <!-- Panel row: select | icon | type | value | expand | duplicate | remove | drag handle -->
                                                 <Grid Grid.Row="0"
-                                                      ColumnDefinitions="36,150,*,Auto,Auto,Auto"
+                                                      ColumnDefinitions="Auto,36,150,*,Auto,Auto,Auto,Auto"
                                                       MinHeight="36">
-                                                    <TextBlock Grid.Column="0" Classes="step-icon"
+                                                    <CheckBox Grid.Column="0"
+                                                              VerticalAlignment="Center"
+                                                              Margin="0,0,6,0"
+                                                              ToolTip.Tip="Select step for bulk actions"
+                                                              IsChecked="{Binding IsSelected, Mode=TwoWay}" />
+                                                    <TextBlock Grid.Column="1" Classes="step-icon"
                                                                Text="{Binding Icon}" />
-                                                    <TextBlock Grid.Column="1" Classes="step-type"
+                                                    <TextBlock Grid.Column="2" Classes="step-type"
                                                                Text="{Binding TypeText}" />
-                                                    <TextBlock Grid.Column="2" Classes="step-value"
+                                                    <TextBlock Grid.Column="3" Classes="step-value"
                                                                Text="{Binding ValueText}" />
 
-                                                    <ToggleButton Grid.Column="3" Classes="step-expand"
+                                                    <ToggleButton Grid.Column="4" Classes="step-expand"
                                                                   VerticalAlignment="Center"
                                                                   ToolTip.Tip="Expand / collapse step editor"
                                                                   IsChecked="{Binding IsEditing, Mode=TwoWay}" />
 
-                                                    <Button Grid.Column="4" Classes="row-action danger"
+                                                    <Button Grid.Column="5" Classes="row-action"
+                                                            FontFamily="{StaticResource MdiFont}"
+                                                            Content="&#xF018F;"
+                                                            VerticalAlignment="Center"
+                                                            ToolTip.Tip="Duplicate step"
+                                                            Command="{Binding $parent[Window].((vm:MacroEditorViewModel)DataContext).DuplicateStepCommand}"
+                                                            CommandParameter="{Binding}" />
+
+                                                    <Button Grid.Column="6" Classes="row-action danger"
                                                             FontFamily="{StaticResource MdiFont}"
                                                             Content="&#xF01B4;"
                                                             VerticalAlignment="Center"
                                                             ToolTip.Tip="Remove step"
                                                             Click="RemoveStep_Click" />
 
-                                                    <Border Grid.Column="5" Classes="drag-handle"
+                                                    <Border Grid.Column="7" Classes="drag-handle"
                                                             VerticalAlignment="Stretch"
                                                             PointerPressed="DragHandle_PointerPressed">
                                                         <TextBlock Classes="step-icon" Text="&#xF01DB;" />
