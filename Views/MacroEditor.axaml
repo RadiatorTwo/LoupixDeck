@@ -219,51 +219,53 @@
                                    Text="{Binding MacroPreview}" />
                     </Border>
 
-                    <!-- Bulk action toolbar: wraps to a second line when the card is narrow -->
-                    <WrapPanel Grid.Row="3" Orientation="Horizontal" Margin="0,0,0,4"
-                               IsVisible="{Binding SelectedMacro.Steps.Count}">
-                        <WrapPanel.Styles>
+                    <!-- Bulk action toolbar: permanent select row, bulk actions below -->
+                    <StackPanel Grid.Row="3" Orientation="Vertical" Margin="0,0,0,4"
+                                IsVisible="{Binding SelectedMacro.Steps.Count}">
+                        <StackPanel.Styles>
                             <Style Selector="WrapPanel > Button">
                                 <Setter Property="Margin" Value="0,0,4,4" />
                             </Style>
-                        </WrapPanel.Styles>
+                        </StackPanel.Styles>
 
-                        <Button Content="All" ToolTip.Tip="Select all steps"
-                                Command="{Binding SelectAllStepsCommand}" />
-                        <Button Content="None" ToolTip.Tip="Clear selection"
-                                IsEnabled="{Binding HasSelectedSteps}" Command="{Binding ClearSelectionCommand}" />
+                        <!-- Permanent selection controls -->
+                        <WrapPanel Orientation="Horizontal">
+                            <Button Content="Select All" ToolTip.Tip="Select all steps"
+                                    Command="{Binding SelectAllStepsCommand}" />
+                            <Button Content="Select None" ToolTip.Tip="Clear selection"
+                                    IsEnabled="{Binding HasSelectedSteps}" Command="{Binding ClearSelectionCommand}" />
+                            <TextBlock Classes="editor-label" VerticalAlignment="Center" Margin="6,0,0,4"
+                                       IsVisible="{Binding HasSelectedSteps}"
+                                       Text="{Binding SelectedStepCount, StringFormat='{}{0} selected'}" />
+                        </WrapPanel>
 
-                        <Border Width="1" Margin="4,2,8,2" Background="{DynamicResource AppBorderSubtle}"
-                                IsVisible="{Binding HasSelectedSteps}" />
+                        <!-- Bulk actions (only when actionable) -->
+                        <WrapPanel Orientation="Horizontal" IsVisible="{Binding HasBulkActions}">
+                            <Button Content="Duplicate" IsEnabled="{Binding HasSelectedSteps}"
+                                    Command="{Binding DuplicateSelectedCommand}" />
+                            <Button Content="Copy" IsEnabled="{Binding HasSelectedSteps}"
+                                    Command="{Binding CopySelectedCommand}" />
+                            <Button Content="Paste" IsEnabled="{Binding HasClipboard}"
+                                    Command="{Binding PasteStepsCommand}" />
+                            <Button Content="Delete" Background="#3A2424" Foreground="#E08A8A"
+                                    IsEnabled="{Binding HasSelectedSteps}" Command="{Binding DeleteSelectedCommand}" />
 
-                        <TextBlock Classes="editor-label" VerticalAlignment="Center" Margin="0,0,8,4"
-                                   IsVisible="{Binding HasSelectedSteps}"
-                                   Text="{Binding SelectedStepCount, StringFormat='{}{0} selected'}" />
+                            <Border Width="1" Margin="4,2,8,6" Background="{DynamicResource AppBorderSubtle}"
+                                    IsVisible="{Binding HasSelectedSteps}" />
 
-                        <Button Content="Duplicate" IsEnabled="{Binding HasSelectedSteps}"
-                                Command="{Binding DuplicateSelectedCommand}" />
-                        <Button Content="Copy" IsEnabled="{Binding HasSelectedSteps}"
-                                Command="{Binding CopySelectedCommand}" />
-                        <Button Content="Paste" IsEnabled="{Binding HasClipboard}"
-                                Command="{Binding PasteStepsCommand}" />
-                        <Button Content="Delete" Background="#3A2424" Foreground="#E08A8A"
-                                IsEnabled="{Binding HasSelectedSteps}" Command="{Binding DeleteSelectedCommand}" />
-
-                        <Border Width="1" Margin="4,2,8,2" Background="{DynamicResource AppBorderSubtle}"
-                                IsVisible="{Binding HasSelectedSteps}" />
-
-                        <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center"
-                                    Margin="0,0,0,4" IsVisible="{Binding HasSelectedSteps}">
-                            <NumericUpDown Width="120" Minimum="0" Maximum="600000" Increment="50"
-                                           FormatString="0" Value="{Binding BulkDelayMs, Mode=TwoWay}"
-                                           ToolTip.Tip="Delay (ms) used by the set/insert-delay actions" />
-                            <TextBlock Classes="editor-label" VerticalAlignment="Center" Text="ms" />
-                            <Button Margin="0" Content="Set Delay" ToolTip.Tip="Set every selected Delay step to this value"
-                                    Command="{Binding SetDelayOnSelectedCommand}" />
-                            <Button Margin="0" Content="Insert Delay" ToolTip.Tip="Insert a Delay step after each selected step"
-                                    Command="{Binding InsertDelayAfterSelectedCommand}" />
-                        </StackPanel>
-                    </WrapPanel>
+                            <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,0,0,4"
+                                        IsVisible="{Binding HasSelectedSteps}">
+                                <NumericUpDown Width="120" Minimum="0" Maximum="600000" Increment="50"
+                                               FormatString="0" Value="{Binding BulkDelayMs, Mode=TwoWay}"
+                                               ToolTip.Tip="Delay (ms) used by the set/insert-delay actions" />
+                                <TextBlock Classes="editor-label" VerticalAlignment="Center" Text="ms" />
+                                <Button Margin="0" Content="Set Delay" ToolTip.Tip="Set every selected Delay step to this value"
+                                        Command="{Binding SetDelayOnSelectedCommand}" />
+                                <Button Margin="0" Content="Insert Delay" ToolTip.Tip="Insert a Delay step after each selected step"
+                                        Command="{Binding InsertDelayAfterSelectedCommand}" />
+                            </StackPanel>
+                        </WrapPanel>
+                    </StackPanel>
 
                     <!-- Step list -->
                     <ScrollViewer Grid.Row="4"

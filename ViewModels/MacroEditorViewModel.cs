@@ -71,6 +71,7 @@ public class MacroEditorViewModel : DialogViewModelBase<DialogResult>, IAsyncIni
                 OnPropertyChanged(nameof(HasSelectedMacro));
                 OnPropertyChanged(nameof(SelectedStepCount));
                 OnPropertyChanged(nameof(HasSelectedSteps));
+                OnPropertyChanged(nameof(HasBulkActions));
                 OnPropertyChanged(nameof(MacroPreview));
             }
         }
@@ -108,6 +109,9 @@ public class MacroEditorViewModel : DialogViewModelBase<DialogResult>, IAsyncIni
     public bool HasSelectedSteps => SelectedStepCount > 0;
 
     public bool HasClipboard => _clipboard.Count > 0;
+
+    /// <summary>True when any bulk action row is actionable (selection present or clipboard filled).</summary>
+    public bool HasBulkActions => HasSelectedSteps || HasClipboard;
 
     /// <summary>One-line summary of the selected macro's steps, e.g. "Type 'hi' → Ctrl+C → 100 ms".</summary>
     public string MacroPreview
@@ -307,6 +311,7 @@ public class MacroEditorViewModel : DialogViewModelBase<DialogResult>, IAsyncIni
         foreach (var step in Selected())
             _clipboard.Add(CloneStep(step));
         OnPropertyChanged(nameof(HasClipboard));
+        OnPropertyChanged(nameof(HasBulkActions));
     }
 
     /// <summary>Pastes clipboard steps after the last selected step, or at the end.</summary>
@@ -507,6 +512,7 @@ public class MacroEditorViewModel : DialogViewModelBase<DialogResult>, IAsyncIni
     {
         OnPropertyChanged(nameof(SelectedStepCount));
         OnPropertyChanged(nameof(HasSelectedSteps));
+        OnPropertyChanged(nameof(HasBulkActions));
     }
 
     /// <summary>
