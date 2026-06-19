@@ -80,12 +80,14 @@ public sealed class MacroStopHotkeyService(IMacroManager macroManager, IMacroSto
     {
         var fire = false;
 
+        var key = Utils.KeyNames.Canonicalize(e.KeyName);
+
         lock (_lock)
         {
             if (e.IsDown)
-                _pressed.Add(e.KeyName);
+                _pressed.Add(key);
             else
-                _pressed.Remove(e.KeyName);
+                _pressed.Remove(key);
 
             // Fire once when the whole combo is held; re-arm only after it is released again.
             if (_combo.Count > 0 && _combo.IsSubsetOf(_pressed))
@@ -111,7 +113,7 @@ public sealed class MacroStopHotkeyService(IMacroManager macroManager, IMacroSto
         var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         if (!string.IsNullOrWhiteSpace(hotkey))
             foreach (var part in hotkey.Split('+', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-                set.Add(part);
+                set.Add(Utils.KeyNames.Canonicalize(part));
         return set;
     }
 

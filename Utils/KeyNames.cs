@@ -222,6 +222,16 @@ public static class KeyNames
         return Aliases.TryGetValue(key, out var canonical) ? canonical : key;
     }
 
+    /// <summary>
+    /// Resolves a key name to a stable lower-case token (aliases applied), so names that
+    /// mean the same key compare equal regardless of spelling or casing — e.g. "Escape",
+    /// "escape" and "Esc" all map to "esc". Used for hotkey matching.
+    /// </summary>
+    public static string Canonicalize(string name)
+    {
+        return string.IsNullOrWhiteSpace(name) ? string.Empty : Normalize(name).ToLowerInvariant();
+    }
+
     /// <summary>Resolves a key name to its Linux evdev key code.</summary>
     public static bool TryGetLinux(string name, out int keyCode)
     {
