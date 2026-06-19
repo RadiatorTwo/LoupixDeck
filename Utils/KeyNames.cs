@@ -260,4 +260,19 @@ public static class KeyNames
 
     /// <summary>All Linux evdev key codes used by the name table (for uinput keybit registration).</summary>
     public static IEnumerable<int> AllLinuxKeyCodes => Linux.Values;
+
+    // Reverse of the Linux table (code -> canonical name); codes are unique so this is 1:1.
+    private static readonly Lazy<Dictionary<int, string>> LinuxReverse = new(() =>
+    {
+        var map = new Dictionary<int, string>();
+        foreach (var pair in Linux)
+            map.TryAdd(pair.Value, pair.Key);
+        return map;
+    });
+
+    /// <summary>Resolves a Linux evdev key code back to its canonical key name (for recording).</summary>
+    public static bool TryGetLinuxName(int keyCode, out string name)
+    {
+        return LinuxReverse.Value.TryGetValue(keyCode, out name);
+    }
 }
