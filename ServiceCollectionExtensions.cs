@@ -113,6 +113,7 @@ public static class ServiceCollectionExtensions
         collection.Forward<ISystemPowerService>(root);
         collection.Forward<IActiveWindowMonitor>(root);
         collection.Forward<IMacroManager>(root);
+        collection.Forward<IMacroStopCoordinator>(root);
         collection.Forward<IDeviceHostRegistry>(root);
         collection.Forward<IDeviceRouter>(root);
         collection.Forward<IPluginManager>(root);
