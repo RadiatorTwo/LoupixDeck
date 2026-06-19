@@ -71,6 +71,7 @@ public class MacroEditorViewModel : DialogViewModelBase<DialogResult>, IAsyncIni
                 OnPropertyChanged(nameof(HasSelectedMacro));
                 OnPropertyChanged(nameof(SelectedStepCount));
                 OnPropertyChanged(nameof(HasSelectedSteps));
+                OnPropertyChanged(nameof(HasSelectedDelay));
                 OnPropertyChanged(nameof(HasBulkActions));
                 OnPropertyChanged(nameof(MacroPreview));
             }
@@ -107,6 +108,10 @@ public class MacroEditorViewModel : DialogViewModelBase<DialogResult>, IAsyncIni
         SelectedMacro?.Steps.Count(s => s.IsSelected) ?? 0;
 
     public bool HasSelectedSteps => SelectedStepCount > 0;
+
+    /// <summary>True when at least one selected step is a Delay (so "Set Delay" applies).</summary>
+    public bool HasSelectedDelay =>
+        SelectedMacro?.Steps.Any(s => s.IsSelected && s is DelayStep) ?? false;
 
     public bool HasClipboard => _clipboard.Count > 0;
 
@@ -512,6 +517,7 @@ public class MacroEditorViewModel : DialogViewModelBase<DialogResult>, IAsyncIni
     {
         OnPropertyChanged(nameof(SelectedStepCount));
         OnPropertyChanged(nameof(HasSelectedSteps));
+        OnPropertyChanged(nameof(HasSelectedDelay));
         OnPropertyChanged(nameof(HasBulkActions));
     }
 
