@@ -123,6 +123,9 @@ public static class ServiceCollectionExtensions
 
             // Virtual mouse for macro mouse steps (uinput-backed).
             collection.AddSingleton<IVirtualMouse, UInputMouse>();
+
+            // No global keyboard recorder on Linux yet — register a stand-in.
+            collection.AddSingleton<IInputRecorder, NoOpInputRecorder>();
         }
         else
         {
@@ -140,6 +143,9 @@ public static class ServiceCollectionExtensions
             collection.AddSingleton<WindowsVirtualMouse>();
             collection.AddSingleton<InterceptionMouse>();
             collection.AddSingleton<IVirtualMouse, WindowsMouseRouter>();
+
+            // Global keyboard recorder for the macro editor (low-level hook).
+            collection.AddSingleton<IInputRecorder, WindowsInputRecorder>();
         }
 
         collection.AddSingleton(provider =>

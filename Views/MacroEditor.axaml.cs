@@ -39,6 +39,9 @@ public partial class MacroEditor : Window
 
         Closing += (_, _) =>
         {
+            // Stop any active recording so the global hook is uninstalled with the window.
+            ViewModel?.StopRecording();
+
             // Changes apply instantly (debounced) — persist anything still pending.
             ViewModel?.FlushPendingChanges();
 

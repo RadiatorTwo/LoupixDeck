@@ -187,16 +187,22 @@
                                    IsVisible="{Binding HasValidationMessage}" />
                     </Grid>
 
-                    <!-- Steps header + test + add button -->
-                    <Grid Grid.Row="1" ColumnDefinitions="*,Auto,Auto" Margin="0,0,0,8">
+                    <!-- Steps header + record / test / add button -->
+                    <StackPanel Grid.Row="1" Spacing="6" Margin="0,0,0,8">
+                      <Grid ColumnDefinitions="*,Auto,Auto,Auto">
                         <TextBlock Grid.Column="0" Classes="card-title" Text="Steps" VerticalAlignment="Center"
                                    Margin="0" />
                         <Button Grid.Column="1" Margin="0,0,8,0"
+                                Content="{Binding RecordButtonText}"
+                                IsVisible="{Binding IsRecordingSupported}"
+                                ToolTip.Tip="Record real key presses as Key Down / Key Up steps"
+                                Command="{Binding ToggleRecordingCommand}" />
+                        <Button Grid.Column="2" Margin="0,0,8,0"
                                 Content="{Binding TestButtonText}"
                                 ToolTip.Tip="Run this macro after a short countdown — focus your target window first"
                                 IsEnabled="{Binding SelectedMacro.Steps.Count}"
                                 Command="{Binding TestMacroCommand}" />
-                        <Button Grid.Column="2" Content="Add Step ▾">
+                        <Button Grid.Column="3" Content="Add Step ▾">
                             <Button.Flyout>
                                 <MenuFlyout Placement="BottomEdgeAlignedRight">
                                     <MenuItem Header="Type Text" Tag="Text" Click="AddStepMenu_Click" />
@@ -212,7 +218,20 @@
                                 </MenuFlyout>
                             </Button.Flyout>
                         </Button>
-                    </Grid>
+                      </Grid>
+
+                      <!-- Recording options + live status -->
+                      <StackPanel Orientation="Horizontal" Spacing="14"
+                                  IsVisible="{Binding IsRecordingSupported}">
+                          <CheckBox Content="Capture delays"
+                                    ToolTip.Tip="Record the pauses between key presses as Delay steps"
+                                    IsChecked="{Binding CaptureRecordedDelays, Mode=TwoWay}" />
+                          <TextBlock Classes="hint" VerticalAlignment="Center"
+                                     Foreground="#E07A7A"
+                                     IsVisible="{Binding IsRecording}"
+                                     Text="● Recording — keys are added live. Click Stop Recording to finish." />
+                      </StackPanel>
+                    </StackPanel>
 
                     <!-- Bulk action toolbar: permanent select row, bulk actions below -->
                     <StackPanel Grid.Row="2" Orientation="Vertical" Margin="0,0,0,4"

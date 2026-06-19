@@ -42,6 +42,10 @@ public class MacroEditorViewModel : DialogViewModelBase<DialogResult>, IAsyncIni
     private readonly ICommandBuilder _commandBuilder;
     private readonly IMenuTreeBuilder _menuTreeBuilder;
     private readonly MacroRunner _macroRunner;
+    private readonly IInputRecorder _inputRecorder;
+
+    // Below this gap a recorded pause is dropped as noise rather than a Delay step.
+    private const int MinRecordedDelayMs = 5;
 
     // Debounces persisting while the user is typing; flushed on window close.
     private readonly DispatcherTimer _applyTimer;
@@ -134,6 +138,22 @@ public class MacroEditorViewModel : DialogViewModelBase<DialogResult>, IAsyncIni
 
     public string TestButtonText => IsTesting ? $"Cancel ({_testCountdown})" : "Test";
 
+    /// <summary>False on platforms without a recording backend — the button is hidden then.</summary>
+    public bool IsRecordingSupported => _inputRecorder.IsSupported;
+
+    public bool IsRecording => _inputRecorder.IsRecording;
+
+    public string RecordButtonText => IsRecording ? "Stop Recording" : "Record";
+
+    private bool _captureRecordedDelays = true;
+
+    /// <summary>When on, gaps between recorded key events become Delay steps.</summary>
+    public bool CaptureRecordedDelays
+    {
+        get => _captureRecordedDelays;
+        set => SetProperty(ref _captureRecordedDelays, value);
+    }
+
     public ICommand AddMacroCommand { get; }
     public ICommand RemoveMacroCommand { get; }
     public ICommand AddStepCommand { get; }
@@ -147,14 +167,16 @@ public class MacroEditorViewModel : DialogViewModelBase<DialogResult>, IAsyncIni
     public ICommand SetDelayOnSelectedCommand { get; }
     public ICommand InsertDelayAfterSelectedCommand { get; }
     public ICommand TestMacroCommand { get; }
+    public ICommand ToggleRecordingCommand { get; }
 
     public MacroEditorViewModel(IMacroManager macroManager, ICommandBuilder commandBuilder,
-        IMenuTreeBuilder menuTreeBuilder, MacroRunner macroRunner)
+        IMenuTreeBuilder menuTreeBuilder, MacroRunner macroRunner, IInputRecorder inputRecorder)
     {
         _macroManager = macroManager;
         _commandBuilder = commandBuilder;
         _menuTreeBuilder = menuTreeBuilder;
         _macroRunner = macroRunner;
+        _inputRecorder = inputRecorder;
 
         foreach (var macro in macroManager.Macros)
         {
@@ -190,6 +212,7 @@ public class MacroEditorViewModel : DialogViewModelBase<DialogResult>, IAsyncIni
         SetDelayOnSelectedCommand = new RelayCommand(SetDelayOnSelected);
         InsertDelayAfterSelectedCommand = new RelayCommand(InsertDelayAfterSelected);
         TestMacroCommand = new RelayCommand(ToggleTest);
+        ToggleRecordingCommand = new RelayCommand(ToggleRecording);
     }
 
     public async Task InitializeAsync()
@@ -422,6 +445,60 @@ public class MacroEditorViewModel : DialogViewModelBase<DialogResult>, IAsyncIni
         // Run a clone so the live editing copy is never mutated by playback.
         var macro = DeepClone(SelectedMacro);
         _ = _macroRunner.Run(macro);
+    }
+
+    // ───────── Recording ─────────
+
+    private void ToggleRecording()
+    {
+        if (!_inputRecorder.IsSupported)
+            return;
+
+        if (_inputRecorder.IsRecording)
+        {
+            StopRecording();
+            return;
+        }
+
+        if (SelectedMacro == null)
+            return;
+
+        _inputRecorder.KeyRecorded += OnKeyRecorded;
+        _inputRecorder.Start();
+        OnPropertyChanged(nameof(IsRecording));
+        OnPropertyChanged(nameof(RecordButtonText));
+    }
+
+    /// <summary>Stops an active recording (idempotent — safe to call on window close).</summary>
+    public void StopRecording()
+    {
+        if (!_inputRecorder.IsRecording)
+            return;
+
+        _inputRecorder.Stop();
+        _inputRecorder.KeyRecorded -= OnKeyRecorded;
+        OnPropertyChanged(nameof(IsRecording));
+        OnPropertyChanged(nameof(RecordButtonText));
+    }
+
+    private void OnKeyRecorded(object sender, RecordedKeyEventArgs e)
+    {
+        // Fired on the recorder's hook thread → marshal onto the UI thread before
+        // touching the macro's step collection.
+        Dispatcher.UIThread.Post(() =>
+        {
+            var macro = SelectedMacro;
+            if (macro == null)
+                return;
+
+            var gapMs = (int)e.SinceLast.TotalMilliseconds;
+            if (CaptureRecordedDelays && gapMs >= MinRecordedDelayMs)
+                macro.Steps.Add(new DelayStep { Milliseconds = gapMs });
+
+            macro.Steps.Add(e.IsDown
+                ? new KeyDownStep { Key = e.KeyName }
+                : new KeyUpStep { Key = e.KeyName });
+        });
     }
 
     private static MacroStep CloneStep(MacroStep step)
