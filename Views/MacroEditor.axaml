@@ -257,15 +257,13 @@
                                         IsVisible="{Binding HasSelectedSteps}">
                                 <NumericUpDown Width="120" Minimum="0" Maximum="600000" Increment="50"
                                                FormatString="0" Value="{Binding BulkDelayMs, Mode=TwoWay}"
-                                               IsVisible="{Binding HasSelectedDelay}"
-                                               ToolTip.Tip="Delay (ms) used by the Set Delay action" />
-                                <TextBlock Classes="editor-label" VerticalAlignment="Center" Text="ms"
-                                           IsVisible="{Binding HasSelectedDelay}" />
-                                <Button Margin="0" Content="Set Delay" ToolTip.Tip="Set every selected Delay step to this value"
+                                               ToolTip.Tip="Delay (ms) used by the Insert / Set Delay actions" />
+                                <TextBlock Classes="editor-label" VerticalAlignment="Center" Text="ms" />
+                                <Button Margin="0" Content="Insert Delay" ToolTip.Tip="Insert a Delay step of this duration after each selected step"
+                                        Command="{Binding InsertDelayAfterSelectedCommand}" />
+                                <Button Margin="0" Content="Set Delay" ToolTip.Tip="Set every selected Delay step to this duration"
                                         IsVisible="{Binding HasSelectedDelay}"
                                         Command="{Binding SetDelayOnSelectedCommand}" />
-                                <Button Margin="0" Content="Insert Delay" ToolTip.Tip="Insert a default Delay step after each selected step (edit it inline)"
-                                        Command="{Binding InsertDelayAfterSelectedCommand}" />
                             </StackPanel>
                         </WrapPanel>
                     </StackPanel>

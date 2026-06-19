@@ -356,11 +356,7 @@ public class MacroEditorViewModel : DialogViewModelBase<DialogResult>, IAsyncIni
             delay.Milliseconds = BulkDelayMs;
     }
 
-    /// <summary>
-    /// Inserts a default Delay step after each selected step (delays between actions).
-    /// Like "Add Step → Delay", the inserted delay uses the default duration and is
-    /// meant to be fine-tuned inline — it is independent of the Set Delay value field.
-    /// </summary>
+    /// <summary>Inserts a Delay step of <see cref="BulkDelayMs"/> after each selected step.</summary>
     private void InsertDelayAfterSelected()
     {
         var steps = SelectedMacro?.Steps;
@@ -372,7 +368,7 @@ public class MacroEditorViewModel : DialogViewModelBase<DialogResult>, IAsyncIni
             var index = steps.IndexOf(step);
             if (index < 0)
                 continue;
-            steps.Insert(index + 1, new DelayStep());
+            steps.Insert(index + 1, new DelayStep { Milliseconds = BulkDelayMs });
         }
     }
 
