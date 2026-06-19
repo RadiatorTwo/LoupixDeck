@@ -53,6 +53,7 @@ public class MacroEditorViewModel : DialogViewModelBase<DialogResult>, IAsyncIni
     // Counts down before a test run so the user can focus the target window.
     private readonly DispatcherTimer _testTimer;
     private int _testCountdown;
+    private CancellationTokenSource _testCts;
 
     // Editor-local clipboard for copy/paste of steps (deep clones, cross-macro).
     private readonly List<MacroStep> _clipboard = [];
@@ -143,7 +144,21 @@ public class MacroEditorViewModel : DialogViewModelBase<DialogResult>, IAsyncIni
 
     public bool IsTesting => _testCountdown > 0;
 
-    public string TestButtonText => IsTesting ? $"Cancel ({_testCountdown})" : "Test";
+    private bool _isTestRunning;
+
+    /// <summary>True while a test macro is actually executing (after the countdown).</summary>
+    public bool IsTestRunning
+    {
+        get => _isTestRunning;
+        private set
+        {
+            if (SetProperty(ref _isTestRunning, value))
+                OnPropertyChanged(nameof(TestButtonText));
+        }
+    }
+
+    public string TestButtonText =>
+        IsTesting ? $"Cancel ({_testCountdown})" : IsTestRunning ? "Stop" : "Test";
 
     /// <summary>False on platforms without a recording backend — the button is hidden then.</summary>
     public bool IsRecordingSupported => _inputRecorder.IsSupported;
@@ -421,9 +436,17 @@ public class MacroEditorViewModel : DialogViewModelBase<DialogResult>, IAsyncIni
 
     private void ToggleTest()
     {
+        // Counting down → cancel the countdown.
         if (IsTesting)
         {
             StopTestCountdown();
+            return;
+        }
+
+        // Macro actually running → stop it.
+        if (IsTestRunning)
+        {
+            _testCts?.Cancel();
             return;
         }
 
@@ -457,11 +480,34 @@ public class MacroEditorViewModel : DialogViewModelBase<DialogResult>, IAsyncIni
         OnPropertyChanged(nameof(TestButtonText));
     }
 
-    private void RunTest()
+    private async void RunTest()
     {
         // Run a clone so the live editing copy is never mutated by playback.
         var macro = DeepClone(SelectedMacro);
-        _ = _macroRunner.Run(macro);
+
+        _testCts = new CancellationTokenSource();
+        IsTestRunning = true;
+        try
+        {
+            await _macroRunner.Run(macro, _testCts.Token);
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"[MacroEditor] Test run failed: {ex.Message}");
+        }
+        finally
+        {
+            IsTestRunning = false;
+            _testCts.Dispose();
+            _testCts = null;
+        }
+    }
+
+    /// <summary>Cancels a running/counting-down test (called on window close).</summary>
+    public void CancelTest()
+    {
+        StopTestCountdown();
+        _testCts?.Cancel();
     }
 
     // ───────── Recording ─────────

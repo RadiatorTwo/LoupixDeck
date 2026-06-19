@@ -23,6 +23,33 @@ public class MacroRunner
         _commandService = commandService;
     }
 
+    // Cancellation tokens of every in-flight Run, so CancelAll() can stop them all.
+    private readonly object _runLock = new();
+    private readonly List<CancellationTokenSource> _activeRuns = [];
+
+    /// <summary>True while at least one macro is currently executing.</summary>
+    public bool IsRunning
+    {
+        get
+        {
+            lock (_runLock)
+                return _activeRuns.Count > 0;
+        }
+    }
+
+    /// <summary>Cancels every running macro (the Stop command / hotkey entry point).</summary>
+    public void CancelAll()
+    {
+        lock (_runLock)
+        {
+            foreach (var cts in _activeRuns)
+            {
+                try { cts.Cancel(); }
+                catch (ObjectDisposedException) { /* run already finished */ }
+            }
+        }
+    }
+
     // Hard cap on total executed steps so a runaway/huge repeat count can never hang forever.
     private const int MaxExecutedSteps = 100_000;
 
@@ -42,6 +69,23 @@ public class MacroRunner
             return;
         }
 
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        lock (_runLock)
+            _activeRuns.Add(cts);
+
+        try
+        {
+            await RunSteps(macro, cts.Token);
+        }
+        finally
+        {
+            lock (_runLock)
+                _activeRuns.Remove(cts);
+        }
+    }
+
+    private async Task RunSteps(Macro macro, CancellationToken token)
+    {
         // Snapshot the steps so concurrent edits in the editor can't shift indices mid-run.
         var steps = macro.Steps.ToList();
         var frames = new Stack<LoopFrame>();
@@ -49,7 +93,7 @@ public class MacroRunner
 
         for (var i = 0; i < steps.Count; i++)
         {
-            if (cancellationToken.IsCancellationRequested)
+            if (token.IsCancellationRequested)
                 break;
 
             if (++executed > MaxExecutedSteps)
@@ -82,7 +126,7 @@ public class MacroRunner
                         if (frame.Remaining > 0)
                         {
                             if (frame.LoopDelayMs > 0)
-                                await Delay(frame.LoopDelayMs);
+                                await Delay(frame.LoopDelayMs, token);
                             i = frame.StartIndex; // for-loop's i++ resumes just after the start marker
                         }
                         else
@@ -95,7 +139,7 @@ public class MacroRunner
                 default:
                     try
                     {
-                        await ExecuteStep(step);
+                        await ExecuteStep(step, token);
                     }
                     catch (Exception ex)
                     {
@@ -107,7 +151,7 @@ public class MacroRunner
         }
     }
 
-    private async Task ExecuteStep(MacroStep step)
+    private async Task ExecuteStep(MacroStep step, CancellationToken token)
     {
         switch (step)
         {
@@ -124,7 +168,7 @@ public class MacroRunner
                 break;
 
             case DelayStep delay:
-                await Delay(delay.Milliseconds);
+                await Delay(delay.Milliseconds, token);
                 break;
 
             case KeyDownStep keyDown:
@@ -175,7 +219,7 @@ public class MacroRunner
 
     // Coarse Task.Delay for the bulk, short spin for the tail — Task.Delay alone has
     // ~15 ms granularity on Windows (same pattern as DeviceControlCommands.WaitUntilMs).
-    private static async Task Delay(int milliseconds)
+    private static async Task Delay(int milliseconds, CancellationToken token)
     {
         if (milliseconds <= 0)
             return;
@@ -183,6 +227,7 @@ public class MacroRunner
         var sw = Stopwatch.StartNew();
         while (true)
         {
+            if (token.IsCancellationRequested) return;
             var remain = milliseconds - sw.Elapsed.TotalMilliseconds;
             if (remain <= 0) return;
             if (remain > 3) await Task.Delay(1);

@@ -42,6 +42,9 @@ public partial class MacroEditor : Window
             // Stop any active recording so the global hook is uninstalled with the window.
             ViewModel?.StopRecording();
 
+            // Cancel a running/counting-down test so playback doesn't outlive the editor.
+            ViewModel?.CancelTest();
+
             // Changes apply instantly (debounced) — persist anything still pending.
             ViewModel?.FlushPendingChanges();
 
