@@ -57,6 +57,13 @@ public class MacroEditorViewModel : DialogViewModelBase<DialogResult>, IAsyncIni
     // Editor-local clipboard for copy/paste of steps (deep clones, cross-macro).
     private readonly List<MacroStep> _clipboard = [];
 
+    // Undo/redo over full editor snapshots (JSON of all macros). _currentSnapshot is the
+    // last settled state; _suspendTracking silences change handlers while restoring.
+    private readonly Stack<string> _undoStack = new();
+    private readonly Stack<string> _redoStack = new();
+    private string _currentSnapshot;
+    private bool _suspendTracking;
+
     /// <summary>Editable working copies of all macros.</summary>
     public ObservableCollection<Macro> Macros { get; } = [];
 
@@ -168,6 +175,11 @@ public class MacroEditorViewModel : DialogViewModelBase<DialogResult>, IAsyncIni
     public ICommand InsertDelayAfterSelectedCommand { get; }
     public ICommand TestMacroCommand { get; }
     public ICommand ToggleRecordingCommand { get; }
+    public ICommand UndoCommand { get; }
+    public ICommand RedoCommand { get; }
+
+    public bool CanUndo => _undoStack.Count > 0;
+    public bool CanRedo => _redoStack.Count > 0;
 
     public MacroEditorViewModel(IMacroManager macroManager, ICommandBuilder commandBuilder,
         IMenuTreeBuilder menuTreeBuilder, MacroRunner macroRunner, IInputRecorder inputRecorder)
@@ -213,6 +225,11 @@ public class MacroEditorViewModel : DialogViewModelBase<DialogResult>, IAsyncIni
         InsertDelayAfterSelectedCommand = new RelayCommand(InsertDelayAfterSelected);
         TestMacroCommand = new RelayCommand(ToggleTest);
         ToggleRecordingCommand = new RelayCommand(ToggleRecording);
+        UndoCommand = new RelayCommand(Undo);
+        RedoCommand = new RelayCommand(Redo);
+
+        // Baseline snapshot so the first edit has something to undo back to.
+        _currentSnapshot = SerializeMacros();
     }
 
     public async Task InitializeAsync()
@@ -609,6 +626,10 @@ public class MacroEditorViewModel : DialogViewModelBase<DialogResult>, IAsyncIni
     /// </summary>
     private void ScheduleApply()
     {
+        // Restoring a snapshot must not feed its own mutations back into the history.
+        if (_suspendTracking)
+            return;
+
         _applyTimer.Stop();
 
         if (!Validate())
@@ -621,6 +642,7 @@ public class MacroEditorViewModel : DialogViewModelBase<DialogResult>, IAsyncIni
     {
         // Push clones so the manager never shares instances with the editor's working set.
         _macroManager.ReplaceAll(Macros.Select(DeepClone));
+        RecordSnapshot();
     }
 
     /// <summary>Persists a pending (debounced) apply. Called when the editor window closes.</summary>
@@ -634,6 +656,101 @@ public class MacroEditorViewModel : DialogViewModelBase<DialogResult>, IAsyncIni
         if (Validate())
             Apply();
     }
+
+    // ───────── Undo / redo ─────────
+
+    private void RecordSnapshot()
+    {
+        var snapshot = SerializeMacros();
+        if (snapshot == _currentSnapshot)
+            return;
+
+        _undoStack.Push(_currentSnapshot);
+        _redoStack.Clear();
+        _currentSnapshot = snapshot;
+        RaiseUndoRedoState();
+    }
+
+    private void Undo()
+    {
+        SettlePending();
+        if (_undoStack.Count == 0)
+            return;
+
+        _redoStack.Push(_currentSnapshot);
+        _currentSnapshot = _undoStack.Pop();
+        RestoreSnapshot(_currentSnapshot);
+        RaiseUndoRedoState();
+    }
+
+    private void Redo()
+    {
+        SettlePending();
+        if (_redoStack.Count == 0)
+            return;
+
+        _undoStack.Push(_currentSnapshot);
+        _currentSnapshot = _redoStack.Pop();
+        RestoreSnapshot(_currentSnapshot);
+        RaiseUndoRedoState();
+    }
+
+    /// <summary>Flushes a debounced edit into history so undo steps back from it, not over it.</summary>
+    private void SettlePending()
+    {
+        if (!_applyTimer.IsEnabled)
+            return;
+
+        _applyTimer.Stop();
+        if (Validate())
+            Apply();
+    }
+
+    /// <summary>Rebuilds the working macros from a snapshot and re-syncs manager + selection.</summary>
+    private void RestoreSnapshot(string snapshot)
+    {
+        var selectedName = SelectedMacro?.Name;
+
+        _suspendTracking = true;
+        Macros.CollectionChanged -= Macros_CollectionChanged;
+        try
+        {
+            foreach (var macro in Macros)
+                Detach(macro);
+            Macros.Clear();
+
+            foreach (var macro in DeserializeMacros(snapshot))
+            {
+                Attach(macro);
+                Macros.Add(macro);
+            }
+        }
+        finally
+        {
+            Macros.CollectionChanged += Macros_CollectionChanged;
+            _suspendTracking = false;
+        }
+
+        SelectedMacro = Macros.FirstOrDefault(m => m.Name == selectedName) ?? Macros.FirstOrDefault();
+
+        // Mirror the restored state into the manager (bypassing the debounce).
+        _macroManager.ReplaceAll(Macros.Select(DeepClone));
+
+        OnPropertyChanged(nameof(MacroPreview));
+        RefreshSelectionState();
+        ValidationMessage = string.Empty;
+    }
+
+    private void RaiseUndoRedoState()
+    {
+        OnPropertyChanged(nameof(CanUndo));
+        OnPropertyChanged(nameof(CanRedo));
+    }
+
+    private string SerializeMacros() => JsonConvert.SerializeObject(Macros, CloneSettings);
+
+    private static IEnumerable<Macro> DeserializeMacros(string json) =>
+        JsonConvert.DeserializeObject<List<Macro>>(json, CloneSettings) ?? [];
 
     private bool Validate()
     {

@@ -190,8 +190,19 @@
                     <!-- Steps header + record / test / add button -->
                     <StackPanel Grid.Row="1" Spacing="6" Margin="0,0,0,8">
                       <Grid ColumnDefinitions="*,Auto,Auto,Auto">
-                        <TextBlock Grid.Column="0" Classes="card-title" Text="Steps" VerticalAlignment="Center"
-                                   Margin="0" />
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                            <TextBlock Classes="card-title" Text="Steps" VerticalAlignment="Center" Margin="0" />
+                            <Button Classes="row-action" FontFamily="{StaticResource MdiFont}"
+                                    Content="&#xF054C;" Margin="6,0,0,0"
+                                    ToolTip.Tip="Undo"
+                                    IsEnabled="{Binding CanUndo}"
+                                    Command="{Binding UndoCommand}" />
+                            <Button Classes="row-action" FontFamily="{StaticResource MdiFont}"
+                                    Content="&#xF054D;"
+                                    ToolTip.Tip="Redo"
+                                    IsEnabled="{Binding CanRedo}"
+                                    Command="{Binding RedoCommand}" />
+                        </StackPanel>
                         <Button Grid.Column="1" Margin="0,0,8,0"
                                 Content="{Binding RecordButtonText}"
                                 IsVisible="{Binding IsRecordingSupported}"
