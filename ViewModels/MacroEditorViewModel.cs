@@ -372,15 +372,18 @@ public class MacroEditorViewModel : DialogViewModelBase<DialogResult>, IAsyncIni
         if (steps == null)
             return;
 
-        // Iterate over a snapshot so freshly inserted clones aren't duplicated again.
-        foreach (var step in Selected().ToList())
+        // Duplicate the whole selection as one block, inserted after the last selected
+        // step (not each entry in place) — matches paste and is what users expect.
+        var selected = Selected().ToList();
+        if (selected.Count == 0)
+            return;
+
+        var insertAt = steps.IndexOf(selected[^1]) + 1;
+        foreach (var step in selected)
         {
-            var index = steps.IndexOf(step);
-            if (index < 0)
-                continue;
             var clone = CloneStep(step);
             clone.IsSelected = false;
-            steps.Insert(index + 1, clone);
+            steps.Insert(insertAt++, clone);
         }
     }
 
