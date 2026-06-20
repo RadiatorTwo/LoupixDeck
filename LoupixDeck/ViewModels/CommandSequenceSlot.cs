@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.Windows.Input;
+using CommunityToolkit.Mvvm.Input;
 using LoupixDeck.Models;
 using LoupixDeck.Services;
 using LoupixDeck.Services.Commands;
@@ -30,7 +31,7 @@ public class CommandSequenceSlot : ViewModelBase
     /// <summary>The slot's command chain as individual, editable chips.</summary>
     public ObservableCollection<CommandSegment> Commands { get; } = [];
 
-    public ICommand ClearCommandCommand { get; }
+    public IRelayCommand ClearCommandCommand => field ??= Relay.Create(ClearCommandOnly);
 
     public CommandSequenceSlot(
         string title,
@@ -44,8 +45,6 @@ public class CommandSequenceSlot : ViewModelBase
         _commandRegistry = commandRegistry;
         _read = read;
         _write = write;
-
-        ClearCommandCommand = new RelayCommand(ClearCommandOnly);
 
         // Keep the 1-based chip numbers in sync with the collection.
         Commands.CollectionChanged += (_, _) => RenumberSegments();

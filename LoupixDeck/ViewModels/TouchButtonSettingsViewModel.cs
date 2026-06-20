@@ -1,5 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Windows.Input;
+using CommunityToolkit.Mvvm.Input;
+using LoupixDeck.Commands;
 using LoupixDeck.Models;
 using LoupixDeck.Models.Converter;
 using LoupixDeck.Models.Layers;
@@ -13,7 +15,7 @@ using SkiaSharp;
 
 namespace LoupixDeck.ViewModels;
 
-public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, DialogResult>, IAsyncInitViewModel
+public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, DialogResult>, IAsyncInitViewModel
 
 {
     public override void Initialize(TouchButton parameter)
@@ -98,22 +100,20 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
     public const double MinZoom = 0.25;
     public const double MaxZoom = 4.0;
 
-    private double _zoomFactor = 1.0;
-
     /// <summary>Uniform scale applied to the editor canvas (via a LayoutTransform, so the
     /// children keep their unscaled local coordinates and the pointer math is unaffected).</summary>
     public double ZoomFactor
     {
-        get => _zoomFactor;
+        get;
         private set
         {
             var clamped = Math.Clamp(value, MinZoom, MaxZoom);
-            if (Math.Abs(_zoomFactor - clamped) < 0.0001) return;
-            _zoomFactor = clamped;
+            if (Math.Abs(field - clamped) < 0.0001) return;
+            field = clamped;
             OnPropertyChanged(nameof(ZoomFactor));
             OnPropertyChanged(nameof(ZoomPercentText));
         }
-    }
+    } = 1.0;
 
     public string ZoomPercentText => $"{Math.Round(ZoomFactor * 100)}%";
 
@@ -140,15 +140,14 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
         ZoomFactor = fit;
     }
 
+    [RelayCommand]
     private void ZoomIn() => ZoomFactor *= 1.25;
+    [RelayCommand]
     private void ZoomOut() => ZoomFactor /= 1.25;
+    [RelayCommand]
     private void ResetZoom() => ZoomFactor = 1.0;
+    [RelayCommand]
     private void Fit() => FitToViewport();
-
-    public ICommand ZoomInCommand { get; }
-    public ICommand ZoomOutCommand { get; }
-    public ICommand ResetZoomCommand { get; }
-    public ICommand FitCommand { get; }
 
     // ───────── Side-strip (Razer) mode ─────────
 
@@ -346,13 +345,18 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
         }
     }
 
-    public ICommand AddImageLayerCommand { get; }
-    public ICommand AddAnimatedImageLayerCommand { get; }
-    public ICommand AddTextLayerCommand { get; }
-    public ICommand AddSymbolLayerCommand { get; }
-    public ICommand RemoveLayerCommand { get; }
-    public ICommand MoveLayerUpCommand { get; }
-    public ICommand MoveLayerDownCommand { get; }
+    public IAsyncRelayCommand AddImageLayerCommand => field ??= Relay.Create(AddImageLayer);
+    public IRelayCommand AddTextLayerCommand => field ??= Relay.Create(AddTextLayer);
+    public IAsyncRelayCommand  AddSymbolLayerCommand => field ??= Relay.Create(AddSymbolLayer);
+    public IRelayCommand RemoveLayerCommand => field ??= Relay.Create(RemoveSelectedLayer);
+    public IRelayCommand MoveLayerUpCommand => field ??= Relay.Create(MoveSelectedLayerUp);
+    public IRelayCommand MoveLayerDownCommand => field ??= Relay.Create(MoveSelectedLayerDown);
+
+    public IRelayCommand ZoomInCommand => field ??= Relay.Create(ZoomIn);
+    public IRelayCommand ZoomOutCommand => field ??= Relay.Create(ZoomOut);
+    public IRelayCommand ResetZoomCommand => field ??= Relay.Create(ResetZoom);
+    public IRelayCommand FitCommand => field ??= Relay.Create(Fit);
+
     public TouchButton ButtonData { get; set; }
 
     /// <summary>1-based button number shared by the window title and the
@@ -522,18 +526,6 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
 
         // The provider list can change on a plugin hot-reload while the editor is open.
         _sideStripRegistry.ProvidersChanged += OnStripProvidersChanged;
-
-        AddImageLayerCommand = new AsyncRelayCommand(AddImageLayer);
-        AddAnimatedImageLayerCommand = new AsyncRelayCommand(AddAnimatedImageLayer);
-        AddTextLayerCommand = new RelayCommand(AddTextLayer);
-        AddSymbolLayerCommand = new AsyncRelayCommand(AddSymbolLayer);
-        RemoveLayerCommand = new RelayCommand(RemoveSelectedLayer);
-        MoveLayerUpCommand = new RelayCommand(MoveSelectedLayerUp);
-        MoveLayerDownCommand = new RelayCommand(MoveSelectedLayerDown);
-        ZoomInCommand = new RelayCommand(ZoomIn);
-        ZoomOutCommand = new RelayCommand(ZoomOut);
-        ResetZoomCommand = new RelayCommand(ResetZoom);
-        FitCommand = new RelayCommand(Fit);
 
         SystemCommandMenus = new ObservableCollection<MenuEntry>();
     }

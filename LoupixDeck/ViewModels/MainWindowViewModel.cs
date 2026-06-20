@@ -1,4 +1,4 @@
-﻿using System.Windows.Input;
+using System.Windows.Input;
 using CommunityToolkit.Mvvm.Input;
 using LoupixDeck.Controllers;
 using LoupixDeck.Models;
@@ -8,8 +8,6 @@ using LoupixDeck.Services.Commands;
 using LoupixDeck.Services.Plugins;
 using LoupixDeck.Services.SystemPower;
 using LoupixDeck.ViewModels.Base;
-using AsyncRelayCommand = CommunityToolkit.Mvvm.Input.AsyncRelayCommand;
-using RelayCommand = LoupixDeck.Utils.RelayCommand;
 
 namespace LoupixDeck.ViewModels;
 

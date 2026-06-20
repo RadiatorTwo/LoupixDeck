@@ -193,7 +193,7 @@ public class MacroEditorViewModel : DialogViewModelBase<DialogResult>, IAsyncIni
         set => SetProperty(ref _captureRecordedDelays, value);
     }
 
-    public ICommand AddMacroCommand { get; }
+    public IRelayCommand AddMacroCommand { get; }
     public ICommand RemoveMacroCommand { get; }
     public ICommand AddStepCommand { get; }
     public ICommand DuplicateStepCommand { get; }

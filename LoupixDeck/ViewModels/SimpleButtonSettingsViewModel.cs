@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.Windows.Input;
+using CommunityToolkit.Mvvm.Input;
 using LoupixDeck.Models;
 using LoupixDeck.PluginSdk;
 using LoupixDeck.Services;
@@ -48,7 +49,7 @@ public class SimpleButtonSettingsViewModel : DialogViewModelBase<SimpleButton, D
     /// this collection is a view over it that is recomposed on every edit.</summary>
     public ObservableCollection<CommandSegment> Commands { get; } = [];
 
-    public ICommand ClearCommandCommand { get; }
+    public IRelayCommand ClearCommandCommand => field ??= Relay.Create(ClearCommandOnly);
 
     /// <summary>True when the button has a non-empty command assigned.</summary>
     public bool HasCommand => !string.IsNullOrWhiteSpace(ButtonData?.Command);
@@ -61,8 +62,6 @@ public class SimpleButtonSettingsViewModel : DialogViewModelBase<SimpleButton, D
         _commandBuilder = commandBuilder;
         _menuTreeBuilder = menuTreeBuilder;
         _commandRegistry = commandRegistry;
-
-        ClearCommandCommand = new RelayCommand(ClearCommandOnly);
 
         // Keep the 1-based sequence numbers on the chips in sync with the
         // collection (insert, remove, move, clear, initial load).

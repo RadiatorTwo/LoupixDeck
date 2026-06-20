@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace LoupixDeck.Models;
 
@@ -12,35 +13,20 @@ namespace LoupixDeck.Models;
 /// Each page owns one or more of these slots (one per input type for rotary
 /// pages, one shared for touch pages).
 /// </summary>
-public class CommandWrap : INotifyPropertyChanged
+[ObservableObject]
+public partial class CommandWrap
 {
-    private bool _preEnabled;
-    public bool PreEnabled
-    {
-        get => _preEnabled;
-        set { if (_preEnabled == value) return; _preEnabled = value; OnPropertyChanged(); }
-    }
+    [ObservableProperty]
+    public partial bool PreEnabled { get; set; }
 
-    private string _preCommands = string.Empty;
-    public string PreCommands
-    {
-        get => _preCommands;
-        set { if (_preCommands == value) return; _preCommands = value ?? string.Empty; OnPropertyChanged(); }
-    }
+    [ObservableProperty]
+    public partial string PreCommands { get; set; } = string.Empty;
 
-    private bool _postEnabled;
-    public bool PostEnabled
-    {
-        get => _postEnabled;
-        set { if (_postEnabled == value) return; _postEnabled = value; OnPropertyChanged(); }
-    }
+    [ObservableProperty]
+    public partial bool PostEnabled { get; set; }
 
-    private string _postCommands = string.Empty;
-    public string PostCommands
-    {
-        get => _postCommands;
-        set { if (_postCommands == value) return; _postCommands = value ?? string.Empty; OnPropertyChanged(); }
-    }
+    [ObservableProperty]
+    public partial string PostCommands { get; set; } = string.Empty;
 
     /// <summary>Returns the chained command string for a given button command.</summary>
     public string Apply(string command)
@@ -56,8 +42,4 @@ public class CommandWrap : INotifyPropertyChanged
         if (post != null) parts.Add(post);
         return string.Join(" && ", parts);
     }
-
-    public event PropertyChangedEventHandler PropertyChanged;
-    private void OnPropertyChanged([CallerMemberName] string propertyName = null)
-        => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
 }

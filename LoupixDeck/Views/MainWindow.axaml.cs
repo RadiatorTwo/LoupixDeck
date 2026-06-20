@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Windows.Input;
 using Avalonia.Controls;
 using Avalonia.Platform;
+using CommunityToolkit.Mvvm.Input;
 using LoupixDeck.Models;
 using LoupixDeck.Utils;
 using LoupixDeck.ViewModels;
@@ -15,9 +16,11 @@ public partial class MainWindow : Window
     private bool _isMinimizedToTray;
 
     // Static Commands
-    private ICommand ShowCommand { get; }
-    private ICommand QuitCommand { get; }
-    private ICommand ToggleDeviceCommand { get; }
+    private IRelayCommand ShowCommand => field ??= Relay.Create(() => Instance?.ShowFromTray());
+    private IRelayCommand QuitCommand => field ??= Relay.Create(() => Instance?.QuitApplication());
+    private IRelayCommand ToggleDeviceCommand => field ??= Relay.Create(() =>
+            Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                Instance?.ViewModel?.SelectedDevice?.ToggleDeviceStateCommand?.Execute(null)));
 
     private static MainWindow Instance { get; set; }
 
@@ -30,12 +33,6 @@ public partial class MainWindow : Window
         InitializeComponent();
 
         Instance = this;
-
-        ShowCommand = new RelayCommand(() => Instance?.ShowFromTray());
-        QuitCommand = new RelayCommand(() => Instance?.QuitApplication());
-        ToggleDeviceCommand = new RelayCommand(() =>
-            Avalonia.Threading.Dispatcher.UIThread.Post(() =>
-                Instance?.ViewModel?.SelectedDevice?.ToggleDeviceStateCommand?.Execute(null)));
 
         CreateTrayIcon();
 
