@@ -45,6 +45,8 @@ public sealed class ScreensaverAnimationSource : IAnimationSource, IDisposable
     private CancellationTokenSource _cts;
     private volatile bool _active;
     private int _endedSignalled;
+    private long _startTimestamp;
+    private bool _firstFrameLogged;
 
     public ScreensaverAnimationSource(LoupedeckDevice.Device.LoupedeckDevice device,
         string absoluteVideoPath, int fps, bool loop, Action onEnded)
@@ -75,11 +77,21 @@ public sealed class ScreensaverAnimationSource : IAnimationSource, IDisposable
 
         _cts = new CancellationTokenSource();
 
+        // Argument layout matters: global opts, then INPUT opts (before -i), then OUTPUT opts.
+        //
+        // Startup latency fix: by default ffmpeg analyses up to ~5 s of the input
+        // (-analyzeduration) before emitting the first frame, so the screensaver appeared
+        // to "hang" for seconds after the idle timeout. -analyzeduration 0 + a small
+        // -probesize + -fflags nobuffer make it start decoding immediately.
+        //
         // -stream_loop -1 loops the input forever (what a screensaver wants); no -re so the
         // consumer paces playback; -r gives constant-rate output so frame i == time i/fps.
         var loopArg = _loop ? "-stream_loop -1 " : string.Empty;
-        var args = $"{loopArg}-i \"{_absoluteVideoPath}\" -f rawvideo -r {_fps} " +
-                   $"-pix_fmt bgra -vf scale={PanelWidth}:{PanelHeight} -";
+        var args =
+            "-hide_banner -loglevel error " +
+            "-fflags nobuffer -probesize 500000 -analyzeduration 0 " +
+            $"{loopArg}-i \"{_absoluteVideoPath}\" " +
+            $"-an -f rawvideo -r {_fps} -pix_fmt bgra -vf scale={PanelWidth}:{PanelHeight} -";
 
         try
         {
@@ -107,6 +119,7 @@ public sealed class ScreensaverAnimationSource : IAnimationSource, IDisposable
 
         _stdout = _ffmpeg.StandardOutput.BaseStream;
         _frameBuffer = new byte[PanelWidth * PanelHeight * 4];
+        _startTimestamp = Stopwatch.GetTimestamp();
 
         // Drain stderr continuously: ffmpeg logs progress there and stalls if the pipe fills.
         var token = _cts.Token;
@@ -159,6 +172,13 @@ public sealed class ScreensaverAnimationSource : IAnimationSource, IDisposable
             }
 
             read += r;
+        }
+
+        if (!_firstFrameLogged)
+        {
+            _firstFrameLogged = true;
+            var ms = Stopwatch.GetElapsedTime(_startTimestamp).TotalMilliseconds;
+            Console.WriteLine($"[Screensaver] first frame after {ms:F0} ms.");
         }
 
         await PushFrameAsync(buffer, token).ConfigureAwait(false);
