@@ -27,6 +27,13 @@ public interface IAssetService
     SKBitmap Load(string relativePath);
 
     /// <summary>
+    /// Resolves a stored relative asset path (e.g. "assets/screensavers/&lt;hash&gt;.mp4")
+    /// to its absolute path on disk. Used by consumers that need the file itself rather
+    /// than a decoded bitmap (e.g. handing a video to ffmpeg).
+    /// </summary>
+    string ResolveAbsolute(string relativePath);
+
+    /// <summary>
     /// Removes asset files in the asset folder that are not in the provided
     /// referenced set. Intended to be called during save to keep the folder
     /// from growing unbounded.
