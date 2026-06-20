@@ -19,7 +19,7 @@ public sealed class WindowsInputRecorder : IInputRecorder
     private const int WM_SYSKEYDOWN = 0x0104;
     private const int WM_SYSKEYUP = 0x0105;
 
-    private readonly object _gate = new();
+    private readonly Lock _gate = new();
     private readonly HashSet<int> _pressed = [];
     private readonly Stopwatch _stopwatch = new();
 

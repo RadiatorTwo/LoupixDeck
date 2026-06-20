@@ -11,7 +11,7 @@ namespace LoupixDeck.Services.Plugins;
 public sealed class PluginSettingsStore : IPluginSettings
 {
     private readonly string _path;
-    private readonly object _gate = new();
+    private readonly Lock _gate = new();
     private JObject _data;
 
     public PluginSettingsStore(string settingsFilePath)

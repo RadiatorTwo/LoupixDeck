@@ -224,7 +224,7 @@ public class DrawBenchmarkCommand(IDeviceService deviceService, LoupedeckConfig 
 public class PlayVideoCommand(IDeviceService deviceService, IExclusiveModeService exclusiveMode) : IExecutableCommand
 {
     // Shared so a second press stops playback. ffmpeg must be on PATH.
-    private static readonly object Gate = new();
+    private static readonly Lock Gate = new();
     private static CancellationTokenSource _cts;
 
     private enum VideoMode

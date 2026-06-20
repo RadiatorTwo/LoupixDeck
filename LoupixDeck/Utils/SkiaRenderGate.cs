@@ -19,5 +19,5 @@ namespace LoupixDeck.Utils;
 public static class SkiaRenderGate
 {
     /// <summary>Monitor object guarding all gated Skia operations.</summary>
-    public static readonly object Sync = new();
+    public static readonly Lock Sync = new();
 }

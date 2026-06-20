@@ -95,7 +95,7 @@ public class InterceptionMouse : IVirtualMouse
     [DllImport("user32.dll")]
     private static extern int GetSystemMetrics(int nIndex);
 
-    private readonly object _lock = new();
+    private readonly Lock _lock = new();
 
     private IntPtr _context = IntPtr.Zero;
     private bool? _available;

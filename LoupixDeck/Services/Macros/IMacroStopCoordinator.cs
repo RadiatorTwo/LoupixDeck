@@ -16,7 +16,7 @@ public interface IMacroStopCoordinator
 
 public sealed class MacroStopCoordinator : IMacroStopCoordinator
 {
-    private readonly object _lock = new();
+    private readonly Lock _lock = new();
     private readonly List<MacroRunner> _runners = [];
 
     public void Register(MacroRunner runner)

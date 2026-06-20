@@ -279,7 +279,7 @@ sealed class Program
     // ──────── Crash diagnostics ────────
 
     [ThreadStatic] private static bool _inCrashLog;
-    private static readonly object _crashLogGate = new();
+    private static readonly Lock _crashLogGate = new();
 
     /// <summary>
     /// Absolute path of the crash log. Written into the user config dir

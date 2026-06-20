@@ -86,7 +86,7 @@ public class InterceptionKeyboard : IUInputKeyboard
     [DllImport("user32.dll")]
     private static extern uint MapVirtualKey(uint uCode, uint uMapType);
 
-    private readonly object _lock = new();
+    private readonly Lock _lock = new();
     private readonly KeyboardLayout _layout;
 
     private IntPtr _context = IntPtr.Zero;

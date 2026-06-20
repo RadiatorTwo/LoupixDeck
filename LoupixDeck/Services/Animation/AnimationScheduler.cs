@@ -50,7 +50,7 @@ public sealed class AnimationScheduler : IAnimationScheduler, IDisposable
         public int InFlight;
     }
 
-    private readonly object _gate = new();
+    private readonly Lock _gate = new();
     private readonly List<Registration> _registrations = [];
     private readonly SemaphoreSlim _wake = new(0, 1);
 

@@ -41,7 +41,7 @@ public interface IDeviceHostRegistry
 public sealed class DeviceHostRegistry : IDeviceHostRegistry
 {
     private readonly List<DeviceHost> _hosts = [];
-    private readonly object _gate = new();
+    private readonly Lock _gate = new();
 
     public IReadOnlyList<DeviceHost> Hosts
     {

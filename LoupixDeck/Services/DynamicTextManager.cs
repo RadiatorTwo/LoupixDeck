@@ -43,7 +43,7 @@ public class DynamicTextManager : IDynamicTextManager, IDisposable
     private readonly IServiceProvider _deviceProvider;
     private readonly IDeviceRouter _router;
 
-    private readonly object _gate = new();
+    private readonly Lock _gate = new();
     private List<Entry> _active = new();
     private CancellationTokenSource _cts;
     private PeriodicTimer _timer;

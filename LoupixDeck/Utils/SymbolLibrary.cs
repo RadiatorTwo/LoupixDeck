@@ -29,7 +29,7 @@ public static class SymbolLibrary
     private static readonly Uri FontAssetUri =
         new("avares://LoupixDeck/Assets/Fonts/materialdesignicons-webfont.ttf");
 
-    private static readonly object Sync = new();
+    private static readonly Lock Sync = new();
     private static SKTypeface _typeface;
     private static bool _typefaceLoadFailed;
 
