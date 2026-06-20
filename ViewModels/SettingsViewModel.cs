@@ -25,6 +25,10 @@ public class SettingsViewModel : DialogViewModelBase<DialogResult>
     private readonly IInterceptionService _interceptionService;
     private readonly IPluginReloadService _pluginReload;
     private readonly IPluginManager _pluginManager;
+    private readonly IAssetService _assetService;
+
+    /// <summary>Asset sub-folder for imported screensaver clips (issue #120).</summary>
+    private const string ScreensaversSubFolder = "screensavers";
 
     /// <summary>
     /// All discovered plugins — drives the Plugins settings page. Read live from the
@@ -61,6 +65,9 @@ public class SettingsViewModel : DialogViewModelBase<DialogResult>
     public ICommand AddAppBindingCommand { get; }
     public ICommand RemoveAppBindingCommand { get; }
 
+    public ICommand SelectScreensaverVideoCommand { get; }
+    public ICommand ClearScreensaverVideoCommand { get; }
+
     public ObservableCollection<VibrationPatternItem> VibrationPatterns => VibrationPatternCatalog.All;
 
     public bool IsWindows => OperatingSystem.IsWindows();
@@ -78,7 +85,8 @@ public class SettingsViewModel : DialogViewModelBase<DialogResult>
         IDialogService dialogService,
         IPluginManager pluginManager,
         IPluginReloadService pluginReload,
-        IInterceptionService interceptionService)
+        IInterceptionService interceptionService,
+        IAssetService assetService)
     {
         Config = config;
         _deviceService = deviceService;
@@ -87,6 +95,7 @@ public class SettingsViewModel : DialogViewModelBase<DialogResult>
         _interceptionService = interceptionService;
         _pluginReload = pluginReload;
         _pluginManager = pluginManager;
+        _assetService = assetService;
 
         NavigateCommand = new RelayCommand<SettingsView>(Navigate);
         AddHapticStepCommand = new RelayCommand(AddHapticStep);
@@ -94,6 +103,9 @@ public class SettingsViewModel : DialogViewModelBase<DialogResult>
 
         AddAppBindingCommand = new RelayCommand(AddAppBinding);
         RemoveAppBindingCommand = new RelayCommand<AppBindingRow>(RemoveAppBinding, p => p != null);
+
+        SelectScreensaverVideoCommand = new AsyncRelayCommand(SelectScreensaverVideo);
+        ClearScreensaverVideoCommand = new RelayCommand(ClearScreensaverVideo);
 
         ReconnectDeviceCommand = new AsyncRelayCommand(ReconnectDevice);
         AddTouchPageCommand = new AsyncRelayCommand(() => _pageManager.AddTouchButtonPage());
@@ -196,6 +208,14 @@ public class SettingsViewModel : DialogViewModelBase<DialogResult>
         // Probe the Interception driver state (DLL API) off the UI thread; drives the page.
         if (IsWindows)
             _ = Task.Run(RefreshInterceptionStatus);
+
+        // Probe ffmpeg availability off the UI thread (the first probe can block briefly);
+        // drives the screensaver "ffmpeg missing" hint.
+        _ = Task.Run(() =>
+        {
+            var available = FfmpegDetector.IsAvailable();
+            Dispatcher.UIThread.Post(() => FfmpegAvailable = available);
+        });
 
         Version = $"v{System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "?"}";
     }
@@ -570,6 +590,49 @@ public class SettingsViewModel : DialogViewModelBase<DialogResult>
         (MoveRotaryPageUpCommand as RelayCommand<RotaryButtonPage>)?.RaiseCanExecuteChanged();
         (MoveRotaryPageDownCommand as RelayCommand<RotaryButtonPage>)?.RaiseCanExecuteChanged();
         (RemoveRotaryPageCommand as RelayCommand<RotaryButtonPage>)?.RaiseCanExecuteChanged();
+    }
+
+    // ───────── Screensaver ─────────
+
+    /// <summary>Whether ffmpeg was found on PATH. Defaults to true (assume present) and is
+    /// corrected by the async probe, so the "missing" hint only shows once we're sure.</summary>
+    private bool _ffmpegAvailable = true;
+    public bool FfmpegAvailable
+    {
+        get => _ffmpegAvailable;
+        private set
+        {
+            if (SetProperty(ref _ffmpegAvailable, value))
+                OnPropertyChanged(nameof(FfmpegMissing));
+        }
+    }
+
+    /// <summary>Inverse of <see cref="FfmpegAvailable"/> for the settings hint visibility.</summary>
+    public bool FfmpegMissing => !FfmpegAvailable;
+
+    /// <summary>Display name of the selected screensaver clip, or a placeholder when none.</summary>
+    public string ScreensaverVideoName =>
+        string.IsNullOrWhiteSpace(Config.ScreensaverVideoPath)
+            ? "(none)"
+            : System.IO.Path.GetFileName(Config.ScreensaverVideoPath);
+
+    private async Task SelectScreensaverVideo()
+    {
+        var path = await FileDialogHelper.OpenVideoDialog();
+        if (string.IsNullOrEmpty(path) || !System.IO.File.Exists(path)) return;
+
+        // Content-address the clip under assets/screensavers/ and store the relative path.
+        var relative = _assetService.Import(path, ScreensaversSubFolder);
+        if (string.IsNullOrEmpty(relative)) return;
+
+        Config.ScreensaverVideoPath = relative;
+        OnPropertyChanged(nameof(ScreensaverVideoName));
+    }
+
+    private void ClearScreensaverVideo()
+    {
+        Config.ScreensaverVideoPath = null;
+        OnPropertyChanged(nameof(ScreensaverVideoName));
     }
 
     // ───────── Haptic ─────────

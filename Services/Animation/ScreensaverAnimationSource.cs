@@ -1,0 +1,301 @@
+using System.Diagnostics;
+using System.Runtime.InteropServices;
+using LoupixDeck.Utils;
+using SkiaSharp;
+
+namespace LoupixDeck.Services.Animation;
+
+/// <summary>
+/// Full-display animated screensaver source (issue #120). Decodes the configured clip
+/// (GIF or any ffmpeg-supported video) into a stream of raw BGRA frames via an external
+/// <c>ffmpeg</c> process and fans each frame out across every display of the device.
+///
+/// It is driven by the central <see cref="IAnimationScheduler"/> — the scheduler ticks
+/// <see cref="RenderFrameAsync"/> at the configured rate, and because each tick blocks on
+/// the next frame from the ffmpeg pipe, playback naturally paces to ffmpeg's constant
+/// output rate (no <c>-re</c>; a single 480×270 frame is larger than the OS pipe buffer,
+/// so ffmpeg is throttled by our read). The scheduler's in-flight guard means a slow read
+/// simply lowers the effective rate instead of queueing frames.
+///
+/// The decode geometry mirrors the wallpaper system's continuous 480×270 panel: the frame
+/// is decoded at panel size and sliced per display. Unified devices (Live S / Razer) take
+/// the whole frame on their single buffer; the CT's independent left/centre/right buffers
+/// each take their column. The CT knob screen is intentionally not driven (its framebuffer
+/// needs big-endian conversion the device layer doesn't implement yet).
+/// </summary>
+public sealed class ScreensaverAnimationSource : IAnimationSource, IDisposable
+{
+    // The continuous virtual panel the wallpaper system assumes: 480px wide spanning the
+    // centre grid plus both 60px side-strip columns, 270px tall.
+    private const int PanelWidth = 480;
+    private const int PanelHeight = 270;
+    private const int StripWidth = 60;
+
+    private readonly LoupedeckDevice.Device.LoupedeckDevice _device;
+    private readonly string _absoluteVideoPath;
+    private readonly int _fps;
+    private readonly bool _loop;
+    private readonly Action _onEnded;
+
+    private readonly List<DisplayTarget> _targets = [];
+
+    private Process _ffmpeg;
+    private Stream _stdout;
+    private byte[] _frameBuffer;
+    private CancellationTokenSource _cts;
+    private volatile bool _active;
+    private int _endedSignalled;
+
+    public ScreensaverAnimationSource(LoupedeckDevice.Device.LoupedeckDevice device,
+        string absoluteVideoPath, int fps, bool loop, Action onEnded)
+    {
+        _device = device;
+        _absoluteVideoPath = absoluteVideoPath;
+        _fps = Math.Clamp(fps <= 0 ? 30 : fps, 1, 120);
+        _loop = loop;
+        _onEnded = onEnded;
+    }
+
+    public int TargetFps => _fps;
+    public bool IsActive => _active;
+
+    /// <summary>
+    /// Launches ffmpeg and prepares the per-display slice targets. Returns false (and
+    /// performs no partial start) when there is nothing to draw to or ffmpeg can't be
+    /// started, so the caller can abort cleanly. Synchronous: only spawns the process.
+    /// </summary>
+    public bool Start()
+    {
+        BuildTargets();
+        if (_targets.Count == 0)
+        {
+            Console.WriteLine("[Screensaver] no drawable display on this device.");
+            return false;
+        }
+
+        _cts = new CancellationTokenSource();
+
+        // -stream_loop -1 loops the input forever (what a screensaver wants); no -re so the
+        // consumer paces playback; -r gives constant-rate output so frame i == time i/fps.
+        var loopArg = _loop ? "-stream_loop -1 " : string.Empty;
+        var args = $"{loopArg}-i \"{_absoluteVideoPath}\" -f rawvideo -r {_fps} " +
+                   $"-pix_fmt bgra -vf scale={PanelWidth}:{PanelHeight} -";
+
+        try
+        {
+            _ffmpeg = Process.Start(new ProcessStartInfo
+            {
+                FileName = "ffmpeg",
+                Arguments = args,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            });
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Screensaver] ffmpeg start failed: {ex.Message}");
+            return false;
+        }
+
+        if (_ffmpeg == null)
+        {
+            Console.WriteLine("[Screensaver] ffmpeg failed to start (is it on PATH?).");
+            return false;
+        }
+
+        _stdout = _ffmpeg.StandardOutput.BaseStream;
+        _frameBuffer = new byte[PanelWidth * PanelHeight * 4];
+
+        // Drain stderr continuously: ffmpeg logs progress there and stalls if the pipe fills.
+        var token = _cts.Token;
+        _ = Task.Run(async () =>
+        {
+            try { _ = await _ffmpeg.StandardError.ReadToEndAsync(token); }
+            catch { /* killed / cancelled */ }
+        }, token);
+
+        _active = true;
+        return true;
+    }
+
+    public async Task RenderFrameAsync(AnimationRenderContext context)
+    {
+        if (!_active) return;
+
+        var stream = _stdout;
+        var buffer = _frameBuffer;
+        if (stream == null || buffer == null) return;
+
+        var token = _cts?.Token ?? context.CancellationToken;
+
+        // Read exactly one full panel frame. The blocking read is what paces us to ffmpeg.
+        var read = 0;
+        while (read < buffer.Length)
+        {
+            int r;
+            try
+            {
+                r = await stream.ReadAsync(buffer.AsMemory(read, buffer.Length - read), token)
+                    .ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                return; // stopped / disposed
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Screensaver] frame read failed: {ex.Message}");
+                SignalEnded();
+                return;
+            }
+
+            if (r <= 0)
+            {
+                // End of stream: a non-looping clip finished, or ffmpeg exited.
+                SignalEnded();
+                return;
+            }
+
+            read += r;
+        }
+
+        await PushFrameAsync(buffer, token).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Composites the per-display slices under the shared Skia gate, then pushes each to
+    /// its display outside the gate (the device's pixel conversion takes the gate itself,
+    /// and it can't be held across the awaited device I/O).
+    /// </summary>
+    private async Task PushFrameAsync(byte[] bgra, CancellationToken token)
+    {
+        SKBitmap frame = null;
+        var draws = new List<(string Id, SKBitmap Bitmap, bool Owned)>(_targets.Count);
+
+        lock (SkiaRenderGate.Sync)
+        {
+            frame = new SKBitmap(new SKImageInfo(PanelWidth, PanelHeight, SKColorType.Bgra8888, SKAlphaType.Opaque));
+            Marshal.Copy(bgra, 0, frame.GetPixels(), bgra.Length);
+
+            foreach (var target in _targets)
+            {
+                if (target.IsFullFrame)
+                {
+                    // The whole 480×270 frame goes straight to the unified buffer.
+                    draws.Add((target.DisplayId, frame, false));
+                    continue;
+                }
+
+                var slice = new SKBitmap(new SKImageInfo(target.DestWidth, target.DestHeight,
+                    SKColorType.Bgra8888, SKAlphaType.Opaque));
+                using (var canvas = new SKCanvas(slice))
+                {
+                    canvas.DrawBitmap(frame, target.SrcRect,
+                        new SKRect(0, 0, target.DestWidth, target.DestHeight));
+                }
+                draws.Add((target.DisplayId, slice, true));
+            }
+        }
+
+        try
+        {
+            foreach (var draw in draws)
+            {
+                if (token.IsCancellationRequested) return;
+                // No DRAW (refresh:false) — write only the framebuffer, matching the proven
+                // streaming path that avoids the per-frame full-display refresh tearing.
+                await _device.DrawScreen(draw.Id, draw.Bitmap, refresh: false).ConfigureAwait(false);
+            }
+        }
+        finally
+        {
+            lock (SkiaRenderGate.Sync)
+            {
+                foreach (var draw in draws)
+                    if (draw.Owned) draw.Bitmap.Dispose();
+                frame.Dispose();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Builds the slice targets from the device's displays. A unified device exposes a
+    /// single 480-wide "center" buffer (the Razer's side strips are columns of it); the CT
+    /// exposes independent narrower buffers that each map to a column of the panel.
+    /// </summary>
+    private void BuildTargets()
+    {
+        var (centerW, centerH) = _device.GetDisplaySize("center");
+        if (centerW <= 0 || centerH <= 0) return;
+
+        if (centerW >= PanelWidth)
+        {
+            // Unified panel: push the full frame as-is (covers grid + any side columns).
+            _targets.Add(DisplayTarget.Full("center", centerW, centerH));
+            return;
+        }
+
+        // Segmented displays (CT): slice the continuous panel into its columns.
+        AddSlice("left", 0, StripWidth);
+        AddSlice("center", StripWidth, centerW);
+        AddSlice("right", PanelWidth - StripWidth, StripWidth);
+        // "knob" (240×240) is deliberately omitted — see class summary.
+    }
+
+    private void AddSlice(string displayId, int srcX, int srcWidth)
+    {
+        var (w, h) = _device.GetDisplaySize(displayId);
+        if (w <= 0 || h <= 0) return;
+        _targets.Add(DisplayTarget.Slice(displayId, srcX, srcWidth, w, h));
+    }
+
+    private void SignalEnded()
+    {
+        _active = false;
+        if (Interlocked.Exchange(ref _endedSignalled, 1) != 0) return;
+        try { _onEnded?.Invoke(); }
+        catch (Exception ex) { Console.WriteLine($"[Screensaver] onEnded handler threw: {ex.Message}"); }
+    }
+
+    public void Dispose()
+    {
+        _active = false;
+        try { _cts?.Cancel(); } catch { /* already disposed */ }
+        try { if (_ffmpeg is { HasExited: false }) _ffmpeg.Kill(true); } catch { /* already gone */ }
+        try { _ffmpeg?.Dispose(); } catch { /* ignore */ }
+        _ffmpeg = null;
+        try { _cts?.Dispose(); } catch { /* ignore */ }
+        _cts = null;
+    }
+
+    /// <summary>One display's slice of the panel: which buffer, the source rectangle in the
+    /// 480×270 frame, and the destination size (the display's own pixels).</summary>
+    private sealed class DisplayTarget
+    {
+        public string DisplayId { get; private init; }
+        public bool IsFullFrame { get; private init; }
+        public SKRect SrcRect { get; private init; }
+        public int DestWidth { get; private init; }
+        public int DestHeight { get; private init; }
+
+        public static DisplayTarget Full(string id, int width, int height) => new()
+        {
+            DisplayId = id,
+            IsFullFrame = true,
+            SrcRect = new SKRect(0, 0, width, height),
+            DestWidth = width,
+            DestHeight = height
+        };
+
+        public static DisplayTarget Slice(string id, int srcX, int srcWidth, int destWidth, int destHeight) => new()
+        {
+            DisplayId = id,
+            IsFullFrame = false,
+            SrcRect = new SKRect(srcX, 0, srcX + srcWidth, PanelHeight),
+            DestWidth = destWidth,
+            DestHeight = destHeight
+        };
+    }
+}

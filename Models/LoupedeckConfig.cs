@@ -115,6 +115,50 @@ public class LoupedeckConfig : INotifyPropertyChanged
         set { if (_touchSlidingPreventionEnabled == value) return; _touchSlidingPreventionEnabled = value; OnPropertyChanged(); }
     }
 
+    // ───────── Screensaver (issue #120) ─────────
+    // Full-display animated screensaver: after the device has been idle for
+    // ScreensaverIdleTimeoutSeconds, the configured video/GIF (decoded via ffmpeg)
+    // plays across the whole display until the user touches the hardware again.
+    // All fields below are additive with safe defaults, so a config saved before
+    // this feature loads unchanged (the screensaver is simply off by default).
+
+    private bool _screensaverEnabled;
+    public bool ScreensaverEnabled
+    {
+        get => _screensaverEnabled;
+        set { if (_screensaverEnabled == value) return; _screensaverEnabled = value; OnPropertyChanged(); }
+    }
+
+    private int _screensaverIdleTimeoutSeconds = 300;
+    public int ScreensaverIdleTimeoutSeconds
+    {
+        get => _screensaverIdleTimeoutSeconds;
+        set { if (_screensaverIdleTimeoutSeconds == value) return; _screensaverIdleTimeoutSeconds = value; OnPropertyChanged(); }
+    }
+
+    private int _screensaverFps = 30;
+    public int ScreensaverFps
+    {
+        get => _screensaverFps;
+        set { if (_screensaverFps == value) return; _screensaverFps = value; OnPropertyChanged(); }
+    }
+
+    // Relative asset path (e.g. "assets/screensavers/<hash>.mp4") of the source clip,
+    // or null when none is chosen. Resolved through the asset folder at playback time.
+    private string _screensaverVideoPath;
+    public string ScreensaverVideoPath
+    {
+        get => _screensaverVideoPath;
+        set { if (_screensaverVideoPath == value) return; _screensaverVideoPath = value; OnPropertyChanged(); }
+    }
+
+    private bool _screensaverLoop = true;
+    public bool ScreensaverLoop
+    {
+        get => _screensaverLoop;
+        set { if (_screensaverLoop == value) return; _screensaverLoop = value; OnPropertyChanged(); }
+    }
+
     public SimpleButton[] SimpleButtons { get; set; }
 
     private ObservableCollection<RotaryButtonPage> _rotaryButtonPages = [];

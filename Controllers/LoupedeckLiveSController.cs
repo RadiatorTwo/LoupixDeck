@@ -34,6 +34,7 @@ public partial class LoupedeckLiveSController(
     IAssetService assetService,
     INativeHapticService nativeHapticService,
     Services.Animation.IAnimationScheduler animationScheduler,
+    Services.Screensaver.IScreensaverManager screensaver,
     LoupedeckConfig config,
     DeviceRegistry.DeviceInfo deviceInfo,
     ResolvedDevice resolved,
@@ -154,6 +155,9 @@ public partial class LoupedeckLiveSController(
 
         // Stop plugin strips so their timers don't keep churning against a dead device.
         try { DetachAllSideStripProviders(); } catch { /* best effort */ }
+
+        // Stop the screensaver (and its idle timer) before halting the animation loop.
+        try { screensaver.Stop(); } catch { /* best effort */ }
 
         // Halt the central animation loop so no frame is pushed to the gone device.
         try { animationScheduler.Stop(); } catch { /* best effort */ }
@@ -337,6 +341,10 @@ public partial class LoupedeckLiveSController(
         // Save the initial configuration.
         SaveConfig();
 
+        // Begin idle monitoring for the screensaver now that the device is fully up
+        // and the startup page is drawn (issue #120). Any input resets the countdown.
+        screensaver.Arm();
+
         await Task.CompletedTask;
     }
 
@@ -437,6 +445,9 @@ public partial class LoupedeckLiveSController(
         // Mark this device as the ambient target so any plugin (side-strip session,
         // exclusive provider) reached while handling this input acts on THIS device.
         using var _routerScope = router.Enter(serviceProvider);
+
+        // Any hardware input resets the screensaver idle timer and stops it if running.
+        screensaver.NotifyActivity();
 
         if (_isDeviceOff || exclusiveMode.IsActive || folderNav.IsActive)
             return;
@@ -862,6 +873,9 @@ public partial class LoupedeckLiveSController(
     {
         using var _routerScope = router.Enter(serviceProvider);
 
+        // Any hardware input resets the screensaver idle timer and stops it if running.
+        screensaver.NotifyActivity();
+
         if (e.EventType != Constants.ButtonEventType.BUTTON_DOWN)
             return;
 
@@ -942,6 +956,9 @@ public partial class LoupedeckLiveSController(
     private void OnTouchButtonPress(object sender, TouchEventArgs e)
     {
         using var _routerScope = router.Enter(serviceProvider);
+
+        // Any hardware input resets the screensaver idle timer and stops it if running.
+        screensaver.NotifyActivity();
 
         // Per-button override: native haptic skips these buttons entirely, so we
         // drive the legacy software Vibrate() pulse on both touch start and end.
@@ -1113,6 +1130,9 @@ public partial class LoupedeckLiveSController(
     private void OnRotate(object sender, RotateEventArgs e)
     {
         using var _routerScope = router.Enter(serviceProvider);
+
+        // Any hardware input resets the screensaver idle timer and stops it if running.
+        screensaver.NotifyActivity();
 
         if (exclusiveMode.IsActive)
         {
@@ -1762,6 +1782,11 @@ public partial class LoupedeckLiveSController(
 
     private IEnumerable<string> CollectReferencedAssetPaths()
     {
+        // The screensaver clip lives in the asset folder too — keep it referenced so
+        // the save-time cleanup doesn't delete it (issue #120).
+        if (!string.IsNullOrWhiteSpace(config.ScreensaverVideoPath))
+            yield return config.ScreensaverVideoPath;
+
         if (config.TouchButtonPages == null) yield break;
 
         foreach (var page in config.TouchButtonPages)
