@@ -1,0 +1,42 @@
+<Project>
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    <CentralPackageTransitivePinningEnabled>false</CentralPackageTransitivePinningEnabled>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageVersion Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+    <PackageVersion Include="Newtonsoft.Json" Version="13.0.4" />
+    <PackageVersion Include="Tmds.DBus" Version="0.94.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageVersion Include="SkiaSharp" Version="3.119.4" />
+    <PackageVersion Include="SkiaSharp.NativeAssets.Win32" Version="3.119.4" />
+    <PackageVersion Include="SkiaSharp.NativeAssets.Linux" Version="3.119.4" />
+    <PackageVersion Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="3.119.4" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageVersion Include="Avalonia" Version="12.0.4" />
+    <PackageVersion Include="Avalonia.Controls.ColorPicker" Version="12.0.4" />
+    <PackageVersion Include="Avalonia.Desktop" Version="12.0.4" />
+    <PackageVersion Include="Avalonia.Themes.Fluent" Version="12.0.4" />
+    <PackageVersion Include="Avalonia.Fonts.Inter" Version="12.0.4" />
+    <PackageVersion Include="Avalonia.Diagnostics" Version="11.3.17" />
+    <!-- Avalonia 12-compatible SVG control. Supersedes the old Avalonia.Svg.Skia
+         (which stopped at 11.3.0 and is incompatible with the Avalonia 12 upgrade).
+         The control namespace stays Avalonia.Svg.Skia; only the assembly name changed
+         to Svg.Controls.Skia.Avalonia (see the svg: xmlns in the device layouts). -->
+    <PackageVersion Include="Svg.Controls.Skia.Avalonia" Version="12.0.0.11" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.8" />
+    <PackageVersion Include="Microsoft.Win32.SystemEvents" Version="10.0.8" />
+    <PackageVersion Include="System.Drawing.Common" Version="10.0.8" />
+    <PackageVersion Include="System.IO.Ports" Version="10.0.8" />
+    <PackageVersion Include="System.Management" Version="10.0.8" />
+  </ItemGroup>
+
+</Project>
