@@ -205,8 +205,7 @@ public partial class LoupedeckLiveSController
             : LoupedeckDevice.Device.RazerStreamControllerDevice.RightSideIndex;
 
         var slotButton = config.CurrentTouchButtonPage?.TouchButtons?.FindByIndex(slotIndex);
-        if (slotButton != null)
-            slotButton.RenderedImage = strip;
+        slotButton?.RenderedImage = strip;
 
         await razer.DrawTouchSlot(slotIndex, strip);
     }

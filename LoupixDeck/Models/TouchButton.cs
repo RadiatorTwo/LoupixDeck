@@ -126,7 +126,7 @@ public class TouchButton : LoupedeckButton
         layers.CollectionChanged += Layers_CollectionChanged;
         foreach (var layer in layers)
         {
-            if (layer != null) layer.PropertyChanged += Layer_PropertyChanged;
+            layer?.PropertyChanged += Layer_PropertyChanged;
         }
     }
 
@@ -136,7 +136,7 @@ public class TouchButton : LoupedeckButton
         layers.CollectionChanged -= Layers_CollectionChanged;
         foreach (var layer in layers)
         {
-            if (layer != null) layer.PropertyChanged -= Layer_PropertyChanged;
+            layer?.PropertyChanged -= Layer_PropertyChanged;
         }
     }
 
@@ -145,13 +145,13 @@ public class TouchButton : LoupedeckButton
         if (e.OldItems != null)
         {
             foreach (LayerBase l in e.OldItems)
-                if (l != null) l.PropertyChanged -= Layer_PropertyChanged;
+                l?.PropertyChanged -= Layer_PropertyChanged;
         }
 
         if (e.NewItems != null)
         {
             foreach (LayerBase l in e.NewItems)
-                if (l != null) l.PropertyChanged += Layer_PropertyChanged;
+                l?.PropertyChanged += Layer_PropertyChanged;
         }
 
         Refresh();

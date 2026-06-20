@@ -674,15 +674,12 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
         OnPropertyChanged(nameof(ThemeIsLight));
         OnPropertyChanged(nameof(ThemeIsSystem));
 
-        if (Application.Current != null)
-        {
-            Application.Current.RequestedThemeVariant = variant switch
+        Application.Current?.RequestedThemeVariant = variant switch
             {
                 "Light" => ThemeVariant.Light,
                 "Dark" => ThemeVariant.Dark,
                 _ => ThemeVariant.Default
             };
-        }
     }
 
     // ───────── About ─────────

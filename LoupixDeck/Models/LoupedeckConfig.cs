@@ -176,11 +176,9 @@ public partial class LoupedeckConfig
         set
         {
             if (ReferenceEquals(_rotaryButtonPages, value)) return;
-            if (_rotaryButtonPages != null)
-                _rotaryButtonPages.CollectionChanged -= OnRotaryPagesChanged;
+            _rotaryButtonPages?.CollectionChanged -= OnRotaryPagesChanged;
             _rotaryButtonPages = value;
-            if (_rotaryButtonPages != null)
-                _rotaryButtonPages.CollectionChanged += OnRotaryPagesChanged;
+            _rotaryButtonPages?.CollectionChanged += OnRotaryPagesChanged;
             OnPropertyChanged();
             OnPropertyChanged(nameof(RotaryPageLabel));
         }
@@ -233,11 +231,9 @@ public partial class LoupedeckConfig
         set
         {
             if (ReferenceEquals(_leftRotaryButtonPages, value)) return;
-            if (_leftRotaryButtonPages != null)
-                _leftRotaryButtonPages.CollectionChanged -= OnLeftRotaryPagesChanged;
+            _leftRotaryButtonPages?.CollectionChanged -= OnLeftRotaryPagesChanged;
             _leftRotaryButtonPages = value;
-            if (_leftRotaryButtonPages != null)
-                _leftRotaryButtonPages.CollectionChanged += OnLeftRotaryPagesChanged;
+            _leftRotaryButtonPages?.CollectionChanged += OnLeftRotaryPagesChanged;
             OnPropertyChanged();
             OnPropertyChanged(nameof(LeftRotaryPageLabel));
         }
@@ -253,11 +249,9 @@ public partial class LoupedeckConfig
         set
         {
             if (ReferenceEquals(_rightRotaryButtonPages, value)) return;
-            if (_rightRotaryButtonPages != null)
-                _rightRotaryButtonPages.CollectionChanged -= OnRightRotaryPagesChanged;
+            _rightRotaryButtonPages?.CollectionChanged -= OnRightRotaryPagesChanged;
             _rightRotaryButtonPages = value;
-            if (_rightRotaryButtonPages != null)
-                _rightRotaryButtonPages.CollectionChanged += OnRightRotaryPagesChanged;
+            _rightRotaryButtonPages?.CollectionChanged += OnRightRotaryPagesChanged;
             OnPropertyChanged();
             OnPropertyChanged(nameof(RightRotaryPageLabel));
         }
@@ -334,11 +328,9 @@ public partial class LoupedeckConfig
         set
         {
             if (ReferenceEquals(_touchButtonPages, value)) return;
-            if (_touchButtonPages != null)
-                _touchButtonPages.CollectionChanged -= OnTouchPagesChanged;
+            _touchButtonPages?.CollectionChanged -= OnTouchPagesChanged;
             _touchButtonPages = value;
-            if (_touchButtonPages != null)
-                _touchButtonPages.CollectionChanged += OnTouchPagesChanged;
+            _touchButtonPages?.CollectionChanged += OnTouchPagesChanged;
             OnPropertyChanged();
             OnPropertyChanged(nameof(TouchPageLabel));
         }

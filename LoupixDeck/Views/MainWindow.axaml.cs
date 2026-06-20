@@ -47,9 +47,9 @@ public partial class MainWindow : Window
     /// </summary>
     private void OnDataContextChanged(object sender, System.EventArgs e)
     {
-        if (_shell != null) _shell.PropertyChanged -= OnShellPropertyChanged;
+        _shell?.PropertyChanged -= OnShellPropertyChanged;
         _shell = DataContext as MainShellViewModel;
-        if (_shell != null) _shell.PropertyChanged += OnShellPropertyChanged;
+        _shell?.PropertyChanged += OnShellPropertyChanged;
 
         UpdateDeviceLayout();
     }
