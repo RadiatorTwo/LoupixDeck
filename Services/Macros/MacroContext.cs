@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using LoupixDeck.Models.Macros;
 
 namespace LoupixDeck.Services.Macros;
@@ -45,5 +46,25 @@ public sealed class MacroContext
     public void MarkButtonUp(MouseButton button)
     {
         _heldButtons.Remove(button);
+    }
+
+    // Matches {name} placeholders; the name is anything but braces so nesting is rejected.
+    private static readonly Regex PlaceholderPattern = new(@"\{([^{}]+)\}", RegexOptions.Compiled);
+
+    /// <summary>
+    /// Replaces <c>{name}</c> placeholders in <paramref name="template"/> with the matching
+    /// variable value (case-insensitive). Unknown names expand to an empty string. Called
+    /// lazily at use time so loop counters and mid-run mutations resolve to current values.
+    /// </summary>
+    public string Expand(string template)
+    {
+        if (string.IsNullOrEmpty(template) || template.IndexOf('{') < 0)
+            return template;
+
+        return PlaceholderPattern.Replace(template, match =>
+        {
+            var name = match.Groups[1].Value.Trim();
+            return Variables.TryGetValue(name, out var value) ? value ?? string.Empty : string.Empty;
+        });
     }
 }

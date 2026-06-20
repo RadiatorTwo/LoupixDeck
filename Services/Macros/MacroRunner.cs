@@ -226,8 +226,9 @@ public class MacroRunner : IDisposable
         switch (step)
         {
             case TextStep text:
-                if (!string.IsNullOrEmpty(text.Text))
-                    _keyboard.SendText(text.Text);
+                var expandedText = context.Expand(text.Text);
+                if (!string.IsNullOrEmpty(expandedText))
+                    _keyboard.SendText(expandedText);
                 break;
 
             case KeyCombinationStep combo:
@@ -262,8 +263,44 @@ public class MacroRunner : IDisposable
                 break;
 
             case CommandStep command:
-                if (!string.IsNullOrWhiteSpace(command.CommandString))
-                    await _commandService.ExecuteCommand(command.CommandString, ButtonTargets.None);
+                var expandedCommand = context.Expand(command.CommandString);
+                if (!string.IsNullOrWhiteSpace(expandedCommand))
+                    await _commandService.ExecuteCommand(expandedCommand, ButtonTargets.None);
+                break;
+
+            case SetVariableStep setVariable:
+                ExecuteSetVariable(setVariable, context);
+                break;
+        }
+    }
+
+    private static void ExecuteSetVariable(SetVariableStep step, MacroContext context)
+    {
+        if (string.IsNullOrWhiteSpace(step.Name))
+            return;
+
+        var name = step.Name.Trim();
+
+        switch (step.Operation)
+        {
+            case VariableOperation.Set:
+                context.Variables[name] = context.Expand(step.Value) ?? string.Empty;
+                break;
+
+            case VariableOperation.Increment:
+            case VariableOperation.Decrement:
+                var current = context.Variables.TryGetValue(name, out var raw)
+                              && long.TryParse(raw, out var parsed)
+                    ? parsed
+                    : 0;
+
+                var amountText = context.Expand(step.Value);
+                var amount = long.TryParse(string.IsNullOrWhiteSpace(amountText) ? "1" : amountText, out var a)
+                    ? a
+                    : 1;
+
+                var result = step.Operation == VariableOperation.Increment ? current + amount : current - amount;
+                context.Variables[name] = result.ToString();
                 break;
         }
     }

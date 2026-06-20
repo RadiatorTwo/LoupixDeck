@@ -15,7 +15,16 @@ public enum MacroStepType
     Mouse,
     Command,
     RepeatStart,
-    RepeatEnd
+    RepeatEnd,
+    SetVariable
+}
+
+/// <summary>How a <see cref="SetVariableStep"/> changes its target variable.</summary>
+public enum VariableOperation
+{
+    Set,
+    Increment,
+    Decrement
 }
 
 /// <summary>What a <see cref="MouseStep"/> does.</summary>

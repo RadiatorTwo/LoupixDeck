@@ -68,6 +68,7 @@ public class MacroStepJsonConverter : JsonConverter
             MacroStepType.Command => new CommandStep(),
             MacroStepType.RepeatStart => new RepeatStartStep(),
             MacroStepType.RepeatEnd => new RepeatEndStep(),
+            MacroStepType.SetVariable => new SetVariableStep(),
             _ => null
         };
 

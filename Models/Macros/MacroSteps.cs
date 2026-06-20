@@ -292,6 +292,75 @@ public class RepeatEndStep : MacroStep
     public override string ValueText => string.Empty;
 }
 
+/// <summary>
+/// Sets, increments, or decrements a local macro variable. Variables live only for the
+/// duration of one macro run and are referenced elsewhere as <c>{name}</c> placeholders
+/// (expanded in Type Text, Command, and condition operands). Increment/Decrement treat the
+/// variable as a number (missing/non-numeric ⇒ 0) and apply <see cref="Value"/> as the
+/// amount (defaults to 1), enabling counters inside repeat blocks.
+/// </summary>
+public class SetVariableStep : MacroStep
+{
+    private string _name = string.Empty;
+
+    /// <summary>Variable name (case-insensitive), without the surrounding braces.</summary>
+    public string Name
+    {
+        get => _name;
+        set
+        {
+            if (_name == value) return;
+            _name = value;
+            OnValueChanged();
+        }
+    }
+
+    private VariableOperation _operation = VariableOperation.Set;
+
+    public VariableOperation Operation
+    {
+        get => _operation;
+        set
+        {
+            if (_operation == value) return;
+            _operation = value;
+            OnValueChanged();
+        }
+    }
+
+    private string _value = string.Empty;
+
+    /// <summary>
+    /// For Set: the literal value (may contain <c>{placeholders}</c>). For Increment/Decrement:
+    /// the numeric amount (blank ⇒ 1).
+    /// </summary>
+    public string Value
+    {
+        get => _value;
+        set
+        {
+            if (_value == value) return;
+            _value = value;
+            OnValueChanged();
+        }
+    }
+
+    /// <summary>All operations — bound by the editor's ComboBox.</summary>
+    [Newtonsoft.Json.JsonIgnore]
+    public static VariableOperation[] AllOperations { get; } = Enum.GetValues<VariableOperation>();
+
+    public override MacroStepType StepType => MacroStepType.SetVariable;
+    public override string Icon => Glyph(0xF0AE7); // mdi-variable
+    public override string TypeText => "Set Variable";
+
+    public override string ValueText => Operation switch
+    {
+        VariableOperation.Increment => $"{Name} += {(string.IsNullOrWhiteSpace(Value) ? "1" : Value)}",
+        VariableOperation.Decrement => $"{Name} -= {(string.IsNullOrWhiteSpace(Value) ? "1" : Value)}",
+        _ => $"{Name} = {Value}"
+    };
+}
+
 /// <summary>Runs an arbitrary LoupixDeck command string or shell command.</summary>
 public class CommandStep : MacroStep
 {

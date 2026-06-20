@@ -233,6 +233,8 @@
                                     <MenuItem Header="Mouse" Tag="Mouse" Click="AddStepMenu_Click" />
                                     <MenuItem Header="Command" Tag="Command" Click="AddStepMenu_Click" />
                                     <Separator />
+                                    <MenuItem Header="Set Variable" Tag="SetVariable" Click="AddStepMenu_Click" />
+                                    <Separator />
                                     <MenuItem Header="Repeat Start" Tag="RepeatStart" Click="AddStepMenu_Click" />
                                     <MenuItem Header="Repeat End" Tag="RepeatEnd" Click="AddStepMenu_Click" />
                                 </MenuFlyout>
@@ -562,6 +564,27 @@
                                                             <DataTemplate DataType="{x:Type macros:RepeatEndStep}">
                                                                 <TextBlock Classes="hint"
                                                                            Text="Ends the block opened by the nearest Repeat Start above." />
+                                                            </DataTemplate>
+
+                                                            <DataTemplate DataType="{x:Type macros:SetVariableStep}">
+                                                                <StackPanel Spacing="4">
+                                                                    <Grid ColumnDefinitions="Auto,160,Auto,150,Auto,*">
+                                                                        <TextBlock Grid.Column="0" Classes="editor-label"
+                                                                                   Text="Name" Margin="0,0,10,0" />
+                                                                        <TextBox Grid.Column="1"
+                                                                                 Text="{Binding Name, Mode=TwoWay}" />
+                                                                        <ComboBox Grid.Column="3" Margin="10,0,0,0"
+                                                                                  HorizontalAlignment="Stretch"
+                                                                                  ItemsSource="{x:Static macros:SetVariableStep.AllOperations}"
+                                                                                  SelectedItem="{Binding Operation, Mode=TwoWay}" />
+                                                                        <TextBlock Grid.Column="4" Classes="editor-label"
+                                                                                   Text="Value" Margin="10,0,10,0" />
+                                                                        <TextBox Grid.Column="5"
+                                                                                 Text="{Binding Value, Mode=TwoWay}" />
+                                                                    </Grid>
+                                                                    <TextBlock Classes="hint"
+                                                                               Text="Stores a value for this run. Reference it elsewhere as {Name} (in Type Text, Command, or a condition). Increment/Decrement treat the variable as a number; Value is the amount (blank = 1) — handy as a counter inside a Repeat." />
+                                                                </StackPanel>
                                                             </DataTemplate>
 
                                                         </ContentControl.DataTemplates>
