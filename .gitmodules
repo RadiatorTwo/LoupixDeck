@@ -1,0 +1,3 @@
+[submodule "LoupixDeck.PluginSdk"]
+	path = LoupixDeck.PluginSdk
+	url = https://github.com/RadiatorTwo/LoupixDeck.PluginSdk.git

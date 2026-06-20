@@ -1,0 +1,66 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <Nullable>disable</Nullable> <!-- TODO: Enable for better analysis -->
+    <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
+    <ApplicationIcon>Assets/logo.ico</ApplicationIcon>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+    <DebugType>embedded</DebugType>
+    <PublishSymbols>false</PublishSymbols>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(OS)' == 'Windows_NT'">
+    <DefineConstants>WINDOWS</DefineConstants>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <AvaloniaResource Include="Assets\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="Assets\logo.ico">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>LoupixDeck.ico</Link>
+    </Content>
+    <Content Include="Assets\logo.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>LoupixDeck.png</Link>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\LoupixDeck.PluginSdk\LoupixDeck.PluginSdk.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" />
+    <PackageReference Include="Avalonia.Controls.ColorPicker" />
+    <PackageReference Include="Avalonia.Desktop" />
+    <!-- Avalonia 12-compatible SVG control. Supersedes the old Avalonia.Svg.Skia
+         (which stopped at 11.3.0 and is incompatible with the Avalonia 12 upgrade).
+         The control namespace stays Avalonia.Svg.Skia; only the assembly name changed
+         to Svg.Controls.Skia.Avalonia (see the svg: xmlns in the device layouts). -->
+    <PackageReference Include="Svg.Controls.Skia.Avalonia" />
+    <PackageReference Include="Avalonia.Themes.Fluent" />
+    <PackageReference Include="Avalonia.Fonts.Inter" />
+    <!--Condition below is needed to remove Avalonia.Diagnostics package from build output in Release configuration.-->
+    <PackageReference Include="Avalonia.Diagnostics">
+      <IncludeAssets Condition="'$(Configuration)' != 'Debug'">None</IncludeAssets>
+      <PrivateAssets Condition="'$(Configuration)' != 'Debug'">All</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="CommunityToolkit.Mvvm" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+    <PackageReference Include="Microsoft.Win32.SystemEvents" />
+    <!-- Was previously pulled in transitively via obs-websocket-dotnet, which
+         moved into the OBS plugin; the core uses Newtonsoft.Json directly. -->
+    <PackageReference Include="Newtonsoft.Json" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" />
+    <PackageReference Include="System.Drawing.Common" />
+    <PackageReference Include="System.IO.Ports" />
+    <PackageReference Include="System.Management" />
+    <PackageReference Include="Tmds.DBus" />
+  </ItemGroup>
+</Project>

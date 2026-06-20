@@ -1,0 +1,49 @@
+root = true
+# All files
+[*]
+indent_style = space
+
+# XML project files
+[*.{csproj}]
+indent_size = 2
+
+# XML config files
+[*.{props,targets,config,nuspec,resx}]
+indent_size = 2
+
+# Code files
+[*.{cs}]
+indent_size = 4
+end_of_line = lf
+insert_final_newline = false
+charset = utf-8
+
+###############################
+# .NET Coding Conventions     #
+###############################
+[*.{cs}]
+dotnet_diagnostic.IDE0005.severity = suggestion # IDE0005: Using directive is unnecessary.
+dotnet_style_prefer_collection_expression = false # IDE0305: Simplify collection initialization
+
+# Organize usings
+dotnet_sort_system_directives_first = true
+dotnet_separate_import_directive_groups = false
+
+# New line preferences
+dotnet_style_allow_multiple_blank_lines_experimental = false:suggestion
+
+# Parentheses preferences
+dotnet_style_parentheses_in_arithmetic_binary_operators = always_for_clarity:warning
+dotnet_style_parentheses_in_relational_binary_operators = always_for_clarity:warning
+dotnet_style_parentheses_in_other_binary_operators = always_for_clarity:warning
+dotnet_style_parentheses_in_other_operators = always_for_clarity:suggestion
+
+# Modifier preferences
+dotnet_style_require_accessibility_modifiers = for_non_interface_members
+
+#AnalyzerSettings
+dotnet_style_namespace_match_folder = true:warning
+
+# TODO: review the following rules:
+# IDE0008: Use explicit type
+dotnet_diagnostic.IDE0008.severity = silent
