@@ -748,8 +748,10 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         // For a free-draw strip, also clear all three per-segment commands (the strip's
         // "command" is the three segments, not ButtonData.Command).
         if (IsSegmentCommandMode && _stripPage != null)
+        {
             for (var i = 0; i < RotaryButtonPage.StripSegmentCount; i++)
                 _stripPage.SetStripSegmentCommand(i, null);
+        }
 
         var b = ButtonData;
         b.IgnoreRefresh = true;

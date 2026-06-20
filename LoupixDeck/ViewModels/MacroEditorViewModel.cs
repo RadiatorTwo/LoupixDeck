@@ -594,12 +594,16 @@ public partial class MacroEditorViewModel : DialogViewModelBase<DialogResult>, I
     private void Macros_CollectionChanged(object sender, NotifyCollectionChangedEventArgs e)
     {
         if (e.OldItems != null)
+        {
             foreach (Macro macro in e.OldItems)
                 Detach(macro);
+        }
 
         if (e.NewItems != null)
+        {
             foreach (Macro macro in e.NewItems)
                 Attach(macro);
+        }
 
         ScheduleApply();
     }
@@ -629,12 +633,16 @@ public partial class MacroEditorViewModel : DialogViewModelBase<DialogResult>, I
     private void Steps_CollectionChanged(object sender, NotifyCollectionChangedEventArgs e)
     {
         if (e.OldItems != null)
+        {
             foreach (MacroStep step in e.OldItems)
                 step.PropertyChanged -= Step_PropertyChanged;
+        }
 
         if (e.NewItems != null)
+        {
             foreach (MacroStep step in e.NewItems)
                 step.PropertyChanged += Step_PropertyChanged;
+        }
 
         RefreshSelectionState();
         OnPropertyChanged(nameof(MacroPreview));
@@ -652,7 +660,9 @@ public partial class MacroEditorViewModel : DialogViewModelBase<DialogResult>, I
         // Any value change (the data property fires alongside ValueText) refreshes the preview.
         if (e.PropertyName != nameof(MacroStep.IsEditing) &&
             e.PropertyName != nameof(MacroStep.IsDragging))
+        {
             OnPropertyChanged(nameof(MacroPreview));
+        }
 
         if (!NonPersistedStepProperties.Contains(e.PropertyName))
             ScheduleApply();

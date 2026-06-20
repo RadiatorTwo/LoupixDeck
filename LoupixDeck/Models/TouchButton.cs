@@ -173,7 +173,9 @@ public class TouchButton : LoupedeckButton
         {
             if (layer is PluginLayer plugin &&
                 string.Equals(plugin.OwnerKey, ownerKey, StringComparison.Ordinal))
+            {
                 return plugin;
+            }
         }
 
         var created = new PluginLayer

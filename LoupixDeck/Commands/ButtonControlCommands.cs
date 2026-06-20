@@ -175,8 +175,10 @@ public class UpdateButtonCommand(IDeviceController controller, IAssetService ass
         if (!string.IsNullOrEmpty(nameHint))
         {
             foreach (var layer in button.Layers)
+            {
                 if (layer is TextLayer tl && string.Equals(tl.Name, nameHint, StringComparison.OrdinalIgnoreCase))
                     return tl;
+            }
         }
         else
         {
@@ -203,8 +205,10 @@ public class UpdateButtonCommand(IDeviceController controller, IAssetService ass
         if (!string.IsNullOrEmpty(nameHint))
         {
             foreach (var layer in button.Layers)
+            {
                 if (layer is ImageLayer il && string.Equals(il.Name, nameHint, StringComparison.OrdinalIgnoreCase))
                     return il;
+            }
         }
         else
         {

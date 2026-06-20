@@ -419,9 +419,13 @@ internal static class CommandChannel
 
         // page<N> / rotarypage<N>
         if (lower.StartsWith("page") && int.TryParse(lower.AsSpan(4), out var tp))
+        {
             command = $"System.GotoPage({tp})";
+        }
         else if (lower.StartsWith("rotarypage") && int.TryParse(lower.AsSpan(10), out var rp))
+        {
             command = $"System.GotoRotaryPage({rp})";
+        }
         // Fork-CLI compat: `updatebutton 6 text=Hi backColor=Red` →
         // `System.UpdateButton(6,text=Hi,backColor=Red)`.
         else if (lower == "updatebutton" && raw.Length > head.Length)

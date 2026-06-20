@@ -269,7 +269,10 @@ public class MacroRunner : IDisposable
                 case EndIfStep:
                     if (stack.Count > 0 &&
                         stack.Peek().Kind is FrameKind.IfTaken or FrameKind.IfSkipped)
+                    {
                         stack.Pop();
+                    }
+
                     i++;
                     break;
 

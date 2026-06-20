@@ -779,7 +779,9 @@ public partial class LoupedeckLiveSController(
         if (ReferenceEquals(_segmentPage[idx], page)
             && ReferenceEquals(_segmentProvider[idx], desired)
             && _segmentBindingSig[idx] == sig)
+        {
             return;
+        }
 
         DetachSegmentAt(idx);
         _segmentPage[idx] = page;

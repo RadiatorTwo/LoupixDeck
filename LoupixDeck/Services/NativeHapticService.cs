@@ -63,7 +63,9 @@ public sealed class NativeHapticService : INativeHapticService, IDisposable
     {
         if (e.PropertyName == nameof(TouchButton.VibrationEnabled) ||
             e.PropertyName == nameof(TouchButton.VibrationPattern))
+        {
             Schedule();
+        }
     }
 
     private void OnStepsChanged(object sender, NotifyCollectionChangedEventArgs e)

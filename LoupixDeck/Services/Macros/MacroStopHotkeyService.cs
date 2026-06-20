@@ -112,8 +112,11 @@ public sealed class MacroStopHotkeyService(IMacroManager macroManager, IMacroSto
     {
         var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         if (!string.IsNullOrWhiteSpace(hotkey))
+        {
             foreach (var part in hotkey.Split('+', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
                 set.Add(Utils.KeyNames.Canonicalize(part));
+        }
+
         return set;
     }
 
