@@ -9,11 +9,11 @@
     xmlns:models="using:LoupixDeck.Models"
     x:DataType="vm:MacroEditorViewModel"
     Title="Macro Editor"
-    Width="1280"
+    Width="1400"
     Height="760"
     mc:Ignorable="d"
     CanResize="True"
-    MinWidth="1100"
+    MinWidth="1300"
     MinHeight="620">
 
     <Window.Styles>

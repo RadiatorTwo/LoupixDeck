@@ -395,7 +395,12 @@ public class IfStep : MacroStep
     // Bubble the nested condition's changes so the panel summary refreshes live (and after
     // JSON Populate replaces the condition, the new instance stays wired up).
     private void OnConditionChanged(object sender, System.ComponentModel.PropertyChangedEventArgs e)
-        => OnPropertyChanged(nameof(ValueText));
+    {
+        // Raise the persisted Condition property (not just ValueText, which the editor treats
+        // as non-persisted UI state) so editing the condition schedules a save.
+        OnPropertyChanged(nameof(Condition));
+        OnPropertyChanged(nameof(ValueText));
+    }
 
     public override MacroStepType StepType => MacroStepType.If;
     public override string Icon => Glyph(0xF0EAA); // mdi-source-branch
@@ -451,7 +456,12 @@ public class WaitForConditionStep : MacroStep
     }
 
     private void OnConditionChanged(object sender, System.ComponentModel.PropertyChangedEventArgs e)
-        => OnPropertyChanged(nameof(ValueText));
+    {
+        // Raise the persisted Condition property (not just ValueText, which the editor treats
+        // as non-persisted UI state) so editing the condition schedules a save.
+        OnPropertyChanged(nameof(Condition));
+        OnPropertyChanged(nameof(ValueText));
+    }
 
     private int _timeoutMilliseconds = 10000;
 
