@@ -183,12 +183,19 @@
                     IsVisible="{Binding HasSelectedMacro}">
                 <Grid RowDefinitions="Auto,Auto,Auto,*">
 
-                    <!-- Name -->
-                    <Grid Grid.Row="0" RowDefinitions="Auto,Auto" ColumnDefinitions="Auto,*" Margin="0,0,0,10">
+                    <!-- Name + execution mode -->
+                    <Grid Grid.Row="0" RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="Auto,*,Auto,200" Margin="0,0,0,10">
                         <TextBlock Grid.Row="0" Grid.Column="0" Classes="editor-label" Text="Name" Margin="0,0,10,0" />
                         <TextBox Grid.Row="0" Grid.Column="1"
                                  Classes.error="{Binding HasValidationMessage}"
                                  Text="{Binding SelectedMacro.Name, Mode=TwoWay}" />
+                        <TextBlock Grid.Row="0" Grid.Column="2" Classes="editor-label"
+                                   Text="When triggered" Margin="16,0,10,0" />
+                        <ComboBox Grid.Row="0" Grid.Column="3"
+                                  HorizontalAlignment="Stretch"
+                                  ToolTip.Tip="Run Once: ignore re-triggers while running. Restart On Trigger: cancel and restart. Allow Parallel: run concurrently."
+                                  ItemsSource="{x:Static macros:Macro.AllExecutionModes}"
+                                  SelectedItem="{Binding SelectedMacro.ExecutionMode, Mode=TwoWay}" />
                         <TextBlock Grid.Row="1" Grid.Column="1"
                                    Classes="validation-error"
                                    Margin="0,4,0,0"

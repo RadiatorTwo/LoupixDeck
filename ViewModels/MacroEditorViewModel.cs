@@ -646,7 +646,7 @@ public class MacroEditorViewModel : DialogViewModelBase<DialogResult>, IAsyncIni
 
     private void Macro_PropertyChanged(object sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(Macro.Name))
+        if (e.PropertyName == nameof(Macro.Name) || e.PropertyName == nameof(Macro.ExecutionMode))
             ScheduleApply();
     }
 

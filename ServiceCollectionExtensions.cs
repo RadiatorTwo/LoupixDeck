@@ -91,6 +91,10 @@ public static class ServiceCollectionExtensions
         collection.AddSingleton<IActiveWindowState, ActiveWindowState>();
         collection.AddSingleton<IMacroConditionEvaluator, MacroConditionEvaluator>();
 
+        // App-wide execution-mode gatekeeper: enforces Run Once / Restart / Parallel across
+        // every device (macros are keyed by name, which can be bound on multiple devices).
+        collection.AddSingleton<IMacroExecutionRegistry, MacroExecutionRegistry>();
+
         // Runtime USB hot-plug (issue #116 phase 3b): the OS-native watcher signals
         // topology changes; the manager diffs them against the running device set and
         // raises attach/detach events App turns into provider/VM bring-up + teardown.
@@ -119,6 +123,7 @@ public static class ServiceCollectionExtensions
         collection.Forward<IActiveWindowMonitor>(root);
         collection.Forward<IActiveWindowState>(root);
         collection.Forward<IMacroConditionEvaluator>(root);
+        collection.Forward<IMacroExecutionRegistry>(root);
         collection.Forward<IMacroManager>(root);
         collection.Forward<IMacroStopCoordinator>(root);
         collection.Forward<IDeviceHostRegistry>(root);

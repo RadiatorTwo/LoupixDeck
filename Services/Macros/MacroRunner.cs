@@ -17,15 +17,18 @@ public class MacroRunner : IDisposable
     private readonly ICommandService _commandService;
     private readonly IMacroStopCoordinator _stopCoordinator;
     private readonly IMacroConditionEvaluator _conditionEvaluator;
+    private readonly IMacroExecutionRegistry _executionRegistry;
 
     public MacroRunner(IUInputKeyboard keyboard, IVirtualMouse mouse, ICommandService commandService,
-        IMacroStopCoordinator stopCoordinator, IMacroConditionEvaluator conditionEvaluator)
+        IMacroStopCoordinator stopCoordinator, IMacroConditionEvaluator conditionEvaluator,
+        IMacroExecutionRegistry executionRegistry)
     {
         _keyboard = keyboard;
         _mouse = mouse;
         _commandService = commandService;
         _stopCoordinator = stopCoordinator;
         _conditionEvaluator = conditionEvaluator;
+        _executionRegistry = executionRegistry;
 
         // Join the app-global registry so the global stop hotkey can reach this runner.
         _stopCoordinator.Register(this);
@@ -89,6 +92,12 @@ public class MacroRunner : IDisposable
         }
 
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+
+        // Enforce the macro's execution mode app-wide. RunOnce skips a re-trigger while busy;
+        // RestartOnTrigger cancels the in-flight run; AllowParallel always admits.
+        if (!_executionRegistry.TryBegin(macro, cts))
+            return;
+
         lock (_runLock)
             _activeRuns.Add(cts);
 
@@ -102,6 +111,7 @@ public class MacroRunner : IDisposable
             ReleaseHeldInput(context);
             lock (_runLock)
                 _activeRuns.Remove(cts);
+            _executionRegistry.End(macro.Name, cts);
         }
     }
 
