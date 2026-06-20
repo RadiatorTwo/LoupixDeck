@@ -5,7 +5,9 @@
 [![Platform](https://img.shields.io/badge/platform-windows-blue)](https://github.com/RadiatorTwo/LoupixDeck)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
-**LoupixDeck** is an open-source, cross-platform control deck application for the **Loupedeck Live S** and **Razer Stream Controller**.
+**LoupixDeck** is an open-source, cross-platform control deck application for **Loupedeck** devices (**Live**, **Live S** and **CT**) and the **Razer Stream Controller**.
+
+> **Note:** Loupedeck **CT** support is still a work in progress and not yet feature-complete.
 
 It lets you build custom pages with touch buttons, rotary controls, physical buttons, macros, integrations and plugins — without depending on the official vendor software.
 
@@ -18,7 +20,7 @@ Built with **Avalonia** and **.NET 9**.
 ## Highlights
 
 * **Linux and Windows support**
-* **Loupedeck Live S** and **Razer Stream Controller** support
+* **Loupedeck Live**, **Live S**, **CT** (partial) and **Razer Stream Controller** support
 * **Multi-device support** with serial-scoped configuration
 * **Layer-based touch button editor** with images, text, symbols and wallpapers
 * **Rotary encoder pages** with separate actions for rotation, click and press
@@ -33,10 +35,14 @@ Built with **Avalonia** and **.NET 9**.
 
 ## Supported Devices
 
-| Device                      |     VID:PID | Layout                                                          |
-| --------------------------- | ----------: | --------------------------------------------------------------- |
-| **Loupedeck Live S**        | `2ec2:0006` | 5×3 touch grid, 2 rotary encoders, 8 physical buttons           |
-| **Razer Stream Controller** | `1532:0d06` | 4×3 touch grid, 2 side panels, 6 rotary encoders, 8 LED buttons |
+| Device                      |          VID:PID | Layout                                                                         |
+| --------------------------- | ---------------: | ------------------------------------------------------------------------------ |
+| **Loupedeck Live**          |      `2ec2:0004` | 4×3 touch grid, 2 side touch strips, 6 rotary encoders, 8 round buttons         |
+| **Loupedeck Live S**        |      `2ec2:0006` | 5×3 touch grid, 2 rotary encoders, 8 physical buttons                          |
+| **Razer Stream Controller** |      `1532:0d06` | 4×3 touch grid, 2 side panels, 6 rotary encoders, 8 LED buttons                |
+| **Loupedeck CT** *(partial)*| `2ec2:0003/0007` | 4×3 touch grid + round wheel touchscreen, 6 dials + wheel, 8 round + 12 square buttons |
+
+> Loupedeck **CT** is supported but **not yet feature-complete** — some controls/behaviours are still being finished and need hardware verification.
 
 Multiple devices can run in parallel in a single LoupixDeck instance.
 Even two identical units are separated by USB serial and keep their own configuration.
