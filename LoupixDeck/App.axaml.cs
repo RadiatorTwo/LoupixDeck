@@ -114,7 +114,7 @@ public partial class App : Application
 
             // The router falls back to the primary for spontaneous plugin callbacks
             // (plugin timers/events with no active device flow). Set before loading.
-            router.Default = primaryProvider ?? registry.Hosts.FirstOrDefault()?.Provider;
+            router.Default = primaryProvider ?? (registry.Hosts.Count is > 0 ? registry.Hosts[0]?.Provider : null);
 
             // Load the shared plugin set ONCE (root) now that the fallback device is set.
             root.GetRequiredService<Services.Plugins.IPluginManager>().LoadPlugins();

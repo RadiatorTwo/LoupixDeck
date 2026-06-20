@@ -28,7 +28,7 @@ public static partial class Relay
     public static AsyncRelayCommand<T> Create<T>(Func<T, Task> execute, AsyncRelayCommandOptions options = default) => new(execute, options);
 
     /// <inheritdoc cref="AsyncRelayCommand{T}.AsyncRelayCommand(Func{T, Task}, Predicate{T}, AsyncRelayCommandOptions)"/>
-    public static AsyncRelayCommand<T> Create<T>(Func<T?, Task> execute, Predicate<T?> canExecute, AsyncRelayCommandOptions options = default) => new(execute, canExecute, options);
+    public static AsyncRelayCommand<T> Create<T>(Func<T, Task> execute, Predicate<T> canExecute, AsyncRelayCommandOptions options = default) => new(execute, canExecute, options);
 
     #region Same as above AsyncRelayCommand, but featuring CancellationToken
 

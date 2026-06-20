@@ -50,7 +50,7 @@ internal sealed class SkiaRenderCanvas : IRenderCanvas
             _canvas.Translate(_originX, _originY);
             _canvas.ClipRect(new SKRect(0, 0, Width, Height));
             var t = _transform;
-            _canvas.Concat(ref t);
+            _canvas.Concat(in t);
             draw();
         }
         finally
