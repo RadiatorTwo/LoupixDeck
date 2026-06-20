@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using System.Collections.ObjectModel;
 using System.Windows.Input;
 using Avalonia.Media;
@@ -32,14 +33,11 @@ public sealed class SymbolPickerRequest
 /// </summary>
 public partial class SymbolPickerViewModel : DialogViewModelBase<SymbolPickerRequest, DialogResult>
 {
-    private const string AllCategories = "All";
-
     private SymbolPickerRequest _request;
 
     public ObservableCollection<SymbolDefinition> Symbols { get; } = [];
 
-    public IReadOnlyList<string> Categories { get; } =
-        new[] { AllCategories }.Concat(SymbolLibrary.Categories).ToArray();
+    public ImmutableArray<string> Categories { get; } = SymbolLibrary.CategoriesWithAll;
 
     /// <summary>FontFamily used by the View to render the MDI glyphs.</summary>
     public FontFamily SymbolFont { get; } = new(SymbolLibrary.FontUri);
@@ -62,7 +60,7 @@ public partial class SymbolPickerViewModel : DialogViewModelBase<SymbolPickerReq
             if (SetProperty(ref field, value))
                 ApplyFilter();
         }
-    } = AllCategories;
+    } = SymbolLibrary.AllCategoriesKey;
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(ConfirmCommand))]
@@ -96,7 +94,7 @@ public partial class SymbolPickerViewModel : DialogViewModelBase<SymbolPickerReq
         var search = SearchText?.Trim() ?? string.Empty;
 
         var filtered = SymbolLibrary.All.Where(s =>
-            (SelectedCategory == AllCategories || s.Category == SelectedCategory) &&
+            (SelectedCategory == SymbolLibrary.AllCategoriesKey || s.Category == SelectedCategory) &&
             (search.Length == 0 ||
              s.DisplayName.Contains(search, StringComparison.OrdinalIgnoreCase) ||
              s.Id.Contains(search, StringComparison.OrdinalIgnoreCase)));
