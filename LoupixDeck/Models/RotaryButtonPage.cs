@@ -1,22 +1,11 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
-using Newtonsoft.Json;
 
 namespace LoupixDeck.Models;
 
-[ObservableObject]
-public partial class RotaryButtonPage
+public sealed partial class RotaryButtonPage(int pageSize) : ButtonPageBase()
 {
-    public RotaryButtonPage(int pageSize)
-    {
-        RotaryButtons = new ObservableCollection<RotaryButton>();
-
-        for (var i = 0; i < pageSize; i++)
-        {
-            var newButton = new RotaryButton(i, string.Empty, string.Empty);
-            RotaryButtons.Add(newButton);
-        }
-    }
+    public ObservableCollection<RotaryButton> RotaryButtons { get; } = new(Enumerable.Range(0, pageSize).Select(static i => new RotaryButton(i, string.Empty, string.Empty)));
 
     /// <summary>
     /// Which dial column this page belongs to. Defaults to <see cref="RotarySide.Both"/>
@@ -26,25 +15,7 @@ public partial class RotaryButtonPage
     /// </summary>
     public RotarySide Side { get; set; } = RotarySide.Both;
 
-    /// <summary>
-    /// Optional user-assigned page name. Persisted; when empty the page falls back
-    /// to its number, so configs written before naming existed load unchanged.
-    /// </summary>
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(PageName))]
-    public partial string Name { get; set; }
-
-    [JsonIgnore]
-    public string PageName => string.IsNullOrWhiteSpace(Name) ? $"Rotary Page: {Page}" : Name;
-
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(PageName))]
-    public partial int Page { get; set; }
-    [JsonIgnore]
-    [ObservableProperty]
-    public partial bool Selected { get; set; }
-
-    public ObservableCollection<RotaryButton> RotaryButtons { get; set; }
+    protected override string FormatPageName(int page) => "Rotary " + base.FormatPageName(page);
 
     /// <summary>
     /// Rendering mode of this page's side strip (Razer). Per page, not per device:
@@ -100,7 +71,6 @@ public partial class RotaryButtonPage
 
         StripSegmentCommands[index] = value;
     }
-
 
     /// <summary>
     /// Id of the side-strip provider bound when <see cref="StripMode"/> is

@@ -1,48 +1,13 @@
 using System.Collections.ObjectModel;
-using CommunityToolkit.Mvvm.ComponentModel;
 using LoupixDeck.Utils;
 using Newtonsoft.Json;
 using SkiaSharp;
 
 namespace LoupixDeck.Models;
 
-[ObservableObject]
-public partial class TouchButtonPage
+public sealed partial class TouchButtonPage(int pageSize) : ButtonPageBase()
 {
-    public TouchButtonPage(int pageSize)
-    {
-        TouchButtons = new ObservableCollection<TouchButton>();
-
-        for (var i = 0; i < pageSize; i++)
-        {
-            var newButton = new TouchButton(i);
-            TouchButtons.Add(newButton);
-        }
-
-        MainWallpaper = new WallpaperSlot();
-        LeftWallpaper = new WallpaperSlot();
-        RightWallpaper = new WallpaperSlot();
-    }
-
-    /// <summary>
-    /// Optional user-assigned page name. Persisted; when empty the page falls back
-    /// to its number, so configs written before naming existed load unchanged.
-    /// </summary>
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(PageName))]
-    public partial string Name { get; set; }
-
-
-    [JsonIgnore]
-    public string PageName => string.IsNullOrWhiteSpace(Name) ? $"Page: {Page}" : Name;
-
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(PageName))]
-    public partial int Page { get; set; }
-
-    [JsonIgnore]
-    [ObservableProperty]
-    public partial bool Selected { get; set; }
+    public ObservableCollection<TouchButton> TouchButtons { get; } = new(Enumerable.Range(0, pageSize).Select(static i => new TouchButton(i)));
 
     /// <summary>
     /// Main 480×270 wallpaper. Always non-null; an empty slot (no
@@ -60,7 +25,7 @@ public partial class TouchButtonPage
             OnPropertyChanged();
             OnWallpaperSlotChanged(this, EventArgs.Empty);
         }
-    }
+    } = new();
 
     /// <summary>
     /// Optional wallpaper for the left Razer side display (60×270). When set it
@@ -78,7 +43,7 @@ public partial class TouchButtonPage
             OnPropertyChanged();
             OnWallpaperSlotChanged(this, EventArgs.Empty);
         }
-    }
+    } = new();
 
     /// <summary>Optional wallpaper for the right Razer side display (60×270).</summary>
     public WallpaperSlot RightWallpaper
@@ -93,7 +58,7 @@ public partial class TouchButtonPage
             OnPropertyChanged();
             OnWallpaperSlotChanged(this, EventArgs.Empty);
         }
-    }
+    } = new();
 
     /// <summary>
     /// Baked main wallpaper, used for thumbnails/previews (settings list). Read-only;
@@ -114,8 +79,6 @@ public partial class TouchButtonPage
         OnPropertyChanged(nameof(Wallpaper));
         OnPropertyChanged(nameof(WallpaperInvalidated));
     }
-
-    public ObservableCollection<TouchButton> TouchButtons { get; set; }
 
     /// <summary>Pre/Post-command wrap applied to every touch button on this page.</summary>
     public CommandWrap TouchButtonWrap { get; set; } = new();
