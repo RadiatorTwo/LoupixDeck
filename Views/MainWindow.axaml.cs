@@ -188,6 +188,27 @@ public partial class MainWindow : Window
         _trayIcon?.Dispose();
         _trayIcon = null;
 
+        // Cleanly shut down every device before the process dies. Critically this stops a
+        // running screensaver and closes the serial port, so we never cut a full-screen
+        // framebuffer write mid-stream — an interrupted write leaves the device's protocol
+        // desynced and makes the next launch's handshake time out until a power-cycle.
+        try
+        {
+            if (Program.AppServices?.GetService(typeof(Services.IDeviceHostRegistry))
+                is Services.IDeviceHostRegistry hostRegistry)
+            {
+                foreach (var host in hostRegistry.Hosts)
+                {
+                    try { host.Controller.Shutdown(); }
+                    catch { /* best effort — never block shutdown */ }
+                }
+            }
+        }
+        catch
+        {
+            // best effort — never block shutdown
+        }
+
         // Give the (shared, root-resident) loaded plugins a chance to shut down
         // cleanly (close connections, stop poll loops) before the process exits.
         try

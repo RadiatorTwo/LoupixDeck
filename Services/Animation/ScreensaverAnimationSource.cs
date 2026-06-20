@@ -48,6 +48,12 @@ public sealed class ScreensaverAnimationSource : IAnimationSource, IDisposable
     private long _startTimestamp;
     private bool _firstFrameLogged;
 
+    // Signaled while no frame is being pushed to the device. Dispose() waits on this so a
+    // caller that closes the serial port right after (controller shutdown on app quit)
+    // can't cut a full-screen framebuffer write mid-stream — that desyncs the device's
+    // protocol and makes the next launch's handshake time out until a power-cycle.
+    private readonly ManualResetEventSlim _idle = new(true);
+
     public ScreensaverAnimationSource(LoupedeckDevice.Device.LoupedeckDevice device,
         string absoluteVideoPath, int fps, bool loop, Action onEnded)
     {
@@ -219,6 +225,7 @@ public sealed class ScreensaverAnimationSource : IAnimationSource, IDisposable
             }
         }
 
+        _idle.Reset();
         try
         {
             foreach (var draw in draws)
@@ -240,6 +247,7 @@ public sealed class ScreensaverAnimationSource : IAnimationSource, IDisposable
                     if (draw.Owned) draw.Bitmap.Dispose();
                 frame.Dispose();
             }
+            _idle.Set();
         }
     }
 
@@ -285,12 +293,17 @@ public sealed class ScreensaverAnimationSource : IAnimationSource, IDisposable
     public void Dispose()
     {
         _active = false;
+        // Cancel the read (aborts a blocked ReadAsync) and stop ffmpeg first…
         try { _cts?.Cancel(); } catch { /* already disposed */ }
         try { if (_ffmpeg is { HasExited: false }) _ffmpeg.Kill(true); } catch { /* already gone */ }
+        // …then wait for any frame that is currently being drawn to the device to finish,
+        // so the caller can safely close the serial port without cutting a write mid-stream.
+        try { _idle.Wait(1000); } catch { /* ignore */ }
         try { _ffmpeg?.Dispose(); } catch { /* ignore */ }
         _ffmpeg = null;
         try { _cts?.Dispose(); } catch { /* ignore */ }
         _cts = null;
+        try { _idle.Dispose(); } catch { /* ignore */ }
     }
 
     /// <summary>One display's slice of the panel: which buffer, the source rectangle in the
