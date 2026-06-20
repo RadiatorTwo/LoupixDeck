@@ -223,6 +223,11 @@ public static class ServiceCollectionExtensions
         collection.AddSingleton<IPluginInstaller, PluginInstaller>();
         collection.AddSingleton<IPluginReloadService, PluginReloadService>();
 
+        // One central animation loop per device (issue #119): every animated feature
+        // registers here instead of owning its own timer, so the device has a single,
+        // globally rate-limitable render cadence that pauses for inactive pages.
+        collection.AddSingleton<Services.Animation.IAnimationScheduler, Services.Animation.AnimationScheduler>();
+
         collection.AddSingleton<IDynamicTextManager, DynamicTextManager>();
         collection.AddSingleton<IFolderNavigationService, FolderNavigationService>();
         collection.AddSingleton<IExclusiveModeService, ExclusiveModeService>();
