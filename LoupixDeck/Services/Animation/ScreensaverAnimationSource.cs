@@ -1,5 +1,7 @@
+using System.Buffers;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using System.Threading.Channels;
 using LoupixDeck.Utils;
 using SkiaSharp;
 
@@ -11,11 +13,14 @@ namespace LoupixDeck.Services.Animation;
 /// <c>ffmpeg</c> process and fans each frame out across every display of the device.
 ///
 /// It is driven by the central <see cref="IAnimationScheduler"/> — the scheduler ticks
-/// <see cref="RenderFrameAsync"/> at the configured rate, and because each tick blocks on
-/// the next frame from the ffmpeg pipe, playback naturally paces to ffmpeg's constant
-/// output rate (no <c>-re</c>; a single 480×270 frame is larger than the OS pipe buffer,
-/// so ffmpeg is throttled by our read). The scheduler's in-flight guard means a slow read
-/// simply lowers the effective rate instead of queueing frames.
+/// <see cref="RenderFrameAsync"/> at the configured rate, which dequeues the next decoded
+/// frame from a small bounded read-ahead queue. A background reader keeps that queue filled
+/// from ffmpeg's stdout. ffmpeg is realtime-paced (<c>-re</c>), so the queue tracks wall-clock
+/// time: the cushion (≤ <see cref="FrameQueueDepth"/> frames) absorbs per-frame decode jitter
+/// on large clips, and when a device can't keep up (CPU / global Skia-gate contention with a
+/// second device) the consumer drops to the freshest queued frame. That keeps playback at the
+/// correct speed and skips frames instead of sliding into slow motion. Each device runs its
+/// own ffmpeg + queue, so the two never share a clock.
 ///
 /// The decode geometry mirrors the wallpaper system's continuous 480×270 panel: the frame
 /// is decoded at panel size and sliced per display. Unified devices (Live S / Razer) take
@@ -30,6 +35,15 @@ public sealed class ScreensaverAnimationSource : IAnimationSource, IDisposable
     private const int PanelWidth = 480;
     private const int PanelHeight = 270;
     private const int StripWidth = 60;
+    private const int FrameBytes = PanelWidth * PanelHeight * 4;
+
+    // Read-ahead depth: how many realtime-paced frames may sit queued ahead of presentation.
+    // The cushion (≈ FrameQueueDepth / fps seconds) lets the background reader ride out a
+    // transient decode spike on a large/high-bitrate clip (e.g. a fat keyframe) without
+    // starving the scheduler, and gives a lagging device a few frames to drop-skip back to
+    // realtime. The bound keeps memory flat (FrameQueueDepth × FrameBytes ≈ 3 MB at 6) and
+    // caps how stale a dropped-to frame can be.
+    private const int FrameQueueDepth = 6;
 
     private readonly LoupedeckDevice.Device.LoupedeckDevice _device;
     private readonly string _absoluteVideoPath;
@@ -41,7 +55,7 @@ public sealed class ScreensaverAnimationSource : IAnimationSource, IDisposable
 
     private Process _ffmpeg;
     private Stream _stdout;
-    private byte[] _frameBuffer;
+    private Channel<byte[]> _frames;
     private CancellationTokenSource _cts;
     private volatile bool _active;
     private int _endedSignalled;
@@ -58,6 +72,7 @@ public sealed class ScreensaverAnimationSource : IAnimationSource, IDisposable
     private long _dbgFrames;
     private double _dbgReadMs;
     private double _dbgPushMs;
+    private long _dbgDropped;
     private long _dbgWindowStart;
 
     // Signaled while no frame is being pushed to the device. Dispose() waits on this so a
@@ -100,17 +115,36 @@ public sealed class ScreensaverAnimationSource : IAnimationSource, IDisposable
         // Startup latency fix: by default ffmpeg analyses up to ~5 s of the input
         // (-analyzeduration) before emitting the first frame, so the screensaver appeared
         // to "hang" for seconds after the idle timeout. -analyzeduration 0 + a small
-        // -probesize + -fflags nobuffer make it start decoding immediately.
+        // -probesize make it start decoding immediately.
         //
-        // -stream_loop -1 loops the input forever (what a screensaver wants); no -re so the
-        // consumer paces playback; -r gives constant-rate output so frame i == time i/fps.
+        // NOTE: do NOT add "-fflags nobuffer" here. On some clips it makes ffmpeg misread the
+        // input start time (first frame reported at pts ~10 s) and pad the output with ~240
+        // duplicated frames at the front (constant-rate "*** N dup!"), so the consumer reads
+        // seconds of a single frozen frame and the screensaver looks blank/stuck on launch.
+        // -analyzeduration 0 + -probesize already give immediate startup without that bug.
+        //
+        // -stream_loop -1 loops the input forever (what a screensaver wants); -r gives
+        // constant-rate output so frame i == content-time i/fps.
+        //
+        // -re paces ffmpeg's OUTPUT to wall-clock (realtime) instead of letting the consumer's
+        // read rate set the speed. This is what stops "slow motion" when the device can't keep
+        // up (e.g. two devices contending for CPU and the global Skia conversion gate): ffmpeg
+        // keeps emitting at the real frame rate, frames queue, and the consumer drops to the
+        // freshest one (see RenderFrameAsync) so playback stays at the right speed and instead
+        // skips frames. Without -re a slow consumer would just decode slower → slow motion.
+        //
+        // scale=…:flags=fast_bilinear — the panel is tiny (480×270), so the source is always
+        // downscaled hard; fast_bilinear is the cheapest scaler and measured ~15% more decode
+        // headroom than the default bicubic on 1080p clips with no visible quality loss at this
+        // size. Hardware decode (-hwaccel) was tried and is slower here (the GPU→system-memory
+        // download for the CPU scaler outweighs the decode saving), so it is intentionally off.
         var loopArg = _loop ? "-stream_loop -1 " : string.Empty;
         var logLevel = _debug ? "verbose" : "error";
         var args =
             $"-hide_banner -loglevel {logLevel} " +
-            "-fflags nobuffer -probesize 500000 -analyzeduration 0 " +
+            "-probesize 500000 -analyzeduration 0 -re " +
             $"{loopArg}-i \"{_absoluteVideoPath}\" " +
-            $"-an -f rawvideo -r {_fps} -pix_fmt bgra -vf scale={PanelWidth}:{PanelHeight} -";
+            $"-an -f rawvideo -r {_fps} -pix_fmt bgra -vf scale={PanelWidth}:{PanelHeight}:flags=fast_bilinear -";
 
         if (_debug)
             Console.WriteLine($"[Screensaver] ffmpeg {args}");
@@ -140,7 +174,15 @@ public sealed class ScreensaverAnimationSource : IAnimationSource, IDisposable
         }
 
         _stdout = _ffmpeg.StandardOutput.BaseStream;
-        _frameBuffer = new byte[PanelWidth * PanelHeight * 4];
+        // Bounded read-ahead queue: SingleReader (the scheduler) + SingleWriter (the producer
+        // task below). FullMode.Wait gives ffmpeg backpressure once FrameQueueDepth frames are
+        // buffered, so it can't outrun us and balloon memory.
+        _frames = Channel.CreateBounded<byte[]>(new BoundedChannelOptions(FrameQueueDepth)
+        {
+            FullMode = BoundedChannelFullMode.Wait,
+            SingleReader = true,
+            SingleWriter = true
+        });
         _startTimestamp = Stopwatch.GetTimestamp();
         _dbgWindowStart = _startTimestamp;
 
@@ -166,86 +208,175 @@ public sealed class ScreensaverAnimationSource : IAnimationSource, IDisposable
             catch { /* killed / cancelled */ }
         }, token);
 
+        // Background reader: keeps the read-ahead queue full from ffmpeg's stdout.
+        _ = Task.Run(() => ProduceFramesAsync(token), token);
+
         _active = true;
         return true;
+    }
+
+    /// <summary>
+    /// Background producer: reads full BGRA frames from ffmpeg's stdout into the bounded
+    /// <see cref="_frames"/> queue. The bound applies backpressure, so ffmpeg decodes at most
+    /// <see cref="FrameQueueDepth"/> frames ahead of presentation — enough cushion to ride out
+    /// decode-time spikes on large clips without ever buffering unbounded. Completes the queue
+    /// on EOF/error so the consumer can signal the clip ended. Frame buffers are pooled.
+    /// </summary>
+    private async Task ProduceFramesAsync(CancellationToken token)
+    {
+        var stream = _stdout;
+        try
+        {
+            while (!token.IsCancellationRequested)
+            {
+                var buffer = ArrayPool<byte>.Shared.Rent(FrameBytes);
+
+                // Read exactly one full panel frame.
+                var read = 0;
+                var ended = false;
+                while (read < FrameBytes)
+                {
+                    int r;
+                    try
+                    {
+                        r = await stream.ReadAsync(buffer.AsMemory(read, FrameBytes - read), token)
+                            .ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        ArrayPool<byte>.Shared.Return(buffer);
+                        return; // stopped / disposed
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"[Screensaver] frame read failed: {ex.Message}");
+                        ArrayPool<byte>.Shared.Return(buffer);
+                        ended = true;
+                        break;
+                    }
+
+                    if (r <= 0)
+                    {
+                        // End of stream: a non-looping clip finished, or ffmpeg exited.
+                        ArrayPool<byte>.Shared.Return(buffer);
+                        ended = true;
+                        break;
+                    }
+
+                    read += r;
+                }
+
+                if (ended) break;
+
+                if (!_firstFrameLogged)
+                {
+                    _firstFrameLogged = true;
+                    var ms = Stopwatch.GetElapsedTime(_startTimestamp).TotalMilliseconds;
+                    Console.WriteLine($"[Screensaver] first frame after {ms:F0} ms.");
+                }
+
+                try
+                {
+                    // Blocks here while the queue is full — this is the backpressure that paces
+                    // ffmpeg to our presentation rate.
+                    await _frames.Writer.WriteAsync(buffer, token).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                    ArrayPool<byte>.Shared.Return(buffer);
+                    return;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Screensaver] frame producer error: {ex.Message}");
+        }
+        finally
+        {
+            _frames.Writer.TryComplete();
+        }
     }
 
     public async Task RenderFrameAsync(AnimationRenderContext context)
     {
         if (!_active) return;
 
-        var stream = _stdout;
-        var buffer = _frameBuffer;
-        if (stream == null || buffer == null) return;
+        var channel = _frames;
+        if (channel == null) return;
 
         var token = _cts?.Token ?? context.CancellationToken;
 
         var readStart = _debug ? Stopwatch.GetTimestamp() : 0;
 
-        // Read exactly one full panel frame. The blocking read is what paces us to ffmpeg.
-        var read = 0;
-        while (read < buffer.Length)
+        // Dequeue the next decoded frame from the read-ahead queue. Near-instant while the
+        // producer keeps it full; only blocks if decode fell behind (graceful slow-down).
+        byte[] buffer;
+        try
         {
-            int r;
-            try
-            {
-                r = await stream.ReadAsync(buffer.AsMemory(read, buffer.Length - read), token)
-                    .ConfigureAwait(false);
-            }
-            catch (OperationCanceledException)
-            {
-                return; // stopped / disposed
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[Screensaver] frame read failed: {ex.Message}");
-                SignalEnded();
-                return;
-            }
-
-            if (r <= 0)
-            {
-                // End of stream: a non-looping clip finished, or ffmpeg exited.
-                SignalEnded();
-                return;
-            }
-
-            read += r;
+            buffer = await channel.Reader.ReadAsync(token).ConfigureAwait(false);
         }
-
-        if (!_firstFrameLogged)
+        catch (OperationCanceledException)
         {
-            _firstFrameLogged = true;
-            var ms = Stopwatch.GetElapsedTime(_startTimestamp).TotalMilliseconds;
-            Console.WriteLine($"[Screensaver] first frame after {ms:F0} ms.");
+            return; // stopped / disposed
         }
-
-        if (!_debug)
+        catch (ChannelClosedException)
         {
-            await PushFrameAsync(buffer, token).ConfigureAwait(false);
+            // Producer finished: a non-looping clip ended, or ffmpeg exited.
+            SignalEnded();
             return;
         }
 
-        // Split the per-frame cost into pipe-read vs device-push so we can tell ffmpeg/pipe
-        // latency apart from the serial framebuffer write.
-        var readMs = Stopwatch.GetElapsedTime(readStart).TotalMilliseconds;
-        var pushStart = Stopwatch.GetTimestamp();
-        await PushFrameAsync(buffer, token).ConfigureAwait(false);
-        var pushMs = Stopwatch.GetElapsedTime(pushStart).TotalMilliseconds;
-
-        _dbgReadMs += readMs;
-        _dbgPushMs += pushMs;
-        if (++_dbgFrames >= DebugReportEvery)
+        // Drop to the freshest queued frame. ffmpeg is realtime-paced (-re), so if this device
+        // fell behind (CPU / global Skia-gate contention from another device), several frames
+        // have already queued. Presenting the newest keeps playback at wall-clock speed — the
+        // clip skips frames instead of sliding into slow motion. Skipped buffers go back to the
+        // pool. The fast device almost never finds extras here, so it is unaffected.
+        var dropped = 0;
+        while (channel.Reader.TryRead(out var newer))
         {
-            var windowMs = Stopwatch.GetElapsedTime(_dbgWindowStart).TotalMilliseconds;
-            var effFps = windowMs > 0 ? _dbgFrames * 1000.0 / windowMs : 0;
-            Console.WriteLine(
-                $"[Screensaver][perf] {_dbgFrames} frames | read avg {_dbgReadMs / _dbgFrames:F1} ms | " +
-                $"push avg {_dbgPushMs / _dbgFrames:F1} ms | effective {effFps:F1} fps (target {_fps})");
-            _dbgFrames = 0;
-            _dbgReadMs = 0;
-            _dbgPushMs = 0;
-            _dbgWindowStart = Stopwatch.GetTimestamp();
+            ArrayPool<byte>.Shared.Return(buffer);
+            buffer = newer;
+            dropped++;
+        }
+
+        try
+        {
+            if (!_debug)
+            {
+                await PushFrameAsync(buffer, token).ConfigureAwait(false);
+                return;
+            }
+
+            // Split the per-frame cost into queue-wait vs device-push so we can tell decode/queue
+            // latency apart from the serial framebuffer write.
+            var readMs = Stopwatch.GetElapsedTime(readStart).TotalMilliseconds;
+            var pushStart = Stopwatch.GetTimestamp();
+            await PushFrameAsync(buffer, token).ConfigureAwait(false);
+            var pushMs = Stopwatch.GetElapsedTime(pushStart).TotalMilliseconds;
+
+            _dbgReadMs += readMs;
+            _dbgPushMs += pushMs;
+            _dbgDropped += dropped;
+            if (++_dbgFrames >= DebugReportEvery)
+            {
+                var windowMs = Stopwatch.GetElapsedTime(_dbgWindowStart).TotalMilliseconds;
+                var effFps = windowMs > 0 ? _dbgFrames * 1000.0 / windowMs : 0;
+                Console.WriteLine(
+                    $"[Screensaver][perf] {_dbgFrames} frames | queue wait avg {_dbgReadMs / _dbgFrames:F1} ms | " +
+                    $"push avg {_dbgPushMs / _dbgFrames:F1} ms | dropped {_dbgDropped} | " +
+                    $"effective {effFps:F1} fps (target {_fps})");
+                _dbgFrames = 0;
+                _dbgReadMs = 0;
+                _dbgPushMs = 0;
+                _dbgDropped = 0;
+                _dbgWindowStart = Stopwatch.GetTimestamp();
+            }
+        }
+        finally
+        {
+            // Return the pooled buffer the producer rented.
+            ArrayPool<byte>.Shared.Return(buffer);
         }
     }
 
@@ -262,7 +393,9 @@ public sealed class ScreensaverAnimationSource : IAnimationSource, IDisposable
         lock (SkiaRenderGate.Sync)
         {
             frame = new SKBitmap(new SKImageInfo(PanelWidth, PanelHeight, SKColorType.Bgra8888, SKAlphaType.Opaque));
-            Marshal.Copy(bgra, 0, frame.GetPixels(), bgra.Length);
+            // Copy exactly one frame: the buffer is pooled (ArrayPool) so it may be larger
+            // than FrameBytes — never use bgra.Length here.
+            Marshal.Copy(bgra, 0, frame.GetPixels(), FrameBytes);
 
             foreach (var target in _targets)
             {
@@ -367,6 +500,7 @@ public sealed class ScreensaverAnimationSource : IAnimationSource, IDisposable
         _active = false;
         // Cancel the read (aborts a blocked ReadAsync) and stop ffmpeg first…
         try { _cts?.Cancel(); } catch { /* already disposed */ }
+        try { _frames?.Writer.TryComplete(); } catch { /* ignore */ }
         try { if (_ffmpeg is { HasExited: false }) _ffmpeg.Kill(true); } catch { /* already gone */ }
         // …then wait for any frame that is currently being drawn to the device to finish,
         // so the caller can safely close the serial port without cutting a write mid-stream.

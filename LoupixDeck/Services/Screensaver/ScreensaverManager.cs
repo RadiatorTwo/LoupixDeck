@@ -223,6 +223,11 @@ public sealed class ScreensaverManager : IScreensaverManager, IDisposable
                 // picks up the new video instead of continuing to play the old one.
                 if (IsRunning)
                     _ = Task.Run(StopScreensaver);
+                // Re-arm the idle countdown. Stopping above leaves the one-shot idle timer
+                // unscheduled (it doesn't re-arm itself while the screensaver runs), so
+                // without this the screensaver would stay off until the next device input.
+                // Now it restarts with the new clip after the idle timeout.
+                RestartIdleTimer();
                 break;
         }
     }

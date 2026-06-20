@@ -25,10 +25,6 @@ public class SettingsViewModel : DialogViewModelBase<DialogResult>
     private readonly IInterceptionService _interceptionService;
     private readonly IPluginReloadService _pluginReload;
     private readonly IPluginManager _pluginManager;
-    private readonly IAssetService _assetService;
-
-    /// <summary>Asset sub-folder for imported screensaver clips (issue #120).</summary>
-    private const string ScreensaversSubFolder = "screensavers";
 
     /// <summary>
     /// All discovered plugins — drives the Plugins settings page. Read live from the
@@ -85,8 +81,7 @@ public class SettingsViewModel : DialogViewModelBase<DialogResult>
         IDialogService dialogService,
         IPluginManager pluginManager,
         IPluginReloadService pluginReload,
-        IInterceptionService interceptionService,
-        IAssetService assetService)
+        IInterceptionService interceptionService)
     {
         Config = config;
         _deviceService = deviceService;
@@ -95,7 +90,6 @@ public class SettingsViewModel : DialogViewModelBase<DialogResult>
         _interceptionService = interceptionService;
         _pluginReload = pluginReload;
         _pluginManager = pluginManager;
-        _assetService = assetService;
 
         NavigateCommand = new RelayCommand<SettingsView>(Navigate);
         AddHapticStepCommand = new RelayCommand(AddHapticStep);
@@ -630,12 +624,13 @@ public class SettingsViewModel : DialogViewModelBase<DialogResult>
         var path = await FileDialogHelper.OpenVideoDialog();
         if (string.IsNullOrEmpty(path) || !System.IO.File.Exists(path)) return;
 
-        // Content-address the clip under assets/screensavers/ and store the relative path,
-        // plus the original file name for a readable label in settings.
-        var relative = _assetService.Import(path, ScreensaversSubFolder);
-        if (string.IsNullOrEmpty(relative)) return;
-
-        Config.ScreensaverVideoPath = relative;
+        // Reference the chosen clip in place — do NOT copy it into the content-addressed
+        // asset store. Screensaver clips can be large and are played by an external ffmpeg
+        // process straight from disk, so a copy only wastes space and is confusing (it
+        // looks like "the wrong file" is playing). Legacy configs that still hold an
+        // "assets/screensavers/<hash>.<ext>" relative path keep working: ResolveAbsolute
+        // handles both an absolute path and the old asset-relative form.
+        Config.ScreensaverVideoPath = path;
         Config.ScreensaverVideoName = System.IO.Path.GetFileName(path);
         OnPropertyChanged(nameof(ScreensaverVideoDisplayName));
     }
