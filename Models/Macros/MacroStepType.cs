@@ -16,7 +16,10 @@ public enum MacroStepType
     Command,
     RepeatStart,
     RepeatEnd,
-    SetVariable
+    SetVariable,
+    If,
+    Else,
+    EndIf
 }
 
 /// <summary>How a <see cref="SetVariableStep"/> changes its target variable.</summary>

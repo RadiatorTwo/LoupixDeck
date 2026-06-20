@@ -16,14 +16,16 @@ public class MacroRunner : IDisposable
     private readonly IVirtualMouse _mouse;
     private readonly ICommandService _commandService;
     private readonly IMacroStopCoordinator _stopCoordinator;
+    private readonly IMacroConditionEvaluator _conditionEvaluator;
 
     public MacroRunner(IUInputKeyboard keyboard, IVirtualMouse mouse, ICommandService commandService,
-        IMacroStopCoordinator stopCoordinator)
+        IMacroStopCoordinator stopCoordinator, IMacroConditionEvaluator conditionEvaluator)
     {
         _keyboard = keyboard;
         _mouse = mouse;
         _commandService = commandService;
         _stopCoordinator = stopCoordinator;
+        _conditionEvaluator = conditionEvaluator;
 
         // Join the app-global registry so the global stop hotkey can reach this runner.
         _stopCoordinator.Register(this);
@@ -204,6 +206,47 @@ public class MacroRunner : IDisposable
                     }
                     break;
 
+                case IfStep ifStep:
+                    if (_conditionEvaluator.Evaluate(ifStep.Condition, context))
+                    {
+                        // Run the then-branch; the matching Else/EndIf will pop this frame.
+                        stack.Push(new ControlFrame { Kind = FrameKind.IfTaken });
+                        i++;
+                    }
+                    else
+                    {
+                        i = SkipToElseOrEndIf(steps, i, out var landedOnElse);
+                        if (landedOnElse)
+                        {
+                            // Enter the false-branch (step after the Else marker).
+                            stack.Push(new ControlFrame { Kind = FrameKind.IfSkipped });
+                            i++;
+                        }
+                        // else: i is already just past the EndIf, nothing to push.
+                    }
+                    break;
+
+                case ElseStep:
+                    // Reached by falling through the end of a taken then-branch → skip the
+                    // false-branch. An orphan Else (no open If) is a no-op.
+                    if (stack.Count > 0 && stack.Peek().Kind == FrameKind.IfTaken)
+                    {
+                        stack.Pop();
+                        i = SkipPastMatchingEndIf(steps, i);
+                    }
+                    else
+                    {
+                        i++;
+                    }
+                    break;
+
+                case EndIfStep:
+                    if (stack.Count > 0 &&
+                        stack.Peek().Kind is FrameKind.IfTaken or FrameKind.IfSkipped)
+                        stack.Pop();
+                    i++;
+                    break;
+
                 default:
                     try
                     {
@@ -219,6 +262,60 @@ public class MacroRunner : IDisposable
                     break;
             }
         }
+    }
+
+    /// <summary>
+    /// From an If marker, finds where execution continues when the condition is false:
+    /// the matching Else (returns its index, <paramref name="landedOnElse"/> = true) or just
+    /// past the matching EndIf (returns that index). Nested If/EndIf are depth-counted so
+    /// only the marker that closes THIS If counts.
+    /// </summary>
+    private static int SkipToElseOrEndIf(List<MacroStep> steps, int ifIndex, out bool landedOnElse)
+    {
+        var depth = 0;
+        for (var j = ifIndex + 1; j < steps.Count; j++)
+        {
+            switch (steps[j])
+            {
+                case IfStep:
+                    depth++;
+                    break;
+                case ElseStep when depth == 0:
+                    landedOnElse = true;
+                    return j;
+                case EndIfStep when depth == 0:
+                    landedOnElse = false;
+                    return j + 1;
+                case EndIfStep:
+                    depth--;
+                    break;
+            }
+        }
+
+        landedOnElse = false;
+        return steps.Count;
+    }
+
+    /// <summary>From an Else marker, returns the index just past the matching EndIf.</summary>
+    private static int SkipPastMatchingEndIf(List<MacroStep> steps, int elseIndex)
+    {
+        var depth = 0;
+        for (var j = elseIndex + 1; j < steps.Count; j++)
+        {
+            switch (steps[j])
+            {
+                case IfStep:
+                    depth++;
+                    break;
+                case EndIfStep when depth == 0:
+                    return j + 1;
+                case EndIfStep:
+                    depth--;
+                    break;
+            }
+        }
+
+        return steps.Count;
     }
 
     private async Task ExecuteStep(MacroStep step, MacroContext context, CancellationToken token)

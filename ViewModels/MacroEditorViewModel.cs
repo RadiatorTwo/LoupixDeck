@@ -304,6 +304,9 @@ public class MacroEditorViewModel : DialogViewModelBase<DialogResult>, IAsyncIni
             MacroStepType.RepeatStart => new RepeatStartStep(),
             MacroStepType.RepeatEnd => new RepeatEndStep(),
             MacroStepType.SetVariable => new SetVariableStep(),
+            MacroStepType.If => new IfStep(),
+            MacroStepType.Else => new ElseStep(),
+            MacroStepType.EndIf => new EndIfStep(),
             _ => null
         };
 

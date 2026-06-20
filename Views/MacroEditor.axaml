@@ -235,6 +235,10 @@
                                     <Separator />
                                     <MenuItem Header="Set Variable" Tag="SetVariable" Click="AddStepMenu_Click" />
                                     <Separator />
+                                    <MenuItem Header="If" Tag="If" Click="AddStepMenu_Click" />
+                                    <MenuItem Header="Else" Tag="Else" Click="AddStepMenu_Click" />
+                                    <MenuItem Header="End If" Tag="EndIf" Click="AddStepMenu_Click" />
+                                    <Separator />
                                     <MenuItem Header="Repeat Start" Tag="RepeatStart" Click="AddStepMenu_Click" />
                                     <MenuItem Header="Repeat End" Tag="RepeatEnd" Click="AddStepMenu_Click" />
                                 </MenuFlyout>
@@ -585,6 +589,50 @@
                                                                     <TextBlock Classes="hint"
                                                                                Text="Stores a value for this run. Reference it elsewhere as {Name} (in Type Text, Command, or a condition). Increment/Decrement treat the variable as a number; Value is the amount (blank = 1) — handy as a counter inside a Repeat." />
                                                                 </StackPanel>
+                                                            </DataTemplate>
+
+                                                            <DataTemplate DataType="{x:Type macros:IfStep}">
+                                                                <StackPanel Spacing="4" DataContext="{Binding Condition}">
+                                                                    <Grid ColumnDefinitions="Auto,190,Auto,*">
+                                                                        <TextBlock Grid.Column="0" Classes="editor-label"
+                                                                                   Text="If" Margin="0,0,10,0" />
+                                                                        <ComboBox Grid.Column="1"
+                                                                                  HorizontalAlignment="Stretch"
+                                                                                  ItemsSource="{x:Static macros:MacroCondition.AllTypes}"
+                                                                                  SelectedItem="{Binding Type, Mode=TwoWay}" />
+                                                                        <CheckBox Grid.Column="2" Content="Negate" Margin="14,0,10,0"
+                                                                                  ToolTip.Tip="Invert the test (true becomes false)"
+                                                                                  IsChecked="{Binding Negate, Mode=TwoWay}" />
+                                                                        <TextBox Grid.Column="3"
+                                                                                 PlaceholderText="{Binding TargetLabel}"
+                                                                                 Text="{Binding Target, Mode=TwoWay}" />
+                                                                    </Grid>
+                                                                    <Grid ColumnDefinitions="Auto,170,Auto,*"
+                                                                          IsVisible="{Binding IsVariable}">
+                                                                        <TextBlock Grid.Column="0" Classes="editor-label"
+                                                                                   Text="Compare" Margin="0,0,10,0" />
+                                                                        <ComboBox Grid.Column="1"
+                                                                                  HorizontalAlignment="Stretch"
+                                                                                  ItemsSource="{x:Static macros:MacroCondition.AllOperators}"
+                                                                                  SelectedItem="{Binding Operator, Mode=TwoWay}" />
+                                                                        <TextBlock Grid.Column="2" Classes="editor-label"
+                                                                                   Text="Value" Margin="14,0,10,0" />
+                                                                        <TextBox Grid.Column="3"
+                                                                                 Text="{Binding Operand, Mode=TwoWay}" />
+                                                                    </Grid>
+                                                                    <TextBlock Classes="hint"
+                                                                               Text="Runs the steps up to Else when true, otherwise the steps between Else and End If. Target/Value support {variable} placeholders." />
+                                                                </StackPanel>
+                                                            </DataTemplate>
+
+                                                            <DataTemplate DataType="{x:Type macros:ElseStep}">
+                                                                <TextBlock Classes="hint"
+                                                                           Text="Separates the true and false branches of the nearest If above." />
+                                                            </DataTemplate>
+
+                                                            <DataTemplate DataType="{x:Type macros:EndIfStep}">
+                                                                <TextBlock Classes="hint"
+                                                                           Text="Ends the block opened by the nearest If above." />
                                                             </DataTemplate>
 
                                                         </ContentControl.DataTemplates>

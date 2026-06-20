@@ -361,6 +361,66 @@ public class SetVariableStep : MacroStep
     };
 }
 
+/// <summary>
+/// Marks the start of a conditional block. Steps up to the matching <see cref="ElseStep"/>
+/// run when <see cref="Condition"/> is true; steps between Else and the matching
+/// <see cref="EndIfStep"/> run when it is false. Markers are matched by order at run time
+/// (nesting supported, including inside Repeat blocks). An unmatched If runs its body to the
+/// end of the macro.
+/// </summary>
+public class IfStep : MacroStep
+{
+    private MacroCondition _condition;
+
+    public IfStep()
+    {
+        Condition = new MacroCondition();
+    }
+
+    /// <summary>The test evaluated when the block is reached. Never null after construction.</summary>
+    public MacroCondition Condition
+    {
+        get => _condition;
+        set
+        {
+            if (ReferenceEquals(_condition, value)) return;
+            if (_condition != null)
+                _condition.PropertyChanged -= OnConditionChanged;
+            _condition = value ?? new MacroCondition();
+            _condition.PropertyChanged += OnConditionChanged;
+            OnValueChanged();
+        }
+    }
+
+    // Bubble the nested condition's changes so the panel summary refreshes live (and after
+    // JSON Populate replaces the condition, the new instance stays wired up).
+    private void OnConditionChanged(object sender, System.ComponentModel.PropertyChangedEventArgs e)
+        => OnPropertyChanged(nameof(ValueText));
+
+    public override MacroStepType StepType => MacroStepType.If;
+    public override string Icon => Glyph(0xF0EAA); // mdi-source-branch
+    public override string TypeText => "If";
+    public override string ValueText => Condition?.Summary ?? string.Empty;
+}
+
+/// <summary>Separates the true and false branches of the nearest open <see cref="IfStep"/>.</summary>
+public class ElseStep : MacroStep
+{
+    public override MacroStepType StepType => MacroStepType.Else;
+    public override string Icon => Glyph(0xF0EAA); // mdi-source-branch
+    public override string TypeText => "Else";
+    public override string ValueText => string.Empty;
+}
+
+/// <summary>Marks the end of the block opened by the nearest open <see cref="IfStep"/>.</summary>
+public class EndIfStep : MacroStep
+{
+    public override MacroStepType StepType => MacroStepType.EndIf;
+    public override string Icon => Glyph(0xF0EAA); // mdi-source-branch
+    public override string TypeText => "End If";
+    public override string ValueText => string.Empty;
+}
+
 /// <summary>Runs an arbitrary LoupixDeck command string or shell command.</summary>
 public class CommandStep : MacroStep
 {
