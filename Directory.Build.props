@@ -1,0 +1,20 @@
+<Project>
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework><!-- TODO: upgrade to net10.0 -->
+    <Nullable Condition="'$(Nullable)' == ''">enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <SolutionDirWorkaround>$(MSBuildThisFileDirectory)</SolutionDirWorkaround>
+    <ToolsDir>$(MSBuildThisFileDirectory)tools\</ToolsDir>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <!-- We dont want all these classes deriving from ObservableObject. -->
+    <NoWarn>$(NoWarn);MVVMTK0033</NoWarn>
+    <WarnOnPackingNonPackableProject>true</WarnOnPackingNonPackableProject>
+    <SuppressNETCoreSdkPreviewMessage>true</SuppressNETCoreSdkPreviewMessage>
+  </PropertyGroup>
+</Project>
