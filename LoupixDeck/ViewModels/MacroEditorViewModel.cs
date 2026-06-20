@@ -3,6 +3,7 @@ using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Windows.Input;
 using Avalonia.Threading;
+using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using LoupixDeck.Models;
 using LoupixDeck.Models.Converter;
@@ -21,7 +22,7 @@ namespace LoupixDeck.ViewModels;
 /// applies every valid change immediately (debounced) back into the
 /// <see cref="IMacroManager"/> — there is no explicit save step.
 /// </summary>
-public class MacroEditorViewModel : DialogViewModelBase<DialogResult>, IAsyncInitViewModel
+public partial class MacroEditorViewModel : DialogViewModelBase<DialogResult>, IAsyncInitViewModel
 {
     // Serializer used for deep-cloning macros (working copies).
     private static readonly JsonSerializerSettings CloneSettings = new()
@@ -92,28 +93,15 @@ public class MacroEditorViewModel : DialogViewModelBase<DialogResult>, IAsyncIni
 
     public bool HasSelectedMacro => SelectedMacro != null;
 
-    private string _validationMessage = string.Empty;
-
-    public string ValidationMessage
-    {
-        get => _validationMessage;
-        private set
-        {
-            if (SetProperty(ref _validationMessage, value))
-                OnPropertyChanged(nameof(HasValidationMessage));
-        }
-    }
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasValidationMessage))]
+    public partial string ValidationMessage { get; private set; } = string.Empty;
 
     public bool HasValidationMessage => !string.IsNullOrEmpty(ValidationMessage);
 
     /// <summary>Default delay (ms) applied by the bulk "set / insert delay" actions.</summary>
-    private int _bulkDelayMs = 100;
-
-    public int BulkDelayMs
-    {
-        get => _bulkDelayMs;
-        set => SetProperty(ref _bulkDelayMs, value);
-    }
+    [ObservableProperty]
+    public partial int BulkDelayMs { get; set; } = 100;
 
     /// <summary>Number of currently checked steps in the selected macro.</summary>
     public int SelectedStepCount =>
@@ -123,7 +111,7 @@ public class MacroEditorViewModel : DialogViewModelBase<DialogResult>, IAsyncIni
 
     /// <summary>True when at least one selected step is a Delay (so "Set Delay" applies).</summary>
     public bool HasSelectedDelay =>
-        SelectedMacro?.Steps.Any(s => s.IsSelected && s is DelayStep) ?? false;
+        SelectedMacro?.Steps.Any(static s => s.IsSelected && s is DelayStep) ?? false;
 
     public bool HasClipboard => _clipboard.Count > 0;
 
@@ -144,18 +132,10 @@ public class MacroEditorViewModel : DialogViewModelBase<DialogResult>, IAsyncIni
 
     public bool IsTesting => _testCountdown > 0;
 
-    private bool _isTestRunning;
-
     /// <summary>True while a test macro is actually executing (after the countdown).</summary>
-    public bool IsTestRunning
-    {
-        get => _isTestRunning;
-        private set
-        {
-            if (SetProperty(ref _isTestRunning, value))
-                OnPropertyChanged(nameof(TestButtonText));
-        }
-    }
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(TestButtonText))]
+    public partial bool IsTestRunning { get; private set; }
 
     public string TestButtonText =>
         IsTesting ? $"Cancel ({_testCountdown})" : IsTestRunning ? "Stop" : "Test";
@@ -184,31 +164,26 @@ public class MacroEditorViewModel : DialogViewModelBase<DialogResult>, IAsyncIni
         }
     }
 
-    private bool _captureRecordedDelays = true;
-
     /// <summary>When on, gaps between recorded key events become Delay steps.</summary>
-    public bool CaptureRecordedDelays
-    {
-        get => _captureRecordedDelays;
-        set => SetProperty(ref _captureRecordedDelays, value);
-    }
+    [ObservableProperty]
+    public partial bool CaptureRecordedDelays { get; set; } = true;
 
     public IRelayCommand AddMacroCommand { get; }
-    public ICommand RemoveMacroCommand { get; }
-    public ICommand AddStepCommand { get; }
-    public ICommand DuplicateStepCommand { get; }
-    public ICommand SelectAllStepsCommand { get; }
-    public ICommand ClearSelectionCommand { get; }
-    public ICommand DuplicateSelectedCommand { get; }
-    public ICommand CopySelectedCommand { get; }
-    public ICommand PasteStepsCommand { get; }
-    public ICommand DeleteSelectedCommand { get; }
-    public ICommand SetDelayOnSelectedCommand { get; }
-    public ICommand InsertDelayAfterSelectedCommand { get; }
-    public ICommand TestMacroCommand { get; }
-    public ICommand ToggleRecordingCommand { get; }
-    public ICommand UndoCommand { get; }
-    public ICommand RedoCommand { get; }
+    public IRelayCommand RemoveMacroCommand { get; }
+    public IRelayCommand AddStepCommand { get; }
+    public IRelayCommand DuplicateStepCommand { get; }
+    public IRelayCommand SelectAllStepsCommand { get; }
+    public IRelayCommand ClearSelectionCommand { get; }
+    public IRelayCommand DuplicateSelectedCommand { get; }
+    public IRelayCommand CopySelectedCommand { get; }
+    public IRelayCommand PasteStepsCommand { get; }
+    public IRelayCommand DeleteSelectedCommand { get; }
+    public IRelayCommand SetDelayOnSelectedCommand { get; }
+    public IRelayCommand InsertDelayAfterSelectedCommand { get; }
+    public IRelayCommand TestMacroCommand { get; }
+    public IRelayCommand ToggleRecordingCommand { get; }
+    public IRelayCommand UndoCommand { get; }
+    public IRelayCommand RedoCommand { get; }
 
     public bool CanUndo => _undoStack.Count > 0;
     public bool CanRedo => _redoStack.Count > 0;

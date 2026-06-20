@@ -657,7 +657,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         if (result is not { IsConfirmed: true } || request.SelectedSymbol == null) return;
 
         var def = request.SelectedSymbol;
-        var layer = new SymbolLayer
+        SymbolLayer layer = new()
         {
             Name = GetUniqueLayerName(def.DisplayName),
             SymbolId = def.Id,

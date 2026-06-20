@@ -2,15 +2,17 @@ using System.Reflection;
 using System.Windows.Input;
 using CommunityToolkit.Mvvm.Input;
 using LoupixDeck.Models;
+using LoupixDeck.Utils;
 using LoupixDeck.ViewModels.Base;
 
 namespace LoupixDeck.ViewModels;
 
-public class AboutViewModel : DialogViewModelBase<DialogResult>
+public class AboutViewModel() : DialogViewModelBase<DialogResult>
 {
-    public ICommand OpenWebsiteCommand { get; }
-    public ICommand CloseCommand { get; }
+    public IRelayCommand OpenWebsiteCommand => field ??= Relay.Create(OpenWebsite);
+    public IRelayCommand CloseCommand => field ??= Relay.Create(Close);
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Viewmodel binding")]
     public string Version
     {
         get
@@ -23,13 +25,7 @@ public class AboutViewModel : DialogViewModelBase<DialogResult>
         }
     }
 
-    public AboutViewModel()
-    {
-        OpenWebsiteCommand = new RelayCommand(OpenWebsite);
-        CloseCommand = new RelayCommand(Close);
-    }
-
-    private void OpenWebsite()
+    private static void OpenWebsite()
     {
         const string url = "https://github.com/RadiatorTwo/LoupixDeck";
         try

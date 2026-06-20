@@ -16,101 +16,45 @@ namespace LoupixDeck.Models;
 [ObservableObject]
 public partial class WallpaperSlot
 {
-    private string _assetPath;
-    private int _scaling = 100;
-    private int _positionX;
-    private int _positionY;
-    private BitmapHelper.ScalingOption _scalingOption = BitmapHelper.ScalingOption.Fit;
-    private double _opacity;
-    private bool _mirror;
-    private SKBitmap _baked;
 
     /// <summary>
     /// Relative path of the original image inside the asset folder
     /// (e.g. "assets/wallpapers/abc123.png"), or null when this slot has no image.
     /// </summary>
-    public string AssetPath
-    {
-        get => _assetPath;
-        set
-        {
-            if (_assetPath == value) return;
-            _assetPath = value;
-            Invalidate();
-            OnPropertyChanged();
-            OnPropertyChanged(nameof(HasImage));
-        }
-    }
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasImage))]
+    public partial string AssetPath { get; set; }
+    partial void OnAssetPathChanged(string value) => Invalidate();
 
-    public int Scaling
-    {
-        get => _scaling;
-        set
-        {
-            if (_scaling == value) return;
-            _scaling = value;
-            Invalidate();
-            OnPropertyChanged();
-        }
-    }
+    [ObservableProperty]
+    public partial int Scaling { get; set; } = 100;
+    partial void OnScalingChanged(int value) => Invalidate();
 
-    public int PositionX
-    {
-        get => _positionX;
-        set
-        {
-            if (_positionX == value) return;
-            _positionX = value;
-            Invalidate();
-            OnPropertyChanged();
-        }
-    }
+    [ObservableProperty]
+    public partial int PositionX { get; set; }
+    partial void OnPositionXChanged(int value) => Invalidate();
 
-    public int PositionY
-    {
-        get => _positionY;
-        set
-        {
-            if (_positionY == value) return;
-            _positionY = value;
-            Invalidate();
-            OnPropertyChanged();
-        }
-    }
+    [ObservableProperty]
+    public partial int PositionY { get; set; }
+    partial void OnPositionYChanged(int value) => Invalidate();
 
-    public BitmapHelper.ScalingOption ScalingOption
-    {
-        get => _scalingOption;
-        set
-        {
-            if (_scalingOption == value) return;
-            _scalingOption = value;
-            Invalidate();
-            OnPropertyChanged();
-        }
-    }
+    [ObservableProperty]
+    public partial BitmapHelper.ScalingOption ScalingOption { get; set; } = BitmapHelper.ScalingOption.Fit;
+    partial void OnScalingOptionChanged(BitmapHelper.ScalingOption value) => Invalidate();
 
     /// <summary>Horizontally flips the baked image.</summary>
-    public bool Mirror
-    {
-        get => _mirror;
-        set
-        {
-            if (_mirror == value) return;
-            _mirror = value;
-            Invalidate();
-            OnPropertyChanged();
-        }
-    }
+    [ObservableProperty]
+    public partial bool Mirror { get; set; }
+    partial void OnMirrorChanged(bool value) => Invalidate();
 
     /// <summary>Black dim overlay (0..1) drawn on top of the wallpaper.</summary>
     public double Opacity
     {
-        get => _opacity;
+        get;
         set
         {
-            if (Math.Abs(_opacity - value) <= 0.0001) return;
-            _opacity = value;
+            if (Math.Abs(field - value) <= 0.0001) return;
+            field = value;
             // Opacity is applied at draw time, not baked in — no bake invalidation,
             // but the rendered result still changes.
             RaiseChanged();
@@ -126,7 +70,7 @@ public partial class WallpaperSlot
     public SKBitmap Baked { get; set; }
 
     [JsonIgnore]
-    public bool HasImage => !string.IsNullOrWhiteSpace(_assetPath);
+    public bool HasImage => !string.IsNullOrWhiteSpace(AssetPath);
 
     /// <summary>
     /// Raised whenever a property that affects the rendered result changes, so the
@@ -145,13 +89,13 @@ public partial class WallpaperSlot
     /// <summary>Deep copy of the parameters (not the baked cache).</summary>
     public WallpaperSlot Clone() => new()
     {
-        _assetPath = _assetPath,
-        _scaling = _scaling,
-        _positionX = _positionX,
-        _positionY = _positionY,
-        _scalingOption = _scalingOption,
-        _opacity = _opacity,
-        _mirror = _mirror,
+        AssetPath = AssetPath,
+        Scaling = Scaling,
+        PositionX = PositionX,
+        PositionY = PositionY,
+        ScalingOption = ScalingOption,
+        Opacity = Opacity,
+        Mirror = Mirror,
     };
 
     /// <summary>Copies all parameters (and the image reference) from another slot.</summary>

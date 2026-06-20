@@ -121,7 +121,7 @@ public partial class CommandSegment
             var shell = new CommandSegment(commandBuilder, null,
                 CommandStringParser.GetName(shellRaw), shellDisplay, shellRaw)
             {
-                _shellText = shellRaw
+                ShellText = shellRaw
             };
             return shell;
         }
@@ -163,21 +163,19 @@ public partial class CommandSegment
 
     // ───────── Shell (unknown command) free-text ─────────
 
-    private string _shellText = string.Empty;
     public string ShellText
     {
-        get => _shellText;
+        get;
         set
         {
-            if (_shellText == value) return;
-            _shellText = value;
+            if (!SetProperty(ref field, value)) return;
             Raw = value ?? string.Empty;
             OnPropertyChanged();
             OnPropertyChanged(nameof(Raw));
             OnPropertyChanged(nameof(Summary));
             Changed?.Invoke(this, EventArgs.Empty);
         }
-    }
+    } = string.Empty;
 
     /// <summary>Compact secondary text for the collapsed card.</summary>
     public string Summary => IsKnown
@@ -186,49 +184,26 @@ public partial class CommandSegment
 
     // ───────── UI state (not persisted) ─────────
 
-    private int _position;
-
     /// <summary>1-based position in the sequence strip; maintained by the owning
     /// view model whenever the collection changes.</summary>
-    public int Position
-    {
-        get => _position;
-        set
-        {
-            if (_position == value) return;
-            _position = value;
-            OnPropertyChanged();
-            OnPropertyChanged(nameof(IsFirst));
-        }
-    }
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsFirst))]
+    public partial int Position { get; set; }
 
     /// <summary>True for the first segment — hides the leading "→" connector.</summary>
-    public bool IsFirst => _position <= 1;
-
-    private bool _showConnector;
+    public bool IsFirst => Position <= 1;
 
     /// <summary>Whether the leading "→" connector glyph is drawn. Maintained by the
     /// view from layout: false for the very first segment and for any segment that
     /// starts a new wrapped row, so the arrow never dangles at a row's left edge.
     /// The arrow's gutter keeps its width regardless, so toggling this never
     /// re-packs the chips.</summary>
-    public bool ShowConnector
-    {
-        get => _showConnector;
-        set { if (_showConnector == value) return; _showConnector = value; OnPropertyChanged(); }
-    }
+    [ObservableProperty]
+    public partial bool ShowConnector { get; set; }
 
-    private bool _isEditing;
-    public bool IsEditing
-    {
-        get => _isEditing;
-        set { if (_isEditing == value) return; _isEditing = value; OnPropertyChanged(); }
-    }
+    [ObservableProperty]
+    public partial bool IsEditing { get; set; }
 
-    private bool _isDragging;
-    public bool IsDragging
-    {
-        get => _isDragging;
-        set { if (_isDragging == value) return; _isDragging = value; OnPropertyChanged(); }
-    }
+    [ObservableProperty]
+    public partial bool IsDragging { get; set; }
 }
