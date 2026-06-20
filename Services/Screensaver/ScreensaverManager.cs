@@ -217,6 +217,13 @@ public sealed class ScreensaverManager : IScreensaverManager, IDisposable
             case nameof(LoupedeckConfig.ScreensaverIdleTimeoutSeconds):
                 RestartIdleTimer();
                 break;
+
+            case nameof(LoupedeckConfig.ScreensaverVideoPath):
+                // The clip changed — stop a running screensaver so the next idle trigger
+                // picks up the new video instead of continuing to play the old one.
+                if (IsRunning)
+                    _ = Task.Run(StopScreensaver);
+                break;
         }
     }
 

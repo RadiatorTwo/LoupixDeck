@@ -61,7 +61,14 @@ public abstract class FileDialogHelper
 
         if (files.Count == 0) return string.Empty;
 
-        return Uri.UnescapeDataString(files[0].Path.AbsolutePath);
+        // Prefer the real OS path (TryGetLocalPath) over the URI's AbsolutePath, which on
+        // Windows yields "/C:/Users/…" — that can fail File.Exists/File.Copy and make the
+        // selection silently do nothing.
+        var file = files[0];
+        var local = file.TryGetLocalPath();
+        return !string.IsNullOrEmpty(local)
+            ? local
+            : Uri.UnescapeDataString(file.Path.AbsolutePath);
     }
 
     /// <summary>

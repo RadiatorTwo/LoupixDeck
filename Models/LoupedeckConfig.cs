@@ -152,6 +152,15 @@ public class LoupedeckConfig : INotifyPropertyChanged
         set { if (_screensaverVideoPath == value) return; _screensaverVideoPath = value; OnPropertyChanged(); }
     }
 
+    // Original file name of the chosen clip (display only). The asset itself is stored
+    // content-addressed (hash filename), so this keeps a human-readable label in settings.
+    private string _screensaverVideoName;
+    public string ScreensaverVideoName
+    {
+        get => _screensaverVideoName;
+        set { if (_screensaverVideoName == value) return; _screensaverVideoName = value; OnPropertyChanged(); }
+    }
+
     private bool _screensaverLoop = true;
     public bool ScreensaverLoop
     {

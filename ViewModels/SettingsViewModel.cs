@@ -610,29 +610,41 @@ public class SettingsViewModel : DialogViewModelBase<DialogResult>
     /// <summary>Inverse of <see cref="FfmpegAvailable"/> for the settings hint visibility.</summary>
     public bool FfmpegMissing => !FfmpegAvailable;
 
-    /// <summary>Display name of the selected screensaver clip, or a placeholder when none.</summary>
-    public string ScreensaverVideoName =>
-        string.IsNullOrWhiteSpace(Config.ScreensaverVideoPath)
-            ? "(none)"
-            : System.IO.Path.GetFileName(Config.ScreensaverVideoPath);
+    /// <summary>Display name of the selected screensaver clip, or a placeholder when none.
+    /// Prefers the stored original file name; falls back to the (content-hash) asset file
+    /// name for clips selected before the name was tracked.</summary>
+    public string ScreensaverVideoDisplayName
+    {
+        get
+        {
+            if (!string.IsNullOrWhiteSpace(Config.ScreensaverVideoName))
+                return Config.ScreensaverVideoName;
+            return string.IsNullOrWhiteSpace(Config.ScreensaverVideoPath)
+                ? "(none)"
+                : System.IO.Path.GetFileName(Config.ScreensaverVideoPath);
+        }
+    }
 
     private async Task SelectScreensaverVideo()
     {
         var path = await FileDialogHelper.OpenVideoDialog();
         if (string.IsNullOrEmpty(path) || !System.IO.File.Exists(path)) return;
 
-        // Content-address the clip under assets/screensavers/ and store the relative path.
+        // Content-address the clip under assets/screensavers/ and store the relative path,
+        // plus the original file name for a readable label in settings.
         var relative = _assetService.Import(path, ScreensaversSubFolder);
         if (string.IsNullOrEmpty(relative)) return;
 
         Config.ScreensaverVideoPath = relative;
-        OnPropertyChanged(nameof(ScreensaverVideoName));
+        Config.ScreensaverVideoName = System.IO.Path.GetFileName(path);
+        OnPropertyChanged(nameof(ScreensaverVideoDisplayName));
     }
 
     private void ClearScreensaverVideo()
     {
         Config.ScreensaverVideoPath = null;
-        OnPropertyChanged(nameof(ScreensaverVideoName));
+        Config.ScreensaverVideoName = null;
+        OnPropertyChanged(nameof(ScreensaverVideoDisplayName));
     }
 
     // ───────── Haptic ─────────
