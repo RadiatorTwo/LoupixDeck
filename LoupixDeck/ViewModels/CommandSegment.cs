@@ -1,6 +1,6 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
-using System.Runtime.CompilerServices;
+using CommunityToolkit.Mvvm.ComponentModel;
 using LoupixDeck.Commands;
 using LoupixDeck.Commands.Base;
 using LoupixDeck.Services;
@@ -14,7 +14,8 @@ namespace LoupixDeck.ViewModels;
 /// string and fed back into <see cref="ICommandBuilder.BuildCommandString"/>,
 /// which only ever calls <c>ToString()</c> on it.
 /// </summary>
-public class CommandParameter : INotifyPropertyChanged
+[ObservableObject]
+public partial class CommandParameter
 {
     public string Name { get; }
     public Type ParameterType { get; }
@@ -56,11 +57,6 @@ public class CommandParameter : INotifyPropertyChanged
         get => bool.TryParse(_value, out var b) && b;
         set => Value = value ? "True" : "False";
     }
-
-    public event PropertyChangedEventHandler PropertyChanged;
-
-    private void OnPropertyChanged([CallerMemberName] string propertyName = null)
-        => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
 }
 
 /// <summary>
@@ -74,7 +70,8 @@ public class CommandParameter : INotifyPropertyChanged
 /// generically without a plugin round-trip. Values containing ',' or ')' are not
 /// supported by the executor, so the editor does not support them either.
 /// </summary>
-public class CommandSegment : INotifyPropertyChanged
+[ObservableObject]
+public partial class CommandSegment
 {
     private readonly ICommandBuilder _commandBuilder;
     private readonly CommandInfo _info;
@@ -234,9 +231,4 @@ public class CommandSegment : INotifyPropertyChanged
         get => _isDragging;
         set { if (_isDragging == value) return; _isDragging = value; OnPropertyChanged(); }
     }
-
-    public event PropertyChangedEventHandler PropertyChanged;
-
-    private void OnPropertyChanged([CallerMemberName] string propertyName = null)
-        => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
 }

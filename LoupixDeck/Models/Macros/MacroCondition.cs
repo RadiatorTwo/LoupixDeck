@@ -1,5 +1,6 @@
-using System.ComponentModel;
-using System.Runtime.CompilerServices;
+using System.Collections.Immutable;
+using System.Runtime.InteropServices;
+using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace LoupixDeck.Models.Macros;
 
@@ -38,89 +39,40 @@ public enum ConditionOperator
 /// <see cref="Operand"/> as the value. All string fields support <c>{name}</c> placeholders.
 /// <see cref="Negate"/> inverts the result. Persisted inline inside its owning step.
 /// </summary>
-public class MacroCondition : INotifyPropertyChanged
+[ObservableObject]
+public partial class MacroCondition
 {
-    private ConditionType _type = ConditionType.ProcessRunning;
-
-    public ConditionType Type
-    {
-        get => _type;
-        set
-        {
-            if (_type == value) return;
-            _type = value;
-            OnPropertyChanged();
-            OnPropertyChanged(nameof(IsVariable));
-            OnPropertyChanged(nameof(TargetLabel));
-            OnPropertyChanged(nameof(Summary));
-        }
-    }
-
-    private string _target = string.Empty;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsVariable))]
+    [NotifyPropertyChangedFor(nameof(TargetLabel))]
+    [NotifyPropertyChangedFor(nameof(Summary))]
+    public partial ConditionType Type { get; set; } = ConditionType.ProcessRunning;
 
     /// <summary>Process name, title substring, or variable name depending on <see cref="Type"/>.</summary>
-    public string Target
-    {
-        get => _target;
-        set
-        {
-            if (_target == value) return;
-            _target = value;
-            OnPropertyChanged();
-            OnPropertyChanged(nameof(Summary));
-        }
-    }
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(Summary))]
+    public partial string Target { get; set; } = string.Empty;
 
-    private ConditionOperator _operator = ConditionOperator.Equals;
-
-    public ConditionOperator Operator
-    {
-        get => _operator;
-        set
-        {
-            if (_operator == value) return;
-            _operator = value;
-            OnPropertyChanged();
-            OnPropertyChanged(nameof(Summary));
-        }
-    }
-
-    private string _operand = string.Empty;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(Summary))]
+    public partial ConditionOperator Operator { get; set; } = ConditionOperator.Equals;
 
     /// <summary>Value the variable is compared against (variable conditions only).</summary>
-    public string Operand
-    {
-        get => _operand;
-        set
-        {
-            if (_operand == value) return;
-            _operand = value;
-            OnPropertyChanged();
-            OnPropertyChanged(nameof(Summary));
-        }
-    }
-
-    private bool _negate;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(Summary))]
+    public partial string Operand { get; set; } = string.Empty;
 
     /// <summary>Inverts the test (e.g. "process is NOT running").</summary>
-    public bool Negate
-    {
-        get => _negate;
-        set
-        {
-            if (_negate == value) return;
-            _negate = value;
-            OnPropertyChanged();
-            OnPropertyChanged(nameof(Summary));
-        }
-    }
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(Summary))]
+    public partial bool Negate { get; set; }
 
     /// <summary>All selectable values — bound by the editor's ComboBoxes.</summary>
     [Newtonsoft.Json.JsonIgnore]
-    public static ConditionType[] AllTypes { get; } = Enum.GetValues<ConditionType>();
+    public static ImmutableArray<ConditionType> AllTypes { get; } = ImmutableCollectionsMarshal.AsImmutableArray(Enum.GetValues<ConditionType>());
 
     [Newtonsoft.Json.JsonIgnore]
-    public static ConditionOperator[] AllOperators { get; } = Enum.GetValues<ConditionOperator>();
+    public static ImmutableArray<ConditionOperator> AllOperators { get; } = ImmutableCollectionsMarshal.AsImmutableArray(Enum.GetValues<ConditionOperator>());
 
     /// <summary>True when the variable-specific operator/operand fields apply (editor visibility).</summary>
     [Newtonsoft.Json.JsonIgnore]
@@ -166,11 +118,4 @@ public class MacroCondition : INotifyPropertyChanged
         ConditionOperator.LessOrEqual => "<=",
         _ => "?"
     };
-
-    public event PropertyChangedEventHandler PropertyChanged;
-
-    protected void OnPropertyChanged([CallerMemberName] string propertyName = null)
-    {
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-    }
 }

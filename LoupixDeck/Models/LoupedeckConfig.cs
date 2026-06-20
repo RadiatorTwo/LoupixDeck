@@ -10,7 +10,7 @@ namespace LoupixDeck.Models;
 /// This data model holds all configuration settings,
 /// which are loaded and saved via JSON.
 /// </summary>
-public class LoupedeckConfig : INotifyPropertyChanged
+public partial class LoupedeckConfig
 {
     private int _currentRotaryPageIndex = -1;
     private int _currentLeftRotaryPageIndex = -1;

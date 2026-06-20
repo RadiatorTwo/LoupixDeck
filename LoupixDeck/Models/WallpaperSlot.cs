@@ -1,5 +1,4 @@
-using System.ComponentModel;
-using System.Runtime.CompilerServices;
+using CommunityToolkit.Mvvm.ComponentModel;
 using LoupixDeck.Utils;
 using Newtonsoft.Json;
 using SkiaSharp;
@@ -14,7 +13,8 @@ namespace LoupixDeck.Models;
 /// <see cref="Baked"/> (not serialized). Mirrors the per-page wallpaper model that
 /// previously lived flat on <see cref="TouchButtonPage"/>.
 /// </summary>
-public class WallpaperSlot : INotifyPropertyChanged
+[ObservableObject]
+public partial class WallpaperSlot
 {
     private string _assetPath;
     private int _scaling = 100;
@@ -177,12 +177,5 @@ public class WallpaperSlot : INotifyPropertyChanged
         ScalingOption = BitmapHelper.ScalingOption.Fit;
         Opacity = 0;
         Mirror = false;
-    }
-
-    public event PropertyChangedEventHandler PropertyChanged;
-
-    protected void OnPropertyChanged([CallerMemberName] string propertyName = null)
-    {
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
     }
 }

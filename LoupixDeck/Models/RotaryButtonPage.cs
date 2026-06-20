@@ -1,11 +1,11 @@
 using System.Collections.ObjectModel;
-using System.ComponentModel;
-using System.Runtime.CompilerServices;
+using CommunityToolkit.Mvvm.ComponentModel;
 using Newtonsoft.Json;
 
 namespace LoupixDeck.Models;
 
-public class RotaryButtonPage : INotifyPropertyChanged
+[ObservableObject]
+public partial class RotaryButtonPage
 {
     public RotaryButtonPage(int pageSize)
     {
@@ -17,11 +17,6 @@ public class RotaryButtonPage : INotifyPropertyChanged
             RotaryButtons.Add(newButton);
         }
     }
-
-    private int _page;
-    private string _name;
-    private bool _selected;
-    private StripMode _stripMode = StripMode.Segmented;
 
     /// <summary>
     /// Which dial column this page belongs to. Defaults to <see cref="RotarySide.Both"/>
@@ -35,44 +30,19 @@ public class RotaryButtonPage : INotifyPropertyChanged
     /// Optional user-assigned page name. Persisted; when empty the page falls back
     /// to its number, so configs written before naming existed load unchanged.
     /// </summary>
-    public string Name
-    {
-        get => _name;
-        set
-        {
-            if (_name == value) return;
-            _name = value;
-            OnPropertyChanged();
-            OnPropertyChanged(nameof(PageName));
-        }
-    }
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(PageName))]
+    public partial string Name { get; set; }
 
     [JsonIgnore]
-    public string PageName => string.IsNullOrWhiteSpace(_name) ? $"Rotary Page: {Page}" : _name;
+    public string PageName => string.IsNullOrWhiteSpace(Name) ? $"Rotary Page: {Page}" : Name;
 
-    public int Page
-    {
-        get => _page;
-        set
-        {
-            if (_page == value) return;
-            _page = value;
-            OnPropertyChanged();
-            OnPropertyChanged(nameof(PageName));
-        }
-    }
-
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(PageName))]
+    public partial int Page { get; set; }
     [JsonIgnore]
-    public bool Selected
-    {
-        get => _selected;
-        set
-        {
-            if (value == _selected) return;
-            _selected = value;
-            OnPropertyChanged();
-        }
-    }
+    [ObservableProperty]
+    public partial bool Selected { get; set; }
 
     public ObservableCollection<RotaryButton> RotaryButtons { get; set; }
 
@@ -82,16 +52,8 @@ public class RotaryButtonPage : INotifyPropertyChanged
     /// or FreeDraw (the <see cref="StripCanvas"/>). Additive — missing in older JSON
     /// defaults to <see cref="StripMode.Segmented"/>, preserving prior behaviour.
     /// </summary>
-    public StripMode StripMode
-    {
-        get => _stripMode;
-        set
-        {
-            if (_stripMode == value) return;
-            _stripMode = value;
-            OnPropertyChanged();
-        }
-    }
+    [ObservableProperty]
+    public partial StripMode StripMode { get; set; } = StripMode.Segmented;
 
     /// <summary>
     /// Free-draw canvas for this page's side strip: a 60×270 layer surface (image/
@@ -139,7 +101,6 @@ public class RotaryButtonPage : INotifyPropertyChanged
         StripSegmentCommands[index] = value;
     }
 
-    private string _stripPluginId;
 
     /// <summary>
     /// Id of the side-strip provider bound when <see cref="StripMode"/> is
@@ -148,27 +109,12 @@ public class RotaryButtonPage : INotifyPropertyChanged
     /// to segmented rendering at runtime, and the id is preserved so re-installing the
     /// plugin restores the binding.
     /// </summary>
-    public string StripPluginId
-    {
-        get => _stripPluginId;
-        set
-        {
-            if (_stripPluginId == value) return;
-            _stripPluginId = value;
-            OnPropertyChanged();
-        }
-    }
+    [ObservableProperty]
+    public partial string StripPluginId { get; set; }
 
     // Pre/Post-command wraps applied per input type when a button on this page fires.
     public CommandWrap SimpleButtonWrap { get; set; } = new();
     public CommandWrap KnobLeftWrap { get; set; } = new();
     public CommandWrap KnobRightWrap { get; set; } = new();
     public CommandWrap KnobPressWrap { get; set; } = new();
-
-    public event PropertyChangedEventHandler PropertyChanged;
-
-    private void OnPropertyChanged([CallerMemberName] string propertyName = null)
-    {
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-    }
 }

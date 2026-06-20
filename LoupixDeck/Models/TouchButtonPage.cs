@@ -1,13 +1,13 @@
-﻿using System.Collections.ObjectModel;
-using System.ComponentModel;
-using System.Runtime.CompilerServices;
+using System.Collections.ObjectModel;
+using CommunityToolkit.Mvvm.ComponentModel;
 using LoupixDeck.Utils;
 using Newtonsoft.Json;
 using SkiaSharp;
 
 namespace LoupixDeck.Models;
 
-public class TouchButtonPage : INotifyPropertyChanged
+[ObservableObject]
+public partial class TouchButtonPage
 {
     public TouchButtonPage(int pageSize)
     {
@@ -24,55 +24,25 @@ public class TouchButtonPage : INotifyPropertyChanged
         RightWallpaper = new WallpaperSlot();
     }
 
-    private int _page;
-    private string _name;
-    private bool _selected;
-    private WallpaperSlot _mainWallpaper;
-    private WallpaperSlot _leftWallpaper;
-    private WallpaperSlot _rightWallpaper;
-
     /// <summary>
     /// Optional user-assigned page name. Persisted; when empty the page falls back
     /// to its number, so configs written before naming existed load unchanged.
     /// </summary>
-    public string Name
-    {
-        get => _name;
-        set
-        {
-            if (_name == value) return;
-            _name = value;
-            OnPropertyChanged();
-            OnPropertyChanged(nameof(PageName));
-        }
-    }
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(PageName))]
+    public partial string Name { get; set; }
+
 
     [JsonIgnore]
-    public string PageName => string.IsNullOrWhiteSpace(_name) ? $"Page: {Page}" : _name;
+    public string PageName => string.IsNullOrWhiteSpace(Name) ? $"Page: {Page}" : Name;
 
-    public int Page
-    {
-        get => _page;
-        set
-        {
-            if (_page == value) return;
-            _page = value;
-            OnPropertyChanged();
-            OnPropertyChanged(nameof(PageName));
-        }
-    }
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(PageName))]
+    public partial int Page { get; set; }
 
     [JsonIgnore]
-    public bool Selected
-    {
-        get => _selected;
-        set
-        {
-            if (value == _selected) return;
-            _selected = value;
-            OnPropertyChanged();
-        }
-    }
+    [ObservableProperty]
+    public partial bool Selected { get; set; }
 
     /// <summary>
     /// Main 480×270 wallpaper. Always non-null; an empty slot (no
@@ -80,13 +50,13 @@ public class TouchButtonPage : INotifyPropertyChanged
     /// </summary>
     public WallpaperSlot MainWallpaper
     {
-        get => _mainWallpaper;
+        get;
         set
         {
-            if (ReferenceEquals(_mainWallpaper, value)) return;
-            if (_mainWallpaper != null) _mainWallpaper.Changed -= OnWallpaperSlotChanged;
-            _mainWallpaper = value;
-            if (_mainWallpaper != null) _mainWallpaper.Changed += OnWallpaperSlotChanged;
+            if (ReferenceEquals(field, value)) return;
+            field?.Changed -= OnWallpaperSlotChanged;
+            field = value;
+            field?.Changed += OnWallpaperSlotChanged;
             OnPropertyChanged();
             OnWallpaperSlotChanged(this, EventArgs.Empty);
         }
@@ -98,13 +68,13 @@ public class TouchButtonPage : INotifyPropertyChanged
     /// </summary>
     public WallpaperSlot LeftWallpaper
     {
-        get => _leftWallpaper;
+        get;
         set
         {
-            if (ReferenceEquals(_leftWallpaper, value)) return;
-            if (_leftWallpaper != null) _leftWallpaper.Changed -= OnWallpaperSlotChanged;
-            _leftWallpaper = value;
-            if (_leftWallpaper != null) _leftWallpaper.Changed += OnWallpaperSlotChanged;
+            if (ReferenceEquals(field, value)) return;
+            field?.Changed -= OnWallpaperSlotChanged;
+            field = value;
+            field?.Changed += OnWallpaperSlotChanged;
             OnPropertyChanged();
             OnWallpaperSlotChanged(this, EventArgs.Empty);
         }
@@ -113,13 +83,13 @@ public class TouchButtonPage : INotifyPropertyChanged
     /// <summary>Optional wallpaper for the right Razer side display (60×270).</summary>
     public WallpaperSlot RightWallpaper
     {
-        get => _rightWallpaper;
+        get;
         set
         {
-            if (ReferenceEquals(_rightWallpaper, value)) return;
-            if (_rightWallpaper != null) _rightWallpaper.Changed -= OnWallpaperSlotChanged;
-            _rightWallpaper = value;
-            if (_rightWallpaper != null) _rightWallpaper.Changed += OnWallpaperSlotChanged;
+            if (ReferenceEquals(field, value)) return;
+            field?.Changed -= OnWallpaperSlotChanged;
+            field = value;
+            field?.Changed += OnWallpaperSlotChanged;
             OnPropertyChanged();
             OnWallpaperSlotChanged(this, EventArgs.Empty);
         }
@@ -149,11 +119,4 @@ public class TouchButtonPage : INotifyPropertyChanged
 
     /// <summary>Pre/Post-command wrap applied to every touch button on this page.</summary>
     public CommandWrap TouchButtonWrap { get; set; } = new();
-
-    public event PropertyChangedEventHandler PropertyChanged;
-
-    private void OnPropertyChanged([CallerMemberName] string propertyName = null)
-    {
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-    }
 }

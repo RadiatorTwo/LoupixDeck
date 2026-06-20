@@ -1,5 +1,5 @@
-using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using CommunityToolkit.Mvvm.ComponentModel;
 using Newtonsoft.Json;
 
 namespace LoupixDeck.Models.Macros;
@@ -11,7 +11,8 @@ namespace LoupixDeck.Models.Macros;
 /// Serialization is handled by <see cref="Converter.MacroStepJsonConverter"/>, which
 /// writes the <see cref="StepType"/> discriminator.
 /// </summary>
-public abstract class MacroStep : INotifyPropertyChanged
+[ObservableObject]
+public abstract partial class MacroStep
 {
     /// <summary>Discriminator identifying the concrete step type.</summary>
     [JsonIgnore]
@@ -29,57 +30,20 @@ public abstract class MacroStep : INotifyPropertyChanged
     [JsonIgnore]
     public abstract string ValueText { get; }
 
-    private bool _isEditing;
-
     /// <summary>True while the step panel's inline editor is expanded (editor UI state only).</summary>
     [JsonIgnore]
-    public bool IsEditing
-    {
-        get => _isEditing;
-        set
-        {
-            if (_isEditing == value) return;
-            _isEditing = value;
-            OnPropertyChanged();
-        }
-    }
-
-    private bool _isDragging;
+    [ObservableProperty]
+    public partial bool IsEditing { get; set; }
 
     /// <summary>True while the step panel is being dragged for reordering (editor UI state only).</summary>
     [JsonIgnore]
-    public bool IsDragging
-    {
-        get => _isDragging;
-        set
-        {
-            if (_isDragging == value) return;
-            _isDragging = value;
-            OnPropertyChanged();
-        }
-    }
-
-    private bool _isSelected;
+    [ObservableProperty]
+    public partial bool IsDragging { get; set; }
 
     /// <summary>True while the step is checked for a bulk action (editor UI state only).</summary>
     [JsonIgnore]
-    public bool IsSelected
-    {
-        get => _isSelected;
-        set
-        {
-            if (_isSelected == value) return;
-            _isSelected = value;
-            OnPropertyChanged();
-        }
-    }
-
-    public event PropertyChangedEventHandler PropertyChanged;
-
-    protected void OnPropertyChanged([CallerMemberName] string propertyName = null)
-    {
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-    }
+    [ObservableProperty]
+    public partial bool IsSelected { get; set; }
 
     /// <summary>
     /// Raises change notifications for a data property AND the derived <see cref="ValueText"/>,

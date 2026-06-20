@@ -1,5 +1,4 @@
-using System.ComponentModel;
-using System.Runtime.CompilerServices;
+using CommunityToolkit.Mvvm.ComponentModel;
 using Newtonsoft.Json;
 
 namespace LoupixDeck.Models;
@@ -11,41 +10,21 @@ namespace LoupixDeck.Models;
 /// <see cref="RotaryPageIndex"/>). Indices are 0-based, matching <c>PageManager</c>.
 /// INotifyPropertyChanged so the settings editor binds live to the shared config.
 /// </summary>
-public sealed class AppPageBinding : INotifyPropertyChanged
+[ObservableObject]
+public sealed partial class AppPageBinding
 {
-    private string _processName = string.Empty;
-    public string ProcessName
-    {
-        get => _processName;
-        set { if (_processName == value) return; _processName = value; OnPropertyChanged(); }
-    }
+    [ObservableProperty]
+    public partial string ProcessName { get; set; } = string.Empty;
 
-    private string _titleContains = string.Empty;
-    public string TitleContains
-    {
-        get => _titleContains;
-        set { if (_titleContains == value) return; _titleContains = value; OnPropertyChanged(); }
-    }
+    [ObservableProperty]
+    public partial string TitleContains { get; set; } = string.Empty;
 
-    private int _touchPageIndex;
-    public int TouchPageIndex
-    {
-        get => _touchPageIndex;
-        set { if (_touchPageIndex == value) return; _touchPageIndex = value; OnPropertyChanged(); }
-    }
+    [ObservableProperty]
+    public partial int TouchPageIndex { get; set; }
 
-    private int? _rotaryPageIndex;
-    public int? RotaryPageIndex
-    {
-        get => _rotaryPageIndex;
-        set
-        {
-            if (_rotaryPageIndex == value) return;
-            _rotaryPageIndex = value;
-            OnPropertyChanged();
-            OnPropertyChanged(nameof(RotarySelectionIndex));
-        }
-    }
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(RotarySelectionIndex))]
+    public partial int? RotaryPageIndex { get; set; }
 
     /// <summary>
     /// ComboBox helper for the rotary selector: 0 = "(unchanged)", n = rotary page n-1.
@@ -54,12 +33,7 @@ public sealed class AppPageBinding : INotifyPropertyChanged
     [JsonIgnore]
     public int RotarySelectionIndex
     {
-        get => _rotaryPageIndex is { } idx ? idx + 1 : 0;
+        get => RotaryPageIndex is { } idx ? idx + 1 : 0;
         set => RotaryPageIndex = value <= 0 ? null : value - 1;
     }
-
-    public event PropertyChangedEventHandler PropertyChanged;
-
-    private void OnPropertyChanged([CallerMemberName] string propertyName = null)
-        => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
 }
