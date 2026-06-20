@@ -1,7 +1,6 @@
-namespace LoupixDeck.Commands.Base
+namespace LoupixDeck.Commands.Base;
+
+public interface IExecutableCommand
 {
-    public interface IExecutableCommand
-    {
-        Task Execute(string[] parameters);
-    }
+    Task Execute(string[] parameters);
 }
