@@ -33,6 +33,7 @@ public partial class LoupedeckLiveSController(
     ISideStripProviderRegistry sideStripRegistry,
     IAssetService assetService,
     INativeHapticService nativeHapticService,
+    Services.Animation.IAnimationScheduler animationScheduler,
     LoupedeckConfig config,
     DeviceRegistry.DeviceInfo deviceInfo,
     ResolvedDevice resolved,
@@ -153,6 +154,9 @@ public partial class LoupedeckLiveSController(
 
         // Stop plugin strips so their timers don't keep churning against a dead device.
         try { DetachAllSideStripProviders(); } catch { /* best effort */ }
+
+        // Halt the central animation loop so no frame is pushed to the gone device.
+        try { animationScheduler.Stop(); } catch { /* best effort */ }
 
         var device = deviceService.Device;
         if (device != null)
