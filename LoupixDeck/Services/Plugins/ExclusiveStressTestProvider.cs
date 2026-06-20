@@ -66,7 +66,7 @@ public sealed class ExclusiveStressTestProvider : IExclusiveModeProvider, IDispo
         // observable. Small step keeps the colour change gentle.
         const int yellowGap = 40;       // skip the [40,80) hue band (yellow ≈ 60°)
         const int span = 360 - yellowGap;
-        var hue = ((frame * 2) % span + 80) % 360;
+        var hue = (((frame * 2) % span) + 80) % 360;
         var bg = HueToColor(hue);
 
         var entries = new List<FolderEntry>(FolderNavigation.FolderConstants.TotalSlots);
@@ -89,7 +89,7 @@ public sealed class ExclusiveStressTestProvider : IExclusiveModeProvider, IDispo
     private static PluginColor HueToColor(int hue)
     {
         var h = (hue % 360) / 60;
-        var f = (hue % 360) / 60.0 - h;
+        var f = ((hue % 360) / 60.0) - h;
         var x = (byte)(255 * (1 - f));
         var y = (byte)(255 * f);
         return h switch

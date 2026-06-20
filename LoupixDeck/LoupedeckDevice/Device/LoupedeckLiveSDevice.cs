@@ -45,7 +45,7 @@ public class LoupedeckLiveSDevice : LoupedeckDevice
         y -= VisibleY[0];
         var column = x / 90;
         var row = y / 90;
-        var key = row * Columns + column;
+        var key = (row * Columns) + column;
         return new TouchTarget { Screen = "center", Key = key };
     }
 }

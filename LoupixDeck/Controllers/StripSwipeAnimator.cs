@@ -275,7 +275,7 @@ public partial class LoupedeckLiveSController
                 if (token.IsCancellationRequested) return;
                 var t = s / (double)steps;
                 var eased = 1 - Math.Pow(1 - t, 3); // cubic ease-out
-                _drag[idx].Offset = (int)Math.Round(fromOffset + (target - fromOffset) * eased);
+                _drag[idx].Offset = (int)Math.Round(fromOffset + ((target - fromOffset) * eased));
                 await PushAnimationFrame(side, idx);
             }
 
@@ -433,7 +433,7 @@ public partial class LoupedeckLiveSController
     {
         var dt = Math.Max(1.0, nowMs - st.LastMs);
         var inst = (y - st.LastY) / dt;
-        st.Velocity = st.LastMs <= st.StartMs ? inst : st.Velocity * 0.6 + inst * 0.4;
+        st.Velocity = st.LastMs <= st.StartMs ? inst : (st.Velocity * 0.6) + (inst * 0.4);
         st.LastMs = nowMs;
         st.LastY = y;
     }

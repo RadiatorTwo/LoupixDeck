@@ -37,7 +37,7 @@ public class RazerStreamControllerDevice : LoupedeckDevice
         Rows = 3;
         RotaryCount = 6;
         // 12 grid slots + 2 narrow side panels.
-        TouchButtonCount = Columns * Rows + 2;
+        TouchButtonCount = (Columns * Rows) + 2;
         // Centre grid sits between X=60 and X=420 on the unified 480px display.
         VisibleX = [60, 420];
         VisibleY = [0, 270];
@@ -70,7 +70,7 @@ public class RazerStreamControllerDevice : LoupedeckDevice
         y = Math.Clamp(y, VisibleY[0], VisibleY[1]);
         var column = x / 90;
         var row = y / 90;
-        var key = row * Columns + column;
+        var key = (row * Columns) + column;
         return new TouchTarget { Screen = "center", Key = key };
     }
 

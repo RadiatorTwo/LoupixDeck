@@ -165,7 +165,7 @@ static int Bake(Variant variant, string input, string output, int W, double dark
         lowSurf.Canvas.DrawBitmap(resized!, 0, 0, paint);
     using var low = SKBitmap.FromImage(lowSurf.Snapshot());
 
-    static double Lum(SKColor c) => 0.299 * c.Red + 0.587 * c.Green + 0.114 * c.Blue;
+    static double Lum(SKColor c) => (0.299 * c.Red) + (0.587 * c.Green) + (0.114 * c.Blue);
 
     // --- Continuous luminance field (double precision, no quantization yet). ---
     var field = new double[W * H];
@@ -174,17 +174,17 @@ static int Bake(Variant variant, string input, string output, int W, double dark
     {
         double lo = Lum(low.GetPixel(x, y));
         double hi = Lum(resized!.GetPixel(x, y));
-        double l = (lo + (hi - lo) * grain) * dark;             // grain contrast scaled
+        double l = (lo + ((hi - lo) * grain)) * dark;             // grain contrast scaled
 
         double nx = (x + 0.5) / W, ny = (y + 0.5) / H;          // object-bounding-box coords
-        double tv = Math.Sqrt((nx - VigCx) * (nx - VigCx) + (ny - VigCy) * (ny - VigCy)) / VigR;
-        l *= 1 - Interp(vignette, tv) * variant.VignetteScale;  // vignette: black over
+        double tv = Math.Sqrt(((nx - VigCx) * (nx - VigCx)) + ((ny - VigCy) * (ny - VigCy))) / VigR;
+        l *= 1 - (Interp(vignette, tv) * variant.VignetteScale);  // vignette: black over
 
-        double ts = Math.Sqrt((nx - SheenCx) * (nx - SheenCx) + (ny - SheenCy) * (ny - SheenCy)) / SheenR;
+        double ts = Math.Sqrt(((nx - SheenCx) * (nx - SheenCx)) + ((ny - SheenCy) * (ny - SheenCy))) / SheenR;
         double a = Interp(sheen, ts) * variant.SheenScale;
-        l = l * (1 - a) + 255 * a;                              // sheen: white over
+        l = (l * (1 - a)) + (255 * a);                              // sheen: white over
 
-        field[y * W + x] = l;
+        field[(y * W) + x] = l;
     }
 
     // --- Floyd-Steinberg error diffusion to 8-bit. ---
@@ -192,10 +192,10 @@ static int Bake(Variant variant, string input, string output, int W, double dark
     for (int y = 0; y < H; y++)
     for (int x = 0; x < W; x++)
     {
-        double oldVal = field[y * W + x];
+        double oldVal = field[(y * W) + x];
         int newVal = (int)Math.Clamp(Math.Round(oldVal), 0, 255);
         double err = oldVal - newVal;
-        outBytes[y * W + x] = (byte)newVal;
+        outBytes[(y * W) + x] = (byte)newVal;
         Spread(field, W, H, x + 1, y, err * 7.0 / 16);
         Spread(field, W, H, x - 1, y + 1, err * 3.0 / 16);
         Spread(field, W, H, x, y + 1, err * 5.0 / 16);
@@ -239,14 +239,14 @@ static double Interp((double off, double op)[] stops, double t)
         {
             var (po, pa) = stops[i - 1];
             var (qo, qa) = stops[i];
-            return pa + (qa - pa) * ((t - po) / (qo - po));
+            return pa + ((qa - pa) * ((t - po) / (qo - po)));
         }
     return stops[^1].op;
 }
 
 static void Spread(double[] buf, int w, int h, int x, int y, double v)
 {
-    if (x >= 0 && x < w && y >= 0 && y < h) buf[y * w + x] += v;
+    if (x >= 0 && x < w && y >= 0 && y < h) buf[(y * w) + x] += v;
 }
 
 static string FindRepoRoot()

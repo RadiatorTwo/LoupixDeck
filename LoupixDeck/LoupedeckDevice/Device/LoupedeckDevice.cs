@@ -789,7 +789,7 @@ public class LoupedeckDevice
             throw new Exception("VisibleX or Columns is not set");
 
         // Calculate position
-        var x = VisibleX[0] + (index % Columns) * keyWidth;
+        var x = VisibleX[0] + ((index % Columns) * keyWidth);
         var y = (index / Columns) * keyHeight;
 
         // Call the DrawCanvas method
@@ -885,7 +885,7 @@ public class LoupedeckDevice
             {
                 var bmp = slotBitmaps[slot];
                 if (bmp == null) continue;
-                var x = xBase + (slot % Columns) * keySize;
+                var x = xBase + ((slot % Columns) * keySize);
                 var y = (slot / Columns) * keySize;
                 canvas.DrawBitmap(bmp, x, y);
             }
@@ -1042,7 +1042,7 @@ public class LoupedeckDevice
         if (slots == null || slots.Count == 0)
             throw new ArgumentOutOfRangeException(nameof(slots));
 
-        var data = new byte[3 + slots.Count * 5];
+        var data = new byte[3 + (slots.Count * 5)];
         data[0] = screen;
         data[1] = 0x00;
         data[2] = (byte)slots.Count;

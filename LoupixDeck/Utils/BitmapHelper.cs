@@ -89,7 +89,7 @@ public static class BitmapHelper
                 // downward-biased edge stays inside the bitmap instead of being clipped
                 // at the canvas edge (obvious on a light background). The margin (9·ss)
                 // matches the rotary knob so both seat with the same depth.
-                var bodyRadius = Math.Min(w, h) / 2f - 9f * ss;
+                var bodyRadius = (Math.Min(w, h) / 2f) - (9f * ss);
 
                 // Light/Dark plastic palette so the button body follows the app theme.
                 // The bevel rim and glowing LED ring stay the same — the ring colour is
@@ -105,7 +105,7 @@ public static class BitmapHelper
                            MaskFilter = SKMaskFilter.CreateBlur(SKBlurStyle.Normal, 4f * ss)
                        })
                 {
-                    canvas.DrawCircle(cx, cy + 3f * ss, bodyRadius, shadow);
+                    canvas.DrawCircle(cx, cy + (3f * ss), bodyRadius, shadow);
                 }
 
                 // 2. Button body: a near-flat face. Only a slight vertical gradient so
@@ -141,7 +141,7 @@ public static class BitmapHelper
                            Shader = rimShader
                        })
                 {
-                    canvas.DrawCircle(cx, cy, bodyRadius - rimWidth / 2f, rim);
+                    canvas.DrawCircle(cx, cy, bodyRadius - (rimWidth / 2f), rim);
                 }
 
                 // 4. Glowing LED ring with a gap at the top-right.
@@ -155,7 +155,7 @@ public static class BitmapHelper
                 // Skia angles: 0° = +x, positive = clockwise (y-down). Centre the
                 // gap at the top-right (~ -45°) and sweep the remainder.
                 const float gapAngle = 50f;
-                const float startAngle = -45f + gapAngle / 2f;
+                const float startAngle = -45f + (gapAngle / 2f);
                 const float sweepAngle = 360f - gapAngle;
                 var coreWidth = 2.4f * ss;
 
@@ -237,7 +237,7 @@ public static class BitmapHelper
     /// <summary>Blends <paramref name="c"/> toward white by factor <paramref name="t"/> (0..1).</summary>
     private static SKColor MixToWhite(SKColor c, float t)
     {
-        byte Mix(byte v) => (byte)(v + (255 - v) * t);
+        byte Mix(byte v) => (byte)(v + ((255 - v) * t));
         return new SKColor(Mix(c.Red), Mix(c.Green), Mix(c.Blue), c.Alpha);
     }
 
@@ -312,7 +312,7 @@ public static class BitmapHelper
                 // background. The margin (9·ss) is sized so the full dense shadow
                 // (offset + radius + blur) fits within the canvas. The two upper tiers
                 // are sized from the real diameters (12/15 and 11/15 of base).
-                var baseRadius = Math.Min(w, h) / 2f - 9f * ss;
+                var baseRadius = (Math.Min(w, h) / 2f) - (9f * ss);
                 var midRadius = baseRadius * (12f / 15f);
                 var topRadius = baseRadius * (11f / 15f);
 
@@ -330,7 +330,7 @@ public static class BitmapHelper
                            MaskFilter = SKMaskFilter.CreateBlur(SKBlurStyle.Normal, 4f * ss)
                        })
                 {
-                    canvas.DrawCircle(cx, cy + 3f * ss, baseRadius, shadow);
+                    canvas.DrawCircle(cx, cy + (3f * ss), baseRadius, shadow);
                 }
 
                 // 2. Base tier (15 mm).
@@ -408,7 +408,7 @@ public static class BitmapHelper
                    Shader = rimShader
                })
         {
-            canvas.DrawCircle(cx, cy, radius - rimWidth / 2f, rim);
+            canvas.DrawCircle(cx, cy, radius - (rimWidth / 2f), rim);
         }
     }
 
@@ -427,7 +427,7 @@ public static class BitmapHelper
             Color = new SKColor(0, 0, 0, 150),
             MaskFilter = SKMaskFilter.CreateBlur(SKBlurStyle.Normal, 2f * scale)
         };
-        canvas.DrawCircle(cx, cy + 0.5f * scale, radius + 1.5f * scale, p);
+        canvas.DrawCircle(cx, cy + (0.5f * scale), radius + (1.5f * scale), p);
     }
 
     /// <summary>
@@ -442,7 +442,7 @@ public static class BitmapHelper
             ? [new SKColor(0xF4, 0xF4, 0xF4), new SKColor(0xD2, 0xD2, 0xD2)]
             : [new SKColor(0x4A, 0x4A, 0x4A), new SKColor(0x1E, 0x1E, 0x1E)];
         using (var faceShader = SKShader.CreateRadialGradient(
-                   new SKPoint(cx, cy - radius * 0.35f),
+                   new SKPoint(cx, cy - (radius * 0.35f)),
                    radius * 1.3f,
                    faceColors,
                    [0f, 1f],
@@ -467,7 +467,7 @@ public static class BitmapHelper
                    Shader = rimShader
                })
         {
-            canvas.DrawCircle(cx, cy, radius - rimWidth / 2f, rim);
+            canvas.DrawCircle(cx, cy, radius - (rimWidth / 2f), rim);
         }
 
         // Soft specular highlight near the top edge.
@@ -479,8 +479,8 @@ public static class BitmapHelper
                })
         {
             canvas.DrawOval(
-                new SKRect(cx - radius * 0.5f, cy - radius * 0.72f,
-                    cx + radius * 0.5f, cy - radius * 0.18f),
+                new SKRect(cx - (radius * 0.5f), cy - (radius * 0.72f),
+                    cx + (radius * 0.5f), cy - (radius * 0.18f)),
                 highlight);
         }
     }
@@ -529,8 +529,8 @@ public static class BitmapHelper
         var dx = (float)Math.Cos(angle);
         var dy = (float)Math.Sin(angle);
         canvas.DrawLine(
-            cx + dx * innerR, cy + dy * innerR,
-            cx + dx * outerR, cy + dy * outerR,
+            cx + (dx * innerR), cy + (dy * innerR),
+            cx + (dx * outerR), cy + (dy * outerR),
             paint);
     }
 
@@ -670,9 +670,9 @@ public static class BitmapHelper
                 // sampled region to the grid's true panel position so the wallpaper stays
                 // continuous with the side strips across the bezel (Razer: +60).
                 var srcRect = new SKRect(
-                    wallpaperXOffset + col * width,
+                    wallpaperXOffset + (col * width),
                     row * height,
-                    wallpaperXOffset + (col + 1) * width,
+                    wallpaperXOffset + ((col + 1) * width),
                     (row + 1) * height
                 );
                 var destRect = new SKRect(0, 0, width, height);
@@ -806,13 +806,13 @@ public static class BitmapHelper
 
             for (var dx = 0; dx <= deviceWidth; dx += gridStepDevice)
             {
-                var x = frameOffsetX + dx * scale;
+                var x = frameOffsetX + (dx * scale);
                 canvas.DrawLine(x, frameOffsetY, x, frameOffsetY + frameH, gridPaint);
             }
 
             for (var dy = 0; dy <= deviceHeight; dy += gridStepDevice)
             {
-                var y = frameOffsetY + dy * scale;
+                var y = frameOffsetY + (dy * scale);
                 canvas.DrawLine(frameOffsetX, y, frameOffsetX + frameW, y, gridPaint);
             }
 
@@ -832,7 +832,7 @@ public static class BitmapHelper
                 for (var k = 1; k < segmentCount; k++)
                 {
                     var dy = deviceHeight * k / (float)segmentCount;
-                    var y = frameOffsetY + dy * scale;
+                    var y = frameOffsetY + (dy * scale);
                     canvas.DrawLine(frameOffsetX, y, frameOffsetX + frameW, y, segPaint);
                 }
             }
@@ -862,10 +862,10 @@ public static class BitmapHelper
         var frameOffsetY = (canvasSize - frameH) / 2f;
         var dr = deviceRect.Value;
         return new SKRect(
-            frameOffsetX + dr.Left * scale,
-            frameOffsetY + dr.Top * scale,
-            frameOffsetX + dr.Right * scale,
-            frameOffsetY + dr.Bottom * scale);
+            frameOffsetX + (dr.Left * scale),
+            frameOffsetY + (dr.Top * scale),
+            frameOffsetX + (dr.Right * scale),
+            frameOffsetY + (dr.Bottom * scale));
     }
 
     /// <summary>
@@ -906,8 +906,8 @@ public static class BitmapHelper
                 var scaleY = (float)Math.Max(0.01, image.EffectiveScaleY);
                 var dstW = srcW * fit * scaleX;
                 var dstH = srcH * fit * scaleY;
-                var drawX = (deviceW - dstW) / 2f + image.PositionX;
-                var drawY = (deviceH - dstH) / 2f + image.PositionY;
+                var drawX = ((deviceW - dstW) / 2f) + image.PositionX;
+                var drawY = ((deviceH - dstH) / 2f) + image.PositionY;
                 return new SKRect(drawX, drawY, drawX + dstW, drawY + dstH);
             }
             case SymbolLayer symbol:
@@ -915,9 +915,9 @@ public static class BitmapHelper
                 var baseSize = Math.Min(deviceW, deviceH);
                 var dstW = baseSize * (float)Math.Max(0.01, symbol.EffectiveScaleX);
                 var dstH = baseSize * (float)Math.Max(0.01, symbol.EffectiveScaleY);
-                var cx = deviceW / 2f + symbol.PositionX;
-                var cy = deviceH / 2f + symbol.PositionY;
-                return new SKRect(cx - dstW / 2f, cy - dstH / 2f, cx + dstW / 2f, cy + dstH / 2f);
+                var cx = (deviceW / 2f) + symbol.PositionX;
+                var cy = (deviceH / 2f) + symbol.PositionY;
+                return new SKRect(cx - (dstW / 2f), cy - (dstH / 2f), cx + (dstW / 2f), cy + (dstH / 2f));
             }
             case TextLayer text:
                 return MeasureTextDeviceRect(text, deviceW, deviceH);
@@ -931,8 +931,8 @@ public static class BitmapHelper
                 var scaleY = (float)Math.Max(0.01, plugin.EffectiveScaleY);
                 var dstW = bmp.Width * fit * scaleX;
                 var dstH = bmp.Height * fit * scaleY;
-                var drawX = (deviceW - dstW) / 2f + plugin.PositionX;
-                var drawY = (deviceH - dstH) / 2f + plugin.PositionY;
+                var drawX = ((deviceW - dstW) / 2f) + plugin.PositionX;
+                var drawY = ((deviceH - dstH) / 2f) + plugin.PositionY;
                 return new SKRect(drawX, drawY, drawX + dstW, drawY + dstH);
             }
             default:
@@ -989,8 +989,8 @@ public static class BitmapHelper
         var scaleY = (float)Math.Max(0.01, layer.EffectiveScaleY);
         var dstW = srcRect.Width * fit * scaleX;
         var dstH = srcRect.Height * fit * scaleY;
-        var drawX = (deviceW - dstW) / 2f + layer.PositionX;
-        var drawY = (deviceH - dstH) / 2f + layer.PositionY;
+        var drawX = ((deviceW - dstW) / 2f) + layer.PositionX;
+        var drawY = ((deviceH - dstH) / 2f) + layer.PositionY;
 
         canvas.DrawBitmap(bmp, srcRect, new SKRect(drawX, drawY, drawX + dstW, drawY + dstH));
     }
@@ -1051,8 +1051,8 @@ public static class BitmapHelper
         var scaleY = (float)Math.Max(0.01, layer.EffectiveScaleY);
         var dstW = srcRect.Width * fit * scaleX;
         var dstH = srcRect.Height * fit * scaleY;
-        var drawX = (width - dstW) / 2f + layer.PositionX;
-        var drawY = (height - dstH) / 2f + layer.PositionY;
+        var drawX = ((width - dstW) / 2f) + layer.PositionX;
+        var drawY = ((height - dstH) / 2f) + layer.PositionY;
 
         canvas.Save();
         canvas.ClipRect(new SKRect(0, 0, width, height));
@@ -1076,12 +1076,12 @@ public static class BitmapHelper
             var scaleY = (float)Math.Max(0.01, layer.EffectiveScaleY);
             var dstW = bmp.Width * fit * scaleX;
             var dstH = bmp.Height * fit * scaleY;
-            var drawX = (width - dstW) / 2f + layer.PositionX;
-            var drawY = (height - dstH) / 2f + layer.PositionY;
+            var drawX = ((width - dstW) / 2f) + layer.PositionX;
+            var drawY = ((height - dstH) / 2f) + layer.PositionY;
 
             canvas.Save();
             canvas.ClipRect(new SKRect(0, 0, width, height));
-            ApplyRotation(canvas, layer.Rotation, drawX + dstW / 2f, drawY + dstH / 2f);
+            ApplyRotation(canvas, layer.Rotation, drawX + (dstW / 2f), drawY + (dstH / 2f));
             canvas.DrawBitmap(bmp, new SKRect(drawX, drawY, drawX + dstW, drawY + dstH));
             canvas.Restore();
         }
@@ -1109,11 +1109,11 @@ public static class BitmapHelper
             var scaleY = (float)Math.Max(0.01, layer.EffectiveScaleY);
             var dstW = bmp.Width * fit * scaleX;
             var dstH = bmp.Height * fit * scaleY;
-            var drawX = (deviceW - dstW) / 2f + layer.PositionX;
-            var drawY = (deviceH - dstH) / 2f + layer.PositionY;
+            var drawX = ((deviceW - dstW) / 2f) + layer.PositionX;
+            var drawY = ((deviceH - dstH) / 2f) + layer.PositionY;
 
             canvas.Save();
-            ApplyRotation(canvas, layer.Rotation, drawX + dstW / 2f, drawY + dstH / 2f);
+            ApplyRotation(canvas, layer.Rotation, drawX + (dstW / 2f), drawY + (dstH / 2f));
             canvas.DrawBitmap(bmp, new SKRect(drawX, drawY, drawX + dstW, drawY + dstH));
             canvas.Restore();
         }
@@ -1154,8 +1154,8 @@ public static class BitmapHelper
         var boxH = layer.EffectiveBoxHeight;
         if (layer.Centered)
         {
-            return ((deviceW - boxW) / 2f + layer.PositionX,
-                    (deviceH - boxH) / 2f + layer.PositionY);
+            return (((deviceW - boxW) / 2f) + layer.PositionX,
+                    ((deviceH - boxH) / 2f) + layer.PositionY);
         }
         return (layer.PositionX, layer.PositionY);
     }
@@ -1175,9 +1175,9 @@ public static class BitmapHelper
         var baseSize = Math.Min(width, height);
         var dstW = baseSize * (float)Math.Max(0.01, layer.EffectiveScaleX);
         var dstH = baseSize * (float)Math.Max(0.01, layer.EffectiveScaleY);
-        var cx = width / 2f + layer.PositionX;
-        var cy = height / 2f + layer.PositionY;
-        var rect = new SKRect(cx - dstW / 2f, cy - dstH / 2f, cx + dstW / 2f, cy + dstH / 2f);
+        var cx = (width / 2f) + layer.PositionX;
+        var cy = (height / 2f) + layer.PositionY;
+        var rect = new SKRect(cx - (dstW / 2f), cy - (dstH / 2f), cx + (dstW / 2f), cy + (dstH / 2f));
 
         DrawSymbolGlyph(
             canvas, layer.SymbolId, rect, layer.Tint.ToSKColor(),
@@ -1312,12 +1312,12 @@ public static class BitmapHelper
             var rad = gradientAngle * Math.PI / 180.0;
             var dx = (float)Math.Cos(rad);
             var dy = (float)Math.Sin(rad);
-            var half = 0.5f * (Math.Abs(dx) * db.Width + Math.Abs(dy) * db.Height);
+            var half = 0.5f * ((Math.Abs(dx) * db.Width) + (Math.Abs(dy) * db.Height));
             if (half > 0)
             {
                 var center = new SKPoint(db.MidX, db.MidY);
-                var p0 = new SKPoint(center.X - dx * half, center.Y - dy * half);
-                var p1 = new SKPoint(center.X + dx * half, center.Y + dy * half);
+                var p0 = new SKPoint(center.X - (dx * half), center.Y - (dy * half));
+                var p1 = new SKPoint(center.X + (dx * half), center.Y + (dy * half));
                 gradientShader = SKShader.CreateLinearGradient(
                     p0, p1, new[] { gradientStart, gradientEnd }, null, SKShaderTileMode.Clamp);
             }
@@ -1542,9 +1542,9 @@ public static class BitmapHelper
         var size = Math.Min(width, height) * 0.30f;
 
         using var path = new SKPath();
-        path.MoveTo(cx + size * 0.5f, cy - size);
-        path.LineTo(cx - size * 0.5f, cy);
-        path.LineTo(cx + size * 0.5f, cy + size);
+        path.MoveTo(cx + (size * 0.5f), cy - size);
+        path.LineTo(cx - (size * 0.5f), cy);
+        path.LineTo(cx + (size * 0.5f), cy + size);
 
         canvas.DrawPath(path, arrowPaint);
 
@@ -1958,7 +1958,7 @@ public static class BitmapHelper
         {
             0 => posY - font.Metrics.Ascent,                                   // Top
             2 => posY + (imageHeight - totalHeight) - font.Metrics.Ascent,     // Bottom
-            _ => posY + (imageHeight - totalHeight) / 2 - font.Metrics.Ascent  // Middle
+            _ => posY + ((imageHeight - totalHeight) / 2) - font.Metrics.Ascent  // Middle
         };
 
         // Draw every line
@@ -1971,7 +1971,7 @@ public static class BitmapHelper
             {
                 0 => posX,                                  // Left
                 2 => posX + (imageWidth - textWidth),       // Right
-                _ => posX + (imageWidth - textWidth) / 2f   // Center
+                _ => posX + ((imageWidth - textWidth) / 2f)   // Center
             };
 
             var drawY = startY + (i * lineHeight);
