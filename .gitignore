@@ -407,3 +407,6 @@ CLAUDE.md
 .github/copilot-instructions.md
 package.json
 package-lock.json
+
+# Local build Artifacts
+LoupixDeck.PluginSdk/nupkg/
