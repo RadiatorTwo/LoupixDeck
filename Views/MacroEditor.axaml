@@ -246,6 +246,7 @@
                                     <MenuItem Header="Else" Tag="Else" Click="AddStepMenu_Click" />
                                     <MenuItem Header="End If" Tag="EndIf" Click="AddStepMenu_Click" />
                                     <MenuItem Header="Wait For…" Tag="WaitForCondition" Click="AddStepMenu_Click" />
+                                    <MenuItem Header="Prompt…" Tag="Prompt" Click="AddStepMenu_Click" />
                                     <Separator />
                                     <MenuItem Header="Repeat Start" Tag="RepeatStart" Click="AddStepMenu_Click" />
                                     <MenuItem Header="Repeat End" Tag="RepeatEnd" Click="AddStepMenu_Click" />
@@ -641,6 +642,31 @@
                                                             <DataTemplate DataType="{x:Type macros:EndIfStep}">
                                                                 <TextBlock Classes="hint"
                                                                            Text="Ends the block opened by the nearest If above." />
+                                                            </DataTemplate>
+
+                                                            <DataTemplate DataType="{x:Type macros:PromptStep}">
+                                                                <StackPanel Spacing="4">
+                                                                    <Grid ColumnDefinitions="Auto,*">
+                                                                        <TextBlock Grid.Column="0" Classes="editor-label"
+                                                                                   Text="Ask" Margin="0,0,10,0" />
+                                                                        <TextBox Grid.Column="1"
+                                                                                 PlaceholderText="Prompt shown to the user"
+                                                                                 Text="{Binding Message, Mode=TwoWay}" />
+                                                                    </Grid>
+                                                                    <Grid ColumnDefinitions="Auto,200,Auto,*">
+                                                                        <TextBlock Grid.Column="0" Classes="editor-label"
+                                                                                   Text="Store in" Margin="0,0,10,0" />
+                                                                        <TextBox Grid.Column="1"
+                                                                                 PlaceholderText="variable name"
+                                                                                 Text="{Binding VariableName, Mode=TwoWay}" />
+                                                                        <TextBlock Grid.Column="2" Classes="editor-label"
+                                                                                   Text="Default" Margin="14,0,10,0" />
+                                                                        <TextBox Grid.Column="3"
+                                                                                 Text="{Binding DefaultValue, Mode=TwoWay}" />
+                                                                    </Grid>
+                                                                    <TextBlock Classes="hint"
+                                                                               Text="Pauses the macro and asks for a value, storing it in the variable for later {name} use. Cancelling leaves the variable unchanged and the macro continues." />
+                                                                </StackPanel>
                                                             </DataTemplate>
 
                                                             <DataTemplate DataType="{x:Type macros:WaitForConditionStep}">

@@ -95,6 +95,9 @@ public static class ServiceCollectionExtensions
         // every device (macros are keyed by name, which can be bound on multiple devices).
         collection.AddSingleton<IMacroExecutionRegistry, MacroExecutionRegistry>();
 
+        // Runtime text-input prompts for Prompt steps (shown on the UI thread).
+        collection.AddSingleton<IMacroPromptService, MacroPromptService>();
+
         // Runtime USB hot-plug (issue #116 phase 3b): the OS-native watcher signals
         // topology changes; the manager diffs them against the running device set and
         // raises attach/detach events App turns into provider/VM bring-up + teardown.
@@ -124,6 +127,7 @@ public static class ServiceCollectionExtensions
         collection.Forward<IActiveWindowState>(root);
         collection.Forward<IMacroConditionEvaluator>(root);
         collection.Forward<IMacroExecutionRegistry>(root);
+        collection.Forward<IMacroPromptService>(root);
         collection.Forward<IMacroManager>(root);
         collection.Forward<IMacroStopCoordinator>(root);
         collection.Forward<IDeviceHostRegistry>(root);

@@ -18,10 +18,11 @@ public class MacroRunner : IDisposable
     private readonly IMacroStopCoordinator _stopCoordinator;
     private readonly IMacroConditionEvaluator _conditionEvaluator;
     private readonly IMacroExecutionRegistry _executionRegistry;
+    private readonly IMacroPromptService _promptService;
 
     public MacroRunner(IUInputKeyboard keyboard, IVirtualMouse mouse, ICommandService commandService,
         IMacroStopCoordinator stopCoordinator, IMacroConditionEvaluator conditionEvaluator,
-        IMacroExecutionRegistry executionRegistry)
+        IMacroExecutionRegistry executionRegistry, IMacroPromptService promptService)
     {
         _keyboard = keyboard;
         _mouse = mouse;
@@ -29,6 +30,7 @@ public class MacroRunner : IDisposable
         _stopCoordinator = stopCoordinator;
         _conditionEvaluator = conditionEvaluator;
         _executionRegistry = executionRegistry;
+        _promptService = promptService;
 
         // Join the app-global registry so the global stop hotkey can reach this runner.
         _stopCoordinator.Register(this);
@@ -102,13 +104,26 @@ public class MacroRunner : IDisposable
             _activeRuns.Add(cts);
 
         var context = new MacroContext();
+        var failed = false;
+        _executionRegistry.Report(macro.Name, MacroExecutionState.Running);
         try
         {
-            await RunSteps(macro, context, cts.Token);
+            failed = await RunSteps(macro, context, cts.Token);
+        }
+        catch (Exception ex)
+        {
+            failed = true;
+            Console.Error.WriteLine($"[MacroRunner] Macro '{macro.Name}' failed: {ex.Message}");
         }
         finally
         {
             ReleaseHeldInput(context);
+
+            var state = cts.IsCancellationRequested ? MacroExecutionState.Cancelled
+                : failed ? MacroExecutionState.Failed
+                : MacroExecutionState.Completed;
+            _executionRegistry.Report(macro.Name, state);
+
             lock (_runLock)
                 _activeRuns.Remove(cts);
             _executionRegistry.End(macro.Name, cts);
@@ -135,7 +150,8 @@ public class MacroRunner : IDisposable
         }
     }
 
-    private async Task RunSteps(Macro macro, MacroContext context, CancellationToken token)
+    /// <summary>Runs the steps. Returns true if the macro aborted on a failed condition.</summary>
+    private async Task<bool> RunSteps(Macro macro, MacroContext context, CancellationToken token)
     {
         // Snapshot the steps so concurrent edits in the editor can't shift indices mid-run.
         var steps = macro.Steps.ToList();
@@ -258,15 +274,32 @@ public class MacroRunner : IDisposable
                     break;
 
                 case WaitForConditionStep wait:
+                    _executionRegistry.Report(macro.Name, MacroExecutionState.Waiting);
                     var satisfied = await WaitForCondition(wait, context, token);
+                    if (!token.IsCancellationRequested)
+                        _executionRegistry.Report(macro.Name, MacroExecutionState.Running);
+
                     if (!satisfied && !token.IsCancellationRequested &&
                         wait.OnTimeout == WaitTimeoutBehavior.Fail)
                     {
                         Console.Error.WriteLine(
                             $"[MacroRunner] Macro '{macro.Name}' wait timed out ({wait.Condition?.Summary}) — aborting.");
-                        return;
+                        return true;
                     }
 
+                    i++;
+                    break;
+
+                case PromptStep prompt:
+                    _executionRegistry.Report(macro.Name, MacroExecutionState.Waiting);
+                    var answer = await _promptService.RequestInputAsync(
+                        context.Expand(prompt.Message), context.Expand(prompt.DefaultValue), token);
+                    if (!token.IsCancellationRequested)
+                        _executionRegistry.Report(macro.Name, MacroExecutionState.Running);
+
+                    // Cancelling the prompt (or a Stop) leaves the variable unchanged.
+                    if (answer != null && !string.IsNullOrWhiteSpace(prompt.VariableName))
+                        context.Variables[prompt.VariableName.Trim()] = answer;
                     i++;
                     break;
 
@@ -285,6 +318,8 @@ public class MacroRunner : IDisposable
                     break;
             }
         }
+
+        return false;
     }
 
     /// <summary>

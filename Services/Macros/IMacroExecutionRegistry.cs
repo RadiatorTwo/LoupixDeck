@@ -2,10 +2,27 @@ using LoupixDeck.Models.Macros;
 
 namespace LoupixDeck.Services.Macros;
 
+/// <summary>Lifecycle state of a macro run, surfaced for runtime feedback.</summary>
+public enum MacroExecutionState
+{
+    Running,
+    Waiting,
+    Completed,
+    Cancelled,
+    Failed
+}
+
+public sealed class MacroExecutionEventArgs(string macroName, MacroExecutionState state) : EventArgs
+{
+    public string MacroName { get; } = macroName;
+    public MacroExecutionState State { get; } = state;
+}
+
 /// <summary>
 /// App-global gatekeeper that enforces each macro's <see cref="MacroExecutionMode"/> across
 /// all devices. Macros are identified by name (a macro can be bound on several devices), so
-/// admission and the active-run table live here rather than in the per-device runner.
+/// admission and the active-run table live here rather than in the per-device runner. Also
+/// the single point where run-state transitions are logged and broadcast.
 /// </summary>
 public interface IMacroExecutionRegistry
 {
@@ -19,6 +36,12 @@ public interface IMacroExecutionRegistry
 
     /// <summary>Removes a finished run from the active-run table.</summary>
     void End(string macroName, CancellationTokenSource cts);
+
+    /// <summary>Logs a run-state transition and raises <see cref="ExecutionStateChanged"/>.</summary>
+    void Report(string macroName, MacroExecutionState state);
+
+    /// <summary>Raised on every <see cref="Report"/> so the UI / plugins can observe progress.</summary>
+    event EventHandler<MacroExecutionEventArgs> ExecutionStateChanged;
 }
 
 /// <inheritdoc cref="IMacroExecutionRegistry"/>
@@ -75,5 +98,21 @@ public sealed class MacroExecutionRegistry : IMacroExecutionRegistry
             if (list.Count == 0)
                 _active.Remove(name);
         }
+    }
+
+    public event EventHandler<MacroExecutionEventArgs> ExecutionStateChanged;
+
+    public void Report(string macroName, MacroExecutionState state)
+    {
+        var name = macroName?.Trim() ?? string.Empty;
+
+        // Errors/cancellations go to stderr; normal progress to stdout.
+        var line = $"[Macro] '{name}' {state}.";
+        if (state is MacroExecutionState.Failed or MacroExecutionState.Cancelled)
+            Console.Error.WriteLine(line);
+        else
+            Console.WriteLine(line);
+
+        ExecutionStateChanged?.Invoke(this, new MacroExecutionEventArgs(name, state));
     }
 }

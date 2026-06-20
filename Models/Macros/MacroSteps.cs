@@ -512,6 +512,62 @@ public class WaitForConditionStep : MacroStep
     }
 }
 
+/// <summary>
+/// Pauses the macro and asks the user for a text value, storing it in the named variable
+/// for later <c>{name}</c> use. Cancelling the prompt leaves the variable unchanged and the
+/// macro continues. The prompt is shown on the UI thread and closes if the macro is stopped.
+/// </summary>
+public class PromptStep : MacroStep
+{
+    private string _message = string.Empty;
+
+    /// <summary>Prompt text shown to the user.</summary>
+    public string Message
+    {
+        get => _message;
+        set
+        {
+            if (_message == value) return;
+            _message = value;
+            OnValueChanged();
+        }
+    }
+
+    private string _variableName = string.Empty;
+
+    /// <summary>Variable the entered text is stored in.</summary>
+    public string VariableName
+    {
+        get => _variableName;
+        set
+        {
+            if (_variableName == value) return;
+            _variableName = value;
+            OnValueChanged();
+        }
+    }
+
+    private string _defaultValue = string.Empty;
+
+    /// <summary>Pre-filled value in the input box.</summary>
+    public string DefaultValue
+    {
+        get => _defaultValue;
+        set
+        {
+            if (_defaultValue == value) return;
+            _defaultValue = value;
+            OnValueChanged();
+        }
+    }
+
+    public override MacroStepType StepType => MacroStepType.Prompt;
+    public override string Icon => Glyph(0xF0CB6); // mdi-tooltip-edit
+    public override string TypeText => "Prompt";
+    public override string ValueText =>
+        string.IsNullOrWhiteSpace(VariableName) ? Message : $"{VariableName} ← \"{Message}\"";
+}
+
 /// <summary>Runs an arbitrary LoupixDeck command string or shell command.</summary>
 public class CommandStep : MacroStep
 {
