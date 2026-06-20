@@ -75,6 +75,12 @@
             <Setter Property="VerticalAlignment" Value="Center" />
         </Style>
 
+        <!-- Leading label of a step editor row: fixed width so the control after it always
+             starts at the same X across every step and across every row within a step. -->
+        <Style Selector="TextBlock.editor-label.lead">
+            <Setter Property="Width" Value="72" />
+        </Style>
+
         <!-- Collapse/expand toggle on each step panel -->
         <Style Selector="ToggleButton.step-expand">
             <Setter Property="Background" Value="{DynamicResource AppControlBackground}" />
@@ -383,7 +389,7 @@
 
                                                             <DataTemplate DataType="{x:Type macros:TextStep}">
                                                                 <Grid ColumnDefinitions="Auto,*">
-                                                                    <TextBlock Grid.Column="0" Classes="editor-label"
+                                                                    <TextBlock Grid.Column="0" Classes="editor-label lead"
                                                                                Text="Text" Margin="0,0,10,0" />
                                                                     <TextBox Grid.Column="1"
                                                                              Text="{Binding Text, Mode=TwoWay}" />
@@ -393,7 +399,7 @@
                                                             <DataTemplate DataType="{x:Type macros:KeyCombinationStep}">
                                                                 <StackPanel Spacing="4">
                                                                     <Grid ColumnDefinitions="Auto,*,Auto">
-                                                                        <TextBlock Grid.Column="0" Classes="editor-label"
+                                                                        <TextBlock Grid.Column="0" Classes="editor-label lead"
                                                                                    Text="Keys" Margin="0,0,10,0" />
                                                                         <TextBox Grid.Column="1"
                                                                                  Text="{Binding Keys, Mode=TwoWay}" />
@@ -412,7 +418,7 @@
 
                                                             <DataTemplate DataType="{x:Type macros:DelayStep}">
                                                                 <Grid ColumnDefinitions="Auto,Auto,Auto">
-                                                                    <TextBlock Grid.Column="0" Classes="editor-label"
+                                                                    <TextBlock Grid.Column="0" Classes="editor-label lead"
                                                                                Text="Duration" Margin="0,0,10,0" />
                                                                     <NumericUpDown Grid.Column="1" Width="140"
                                                                                    Minimum="0" Maximum="600000"
@@ -426,7 +432,7 @@
                                                             <DataTemplate DataType="{x:Type macros:KeyDownStep}">
                                                                 <StackPanel Spacing="4">
                                                                     <Grid ColumnDefinitions="Auto,*,Auto">
-                                                                        <TextBlock Grid.Column="0" Classes="editor-label"
+                                                                        <TextBlock Grid.Column="0" Classes="editor-label lead"
                                                                                    Text="Key" Margin="0,0,10,0" />
                                                                         <TextBox Grid.Column="1"
                                                                                  Text="{Binding Key, Mode=TwoWay}" />
@@ -446,7 +452,7 @@
                                                             <DataTemplate DataType="{x:Type macros:KeyUpStep}">
                                                                 <StackPanel Spacing="4">
                                                                     <Grid ColumnDefinitions="Auto,*,Auto">
-                                                                        <TextBlock Grid.Column="0" Classes="editor-label"
+                                                                        <TextBlock Grid.Column="0" Classes="editor-label lead"
                                                                                    Text="Key" Margin="0,0,10,0" />
                                                                         <TextBox Grid.Column="1"
                                                                                  Text="{Binding Key, Mode=TwoWay}" />
@@ -466,7 +472,7 @@
                                                             <DataTemplate DataType="{x:Type macros:MouseStep}">
                                                                 <StackPanel Spacing="6">
                                                                     <Grid ColumnDefinitions="Auto,180,20,Auto,180">
-                                                                        <TextBlock Grid.Column="0" Classes="editor-label"
+                                                                        <TextBlock Grid.Column="0" Classes="editor-label lead"
                                                                                    Text="Action" Margin="0,0,10,0" />
                                                                         <ComboBox Grid.Column="1"
                                                                                   HorizontalAlignment="Stretch"
@@ -483,7 +489,7 @@
                                                                     </Grid>
                                                                     <Grid ColumnDefinitions="Auto,140,20,Auto,140"
                                                                           IsVisible="{Binding ShowsCoordinates}">
-                                                                        <TextBlock Grid.Column="0" Classes="editor-label"
+                                                                        <TextBlock Grid.Column="0" Classes="editor-label lead"
                                                                                    Text="X" Margin="0,0,10,0" />
                                                                         <NumericUpDown Grid.Column="1"
                                                                                        Minimum="-100000" Maximum="100000"
@@ -498,7 +504,7 @@
                                                                     </Grid>
                                                                     <Grid ColumnDefinitions="Auto,140,Auto"
                                                                           IsVisible="{Binding ShowsAmount}">
-                                                                        <TextBlock Grid.Column="0" Classes="editor-label"
+                                                                        <TextBlock Grid.Column="0" Classes="editor-label lead"
                                                                                    Text="Amount" Margin="0,0,10,0" />
                                                                         <NumericUpDown Grid.Column="1"
                                                                                        Minimum="-100" Maximum="100"
@@ -517,7 +523,7 @@
                                                             <DataTemplate DataType="{x:Type macros:CommandStep}">
                                                                 <StackPanel Spacing="6">
                                                                     <Grid ColumnDefinitions="Auto,*">
-                                                                        <TextBlock Grid.Column="0" Classes="editor-label"
+                                                                        <TextBlock Grid.Column="0" Classes="editor-label lead"
                                                                                    Text="Command" Margin="0,0,10,0" />
                                                                         <TextBox Grid.Column="1"
                                                                                  Text="{Binding CommandString, Mode=TwoWay}" />
@@ -548,7 +554,7 @@
                                                             <DataTemplate DataType="{x:Type macros:RepeatStartStep}">
                                                                 <StackPanel Spacing="6">
                                                                     <Grid ColumnDefinitions="Auto,140,Auto,Auto,Auto,140,Auto">
-                                                                        <TextBlock Grid.Column="0" Classes="editor-label"
+                                                                        <TextBlock Grid.Column="0" Classes="editor-label lead"
                                                                                    Text="Repeat" Margin="0,0,10,0" />
                                                                         <NumericUpDown Grid.Column="1"
                                                                                        Minimum="1" Maximum="100000"
@@ -582,7 +588,7 @@
                                                             <DataTemplate DataType="{x:Type macros:SetVariableStep}">
                                                                 <StackPanel Spacing="4">
                                                                     <Grid ColumnDefinitions="Auto,160,Auto,150,Auto,*">
-                                                                        <TextBlock Grid.Column="0" Classes="editor-label"
+                                                                        <TextBlock Grid.Column="0" Classes="editor-label lead"
                                                                                    Text="Name" Margin="0,0,10,0" />
                                                                         <TextBox Grid.Column="1"
                                                                                  Text="{Binding Name, Mode=TwoWay}" />
@@ -603,7 +609,7 @@
                                                             <DataTemplate DataType="{x:Type macros:IfStep}">
                                                                 <StackPanel Spacing="4" DataContext="{Binding Condition}">
                                                                     <Grid ColumnDefinitions="Auto,190,Auto,*">
-                                                                        <TextBlock Grid.Column="0" Classes="editor-label"
+                                                                        <TextBlock Grid.Column="0" Classes="editor-label lead"
                                                                                    Text="If" Margin="0,0,10,0" />
                                                                         <ComboBox Grid.Column="1"
                                                                                   HorizontalAlignment="Stretch"
@@ -618,7 +624,7 @@
                                                                     </Grid>
                                                                     <Grid ColumnDefinitions="Auto,170,Auto,*"
                                                                           IsVisible="{Binding IsVariable}">
-                                                                        <TextBlock Grid.Column="0" Classes="editor-label"
+                                                                        <TextBlock Grid.Column="0" Classes="editor-label lead"
                                                                                    Text="Compare" Margin="0,0,10,0" />
                                                                         <ComboBox Grid.Column="1"
                                                                                   HorizontalAlignment="Stretch"
@@ -647,14 +653,14 @@
                                                             <DataTemplate DataType="{x:Type macros:PromptStep}">
                                                                 <StackPanel Spacing="4">
                                                                     <Grid ColumnDefinitions="Auto,*">
-                                                                        <TextBlock Grid.Column="0" Classes="editor-label"
+                                                                        <TextBlock Grid.Column="0" Classes="editor-label lead"
                                                                                    Text="Ask" Margin="0,0,10,0" />
                                                                         <TextBox Grid.Column="1"
                                                                                  PlaceholderText="Prompt shown to the user"
                                                                                  Text="{Binding Message, Mode=TwoWay}" />
                                                                     </Grid>
                                                                     <Grid ColumnDefinitions="Auto,200,Auto,*">
-                                                                        <TextBlock Grid.Column="0" Classes="editor-label"
+                                                                        <TextBlock Grid.Column="0" Classes="editor-label lead"
                                                                                    Text="Store in" Margin="0,0,10,0" />
                                                                         <TextBox Grid.Column="1"
                                                                                  PlaceholderText="variable name"
@@ -672,7 +678,7 @@
                                                             <DataTemplate DataType="{x:Type macros:WaitForConditionStep}">
                                                                 <StackPanel Spacing="4">
                                                                     <Grid ColumnDefinitions="Auto,190,Auto,*">
-                                                                        <TextBlock Grid.Column="0" Classes="editor-label"
+                                                                        <TextBlock Grid.Column="0" Classes="editor-label lead"
                                                                                    Text="Until" Margin="0,0,10,0" />
                                                                         <ComboBox Grid.Column="1"
                                                                                   HorizontalAlignment="Stretch"
@@ -687,7 +693,7 @@
                                                                     </Grid>
                                                                     <Grid ColumnDefinitions="Auto,170,Auto,*"
                                                                           IsVisible="{Binding Condition.IsVariable}">
-                                                                        <TextBlock Grid.Column="0" Classes="editor-label"
+                                                                        <TextBlock Grid.Column="0" Classes="editor-label lead"
                                                                                    Text="Compare" Margin="0,0,10,0" />
                                                                         <ComboBox Grid.Column="1"
                                                                                   HorizontalAlignment="Stretch"
@@ -699,7 +705,7 @@
                                                                                  Text="{Binding Condition.Operand, Mode=TwoWay}" />
                                                                     </Grid>
                                                                     <Grid ColumnDefinitions="Auto,140,Auto,Auto,120,Auto,Auto,150">
-                                                                        <TextBlock Grid.Column="0" Classes="editor-label"
+                                                                        <TextBlock Grid.Column="0" Classes="editor-label lead"
                                                                                    Text="Timeout" Margin="0,0,10,0" />
                                                                         <NumericUpDown Grid.Column="1"
                                                                                        Minimum="0" Maximum="600000"
