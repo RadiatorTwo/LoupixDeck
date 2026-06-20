@@ -48,6 +48,18 @@ public sealed class ScreensaverAnimationSource : IAnimationSource, IDisposable
     private long _startTimestamp;
     private bool _firstFrameLogged;
 
+    // Diagnostics (issue #120): opt-in via env var LOUPIX_SS_DEBUG=1. When on, ffmpeg runs at
+    // -loglevel verbose and its stderr is echoed, and every DebugReportEvery frames we print a
+    // per-frame breakdown (pipe-read ms vs device-push ms) so the real bottleneck — ffmpeg, the
+    // pipe, or the serial framebuffer write — is visible instead of guessed.
+    private static readonly bool _debug =
+        Environment.GetEnvironmentVariable("LOUPIX_SS_DEBUG") is "1" or "true" or "True";
+    private const int DebugReportEvery = 30;
+    private long _dbgFrames;
+    private double _dbgReadMs;
+    private double _dbgPushMs;
+    private long _dbgWindowStart;
+
     // Signaled while no frame is being pushed to the device. Dispose() waits on this so a
     // caller that closes the serial port right after (controller shutdown on app quit)
     // can't cut a full-screen framebuffer write mid-stream — that desyncs the device's
@@ -93,11 +105,15 @@ public sealed class ScreensaverAnimationSource : IAnimationSource, IDisposable
         // -stream_loop -1 loops the input forever (what a screensaver wants); no -re so the
         // consumer paces playback; -r gives constant-rate output so frame i == time i/fps.
         var loopArg = _loop ? "-stream_loop -1 " : string.Empty;
+        var logLevel = _debug ? "verbose" : "error";
         var args =
-            "-hide_banner -loglevel error " +
+            $"-hide_banner -loglevel {logLevel} " +
             "-fflags nobuffer -probesize 500000 -analyzeduration 0 " +
             $"{loopArg}-i \"{_absoluteVideoPath}\" " +
             $"-an -f rawvideo -r {_fps} -pix_fmt bgra -vf scale={PanelWidth}:{PanelHeight} -";
+
+        if (_debug)
+            Console.WriteLine($"[Screensaver] ffmpeg {args}");
 
         try
         {
@@ -126,12 +142,27 @@ public sealed class ScreensaverAnimationSource : IAnimationSource, IDisposable
         _stdout = _ffmpeg.StandardOutput.BaseStream;
         _frameBuffer = new byte[PanelWidth * PanelHeight * 4];
         _startTimestamp = Stopwatch.GetTimestamp();
+        _dbgWindowStart = _startTimestamp;
 
         // Drain stderr continuously: ffmpeg logs progress there and stalls if the pipe fills.
+        // In debug mode we echo each line so ffmpeg's own diagnostics are visible; otherwise we
+        // just drain and discard.
         var token = _cts.Token;
         _ = Task.Run(async () =>
         {
-            try { _ = await _ffmpeg.StandardError.ReadToEndAsync(token); }
+            try
+            {
+                if (_debug)
+                {
+                    string line;
+                    while ((line = await _ffmpeg.StandardError.ReadLineAsync(token)) != null)
+                        Console.WriteLine($"[Screensaver][ffmpeg] {line}");
+                }
+                else
+                {
+                    _ = await _ffmpeg.StandardError.ReadToEndAsync(token);
+                }
+            }
             catch { /* killed / cancelled */ }
         }, token);
 
@@ -148,6 +179,8 @@ public sealed class ScreensaverAnimationSource : IAnimationSource, IDisposable
         if (stream == null || buffer == null) return;
 
         var token = _cts?.Token ?? context.CancellationToken;
+
+        var readStart = _debug ? Stopwatch.GetTimestamp() : 0;
 
         // Read exactly one full panel frame. The blocking read is what paces us to ffmpeg.
         var read = 0;
@@ -187,7 +220,33 @@ public sealed class ScreensaverAnimationSource : IAnimationSource, IDisposable
             Console.WriteLine($"[Screensaver] first frame after {ms:F0} ms.");
         }
 
+        if (!_debug)
+        {
+            await PushFrameAsync(buffer, token).ConfigureAwait(false);
+            return;
+        }
+
+        // Split the per-frame cost into pipe-read vs device-push so we can tell ffmpeg/pipe
+        // latency apart from the serial framebuffer write.
+        var readMs = Stopwatch.GetElapsedTime(readStart).TotalMilliseconds;
+        var pushStart = Stopwatch.GetTimestamp();
         await PushFrameAsync(buffer, token).ConfigureAwait(false);
+        var pushMs = Stopwatch.GetElapsedTime(pushStart).TotalMilliseconds;
+
+        _dbgReadMs += readMs;
+        _dbgPushMs += pushMs;
+        if (++_dbgFrames >= DebugReportEvery)
+        {
+            var windowMs = Stopwatch.GetElapsedTime(_dbgWindowStart).TotalMilliseconds;
+            var effFps = windowMs > 0 ? _dbgFrames * 1000.0 / windowMs : 0;
+            Console.WriteLine(
+                $"[Screensaver][perf] {_dbgFrames} frames | read avg {_dbgReadMs / _dbgFrames:F1} ms | " +
+                $"push avg {_dbgPushMs / _dbgFrames:F1} ms | effective {effFps:F1} fps (target {_fps})");
+            _dbgFrames = 0;
+            _dbgReadMs = 0;
+            _dbgPushMs = 0;
+            _dbgWindowStart = Stopwatch.GetTimestamp();
+        }
     }
 
     /// <summary>
@@ -236,7 +295,20 @@ public sealed class ScreensaverAnimationSource : IAnimationSource, IDisposable
                 // (the last DRAW'd page content stays visible), so the frame must be drawn.
                 // A single full-screen blit + DRAW is the no-tearing path (same as
                 // DrawTouchSlotsAtomic); only per-slot writes cause tearing.
-                await _device.DrawScreen(draw.Id, draw.Bitmap, refresh: true).ConfigureAwait(false);
+                if (_debug)
+                {
+                    var ts = Stopwatch.GetTimestamp();
+                    await _device.DrawScreen(draw.Id, draw.Bitmap, refresh: true).ConfigureAwait(false);
+                    var ms = Stopwatch.GetElapsedTime(ts).TotalMilliseconds;
+                    // Flag slow draws (a multi-second value means the FRAMEBUFF/DRAW ACK is
+                    // timing out, not just slow serial throughput).
+                    if (ms > 500)
+                        Console.WriteLine($"[Screensaver][perf] slow DrawScreen('{draw.Id}'): {ms:F0} ms");
+                }
+                else
+                {
+                    await _device.DrawScreen(draw.Id, draw.Bitmap, refresh: true).ConfigureAwait(false);
+                }
             }
         }
         finally
