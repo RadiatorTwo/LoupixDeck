@@ -64,13 +64,18 @@ public class MacroRunner : IDisposable
     // Hard cap on total executed steps so a runaway/huge repeat count can never hang forever.
     private const int MaxExecutedSteps = 100_000;
 
-    // One active Repeat block. Mutable so the interpreter can decrement Remaining in place.
-    private sealed class LoopFrame
+    // One frame on the unified control stack. Loops and conditionals share the stack so
+    // arbitrary nesting (If inside Repeat and vice-versa) is correct by construction and
+    // malformed markers degrade to no-ops instead of desyncing the interpreter.
+    private enum FrameKind { Loop, IfTaken, IfSkipped }
+
+    private sealed class ControlFrame
     {
-        public int StartIndex;
-        public int Remaining;
-        public int LoopDelayMs;
-        public bool Infinite;
+        public FrameKind Kind;
+        public int StartIndex;   // Loop: index of the RepeatStart marker.
+        public int Remaining;    // Loop: iterations still to run.
+        public int LoopDelayMs;  // Loop: pause between iterations.
+        public bool Infinite;    // Loop: repeat until stopped.
     }
 
     public async Task Run(Macro macro, CancellationToken cancellationToken = default)
@@ -85,32 +90,55 @@ public class MacroRunner : IDisposable
         lock (_runLock)
             _activeRuns.Add(cts);
 
+        var context = new MacroContext();
         try
         {
-            await RunSteps(macro, cts.Token);
+            await RunSteps(macro, context, cts.Token);
         }
         finally
         {
+            ReleaseHeldInput(context);
             lock (_runLock)
                 _activeRuns.Remove(cts);
         }
     }
 
-    private async Task RunSteps(Macro macro, CancellationToken token)
+    /// <summary>
+    /// Guaranteed cleanup: release every key / mouse button the macro left held, in reverse
+    /// acquisition order, each isolated so one failure can't strand the rest. Runs on normal
+    /// completion, exceptions, and cancellation alike.
+    /// </summary>
+    private void ReleaseHeldInput(MacroContext context)
+    {
+        foreach (var key in context.HeldKeys.Reverse())
+        {
+            try { _keyboard.KeyUp(key); }
+            catch (Exception ex) { Console.Error.WriteLine($"[MacroRunner] Cleanup KeyUp('{key}') failed: {ex.Message}"); }
+        }
+
+        foreach (var button in context.HeldButtons.Reverse())
+        {
+            try { _mouse.ButtonUp(button); }
+            catch (Exception ex) { Console.Error.WriteLine($"[MacroRunner] Cleanup ButtonUp({button}) failed: {ex.Message}"); }
+        }
+    }
+
+    private async Task RunSteps(Macro macro, MacroContext context, CancellationToken token)
     {
         // Snapshot the steps so concurrent edits in the editor can't shift indices mid-run.
         var steps = macro.Steps.ToList();
-        var frames = new Stack<LoopFrame>();
+        var stack = new Stack<ControlFrame>();
         var executed = 0;
 
-        for (var i = 0; i < steps.Count; i++)
+        var i = 0;
+        while (i < steps.Count)
         {
             if (token.IsCancellationRequested)
                 break;
 
             // The step cap guards against accidental runaway finite repeats. A deliberate
             // infinite loop is exempt — it runs until the user stops it (Stop command/hotkey).
-            if (!frames.Any(f => f.Infinite) && ++executed > MaxExecutedSteps)
+            if (!stack.Any(f => f.Kind == FrameKind.Loop && f.Infinite) && ++executed > MaxExecutedSteps)
             {
                 Console.Error.WriteLine(
                     $"[MacroRunner] Macro '{macro.Name}' exceeded {MaxExecutedSteps} steps — aborting (possible runaway repeat).");
@@ -118,25 +146,31 @@ public class MacroRunner : IDisposable
             }
 
             var step = steps[i];
-            if (step == null) continue;
+            if (step == null)
+            {
+                i++;
+                continue;
+            }
 
             switch (step)
             {
                 case RepeatStartStep repeatStart:
-                    frames.Push(new LoopFrame
+                    stack.Push(new ControlFrame
                     {
+                        Kind = FrameKind.Loop,
                         StartIndex = i,
                         Remaining = Math.Max(1, repeatStart.Count),
                         LoopDelayMs = repeatStart.LoopDelayMilliseconds,
                         Infinite = repeatStart.Infinite
                     });
+                    i++;
                     break;
 
                 case RepeatEndStep:
-                    // Unmatched end → ignore. Otherwise loop back until the frame is spent.
-                    if (frames.Count > 0)
+                    // Unmatched end (no loop on top) → ignore. Otherwise loop back until spent.
+                    if (stack.Count > 0 && stack.Peek().Kind == FrameKind.Loop)
                     {
-                        var frame = frames.Peek();
+                        var frame = stack.Peek();
 
                         if (frame.Infinite)
                         {
@@ -146,7 +180,7 @@ public class MacroRunner : IDisposable
                                 // Throttle a no-delay infinite loop so it can't peg a core and
                                 // stays responsive to cancellation (checked at the loop top).
                                 await Task.Delay(1);
-                            i = frame.StartIndex;
+                            i = frame.StartIndex + 1;
                         }
                         else
                         {
@@ -155,32 +189,39 @@ public class MacroRunner : IDisposable
                             {
                                 if (frame.LoopDelayMs > 0)
                                     await Delay(frame.LoopDelayMs, token);
-                                i = frame.StartIndex; // for-loop's i++ resumes just after the start marker
+                                i = frame.StartIndex + 1;
                             }
                             else
                             {
-                                frames.Pop();
+                                stack.Pop();
+                                i++;
                             }
                         }
+                    }
+                    else
+                    {
+                        i++;
                     }
                     break;
 
                 default:
                     try
                     {
-                        await ExecuteStep(step, token);
+                        await ExecuteStep(step, context, token);
                     }
                     catch (Exception ex)
                     {
                         Console.Error.WriteLine(
                             $"[MacroRunner] Step '{step.TypeText}' in macro '{macro.Name}' failed: {ex.Message}");
                     }
+
+                    i++;
                     break;
             }
         }
     }
 
-    private async Task ExecuteStep(MacroStep step, CancellationToken token)
+    private async Task ExecuteStep(MacroStep step, MacroContext context, CancellationToken token)
     {
         switch (step)
         {
@@ -202,16 +243,22 @@ public class MacroRunner : IDisposable
 
             case KeyDownStep keyDown:
                 if (!string.IsNullOrWhiteSpace(keyDown.Key))
+                {
                     _keyboard.KeyDown(keyDown.Key);
+                    context.MarkKeyDown(keyDown.Key);
+                }
                 break;
 
             case KeyUpStep keyUp:
                 if (!string.IsNullOrWhiteSpace(keyUp.Key))
+                {
                     _keyboard.KeyUp(keyUp.Key);
+                    context.MarkKeyUp(keyUp.Key);
+                }
                 break;
 
             case MouseStep mouse:
-                ExecuteMouseStep(mouse);
+                ExecuteMouseStep(mouse, context);
                 break;
 
             case CommandStep command:
@@ -221,7 +268,7 @@ public class MacroRunner : IDisposable
         }
     }
 
-    private void ExecuteMouseStep(MouseStep step)
+    private void ExecuteMouseStep(MouseStep step, MacroContext context)
     {
         switch (step.Action)
         {
@@ -230,9 +277,11 @@ public class MacroRunner : IDisposable
                 break;
             case MouseStepAction.Down:
                 _mouse.ButtonDown(step.Button);
+                context.MarkButtonDown(step.Button);
                 break;
             case MouseStepAction.Up:
                 _mouse.ButtonUp(step.Button);
+                context.MarkButtonUp(step.Button);
                 break;
             case MouseStepAction.MoveRelative:
                 _mouse.MoveRelative(step.X, step.Y);
