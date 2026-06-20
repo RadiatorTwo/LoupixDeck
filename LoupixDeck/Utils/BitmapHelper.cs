@@ -2,7 +2,6 @@ using System.Text;
 using Avalonia;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
-using Avalonia.Media.Immutable;
 using Avalonia.Platform;
 using LoupixDeck.Models;
 using LoupixDeck.Models.Layers;

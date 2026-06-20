@@ -1,6 +1,5 @@
 using System.Collections.Specialized;
 using System.ComponentModel;
-using LoupixDeck.LoupedeckDevice.Device;
 using LoupixDeck.Models;
 using LoupixDeck.Models.Extensions;
 

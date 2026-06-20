@@ -1,4 +1,3 @@
-using System;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Shapes;
@@ -7,7 +6,6 @@ using Avalonia.Interactivity;
 using Avalonia.VisualTree;
 using LoupixDeck.Models;
 using LoupixDeck.Models.Layers;
-using LoupixDeck.Services;
 using LoupixDeck.Utils;
 using LoupixDeck.ViewModels;
 using LoupixDeck.ViewModels.Base;

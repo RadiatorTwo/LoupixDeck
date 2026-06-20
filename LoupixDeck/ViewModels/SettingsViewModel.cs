@@ -1,18 +1,14 @@
 using System.Collections.ObjectModel;
-using System.Net.Http;
 using System.Windows.Input;
 using Avalonia;
-using Avalonia.Media;
 using Avalonia.Styling;
 using Avalonia.Threading;
-using LoupixDeck.LoupedeckDevice.Device;
 using LoupixDeck.Models;
 using LoupixDeck.Models.Converter;
 using LoupixDeck.Services;
 using LoupixDeck.Services.Plugins;
 using LoupixDeck.Utils;
 using LoupixDeck.ViewModels.Base;
-using Newtonsoft.Json.Linq;
 
 namespace LoupixDeck.ViewModels;
 

@@ -1,7 +1,5 @@
-using System;
 using Avalonia.Controls;
 using Avalonia.Controls.Templates;
-using LoupixDeck.ViewModels;
 using LoupixDeck.ViewModels.Base;
 
 namespace LoupixDeck;

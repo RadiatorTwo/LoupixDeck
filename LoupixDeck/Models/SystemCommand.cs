@@ -1,5 +1,4 @@
 using System.Collections.ObjectModel;
-using LoupixDeck.LoupedeckDevice;
 
 namespace LoupixDeck.Models;
 

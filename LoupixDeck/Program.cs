@@ -1,5 +1,4 @@
 using System.IO.Pipes;
-using System.Net.Sockets;
 using System.Text;
 using Avalonia;
 using Microsoft.Extensions.DependencyInjection;

@@ -1,4 +1,3 @@
-using System.Reflection;
 using LoupixDeck.PluginSdk;
 using LoupixDeck.Registry;
 using Microsoft.Extensions.DependencyInjection;

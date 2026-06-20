@@ -1,8 +1,6 @@
 using System.Collections.Concurrent;
 using System.Threading.Channels;
-using Avalonia;
 using Avalonia.Media;
-using Avalonia.Media.Imaging;
 using LoupixDeck.LoupedeckDevice.Serial;
 using LoupixDeck.Models;
 using LoupixDeck.Utils;

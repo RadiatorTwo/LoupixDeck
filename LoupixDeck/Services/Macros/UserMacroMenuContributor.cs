@@ -1,6 +1,5 @@
 using LoupixDeck.Models;
 using LoupixDeck.PluginSdk;
-using LoupixDeck.Services.Commands;
 // Both the app and the plugin SDK define IMenuContributor — this contributor implements the app-side one.
 using IMenuContributor = LoupixDeck.Services.Commands.IMenuContributor;
 
