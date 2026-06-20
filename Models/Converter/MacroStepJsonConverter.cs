@@ -68,6 +68,12 @@ public class MacroStepJsonConverter : JsonConverter
             MacroStepType.Command => new CommandStep(),
             MacroStepType.RepeatStart => new RepeatStartStep(),
             MacroStepType.RepeatEnd => new RepeatEndStep(),
+            MacroStepType.SetVariable => new SetVariableStep(),
+            MacroStepType.If => new IfStep(),
+            MacroStepType.Else => new ElseStep(),
+            MacroStepType.EndIf => new EndIfStep(),
+            MacroStepType.WaitForCondition => new WaitForConditionStep(),
+            MacroStepType.Prompt => new PromptStep(),
             _ => null
         };
 

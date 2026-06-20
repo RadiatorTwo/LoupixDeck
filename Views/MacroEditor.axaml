@@ -9,11 +9,11 @@
     xmlns:models="using:LoupixDeck.Models"
     x:DataType="vm:MacroEditorViewModel"
     Title="Macro Editor"
-    Width="1280"
+    Width="1400"
     Height="760"
     mc:Ignorable="d"
     CanResize="True"
-    MinWidth="1100"
+    MinWidth="1300"
     MinHeight="620">
 
     <Window.Styles>
@@ -73,6 +73,12 @@
             <Setter Property="Foreground" Value="{DynamicResource AppTextSecondary}" />
             <Setter Property="FontSize" Value="12" />
             <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+
+        <!-- Leading label of a step editor row: fixed width so the control after it always
+             starts at the same X across every step and across every row within a step. -->
+        <Style Selector="TextBlock.editor-label.lead">
+            <Setter Property="Width" Value="72" />
         </Style>
 
         <!-- Collapse/expand toggle on each step panel -->
@@ -183,12 +189,19 @@
                     IsVisible="{Binding HasSelectedMacro}">
                 <Grid RowDefinitions="Auto,Auto,Auto,*">
 
-                    <!-- Name -->
-                    <Grid Grid.Row="0" RowDefinitions="Auto,Auto" ColumnDefinitions="Auto,*" Margin="0,0,0,10">
+                    <!-- Name + execution mode -->
+                    <Grid Grid.Row="0" RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="Auto,*,Auto,200" Margin="0,0,0,10">
                         <TextBlock Grid.Row="0" Grid.Column="0" Classes="editor-label" Text="Name" Margin="0,0,10,0" />
                         <TextBox Grid.Row="0" Grid.Column="1"
                                  Classes.error="{Binding HasValidationMessage}"
                                  Text="{Binding SelectedMacro.Name, Mode=TwoWay}" />
+                        <TextBlock Grid.Row="0" Grid.Column="2" Classes="editor-label"
+                                   Text="When triggered" Margin="16,0,10,0" />
+                        <ComboBox Grid.Row="0" Grid.Column="3"
+                                  HorizontalAlignment="Stretch"
+                                  ToolTip.Tip="Run Once: ignore re-triggers while running. Restart On Trigger: cancel and restart. Allow Parallel: run concurrently."
+                                  ItemsSource="{x:Static macros:Macro.AllExecutionModes}"
+                                  SelectedItem="{Binding SelectedMacro.ExecutionMode, Mode=TwoWay}" />
                         <TextBlock Grid.Row="1" Grid.Column="1"
                                    Classes="validation-error"
                                    Margin="0,4,0,0"
@@ -232,6 +245,14 @@
                                     <MenuItem Header="Delay" Tag="Delay" Click="AddStepMenu_Click" />
                                     <MenuItem Header="Mouse" Tag="Mouse" Click="AddStepMenu_Click" />
                                     <MenuItem Header="Command" Tag="Command" Click="AddStepMenu_Click" />
+                                    <Separator />
+                                    <MenuItem Header="Set Variable" Tag="SetVariable" Click="AddStepMenu_Click" />
+                                    <Separator />
+                                    <MenuItem Header="If" Tag="If" Click="AddStepMenu_Click" />
+                                    <MenuItem Header="Else" Tag="Else" Click="AddStepMenu_Click" />
+                                    <MenuItem Header="End If" Tag="EndIf" Click="AddStepMenu_Click" />
+                                    <MenuItem Header="Wait For…" Tag="WaitForCondition" Click="AddStepMenu_Click" />
+                                    <MenuItem Header="Prompt…" Tag="Prompt" Click="AddStepMenu_Click" />
                                     <Separator />
                                     <MenuItem Header="Repeat Start" Tag="RepeatStart" Click="AddStepMenu_Click" />
                                     <MenuItem Header="Repeat End" Tag="RepeatEnd" Click="AddStepMenu_Click" />
@@ -368,7 +389,7 @@
 
                                                             <DataTemplate DataType="{x:Type macros:TextStep}">
                                                                 <Grid ColumnDefinitions="Auto,*">
-                                                                    <TextBlock Grid.Column="0" Classes="editor-label"
+                                                                    <TextBlock Grid.Column="0" Classes="editor-label lead"
                                                                                Text="Text" Margin="0,0,10,0" />
                                                                     <TextBox Grid.Column="1"
                                                                              Text="{Binding Text, Mode=TwoWay}" />
@@ -378,7 +399,7 @@
                                                             <DataTemplate DataType="{x:Type macros:KeyCombinationStep}">
                                                                 <StackPanel Spacing="4">
                                                                     <Grid ColumnDefinitions="Auto,*,Auto">
-                                                                        <TextBlock Grid.Column="0" Classes="editor-label"
+                                                                        <TextBlock Grid.Column="0" Classes="editor-label lead"
                                                                                    Text="Keys" Margin="0,0,10,0" />
                                                                         <TextBox Grid.Column="1"
                                                                                  Text="{Binding Keys, Mode=TwoWay}" />
@@ -397,7 +418,7 @@
 
                                                             <DataTemplate DataType="{x:Type macros:DelayStep}">
                                                                 <Grid ColumnDefinitions="Auto,Auto,Auto">
-                                                                    <TextBlock Grid.Column="0" Classes="editor-label"
+                                                                    <TextBlock Grid.Column="0" Classes="editor-label lead"
                                                                                Text="Duration" Margin="0,0,10,0" />
                                                                     <NumericUpDown Grid.Column="1" Width="140"
                                                                                    Minimum="0" Maximum="600000"
@@ -411,7 +432,7 @@
                                                             <DataTemplate DataType="{x:Type macros:KeyDownStep}">
                                                                 <StackPanel Spacing="4">
                                                                     <Grid ColumnDefinitions="Auto,*,Auto">
-                                                                        <TextBlock Grid.Column="0" Classes="editor-label"
+                                                                        <TextBlock Grid.Column="0" Classes="editor-label lead"
                                                                                    Text="Key" Margin="0,0,10,0" />
                                                                         <TextBox Grid.Column="1"
                                                                                  Text="{Binding Key, Mode=TwoWay}" />
@@ -431,7 +452,7 @@
                                                             <DataTemplate DataType="{x:Type macros:KeyUpStep}">
                                                                 <StackPanel Spacing="4">
                                                                     <Grid ColumnDefinitions="Auto,*,Auto">
-                                                                        <TextBlock Grid.Column="0" Classes="editor-label"
+                                                                        <TextBlock Grid.Column="0" Classes="editor-label lead"
                                                                                    Text="Key" Margin="0,0,10,0" />
                                                                         <TextBox Grid.Column="1"
                                                                                  Text="{Binding Key, Mode=TwoWay}" />
@@ -451,7 +472,7 @@
                                                             <DataTemplate DataType="{x:Type macros:MouseStep}">
                                                                 <StackPanel Spacing="6">
                                                                     <Grid ColumnDefinitions="Auto,180,20,Auto,180">
-                                                                        <TextBlock Grid.Column="0" Classes="editor-label"
+                                                                        <TextBlock Grid.Column="0" Classes="editor-label lead"
                                                                                    Text="Action" Margin="0,0,10,0" />
                                                                         <ComboBox Grid.Column="1"
                                                                                   HorizontalAlignment="Stretch"
@@ -468,7 +489,7 @@
                                                                     </Grid>
                                                                     <Grid ColumnDefinitions="Auto,140,20,Auto,140"
                                                                           IsVisible="{Binding ShowsCoordinates}">
-                                                                        <TextBlock Grid.Column="0" Classes="editor-label"
+                                                                        <TextBlock Grid.Column="0" Classes="editor-label lead"
                                                                                    Text="X" Margin="0,0,10,0" />
                                                                         <NumericUpDown Grid.Column="1"
                                                                                        Minimum="-100000" Maximum="100000"
@@ -483,7 +504,7 @@
                                                                     </Grid>
                                                                     <Grid ColumnDefinitions="Auto,140,Auto"
                                                                           IsVisible="{Binding ShowsAmount}">
-                                                                        <TextBlock Grid.Column="0" Classes="editor-label"
+                                                                        <TextBlock Grid.Column="0" Classes="editor-label lead"
                                                                                    Text="Amount" Margin="0,0,10,0" />
                                                                         <NumericUpDown Grid.Column="1"
                                                                                        Minimum="-100" Maximum="100"
@@ -502,7 +523,7 @@
                                                             <DataTemplate DataType="{x:Type macros:CommandStep}">
                                                                 <StackPanel Spacing="6">
                                                                     <Grid ColumnDefinitions="Auto,*">
-                                                                        <TextBlock Grid.Column="0" Classes="editor-label"
+                                                                        <TextBlock Grid.Column="0" Classes="editor-label lead"
                                                                                    Text="Command" Margin="0,0,10,0" />
                                                                         <TextBox Grid.Column="1"
                                                                                  Text="{Binding CommandString, Mode=TwoWay}" />
@@ -533,7 +554,7 @@
                                                             <DataTemplate DataType="{x:Type macros:RepeatStartStep}">
                                                                 <StackPanel Spacing="6">
                                                                     <Grid ColumnDefinitions="Auto,140,Auto,Auto,Auto,140,Auto">
-                                                                        <TextBlock Grid.Column="0" Classes="editor-label"
+                                                                        <TextBlock Grid.Column="0" Classes="editor-label lead"
                                                                                    Text="Repeat" Margin="0,0,10,0" />
                                                                         <NumericUpDown Grid.Column="1"
                                                                                        Minimum="1" Maximum="100000"
@@ -562,6 +583,154 @@
                                                             <DataTemplate DataType="{x:Type macros:RepeatEndStep}">
                                                                 <TextBlock Classes="hint"
                                                                            Text="Ends the block opened by the nearest Repeat Start above." />
+                                                            </DataTemplate>
+
+                                                            <DataTemplate DataType="{x:Type macros:SetVariableStep}">
+                                                                <StackPanel Spacing="4">
+                                                                    <Grid ColumnDefinitions="Auto,160,Auto,150,Auto,*">
+                                                                        <TextBlock Grid.Column="0" Classes="editor-label lead"
+                                                                                   Text="Name" Margin="0,0,10,0" />
+                                                                        <TextBox Grid.Column="1"
+                                                                                 Text="{Binding Name, Mode=TwoWay}" />
+                                                                        <ComboBox Grid.Column="3" Margin="10,0,0,0"
+                                                                                  HorizontalAlignment="Stretch"
+                                                                                  ItemsSource="{x:Static macros:SetVariableStep.AllOperations}"
+                                                                                  SelectedItem="{Binding Operation, Mode=TwoWay}" />
+                                                                        <TextBlock Grid.Column="4" Classes="editor-label"
+                                                                                   Text="Value" Margin="10,0,10,0" />
+                                                                        <TextBox Grid.Column="5"
+                                                                                 Text="{Binding Value, Mode=TwoWay}" />
+                                                                    </Grid>
+                                                                    <TextBlock Classes="hint"
+                                                                               Text="Stores a value for this run. Reference it elsewhere as {Name} (in Type Text, Command, or a condition). Increment/Decrement treat the variable as a number; Value is the amount (blank = 1) — handy as a counter inside a Repeat." />
+                                                                </StackPanel>
+                                                            </DataTemplate>
+
+                                                            <DataTemplate DataType="{x:Type macros:IfStep}">
+                                                                <StackPanel Spacing="4" DataContext="{Binding Condition}">
+                                                                    <Grid ColumnDefinitions="Auto,190,Auto,*">
+                                                                        <TextBlock Grid.Column="0" Classes="editor-label lead"
+                                                                                   Text="If" Margin="0,0,10,0" />
+                                                                        <ComboBox Grid.Column="1"
+                                                                                  HorizontalAlignment="Stretch"
+                                                                                  ItemsSource="{x:Static macros:MacroCondition.AllTypes}"
+                                                                                  SelectedItem="{Binding Type, Mode=TwoWay}" />
+                                                                        <CheckBox Grid.Column="2" Content="Negate" Margin="14,0,10,0"
+                                                                                  ToolTip.Tip="Invert the test (true becomes false)"
+                                                                                  IsChecked="{Binding Negate, Mode=TwoWay}" />
+                                                                        <TextBox Grid.Column="3"
+                                                                                 PlaceholderText="{Binding TargetLabel}"
+                                                                                 Text="{Binding Target, Mode=TwoWay}" />
+                                                                    </Grid>
+                                                                    <Grid ColumnDefinitions="Auto,170,Auto,*"
+                                                                          IsVisible="{Binding IsVariable}">
+                                                                        <TextBlock Grid.Column="0" Classes="editor-label lead"
+                                                                                   Text="Compare" Margin="0,0,10,0" />
+                                                                        <ComboBox Grid.Column="1"
+                                                                                  HorizontalAlignment="Stretch"
+                                                                                  ItemsSource="{x:Static macros:MacroCondition.AllOperators}"
+                                                                                  SelectedItem="{Binding Operator, Mode=TwoWay}" />
+                                                                        <TextBlock Grid.Column="2" Classes="editor-label"
+                                                                                   Text="Value" Margin="14,0,10,0" />
+                                                                        <TextBox Grid.Column="3"
+                                                                                 Text="{Binding Operand, Mode=TwoWay}" />
+                                                                    </Grid>
+                                                                    <TextBlock Classes="hint"
+                                                                               Text="Runs the steps up to Else when true, otherwise the steps between Else and End If. Target/Value support {variable} placeholders." />
+                                                                </StackPanel>
+                                                            </DataTemplate>
+
+                                                            <DataTemplate DataType="{x:Type macros:ElseStep}">
+                                                                <TextBlock Classes="hint"
+                                                                           Text="Separates the true and false branches of the nearest If above." />
+                                                            </DataTemplate>
+
+                                                            <DataTemplate DataType="{x:Type macros:EndIfStep}">
+                                                                <TextBlock Classes="hint"
+                                                                           Text="Ends the block opened by the nearest If above." />
+                                                            </DataTemplate>
+
+                                                            <DataTemplate DataType="{x:Type macros:PromptStep}">
+                                                                <StackPanel Spacing="4">
+                                                                    <Grid ColumnDefinitions="Auto,*">
+                                                                        <TextBlock Grid.Column="0" Classes="editor-label lead"
+                                                                                   Text="Ask" Margin="0,0,10,0" />
+                                                                        <TextBox Grid.Column="1"
+                                                                                 PlaceholderText="Prompt shown to the user"
+                                                                                 Text="{Binding Message, Mode=TwoWay}" />
+                                                                    </Grid>
+                                                                    <Grid ColumnDefinitions="Auto,200,Auto,*">
+                                                                        <TextBlock Grid.Column="0" Classes="editor-label lead"
+                                                                                   Text="Store in" Margin="0,0,10,0" />
+                                                                        <TextBox Grid.Column="1"
+                                                                                 PlaceholderText="variable name"
+                                                                                 Text="{Binding VariableName, Mode=TwoWay}" />
+                                                                        <TextBlock Grid.Column="2" Classes="editor-label"
+                                                                                   Text="Default" Margin="14,0,10,0" />
+                                                                        <TextBox Grid.Column="3"
+                                                                                 Text="{Binding DefaultValue, Mode=TwoWay}" />
+                                                                    </Grid>
+                                                                    <TextBlock Classes="hint"
+                                                                               Text="Pauses the macro and asks for a value, storing it in the variable for later {name} use. Cancelling leaves the variable unchanged and the macro continues." />
+                                                                </StackPanel>
+                                                            </DataTemplate>
+
+                                                            <DataTemplate DataType="{x:Type macros:WaitForConditionStep}">
+                                                                <StackPanel Spacing="4">
+                                                                    <Grid ColumnDefinitions="Auto,190,Auto,*">
+                                                                        <TextBlock Grid.Column="0" Classes="editor-label lead"
+                                                                                   Text="Until" Margin="0,0,10,0" />
+                                                                        <ComboBox Grid.Column="1"
+                                                                                  HorizontalAlignment="Stretch"
+                                                                                  ItemsSource="{x:Static macros:MacroCondition.AllTypes}"
+                                                                                  SelectedItem="{Binding Condition.Type, Mode=TwoWay}" />
+                                                                        <CheckBox Grid.Column="2" Content="Negate" Margin="14,0,10,0"
+                                                                                  ToolTip.Tip="Invert the test (e.g. wait until a process is NOT running)"
+                                                                                  IsChecked="{Binding Condition.Negate, Mode=TwoWay}" />
+                                                                        <TextBox Grid.Column="3"
+                                                                                 PlaceholderText="{Binding Condition.TargetLabel}"
+                                                                                 Text="{Binding Condition.Target, Mode=TwoWay}" />
+                                                                    </Grid>
+                                                                    <Grid ColumnDefinitions="Auto,170,Auto,*"
+                                                                          IsVisible="{Binding Condition.IsVariable}">
+                                                                        <TextBlock Grid.Column="0" Classes="editor-label lead"
+                                                                                   Text="Compare" Margin="0,0,10,0" />
+                                                                        <ComboBox Grid.Column="1"
+                                                                                  HorizontalAlignment="Stretch"
+                                                                                  ItemsSource="{x:Static macros:MacroCondition.AllOperators}"
+                                                                                  SelectedItem="{Binding Condition.Operator, Mode=TwoWay}" />
+                                                                        <TextBlock Grid.Column="2" Classes="editor-label"
+                                                                                   Text="Value" Margin="14,0,10,0" />
+                                                                        <TextBox Grid.Column="3"
+                                                                                 Text="{Binding Condition.Operand, Mode=TwoWay}" />
+                                                                    </Grid>
+                                                                    <Grid ColumnDefinitions="Auto,140,Auto,Auto,120,Auto,Auto,150">
+                                                                        <TextBlock Grid.Column="0" Classes="editor-label lead"
+                                                                                   Text="Timeout" Margin="0,0,10,0" />
+                                                                        <NumericUpDown Grid.Column="1"
+                                                                                       Minimum="0" Maximum="600000"
+                                                                                       Increment="500" FormatString="0"
+                                                                                       Value="{Binding TimeoutMilliseconds, Mode=TwoWay}" />
+                                                                        <TextBlock Grid.Column="2" Classes="editor-label"
+                                                                                   Text="ms" Margin="8,0,20,0" />
+                                                                        <TextBlock Grid.Column="3" Classes="editor-label"
+                                                                                   Text="Poll" Margin="0,0,10,0" />
+                                                                        <NumericUpDown Grid.Column="4"
+                                                                                       Minimum="10" Maximum="60000"
+                                                                                       Increment="50" FormatString="0"
+                                                                                       Value="{Binding PollIntervalMilliseconds, Mode=TwoWay}" />
+                                                                        <TextBlock Grid.Column="5" Classes="editor-label"
+                                                                                   Text="ms" Margin="8,0,20,0" />
+                                                                        <TextBlock Grid.Column="6" Classes="editor-label"
+                                                                                   Text="On timeout" Margin="0,0,10,0" />
+                                                                        <ComboBox Grid.Column="7"
+                                                                                  HorizontalAlignment="Stretch"
+                                                                                  ItemsSource="{x:Static macros:WaitForConditionStep.AllTimeoutBehaviors}"
+                                                                                  SelectedItem="{Binding OnTimeout, Mode=TwoWay}" />
+                                                                    </Grid>
+                                                                    <TextBlock Classes="hint"
+                                                                               Text="Pauses until the condition is true. Timeout 0 waits forever (until stopped). On timeout, Fail aborts the macro; Continue runs the next step anyway." />
+                                                                </StackPanel>
                                                             </DataTemplate>
 
                                                         </ContentControl.DataTemplates>

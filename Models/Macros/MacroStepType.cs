@@ -15,7 +15,31 @@ public enum MacroStepType
     Mouse,
     Command,
     RepeatStart,
-    RepeatEnd
+    RepeatEnd,
+    SetVariable,
+    If,
+    Else,
+    EndIf,
+    WaitForCondition,
+    Prompt
+}
+
+/// <summary>What a <see cref="WaitForConditionStep"/> does when its timeout elapses.</summary>
+public enum WaitTimeoutBehavior
+{
+    /// <summary>Abort the rest of the macro.</summary>
+    Fail,
+
+    /// <summary>Carry on with the next step anyway.</summary>
+    Continue
+}
+
+/// <summary>How a <see cref="SetVariableStep"/> changes its target variable.</summary>
+public enum VariableOperation
+{
+    Set,
+    Increment,
+    Decrement
 }
 
 /// <summary>What a <see cref="MouseStep"/> does.</summary>

@@ -7,7 +7,9 @@ namespace LoupixDeck.Models.Macros;
 /// </summary>
 public class MacroSettings
 {
-    public const int CurrentVersion = 1;
+    // v2 (#136): per-macro ExecutionMode plus control-flow / variable / wait / prompt steps.
+    // All additive — the loader stays version-tolerant and reads older files unchanged.
+    public const int CurrentVersion = 2;
 
     public int Version { get; set; } = CurrentVersion;
 
