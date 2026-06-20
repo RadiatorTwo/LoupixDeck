@@ -307,6 +307,7 @@ public class MacroEditorViewModel : DialogViewModelBase<DialogResult>, IAsyncIni
             MacroStepType.If => new IfStep(),
             MacroStepType.Else => new ElseStep(),
             MacroStepType.EndIf => new EndIfStep(),
+            MacroStepType.WaitForCondition => new WaitForConditionStep(),
             _ => null
         };
 

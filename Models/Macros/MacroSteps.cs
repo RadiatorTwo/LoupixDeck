@@ -421,6 +421,97 @@ public class EndIfStep : MacroStep
     public override string ValueText => string.Empty;
 }
 
+/// <summary>
+/// Pauses the macro until <see cref="Condition"/> becomes true or the timeout elapses,
+/// polling every <see cref="PollIntervalMilliseconds"/>. On timeout, <see cref="OnTimeout"/>
+/// either aborts the macro (Fail) or lets it continue. A timeout of 0 waits indefinitely
+/// (until the macro is stopped). Covers "wait for a process / window to appear or disappear".
+/// </summary>
+public class WaitForConditionStep : MacroStep
+{
+    private MacroCondition _condition;
+
+    public WaitForConditionStep()
+    {
+        Condition = new MacroCondition();
+    }
+
+    public MacroCondition Condition
+    {
+        get => _condition;
+        set
+        {
+            if (ReferenceEquals(_condition, value)) return;
+            if (_condition != null)
+                _condition.PropertyChanged -= OnConditionChanged;
+            _condition = value ?? new MacroCondition();
+            _condition.PropertyChanged += OnConditionChanged;
+            OnValueChanged();
+        }
+    }
+
+    private void OnConditionChanged(object sender, System.ComponentModel.PropertyChangedEventArgs e)
+        => OnPropertyChanged(nameof(ValueText));
+
+    private int _timeoutMilliseconds = 10000;
+
+    /// <summary>Maximum time to wait; 0 means wait forever (until stopped).</summary>
+    public int TimeoutMilliseconds
+    {
+        get => _timeoutMilliseconds;
+        set
+        {
+            if (_timeoutMilliseconds == value) return;
+            _timeoutMilliseconds = value;
+            OnValueChanged();
+        }
+    }
+
+    private int _pollIntervalMilliseconds = 250;
+
+    /// <summary>How often the condition is re-checked while waiting.</summary>
+    public int PollIntervalMilliseconds
+    {
+        get => _pollIntervalMilliseconds;
+        set
+        {
+            if (_pollIntervalMilliseconds == value) return;
+            _pollIntervalMilliseconds = value;
+            OnValueChanged();
+        }
+    }
+
+    private WaitTimeoutBehavior _onTimeout = WaitTimeoutBehavior.Fail;
+
+    public WaitTimeoutBehavior OnTimeout
+    {
+        get => _onTimeout;
+        set
+        {
+            if (_onTimeout == value) return;
+            _onTimeout = value;
+            OnValueChanged();
+        }
+    }
+
+    /// <summary>All timeout behaviours — bound by the editor's ComboBox.</summary>
+    [Newtonsoft.Json.JsonIgnore]
+    public static WaitTimeoutBehavior[] AllTimeoutBehaviors { get; } = Enum.GetValues<WaitTimeoutBehavior>();
+
+    public override MacroStepType StepType => MacroStepType.WaitForCondition;
+    public override string Icon => Glyph(0xF0150); // mdi-clock-outline
+    public override string TypeText => "Wait For";
+
+    public override string ValueText
+    {
+        get
+        {
+            var timeout = TimeoutMilliseconds > 0 ? $"≤ {TimeoutMilliseconds} ms" : "∞";
+            return $"{Condition?.Summary} ({timeout})";
+        }
+    }
+}
+
 /// <summary>Runs an arbitrary LoupixDeck command string or shell command.</summary>
 public class CommandStep : MacroStep
 {

@@ -19,7 +19,18 @@ public enum MacroStepType
     SetVariable,
     If,
     Else,
-    EndIf
+    EndIf,
+    WaitForCondition
+}
+
+/// <summary>What a <see cref="WaitForConditionStep"/> does when its timeout elapses.</summary>
+public enum WaitTimeoutBehavior
+{
+    /// <summary>Abort the rest of the macro.</summary>
+    Fail,
+
+    /// <summary>Carry on with the next step anyway.</summary>
+    Continue
 }
 
 /// <summary>How a <see cref="SetVariableStep"/> changes its target variable.</summary>

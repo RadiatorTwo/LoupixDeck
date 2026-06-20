@@ -238,6 +238,7 @@
                                     <MenuItem Header="If" Tag="If" Click="AddStepMenu_Click" />
                                     <MenuItem Header="Else" Tag="Else" Click="AddStepMenu_Click" />
                                     <MenuItem Header="End If" Tag="EndIf" Click="AddStepMenu_Click" />
+                                    <MenuItem Header="Wait For…" Tag="WaitForCondition" Click="AddStepMenu_Click" />
                                     <Separator />
                                     <MenuItem Header="Repeat Start" Tag="RepeatStart" Click="AddStepMenu_Click" />
                                     <MenuItem Header="Repeat End" Tag="RepeatEnd" Click="AddStepMenu_Click" />
@@ -633,6 +634,64 @@
                                                             <DataTemplate DataType="{x:Type macros:EndIfStep}">
                                                                 <TextBlock Classes="hint"
                                                                            Text="Ends the block opened by the nearest If above." />
+                                                            </DataTemplate>
+
+                                                            <DataTemplate DataType="{x:Type macros:WaitForConditionStep}">
+                                                                <StackPanel Spacing="4">
+                                                                    <Grid ColumnDefinitions="Auto,190,Auto,*">
+                                                                        <TextBlock Grid.Column="0" Classes="editor-label"
+                                                                                   Text="Until" Margin="0,0,10,0" />
+                                                                        <ComboBox Grid.Column="1"
+                                                                                  HorizontalAlignment="Stretch"
+                                                                                  ItemsSource="{x:Static macros:MacroCondition.AllTypes}"
+                                                                                  SelectedItem="{Binding Condition.Type, Mode=TwoWay}" />
+                                                                        <CheckBox Grid.Column="2" Content="Negate" Margin="14,0,10,0"
+                                                                                  ToolTip.Tip="Invert the test (e.g. wait until a process is NOT running)"
+                                                                                  IsChecked="{Binding Condition.Negate, Mode=TwoWay}" />
+                                                                        <TextBox Grid.Column="3"
+                                                                                 PlaceholderText="{Binding Condition.TargetLabel}"
+                                                                                 Text="{Binding Condition.Target, Mode=TwoWay}" />
+                                                                    </Grid>
+                                                                    <Grid ColumnDefinitions="Auto,170,Auto,*"
+                                                                          IsVisible="{Binding Condition.IsVariable}">
+                                                                        <TextBlock Grid.Column="0" Classes="editor-label"
+                                                                                   Text="Compare" Margin="0,0,10,0" />
+                                                                        <ComboBox Grid.Column="1"
+                                                                                  HorizontalAlignment="Stretch"
+                                                                                  ItemsSource="{x:Static macros:MacroCondition.AllOperators}"
+                                                                                  SelectedItem="{Binding Condition.Operator, Mode=TwoWay}" />
+                                                                        <TextBlock Grid.Column="2" Classes="editor-label"
+                                                                                   Text="Value" Margin="14,0,10,0" />
+                                                                        <TextBox Grid.Column="3"
+                                                                                 Text="{Binding Condition.Operand, Mode=TwoWay}" />
+                                                                    </Grid>
+                                                                    <Grid ColumnDefinitions="Auto,140,Auto,Auto,120,Auto,Auto,150">
+                                                                        <TextBlock Grid.Column="0" Classes="editor-label"
+                                                                                   Text="Timeout" Margin="0,0,10,0" />
+                                                                        <NumericUpDown Grid.Column="1"
+                                                                                       Minimum="0" Maximum="600000"
+                                                                                       Increment="500" FormatString="0"
+                                                                                       Value="{Binding TimeoutMilliseconds, Mode=TwoWay}" />
+                                                                        <TextBlock Grid.Column="2" Classes="editor-label"
+                                                                                   Text="ms" Margin="8,0,20,0" />
+                                                                        <TextBlock Grid.Column="3" Classes="editor-label"
+                                                                                   Text="Poll" Margin="0,0,10,0" />
+                                                                        <NumericUpDown Grid.Column="4"
+                                                                                       Minimum="10" Maximum="60000"
+                                                                                       Increment="50" FormatString="0"
+                                                                                       Value="{Binding PollIntervalMilliseconds, Mode=TwoWay}" />
+                                                                        <TextBlock Grid.Column="5" Classes="editor-label"
+                                                                                   Text="ms" Margin="8,0,20,0" />
+                                                                        <TextBlock Grid.Column="6" Classes="editor-label"
+                                                                                   Text="On timeout" Margin="0,0,10,0" />
+                                                                        <ComboBox Grid.Column="7"
+                                                                                  HorizontalAlignment="Stretch"
+                                                                                  ItemsSource="{x:Static macros:WaitForConditionStep.AllTimeoutBehaviors}"
+                                                                                  SelectedItem="{Binding OnTimeout, Mode=TwoWay}" />
+                                                                    </Grid>
+                                                                    <TextBlock Classes="hint"
+                                                                               Text="Pauses until the condition is true. Timeout 0 waits forever (until stopped). On timeout, Fail aborts the macro; Continue runs the next step anyway." />
+                                                                </StackPanel>
                                                             </DataTemplate>
 
                                                         </ContentControl.DataTemplates>

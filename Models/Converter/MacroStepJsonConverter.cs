@@ -72,6 +72,7 @@ public class MacroStepJsonConverter : JsonConverter
             MacroStepType.If => new IfStep(),
             MacroStepType.Else => new ElseStep(),
             MacroStepType.EndIf => new EndIfStep(),
+            MacroStepType.WaitForCondition => new WaitForConditionStep(),
             _ => null
         };
 

@@ -247,6 +247,19 @@ public class MacroRunner : IDisposable
                     i++;
                     break;
 
+                case WaitForConditionStep wait:
+                    var satisfied = await WaitForCondition(wait, context, token);
+                    if (!satisfied && !token.IsCancellationRequested &&
+                        wait.OnTimeout == WaitTimeoutBehavior.Fail)
+                    {
+                        Console.Error.WriteLine(
+                            $"[MacroRunner] Macro '{macro.Name}' wait timed out ({wait.Condition?.Summary}) — aborting.");
+                        return;
+                    }
+
+                    i++;
+                    break;
+
                 default:
                     try
                     {
@@ -294,6 +307,34 @@ public class MacroRunner : IDisposable
 
         landedOnElse = false;
         return steps.Count;
+    }
+
+    /// <summary>
+    /// Polls the step's condition until it is true, the timeout elapses, or the macro is
+    /// cancelled. Returns true when the condition was met, false on timeout/cancellation.
+    /// A timeout of 0 waits indefinitely (until stopped).
+    /// </summary>
+    private async Task<bool> WaitForCondition(WaitForConditionStep step, MacroContext context, CancellationToken token)
+    {
+        if (step.Condition == null)
+            return true;
+
+        var pollMs = Math.Max(10, step.PollIntervalMilliseconds);
+        var elapsed = Stopwatch.StartNew();
+
+        while (true)
+        {
+            if (token.IsCancellationRequested)
+                return false;
+
+            if (_conditionEvaluator.Evaluate(step.Condition, context))
+                return true;
+
+            if (step.TimeoutMilliseconds > 0 && elapsed.Elapsed.TotalMilliseconds >= step.TimeoutMilliseconds)
+                return false;
+
+            await Delay(pollMs, token);
+        }
     }
 
     /// <summary>From an Else marker, returns the index just past the matching EndIf.</summary>
