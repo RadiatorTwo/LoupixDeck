@@ -204,9 +204,12 @@ public sealed class ScreensaverAnimationSource : IAnimationSource, IDisposable
             foreach (var draw in draws)
             {
                 if (token.IsCancellationRequested) return;
-                // No DRAW (refresh:false) — write only the framebuffer, matching the proven
-                // streaming path that avoids the per-frame full-display refresh tearing.
-                await _device.DrawScreen(draw.Id, draw.Bitmap, refresh: false).ConfigureAwait(false);
+                // refresh:true — one atomic full-display FRAMEBUFF + DRAW per frame. A
+                // framebuffer write WITHOUT a DRAW does not reliably present on the device
+                // (the last DRAW'd page content stays visible), so the frame must be drawn.
+                // A single full-screen blit + DRAW is the no-tearing path (same as
+                // DrawTouchSlotsAtomic); only per-slot writes cause tearing.
+                await _device.DrawScreen(draw.Id, draw.Bitmap, refresh: true).ConfigureAwait(false);
             }
         }
         finally

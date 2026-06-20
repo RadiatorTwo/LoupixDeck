@@ -19,9 +19,18 @@ public interface IScreensaverManager
     void Arm();
 
     /// <summary>Resets the idle countdown and stops a running screensaver. Call at the top
-    /// of every hardware-input handler.</summary>
-    void NotifyActivity();
+    /// of every hardware-input handler. Returns true when this call stopped a screensaver
+    /// that was running — i.e. the input was a "wake" gesture and the caller should consume
+    /// it (not also run the button/touch/rotary action).</summary>
+    bool NotifyActivity();
 
     /// <summary>Stops any running screensaver and the idle countdown. Call on shutdown.</summary>
     void Stop();
+
+    /// <summary>Raised when the screensaver starts playing. The controller suppresses its
+    /// own rendering (and stops side-strip provider timers) while it owns the display.</summary>
+    event Action Started;
+
+    /// <summary>Raised when the screensaver stops. The controller repaints the active page.</summary>
+    event Action Stopped;
 }
