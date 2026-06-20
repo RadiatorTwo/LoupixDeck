@@ -86,6 +86,18 @@ public static class ServiceCollectionExtensions
         collection.AddSingleton<IMacroStopCoordinator, MacroStopCoordinator>();
         collection.AddSingleton<IMacroStopHotkeyService, MacroStopHotkeyService>();
 
+        // Cached foreground-window snapshot + macro condition evaluator (used by If / Wait
+        // steps). Shared app-wide so they observe a single monitor and process table.
+        collection.AddSingleton<IActiveWindowState, ActiveWindowState>();
+        collection.AddSingleton<IMacroConditionEvaluator, MacroConditionEvaluator>();
+
+        // App-wide execution-mode gatekeeper: enforces Run Once / Restart / Parallel across
+        // every device (macros are keyed by name, which can be bound on multiple devices).
+        collection.AddSingleton<IMacroExecutionRegistry, MacroExecutionRegistry>();
+
+        // Runtime text-input prompts for Prompt steps (shown on the UI thread).
+        collection.AddSingleton<IMacroPromptService, MacroPromptService>();
+
         // Runtime USB hot-plug (issue #116 phase 3b): the OS-native watcher signals
         // topology changes; the manager diffs them against the running device set and
         // raises attach/detach events App turns into provider/VM bring-up + teardown.
@@ -112,6 +124,10 @@ public static class ServiceCollectionExtensions
         collection.Forward<ICommandRunner>(root);
         collection.Forward<ISystemPowerService>(root);
         collection.Forward<IActiveWindowMonitor>(root);
+        collection.Forward<IActiveWindowState>(root);
+        collection.Forward<IMacroConditionEvaluator>(root);
+        collection.Forward<IMacroExecutionRegistry>(root);
+        collection.Forward<IMacroPromptService>(root);
         collection.Forward<IMacroManager>(root);
         collection.Forward<IMacroStopCoordinator>(root);
         collection.Forward<IDeviceHostRegistry>(root);
@@ -290,6 +306,10 @@ public static class ServiceCollectionExtensions
 
         // Begin listening for the global stop hotkey (no-op until one is configured).
         root.GetRequiredService<IMacroStopHotkeyService>().Start();
+
+        // Eagerly create the active-window cache so it subscribes to (and starts) the monitor
+        // from launch — otherwise it would miss every focus change before the first macro runs.
+        root.GetRequiredService<IActiveWindowState>();
 
         // Let the (static) bitmap renderer resolve image-layer assets via DI.
         var assetService = root.GetRequiredService<IAssetService>();

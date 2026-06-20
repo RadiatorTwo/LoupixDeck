@@ -303,6 +303,12 @@ public class MacroEditorViewModel : DialogViewModelBase<DialogResult>, IAsyncIni
             MacroStepType.Command => new CommandStep(),
             MacroStepType.RepeatStart => new RepeatStartStep(),
             MacroStepType.RepeatEnd => new RepeatEndStep(),
+            MacroStepType.SetVariable => new SetVariableStep(),
+            MacroStepType.If => new IfStep(),
+            MacroStepType.Else => new ElseStep(),
+            MacroStepType.EndIf => new EndIfStep(),
+            MacroStepType.WaitForCondition => new WaitForConditionStep(),
+            MacroStepType.Prompt => new PromptStep(),
             _ => null
         };
 
@@ -641,7 +647,7 @@ public class MacroEditorViewModel : DialogViewModelBase<DialogResult>, IAsyncIni
 
     private void Macro_PropertyChanged(object sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(Macro.Name))
+        if (e.PropertyName == nameof(Macro.Name) || e.PropertyName == nameof(Macro.ExecutionMode))
             ScheduleApply();
     }
 
