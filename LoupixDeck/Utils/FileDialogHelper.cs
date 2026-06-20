@@ -33,6 +33,45 @@ public abstract class FileDialogHelper
     }
 
     /// <summary>
+    /// Picks a screensaver clip (video or animated GIF). Parented to <paramref name="owner"/>
+    /// when given (the open settings dialog), falling back to the main window. Returns the
+    /// absolute path, an empty string if cancelled, or null when there's no window.
+    /// </summary>
+    public static async Task<string> OpenVideoDialog(Window owner = null)
+    {
+        owner ??= WindowHelper.GetMainWindow();
+        if (owner == null) return null;
+
+        var files = await owner.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = "Select Screensaver Video",
+            AllowMultiple = false,
+            FileTypeFilter = new List<FilePickerFileType>
+            {
+                new("Videos")
+                {
+                    Patterns = ["*.mp4", "*.webm", "*.mov", "*.mkv", "*.m4v", "*.avi", "*.gif"]
+                },
+                new("All files")
+                {
+                    Patterns = ["*"]
+                }
+            }
+        });
+
+        if (files.Count == 0) return string.Empty;
+
+        // Prefer the real OS path (TryGetLocalPath) over the URI's AbsolutePath, which on
+        // Windows yields "/C:/Users/…" — that can fail File.Exists/File.Copy and make the
+        // selection silently do nothing.
+        var file = files[0];
+        var local = file.TryGetLocalPath();
+        return !string.IsNullOrEmpty(local)
+            ? local
+            : Uri.UnescapeDataString(file.Path.AbsolutePath);
+    }
+
+    /// <summary>
     /// Picks a <c>.zip</c> plugin package. Parented to <paramref name="owner"/> when
     /// given (the open settings dialog), falling back to the main window. Returns the
     /// absolute path, an empty string if cancelled, or null when there's no window.

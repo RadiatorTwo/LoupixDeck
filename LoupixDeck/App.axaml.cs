@@ -249,6 +249,7 @@ public partial class App : Application
         catch (Exception ex) { Console.WriteLine($"[HotPlug] controller shutdown failed: {ex.Message}"); }
 
         (host.Provider.GetService(typeof(IDynamicTextManager)) as IDisposable)?.Dispose();
+        (host.Provider.GetService(typeof(Services.Screensaver.IScreensaverManager)) as IDisposable)?.Dispose();
         (host.Provider.GetService(typeof(Services.Animation.IAnimationScheduler)) as IDisposable)?.Dispose();
 
         var vm = _shell.Devices.FirstOrDefault(v =>

@@ -228,6 +228,10 @@ public static class ServiceCollectionExtensions
         // globally rate-limitable render cadence that pauses for inactive pages.
         collection.AddSingleton<Services.Animation.IAnimationScheduler, Services.Animation.AnimationScheduler>();
 
+        // Idle-driven full-display screensaver (issue #120): plays a video/GIF via ffmpeg
+        // across all displays after an idle period, registering as a source on the scheduler.
+        collection.AddSingleton<Services.Screensaver.IScreensaverManager, Services.Screensaver.ScreensaverManager>();
+
         collection.AddSingleton<IDynamicTextManager, DynamicTextManager>();
         collection.AddSingleton<IFolderNavigationService, FolderNavigationService>();
         collection.AddSingleton<IExclusiveModeService, ExclusiveModeService>();

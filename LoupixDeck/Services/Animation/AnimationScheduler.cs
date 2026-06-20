@@ -72,6 +72,14 @@ public sealed class AnimationScheduler : IAnimationScheduler, IDisposable
             if (_registrations.Any(r => ReferenceEquals(r.Source, source)))
                 return;
 
+            // Establish the loop clock FIRST: EnsureLoopRunning resets _schedulerStart on a
+            // cold start, so computing NextDue beforehand would measure it against the old
+            // (or zero) base — yielding a NextDue far in the future that ElapsedNow() never
+            // catches up to, so this source would never be ticked (the screensaver, usually
+            // the only/first source at idle time, hit this every launch). Ordering it after
+            // the reset makes NextDue ≈ now and the first frame paints immediately.
+            EnsureLoopRunning();
+
             var now = ElapsedNow();
             _registrations.Add(new Registration(source)
             {
@@ -79,8 +87,6 @@ public sealed class AnimationScheduler : IAnimationScheduler, IDisposable
                 LastFrameTimestamp = Stopwatch.GetTimestamp(),
                 NextDue = now, // due immediately so it paints its first frame without delay
             });
-
-            EnsureLoopRunning();
         }
 
         Signal();
@@ -115,9 +121,11 @@ public sealed class AnimationScheduler : IAnimationScheduler, IDisposable
             var reg = _registrations.FirstOrDefault(r => ReferenceEquals(r.Source, source));
             if (reg == null) return;
 
+            // Establish the loop clock before reading it (see Register): on a cold restart
+            // EnsureLoopRunning rebases _schedulerStart, so NextDue must be computed after it.
+            EnsureLoopRunning();
             // Pull its next due time forward to "now" so the loop ticks it on the next pass.
             reg.NextDue = ElapsedNow();
-            EnsureLoopRunning();
         }
 
         Signal();

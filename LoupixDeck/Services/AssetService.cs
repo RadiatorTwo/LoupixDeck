@@ -162,8 +162,10 @@ public class AssetService : IAssetService
         return normalized;
     }
 
-    private string ResolveAbsolute(string relativePath)
+    public string ResolveAbsolute(string relativePath)
     {
+        if (string.IsNullOrWhiteSpace(relativePath)) return null;
+
         var normalized = relativePath.Replace('/', Path.DirectorySeparatorChar);
         if (Path.IsPathRooted(normalized)) return normalized;
 
