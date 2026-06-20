@@ -629,7 +629,7 @@ public class LoupedeckDevice
     /// <summary>
     /// Sends a 16-bit (5-6-5) image buffer to display "id" at the position (x,y).
     /// </summary>
-    private async Task DrawBuffer(string id, int width, int height, byte[] buffer, int? x = 0, int? y = 0,
+    private async Task DrawBuffer(string id, int width, int height, byte[] buffer, int x = 0, int y = 0,
         bool autoRefresh = true)
     {
         if (Displays == null || !Displays.TryGetValue(id, out var displayInfo))
@@ -646,13 +646,11 @@ public class LoupedeckDevice
         var header = new byte[8];
 
         // Write x, y, width, and height as big-endian UInt16
-        if (x == null || y == null)
-            throw new ArgumentNullException($"x or y cannot be null");
 
-        header[0] = (byte)((x.Value >> 8) & 0xff);
-        header[1] = (byte)(x.Value & 0xff);
-        header[2] = (byte)((y.Value >> 8) & 0xff);
-        header[3] = (byte)(y.Value & 0xff);
+        header[0] = (byte)((x >> 8) & 0xff);
+        header[1] = (byte)(x & 0xff);
+        header[2] = (byte)((y >> 8) & 0xff);
+        header[3] = (byte)(y & 0xff);
         header[4] = (byte)((width >> 8) & 0xff);
         header[5] = (byte)(width & 0xff);
         header[6] = (byte)((height >> 8) & 0xff);
@@ -681,8 +679,8 @@ public class LoupedeckDevice
         int width,
         int height,
         SKBitmap bitmap,
-        int? x = 0,
-        int? y = 0,
+        int x = 0,
+        int y = 0,
         bool autoRefresh = true)
     {
         // Determine the display

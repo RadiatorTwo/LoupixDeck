@@ -1,5 +1,4 @@
 using System.Collections.ObjectModel;
-using System.Windows.Input;
 using CommunityToolkit.Mvvm.Input;
 using LoupixDeck.Models;
 using LoupixDeck.Services;
@@ -9,7 +8,6 @@ using SkiaSharp;
 // Utils.RelayCommand executes via Task.Run (background thread) — that would
 // raise CloseRequested off the UI thread and crash Window.Close(). Use the
 // CommunityToolkit synchronous RelayCommand for dialog buttons.
-using RelayCommand = CommunityToolkit.Mvvm.Input.RelayCommand;
 
 namespace LoupixDeck.ViewModels;
 

@@ -1,7 +1,5 @@
 using System.Collections.ObjectModel;
-using System.Windows.Input;
 using CommunityToolkit.Mvvm.Input;
-using LoupixDeck.Commands;
 using LoupixDeck.Models;
 using LoupixDeck.Models.Converter;
 using LoupixDeck.Models.Layers;
