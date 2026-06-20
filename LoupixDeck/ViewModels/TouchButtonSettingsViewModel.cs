@@ -346,7 +346,6 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
         }
     }
 
-
     public ICommand AddImageLayerCommand { get; }
     public ICommand AddAnimatedImageLayerCommand { get; }
     public ICommand AddTextLayerCommand { get; }

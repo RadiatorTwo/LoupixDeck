@@ -350,7 +350,6 @@ public class LoupedeckDevice
         await _sendChannel.Writer.WriteAsync(item);
     }
 
-
     /// <summary>
     /// Sends a command with the given data and waits synchronously for the response.
     /// Frame format: [length (1 byte), command (1 byte), transactionID (1 byte), data]
