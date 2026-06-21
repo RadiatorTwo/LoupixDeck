@@ -69,12 +69,6 @@ jobs:
       - name: Build Plugin SDK package
         run: dotnet build src/LoupixDeck.PluginSdk -c Release
 
-      - name: Upload Plugin SDK package
-        uses: actions/upload-artifact@v5
-        with:
-          name: plugin-sdk
-          path: src/LoupixDeck.PluginSdk/nupkg
-
       - name: Build and assemble plugins
         run: |
           set -euo pipefail
@@ -105,7 +99,7 @@ jobs:
           ls -R plugins
 
       - name: Upload plugins artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: plugins
           path: plugins
@@ -116,13 +110,14 @@ jobs:
     needs: build-plugins
 
     env:
-      PROJECT_PATH: ./LoupixDeck.csproj
+      PROJECT_PATH: ./LoupixDeck/LoupixDeck.csproj
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
+          submodules: recursive
 
       - name: Extract version from tag
         run: |
@@ -138,23 +133,6 @@ jobs:
         with:
           dotnet-version: 9.0.x
 
-      - name: Download Plugin SDK package
-        uses: actions/download-artifact@v5
-        with:
-          name: plugin-sdk
-          path: .sdk-feed
-
-      - name: Point nuget.config at the built SDK feed
-        run: |
-          Set-Content -Path nuget.config -Encoding utf8 -Value @(
-            '<?xml version="1.0" encoding="utf-8"?>',
-            '<configuration>',
-            '  <packageSources>',
-            '    <add key="LoupixDeck.PluginSdk (ci)" value=".sdk-feed" />',
-            '  </packageSources>',
-            '</configuration>'
-          )
-
       - name: Restore dependencies
         run: dotnet restore $env:PROJECT_PATH
 
@@ -169,7 +147,7 @@ jobs:
             -o publish/win-x64
 
       - name: Download plugins artifact
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v8
         with:
           name: plugins
           path: plugins-artifact
@@ -197,13 +175,14 @@ jobs:
     needs: build-plugins
 
     env:
-      PROJECT_PATH: ./LoupixDeck.csproj
+      PROJECT_PATH: ./LoupixDeck/LoupixDeck.csproj
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
+          submodules: recursive
 
       - name: Extract version from tag
         run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_ENV
@@ -212,22 +191,6 @@ jobs:
         uses: actions/setup-dotnet@v5
         with:
           dotnet-version: 9.0.x
-
-      - name: Download Plugin SDK package
-        uses: actions/download-artifact@v5
-        with:
-          name: plugin-sdk
-          path: .sdk-feed
-
-      - name: Point nuget.config at the built SDK feed
-        run: |
-          printf '%s\n' \
-            '<?xml version="1.0" encoding="utf-8"?>' \
-            '<configuration>' \
-            '  <packageSources>' \
-            '    <add key="LoupixDeck.PluginSdk (ci)" value=".sdk-feed" />' \
-            '  </packageSources>' \
-            '</configuration>' > nuget.config
 
       - name: Restore dependencies
         run: dotnet restore ${{ env.PROJECT_PATH }}
@@ -243,7 +206,7 @@ jobs:
             -o publish/linux-x64
 
       - name: Download plugins artifact
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v8
         with:
           name: plugins
           path: plugins-artifact
