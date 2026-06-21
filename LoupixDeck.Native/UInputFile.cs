@@ -1,10 +1,13 @@
-using LoupixDeck.Native.Types.Linux;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Runtime.Versioning;
+using LoupixDeck.Native.Types.Linux;
 
 namespace LoupixDeck.Native;
 
+[SupportedOSPlatform("linux")]
 public sealed class UInputFile : FileDescriptorBase, IDisposable
 {
     public readonly struct SetupContext
@@ -225,18 +228,23 @@ public sealed class UInputFile : FileDescriptorBase, IDisposable
 
     private void SendInputEvent(ushort type, ushort code, int value)=> SendInputEvent(new() { type = type, code = code, value = value });
 
-    private unsafe void SendInputEvent(InputEvent inputEvent)
+    private unsafe void SendInputEvent(in InputEvent inputEvent)
     {
         AssertNotNull();
+#if DEBUG
+#pragma warning disable CA1421 // This method uses runtime marshalling even when the 'DisableRuntimeMarshallingAttribute' is applied
+        Debug.Assert(Marshal.SizeOf<InputEvent>() == sizeof(InputEvent));
+#pragma warning restore CA1421
+#endif
 
-        int size = Marshal.SizeOf(inputEvent);
-        IntPtr ptr = Marshal.AllocHGlobal(size);
+        IntPtr ptr = Marshal.AllocHGlobal(sizeof(InputEvent));
         try
         {
-            Marshal.StructureToPtr(inputEvent, ptr, false);
-            Span<byte> eventBytes = new(ptr.ToPointer(), size);
+            ReadOnlySpan<InputEvent> inputSpan = MemoryMarshal.CreateReadOnlySpan(ref Unsafe.AsRef(in inputEvent), 1);
+            Span<byte> eventBytes = new(ptr.ToPointer(), sizeof(InputEvent));
+            MemoryMarshal.AsBytes(inputSpan).CopyTo(eventBytes);
             bool success = this.TryWrite(eventBytes, out long bytesWritten);
-            if (!success || bytesWritten != size)
+            if (!success || bytesWritten != sizeof(InputEvent))
                 throw new IOException($"Failed to write input event to /dev/uinput. Written bytes: {bytesWritten}");
         }
         finally

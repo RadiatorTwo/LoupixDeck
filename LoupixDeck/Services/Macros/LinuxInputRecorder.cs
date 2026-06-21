@@ -1,6 +1,10 @@
+using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using System.Runtime.Versioning;
 using System.Text.RegularExpressions;
+using LoupixDeck.Native;
+using LoupixDeck.Native.Types.Linux;
 using LoupixDeck.Utils;
 
 namespace LoupixDeck.Services.Macros;
@@ -15,6 +19,7 @@ namespace LoupixDeck.Services.Macros;
 /// group) — the same kind of access the uinput backend already needs. If no device can
 /// be opened, recording simply yields nothing and a hint is logged.
 /// </summary>
+[SupportedOSPlatform("linux")]
 public sealed partial class LinuxInputRecorder : IInputRecorder
 {
     private const int O_RDONLY = 0x0000;
@@ -28,7 +33,7 @@ public sealed partial class LinuxInputRecorder : IInputRecorder
     private static readonly int InputEventSize = Marshal.SizeOf<InputEvent>();
 
     private readonly Stopwatch _stopwatch = new();
-    private readonly List<int> _fds = [];
+    private ImmutableList<FileDescriptor> fds = [];
     private Thread _thread;
     private volatile bool _running;
     private TimeSpan _lastEventAt;
@@ -45,7 +50,7 @@ public sealed partial class LinuxInputRecorder : IInputRecorder
             return;
 
         OpenKeyboardDevices();
-        if (_fds.Count == 0)
+        if (fds.Count == 0)
         {
             Console.Error.WriteLine(
                 "[LinuxInputRecorder] No readable keyboard device found under /dev/input. " +
@@ -77,9 +82,9 @@ public sealed partial class LinuxInputRecorder : IInputRecorder
         _thread?.Join(TimeSpan.FromSeconds(2));
         _thread = null;
 
-        foreach (var fd in _fds)
-            close(fd);
-        _fds.Clear();
+        ImmutableList<FileDescriptor> fds = Interlocked.Exchange(ref this.fds, ImmutableList<FileDescriptor>.Empty);
+        foreach (var fd in fds)
+            fd.Close();
 
         _stopwatch.Stop();
     }
@@ -88,9 +93,16 @@ public sealed partial class LinuxInputRecorder : IInputRecorder
     {
         foreach (var node in DiscoverKeyboardNodes())
         {
-            var fd = open(node, O_RDONLY | O_NONBLOCK);
-            if (fd >= 0)
-                _fds.Add(fd);
+            FileDescriptor? fd;
+            try
+            {
+                fd = FileDescriptor.Open(node, FileAccess.Read, blocking: false);
+            }
+            catch (IOException)
+            {
+                fd = null;
+            }
+            ImmutableInterlocked.Update(ref fds, static (list, fd) => list.Add(fd), fd);
         }
     }
 
@@ -119,48 +131,50 @@ public sealed partial class LinuxInputRecorder : IInputRecorder
             if (handlers == null || !handlers.Contains("kbd"))
                 continue;
 
-            var match = EventNodeRegex().Match(handlers);
+            var match = EventNodeRegex.Match(handlers);
             if (match.Success)
                 yield return "/dev/input/" + match.Value;
         }
     }
 
-    private void PollLoop()
+    private unsafe void PollLoop()
     {
-        var buffer = Marshal.AllocHGlobal(InputEventSize);
+        var bufferPtr = Marshal.AllocHGlobal(InputEventSize);
         try
         {
-            var pollFds = _fds.Select(fd => new Pollfd { fd = fd, events = POLLIN }).ToArray();
+            Span<byte> buffer = new(bufferPtr.ToPointer(), InputEventSize);
+            ImmutableList<FileDescriptor> fds = this.fds;
+            Dictionary<int, FileDescriptor> lookup = fds.ToDictionary(static fd => fd.Value);
+            Pollfd[] pollFds = fds.Select(static fd => new Pollfd { fd = fd.Value, events = POLLIN }).ToArray();
 
             while (_running)
             {
-                var ready = poll(pollFds, (nuint)pollFds.Length, 200);
+                var ready = LibC.File.Poll(pollFds, 200);
                 if (ready <= 0)
                     continue;
 
                 foreach (var pfd in pollFds)
                 {
                     if ((pfd.revents & POLLIN) != 0)
-                        DrainDevice(pfd.fd, buffer);
+                        DrainDevice(lookup[pfd.fd], buffer);
                 }
             }
         }
         finally
         {
-            Marshal.FreeHGlobal(buffer);
+            Marshal.FreeHGlobal(bufferPtr);
         }
     }
 
-    private void DrainDevice(int fd, IntPtr buffer)
+    private void DrainDevice(FileDescriptor fd, Span<byte> buffer)
     {
         // Non-blocking fd: read events until the queue is empty (read returns < size).
         while (_running)
         {
-            var n = (long)read(fd, buffer, (IntPtr)InputEventSize);
-            if (n < InputEventSize)
+            if (!fd.TryRead(buffer, out var n) || n < InputEventSize)
                 break;
 
-            var ev = Marshal.PtrToStructure<InputEvent>(buffer);
+            ref readonly InputEvent ev = ref MemoryMarshal.AsRef<InputEvent>(buffer);
             if (ev.type != EV_KEY)
                 continue;
             if (ev.value != KeyPress && ev.value != KeyRelease) // ignore autorepeat (2)
@@ -178,37 +192,5 @@ public sealed partial class LinuxInputRecorder : IInputRecorder
     }
 
     [GeneratedRegex(@"event\d+")]
-    private static partial Regex EventNodeRegex();
-
-    // ───────── libc interop ─────────
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct InputEvent
-    {
-        public long tv_sec;
-        public long tv_usec;
-        public ushort type;
-        public ushort code;
-        public int value;
-    }
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct Pollfd
-    {
-        public int fd;
-        public short events;
-        public short revents;
-    }
-
-    [DllImport("libc", EntryPoint = "open", SetLastError = true)]
-    private static extern int open(string pathname, int flags);
-
-    [DllImport("libc", EntryPoint = "read", SetLastError = true)]
-    private static extern IntPtr read(int fd, IntPtr buf, IntPtr count);
-
-    [DllImport("libc", EntryPoint = "poll", SetLastError = true)]
-    private static extern int poll([In, Out] Pollfd[] fds, nuint nfds, int timeout);
-
-    [DllImport("libc", EntryPoint = "close", SetLastError = true)]
-    private static extern int close(int fd);
+    private static partial Regex EventNodeRegex { get; }
 }

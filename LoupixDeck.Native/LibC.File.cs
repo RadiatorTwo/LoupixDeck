@@ -1,5 +1,6 @@
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using LoupixDeck.Native.Types.Linux;
 
 namespace LoupixDeck.Native;
 
@@ -33,15 +34,19 @@ public static partial class LibC
         public static partial int ioctl(int fd, int request, int value);
 
         [LibraryImport(LibraryName, EntryPoint = "write", SetLastError = true)]
-        public static unsafe partial IntPtr Write(int fd, byte* buffer, UIntPtr count);
+        public static partial IntPtr Write(int fd, ReadOnlySpan<byte> buffer, UIntPtr count);
+        public static IntPtr Write(int fd, ReadOnlySpan<byte> buffer) => Write(fd, buffer, (UIntPtr)buffer.Length);
 
-        public static unsafe IntPtr Write(int fd, ReadOnlySpan<byte> buffer)
-        {
-            fixed (byte* pBuffer = buffer)
-            {
-                return Write(fd, pBuffer, (UIntPtr)buffer.Length);
-            }
-        }
+        [LibraryImport(LibraryName, EntryPoint = "read", SetLastError = true)]
+        private static partial IntPtr Read(int fd, Span<byte> buf, UIntPtr count);e
+        public static IntPtr Read(int fd, Span<byte> buffer) => Read(fd, buffer, (UIntPtr)buffer.Length);
+
+        [LibraryImport(LibraryName, EntryPoint = "poll", SetLastError = true)]
+        private static partial int Poll(Span<Pollfd> fds, nuint nfds, int timeoutMillis);
+
+        public static int Poll(Span<Pollfd> fds, TimeSpan timeout) => Poll(fds, (int)timeout.TotalMilliseconds);
+
+        public static int Poll(Span<Pollfd> fds, int timeoutMillis) => Poll(fds, (nuint)fds.Length, timeoutMillis);
 
         [LibraryImport(LibraryName, EntryPoint = "close", SetLastError = true)]
         public static partial int Close(int fd);

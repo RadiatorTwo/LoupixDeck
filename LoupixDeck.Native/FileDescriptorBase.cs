@@ -1,11 +1,15 @@
-using Microsoft.Win32.SafeHandles;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using System.Runtime.Versioning;
+using LoupixDeck.Native.Types.Linux;
+using Microsoft.Win32.SafeHandles;
 
 namespace LoupixDeck.Native;
 
+[SupportedOSPlatform("linux")]
 public abstract class FileDescriptorBase : SafeHandleMinusOneIsInvalid
 {
+    public int Value => (int)handle;
     protected FileDescriptorBase(string path, FileAccess flags, bool blocking) : this(OpenBare(path, flags, blocking)) { }
 
     protected FileDescriptorBase(int fd) : base(true)
@@ -14,6 +18,8 @@ public abstract class FileDescriptorBase : SafeHandleMinusOneIsInvalid
             throw new ArgumentException($"Invalid file descriptor: {fd}", nameof(fd));
         SetHandle(fd);
     }
+
+    protected static int Poll(Span<Pollfd> fds) => LibC.File.Poll(fds, 200);
 
     protected static int OpenBare(string path, FileAccess flags, bool blocking)
     {
@@ -31,6 +37,18 @@ public abstract class FileDescriptorBase : SafeHandleMinusOneIsInvalid
         int returnCode = LibC.File.ioctl((int)handle, request, arg);
         Debug.WriteLineIf(returnCode is not 0, $"ioctl failed with request {request} and arg {arg}: {Marshal.GetLastWin32Error()}");
         return returnCode;
+    }
+
+    protected bool TryRead(Span<byte> buffer, out long bytesWritten)
+    {
+        IntPtr resultCode = LibC.File.Read(handle.ToInt32(), buffer);
+        if (resultCode > 0)
+        {
+            bytesWritten = resultCode.ToInt64();
+            return true;
+        }
+        bytesWritten = 0;
+        return false;
     }
 
     protected void Write(ReadOnlySpan<byte> buffer)
