@@ -38,6 +38,18 @@ public sealed class RegisteredCommand
     /// </summary>
     public bool IsImageDisplayCommand { get; init; }
 
+    /// <summary>
+    /// True when the command renders animated frames driven by the central animation scheduler —
+    /// adapted from an <c>IAnimatedDisplayCommand</c>. Frames are pushed onto a plugin-managed
+    /// <see cref="LoupixDeck.Models.Layers.PluginLayer"/> by the button-animation engine, not the
+    /// <see cref="UpdateInterval"/> poll. Mutually exclusive with <see cref="IsDisplayCommand"/> and
+    /// <see cref="IsImageDisplayCommand"/> so neither legacy path also fires on this command.
+    /// </summary>
+    public bool IsAnimatedImageCommand { get; init; }
+
+    /// <summary>For animated image commands: the plugin's desired frame rate (clamped by the host).</summary>
+    public int AnimatedTargetFps { get; init; }
+
     /// <summary>Poll interval for display commands; ignored otherwise.</summary>
     public TimeSpan UpdateInterval { get; init; }
 
@@ -58,4 +70,11 @@ public sealed class RegisteredCommand
     /// true when drawn (false → leave the button unchanged). Null for non-image commands.
     /// </summary>
     public Func<string[], LoupixDeck.PluginSdk.IRenderCanvas, bool> RenderImage { get; init; }
+
+    /// <summary>
+    /// For animated image commands: draws one animation frame onto a host canvas for the given
+    /// timing snapshot, returning whether it drew and whether the animation finished. Null otherwise.
+    /// </summary>
+    public Func<string[], LoupixDeck.PluginSdk.IRenderCanvas, AnimationFrameContext, AnimationFrameInfo>
+        RenderAnimatedFrame { get; init; }
 }

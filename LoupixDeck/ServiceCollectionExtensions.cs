@@ -55,6 +55,12 @@ public static class ServiceCollectionExtensions
         collection.AddSingleton<IConfigService, ConfigService>();
         collection.AddSingleton<IAssetService, AssetService>();
 
+        // Animated-button assets (issue #121): decode-once frame cache and the import/transcode
+        // pipeline are device-agnostic, so they live as shared root singletons (one decode shared
+        // across devices) and are forwarded into each device provider.
+        collection.AddSingleton<Services.Animation.IAnimatedImageCache, Services.Animation.AnimatedImageCache>();
+        collection.AddSingleton<Services.Animation.IAnimatedImageImporter, Services.Animation.AnimatedImageImporter>();
+
         collection.AddSingleton<IDBusController, DBusController>();
         collection.AddSingleton<ICommandRunner, CommandRunner>();
 
@@ -133,6 +139,8 @@ public static class ServiceCollectionExtensions
         collection.Forward<IDeviceHostRegistry>(root);
         collection.Forward<IDeviceRouter>(root);
         collection.Forward<IPluginManager>(root);
+        collection.Forward<Services.Animation.IAnimatedImageCache>(root);
+        collection.Forward<Services.Animation.IAnimatedImageImporter>(root);
 
         // OS input injection. Device-bound because the Windows routers read this
         // device's LoupedeckConfig.InterceptionEnabled to pick SendInput vs the
@@ -233,6 +241,11 @@ public static class ServiceCollectionExtensions
         collection.AddSingleton<Services.Screensaver.IScreensaverManager, Services.Screensaver.ScreensaverManager>();
 
         collection.AddSingleton<IDynamicTextManager, DynamicTextManager>();
+
+        // Per-button animations (issue #121): one source per device on the central scheduler,
+        // driving animated image layers and animated plugin commands.
+        collection.AddSingleton<Services.Animation.IButtonAnimationManager, Services.Animation.ButtonAnimationManager>();
+
         collection.AddSingleton<IFolderNavigationService, FolderNavigationService>();
         collection.AddSingleton<IExclusiveModeService, ExclusiveModeService>();
         collection.AddSingleton<INativeHapticService, NativeHapticService>();

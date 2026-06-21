@@ -243,14 +243,22 @@
 
                     <StackPanel Grid.Row="2" IsEnabled="{Binding CanEditCanvas}">
                         <TextBlock Classes="panel-title" Text="Layers" />
-                        <StackPanel Orientation="Horizontal" Spacing="4" Margin="0,0,0,8">
-                            <Button Classes="toolbar" Content="+ Text"
+                        <!-- 2×2 grid so all four add-layer buttons fit the fixed-width panel
+                             regardless of label length (a single row overflowed the right edge). -->
+                        <UniformGrid Columns="2" Margin="0,0,0,8">
+                            <Button Classes="toolbar" Content="+ Text" Margin="0,0,4,4"
+                                    HorizontalAlignment="Stretch"
                                     Command="{Binding AddTextLayerCommand}" />
-                            <Button Classes="toolbar" Content="+ Image"
+                            <Button Classes="toolbar" Content="+ Image" Margin="0,0,0,4"
+                                    HorizontalAlignment="Stretch"
                                     Command="{Binding AddImageLayerCommand}" />
-                            <Button Classes="toolbar" Content="+ Symbol"
+                            <Button Classes="toolbar" Content="+ Animation" Margin="0,0,4,0"
+                                    HorizontalAlignment="Stretch"
+                                    Command="{Binding AddAnimatedImageLayerCommand}" />
+                            <Button Classes="toolbar" Content="+ Symbol" Margin="0,0,0,0"
+                                    HorizontalAlignment="Stretch"
                                     Command="{Binding AddSymbolLayerCommand}" />
-                        </StackPanel>
+                        </UniformGrid>
                     </StackPanel>
 
                     <ListBox Grid.Row="3"
