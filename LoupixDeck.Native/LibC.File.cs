@@ -38,7 +38,7 @@ public static partial class LibC
         public static IntPtr Write(int fd, ReadOnlySpan<byte> buffer) => Write(fd, buffer, (UIntPtr)buffer.Length);
 
         [LibraryImport(LibraryName, EntryPoint = "read", SetLastError = true)]
-        private static partial IntPtr Read(int fd, Span<byte> buf, UIntPtr count);e
+        private static partial IntPtr Read(int fd, Span<byte> buf, UIntPtr count);
         public static IntPtr Read(int fd, Span<byte> buffer) => Read(fd, buffer, (UIntPtr)buffer.Length);
 
         [LibraryImport(LibraryName, EntryPoint = "poll", SetLastError = true)]

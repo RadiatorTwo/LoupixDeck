@@ -6,6 +6,7 @@ using LoupixDeck.Native.Types.Windows;
 
 namespace LoupixDeck.Native;
 
+[SuppressMessage("Interoperability", "CA1401:P/Invokes should not be visible", Justification = "It's the point of these classes")]
 public static partial class User32
 {
     private const string LibraryName = "USER32.dll";
@@ -13,6 +14,11 @@ public static partial class User32
 
     [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
     private static void ThrowIf([DoesNotReturnIf(true)] bool condition, [CallerMemberName] string caller = null!) => NativeExecutionException.ThrowIf(LibraryName, caller, condition);
+
+    [LibraryImport("kernel32.dll", StringMarshalling = StringMarshalling.Utf16)]
+    private static partial IntPtr GetModuleHandle([Optional] string? lpModuleName);
+
+    public static IntPtr GetModuleHandleSelf() => GetModuleHandle(null);
 
     /// <summary>
     /// Determines whether a key is up or down at the time the function is called, and whether the key was pressed after a previous call to GetAsyncKeyState.

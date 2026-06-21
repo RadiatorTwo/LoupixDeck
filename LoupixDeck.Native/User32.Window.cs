@@ -85,7 +85,7 @@ public static partial class User32
     /// <para><see href="https://learn.microsoft.com/windows/win32/api/winuser/nf-winuser-getwindowtextw#">Read more on learn.microsoft.com</see>.</para>
     /// </remarks>
     [DefaultDllImportSearchPaths(SearchPath)]
-    [LibraryImport(LibraryName, EntryPoint = "GetWindowTextW", SetLastError = true)]
+    [LibraryImport(LibraryName, EntryPoint = "GetWindowTextW", SetLastError = true, StringMarshalling = StringMarshalling.Utf16)]
     private static partial int GetWindowText(IntPtr hWnd, Span<char> lpString, int nMaxCount);
 
     public static string GetWindowText(WindowHandle hWnd)

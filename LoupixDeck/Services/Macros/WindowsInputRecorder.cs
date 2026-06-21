@@ -1,5 +1,7 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using LoupixDeck.Native;
+using LoupixDeck.Native.Types.Windows;
 
 namespace LoupixDeck.Services.Macros;
 
@@ -9,10 +11,8 @@ namespace LoupixDeck.Services.Macros;
 /// without consuming it (CallNextHookEx is always called), so keystrokes still reach
 /// the focused application while recording. Auto-repeat down events are collapsed.
 /// </summary>
-public sealed class WindowsInputRecorder : IInputRecorder
+public sealed partial class WindowsInputRecorder : IInputRecorder
 {
-    private const int WH_KEYBOARD_LL = 13;
-    private const int HC_ACTION = 0;
     private const uint WM_QUIT = 0x0012;
     private const int WM_KEYDOWN = 0x0100;
     private const int WM_KEYUP = 0x0101;
@@ -25,8 +25,7 @@ public sealed class WindowsInputRecorder : IInputRecorder
 
     private Thread _thread;
     private uint _threadId;
-    private IntPtr _hookHandle;
-    private LowLevelKeyboardProc _proc; // kept alive for the hook's lifetime
+    private WindowsHook hook;
     private TimeSpan _lastEventAt;
     private bool _hasLastEvent;
 
@@ -67,7 +66,7 @@ public sealed class WindowsInputRecorder : IInputRecorder
         IsRecording = false;
 
         if (_threadId != 0)
-            PostThreadMessage(_threadId, WM_QUIT, IntPtr.Zero, IntPtr.Zero);
+            User32.Messages.PostThreadMessage(_threadId, WM_QUIT, IntPtr.Zero, IntPtr.Zero);
 
         _thread?.Join(TimeSpan.FromSeconds(2));
         _thread = null;
@@ -77,32 +76,38 @@ public sealed class WindowsInputRecorder : IInputRecorder
 
     private void HookThread(ManualResetEventSlim ready)
     {
-        _threadId = GetCurrentThreadId();
-        _proc = HookCallback;
-        _hookHandle = SetWindowsHookEx(WH_KEYBOARD_LL, _proc, GetModuleHandle(null), 0);
+        _threadId = User32.Threads.GetCurrentThreadId();
+        try
+        {
+            hook = new(WindowsHookType.WH_KEYBOARD_LL, HookCallback)
+            {
+                HookCodeFilter = WindowsHook.HookCodes.HC_ACTION
+            };
+        }
+        catch (Exception)
+        {
+            hook = null;
+        }
         ready.Set();
 
-        if (_hookHandle == IntPtr.Zero)
-            return;
-
-        // Standard message pump; GetMessage blocks until WM_QUIT is posted by Stop().
-        while (GetMessage(out var msg, IntPtr.Zero, 0, 0) > 0)
+        if (hook?.IsInvalid is not false)
         {
-            TranslateMessage(ref msg);
-            DispatchMessage(ref msg);
+            hook?.Close();
+            hook = null;
+            return;
         }
 
-        UnhookWindowsHookEx(_hookHandle);
-        _hookHandle = IntPtr.Zero;
-        _proc = null;
-    }
+        // Standard message pump; GetMessage blocks until WM_QUIT is posted by Stop().
+        while (User32.Messages.TryGetMessage(out var msg, IntPtr.Zero, 0, 0))
+        {
+            User32.Messages.TranslateMessage(in msg);
+            User32.Messages.DispatchMessage(in msg);
+        }
 
-    private IntPtr HookCallback(int nCode, IntPtr wParam, IntPtr lParam)
-    {
-        if (nCode == HC_ACTION)
-            TryRecord((int)wParam, Marshal.PtrToStructure<KBDLLHOOKSTRUCT>(lParam));
+        hook?.Close();
+        hook = null;
 
-        return CallNextHookEx(_hookHandle, nCode, wParam, lParam);
+        void HookCallback(int nCode, IntPtr wParam, IntPtr lParam) => TryRecord(unchecked((int)wParam), Marshal.PtrToStructure<KBDLLHOOKSTRUCT>(lParam));
     }
 
     private void TryRecord(int message, KBDLLHOOKSTRUCT data)
@@ -140,61 +145,4 @@ public sealed class WindowsInputRecorder : IInputRecorder
 
         KeyRecorded?.Invoke(this, args);
     }
-
-    // ───────── Win32 interop ─────────
-
-    private delegate IntPtr LowLevelKeyboardProc(int nCode, IntPtr wParam, IntPtr lParam);
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct KBDLLHOOKSTRUCT
-    {
-        public uint vkCode;
-        public uint scanCode;
-        public uint flags;
-        public uint time;
-        public IntPtr dwExtraInfo;
-    }
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct MSG
-    {
-        public IntPtr hwnd;
-        public uint message;
-        public IntPtr wParam;
-        public IntPtr lParam;
-        public uint time;
-        public int pt_x;
-        public int pt_y;
-    }
-
-    [DllImport("user32.dll", SetLastError = true)]
-    private static extern IntPtr SetWindowsHookEx(int idHook, LowLevelKeyboardProc lpfn, IntPtr hMod,
-        uint dwThreadId);
-
-    [DllImport("user32.dll", SetLastError = true)]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool UnhookWindowsHookEx(IntPtr hhk);
-
-    [DllImport("user32.dll")]
-    private static extern IntPtr CallNextHookEx(IntPtr hhk, int nCode, IntPtr wParam, IntPtr lParam);
-
-    [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
-    private static extern IntPtr GetModuleHandle(string lpModuleName);
-
-    [DllImport("user32.dll")]
-    private static extern int GetMessage(out MSG lpMsg, IntPtr hWnd, uint wMsgFilterMin, uint wMsgFilterMax);
-
-    [DllImport("user32.dll")]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool TranslateMessage(ref MSG lpMsg);
-
-    [DllImport("user32.dll")]
-    private static extern IntPtr DispatchMessage(ref MSG lpMsg);
-
-    [DllImport("user32.dll")]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool PostThreadMessage(uint idThread, uint msg, IntPtr wParam, IntPtr lParam);
-
-    [DllImport("kernel32.dll")]
-    private static extern uint GetCurrentThreadId();
 }
