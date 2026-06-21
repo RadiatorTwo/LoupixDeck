@@ -21,7 +21,7 @@ public interface IDynamicTextManager
     void RefreshCommand(string commandName);
 }
 
-public class DynamicTextManager : IDynamicTextManager, IDisposable
+public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
 {
     private sealed class Entry
     {

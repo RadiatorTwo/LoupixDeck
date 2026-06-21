@@ -41,7 +41,7 @@ public class CommandBuilder : ICommandBuilder
                 }
                 else
                 {
-                    if (menuEntry.Parameters != null && menuEntry.Parameters.Any())
+                    if (menuEntry.Parameters != null && menuEntry.Parameters.Count != 0)
                     {
                         var menuParameter = menuEntry.Parameters.First();
                         parameters.Add(menuParameter.Key, menuParameter.Value);

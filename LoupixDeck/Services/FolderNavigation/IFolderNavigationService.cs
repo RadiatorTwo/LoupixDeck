@@ -1,3 +1,5 @@
+using System.Collections.Immutable;
+
 namespace LoupixDeck.Services.FolderNavigation;
 
 public interface IFolderNavigationService
@@ -8,7 +10,7 @@ public interface IFolderNavigationService
     IFolderProvider CurrentProvider { get; }
 
     /// <summary>Cached entries of the current provider, keyed by SlotIndex for fast touch dispatch.</summary>
-    IReadOnlyDictionary<int, FolderEntry> CurrentEntries { get; }
+    ImmutableDictionary<int, FolderEntry> CurrentEntries { get; }
 
     /// <summary>Pushes a new folder onto the stack.</summary>
     Task OpenFolder(IFolderProvider provider);

@@ -266,7 +266,7 @@ public static class ServiceCollectionExtensions
         {
             var candidates = DeviceRegistry.SupportedDevices
                 .Where(d => d.Slug != self.Slug)
-                .Select(d => FileDialogHelper.GetConfigPath(d))
+                .Select(static d => FileDialogHelper.GetConfigPath(d))
                 .Where(File.Exists)
                 .OrderByDescending(File.GetLastWriteTimeUtc)
                 .ToList();
