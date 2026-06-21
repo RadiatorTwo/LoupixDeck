@@ -1,4 +1,7 @@
 using System.IO.Pipes;
+#if !WINDOWS
+using System.Net.Sockets;
+#endif
 using System.Text;
 using Avalonia;
 using Microsoft.Extensions.DependencyInjection;
