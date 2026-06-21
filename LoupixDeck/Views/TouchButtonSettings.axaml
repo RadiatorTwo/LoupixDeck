@@ -248,6 +248,8 @@
                                     Command="{Binding AddTextLayerCommand}" />
                             <Button Classes="toolbar" Content="+ Image"
                                     Command="{Binding AddImageLayerCommand}" />
+                            <Button Classes="toolbar" Content="+ Animation"
+                                    Command="{Binding AddAnimatedImageLayerCommand}" />
                             <Button Classes="toolbar" Content="+ Symbol"
                                     Command="{Binding AddSymbolLayerCommand}" />
                         </StackPanel>

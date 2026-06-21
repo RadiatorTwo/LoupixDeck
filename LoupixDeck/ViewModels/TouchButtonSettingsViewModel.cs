@@ -30,6 +30,7 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
         {
             ButtonData.ItemChanged += ButtonData_ItemChanged;
             ButtonData.PropertyChanged += ButtonData_PropertyChanged;
+            SeedAnimatedLayerPreviews();
             UpdateEditorPreview();
 
             _selectedVibrationPattern = VibrationPatterns.FirstOrDefault(
@@ -50,6 +51,8 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
     private readonly IDialogService _dialogService;
     private readonly ISideStripProviderRegistry _sideStripRegistry;
     private readonly IDynamicTextManager _dynamicTextManager;
+    private readonly Services.Animation.IAnimatedImageImporter _animatedImageImporter;
+    private readonly Services.Animation.IAnimatedImageCache _animatedImageCache;
     private readonly LoupedeckConfig _config;
 
     public const int EditorCanvasSize = 600;
@@ -345,6 +348,7 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
 
 
     public ICommand AddImageLayerCommand { get; }
+    public ICommand AddAnimatedImageLayerCommand { get; }
     public ICommand AddTextLayerCommand { get; }
     public ICommand AddSymbolLayerCommand { get; }
     public ICommand RemoveLayerCommand { get; }
@@ -502,6 +506,8 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
         IDialogService dialogService,
         ISideStripProviderRegistry sideStripRegistry,
         IDynamicTextManager dynamicTextManager,
+        Services.Animation.IAnimatedImageImporter animatedImageImporter,
+        Services.Animation.IAnimatedImageCache animatedImageCache,
         LoupedeckConfig config)
     {
         _commandBuilder = commandBuilder;
@@ -511,12 +517,15 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
         _dialogService = dialogService;
         _sideStripRegistry = sideStripRegistry;
         _dynamicTextManager = dynamicTextManager;
+        _animatedImageImporter = animatedImageImporter;
+        _animatedImageCache = animatedImageCache;
         _config = config;
 
         // The provider list can change on a plugin hot-reload while the editor is open.
         _sideStripRegistry.ProvidersChanged += OnStripProvidersChanged;
 
         AddImageLayerCommand = new AsyncRelayCommand(AddImageLayer);
+        AddAnimatedImageLayerCommand = new AsyncRelayCommand(AddAnimatedImageLayer);
         AddTextLayerCommand = new RelayCommand(AddTextLayer);
         AddSymbolLayerCommand = new AsyncRelayCommand(AddSymbolLayer);
         RemoveLayerCommand = new RelayCommand(RemoveSelectedLayer);
@@ -571,6 +580,60 @@ public class TouchButtonSettingsViewModel : DialogViewModelBase<TouchButton, Dia
             Name = GetUniqueLayerName(Path.GetFileNameWithoutExtension(path)),
             AssetRelativePath = relative,
             CachedImage = _assetService.Load(relative)
+        };
+
+        ButtonData.Layers.Add(layer);
+        SelectedLayer = layer;
+    }
+
+    /// <summary>
+    /// Populates the static editor preview (first frame) for any animated image layers on the button.
+    /// Their <see cref="ImageLayer.CachedImage"/> is runtime-only (not persisted), so a reopened
+    /// button would otherwise show a blank animated layer until it plays on the device.
+    /// </summary>
+    private void SeedAnimatedLayerPreviews()
+    {
+        if (ButtonData?.Layers == null) return;
+
+        foreach (var layer in ButtonData.Layers)
+        {
+            if (layer is not ImageLayer { IsAnimated: true } img) continue;
+            if (img.CachedImage != null) continue;
+
+            var anim = _animatedImageCache.Get(img.AnimatedAssetPath);
+            if (anim is { Frames.Length: > 0 })
+                img.CachedImage = anim.Frames[0];
+        }
+    }
+
+    private async Task AddAnimatedImageLayer()
+    {
+        if (ButtonData == null) return;
+
+        var path = await FileDialogHelper.OpenAnimatedImageDialog();
+        if (string.IsNullOrEmpty(path) || !File.Exists(path)) return;
+
+        // GIF/WebP are stored as-is; a video is transcoded once here (needs ffmpeg). The decode
+        // and any transcode run off the UI thread.
+        var relative = await Task.Run(() => _animatedImageImporter.ImportAsync(path));
+        if (string.IsNullOrEmpty(relative))
+        {
+            // Most likely a video was picked without ffmpeg on PATH.
+            return;
+        }
+
+        // Decode once via the shared cache; show the first frame as a static editor preview
+        // (the editor canvas stays static — animation plays on the device).
+        var anim = await Task.Run(() => _animatedImageCache.Get(relative));
+        if (anim == null) return;
+
+        var layer = new ImageLayer
+        {
+            Name = GetUniqueLayerName(Path.GetFileNameWithoutExtension(path)),
+            AnimatedAssetPath = relative,
+            // First frame as the static editor preview (the editor canvas doesn't animate; playback
+            // happens on the device). Uses the notifying setter so the preview updates immediately.
+            CachedImage = anim.Frames[0]
         };
 
         ButtonData.Layers.Add(layer);

@@ -35,6 +35,7 @@ public sealed class PluginReloadService : IPluginReloadService
     private readonly ICommandRegistry _commandRegistry;
     private readonly ISideStripProviderRegistry _sideStripRegistry;
     private readonly IDynamicTextManager _dynamicText;
+    private readonly Animation.IButtonAnimationManager _buttonAnimation;
     private readonly IExclusiveModeService _exclusiveMode;
     private readonly IFolderNavigationService _folderNav;
     private readonly IDeviceController _deviceController;
@@ -48,6 +49,7 @@ public sealed class PluginReloadService : IPluginReloadService
         ICommandRegistry commandRegistry,
         ISideStripProviderRegistry sideStripRegistry,
         IDynamicTextManager dynamicText,
+        Animation.IButtonAnimationManager buttonAnimation,
         IExclusiveModeService exclusiveMode,
         IFolderNavigationService folderNav,
         IDeviceController deviceController,
@@ -58,6 +60,7 @@ public sealed class PluginReloadService : IPluginReloadService
         _commandRegistry = commandRegistry;
         _sideStripRegistry = sideStripRegistry;
         _dynamicText = dynamicText;
+        _buttonAnimation = buttonAnimation;
         _exclusiveMode = exclusiveMode;
         _folderNav = folderNav;
         _deviceController = deviceController;
@@ -149,6 +152,7 @@ public sealed class PluginReloadService : IPluginReloadService
         // otherwise the assembly stays rooted and the folder can't be deleted live.
         _commandRegistry.Initialize();
         _dynamicText.Rescan();
+        _buttonAnimation.Rescan();
         TryCollectUnloaded();
 
         // Now attempt the delete; a cleanly-collected plugin is removed live, a
@@ -168,6 +172,7 @@ public sealed class PluginReloadService : IPluginReloadService
         _commandRegistry.Initialize();
         _sideStripRegistry.Rebuild();
         _dynamicText.Rescan();
+        _buttonAnimation.Rescan();
         await _deviceController.RedrawCurrentTouchPage();
         await _deviceController.RefreshSideStrips();
     }
