@@ -6,19 +6,9 @@ using LoupixDeck.Native.Types.Windows;
 
 namespace LoupixDeck.Services.Mouse;
 
-/// <summary>
-/// Windows implementation backed by the Interception kernel driver (interception.dll).
-/// Unlike <see cref="WindowsVirtualMouse"/> (SendInput), the injected mouse events enter
-/// the input stream below the user-mode layer, so apps that read raw input (games /
-/// anti-cheat) receive them like a real mouse — same rationale as
-/// <see cref="Services.InterceptionKeyboard"/>.
-///
-/// The DLL is not bundled — it is placed next to the executable by
-/// <see cref="Services.InterceptionService"/> when the user installs the driver. If the DLL
-/// is missing or the driver is not loaded, this backend reports itself unavailable and the
-/// router falls back to SendInput.
+/// <inheritdoc/>
 /// </summary>
-public sealed class InterceptionMouse : IVirtualMouse
+public sealed class InterceptionMouse : InterceptionBase, IVirtualMouse
 {
     // InterceptionMouseState flags.
     private const ushort StateLeftDown = 0x001;
@@ -37,62 +27,13 @@ public sealed class InterceptionMouse : IVirtualMouse
     // One wheel detent, same unit as Win32 WHEEL_DELTA.
     private const short WheelDelta = 120;
 
-    // Send() gives up when the driver accepts no strokes for this long (see InterceptionKeyboard).
-    private const int MaxStallMs = 500;
-
-    // How long to wait for win32k to reflect an injected button stroke in the async key state.
-    private const int StrokeAckTimeoutMs = 25;
-
-    // After this many consecutive ack timeouts, button verification is considered unreliable
-    // and injection falls back to fixed pacing.
-    private const int MaxConsecutiveAckFailures = 3;
-
-    // Pacing used for strokes that cannot be verified (moves, wheel) or when verification
-    // became unreliable. Spin-based for sub-millisecond accuracy.
-    private const double FallbackPaceMs = 2.0;
-
     // Virtual-key codes of the physical mouse buttons (GetAsyncKeyState reports physical
     // buttons, matching the driver-level strokes we inject — button swap happens above us).
     private const int VkLButton = 0x01;
     private const int VkRButton = 0x02;
     private const int VkMButton = 0x04;
 
-    // Virtual screen metrics (multi-monitor desktop bounding box) for absolute moves.
-    private const int SM_XVIRTUALSCREEN = 76;
-    private const int SM_YVIRTUALSCREEN = 77;
-    private const int SM_CXVIRTUALSCREEN = 78;
-    private const int SM_CYVIRTUALSCREEN = 79;
-
-    private readonly Lock _lock = new();
-
-    [MemberNotNullWhen(true, nameof(context))]
-    private bool HasContext => context is not null;
-    private InterceptionContext context = null;
-    private bool? _available;
-    private int _ackFailures;
-
-    public bool Connected
-    {
-        get
-        {
-            lock (_lock)
-            {
-                return EnsureContext();
-            }
-        }
-    }
-
-    /// <summary>
-    /// True when interception.dll is present and the driver is loaded. Cached for the
-    /// process lifetime (installing the driver requires a reboot anyway).
-    /// </summary>
-    public bool IsDriverAvailable()
-    {
-        lock (_lock)
-        {
-            return EnsureContext();
-        }
-    }
+    protected override int DeviceType => InterceptionDeviceType.Mouse;
 
     public void Click(MouseButton button)
     {
@@ -131,7 +72,7 @@ public sealed class InterceptionMouse : IVirtualMouse
         {
             if (!EnsureContext()) return;
             Send(new InterceptionMouseStroke() { Flags = FlagMoveRelative, X = dx, Y = dy });
-            SpinDelay(FallbackPaceMs);
+            SpinFallbackPace();
         }
     }
 
@@ -159,7 +100,7 @@ public sealed class InterceptionMouse : IVirtualMouse
                     X = nx,
                     Y = ny
                 });
-            SpinDelay(FallbackPaceMs);
+            SpinFallbackPace();
         }
     }
 
@@ -173,30 +114,8 @@ public sealed class InterceptionMouse : IVirtualMouse
                     State = StateWheel,
                     Rolling = (short)(amount * WheelDelta)
                 });
-            SpinDelay(FallbackPaceMs);
+            SpinFallbackPace();
         }
-    }
-
-    public void Dispose()
-    {
-        lock (_lock)
-        {
-            context?.Dispose();
-            context = null;
-        }
-    }
-
-    // Lazily creates the interception context. Returns false (and caches it) when the DLL is
-    // missing or the driver is not loaded. Caller must hold _lock.
-    private bool EnsureContext()
-    {
-        if (_available.HasValue)
-            return _available.Value && context?.IsInvalid is false;
-        
-        context = InterceptionContext.CreateMouse();
-
-        _available = context?.IsInvalid is false;
-        return _available.Value;
     }
 
     // Sends a button stroke and waits until win32k's async key state reflects it — the same
@@ -207,16 +126,16 @@ public sealed class InterceptionMouse : IVirtualMouse
     private void SendButtonVerified(ushort state, int vk, bool expectDown)
     {
         InterceptionMouseStroke stroke = new() { State = state };
-        if (_ackFailures >= MaxConsecutiveAckFailures)
+        if (_ackFailures >= ConfigConstants.MaxConsecutiveAckFailures)
         {
             Send(stroke);
-            SpinDelay(FallbackPaceMs);
+            SpinFallbackPace();
             return;
         }
 
         Send(stroke);
 
-        if (WaitForButtonState(vk, expectDown))
+        if (WaitForKeyButtonState(vk, expectDown))
         {
             _ackFailures = 0;
         }
@@ -226,100 +145,8 @@ public sealed class InterceptionMouse : IVirtualMouse
             // resending would duplicate the click.
             _ackFailures++;
             Console.Error.WriteLine(
-                $"[InterceptionMouse] Button stroke 0x{state:X3} not acknowledged within {StrokeAckTimeoutMs} ms.");
+                $"[InterceptionMouse] Button stroke 0x{state:X3} not acknowledged within {ConfigConstants.StrokeAckTimeoutMs} ms.");
         }
-    }
-
-    // Polls the async key state until it matches the expected up/down state or the
-    // acknowledge timeout elapses. Spin/yield only — no Thread.Sleep (15 ms resolution).
-    private static bool WaitForButtonState(int vk, bool expectDown)
-    {
-        var sw = Stopwatch.StartNew();
-        var spinner = new SpinWait();
-
-        while (sw.ElapsedMilliseconds < StrokeAckTimeoutMs)
-        {
-            var isDown = User32.AsyncKeyStateIsDown(vk);
-            if (isDown == expectDown) return true;
-            spinner.SpinOnce(-1); // -1: yield, but never escalate to Thread.Sleep(1)
-        }
-
-        return false;
-    }
-
-    // Accurate short delay via Stopwatch spinning (Thread.Sleep rounds up to ~15 ms).
-    private static void SpinDelay(double milliseconds)
-    {
-        var sw = Stopwatch.StartNew();
-        var spinner = new SpinWait();
-        while (sw.Elapsed.TotalMilliseconds < milliseconds)
-            spinner.SpinOnce(-1);
-    }
-
-    // Caller must hold _lock and have ensured the context exists. Pushes strokes to the
-    // driver, re-offering any it did not accept until they are in or the driver stalls.
-    private void Send(ReadOnlySpan<InterceptionMouseStroke> strokes)
-    {
-        try
-        {
-            var sent = 0;
-            var spinner = new SpinWait();
-            var stall = Stopwatch.StartNew();
-
-            while (sent < strokes.Length)
-            {
-                var chunk = sent == 0 ? strokes : strokes[sent..];
-                var accepted = context.Send(chunk);
-
-                if (accepted > 0)
-                {
-                    sent += accepted;
-                    spinner.Reset();
-                    stall.Restart();
-                }
-                else if (stall.ElapsedMilliseconds > MaxStallMs)
-                {
-                    Console.Error.WriteLine(
-                        $"[InterceptionMouse] Dropped {strokes.Length - sent} strokes (driver queue stalled).");
-                    return;
-                }
-                else
-                {
-                    spinner.SpinOnce();
-                }
-            }
-        }
-        catch { /* swallow — backend stays best-effort, router covers fallback */ }
-    }
-
-    private void Send(InterceptionMouseStroke stroke)
-    {
-        try
-        {
-            var sent = 0;
-            var spinner = new SpinWait();
-            var stall = Stopwatch.StartNew();
-
-            var accepted = context.Send(stroke);
-
-            if (accepted > 0)
-            {
-                sent += accepted;
-                spinner.Reset();
-                stall.Restart();
-            }
-            else if (stall.ElapsedMilliseconds > MaxStallMs)
-            {
-                Console.Error.WriteLine(
-                    $"[InterceptionMouse] Dropped one stroke (driver queue stalled).");
-                return;
-            }
-            else
-            {
-                spinner.SpinOnce();
-            }
-        }
-        catch { /* swallow — backend stays best-effort, router covers fallback */ }
     }
 
     private static (ushort down, ushort up, int vk) ButtonStates(MouseButton button) => button switch

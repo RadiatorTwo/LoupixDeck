@@ -6,19 +6,8 @@ using LoupixDeck.Utils;
 
 namespace LoupixDeck.Services;
 
-/// <summary>
-/// Windows implementation backed by the Interception kernel driver (interception.dll).
-/// Unlike <see cref="WindowsUInputKeyboard"/> (SendInput), the injected keystrokes enter
-/// the input stream below the user-mode layer, so apps that read raw input (games /
-/// anti-cheat) receive them like a real keyboard.
-///
-/// Access is exclusively through the official interception.dll API (the driver's licence
-/// only permits library access, not opening the kernel device directly). The DLL is not
-/// bundled — it is placed next to the executable by <see cref="InterceptionService"/> when
-/// the user installs the driver. If the DLL is missing or the driver is not loaded, this
-/// backend reports itself unavailable and the router falls back to SendInput.
-/// </summary>
-public sealed class InterceptionKeyboard : IUInputKeyboard
+/// <inheritdoc/>
+public sealed class InterceptionKeyboard : InterceptionBase, IUInputKeyboard
 {
     // InterceptionKeyState flags. (Named State* to avoid colliding with the
     // IUInputKeyboard.KeyDown/KeyUp methods.)
@@ -29,54 +18,9 @@ public sealed class InterceptionKeyboard : IUInputKeyboard
     // Left Shift make code (PS/2 set 1) — used to type shifted characters in SendText.
     private const int ScanLeftShift = 0x2A;
 
-    // Send() gives up when the driver accepts no strokes for this long. A healthy input
-    // stack drains the driver queue within microseconds, so a stall this long means the
-    // stack is wedged and the remaining strokes would never get through.
-    private const int MaxStallMs = 500;
+    private readonly KeyboardLayout _layout = KeyboardLayouts.GetLayout(GetCurrentKeyboardLayout());
 
-    // MapVirtualKey translation type: scan code → virtual key, distinguishing left/right
-    // modifier keys and honouring the extended-key (E0) prefix.
-    private const uint MapVkVscToVkEx = 3;
-
-    // How long to wait for win32k to reflect an injected stroke in the async key state.
-    // Normal processing takes well under a millisecond; the timeout only fires when the
-    // stroke was dropped or the scan-code → VK mapping does not match the active layout.
-    private const int StrokeAckTimeoutMs = 25;
-
-    // After this many consecutive ack timeouts, key-state verification is considered
-    // unreliable (e.g. keyboard-layout mismatch) and injection falls back to fixed pacing.
-    private const int MaxConsecutiveAckFailures = 3;
-
-    // Pacing used when verification is unavailable or unreliable. Spin-based, so the real
-    // duration is accurate (Thread.Sleep would round up to the ~15 ms timer resolution).
-    private const double FallbackPaceMs = 2.0;
-
-    private readonly Lock _lock = new();
-    private readonly KeyboardLayout _layout;
-
-    private InterceptionContext context = null;
-    private bool? _available;
-    private int _ackFailures;
-
-    public bool Connected { get; set; }
-
-    public InterceptionKeyboard()
-    {
-        _layout = KeyboardLayouts.GetLayout(GetCurrentKeyboardLayout());
-    }
-
-    /// <summary>
-    /// True when interception.dll is present and the driver is loaded (a context can be
-    /// created). The result is cached for the process lifetime: installing the driver
-    /// requires a reboot, which restarts the app, so re-evaluation per call is pointless.
-    /// </summary>
-    public bool IsDriverAvailable()
-    {
-        lock (_lock)
-        {
-            return EnsureContext();
-        }
-    }
+    protected override int DeviceType => InterceptionDeviceType.Keyboard;
 
     public void SendKey(int keyCode)
     {
@@ -84,8 +28,8 @@ public sealed class InterceptionKeyboard : IUInputKeyboard
         lock (_lock)
         {
             if (!EnsureContext()) return;
-            SendStrokeVerified((ushort)keyCode, false, false);
-            SendStrokeVerified((ushort)keyCode, false, true);
+            SendStrokeVerified((ushort)keyCode, false, down: true);
+            SendStrokeVerified((ushort)keyCode, false, down: false);
         }
     }
 
@@ -105,10 +49,10 @@ public sealed class InterceptionKeyboard : IUInputKeyboard
             {
                 if (!_layout.KeyMap.TryGetValue(c, out var key)) continue;
 
-                if (key.shift) SendStrokeVerified(ScanLeftShift, false, false);
-                SendStrokeVerified((ushort)key.keycode, false, false);
-                SendStrokeVerified((ushort)key.keycode, false, true);
-                if (key.shift) SendStrokeVerified(ScanLeftShift, false, true);
+                if (key.shift) SendStrokeVerified(ScanLeftShift, false, down: true);
+                SendStrokeVerified((ushort)key.keycode, false, down: true);
+                SendStrokeVerified((ushort)key.keycode, false, down: false);
+                if (key.shift) SendStrokeVerified(ScanLeftShift, false, down: false);
             }
         }
     }
@@ -135,23 +79,17 @@ public sealed class InterceptionKeyboard : IUInputKeyboard
             // Press all in order, then release in reverse order. Each stroke is acknowledged
             // before the next, so modifier state is guaranteed when the main key arrives.
             foreach (var (scanCode, e0) in keys)
-                SendStrokeVerified((ushort)scanCode, e0, false);
+                SendStrokeVerified((ushort)scanCode, e0, down: true);
             for (var k = keys.Count - 1; k >= 0; k--)
-                SendStrokeVerified((ushort)keys[k].scanCode, keys[k].e0, true);
+                SendStrokeVerified((ushort)keys[k].scanCode, keys[k].e0, down: false);
         }
     }
 
-    public void KeyDown(string keyName)
-    {
-        SendSingle(keyName, up: false);
-    }
+    public void KeyDown(string keyName) => SendSingle(keyName, down: true);
 
-    public void KeyUp(string keyName)
-    {
-        SendSingle(keyName, up: true);
-    }
+    public void KeyUp(string keyName) => SendSingle(keyName, down: false);
 
-    private void SendSingle(string keyName, bool up)
+    private void SendSingle(string keyName, bool down)
     {
         if (!KeyNames.TryGetInterception(keyName, out var scanCode, out var e0))
         {
@@ -162,31 +100,8 @@ public sealed class InterceptionKeyboard : IUInputKeyboard
         lock (_lock)
         {
             if (!EnsureContext()) return;
-            SendStrokeVerified((ushort)scanCode, e0, up);
+            SendStrokeVerified((ushort)scanCode, e0, down);
         }
-    }
-
-    public void Dispose()
-    {
-        lock (_lock)
-        {
-            context?.Dispose();
-            context = null;
-        }
-    }
-
-    // Lazily creates the interception context. Returns false (and caches it) when the DLL is
-    // missing or the driver is not loaded. Caller must hold _lock.
-    private bool EnsureContext()
-    {
-        if (_available.HasValue)
-            return _available.Value && context?.IsInvalid is false;
-        
-        context = InterceptionContext.CreateKeyboard();
-
-        _available = context?.IsInvalid is false;
-        Connected = _available.Value;
-        return _available.Value;
     }
 
     // Sends a single stroke and waits (spin, sub-millisecond granularity) until win32k's
@@ -195,22 +110,22 @@ public sealed class InterceptionKeyboard : IUInputKeyboard
     // actually changing is the only reliable delivery signal — and at the same time the
     // fastest possible pacing: injection proceeds the moment the previous stroke is through.
     // Caller must hold _lock and have ensured the context exists.
-    private void SendStrokeVerified(ushort code, bool e0, bool up)
+    private void SendStrokeVerified(ushort code, bool e0, bool down)
     {
         // Resolve the VK that win32k will track for this scan code. 0 = no mapping.
         var vk = User32.MapVirtualScanCodeToVirtualKeyEx(e0 ? 0xE000u | code : code);
 
-        if (vk == 0 || _ackFailures >= MaxConsecutiveAckFailures)
+        if (vk == 0 || _ackFailures >= ConfigConstants.MaxConsecutiveAckFailures)
         {
             // Cannot (or should not) verify — inject and pace with a fixed spin delay.
-            Send(Stroke(code, e0, up));
-            SpinDelay(FallbackPaceMs);
+            Send(Stroke(code, e0, down));
+            SpinFallbackPace();
             return;
         }
 
-        Send(Stroke(code, e0, up));
+        Send(Stroke(code, e0, down));
 
-        if (WaitForKeyState((int)vk, expectDown: !up))
+        if (WaitForKeyButtonState((int)vk, down))
         {
             _ackFailures = 0;
         }
@@ -220,110 +135,13 @@ public sealed class InterceptionKeyboard : IUInputKeyboard
             // (e.g. per-window layout mismatch) — resending would duplicate the keystroke.
             _ackFailures++;
             Console.Error.WriteLine(
-                $"[InterceptionKeyboard] Stroke 0x{code:X2} ({(up ? "up" : "down")}) not acknowledged within {StrokeAckTimeoutMs} ms.");
+                $"[InterceptionKeyboard] Stroke 0x{code:X2} ({(down ? "down" : "up")}) not acknowledged within {ConfigConstants.StrokeAckTimeoutMs} ms.");
         }
     }
 
-    // Polls the async key state until it matches the expected up/down state or the
-    // acknowledge timeout elapses. Spin/yield only — no Thread.Sleep (15 ms resolution).
-    private static bool WaitForKeyState(int vk, bool expectDown)
+    private static InterceptionKeyStroke Stroke(ushort code, bool e0, bool down)
     {
-        var sw = Stopwatch.StartNew();
-        var spinner = new SpinWait();
-
-        while (sw.ElapsedMilliseconds < StrokeAckTimeoutMs)
-        {
-            var isDown = (User32.GetAsyncKeyState(vk) & 0x8000) != 0;
-            if (isDown == expectDown) return true;
-            spinner.SpinOnce(-1); // -1: yield, but never escalate to Thread.Sleep(1)
-        }
-
-        return false;
-    }
-
-    // Accurate short delay via Stopwatch spinning. Thread.Sleep is unusable for pacing on
-    // Windows because its real resolution is the ~15 ms system timer tick.
-    private static void SpinDelay(double milliseconds)
-    {
-        var sw = Stopwatch.StartNew();
-        var spinner = new SpinWait();
-        while (sw.Elapsed.TotalMilliseconds < milliseconds)
-            spinner.SpinOnce(-1);
-    }
-
-    // Caller must hold _lock and have ensured the context exists. Pushes strokes to the
-    // driver, re-offering any it did not accept until they are in or the driver stalls.
-    private void Send(ReadOnlySpan<InterceptionKeyStroke> strokes)
-    {
-        if(strokes.Length is 1)
-        {
-            Send(strokes[0]);
-            return;
-        }
-        try
-        {
-            var sent = 0;
-            var spinner = new SpinWait();
-            var stall = Stopwatch.StartNew();
-
-            while (sent < strokes.Length)
-            {
-                var chunk = sent == 0 ? strokes : strokes[sent..];
-                var accepted = context.Send(chunk);
-
-                if (accepted > 0)
-                {
-                    sent += accepted;
-                    spinner.Reset();
-                    stall.Restart();
-                }
-                else if (stall.ElapsedMilliseconds > MaxStallMs)
-                {
-                    Console.Error.WriteLine(
-                        $"[InterceptionKeyboard] Dropped {strokes.Length - sent} strokes (driver queue stalled).");
-                    return;
-                }
-                else
-                {
-                    spinner.SpinOnce();
-                }
-            }
-        }
-        catch { /* swallow — backend stays best-effort, router covers fallback */ }
-    }
-    private void Send(InterceptionKeyStroke stroke)
-    {
-        try
-        {
-            var sent = 0;
-            var spinner = new SpinWait();
-            var stall = Stopwatch.StartNew();
-
-            var accepted = context.Send(stroke);
-
-            if (accepted > 0)
-            {
-                sent += accepted;
-                spinner.Reset();
-                stall.Restart();
-            }
-            else if (stall.ElapsedMilliseconds > MaxStallMs)
-            {
-                Console.Error.WriteLine(
-                    $"[InterceptionKeyboard] Dropped one stroke (driver queue stalled).");
-                return;
-            }
-            else
-            {
-                spinner.SpinOnce();
-            }
-        }
-        catch { /* swallow — backend stays best-effort, router covers fallback */ }
-    }
-
-    private static InterceptionKeyStroke Stroke(ushort code, bool e0, bool up)
-    {
-        ushort state = up ? StateKeyUp : StateKeyDown;
+        ushort state = down ? StateKeyDown : StateKeyUp;
         if (e0) state |= KeyE0;
         return new() { Code = code, State = state, Information = 0 };
     }

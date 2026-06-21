@@ -9,7 +9,7 @@ namespace LoupixDeck.Services;
 
 public interface IUInputKeyboard : IDisposable
 {
-    public bool Connected { get; set; }
+    public bool Connected { get; }
 
     /// <summary>
     /// Sends a single keycode as a key press and release.
