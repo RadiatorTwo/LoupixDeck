@@ -97,11 +97,27 @@ $SUDO ln -sf "$INSTALL_DIR/LoupixDeck" "$SYMLINK"
 if [ -d /etc/udev/rules.d ]; then
     log "Writing udev rules to $UDEV_RULES_FILE ..."
     $SUDO tee "$UDEV_RULES_FILE" >/dev/null <<'EOF'
-# Razer Stream Controller (USB)
-SUBSYSTEM=="usb", ATTRS{idVendor}=="1532", ATTRS{idProduct}=="0d06", MODE="0666"
-# Loupedeck Live S (USB + serial tty)
+# LoupixDeck supported devices. The deck is driven over a CDC-ACM serial port
+# (/dev/ttyACM*), so EVERY supported VID/PID needs a 'tty' rule — without it,
+# opening the port fails for a user who is not in the 'dialout' group. The 'usb'
+# rule grants access to the raw USB node used for detection/hot-plug. Keep this
+# list in sync with DeviceRegistry.SupportedDevices.
+
+# Loupedeck Live (2ec2:0004)
+SUBSYSTEM=="usb", ATTRS{idVendor}=="2ec2", ATTRS{idProduct}=="0004", MODE="0666"
+SUBSYSTEM=="tty", ATTRS{idVendor}=="2ec2", ATTRS{idProduct}=="0004", MODE="0666"
+# Loupedeck Live S (2ec2:0006)
 SUBSYSTEM=="usb", ATTRS{idVendor}=="2ec2", ATTRS{idProduct}=="0006", MODE="0666"
 SUBSYSTEM=="tty", ATTRS{idVendor}=="2ec2", ATTRS{idProduct}=="0006", MODE="0666"
+# Loupedeck CT (2ec2:0003)
+SUBSYSTEM=="usb", ATTRS{idVendor}=="2ec2", ATTRS{idProduct}=="0003", MODE="0666"
+SUBSYSTEM=="tty", ATTRS{idVendor}=="2ec2", ATTRS{idProduct}=="0003", MODE="0666"
+# Loupedeck CT (2ec2:0007)
+SUBSYSTEM=="usb", ATTRS{idVendor}=="2ec2", ATTRS{idProduct}=="0007", MODE="0666"
+SUBSYSTEM=="tty", ATTRS{idVendor}=="2ec2", ATTRS{idProduct}=="0007", MODE="0666"
+# Razer Stream Controller (1532:0d06)
+SUBSYSTEM=="usb", ATTRS{idVendor}=="1532", ATTRS{idProduct}=="0d06", MODE="0666"
+SUBSYSTEM=="tty", ATTRS{idVendor}=="1532", ATTRS{idProduct}=="0d06", MODE="0666"
 # uinput – virtual keyboard/mouse for macro execution (granted to the 'input' group)
 KERNEL=="uinput", SUBSYSTEM=="misc", GROUP="input", MODE="0660", OPTIONS+="static_node=uinput"
 EOF
