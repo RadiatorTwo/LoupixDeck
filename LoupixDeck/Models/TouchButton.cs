@@ -1,6 +1,7 @@
 using System.Collections.Specialized;
 using System.ComponentModel;
 using Avalonia.Media;
+using CommunityToolkit.Mvvm.ComponentModel;
 using LoupixDeck.Models.Layers;
 using LoupixDeck.Utils;
 using Newtonsoft.Json;
@@ -8,7 +9,7 @@ using SkiaSharp;
 
 namespace LoupixDeck.Models;
 
-public class TouchButton : LoupedeckButton
+public partial class TouchButton : LoupedeckButton
 {
     public TouchButton(int index)
     {
@@ -25,58 +26,37 @@ public class TouchButton : LoupedeckButton
 
     public int Index { get; set; }
 
-    private Color _backColor = Colors.Black;
-
     public Color BackColor
     {
-        get => _backColor;
+        get;
         set
         {
-            if (Equals(value, _backColor)) return;
-            _backColor = value;
+            if (Equals(value, field)) return;
+            field = value;
             Refresh();
         }
-    }
+    } = Colors.Black;
 
-    private bool _vibrationEnabled;
-
-    public bool VibrationEnabled
-    {
-        get => _vibrationEnabled;
-        set
-        {
-            if (value == _vibrationEnabled) return;
-            _vibrationEnabled = value;
-            OnPropertyChanged(nameof(VibrationEnabled));
-        }
-    }
-
-    private byte _vibrationPattern;
+    [ObservableProperty]
+    public partial bool VibrationEnabled { get; set; }
 
     public byte VibrationPattern
     {
-        get => _vibrationPattern == 0
+        get => field == 0
             ? LoupedeckDevice.Constants.VibrationPattern.ShortLower
-            : _vibrationPattern;
-        set
-        {
-            if (value == _vibrationPattern) return;
-            _vibrationPattern = value;
-            OnPropertyChanged(nameof(VibrationPattern));
-        }
+            : field;
+        set => SetProperty(ref field, value);
     }
-
-    private System.Collections.ObjectModel.ObservableCollection<LayerBase> _layers;
 
     public System.Collections.ObjectModel.ObservableCollection<LayerBase> Layers
     {
-        get => _layers;
+        get;
         set
         {
-            if (ReferenceEquals(_layers, value)) return;
-            DetachLayerHandlers(_layers);
-            _layers = value ?? new System.Collections.ObjectModel.ObservableCollection<LayerBase>();
-            AttachLayerHandlers(_layers);
+            if (ReferenceEquals(field, value)) return;
+            DetachLayerHandlers(field);
+            field = value ?? new System.Collections.ObjectModel.ObservableCollection<LayerBase>();
+            AttachLayerHandlers(field);
             Refresh();
             OnPropertyChanged(nameof(Layers));
         }
@@ -235,8 +215,8 @@ public class TouchButton : LoupedeckButton
     /// </summary>
     public void RewireLayerHandlers()
     {
-        if (_layers == null) return;
-        foreach (var layer in _layers)
+        if (Layers == null) return;
+        foreach (var layer in Layers)
         {
             if (layer == null) continue;
             layer.PropertyChanged -= Layer_PropertyChanged;
