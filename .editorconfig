@@ -27,7 +27,6 @@ dotnet_style_prefer_collection_expression = false # IDE0305: Simplify collection
 
 # Organize usings
 dotnet_sort_system_directives_first = true
-dotnet_separate_import_directive_groups = false
 
 # New line preferences
 dotnet_style_allow_multiple_blank_lines_experimental = false:suggestion
@@ -36,20 +35,10 @@ dotnet_style_allow_multiple_blank_lines_experimental = false:suggestion
 dotnet_style_parentheses_in_arithmetic_binary_operators = always_for_clarity:warning
 dotnet_style_parentheses_in_relational_binary_operators = always_for_clarity:warning
 dotnet_style_parentheses_in_other_binary_operators = always_for_clarity:warning
-dotnet_style_parentheses_in_other_operators = always_for_clarity
-
-# Modifier preferences
-dotnet_style_require_accessibility_modifiers = for_non_interface_members
-
-# Pattern matching preferences
-csharp_style_pattern_matching_over_is_with_cast_check = true:warning
-csharp_style_pattern_matching_over_as_with_null_check = true:warning
-csharp_style_prefer_not_pattern = true:suggestion
-csharp_style_prefer_pattern_matching = true:silent
-csharp_style_prefer_switch_expression = true:suggestion
+dotnet_style_parentheses_in_other_operators = always_for_clarity:suggestion
 
 # Null-checking preferences
-csharp_style_throw_expression = false:silent
+# review: csharp_style_throw_expression = false:silent
 csharp_style_conditional_delegate_call = true:suggestion
 
 # Modifier preferences
