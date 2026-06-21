@@ -22,7 +22,7 @@ public class WindowsKeyboardRouter(
             ? interception
             : sendInput;
 
-    public void SendKey(int keyCode) => Active.SendKey(keyCode);
+    public void SendKey(ushort keyCode) => Active.SendKey(keyCode);
 
     public void SendText(string text) => Active.SendText(text);
 

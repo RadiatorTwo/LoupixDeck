@@ -1,10 +1,11 @@
+using System.Collections.Frozen;
 using LoupixDeck.Models;
 
 namespace LoupixDeck.Utils;
 
 public static class KeyboardLayouts
 {
-    private static KeyboardLayout Us { get; } = new KeyboardLayout("us", new Dictionary<char, (int keycode, bool shift)>
+    private static KeyboardLayout Us { get; } = new KeyboardLayout("us", new Dictionary<char, (ushort keycode, bool shift)>
     {
         [' '] = (57, false),
         ['!'] = (2, true),
@@ -103,7 +104,7 @@ public static class KeyboardLayouts
         ['~'] = (41, true)
     });
 
-    private static KeyboardLayout De { get; } = new KeyboardLayout("de", new Dictionary<char, (int keycode, bool shift)>
+    private static KeyboardLayout De { get; } = new KeyboardLayout("de", new Dictionary<char, (ushort keycode, bool shift)>
     {
         [' '] = (57, false),
 

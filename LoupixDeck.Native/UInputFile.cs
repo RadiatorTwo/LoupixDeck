@@ -231,11 +231,7 @@ public sealed class UInputFile : FileDescriptorBase, IDisposable
     private unsafe void SendInputEvent(in InputEvent inputEvent)
     {
         AssertNotNull();
-#if DEBUG
-#pragma warning disable CA1421 // This method uses runtime marshalling even when the 'DisableRuntimeMarshallingAttribute' is applied
         Debug.Assert(Marshal.SizeOf<InputEvent>() == sizeof(InputEvent));
-#pragma warning restore CA1421
-#endif
 
         IntPtr ptr = Marshal.AllocHGlobal(sizeof(InputEvent));
         try

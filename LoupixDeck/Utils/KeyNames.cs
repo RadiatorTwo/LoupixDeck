@@ -1,3 +1,6 @@
+using System.Collections.Frozen;
+using System.Collections.Immutable;
+
 namespace LoupixDeck.Utils;
 
 /// <summary>
@@ -14,58 +17,61 @@ namespace LoupixDeck.Utils;
 public static class KeyNames
 {
     // Canonical name -> Linux evdev key code (see input-event-codes.h).
-    private static readonly Dictionary<string, int> Linux = new(StringComparer.OrdinalIgnoreCase)
-    {
+    private static readonly FrozenDictionary<string, ushort> Linux = FrozenDictionary.ToFrozenDictionary<string, ushort>(
+    [
         // Modifiers
-        ["ctrl"] = 29,        // KEY_LEFTCTRL
-        ["rctrl"] = 97,       // KEY_RIGHTCTRL
-        ["shift"] = 42,       // KEY_LEFTSHIFT
-        ["rshift"] = 54,      // KEY_RIGHTSHIFT
-        ["alt"] = 56,         // KEY_LEFTALT
-        ["altgr"] = 100,      // KEY_RIGHTALT
-        ["win"] = 125,        // KEY_LEFTMETA
-        ["menu"] = 127,       // KEY_COMPOSE (context menu / apps key)
+        new("ctrl", 29),        // KEY_LEFTCTRL
+        new("rctrl", 97),       // KEY_RIGHTCTRL
+        new("shift", 42),       // KEY_LEFTSHIFT
+        new("rshift", 54),      // KEY_RIGHTSHIFT
+        new("alt", 56),         // KEY_LEFTALT
+        new("altgr", 100),      // KEY_RIGHTALT
+        new("win", 125),        // KEY_LEFTMETA
+        new("menu", 127),       // KEY_COMPOSE (context menu / apps key)
 
         // Whitespace / control keys
-        ["space"] = 57,       // KEY_SPACE
-        ["enter"] = 28,       // KEY_ENTER
-        ["tab"] = 15,         // KEY_TAB
-        ["esc"] = 1,          // KEY_ESC
-        ["backspace"] = 14,   // KEY_BACKSPACE
-        ["capslock"] = 58,    // KEY_CAPSLOCK
+        new("space", 57),       // KEY_SPACE
+        new("enter", 28),       // KEY_ENTER
+        new("tab", 15),         // KEY_TAB
+        new("esc", 1),          // KEY_ESC
+        new("backspace", 14),   // KEY_BACKSPACE
+        new("capslock", 58),    // KEY_CAPSLOCK
 
         // Navigation block
-        ["ins"] = 110,        // KEY_INSERT
-        ["del"] = 111,        // KEY_DELETE
-        ["home"] = 102,       // KEY_HOME
-        ["end"] = 107,        // KEY_END
-        ["pageup"] = 104,     // KEY_PAGEUP
-        ["pagedown"] = 109,   // KEY_PAGEDOWN
-        ["up"] = 103,         // KEY_UP
-        ["down"] = 108,       // KEY_DOWN
-        ["left"] = 105,       // KEY_LEFT
-        ["right"] = 106,      // KEY_RIGHT
+        new("ins", 110),        // KEY_INSERT
+        new("del", 111),        // KEY_DELETE
+        new("home", 102),       // KEY_HOME
+        new("end", 107),        // KEY_END
+        new("pageup", 104),     // KEY_PAGEUP
+        new("pagedown", 109),   // KEY_PAGEDOWN
+        new("up", 103),         // KEY_UP
+        new("down", 108),       // KEY_DOWN
+        new("left", 105),       // KEY_LEFT
+        new("right", 106),      // KEY_RIGHT
 
         // Function keys
-        ["f1"] = 59, ["f2"] = 60, ["f3"] = 61, ["f4"] = 62, ["f5"] = 63, ["f6"] = 64,
-        ["f7"] = 65, ["f8"] = 66, ["f9"] = 67, ["f10"] = 68, ["f11"] = 87, ["f12"] = 88,
+        new("f1", 59), new("f2", 60), new("f3", 61), new("f4", 62), new("f5", 63), new("f6", 64),
+        new("f7", 65), new("f8", 66), new("f9", 67), new("f10", 68), new("f11", 87), new("f12", 88),
 
         // Letters
-        ["a"] = 30, ["b"] = 48, ["c"] = 46, ["d"] = 32, ["e"] = 18, ["f"] = 33, ["g"] = 34,
-        ["h"] = 35, ["i"] = 23, ["j"] = 36, ["k"] = 37, ["l"] = 38, ["m"] = 50, ["n"] = 49,
-        ["o"] = 24, ["p"] = 25, ["q"] = 16, ["r"] = 19, ["s"] = 31, ["t"] = 20, ["u"] = 22,
-        ["v"] = 47, ["w"] = 17, ["x"] = 45, ["y"] = 21, ["z"] = 44,
+        new("a", 30), new("b", 48), new("c", 46), new("d", 32), new("e", 18), new("f", 33), new("g", 34),
+        new("h", 35), new("i", 23), new("j", 36), new("k", 37), new("l", 38), new("m", 50), new("n", 49),
+        new("o", 24), new("p", 25), new("q", 16), new("r", 19), new("s", 31), new("t", 20), new("u", 22),
+        new("v", 47), new("w", 17), new("x", 45), new("y", 21), new("z", 44),
 
         // Digits (number row)
-        ["0"] = 11, ["1"] = 2, ["2"] = 3, ["3"] = 4, ["4"] = 5, ["5"] = 6, ["6"] = 7,
-        ["7"] = 8, ["8"] = 9, ["9"] = 10,
-    };
+        new("0", 11), new("1", 2), new("2", 3), new("3", 4), new("4", 5), new("5", 6), new("6", 7),
+        new("7", 8), new("8", 9), new("9", 10),
+    ], StringComparer.OrdinalIgnoreCase);
+
+    // Reverse of the Linux table (code -> canonical name); codes are unique so this is 1:1.
+    private static readonly FrozenDictionary<ushort, string> LinuxReverse = Linux.DistinctBy(static kvp => kvp.Value).ToFrozenDictionary(static kvp => kvp.Value, static kvp => kvp.Key);
 
     // Canonical name -> Windows virtual-key code (VK_*) + extended-key flag.
     // Extended keys (right ctrl/alt, Win/Apps, navigation block, arrows) require
     // KEYEVENTF_EXTENDEDKEY when sent via SendInput.
-    private static readonly Dictionary<string, (int virtualKey, bool extended)> Windows =
-        new(StringComparer.OrdinalIgnoreCase)
+    private static readonly FrozenDictionary<string, (ushort virtualKey, bool extended)> Windows =
+        new Dictionary<string, (ushort virtualKey, bool extended)>(StringComparer.OrdinalIgnoreCase)
         {
             // Modifiers
             ["ctrl"] = (0x11, false),   // VK_CONTROL
@@ -119,14 +125,14 @@ public static class KeyNames
             ["3"] = (0x33, false), ["4"] = (0x34, false), ["5"] = (0x35, false),
             ["6"] = (0x36, false), ["7"] = (0x37, false), ["8"] = (0x38, false),
             ["9"] = (0x39, false),
-        };
+        }.ToFrozenDictionary();
 
     // Canonical name -> PS/2 set-1 scan code + E0-extended flag (used by Interception).
     // Interception works at scan-code level, not virtual keys: the "make" code is sent with
     // state 0 (key down) / 1 (key up); the E0 flag adds 2 to the state for extended keys
     // (right ctrl/alt, Win/Apps, navigation block, arrows).
-    private static readonly Dictionary<string, (int scanCode, bool e0)> Interception =
-        new(StringComparer.OrdinalIgnoreCase)
+    private static readonly FrozenDictionary<string, (ushort scanCode, bool e0)> Interception =
+        new Dictionary<string, (ushort scanCode, bool e0)>(StringComparer.OrdinalIgnoreCase)
         {
             // Modifiers
             ["ctrl"] = (0x1D, false),   // Left Ctrl
@@ -180,41 +186,41 @@ public static class KeyNames
             ["3"] = (0x04, false), ["4"] = (0x05, false), ["5"] = (0x06, false),
             ["6"] = (0x07, false), ["7"] = (0x08, false), ["8"] = (0x09, false),
             ["9"] = (0x0A, false),
-        };
+        }.ToFrozenDictionary();
 
     // Aliases -> canonical name.
-    private static readonly Dictionary<string, string> Aliases = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ["control"] = "ctrl",
-        ["strg"] = "ctrl",
-        ["ctl"] = "ctrl",
-        ["rightctrl"] = "rctrl",
-        ["rightshift"] = "rshift",
-        ["rightalt"] = "altgr",
-        ["alt gr"] = "altgr",
-        ["windows"] = "win",
-        ["super"] = "win",
-        ["meta"] = "win",
-        ["cmd"] = "win",
-        ["command"] = "win",
-        ["apps"] = "menu",
-        ["context"] = "menu",
-        ["escape"] = "esc",
-        ["return"] = "enter",
-        ["spacebar"] = "space",
-        [" "] = "space",
-        ["bksp"] = "backspace",
-        ["entf"] = "del",
-        ["delete"] = "del",
-        ["insert"] = "ins",
-        ["pgup"] = "pageup",
-        ["pgdn"] = "pagedown",
-        ["pgdown"] = "pagedown",
-        ["arrowup"] = "up",
-        ["arrowdown"] = "down",
-        ["arrowleft"] = "left",
-        ["arrowright"] = "right",
-    };
+    private static readonly FrozenDictionary<string, string> Aliases = FrozenDictionary.ToFrozenDictionary<string, string>(
+    [
+        new("control", "ctrl"),
+        new("strg", "ctrl"),
+        new("ctl", "ctrl"),
+        new("rightctrl", "rctrl"),
+        new("rightshift", "rshift"),
+        new("rightalt", "altgr"),
+        new("alt gr", "altgr"),
+        new("windows", "win"),
+        new("super", "win"),
+        new("meta", "win"),
+        new("cmd", "win"),
+        new("command", "win"),
+        new("apps", "menu"),
+        new("context", "menu"),
+        new("escape", "esc"),
+        new("return", "enter"),
+        new("spacebar", "space"),
+        new(" ", "space"),
+        new("bksp", "backspace"),
+        new("entf", "del"),
+        new("delete", "del"),
+        new("insert", "ins"),
+        new("pgup", "pageup"),
+        new("pgdn", "pagedown"),
+        new("pgdown", "pagedown"),
+        new("arrowup", "up"),
+        new("arrowdown", "down"),
+        new("arrowleft", "left"),
+        new("arrowright", "right"),
+    ], StringComparer.OrdinalIgnoreCase);
 
     private static string Normalize(string name)
     {
@@ -233,13 +239,13 @@ public static class KeyNames
     }
 
     /// <summary>Resolves a key name to its Linux evdev key code.</summary>
-    public static bool TryGetLinux(string name, out int keyCode)
+    public static bool TryGetLinux(string name, out ushort keyCode)
     {
         return Linux.TryGetValue(Normalize(name), out keyCode);
     }
 
     /// <summary>Resolves a key name to its Windows virtual-key code (VK_*) and extended flag.</summary>
-    public static bool TryGetWindows(string name, out int virtualKey, out bool extended)
+    public static bool TryGetWindows(string name, out ushort virtualKey, out bool extended)
     {
         if (Windows.TryGetValue(Normalize(name), out var entry))
         {
@@ -269,20 +275,8 @@ public static class KeyNames
     }
 
     /// <summary>All Linux evdev key codes used by the name table (for uinput keybit registration).</summary>
-    public static IEnumerable<int> AllLinuxKeyCodes => Linux.Values;
-
-    // Reverse of the Linux table (code -> canonical name); codes are unique so this is 1:1.
-    private static readonly Lazy<Dictionary<int, string>> LinuxReverse = new(() =>
-    {
-        var map = new Dictionary<int, string>();
-        foreach (var pair in Linux)
-            map.TryAdd(pair.Value, pair.Key);
-        return map;
-    });
+    public static ImmutableArray<ushort> AllLinuxKeyCodes => Linux.Values;
 
     /// <summary>Resolves a Linux evdev key code back to its canonical key name (for recording).</summary>
-    public static bool TryGetLinuxName(int keyCode, out string name)
-    {
-        return LinuxReverse.Value.TryGetValue(keyCode, out name);
-    }
+    public static bool TryGetLinuxName(ushort keyCode, out string name) => LinuxReverse.TryGetValue(keyCode, out name);
 }

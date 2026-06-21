@@ -22,7 +22,7 @@ public sealed class InterceptionKeyboard : InterceptionBase, IUInputKeyboard
 
     protected override int DeviceType => InterceptionDeviceType.Keyboard;
 
-    public void SendKey(int keyCode)
+    public void SendKey(ushort keyCode)
     {
         // keyCode is a PS/2 set-1 scan code (non-extended) for interface compatibility.
         lock (_lock)
