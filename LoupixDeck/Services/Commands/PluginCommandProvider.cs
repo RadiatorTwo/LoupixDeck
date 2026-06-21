@@ -82,9 +82,12 @@ public class PluginCommandProvider : ICommandProvider
 
         var isDisplay = false;
         var isImageDisplay = false;
+        var isAnimatedImage = false;
+        var animatedFps = 0;
         var interval = TimeSpan.Zero;
         Func<string[], string> getText = null;
         Func<string[], IRenderCanvas, bool> renderImage = null;
+        Func<string[], IRenderCanvas, AnimationFrameContext, AnimationFrameInfo> renderAnimatedFrame = null;
 
         CommandContext DisplayContext(string[] parameters) => new()
         {
@@ -94,10 +97,18 @@ public class PluginCommandProvider : ICommandProvider
             Host = host
         };
 
-        // Prefer the image path when a command implements both: it draws the whole button onto
-        // the host canvas (without setting IsDisplayCommand, so the text-only path does not also
-        // fire on this command).
-        if (command is IDisplayImageCommand imageCommand)
+        // Classification precedence: animated → image → text. A command implementing several picks
+        // the richest path only, so exactly one render loop drives it.
+        // The animated path is driven by the central scheduler (button-animation engine), not the
+        // UpdateInterval poll, so it sets neither IsDisplayCommand nor IsImageDisplayCommand.
+        if (command is IAnimatedDisplayCommand animatedCommand)
+        {
+            isAnimatedImage = true;
+            animatedFps = animatedCommand.TargetFps;
+            renderAnimatedFrame = (parameters, canvas, frame) =>
+                animatedCommand.RenderAnimatedFrame(DisplayContext(parameters), canvas, frame);
+        }
+        else if (command is IDisplayImageCommand imageCommand)
         {
             isImageDisplay = true;
             interval = imageCommand.UpdateInterval;
@@ -118,10 +129,13 @@ public class PluginCommandProvider : ICommandProvider
             HiddenFromMenu = descriptor.HiddenFromMenu,
             IsDisplayCommand = isDisplay,
             IsImageDisplayCommand = isImageDisplay,
+            IsAnimatedImageCommand = isAnimatedImage,
+            AnimatedTargetFps = animatedFps,
             UpdateInterval = interval,
             Execute = execute,
             GetText = getText,
-            RenderImage = renderImage
+            RenderImage = renderImage,
+            RenderAnimatedFrame = renderAnimatedFrame
         };
     }
 }

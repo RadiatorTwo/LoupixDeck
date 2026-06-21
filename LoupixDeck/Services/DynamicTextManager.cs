@@ -373,7 +373,11 @@ public class DynamicTextManager : IDynamicTextManager, IDisposable
 
         var isText = command.IsDisplayCommand && command.GetText != null;
         var isImage = command.IsImageDisplayCommand && command.RenderImage != null;
-        if (!isText && !isImage)
+        // Animated commands are driven by the button-animation engine, not this poll, but they own a
+        // plugin layer too — treat them as a valid display key so the orphan sweep below keeps their
+        // layer alive instead of deleting it on every rescan.
+        var isAnimated = command.IsAnimatedImageCommand && command.RenderAnimatedFrame != null;
+        if (!isText && !isImage && !isAnimated)
             return null;
 
         return PluginLayerKey.For(button.Command);

@@ -79,6 +79,7 @@ public class MainWindowViewModel : ViewModelBase
     public Avalonia.Media.Imaging.Bitmap RotaryKnobImage => Utils.BitmapHelper.RotaryKnobImage;
 
     private readonly IDynamicTextManager _dynamicTextManager;
+    private readonly Services.Animation.IButtonAnimationManager _buttonAnimationManager;
     private readonly IExclusiveModeService _exclusiveMode;
 
     private bool _isExclusiveModeActive;
@@ -108,6 +109,7 @@ public class MainWindowViewModel : ViewModelBase
         IDialogService dialogService,
         ICommandRegistry commandRegistry,
         IDynamicTextManager dynamicTextManager,
+        Services.Animation.IButtonAnimationManager buttonAnimationManager,
         ISystemPowerService powerService,
         IExclusiveModeService exclusiveMode,
         IAppSwitchingService appSwitching,
@@ -122,6 +124,7 @@ public class MainWindowViewModel : ViewModelBase
             : $"{deviceInfo.Name} · {ShortSerial(resolved.Serial)}";
         ScopeKey = resolved?.ScopeKey ?? deviceInfo.Slug;
         _dynamicTextManager = dynamicTextManager;
+        _buttonAnimationManager = buttonAnimationManager;
         _exclusiveMode = exclusiveMode;
 
         commandRegistry.Initialize();
@@ -365,6 +368,7 @@ public class MainWindowViewModel : ViewModelBase
 
         LoupedeckController.SaveConfig();
         _dynamicTextManager.Rescan();
+        _buttonAnimationManager.Rescan();
     }
 
     /// <summary>

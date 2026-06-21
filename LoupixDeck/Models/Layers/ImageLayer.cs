@@ -16,6 +16,7 @@ public class ImageLayer : LayerBase
     private const double DeviceBaseSize = 90.0;
 
     private string _assetRelativePath;
+    private string _animatedAssetPath;
     private SerializableRect _sourceRect = SerializableRect.Empty;
     private SKBitmap _cachedImage;
 
@@ -30,6 +31,45 @@ public class ImageLayer : LayerBase
                 OnPropertyChanged(nameof(CachedImage));
             }
         }
+    }
+
+    /// <summary>
+    /// Relative asset path of an animated source (GIF / animated WebP, or a video transcoded once at
+    /// import) for this layer. <c>null</c> ⇒ a plain static image — so configs written before issue
+    /// #121 deserialize unchanged and keep behaving exactly as before. When set, the central
+    /// animation engine drives the layer by swapping the current frame into <see cref="CachedImage"/>,
+    /// which the existing image draw path renders without any further change.
+    /// </summary>
+    public string AnimatedAssetPath
+    {
+        get => _animatedAssetPath;
+        set
+        {
+            if (SetField(ref _animatedAssetPath, value))
+            {
+                // The frame source changed: drop the cached frame and let the animation engine
+                // (or the editor preview) repopulate it.
+                _cachedImage = null;
+                OnPropertyChanged(nameof(CachedImage));
+                OnPropertyChanged(nameof(IsAnimated));
+            }
+        }
+    }
+
+    /// <summary>True when this layer is driven by an animated source rather than a static image.</summary>
+    [JsonIgnore]
+    public bool IsAnimated => !string.IsNullOrEmpty(_animatedAssetPath);
+
+    /// <summary>
+    /// Swaps the currently displayed animation frame into the backing field WITHOUT raising
+    /// <see cref="LayerBase.OnPropertyChanged"/>. The animation engine renders and pushes the button
+    /// itself, so firing the change here would double-push and churn the editor binding at frame rate.
+    /// Frames are owned by <see cref="IAnimatedImageCache"/> (shared, reused across loops), so the
+    /// layer only references them and never disposes them.
+    /// </summary>
+    public void SetAnimationFrame(SKBitmap frame)
+    {
+        _cachedImage = frame;
     }
 
     /// <summary>

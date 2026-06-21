@@ -1849,8 +1849,15 @@ public partial class LoupedeckLiveSController(
                 if (button?.Layers == null) continue;
                 foreach (var layer in button.Layers)
                 {
-                    if (layer is ImageLayer img && !string.IsNullOrWhiteSpace(img.AssetRelativePath))
-                        yield return img.AssetRelativePath;
+                    if (layer is ImageLayer img)
+                    {
+                        if (!string.IsNullOrWhiteSpace(img.AssetRelativePath))
+                            yield return img.AssetRelativePath;
+                        // The animated source (GIF/transcoded clip) lives in the asset folder too —
+                        // keep it referenced so save-time cleanup never deletes it (issue #121).
+                        if (!string.IsNullOrWhiteSpace(img.AnimatedAssetPath))
+                            yield return img.AnimatedAssetPath;
+                    }
                 }
             }
         }
