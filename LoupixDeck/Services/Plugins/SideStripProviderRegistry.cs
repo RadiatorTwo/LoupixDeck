@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using LoupixDeck.PluginSdk;
 
 namespace LoupixDeck.Services.Plugins;
@@ -25,19 +26,14 @@ public interface ISideStripProviderRegistry
 }
 
 /// <inheritdoc cref="ISideStripProviderRegistry"/>
-public sealed class SideStripProviderRegistry : ISideStripProviderRegistry
+public sealed class SideStripProviderRegistry(IPluginManager pluginManager) : ISideStripProviderRegistry
 {
-    private readonly IPluginManager _pluginManager;
-
     // Copy-on-write snapshot, mirroring PluginManager: readers always see a
     // consistent, immutable list/map, never a torn mid-rebuild state.
-    private volatile IReadOnlyList<ISideStripProvider> _providers = Array.Empty<ISideStripProvider>();
-    private volatile Dictionary<string, ISideStripProvider> _byId =
-        new(StringComparer.OrdinalIgnoreCase);
+    private ImmutableArray<ISideStripProvider> providers = [];
+    private ImmutableDictionary<string, ISideStripProvider> _byId = ImmutableDictionary.Create<string, ISideStripProvider>(StringComparer.OrdinalIgnoreCase);
 
-    public SideStripProviderRegistry(IPluginManager pluginManager) => _pluginManager = pluginManager;
-
-    public IReadOnlyList<ISideStripProvider> Providers => _providers;
+    public IReadOnlyList<ISideStripProvider> Providers => providers;
 
     public event Action ProvidersChanged;
 
@@ -46,10 +42,10 @@ public sealed class SideStripProviderRegistry : ISideStripProviderRegistry
 
     public void Rebuild()
     {
-        var list = new List<ISideStripProvider>();
-        var map = new Dictionary<string, ISideStripProvider>(StringComparer.OrdinalIgnoreCase);
+        var list = ImmutableArray.CreateBuilder<ISideStripProvider>();
+        var map = ImmutableDictionary.CreateBuilder<string, ISideStripProvider>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var plugin in _pluginManager.Plugins.Where(p => p.Status == PluginLoadStatus.Loaded))
+        foreach (var plugin in pluginManager.Plugins.Where(p => p.Status == PluginLoadStatus.Loaded))
         {
             foreach (var provider in plugin.SideStripProviders)
             {
@@ -67,8 +63,8 @@ public sealed class SideStripProviderRegistry : ISideStripProviderRegistry
             }
         }
 
-        _providers = list;
-        _byId = map;
+        providers = list.DrainToImmutable();
+        _byId = map.ToImmutable();
         ProvidersChanged?.Invoke();
     }
 }

@@ -28,49 +28,24 @@ public interface IPluginReloadService
 }
 
 /// <inheritdoc cref="IPluginReloadService"/>
-public sealed class PluginReloadService : IPluginReloadService
+public sealed class PluginReloadService(
+    IPluginManager pluginManager,
+    ICommandRegistry commandRegistry,
+    ISideStripProviderRegistry sideStripRegistry,
+    IDynamicTextManager dynamicText,
+    Animation.IButtonAnimationManager buttonAnimation,
+    IExclusiveModeService exclusiveMode,
+    IFolderNavigationService folderNav,
+    IDeviceController deviceController,
+    IPluginInstaller installer,
+    Models.LoupedeckConfig config) : IPluginReloadService
 {
-    private readonly IPluginManager _pluginManager;
-    private readonly ICommandRegistry _commandRegistry;
-    private readonly ISideStripProviderRegistry _sideStripRegistry;
-    private readonly IDynamicTextManager _dynamicText;
-    private readonly Animation.IButtonAnimationManager _buttonAnimation;
-    private readonly IExclusiveModeService _exclusiveMode;
-    private readonly IFolderNavigationService _folderNav;
-    private readonly IDeviceController _deviceController;
-    private readonly IPluginInstaller _installer;
-    private readonly Models.LoupedeckConfig _config;
-
     private readonly SemaphoreSlim _gate = new(1, 1);
-
-    public PluginReloadService(
-        IPluginManager pluginManager,
-        ICommandRegistry commandRegistry,
-        ISideStripProviderRegistry sideStripRegistry,
-        IDynamicTextManager dynamicText,
-        Animation.IButtonAnimationManager buttonAnimation,
-        IExclusiveModeService exclusiveMode,
-        IFolderNavigationService folderNav,
-        IDeviceController deviceController,
-        IPluginInstaller installer,
-        Models.LoupedeckConfig config)
-    {
-        _pluginManager = pluginManager;
-        _commandRegistry = commandRegistry;
-        _sideStripRegistry = sideStripRegistry;
-        _dynamicText = dynamicText;
-        _buttonAnimation = buttonAnimation;
-        _exclusiveMode = exclusiveMode;
-        _folderNav = folderNav;
-        _deviceController = deviceController;
-        _installer = installer;
-        _config = config;
-    }
 
     public Task<PluginActionResult> EnableAsync(string pluginId) => RunAsync(async () =>
     {
         EnsureEnabled(pluginId); // gate in LoadOne reads EnabledPlugins live
-        var loaded = _pluginManager.LoadPlugin(pluginId);
+        var loaded = pluginManager.LoadPlugin(pluginId);
         await RefreshAsync();
 
         if (loaded == null)
@@ -94,7 +69,7 @@ public sealed class PluginReloadService : IPluginReloadService
         // the list and remains re-enableable, instead of vanishing.
         TearDownOwnership(plugin);
         RemoveEnabled(pluginId);
-        _pluginManager.LoadPlugin(pluginId);
+        pluginManager.LoadPlugin(pluginId);
         await RefreshAsync();
 
         return PluginActionResult.Ok($"Disabled '{name}'.", requiresRestart: false, pluginId: pluginId);
@@ -103,7 +78,7 @@ public sealed class PluginReloadService : IPluginReloadService
     public Task<PluginActionResult> InstallAsync(string zipPath) => RunAsync(async () =>
     {
         // File work (extract/validate/copy/stage) happens off the UI thread inside.
-        var result = await _installer.InstallFromZipAsync(zipPath);
+        var result = await installer.InstallFromZipAsync(zipPath);
         if (!result.Success)
             return result;
 
@@ -115,7 +90,7 @@ public sealed class PluginReloadService : IPluginReloadService
         if (existing is { Status: PluginLoadStatus.Loaded })
         {
             TearDownOwnership(existing);
-            _pluginManager.UnloadPlugin(id);
+            pluginManager.UnloadPlugin(id);
         }
 
         if (result.RequiresRestart)
@@ -125,7 +100,7 @@ public sealed class PluginReloadService : IPluginReloadService
             return result;
         }
 
-        var loaded = _pluginManager.LoadPlugin(id);
+        var loaded = pluginManager.LoadPlugin(id);
         await RefreshAsync();
 
         var name = loaded != null ? Name(loaded, id) : id;
@@ -144,20 +119,20 @@ public sealed class PluginReloadService : IPluginReloadService
         // Tear down + unload live so commands stop now.
         TearDownOwnership(plugin);
         if (!string.IsNullOrWhiteSpace(id))
-            _pluginManager.UnloadPlugin(id);
+            pluginManager.UnloadPlugin(id);
 
         // Drop every remaining reference into the old context — the registry's
         // RegisteredCommands and the dynamic-text entries — BEFORE nudging the GC,
         // otherwise the assembly stays rooted and the folder can't be deleted live.
-        _commandRegistry.Initialize();
-        _dynamicText.Rescan();
-        _buttonAnimation.Rescan();
+        commandRegistry.Initialize();
+        dynamicText.Rescan();
+        buttonAnimation.Rescan();
         TryCollectUnloaded();
 
         // Now attempt the delete; a cleanly-collected plugin is removed live, a
         // still-locked one falls back to the .pending-removals marker (next startup).
-        var result = _installer.Remove(plugin);
-        await _deviceController.RedrawCurrentTouchPage();
+        var result = installer.Remove(plugin);
+        await deviceController.RedrawCurrentTouchPage();
         return result;
     });
 
@@ -168,12 +143,12 @@ public sealed class PluginReloadService : IPluginReloadService
     /// and orphaned bindings fall back to segmented).</summary>
     private async Task RefreshAsync()
     {
-        _commandRegistry.Initialize();
-        _sideStripRegistry.Rebuild();
-        _dynamicText.Rescan();
-        _buttonAnimation.Rescan();
-        await _deviceController.RedrawCurrentTouchPage();
-        await _deviceController.RefreshSideStrips();
+        commandRegistry.Initialize();
+        sideStripRegistry.Rebuild();
+        dynamicText.Rescan();
+        buttonAnimation.Rescan();
+        await deviceController.RedrawCurrentTouchPage();
+        await deviceController.RefreshSideStrips();
     }
 
     /// <summary>
@@ -186,16 +161,16 @@ public sealed class PluginReloadService : IPluginReloadService
         if (plugin == null)
             return;
 
-        var current = _exclusiveMode.Current;
+        var current = exclusiveMode.Current;
         if (current != null && Owns(plugin, current))
-            _exclusiveMode.Exit(current);
+            exclusiveMode.Exit(current);
 
         // A live side-strip provider attached to a strip roots this plugin's load
         // context. Detach all (cheap; RefreshAsync re-attaches the still-loaded ones).
-        _deviceController.DetachAllSideStripProviders();
+        deviceController.DetachAllSideStripProviders();
 
-        if (_folderNav.IsActive)
-            _folderNav.ExitAll().GetAwaiter().GetResult(); // completes synchronously
+        if (folderNav.IsActive)
+            folderNav.ExitAll().GetAwaiter().GetResult(); // completes synchronously
     }
 
     /// <summary>
@@ -221,7 +196,7 @@ public sealed class PluginReloadService : IPluginReloadService
     }
 
     private LoadedPlugin Find(string id) =>
-        _pluginManager.Plugins.FirstOrDefault(
+        pluginManager.Plugins.FirstOrDefault(
             p => string.Equals(p.Manifest?.Id, id, StringComparison.OrdinalIgnoreCase));
 
     private void EnsureEnabled(string id)
@@ -229,9 +204,9 @@ public sealed class PluginReloadService : IPluginReloadService
         if (string.IsNullOrWhiteSpace(id))
             return;
 
-        _config.EnabledPlugins ??= [];
-        if (!_config.EnabledPlugins.Any(e => string.Equals(e, id, StringComparison.OrdinalIgnoreCase)))
-            _config.EnabledPlugins.Add(id);
+        config.EnabledPlugins ??= [];
+        if (!config.EnabledPlugins.Any(e => string.Equals(e, id, StringComparison.OrdinalIgnoreCase)))
+            config.EnabledPlugins.Add(id);
     }
 
     private void RemoveEnabled(string id)
@@ -239,7 +214,7 @@ public sealed class PluginReloadService : IPluginReloadService
         if (string.IsNullOrWhiteSpace(id))
             return;
 
-        _config.EnabledPlugins?.RemoveAll(e => string.Equals(e, id, StringComparison.OrdinalIgnoreCase));
+        config.EnabledPlugins?.RemoveAll(e => string.Equals(e, id, StringComparison.OrdinalIgnoreCase));
     }
 
     private static string Name(LoadedPlugin plugin, string fallbackId) =>

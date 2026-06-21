@@ -10,25 +10,18 @@ namespace LoupixDeck.Services.Commands;
 /// a specialized contributor (OBS, Cooler Control, Elgato, sensors) are skipped
 /// here so they are not emitted twice.
 /// </summary>
-public class CommandGroupMenuContributor : IMenuContributor
+public class CommandGroupMenuContributor(ICommandRegistry registry) : IMenuContributor
 {
     // Groups owned by a dedicated menu contributor (a plugin's IMenuContributor)
     // are skipped here so they are not also emitted as a plain command list.
     // Currently empty — all such integrations have moved into plugins.
     private static readonly HashSet<string> SpecializedGroups = new(StringComparer.Ordinal);
 
-    private readonly ICommandRegistry _registry;
-
-    public CommandGroupMenuContributor(ICommandRegistry registry)
-    {
-        _registry = registry;
-    }
-
     public Task<IReadOnlyList<MenuEntry>> Contribute(ButtonTargets target)
     {
         var result = new List<MenuEntry>();
 
-        var groups = _registry.GetAll()
+        var groups = registry.GetAll()
             .Where(c => c.Info != null && !string.IsNullOrEmpty(c.Info.Group))
             .Where(c => !SpecializedGroups.Contains(c.Info.Group))
             .Where(c => !c.HiddenFromMenu)

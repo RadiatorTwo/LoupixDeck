@@ -10,7 +10,7 @@ namespace LoupixDeck.Utils;
 /// </summary>
 public static class FfmpegDetector
 {
-    private static readonly object Gate = new();
+    private static readonly Lock Gate = new();
     private static bool? _available;
 
     /// <summary>True when <c>ffmpeg -version</c> can be launched and exits cleanly.</summary>

@@ -15,36 +15,18 @@ namespace LoupixDeck.Services.AppSwitching;
 /// Switching is skipped while another owner holds the screen (device off / folder /
 /// exclusive mode) — the same guard trio the controller uses for repaints.
 /// </summary>
-public sealed class AppSwitchingService : IAppSwitchingService
+public sealed class AppSwitchingService(
+    IActiveWindowMonitor monitor,
+    LoupedeckConfig config,
+    IPageManager pageManager,
+    IExclusiveModeService exclusiveMode,
+    IFolderNavigationService folderNav,
+    IDeviceController deviceController) : IAppSwitchingService
 {
     private const int DebounceMs = 200;
-
-    private readonly IActiveWindowMonitor _monitor;
-    private readonly LoupedeckConfig _config;
-    private readonly IPageManager _pageManager;
-    private readonly IExclusiveModeService _exclusiveMode;
-    private readonly IFolderNavigationService _folderNav;
-    private readonly IDeviceController _deviceController;
-
     private DispatcherTimer _debounceTimer;
     private ActiveWindowInfo _pending;
     private bool _started;
-
-    public AppSwitchingService(
-        IActiveWindowMonitor monitor,
-        LoupedeckConfig config,
-        IPageManager pageManager,
-        IExclusiveModeService exclusiveMode,
-        IFolderNavigationService folderNav,
-        IDeviceController deviceController)
-    {
-        _monitor = monitor;
-        _config = config;
-        _pageManager = pageManager;
-        _exclusiveMode = exclusiveMode;
-        _folderNav = folderNav;
-        _deviceController = deviceController;
-    }
 
     public void Start()
     {
@@ -54,8 +36,8 @@ public sealed class AppSwitchingService : IAppSwitchingService
         _debounceTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(DebounceMs) };
         _debounceTimer.Tick += OnDebounceTick;
 
-        _monitor.ActiveWindowChanged += OnActiveWindowChanged;
-        _monitor.StartMonitoring();
+        monitor.ActiveWindowChanged += OnActiveWindowChanged;
+        monitor.StartMonitoring();
     }
 
     private void OnActiveWindowChanged(object sender, ActiveWindowInfo info)
@@ -82,15 +64,15 @@ public sealed class AppSwitchingService : IAppSwitchingService
     {
         try
         {
-            if (!_config.AppSwitchingEnabled) return;
+            if (!config.AppSwitchingEnabled) return;
 
             // Skip while something else owns the screen — not re-evaluated on exit
             // (documented limitation; re-eval would be a later phase).
-            if (_exclusiveMode.IsActive || _folderNav.IsActive || _deviceController.IsDeviceOff)
+            if (exclusiveMode.IsActive || folderNav.IsActive || deviceController.IsDeviceOff)
                 return;
 
             // Startup race: pages may not be loaded yet.
-            if (_pageManager.TouchButtonPages.Count == 0) return;
+            if (pageManager.TouchButtonPages.Count == 0) return;
 
             var match = Match(info);
 
@@ -104,16 +86,16 @@ public sealed class AppSwitchingService : IAppSwitchingService
             else
             {
                 // No rule matched — use the fallback page if configured, else do nothing.
-                touchIndex = _config.AppSwitchingFallbackTouchPageIndex;
+                touchIndex = config.AppSwitchingFallbackTouchPageIndex;
             }
 
-            if (touchIndex is { } ti && ti >= 0 && ti < _pageManager.TouchButtonPages.Count)
-                await _pageManager.ApplyTouchPage(ti);
+            if (touchIndex is { } ti && ti >= 0 && ti < pageManager.TouchButtonPages.Count)
+                await pageManager.ApplyTouchPage(ti);
 
             // ApplyTouchPage/ApplyRotaryPage are no-ops when the index already matches,
             // so a re-focus of the same app does not flicker the deck.
-            if (rotaryIndex is { } ri && ri >= 0 && ri < _pageManager.RotaryButtonPages.Count)
-                _pageManager.ApplyRotaryPage(ri);
+            if (rotaryIndex is { } ri && ri >= 0 && ri < pageManager.RotaryButtonPages.Count)
+                pageManager.ApplyRotaryPage(ri);
         }
         catch (Exception ex)
         {
@@ -128,7 +110,7 @@ public sealed class AppSwitchingService : IAppSwitchingService
         var title = info.Title ?? string.Empty;
 
         // First match wins — rule order is priority.
-        foreach (var rule in _config.AppPageBindings)
+        foreach (var rule in config.AppPageBindings)
         {
             var ruleProcess = Normalize(rule.ProcessName);
             if (string.IsNullOrEmpty(ruleProcess)) continue;

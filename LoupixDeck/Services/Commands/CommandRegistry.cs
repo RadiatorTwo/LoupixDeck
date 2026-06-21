@@ -3,10 +3,8 @@ using LoupixDeck.PluginSdk;
 namespace LoupixDeck.Services.Commands;
 
 /// <inheritdoc cref="ICommandRegistry"/>
-public class CommandRegistry : ICommandRegistry
+public class CommandRegistry(IEnumerable<ICommandProvider> providers) : ICommandRegistry
 {
-    private readonly IEnumerable<ICommandProvider> _providers;
-
     // Immutable, copy-on-write map. Initialize() builds a fresh dictionary and
     // publishes it via a single volatile reference swap, so a runtime rebuild
     // (plugin hot-reload) can never tear a read on a device input thread —
@@ -15,16 +13,11 @@ public class CommandRegistry : ICommandRegistry
     private volatile IReadOnlyDictionary<string, RegisteredCommand> _commands =
         new Dictionary<string, RegisteredCommand>(StringComparer.Ordinal);
 
-    public CommandRegistry(IEnumerable<ICommandProvider> providers)
-    {
-        _providers = providers;
-    }
-
     public void Initialize()
     {
         var next = new Dictionary<string, RegisteredCommand>(StringComparer.Ordinal);
 
-        foreach (var provider in _providers)
+        foreach (var provider in providers)
         {
             List<RegisteredCommand> commands;
             try

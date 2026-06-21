@@ -15,27 +15,18 @@ namespace LoupixDeck.Utils;
 /// stack, and clipped to the region. The caller must already hold <see cref="SkiaRenderGate"/>.Sync;
 /// this type does not re-lock.</para>
 /// </summary>
-internal sealed class SkiaRenderCanvas : IRenderCanvas
+internal sealed class SkiaRenderCanvas(SKCanvas canvas, int width, int height, float originX = 0, float originY = 0) : IRenderCanvas
 {
-    private readonly SKCanvas _canvas;
-    private readonly float _originX;
-    private readonly float _originY;
+    private readonly SKCanvas canvas = canvas;
+    private readonly float originX = originX;
+    private readonly float originY = originY;
 
     // Plugin-controlled transform applied inside the region (after origin + clip).
     private SKMatrix _transform = SKMatrix.CreateIdentity();
     private readonly Stack<SKMatrix> _transformStack = new();
 
-    public SkiaRenderCanvas(SKCanvas canvas, int width, int height, float originX = 0, float originY = 0)
-    {
-        _canvas = canvas;
-        Width = width;
-        Height = height;
-        _originX = originX;
-        _originY = originY;
-    }
-
-    public int Width { get; }
-    public int Height { get; }
+    public int Width { get; } = width;
+    public int Height { get; } = height;
 
     private static SKColor ToSk(PluginColor c) => new(c.R, c.G, c.B, c.A);
 
@@ -44,18 +35,18 @@ internal sealed class SkiaRenderCanvas : IRenderCanvas
     /// strip canvas is untouched.</summary>
     private void InRegion(Action draw)
     {
-        var saved = _canvas.Save();
+        var saved = canvas.Save();
         try
         {
-            _canvas.Translate(_originX, _originY);
-            _canvas.ClipRect(new SKRect(0, 0, Width, Height));
+            canvas.Translate(originX, originY);
+            canvas.ClipRect(new SKRect(0, 0, Width, Height));
             var t = _transform;
-            _canvas.Concat(in t);
+            canvas.Concat(in t);
             draw();
         }
         finally
         {
-            _canvas.RestoreToCount(saved);
+            canvas.RestoreToCount(saved);
         }
     }
 
@@ -63,44 +54,44 @@ internal sealed class SkiaRenderCanvas : IRenderCanvas
         InRegion(() =>
         {
             using var paint = new SKPaint { Color = ToSk(color), Style = SKPaintStyle.Fill, IsAntialias = false };
-            _canvas.DrawRect(new SKRect(0, 0, Width, Height), paint);
+            canvas.DrawRect(new SKRect(0, 0, Width, Height), paint);
         });
 
     // ── Rectangles ──────────────────────────────────────────────────────────
     public void FillRectangle(int x, int y, int width, int height, PluginColor color) =>
-        InRegion(() => { using var p = Fill(color); _canvas.DrawRect(new SKRect(x, y, x + width, y + height), p); });
+        InRegion(() => { using var p = Fill(color); canvas.DrawRect(new SKRect(x, y, x + width, y + height), p); });
 
     public void DrawRectangle(int x, int y, int width, int height, int strokeWidth, PluginColor color) =>
-        InRegion(() => { using var p = Stroke(color, strokeWidth); _canvas.DrawRect(new SKRect(x, y, x + width, y + height), p); });
+        InRegion(() => { using var p = Stroke(color, strokeWidth); canvas.DrawRect(new SKRect(x, y, x + width, y + height), p); });
 
     public void FillRoundedRectangle(int x, int y, int width, int height, int radius, PluginColor color) =>
-        InRegion(() => { using var p = Fill(color); _canvas.DrawRoundRect(new SKRect(x, y, x + width, y + height), radius, radius, p); });
+        InRegion(() => { using var p = Fill(color); canvas.DrawRoundRect(new SKRect(x, y, x + width, y + height), radius, radius, p); });
 
     public void DrawRoundedRectangle(int x, int y, int width, int height, int radius, int strokeWidth, PluginColor color) =>
-        InRegion(() => { using var p = Stroke(color, strokeWidth); _canvas.DrawRoundRect(new SKRect(x, y, x + width, y + height), radius, radius, p); });
+        InRegion(() => { using var p = Stroke(color, strokeWidth); canvas.DrawRoundRect(new SKRect(x, y, x + width, y + height), radius, radius, p); });
 
     // ── Circles / ellipses / arcs ───────────────────────────────────────────
     public void FillCircle(int centerX, int centerY, int radius, PluginColor color) =>
-        InRegion(() => { using var p = Fill(color); _canvas.DrawCircle(centerX, centerY, radius, p); });
+        InRegion(() => { using var p = Fill(color); canvas.DrawCircle(centerX, centerY, radius, p); });
 
     public void DrawCircle(int centerX, int centerY, int radius, int strokeWidth, PluginColor color) =>
-        InRegion(() => { using var p = Stroke(color, strokeWidth); _canvas.DrawCircle(centerX, centerY, radius, p); });
+        InRegion(() => { using var p = Stroke(color, strokeWidth); canvas.DrawCircle(centerX, centerY, radius, p); });
 
     public void FillEllipse(int x, int y, int width, int height, PluginColor color) =>
-        InRegion(() => { using var p = Fill(color); _canvas.DrawOval(new SKRect(x, y, x + width, y + height), p); });
+        InRegion(() => { using var p = Fill(color); canvas.DrawOval(new SKRect(x, y, x + width, y + height), p); });
 
     public void DrawEllipse(int x, int y, int width, int height, int strokeWidth, PluginColor color) =>
-        InRegion(() => { using var p = Stroke(color, strokeWidth); _canvas.DrawOval(new SKRect(x, y, x + width, y + height), p); });
+        InRegion(() => { using var p = Stroke(color, strokeWidth); canvas.DrawOval(new SKRect(x, y, x + width, y + height), p); });
 
     public void DrawArc(int x, int y, int width, int height, float startAngle, float sweepAngle, int strokeWidth, PluginColor color) =>
-        InRegion(() => { using var p = Stroke(color, strokeWidth); _canvas.DrawArc(new SKRect(x, y, x + width, y + height), startAngle, sweepAngle, false, p); });
+        InRegion(() => { using var p = Stroke(color, strokeWidth); canvas.DrawArc(new SKRect(x, y, x + width, y + height), startAngle, sweepAngle, false, p); });
 
     public void FillArc(int x, int y, int width, int height, float startAngle, float sweepAngle, PluginColor color) =>
-        InRegion(() => { using var p = Fill(color); _canvas.DrawArc(new SKRect(x, y, x + width, y + height), startAngle, sweepAngle, true, p); });
+        InRegion(() => { using var p = Fill(color); canvas.DrawArc(new SKRect(x, y, x + width, y + height), startAngle, sweepAngle, true, p); });
 
     // ── Lines ───────────────────────────────────────────────────────────────
     public void DrawLine(int x1, int y1, int x2, int y2, int strokeWidth, PluginColor color) =>
-        InRegion(() => { using var p = Stroke(color, strokeWidth); _canvas.DrawLine(x1, y1, x2, y2, p); });
+        InRegion(() => { using var p = Stroke(color, strokeWidth); canvas.DrawLine(x1, y1, x2, y2, p); });
 
     // ── Text ────────────────────────────────────────────────────────────────
     public void DrawText(string text, int x, int y, int width, int height, PluginColor color,
@@ -117,7 +108,7 @@ internal sealed class SkiaRenderCanvas : IRenderCanvas
     {
         if (string.IsNullOrEmpty(text)) return;
         InRegion(() => BitmapHelper.DrawTextAligned(
-            _canvas, text, ToSk(color), fontSize, (int)hAlign, (int)vAlign,
+            canvas, text, ToSk(color), fontSize, (int)hAlign, (int)vAlign,
             posX: x, posY: y, imageWidth: width, imageHeight: height,
             bold: bold, italic: italic, outlined: outlined, outlineColor: ToSk(outlineColor)));
     }
@@ -128,11 +119,11 @@ internal sealed class SkiaRenderCanvas : IRenderCanvas
     // ── Symbols ─────────────────────────────────────────────────────────────
     public void DrawSymbol(string symbolId, int x, int y, int width, int height, PluginColor tint) =>
         InRegion(() => BitmapHelper.DrawSymbolGlyph(
-            _canvas, symbolId, new SKRect(x, y, x + width, y + height), ToSk(tint)));
+            canvas, symbolId, new SKRect(x, y, x + width, y + height), ToSk(tint)));
 
     public void DrawSymbol(string symbolId, int x, int y, int width, int height, SymbolStyle style) =>
         InRegion(() => BitmapHelper.DrawSymbolGlyph(
-            _canvas, symbolId, new SKRect(x, y, x + width, y + height), ToSk(style.Tint),
+            canvas, symbolId, new SKRect(x, y, x + width, y + height), ToSk(style.Tint),
             rotation: style.Rotation,
             outlined: style.Outlined, outlineColor: ToSk(style.OutlineColor), outlineWidth: style.OutlineWidth,
             shadow: style.Shadow, shadowColor: ToSk(style.ShadowColor), shadowBlur: style.ShadowBlur,
@@ -161,14 +152,14 @@ internal sealed class SkiaRenderCanvas : IRenderCanvas
             var hasTint = tint.A > 0 && (tint.R != 255 || tint.G != 255 || tint.B != 255 || tint.A != 255);
             if (opacity == 255 && !hasTint)
             {
-                _canvas.DrawBitmap(decoded, new SKRect(left, top, left + dw, top + dh));
+                canvas.DrawBitmap(decoded, new SKRect(left, top, left + dw, top + dh));
                 return;
             }
 
             using var paint = new SKPaint { Color = SKColors.White.WithAlpha(opacity), IsAntialias = true };
             if (hasTint)
                 paint.ColorFilter = SKColorFilter.CreateBlendMode(ToSk(tint), SKBlendMode.Modulate);
-            _canvas.DrawBitmap(decoded, new SKRect(left, top, left + dw, top + dh), paint);
+            canvas.DrawBitmap(decoded, new SKRect(left, top, left + dw, top + dh), paint);
         });
     }
 

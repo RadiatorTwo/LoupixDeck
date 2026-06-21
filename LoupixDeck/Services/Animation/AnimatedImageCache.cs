@@ -20,16 +20,10 @@ namespace LoupixDeck.Services.Animation;
 /// is reclaimed on restart. Re-importing a clip yields a new content-addressed key, so a replaced
 /// animation lingers until restart — an acceptable trade for eliminating the crash.
 /// </remarks>
-public sealed class AnimatedImageCache : IAnimatedImageCache, IDisposable
+public sealed class AnimatedImageCache(IAssetService assetService) : IAnimatedImageCache, IDisposable
 {
-    private readonly IAssetService _assetService;
     private readonly ConcurrentDictionary<string, DecodedAnimation> _entries =
         new(StringComparer.OrdinalIgnoreCase);
-
-    public AnimatedImageCache(IAssetService assetService)
-    {
-        _assetService = assetService;
-    }
 
     public DecodedAnimation Get(string relativePath)
     {
@@ -40,7 +34,7 @@ public sealed class AnimatedImageCache : IAnimatedImageCache, IDisposable
 
         // Decode outside any lock — it is CPU-heavy. A racing decode of the same asset is resolved
         // by GetOrAdd keeping the first instance and disposing the loser below.
-        var absolute = _assetService.ResolveAbsolute(relativePath);
+        var absolute = assetService.ResolveAbsolute(relativePath);
         var decoded = AnimatedImageDecoder.Decode(absolute);
         if (decoded == null) return null;
 

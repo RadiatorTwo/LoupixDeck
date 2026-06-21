@@ -58,7 +58,7 @@ public sealed class WindowsActiveWindowMonitor : IActiveWindowMonitor, IDisposab
             if (hwnd == IntPtr.Zero || idObject != 0 || idChild != 0) return;
 
             var processName = ResolveProcessName(hwnd);
-            var title = ResolveTitle(hwnd);
+            var title = User32.GetWindowText(hwnd);
 
             if (_last.Process == processName && _last.Title == title) return;
             _last = (processName, title);
@@ -90,8 +90,6 @@ public sealed class WindowsActiveWindowMonitor : IActiveWindowMonitor, IDisposab
             return null;
         }
     }
-
-    private static string ResolveTitle(IntPtr hwnd) => User32.GetWindowText(hwnd);
 
     public void Dispose()
     {

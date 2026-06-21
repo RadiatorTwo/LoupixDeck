@@ -1,15 +1,9 @@
 namespace LoupixDeck.Models.Converter;
 
-public class VibrationPatternItem
+public class VibrationPatternItem(string name, byte value)
 {
-    public string Name { get; set; }
-    public byte Value { get; set; }
-
-    public VibrationPatternItem(string name, byte value)
-    {
-        Name = name;
-        Value = value;
-    }
+    public string Name { get; set; } = name;
+    public byte Value { get; set; } = value;
 
     public override string ToString() => Name;
 }

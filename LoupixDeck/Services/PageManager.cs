@@ -54,61 +54,52 @@ public interface IPageManager
     event Action<int, int> OnTouchPageChanged;
 }
 
-public class PageManager : IPageManager
+public class PageManager(LoupedeckConfig config, IDeviceService deviceService) : IPageManager
 {
-    private readonly LoupedeckConfig _config;
-    private readonly IDeviceService _deviceService;
-
-    public PageManager(LoupedeckConfig config, IDeviceService deviceService)
-    {
-        _config = config;
-        _deviceService = deviceService;
-    }
-
     public int PreviousTouchPageIndex { get; set; } = -1;
 
     public int CurrentTouchPageIndex
     {
-        get => _config.CurrentTouchPageIndex;
-        set => _config.CurrentTouchPageIndex = value;
+        get => config.CurrentTouchPageIndex;
+        set => config.CurrentTouchPageIndex = value;
     }
 
     public int CurrentRotaryPageIndex
     {
-        get => _config.CurrentRotaryPageIndex;
-        set => _config.CurrentRotaryPageIndex = value;
+        get => config.CurrentRotaryPageIndex;
+        set => config.CurrentRotaryPageIndex = value;
     }
 
-    public ObservableCollection<TouchButtonPage> TouchButtonPages => _config.TouchButtonPages;
-    public ObservableCollection<RotaryButtonPage> RotaryButtonPages => _config.RotaryButtonPages;
-    public RotaryButtonPage CurrentRotaryButtonPage => _config.CurrentRotaryButtonPage;
-    public TouchButtonPage CurrentTouchButtonPage => _config.CurrentTouchButtonPage;
-    public SimpleButton[] SimpleButtons => _config.SimpleButtons;
+    public ObservableCollection<TouchButtonPage> TouchButtonPages => config.TouchButtonPages;
+    public ObservableCollection<RotaryButtonPage> RotaryButtonPages => config.RotaryButtonPages;
+    public RotaryButtonPage CurrentRotaryButtonPage => config.CurrentRotaryButtonPage;
+    public TouchButtonPage CurrentTouchButtonPage => config.CurrentTouchButtonPage;
+    public SimpleButton[] SimpleButtons => config.SimpleButtons;
 
-    public bool HasIndependentRotarySides => _deviceService.Device?.HasSideStrips ?? false;
+    public bool HasIndependentRotarySides => deviceService.Device?.HasSideStrips ?? false;
 
     // Number of knobs per side page on a side-strip device (3 on the Razer's 6).
-    private int SideRotaryButtonCount => Math.Max(1, _deviceService.RotaryButtonCount / 2);
+    private int SideRotaryButtonCount => Math.Max(1, deviceService.RotaryButtonCount / 2);
 
     public ObservableCollection<RotaryButtonPage> GetRotaryPages(RotarySide side) => side switch
     {
-        RotarySide.Left => _config.LeftRotaryButtonPages,
-        RotarySide.Right => _config.RightRotaryButtonPages,
-        _ => _config.RotaryButtonPages
+        RotarySide.Left => config.LeftRotaryButtonPages,
+        RotarySide.Right => config.RightRotaryButtonPages,
+        _ => config.RotaryButtonPages
     };
 
     public RotaryButtonPage GetCurrentRotaryPage(RotarySide side) => side switch
     {
-        RotarySide.Left => _config.CurrentLeftRotaryButtonPage,
-        RotarySide.Right => _config.CurrentRightRotaryButtonPage,
-        _ => _config.CurrentRotaryButtonPage
+        RotarySide.Left => config.CurrentLeftRotaryButtonPage,
+        RotarySide.Right => config.CurrentRightRotaryButtonPage,
+        _ => config.CurrentRotaryButtonPage
     };
 
     public int GetCurrentRotaryPageIndex(RotarySide side) => side switch
     {
-        RotarySide.Left => _config.CurrentLeftRotaryPageIndex,
-        RotarySide.Right => _config.CurrentRightRotaryPageIndex,
-        _ => _config.CurrentRotaryPageIndex
+        RotarySide.Left => config.CurrentLeftRotaryPageIndex,
+        RotarySide.Right => config.CurrentRightRotaryPageIndex,
+        _ => config.CurrentRotaryPageIndex
     };
 
     public RotaryButtonPage PeekRotaryPage(RotarySide side, int direction)
@@ -125,9 +116,9 @@ public class PageManager : IPageManager
     {
         switch (side)
         {
-            case RotarySide.Left: _config.CurrentLeftRotaryPageIndex = value; break;
-            case RotarySide.Right: _config.CurrentRightRotaryPageIndex = value; break;
-            default: _config.CurrentRotaryPageIndex = value; break;
+            case RotarySide.Left: config.CurrentLeftRotaryPageIndex = value; break;
+            case RotarySide.Right: config.CurrentRightRotaryPageIndex = value; break;
+            default: config.CurrentRotaryPageIndex = value; break;
         }
     }
 
@@ -197,9 +188,9 @@ public class PageManager : IPageManager
 
         OnRotaryPageChanged?.Invoke(side, previousIndex, pageIndex);
 
-        if (!init && _config.ShowPageNameOverlayEnabled && current != null)
+        if (!init && config.ShowPageNameOverlayEnabled && current != null)
         {
-            _deviceService.ShowTemporaryTextButton(0, current.PageName, 2000);
+            deviceService.ShowTemporaryTextButton(0, current.PageName, 2000);
         }
     }
 
@@ -230,12 +221,12 @@ public class PageManager : IPageManager
         OnTouchPageChanged?.Invoke(PreviousTouchPageIndex, CurrentTouchPageIndex);
         await DrawTouchButtons();
 
-        if (!init && _config.ShowPageNameOverlayEnabled)
+        if (!init && config.ShowPageNameOverlayEnabled)
         {
             // Fire-and-forget: the 2s on-device overlay must not block callers
             // (e.g. AddTouchButtonPage), which would otherwise leave the
             // triggering UI command disabled for the full duration.
-            _ = _deviceService.ShowTemporaryTextButton(0, CurrentTouchButtonPage.PageName, 2000);
+            _ = deviceService.ShowTemporaryTextButton(0, CurrentTouchButtonPage.PageName, 2000);
         }
     }
 
@@ -244,7 +235,7 @@ public class PageManager : IPageManager
         foreach (var touchButton in CurrentTouchButtonPage.TouchButtons)
         {
             // Force refresh to ensure wallpaper changes are applied when switching pages
-            await _deviceService.Device.DrawTouchButton(touchButton, _config, true, _deviceService.Device.Columns);
+            await deviceService.Device.DrawTouchButton(touchButton, config, true, deviceService.Device.Columns);
         }
     }
 
@@ -277,7 +268,7 @@ public class PageManager : IPageManager
     public void AddRotaryButtonPage(RotarySide side, bool init = false)
     {
         // Side pages hold only that column's knobs; the shared list holds them all.
-        var size = side == RotarySide.Both ? _deviceService.RotaryButtonCount : SideRotaryButtonCount;
+        var size = side == RotarySide.Both ? deviceService.RotaryButtonCount : SideRotaryButtonCount;
         var pages = GetRotaryPages(side);
 
         var newPage = new RotaryButtonPage(size)
@@ -318,7 +309,7 @@ public class PageManager : IPageManager
             ? TouchButtonPages[TouchButtonPages.Count - 1]
             : null;
 
-        var touchCount = _deviceService.TouchButtonCount;
+        var touchCount = deviceService.TouchButtonCount;
         var newPage = new TouchButtonPage(touchCount)
         {
             Page = TouchButtonPages.Count + 1,

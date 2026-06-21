@@ -7,17 +7,20 @@ using LoupixDeck.ViewModels.Base;
 
 namespace LoupixDeck.ViewModels;
 
-public class RotaryButtonSettingsViewModel : DialogViewModelBase<RotaryButton, DialogResult>, IAsyncInitViewModel
+public class RotaryButtonSettingsViewModel(
+    ICommandBuilder commandBuilder,
+    IMenuTreeBuilder menuTreeBuilder,
+    ICommandRegistry commandRegistry) : DialogViewModelBase<RotaryButton, DialogResult>, IAsyncInitViewModel
 {
     public override void Initialize(RotaryButton parameter)
     {
         ButtonData = parameter;
 
-        RotaryLeftSlot = new CommandSequenceSlot("Rotate Left", _commandBuilder, _commandRegistry,
+        RotaryLeftSlot = new CommandSequenceSlot("Rotate Left", commandBuilder, commandRegistry,
             () => ButtonData.RotaryLeftCommand, v => ButtonData.RotaryLeftCommand = v);
-        RotaryRightSlot = new CommandSequenceSlot("Rotate Right", _commandBuilder, _commandRegistry,
+        RotaryRightSlot = new CommandSequenceSlot("Rotate Right", commandBuilder, commandRegistry,
             () => ButtonData.RotaryRightCommand, v => ButtonData.RotaryRightCommand = v);
-        ButtonPressSlot = new CommandSequenceSlot("Button Press", _commandBuilder, _commandRegistry,
+        ButtonPressSlot = new CommandSequenceSlot("Button Press", commandBuilder, commandRegistry,
             () => ButtonData.Command, v => ButtonData.Command = v);
 
         Slots = [RotaryLeftSlot, RotaryRightSlot, ButtonPressSlot];
@@ -37,13 +40,9 @@ public class RotaryButtonSettingsViewModel : DialogViewModelBase<RotaryButton, D
     /// System.UpdateButton / GotoRotaryPage index space.</summary>
     public string KnobLabel => $"Rotary Button {(ButtonData?.Index ?? 0) + 1}";
 
-    private readonly ICommandBuilder _commandBuilder;
-    private readonly IMenuTreeBuilder _menuTreeBuilder;
-    private readonly ICommandRegistry _commandRegistry;
-
     public RotaryButton ButtonData { get; set; }
 
-    public ObservableCollection<MenuEntry> SystemCommandMenus { get; set; }
+    public ObservableCollection<MenuEntry> SystemCommandMenus { get; set; } = new ObservableCollection<MenuEntry>();
     public MenuEntry CurrentMenuEntry { get; set; }
 
     /// <summary>The three command sequences of a rotary encoder: left turn, right
@@ -58,21 +57,9 @@ public class RotaryButtonSettingsViewModel : DialogViewModelBase<RotaryButton, D
     /// Set by clicking a sequence strip in the view.</summary>
     public CommandSequenceSlot ActiveSlot { get; private set; }
 
-    public RotaryButtonSettingsViewModel(
-        ICommandBuilder commandBuilder,
-        IMenuTreeBuilder menuTreeBuilder,
-        ICommandRegistry commandRegistry)
-    {
-        _commandBuilder = commandBuilder;
-        _menuTreeBuilder = menuTreeBuilder;
-        _commandRegistry = commandRegistry;
-
-        SystemCommandMenus = new ObservableCollection<MenuEntry>();
-    }
-
     public async Task InitializeAsync()
     {
-        await _menuTreeBuilder.BuildInto(SystemCommandMenus, ButtonTargets.RotaryEncoder);
+        await menuTreeBuilder.BuildInto(SystemCommandMenus, ButtonTargets.RotaryEncoder);
     }
 
     /// <summary>Marks <paramref name="slot"/> as the active double-click target and

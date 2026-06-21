@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using LoupixDeck.PluginSdk;
 using LoupixDeck.Registry;
 using Microsoft.Extensions.DependencyInjection;
@@ -44,43 +45,32 @@ public interface IPluginManager
 }
 
 /// <inheritdoc cref="IPluginManager"/>
-public class PluginManager : IPluginManager
+public class PluginManager(IDeviceRouter router, IDeviceHostRegistry hostRegistry) : IPluginManager
 {
     // Root-resident (issue #116 phase 2): plugins are loaded once. Host delegates
     // reach the device that triggered the call through the router (ambient device
     // during a dispatch/input flow, else the primary). See IDeviceRouter.
-    private readonly IDeviceRouter _router;
+    private readonly IDeviceRouter router = router;
 
     // Every running device's host — used to read the union of per-device enabled sets
     // (see IsEnabled). Plugins are shared/loaded once, so a plugin enabled on ANY
     // device must load, not only the primary.
-    private readonly IDeviceHostRegistry _hostRegistry;
+    private readonly IDeviceHostRegistry hostRegistry = hostRegistry;
 
     // Copy-on-write snapshot. Every mutation builds a new list and swaps this
     // reference, so readers (e.g. PluginCommandProvider during a registry rebuild)
     // always see a consistent, immutable list — never a torn mid-mutation state.
-    private volatile IReadOnlyList<LoadedPlugin> _plugins = Array.Empty<LoadedPlugin>();
-
-    public PluginManager(IDeviceRouter router, IDeviceHostRegistry hostRegistry)
-    {
-        _router = router;
-        _hostRegistry = hostRegistry;
-    }
+    private ImmutableArray<LoadedPlugin> plugins = ImmutableArray<LoadedPlugin>.Empty;
 
     /// <summary>The provider of the device this host call should act on.</summary>
-    private IServiceProvider Device => _router.Current
+    private IServiceProvider Device => router.Current
         ?? throw new InvalidOperationException(
             "PluginManager used before the device router's default was set.");
 
-    public IReadOnlyList<LoadedPlugin> Plugins => _plugins;
+    public IReadOnlyList<LoadedPlugin> Plugins => plugins;
 
     /// <summary>Builds a new plugin list from the current snapshot and publishes it.</summary>
-    private void ReplacePlugins(Action<List<LoadedPlugin>> mutate)
-    {
-        var next = new List<LoadedPlugin>(_plugins);
-        mutate(next);
-        _plugins = next; // atomic reference swap
-    }
+    private void ReplacePlugins(Func<ImmutableArray<LoadedPlugin>, ImmutableArray<LoadedPlugin>> mutate) => ImmutableInterlocked.Update(ref plugins, mutate);
 
     /// <summary>The two discovery roots, app dir first so bundled plugins win.</summary>
     private static string[] GetPluginRoots()
@@ -139,7 +129,7 @@ public class PluginManager : IPluginManager
 
     public void LoadPlugins()
     {
-        var loadedPlugins = new List<LoadedPlugin>();
+        var loadedPlugins = ImmutableArray.CreateBuilder<LoadedPlugin>();
 
         // Plugins are discovered from two roots: the bundled `plugins/` folder
         // next to the executable, and a user `plugins/` folder alongside the
@@ -202,10 +192,9 @@ public class PluginManager : IPluginManager
             }
         }
 
-        _plugins = loadedPlugins; // single atomic publish
-
-        var ok = loadedPlugins.Count(p => p.Status == PluginLoadStatus.Loaded);
-        Console.WriteLine($"PluginManager: {ok}/{loadedPlugins.Count} plugin(s) loaded.");
+        var ok = loadedPlugins.Count(static p => p.Status == PluginLoadStatus.Loaded);
+        plugins = loadedPlugins.DrainToImmutable();
+        Console.WriteLine($"PluginManager: {ok}/{plugins.Length} plugin(s) loaded.");
     }
 
     public LoadedPlugin LoadPlugin(string pluginId)
@@ -224,8 +213,9 @@ public class PluginManager : IPluginManager
         var loaded = LoadOne(dir, manifestPath);
         ReplacePlugins(list =>
         {
-            list.RemoveAll(p => string.Equals(p.Manifest?.Id, pluginId, StringComparison.OrdinalIgnoreCase));
-            list.Add(loaded);
+            list = list.RemoveAll(p => string.Equals(p.Manifest?.Id, pluginId, StringComparison.OrdinalIgnoreCase));
+            list = list.Add(loaded);
+            return list;
         });
 
         return loaded;
@@ -233,7 +223,7 @@ public class PluginManager : IPluginManager
 
     public bool UnloadPlugin(string pluginId)
     {
-        var plugin = _plugins.FirstOrDefault(
+        var plugin = plugins.FirstOrDefault(
             p => string.Equals(p.Manifest?.Id, pluginId, StringComparison.OrdinalIgnoreCase));
         if (plugin == null)
             return false;
@@ -503,7 +493,7 @@ public class PluginManager : IPluginManager
 
     public void ShutdownAll()
     {
-        foreach (var plugin in _plugins.Where(p => p.Status == PluginLoadStatus.Loaded))
+        foreach (var plugin in plugins.Where(p => p.Status == PluginLoadStatus.Loaded))
         {
             try
             {
@@ -534,7 +524,7 @@ public class PluginManager : IPluginManager
         // (formerly primary-only) never sees it, leaving the plugin stuck "Disabled".
         // Union semantics also make disable correct: a plugin only stops loading once no
         // device still enables it.
-        foreach (var host in _hostRegistry.Hosts)
+        foreach (var host in hostRegistry.Hosts)
         {
             if (DeviceEnables(host.Provider, pluginId))
                 return true;
@@ -553,11 +543,11 @@ public class PluginManager : IPluginManager
     /// </summary>
     private IServiceProvider ResolveEnablingDevice(string pluginId)
     {
-        var current = _router.Current;
+        var current = router.Current;
         if (DeviceEnables(current, pluginId))
             return current;
 
-        foreach (var host in _hostRegistry.Hosts)
+        foreach (var host in hostRegistry.Hosts)
         {
             if (DeviceEnables(host.Provider, pluginId))
                 return host.Provider;

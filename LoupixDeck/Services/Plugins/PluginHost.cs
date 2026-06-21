@@ -8,68 +8,44 @@ namespace LoupixDeck.Services.Plugins;
 /// operations are wired as delegates by the <see cref="PluginManager"/> so the
 /// host stays decoupled from the core's command and rendering services.
 /// </summary>
-public sealed class PluginHost : IPluginHost
+public sealed class PluginHost(
+    IPluginLogger logger,
+    IPluginSettings settings,
+    DeviceInfo activeDevice,
+    Action<string> executeCommand,
+    Action<string> requestButtonRefresh,
+    Action<IFolderProvider> openFolder,
+    Action<int, string, TimeSpan> overlayTouchText,
+    Func<int, int> getTouchSlotForRotary,
+    Func<IExclusiveModeProvider, bool> requestExclusiveMode,
+    Action<IExclusiveModeProvider> releaseExclusiveMode,
+    Func<bool> isInExclusiveMode) : IPluginHost
 {
-    private readonly Action<string> _executeCommand;
-    private readonly Action<string> _requestButtonRefresh;
-    private readonly Action<IFolderProvider> _openFolder;
-    private readonly Action<int, string, TimeSpan> _overlayTouchText;
-    private readonly Func<int, int> _getTouchSlotForRotary;
-    private readonly Func<IExclusiveModeProvider, bool> _requestExclusiveMode;
-    private readonly Action<IExclusiveModeProvider> _releaseExclusiveMode;
-    private readonly Func<bool> _isInExclusiveMode;
+    public IPluginLogger Logger { get; } = logger;
 
-    public PluginHost(
-        IPluginLogger logger,
-        IPluginSettings settings,
-        DeviceInfo activeDevice,
-        Action<string> executeCommand,
-        Action<string> requestButtonRefresh,
-        Action<IFolderProvider> openFolder,
-        Action<int, string, TimeSpan> overlayTouchText,
-        Func<int, int> getTouchSlotForRotary,
-        Func<IExclusiveModeProvider, bool> requestExclusiveMode,
-        Action<IExclusiveModeProvider> releaseExclusiveMode,
-        Func<bool> isInExclusiveMode)
-    {
-        Logger = logger;
-        Settings = settings;
-        ActiveDevice = activeDevice;
-        _executeCommand = executeCommand;
-        _requestButtonRefresh = requestButtonRefresh;
-        _openFolder = openFolder;
-        _overlayTouchText = overlayTouchText;
-        _getTouchSlotForRotary = getTouchSlotForRotary;
-        _requestExclusiveMode = requestExclusiveMode;
-        _releaseExclusiveMode = releaseExclusiveMode;
-        _isInExclusiveMode = isInExclusiveMode;
-    }
+    public IPluginSettings Settings { get; } = settings;
 
-    public IPluginLogger Logger { get; }
+    public DeviceInfo ActiveDevice { get; } = activeDevice;
 
-    public IPluginSettings Settings { get; }
+    public void RequestButtonRefresh(string commandName) => requestButtonRefresh?.Invoke(commandName);
 
-    public DeviceInfo ActiveDevice { get; }
+    public void ExecuteCommand(string command) => executeCommand?.Invoke(command);
 
-    public void RequestButtonRefresh(string commandName) => _requestButtonRefresh?.Invoke(commandName);
-
-    public void ExecuteCommand(string command) => _executeCommand?.Invoke(command);
-
-    public void OpenFolder(IFolderProvider provider) => _openFolder?.Invoke(provider);
+    public void OpenFolder(IFolderProvider provider) => openFolder?.Invoke(provider);
 
     public void OverlayTouchText(int slot, string text, TimeSpan duration) =>
-        _overlayTouchText?.Invoke(slot, text, duration);
+        overlayTouchText?.Invoke(slot, text, duration);
 
     public int GetTouchSlotForRotary(int rotaryIndex) =>
-        _getTouchSlotForRotary?.Invoke(rotaryIndex) ?? -1;
+        getTouchSlotForRotary?.Invoke(rotaryIndex) ?? -1;
 
     public bool RequestExclusiveMode(IExclusiveModeProvider provider) =>
-        _requestExclusiveMode?.Invoke(provider) ?? false;
+        requestExclusiveMode?.Invoke(provider) ?? false;
 
     public void ReleaseExclusiveMode(IExclusiveModeProvider provider) =>
-        _releaseExclusiveMode?.Invoke(provider);
+        releaseExclusiveMode?.Invoke(provider);
 
-    public bool IsInExclusiveMode => _isInExclusiveMode?.Invoke() ?? false;
+    public bool IsInExclusiveMode => isInExclusiveMode?.Invoke() ?? false;
 
     public bool OpenBrowser(string url)
     {

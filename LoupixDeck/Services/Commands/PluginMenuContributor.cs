@@ -12,20 +12,13 @@ namespace LoupixDeck.Services.Commands;
 /// concurrently and merges the resulting <see cref="MenuEntry"/> trees once
 /// they arrive, so a slow/offline integration cannot block the menu.
 /// </summary>
-public class PluginMenuContributor : IPluginMenuSource
+public class PluginMenuContributor(IPluginManager pluginManager) : IPluginMenuSource
 {
-    private readonly IPluginManager _pluginManager;
-
-    public PluginMenuContributor(IPluginManager pluginManager)
-    {
-        _pluginManager = pluginManager;
-    }
-
     public IReadOnlyList<DeferredMenuSource> GetDeferredSources(ButtonTargets target)
     {
         var sources = new List<DeferredMenuSource>();
 
-        foreach (var plugin in _pluginManager.Plugins)
+        foreach (var plugin in pluginManager.Plugins)
         {
             if (plugin.Status != PluginLoadStatus.Loaded)
                 continue;

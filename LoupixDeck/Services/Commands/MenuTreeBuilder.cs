@@ -6,7 +6,7 @@ using LoupixDeck.PluginSdk;
 namespace LoupixDeck.Services.Commands;
 
 /// <inheritdoc cref="IMenuTreeBuilder"/>
-public class MenuTreeBuilder : IMenuTreeBuilder
+public class MenuTreeBuilder(IEnumerable<IMenuContributor> contributors, IPluginMenuSource pluginMenuSource) : IMenuTreeBuilder
 {
     /// <summary>
     /// Core groups in their fixed display order. Any group not listed here
@@ -20,19 +20,10 @@ public class MenuTreeBuilder : IMenuTreeBuilder
     /// <summary>How long a single plugin may take before its menu is skipped.</summary>
     private static readonly TimeSpan PluginTimeout = TimeSpan.FromSeconds(5);
 
-    private readonly IEnumerable<IMenuContributor> _contributors;
-    private readonly IPluginMenuSource _pluginMenuSource;
-
-    public MenuTreeBuilder(IEnumerable<IMenuContributor> contributors, IPluginMenuSource pluginMenuSource)
-    {
-        _contributors = contributors;
-        _pluginMenuSource = pluginMenuSource;
-    }
-
     public async Task BuildInto(ObservableCollection<MenuEntry> target, ButtonTargets buttonTarget)
     {
         // ── Phase 1: core groups, synchronous — visible immediately ──
-        foreach (var contributor in _contributors)
+        foreach (var contributor in contributors)
         {
             try
             {
@@ -54,7 +45,7 @@ public class MenuTreeBuilder : IMenuTreeBuilder
         // Each plugin's group is shown right away with an inline "(loading…)"
         // suffix; the dynamic submenus fill in once the (possibly slow) plugin
         // completes, and the suffix is cleared.
-        var sources = _pluginMenuSource.GetDeferredSources(buttonTarget);
+        var sources = pluginMenuSource.GetDeferredSources(buttonTarget);
         foreach (var source in sources)
         {
             foreach (var groupName in source.GroupNames)

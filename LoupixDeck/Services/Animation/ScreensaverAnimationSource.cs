@@ -28,7 +28,8 @@ namespace LoupixDeck.Services.Animation;
 /// each take their column. The CT knob screen is intentionally not driven (its framebuffer
 /// needs big-endian conversion the device layer doesn't implement yet).
 /// </summary>
-public sealed class ScreensaverAnimationSource : IAnimationSource, IDisposable
+public sealed class ScreensaverAnimationSource(LoupedeckDevice.Device.LoupedeckDevice device,
+    string absoluteVideoPath, int fps, bool loop, Action onEnded) : IAnimationSource, IDisposable
 {
     // The continuous virtual panel the wallpaper system assumes: 480px wide spanning the
     // centre grid plus both 60px side-strip columns, 270px tall.
@@ -44,13 +45,7 @@ public sealed class ScreensaverAnimationSource : IAnimationSource, IDisposable
     // realtime. The bound keeps memory flat (FrameQueueDepth × FrameBytes ≈ 3 MB at 6) and
     // caps how stale a dropped-to frame can be.
     private const int FrameQueueDepth = 6;
-
-    private readonly LoupedeckDevice.Device.LoupedeckDevice _device;
-    private readonly string _absoluteVideoPath;
-    private readonly int _fps;
-    private readonly bool _loop;
-    private readonly Action _onEnded;
-
+    private readonly int _fps = Math.Clamp(fps <= 0 ? 30 : fps, 1, 120);
     private readonly List<DisplayTarget> _targets = [];
 
     private Process _ffmpeg;
@@ -80,16 +75,6 @@ public sealed class ScreensaverAnimationSource : IAnimationSource, IDisposable
     // can't cut a full-screen framebuffer write mid-stream — that desyncs the device's
     // protocol and makes the next launch's handshake time out until a power-cycle.
     private readonly ManualResetEventSlim _idle = new(true);
-
-    public ScreensaverAnimationSource(LoupedeckDevice.Device.LoupedeckDevice device,
-        string absoluteVideoPath, int fps, bool loop, Action onEnded)
-    {
-        _device = device;
-        _absoluteVideoPath = absoluteVideoPath;
-        _fps = Math.Clamp(fps <= 0 ? 30 : fps, 1, 120);
-        _loop = loop;
-        _onEnded = onEnded;
-    }
 
     public int TargetFps => _fps;
     public bool IsActive => _active;
@@ -138,12 +123,12 @@ public sealed class ScreensaverAnimationSource : IAnimationSource, IDisposable
         // headroom than the default bicubic on 1080p clips with no visible quality loss at this
         // size. Hardware decode (-hwaccel) was tried and is slower here (the GPU→system-memory
         // download for the CPU scaler outweighs the decode saving), so it is intentionally off.
-        var loopArg = _loop ? "-stream_loop -1 " : string.Empty;
+        var loopArg = loop ? "-stream_loop -1 " : string.Empty;
         var logLevel = _debug ? "verbose" : "error";
         var args =
             $"-hide_banner -loglevel {logLevel} " +
             "-probesize 500000 -analyzeduration 0 -re " +
-            $"{loopArg}-i \"{_absoluteVideoPath}\" " +
+            $"{loopArg}-i \"{absoluteVideoPath}\" " +
             $"-an -f rawvideo -r {_fps} -pix_fmt bgra -vf scale={PanelWidth}:{PanelHeight}:flags=fast_bilinear -";
 
         if (_debug)
@@ -431,7 +416,7 @@ public sealed class ScreensaverAnimationSource : IAnimationSource, IDisposable
                 if (_debug)
                 {
                     var ts = Stopwatch.GetTimestamp();
-                    await _device.DrawScreen(draw.Id, draw.Bitmap, refresh: true).ConfigureAwait(false);
+                    await device.DrawScreen(draw.Id, draw.Bitmap, refresh: true).ConfigureAwait(false);
                     var ms = Stopwatch.GetElapsedTime(ts).TotalMilliseconds;
                     // Flag slow draws (a multi-second value means the FRAMEBUFF/DRAW ACK is
                     // timing out, not just slow serial throughput).
@@ -440,7 +425,7 @@ public sealed class ScreensaverAnimationSource : IAnimationSource, IDisposable
                 }
                 else
                 {
-                    await _device.DrawScreen(draw.Id, draw.Bitmap, refresh: true).ConfigureAwait(false);
+                    await device.DrawScreen(draw.Id, draw.Bitmap, refresh: true).ConfigureAwait(false);
                 }
             }
         }
@@ -463,7 +448,7 @@ public sealed class ScreensaverAnimationSource : IAnimationSource, IDisposable
     /// </summary>
     private void BuildTargets()
     {
-        var (centerW, centerH) = _device.GetDisplaySize("center");
+        var (centerW, centerH) = device.GetDisplaySize("center");
         if (centerW <= 0 || centerH <= 0) return;
 
         if (centerW >= PanelWidth)
@@ -482,7 +467,7 @@ public sealed class ScreensaverAnimationSource : IAnimationSource, IDisposable
 
     private void AddSlice(string displayId, int srcX, int srcWidth)
     {
-        var (w, h) = _device.GetDisplaySize(displayId);
+        var (w, h) = device.GetDisplaySize(displayId);
         if (w <= 0 || h <= 0) return;
         _targets.Add(DisplayTarget.Slice(displayId, srcX, srcWidth, w, h));
     }
@@ -491,7 +476,7 @@ public sealed class ScreensaverAnimationSource : IAnimationSource, IDisposable
     {
         _active = false;
         if (Interlocked.Exchange(ref _endedSignalled, 1) != 0) return;
-        try { _onEnded?.Invoke(); }
+        try { onEnded?.Invoke(); }
         catch (Exception ex) { Console.WriteLine($"[Screensaver] onEnded handler threw: {ex.Message}"); }
     }
 

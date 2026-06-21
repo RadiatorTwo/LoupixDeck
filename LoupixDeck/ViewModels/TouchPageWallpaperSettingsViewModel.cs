@@ -17,14 +17,12 @@ namespace LoupixDeck.ViewModels;
 /// displays. The left panel is a clickable device preview; the right panel binds to
 /// the currently selected target's settings.
 /// </summary>
-public class TouchPageWallpaperSettingsViewModel : DialogViewModelBase<TouchButtonPage, DialogResult>
+public class TouchPageWallpaperSettingsViewModel(IAssetService assetService, IDeviceService deviceService) : DialogViewModelBase<TouchButtonPage, DialogResult>
 {
     public enum WallpaperTarget { Main, Left, Right }
 
     // Asset sub-folder for page wallpapers — kept in sync with WallpaperAssetMigrator.
     private const string WallpapersSubFolder = "wallpapers";
-
-    private readonly IAssetService _assetService;
     private TouchButtonPage _targetPage;
 
     // Snapshots of every slot for Cancel — restore the page's persisted state.
@@ -54,12 +52,6 @@ public class TouchPageWallpaperSettingsViewModel : DialogViewModelBase<TouchButt
         BitmapHelper.ScalingOption.Center,
     ];
 
-    public TouchPageWallpaperSettingsViewModel(IAssetService assetService, IDeviceService deviceService)
-    {
-        _assetService = assetService;
-        HasSideStrips = deviceService?.Device?.HasSideStrips ?? false;
-    }
-
     public override void Initialize(TouchButtonPage parameter)
     {
         _targetPage = parameter;
@@ -80,7 +72,7 @@ public class TouchPageWallpaperSettingsViewModel : DialogViewModelBase<TouchButt
     public string PageName => _targetPage?.PageName ?? string.Empty;
 
     /// <summary>Only Razer-class devices expose the side displays.</summary>
-    public bool HasSideStrips { get; }
+    public bool HasSideStrips { get; } = deviceService?.Device?.HasSideStrips ?? false;
 
     // ───────── Target selection ─────────
 
@@ -227,7 +219,7 @@ public class TouchPageWallpaperSettingsViewModel : DialogViewModelBase<TouchButt
 
         // Copy the original into the asset folder (content-hashed) under the dedicated
         // "wallpapers" sub-folder and reference it by relative path, like image layers.
-        var relative = _assetService.Import(result, WallpapersSubFolder);
+        var relative = assetService.Import(result, WallpapersSubFolder);
         if (string.IsNullOrEmpty(relative)) return;
 
         ActiveSlot.AssetPath = relative;

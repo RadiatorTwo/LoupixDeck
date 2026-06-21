@@ -9,20 +9,13 @@ namespace LoupixDeck.Services.Commands;
 /// plugins, adapting each <see cref="IPluginCommand"/> to a
 /// <see cref="RegisteredCommand"/>.
 /// </summary>
-public class PluginCommandProvider : ICommandProvider
+public class PluginCommandProvider(IPluginManager pluginManager) : ICommandProvider
 {
-    private readonly IPluginManager _pluginManager;
-
-    public PluginCommandProvider(IPluginManager pluginManager)
-    {
-        _pluginManager = pluginManager;
-    }
-
     public IEnumerable<RegisteredCommand> GetCommands()
     {
         var result = new List<RegisteredCommand>();
 
-        foreach (var plugin in _pluginManager.Plugins)
+        foreach (var plugin in pluginManager.Plugins)
         {
             if (plugin.Status != PluginLoadStatus.Loaded)
                 continue;

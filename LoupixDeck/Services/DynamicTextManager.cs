@@ -21,7 +21,11 @@ public interface IDynamicTextManager
     void RefreshCommand(string commandName);
 }
 
-public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
+public sealed class DynamicTextManager(
+    IPageManager pageManager,
+    ICommandRegistry commandRegistry,
+    IServiceProvider deviceProvider,
+    IDeviceRouter router) : IDynamicTextManager, IDisposable
 {
     private sealed class Entry
     {
@@ -38,32 +42,15 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
         public string OwnerKey;
     }
 
-    private readonly IPageManager _pageManager;
-    private readonly ICommandRegistry _commandRegistry;
-    private readonly IServiceProvider _deviceProvider;
-    private readonly IDeviceRouter _router;
-
     private readonly Lock _gate = new();
     private List<Entry> _active = new();
     private CancellationTokenSource _cts;
     private PeriodicTimer _timer;
     private Task _loopTask;
 
-    public DynamicTextManager(
-        IPageManager pageManager,
-        ICommandRegistry commandRegistry,
-        IServiceProvider deviceProvider,
-        IDeviceRouter router)
-    {
-        _pageManager = pageManager;
-        _commandRegistry = commandRegistry;
-        _deviceProvider = deviceProvider;
-        _router = router;
-    }
-
     public void Start()
     {
-        _pageManager.OnTouchPageChanged += OnTouchPageChanged;
+        pageManager.OnTouchPageChanged += OnTouchPageChanged;
         Rescan();
     }
 
@@ -73,7 +60,7 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
     {
         StopLoop();
 
-        var page = _pageManager.CurrentTouchButtonPage;
+        var page = pageManager.CurrentTouchButtonPage;
         var entries = new List<Entry>();
 
         if (page?.TouchButtons != null)
@@ -87,7 +74,7 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
                 if (string.IsNullOrEmpty(name))
                     continue;
 
-                var command = _commandRegistry.Get(name);
+                var command = commandRegistry.Get(name);
                 if (command == null)
                     continue;
 
@@ -246,7 +233,7 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
         // Plugin display commands run plugin code (GetText/RenderImage) that may call
         // back into the host — mark this device as the ambient target so those calls
         // reach THIS device (issue #116 phase 2).
-        using var _routerScope = _router.Enter(_deviceProvider);
+        using var _routerScope = router.Enter(deviceProvider);
 
         if (command.IsImageDisplayCommand && command.RenderImage != null)
         {
@@ -367,7 +354,7 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
         if (string.IsNullOrEmpty(name))
             return null;
 
-        var command = _commandRegistry.Get(name);
+        var command = commandRegistry.Get(name);
         if (command == null)
             return null;
 
@@ -403,7 +390,7 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
 
     public void Dispose()
     {
-        _pageManager.OnTouchPageChanged -= OnTouchPageChanged;
+        pageManager.OnTouchPageChanged -= OnTouchPageChanged;
         StopLoop();
     }
 

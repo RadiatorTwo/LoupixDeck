@@ -17,22 +17,9 @@ public interface ICommandService
     Task ExecuteCommand(string command, ButtonTargets target, int? sourceIndex = null);
 }
 
-public class CommandService : ICommandService
+public class CommandService(ICommandRegistry commandRegistry, ICommandRunner commandRunner,
+    IServiceProvider deviceProvider, IDeviceRouter router) : ICommandService
 {
-    private readonly ICommandRegistry _commandRegistry;
-    private readonly ICommandRunner _commandRunner;
-    private readonly IServiceProvider _deviceProvider;
-    private readonly IDeviceRouter _router;
-
-    public CommandService(ICommandRegistry commandRegistry, ICommandRunner commandRunner,
-        IServiceProvider deviceProvider, IDeviceRouter router)
-    {
-        _commandRegistry = commandRegistry;
-        _commandRunner = commandRunner;
-        _deviceProvider = deviceProvider;
-        _router = router;
-    }
-
     public async Task ExecuteCommand(string command, ButtonTargets target, int? sourceIndex = null)
     {
         if (string.IsNullOrWhiteSpace(command))
@@ -41,7 +28,7 @@ public class CommandService : ICommandService
         // Mark this device as the ambient target for the whole dispatch, so any
         // plugin host call made while a command runs (incl. nested/chained) reaches
         // THIS device's services (issue #116 phase 2). Flows across awaits.
-        using var _routerScope = _router.Enter(_deviceProvider);
+        using var _routerScope = router.Enter(deviceProvider);
 
         // Per-page Pre/Post wraps and inline chains in a single button command
         // both run sequentially. Each part is dispatched as either a System or
@@ -62,14 +49,14 @@ public class CommandService : ICommandService
 
         var cleanCommand = CommandStringParser.GetName(command);
 
-        if (_commandRegistry.Contains(cleanCommand))
+        if (commandRegistry.Contains(cleanCommand))
         {
             var parameters = CommandStringParser.GetParameters(command);
-            await _commandRegistry.Execute(cleanCommand, parameters, target, sourceIndex);
+            await commandRegistry.Execute(cleanCommand, parameters, target, sourceIndex);
         }
         else
         {
-            _commandRunner.EnqueueCommand(command);
+            commandRunner.EnqueueCommand(command);
         }
     }
 }

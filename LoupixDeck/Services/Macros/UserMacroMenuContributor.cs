@@ -10,20 +10,13 @@ namespace LoupixDeck.Services.Macros;
 /// Selecting an entry inserts <c>System.Macro(MacroName)</c> into the button command
 /// (the CommandBuilder substitutes the entry's Name as the first parameter).
 /// </summary>
-public class UserMacroMenuContributor : IMenuContributor
+public class UserMacroMenuContributor(IMacroManager macroManager) : IMenuContributor
 {
     public const string GroupName = "User Macros";
 
-    private readonly IMacroManager _macroManager;
-
-    public UserMacroMenuContributor(IMacroManager macroManager)
-    {
-        _macroManager = macroManager;
-    }
-
     public Task<IReadOnlyList<MenuEntry>> Contribute(ButtonTargets target)
     {
-        var macros = _macroManager.Macros;
+        var macros = macroManager.Macros;
         if (macros.Count == 0)
             return Task.FromResult<IReadOnlyList<MenuEntry>>([]);
 

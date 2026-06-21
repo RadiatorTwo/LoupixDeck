@@ -11,18 +11,11 @@ public interface ICommandBuilder
     string BuildCommandString(CommandInfo commandInfo, Dictionary<string, object> parameterValues);
 }
 
-public class CommandBuilder : ICommandBuilder
+public class CommandBuilder(ICommandRegistry commandRegistry) : ICommandBuilder
 {
-    private readonly ICommandRegistry _commandRegistry;
-
-    public CommandBuilder(ICommandRegistry commandRegistry)
-    {
-        _commandRegistry = commandRegistry;
-    }
-
     public string CreateCommandFromMenuEntry(MenuEntry menuEntry)
     {
-        var command = _commandRegistry.Get(menuEntry.Command)?.Info;
+        var command = commandRegistry.Get(menuEntry.Command)?.Info;
 
         if (command == null) return string.Empty;
 

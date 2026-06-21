@@ -3,14 +3,14 @@ using System.Diagnostics;
 
 namespace LoupixDeck.Services;
 
-public interface ICommandRunner : IDisposable
+public interface ICommandRunner
 {
     void EnqueueCommand(string command);
     void ProcessQueue();
     void ExecuteCommand(string command);
 }
 
-public class CommandRunner : ICommandRunner
+public class CommandRunner : ICommandRunner, IDisposable
 {
     private readonly BlockingCollection<string> _commandQueue = new();
     private readonly CancellationTokenSource _cts = new();

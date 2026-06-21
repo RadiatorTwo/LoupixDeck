@@ -1,6 +1,7 @@
+using System.Collections.Immutable;
+using System.Reflection;
 using LoupixDeck.Commands.Base;
 using Microsoft.Extensions.DependencyInjection;
-using System.Reflection;
 
 namespace LoupixDeck.Services;
 
@@ -42,19 +43,9 @@ public interface ISysCommandService
     bool TryGetCommandType(string commandName, out Type type);
 }
 
-public class SysCommandService : ISysCommandService
+public class SysCommandService(IServiceProvider serviceProvider, IUInputKeyboard uInputKeyboard) : ISysCommandService
 {
-    private readonly Dictionary<string, (Type CommandType, CommandAttribute Attribute)> _commands
-        = new Dictionary<string, (Type CommandType, CommandAttribute Attribute)>();
-
-    private readonly IServiceProvider _serviceProvider;
-    private readonly IUInputKeyboard _uInputKeyboard;
-
-    public SysCommandService(IServiceProvider serviceProvider, IUInputKeyboard uInputKeyboard)
-    {
-        _serviceProvider = serviceProvider;
-        _uInputKeyboard = uInputKeyboard;
-    }
+    private ImmutableDictionary<string, (Type CommandType, CommandAttribute Attribute)> commands = ImmutableDictionary<string, (Type CommandType, CommandAttribute Attribute)>.Empty;
 
     /// <summary>
     /// Initializes the available commands by scanning the assembly.
@@ -77,16 +68,16 @@ public class SysCommandService : ISysCommandService
             if (attribute.Platform == CommandPlatform.Linux && !OperatingSystem.IsLinux())
                 continue;
 
-            _commands[attribute.CommandName] = (type, attribute);
+            commands = commands.SetItem(attribute.CommandName, (type, attribute));
         }
     }
 
     public async Task ExecuteCommand(string commandName, string[] parameters)
     {
-        if (_commands.TryGetValue(commandName, out var command))
+        if (commands.TryGetValue(commandName, out var command))
         {
             var executableCommand =
-                (IExecutableCommand)ActivatorUtilities.CreateInstance(_serviceProvider, command.CommandType);
+                (IExecutableCommand)ActivatorUtilities.CreateInstance(serviceProvider, command.CommandType);
             await executableCommand.Execute(parameters);
         }
         else
@@ -97,12 +88,12 @@ public class SysCommandService : ISysCommandService
 
     public bool CheckCommandExists(string commandName)
     {
-        return _commands.ContainsKey(commandName);
+        return commands.ContainsKey(commandName);
     }
 
     public bool TryGetCommandType(string commandName, out Type type)
     {
-        if (_commands.TryGetValue(commandName, out var entry))
+        if (commands.TryGetValue(commandName, out var entry))
         {
             type = entry.CommandType;
             return true;
@@ -114,7 +105,7 @@ public class SysCommandService : ISysCommandService
 
     public CommandInfo GetCommandInfo(string commandName)
     {
-        if (_commands.TryGetValue(commandName, out var entry))
+        if (commands.TryGetValue(commandName, out var entry))
         {
             return new CommandInfo
             {
@@ -132,7 +123,7 @@ public class SysCommandService : ISysCommandService
 
     public IEnumerable<CommandInfo> GetCommandInfos()
     {
-        return _commands.Select(kvp => new CommandInfo
+        return commands.Select(kvp => new CommandInfo
         {
             CommandName = kvp.Key,
             DisplayName = kvp.Value.Attribute.DisplayName,

@@ -28,17 +28,16 @@ namespace LoupixDeck.Services.Animation;
 /// update, never a full-display redraw. The scheduler's per-source in-flight guard means a slow tick
 /// just lowers the rate instead of piling up.
 /// </summary>
-public sealed class ButtonAnimationSource : IAnimationSource, IDisposable
+public sealed class ButtonAnimationSource(
+    IDeviceService deviceService,
+    LoupedeckConfig config,
+    IDeviceRouter router,
+    IServiceProvider deviceProvider) : IAnimationSource, IDisposable
 {
     // Image animations are capped well below the global limit: the device is 90×90 and re-rendering
     // takes the global Skia gate (a known cross-device bottleneck), so a higher rate buys nothing
     // visible while costing contention. Plugins request their own rate (still globally clamped).
     private const int ImageFps = 15;
-
-    private readonly IDeviceService _deviceService;
-    private readonly LoupedeckConfig _config;
-    private readonly IDeviceRouter _router;
-    private readonly IServiceProvider _deviceProvider;
 
     // Signaled while no frame is being pushed. Dispose()/teardown waits on it so the serial port
     // is never closed mid framebuffer write (mirrors the screensaver source).
@@ -46,18 +45,6 @@ public sealed class ButtonAnimationSource : IAnimationSource, IDisposable
 
     private volatile Entry[] _entries = Array.Empty<Entry>();
     private volatile bool _enabled;
-
-    public ButtonAnimationSource(
-        IDeviceService deviceService,
-        LoupedeckConfig config,
-        IDeviceRouter router,
-        IServiceProvider deviceProvider)
-    {
-        _deviceService = deviceService;
-        _config = config;
-        _router = router;
-        _deviceProvider = deviceProvider;
-    }
 
     public int TargetFps
     {
@@ -102,7 +89,7 @@ public sealed class ButtonAnimationSource : IAnimationSource, IDisposable
         var entries = _entries;
         if (entries.Length == 0) return;
 
-        var device = _deviceService.Device;
+        var device = deviceService.Device;
         if (device == null) return;
 
         var columns = device.Columns;
@@ -110,7 +97,7 @@ public sealed class ButtonAnimationSource : IAnimationSource, IDisposable
 
         // Plugin render callbacks may call back into the host — make this device the ambient target
         // (issue #116 phase 2), exactly as the dynamic-text manager does.
-        using (_router.Enter(_deviceProvider))
+        using (router.Enter(deviceProvider))
         {
             foreach (var entry in entries)
             {
@@ -151,7 +138,7 @@ public sealed class ButtonAnimationSource : IAnimationSource, IDisposable
             foreach (var button in dirty)
             {
                 if (context.CancellationToken.IsCancellationRequested) return;
-                await device.DrawTouchButton(button, _config, refresh: true, columns).ConfigureAwait(false);
+                await device.DrawTouchButton(button, config, refresh: true, columns).ConfigureAwait(false);
             }
         }
         finally

@@ -9,51 +9,29 @@ using LoupixDeck.Services.Screensaver;
 namespace LoupixDeck.Services.Animation;
 
 /// <inheritdoc cref="IButtonAnimationManager"/>
-public sealed class ButtonAnimationManager : IButtonAnimationManager, IDisposable
+public sealed class ButtonAnimationManager(
+    IPageManager pageManager,
+    ICommandRegistry commandRegistry,
+    IAnimationScheduler scheduler,
+    IAnimatedImageCache cache,
+    IExclusiveModeService exclusiveMode,
+    IFolderNavigationService folderNav,
+    IScreensaverManager screensaver,
+    IDeviceService deviceService,
+    LoupedeckConfig config,
+    IDeviceRouter router,
+    IServiceProvider deviceProvider) : IButtonAnimationManager, IDisposable
 {
     // Tick rate contributed by an animated image entry. Capped low on purpose: re-rendering a 90×90
     // button takes the global Skia gate, and the source dirty-checks frames anyway, so a higher rate
     // would just add contention without visible benefit. Plugins request their own rate.
     private const int ImageFps = 15;
+    private readonly ButtonAnimationSource _source = new ButtonAnimationSource(deviceService, config, router, deviceProvider);
 
-    private readonly IPageManager _pageManager;
-    private readonly ICommandRegistry _commandRegistry;
-    private readonly IAnimationScheduler _scheduler;
-    private readonly IAnimatedImageCache _cache;
-    private readonly IExclusiveModeService _exclusiveMode;
-    private readonly IFolderNavigationService _folderNav;
-    private readonly IScreensaverManager _screensaver;
-
-    private readonly ButtonAnimationSource _source;
-
-    private readonly object _gate = new();
+    private readonly Lock _gate = new();
     private bool _started;
     private bool _disposed;
     private volatile bool _screensaverActive;
-
-    public ButtonAnimationManager(
-        IPageManager pageManager,
-        ICommandRegistry commandRegistry,
-        IAnimationScheduler scheduler,
-        IAnimatedImageCache cache,
-        IExclusiveModeService exclusiveMode,
-        IFolderNavigationService folderNav,
-        IScreensaverManager screensaver,
-        IDeviceService deviceService,
-        LoupedeckConfig config,
-        IDeviceRouter router,
-        IServiceProvider deviceProvider)
-    {
-        _pageManager = pageManager;
-        _commandRegistry = commandRegistry;
-        _scheduler = scheduler;
-        _cache = cache;
-        _exclusiveMode = exclusiveMode;
-        _folderNav = folderNav;
-        _screensaver = screensaver;
-
-        _source = new ButtonAnimationSource(deviceService, config, router, deviceProvider);
-    }
 
     public void Start()
     {
@@ -63,13 +41,13 @@ public sealed class ButtonAnimationManager : IButtonAnimationManager, IDisposabl
             _started = true;
         }
 
-        _pageManager.OnTouchPageChanged += OnTouchPageChanged;
-        _screensaver.Started += OnScreensaverStarted;
-        _screensaver.Stopped += OnScreensaverStopped;
-        _exclusiveMode.StateChanged += OnTakeoverStateChanged;
-        _folderNav.StateChanged += OnTakeoverStateChanged;
+        pageManager.OnTouchPageChanged += OnTouchPageChanged;
+        screensaver.Started += OnScreensaverStarted;
+        screensaver.Stopped += OnScreensaverStopped;
+        exclusiveMode.StateChanged += OnTakeoverStateChanged;
+        folderNav.StateChanged += OnTakeoverStateChanged;
 
-        _scheduler.Register(_source);
+        scheduler.Register(_source);
         Rescan();
     }
 
@@ -79,7 +57,7 @@ public sealed class ButtonAnimationManager : IButtonAnimationManager, IDisposabl
     {
         if (_disposed) return;
 
-        var page = _pageManager.CurrentTouchButtonPage;
+        var page = pageManager.CurrentTouchButtonPage;
 
         // Enumerate the page and create plugin layers on the UI thread (layer collections are
         // editor-bound), then hand the heavy decode off to a background task.
@@ -94,11 +72,11 @@ public sealed class ButtonAnimationManager : IButtonAnimationManager, IDisposabl
                 try
                 {
                     var entries = Materialize(specs);
-                    _cache.Trim(referenced);
+                    cache.Trim(referenced);
                     _source.SetEntries(entries);
                     UpdateEnabled();
                     if (_source.IsActive)
-                        _scheduler.RequestFrame(_source);
+                        scheduler.RequestFrame(_source);
                 }
                 catch (Exception ex)
                 {
@@ -139,7 +117,7 @@ public sealed class ButtonAnimationManager : IButtonAnimationManager, IDisposabl
             if (!string.IsNullOrWhiteSpace(button.Command))
             {
                 var name = PluginLayerKey.ParseCommandName(button.Command);
-                var command = string.IsNullOrEmpty(name) ? null : _commandRegistry.Get(name);
+                var command = string.IsNullOrEmpty(name) ? null : commandRegistry.Get(name);
                 if (command is { IsAnimatedImageCommand: true, RenderAnimatedFrame: not null })
                 {
                     var ownerKey = PluginLayerKey.For(button.Command);
@@ -169,7 +147,7 @@ public sealed class ButtonAnimationManager : IButtonAnimationManager, IDisposabl
         {
             if (spec.ImageLayer != null)
             {
-                var anim = _cache.Get(spec.AnimPath);
+                var anim = cache.Get(spec.AnimPath);
                 if (anim == null) continue;
 
                 // Seed the first frame so a controller page redraw shows content immediately,
@@ -215,20 +193,20 @@ public sealed class ButtonAnimationManager : IButtonAnimationManager, IDisposabl
         _screensaverActive = false;
         UpdateEnabled();
         if (_source.IsActive)
-            _scheduler.RequestFrame(_source);
+            scheduler.RequestFrame(_source);
     }
 
     private void OnTakeoverStateChanged()
     {
         UpdateEnabled();
         if (_source.IsActive)
-            _scheduler.RequestFrame(_source);
+            scheduler.RequestFrame(_source);
     }
 
     /// <summary>Enabled only when no other feature owns the display (mirrors the controller's veto).</summary>
     private void UpdateEnabled()
     {
-        var enabled = !_screensaverActive && !_exclusiveMode.IsActive && !_folderNav.IsActive;
+        var enabled = !_screensaverActive && !exclusiveMode.IsActive && !folderNav.IsActive;
         _source.SetEnabled(enabled);
     }
 
@@ -240,13 +218,13 @@ public sealed class ButtonAnimationManager : IButtonAnimationManager, IDisposabl
             _disposed = true;
         }
 
-        _pageManager.OnTouchPageChanged -= OnTouchPageChanged;
-        _screensaver.Started -= OnScreensaverStarted;
-        _screensaver.Stopped -= OnScreensaverStopped;
-        _exclusiveMode.StateChanged -= OnTakeoverStateChanged;
-        _folderNav.StateChanged -= OnTakeoverStateChanged;
+        pageManager.OnTouchPageChanged -= OnTouchPageChanged;
+        screensaver.Started -= OnScreensaverStarted;
+        screensaver.Stopped -= OnScreensaverStopped;
+        exclusiveMode.StateChanged -= OnTakeoverStateChanged;
+        folderNav.StateChanged -= OnTakeoverStateChanged;
 
-        try { _scheduler.Unregister(_source); } catch { /* best effort */ }
+        try { scheduler.Unregister(_source); } catch { /* best effort */ }
         try { _source.Dispose(); } catch { /* best effort */ }
     }
 

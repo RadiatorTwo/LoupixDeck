@@ -8,30 +8,22 @@ namespace LoupixDeck.Services.Commands;
 /// Feeds the <see cref="ICommandRegistry"/> with the app's built-in commands by
 /// wrapping the unchanged reflection-based <see cref="ISysCommandService"/>.
 /// </summary>
-public class CoreCommandProvider : ICommandProvider
+public class CoreCommandProvider(ISysCommandService sysCommandService, IServiceProvider serviceProvider) : ICommandProvider
 {
-    private readonly ISysCommandService _sysCommandService;
-    private readonly IServiceProvider _serviceProvider;
     private bool _scanned;
-
-    public CoreCommandProvider(ISysCommandService sysCommandService, IServiceProvider serviceProvider)
-    {
-        _sysCommandService = sysCommandService;
-        _serviceProvider = serviceProvider;
-    }
 
     public IEnumerable<RegisteredCommand> GetCommands()
     {
         // The reflection scan only needs to run once.
         if (!_scanned)
         {
-            _sysCommandService.Initialize();
+            sysCommandService.Initialize();
             _scanned = true;
         }
 
         var result = new List<RegisteredCommand>();
 
-        foreach (var info in _sysCommandService.GetCommandInfos())
+        foreach (var info in sysCommandService.GetCommandInfos())
         {
             var name = info.CommandName;
 
@@ -39,7 +31,7 @@ public class CoreCommandProvider : ICommandProvider
             var interval = TimeSpan.Zero;
             Func<string[], string> getText = null;
 
-            if (_sysCommandService.TryGetCommandType(name, out var type)
+            if (sysCommandService.TryGetCommandType(name, out var type)
                 && typeof(IDynamicTextProvider).IsAssignableFrom(type))
             {
                 try
@@ -47,7 +39,7 @@ public class CoreCommandProvider : ICommandProvider
                     // Display providers are stateless w.r.t. their per-call
                     // parameters, so a single shared instance per command is
                     // sufficient (and cheaper than one per button).
-                    var provider = (IDynamicTextProvider)ActivatorUtilities.CreateInstance(_serviceProvider, type);
+                    var provider = (IDynamicTextProvider)ActivatorUtilities.CreateInstance(serviceProvider, type);
                     isDisplay = true;
                     interval = provider.UpdateInterval;
                     getText = provider.GetText;
@@ -67,7 +59,7 @@ public class CoreCommandProvider : ICommandProvider
                 HiddenFromMenu = info.Hidden,
                 IsDisplayCommand = isDisplay,
                 UpdateInterval = interval,
-                Execute = (parameters, _, _) => _sysCommandService.ExecuteCommand(capturedName, parameters),
+                Execute = (parameters, _, _) => sysCommandService.ExecuteCommand(capturedName, parameters),
                 GetText = getText
             });
         }

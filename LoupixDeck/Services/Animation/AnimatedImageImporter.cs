@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using System.Diagnostics;
 using LoupixDeck.Utils;
 
@@ -30,7 +31,7 @@ public interface IAnimatedImageImporter
 }
 
 /// <inheritdoc cref="IAnimatedImageImporter"/>
-public sealed class AnimatedImageImporter : IAnimatedImageImporter
+public sealed class AnimatedImageImporter(IAssetService assetService) : IAnimatedImageImporter
 {
     private const string AnimationsSubFolder = "animations";
 
@@ -40,15 +41,8 @@ public sealed class AnimatedImageImporter : IAnimatedImageImporter
     private const int ImportFps = 15;
     private const int MaxSeconds = 10;
 
-    private static readonly string[] _animatedImageExt = { ".gif", ".webp" };
-    private static readonly string[] _videoExt = { ".mp4", ".mov", ".webm", ".mkv", ".avi", ".m4v", ".gifv" };
-
-    private readonly IAssetService _assetService;
-
-    public AnimatedImageImporter(IAssetService assetService)
-    {
-        _assetService = assetService;
-    }
+    private static readonly ImmutableArray<string> _animatedImageExt = [ ".gif", ".webp" ];
+    private static readonly ImmutableArray<string> _videoExt = [ ".mp4", ".mov", ".webm", ".mkv", ".avi", ".m4v", ".gifv" ];
 
     public bool IsVideoImportAvailable => FfmpegDetector.IsAvailable();
     public IReadOnlyCollection<string> AnimatedImageExtensions => _animatedImageExt;
@@ -63,13 +57,13 @@ public sealed class AnimatedImageImporter : IAnimatedImageImporter
 
         // Already an animated image SkiaSharp can read — store as-is, no ffmpeg.
         if (_animatedImageExt.Contains(ext))
-            return _assetService.Import(sourcePath, AnimationsSubFolder);
+            return assetService.Import(sourcePath, AnimationsSubFolder);
 
         if (_videoExt.Contains(ext))
             return await ImportVideoAsync(sourcePath).ConfigureAwait(false);
 
         // Unknown extension: try as a still/animated image SkiaSharp might still read.
-        return _assetService.Import(sourcePath, AnimationsSubFolder);
+        return assetService.Import(sourcePath, AnimationsSubFolder);
     }
 
     private async Task<string> ImportVideoAsync(string sourcePath)
@@ -103,7 +97,7 @@ public sealed class AnimatedImageImporter : IAnimatedImageImporter
                 return null;
             }
 
-            return _assetService.Import(tempGif, AnimationsSubFolder);
+            return assetService.Import(tempGif, AnimationsSubFolder);
         }
         catch (Exception ex)
         {

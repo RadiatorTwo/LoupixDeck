@@ -11,18 +11,11 @@ namespace LoupixDeck.ViewModels;
 /// momentarily leave the list empty — which makes Avalonia coerce the selection to
 /// -1 and write that back over the user's choice.
 /// </summary>
-public sealed class AppBindingRow
+public sealed class AppBindingRow(AppPageBinding binding,
+    ObservableCollection<TouchButtonPage> touchPages,
+    ObservableCollection<string> rotaryPageOptions)
 {
-    public AppPageBinding Binding { get; }
-    public ObservableCollection<TouchButtonPage> TouchPages { get; }
-    public ObservableCollection<string> RotaryPageOptions { get; }
-
-    public AppBindingRow(AppPageBinding binding,
-        ObservableCollection<TouchButtonPage> touchPages,
-        ObservableCollection<string> rotaryPageOptions)
-    {
-        Binding = binding;
-        TouchPages = touchPages;
-        RotaryPageOptions = rotaryPageOptions;
-    }
+    public AppPageBinding Binding { get; } = binding;
+    public ObservableCollection<TouchButtonPage> TouchPages { get; } = touchPages;
+    public ObservableCollection<string> RotaryPageOptions { get; } = rotaryPageOptions;
 }

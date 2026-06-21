@@ -41,7 +41,7 @@ public interface IPluginInstaller
 }
 
 /// <inheritdoc cref="IPluginInstaller"/>
-public sealed class PluginInstaller : IPluginInstaller
+public sealed class PluginInstaller(Models.LoupedeckConfig config) : IPluginInstaller
 {
     /// <summary>
     /// Marker file in the user plugins root listing plugin folder names that
@@ -57,16 +57,9 @@ public sealed class PluginInstaller : IPluginInstaller
     /// </summary>
     public const string PendingInstallsDirName = ".pending-installs";
 
-    private readonly Models.LoupedeckConfig _config;
-    private readonly string _userRoot;
-    private readonly string _bundledRoot;
-
-    public PluginInstaller(Models.LoupedeckConfig config)
-    {
-        _config = config;
-        _userRoot = Path.Combine(Utils.FileDialogHelper.GetConfigDir(), "plugins");
-        _bundledRoot = Path.Combine(AppContext.BaseDirectory, "plugins");
-    }
+    private readonly Models.LoupedeckConfig config = config;
+    private readonly string _userRoot = Path.Combine(Utils.FileDialogHelper.GetConfigDir(), "plugins");
+    private readonly string _bundledRoot = Path.Combine(AppContext.BaseDirectory, "plugins");
 
     public async Task<PluginActionResult> InstallFromZipAsync(string zipPath)
     {
@@ -228,7 +221,7 @@ public sealed class PluginInstaller : IPluginInstaller
         // Drop it from the enabled list regardless of how the delete goes; this is
         // persisted when the Settings dialog closes (same path as the toggle).
         if (!string.IsNullOrWhiteSpace(id))
-            _config.EnabledPlugins?.RemoveAll(e => string.Equals(e, id, StringComparison.OrdinalIgnoreCase));
+            config.EnabledPlugins?.RemoveAll(e => string.Equals(e, id, StringComparison.OrdinalIgnoreCase));
 
         try
         {
@@ -356,9 +349,9 @@ public sealed class PluginInstaller : IPluginInstaller
         if (string.IsNullOrWhiteSpace(id))
             return;
 
-        _config.EnabledPlugins ??= [];
-        if (!_config.EnabledPlugins.Any(e => string.Equals(e, id, StringComparison.OrdinalIgnoreCase)))
-            _config.EnabledPlugins.Add(id);
+        config.EnabledPlugins ??= [];
+        if (!config.EnabledPlugins.Any(e => string.Equals(e, id, StringComparison.OrdinalIgnoreCase)))
+            config.EnabledPlugins.Add(id);
     }
 
     private bool MarkForRemoval(string pluginDir)

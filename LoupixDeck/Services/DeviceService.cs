@@ -14,22 +14,14 @@ public interface IDeviceService
     Task ShowTemporaryTextButton(int index, string text, int displayDurationMilliseconds);
 }
 
-public class LoupedeckDeviceService : IDeviceService
+public class LoupedeckDeviceService(LoupedeckConfig config, DeviceRegistry.DeviceInfo deviceInfo) : IDeviceService
 {
-    private readonly LoupedeckConfig _config;
-    private readonly DeviceRegistry.DeviceInfo _deviceInfo;
     private readonly AutoResetEvent _deviceCreatedEvent = new(false);
 
     public LoupedeckDevice.Device.LoupedeckDevice Device { get; private set; }
 
     public int TouchButtonCount => Device?.TouchButtonCount ?? 0;
     public int RotaryButtonCount => Device?.RotaryCount ?? 0;
-
-    public LoupedeckDeviceService(LoupedeckConfig config, DeviceRegistry.DeviceInfo deviceInfo)
-    {
-        _config = config;
-        _deviceInfo = deviceInfo;
-    }
 
     public void StartDevice(string devicePort, int deviceBaudrate)
     {
@@ -38,7 +30,7 @@ public class LoupedeckDeviceService : IDeviceService
             // The active device type was selected before DI build (App.axaml.cs +
             // ActiveDeviceResolver / InitSetup). Falling back to Live S keeps very
             // old configs that predate the device registry alive.
-            var type = _deviceInfo?.DeviceType ?? typeof(LoupedeckLiveSDevice);
+            var type = deviceInfo?.DeviceType ?? typeof(LoupedeckLiveSDevice);
             Device = (LoupedeckDevice.Device.LoupedeckDevice)Activator.CreateInstance(
                 type,
                 null, // host
@@ -90,8 +82,8 @@ public class LoupedeckDeviceService : IDeviceService
         if (callId == _currentCallId)
         {
             await Device.DrawTouchButton(
-                _config.CurrentTouchButtonPage.TouchButtons[index],
-                _config,
+                config.CurrentTouchButtonPage.TouchButtons[index],
+                config,
                 true,
                 Device.Columns); // Reset the button with current page wallpaper
         }
