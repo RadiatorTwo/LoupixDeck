@@ -2,7 +2,7 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
-using System.Text;
+using LoupixDeck.Native;
 
 namespace LoupixDeck.Services.ActiveWindow;
 
@@ -37,15 +37,6 @@ public sealed class WindowsActiveWindowMonitor : IActiveWindowMonitor, IDisposab
 
     [DllImport("user32.dll")]
     private static extern bool UnhookWinEvent(IntPtr hWinEventHook);
-
-    [DllImport("user32.dll")]
-    private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
-
-    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
-    private static extern int GetWindowText(IntPtr hWnd, StringBuilder lpString, int nMaxCount);
-
-    [DllImport("user32.dll")]
-    private static extern int GetWindowTextLength(IntPtr hWnd);
 
     public void StartMonitoring()
     {
@@ -84,12 +75,12 @@ public sealed class WindowsActiveWindowMonitor : IActiveWindowMonitor, IDisposab
         }
     }
 
-    private static string ResolveProcessName(IntPtr hwnd)
+    private static string? ResolveProcessName(IntPtr hwnd)
     {
         try
         {
-            GetWindowThreadProcessId(hwnd, out var pid);
-            if (pid == 0) return null;
+            if (!User32.TryGetWindowProcessId(hwnd, out uint pid))
+                return null;
             using var process = Process.GetProcessById((int)pid);
             return process.ProcessName; // already without path or ".exe"
         }
@@ -100,14 +91,7 @@ public sealed class WindowsActiveWindowMonitor : IActiveWindowMonitor, IDisposab
         }
     }
 
-    private static string ResolveTitle(IntPtr hwnd)
-    {
-        var length = GetWindowTextLength(hwnd);
-        if (length <= 0) return string.Empty;
-        var sb = new StringBuilder(length + 1);
-        GetWindowText(hwnd, sb, sb.Capacity);
-        return sb.ToString();
-    }
+    private static string ResolveTitle(IntPtr hwnd) => User32.GetWindowText(hwnd);
 
     public void Dispose()
     {
