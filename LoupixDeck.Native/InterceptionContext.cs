@@ -44,6 +44,8 @@ public sealed partial class InterceptionContext : SafeHandleZeroOrMinusOneIsInva
 
     private readonly int device;
 
+    public static InterceptionContext? CreateMouse() => Create(MouseDevice);
+    public static InterceptionContext? CreateKeyboard() => Create(KeyboardDevice);
     public static InterceptionContext? Create(int device)
     {
         try
@@ -70,8 +72,12 @@ public sealed partial class InterceptionContext : SafeHandleZeroOrMinusOneIsInva
         }
     }
 
-    public int Send(ReadOnlySpan<InterceptionKeyStroke> strokes) => Send(MemoryMarshal.Cast<InterceptionKeyStroke, InterceptionStroke>(strokes));
-    public int Send(ReadOnlySpan<InterceptionMouseStroke> strokes) => Send(MemoryMarshal.Cast<InterceptionMouseStroke, InterceptionStroke>(strokes));
+    public int Send(in InterceptionKeyStroke stroke) => Send(MemoryMarshal.CreateReadOnlySpan(ref Unsafe.AsRef(in stroke), 1));
+    public int Send(in InterceptionMouseStroke stroke) => Send(MemoryMarshal.CreateReadOnlySpan(ref Unsafe.AsRef(in stroke), 1));
+    public int Send(in InterceptionStroke stroke) => Send(MemoryMarshal.CreateReadOnlySpan(ref Unsafe.AsRef(in stroke), 1));
+
+    public int Send(ReadOnlySpan<InterceptionKeyStroke> strokes) => InterceptionFunctions.InterceptionSend(handle, device, strokes);
+    public int Send(ReadOnlySpan<InterceptionMouseStroke> strokes) => InterceptionFunctions.InterceptionSend(handle, device, strokes);
     public int Send(ReadOnlySpan<InterceptionStroke> strokes) => InterceptionFunctions.InterceptionSend(handle, device, strokes);
 
     protected override bool ReleaseHandle()

@@ -35,6 +35,9 @@ public static partial class User32
     public static partial short GetAsyncKeyState(int vKey);
     public static short GetAsyncKeyState(VIRTUAL_KEY vKey) => GetAsyncKeyState((int)vKey);
 
+    public static bool AsyncKeyStateIsDown(int vKey) => (GetAsyncKeyState(vKey) & 0x8000) != 0;
+    public static bool AsyncKeyStateIsDown(VIRTUAL_KEY vKey) => (GetAsyncKeyState(vKey) & 0x8000) != 0;
+
     /// <summary>Retrieves the active input locale identifier (formerly called the keyboard layout).</summary>
     /// <param name="idThread">
     /// <para>Type: <b>DWORD</b> The identifier of the thread to query, or 0 for the current thread.</para>

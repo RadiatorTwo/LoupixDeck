@@ -1,6 +1,7 @@
 using System.Diagnostics;
-using System.Runtime.InteropServices;
 using LoupixDeck.Models;
+using LoupixDeck.Native;
+using LoupixDeck.Native.Types.Windows;
 using LoupixDeck.Utils;
 
 namespace LoupixDeck.Services;
@@ -17,11 +18,8 @@ namespace LoupixDeck.Services;
 /// the user installs the driver. If the DLL is missing or the driver is not loaded, this
 /// backend reports itself unavailable and the router falls back to SendInput.
 /// </summary>
-public class InterceptionKeyboard : IUInputKeyboard
+public sealed class InterceptionKeyboard : IUInputKeyboard
 {
-    // INTERCEPTION_KEYBOARD(0): keyboards are devices 1..10, mice 11..20.
-    private const int KeyboardDevice = 1;
-
     // InterceptionKeyState flags. (Named State* to avoid colliding with the
     // IUInputKeyboard.KeyDown/KeyUp methods.)
     private const ushort StateKeyDown = 0x00;
@@ -53,43 +51,10 @@ public class InterceptionKeyboard : IUInputKeyboard
     // duration is accurate (Thread.Sleep would round up to the ~15 ms timer resolution).
     private const double FallbackPaceMs = 2.0;
 
-    // interception.dll uses the C default calling convention (cdecl). On x64 there is only
-    // one convention, but Cdecl keeps it correct should an x86 build ever exist.
-    [DllImport("interception.dll", CallingConvention = CallingConvention.Cdecl)]
-    private static extern IntPtr interception_create_context();
-
-    [DllImport("interception.dll", CallingConvention = CallingConvention.Cdecl)]
-    private static extern void interception_destroy_context(IntPtr context);
-
-    [DllImport("interception.dll", CallingConvention = CallingConvention.Cdecl)]
-    private static extern int interception_send(IntPtr context, int device,
-        [In] InterceptionStroke[] stroke, uint nstroke);
-
-    // Native InterceptionStroke is a byte blob sized to the larger of the key/mouse strokes
-    // (the mouse stroke = 20 bytes). For a keyboard device the driver reads the first 8 bytes
-    // as an InterceptionKeyStroke { ushort code; ushort state; uint information; }. Size = 20
-    // is mandatory so interception_send copies the right number of bytes per stroke.
-    [StructLayout(LayoutKind.Explicit, Size = 20)]
-    private struct InterceptionStroke
-    {
-        [FieldOffset(0)] public ushort Code;
-        [FieldOffset(2)] public ushort State;
-        [FieldOffset(4)] public uint Information;
-    }
-
-    [DllImport("user32.dll")]
-    private static extern IntPtr GetKeyboardLayout(uint idThread);
-
-    [DllImport("user32.dll")]
-    private static extern short GetAsyncKeyState(int vKey);
-
-    [DllImport("user32.dll")]
-    private static extern uint MapVirtualKey(uint uCode, uint uMapType);
-
     private readonly Lock _lock = new();
     private readonly KeyboardLayout _layout;
 
-    private IntPtr _context = IntPtr.Zero;
+    private InterceptionContext context = null;
     private bool? _available;
     private int _ackFailures;
 
@@ -205,12 +170,8 @@ public class InterceptionKeyboard : IUInputKeyboard
     {
         lock (_lock)
         {
-            if (_context != IntPtr.Zero)
-            {
-                try { interception_destroy_context(_context); }
-                catch { /* DLL may be gone — nothing to clean up */ }
-                _context = IntPtr.Zero;
-            }
+            context?.Dispose();
+            context = null;
         }
     }
 
@@ -219,19 +180,11 @@ public class InterceptionKeyboard : IUInputKeyboard
     private bool EnsureContext()
     {
         if (_available.HasValue)
-            return _available.Value && _context != IntPtr.Zero;
+            return _available.Value && context?.IsInvalid is false;
+        
+        context = InterceptionContext.CreateKeyboard();
 
-        try
-        {
-            _context = interception_create_context();
-        }
-        catch (Exception ex) when (ex is DllNotFoundException or BadImageFormatException
-                                      or EntryPointNotFoundException)
-        {
-            _context = IntPtr.Zero;
-        }
-
-        _available = _context != IntPtr.Zero;
+        _available = context?.IsInvalid is false;
         Connected = _available.Value;
         return _available.Value;
     }
@@ -245,17 +198,17 @@ public class InterceptionKeyboard : IUInputKeyboard
     private void SendStrokeVerified(ushort code, bool e0, bool up)
     {
         // Resolve the VK that win32k will track for this scan code. 0 = no mapping.
-        var vk = MapVirtualKey(e0 ? 0xE000u | code : code, MapVkVscToVkEx);
+        var vk = User32.MapVirtualScanCodeToVirtualKeyEx(e0 ? 0xE000u | code : code);
 
         if (vk == 0 || _ackFailures >= MaxConsecutiveAckFailures)
         {
             // Cannot (or should not) verify — inject and pace with a fixed spin delay.
-            Send([Stroke(code, e0, up)]);
+            Send(Stroke(code, e0, up));
             SpinDelay(FallbackPaceMs);
             return;
         }
 
-        Send([Stroke(code, e0, up)]);
+        Send(Stroke(code, e0, up));
 
         if (WaitForKeyState((int)vk, expectDown: !up))
         {
@@ -280,7 +233,7 @@ public class InterceptionKeyboard : IUInputKeyboard
 
         while (sw.ElapsedMilliseconds < StrokeAckTimeoutMs)
         {
-            var isDown = (GetAsyncKeyState(vk) & 0x8000) != 0;
+            var isDown = (User32.GetAsyncKeyState(vk) & 0x8000) != 0;
             if (isDown == expectDown) return true;
             spinner.SpinOnce(-1); // -1: yield, but never escalate to Thread.Sleep(1)
         }
@@ -300,8 +253,13 @@ public class InterceptionKeyboard : IUInputKeyboard
 
     // Caller must hold _lock and have ensured the context exists. Pushes strokes to the
     // driver, re-offering any it did not accept until they are in or the driver stalls.
-    private void Send(InterceptionStroke[] strokes)
+    private void Send(ReadOnlySpan<InterceptionKeyStroke> strokes)
     {
+        if(strokes.Length is 1)
+        {
+            Send(strokes[0]);
+            return;
+        }
         try
         {
             var sent = 0;
@@ -311,7 +269,7 @@ public class InterceptionKeyboard : IUInputKeyboard
             while (sent < strokes.Length)
             {
                 var chunk = sent == 0 ? strokes : strokes[sent..];
-                var accepted = interception_send(_context, KeyboardDevice, chunk, (uint)chunk.Length);
+                var accepted = context.Send(chunk);
 
                 if (accepted > 0)
                 {
@@ -333,12 +291,41 @@ public class InterceptionKeyboard : IUInputKeyboard
         }
         catch { /* swallow — backend stays best-effort, router covers fallback */ }
     }
+    private void Send(InterceptionKeyStroke stroke)
+    {
+        try
+        {
+            var sent = 0;
+            var spinner = new SpinWait();
+            var stall = Stopwatch.StartNew();
 
-    private static InterceptionStroke Stroke(ushort code, bool e0, bool up)
+            var accepted = context.Send(stroke);
+
+            if (accepted > 0)
+            {
+                sent += accepted;
+                spinner.Reset();
+                stall.Restart();
+            }
+            else if (stall.ElapsedMilliseconds > MaxStallMs)
+            {
+                Console.Error.WriteLine(
+                    $"[InterceptionKeyboard] Dropped one stroke (driver queue stalled).");
+                return;
+            }
+            else
+            {
+                spinner.SpinOnce();
+            }
+        }
+        catch { /* swallow — backend stays best-effort, router covers fallback */ }
+    }
+
+    private static InterceptionKeyStroke Stroke(ushort code, bool e0, bool up)
     {
         ushort state = up ? StateKeyUp : StateKeyDown;
         if (e0) state |= KeyE0;
-        return new InterceptionStroke { Code = code, State = state, Information = 0 };
+        return new() { Code = code, State = state, Information = 0 };
     }
 
     private static string GetCurrentKeyboardLayout()
@@ -346,8 +333,7 @@ public class InterceptionKeyboard : IUInputKeyboard
         try
         {
             // Low word of the HKL is the LANGID; primary language id lives in its low 10 bits.
-            var langId = (uint)GetKeyboardLayout(0).ToInt64() & 0xFFFF;
-            var primary = langId & 0x3FF;
+            var primary = User32.GetPrimaryKeyboardLayoutLanguageId(0);
             return primary == 0x07 ? "de" : "us"; // 0x07 = German, fall back to US otherwise
         }
         catch

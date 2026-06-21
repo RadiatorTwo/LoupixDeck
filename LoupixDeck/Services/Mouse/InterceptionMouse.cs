@@ -1,6 +1,8 @@
 using System.Diagnostics;
-using System.Runtime.InteropServices;
+using System.Diagnostics.CodeAnalysis;
 using LoupixDeck.Models.Macros;
+using LoupixDeck.Native;
+using LoupixDeck.Native.Types.Windows;
 
 namespace LoupixDeck.Services.Mouse;
 
@@ -16,11 +18,8 @@ namespace LoupixDeck.Services.Mouse;
 /// is missing or the driver is not loaded, this backend reports itself unavailable and the
 /// router falls back to SendInput.
 /// </summary>
-public class InterceptionMouse : IVirtualMouse
+public sealed class InterceptionMouse : IVirtualMouse
 {
-    // INTERCEPTION_MOUSE(0): keyboards are devices 1..10, mice 11..20.
-    private const int MouseDevice = 11;
-
     // InterceptionMouseState flags.
     private const ushort StateLeftDown = 0x001;
     private const ushort StateLeftUp = 0x002;
@@ -64,40 +63,11 @@ public class InterceptionMouse : IVirtualMouse
     private const int SM_CXVIRTUALSCREEN = 78;
     private const int SM_CYVIRTUALSCREEN = 79;
 
-    [DllImport("interception.dll", CallingConvention = CallingConvention.Cdecl)]
-    private static extern IntPtr interception_create_context();
-
-    [DllImport("interception.dll", CallingConvention = CallingConvention.Cdecl)]
-    private static extern void interception_destroy_context(IntPtr context);
-
-    [DllImport("interception.dll", CallingConvention = CallingConvention.Cdecl)]
-    private static extern int interception_send(IntPtr context, int device,
-        [In] InterceptionStroke[] stroke, uint nstroke);
-
-    // Native InterceptionMouseStroke layout:
-    //   ushort state; ushort flags; short rolling; int x; int y; uint information;
-    // C alignment puts x at offset 8 (after 2 bytes padding behind rolling) → size 20,
-    // which is also the size of the generic InterceptionStroke blob used by the keyboard.
-    [StructLayout(LayoutKind.Explicit, Size = 20)]
-    private struct InterceptionStroke
-    {
-        [FieldOffset(0)] public ushort State;
-        [FieldOffset(2)] public ushort Flags;
-        [FieldOffset(4)] public short Rolling;
-        [FieldOffset(8)] public int X;
-        [FieldOffset(12)] public int Y;
-        [FieldOffset(16)] public uint Information;
-    }
-
-    [DllImport("user32.dll")]
-    private static extern short GetAsyncKeyState(int vKey);
-
-    [DllImport("user32.dll")]
-    private static extern int GetSystemMetrics(int nIndex);
-
     private readonly Lock _lock = new();
 
-    private IntPtr _context = IntPtr.Zero;
+    [MemberNotNullWhen(true, nameof(context))]
+    private bool HasContext => context is not null;
+    private InterceptionContext context = null;
     private bool? _available;
     private int _ackFailures;
 
@@ -160,7 +130,7 @@ public class InterceptionMouse : IVirtualMouse
         lock (_lock)
         {
             if (!EnsureContext()) return;
-            Send([new InterceptionStroke { Flags = FlagMoveRelative, X = dx, Y = dy }]);
+            Send(new InterceptionMouseStroke() { Flags = FlagMoveRelative, X = dx, Y = dy });
             SpinDelay(FallbackPaceMs);
         }
     }
@@ -169,10 +139,10 @@ public class InterceptionMouse : IVirtualMouse
     {
         // Absolute coordinates are normalized to 0..65535 across the virtual desktop —
         // same convention as SendInput's MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK.
-        var left = GetSystemMetrics(SM_XVIRTUALSCREEN);
-        var top = GetSystemMetrics(SM_YVIRTUALSCREEN);
-        var width = GetSystemMetrics(SM_CXVIRTUALSCREEN);
-        var height = GetSystemMetrics(SM_CYVIRTUALSCREEN);
+        var left = User32.SystemMetrics.VirtualScreenLeft;
+        var top = User32.SystemMetrics.VirtualScreenTop;
+        var width = User32.SystemMetrics.VirtualScreenWidth;
+        var height = User32.SystemMetrics.VirtualScreenHeight;
 
         if (width <= 0 || height <= 0)
             return;
@@ -183,14 +153,12 @@ public class InterceptionMouse : IVirtualMouse
         lock (_lock)
         {
             if (!EnsureContext()) return;
-            Send([
-                new InterceptionStroke
+            Send(new InterceptionMouseStroke()
                 {
                     Flags = FlagMoveAbsolute | FlagVirtualDesktop,
                     X = nx,
                     Y = ny
-                }
-            ]);
+                });
             SpinDelay(FallbackPaceMs);
         }
     }
@@ -200,13 +168,11 @@ public class InterceptionMouse : IVirtualMouse
         lock (_lock)
         {
             if (!EnsureContext()) return;
-            Send([
-                new InterceptionStroke
+            Send(new InterceptionMouseStroke()
                 {
                     State = StateWheel,
                     Rolling = (short)(amount * WheelDelta)
-                }
-            ]);
+                });
             SpinDelay(FallbackPaceMs);
         }
     }
@@ -215,12 +181,8 @@ public class InterceptionMouse : IVirtualMouse
     {
         lock (_lock)
         {
-            if (_context != IntPtr.Zero)
-            {
-                try { interception_destroy_context(_context); }
-                catch { /* DLL may be gone — nothing to clean up */ }
-                _context = IntPtr.Zero;
-            }
+            context?.Dispose();
+            context = null;
         }
     }
 
@@ -229,19 +191,11 @@ public class InterceptionMouse : IVirtualMouse
     private bool EnsureContext()
     {
         if (_available.HasValue)
-            return _available.Value && _context != IntPtr.Zero;
+            return _available.Value && context?.IsInvalid is false;
+        
+        context = InterceptionContext.CreateMouse();
 
-        try
-        {
-            _context = interception_create_context();
-        }
-        catch (Exception ex) when (ex is DllNotFoundException or BadImageFormatException
-                                      or EntryPointNotFoundException)
-        {
-            _context = IntPtr.Zero;
-        }
-
-        _available = _context != IntPtr.Zero;
+        _available = context?.IsInvalid is false;
         return _available.Value;
     }
 
@@ -252,14 +206,15 @@ public class InterceptionMouse : IVirtualMouse
     // use fixed pacing instead. Caller must hold _lock and have ensured the context exists.
     private void SendButtonVerified(ushort state, int vk, bool expectDown)
     {
+        InterceptionMouseStroke stroke = new() { State = state };
         if (_ackFailures >= MaxConsecutiveAckFailures)
         {
-            Send([new InterceptionStroke { State = state }]);
+            Send(stroke);
             SpinDelay(FallbackPaceMs);
             return;
         }
 
-        Send([new InterceptionStroke { State = state }]);
+        Send(stroke);
 
         if (WaitForButtonState(vk, expectDown))
         {
@@ -284,7 +239,7 @@ public class InterceptionMouse : IVirtualMouse
 
         while (sw.ElapsedMilliseconds < StrokeAckTimeoutMs)
         {
-            var isDown = (GetAsyncKeyState(vk) & 0x8000) != 0;
+            var isDown = User32.AsyncKeyStateIsDown(vk);
             if (isDown == expectDown) return true;
             spinner.SpinOnce(-1); // -1: yield, but never escalate to Thread.Sleep(1)
         }
@@ -303,7 +258,7 @@ public class InterceptionMouse : IVirtualMouse
 
     // Caller must hold _lock and have ensured the context exists. Pushes strokes to the
     // driver, re-offering any it did not accept until they are in or the driver stalls.
-    private void Send(InterceptionStroke[] strokes)
+    private void Send(ReadOnlySpan<InterceptionMouseStroke> strokes)
     {
         try
         {
@@ -314,7 +269,7 @@ public class InterceptionMouse : IVirtualMouse
             while (sent < strokes.Length)
             {
                 var chunk = sent == 0 ? strokes : strokes[sent..];
-                var accepted = interception_send(_context, MouseDevice, chunk, (uint)chunk.Length);
+                var accepted = context.Send(chunk);
 
                 if (accepted > 0)
                 {
@@ -332,6 +287,36 @@ public class InterceptionMouse : IVirtualMouse
                 {
                     spinner.SpinOnce();
                 }
+            }
+        }
+        catch { /* swallow — backend stays best-effort, router covers fallback */ }
+    }
+
+    private void Send(InterceptionMouseStroke stroke)
+    {
+        try
+        {
+            var sent = 0;
+            var spinner = new SpinWait();
+            var stall = Stopwatch.StartNew();
+
+            var accepted = context.Send(stroke);
+
+            if (accepted > 0)
+            {
+                sent += accepted;
+                spinner.Reset();
+                stall.Restart();
+            }
+            else if (stall.ElapsedMilliseconds > MaxStallMs)
+            {
+                Console.Error.WriteLine(
+                    $"[InterceptionMouse] Dropped one stroke (driver queue stalled).");
+                return;
+            }
+            else
+            {
+                spinner.SpinOnce();
             }
         }
         catch { /* swallow — backend stays best-effort, router covers fallback */ }
