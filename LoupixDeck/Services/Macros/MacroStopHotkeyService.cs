@@ -14,7 +14,7 @@ public interface IMacroStopHotkeyService : IDisposable
 public sealed class MacroStopHotkeyService(IMacroManager macroManager, IMacroStopCoordinator coordinator)
     : IMacroStopHotkeyService
 {
-    private readonly object _lock = new();
+    private readonly Lock _lock = new();
     private readonly HashSet<string> _pressed = new(StringComparer.OrdinalIgnoreCase);
 
     // The configured combo (canonical key names); empty means the hotkey is disabled.
@@ -112,8 +112,11 @@ public sealed class MacroStopHotkeyService(IMacroManager macroManager, IMacroSto
     {
         var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         if (!string.IsNullOrWhiteSpace(hotkey))
+        {
             foreach (var part in hotkey.Split('+', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
                 set.Add(Utils.KeyNames.Canonicalize(part));
+        }
+
         return set;
     }
 

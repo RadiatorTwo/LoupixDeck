@@ -103,8 +103,10 @@ public sealed class PluginInstaller : IPluginInstaller
         // The manifest sits either at the zip root or inside a single top-level folder.
         var contentRoot = FindContentRoot(tempDir);
         if (contentRoot == null)
+        {
             return PluginActionResult.Fail(
                 "The zip has no plugin.json (expected at its root or in a single top-level folder).");
+        }
 
         PluginManifest manifest;
         try
@@ -120,7 +122,9 @@ public sealed class PluginInstaller : IPluginInstaller
         // Same validation the loader applies in PluginManager.LoadOne.
         if (manifest == null || string.IsNullOrWhiteSpace(manifest.Id) ||
             string.IsNullOrWhiteSpace(manifest.EntryAssembly))
+        {
             return PluginActionResult.Fail("plugin.json is missing 'id' or 'entryAssembly'.");
+        }
 
         if (!IsSafeFolderName(manifest.Id))
             return PluginActionResult.Fail($"Plugin id '{manifest.Id}' is not a valid folder name.");
@@ -129,12 +133,16 @@ public sealed class PluginInstaller : IPluginInstaller
             return PluginActionResult.Fail($"Unparseable sdkVersion '{manifest.SdkVersion}'.");
 
         if (pluginSdk.Major != SdkInfo.Version.Major)
+        {
             return PluginActionResult.Fail(
                 $"Plugin SDK {pluginSdk} is incompatible with this app's SDK {SdkInfo.Version}.");
+        }
 
         if (!File.Exists(Path.Combine(contentRoot, manifest.EntryAssembly)))
+        {
             return PluginActionResult.Fail(
                 $"Entry assembly '{manifest.EntryAssembly}' is missing from the zip.");
+        }
 
         // A bundled plugin with the same id always shadows a user copy (PluginManager
         // scans the app dir first), so installing one would silently do nothing.
@@ -183,9 +191,11 @@ public sealed class PluginInstaller : IPluginInstaller
             // anything is loaded. The coordinator unloads the old version live so its
             // commands stop now — only the on-disk swap waits for the restart.
             if (StageForInstall(manifest.Id, contentRoot))
+            {
                 return PluginActionResult.Ok(
                     $"Updated '{name}' ({arrow}). Restart to load the new version.",
                     requiresRestart: true, pluginId: manifest.Id);
+            }
 
             return PluginActionResult.Fail($"Could not stage the update for '{name}': {ex.Message}");
         }
@@ -232,8 +242,10 @@ public sealed class PluginInstaller : IPluginInstaller
             // A loaded plugin's assemblies are locked on Windows — defer the delete
             // to the next startup, before the plugin is loaded again.
             if (MarkForRemoval(plugin.Directory))
+            {
                 return PluginActionResult.Ok(
                     $"'{name}' is in use; it will be deleted on the next restart.");
+            }
 
             return PluginActionResult.Fail($"Could not remove '{name}': {ex.Message}");
         }

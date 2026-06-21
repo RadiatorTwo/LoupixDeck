@@ -1,9 +1,11 @@
 using System.Collections.ObjectModel;
 using System.Windows.Input;
+using CommunityToolkit.Mvvm.Input;
 using LoupixDeck.Models;
 using LoupixDeck.PluginSdk;
 using LoupixDeck.Services;
 using LoupixDeck.Services.Commands;
+using LoupixDeck.Utils;
 using LoupixDeck.ViewModels.Base;
 using RelayCommand = CommunityToolkit.Mvvm.Input.RelayCommand;
 
@@ -14,13 +16,10 @@ namespace LoupixDeck.ViewModels;
 /// around every button command). Accepts either a <see cref="RotaryButtonPage"/>
 /// (4 slots) or <see cref="TouchButtonPage"/> (1 slot) via Initialize.
 /// </summary>
-public class PageCommandsSettingsViewModel : DialogViewModelBase<object, DialogResult>, IAsyncInitViewModel
+public class PageCommandsSettingsViewModel(ICommandBuilder commandBuilder, IMenuTreeBuilder menuTreeBuilder) : DialogViewModelBase<object, DialogResult>, IAsyncInitViewModel
 {
-    private readonly ICommandBuilder _commandBuilder;
-    private readonly IMenuTreeBuilder _menuTreeBuilder;
-
-    public ICommand ConfirmCommand { get; }
-    public ICommand CancelCommand { get; }
+    public IRelayCommand ConfirmCommand => field ??= Relay.Create(ConfirmDialog);
+    public IRelayCommand CancelCommand => field ??= Relay.Create(CancelDialog);
 
     public event Action CloseRequested;
 
@@ -33,15 +32,6 @@ public class PageCommandsSettingsViewModel : DialogViewModelBase<object, DialogR
     /// <summary>The TextBox the user clicked into last — defines where InsertCommand appends.</summary>
     private WrapSlot _activeSlot;
     private bool _activeIsPost;
-
-    public PageCommandsSettingsViewModel(ICommandBuilder commandBuilder, IMenuTreeBuilder menuTreeBuilder)
-    {
-        _commandBuilder = commandBuilder;
-        _menuTreeBuilder = menuTreeBuilder;
-
-        ConfirmCommand = new RelayCommand(ConfirmDialog);
-        CancelCommand = new RelayCommand(CancelDialog);
-    }
 
     public override void Initialize(object parameter)
     {
@@ -72,7 +62,7 @@ public class PageCommandsSettingsViewModel : DialogViewModelBase<object, DialogR
     {
         // Page wraps chain around button commands; the SimpleButton target set
         // (Pages, Device Control, OBS, Elgato) is the right scope for them.
-        await _menuTreeBuilder.BuildInto(SystemCommandMenus, ButtonTargets.SimpleButton);
+        await menuTreeBuilder.BuildInto(SystemCommandMenus, ButtonTargets.SimpleButton);
     }
 
     public void SetActiveTarget(WrapSlot slot, bool isPost)
@@ -84,7 +74,7 @@ public class PageCommandsSettingsViewModel : DialogViewModelBase<object, DialogR
     public void InsertCommand(MenuEntry menuEntry)
     {
         if (_activeSlot == null) return;
-        var formatted = _commandBuilder.CreateCommandFromMenuEntry(menuEntry);
+        var formatted = commandBuilder.CreateCommandFromMenuEntry(menuEntry);
         if (string.IsNullOrEmpty(formatted)) return;
 
         if (_activeIsPost)
@@ -108,7 +98,7 @@ public class PageCommandsSettingsViewModel : DialogViewModelBase<object, DialogR
 }
 
 /// <summary>One editable wrap slot with a label and rollback support.</summary>
-public class WrapSlot
+public sealed class WrapSlot
 {
     public string Label { get; }
     public CommandWrap Wrap { get; }

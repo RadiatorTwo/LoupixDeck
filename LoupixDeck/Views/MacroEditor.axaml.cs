@@ -80,7 +80,9 @@ public partial class MacroEditor : Window
 
         if (e.Source is not TextBlock { DataContext: MenuEntry menuEntry } textBlock ||
             string.IsNullOrWhiteSpace(menuEntry.Command))
+        {
             return;
+        }
 
         // The TreeView's Tag carries the CommandStep this tree belongs to.
         var treeView = textBlock.FindAncestorOfType<TreeView>();

@@ -42,7 +42,7 @@ public class MacroRunner : IDisposable
     }
 
     // Cancellation tokens of every in-flight Run, so CancelAll() can stop them all.
-    private readonly object _runLock = new();
+    private readonly Lock _runLock = new();
     private readonly List<CancellationTokenSource> _activeRuns = [];
 
     /// <summary>True while at least one macro is currently executing.</summary>
@@ -269,7 +269,10 @@ public class MacroRunner : IDisposable
                 case EndIfStep:
                     if (stack.Count > 0 &&
                         stack.Peek().Kind is FrameKind.IfTaken or FrameKind.IfSkipped)
+                    {
                         stack.Pop();
+                    }
+
                     i++;
                     break;
 

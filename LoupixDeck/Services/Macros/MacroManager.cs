@@ -22,7 +22,7 @@ public class MacroManager : IMacroManager
         Converters = { new MacroStepJsonConverter() }
     };
 
-    private readonly object _lock = new();
+    private readonly Lock _lock = new();
 
     private List<Macro> _macros = [];
     private Dictionary<string, Macro> _byName = new(StringComparer.OrdinalIgnoreCase);

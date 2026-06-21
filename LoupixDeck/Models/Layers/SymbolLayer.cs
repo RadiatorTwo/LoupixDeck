@@ -1,4 +1,5 @@
 using Avalonia.Media;
+using CommunityToolkit.Mvvm.ComponentModel;
 using LoupixDeck.Utils;
 using Newtonsoft.Json;
 
@@ -9,7 +10,7 @@ namespace LoupixDeck.Models.Layers;
 /// font. <see cref="SymbolId"/> references an entry in <see cref="SymbolLibrary"/>;
 /// the renderer (<c>BitmapHelper.DrawSymbolLayer</c>) resolves it to a glyph.
 /// </summary>
-public class SymbolLayer : LayerBase
+public partial class SymbolLayer : LayerBase
 {
     public const string Kind = "symbol";
 
@@ -19,122 +20,59 @@ public class SymbolLayer : LayerBase
     /// </summary>
     private const double BaseSize = 90.0;
 
-    private string _symbolId = string.Empty;
-    private Color _tint = Colors.White;
-
-    private bool _outlined;
-    private Color _outlineColor = Colors.Black;
-    private double _outlineWidth = 3.0;
-
-    private bool _shadow;
-    private Color _shadowColor = Color.FromArgb(160, 0, 0, 0);
-    private double _shadowBlur = 3.0;
-    private int _shadowOffsetX = 2;
-    private int _shadowOffsetY = 2;
-
-    private bool _useGradient;
-    private Color _gradientStartColor = Colors.White;
-    private Color _gradientEndColor = Color.FromRgb(0x60, 0x60, 0x60);
-    private double _gradientAngle = 90.0;
-
-    public string SymbolId
-    {
-        get => _symbolId;
-        set
-        {
-            if (SetField(ref _symbolId, value))
-                OnPropertyChanged(nameof(Glyph));
-        }
-    }
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(Glyph))]
+    public partial string SymbolId { get; set; } = string.Empty;
 
     /// <summary>Solid fill color — used when <see cref="UseGradient"/> is false.</summary>
-    public Color Tint
-    {
-        get => _tint;
-        set => SetField(ref _tint, value);
-    }
+    [ObservableProperty]
+    public partial Color Tint { get; set; } = Colors.White;
 
     // --- Outline ---
 
-    public bool Outlined
-    {
-        get => _outlined;
-        set => SetField(ref _outlined, value);
-    }
+    [ObservableProperty]
+    public partial bool Outlined { get; set; }
 
-    public Color OutlineColor
-    {
-        get => _outlineColor;
-        set => SetField(ref _outlineColor, value);
-    }
+    [ObservableProperty]
+    public partial Color OutlineColor { get; set; } = Colors.Black;
 
     /// <summary>Outline stroke width in device pixels.</summary>
-    public double OutlineWidth
-    {
-        get => _outlineWidth;
-        set => SetField(ref _outlineWidth, value);
-    }
+    [ObservableProperty]
+    public partial double OutlineWidth { get; set; } = 3.0;
 
     // --- Drop shadow ---
 
-    public bool Shadow
-    {
-        get => _shadow;
-        set => SetField(ref _shadow, value);
-    }
+    [ObservableProperty]
+    public partial bool Shadow { get; set; }
 
-    public Color ShadowColor
-    {
-        get => _shadowColor;
-        set => SetField(ref _shadowColor, value);
-    }
+    [ObservableProperty]
+    public partial Color ShadowColor { get; set; } = Color.FromArgb(160, 0, 0, 0);
 
     /// <summary>Gaussian blur sigma for the shadow, in device pixels. 0 = sharp.</summary>
-    public double ShadowBlur
-    {
-        get => _shadowBlur;
-        set => SetField(ref _shadowBlur, value);
-    }
+    [ObservableProperty]
+    public partial double ShadowBlur { get; set; } = 3.0;
 
-    public int ShadowOffsetX
-    {
-        get => _shadowOffsetX;
-        set => SetField(ref _shadowOffsetX, value);
-    }
+    [ObservableProperty]
+    public partial int ShadowOffsetX { get; set; } = 2;
 
-    public int ShadowOffsetY
-    {
-        get => _shadowOffsetY;
-        set => SetField(ref _shadowOffsetY, value);
-    }
+    [ObservableProperty]
+    public partial int ShadowOffsetY { get; set; } = 2;
 
     // --- Gradient fill ---
 
     /// <summary>When true the glyph is filled with a linear gradient instead of <see cref="Tint"/>.</summary>
-    public bool UseGradient
-    {
-        get => _useGradient;
-        set => SetField(ref _useGradient, value);
-    }
+    [ObservableProperty]
+    public partial bool UseGradient { get; set; }
 
-    public Color GradientStartColor
-    {
-        get => _gradientStartColor;
-        set => SetField(ref _gradientStartColor, value);
-    }
+    [ObservableProperty]
+    public partial Color GradientStartColor { get; set; } = Colors.White;
 
-    public Color GradientEndColor
-    {
-        get => _gradientEndColor;
-        set => SetField(ref _gradientEndColor, value);
-    }
+    [ObservableProperty]
+    public partial Color GradientEndColor { get; set; } = Color.FromRgb(0x60, 0x60, 0x60);
 
     /// <summary>Gradient direction in degrees: 0° = left→right, 90° = top→bottom.</summary>
-    public double GradientAngle
-    {
-        get => _gradientAngle;
-        set => SetField(ref _gradientAngle, value);
-    }
+    [ObservableProperty]
+    public partial double GradientAngle { get; set; } = 90.0;
 
     /// <summary>
     /// The UTF-16 glyph string for the current <see cref="SymbolId"/>, or empty

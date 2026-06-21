@@ -1,3 +1,5 @@
+using System.Collections.Frozen;
+using System.Collections.Immutable;
 using Avalonia.Platform;
 using SkiaSharp;
 
@@ -29,11 +31,13 @@ public static class SymbolLibrary
     private static readonly Uri FontAssetUri =
         new("avares://LoupixDeck/Assets/Fonts/materialdesignicons-webfont.ttf");
 
-    private static readonly object Sync = new();
+    private static readonly Lock Sync = new();
     private static SKTypeface _typeface;
     private static bool _typefaceLoadFailed;
 
-    public static IReadOnlyList<SymbolDefinition> All { get; } =
+    public const string AllCategoriesKey = "All";
+
+    public static ImmutableArray<SymbolDefinition> All { get; } =
     [
         // Media
         new("play", "Play", "Media", 0xF040A),
@@ -169,12 +173,14 @@ public static class SymbolLibrary
         new("numeric-3-box", "Number 3", "Devices", 0xF03AA),
     ];
 
-    private static readonly Dictionary<string, SymbolDefinition> ById =
-        All.ToDictionary(s => s.Id, StringComparer.OrdinalIgnoreCase);
+    private static readonly FrozenDictionary<string, SymbolDefinition> ById =
+        All.ToFrozenDictionary(static s => s.Id, StringComparer.OrdinalIgnoreCase);
 
     /// <summary>Distinct category names, in first-seen order.</summary>
-    public static IReadOnlyList<string> Categories { get; } =
-        All.Select(s => s.Category).Distinct().ToArray();
+    public static ImmutableArray<string> Categories { get; } =
+        All.Select(static s => s.Category).Distinct().ToImmutableArray();
+
+    public static ImmutableArray<string> CategoriesWithAll { get; } = Categories.Insert(0, AllCategoriesKey);
 
     /// <summary>Looks up a symbol by its stable id (the value stored in <c>SymbolLayer.SymbolId</c>).</summary>
     public static bool TryGet(string id, out SymbolDefinition definition)

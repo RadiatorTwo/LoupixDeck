@@ -55,7 +55,9 @@ public partial class SimpleButtonSettings : Window
     {
         if (sender is Button { DataContext: CommandSegment segment } &&
             DataContext is SimpleButtonSettingsViewModel vm)
+        {
             vm.RemoveSegment(segment);
+        }
     }
 
     // Live reorder of chain chips — the drag handle captures the pointer onto the

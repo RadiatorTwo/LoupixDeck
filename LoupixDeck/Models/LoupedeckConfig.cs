@@ -3,7 +3,6 @@ using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using Newtonsoft.Json;
-using SkiaSharp;
 
 namespace LoupixDeck.Models;
 
@@ -11,7 +10,7 @@ namespace LoupixDeck.Models;
 /// This data model holds all configuration settings,
 /// which are loaded and saved via JSON.
 /// </summary>
-public class LoupedeckConfig : INotifyPropertyChanged
+public partial class LoupedeckConfig
 {
     private int _currentRotaryPageIndex = -1;
     private int _currentLeftRotaryPageIndex = -1;
@@ -177,11 +176,9 @@ public class LoupedeckConfig : INotifyPropertyChanged
         set
         {
             if (ReferenceEquals(_rotaryButtonPages, value)) return;
-            if (_rotaryButtonPages != null)
-                _rotaryButtonPages.CollectionChanged -= OnRotaryPagesChanged;
+            _rotaryButtonPages?.CollectionChanged -= OnRotaryPagesChanged;
             _rotaryButtonPages = value;
-            if (_rotaryButtonPages != null)
-                _rotaryButtonPages.CollectionChanged += OnRotaryPagesChanged;
+            _rotaryButtonPages?.CollectionChanged += OnRotaryPagesChanged;
             OnPropertyChanged();
             OnPropertyChanged(nameof(RotaryPageLabel));
         }
@@ -234,11 +231,9 @@ public class LoupedeckConfig : INotifyPropertyChanged
         set
         {
             if (ReferenceEquals(_leftRotaryButtonPages, value)) return;
-            if (_leftRotaryButtonPages != null)
-                _leftRotaryButtonPages.CollectionChanged -= OnLeftRotaryPagesChanged;
+            _leftRotaryButtonPages?.CollectionChanged -= OnLeftRotaryPagesChanged;
             _leftRotaryButtonPages = value;
-            if (_leftRotaryButtonPages != null)
-                _leftRotaryButtonPages.CollectionChanged += OnLeftRotaryPagesChanged;
+            _leftRotaryButtonPages?.CollectionChanged += OnLeftRotaryPagesChanged;
             OnPropertyChanged();
             OnPropertyChanged(nameof(LeftRotaryPageLabel));
         }
@@ -254,11 +249,9 @@ public class LoupedeckConfig : INotifyPropertyChanged
         set
         {
             if (ReferenceEquals(_rightRotaryButtonPages, value)) return;
-            if (_rightRotaryButtonPages != null)
-                _rightRotaryButtonPages.CollectionChanged -= OnRightRotaryPagesChanged;
+            _rightRotaryButtonPages?.CollectionChanged -= OnRightRotaryPagesChanged;
             _rightRotaryButtonPages = value;
-            if (_rightRotaryButtonPages != null)
-                _rightRotaryButtonPages.CollectionChanged += OnRightRotaryPagesChanged;
+            _rightRotaryButtonPages?.CollectionChanged += OnRightRotaryPagesChanged;
             OnPropertyChanged();
             OnPropertyChanged(nameof(RightRotaryPageLabel));
         }
@@ -335,11 +328,9 @@ public class LoupedeckConfig : INotifyPropertyChanged
         set
         {
             if (ReferenceEquals(_touchButtonPages, value)) return;
-            if (_touchButtonPages != null)
-                _touchButtonPages.CollectionChanged -= OnTouchPagesChanged;
+            _touchButtonPages?.CollectionChanged -= OnTouchPagesChanged;
             _touchButtonPages = value;
-            if (_touchButtonPages != null)
-                _touchButtonPages.CollectionChanged += OnTouchPagesChanged;
+            _touchButtonPages?.CollectionChanged += OnTouchPagesChanged;
             OnPropertyChanged();
             OnPropertyChanged(nameof(TouchPageLabel));
         }

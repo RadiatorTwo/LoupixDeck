@@ -136,7 +136,9 @@ public sealed class AppSwitchingService : IAppSwitchingService
 
             if (!string.IsNullOrEmpty(rule.TitleContains) &&
                 title.IndexOf(rule.TitleContains, StringComparison.OrdinalIgnoreCase) < 0)
+            {
                 continue;
+            }
 
             return rule;
         }

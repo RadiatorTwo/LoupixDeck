@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using Avalonia.Media;
 using LoupixDeck.Commands.Base;
 using LoupixDeck.Controllers;
@@ -60,10 +61,15 @@ public class UpdateButtonCommand(IDeviceController controller, IAssetService ass
         var assignments = new List<(string Key, string Value)>(parameters.Length - 1);
         for (var i = 1; i < parameters.Length; i++)
         {
-            var (key, value) = SplitKeyValue(parameters[i]);
-            if (key == null) continue;
-            if (key == "layer") { layerName = value; continue; }
-            assignments.Add((key, value));
+            if (TrySplitKeyValue(layerName, out var key, out var value))
+            {
+                if (key == "layer")
+                {
+                    layerName = value;
+                    continue;
+                }
+                assignments.Add((key, value));
+            }
         }
 
         foreach (var (key, value) in assignments)
@@ -137,18 +143,26 @@ public class UpdateButtonCommand(IDeviceController controller, IAssetService ass
         return Task.CompletedTask;
     }
 
-    private static (string Key, string Value) SplitKeyValue(string param)
+#nullable enable
+    private static bool TrySplitKeyValue(string param, [NotNullWhen(true), MaybeNullWhen(false)] out string? key, [NotNullWhen(true), MaybeNullWhen(false)] out string? value)
     {
-        if (string.IsNullOrWhiteSpace(param)) return (null, null);
-        var eq = param.IndexOf('=');
-        if (eq < 0)
+        if (string.IsNullOrWhiteSpace(param))
+        {
+            key = value = null;
+            return false;
+        }
+        var split = param.Split('=', 2, StringSplitOptions.TrimEntries);
+        if (split.Length != 2)
         {
             Console.WriteLine($"[UpdateButton] expected key=value, got '{param}'");
-            return (null, null);
+            key = value = null;
+            return false;
         }
-        return (param.Substring(0, eq).Trim().ToLowerInvariant(),
-                param.Substring(eq + 1).Trim());
+        key = split[0].ToLowerInvariant();
+        value = split[1];
+        return true;
     }
+#nullable restore
 
     /// <summary>
     /// Resolves the TextLayer to write to. With an explicit name, look for an
@@ -161,8 +175,10 @@ public class UpdateButtonCommand(IDeviceController controller, IAssetService ass
         if (!string.IsNullOrEmpty(nameHint))
         {
             foreach (var layer in button.Layers)
+            {
                 if (layer is TextLayer tl && string.Equals(tl.Name, nameHint, StringComparison.OrdinalIgnoreCase))
                     return tl;
+            }
         }
         else
         {
@@ -189,8 +205,10 @@ public class UpdateButtonCommand(IDeviceController controller, IAssetService ass
         if (!string.IsNullOrEmpty(nameHint))
         {
             foreach (var layer in button.Layers)
+            {
                 if (layer is ImageLayer il && string.Equals(il.Name, nameHint, StringComparison.OrdinalIgnoreCase))
                     return il;
+            }
         }
         else
         {
@@ -214,7 +232,7 @@ public class UpdateButtonCommand(IDeviceController controller, IAssetService ass
         if (string.IsNullOrWhiteSpace(value)) return false;
         try
         {
-            if (value.StartsWith("#"))
+            if (value.StartsWith('#'))
             {
                 color = Color.Parse(value);
                 return true;

@@ -50,7 +50,7 @@ internal sealed class SkiaRenderCanvas : IRenderCanvas
             _canvas.Translate(_originX, _originY);
             _canvas.ClipRect(new SKRect(0, 0, Width, Height));
             var t = _transform;
-            _canvas.Concat(ref t);
+            _canvas.Concat(in t);
             draw();
         }
         finally
@@ -155,8 +155,8 @@ internal sealed class SkiaRenderCanvas : IRenderCanvas
             var fit = Math.Min(width / (float)decoded.Width, height / (float)decoded.Height);
             var dw = decoded.Width * fit;
             var dh = decoded.Height * fit;
-            var left = x + (width - dw) / 2f;
-            var top = y + (height - dh) / 2f;
+            var left = x + ((width - dw) / 2f);
+            var top = y + ((height - dh) / 2f);
 
             var hasTint = tint.A > 0 && (tint.R != 255 || tint.G != 255 || tint.B != 255 || tint.A != 255);
             if (opacity == 255 && !hasTint)

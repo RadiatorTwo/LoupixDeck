@@ -384,8 +384,7 @@ public class IfStep : MacroStep
         set
         {
             if (ReferenceEquals(_condition, value)) return;
-            if (_condition != null)
-                _condition.PropertyChanged -= OnConditionChanged;
+            _condition?.PropertyChanged -= OnConditionChanged;
             _condition = value ?? new MacroCondition();
             _condition.PropertyChanged += OnConditionChanged;
             OnValueChanged();
@@ -447,8 +446,7 @@ public class WaitForConditionStep : MacroStep
         set
         {
             if (ReferenceEquals(_condition, value)) return;
-            if (_condition != null)
-                _condition.PropertyChanged -= OnConditionChanged;
+            _condition?.PropertyChanged -= OnConditionChanged;
             _condition = value ?? new MacroCondition();
             _condition.PropertyChanged += OnConditionChanged;
             OnValueChanged();

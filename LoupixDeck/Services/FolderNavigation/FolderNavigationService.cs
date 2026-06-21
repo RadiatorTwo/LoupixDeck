@@ -1,16 +1,16 @@
+using System.Collections.Immutable;
+
 namespace LoupixDeck.Services.FolderNavigation;
 
 public sealed class FolderNavigationService : IFolderNavigationService
 {
     private readonly Stack<IFolderProvider> _stack = new();
-    private Dictionary<int, FolderEntry> _currentEntries = new();
-    private IFolderProvider _activeProvider;
 
     public bool IsActive => _stack.Count > 0;
 
-    public IFolderProvider CurrentProvider => _activeProvider;
+    public IFolderProvider CurrentProvider { get; private set; }
 
-    public IReadOnlyDictionary<int, FolderEntry> CurrentEntries => _currentEntries;
+    public ImmutableDictionary<int, FolderEntry> CurrentEntries { get; private set; } = ImmutableDictionary<int, FolderEntry>.Empty;
 
     public event Action StateChanged;
 
@@ -39,8 +39,8 @@ public sealed class FolderNavigationService : IFolderNavigationService
 
         if (_stack.Count == 0)
         {
-            _activeProvider = null;
-            _currentEntries = new Dictionary<int, FolderEntry>();
+            CurrentProvider = null;
+            CurrentEntries = ImmutableDictionary<int, FolderEntry>.Empty;
         }
         else
         {
@@ -64,8 +64,8 @@ public sealed class FolderNavigationService : IFolderNavigationService
             try { leaving.OnExit(); } catch { /* swallow */ }
         }
 
-        _activeProvider = null;
-        _currentEntries = new Dictionary<int, FolderEntry>();
+        CurrentProvider = null;
+        CurrentEntries = ImmutableDictionary<int, FolderEntry>.Empty;
 
         StateChanged?.Invoke();
         return Task.CompletedTask;
@@ -73,24 +73,24 @@ public sealed class FolderNavigationService : IFolderNavigationService
 
     private void OnProviderEntriesChanged()
     {
-        if (_activeProvider != null)
-            SetActive(_activeProvider);
+        if (CurrentProvider != null)
+            SetActive(CurrentProvider);
 
         StateChanged?.Invoke();
     }
 
     private void SetActive(IFolderProvider provider)
     {
-        _activeProvider = provider;
+        CurrentProvider = provider;
         var entries = provider.BuildEntries() ?? Array.Empty<FolderEntry>();
-        var dict = new Dictionary<int, FolderEntry>(entries.Count);
+        var dict = ImmutableDictionary.CreateBuilder<int, FolderEntry>();
         foreach (var entry in entries)
         {
             // Skip the back-button slot — it's reserved.
             if (entry.SlotIndex == FolderConstants.BackSlotIndex) continue;
             dict[entry.SlotIndex] = entry;
         }
-        _currentEntries = dict;
+        CurrentEntries = dict.ToImmutable();
     }
 }
 

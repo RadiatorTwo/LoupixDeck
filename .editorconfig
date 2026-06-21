@@ -14,7 +14,7 @@ indent_size = 2
 # Code files
 [*.{cs}]
 indent_size = 4
-end_of_line = lf
+# end_of_line = lf
 insert_final_newline = false
 charset = utf-8
 
@@ -27,7 +27,6 @@ dotnet_style_prefer_collection_expression = false # IDE0305: Simplify collection
 
 # Organize usings
 dotnet_sort_system_directives_first = true
-dotnet_separate_import_directive_groups = false
 
 # New line preferences
 dotnet_style_allow_multiple_blank_lines_experimental = false:suggestion
@@ -38,12 +37,23 @@ dotnet_style_parentheses_in_relational_binary_operators = always_for_clarity:war
 dotnet_style_parentheses_in_other_binary_operators = always_for_clarity:warning
 dotnet_style_parentheses_in_other_operators = always_for_clarity:suggestion
 
+# Null-checking preferences
+# review: csharp_style_throw_expression = false:silent
+csharp_style_conditional_delegate_call = true:suggestion
+
 # Modifier preferences
-dotnet_style_require_accessibility_modifiers = for_non_interface_members
+csharp_prefer_static_local_function = true:suggestion
+csharp_preferred_modifier_order = public,private,protected,internal,static,extern,new,virtual,abstract,sealed,override,readonly,unsafe,volatile,async
+
+# Code-block preferences
+csharp_prefer_braces = when_multiline:suggestion
 
 #AnalyzerSettings
 dotnet_style_namespace_match_folder = true:warning
 
 # TODO: review the following rules:
-# IDE0008: Use explicit type
+# Use explicit type (not var)
 dotnet_diagnostic.IDE0008.severity = silent
+
+# Remove unnecessary parentheses
+dotnet_diagnostic.IDE0047.severity = none

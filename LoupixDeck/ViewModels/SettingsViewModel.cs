@@ -1,22 +1,19 @@
 using System.Collections.ObjectModel;
-using System.Net.Http;
-using System.Windows.Input;
 using Avalonia;
-using Avalonia.Media;
 using Avalonia.Styling;
 using Avalonia.Threading;
-using LoupixDeck.LoupedeckDevice.Device;
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using LoupixDeck.Models;
 using LoupixDeck.Models.Converter;
 using LoupixDeck.Services;
 using LoupixDeck.Services.Plugins;
 using LoupixDeck.Utils;
 using LoupixDeck.ViewModels.Base;
-using Newtonsoft.Json.Linq;
 
 namespace LoupixDeck.ViewModels;
 
-public class SettingsViewModel : DialogViewModelBase<DialogResult>
+public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
 {
     public LoupedeckConfig Config { get; }
     private readonly IDeviceService _deviceService;
@@ -33,36 +30,63 @@ public class SettingsViewModel : DialogViewModelBase<DialogResult>
     /// </summary>
     public IReadOnlyList<LoadedPlugin> Plugins => _pluginManager.Plugins;
 
-    public ICommand NavigateCommand { get; }
-    public ICommand AddHapticStepCommand { get; }
-    public ICommand RemoveHapticStepCommand { get; }
-    public ICommand ReconnectDeviceCommand { get; }
-    public ICommand AddTouchPageCommand { get; }
-    public ICommand RemoveTouchPageCommand { get; }
-    public ICommand MoveTouchPageUpCommand { get; }
-    public ICommand MoveTouchPageDownCommand { get; }
-    public ICommand EditWallpaperCommand { get; }
-    public ICommand EditPageCommandsCommand { get; }
-    public ICommand AddRotaryPageCommand { get; }
-    public ICommand RemoveRotaryPageCommand { get; }
-    public ICommand MoveRotaryPageUpCommand { get; }
-    public ICommand MoveRotaryPageDownCommand { get; }
+    public IRelayCommand NavigateCommand => field ??= Relay.Create<SettingsView>(Navigate);
+    public IRelayCommand AddHapticStepCommand => field ??= Relay.Create(AddHapticStep);
+    public IRelayCommand RemoveHapticStepCommand => field ??= Relay.Create<HapticStep>(RemoveHapticStep);
+
+    public IRelayCommand AddAppBindingCommand => field ??= Relay.Create(AddAppBinding);
+    public IRelayCommand RemoveAppBindingCommand => field ??= Relay.Create<AppBindingRow>(RemoveAppBinding, static p => p != null);
+
+    public IAsyncRelayCommand ReconnectDeviceCommand => field ??= Relay.Create(ReconnectDevice);
+    public IAsyncRelayCommand AddTouchPageCommand => field ??= Relay.Create(() => _pageManager.AddTouchButtonPage());
+    public IRelayCommand RemoveTouchPageCommand => field ??= Relay.Create<TouchButtonPage>(
+        p => _ = RemoveTouchPage(p),
+        p => p != null && _pageManager.TouchButtonPages.Count > 1);
+    public IRelayCommand MoveTouchPageUpCommand => field ??= Relay.Create<TouchButtonPage>(
+        p => MovePage(_pageManager.TouchButtonPages, p, -1),
+        p => p != null && _pageManager.TouchButtonPages.IndexOf(p) > 0);
+    public IRelayCommand MoveTouchPageDownCommand => field ??= Relay.Create<TouchButtonPage>(
+        p => MovePage(_pageManager.TouchButtonPages, p, +1),
+        p => p != null && _pageManager.TouchButtonPages.IndexOf(p) < _pageManager.TouchButtonPages.Count - 1);
+    public IRelayCommand<TouchButtonPage> EditWallpaperCommand => field ??= Relay.Create<TouchButtonPage>(p => _ = EditWallpaper(p), p => p != null);
+
+    public IRelayCommand EditPageCommandsCommand => field ??= Relay.Create<object>(
+        p => _ = EditPageCommands(p),
+        static p => p is TouchButtonPage or RotaryButtonPage);
+    public IRelayCommand AddRotaryPageCommand => field ??= Relay.Create(() => _pageManager.AddRotaryButtonPage());
+    public IRelayCommand RemoveRotaryPageCommand => field ??= Relay.Create<RotaryButtonPage>(
+        RemoveRotaryPage, p => p != null && _pageManager.RotaryButtonPages.Count > 1);
+    public IRelayCommand MoveRotaryPageUpCommand => field ??= Relay.Create<RotaryButtonPage>(
+        p => MovePage(_pageManager.RotaryButtonPages, p, -1), p => p != null && _pageManager.RotaryButtonPages.IndexOf(p) > 0);
+    public IRelayCommand MoveRotaryPageDownCommand => field ??= Relay.Create<RotaryButtonPage>(
+        p => MovePage(_pageManager.RotaryButtonPages, p, +1), p => p != null && _pageManager.RotaryButtonPages.IndexOf(p) < _pageManager.RotaryButtonPages.Count - 1);
 
     // Side-specific rotary page management for devices with independent dial columns (Razer).
-    public ICommand AddLeftRotaryPageCommand { get; }
-    public ICommand RemoveLeftRotaryPageCommand { get; }
-    public ICommand AddRightRotaryPageCommand { get; }
-    public ICommand RemoveRightRotaryPageCommand { get; }
+    public IRelayCommand AddLeftRotaryPageCommand => field ??= Relay.Create(() => _pageManager.AddRotaryButtonPage(RotarySide.Left));
+    public IRelayCommand RemoveLeftRotaryPageCommand => field ??= Relay.Create<RotaryButtonPage>(p => RemoveSideRotaryPage(RotarySide.Left, p), p => p != null && LeftRotaryPages.Count > 1);
+    public IRelayCommand AddRightRotaryPageCommand => field ??= Relay.Create(() => _pageManager.AddRotaryButtonPage(RotarySide.Right));
+    public IRelayCommand RemoveRightRotaryPageCommand => field ??= Relay.Create<RotaryButtonPage>( p => RemoveSideRotaryPage(RotarySide.Right, p), p => p != null && RightRotaryPages.Count > 1);
 
-    public ICommand OpenWebsiteCommand { get; }
-    public ICommand OpenPluginsFolderCommand { get; }
-    public ICommand InstallInterceptionCommand { get; }
-    public ICommand UninstallInterceptionCommand { get; }
-    public ICommand AddAppBindingCommand { get; }
-    public ICommand RemoveAppBindingCommand { get; }
+    public IRelayCommand OpenWebsiteCommand => field ??= Relay.Create(() =>
+    {
+        try
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = "https://github.com/RadiatorTwo/LoupixDeck",
+                UseShellExecute = true
+            });
+        }
+        catch { }
+    });
 
-    public ICommand SelectScreensaverVideoCommand { get; }
-    public ICommand ClearScreensaverVideoCommand { get; }
+    public IRelayCommand OpenPluginsFolderCommand => field ??= Relay.Create(OpenPluginsFolder);
+
+    public IAsyncRelayCommand InstallInterceptionCommand => field ??= Relay.Create(InstallInterceptionAsync);
+    public IAsyncRelayCommand UninstallInterceptionCommand => field ??= Relay.Create(UninstallInterceptionAsync);
+
+    public IAsyncRelayCommand SelectScreensaverVideoCommand => field ??= Relay.Create(SelectScreensaverVideo);
+    public IRelayCommand ClearScreensaverVideoCommand => field ??= Relay.Create(ClearScreensaverVideo);
 
     public ObservableCollection<VibrationPatternItem> VibrationPatterns => VibrationPatternCatalog.All;
 
@@ -97,9 +121,6 @@ public class SettingsViewModel : DialogViewModelBase<DialogResult>
 
         AddAppBindingCommand = new RelayCommand(AddAppBinding);
         RemoveAppBindingCommand = new RelayCommand<AppBindingRow>(RemoveAppBinding, p => p != null);
-
-        SelectScreensaverVideoCommand = new AsyncRelayCommand(SelectScreensaverVideo);
-        ClearScreensaverVideoCommand = new RelayCommand(ClearScreensaverVideo);
 
         ReconnectDeviceCommand = new AsyncRelayCommand(ReconnectDevice);
         AddTouchPageCommand = new AsyncRelayCommand(() => _pageManager.AddTouchButtonPage());
@@ -158,11 +179,9 @@ public class SettingsViewModel : DialogViewModelBase<DialogResult>
         if (HasIndependentRotarySides)
         {
             LeftRotaryPages.CollectionChanged += (_, _) =>
-                Dispatcher.UIThread.Post(() =>
-                    (RemoveLeftRotaryPageCommand as RelayCommand<RotaryButtonPage>)?.RaiseCanExecuteChanged());
+                Dispatcher.UIThread.Post(RemoveLeftRotaryPageCommand.NotifyCanExecuteChanged);
             RightRotaryPages.CollectionChanged += (_, _) =>
-                Dispatcher.UIThread.Post(() =>
-                    (RemoveRightRotaryPageCommand as RelayCommand<RotaryButtonPage>)?.RaiseCanExecuteChanged());
+                Dispatcher.UIThread.Post(RemoveRightRotaryPageCommand.NotifyCanExecuteChanged);
         }
 
         SyncRotaryPageOptions();
@@ -173,24 +192,6 @@ public class SettingsViewModel : DialogViewModelBase<DialogResult>
         // (the only mutation paths), so no event subscription is needed here.
         foreach (var binding in Config.AppPageBindings)
             AppBindingRows.Add(new AppBindingRow(binding, TouchPages, RotaryPageOptions));
-
-        OpenWebsiteCommand = new RelayCommand(() =>
-        {
-            try
-            {
-                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
-                {
-                    FileName = "https://github.com/RadiatorTwo/LoupixDeck",
-                    UseShellExecute = true
-                });
-            }
-            catch { }
-        });
-
-        OpenPluginsFolderCommand = new RelayCommand(OpenPluginsFolder);
-
-        InstallInterceptionCommand = new AsyncRelayCommand(InstallInterceptionAsync);
-        UninstallInterceptionCommand = new AsyncRelayCommand(UninstallInterceptionAsync);
 
         Config.HapticSteps.CollectionChanged += OnHapticStepsChanged;
 
@@ -218,24 +219,13 @@ public class SettingsViewModel : DialogViewModelBase<DialogResult>
 
     public string DeviceName => _deviceService?.Device?.Type ?? "Device";
 
-    private string _deviceVersion = "—";
-    public string DeviceVersion { get => _deviceVersion; private set => SetProperty(ref _deviceVersion, value); }
-
-    private string _deviceSerial = "—";
-    public string DeviceSerial { get => _deviceSerial; private set => SetProperty(ref _deviceSerial, value); }
-
-    private bool _deviceConnected;
-    public bool DeviceConnected
-    {
-        get => _deviceConnected;
-        private set
-        {
-            if (SetProperty(ref _deviceConnected, value))
-            {
-                OnPropertyChanged(nameof(DeviceStatusText));
-            }
-        }
-    }
+    [ObservableProperty]
+    public partial string DeviceVersion { get; private set; } = "—";
+    [ObservableProperty]
+    public partial string DeviceSerial { get; private set; } = "—";
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(DeviceStatusText))]
+    public partial bool DeviceConnected { get; private set; }
 
     public string DeviceStatusText => DeviceConnected ? "Connected" : "Disconnected";
 
@@ -262,7 +252,7 @@ public class SettingsViewModel : DialogViewModelBase<DialogResult>
             // We are already off the UI thread because the caller used Task.Run.
             var (serial, ver) = dev.GetInfo();
             version = ver ?? "—";
-            serialHex = serial != null ? BitConverter.ToString(serial).Replace("-", "") : "—";
+            serialHex = serial != null ? Convert.ToHexString(serial) : "—";
             ok = true;
         }
         catch
@@ -293,32 +283,16 @@ public class SettingsViewModel : DialogViewModelBase<DialogResult>
 
     // ───────── Interception (Windows only) ─────────
 
-    private bool _interceptionDriverInstalled;
-    public bool InterceptionDriverInstalled
-    {
-        get => _interceptionDriverInstalled;
-        private set
-        {
-            if (SetProperty(ref _interceptionDriverInstalled, value))
-                OnPropertyChanged(nameof(InterceptionStatusText));
-        }
-    }
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(InterceptionStatusText))]
+    public partial bool InterceptionDriverInstalled { get; private set; }
 
     public string InterceptionStatusText => InterceptionDriverInstalled ? "Installed" : "Not installed";
 
-    private bool _interceptionBusy;
-    public bool InterceptionBusy
-    {
-        get => _interceptionBusy;
-        private set => SetProperty(ref _interceptionBusy, value);
-    }
-
-    private string _interceptionStatusMessage = string.Empty;
-    public string InterceptionStatusMessage
-    {
-        get => _interceptionStatusMessage;
-        private set => SetProperty(ref _interceptionStatusMessage, value);
-    }
+    [ObservableProperty]
+    public partial bool InterceptionBusy { get; private set; }
+    [ObservableProperty]
+    public partial string InterceptionStatusMessage { get; private set; } = string.Empty;
 
     /// <summary>
     /// The Use-Interception toggle. Maps the tri-state config (null = auto) onto a plain bool:
@@ -445,25 +419,20 @@ public class SettingsViewModel : DialogViewModelBase<DialogResult>
     /// <c>AppPageBinding.RotarySelectionIndex</c> (0 = unchanged, n = page n). Kept
     /// as a single stable instance and synced in place (tail add/remove) so bound
     /// ComboBoxes never lose their selection.</summary>
-    private readonly ObservableCollection<string> _rotaryPageOptions = new();
-    public ObservableCollection<string> RotaryPageOptions => _rotaryPageOptions;
+    public ObservableCollection<string> RotaryPageOptions { get; } = new();
 
     /// <summary>Editor rows bound by the rule list. Kept in sync with
     /// <c>Config.AppPageBindings</c> in <see cref="AddAppBinding"/> /
     /// <see cref="RemoveAppBinding"/>.</summary>
     public ObservableCollection<AppBindingRow> AppBindingRows { get; } = new();
-
-    /// <summary>Touch page labels for the no-match fallback selector, with a leading
-    /// "(do nothing)" entry. Stable instance synced in place (tail add/remove).</summary>
-    private readonly ObservableCollection<string> _fallbackPageOptions = new();
-    public ObservableCollection<string> FallbackPageOptions => _fallbackPageOptions;
+    public ObservableCollection<string> FallbackPageOptions { get; } = new();
 
     private void SyncFallbackPageOptions()
     {
-        if (_fallbackPageOptions.Count == 0) _fallbackPageOptions.Add("(do nothing)");
+        if (FallbackPageOptions.Count == 0) FallbackPageOptions.Add("(do nothing)");
         var want = (TouchPages?.Count ?? 0) + 1; // +1 for the "(do nothing)" entry
-        while (_fallbackPageOptions.Count > want) _fallbackPageOptions.RemoveAt(_fallbackPageOptions.Count - 1);
-        while (_fallbackPageOptions.Count < want) _fallbackPageOptions.Add($"Page {_fallbackPageOptions.Count}");
+        while (FallbackPageOptions.Count > want) FallbackPageOptions.RemoveAt(FallbackPageOptions.Count - 1);
+        while (FallbackPageOptions.Count < want) FallbackPageOptions.Add($"Page {FallbackPageOptions.Count}");
     }
 
     /// <summary>ComboBox helper for the no-match fallback: 0 = "(do nothing)" (null),
@@ -482,10 +451,10 @@ public class SettingsViewModel : DialogViewModelBase<DialogResult>
 
     private void SyncRotaryPageOptions()
     {
-        if (_rotaryPageOptions.Count == 0) _rotaryPageOptions.Add("(unchanged)");
+        if (RotaryPageOptions.Count == 0) RotaryPageOptions.Add("(unchanged)");
         var want = (RotaryPages?.Count ?? 0) + 1; // +1 for the "(unchanged)" entry
-        while (_rotaryPageOptions.Count > want) _rotaryPageOptions.RemoveAt(_rotaryPageOptions.Count - 1);
-        while (_rotaryPageOptions.Count < want) _rotaryPageOptions.Add($"Page {_rotaryPageOptions.Count}");
+        while (RotaryPageOptions.Count > want) RotaryPageOptions.RemoveAt(RotaryPageOptions.Count - 1);
+        while (RotaryPageOptions.Count < want) RotaryPageOptions.Add($"Page {RotaryPageOptions.Count}");
     }
 
     private void AddAppBinding()
@@ -574,16 +543,16 @@ public class SettingsViewModel : DialogViewModelBase<DialogResult>
 
     private void RefreshTouchPageCommands()
     {
-        (MoveTouchPageUpCommand as RelayCommand<TouchButtonPage>)?.RaiseCanExecuteChanged();
-        (MoveTouchPageDownCommand as RelayCommand<TouchButtonPage>)?.RaiseCanExecuteChanged();
-        (RemoveTouchPageCommand as RelayCommand<TouchButtonPage>)?.RaiseCanExecuteChanged();
+        MoveTouchPageUpCommand?.NotifyCanExecuteChanged();
+        MoveTouchPageDownCommand?.NotifyCanExecuteChanged();
+        RemoveTouchPageCommand?.NotifyCanExecuteChanged();
     }
 
     private void RefreshRotaryPageCommands()
     {
-        (MoveRotaryPageUpCommand as RelayCommand<RotaryButtonPage>)?.RaiseCanExecuteChanged();
-        (MoveRotaryPageDownCommand as RelayCommand<RotaryButtonPage>)?.RaiseCanExecuteChanged();
-        (RemoveRotaryPageCommand as RelayCommand<RotaryButtonPage>)?.RaiseCanExecuteChanged();
+        MoveRotaryPageUpCommand?.NotifyCanExecuteChanged();
+        MoveRotaryPageDownCommand?.NotifyCanExecuteChanged();
+        RemoveRotaryPageCommand?.NotifyCanExecuteChanged();
     }
 
     // ───────── Screensaver ─────────
@@ -701,15 +670,12 @@ public class SettingsViewModel : DialogViewModelBase<DialogResult>
         OnPropertyChanged(nameof(ThemeIsLight));
         OnPropertyChanged(nameof(ThemeIsSystem));
 
-        if (Application.Current != null)
-        {
-            Application.Current.RequestedThemeVariant = variant switch
+        Application.Current?.RequestedThemeVariant = variant switch
             {
                 "Light" => ThemeVariant.Light,
                 "Dark" => ThemeVariant.Dark,
                 _ => ThemeVariant.Default
             };
-        }
     }
 
     // ───────── About ─────────

@@ -1,8 +1,6 @@
 using System.Collections.Concurrent;
 using System.Threading.Channels;
-using Avalonia;
 using Avalonia.Media;
-using Avalonia.Media.Imaging;
 using LoupixDeck.LoupedeckDevice.Serial;
 using LoupixDeck.Models;
 using LoupixDeck.Utils;
@@ -352,7 +350,6 @@ public class LoupedeckDevice
         await _sendChannel.Writer.WriteAsync(item);
     }
 
-
     /// <summary>
     /// Sends a command with the given data and waits synchronously for the response.
     /// Frame format: [length (1 byte), command (1 byte), transactionID (1 byte), data]
@@ -632,7 +629,7 @@ public class LoupedeckDevice
     /// <summary>
     /// Sends a 16-bit (5-6-5) image buffer to display "id" at the position (x,y).
     /// </summary>
-    private async Task DrawBuffer(string id, int width, int height, byte[] buffer, int? x = 0, int? y = 0,
+    private async Task DrawBuffer(string id, int width, int height, byte[] buffer, int x = 0, int y = 0,
         bool autoRefresh = true)
     {
         if (Displays == null || !Displays.TryGetValue(id, out var displayInfo))
@@ -649,13 +646,11 @@ public class LoupedeckDevice
         var header = new byte[8];
 
         // Write x, y, width, and height as big-endian UInt16
-        if (x == null || y == null)
-            throw new ArgumentNullException($"x or y cannot be null");
 
-        header[0] = (byte)((x.Value >> 8) & 0xff);
-        header[1] = (byte)(x.Value & 0xff);
-        header[2] = (byte)((y.Value >> 8) & 0xff);
-        header[3] = (byte)(y.Value & 0xff);
+        header[0] = (byte)((x >> 8) & 0xff);
+        header[1] = (byte)(x & 0xff);
+        header[2] = (byte)((y >> 8) & 0xff);
+        header[3] = (byte)(y & 0xff);
         header[4] = (byte)((width >> 8) & 0xff);
         header[5] = (byte)(width & 0xff);
         header[6] = (byte)((height >> 8) & 0xff);
@@ -684,8 +679,8 @@ public class LoupedeckDevice
         int width,
         int height,
         SKBitmap bitmap,
-        int? x = 0,
-        int? y = 0,
+        int x = 0,
+        int y = 0,
         bool autoRefresh = true)
     {
         // Determine the display
@@ -789,7 +784,7 @@ public class LoupedeckDevice
             throw new Exception("VisibleX or Columns is not set");
 
         // Calculate position
-        var x = VisibleX[0] + (index % Columns) * keyWidth;
+        var x = VisibleX[0] + ((index % Columns) * keyWidth);
         var y = (index / Columns) * keyHeight;
 
         // Call the DrawCanvas method
@@ -885,7 +880,7 @@ public class LoupedeckDevice
             {
                 var bmp = slotBitmaps[slot];
                 if (bmp == null) continue;
-                var x = xBase + (slot % Columns) * keySize;
+                var x = xBase + ((slot % Columns) * keySize);
                 var y = (slot / Columns) * keySize;
                 canvas.DrawBitmap(bmp, x, y);
             }
@@ -1042,7 +1037,7 @@ public class LoupedeckDevice
         if (slots == null || slots.Count == 0)
             throw new ArgumentOutOfRangeException(nameof(slots));
 
-        var data = new byte[3 + slots.Count * 5];
+        var data = new byte[3 + (slots.Count * 5)];
         data[0] = screen;
         data[1] = 0x00;
         data[2] = (byte)slots.Count;

@@ -1,5 +1,3 @@
-using System.Collections.Generic;
-using System.Linq;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
@@ -91,8 +89,7 @@ public partial class Settings : Window
 
         // The reload coordinator owns the EnabledPlugins mutation and the live
         // load/unload. Lock the list during the await so rapid clicks can't race.
-        if (PluginList != null)
-            PluginList.IsEnabled = false;
+        PluginList?.IsEnabled = false;
 
         try
         {
@@ -103,8 +100,7 @@ public partial class Settings : Window
         }
         finally
         {
-            if (PluginList != null)
-                PluginList.IsEnabled = true;
+            PluginList?.IsEnabled = true;
         }
 
         // Rebuild the rows so the status label ((Loaded)/(Disabled)) and the checkbox

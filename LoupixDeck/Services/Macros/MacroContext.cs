@@ -9,7 +9,7 @@ namespace LoupixDeck.Services.Macros;
 /// runner can release everything still pressed when the macro ends or is cancelled
 /// (guaranteed cleanup), without double-releasing keys the macro already lifted itself.
 /// </summary>
-public sealed class MacroContext
+public sealed partial class MacroContext
 {
     /// <summary>
     /// Case-insensitive variable store. Values are kept as strings; numeric operations
@@ -49,7 +49,9 @@ public sealed class MacroContext
     }
 
     // Matches {name} placeholders; the name is anything but braces so nesting is rejected.
-    private static readonly Regex PlaceholderPattern = new(@"\{([^{}]+)\}", RegexOptions.Compiled);
+
+    [GeneratedRegex(@"\{([^{}]+)\}", RegexOptions.Compiled)]
+    private static partial Regex PlaceholderPattern { get; }
 
     /// <summary>
     /// Replaces <c>{name}</c> placeholders in <paramref name="template"/> with the matching

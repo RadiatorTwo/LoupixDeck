@@ -3,7 +3,6 @@ using Avalonia.Threading;
 using LoupixDeck.Controllers;
 using LoupixDeck.Services.Commands;
 using LoupixDeck.Services.FolderNavigation;
-using LoupixDeck.PluginSdk;
 
 namespace LoupixDeck.Services.Plugins;
 

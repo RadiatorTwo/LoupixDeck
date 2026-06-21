@@ -50,7 +50,7 @@ public sealed class AnimationScheduler : IAnimationScheduler, IDisposable
         public int InFlight;
     }
 
-    private readonly object _gate = new();
+    private readonly Lock _gate = new();
     private readonly List<Registration> _registrations = [];
     private readonly SemaphoreSlim _wake = new(0, 1);
 
@@ -259,7 +259,7 @@ public sealed class AnimationScheduler : IAnimationScheduler, IDisposable
 
             if (now >= reg.NextDue)
             {
-                Dispatch(reg, now, interval, token);
+                Dispatch(reg, interval, token);
 
                 // Advance one interval to keep cadence; snap forward if we fell behind.
                 reg.NextDue += interval;
@@ -274,7 +274,7 @@ public sealed class AnimationScheduler : IAnimationScheduler, IDisposable
         return anyActive ? nextWake : TimeSpan.MaxValue;
     }
 
-    private void Dispatch(Registration reg, TimeSpan now, TimeSpan interval, CancellationToken token)
+    private void Dispatch(Registration reg, TimeSpan interval, CancellationToken token)
     {
         Volatile.Write(ref reg.InFlight, 1);
 

@@ -1,4 +1,3 @@
-using System.Reflection;
 using LoupixDeck.PluginSdk;
 using LoupixDeck.Registry;
 using Microsoft.Extensions.DependencyInjection;
@@ -578,7 +577,9 @@ public class PluginManager : IPluginManager
     {
         if (string.IsNullOrWhiteSpace(platform) ||
             platform.Equals("All", StringComparison.OrdinalIgnoreCase))
+        {
             return true;
+        }
 
         if (platform.Equals("Windows", StringComparison.OrdinalIgnoreCase))
             return OperatingSystem.IsWindows();

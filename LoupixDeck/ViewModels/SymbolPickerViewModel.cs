@@ -1,6 +1,9 @@
+using System.Collections.Immutable;
 using System.Collections.ObjectModel;
 using System.Windows.Input;
 using Avalonia.Media;
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using LoupixDeck.Models;
 using LoupixDeck.Utils;
 using LoupixDeck.ViewModels.Base;
@@ -15,76 +18,62 @@ namespace LoupixDeck.ViewModels;
 /// The caller creates one, hands it to <see cref="SymbolPickerViewModel.Initialize"/>,
 /// and reads <see cref="SelectedSymbol"/> after the dialog confirms.
 /// </summary>
-public class SymbolPickerRequest
+public sealed class SymbolPickerRequest
 {
     /// <summary>Symbol id to pre-select when re-picking; null for a fresh pick.</summary>
-    public string CurrentSymbolId { get; set; }
+    public string? CurrentSymbolId { get; set; }
 
     /// <summary>Set by the picker on confirm; null if the dialog was cancelled.</summary>
-    public SymbolDefinition SelectedSymbol { get; set; }
+    public SymbolDefinition? SelectedSymbol { get; set; }
 }
 
 /// <summary>
 /// Dialog view model for choosing a symbol from <see cref="SymbolLibrary"/>.
 /// Supports text search and category filtering over the curated icon set.
 /// </summary>
-public class SymbolPickerViewModel : DialogViewModelBase<SymbolPickerRequest, DialogResult>
+public partial class SymbolPickerViewModel : DialogViewModelBase<SymbolPickerRequest, DialogResult>
 {
-    private const string AllCategories = "All";
-
     private SymbolPickerRequest _request;
 
     public ObservableCollection<SymbolDefinition> Symbols { get; } = [];
 
-    public IReadOnlyList<string> Categories { get; } =
-        new[] { AllCategories }.Concat(SymbolLibrary.Categories).ToArray();
+    public ImmutableArray<string> Categories { get; } = SymbolLibrary.CategoriesWithAll;
 
     /// <summary>FontFamily used by the View to render the MDI glyphs.</summary>
     public FontFamily SymbolFont { get; } = new(SymbolLibrary.FontUri);
 
-    private string _searchText = string.Empty;
     public string SearchText
     {
-        get => _searchText;
+        get;
         set
         {
-            if (SetProperty(ref _searchText, value))
+            if (SetProperty(ref field, value))
                 ApplyFilter();
         }
-    }
+    } = string.Empty;
 
-    private string _selectedCategory = AllCategories;
     public string SelectedCategory
     {
-        get => _selectedCategory;
+        get;
         set
         {
-            if (SetProperty(ref _selectedCategory, value))
+            if (SetProperty(ref field, value))
                 ApplyFilter();
         }
-    }
+    } = SymbolLibrary.AllCategoriesKey;
 
-    private SymbolDefinition _selectedSymbol;
-    public SymbolDefinition SelectedSymbol
-    {
-        get => _selectedSymbol;
-        set
-        {
-            if (SetProperty(ref _selectedSymbol, value))
-                ((RelayCommand)ConfirmCommand).NotifyCanExecuteChanged();
-        }
-    }
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(ConfirmCommand))]
+    public partial SymbolDefinition SelectedSymbol { get; set; }
 
-    public ICommand ConfirmCommand { get; }
-    public ICommand CancelCommand { get; }
+    public IRelayCommand ConfirmCommand => Relay.Create(ConfirmSelection, () => SelectedSymbol != null);
+    public IRelayCommand CancelCommand => Relay.Create(CancelSelection);
 
     /// <summary>Raised when the dialog should close (after Confirm or Cancel).</summary>
     public event Action CloseRequested;
 
     public SymbolPickerViewModel()
     {
-        ConfirmCommand = new RelayCommand(ConfirmSelection, () => SelectedSymbol != null);
-        CancelCommand = new RelayCommand(CancelSelection);
         ApplyFilter();
     }
 
@@ -102,10 +91,10 @@ public class SymbolPickerViewModel : DialogViewModelBase<SymbolPickerRequest, Di
 
     private void ApplyFilter()
     {
-        var search = _searchText?.Trim() ?? string.Empty;
+        var search = SearchText?.Trim() ?? string.Empty;
 
         var filtered = SymbolLibrary.All.Where(s =>
-            (_selectedCategory == AllCategories || s.Category == _selectedCategory) &&
+            (SelectedCategory == SymbolLibrary.AllCategoriesKey || s.Category == SelectedCategory) &&
             (search.Length == 0 ||
              s.DisplayName.Contains(search, StringComparison.OrdinalIgnoreCase) ||
              s.Id.Contains(search, StringComparison.OrdinalIgnoreCase)));
@@ -114,7 +103,7 @@ public class SymbolPickerViewModel : DialogViewModelBase<SymbolPickerRequest, Di
         foreach (var symbol in filtered)
             Symbols.Add(symbol);
 
-        if (_selectedSymbol != null && !Symbols.Contains(_selectedSymbol))
+        if (SelectedSymbol != null && !Symbols.Contains(SelectedSymbol))
             SelectedSymbol = null;
     }
 

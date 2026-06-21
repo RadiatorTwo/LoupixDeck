@@ -1,5 +1,5 @@
 using System.Collections.ObjectModel;
-using System.Windows.Input;
+using CommunityToolkit.Mvvm.Input;
 using LoupixDeck.Models;
 using LoupixDeck.Services;
 using LoupixDeck.Utils;
@@ -8,7 +8,6 @@ using SkiaSharp;
 // Utils.RelayCommand executes via Task.Run (background thread) — that would
 // raise CloseRequested off the UI thread and crash Window.Close(). Use the
 // CommunityToolkit synchronous RelayCommand for dialog buttons.
-using RelayCommand = CommunityToolkit.Mvvm.Input.RelayCommand;
 
 namespace LoupixDeck.ViewModels;
 
@@ -26,8 +25,6 @@ public class TouchPageWallpaperSettingsViewModel : DialogViewModelBase<TouchButt
     private const string WallpapersSubFolder = "wallpapers";
 
     private readonly IAssetService _assetService;
-    private readonly bool _hasSideStrips;
-
     private TouchButtonPage _targetPage;
 
     // Snapshots of every slot for Cancel — restore the page's persisted state.
@@ -35,17 +32,15 @@ public class TouchPageWallpaperSettingsViewModel : DialogViewModelBase<TouchButt
     private WallpaperSlot _leftSnapshot;
     private WallpaperSlot _rightSnapshot;
 
-    private WallpaperTarget _selectedTarget = WallpaperTarget.Main;
-
-    public ICommand SelectMainCommand { get; }
-    public ICommand SelectLeftCommand { get; }
-    public ICommand SelectRightCommand { get; }
-    public ICommand SelectImageCommand { get; }
-    public ICommand RemoveCommand { get; }
-    public ICommand ResetCommand { get; }
-    public ICommand MirrorToOtherSideCommand { get; }
-    public ICommand ConfirmCommand { get; }
-    public ICommand CancelCommand { get; }
+    public IRelayCommand SelectMainCommand => field ??= Relay.Create(() => SelectedTarget = WallpaperTarget.Main);
+    public IRelayCommand SelectLeftCommand => field ??= Relay.Create(() => SelectedTarget = WallpaperTarget.Left);
+    public IRelayCommand SelectRightCommand => field ??= Relay.Create(() => SelectedTarget = WallpaperTarget.Right);
+    public IAsyncRelayCommand SelectImageCommand => field ??= Relay.Create(SelectImage);
+    public IRelayCommand RemoveCommand => field ??= Relay.Create(RemoveImage);
+    public IRelayCommand ResetCommand => field ??= Relay.Create(ResetAll);
+    public IRelayCommand MirrorToOtherSideCommand => field ??= Relay.Create(MirrorToOtherSide);
+    public IRelayCommand ConfirmCommand => field ??= Relay.Create(ConfirmDialog);
+    public IRelayCommand CancelCommand => field ??= Relay.Create(CancelDialog);
 
     public event Action CloseRequested;
 
@@ -62,17 +57,7 @@ public class TouchPageWallpaperSettingsViewModel : DialogViewModelBase<TouchButt
     public TouchPageWallpaperSettingsViewModel(IAssetService assetService, IDeviceService deviceService)
     {
         _assetService = assetService;
-        _hasSideStrips = deviceService?.Device?.HasSideStrips ?? false;
-
-        SelectMainCommand = new RelayCommand(() => SelectedTarget = WallpaperTarget.Main);
-        SelectLeftCommand = new RelayCommand(() => SelectedTarget = WallpaperTarget.Left);
-        SelectRightCommand = new RelayCommand(() => SelectedTarget = WallpaperTarget.Right);
-        SelectImageCommand = new AsyncRelayCommand(SelectImage);
-        RemoveCommand = new RelayCommand(RemoveImage);
-        ResetCommand = new RelayCommand(ResetAll);
-        MirrorToOtherSideCommand = new RelayCommand(MirrorToOtherSide);
-        ConfirmCommand = new RelayCommand(ConfirmDialog);
-        CancelCommand = new RelayCommand(CancelDialog);
+        HasSideStrips = deviceService?.Device?.HasSideStrips ?? false;
     }
 
     public override void Initialize(TouchButtonPage parameter)
@@ -95,43 +80,43 @@ public class TouchPageWallpaperSettingsViewModel : DialogViewModelBase<TouchButt
     public string PageName => _targetPage?.PageName ?? string.Empty;
 
     /// <summary>Only Razer-class devices expose the side displays.</summary>
-    public bool HasSideStrips => _hasSideStrips;
+    public bool HasSideStrips { get; }
 
     // ───────── Target selection ─────────
 
     public WallpaperTarget SelectedTarget
     {
-        get => _selectedTarget;
+        get;
         set
         {
-            if (_selectedTarget == value) return;
-            _selectedTarget = value;
+            if (field == value) return;
+            field = value;
             NotifyTargetChanged();
         }
-    }
+    } = WallpaperTarget.Main;
 
-    private WallpaperSlot ActiveSlot => _selectedTarget switch
+    private WallpaperSlot ActiveSlot => SelectedTarget switch
     {
         WallpaperTarget.Left => _targetPage?.LeftWallpaper,
         WallpaperTarget.Right => _targetPage?.RightWallpaper,
         _ => _targetPage?.MainWallpaper,
     };
 
-    public bool IsMainSelected => _selectedTarget == WallpaperTarget.Main;
-    public bool IsLeftSelected => _selectedTarget == WallpaperTarget.Left;
-    public bool IsRightSelected => _selectedTarget == WallpaperTarget.Right;
+    public bool IsMainSelected => SelectedTarget == WallpaperTarget.Main;
+    public bool IsLeftSelected => SelectedTarget == WallpaperTarget.Left;
+    public bool IsRightSelected => SelectedTarget == WallpaperTarget.Right;
 
     /// <summary>True for the two side targets — gates "Mirror from other side".</summary>
-    public bool IsSideSelected => _selectedTarget != WallpaperTarget.Main;
+    public bool IsSideSelected => SelectedTarget != WallpaperTarget.Main;
 
-    public string ActiveTargetTitle => _selectedTarget switch
+    public string ActiveTargetTitle => SelectedTarget switch
     {
         WallpaperTarget.Left => "Left Side Display",
         WallpaperTarget.Right => "Right Side Display",
         _ => "Main Wallpaper",
     };
 
-    public string ActiveTargetSizeInfo => _selectedTarget switch
+    public string ActiveTargetSizeInfo => SelectedTarget switch
     {
         WallpaperTarget.Left => "Left Side Display: 60 × 270",
         WallpaperTarget.Right => "Right Side Display: 60 × 270",
@@ -215,7 +200,7 @@ public class TouchPageWallpaperSettingsViewModel : DialogViewModelBase<TouchButt
     public SKBitmap RightPreview =>
         BitmapHelper.GetOrBakeSlot(_targetPage?.RightWallpaper, 60, BitmapHelper.PanelHeight);
 
-    public SKBitmap ActivePreview => _selectedTarget switch
+    public SKBitmap ActivePreview => SelectedTarget switch
     {
         WallpaperTarget.Left => LeftPreview,
         WallpaperTarget.Right => RightPreview,
@@ -274,7 +259,7 @@ public class TouchPageWallpaperSettingsViewModel : DialogViewModelBase<TouchButt
         // Copy the active side's settings onto the opposite side, then toggle the
         // target's Mirror so the copy is flipped relative to the source (a true
         // mirror image across to the other display).
-        WallpaperSlot target = _selectedTarget switch
+        WallpaperSlot target = SelectedTarget switch
         {
             WallpaperTarget.Left => _targetPage.RightWallpaper,
             WallpaperTarget.Right => _targetPage.LeftWallpaper,
@@ -282,7 +267,7 @@ public class TouchPageWallpaperSettingsViewModel : DialogViewModelBase<TouchButt
         };
         if (target == null) return;
 
-        var source = _selectedTarget == WallpaperTarget.Left ? _targetPage.LeftWallpaper : _targetPage.RightWallpaper;
+        var source = SelectedTarget == WallpaperTarget.Left ? _targetPage.LeftWallpaper : _targetPage.RightWallpaper;
         target.CopyFrom(source);
         target.Mirror = !target.Mirror;
 

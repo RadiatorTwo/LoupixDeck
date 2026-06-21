@@ -47,7 +47,7 @@ public interface IMacroExecutionRegistry
 /// <inheritdoc cref="IMacroExecutionRegistry"/>
 public sealed class MacroExecutionRegistry : IMacroExecutionRegistry
 {
-    private readonly object _lock = new();
+    private readonly Lock _lock = new();
     private readonly Dictionary<string, List<CancellationTokenSource>> _active =
         new(StringComparer.OrdinalIgnoreCase);
 

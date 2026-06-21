@@ -1,6 +1,6 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
-using System.Runtime.CompilerServices;
+using CommunityToolkit.Mvvm.ComponentModel;
 using LoupixDeck.Commands;
 using LoupixDeck.Commands.Base;
 using LoupixDeck.Services;
@@ -14,7 +14,8 @@ namespace LoupixDeck.ViewModels;
 /// string and fed back into <see cref="ICommandBuilder.BuildCommandString"/>,
 /// which only ever calls <c>ToString()</c> on it.
 /// </summary>
-public class CommandParameter : INotifyPropertyChanged
+[ObservableObject]
+public partial class CommandParameter
 {
     public string Name { get; }
     public Type ParameterType { get; }
@@ -56,11 +57,6 @@ public class CommandParameter : INotifyPropertyChanged
         get => bool.TryParse(_value, out var b) && b;
         set => Value = value ? "True" : "False";
     }
-
-    public event PropertyChangedEventHandler PropertyChanged;
-
-    private void OnPropertyChanged([CallerMemberName] string propertyName = null)
-        => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
 }
 
 /// <summary>
@@ -74,7 +70,8 @@ public class CommandParameter : INotifyPropertyChanged
 /// generically without a plugin round-trip. Values containing ',' or ')' are not
 /// supported by the executor, so the editor does not support them either.
 /// </summary>
-public class CommandSegment : INotifyPropertyChanged
+[ObservableObject]
+public partial class CommandSegment
 {
     private readonly ICommandBuilder _commandBuilder;
     private readonly CommandInfo _info;
@@ -124,7 +121,7 @@ public class CommandSegment : INotifyPropertyChanged
             var shell = new CommandSegment(commandBuilder, null,
                 CommandStringParser.GetName(shellRaw), shellDisplay, shellRaw)
             {
-                _shellText = shellRaw
+                ShellText = shellRaw
             };
             return shell;
         }
@@ -166,21 +163,19 @@ public class CommandSegment : INotifyPropertyChanged
 
     // ───────── Shell (unknown command) free-text ─────────
 
-    private string _shellText = string.Empty;
     public string ShellText
     {
-        get => _shellText;
+        get;
         set
         {
-            if (_shellText == value) return;
-            _shellText = value;
+            if (!SetProperty(ref field, value)) return;
             Raw = value ?? string.Empty;
             OnPropertyChanged();
             OnPropertyChanged(nameof(Raw));
             OnPropertyChanged(nameof(Summary));
             Changed?.Invoke(this, EventArgs.Empty);
         }
-    }
+    } = string.Empty;
 
     /// <summary>Compact secondary text for the collapsed card.</summary>
     public string Summary => IsKnown
@@ -189,54 +184,26 @@ public class CommandSegment : INotifyPropertyChanged
 
     // ───────── UI state (not persisted) ─────────
 
-    private int _position;
-
     /// <summary>1-based position in the sequence strip; maintained by the owning
     /// view model whenever the collection changes.</summary>
-    public int Position
-    {
-        get => _position;
-        set
-        {
-            if (_position == value) return;
-            _position = value;
-            OnPropertyChanged();
-            OnPropertyChanged(nameof(IsFirst));
-        }
-    }
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsFirst))]
+    public partial int Position { get; set; }
 
     /// <summary>True for the first segment — hides the leading "→" connector.</summary>
-    public bool IsFirst => _position <= 1;
-
-    private bool _showConnector;
+    public bool IsFirst => Position <= 1;
 
     /// <summary>Whether the leading "→" connector glyph is drawn. Maintained by the
     /// view from layout: false for the very first segment and for any segment that
     /// starts a new wrapped row, so the arrow never dangles at a row's left edge.
     /// The arrow's gutter keeps its width regardless, so toggling this never
     /// re-packs the chips.</summary>
-    public bool ShowConnector
-    {
-        get => _showConnector;
-        set { if (_showConnector == value) return; _showConnector = value; OnPropertyChanged(); }
-    }
+    [ObservableProperty]
+    public partial bool ShowConnector { get; set; }
 
-    private bool _isEditing;
-    public bool IsEditing
-    {
-        get => _isEditing;
-        set { if (_isEditing == value) return; _isEditing = value; OnPropertyChanged(); }
-    }
+    [ObservableProperty]
+    public partial bool IsEditing { get; set; }
 
-    private bool _isDragging;
-    public bool IsDragging
-    {
-        get => _isDragging;
-        set { if (_isDragging == value) return; _isDragging = value; OnPropertyChanged(); }
-    }
-
-    public event PropertyChangedEventHandler PropertyChanged;
-
-    private void OnPropertyChanged([CallerMemberName] string propertyName = null)
-        => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+    [ObservableProperty]
+    public partial bool IsDragging { get; set; }
 }

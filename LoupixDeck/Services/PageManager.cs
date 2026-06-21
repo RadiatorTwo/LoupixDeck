@@ -193,8 +193,7 @@ public class PageManager : IPageManager
             page.Selected = false;
 
         var current = GetCurrentRotaryPage(side);
-        if (current != null)
-            current.Selected = true;
+        current?.Selected = true;
 
         OnRotaryPageChanged?.Invoke(side, previousIndex, pageIndex);
 

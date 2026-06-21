@@ -62,7 +62,7 @@ public class LoupedeckCtDevice : LoupedeckDevice
         Columns = 4;
         Rows = 3;
         RotaryCount = 7; // 6 side dials + 1 centre wheel
-        TouchButtonCount = Columns * Rows + 2; // 12 grid slots + 2 side strips
+        TouchButtonCount = (Columns * Rows) + 2; // 12 grid slots + 2 side strips
         VisibleX = [60, 420];
         VisibleY = [0, 270];
         Type = "Loupedeck CT";
@@ -100,7 +100,7 @@ public class LoupedeckCtDevice : LoupedeckDevice
         y = Math.Clamp(y, VisibleY[0], VisibleY[1]);
         var column = x / 90;
         var row = y / 90;
-        var key = row * Columns + column;
+        var key = (row * Columns) + column;
         return new TouchTarget { Screen = "center", Key = key };
     }
 

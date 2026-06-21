@@ -23,7 +23,7 @@ public sealed class HotPlugManager : IHotPlugManager
     private readonly IDeviceWatcher _watcher;
     private readonly IDeviceHostRegistry _registry;
 
-    private readonly object _gate = new();
+    private readonly Lock _gate = new();
     private readonly Timer _debounce;
     private readonly Dictionary<string, int> _missCounts = new(StringComparer.OrdinalIgnoreCase);
     // Keys for which a detach was already raised, kept until the host actually leaves

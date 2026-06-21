@@ -1,6 +1,5 @@
 using System.Collections.Specialized;
 using System.ComponentModel;
-using LoupixDeck.LoupedeckDevice.Device;
 using LoupixDeck.Models;
 using LoupixDeck.Models.Extensions;
 
@@ -64,7 +63,9 @@ public sealed class NativeHapticService : INativeHapticService, IDisposable
     {
         if (e.PropertyName == nameof(TouchButton.VibrationEnabled) ||
             e.PropertyName == nameof(TouchButton.VibrationPattern))
+        {
             Schedule();
+        }
     }
 
     private void OnStepsChanged(object sender, NotifyCollectionChangedEventArgs e)

@@ -1,5 +1,3 @@
-using LoupixDeck.Utils;
-
 namespace LoupixDeck.LoupedeckDevice;
 
 public static class Constants

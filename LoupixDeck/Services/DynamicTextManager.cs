@@ -21,7 +21,7 @@ public interface IDynamicTextManager
     void RefreshCommand(string commandName);
 }
 
-public class DynamicTextManager : IDynamicTextManager, IDisposable
+public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
 {
     private sealed class Entry
     {
@@ -43,7 +43,7 @@ public class DynamicTextManager : IDynamicTextManager, IDisposable
     private readonly IServiceProvider _deviceProvider;
     private readonly IDeviceRouter _router;
 
-    private readonly object _gate = new();
+    private readonly Lock _gate = new();
     private List<Entry> _active = new();
     private CancellationTokenSource _cts;
     private PeriodicTimer _timer;

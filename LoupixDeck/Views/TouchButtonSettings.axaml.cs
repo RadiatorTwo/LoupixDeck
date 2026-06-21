@@ -1,4 +1,3 @@
-using System;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Shapes;
@@ -7,7 +6,6 @@ using Avalonia.Interactivity;
 using Avalonia.VisualTree;
 using LoupixDeck.Models;
 using LoupixDeck.Models.Layers;
-using LoupixDeck.Services;
 using LoupixDeck.Utils;
 using LoupixDeck.ViewModels;
 using LoupixDeck.ViewModels.Base;
@@ -162,7 +160,9 @@ public partial class TouchButtonSettings : Window
     {
         if (sender is Button { DataContext: CommandSegment segment } button &&
             ResolveSlot(button) is { } slot)
+        {
             slot.RemoveSegment(segment);
+        }
     }
 
     // Live reorder of chain cards — the drag handle captures the pointer onto the
@@ -439,7 +439,9 @@ public partial class TouchButtonSettings : Window
             var pos = e.GetPosition(zone);
             if (pos.X >= 0 && pos.Y >= 0 &&
                 pos.X <= zone.Bounds.Width && pos.Y <= zone.Bounds.Height)
+            {
                 return (zone, list);
+            }
         }
 
         return null;
@@ -589,12 +591,12 @@ public partial class TouchButtonSettings : Window
                     if (_handleSignX != 0)
                     {
                         var startEdgeX = _startDrawX + (_handleSignX > 0 ? _startDstW : 0);
-                        dxDev = Math.Round((startEdgeX + dxDev) / step) * step - startEdgeX;
+                        dxDev = (Math.Round((startEdgeX + dxDev) / step) * step) - startEdgeX;
                     }
                     if (_handleSignY != 0)
                     {
                         var startEdgeY = _startDrawY + (_handleSignY > 0 ? _startDstH : 0);
-                        dyDev = Math.Round((startEdgeY + dyDev) / step) * step - startEdgeY;
+                        dyDev = (Math.Round((startEdgeY + dyDev) / step) * step) - startEdgeY;
                     }
                 }
 
@@ -641,8 +643,8 @@ public partial class TouchButtonSettings : Window
         if (bounds is { } b)
         {
             var scale = vm.EditorToDeviceScale;
-            _moveBaseLeftDev = (b.Left - vm.FrameOffsetX) / scale - _startPosX;
-            _moveBaseTopDev = (b.Top - vm.FrameOffsetY) / scale - _startPosY;
+            _moveBaseLeftDev = ((b.Left - vm.FrameOffsetX) / scale) - _startPosX;
+            _moveBaseTopDev = ((b.Top - vm.FrameOffsetY) / scale) - _startPosY;
             _moveHasBase = true;
         }
         else
@@ -697,8 +699,8 @@ public partial class TouchButtonSettings : Window
             var fit = Math.Min(deviceWidth / srcW, deviceHeight / srcH);
             _startDstW = srcW * fit * _startScaleX;
             _startDstH = srcH * fit * _startScaleY;
-            _startDrawX = (deviceWidth - _startDstW) / 2.0 + _startPosX;
-            _startDrawY = (deviceHeight - _startDstH) / 2.0 + _startPosY;
+            _startDrawX = ((deviceWidth - _startDstW) / 2.0) + _startPosX;
+            _startDrawY = ((deviceHeight - _startDstH) / 2.0) + _startPosY;
         }
         else if (layer is TextLayer text)
         {
@@ -708,8 +710,8 @@ public partial class TouchButtonSettings : Window
             _startDstH = _startBoxH;
             if (text.Centered)
             {
-                _startDrawX = (deviceWidth - _startBoxW) / 2.0 + text.PositionX;
-                _startDrawY = (deviceHeight - _startBoxH) / 2.0 + text.PositionY;
+                _startDrawX = ((deviceWidth - _startBoxW) / 2.0) + text.PositionX;
+                _startDrawY = ((deviceHeight - _startBoxH) / 2.0) + text.PositionY;
             }
             else
             {
@@ -757,10 +759,10 @@ public partial class TouchButtonSettings : Window
             // handle vector. Same factor on both axes ⇒ aspect preserved.
             var hvx = _handleSignX * _startDstW;
             var hvy = _handleSignY * _startDstH;
-            var l2 = hvx * hvx + hvy * hvy;
+            var l2 = (hvx * hvx) + (hvy * hvy);
             if (l2 <= 0) return;
             var l = Math.Sqrt(l2);
-            var proj = l + (dxDev * hvx + dyDev * hvy) / l;
+            var proj = l + (((dxDev * hvx) + (dyDev * hvy)) / l);
             var factor = proj / l;
             factorX = factor;
             factorY = factor;
@@ -768,8 +770,8 @@ public partial class TouchButtonSettings : Window
         else
         {
             // Edge handle, or shift-held corner: per-axis, independent.
-            factorX = _handleSignX == 0 ? 1.0 : (_startDstW + _handleSignX * dxDev) / _startDstW;
-            factorY = _handleSignY == 0 ? 1.0 : (_startDstH + _handleSignY * dyDev) / _startDstH;
+            factorX = _handleSignX == 0 ? 1.0 : (_startDstW + (_handleSignX * dxDev)) / _startDstW;
+            factorY = _handleSignY == 0 ? 1.0 : (_startDstH + (_handleSignY * dyDev)) / _startDstH;
         }
 
         factorX = Math.Max(0.05, factorX);
@@ -817,8 +819,8 @@ public partial class TouchButtonSettings : Window
         if (startSrcW <= 0 || startSrcH <= 0) return;
 
         // 1) New display rect size for this drag.
-        var newDstW = _startDstW + _handleSignX * dxDev;
-        var newDstH = _startDstH + _handleSignY * dyDev;
+        var newDstW = _startDstW + (_handleSignX * dxDev);
+        var newDstH = _startDstH + (_handleSignY * dyDev);
         if (_handleSignX == 0) newDstW = _startDstW;
         if (_handleSignY == 0) newDstH = _startDstH;
 
@@ -881,11 +883,11 @@ public partial class TouchButtonSettings : Window
         double pivotFracX = _handleSignX switch { +1 => 0.0, -1 => 1.0, _ => 0.5 };
         double pivotFracY = _handleSignY switch { +1 => 0.0, -1 => 1.0, _ => 0.5 };
 
-        var pivotXDev = _startDrawX + pivotFracX * _startDstW;
-        var pivotYDev = _startDrawY + pivotFracY * _startDstH;
+        var pivotXDev = _startDrawX + (pivotFracX * _startDstW);
+        var pivotYDev = _startDrawY + (pivotFracY * _startDstH);
 
-        var newDrawX = pivotXDev - pivotFracX * newDstW;
-        var newDrawY = pivotYDev - pivotFracY * newDstH;
+        var newDrawX = pivotXDev - (pivotFracX * newDstW);
+        var newDrawY = pivotYDev - (pivotFracY * newDstH);
 
         // Non-centered text stores PositionX/Y as the absolute box top-left.
         // Everything else (images, symbols, centered text) stores them as the
@@ -897,8 +899,8 @@ public partial class TouchButtonSettings : Window
         }
         else
         {
-            layer.PositionX = (int)Math.Round(newDrawX - (deviceWidth - newDstW) / 2.0);
-            layer.PositionY = (int)Math.Round(newDrawY - (deviceHeight - newDstH) / 2.0);
+            layer.PositionX = (int)Math.Round(newDrawX - ((deviceWidth - newDstW) / 2.0));
+            layer.PositionY = (int)Math.Round(newDrawY - ((deviceHeight - newDstH) / 2.0));
         }
     }
 

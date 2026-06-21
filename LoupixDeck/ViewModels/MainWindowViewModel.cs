@@ -1,4 +1,5 @@
-﻿using System.Windows.Input;
+using System.Windows.Input;
+using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using LoupixDeck.Controllers;
 using LoupixDeck.Models;
@@ -8,52 +9,49 @@ using LoupixDeck.Services.Commands;
 using LoupixDeck.Services.Plugins;
 using LoupixDeck.Services.SystemPower;
 using LoupixDeck.ViewModels.Base;
-using AsyncRelayCommand = CommunityToolkit.Mvvm.Input.AsyncRelayCommand;
-using RelayCommand = LoupixDeck.Utils.RelayCommand;
 
 namespace LoupixDeck.ViewModels;
 
-public class MainWindowViewModel : ViewModelBase
+public partial class MainWindowViewModel : ViewModelBase
 {
     private readonly IDialogService _dialogService;
 
-    public ICommand RotaryButtonCommand { get; }
-    public ICommand SimpleButtonCommand { get; }
-    public ICommand TouchButtonCommand { get; }
+    public IAsyncRelayCommand RotaryButtonCommand { get; }
+    public IAsyncRelayCommand SimpleButtonCommand { get; }
+    public IAsyncRelayCommand TouchButtonCommand { get; }
 
-    public ICommand AddRotaryPageCommand { get; }
-    public ICommand DeleteRotaryPageCommand { get; }
-    public ICommand RotaryPageButtonCommand { get; }
-    public ICommand NextRotaryPageCommand { get; }
-    public ICommand PreviousRotaryPageCommand { get; }
+    public IRelayCommand AddRotaryPageCommand { get; }
+    public IRelayCommand DeleteRotaryPageCommand { get; }
+    public IRelayCommand RotaryPageButtonCommand { get; }
+    public IRelayCommand NextRotaryPageCommand { get; }
+    public IRelayCommand PreviousRotaryPageCommand { get; }
 
     // Side-specific rotary paging — used by the Razer layout, whose two dial columns
     // page independently. Bound per side (Left/Right) in the device layout.
-    public ICommand AddLeftRotaryPageCommand { get; }
-    public ICommand DeleteLeftRotaryPageCommand { get; }
-    public ICommand NextLeftRotaryPageCommand { get; }
-    public ICommand PreviousLeftRotaryPageCommand { get; }
-    public ICommand AddRightRotaryPageCommand { get; }
-    public ICommand DeleteRightRotaryPageCommand { get; }
-    public ICommand NextRightRotaryPageCommand { get; }
-    public ICommand PreviousRightRotaryPageCommand { get; }
+    public IRelayCommand AddLeftRotaryPageCommand { get; }
+    public IRelayCommand DeleteLeftRotaryPageCommand { get; }
+    public IRelayCommand NextLeftRotaryPageCommand { get; }
+    public IRelayCommand PreviousLeftRotaryPageCommand { get; }
+    public IRelayCommand AddRightRotaryPageCommand { get; }
+    public IRelayCommand DeleteRightRotaryPageCommand { get; }
+    public IRelayCommand NextRightRotaryPageCommand { get; }
+    public IRelayCommand PreviousRightRotaryPageCommand { get; }
 
     /// <summary>Opens the free-draw canvas editor for a side strip (Razer). No-op unless
     /// that side is in FreeDraw mode.</summary>
-    public ICommand EditStripCanvasCommand { get; }
+    public IAsyncRelayCommand EditStripCanvasCommand { get; }
 
+    public IRelayCommand AddTouchPageCommand { get; }
+    public IRelayCommand DeleteTouchPageCommand { get; }
+    public IRelayCommand TouchPageButtonCommand { get; }
+    public IRelayCommand NextTouchPageCommand { get; }
+    public IRelayCommand PreviousTouchPageCommand { get; }
 
-    public ICommand AddTouchPageCommand { get; }
-    public ICommand DeleteTouchPageCommand { get; }
-    public ICommand TouchPageButtonCommand { get; }
-    public ICommand NextTouchPageCommand { get; }
-    public ICommand PreviousTouchPageCommand { get; }
-
-    public ICommand SettingsMenuCommand { get; }
-    public ICommand MacroEditorMenuCommand { get; }
-    public ICommand AboutMenuCommand { get; }
-    public ICommand QuitApplicationCommand { get; }
-    public ICommand ToggleDeviceStateCommand { get; }
+    public IAsyncRelayCommand SettingsMenuCommand { get; }
+    public IAsyncRelayCommand MacroEditorMenuCommand { get; }
+    public IAsyncRelayCommand AboutMenuCommand { get; }
+    public IRelayCommand QuitApplicationCommand { get; }
+    public IRelayCommand ToggleDeviceStateCommand { get; }
 
     public LoupedeckLiveSController LoupedeckController { get; }
 
@@ -96,14 +94,10 @@ public class MainWindowViewModel : ViewModelBase
         private set => SetProperty(ref _isExclusiveModeActive, value);
     }
 
-    private string _exclusiveModeTitle;
-
     /// <summary>Title of the active exclusive-mode provider, shown in the overlay.</summary>
-    public string ExclusiveModeTitle
-    {
-        get => _exclusiveModeTitle;
-        private set => SetProperty(ref _exclusiveModeTitle, value);
-    }
+
+    [ObservableProperty]
+    public partial string ExclusiveModeTitle { get; private set; }
 
     public MainWindowViewModel(LoupedeckLiveSController loupedeck,
         IDialogService dialogService,
@@ -334,8 +328,7 @@ public class MainWindowViewModel : ViewModelBase
 
     private async Task RotaryButton_Click(RotaryButton button)
     {
-        await _dialogService.ShowDialogAsync<RotaryButtonSettingsViewModel, DialogResult>(vm => vm.Initialize(button)
-        );
+        await _dialogService.ShowDialogAsync<RotaryButtonSettingsViewModel, DialogResult>(vm => vm.Initialize(button));
 
         LoupedeckController.SaveConfig();
 
@@ -355,16 +348,14 @@ public class MainWindowViewModel : ViewModelBase
 
     private async Task SimpleButton_Click(SimpleButton button)
     {
-        await _dialogService.ShowDialogAsync<SimpleButtonSettingsViewModel, DialogResult>(vm => vm.Initialize(button)
-        );
+        await _dialogService.ShowDialogAsync<SimpleButtonSettingsViewModel, DialogResult>(vm => vm.Initialize(button));
 
         LoupedeckController.SaveConfig();
     }
 
     private async Task TouchButton_Click(TouchButton button)
     {
-        await _dialogService.ShowDialogAsync<TouchButtonSettingsViewModel, DialogResult>(vm => vm.Initialize(button)
-        );
+        await _dialogService.ShowDialogAsync<TouchButtonSettingsViewModel, DialogResult>(vm => vm.Initialize(button));
 
         LoupedeckController.SaveConfig();
         _dynamicTextManager.Rescan();

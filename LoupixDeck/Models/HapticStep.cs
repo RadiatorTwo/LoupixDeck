@@ -1,61 +1,41 @@
-using System.ComponentModel;
-using System.Linq;
-using System.Runtime.CompilerServices;
+using CommunityToolkit.Mvvm.ComponentModel;
 using LoupixDeck.LoupedeckDevice;
 using LoupixDeck.Models.Converter;
 using Newtonsoft.Json;
 
 namespace LoupixDeck.Models;
 
-public class HapticStep : INotifyPropertyChanged
+[ObservableObject]
+public partial class HapticStep
 {
-    private byte _effect = Constants.VibrationPattern.SharpClick;
-    public byte Effect
-    {
-        get => _effect;
-        set
-        {
-            if (_effect == value) return;
-            _effect = value;
-            OnPropertyChanged();
-            OnPropertyChanged(nameof(SelectedEffectItem));
-        }
-    }
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SelectedEffectItem))]
+    public partial byte Effect { get; set; } = Constants.VibrationPattern.SharpClick;
 
     [JsonIgnore]
     public VibrationPatternItem SelectedEffectItem
     {
-        get => VibrationPatternCatalog.All.FirstOrDefault(p => p.Value == _effect) ?? VibrationPatternCatalog.All[0];
+        get => VibrationPatternCatalog.All.FirstOrDefault(p => p.Value == Effect) ?? VibrationPatternCatalog.All[0];
         set { if (value != null) Effect = value.Value; }
     }
 
-    private byte _delay = 0x32;
     public byte Delay
     {
-        get => _delay;
+        get;
         set
         {
             var clamped = value < 0x04 ? (byte)0x04 : value;
-            if (_delay == clamped) return;
-            _delay = clamped;
-            OnPropertyChanged();
+            SetProperty(ref field, clamped);
         }
-    }
+    } = 0x32;
 
-    private byte _duration = 0x10;
     public byte Duration
     {
-        get => _duration;
+        get;
         set
         {
             var clamped = value < 0x02 ? (byte)0x02 : value;
-            if (_duration == clamped) return;
-            _duration = clamped;
-            OnPropertyChanged();
+            SetProperty(ref field, clamped);
         }
-    }
-
-    public event PropertyChangedEventHandler PropertyChanged;
-    protected void OnPropertyChanged([CallerMemberName] string name = null)
-        => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+    } = 0x10;
 }

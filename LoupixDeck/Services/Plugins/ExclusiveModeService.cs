@@ -8,7 +8,7 @@ public sealed class ExclusiveModeService : IExclusiveModeService
     // Single-owner state. Lock guards the transition; the actual rendering /
     // input-routing happens on the caller's thread (controller / UDP worker)
     // and reads volatile state.
-    private readonly object _gate = new();
+    private readonly Lock _gate = new();
     private IExclusiveModeProvider _current;
 
     public bool IsActive => _current != null;

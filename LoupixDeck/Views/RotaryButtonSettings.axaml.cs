@@ -91,7 +91,9 @@ public partial class RotaryButtonSettings : Window
     {
         if (sender is Button { DataContext: CommandSegment segment } button &&
             ResolveSlot(button) is { } slot)
+        {
             slot.RemoveSegment(segment);
+        }
     }
 
     private void CommandDragHandle_PointerPressed(object sender, PointerPressedEventArgs e)
@@ -388,7 +390,9 @@ public partial class RotaryButtonSettings : Window
             var pos = e.GetPosition(zone);
             if (pos.X >= 0 && pos.Y >= 0 &&
                 pos.X <= zone.Bounds.Width && pos.Y <= zone.Bounds.Height)
+            {
                 return (zone, list);
+            }
         }
 
         return null;
