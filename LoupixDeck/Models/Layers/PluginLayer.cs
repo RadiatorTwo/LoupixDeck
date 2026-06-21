@@ -64,6 +64,29 @@ public class PluginLayer : LayerBase
     }
 
     /// <summary>
+    /// Swaps in a new animation frame WITHOUT raising <see cref="LayerBase.OnPropertyChanged"/>.
+    /// Used by the central button-animation engine, which renders and pushes the button itself —
+    /// firing the change here would also trigger the controller's reactive redraw and double-push
+    /// at frame rate. Old bitmaps are still retired/disposed under the render gate, exactly as the
+    /// <see cref="RenderedBitmap"/> setter does, so the per-frame allocations don't leak.
+    /// </summary>
+    public void SetAnimationBitmap(SKBitmap value)
+    {
+        lock (SkiaRenderGate.Sync)
+        {
+            if (ReferenceEquals(_renderedBitmap, value))
+                return;
+
+            var old = _renderedBitmap;
+            _renderedBitmap = value;
+            if (old != null)
+                _retiredBitmaps.Enqueue(old);
+            while (_retiredBitmaps.Count > RetainedGenerations)
+                _retiredBitmaps.Dequeue().Dispose();
+        }
+    }
+
+    /// <summary>
     /// Disposes the current and all retired bitmaps under the render gate. Called by the
     /// dynamic-text manager when this layer is swept (its owning command unbound).
     /// </summary>

@@ -33,6 +33,42 @@ public abstract class FileDialogHelper
     }
 
     /// <summary>
+    /// Picks an animated source for a button (issue #121): an animated image (GIF/WebP) or a video
+    /// (transcoded once on import). Returns the absolute path, an empty string if cancelled, or null
+    /// when there's no window.
+    /// </summary>
+    public static async Task<string> OpenAnimatedImageDialog()
+    {
+        var parent = WindowHelper.GetMainWindow();
+        if (parent == null) return null;
+
+        var files = await parent.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = "Select Animated Image or Video",
+            AllowMultiple = false,
+            FileTypeFilter = new List<FilePickerFileType>
+            {
+                new("Animated images & videos")
+                {
+                    Patterns = ["*.gif", "*.webp", "*.mp4", "*.webm", "*.mov", "*.mkv", "*.m4v", "*.avi"]
+                },
+                new("All files")
+                {
+                    Patterns = ["*"]
+                }
+            }
+        });
+
+        if (files.Count == 0) return string.Empty;
+
+        var file = files[0];
+        var local = file.TryGetLocalPath();
+        return !string.IsNullOrEmpty(local)
+            ? local
+            : Uri.UnescapeDataString(file.Path.AbsolutePath);
+    }
+
+    /// <summary>
     /// Picks a screensaver clip (video or animated GIF). Parented to <paramref name="owner"/>
     /// when given (the open settings dialog), falling back to the main window. Returns the
     /// absolute path, an empty string if cancelled, or null when there's no window.
