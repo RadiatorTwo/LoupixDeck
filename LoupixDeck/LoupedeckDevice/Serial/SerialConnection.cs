@@ -7,7 +7,12 @@ namespace LoupixDeck.LoupedeckDevice.Serial;
 /// <summary>
 /// Represents a serial connection that handles a handshake and message-based communication.
 /// </summary>
-public class SerialConnection : ISerialConnection
+/// <remarks>
+/// Initializes a new instance of the <see cref="SerialConnection"/> class.
+/// </remarks>
+/// <param name="portName">The name of the serial port to connect to.</param>
+/// <param name="baudRate">The baud rate. Defaults to 256000 if not specified.</param>
+public class SerialConnection(string portName, int baudRate = 921600) : ISerialConnection
 {
     /// <summary>
     /// HTTP request header for the WebSocket upgrade handshake.
@@ -28,12 +33,12 @@ public class SerialConnection : ISerialConnection
     /// <summary>
     /// Name of the serial port to connect to.
     /// </summary>
-    private readonly string _portName;
+    private readonly string portName = portName;
 
     /// <summary>
     /// Baud rate for the serial port connection.
     /// </summary>
-    private readonly int _baudRate;
+    private readonly int baudRate = baudRate;
 
     /// <summary>
     /// SerialPort instance used for communication.
@@ -66,17 +71,6 @@ public class SerialConnection : ISerialConnection
     public event EventHandler<MessageEventArgs> MessageReceived = null!;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="SerialConnection"/> class.
-    /// </summary>
-    /// <param name="portName">The name of the serial port to connect to.</param>
-    /// <param name="baudRate">The baud rate. Defaults to 256000 if not specified.</param>
-    public SerialConnection(string portName, int baudRate = 921600)
-    {
-        _portName = portName;
-        _baudRate = baudRate;
-    }
-
-    /// <summary>
     /// Indicates whether the serial port is open and ready for communication.
     /// </summary>
     public bool IsReady => _serialPort is not null && _serialPort.IsOpen;
@@ -105,7 +99,7 @@ public class SerialConnection : ISerialConnection
 
         try
         {
-            _serialPort = new SerialPort(_portName, _baudRate)
+            _serialPort = new SerialPort(portName, baudRate)
             {
                 Parity = Parity.None,
                 DataBits = 8,
@@ -125,7 +119,7 @@ public class SerialConnection : ISerialConnection
             }
 
             // If the handshake is successful, notify that we have connected.
-            Connected?.Invoke(this, new ConnectionEventArgs(_portName));
+            Connected?.Invoke(this, new ConnectionEventArgs(portName));
 
             // Start the thread that reads incoming data and raises the MessageReceived event.
             _running = true;
@@ -146,7 +140,7 @@ public class SerialConnection : ISerialConnection
             _serialPort = null;
 
             // We do not have an error event in the interface, so we use Disconnected to indicate a failure.
-            Disconnected?.Invoke(this, new ConnectionEventArgs(_portName, ex));
+            Disconnected?.Invoke(this, new ConnectionEventArgs(portName, ex));
 
             // Rethrow the exception if needed.
             throw;
@@ -216,7 +210,7 @@ public class SerialConnection : ISerialConnection
         catch (Exception ex)
         {
             // On send error, trigger Disconnected or handle as appropriate.
-            Disconnected?.Invoke(this, new ConnectionEventArgs(_portName, ex));
+            Disconnected?.Invoke(this, new ConnectionEventArgs(portName, ex));
             Close();
         }
     }
@@ -250,7 +244,7 @@ public class SerialConnection : ISerialConnection
             _serialPort = null;
         }
 
-        Disconnected?.Invoke(this, new ConnectionEventArgs(_portName));
+        Disconnected?.Invoke(this, new ConnectionEventArgs(portName));
     }
 
     /// <summary>
@@ -392,7 +386,7 @@ public class SerialConnection : ISerialConnection
             // Only notify if we have not explicitly closed the port
             if (_running)
             {
-                Disconnected?.Invoke(this, new ConnectionEventArgs(_portName, ex));
+                Disconnected?.Invoke(this, new ConnectionEventArgs(portName, ex));
             }
         }
         finally

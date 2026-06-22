@@ -10,7 +10,7 @@ namespace LoupixDeck.Services.Mouse;
 /// so toggling Interception in the settings takes effect immediately (no app restart).
 /// Mirrors <see cref="Services.WindowsKeyboardRouter"/>.
 /// </summary>
-public class WindowsMouseRouter(
+public sealed class WindowsMouseRouter(
     WindowsVirtualMouse sendInput,
     InterceptionMouse interception,
     LoupedeckConfig config) : IVirtualMouse

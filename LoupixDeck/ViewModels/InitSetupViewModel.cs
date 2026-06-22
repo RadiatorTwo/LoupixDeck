@@ -31,14 +31,16 @@ public partial class InitSetupViewModel : ViewModelBase
     public ObservableCollection<int> BaudRates { get; } = [9600, 19200, 38400, 57600, 115200, 230400, 460800, 921600];
 #endif
 
-    [ObservableProperty] private DeviceItem _selectedDevice;
+    [ObservableProperty]
+    public partial DeviceItem SelectedDevice { get; set; }
 
     // [ObservableProperty] private string _manualDevicePath;
 
-    [ObservableProperty] private int _selectedBaudRate = 921600;
+    [ObservableProperty]
+    public partial int SelectedBaudRate { get; set; } = 921600;
 
-    [ObservableProperty] private string _connectionTestResult = string.Empty;
-
+    [ObservableProperty]
+    public partial string ConnectionTestResult { get; set; } = string.Empty;
     public bool ConnectionWorking { get; set; }
 
     public InitSetupViewModel()

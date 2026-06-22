@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using LoupixDeck.Models;
 using LoupixDeck.Native;
 using LoupixDeck.Native.Types.Windows;

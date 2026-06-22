@@ -1,13 +1,10 @@
 using System.Diagnostics;
 using LoupixDeck.Utils;
-
-#if WINDOWS
-using System.Diagnostics.CodeAnalysis;
+using System.Runtime.Versioning;
 using System.Management;
 using System.Text.RegularExpressions;
-#endif
 
-public static class SerialDeviceHelper
+public static partial class SerialDeviceHelper
 {
     // NormalizedSerial is the platform-uniform identity value (Windows hex→ASCII
     // decoded, '&'-synthesized location ids → null); Serial keeps the raw value
@@ -23,19 +20,28 @@ public static class SerialDeviceHelper
         string[] Aliases
     );
 
-#if WINDOWS
-    // SuppressMessage rather than [SupportedOSPlatform] — the latter cascades to
-    // every caller and forces platform attributes on otherwise cross-platform
-    // code (the Linux #else branch implements the same API). The WMI call is
-    // only reachable when the WINDOWS constant is defined, so the analyzer
-    // warning is informational, not load-bearing.
-    [SuppressMessage("Interoperability", "CA1416:Validate platform compatibility")]
+    [GeneratedRegex(@"VID_([0-9A-F]{4})", RegexOptions.IgnoreCase, "en-US")]
+    private static partial Regex regexVid { get; }
+
+    [GeneratedRegex(@"PID_([0-9A-F]{4})", RegexOptions.IgnoreCase, "en-US")]
+    private static partial Regex regexPid { get; }
+
+    [GeneratedRegex(@"\(COM(\d+)\)", RegexOptions.IgnoreCase, "en-US")]
+    private static partial Regex regexCom { get; }
+
+
     public static List<SerialDeviceInfo> ListSerialUsbDevices()
     {
+        if (OperatingSystem.IsWindows())
+            return ListSerialUsbDevicesWindows();
+        else
+            return ListSerialUsbDevicesLinux();
+    }
+
+    [SupportedOSPlatform("windows")]
+    private static List<SerialDeviceInfo> ListSerialUsbDevicesWindows()
+    {
         var result = new List<SerialDeviceInfo>();
-        var regexVid = new Regex(@"VID_([0-9A-F]{4})", RegexOptions.IgnoreCase);
-        var regexPid = new Regex(@"PID_([0-9A-F]{4})", RegexOptions.IgnoreCase);
-        var regexCom = new Regex(@"\(COM(\d+)\)", RegexOptions.IgnoreCase);
 
         using var searcher = new ManagementObjectSearcher("SELECT * FROM Win32_PnPEntity WHERE Name LIKE '%(COM%'");
 
@@ -53,6 +59,8 @@ public static class SerialDeviceHelper
             var vid = matchVid.Success ? matchVid.Groups[1].Value : null;
             var pid = matchPid.Success ? matchPid.Groups[1].Value : null;
             var comPort = matchCom.Success ? $"COM{matchCom.Groups[1].Value}" : null;
+            if (string.IsNullOrEmpty(comPort))
+                continue;
 
             var parts = deviceId.Split('\\');
             var serial = parts.Length > 2 ? parts[2] : null;
@@ -60,25 +68,22 @@ public static class SerialDeviceHelper
             var manufacturer = device["Manufacturer"]?.ToString();
             var product = name;
 
-            if (!string.IsNullOrEmpty(comPort))
-            {
-                result.Add(new SerialDeviceInfo(
-                    DevNode: comPort,
-                    Vid: vid,
-                    Pid: pid,
-                    Serial: serial,
-                    NormalizedSerial: SerialNormalizer.NormalizeWindowsPnpSegment(serial),
-                    Manufacturer: manufacturer,
-                    Product: product,
-                    Aliases: null
-                ));
-            }
+            result.Add(new SerialDeviceInfo(
+                DevNode: comPort,
+                Vid: vid,
+                Pid: pid,
+                Serial: serial,
+                NormalizedSerial: SerialNormalizer.NormalizeWindowsPnpSegment(serial),
+                Manufacturer: manufacturer,
+                Product: product,
+                Aliases: null
+            ));
         }
 
         return result;
     }
-#else
-    public static List<SerialDeviceInfo> ListSerialUsbDevices()
+
+    private static List<SerialDeviceInfo> ListSerialUsbDevicesLinux()
     {
         var result = new List<SerialDeviceInfo>();
         var candidates = Directory.EnumerateFiles("/dev")
@@ -112,8 +117,6 @@ public static class SerialDeviceHelper
 
         return result;
     }
-
-#endif
 
     private static string RunUdevadm(string devPath)
     {

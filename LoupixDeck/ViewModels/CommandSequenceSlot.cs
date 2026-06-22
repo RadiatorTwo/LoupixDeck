@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using LoupixDeck.Models;
 using LoupixDeck.Services;
@@ -17,7 +18,7 @@ namespace LoupixDeck.ViewModels;
 /// Mirrors the command-chain logic of <c>TouchButtonSettingsViewModel</c> but is
 /// self-contained so several slots can coexist in a single editor dialog.
 /// </summary>
-public class CommandSequenceSlot : ViewModelBase
+public partial class CommandSequenceSlot : ViewModelBase
 {
     private readonly ICommandBuilder _commandBuilder;
     private readonly ICommandRegistry _commandRegistry;
@@ -51,15 +52,10 @@ public class CommandSequenceSlot : ViewModelBase
         LoadSegments();
     }
 
-    private bool _isActive;
-
     /// <summary>True when this slot is the target for double-click-to-append from
     /// the command tree. Exactly one slot is active at a time in the editor.</summary>
-    public bool IsActive
-    {
-        get => _isActive;
-        set => SetProperty(ref _isActive, value);
-    }
+    [ObservableProperty]
+    public partial bool IsActive { get; set; }
 
     /// <summary>True when the slot has a non-empty command assigned.</summary>
     public bool HasCommand => !string.IsNullOrWhiteSpace(_read());

@@ -1,4 +1,3 @@
-using System.Collections.Frozen;
 using LoupixDeck.Models;
 
 namespace LoupixDeck.Utils;

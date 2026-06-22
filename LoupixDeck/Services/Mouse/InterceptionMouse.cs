@@ -1,5 +1,3 @@
-using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
 using LoupixDeck.Models.Macros;
 using LoupixDeck.Native;
 using LoupixDeck.Native.Types.Windows;

@@ -1,3 +1,5 @@
+using CommunityToolkit.Mvvm.ComponentModel;
+
 namespace LoupixDeck.Models.Macros;
 
 /// <summary>Types a text string via the virtual keyboard.</summary>
@@ -525,49 +527,20 @@ public class WaitForConditionStep : MacroStep
 /// for later <c>{name}</c> use. Cancelling the prompt leaves the variable unchanged and the
 /// macro continues. The prompt is shown on the UI thread and closes if the macro is stopped.
 /// </summary>
-public class PromptStep : MacroStep
+public partial class PromptStep : MacroStep
 {
-    private string _message = string.Empty;
-
     /// <summary>Prompt text shown to the user.</summary>
-    public string Message
-    {
-        get => _message;
-        set
-        {
-            if (_message == value) return;
-            _message = value;
-            OnValueChanged();
-        }
-    }
+    [ObservableProperty]
+    public partial string Message { get; set; } = string.Empty;
 
-    private string _variableName = string.Empty;
 
     /// <summary>Variable the entered text is stored in.</summary>
-    public string VariableName
-    {
-        get => _variableName;
-        set
-        {
-            if (_variableName == value) return;
-            _variableName = value;
-            OnValueChanged();
-        }
-    }
-
-    private string _defaultValue = string.Empty;
+    [ObservableProperty]
+    public partial string VariableName { get; set; } = string.Empty;
 
     /// <summary>Pre-filled value in the input box.</summary>
-    public string DefaultValue
-    {
-        get => _defaultValue;
-        set
-        {
-            if (_defaultValue == value) return;
-            _defaultValue = value;
-            OnValueChanged();
-        }
-    }
+    [ObservableProperty]
+    public partial string DefaultValue { get; set; } = string.Empty;
 
     public override MacroStepType StepType => MacroStepType.Prompt;
     public override string Icon => Glyph(0xF0CB6); // mdi-tooltip-edit

@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using LoupixDeck.Models;
 using LoupixDeck.Models.Converter;
@@ -310,34 +311,20 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     /// step used when <see cref="SnapToGrid"/> is active.</summary>
     public const int GridStepDevice = 10;
 
-    private bool _showGrid;
-
     /// <summary>Toggles the alignment grid overlay in the preview canvas.</summary>
     public bool ShowGrid
     {
-        get => _showGrid;
+        get;
         set
         {
-            if (_showGrid == value) return;
-            _showGrid = value;
-            OnPropertyChanged(nameof(ShowGrid));
+            if (SetProperty(ref field, value))
             UpdateEditorPreview();
         }
     }
 
-    private bool _snapToGrid;
-
     /// <summary>When enabled, dragging a layer snaps its top-left edge to the grid.</summary>
-    public bool SnapToGrid
-    {
-        get => _snapToGrid;
-        set
-        {
-            if (_snapToGrid == value) return;
-            _snapToGrid = value;
-            OnPropertyChanged(nameof(SnapToGrid));
-        }
-    }
+    [ObservableProperty]
+    public partial bool SnapToGrid { get; set; }
 
     public IAsyncRelayCommand AddImageLayerCommand => field ??= Relay.Create(AddImageLayer);
     public IAsyncRelayCommand AddAnimatedImageLayerCommand => field ??= Relay.Create(AddAnimatedImageLayer);
@@ -365,14 +352,13 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     /// <summary>Resolution badge shown in the canvas corner, e.g. "90 × 90 px".</summary>
     public string CanvasSizeText => $"{DeviceWidth} × {DeviceHeight} px";
 
-    private LayerBase _selectedLayer;
     public LayerBase SelectedLayer
     {
-        get => _selectedLayer;
+        get;
         set
         {
-            if (ReferenceEquals(_selectedLayer, value)) return;
-            _selectedLayer = value;
+            if (ReferenceEquals(field, value)) return;
+            field = value;
             OnPropertyChanged(nameof(SelectedLayer));
             OnPropertyChanged(nameof(SelectedImageLayer));
             OnPropertyChanged(nameof(SelectedTextLayer));
@@ -382,30 +368,18 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         }
     }
 
-    public ImageLayer SelectedImageLayer => _selectedLayer as ImageLayer;
-    public TextLayer SelectedTextLayer => _selectedLayer as TextLayer;
+    public ImageLayer SelectedImageLayer => SelectedLayer as ImageLayer;
+    public TextLayer SelectedTextLayer => SelectedLayer as TextLayer;
 
     /// <summary>
     /// True when a deletable (user-created) layer is selected. Command-owned layers
     /// (<see cref="LayerBase.IsCommandOwned"/>) cannot be deleted manually — they are
     /// removed by unbinding the button's command — so the delete button is disabled for them.
     /// </summary>
-    public bool CanDeleteSelectedLayer => _selectedLayer != null && !_selectedLayer.IsCommandOwned;
+    public bool CanDeleteSelectedLayer => SelectedLayer != null && !SelectedLayer.IsCommandOwned;
 
-    private SKBitmap _editorPreview;
-
-    public SKBitmap EditorPreview
-    {
-        get => _editorPreview;
-        private set
-        {
-            if (ReferenceEquals(_editorPreview, value)) return;
-            _editorPreview = value;
-            OnPropertyChanged(nameof(EditorPreview));
-        }
-    }
-
-    private Avalonia.Rect _selectionBounds;
+    [ObservableProperty]
+    public partial SKBitmap EditorPreview { get; set; }
 
     /// <summary>
     /// On-canvas (editor-preview coordinates) bounds of the currently selected
@@ -413,11 +387,11 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     /// </summary>
     public Avalonia.Rect SelectionBounds
     {
-        get => _selectionBounds;
+        get;
         private set
         {
-            if (_selectionBounds == value) return;
-            _selectionBounds = value;
+            if (field == value) return;
+            field = value;
             OnPropertyChanged(nameof(SelectionBounds));
             OnPropertyChanged(nameof(SelectionVisible));
             OnPropertyChanged(nameof(ScaleHandlesVisible));
@@ -444,22 +418,22 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         }
     }
 
-    public bool SelectionVisible => _selectedLayer != null &&
-                                    _selectionBounds.Width > 0 && _selectionBounds.Height > 0;
+    public bool SelectionVisible => SelectedLayer != null &&
+                                    SelectionBounds.Width > 0 && SelectionBounds.Height > 0;
 
     /// <summary>
     /// Resize handles are shown for every layer kind. Text layers use them to
     /// stretch the rendered text via Scale/ScaleY (independent of TextSize).
     /// </summary>
     public bool ScaleHandlesVisible => SelectionVisible;
-    public double SelectionLeft => _selectionBounds.X;
-    public double SelectionTop => _selectionBounds.Y;
-    public double SelectionWidth => _selectionBounds.Width;
-    public double SelectionHeight => _selectionBounds.Height;
+    public double SelectionLeft => SelectionBounds.X;
+    public double SelectionTop => SelectionBounds.Y;
+    public double SelectionWidth => SelectionBounds.Width;
+    public double SelectionHeight => SelectionBounds.Height;
 
     public const double HandleSize = 8;
-    private double Hx(double cx) => cx - (HandleSize / 2.0);
-    private double Hy(double cy) => cy - (HandleSize / 2.0);
+    private static double Hx(double cx) => cx - (HandleSize / 2.0);
+    private static double Hy(double cy) => cy - (HandleSize / 2.0);
     public double HandleNwLeft => Hx(SelectionLeft);
     public double HandleNwTop  => Hy(SelectionTop);
     public double HandleNeLeft => Hx(SelectionLeft + SelectionWidth);
@@ -670,7 +644,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     /// </summary>
     public async Task ChangeSelectedSymbolAsync()
     {
-        if (_selectedLayer is not SymbolLayer symbol) return;
+        if (SelectedLayer is not SymbolLayer symbol) return;
 
         var request = new SymbolPickerRequest { CurrentSymbolId = symbol.SymbolId };
         var result = await _dialogService.ShowDialogAsync<SymbolPickerViewModel, DialogResult>(
@@ -687,9 +661,9 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     {
         // Command-owned layers are owned by their bound command; they are removed by unbinding
         // the command (the dynamic-text manager's orphan sweep), never via the editor.
-        if (_selectedLayer == null || _selectedLayer.IsCommandOwned) return;
-        var idx = ButtonData.Layers.IndexOf(_selectedLayer);
-        ButtonData.Layers.Remove(_selectedLayer);
+        if (SelectedLayer == null || SelectedLayer.IsCommandOwned) return;
+        var idx = ButtonData.Layers.IndexOf(SelectedLayer);
+        ButtonData.Layers.Remove(SelectedLayer);
         // Prefer the item that moved into the freed slot (the one below); fall back
         // to the new last item (the one above) when the removed layer was last.
         var next = (idx < ButtonData.Layers.Count) ? ButtonData.Layers[idx]
@@ -699,8 +673,8 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
 
     private void MoveSelectedLayerUp()
     {
-        if (_selectedLayer == null) return;
-        var layer = _selectedLayer;
+        if (SelectedLayer == null) return;
+        var layer = SelectedLayer;
         var idx = ButtonData.Layers.IndexOf(layer);
         if (idx <= 0) return;
         ButtonData.Layers.Move(idx, idx - 1);
@@ -709,8 +683,8 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
 
     private void MoveSelectedLayerDown()
     {
-        if (_selectedLayer == null) return;
-        var layer = _selectedLayer;
+        if (SelectedLayer == null) return;
+        var layer = SelectedLayer;
         var idx = ButtonData.Layers.IndexOf(layer);
         if (idx < 0 || idx >= ButtonData.Layers.Count - 1) return;
         ButtonData.Layers.Move(idx, idx + 1);
@@ -818,14 +792,14 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
 
     private void UpdateSelectionBounds()
     {
-        if (_selectedLayer == null)
+        if (SelectedLayer == null)
         {
             SelectionBounds = default;
             return;
         }
 
         var rect = BitmapHelper.GetLayerEditorBounds(
-            _selectedLayer, EditorCanvasSize, DeviceWidth, DeviceHeight);
+            SelectedLayer, EditorCanvasSize, DeviceWidth, DeviceHeight);
 
         if (rect == null)
         {

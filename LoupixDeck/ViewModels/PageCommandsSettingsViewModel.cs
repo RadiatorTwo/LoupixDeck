@@ -1,5 +1,4 @@
 using System.Collections.ObjectModel;
-using System.Windows.Input;
 using CommunityToolkit.Mvvm.Input;
 using LoupixDeck.Models;
 using LoupixDeck.PluginSdk;
@@ -7,7 +6,6 @@ using LoupixDeck.Services;
 using LoupixDeck.Services.Commands;
 using LoupixDeck.Utils;
 using LoupixDeck.ViewModels.Base;
-using RelayCommand = CommunityToolkit.Mvvm.Input.RelayCommand;
 
 namespace LoupixDeck.ViewModels;
 

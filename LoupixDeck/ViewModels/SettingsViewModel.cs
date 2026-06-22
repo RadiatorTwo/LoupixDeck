@@ -559,16 +559,9 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
 
     /// <summary>Whether ffmpeg was found on PATH. Defaults to true (assume present) and is
     /// corrected by the async probe, so the "missing" hint only shows once we're sure.</summary>
-    private bool _ffmpegAvailable = true;
-    public bool FfmpegAvailable
-    {
-        get => _ffmpegAvailable;
-        private set
-        {
-            if (SetProperty(ref _ffmpegAvailable, value))
-                OnPropertyChanged(nameof(FfmpegMissing));
-        }
-    }
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(FfmpegMissing))]
+    public partial bool FfmpegAvailable { get; set; } = true;
 
     /// <summary>Inverse of <see cref="FfmpegAvailable"/> for the settings hint visibility.</summary>
     public bool FfmpegMissing => !FfmpegAvailable;
@@ -582,9 +575,10 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
         {
             if (!string.IsNullOrWhiteSpace(Config.ScreensaverVideoName))
                 return Config.ScreensaverVideoName;
-            return string.IsNullOrWhiteSpace(Config.ScreensaverVideoPath)
-                ? "(none)"
-                : System.IO.Path.GetFileName(Config.ScreensaverVideoPath);
+            else if(!string.IsNullOrWhiteSpace(Config.ScreensaverVideoPath))
+                return System.IO.Path.GetFileName(Config.ScreensaverVideoPath);
+            else
+                return "(none)";
         }
     }
 

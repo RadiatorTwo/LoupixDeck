@@ -10,7 +10,7 @@ namespace LoupixDeck.Services.Macros;
 /// its own try/catch so a faulty step (unknown key, failing command) does not abort
 /// the rest of the macro.
 /// </summary>
-public class MacroRunner : IDisposable
+public sealed class MacroRunner : IDisposable
 {
     private readonly IUInputKeyboard _keyboard;
     private readonly IVirtualMouse _mouse;
