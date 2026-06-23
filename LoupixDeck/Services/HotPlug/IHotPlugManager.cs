@@ -7,10 +7,11 @@ namespace LoupixDeck.Services.HotPlug;
 /// running <see cref="IDeviceHostRegistry"/> (issue #116 phase 3b). It owns the
 /// diff but not the bring-up: building a device's child provider + view model is
 /// App-level work, so it raises events that App handles on the UI thread.
-///
+/// </summary>
+/// <remarks>
 /// Both events fire on a background (debounce-timer) thread — handlers must
 /// marshal to the UI thread before touching view models / the device.
-/// </summary>
+/// </remarks>
 public interface IHotPlugManager
 {
     /// <summary>A supported device appeared that has no running host yet.</summary>

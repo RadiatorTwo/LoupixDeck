@@ -391,11 +391,12 @@ public class UInputKeyboard : IUInputKeyboard
 /// into the session input stream and delivered to the focused window, like a normal
 /// keyboard. Text is sent layout-independently via Unicode injection; key combinations
 /// use virtual-key codes.
-///
+/// </summary>
+/// <remarks>
 /// Note: injected events carry the LLKHF_INJECTED flag, so apps reading raw input
 /// (some games / anti-cheat) may ignore them — that is a fundamental limit of any
 /// user-mode injection and cannot be bypassed without a kernel driver.
-/// </summary>
+/// </remarks>
 public class WindowsUInputKeyboard : IUInputKeyboard
 {
     private const int INPUT_KEYBOARD = 1;

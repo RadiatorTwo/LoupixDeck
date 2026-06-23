@@ -5,6 +5,7 @@ namespace LoupixDeck.Services.Animation;
 
 /// <inheritdoc cref="IAnimatedImageCache"/>
 /// <remarks>
+/// <para>
 /// Lifetime ownership is deliberate. A decoded animation's frames are handed out as shared
 /// <c>SKBitmap</c> references: <see cref="ButtonAnimationSource"/> swaps them into
 /// <see cref="Models.Layers.ImageLayer.CachedImage"/> on every device, the controller composites them
@@ -14,11 +15,13 @@ namespace LoupixDeck.Services.Animation;
 /// editor + every page + the render thread is fragile, so the cache instead keeps each decoded
 /// animation alive for its whole lifetime (it is a root singleton ≈ app lifetime) and frees the
 /// native pixels only in <see cref="Clear"/>/<see cref="Dispose"/> at shutdown, when nothing renders.
-///
+/// </para>
+/// <para>
 /// Memory is bounded by the number of DISTINCT animations referenced during the session (each a
 /// handful of 90×90 BGRA frames ≈ tens to low-hundreds of KB), which is modest for a deck config and
 /// is reclaimed on restart. Re-importing a clip yields a new content-addressed key, so a replaced
 /// animation lingers until restart — an acceptable trade for eliminating the crash.
+/// </para>
 /// </remarks>
 public sealed class AnimatedImageCache : IAnimatedImageCache, IDisposable
 {

@@ -15,14 +15,17 @@ namespace LoupixDeck.Controllers;
 
 /// <summary>
 /// Device-agnostic controller orchestrating the services:
-/// - loads/saves the per-device configuration,
-/// - starts the device (concrete type chosen via <see cref="DeviceRegistry"/>),
-/// - registers device events,
-/// - forwards UI events to the corresponding services.
-///
+/// <list type="number">
+///   <item>loads/saves the per-device configuration</item>
+///   <item>starts the device (concrete type chosen via <see cref="DeviceRegistry"/>)</item>
+///   <item>registers device events</item>
+///   <item>forwards UI events to the corresponding services</item>
+/// </list>
+/// </summary>
+/// <remarks>
 /// The class name is kept for source-history continuity (originally Live-S-only);
 /// it now handles any device exposed via <see cref="IDeviceService"/>.
-/// </summary>
+/// </remarks>
 public partial class LoupedeckLiveSController(
     IDeviceService deviceService,
     ICommandService commandService,

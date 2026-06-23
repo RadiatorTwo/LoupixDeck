@@ -10,12 +10,13 @@ namespace LoupixDeck.Services.Mouse;
 /// the input stream below the user-mode layer, so apps that read raw input (games /
 /// anti-cheat) receive them like a real mouse — same rationale as
 /// <see cref="Services.InterceptionKeyboard"/>.
-///
+/// </summary>
+/// <remarks>
 /// The DLL is not bundled — it is placed next to the executable by
 /// <see cref="Services.InterceptionService"/> when the user installs the driver. If the DLL
 /// is missing or the driver is not loaded, this backend reports itself unavailable and the
 /// router falls back to SendInput.
-/// </summary>
+/// </remarks>
 public class InterceptionMouse : IVirtualMouse
 {
     // INTERCEPTION_MOUSE(0): keyboards are devices 1..10, mice 11..20.

@@ -8,15 +8,20 @@ namespace LoupixDeck.Utils;
 /// <summary>
 /// Decodes an animated image (GIF / animated WebP, or any single still SkiaSharp can read) into a
 /// flat <see cref="DecodedAnimation"/> of fully composited BGRA frames using <see cref="SKCodec"/>.
-/// This runs ONCE per asset (driven by <see cref="LoupixDeck.Services.Animation.IAnimatedImageCache"/>);
-/// playback then just blits the pre-decoded frames, so no ffmpeg process is ever spawned per button
-/// at runtime — which is the whole point of normalizing imports to a frame source SkiaSharp can read.
-///
+/// </summary>
+/// <remarks>
+/// <para>
 /// GIF/WebP frames are commonly deltas over a prior frame (<see cref="SKCodecFrameInfo.RequiredFrame"/>
 /// + a disposal method). We reconstruct each final frame by decoding on top of its required frame
 /// (Skia applies the required frame's disposal internally) and snapshot the composited result, so
 /// the produced frames are independent full images.
-/// </summary>
+/// </para>
+/// <para>
+/// This runs ONCE per asset (driven by <see cref="LoupixDeck.Services.Animation.IAnimatedImageCache"/>);
+/// playback then just blits the pre-decoded frames, so no ffmpeg process is ever spawned per button
+/// at runtime — which is the whole point of normalizing imports to a frame source SkiaSharp can read.
+/// </para>
+/// </remarks>
 public static class AnimatedImageDecoder
 {
     /// <summary>Hard cap on decoded frames so a pathological clip can't exhaust memory.</summary>

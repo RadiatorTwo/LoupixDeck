@@ -1,3 +1,5 @@
+using System.Collections.Immutable;
+using LoupixDeck.LoupedeckDevice;
 using LoupixDeck.Models;
 using SkiaSharp;
 
@@ -5,14 +7,17 @@ namespace LoupixDeck.LoupedeckDevice.Device;
 
 /// <summary>
 /// Razer Stream Controller — re-skinned Loupedeck Live with a different layout:
-///   3 knobs on the left (KNOB_TL/CL/BL), 3 on the right (KNOB_TR/CR/BR),
-///   4×3 touch grid in the centre (90×90 each, indices 0–11),
-///   2 narrow touch panels behind the knobs (60×270, indices 12 left / 13 right),
-///   8 physical LED buttons (BUTTON0–BUTTON7) below the screen.
-///
+/// <list type="bullet">
+///   <item>3 knobs on the left (KNOB_TL/CL/BL), 3 on the right (KNOB_TR/CR/BR)</item>
+///   <item>4×3 touch grid in the centre (90×90 each, indices 0–11)</item>
+///   <item>2 narrow touch panels behind the knobs (60×270, indices 12 left / 13 right)</item>
+///   <item>8 physical LED buttons (BUTTON0–BUTTON7) below the screen</item>
+/// </list>
+/// </summary>
+/// <remarks>
 /// Same wire protocol as the Loupedeck Live; the single physical 480×270 display
 /// is rendered as left (X=0,60w) + center (X=60,360w) + right (X=420,60w) regions.
-/// </summary>
+/// </remarks>
 public class RazerStreamControllerDevice : LoupedeckDevice
 {
     /// <summary>Touch index for the left narrow panel.</summary>
@@ -21,6 +26,26 @@ public class RazerStreamControllerDevice : LoupedeckDevice
     /// <summary>Touch index for the right narrow panel.</summary>
     public const int RightSideIndex = 13;
 
+    // Single unified display on the wire — the side regions are drawn at
+    // offset X positions on the same "center" buffer (\0M).
+    private static readonly ImmutableDictionary<string, DisplayInfo> displays = ImmutableDictionary.CreateRange<string, DisplayInfo>(
+    [
+        new("center", new DisplayInfo("\0M"u8, 480, 270))
+    ]);
+
+    protected override ImmutableDictionary<string, DisplayInfo> Displays => displays;
+    public override int[] Buttons { get; } = InitSimpleArray(8);
+    public override int Columns => 4;
+    public override int Rows => 3;
+#nullable enable
+    // Centre grid sits between X=60 and X=420 on the unified 480px display.
+    protected override int[]? VisibleX { get; } = [60, 420];
+    protected override int[]? VisibleY { get; } = [0, 270];
+#nullable restore
+    public override int RotaryCount => 6;
+    public override string Type => "Razer Stream Controller";
+    public override string ProductId => "0d06";
+
     /// <inheritdoc />
     public override bool HasSideStrips => true;
 
@@ -28,28 +53,13 @@ public class RazerStreamControllerDevice : LoupedeckDevice
     /// <remarks>The left strip occupies panel x 0–60, so the centre grid starts at 60.</remarks>
     public override int WallpaperGridXOffset => 60;
 
+    // 12 grid slots + 2 narrow side panels.
+    public override int TouchButtonCount => (Columns * Rows) + 2;
+
     public RazerStreamControllerDevice(string host = null, string path = null, int baudrate = 0,
         bool autoConnect = true, int reconnectInterval = Constants.DefaultReconnectInterval)
         : base(host, path, baudrate, autoConnect, reconnectInterval)
     {
-        Buttons = [0, 1, 2, 3, 4, 5, 6, 7];
-        Columns = 4;
-        Rows = 3;
-        RotaryCount = 6;
-        // 12 grid slots + 2 narrow side panels.
-        TouchButtonCount = (Columns * Rows) + 2;
-        // Centre grid sits between X=60 and X=420 on the unified 480px display.
-        VisibleX = [60, 420];
-        VisibleY = [0, 270];
-        Type = "Razer Stream Controller";
-        ProductId = "0d06";
-
-        // Single unified display on the wire — the side regions are drawn at
-        // offset X positions on the same "center" buffer (\0M).
-        Displays = new Dictionary<string, DisplayInfo>
-        {
-            ["center"] = new() { Id = "\0M"u8.ToArray(), Width = 480, Height = 270 }
-        };
     }
 
     protected override TouchTarget GetTarget(int x, int y)

@@ -6,9 +6,10 @@ namespace LoupixDeck.Services.HotPlug;
 /// it deliberately does NOT diff — it only signals "the device set may have
 /// changed". <see cref="IHotPlugManager"/> debounces these signals and rescans to
 /// figure out exactly which device appeared or disappeared.
-///
-/// The event can fire on an arbitrary background thread.
 /// </summary>
+/// <remarks>
+/// The event can fire on an arbitrary background thread.
+/// </remarks>
 public interface IDeviceWatcher : IDisposable
 {
     event Action DevicesChanged;

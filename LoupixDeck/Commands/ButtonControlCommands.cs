@@ -14,12 +14,13 @@ namespace LoupixDeck.Commands;
 /// for CLI / scripting use (build status, sensor readouts, now-playing). The
 /// changes are in-memory only — they don't persist across app restarts so a
 /// busy script can hammer the command without thrashing config.json.
-///
+/// </summary>
+/// <remarks>
 /// Fork-CLI parity: the short form <c>loupixdeck updatebutton 0 text=Hi</c>
-/// is rewritten to the full form by the alias in <c>Program.CommandChannel</c>;
+/// is rewritten to the full form by the alias in <see cref="Program.CommandChannel"/>.
 /// <c>text=Hello_World</c> still becomes "Hello World" and
 /// <c>image=clear|null|</c> all clear the image.
-/// </summary>
+/// </remarks>
 [Command("System.UpdateButton", "Update Touch Button at runtime", "Button Control",
     parameterTemplate: "({Index},text=,textColor=,backColor=,image=)",
     parameterNames: ["Index", "Properties"],
@@ -260,9 +261,10 @@ public class UpdateButtonCommand(IDeviceController controller, IAssetService ass
 /// Removes a named layer from a Touch button on the currently active page.
 /// No-op (with a console warning) when no layer of that exact name exists —
 /// scripts can safely call this without first checking.
-///
-/// Fork-CLI parity: <c>loupixdeck removelayer 6 MyImage</c>.
 /// </summary>
+/// <remarks>
+/// Fork-CLI parity: <c>loupixdeck removelayer 6 MyImage</c>.
+/// </remarks>
 [Command("System.RemoveLayer", "Remove a Layer from a Touch Button", "Button Control",
     parameterTemplate: "({Index},{Name})",
     parameterNames: ["Index", "Layer Name"],

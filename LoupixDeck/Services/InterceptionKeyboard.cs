@@ -10,13 +10,14 @@ namespace LoupixDeck.Services;
 /// Unlike <see cref="WindowsUInputKeyboard"/> (SendInput), the injected keystrokes enter
 /// the input stream below the user-mode layer, so apps that read raw input (games /
 /// anti-cheat) receive them like a real keyboard.
-///
+/// </summary>
+/// <remarks>
 /// Access is exclusively through the official interception.dll API (the driver's licence
 /// only permits library access, not opening the kernel device directly). The DLL is not
 /// bundled — it is placed next to the executable by <see cref="InterceptionService"/> when
 /// the user installs the driver. If the DLL is missing or the driver is not loaded, this
 /// backend reports itself unavailable and the router falls back to SendInput.
-/// </summary>
+/// </remarks>
 public class InterceptionKeyboard : IUInputKeyboard
 {
     // INTERCEPTION_KEYBOARD(0): keyboards are devices 1..10, mice 11..20.

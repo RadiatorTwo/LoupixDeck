@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Collections.Immutable;
 using System.Threading.Channels;
 using Avalonia.Media;
 using LoupixDeck.LoupedeckDevice.Serial;
@@ -12,7 +13,7 @@ namespace LoupixDeck.LoupedeckDevice.Device;
 /// Base class for Loupedeck devices.
 /// Contains all functionalities (connection, sending/receiving, button, rotation, and touch events, drawing, etc.).
 /// </summary>
-public class LoupedeckDevice
+public abstract class LoupedeckDevice
 {
     private ISerialConnection _connection;
     private byte _transactionId;
@@ -41,17 +42,18 @@ public class LoupedeckDevice
     private string Path { get; set; }
     private int Baudrate { get; set; }
 
-    protected Dictionary<string, DisplayInfo> Displays { get; init; } = new();
-    public int[] Buttons { get; set; }
-    public int Columns { get; protected init; }
-    public int Rows { get; protected init; }
-    protected int[] VisibleX { get; init; }
-    protected int[] VisibleY { get; init; }
-    public string Type { get; set; }
-    public string ProductId { get; set; }
+#nullable enable
+    protected abstract ImmutableDictionary<string, DisplayInfo>? Displays { get; }
+    public abstract int[] Buttons { get; }
+    public abstract int Columns { get; }
+    public abstract int Rows { get; }
+    protected virtual int[]? VisibleX { get; }
+    protected virtual int[]? VisibleY { get; }
+    public abstract string Type { get; }
+    public abstract string ProductId { get; }
 
     /// <summary>Number of rotary encoders (knobs) the device exposes. Subclasses must set this.</summary>
-    public int RotaryCount { get; protected init; }
+    public abstract int RotaryCount { get; }
 
     /// <summary>
     /// True when the device has the two narrow side display strips next to the dial
@@ -82,7 +84,8 @@ public class LoupedeckDevice
     /// Number of addressable touch buttons. Defaults to Columns*Rows; devices with
     /// extra non-grid touch slots (e.g. Razer side panels) override this in their ctor.
     /// </summary>
-    public int TouchButtonCount { get; protected init; }
+    public abstract int TouchButtonCount { get; }
+#nullable restore
 
     public event EventHandler<ConnectionEventArgs> OnConnect;
     public event EventHandler<ConnectionEventArgs> OnDisconnect;
@@ -127,6 +130,8 @@ public class LoupedeckDevice
             ConnectBlind();
         }
     }
+
+    protected static int[] InitSimpleArray(int length) => Enumerable.Range(0, length).ToArray();
 
     /// <summary>
     /// Attempts to connect without throwing exceptions; errors are reported via the Disconnect event.

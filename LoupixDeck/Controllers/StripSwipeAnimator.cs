@@ -17,13 +17,14 @@ namespace LoupixDeck.Controllers;
 /// glides back). Plugin-override strips are excluded — they own their own pixels and
 /// gestures. Falls back to a clean release-time slide when the device sends no
 /// intermediate packets, since the commit offset is derived from start/end anyway.
-///
+/// </summary>
+/// <remarks>
 /// Bitmap lifetime: the three cached page bitmaps are disposed only while holding the
 /// per-side redraw gate (via <see cref="_stripDisposeQueue"/>), and a cached reference
 /// is always replaced with the fresh bitmap before the old one is queued. That keeps a
 /// concurrent gated render from ever reading a just-disposed SKBitmap — see the
 /// access-violation history around Skia object disposal.
-/// </summary>
+/// </remarks>
 public partial class LoupedeckLiveSController
 {
     private const int StripHeight = 270;

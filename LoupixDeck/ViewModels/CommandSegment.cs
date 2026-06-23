@@ -63,13 +63,14 @@ public partial class CommandParameter
 /// One link in a touch button's command chain, shown as a card in the editor.
 /// Known commands expose structured <see cref="Parameters"/>; unknown/shell
 /// commands fall back to a single free-text field (<see cref="ShellText"/>).
-///
+/// </summary>
+/// <remarks>
 /// Note on the first ("Target") parameter: it is rendered as a plain text field
 /// (or an enum combo when the type is an enum), not as a populated dropdown of
 /// live device/scene values — those are plugin-specific and not retrievable
 /// generically without a plugin round-trip. Values containing ',' or ')' are not
 /// supported by the executor, so the editor does not support them either.
-/// </summary>
+/// </remarks>
 [ObservableObject]
 public partial class CommandSegment
 {

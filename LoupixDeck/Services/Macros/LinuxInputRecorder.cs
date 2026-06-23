@@ -10,11 +10,12 @@ namespace LoupixDeck.Services.Macros;
 /// nodes under <c>/dev/input</c>. A background thread polls all detected keyboards and
 /// raises a <see cref="IInputRecorder.KeyRecorded"/> event per press/release. Auto-repeat
 /// events (value 2) are ignored.
-///
+/// </summary>
+/// <remarks>
 /// Reading <c>/dev/input/event*</c> requires read permission (root or the <c>input</c>
 /// group) — the same kind of access the uinput backend already needs. If no device can
 /// be opened, recording simply yields nothing and a hint is logged.
-/// </summary>
+/// </remarks>
 public sealed partial class LinuxInputRecorder : IInputRecorder
 {
     private const int O_RDONLY = 0x0000;

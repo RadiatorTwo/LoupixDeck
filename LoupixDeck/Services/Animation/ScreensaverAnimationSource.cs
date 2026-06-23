@@ -8,10 +8,15 @@ using SkiaSharp;
 namespace LoupixDeck.Services.Animation;
 
 /// <summary>
-/// Full-display animated screensaver source (issue #120). Decodes the configured clip
+/// Full-display animated screensaver source (issue #120).
+/// </summary>
+/// <remarks>
+/// <para>
+/// Decodes the configured clip
 /// (GIF or any ffmpeg-supported video) into a stream of raw BGRA frames via an external
 /// <c>ffmpeg</c> process and fans each frame out across every display of the device.
-///
+/// </para>
+/// <para>
 /// It is driven by the central <see cref="IAnimationScheduler"/> — the scheduler ticks
 /// <see cref="RenderFrameAsync"/> at the configured rate, which dequeues the next decoded
 /// frame from a small bounded read-ahead queue. A background reader keeps that queue filled
@@ -21,13 +26,15 @@ namespace LoupixDeck.Services.Animation;
 /// second device) the consumer drops to the freshest queued frame. That keeps playback at the
 /// correct speed and skips frames instead of sliding into slow motion. Each device runs its
 /// own ffmpeg + queue, so the two never share a clock.
-///
+/// </para>
+/// <para>
 /// The decode geometry mirrors the wallpaper system's continuous 480×270 panel: the frame
 /// is decoded at panel size and sliced per display. Unified devices (Live S / Razer) take
 /// the whole frame on their single buffer; the CT's independent left/centre/right buffers
 /// each take their column. The CT knob screen is intentionally not driven (its framebuffer
 /// needs big-endian conversion the device layer doesn't implement yet).
-/// </summary>
+/// </para>
+/// </remarks>
 public sealed class ScreensaverAnimationSource : IAnimationSource, IDisposable
 {
     // The continuous virtual panel the wallpaper system assumes: 480px wide spanning the

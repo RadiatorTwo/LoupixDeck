@@ -50,6 +50,7 @@ csharp_prefer_braces = when_multiline:suggestion
 
 #AnalyzerSettings
 dotnet_style_namespace_match_folder = true:warning
+csharp_prefer_simple_using_statement = false:silent
 
 # TODO: review the following rules:
 # Use explicit type (not var)

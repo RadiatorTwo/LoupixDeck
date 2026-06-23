@@ -3,14 +3,33 @@ namespace LoupixDeck.Utils;
 /// <summary>
 /// Maps human-readable key names (e.g. "Ctrl", "Alt", "F4", "Up") used in key-combination
 /// macros to the platform-specific codes the keyboard backends expect.
-///
-/// - Linux: Linux input-event (evdev) key codes, written to /dev/uinput.
-/// - Windows: virtual-key codes (VK_*) plus an "extended key" flag, sent via SendInput.
-/// - Interception: PS/2 set-1 scan codes plus an "E0 extended" flag, sent via interception.dll.
-///
+/// </summary>
+/// <remarks>
+/// <list type="bullet">
+///   <item>
+///     <term>Linux</term>
+///     <description>
+///     Linux input-event (evdev) key codes, written to /dev/uinput.
+///     </description>
+///   </item>
+///   <item>
+///     <term>Windows</term>
+///     <description>
+///     virtual-key codes (VK_*) plus an "extended key" flag, sent via SendInput.
+///     </description>
+///   </item>
+///   <item>
+///     <term>Interception</term>
+///     <description>
+///     PS/2 set-1 scan codes plus an "E0 extended" flag, sent via interception.dll.
+///     </description>
+///   </item>
+/// </list>
+/// <para>
 /// Names are matched case-insensitively and a few common aliases are accepted
 /// ("Control"->Ctrl, "Escape"->Esc, "Windows"/"Super"->Win, ...).
-/// </summary>
+/// </para>
+/// </remarks>
 public static class KeyNames
 {
     // Canonical name -> Linux evdev key code (see input-event-codes.h).

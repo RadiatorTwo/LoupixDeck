@@ -10,13 +10,18 @@ namespace LoupixDeck.ViewModels;
 
 /// <summary>
 /// One named command sequence (e.g. a rotary knob's "Rotate Left" chain) shown as a
-/// pipeline strip of editable <see cref="CommandSegment"/> chips. The raw, persisted
-/// command string is the source of truth and is read/written through the supplied
-/// delegates; this collection is a view over it that is recomposed on every edit.
-///
-/// Mirrors the command-chain logic of <c>TouchButtonSettingsViewModel</c> but is
-/// self-contained so several slots can coexist in a single editor dialog.
+/// pipeline strip of editable <see cref="CommandSegment"/> chips.
 /// </summary>
+/// <remarks>
+/// <para>
+/// The raw, persisted command string is the source of truth and is read/written through the supplied
+/// delegates; this collection is a view over it that is recomposed on every edit.
+/// </para>
+/// <para>
+/// Mirrors the command-chain logic of <see cref="TouchButtonSettingsViewModel"/> but is
+/// self-contained so several slots can coexist in a single editor dialog.
+/// </para>
+/// </remarks>
 public class CommandSequenceSlot : ViewModelBase
 {
     private readonly ICommandBuilder _commandBuilder;

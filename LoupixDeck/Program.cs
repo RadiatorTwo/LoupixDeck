@@ -308,24 +308,29 @@ sealed class Program
     /// thread) to <c>crash.log</c> with a full stack trace. This catches background-thread
     /// failures (e.g. "Collection was modified", NullReferenceException in a render/timer
     /// path) that otherwise terminate the process with no visible reason.
-    ///
+    /// </summary>
+    /// <remarks>
+    /// <para>
     /// OPT-IN: disabled by default so normal release users get no crash.log and no
     /// handler overhead. Enable with the <c>--crashlog</c> command-line switch when
     /// diagnosing a crash.
-    ///
+    /// </para>
+    /// <para>
     /// NOTE: a pure NATIVE access violation (e.g. inside Skia) fast-fails the runtime and
     /// is NOT delivered here — for that, run with the .NET minidump env vars
     /// (DOTNET_DbgEnableMiniDump=1, DOTNET_DbgMiniDumpType=2, DOTNET_DbgMiniDumpName=…).
     /// The two are complementary: this for managed crashes, the dump for native ones.
-    ///
-    /// Pass <c>--firstchance</c> to also log EVERY thrown exception (very noisy — useful to
-    /// see the last exception before a crash). It implies <c>--crashlog</c>.
-    /// </summary>
+    /// </para>
+    /// <para>
+    /// Pass <c>--firstchance</c> to also log EVERY thrown exception
+    /// (very noisy — useful to see the last exception before a crash).
+    /// It implies <c>--crashlog</c>.
+    /// </para>
+    /// </remarks>
     private static void InstallCrashLogger(string[] args)
     {
         var firstChance = args.Any(a => a.Equals("--firstchance", StringComparison.OrdinalIgnoreCase));
-        var enabled = firstChance
-                      || args.Any(a => a.Equals("--crashlog", StringComparison.OrdinalIgnoreCase));
+        var enabled = firstChance || args.Any(a => a.Equals("--crashlog", StringComparison.OrdinalIgnoreCase));
         if (!enabled)
             return;
 

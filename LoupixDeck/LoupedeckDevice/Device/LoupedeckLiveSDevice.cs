@@ -1,23 +1,31 @@
+using System.Collections.Immutable;
+
 namespace LoupixDeck.LoupedeckDevice.Device;
 
 public class LoupedeckLiveSDevice : LoupedeckDevice
 {
+    private static readonly ImmutableDictionary<string, DisplayInfo> displays = ImmutableDictionary.CreateRange<string, DisplayInfo>(
+    [
+        new("center", new DisplayInfo("\0M"u8, 480, 270))
+    ]);
+
+    protected override ImmutableDictionary<string, DisplayInfo> Displays => displays;
+    public override int[] Buttons { get; } = InitSimpleArray(4);
+    public override int Columns => 5;
+    public override int Rows => 3;
+#nullable enable
+    protected override int[]? VisibleX { get; } = [15, 464];
+    protected override int[]? VisibleY { get; } = [10, 269];
+#nullable restore
+    public override int RotaryCount => 2;
+    public override string Type => "Loupedeck Live S";
+    public override string ProductId => "0006";
+
+    public override int TouchButtonCount => Columns * Rows;
+
     public LoupedeckLiveSDevice(string host = null, string path = null, int baudrate = 0, bool autoConnect = true, int reconnectInterval = Constants.DefaultReconnectInterval)
         : base(host, path, baudrate, autoConnect, reconnectInterval)
     {
-        Buttons = [0, 1, 2, 3];
-        Columns = 5;
-        Rows = 3;
-        RotaryCount = 2;
-        TouchButtonCount = Columns * Rows;
-        VisibleX = [15, 464];
-        VisibleY = [10, 269];
-        Type = "Loupedeck Live S";
-        ProductId = "0006";
-        Displays = new Dictionary<string, DisplayInfo>
-        {
-            ["center"] = new() { Id = "\0M"u8.ToArray(), Width = 480, Height = 270 }
-        };
     }
 
     // The Live S has two rotaries stacked vertically on the left of the touch

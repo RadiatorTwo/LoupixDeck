@@ -3,17 +3,21 @@ namespace LoupixDeck.Services.Animation;
 /// <summary>
 /// One animated thing the central scheduler drives — a per-button effect, a
 /// full-display screensaver, a side-strip transition, a plugin renderer, etc.
-///
+/// </summary>
+/// <remarks>
+/// <para>
 /// A source never owns a timer or render loop of its own: it registers with the
 /// <see cref="IAnimationScheduler"/>, declares the rate it would like via
 /// <see cref="TargetFps"/>, and gates whether it currently wants frames via
 /// <see cref="IsActive"/>. The scheduler calls <see cref="RenderFrameAsync"/> on a
 /// background thread at the (globally clamped) cadence while the source is active.
-///
+/// </para>
+/// <para>
 /// Sources that only change occasionally should keep returning quickly when nothing
 /// changed (dirty-state lives in the source) and/or flip <see cref="IsActive"/> to
 /// <c>false</c> when idle so the scheduler stops ticking them entirely.
-/// </summary>
+/// </para>
+/// </remarks>
 public interface IAnimationSource
 {
     /// <summary>Desired frame rate. A value &lt;= 0 means "use the scheduler's global

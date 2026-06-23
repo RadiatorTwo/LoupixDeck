@@ -4,24 +4,52 @@ namespace LoupixDeck.Utils;
 
 /// <summary>
 /// Resolves which device instance's config should be loaded on startup.
-///
-/// Priority (after legacy config.json migration):
-///   1. Hardware scan — if exactly one supported device is currently plugged in,
-///      use it. The user's intent is "boot whatever's connected", not "boot
-///      whatever was last touched".
-///   2. Marker file (.active-device) — written after every successful start;
-///      used both when multiple supported devices are plugged in (tie-break)
-///      and when none are plugged in (offline launch / device disconnected).
-///   3. Single existing per-device config — if exactly one exists, use it.
-///   4. null → caller runs InitSetup so the user picks.
-///
+/// </summary>
+/// <remarks>
+/// <para>
 /// Everything is keyed by <see cref="ResolvedDevice.ScopeKey"/> (slug + serial),
 /// so two physically identical units no longer collapse into one. The marker is
 /// read back-compatibly (an old marker holds only a bare slug).
+/// </para>
+/// <para>
+/// Priority (after legacy config.json migration):
+/// <list type="number">
+///   <item>
+///     <term>Hardware scan</term>
+///     <description>
+///       if exactly one supported device is currently plugged in,
+///       use it. The user's intent is "boot whatever's connected", not "boot
+///       whatever was last touched".
+///     </description>
+///   </item>
+///   <item>
+///     <term>Marker file (.active-device)</term>
+///     <description>
+///       written after every successful start;
+///       used both when multiple supported devices are plugged in (tie-break)
+///       and when none are plugged in (offline launch / device disconnected).
+///     </description>
+///   </item>
+///   <item>
+///     <term>Single existing per-device config</term>
+///     <description>
+///       if exactly one exists, use it.
+///     </description>
+///   </item>
+///   <item>
+///     <term>null</term>
+///     <description>
+///       caller runs InitSetup so the user picks.
+///     </description>
+///   </item>
+/// </list>
+/// </para>
 ///
+/// <para>
 /// FakeDeviceOverride is applied at the very end so the testing flow can
 /// pretend the resolved device is something else.
-/// </summary>
+/// </para>
+/// </remarks>
 public static class ActiveDeviceResolver
 {
     private const string MarkerFile = ".active-device";

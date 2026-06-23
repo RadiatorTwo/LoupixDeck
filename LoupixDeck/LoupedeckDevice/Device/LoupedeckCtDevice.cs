@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using LoupixDeck.Models;
 using LoupixDeck.Utils;
 using SkiaSharp;
@@ -5,6 +6,7 @@ using SkiaSharp;
 namespace LoupixDeck.LoupedeckDevice.Device;
 
 /// <summary>
+/// <para>
 /// Loupedeck CT — the most complex device in the family. Unlike Live/Razer, which
 /// share one unified framebuffer addressed by X-offset, the CT exposes FOUR
 /// independent framebuffers: "center" (360x270), "left"/"right" side strips
@@ -13,12 +15,16 @@ namespace LoupixDeck.LoupedeckDevice.Device;
 /// pixel order (not yet implemented here — drawing to it will produce garbled
 /// colors until <see cref="LoupedeckDevice.ConvertSKBitmapToRaw16BppUnsafe"/> /
 /// <see cref="DisplayInfo"/> gain an endianness flag).
+/// </para>
 ///
+/// <para>
 /// Geometry: 4x3 touch grid (indices 0-11), 2 side strips (12/13, same pattern as
 /// <see cref="RazerStreamControllerDevice"/>), 6 side dials + 1 centre wheel dial
 /// (7 rotaries total), 8 round LED buttons + 12 named square buttons (20 simple
 /// buttons total).
+/// </para>
 ///
+/// <para>
 /// Protocol confirmed via a hardware serial trace (LOUPIXDECK_DEBUG_PROTOCOL=1,
 /// 2026-06-18): the 12 named buttons' byte codes (0x0f-0x1a) matched the
 /// community-driver-derived guesses exactly; the wheel's KNOB_ROTATE byte is 0x00
@@ -28,6 +34,7 @@ namespace LoupixDeck.LoupedeckDevice.Device;
 /// wired to <see cref="LoupedeckDevice.OnWheelTouch"/>). Still unconfirmed/unwired:
 /// the big-endian "knob" framebuffer, and turning the wheel's touch cluster into an
 /// actual click command (no consumer wiring yet — see the CT support plan).
+/// </para>
 /// </summary>
 public class LoupedeckCtDevice : LoupedeckDevice
 {
@@ -37,8 +44,34 @@ public class LoupedeckCtDevice : LoupedeckDevice
     /// <summary>Touch index for the right narrow panel.</summary>
     public const int RightSideIndex = 13;
 
+        // Four independent framebuffers (unlike Live/Razer's single unified one).
+    private static readonly ImmutableDictionary<string, DisplayInfo> displays = ImmutableDictionary.CreateRange<string, DisplayInfo>(
+    [
+        new("center", new("\0A"u8, 360, 270)),
+        new("left",new("\0L"u8, 60, 270)),
+        new("right", new("\0R"u8, 60, 270)),
+        // VERIFY ON HARDWARE: firmware expects this buffer big-endian; the base
+        // class's pixel converter is little-endian-only today (Phase 2 work).
+        new("knob", new("\0W"u8, 240, 240)),
+    ]);
+
+    protected override ImmutableDictionary<string, DisplayInfo> Displays => displays;
+
     /// <inheritdoc />
     public override bool HasSideStrips => true;
+
+    // 8 round + 12 named square buttons = 20 simple buttons. The wheel is a
+    // rotary (handled via RotaryCount/TryGetRotaryIndex), not a simple button.
+    public override int[] Buttons { get; } = InitSimpleArray(20);
+    public override int Columns => 4;
+    public override int Rows => 3;
+#nullable enable
+    protected override int[]? VisibleX { get; } = [60, 420];
+    protected override int[]? VisibleY { get; } = [0, 270];
+#nullable restore
+    public override int RotaryCount => 7; // 6 side dials + 1 centre wheel
+    public override string Type => "Loupedeck CT";
+    public override string ProductId => "0003";
 
     /// <inheritdoc />
     /// <remarks>
@@ -52,32 +85,13 @@ public class LoupedeckCtDevice : LoupedeckDevice
     /// </remarks>
     public override int WallpaperGridXOffset => 60;
 
+    // 12 grid slots + 2 narrow side panels.
+    public override int TouchButtonCount => (Columns * Rows) + 2;
+
     public LoupedeckCtDevice(string host = null, string path = null, int baudrate = 0,
         bool autoConnect = true, int reconnectInterval = Constants.DefaultReconnectInterval)
         : base(host, path, baudrate, autoConnect, reconnectInterval)
     {
-        // 8 round + 12 named square buttons = 20 simple buttons. The wheel is a
-        // rotary (handled via RotaryCount/TryGetRotaryIndex), not a simple button.
-        Buttons = Enumerable.Range(0, 20).ToArray();
-        Columns = 4;
-        Rows = 3;
-        RotaryCount = 7; // 6 side dials + 1 centre wheel
-        TouchButtonCount = (Columns * Rows) + 2; // 12 grid slots + 2 side strips
-        VisibleX = [60, 420];
-        VisibleY = [0, 270];
-        Type = "Loupedeck CT";
-        ProductId = "0003";
-
-        // Four independent framebuffers (unlike Live/Razer's single unified one).
-        Displays = new Dictionary<string, DisplayInfo>
-        {
-            ["center"] = new() { Id = "\0A"u8.ToArray(), Width = 360, Height = 270 },
-            ["left"] = new() { Id = "\0L"u8.ToArray(), Width = 60, Height = 270 },
-            ["right"] = new() { Id = "\0R"u8.ToArray(), Width = 60, Height = 270 },
-            // VERIFY ON HARDWARE: firmware expects this buffer big-endian; the base
-            // class's pixel converter is little-endian-only today (Phase 2 work).
-            ["knob"] = new() { Id = "\0W"u8.ToArray(), Width = 240, Height = 240 }
-        };
     }
 
     /// <summary>

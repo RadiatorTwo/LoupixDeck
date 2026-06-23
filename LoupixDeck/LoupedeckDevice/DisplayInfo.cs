@@ -1,8 +1,11 @@
 namespace LoupixDeck.LoupedeckDevice;
 
-public class DisplayInfo
+public class DisplayInfo(byte[] id, int width, int height)
 {
-    public required byte[] Id { get; set; }
-    public int Width { get; set; }
-    public int Height { get; set; }
+    public byte[] Id { get; } = id;
+    public int Width { get; } = width;
+    public int Height { get; } = height;
+
+    public DisplayInfo(string id, int width, int height) : this(System.Text.Encoding.UTF8.GetBytes(id), width, height) { }
+    public DisplayInfo(ReadOnlySpan<byte> id, int width, int height) : this(id.ToArray(), width, height) { }
 }

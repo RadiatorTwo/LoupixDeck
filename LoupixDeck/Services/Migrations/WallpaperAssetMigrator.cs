@@ -11,11 +11,12 @@ namespace LoupixDeck.Services.Migrations;
 /// to the config, and replaced by a <c>WallpaperAssetPath</c> relative reference plus default
 /// scaling parameters. The stored bitmap was already baked to 480×270, so the default
 /// Fit re-bake is a 1:1 no-op and the wallpaper looks identical.
-///
+/// </summary>
+/// <remarks>
 /// The legacy root-level <c>Wallpaper</c>/<c>WallpaperOpacity</c> (from before per-page
 /// wallpapers existed) are folded into page 0 when it has none, then removed — this
 /// replaces the runtime migration that previously lived in the controller.
-/// </summary>
+/// </remarks>
 public sealed class WallpaperAssetMigrator : IConfigMigration
 {
     private const string AssetsFolderName = "assets";
