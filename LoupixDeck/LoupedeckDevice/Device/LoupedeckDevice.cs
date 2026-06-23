@@ -215,6 +215,7 @@ public class LoupedeckDevice
                     {
                         _pendingTransactions[_transactionId] = item.Completion;
                         _pendingTimeouts[_transactionId] = item.TimeoutCts;
+                        if (SendDiagnostics.Enabled) SendDiagnostics.OnSent(_transactionId);
                     }
 
                     _connection?.Send(packet);
@@ -330,6 +331,45 @@ public class LoupedeckDevice
     }
 
     /// <summary>
+    /// Time to wait for a DRAW (refresh) ACK before giving up. The device answers in
+    /// ~0ms when it answers at all, but occasionally omits the ACK entirely (issue #149)
+    /// while still performing the refresh. A short timeout bounds the wait.
+    /// </summary>
+    private static readonly TimeSpan DrawAckTimeout = TimeSpan.FromMilliseconds(750);
+
+    /// <summary>
+    /// Queues a DRAW (refresh) command on its own path, separate from <see cref="SendAsync"/>.
+    /// A missing response is NOT an error here: the device sometimes skips the DRAW ACK
+    /// even though it performed the refresh (issue #149), so on timeout the task completes
+    /// successfully instead of throwing — no exception, no spurious log, and the render
+    /// path is not stalled for the full default timeout. A real ACK, when it arrives,
+    /// still completes the task via OnReceive exactly like any other command.
+    /// </summary>
+    private async Task SendDrawAsync(byte[] data)
+    {
+        data ??= [];
+
+        var timeoutCts = new CancellationTokenSource(DrawAckTimeout);
+        var tcs = new TaskCompletionSource<byte[]>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        timeoutCts.Token.Register(() =>
+        {
+            // Benign: complete successfully on a missing ACK. TrySetResult returns false
+            // if a real response already won via OnReceive, so this stays a no-op then.
+            if (tcs.TrySetResult([]) && SendDiagnostics.Enabled)
+                SendDiagnostics.OnTimeout(Constants.Command.DRAW, benign: true);
+        });
+
+        var item = new QueueItem(Constants.Command.DRAW, data, tcs, true, timeoutCts);
+
+        // The cancellation token is not used for the write operation:
+        // ReSharper disable once MethodSupportsCancellation
+        await _sendChannel.Writer.WriteAsync(item);
+
+        await tcs.Task;
+    }
+
+    /// <summary>
     /// Queues a command and optional data to be sent to the device without waiting for a response.
     /// Used for fire-and-forget operations where no reply is expected.
     /// </summary>
@@ -392,12 +432,15 @@ public class LoupedeckDevice
             Console.WriteLine($"[Protocol] Unrecognized command 0x{command:x2} payload=[{string.Join(",", payload.Select(b => b.ToString("x2")))}]");
         }
 
-        if (_pendingTransactions.TryRemove(transactionId, out var transaction))
+        var matched = _pendingTransactions.TryRemove(transactionId, out var transaction);
+        if (matched)
         {
             // TrySetResult: a timeout may have already completed this TCS with an
             // exception, in which case SetResult would throw.
             transaction.TrySetResult(payload);
         }
+
+        if (SendDiagnostics.Enabled) SendDiagnostics.OnReceived(transactionId, command, matched);
 
         // Additionally, cancel the timeout if it exists:
         if (_pendingTimeouts.TryRemove(transactionId, out var cts))
@@ -955,7 +998,8 @@ public class LoupedeckDevice
         if (Displays == null || !Displays.TryGetValue(id, out var displayInfo))
             throw new Exception($"Display '{id}' is not available on this device!");
 
-        await SendAsync(Constants.Command.DRAW, displayInfo.Id);
+        // DRAW uses its own path: a missing ACK is tolerated (see SendDrawAsync / #149).
+        await SendDrawAsync(displayInfo.Id);
     }
 
     /// <summary>

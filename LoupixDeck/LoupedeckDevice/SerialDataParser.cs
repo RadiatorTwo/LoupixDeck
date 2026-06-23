@@ -1,3 +1,4 @@
+using LoupixDeck.LoupedeckDevice.Device;
 
 namespace LoupixDeck.LoupedeckDevice;
 
@@ -48,6 +49,8 @@ public class SerialDataParser
         if (_buffer.Count > MaxBufferSize)
         {
             Trace($"Buffer exceeded {MaxBufferSize} bytes ({_buffer.Count}); discarding to prevent unbounded growth.");
+            if (SendDiagnostics.Enabled)
+                SendDiagnostics.OnFraming($"buffer exceeded {MaxBufferSize} bytes; discarding {_buffer.Count} bytes (hard desync)");
             _buffer.Clear();
             return;
         }
@@ -70,12 +73,18 @@ public class SerialDataParser
                 if (index == -1)
                 {
                     Trace($"No start byte (130) found in the buffer. Discarding all {_buffer.Count} bytes.");
+                    if (SendDiagnostics.Enabled)
+                        SendDiagnostics.OnFraming($"no start byte in {_buffer.Count} buffered bytes; discarding all (stream desync)");
                     _buffer.Clear();
                     break;
                 }
                 else
                 {
                     Trace($"Invalid bytes found at the beginning. Removing {index} bytes until the next start byte.");
+                    // A resync means the previous frame boundary was wrong, so a response
+                    // frame was likely lost here — the most probable cause of a #149 timeout.
+                    if (SendDiagnostics.Enabled)
+                        SendDiagnostics.OnFraming($"resync: discarded {index} byte(s) before next start byte (likely lost a response frame)");
                     _buffer.RemoveRange(0, index);
                 }
             }
@@ -89,6 +98,11 @@ public class SerialDataParser
             }
 
             // The second byte specifies the length of the command (number of bytes after the first two header bytes).
+            // NOTE: only WebSocket payload lengths <=125 are handled; 126/127 mean a
+            // 16-/64-bit extended length follows and would be mis-decoded. Flag it (debug
+            // only) so we know if a real frame ever takes this path (a candidate #149 cause).
+            if (SendDiagnostics.Enabled && _buffer[1] is 126 or 127)
+                SendDiagnostics.OnFraming($"length byte 0x{_buffer[1]:x2} indicates a WebSocket extended length that is not decoded (frame will desync)");
             int commandLength = _buffer[1];
             // Total command length: Start byte (1) + Length byte (1) + commandLength
             int totalCommandLength = 2 + commandLength;
