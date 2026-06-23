@@ -5,6 +5,7 @@ public enum SettingsView
     General,
     Pages,
     Haptic,
+    Screensaver,
     Plugins,
     Interception,
     Theme,
