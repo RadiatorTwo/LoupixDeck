@@ -1363,7 +1363,7 @@ public partial class LoupedeckLiveSController(
     // FullScreen: render every slot, push the whole frame in ONE atomic blit + DRAW.
     // Drawing slot-by-slot here would refresh the full display 15× per frame.
     private async Task DrawExclusiveFullScreen(LoupedeckDevice.Device.LoupedeckDevice device,
-        IReadOnlyDictionary<int, PluginSdk.FolderEntry> bySlot)
+        Dictionary<int, PluginSdk.FolderEntry> bySlot)
     {
         var slotBitmaps = new SkiaSharp.SKBitmap[FolderConstants.TotalSlots];
         for (var slot = 0; slot < FolderConstants.TotalSlots; slot++)
@@ -1376,7 +1376,7 @@ public partial class LoupedeckLiveSController(
 
     // Grid: every slot as its own 90x90 framebuffer, no DRAW.
     private async Task DrawExclusiveGrid(LoupedeckDevice.Device.LoupedeckDevice device,
-        IReadOnlyDictionary<int, PluginSdk.FolderEntry> bySlot)
+        Dictionary<int, PluginSdk.FolderEntry> bySlot)
     {
         for (var slot = 0; slot < FolderConstants.TotalSlots; slot++)
         {
@@ -1387,7 +1387,7 @@ public partial class LoupedeckLiveSController(
 
     // SingleTile: draw just one 90x90 slot, no DRAW.
     private async Task DrawExclusiveSingleTile(LoupedeckDevice.Device.LoupedeckDevice device,
-        IReadOnlyDictionary<int, PluginSdk.FolderEntry> bySlot, int slotIndex)
+        Dictionary<int, PluginSdk.FolderEntry> bySlot, int slotIndex)
     {
         if (slotIndex < 0 || slotIndex >= FolderConstants.TotalSlots) slotIndex = 0;
         using var bmp = RenderSlot(bySlot, slotIndex);
@@ -1398,7 +1398,7 @@ public partial class LoupedeckLiveSController(
     // since the last frame. A new provider (or first frame) repaints everything.
     private async Task DrawExclusiveDirtyTiles(LoupedeckDevice.Device.LoupedeckDevice device,
         PluginSdk.IExclusiveModeProvider provider,
-        IReadOnlyDictionary<int, PluginSdk.FolderEntry> bySlot)
+        Dictionary<int, PluginSdk.FolderEntry> bySlot)
     {
         if (!ReferenceEquals(_dirtyOwner, provider) || _dirtyKeys == null)
         {
@@ -1420,7 +1420,7 @@ public partial class LoupedeckLiveSController(
         }
     }
 
-    private SkiaSharp.SKBitmap RenderSlot(IReadOnlyDictionary<int, PluginSdk.FolderEntry> bySlot, int slot)
+    private SkiaSharp.SKBitmap RenderSlot(Dictionary<int, PluginSdk.FolderEntry> bySlot, int slot)
         => bySlot.TryGetValue(slot, out var entry)
             ? RenderSdkEntry(entry, slot)
             : BitmapHelper.RenderEmptyFolderSlot(config, slot, 90, 90, FolderConstants.Columns);

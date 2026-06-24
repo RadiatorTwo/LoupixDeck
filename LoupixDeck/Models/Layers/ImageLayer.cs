@@ -47,7 +47,6 @@ public partial class ImageLayer : LayerBase
     // (or the editor preview) repopulate it.
     partial void OnAnimatedAssetPathChanged(string value) => _cachedImage = null;
 
-
     /// <summary>True when this layer is driven by an animated source rather than a static image.</summary>
     [JsonIgnore]
     public bool IsAnimated => !string.IsNullOrEmpty(AnimatedAssetPath);
