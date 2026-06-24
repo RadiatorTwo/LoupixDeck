@@ -346,7 +346,7 @@ public class UInputKeyboard : IUInputKeyboard
         Marshal.FreeHGlobal(ptr);
     }
 
-    private string GetCurrentKeyboardLayout()
+    private static string GetCurrentKeyboardLayout()
     {
         try
         {

@@ -79,7 +79,7 @@ public class SerialConnection : ISerialConnection
     /// <summary>
     /// Indicates whether the serial port is open and ready for communication.
     /// </summary>
-    public bool IsReady => _serialPort is not null && _serialPort.IsOpen;
+    public bool IsReady => _serialPort?.IsOpen == true;
 
     /// <summary>
     /// Searches for all available serial ports and returns them as a list.
@@ -139,10 +139,8 @@ public class SerialConnection : ISerialConnection
         catch (Exception ex)
         {
             // If something fails, close the port immediately.
-            if (_serialPort != null && _serialPort.IsOpen)
-            {
+            if (_serialPort?.IsOpen == true)
                 _serialPort.Close();
-            }
             _serialPort = null;
 
             // We do not have an error event in the interface, so we use Disconnected to indicate a failure.

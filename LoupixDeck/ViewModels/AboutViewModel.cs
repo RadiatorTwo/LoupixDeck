@@ -11,7 +11,7 @@ public class AboutViewModel() : DialogViewModelBase<DialogResult>
     public IRelayCommand OpenWebsiteCommand => field ??= Relay.Create(OpenWebsite);
     public IRelayCommand CloseCommand => field ??= Relay.Create(Close);
 
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Viewmodel binding")]
+    [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Viewmodel binding")]
     public string Version
     {
         get

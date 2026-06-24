@@ -2,10 +2,10 @@ namespace LoupixDeck.Commands.Base;
 
 public class CommandInfo
 {
-    public string CommandName { get; set; }
-    public string DisplayName { get; set; }
-    public string Group { get; set; }
-    public string ParameterTemplate { get; set; }
-    public bool Hidden { get; set; }
-    public List<ParameterDescriptor> Parameters { get; set; } = [];
+    public required string CommandName { get; init; }
+    public required string DisplayName { get; init; }
+    public string Group { get; init; }
+    public string ParameterTemplate { get; init; }
+    public bool Hidden { get; init; }
+    public List<ParameterDescriptor> Parameters { get; init; } = [];
 }

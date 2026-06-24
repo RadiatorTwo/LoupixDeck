@@ -1,7 +1,17 @@
+#nullable enable
 using LoupixDeck.Commands.Base;
 using LoupixDeck.PluginSdk;
 
 namespace LoupixDeck.Services.Commands;
+
+/// <summary>
+/// Delegate to the execution of a command, either from a core <see cref="CommandAttribute"/> class or from a plugin's <see cref="IPluginCommand"/>.
+/// </summary>
+/// <param name="parameters">User</param>
+/// <param name="target">The button type that triggered the call - forwarded to <see cref="CommandContext.Target"/> on plugin commands</param>
+/// <param name="sourceIndex">The originating indexed control (rotary index, slot index) and is forwarded to <see cref="CommandContext.SourceIndex"/> - <see langword="null"/> for chained/CLI invocations.</param>
+/// <returns>A <see cref="Task"/> representing the asynchronous operation.</returns>
+public delegate Task CommandExecutionDelegate(string[] parameters, ButtonTargets target, int? sourceIndex);
 
 /// <summary>
 /// A command as seen by the rest of the app, regardless of whether it originates
@@ -11,10 +21,10 @@ namespace LoupixDeck.Services.Commands;
 public sealed class RegisteredCommand
 {
     /// <summary>Stable command identifier persisted in button assignments.</summary>
-    public string CommandName { get; init; }
+    public required string CommandName { get; init; }
 
     /// <summary>UI/command-builder metadata for this command.</summary>
-    public CommandInfo Info { get; init; }
+    public required CommandInfo Info { get; init; }
 
     /// <summary>Button types this command may be assigned to.</summary>
     public ButtonTargets SupportedTargets { get; init; } = ButtonTargets.All;
@@ -60,21 +70,20 @@ public sealed class RegisteredCommand
     /// indexed control (rotary index, slot index) and is forwarded to
     /// <c>CommandContext.SourceIndex</c>; null for chained/CLI invocations.
     /// </summary>
-    public Func<string[], ButtonTargets, int?, Task> Execute { get; init; }
+    public required CommandExecutionDelegate Execute { get; init; }
 
     /// <summary>For display commands: produces the current text. Null otherwise.</summary>
-    public Func<string[], string> GetText { get; init; }
+    public Func<string[], string>? GetText { get; init; }
 
     /// <summary>
     /// For image display commands: draws the current button content onto a host canvas, returning
     /// true when drawn (false → leave the button unchanged). Null for non-image commands.
     /// </summary>
-    public Func<string[], LoupixDeck.PluginSdk.IRenderCanvas, bool> RenderImage { get; init; }
+    public Func<string[], IRenderCanvas, bool>? RenderImage { get; init; }
 
     /// <summary>
     /// For animated image commands: draws one animation frame onto a host canvas for the given
     /// timing snapshot, returning whether it drew and whether the animation finished. Null otherwise.
     /// </summary>
-    public Func<string[], LoupixDeck.PluginSdk.IRenderCanvas, AnimationFrameContext, AnimationFrameInfo>
-        RenderAnimatedFrame { get; init; }
+    public Func<string[], IRenderCanvas, AnimationFrameContext, AnimationFrameInfo>? RenderAnimatedFrame { get; init; }
 }

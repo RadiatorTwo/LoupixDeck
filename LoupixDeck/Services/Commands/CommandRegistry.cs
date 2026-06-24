@@ -69,6 +69,7 @@ public class CommandRegistry : ICommandRegistry
 
     public async Task Execute(string commandName, string[] parameters, ButtonTargets target, int? sourceIndex = null)
     {
+        Debug.Assert(parameters is not null, "We must never execute a command with null parameters array, only empty arrays.");
         var command = Get(commandName);
         if (command == null)
         {

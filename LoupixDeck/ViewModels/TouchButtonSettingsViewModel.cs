@@ -427,6 +427,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     public ObservableCollection<MenuEntry> SystemCommandMenus { get; set; }
     public MenuEntry CurrentMenuEntry { get; set; }
 
+    [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Viewmodel binding")]
     public ObservableCollection<VibrationPatternItem> VibrationPatterns => VibrationPatternCatalog.All;
 
     [ObservableProperty]

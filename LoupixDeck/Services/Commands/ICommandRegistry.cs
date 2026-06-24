@@ -22,12 +22,13 @@ public interface ICommandRegistry
     IEnumerable<RegisteredCommand> GetAll();
 
     /// <summary>
-    /// Executes a command by name. <paramref name="target"/> is the button type
-    /// that triggered the call (or <see cref="ButtonTargets.None"/> when the
-    /// origin is not a button — CLI, plugin-to-plugin chaining, etc.).
-    /// <paramref name="sourceIndex"/> identifies the originating control
-    /// (rotary index, touch slot, simple button index) when the target is an
-    /// indexed source, so plugins can locate the physical control that fired.
+    /// Executes a command by name.
     /// </summary>
+    /// <param name="commandName">The name of the command to execute.</param>
+    /// <param name="parameters">Arguments passed to the command handler.</param>
+    /// <param name="target">The button type that triggered the call (or <see cref="ButtonTargets.None"/>
+    /// when the origin is not a button — CLI, plugin-to-plugin chaining, etc.).</param>
+    /// <param name="sourceIndex">identifies the originating control (rotary index, touch slot, simple button index)
+    /// when the target is an indexed source, so plugins can locate the physical control that fired.</param>
     Task Execute(string commandName, string[] parameters, ButtonTargets target, int? sourceIndex = null);
 }

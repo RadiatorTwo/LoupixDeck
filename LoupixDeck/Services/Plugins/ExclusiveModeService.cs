@@ -9,6 +9,7 @@ public sealed class ExclusiveModeService : IExclusiveModeService
     // input-routing happens on the caller's thread (controller / UDP worker)
     // and reads volatile state.
     private readonly Lock _gate = new();
+    [SuppressMessage("Style", "IDE0032:Use auto property", Justification = "<Pending>")]
     private IExclusiveModeProvider _current;
 
     public bool IsActive => _current != null;

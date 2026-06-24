@@ -72,6 +72,7 @@ public sealed partial class TouchButtonPage(int pageSize) : ButtonPageBase()
     /// rendered result changes, so the controller repaints. JsonIgnore — purely a
     /// notification, never persisted.</summary>
     [JsonIgnore]
+    [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "purely a notification for binding>")]
     public bool WallpaperInvalidated => false;
 
     private void OnWallpaperSlotChanged(object sender, EventArgs e)

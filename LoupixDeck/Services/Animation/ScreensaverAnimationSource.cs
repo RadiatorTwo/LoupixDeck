@@ -54,8 +54,6 @@ public sealed class ScreensaverAnimationSource : IAnimationSource, IDisposable
 
     private readonly LoupedeckDevice.Device.LoupedeckDevice _device;
     private readonly string _absoluteVideoPath;
-    private readonly int _fps;
-    private readonly bool _loop;
     private readonly Action _onEnded;
 
     private readonly List<DisplayTarget> _targets = [];
@@ -93,12 +91,13 @@ public sealed class ScreensaverAnimationSource : IAnimationSource, IDisposable
     {
         _device = device;
         _absoluteVideoPath = absoluteVideoPath;
-        _fps = Math.Clamp(fps <= 0 ? 30 : fps, 1, 120);
-        _loop = loop;
+        TargetFps = Math.Clamp(fps, 30, 120);
+        Loop = loop;
         _onEnded = onEnded;
     }
 
-    public int TargetFps => _fps;
+    public int TargetFps { get; }
+    public bool Loop { get; }
     public bool IsActive => _active;
 
     /// <summary>
@@ -145,13 +144,13 @@ public sealed class ScreensaverAnimationSource : IAnimationSource, IDisposable
         // headroom than the default bicubic on 1080p clips with no visible quality loss at this
         // size. Hardware decode (-hwaccel) was tried and is slower here (the GPU→system-memory
         // download for the CPU scaler outweighs the decode saving), so it is intentionally off.
-        var loopArg = _loop ? "-stream_loop -1 " : string.Empty;
+        var loopArg = Loop ? "-stream_loop -1 " : string.Empty;
         var logLevel = _debug ? "verbose" : "error";
         var args =
             $"-hide_banner -loglevel {logLevel} " +
             "-probesize 500000 -analyzeduration 0 -re " +
             $"{loopArg}-i \"{_absoluteVideoPath}\" " +
-            $"-an -f rawvideo -r {_fps} -pix_fmt bgra -vf scale={PanelWidth}:{PanelHeight}:flags=fast_bilinear -";
+            $"-an -f rawvideo -r {TargetFps} -pix_fmt bgra -vf scale={PanelWidth}:{PanelHeight}:flags=fast_bilinear -";
 
         if (_debug)
             Console.WriteLine($"[Screensaver] ffmpeg {args}");
@@ -372,7 +371,7 @@ public sealed class ScreensaverAnimationSource : IAnimationSource, IDisposable
                 Console.WriteLine(
                     $"[Screensaver][perf] {_dbgFrames} frames | queue wait avg {_dbgReadMs / _dbgFrames:F1} ms | " +
                     $"push avg {_dbgPushMs / _dbgFrames:F1} ms | dropped {_dbgDropped} | " +
-                    $"effective {effFps:F1} fps (target {_fps})");
+                    $"effective {effFps:F1} fps (target {TargetFps})");
                 _dbgFrames = 0;
                 _dbgReadMs = 0;
                 _dbgPushMs = 0;

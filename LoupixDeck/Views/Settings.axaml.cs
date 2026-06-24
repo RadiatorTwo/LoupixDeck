@@ -473,7 +473,7 @@ public partial class Settings : Window
         switch (descriptor.Kind)
         {
             case PluginSettingKind.Toggle:
-                settings.Set(descriptor.Key, (control as CheckBox)?.IsChecked == true);
+                settings.Set(descriptor.Key, control is CheckBox cb && cb.IsChecked is true);
                 break;
 
             case PluginSettingKind.Number:
