@@ -1,4 +1,5 @@
 #nullable enable
+using System.Collections.Frozen;
 using System.Diagnostics;
 using LoupixDeck.PluginSdk;
 
@@ -12,8 +13,7 @@ public class CommandRegistry(IEnumerable<ICommandProvider> providers) : ICommand
     // (plugin hot-reload) can never tear a read on a device input thread —
     // readers take a local copy of the reference and an in-flight Execute keeps
     // running against the snapshot it already captured.
-    private volatile IReadOnlyDictionary<string, RegisteredCommand> _commands =
-        new Dictionary<string, RegisteredCommand>(StringComparer.Ordinal);
+    private FrozenDictionary<string, RegisteredCommand> _commands = FrozenDictionary<string, RegisteredCommand>.Empty;
 
     public void Initialize()
     {
@@ -43,7 +43,7 @@ public class CommandRegistry(IEnumerable<ICommandProvider> providers) : ICommand
             }
         }
 
-        _commands = next; // atomic publish
+        _commands = next.ToFrozenDictionary(); // atomic publish
     }
 
     public bool Contains([NotNullWhen(true)] string? commandName)
