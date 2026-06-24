@@ -63,6 +63,8 @@ public class PluginMenuContributor : IPluginMenuSource
         return sources;
     }
 
+#nullable enable
+
     private static ImmutableList<string> SafeGetGroupNames(LoupixPlugin plugin)
     {
         try
@@ -80,16 +82,17 @@ public class PluginMenuContributor : IPluginMenuSource
         }
     }
 
-    private static MenuEntry Convert(MenuNode node)
+    [return: NotNullIfNotNull(nameof(node))]
+    private static MenuEntry? Convert(MenuNode? node)
     {
         if (node == null)
             return null;
 
-        var parameters = node.Parameters is { Count: > 0 }
-            ? new Dictionary<string, string>(node.Parameters)
-            : null;
-
-        var entry = new MenuEntry(node.Name, node.CommandName ?? string.Empty, null, parameters);
+        MenuEntry entry = new(node.Name, node.CommandName ?? string.Empty)
+        {
+            ParentName = null,
+            Parameters = node.Parameters is { Count: > 0 } ? new(node.Parameters) : new(0)
+        };
 
         if (node.Children != null)
         {
