@@ -62,7 +62,9 @@ public sealed class MacroConditionEvaluator(IActiveWindowState activeWindow) : I
     {
         if (string.IsNullOrEmpty(needle))
             return false;
-        return (haystack ?? string.Empty).IndexOf(needle, StringComparison.OrdinalIgnoreCase) >= 0;
+        if (haystack is null)
+            return false;
+        return haystack.Contains(needle, StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool EvaluateVariable(MacroCondition condition, MacroContext context)
@@ -79,7 +81,7 @@ public sealed class MacroConditionEvaluator(IActiveWindowState activeWindow) : I
             case ConditionOperator.NotEquals:
                 return !string.Equals(left, right, StringComparison.OrdinalIgnoreCase);
             case ConditionOperator.Contains:
-                return left.IndexOf(right, StringComparison.OrdinalIgnoreCase) >= 0;
+                return left.Contains(right, StringComparison.OrdinalIgnoreCase);
         }
 
         // Numeric comparisons — non-numeric operands make the test false rather than throwing.
