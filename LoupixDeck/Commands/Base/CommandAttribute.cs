@@ -1,3 +1,5 @@
+#nullable enable
+
 namespace LoupixDeck.Commands.Base;
 
 public enum CommandPlatform
@@ -11,20 +13,17 @@ public enum CommandPlatform
 public class CommandAttribute(
     string commandName,
     string displayName,
-    string group,
-    string parameterTemplate = null,
-    string[] parameterNames = null,
-    Type[] parameterTypes = null) : Attribute
+    string group) : Attribute
 {
     public string CommandName { get; } = commandName;
     public string DisplayName { get; } = displayName;
     public string Group { get; } = group;
-    public string ParameterTemplate { get; set; } = parameterTemplate;
+    public string? ParameterTemplate { get; }
 
-    public string[] ParameterNames { get; } = parameterNames;
-    public Type[] ParameterTypes { get; } =  parameterTypes;
+    public string[]? ParameterNames { get; }
+    public Type[]? ParameterTypes { get; }
 
-    public CommandPlatform Platform { get; set; } = CommandPlatform.All;
+    public CommandPlatform Platform { get; init; } = CommandPlatform.All;
 
     /// <summary>
     /// When true the command is registered and remains executable (a button can
@@ -33,4 +32,24 @@ public class CommandAttribute(
     /// developer commands that should not be user-discoverable.
     /// </summary>
     public bool Hidden { get; set; }
+
+    public CommandAttribute(
+        string commandName,
+        string displayName,
+        string group,
+        string parameterTemplate,
+        string[] parameterNames,
+        Type[] parameterTypes) : this(commandName, displayName, group)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(parameterTemplate);
+        ArgumentNullException.ThrowIfNull(parameterTypes);
+        ArgumentNullException.ThrowIfNull(parameterNames);
+
+        if (parameterNames.Length != parameterTypes.Length)
+            throw new ArgumentException("The number of parameter names and types must match.");
+
+        ParameterTemplate = parameterTemplate;
+        this.ParameterNames = parameterNames;
+        this.ParameterTypes = parameterTypes;
+    }
 }
