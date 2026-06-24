@@ -8,7 +8,7 @@ namespace LoupixDeck.Models;
 public class SimpleButton : LoupedeckButton
 {
     public Constants.ButtonType Id { get; set; }
-    
+
     private Color _buttonColor;
     public Color ButtonColor
     {
@@ -21,7 +21,7 @@ public class SimpleButton : LoupedeckButton
             Refresh();
         }
     }
-    
+
     private Bitmap _renderedImage;
     [JsonIgnore]
     public Bitmap RenderedImage

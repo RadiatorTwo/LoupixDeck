@@ -1945,7 +1945,7 @@ public partial class LoupedeckLiveSController(
     }
 
     private CancellationTokenSource _propertyChangedCts;
-    
+
     private async void ConfigOnPropertyChanged(object sender, PropertyChangedEventArgs e)
     {
         _propertyChangedCts?.Cancel();

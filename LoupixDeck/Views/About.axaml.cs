@@ -8,7 +8,7 @@ public partial class About : Window
     public About()
     {
         InitializeComponent();
-        
+
         Opened += (_, _) =>
         {
             if (DataContext is AboutViewModel vm)
@@ -18,14 +18,14 @@ public partial class About : Window
                     AllowClose();
                     Close();
                 };
-                
+
                 // vm.Init();
             }
         };
 
         Closing += OnWindowClosing;
     }
-    
+
     private bool _allowClose;
 
     private void OnWindowClosing(object sender, System.ComponentModel.CancelEventArgs e)

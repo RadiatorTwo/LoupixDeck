@@ -48,7 +48,7 @@ public partial class InitSetupViewModel : ViewModelBase
     public void Init()
     {
         var devices = SerialDeviceHelper.ListSerialUsbDevices();
-        
+
         foreach (var device in devices)
         {
             var matchingDevice = DeviceRegistry.GetDeviceByVidPid(device.Vid, device.Pid);
@@ -69,7 +69,7 @@ public partial class InitSetupViewModel : ViewModelBase
         }
 
         if (SerialDevices.Count == 0) return;
-        
+
         SelectedDevice = SerialDevices[0];
 
         if (SerialDevices.Count == 1)

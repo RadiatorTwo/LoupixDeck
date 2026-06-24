@@ -80,7 +80,7 @@ public class SerialConnection : ISerialConnection
     /// Indicates whether the serial port is open and ready for communication.
     /// </summary>
     public bool IsReady => _serialPort is not null && _serialPort.IsOpen;
-    
+
     /// <summary>
     /// Searches for all available serial ports and returns them as a list.
     /// (Optional: Not part of the interface, but useful for a discovery-like feature.)
@@ -91,7 +91,7 @@ public class SerialConnection : ISerialConnection
     }
 
     /// <summary>
-    /// Establishes the connection and performs the handshake. 
+    /// Establishes the connection and performs the handshake.
     /// Afterwards, starts a thread that continuously parses and reads incoming data.
     /// </summary>
     /// <exception cref="InvalidOperationException">Thrown if the port is already open.</exception>
@@ -357,7 +357,7 @@ public class SerialConnection : ISerialConnection
     }
 
     /// <summary>
-    /// Thread routine that continuously reads incoming data. 
+    /// Thread routine that continuously reads incoming data.
     /// Once complete packets are detected, triggers the <see cref="MessageReceived"/> event.
     /// </summary>
     private void ReadLoop()

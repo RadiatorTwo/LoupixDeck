@@ -139,7 +139,7 @@ public static class KeyboardLayouts
 
         ['ß'] = (12, false),
         ['?'] = (12, true),
-        
+
         ['´'] = (13, false),
         ['`'] = (13, true),
 

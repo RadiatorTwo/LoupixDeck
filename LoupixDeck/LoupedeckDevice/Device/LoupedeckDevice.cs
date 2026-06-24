@@ -308,7 +308,7 @@ public abstract class LoupedeckDevice
     }
 
     /// <summary>
-    /// Queues a command and optional data to be sent to the device, 
+    /// Queues a command and optional data to be sent to the device,
     /// and asynchronously waits for the response.
     /// </summary>
     /// <param name="command">The command to send to the device.</param>

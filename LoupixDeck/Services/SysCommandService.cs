@@ -7,7 +7,7 @@ namespace LoupixDeck.Services;
 public interface ISysCommandService
 {
     /// <summary>
-    /// Initializes the available commands. 
+    /// Initializes the available commands.
     /// </summary>
     void Initialize();
 

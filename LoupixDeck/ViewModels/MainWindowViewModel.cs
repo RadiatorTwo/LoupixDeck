@@ -405,7 +405,7 @@ public partial class MainWindowViewModel : ViewModelBase
         // Macros persist in their own macros.json — no SaveConfig needed here.
         await _dialogService.ShowDialogAsync<MacroEditorViewModel, DialogResult>();
     }
-    
+
     private async Task AboutMenuButton_Click()
     {
         await _dialogService.ShowDialogAsync<AboutViewModel, DialogResult>();

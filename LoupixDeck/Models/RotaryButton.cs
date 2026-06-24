@@ -25,7 +25,7 @@ public class RotaryButton(int index,string rotaryLeftCommand, string rotaryRight
 
     private string _rotaryLeftCommand = rotaryLeftCommand;
     private string _rotaryRightCommand = rotaryRightCommand;
-    
+
     public string RotaryLeftCommand
     {
         get => _rotaryLeftCommand;

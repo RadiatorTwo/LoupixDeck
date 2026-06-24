@@ -4,5 +4,5 @@ namespace LoupixDeck.ViewModels;
 
 public class SplashScreenViewModel : ViewModelBase
 {
-    
+
 }

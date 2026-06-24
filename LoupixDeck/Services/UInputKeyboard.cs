@@ -133,7 +133,7 @@ public class UInputKeyboard : IUInputKeyboard
     {
         var localLayout = GetCurrentKeyboardLayout();
         _layout = KeyboardLayouts.GetLayout(localLayout);
-        
+
         // Step 1: open /dev/uinput
         try
         {
@@ -235,7 +235,7 @@ public class UInputKeyboard : IUInputKeyboard
 
             PressKey(keyCode.keycode);
             ReleaseKey(keyCode.keycode);
-            
+
             if (keyCode.shift)
                 ReleaseKey(KEY_LEFTSHIFT);
 
@@ -345,7 +345,7 @@ public class UInputKeyboard : IUInputKeyboard
 
         Marshal.FreeHGlobal(ptr);
     }
-    
+
     private string GetCurrentKeyboardLayout()
     {
         try

@@ -20,7 +20,7 @@ public class SKBitmapBase64Converter : JsonConverter<SKBitmap>
 
         var base64 = (string)reader.Value;
         var bytes = Convert.FromBase64String(base64 ?? string.Empty);
-        
+
         return SKBitmap.Decode(bytes);
     }
 }

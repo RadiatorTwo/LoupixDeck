@@ -26,9 +26,9 @@ public abstract class FileDialogHelper
                 }
             }
         });
-        
+
         if (files.Count == 0) return string.Empty;
-        
+
         return Uri.UnescapeDataString(files[0].Path.AbsolutePath);
     }
 
