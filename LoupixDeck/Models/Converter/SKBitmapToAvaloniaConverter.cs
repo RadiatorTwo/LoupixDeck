@@ -1,3 +1,4 @@
+#nullable enable
 using System.Globalization;
 using Avalonia;
 using Avalonia.Data.Converters;
@@ -9,18 +10,24 @@ namespace LoupixDeck.Models.Converter;
 
 public class SKBitmapToAvaloniaBitmapConverter : IValueConverter
 {
-    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
-        if (value is not SKBitmap { IsNull: false } skBitmap) return AvaloniaProperty.UnsetValue;
+        if (value is not SKBitmap { IsNull: false } skBitmap)
+            return AvaloniaProperty.UnsetValue;
+        Bitmap? result = Convert(skBitmap);
+        return result ?? AvaloniaProperty.UnsetValue;
+    }
 
+    private static Bitmap? Convert(SKBitmap skBitmap)
+    {
         // Guard: a bitmap that cannot expose its pixels (empty / not peekable)
         // would otherwise NRE / AccessViolation below. PeekPixels returns null
         // in that case.
         using var pixmap = skBitmap.PeekPixels();
-        if (pixmap == null) return AvaloniaProperty.UnsetValue;
+        if (pixmap == null) return null;
 
         var pixels = skBitmap.GetPixels();
-        if (pixels == IntPtr.Zero) return AvaloniaProperty.UnsetValue;
+        if (pixels == IntPtr.Zero) return null;
 
         // Derive PixelFormat / AlphaFormat from SKColorType
         var pixelFormat = skBitmap.ColorType switch
@@ -50,7 +57,7 @@ public class SKBitmapToAvaloniaBitmapConverter : IValueConverter
         return bitmap;
     }
 
-    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+    public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
         // throw new NotImplementedException("ConvertBack is not needed.");
         return null;
