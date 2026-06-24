@@ -21,7 +21,7 @@ public sealed class ScreensaverManager : IScreensaverManager, IDisposable
     // fire almost immediately after every interaction.
     private const int MinIdleSeconds = 5;
 
-    private readonly object _gate = new();
+    private readonly Lock _gate = new();
     private readonly Timer _idleTimer;
 
     private ScreensaverAnimationSource _source;
