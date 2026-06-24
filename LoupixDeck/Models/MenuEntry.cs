@@ -4,9 +4,9 @@ using CommunityToolkit.Mvvm.ComponentModel;
 namespace LoupixDeck.Models;
 
 [ObservableObject]
-public partial class MenuEntry(string name, string command, string? parentName = null, Dictionary<string, string> parameters = null)
+public partial class MenuEntry(string name, string command)
 {
-    public string? ParentName { get; set; } = parentName;
+    public string? ParentName { get; set; }
     public string Name { get; set; } = name;
     public string Command { get; set; } = command;
 
