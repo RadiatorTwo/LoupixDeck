@@ -120,7 +120,7 @@ public sealed partial class LinuxInputRecorder : IInputRecorder
             if (handlers == null || !handlers.Contains("kbd"))
                 continue;
 
-            var match = EventNodeRegex().Match(handlers);
+            var match = EventNodeRegex.Match(handlers);
             if (match.Success)
                 yield return "/dev/input/" + match.Value;
         }
@@ -179,7 +179,7 @@ public sealed partial class LinuxInputRecorder : IInputRecorder
     }
 
     [GeneratedRegex(@"event\d+")]
-    private static partial Regex EventNodeRegex();
+    private static partial Regex EventNodeRegex { get; }
 
     // ───────── libc interop ─────────
 
