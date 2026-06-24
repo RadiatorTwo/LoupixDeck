@@ -145,8 +145,7 @@ public class SysCommandService : ISysCommandService
 
     public object GetDefaultValue(Type type)
     {
-        if (type == null)
-            throw new ArgumentNullException(nameof(type));
+        ArgumentNullException.ThrowIfNull(type);
 
         if (type == typeof(string)) return "string";
         if (type == typeof(bool)) return false;
