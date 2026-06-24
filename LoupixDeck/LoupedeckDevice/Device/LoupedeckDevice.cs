@@ -37,12 +37,13 @@ public abstract class LoupedeckDevice
     private readonly ConcurrentDictionary<byte, CancellationTokenSource> _pendingTimeouts = new();
     private readonly Dictionary<byte, TouchInfo> _touches = new();
 
-    private int ReconnectInterval { get; set; }
-    public string Host { get; set; }
-    private string Path { get; set; }
-    private int Baudrate { get; set; }
-
 #nullable enable
+
+    private int ReconnectInterval { get; }
+    public string? Host { get; set; }
+    private string? Path { get; }
+    private int Baudrate { get; }
+
     protected abstract ImmutableDictionary<string, DisplayInfo>? Displays { get; }
     public abstract int[] Buttons { get; }
     public abstract int Columns { get; }
@@ -110,6 +111,8 @@ public abstract class LoupedeckDevice
     /// </summary>
     public event EventHandler<SwipeEventArgs> OnSwipe;
 
+#nullable enable
+
     /// <summary>
     /// Initializes a new instance of the <see cref="LoupedeckDevice"/> class.
     /// </summary>
@@ -118,7 +121,7 @@ public abstract class LoupedeckDevice
     /// <param name="baudrate">Device Connection Baudrate</param>
     /// <param name="autoConnect">If true, attempts to connect automatically.</param>
     /// <param name="reconnectInterval">Interval (ms) to wait before reconnecting.</param>
-    protected LoupedeckDevice(string host = null, string path = null, int baudrate = 0, bool autoConnect = true,
+    protected LoupedeckDevice(string? host = null, string? path = null, int baudrate = 0, bool autoConnect = true,
         int reconnectInterval = Constants.DefaultReconnectInterval)
     {
         Host = host;
@@ -126,10 +129,10 @@ public abstract class LoupedeckDevice
         ReconnectInterval = reconnectInterval;
         Baudrate = baudrate > 0 ? baudrate : 115200;
         if (autoConnect)
-        {
             ConnectBlind();
-        }
     }
+
+#nullable restore
 
     protected static int[] InitSimpleArray(int length) => Enumerable.Range(0, length).ToArray();
 
