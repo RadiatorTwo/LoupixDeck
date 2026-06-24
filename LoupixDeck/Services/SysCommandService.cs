@@ -1,5 +1,6 @@
 using LoupixDeck.Commands.Base;
 using Microsoft.Extensions.DependencyInjection;
+using System.Collections.Immutable;
 using System.Reflection;
 
 namespace LoupixDeck.Services;
@@ -180,21 +181,6 @@ public class SysCommandService : ISysCommandService
         return null;
     }
 
-    private List<ParameterDescriptor> CreateParameterDescriptors(CommandAttribute attribute)
-    {
-        var list = new List<ParameterDescriptor>();
-
-        if (attribute.ParameterNames == null || attribute.ParameterTypes == null)
-            return list;
-
-        for (var i = 0; i < attribute.ParameterNames.Length; i++)
-        {
-            list.Add(new ParameterDescriptor(
-                attribute.ParameterNames[i],
-                attribute.ParameterTypes[i]
-            ));
-        }
-
-        return list;
-    }
+    private static ImmutableArray<ParameterDescriptor> CreateParameterDescriptors(CommandAttribute attribute)
+        => ImmutableArray.CreateRange(attribute.Parameters, static a => new ParameterDescriptor(a.Name, a.Type));
 }

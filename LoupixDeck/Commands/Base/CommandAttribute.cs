@@ -1,4 +1,5 @@
 #nullable enable
+using System.Collections.Immutable;
 
 namespace LoupixDeck.Commands.Base;
 
@@ -20,8 +21,7 @@ public class CommandAttribute(
     public string Group { get; } = group;
     public string? ParameterTemplate { get; }
 
-    public string[]? ParameterNames { get; }
-    public Type[]? ParameterTypes { get; }
+    public ImmutableArray<(string Name, Type Type)> Parameters { get; }
 
     public CommandPlatform Platform { get; init; } = CommandPlatform.All;
 
@@ -49,7 +49,6 @@ public class CommandAttribute(
             throw new ArgumentException("The number of parameter names and types must match.");
 
         ParameterTemplate = parameterTemplate;
-        this.ParameterNames = parameterNames;
-        this.ParameterTypes = parameterTypes;
+        Parameters = parameterNames.Zip(parameterTypes).ToImmutableArray();
     }
 }

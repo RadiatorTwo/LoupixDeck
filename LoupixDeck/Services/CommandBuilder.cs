@@ -28,7 +28,7 @@ public class CommandBuilder : ICommandBuilder
 
         var parameters = new Dictionary<string, object>();
 
-        for (int i = 0; i < command.Parameters.Count; i++)
+        for (int i = 0; i < command.Parameters.Length; i++)
         {
             var parameter = command.Parameters[i];
 

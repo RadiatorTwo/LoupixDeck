@@ -1,3 +1,5 @@
+using System.Collections.Immutable;
+
 namespace LoupixDeck.Commands.Base;
 
 public class CommandInfo
@@ -7,5 +9,5 @@ public class CommandInfo
     public string Group { get; init; }
     public string ParameterTemplate { get; init; }
     public bool Hidden { get; init; }
-    public List<ParameterDescriptor> Parameters { get; init; } = [];
+    public ImmutableArray<ParameterDescriptor> Parameters { get; init; } = [];
 }
