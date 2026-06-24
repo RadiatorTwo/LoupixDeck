@@ -1,13 +1,13 @@
+#nullable enable
+using System.Diagnostics;
 using LoupixDeck.PluginSdk;
 
 namespace LoupixDeck.Services.Commands;
 
 /// <inheritdoc cref="ICommandRegistry"/>
-public class CommandRegistry : ICommandRegistry
+public class CommandRegistry(IEnumerable<ICommandProvider> providers) : ICommandRegistry
 {
-    private readonly IEnumerable<ICommandProvider> _providers;
-
-    // Immutable, copy-on-write map. Initialize() builds a fresh dictionary and
+    // Initialize() builds a fresh dictionary and
     // publishes it via a single volatile reference swap, so a runtime rebuild
     // (plugin hot-reload) can never tear a read on a device input thread —
     // readers take a local copy of the reference and an in-flight Execute keeps
@@ -15,18 +15,13 @@ public class CommandRegistry : ICommandRegistry
     private volatile IReadOnlyDictionary<string, RegisteredCommand> _commands =
         new Dictionary<string, RegisteredCommand>(StringComparer.Ordinal);
 
-    public CommandRegistry(IEnumerable<ICommandProvider> providers)
-    {
-        _providers = providers;
-    }
-
     public void Initialize()
     {
         var next = new Dictionary<string, RegisteredCommand>(StringComparer.Ordinal);
 
-        foreach (var provider in _providers)
+        foreach (var provider in providers)
         {
-            List<RegisteredCommand> commands;
+            List<RegisteredCommand?> commands;
             try
             {
                 commands = provider.GetCommands().ToList();
@@ -51,18 +46,18 @@ public class CommandRegistry : ICommandRegistry
         _commands = next; // atomic publish
     }
 
-    public bool Contains(string commandName)
+    public bool Contains([NotNullWhen(true)] string? commandName)
     {
         return !string.IsNullOrEmpty(commandName) && _commands.ContainsKey(commandName);
     }
 
-    public RegisteredCommand Get(string commandName)
+    public RegisteredCommand? Get(string? commandName)
     {
-        var map = _commands; // local copy of the reference — never torn
-        if (commandName != null && map.TryGetValue(commandName, out var command))
-            return command;
-
-        return null;
+        if (commandName is null)
+            return null;
+        // Only using reference of the dictionary
+        // so no need to copy it to a local variable.
+        return _commands.GetValueOrDefault(commandName);
     }
 
     public IEnumerable<RegisteredCommand> GetAll() => _commands.Values;
