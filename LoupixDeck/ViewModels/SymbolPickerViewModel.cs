@@ -1,6 +1,5 @@
 using System.Collections.Immutable;
 using System.Collections.ObjectModel;
-using System.Windows.Input;
 using Avalonia.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -9,7 +8,6 @@ using LoupixDeck.Utils;
 using LoupixDeck.ViewModels.Base;
 // LoupixDeck.Utils also declares a RelayCommand; the dialog needs the
 // CommunityToolkit one (synchronous, supports canExecute).
-using RelayCommand = CommunityToolkit.Mvvm.Input.RelayCommand;
 
 namespace LoupixDeck.ViewModels;
 

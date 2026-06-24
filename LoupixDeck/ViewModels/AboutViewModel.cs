@@ -1,5 +1,4 @@
 using System.Reflection;
-using System.Windows.Input;
 using CommunityToolkit.Mvvm.Input;
 using LoupixDeck.Models;
 using LoupixDeck.Utils;

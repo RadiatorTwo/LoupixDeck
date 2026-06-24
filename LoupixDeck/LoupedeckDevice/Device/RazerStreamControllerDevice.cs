@@ -1,5 +1,4 @@
 using System.Collections.Immutable;
-using LoupixDeck.LoupedeckDevice;
 using LoupixDeck.Models;
 using SkiaSharp;
 
