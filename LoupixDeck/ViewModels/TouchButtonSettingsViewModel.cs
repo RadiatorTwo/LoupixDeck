@@ -33,8 +33,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
             ButtonData.PropertyChanged += ButtonData_PropertyChanged;
             SeedAnimatedLayerPreviews();
             UpdateEditorPreview();
-
-            _selectedVibrationPattern = VibrationPatterns.FirstOrDefault(
+            SelectedVibrationPattern = VibrationPatterns.FirstOrDefault(
                 p => p.Value == ButtonData.VibrationPattern);
             OnPropertyChanged(nameof(SelectedVibrationPattern));
         }
@@ -430,18 +429,13 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
 
     public ObservableCollection<VibrationPatternItem> VibrationPatterns => VibrationPatternCatalog.All;
 
-    private VibrationPatternItem _selectedVibrationPattern;
-    public VibrationPatternItem SelectedVibrationPattern
+    [ObservableProperty]
+    public partial VibrationPatternItem SelectedVibrationPattern { get; set; }
+
+    partial void OnSelectedVibrationPatternChanged(VibrationPatternItem value)
     {
-        get => _selectedVibrationPattern;
-        set
-        {
-            if (_selectedVibrationPattern == value) return;
-            _selectedVibrationPattern = value;
-            if (ButtonData != null && value != null)
-                ButtonData.VibrationPattern = value.Value;
-            OnPropertyChanged(nameof(SelectedVibrationPattern));
-        }
+        if (ButtonData != null && value != null)
+            ButtonData.VibrationPattern = value.Value;
     }
 
     public TouchButtonSettingsViewModel(

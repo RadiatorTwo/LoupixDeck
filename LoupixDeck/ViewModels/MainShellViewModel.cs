@@ -1,4 +1,6 @@
+#nullable enable
 using System.Collections.ObjectModel;
+using CommunityToolkit.Mvvm.ComponentModel;
 using LoupixDeck.ViewModels.Base;
 
 namespace LoupixDeck.ViewModels;
@@ -16,35 +18,31 @@ namespace LoupixDeck.ViewModels;
 /// Not a DI service — it aggregates view models built from several device child
 /// providers, so App constructs it and adds each device's VM.
 /// </remarks>
-public sealed class MainShellViewModel : ViewModelBase
+public sealed partial class MainShellViewModel : ViewModelBase
 {
     public ObservableCollection<MainWindowViewModel> Devices { get; } = [];
 
-    private MainWindowViewModel _selectedDevice;
-    public MainWindowViewModel SelectedDevice
-    {
-        get => _selectedDevice;
-        set => SetProperty(ref _selectedDevice, value);
-    }
+    [ObservableProperty]
+    public partial MainWindowViewModel? SelectedDevice { get; set; }
 
     /// <summary>Show the device tab strip only when more than one device is present,
     /// so the single-device window looks exactly as it did before phase 3.</summary>
     public bool HasMultipleDevices => Devices.Count > 1;
 
-    public void Add(MainWindowViewModel device)
+    public void Add(MainWindowViewModel? device)
     {
         if (device == null) return;
         Devices.Add(device);
-        _selectedDevice ??= device;
+        SelectedDevice ??= device;
         OnPropertyChanged(nameof(HasMultipleDevices));
     }
 
     /// <summary>Drop a device's VM (hot-unplug). If it was the selected one, fall back
     /// to the first remaining device (or null when none are left).</summary>
-    public void Remove(MainWindowViewModel device)
+    public void Remove(MainWindowViewModel? device)
     {
         if (device == null) return;
-        var wasSelected = ReferenceEquals(_selectedDevice, device);
+        var wasSelected = ReferenceEquals(SelectedDevice, device);
         Devices.Remove(device);
         if (wasSelected)
             SelectedDevice = Devices.FirstOrDefault();
