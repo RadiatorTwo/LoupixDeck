@@ -79,22 +79,16 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly Services.Animation.IButtonAnimationManager _buttonAnimationManager;
     private readonly IExclusiveModeService _exclusiveMode;
 
-    private bool _isExclusiveModeActive;
-
     /// <summary>
     /// True while a plugin/provider has taken the device over via exclusive mode.
     /// The GUI still shows the configured touch buttons (they aren't what the
     /// device is rendering), so the layouts overlay them with a notice while this
     /// is set. Updated from <see cref="IExclusiveModeService.StateChanged"/>.
     /// </summary>
-    public bool IsExclusiveModeActive
-    {
-        get => _isExclusiveModeActive;
-        private set => SetProperty(ref _isExclusiveModeActive, value);
-    }
+    [ObservableProperty]
+    public partial string IsExclusiveModeActive { get; private set; }
 
     /// <summary>Title of the active exclusive-mode provider, shown in the overlay.</summary>
-
     [ObservableProperty]
     public partial string ExclusiveModeTitle { get; private set; }
 
