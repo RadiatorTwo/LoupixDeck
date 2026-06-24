@@ -1,6 +1,8 @@
 using System.Collections.Specialized;
 using System.ComponentModel;
+using System.Diagnostics;
 using Avalonia.Media;
+using CommunityToolkit.Mvvm.ComponentModel;
 using LoupixDeck.Models.Layers;
 using LoupixDeck.Utils;
 using Newtonsoft.Json;
@@ -8,7 +10,7 @@ using SkiaSharp;
 
 namespace LoupixDeck.Models;
 
-public class TouchButton : LoupedeckButton
+public partial class TouchButton : LoupedeckButton
 {
     public TouchButton(int index)
     {
@@ -23,66 +25,47 @@ public class TouchButton : LoupedeckButton
     {
     }
 
-    public int Index { get; set; }
+#nullable enable
 
-    private Color _backColor = Colors.Black;
+    public int Index { get; set; }
 
     public Color BackColor
     {
-        get => _backColor;
+        get;
         set
         {
-            if (Equals(value, _backColor)) return;
-            _backColor = value;
+            if (Equals(value, field)) return;
+            field = value;
             Refresh();
         }
-    }
+    } = Colors.Black;
 
-    private bool _vibrationEnabled;
-
-    public bool VibrationEnabled
-    {
-        get => _vibrationEnabled;
-        set
-        {
-            if (value == _vibrationEnabled) return;
-            _vibrationEnabled = value;
-            OnPropertyChanged(nameof(VibrationEnabled));
-        }
-    }
-
-    private byte _vibrationPattern;
+    [ObservableProperty]
+    public partial bool VibrationEnabled { get; set; }
 
     public byte VibrationPattern
     {
-        get => _vibrationPattern == 0
+        get => field == 0
             ? LoupedeckDevice.Constants.VibrationPattern.ShortLower
-            : _vibrationPattern;
-        set
-        {
-            if (value == _vibrationPattern) return;
-            _vibrationPattern = value;
-            OnPropertyChanged(nameof(VibrationPattern));
-        }
+            : field;
+        set => SetProperty(ref field, value);
     }
 
-    private System.Collections.ObjectModel.ObservableCollection<LayerBase> _layers;
-
-    public System.Collections.ObjectModel.ObservableCollection<LayerBase> Layers
+    public System.Collections.ObjectModel.ObservableCollection<LayerBase>? Layers
     {
-        get => _layers;
+        get;
         set
         {
-            if (ReferenceEquals(_layers, value)) return;
-            DetachLayerHandlers(_layers);
-            _layers = value ?? new System.Collections.ObjectModel.ObservableCollection<LayerBase>();
-            AttachLayerHandlers(_layers);
+            if (ReferenceEquals(field, value)) return;
+            DetachLayerHandlers(field);
+            field = value ?? new();
+            AttachLayerHandlers(field);
             Refresh();
             OnPropertyChanged(nameof(Layers));
         }
     }
 
-    private SKBitmap _renderedImage;
+#nullable restore
 
     // A bitmap just replaced as RenderedImage may still be read by an in-flight reader
     // that captured the reference around the swap: the UI preview-converter (not gated,
@@ -98,18 +81,18 @@ public class TouchButton : LoupedeckButton
     [JsonIgnore]
     public SKBitmap RenderedImage
     {
-        get => _renderedImage;
+        get;
         set
         {
-            if (ReferenceEquals(value, _renderedImage)) return;
+            if (ReferenceEquals(value, field)) return;
 
             // Swap + retire under the render gate so the deferred native Dispose()
             // never overlaps active Skia work and concurrent setters stay consistent.
             // OnPropertyChanged is raised outside the lock (it may marshal to the UI).
             lock (SkiaRenderGate.Sync)
             {
-                var old = _renderedImage;
-                _renderedImage = value;
+                SKBitmap? old = field;
+                field = value;
                 if (old != null)
                     _retiredImages.Enqueue(old);
                 while (_retiredImages.Count > RetainedRenderedGenerations)
@@ -120,7 +103,9 @@ public class TouchButton : LoupedeckButton
         }
     }
 
-    private void AttachLayerHandlers(System.Collections.ObjectModel.ObservableCollection<LayerBase> layers)
+#nullable enable
+
+    private void AttachLayerHandlers(System.Collections.ObjectModel.ObservableCollection<LayerBase>? layers)
     {
         if (layers == null) return;
         layers.CollectionChanged += Layers_CollectionChanged;
@@ -130,7 +115,7 @@ public class TouchButton : LoupedeckButton
         }
     }
 
-    private void DetachLayerHandlers(System.Collections.ObjectModel.ObservableCollection<LayerBase> layers)
+    private void DetachLayerHandlers(System.Collections.ObjectModel.ObservableCollection<LayerBase>? layers)
     {
         if (layers == null) return;
         layers.CollectionChanged -= Layers_CollectionChanged;
@@ -140,27 +125,29 @@ public class TouchButton : LoupedeckButton
         }
     }
 
-    private void Layers_CollectionChanged(object sender, NotifyCollectionChangedEventArgs e)
+    private void Layers_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
         if (e.OldItems != null)
         {
-            foreach (LayerBase l in e.OldItems)
+            foreach (LayerBase? l in e.OldItems)
                 l?.PropertyChanged -= Layer_PropertyChanged;
         }
 
         if (e.NewItems != null)
         {
-            foreach (LayerBase l in e.NewItems)
+            foreach (LayerBase? l in e.NewItems)
                 l?.PropertyChanged += Layer_PropertyChanged;
         }
 
         Refresh();
     }
 
-    private void Layer_PropertyChanged(object sender, PropertyChangedEventArgs e)
+    private void Layer_PropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         Refresh();
     }
+
+#nullable restore
 
     /// <summary>
     /// Returns the plugin-managed <see cref="PluginLayer"/> bound to <paramref name="ownerKey"/>,
@@ -169,6 +156,7 @@ public class TouchButton : LoupedeckButton
     /// </summary>
     public PluginLayer GetOrCreatePluginLayer(string ownerKey, string commandName)
     {
+        Debug.Assert(Layers is not null, "Layers is assumed checked not null");
         foreach (var layer in Layers)
         {
             if (layer is PluginLayer plugin &&
@@ -235,8 +223,8 @@ public class TouchButton : LoupedeckButton
     /// </summary>
     public void RewireLayerHandlers()
     {
-        if (_layers == null) return;
-        foreach (var layer in _layers)
+        if (Layers == null) return;
+        foreach (var layer in Layers)
         {
             if (layer == null) continue;
             layer.PropertyChanged -= Layer_PropertyChanged;
