@@ -51,10 +51,11 @@ csharp_prefer_braces = when_multiline:suggestion
 #AnalyzerSettings
 dotnet_style_namespace_match_folder = true:warning
 csharp_prefer_simple_using_statement = false:silent
+dotnet_diagnostic.IDE0270.severity = none # IDE0270: Use coalesce expression
+dotnet_style_prefer_conditional_expression_over_assignment = false:warning
+dotnet_diagnostic.IDE0047.severity = none # Remove unnecessary parentheses
+dotnet_diagnostic.IDE0042.severity = silent # IDE0042: Deconstruct variable declaration
 
 # TODO: review the following rules:
 # Use explicit type (not var)
 dotnet_diagnostic.IDE0008.severity = silent
-
-# Remove unnecessary parentheses
-dotnet_diagnostic.IDE0047.severity = none
