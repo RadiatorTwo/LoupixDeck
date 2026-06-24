@@ -44,8 +44,7 @@ public interface ISysCommandService
 
 public class SysCommandService : ISysCommandService
 {
-    private readonly Dictionary<string, (Type CommandType, CommandAttribute Attribute)> _commands
-        = new Dictionary<string, (Type CommandType, CommandAttribute Attribute)>();
+    private readonly Dictionary<string, (Type CommandType, CommandAttribute Attribute)> _commands = new();
 
     private readonly IServiceProvider _serviceProvider;
     private readonly IUInputKeyboard _uInputKeyboard;
@@ -62,7 +61,7 @@ public class SysCommandService : ISysCommandService
     public void Initialize()
     {
         var commandTypes = Assembly.GetExecutingAssembly().GetTypes()
-            .Where(t => typeof(IExecutableCommand).IsAssignableFrom(t)
+            .Where(static t => typeof(IExecutableCommand).IsAssignableFrom(t)
                         && !t.IsInterface
                         && !t.IsAbstract);
 

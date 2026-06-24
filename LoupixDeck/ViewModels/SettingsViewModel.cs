@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Diagnostics.CodeAnalysis;
 using Avalonia;
 using Avalonia.Styling;
 using Avalonia.Threading;
@@ -88,8 +89,10 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
     public IAsyncRelayCommand SelectScreensaverVideoCommand => field ??= Relay.Create(SelectScreensaverVideo);
     public IRelayCommand ClearScreensaverVideoCommand => field ??= Relay.Create(ClearScreensaverVideo);
 
+    [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Used in model binding")]
     public ObservableCollection<VibrationPatternItem> VibrationPatterns => VibrationPatternCatalog.All;
 
+    [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Used in model binding")]
     public bool IsWindows => OperatingSystem.IsWindows();
 
     /// <summary>
@@ -97,6 +100,7 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
     /// Gates the "App Switching" settings page — wider than <see cref="IsWindows"/>,
     /// so the editor stays hidden only on macOS / unsupported platforms.
     /// </summary>
+    [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Used in model binding")]
     public bool IsAppSwitchingSupported => OperatingSystem.IsWindows() || OperatingSystem.IsLinux();
 
     public SettingsViewModel(LoupedeckConfig config,
@@ -559,16 +563,9 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
 
     /// <summary>Whether ffmpeg was found on PATH. Defaults to true (assume present) and is
     /// corrected by the async probe, so the "missing" hint only shows once we're sure.</summary>
-    private bool _ffmpegAvailable = true;
-    public bool FfmpegAvailable
-    {
-        get => _ffmpegAvailable;
-        private set
-        {
-            if (SetProperty(ref _ffmpegAvailable, value))
-                OnPropertyChanged(nameof(FfmpegMissing));
-        }
-    }
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(FfmpegMissing))]
+    public partial bool FfmpegAvailable { get; set; } = true;
 
     /// <summary>Inverse of <see cref="FfmpegAvailable"/> for the settings hint visibility.</summary>
     public bool FfmpegMissing => !FfmpegAvailable;
@@ -684,12 +681,8 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
 
     // ───────── View navigation ─────────
 
-    private SettingsView _currentView;
-    public SettingsView CurrentView
-    {
-        get => _currentView;
-        set => SetProperty(ref _currentView, value);
-    }
+    [ObservableProperty]
+    public partial SettingsView CurrentView { get; set; }
 
     private async Task EditWallpaper(TouchButtonPage page)
     {

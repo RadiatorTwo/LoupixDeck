@@ -1,3 +1,4 @@
+using System.Collections.Frozen;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
@@ -30,7 +31,7 @@ public partial class MacroEditorViewModel : DialogViewModelBase<DialogResult>, I
     };
 
     // Editor-only UI state on steps that must not trigger an auto-apply.
-    private static readonly HashSet<string> NonPersistedStepProperties =
+    private static readonly FrozenSet<string> NonPersistedStepProperties =
     [
         nameof(MacroStep.IsEditing),
         nameof(MacroStep.IsDragging),
@@ -71,24 +72,11 @@ public partial class MacroEditorViewModel : DialogViewModelBase<DialogResult>, I
     /// <summary>Command tree offered inside CommandStep editors.</summary>
     public ObservableCollection<MenuEntry> SystemCommandMenus { get; } = [];
 
-    private Macro _selectedMacro;
-
-    public Macro SelectedMacro
-    {
-        get => _selectedMacro;
-        set
-        {
-            if (SetProperty(ref _selectedMacro, value))
-            {
-                OnPropertyChanged(nameof(HasSelectedMacro));
-                OnPropertyChanged(nameof(SelectedStepCount));
-                OnPropertyChanged(nameof(HasSelectedSteps));
-                OnPropertyChanged(nameof(HasSelectedDelay));
-                OnPropertyChanged(nameof(HasBulkActions));
-                OnPropertyChanged(nameof(MacroPreview));
-            }
-        }
-    }
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasSelectedMacro), nameof(SelectedStepCount))]
+    [NotifyPropertyChangedFor(nameof(HasSelectedSteps), nameof(HasSelectedDelay))]
+    [NotifyPropertyChangedFor(nameof(HasBulkActions), nameof(MacroPreview))]
+    public partial Macro SelectedMacro { get; set; }
 
     public bool HasSelectedMacro => SelectedMacro != null;
 
@@ -805,7 +793,7 @@ public partial class MacroEditorViewModel : DialogViewModelBase<DialogResult>, I
 
     private string SerializeMacros() => JsonConvert.SerializeObject(Macros, CloneSettings);
 
-    private static IEnumerable<Macro> DeserializeMacros(string json) =>
+    private static List<Macro> DeserializeMacros(string json) =>
         JsonConvert.DeserializeObject<List<Macro>>(json, CloneSettings) ?? [];
 
     private bool Validate()

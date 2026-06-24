@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using LoupixDeck.Models;
 using LoupixDeck.PluginSdk;
 using LoupixDeck.Services.Plugins;
@@ -62,20 +63,20 @@ public class PluginMenuContributor : IPluginMenuSource
         return sources;
     }
 
-    private static IReadOnlyList<string> SafeGetGroupNames(LoupixPlugin plugin)
+    private static ImmutableList<string> SafeGetGroupNames(LoupixPlugin plugin)
     {
         try
         {
             return plugin.GetCommands()
-                .Where(c => c?.Descriptor != null && !string.IsNullOrWhiteSpace(c.Descriptor.Group))
-                .Select(c => c.Descriptor.Group)
+                .Where(static c => c?.Descriptor != null && !string.IsNullOrWhiteSpace(c.Descriptor.Group))
+                .Select(static c => c.Descriptor.Group)
                 .Distinct(StringComparer.Ordinal)
-                .ToList();
+                .ToImmutableList();
         }
         catch (Exception ex)
         {
             Console.WriteLine($"PluginMenuContributor: failed to read groups of '{plugin.Metadata?.Id}': {ex.Message}");
-            return [];
+            return ImmutableList<string>.Empty;
         }
     }
 

@@ -240,7 +240,6 @@ public static class BitmapHelper
         return new SKColor(Mix(c.Red), Mix(c.Green), Mix(c.Blue), c.Alpha);
     }
 
-    private static Bitmap _rotaryKnobImage;
     private static bool _rotaryKnobImageLight;
 
     /// <summary>
@@ -262,13 +261,13 @@ public static class BitmapHelper
         get
         {
             var light = IsLightTheme;
-            if (_rotaryKnobImage == null || _rotaryKnobImageLight != light)
+            if (field == null || _rotaryKnobImageLight != light)
             {
-                _rotaryKnobImage = RenderRotaryKnobImage(90, 90);
+                field = RenderRotaryKnobImage(90, 90);
                 _rotaryKnobImageLight = light;
             }
 
-            return _rotaryKnobImage;
+            return field;
         }
     }
 
@@ -715,6 +714,11 @@ public static class BitmapHelper
     public const int EditorFrameExtent = 300;
 
     /// <summary>
+    /// Computes the scale factor for <see cref="ComputeEditorFrame"/>
+    /// </summary>
+    public static float ComputeEditorFrameScale(int deviceWidth, int deviceHeight) => EditorFrameExtent / (float)Math.Max(deviceWidth, deviceHeight);
+
+    /// <summary>
     /// Computes the editor frame geometry for a device surface of
     /// <paramref name="deviceWidth"/>×<paramref name="deviceHeight"/>: a uniform
     /// canvas-px-per-device-px scale (so aspect is preserved) and the resulting
@@ -722,7 +726,7 @@ public static class BitmapHelper
     /// </summary>
     public static (float Scale, float FrameWidth, float FrameHeight) ComputeEditorFrame(int deviceWidth, int deviceHeight)
     {
-        var scale = EditorFrameExtent / (float)Math.Max(deviceWidth, deviceHeight);
+        float scale = ComputeEditorFrameScale(deviceWidth, deviceHeight);
         return (scale, deviceWidth * scale, deviceHeight * scale);
     }
 

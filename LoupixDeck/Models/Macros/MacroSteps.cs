@@ -1,20 +1,15 @@
+using CommunityToolkit.Mvvm.ComponentModel;
+
 namespace LoupixDeck.Models.Macros;
 
 /// <summary>Types a text string via the virtual keyboard.</summary>
 public class TextStep : MacroStep
 {
-    private string _text = string.Empty;
-
     public string Text
     {
-        get => _text;
-        set
-        {
-            if (_text == value) return;
-            _text = value;
-            OnValueChanged();
-        }
-    }
+        get;
+        set => SetValueProperty(ref field, value);
+    } = string.Empty;
 
     public override MacroStepType StepType => MacroStepType.Text;
     public override string Icon => Glyph(0xF030C); // mdi-keyboard
@@ -25,19 +20,12 @@ public class TextStep : MacroStep
 /// <summary>Presses a key combination, e.g. "Ctrl+Shift+Esc".</summary>
 public class KeyCombinationStep : MacroStep
 {
-    private string _keys = string.Empty;
-
     /// <summary>Key names joined with '+', same syntax as System.KeyCombination.</summary>
     public string Keys
     {
-        get => _keys;
-        set
-        {
-            if (_keys == value) return;
-            _keys = value;
-            OnValueChanged();
-        }
-    }
+        get;
+        set => SetValueProperty(ref field, value);
+    } = string.Empty;
 
     public override MacroStepType StepType => MacroStepType.KeyCombination;
     public override string Icon => Glyph(0xF0317); // mdi-keyboard-variant
@@ -48,18 +36,11 @@ public class KeyCombinationStep : MacroStep
 /// <summary>Waits for a fixed amount of time before the next step.</summary>
 public class DelayStep : MacroStep
 {
-    private int _milliseconds = 100;
-
     public int Milliseconds
     {
-        get => _milliseconds;
-        set
-        {
-            if (_milliseconds == value) return;
-            _milliseconds = value;
-            OnValueChanged();
-        }
-    }
+        get;
+        set => SetValueProperty(ref field, value);
+    } = 100;
 
     public override MacroStepType StepType => MacroStepType.Delay;
     public override string Icon => Glyph(0xF051F); // mdi-timer-sand
@@ -70,18 +51,11 @@ public class DelayStep : MacroStep
 /// <summary>Presses (and holds) a single key without releasing it.</summary>
 public class KeyDownStep : MacroStep
 {
-    private string _key = string.Empty;
-
     public string Key
     {
-        get => _key;
-        set
-        {
-            if (_key == value) return;
-            _key = value;
-            OnValueChanged();
-        }
-    }
+        get;
+        set => SetValueProperty(ref field, value);
+    } = string.Empty;
 
     public override MacroStepType StepType => MacroStepType.KeyDown;
     public override string Icon => Glyph(0xF013C); // mdi-chevron-double-down
@@ -92,18 +66,11 @@ public class KeyDownStep : MacroStep
 /// <summary>Releases a key previously held down by a <see cref="KeyDownStep"/>.</summary>
 public class KeyUpStep : MacroStep
 {
-    private string _key = string.Empty;
-
     public string Key
     {
-        get => _key;
-        set
-        {
-            if (_key == value) return;
-            _key = value;
-            OnValueChanged();
-        }
-    }
+        get;
+        set => SetValueProperty(ref field, value);
+    } = string.Empty;
 
     public override MacroStepType StepType => MacroStepType.KeyUp;
     public override string Icon => Glyph(0xF013F); // mdi-chevron-double-up
@@ -112,33 +79,17 @@ public class KeyUpStep : MacroStep
 }
 
 /// <summary>Performs a mouse action (click, button down/up, move, scroll).</summary>
-public class MouseStep : MacroStep
+public partial class MouseStep : MacroStep
 {
     /// <summary>All selectable actions/buttons — bound by the editor's ComboBoxes.</summary>
     public static MouseStepAction[] AllActions { get; } = Enum.GetValues<MouseStepAction>();
 
     public static MouseButton[] AllButtons { get; } = Enum.GetValues<MouseButton>();
 
-    private MouseStepAction _action = MouseStepAction.Click;
-    private MouseButton _button = MouseButton.Left;
-    private int _x;
-    private int _y;
-    private int _amount = 1;
-
-    public MouseStepAction Action
-    {
-        get => _action;
-        set
-        {
-            if (_action == value) return;
-            _action = value;
-            OnValueChanged();
-            OnPropertyChanged(nameof(ShowsButton));
-            OnPropertyChanged(nameof(ShowsCoordinates));
-            OnPropertyChanged(nameof(ShowsAmount));
-            OnPropertyChanged(nameof(ShowsAbsoluteHint));
-        }
-    }
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowsButton), nameof(ShowsCoordinates))]
+    [NotifyPropertyChangedFor(nameof(ShowsAmount), nameof(ShowsAbsoluteHint))]
+    public partial MouseStepAction Action { get; set; } = MouseStepAction.Click;
 
     /// <summary>Editor visibility helpers — which fields apply to the selected action.</summary>
     [Newtonsoft.Json.JsonIgnore]
@@ -155,50 +106,30 @@ public class MouseStep : MacroStep
 
     public MouseButton Button
     {
-        get => _button;
-        set
-        {
-            if (_button == value) return;
-            _button = value;
-            OnValueChanged();
-        }
-    }
+        get;
+        set => SetValueProperty(ref field, value);
+    } = MouseButton.Left;
 
     /// <summary>X coordinate: relative delta for MoveRelative, screen pixel for MoveAbsolute.</summary>
     public int X
     {
-        get => _x;
-        set
-        {
-            if (_x == value) return;
-            _x = value;
-            OnValueChanged();
-        }
+        get;
+        set => SetValueProperty(ref field, value);
     }
 
     /// <summary>Y coordinate: relative delta for MoveRelative, screen pixel for MoveAbsolute.</summary>
     public int Y
     {
-        get => _y;
-        set
-        {
-            if (_y == value) return;
-            _y = value;
-            OnValueChanged();
-        }
+        get;
+        set => SetValueProperty(ref field, value);
     }
 
     /// <summary>Scroll amount in wheel detents (positive = up, negative = down).</summary>
     public int Amount
     {
-        get => _amount;
-        set
-        {
-            if (_amount == value) return;
-            _amount = value;
-            OnValueChanged();
-        }
-    }
+        get;
+        set => SetValueProperty(ref field, value);
+    } = 1;
 
     public override MacroStepType StepType => MacroStepType.Mouse;
     public override string Icon => Glyph(0xF037D); // mdi-mouse
@@ -224,35 +155,19 @@ public class MouseStep : MacroStep
 /// </summary>
 public class RepeatStartStep : MacroStep
 {
-    private int _count = 2;
-
     /// <summary>Number of times the block runs (clamped to at least 1 at execution time).</summary>
     public int Count
     {
-        get => _count;
-        set
-        {
-            if (_count == value) return;
-            _count = value;
-            OnValueChanged();
-        }
-    }
-
-    private int _loopDelayMilliseconds;
+        get;
+        set => SetValueProperty(ref field, value);
+    } = 2;
 
     /// <summary>Optional pause inserted between iterations (not after the last one).</summary>
     public int LoopDelayMilliseconds
     {
-        get => _loopDelayMilliseconds;
-        set
-        {
-            if (_loopDelayMilliseconds == value) return;
-            _loopDelayMilliseconds = value;
-            OnValueChanged();
-        }
+        get;
+        set => SetValueProperty(ref field, value);
     }
-
-    private bool _infinite;
 
     /// <summary>
     /// When true the block repeats forever (until the macro is stopped via the Stop
@@ -260,13 +175,8 @@ public class RepeatStartStep : MacroStep
     /// </summary>
     public bool Infinite
     {
-        get => _infinite;
-        set
-        {
-            if (_infinite == value) return;
-            _infinite = value;
-            OnValueChanged();
-        }
+        get;
+        set => SetValueProperty(ref field, value);
     }
 
     public override MacroStepType StepType => MacroStepType.RepeatStart;
@@ -301,34 +211,18 @@ public class RepeatEndStep : MacroStep
 /// </summary>
 public class SetVariableStep : MacroStep
 {
-    private string _name = string.Empty;
-
     /// <summary>Variable name (case-insensitive), without the surrounding braces.</summary>
     public string Name
     {
-        get => _name;
-        set
-        {
-            if (_name == value) return;
-            _name = value;
-            OnValueChanged();
-        }
-    }
-
-    private VariableOperation _operation = VariableOperation.Set;
+        get;
+        set => SetValueProperty(ref field, value);
+    } = string.Empty;
 
     public VariableOperation Operation
     {
-        get => _operation;
-        set
-        {
-            if (_operation == value) return;
-            _operation = value;
-            OnValueChanged();
-        }
-    }
-
-    private string _value = string.Empty;
+        get;
+        set => SetValueProperty(ref field, value);
+    } = VariableOperation.Set;
 
     /// <summary>
     /// For Set: the literal value (may contain <c>{placeholders}</c>). For Increment/Decrement:
@@ -336,14 +230,9 @@ public class SetVariableStep : MacroStep
     /// </summary>
     public string Value
     {
-        get => _value;
-        set
-        {
-            if (_value == value) return;
-            _value = value;
-            OnValueChanged();
-        }
-    }
+        get;
+        set => SetValueProperty(ref field, value);
+    } = string.Empty;
 
     /// <summary>All operations — bound by the editor's ComboBox.</summary>
     [Newtonsoft.Json.JsonIgnore]
@@ -370,8 +259,6 @@ public class SetVariableStep : MacroStep
 /// </summary>
 public class IfStep : MacroStep
 {
-    private MacroCondition _condition;
-
     public IfStep()
     {
         Condition = new MacroCondition();
@@ -380,16 +267,16 @@ public class IfStep : MacroStep
     /// <summary>The test evaluated when the block is reached. Never null after construction.</summary>
     public MacroCondition Condition
     {
-        get => _condition;
+        get;
         set
         {
-            if (ReferenceEquals(_condition, value)) return;
-            _condition?.PropertyChanged -= OnConditionChanged;
-            _condition = value ?? new MacroCondition();
-            _condition.PropertyChanged += OnConditionChanged;
+            if (ReferenceEquals(field, value)) return;
+            field?.PropertyChanged -= OnConditionChanged;
+            field = value ?? new MacroCondition();
+            field.PropertyChanged += OnConditionChanged;
             OnValueChanged();
         }
-    }
+    } = new();
 
     // Bubble the nested condition's changes so the panel summary refreshes live (and after
     // JSON Populate replaces the condition, the new instance stays wired up).
@@ -433,25 +320,18 @@ public class EndIfStep : MacroStep
 /// </summary>
 public class WaitForConditionStep : MacroStep
 {
-    private MacroCondition _condition;
-
-    public WaitForConditionStep()
-    {
-        Condition = new MacroCondition();
-    }
-
     public MacroCondition Condition
     {
-        get => _condition;
+        get;
         set
         {
-            if (ReferenceEquals(_condition, value)) return;
-            _condition?.PropertyChanged -= OnConditionChanged;
-            _condition = value ?? new MacroCondition();
-            _condition.PropertyChanged += OnConditionChanged;
+            if (ReferenceEquals(field, value)) return;
+            field?.PropertyChanged -= OnConditionChanged;
+            field = value ?? new MacroCondition();
+            field.PropertyChanged += OnConditionChanged;
             OnValueChanged();
         }
-    }
+    } = new();
 
     private void OnConditionChanged(object sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
@@ -461,46 +341,25 @@ public class WaitForConditionStep : MacroStep
         OnPropertyChanged(nameof(ValueText));
     }
 
-    private int _timeoutMilliseconds = 10000;
-
     /// <summary>Maximum time to wait; 0 means wait forever (until stopped).</summary>
     public int TimeoutMilliseconds
     {
-        get => _timeoutMilliseconds;
-        set
-        {
-            if (_timeoutMilliseconds == value) return;
-            _timeoutMilliseconds = value;
-            OnValueChanged();
-        }
-    }
-
-    private int _pollIntervalMilliseconds = 250;
+        get;
+        set => SetValueProperty(ref field, value);
+    } = 10000;
 
     /// <summary>How often the condition is re-checked while waiting.</summary>
     public int PollIntervalMilliseconds
     {
-        get => _pollIntervalMilliseconds;
-        set
-        {
-            if (_pollIntervalMilliseconds == value) return;
-            _pollIntervalMilliseconds = value;
-            OnValueChanged();
-        }
-    }
-
-    private WaitTimeoutBehavior _onTimeout = WaitTimeoutBehavior.Fail;
+        get;
+        set => SetValueProperty(ref field, value);
+    } = 250;
 
     public WaitTimeoutBehavior OnTimeout
     {
-        get => _onTimeout;
-        set
-        {
-            if (_onTimeout == value) return;
-            _onTimeout = value;
-            OnValueChanged();
-        }
-    }
+        get;
+        set => SetValueProperty(ref field, value);
+    } = WaitTimeoutBehavior.Fail;
 
     /// <summary>All timeout behaviours — bound by the editor's ComboBox.</summary>
     [Newtonsoft.Json.JsonIgnore]
@@ -527,47 +386,26 @@ public class WaitForConditionStep : MacroStep
 /// </summary>
 public class PromptStep : MacroStep
 {
-    private string _message = string.Empty;
-
     /// <summary>Prompt text shown to the user.</summary>
     public string Message
     {
-        get => _message;
-        set
-        {
-            if (_message == value) return;
-            _message = value;
-            OnValueChanged();
-        }
-    }
-
-    private string _variableName = string.Empty;
+        get;
+        set => SetValueProperty(ref field, value);
+    } = string.Empty;
 
     /// <summary>Variable the entered text is stored in.</summary>
     public string VariableName
     {
-        get => _variableName;
-        set
-        {
-            if (_variableName == value) return;
-            _variableName = value;
-            OnValueChanged();
-        }
-    }
-
-    private string _defaultValue = string.Empty;
+        get;
+        set => SetValueProperty(ref field, value);
+    } = string.Empty;
 
     /// <summary>Pre-filled value in the input box.</summary>
     public string DefaultValue
     {
-        get => _defaultValue;
-        set
-        {
-            if (_defaultValue == value) return;
-            _defaultValue = value;
-            OnValueChanged();
-        }
-    }
+        get;
+        set => SetValueProperty(ref field, value);
+    } = string.Empty;
 
     public override MacroStepType StepType => MacroStepType.Prompt;
     public override string Icon => Glyph(0xF0CB6); // mdi-tooltip-edit
@@ -579,18 +417,11 @@ public class PromptStep : MacroStep
 /// <summary>Runs an arbitrary LoupixDeck command string or shell command.</summary>
 public class CommandStep : MacroStep
 {
-    private string _commandString = string.Empty;
-
     public string CommandString
     {
-        get => _commandString;
-        set
-        {
-            if (_commandString == value) return;
-            _commandString = value;
-            OnValueChanged();
-        }
-    }
+        get;
+        set => SetValueProperty(ref field, value);
+    } = string.Empty;
 
     public override MacroStepType StepType => MacroStepType.Command;
     public override string Icon => Glyph(0xF018D); // mdi-console

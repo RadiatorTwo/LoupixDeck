@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using LoupixDeck.Controllers;
@@ -73,6 +74,7 @@ public partial class MainWindowViewModel : ViewModelBase
     /// Re-fetched whenever the theme variant changes (see <see cref="OnThemeVariantChanged"/>)
     /// so the knob plastic follows Light/Dark — the underlying bitmap self-heals on read.
     /// </summary>
+    [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Used in model binding")]
     public Avalonia.Media.Imaging.Bitmap RotaryKnobImage => Utils.BitmapHelper.RotaryKnobImage;
 
     private readonly IDynamicTextManager _dynamicTextManager;
@@ -86,7 +88,7 @@ public partial class MainWindowViewModel : ViewModelBase
     /// is set. Updated from <see cref="IExclusiveModeService.StateChanged"/>.
     /// </summary>
     [ObservableProperty]
-    public partial string IsExclusiveModeActive { get; private set; }
+    public partial bool IsExclusiveModeActive { get; private set; }
 
     /// <summary>Title of the active exclusive-mode provider, shown in the overlay.</summary>
     [ObservableProperty]

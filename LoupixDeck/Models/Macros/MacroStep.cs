@@ -55,6 +55,14 @@ public abstract partial class MacroStep
         OnPropertyChanged(nameof(ValueText));
     }
 
+    protected bool SetValueProperty<T>(ref T field, T value, [CallerMemberName] string propertyName = null)
+    {
+        bool result;
+        if (result = SetProperty(ref field, value, propertyName))
+            OnPropertyChanged(nameof(ValueText));
+        return result;
+    }
+
     /// <summary>Renders an MDI codepoint as a glyph string.</summary>
     protected static string Glyph(int codepoint) => char.ConvertFromUtf32(codepoint);
 }

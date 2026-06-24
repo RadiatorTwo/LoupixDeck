@@ -55,7 +55,7 @@ public partial class Settings : Window
     }
 
     /// <summary>Builds a list row: an enable checkbox plus the plugin name/status.</summary>
-    private Control BuildPluginListEntry(SettingsViewModel vm, LoadedPlugin plugin)
+    private StackPanel BuildPluginListEntry(SettingsViewModel vm, LoadedPlugin plugin)
     {
         var name = plugin.Manifest?.Name ?? plugin.Directory;
         var label = plugin.Status == PluginLoadStatus.Loaded
@@ -365,47 +365,33 @@ public partial class Settings : Window
             }
 
             PluginSettingsHost.Children.Add(new TextBlock { Text = descriptor.Label });
-
-            Control editor;
-            switch (descriptor.Kind)
+            Control editor = descriptor.Kind switch
             {
-                case PluginSettingKind.Toggle:
-                    editor = new CheckBox
-                    {
-                        IsChecked = settings.Get(descriptor.Key, descriptor.DefaultValue is true)
-                    };
-                    break;
-
-                case PluginSettingKind.Number:
-                    editor = new TextBox
-                    {
-                        Width = 160,
-                        HorizontalAlignment = HorizontalAlignment.Left,
-                        Text = settings.Get(descriptor.Key, ToLong(descriptor.DefaultValue))
-                            .ToString(System.Globalization.CultureInfo.InvariantCulture)
-                    };
-                    break;
-
-                case PluginSettingKind.Password:
-                    editor = new TextBox
-                    {
-                        Width = 280,
-                        HorizontalAlignment = HorizontalAlignment.Left,
-                        PasswordChar = '*',
-                        Text = settings.Get(descriptor.Key, descriptor.DefaultValue as string ?? string.Empty)
-                    };
-                    break;
-
-                default:
-                    editor = new TextBox
-                    {
-                        Width = 280,
-                        HorizontalAlignment = HorizontalAlignment.Left,
-                        Text = settings.Get(descriptor.Key, descriptor.DefaultValue as string ?? string.Empty)
-                    };
-                    break;
-            }
-
+                PluginSettingKind.Toggle => new CheckBox
+                {
+                    IsChecked = settings.Get(descriptor.Key, descriptor.DefaultValue is true)
+                },
+                PluginSettingKind.Number => new TextBox
+                {
+                    Width = 160,
+                    HorizontalAlignment = HorizontalAlignment.Left,
+                    Text = settings.Get(descriptor.Key, ToLong(descriptor.DefaultValue))
+                        .ToString(System.Globalization.CultureInfo.InvariantCulture)
+                },
+                PluginSettingKind.Password => new TextBox
+                {
+                    Width = 280,
+                    HorizontalAlignment = HorizontalAlignment.Left,
+                    PasswordChar = '*',
+                    Text = settings.Get(descriptor.Key, descriptor.DefaultValue as string ?? string.Empty)
+                },
+                _ => new TextBox
+                {
+                    Width = 280,
+                    HorizontalAlignment = HorizontalAlignment.Left,
+                    Text = settings.Get(descriptor.Key, descriptor.DefaultValue as string ?? string.Empty)
+                },
+            };
             PluginSettingsHost.Children.Add(editor);
 
             if (!string.IsNullOrWhiteSpace(descriptor.Description))
@@ -503,7 +489,7 @@ public partial class Settings : Window
         }
     }
 
-    private static long ToLong(object value)
+    private static long ToLong(object? value)
     {
         try
         {

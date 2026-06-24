@@ -292,8 +292,7 @@ public partial class App : Application
         return provider;
     }
 
-    private void OnViewModelCreated(MainShellViewModel shell, SplashScreen splashScreen,
-        IClassicDesktopStyleApplicationLifetime desktop)
+    private static void OnViewModelCreated(MainShellViewModel shell, SplashScreen splashScreen, IClassicDesktopStyleApplicationLifetime desktop)
     {
         if (shell?.SelectedDevice == null)
         {

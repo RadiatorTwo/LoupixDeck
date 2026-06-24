@@ -1,10 +1,10 @@
+using CommunityToolkit.Mvvm.ComponentModel;
+
 namespace LoupixDeck.Models;
 
-public class RotaryButton(int index,string rotaryLeftCommand, string rotaryRightCommand) : LoupedeckButton
+public partial class RotaryButton(int index,string rotaryLeftCommand, string rotaryRightCommand) : LoupedeckButton
 {
     public int Index { get; } = index;
-
-    private string _displayText = string.Empty;
 
     /// <summary>
     /// Static label shown for this knob on the side strip (segmented mode). Empty by
@@ -13,38 +13,17 @@ public class RotaryButton(int index,string rotaryLeftCommand, string rotaryRight
     /// </summary>
     public string DisplayText
     {
-        get => _displayText;
+        get;
         set
         {
-            if (_displayText == value) return;
-            _displayText = value;
-            OnPropertyChanged(nameof(DisplayText));
-            Refresh();
+            if (SetProperty(ref field, value))
+                Refresh();
         }
-    }
+    } = string.Empty;
 
-    private string _rotaryLeftCommand = rotaryLeftCommand;
-    private string _rotaryRightCommand = rotaryRightCommand;
+    [ObservableProperty]
+    public partial string RotaryLeftCommand { get; set; } = rotaryLeftCommand;
 
-    public string RotaryLeftCommand
-    {
-        get => _rotaryLeftCommand;
-        set
-        {
-            if (value == _rotaryLeftCommand) return;
-            _rotaryLeftCommand = value;
-            OnPropertyChanged(nameof(RotaryLeftCommand));
-        }
-    }
-
-    public string RotaryRightCommand
-    {
-        get => _rotaryRightCommand;
-        set
-        {
-            if (value == _rotaryRightCommand) return;
-            _rotaryRightCommand = value;
-            OnPropertyChanged(nameof(RotaryRightCommand));
-        }
-    }
+    [ObservableProperty]
+    public partial string RotaryRightCommand { get; set; } = rotaryRightCommand;
 }

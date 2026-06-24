@@ -14,7 +14,7 @@ public partial class RotaryButtonSettings : Window
     // The three sequence strips, paired with their chip list. Resolved once after
     // InitializeComponent; the owning slot is read from each list's DataContext at
     // use time (it is null until the view model has run Initialize).
-    private (Border Zone, ItemsControl List)[] _strips;
+    private readonly (Border Zone, ItemsControl List)[] _strips;
 
     // ───────── Chip-reorder drag state ─────────
 
