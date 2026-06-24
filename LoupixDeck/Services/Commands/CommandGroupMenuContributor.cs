@@ -23,9 +23,10 @@ public class CommandGroupMenuContributor(ICommandRegistry registry) : IMenuContr
         var result = new List<MenuEntry>();
 
         var groups = registry.GetAll()
-            .Where(c => c.Info != null && !string.IsNullOrEmpty(c.Info.Group))
-            .Where(c => !SpecializedGroups.Contains(c.Info.Group))
-            .Where(c => !c.HiddenFromMenu)
+            .Where(static c=> c.Info != null
+                           && !string.IsNullOrEmpty(c.Info.Group)
+                           && !SpecializedGroups.Contains(c.Info.Group)
+                           && !c.HiddenFromMenu)
             .Where(c => c.SupportedTargets.HasFlag(target))
             .GroupBy(c => c.Info.Group);
 
