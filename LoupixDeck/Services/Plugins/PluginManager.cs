@@ -569,8 +569,7 @@ public class PluginManager : IPluginManager
     private static bool DeviceEnables(IServiceProvider provider, string pluginId)
     {
         var enabled = provider?.GetService<Models.LoupedeckConfig>()?.EnabledPlugins;
-        return enabled != null
-               && enabled.Any(id => string.Equals(id, pluginId, StringComparison.OrdinalIgnoreCase));
+        return enabled?.Contains(pluginId, StringComparer.OrdinalIgnoreCase) == true;
     }
 
     private static bool PlatformMatches(string platform)

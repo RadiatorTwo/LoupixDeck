@@ -156,7 +156,7 @@ public class AssetService : IAssetService
     private static string NormalizeRelative(string relativePath)
     {
         var normalized = relativePath.Replace('\\', '/').Trim();
-        var prefix = AssetsFolderName + "/";
+        const string prefix = AssetsFolderName + "/";
         if (!normalized.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
             normalized = prefix + normalized.TrimStart('/');
         return normalized;

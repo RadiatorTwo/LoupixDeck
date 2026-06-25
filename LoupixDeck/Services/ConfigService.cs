@@ -211,7 +211,7 @@ public class ConfigService : IConfigService
         return root;
     }
 
-    private void BackupCorruptedFile(string filePath)
+    private static void BackupCorruptedFile(string filePath)
     {
         try
         {

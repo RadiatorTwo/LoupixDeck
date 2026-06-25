@@ -328,7 +328,7 @@ public sealed class AnimationScheduler : IAnimationScheduler, IDisposable
         }
     }
 
-    private TimeSpan IntervalFor(int targetFps, int globalLimit)
+    private static TimeSpan IntervalFor(int targetFps, int globalLimit)
     {
         var fps = targetFps > 0 ? Math.Min(targetFps, globalLimit) : globalLimit;
         if (fps <= 0) fps = DefaultGlobalFpsLimit;

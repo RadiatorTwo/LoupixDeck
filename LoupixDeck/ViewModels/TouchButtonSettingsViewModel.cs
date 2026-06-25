@@ -349,14 +349,15 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     /// <summary>Resolution badge shown in the canvas corner, e.g. "90 × 90 px".</summary>
     public string CanvasSizeText => $"{DeviceWidth} × {DeviceHeight} px";
 
+#nullable enable
+
     public LayerBase? SelectedLayer
     {
         get;
         set
         {
-            if (ReferenceEquals(field, value)) return;
-            field = value;
-            OnPropertyChanged(nameof(SelectedLayer));
+            if (!SetProperty(ref field, value))
+                return;
             OnPropertyChanged(nameof(SelectedImageLayer));
             OnPropertyChanged(nameof(SelectedTextLayer));
             OnPropertyChanged(nameof(ScaleHandlesVisible));
@@ -373,10 +374,12 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     /// (<see cref="LayerBase.IsCommandOwned"/>) cannot be deleted manually — they are
     /// removed by unbinding the button's command — so the delete button is disabled for them.
     /// </summary>
-    public bool CanDeleteSelectedLayer => SelectedLayer != null && !SelectedLayer.IsCommandOwned;
+    public bool CanDeleteSelectedLayer => SelectedLayer?.IsCommandOwned == false;
 
     [ObservableProperty]
-    public partial SKBitmap EditorPreview { get; private set; }
+    public partial SKBitmap? EditorPreview { get; private set; }
+
+#nullable restore
 
     /// <summary>
     /// On-canvas (editor-preview coordinates) bounds of the currently selected

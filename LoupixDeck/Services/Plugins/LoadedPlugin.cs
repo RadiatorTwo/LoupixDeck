@@ -1,3 +1,4 @@
+#nullable enable
 using LoupixDeck.PluginSdk;
 
 namespace LoupixDeck.Services.Plugins;
@@ -21,24 +22,24 @@ public enum PluginLoadStatus
 /// <summary>Runtime state of one discovered plugin.</summary>
 public sealed class LoadedPlugin
 {
-    public PluginManifest Manifest { get; init; }
+    public required PluginManifest Manifest { get; init; }
 
     /// <summary>Absolute path of the plugin's folder under <c>plugins/</c>.</summary>
-    public string Directory { get; init; }
+    public required string Directory { get; init; }
 
-    public PluginLoadStatus Status { get; set; }
+    public required PluginLoadStatus Status { get; set; }
 
     /// <summary>Human-readable reason when <see cref="Status"/> is not Loaded.</summary>
-    public string FailureReason { get; set; }
+    public string? FailureReason { get; set; }
 
     /// <summary>The plugin instance; null unless <see cref="Status"/> is Loaded.</summary>
-    public LoupixPlugin Instance { get; set; }
+    public LoupixPlugin? Instance { get; set; }
 
     /// <summary>The plugin's isolated load context; null unless loaded.</summary>
-    internal PluginLoadContext LoadContext { get; set; }
+    internal PluginLoadContext? LoadContext { get; set; }
 
     /// <summary>The host bridge handed to the plugin; null unless loaded.</summary>
-    public PluginHost Host { get; set; }
+    public PluginHost? Host { get; set; }
 
     /// <summary>Commands contributed by the plugin.</summary>
     public IReadOnlyList<IPluginCommand> Commands { get; set; } = Array.Empty<IPluginCommand>();

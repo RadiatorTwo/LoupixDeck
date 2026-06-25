@@ -125,7 +125,7 @@ public static class BitmapHelper
 
                 // 3. Bevel rim: a thin bright top edge fading to a dark bottom edge.
                 //    This alone gives the flat face just enough edge definition.
-                var rimWidth = 1.5f * ss;
+                const float rimWidth = 1.5f * ss;
                 using (var rimShader = SKShader.CreateLinearGradient(
                            new SKPoint(cx, cy - bodyRadius),
                            new SKPoint(cx, cy + bodyRadius),
@@ -156,7 +156,7 @@ public static class BitmapHelper
                 const float gapAngle = 50f;
                 const float startAngle = -45f + (gapAngle / 2f);
                 const float sweepAngle = 360f - gapAngle;
-                var coreWidth = 2.4f * ss;
+                const float coreWidth = 2.4f * ss;
 
                 using var ringPath = new SKPath();
                 ringPath.AddArc(oval, startAngle, sweepAngle);
@@ -520,6 +520,8 @@ public static class BitmapHelper
         }
     }
 
+#nullable enable
+
     /// <summary>Strokes a radial line from <paramref name="innerR"/> to <paramref name="outerR"/> at the given angle.</summary>
     private static void DrawRadialLine(SKCanvas canvas, float cx, float cy,
         float innerR, float outerR, float angle, SKPaint paint)
@@ -537,10 +539,10 @@ public static class BitmapHelper
     /// (480×270 for the main panel, 60×270 for a side display), computing and caching it
     /// on first use. The original image is resolved from the asset folder via
     /// <see cref="AssetResolver"/>, scaled/positioned with the slot's parameters and
-    /// optionally horizontally mirrored. Returns null when the slot has no image or the
-    /// asset is missing.
+    /// optionally horizontally mirrored.
     /// </summary>
-    public static SKBitmap GetOrBakeSlot(WallpaperSlot slot, int width, int height)
+    /// <returns>The baked and cached bitmap, or null if the slot has no image or the asset is missing.</returns>
+    public static SKBitmap? GetOrBakeSlot(WallpaperSlot? slot, int width, int height)
     {
         if (slot == null || !slot.HasImage) return null;
         if (slot.Baked != null) return slot.Baked;
@@ -579,11 +581,13 @@ public static class BitmapHelper
         return dst;
     }
 
-    private static bool HasAnyWallpaper(TouchButtonPage page) =>
+    private static bool HasAnyWallpaper(TouchButtonPage? page) =>
         page != null &&
         ((page.MainWallpaper?.HasImage ?? false) ||
          (page.LeftWallpaper?.HasImage ?? false) ||
          (page.RightWallpaper?.HasImage ?? false));
+
+#nullable restore
 
     /// <summary>
     /// Picks the page whose wallpapers should be drawn for the current view: the current
