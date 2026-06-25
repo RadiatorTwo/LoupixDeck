@@ -21,7 +21,7 @@ public class CommandAttribute(
     public string Group { get; } = group;
     public string? ParameterTemplate { get; }
 
-    public ImmutableArray<(string Name, Type Type)> Parameters { get; }
+    public ImmutableArray<(string Name, Type Type)> Parameters { get; } = ImmutableArray<(string Name, Type Type)>.Empty;
 
     public CommandPlatform Platform { get; init; } = CommandPlatform.All;
 
