@@ -1,4 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
 using Avalonia.Media;
 using LoupixDeck.Commands.Base;
 using LoupixDeck.Controllers;

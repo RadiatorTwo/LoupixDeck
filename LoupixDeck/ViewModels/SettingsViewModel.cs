@@ -1,5 +1,4 @@
 using System.Collections.ObjectModel;
-using System.Diagnostics.CodeAnalysis;
 using Avalonia;
 using Avalonia.Styling;
 using Avalonia.Threading;

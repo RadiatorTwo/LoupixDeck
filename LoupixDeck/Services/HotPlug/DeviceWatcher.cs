@@ -1,6 +1,5 @@
 using System.Diagnostics;
 #if WINDOWS
-using System.Diagnostics.CodeAnalysis;
 using System.Management;
 #endif
 

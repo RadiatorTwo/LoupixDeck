@@ -2,10 +2,11 @@ using System.Diagnostics;
 using LoupixDeck.Utils;
 
 #if WINDOWS
-using System.Diagnostics.CodeAnalysis;
 using System.Management;
 using System.Text.RegularExpressions;
 #endif
+
+namespace LoupixDeck.Utils;
 
 public static partial class SerialDeviceHelper
 {
