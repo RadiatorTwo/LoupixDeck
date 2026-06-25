@@ -28,7 +28,7 @@ public class PluginMenuContributor : IPluginMenuSource
 
         foreach (var plugin in _pluginManager.Plugins)
         {
-            if (plugin.Status != PluginLoadStatus.Loaded)
+            if (!plugin.IsLoaded)
                 continue;
 
             if (plugin.Instance is not SdkMenuContributor contributor)

@@ -503,8 +503,10 @@ public class PluginManager : IPluginManager
 
     public void ShutdownAll()
     {
-        foreach (var plugin in _plugins.Where(p => p.Status == PluginLoadStatus.Loaded))
+        foreach (var plugin in _plugins)
         {
+            if (!plugin.IsLoaded)
+                continue;
             try
             {
                 plugin.Instance?.Shutdown();

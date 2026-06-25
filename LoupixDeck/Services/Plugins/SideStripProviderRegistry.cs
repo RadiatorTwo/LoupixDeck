@@ -49,8 +49,10 @@ public sealed class SideStripProviderRegistry : ISideStripProviderRegistry
         var list = new List<ISideStripProvider>();
         var map = new Dictionary<string, ISideStripProvider>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var plugin in _pluginManager.Plugins.Where(p => p.Status == PluginLoadStatus.Loaded))
+        foreach (var plugin in _pluginManager.Plugins)
         {
+            if (!plugin.IsLoaded)
+                continue;
             foreach (var provider in plugin.SideStripProviders)
             {
                 if (provider == null || string.IsNullOrWhiteSpace(provider.Id))

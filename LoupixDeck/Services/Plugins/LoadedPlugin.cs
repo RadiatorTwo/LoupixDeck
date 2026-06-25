@@ -29,6 +29,10 @@ public sealed class LoadedPlugin
 
     public required PluginLoadStatus Status { get; set; }
 
+    [MemberNotNullWhen(true, nameof(Instance), nameof(LoadContext), nameof(Host))]
+    [MemberNotNullWhen(false, nameof(LoadContext))]
+    public bool IsLoaded => Status is PluginLoadStatus.Loaded;
+
     /// <summary>Human-readable reason when <see cref="Status"/> is not Loaded.</summary>
     public string? FailureReason { get; set; }
 

@@ -112,7 +112,7 @@ public sealed class PluginReloadService : IPluginReloadService
         // Stop any currently-loaded old version so a live update reloads cleanly;
         // a no-op for a brand-new install (nothing loaded yet).
         var existing = Find(id);
-        if (existing is { Status: PluginLoadStatus.Loaded })
+        if (existing?.IsLoaded is true)
         {
             TearDownOwnership(existing);
             _pluginManager.UnloadPlugin(id);
@@ -129,7 +129,7 @@ public sealed class PluginReloadService : IPluginReloadService
         await RefreshAsync();
 
         var name = loaded != null ? Name(loaded, id) : id;
-        if (loaded?.Status == PluginLoadStatus.Loaded)
+        if (loaded?.IsLoaded is true)
             return PluginActionResult.Ok($"Installed and loaded '{name}'.", requiresRestart: false, pluginId: id);
 
         return PluginActionResult.Ok(
