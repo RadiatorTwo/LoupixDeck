@@ -64,12 +64,12 @@ public partial class LoupedeckConfig : ObservableObject
     // null = "auto" (active when the driver is installed); false = explicitly off.
     // Missing in older config.json simply stays null → auto behaviour (backward compatible).
     [ObservableProperty]
-    private bool? _interceptionEnabled;
+    public partial bool? InterceptionEnabled { get; set; }
 
     // Visual flash overlay on touch press — useful especially on the Razer
     // (no LED ring on touch buttons) so the user gets visible feedback.
     [ObservableProperty]
-    private bool _touchFeedbackEnabled;
+    public partial bool TouchFeedbackEnabled { get; set; }
 
     [ObservableProperty]
     private Avalonia.Media.Color _touchFeedbackColor = Avalonia.Media.Colors.White;
@@ -85,7 +85,7 @@ public partial class LoupedeckConfig : ObservableObject
     // Defends against the device emitting duplicate TOUCH_START at button
     // boundaries or when the finger slides across slots.
     [ObservableProperty]
-    private bool _touchSlidingPreventionEnabled = true;
+    public partial bool TouchSlidingPreventionEnabled { get; set; } = true;
 
     // ───────── Screensaver (issue #120) ─────────
     // Full-display animated screensaver: after the device has been idle for
@@ -95,26 +95,26 @@ public partial class LoupedeckConfig : ObservableObject
     // this feature loads unchanged (the screensaver is simply off by default).
 
     [ObservableProperty]
-    private bool _screensaverEnabled;
+    public partial bool ScreensaverEnabled { get; set; }
 
     [ObservableProperty]
-    private int _screensaverIdleTimeoutSeconds = 300;
+    public partial int ScreensaverIdleTimeoutSeconds { get; set; } = 300;
 
     [ObservableProperty]
-    private int _screensaverFps = 30;
+    public partial int ScreensaverFps { get; set; } = 30;
 
     // Relative asset path (e.g. "assets/screensavers/<hash>.mp4") of the source clip,
     // or null when none is chosen. Resolved through the asset folder at playback time.
     [ObservableProperty]
-    private string _screensaverVideoPath;
+    public partial string ScreensaverVideoPath { get; set; }
 
     // Original file name of the chosen clip (display only). The asset itself is stored
     // content-addressed (hash filename), so this keeps a human-readable label in settings.
     [ObservableProperty]
-    private string _screensaverVideoName;
+    public partial string ScreensaverVideoName { get; set; }
 
     [ObservableProperty]
-    private bool _screensaverLoop = true;
+    public partial bool ScreensaverLoop { get; set; } = true;
 
     public SimpleButton[] SimpleButtons { get; set; }
 
@@ -128,10 +128,10 @@ public partial class LoupedeckConfig : ObservableObject
         => OnPropertyChanged(nameof(RotaryPageLabel));
 
     [ObservableProperty]
-    [property: JsonIgnore]
+    [JsonIgnore]
     [NotifyPropertyChangedFor(nameof(CurrentRotaryButtonPage))]
     [NotifyPropertyChangedFor(nameof(RotaryPageLabel))]
-    private int _currentRotaryPageIndex = -1;
+    public partial int CurrentRotaryPageIndex { get; set; } = -1;
 
     [JsonIgnore]
     public RotaryButtonPage CurrentRotaryButtonPage =>
@@ -173,16 +173,16 @@ public partial class LoupedeckConfig : ObservableObject
         => OnPropertyChanged(nameof(RightRotaryPageLabel));
 
     [ObservableProperty]
-    [property: JsonIgnore]
+    [JsonIgnore]
     [NotifyPropertyChangedFor(nameof(CurrentLeftRotaryButtonPage))]
     [NotifyPropertyChangedFor(nameof(LeftRotaryPageLabel))]
-    private int _currentLeftRotaryPageIndex = -1;
+    public partial int CurrentLeftRotaryPageIndex { get; set; } = -1;
 
     [ObservableProperty]
-    [property: JsonIgnore]
+    [JsonIgnore]
     [NotifyPropertyChangedFor(nameof(CurrentRightRotaryButtonPage))]
     [NotifyPropertyChangedFor(nameof(RightRotaryPageLabel))]
-    private int _currentRightRotaryPageIndex = -1;
+    public partial int CurrentRightRotaryPageIndex { get; set; } = -1;
 
     [JsonIgnore]
     public RotaryButtonPage CurrentLeftRotaryButtonPage =>
@@ -227,10 +227,10 @@ public partial class LoupedeckConfig : ObservableObject
         => OnPropertyChanged(nameof(TouchPageLabel));
 
     [ObservableProperty]
-    [property: JsonIgnore]
+    [JsonIgnore]
     [NotifyPropertyChangedFor(nameof(CurrentTouchButtonPage))]
     [NotifyPropertyChangedFor(nameof(TouchPageLabel))]
-    private int _currentTouchPageIndex = -1;
+    public partial int CurrentTouchPageIndex { get; set; } = -1;
 
     [JsonIgnore]
     public TouchButtonPage CurrentTouchButtonPage =>
@@ -248,16 +248,16 @@ public partial class LoupedeckConfig : ObservableObject
             : "0 / 0";
 
     [ObservableProperty]
-    private int _brightness = 100;
+    public partial int Brightness { get; set; } = 100;
 
     // Briefly draws the page name on touch button 0 after switching pages.
     // Opt-in: many users find the 2s overlay distracting and prefer to keep
     // their layout visible.
     [ObservableProperty]
-    private bool _showPageNameOverlayEnabled;
+    public partial bool ShowPageNameOverlayEnabled { get; set; }
 
     [ObservableProperty]
-    private bool _hapticEnabled;
+    public partial bool HapticEnabled { get; set; }
 
     /// <summary>
     /// Ids of plugins the user has enabled. The v2→v3 migration seeds this from
@@ -274,7 +274,7 @@ public partial class LoupedeckConfig : ObservableObject
     // --- App-focus page switching (Feature 2) ---------------------------------
     // Master toggle for the foreground-window → page mapping.
     [ObservableProperty]
-    private bool _appSwitchingEnabled;
+    public partial bool AppSwitchingEnabled { get; set; }
 
     // Ordered rule list — first match wins. ObjectCreationHandling.Replace for the
     // same reason as HapticSteps (avoid Newtonsoft appending to the default instance).
