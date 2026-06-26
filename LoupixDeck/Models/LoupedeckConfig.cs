@@ -12,26 +12,13 @@ namespace LoupixDeck.Models;
 /// <remarks>
 /// Change notification is provided by the MVVM Community Toolkit: deriving from
 /// <see cref="ObservableObject"/> implements <see cref="System.ComponentModel.INotifyPropertyChanged"/>,
-/// and <c>[ObservableProperty]</c> source-generates the bindable properties from the
-/// backing fields. Dependent computed properties are refreshed via
-/// <c>[NotifyPropertyChangedFor]</c>; the generated <c>On…Changing</c> hooks keep the
+/// and <c>[ObservableProperty]</c> source-generates the implementations of each property.
+/// Dependent computed properties are refreshed via
+/// <c>[NotifyPropertyChangedFor]</c>; the generated <c>On…Changing</c>/<c>On…Changed</c> hooks keep the
 /// page collections' <see cref="INotifyCollectionChanged"/> subscriptions in sync.
-/// JSON property names are unchanged (generated names match the former hand-written ones),
-/// so existing config files load identically.
 /// </remarks>
 public partial class LoupedeckConfig : ObservableObject
 {
-    public LoupedeckConfig()
-    {
-        // Newtonsoft populates the field-initialized collections in place (no
-        // ObjectCreationHandling.Replace), so the property setters never fire on
-        // load — subscribe here to keep the page-count labels in sync.
-        _rotaryButtonPages.CollectionChanged += OnRotaryPagesChanged;
-        _leftRotaryButtonPages.CollectionChanged += OnLeftRotaryPagesChanged;
-        _rightRotaryButtonPages.CollectionChanged += OnRightRotaryPagesChanged;
-        _touchButtonPages.CollectionChanged += OnTouchPagesChanged;
-    }
-
     /// <summary>
     /// Schema version of the persisted config. <see cref="ConfigService"/> runs
     /// the migration chain for older versions (see <c>Services/Migrations</c>).
@@ -139,12 +126,10 @@ public partial class LoupedeckConfig : ObservableObject
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(RotaryPageLabel))]
-    private ObservableCollection<RotaryButtonPage> _rotaryButtonPages = [];
+    public partial ObservableCollection<RotaryButtonPage> RotaryButtonPages { get; set; } = [];
 
-    partial void OnRotaryButtonPagesChanging(
-        ObservableCollection<RotaryButtonPage> oldValue, ObservableCollection<RotaryButtonPage> newValue)
-        => Resubscribe(oldValue, newValue, OnRotaryPagesChanged);
-
+    partial void OnRotaryButtonPagesChanging(ObservableCollection<RotaryButtonPage> value) => RotaryButtonPages?.CollectionChanged -= OnRotaryPagesChanged;
+    partial void OnRotaryButtonPagesChanged(ObservableCollection<RotaryButtonPage> value) => RotaryButtonPages?.CollectionChanged += OnRotaryPagesChanged;
     private void OnRotaryPagesChanged(object sender, NotifyCollectionChangedEventArgs e)
         => OnPropertyChanged(nameof(RotaryPageLabel));
 
@@ -177,23 +162,19 @@ public partial class LoupedeckConfig : ObservableObject
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(LeftRotaryPageLabel))]
-    private ObservableCollection<RotaryButtonPage> _leftRotaryButtonPages = [];
+    public partial ObservableCollection<RotaryButtonPage> LeftRotaryButtonPages { get; set; } = [];
 
-    partial void OnLeftRotaryButtonPagesChanging(
-        ObservableCollection<RotaryButtonPage> oldValue, ObservableCollection<RotaryButtonPage> newValue)
-        => Resubscribe(oldValue, newValue, OnLeftRotaryPagesChanged);
-
+    partial void OnLeftRotaryButtonPagesChanging(ObservableCollection<RotaryButtonPage> value) => LeftRotaryButtonPages?.CollectionChanged -= OnLeftRotaryPagesChanged;
+    partial void OnLeftRotaryButtonPagesChanged(ObservableCollection<RotaryButtonPage> value) => LeftRotaryButtonPages?.CollectionChanged += OnLeftRotaryPagesChanged;
     private void OnLeftRotaryPagesChanged(object sender, NotifyCollectionChangedEventArgs e)
         => OnPropertyChanged(nameof(LeftRotaryPageLabel));
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(RightRotaryPageLabel))]
-    private ObservableCollection<RotaryButtonPage> _rightRotaryButtonPages = [];
+    public partial ObservableCollection<RotaryButtonPage> RightRotaryButtonPages { get; set; } = [];
 
-    partial void OnRightRotaryButtonPagesChanging(
-        ObservableCollection<RotaryButtonPage> oldValue, ObservableCollection<RotaryButtonPage> newValue)
-        => Resubscribe(oldValue, newValue, OnRightRotaryPagesChanged);
-
+    partial void OnRightRotaryButtonPagesChanging(ObservableCollection<RotaryButtonPage> value) => RightRotaryButtonPages?.CollectionChanged -= OnRightRotaryPagesChanged;
+    partial void OnRightRotaryButtonPagesChanged(ObservableCollection<RotaryButtonPage> value) => RightRotaryButtonPages?.CollectionChanged += OnRightRotaryPagesChanged;
     private void OnRightRotaryPagesChanged(object sender, NotifyCollectionChangedEventArgs e)
         => OnPropertyChanged(nameof(RightRotaryPageLabel));
 
@@ -244,12 +225,10 @@ public partial class LoupedeckConfig : ObservableObject
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(TouchPageLabel))]
-    private ObservableCollection<TouchButtonPage> _touchButtonPages = [];
+    public partial ObservableCollection<TouchButtonPage> TouchButtonPages { get; set; } = [];
 
-    partial void OnTouchButtonPagesChanging(
-        ObservableCollection<TouchButtonPage> oldValue, ObservableCollection<TouchButtonPage> newValue)
-        => Resubscribe(oldValue, newValue, OnTouchPagesChanged);
-
+    partial void OnTouchButtonPagesChanging(ObservableCollection<TouchButtonPage> value) => TouchButtonPages?.CollectionChanged -= OnTouchPagesChanged;
+    partial void OnTouchButtonPagesChanged(ObservableCollection<TouchButtonPage> value) => TouchButtonPages?.CollectionChanged += OnTouchPagesChanged;
     private void OnTouchPagesChanged(object sender, NotifyCollectionChangedEventArgs e)
         => OnPropertyChanged(nameof(TouchPageLabel));
 
@@ -310,15 +289,4 @@ public partial class LoupedeckConfig : ObservableObject
 
     // Touch page to switch to when no rule matches. null = do nothing on no-match.
     public int? AppSwitchingFallbackTouchPageIndex { get; set; }
-
-    // Moves a page collection's CollectionChanged subscription from the old instance
-    // to the new one when the whole collection is reassigned (e.g. by a migration).
-    private static void Resubscribe<T>(
-        ObservableCollection<T> oldValue,
-        ObservableCollection<T> newValue,
-        NotifyCollectionChangedEventHandler handler)
-    {
-        if (oldValue is not null) oldValue.CollectionChanged -= handler;
-        if (newValue is not null) newValue.CollectionChanged += handler;
-    }
 }
