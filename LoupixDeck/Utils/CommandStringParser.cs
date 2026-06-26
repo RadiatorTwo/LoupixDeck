@@ -8,11 +8,12 @@ namespace LoupixDeck.Utils;
 /// touch-button command editor split and dissect commands identically — they must
 /// not drift apart, or a string the editor builds could be executed differently.
 /// </summary>
-public static class CommandStringParser
+public static partial class CommandStringParser
 {
     // Splits on "&&" with any amount of surrounding whitespace, so both
     // "a && b" and "a&&b" are treated the same.
-    private static readonly Regex ChainSplitter = new(@"\s*&&\s*", RegexOptions.Compiled);
+    [GeneratedRegex(@"\s*&&\s*")]
+    private static partial Regex ChainSplitter { get; }
 
     /// <summary>Splits a chained command into its individual segments (already trimmed,
     /// empty segments removed).</summary>
