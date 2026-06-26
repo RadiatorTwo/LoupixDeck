@@ -76,16 +76,10 @@ public partial class LoupedeckConfig : ObservableObject
 
     // Hand-written: an epsilon guard suppresses redundant notifications for the tiny
     // float deltas a slider can emit, which the generated exact-equality check wouldn't.
-    private double _touchFeedbackOpacity = 0.5;
     public double TouchFeedbackOpacity
     {
-        get => _touchFeedbackOpacity;
-        set
-        {
-            if (Math.Abs(_touchFeedbackOpacity - value) < 0.0001) return;
-            SetProperty(ref _touchFeedbackOpacity, value);
-        }
-    }
+        get; set => SetProperty(ref field, value, EpsilonComparer.Default);
+    } = 0.5;
 
     // While a finger is down, ignore further TOUCH_START events until TOUCH_END.
     // Defends against the device emitting duplicate TOUCH_START at button
