@@ -50,7 +50,7 @@ public sealed partial class MacroContext
 
     // Matches {name} placeholders; the name is anything but braces so nesting is rejected.
 
-    [GeneratedRegex(@"\{([^{}]+)\}", RegexOptions.Compiled)]
+    [GeneratedRegex(@"\{([^{}]+)\}", RegexOptions.CultureInvariant)]
     private static partial Regex PlaceholderPattern { get; }
 
     /// <summary>
