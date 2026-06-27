@@ -24,13 +24,13 @@ public static partial class SerialDeviceHelper
     );
 
 #if WINDOWS
-    [GeneratedRegex(@"PID_([0-9A-F]{4})", RegexOptions.IgnoreCase, "en-US")]
+    [GeneratedRegex(@"PID_([0-9A-F]{4})", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex regexPid { get; }
 
-    [GeneratedRegex(@"VID_([0-9A-F]{4})", RegexOptions.IgnoreCase, "en-US")]
+    [GeneratedRegex(@"VID_([0-9A-F]{4})", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex regexVid { get; }
 
-    [GeneratedRegex(@"\(COM(\d+)\)", RegexOptions.IgnoreCase, "en-US")]
+    [GeneratedRegex(@"\(COM(\d+)\)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex regexCom { get; }
 
     // SuppressMessage rather than [SupportedOSPlatform] — the latter cascades to

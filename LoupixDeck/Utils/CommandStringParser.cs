@@ -12,7 +12,7 @@ public static partial class CommandStringParser
 {
     // Splits on "&&" with any amount of surrounding whitespace, so both
     // "a && b" and "a&&b" are treated the same.
-    [GeneratedRegex(@"\s*&&\s*")]
+    [GeneratedRegex(@"\s*&&\s*", RegexOptions.CultureInvariant)]
     private static partial Regex ChainSplitter { get; }
 
     /// <summary>Splits a chained command into its individual segments (already trimmed,
