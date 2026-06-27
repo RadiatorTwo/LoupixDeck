@@ -12,24 +12,28 @@ namespace LoupixDeck.Models;
 /// <remarks>
 /// Change notification is provided by the MVVM Community Toolkit: deriving from
 /// <see cref="ObservableObject"/> implements <see cref="System.ComponentModel.INotifyPropertyChanged"/>,
-/// and <c>[ObservableProperty]</c> source-generates the bindable properties from the
-/// backing fields. Dependent computed properties are refreshed via
-/// <c>[NotifyPropertyChangedFor]</c>; the generated <c>On…Changing</c> hooks keep the
+/// and <c>[ObservableProperty]</c> source-generates the implementations of each property.
+/// Dependent computed properties are refreshed via
+/// <c>[NotifyPropertyChangedFor]</c>; the generated <c>On…Changing</c>/<c>On…Changed</c> hooks keep the
 /// page collections' <see cref="INotifyCollectionChanged"/> subscriptions in sync.
-/// JSON property names are unchanged (generated names match the former hand-written ones),
-/// so existing config files load identically.
 /// </remarks>
 public partial class LoupedeckConfig : ObservableObject
 {
     public LoupedeckConfig()
     {
-        // Newtonsoft populates the field-initialized collections in place (no
-        // ObjectCreationHandling.Replace), so the property setters never fire on
-        // load — subscribe here to keep the page-count labels in sync.
-        _rotaryButtonPages.CollectionChanged += OnRotaryPagesChanged;
-        _leftRotaryButtonPages.CollectionChanged += OnLeftRotaryPagesChanged;
-        _rightRotaryButtonPages.CollectionChanged += OnRightRotaryPagesChanged;
-        _touchButtonPages.CollectionChanged += OnTouchPagesChanged;
+        // A note on initializing from the constructor vs property setters:
+        // *Usually* setters are called to, you know, set the property (whether by us or a deserializer)
+        // But in fact an inline `... { get; set; } = new();` goes straight to the field
+        // bypassing any extra event-wiring - thus, this constructor enforces the execution of MvvmToolkit's
+        // generated setters (and calling of our handlers)
+        RotaryButtonPages = new();
+        LeftRotaryButtonPages = new();
+        RightRotaryButtonPages = new();
+        TouchButtonPages = new();
+
+        // AppPageBindings and HapticSteps don't need
+        // to be assigned here, because (as of writing) there is no
+        // additional wiring that needs to be done upon assignment
     }
 
     /// <summary>
@@ -77,34 +81,28 @@ public partial class LoupedeckConfig : ObservableObject
     // null = "auto" (active when the driver is installed); false = explicitly off.
     // Missing in older config.json simply stays null → auto behaviour (backward compatible).
     [ObservableProperty]
-    private bool? _interceptionEnabled;
+    public partial bool? InterceptionEnabled { get; set; }
 
     // Visual flash overlay on touch press — useful especially on the Razer
     // (no LED ring on touch buttons) so the user gets visible feedback.
     [ObservableProperty]
-    private bool _touchFeedbackEnabled;
+    public partial bool TouchFeedbackEnabled { get; set; }
 
     [ObservableProperty]
-    private Avalonia.Media.Color _touchFeedbackColor = Avalonia.Media.Colors.White;
+    public partial Avalonia.Media.Color TouchFeedbackColor { get; set; } = Avalonia.Media.Colors.White;
 
     // Hand-written: an epsilon guard suppresses redundant notifications for the tiny
     // float deltas a slider can emit, which the generated exact-equality check wouldn't.
-    private double _touchFeedbackOpacity = 0.5;
     public double TouchFeedbackOpacity
     {
-        get => _touchFeedbackOpacity;
-        set
-        {
-            if (Math.Abs(_touchFeedbackOpacity - value) < 0.0001) return;
-            SetProperty(ref _touchFeedbackOpacity, value);
-        }
-    }
+        get; set => SetProperty(ref field, value, EpsilonComparer.Default);
+    } = 0.5;
 
     // While a finger is down, ignore further TOUCH_START events until TOUCH_END.
     // Defends against the device emitting duplicate TOUCH_START at button
     // boundaries or when the finger slides across slots.
     [ObservableProperty]
-    private bool _touchSlidingPreventionEnabled = true;
+    public partial bool TouchSlidingPreventionEnabled { get; set; } = true;
 
     // ───────── Screensaver (issue #120) ─────────
     // Full-display animated screensaver: after the device has been idle for
@@ -114,45 +112,43 @@ public partial class LoupedeckConfig : ObservableObject
     // this feature loads unchanged (the screensaver is simply off by default).
 
     [ObservableProperty]
-    private bool _screensaverEnabled;
+    public partial bool ScreensaverEnabled { get; set; }
 
     [ObservableProperty]
-    private int _screensaverIdleTimeoutSeconds = 300;
+    public partial int ScreensaverIdleTimeoutSeconds { get; set; } = 300;
 
     [ObservableProperty]
-    private int _screensaverFps = 30;
+    public partial int ScreensaverFps { get; set; } = 30;
 
     // Relative asset path (e.g. "assets/screensavers/<hash>.mp4") of the source clip,
     // or null when none is chosen. Resolved through the asset folder at playback time.
     [ObservableProperty]
-    private string _screensaverVideoPath;
+    public partial string ScreensaverVideoPath { get; set; }
 
     // Original file name of the chosen clip (display only). The asset itself is stored
     // content-addressed (hash filename), so this keeps a human-readable label in settings.
     [ObservableProperty]
-    private string _screensaverVideoName;
+    public partial string ScreensaverVideoName { get; set; }
 
     [ObservableProperty]
-    private bool _screensaverLoop = true;
+    public partial bool ScreensaverLoop { get; set; } = true;
 
     public SimpleButton[] SimpleButtons { get; set; }
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(RotaryPageLabel))]
-    private ObservableCollection<RotaryButtonPage> _rotaryButtonPages = [];
+    public partial ObservableCollection<RotaryButtonPage> RotaryButtonPages { get; set; }
 
-    partial void OnRotaryButtonPagesChanging(
-        ObservableCollection<RotaryButtonPage> oldValue, ObservableCollection<RotaryButtonPage> newValue)
-        => Resubscribe(oldValue, newValue, OnRotaryPagesChanged);
-
+    partial void OnRotaryButtonPagesChanging(ObservableCollection<RotaryButtonPage> value) => RightRotaryButtonPages?.CollectionChanged -= OnRotaryPagesChanged;
+    partial void OnRotaryButtonPagesChanged(ObservableCollection<RotaryButtonPage> value) => RightRotaryButtonPages?.CollectionChanged += OnRotaryPagesChanged;
     private void OnRotaryPagesChanged(object sender, NotifyCollectionChangedEventArgs e)
         => OnPropertyChanged(nameof(RotaryPageLabel));
 
     [ObservableProperty]
-    [property: JsonIgnore]
+    [JsonIgnore]
     [NotifyPropertyChangedFor(nameof(CurrentRotaryButtonPage))]
     [NotifyPropertyChangedFor(nameof(RotaryPageLabel))]
-    private int _currentRotaryPageIndex = -1;
+    public partial int CurrentRotaryPageIndex { get; set; } = -1;
 
     [JsonIgnore]
     public RotaryButtonPage CurrentRotaryButtonPage =>
@@ -177,37 +173,33 @@ public partial class LoupedeckConfig : ObservableObject
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(LeftRotaryPageLabel))]
-    private ObservableCollection<RotaryButtonPage> _leftRotaryButtonPages = [];
+    public partial ObservableCollection<RotaryButtonPage> LeftRotaryButtonPages { get; set; }
 
-    partial void OnLeftRotaryButtonPagesChanging(
-        ObservableCollection<RotaryButtonPage> oldValue, ObservableCollection<RotaryButtonPage> newValue)
-        => Resubscribe(oldValue, newValue, OnLeftRotaryPagesChanged);
-
+    partial void OnLeftRotaryButtonPagesChanging(ObservableCollection<RotaryButtonPage> value) => LeftRotaryButtonPages?.CollectionChanged -= OnLeftRotaryPagesChanged;
+    partial void OnLeftRotaryButtonPagesChanged(ObservableCollection<RotaryButtonPage> value) => LeftRotaryButtonPages?.CollectionChanged += OnLeftRotaryPagesChanged;
     private void OnLeftRotaryPagesChanged(object sender, NotifyCollectionChangedEventArgs e)
         => OnPropertyChanged(nameof(LeftRotaryPageLabel));
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(RightRotaryPageLabel))]
-    private ObservableCollection<RotaryButtonPage> _rightRotaryButtonPages = [];
+    public partial ObservableCollection<RotaryButtonPage> RightRotaryButtonPages { get; set; }
 
-    partial void OnRightRotaryButtonPagesChanging(
-        ObservableCollection<RotaryButtonPage> oldValue, ObservableCollection<RotaryButtonPage> newValue)
-        => Resubscribe(oldValue, newValue, OnRightRotaryPagesChanged);
-
+    partial void OnRightRotaryButtonPagesChanging(ObservableCollection<RotaryButtonPage> value) => RightRotaryButtonPages?.CollectionChanged -= OnRightRotaryPagesChanged;
+    partial void OnRightRotaryButtonPagesChanged(ObservableCollection<RotaryButtonPage> value) => RightRotaryButtonPages?.CollectionChanged += OnRightRotaryPagesChanged;
     private void OnRightRotaryPagesChanged(object sender, NotifyCollectionChangedEventArgs e)
         => OnPropertyChanged(nameof(RightRotaryPageLabel));
 
     [ObservableProperty]
-    [property: JsonIgnore]
+    [JsonIgnore]
     [NotifyPropertyChangedFor(nameof(CurrentLeftRotaryButtonPage))]
     [NotifyPropertyChangedFor(nameof(LeftRotaryPageLabel))]
-    private int _currentLeftRotaryPageIndex = -1;
+    public partial int CurrentLeftRotaryPageIndex { get; set; } = -1;
 
     [ObservableProperty]
-    [property: JsonIgnore]
+    [JsonIgnore]
     [NotifyPropertyChangedFor(nameof(CurrentRightRotaryButtonPage))]
     [NotifyPropertyChangedFor(nameof(RightRotaryPageLabel))]
-    private int _currentRightRotaryPageIndex = -1;
+    public partial int CurrentRightRotaryPageIndex { get; set; } = -1;
 
     [JsonIgnore]
     public RotaryButtonPage CurrentLeftRotaryButtonPage =>
@@ -244,20 +236,18 @@ public partial class LoupedeckConfig : ObservableObject
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(TouchPageLabel))]
-    private ObservableCollection<TouchButtonPage> _touchButtonPages = [];
+    public partial ObservableCollection<TouchButtonPage> TouchButtonPages { get; set; }
 
-    partial void OnTouchButtonPagesChanging(
-        ObservableCollection<TouchButtonPage> oldValue, ObservableCollection<TouchButtonPage> newValue)
-        => Resubscribe(oldValue, newValue, OnTouchPagesChanged);
-
+    partial void OnTouchButtonPagesChanging(ObservableCollection<TouchButtonPage> value) => TouchButtonPages?.CollectionChanged -= OnTouchPagesChanged;
+    partial void OnTouchButtonPagesChanged(ObservableCollection<TouchButtonPage> value) => TouchButtonPages?.CollectionChanged += OnTouchPagesChanged;
     private void OnTouchPagesChanged(object sender, NotifyCollectionChangedEventArgs e)
         => OnPropertyChanged(nameof(TouchPageLabel));
 
     [ObservableProperty]
-    [property: JsonIgnore]
+    [JsonIgnore]
     [NotifyPropertyChangedFor(nameof(CurrentTouchButtonPage))]
     [NotifyPropertyChangedFor(nameof(TouchPageLabel))]
-    private int _currentTouchPageIndex = -1;
+    public partial int CurrentTouchPageIndex { get; set; } = -1;
 
     [JsonIgnore]
     public TouchButtonPage CurrentTouchButtonPage =>
@@ -275,16 +265,16 @@ public partial class LoupedeckConfig : ObservableObject
             : "0 / 0";
 
     [ObservableProperty]
-    private int _brightness = 100;
+    public partial int Brightness { get; set; } = 100;
 
     // Briefly draws the page name on touch button 0 after switching pages.
     // Opt-in: many users find the 2s overlay distracting and prefer to keep
     // their layout visible.
     [ObservableProperty]
-    private bool _showPageNameOverlayEnabled;
+    public partial bool ShowPageNameOverlayEnabled { get; set; }
 
     [ObservableProperty]
-    private bool _hapticEnabled;
+    public partial bool HapticEnabled { get; set; }
 
     /// <summary>
     /// Ids of plugins the user has enabled. The v2→v3 migration seeds this from
@@ -301,7 +291,7 @@ public partial class LoupedeckConfig : ObservableObject
     // --- App-focus page switching (Feature 2) ---------------------------------
     // Master toggle for the foreground-window → page mapping.
     [ObservableProperty]
-    private bool _appSwitchingEnabled;
+    public partial bool AppSwitchingEnabled { get; set; }
 
     // Ordered rule list — first match wins. ObjectCreationHandling.Replace for the
     // same reason as HapticSteps (avoid Newtonsoft appending to the default instance).
@@ -310,15 +300,4 @@ public partial class LoupedeckConfig : ObservableObject
 
     // Touch page to switch to when no rule matches. null = do nothing on no-match.
     public int? AppSwitchingFallbackTouchPageIndex { get; set; }
-
-    // Moves a page collection's CollectionChanged subscription from the old instance
-    // to the new one when the whole collection is reassigned (e.g. by a migration).
-    private static void Resubscribe<T>(
-        ObservableCollection<T> oldValue,
-        ObservableCollection<T> newValue,
-        NotifyCollectionChangedEventHandler handler)
-    {
-        if (oldValue is not null) oldValue.CollectionChanged -= handler;
-        if (newValue is not null) newValue.CollectionChanged += handler;
-    }
 }
