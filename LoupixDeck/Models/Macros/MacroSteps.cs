@@ -1,3 +1,9 @@
+using System.Collections.Immutable;
+using System.Collections.ObjectModel;
+using System.Runtime.InteropServices;
+using CommunityToolkit.Mvvm.ComponentModel;
+using Newtonsoft.Json;
+
 namespace LoupixDeck.Models.Macros;
 
 /// <summary>Types a text string via the virtual keyboard.</summary>
@@ -222,52 +228,89 @@ public class MouseStep : MacroStep
 /// delay between iterations. Markers are matched by order (nesting supported);
 /// an unmatched start simply runs its body to the end of the macro once.
 /// </summary>
-public class RepeatStartStep : MacroStep
+public partial class RepeatStartStep : MacroStep
 {
-    private int _count = 2;
-
     /// <summary>Number of times the block runs (clamped to at least 1 at execution time).</summary>
-    public int Count
-    {
-        get => _count;
-        set
-        {
-            if (_count == value) return;
-            _count = value;
-            OnValueChanged();
-        }
-    }
-
-    private int _loopDelayMilliseconds;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ValueText))]
+    public partial int Count { get; set; } = 2;
 
     /// <summary>Optional pause inserted between iterations (not after the last one).</summary>
-    public int LoopDelayMilliseconds
-    {
-        get => _loopDelayMilliseconds;
-        set
-        {
-            if (_loopDelayMilliseconds == value) return;
-            _loopDelayMilliseconds = value;
-            OnValueChanged();
-        }
-    }
-
-    private bool _infinite;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ValueText))]
+    public partial int LoopDelayMilliseconds { get; set; }
 
     /// <summary>
     /// When true the block repeats forever (until the macro is stopped via the Stop
-    /// command or global hotkey), ignoring <see cref="Count"/>.
+    /// command or global hotkey), ignoring <see cref="Count"/> and <see cref="CountVariable"/>.
     /// </summary>
-    public bool Infinite
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ValueText))]
+    [NotifyPropertyChangedFor(nameof(Mode))]
+    [NotifyPropertyChangedFor(nameof(IsFixed))]
+    [NotifyPropertyChangedFor(nameof(IsVariableCount))]
+    [NotifyPropertyChangedFor(nameof(IsInfinite))]
+    public partial bool Infinite { get; set; }
+
+    /// <summary>
+    /// Where the count comes from when not <see cref="Infinite"/>: a literal <see cref="Count"/>
+    /// or the integer value of <see cref="CountVariable"/>. Defaults to <see cref="RepeatCountMode.Fixed"/>
+    /// so files saved before this field existed keep their original fixed-count behaviour.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ValueText))]
+    [NotifyPropertyChangedFor(nameof(Mode))]
+    [NotifyPropertyChangedFor(nameof(IsFixed))]
+    [NotifyPropertyChangedFor(nameof(IsVariableCount))]
+    [NotifyPropertyChangedFor(nameof(IsInfinite))]
+    public partial RepeatCountMode CountMode { get; set; } = RepeatCountMode.Fixed;
+
+    /// <summary>
+    /// Variable whose value supplies the repeat count when <see cref="CountMode"/> is
+    /// <see cref="RepeatCountMode.Variable"/>. Accepts a bare name (<c>repeatCount</c>) or a
+    /// placeholder (<c>{repeatCount}</c>); both are resolved at run time.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ValueText))]
+    public partial string CountVariable { get; set; } = string.Empty;
+
+    /// <summary>
+    /// UI-only three-way selector projected onto the persisted <see cref="Infinite"/> +
+    /// <see cref="CountMode"/> fields (<see cref="Infinite"/> wins). Not serialized.
+    /// </summary>
+    [JsonIgnore]
+    public RepeatMode Mode
     {
-        get => _infinite;
+        get => Infinite ? RepeatMode.Infinite
+            : CountMode == RepeatCountMode.Variable ? RepeatMode.Variable
+            : RepeatMode.Fixed;
         set
         {
-            if (_infinite == value) return;
-            _infinite = value;
-            OnValueChanged();
+            // Project the selector back onto the persisted fields. The generated
+            // Infinite/CountMode setters self-guard against no-ops and (via
+            // [NotifyPropertyChangedFor]) raise Mode/IsFixed/IsVariableCount/
+            // IsInfinite/ValueText for us.
+            Infinite = value == RepeatMode.Infinite;
+            CountMode = value == RepeatMode.Variable ? RepeatCountMode.Variable : RepeatCountMode.Fixed;
         }
     }
+
+    /// <summary>True when a literal count is used (editor visibility for the number box).</summary>
+    [JsonIgnore]
+    public bool IsFixed => Mode == RepeatMode.Fixed;
+
+    /// <summary>True when a variable supplies the count (editor visibility for the variable box).</summary>
+    [JsonIgnore]
+    public bool IsVariableCount => Mode == RepeatMode.Variable;
+
+    /// <summary>True when the block repeats forever (editor visibility helper).</summary>
+    [JsonIgnore]
+    public bool IsInfinite => Mode == RepeatMode.Infinite;
+
+    /// <summary>All selectable repeat modes — bound by the editor's ComboBox.</summary>
+    [JsonIgnore]
+    public static ImmutableArray<RepeatMode> AllModes { get; } =
+        ImmutableCollectionsMarshal.AsImmutableArray(Enum.GetValues<RepeatMode>());
 
     public override MacroStepType StepType => MacroStepType.RepeatStart;
     public override string Icon => Glyph(0xF0456); // mdi-repeat
@@ -277,7 +320,12 @@ public class RepeatStartStep : MacroStep
     {
         get
         {
-            var count = Infinite ? "∞" : $"{Count}×";
+            string count = Mode switch
+            {
+                RepeatMode.Infinite => "∞",
+                RepeatMode.Variable => $"{CountVariable}×",
+                _ => $"{Count}×"
+            };
             return LoopDelayMilliseconds > 0 ? $"{count}  (+{LoopDelayMilliseconds} ms)" : count;
         }
     }
@@ -525,49 +573,113 @@ public class WaitForConditionStep : MacroStep
 /// for later <c>{name}</c> use. Cancelling the prompt leaves the variable unchanged and the
 /// macro continues. The prompt is shown on the UI thread and closes if the macro is stopped.
 /// </summary>
-public class PromptStep : MacroStep
+public partial class PromptStep : MacroStep
 {
-    private string _message = string.Empty;
-
     /// <summary>Prompt text shown to the user.</summary>
-    public string Message
-    {
-        get => _message;
-        set
-        {
-            if (_message == value) return;
-            _message = value;
-            OnValueChanged();
-        }
-    }
-
-    private string _variableName = string.Empty;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ValueText))]
+    public partial string Message { get; set; } = string.Empty;
 
     /// <summary>Variable the entered text is stored in.</summary>
-    public string VariableName
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ValueText))]
+    public partial string VariableName { get; set; } = string.Empty;
+
+    /// <summary>Pre-filled value in the input box (and the preselected item for a selection).</summary>
+    [ObservableProperty]
+    public partial string DefaultValue { get; set; } = string.Empty;
+
+    /// <summary>
+    /// How the entered value is validated and stored. Defaults to <see cref="PromptInputType.Text"/>,
+    /// so prompts saved before this field existed behave exactly like a plain text prompt.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsNumericType))]
+    [NotifyPropertyChangedFor(nameof(IsTextType))]
+    [NotifyPropertyChangedFor(nameof(IsSelectionType))]
+    [NotifyPropertyChangedFor(nameof(IsBooleanType))]
+    public partial PromptInputType InputType { get; set; } = PromptInputType.Text;
+
+    /// <summary>When false an empty/whitespace answer is rejected (re-prompted).</summary>
+    [ObservableProperty]
+    public partial bool AllowEmpty { get; set; } = true;
+
+    /// <summary>Inclusive lower bound for Integer/Decimal input (null = no bound).</summary>
+    [ObservableProperty]
+    public partial double? Minimum { get; set; }
+
+    /// <summary>Inclusive upper bound for Integer/Decimal input (null = no bound).</summary>
+    [ObservableProperty]
+    public partial double? Maximum { get; set; }
+
+    /// <summary>When false a value of 0 is rejected (Integer/Decimal).</summary>
+    [ObservableProperty]
+    public partial bool AllowZero { get; set; } = true;
+
+    /// <summary>When false a negative value is rejected (Integer/Decimal).</summary>
+    [ObservableProperty]
+    public partial bool AllowNegative { get; set; } = true;
+
+    /// <summary>Minimum length for Text input (null = no minimum).</summary>
+    [ObservableProperty]
+    public partial int? MinLength { get; set; }
+
+    /// <summary>Maximum length for Text input (null = no maximum).</summary>
+    [ObservableProperty]
+    public partial int? MaxLength { get; set; }
+
+    /// <summary>Optional .NET regular expression the Text answer must fully match (empty = no check).</summary>
+    [ObservableProperty]
+    public partial string ValidationRegex { get; set; } = string.Empty;
+
+    /// <summary>Allowed values for a <see cref="PromptInputType.Selection"/> prompt.</summary>
+    public ObservableCollection<string> SelectionItems { get; set; } = [];
+
+    /// <summary>
+    /// Editor-friendly newline-separated view of <see cref="SelectionItems"/> (one value per line).
+    /// Not serialized — the list itself is.
+    /// </summary>
+    [JsonIgnore]
+    public string SelectionItemsText
     {
-        get => _variableName;
+        get => string.Join(Environment.NewLine, SelectionItems);
         set
         {
-            if (_variableName == value) return;
-            _variableName = value;
+            SelectionItems.Clear();
+            if (!string.IsNullOrEmpty(value))
+            {
+                foreach (string line in value.Split('\n'))
+                {
+                    string trimmed = line.Trim();
+                    if (trimmed.Length > 0)
+                        SelectionItems.Add(trimmed);
+                }
+            }
+
             OnValueChanged();
         }
     }
 
-    private string _defaultValue = string.Empty;
+    /// <summary>True for Integer/Decimal input (editor visibility for numeric options).</summary>
+    [JsonIgnore]
+    public bool IsNumericType => InputType is PromptInputType.Integer or PromptInputType.Decimal;
 
-    /// <summary>Pre-filled value in the input box.</summary>
-    public string DefaultValue
-    {
-        get => _defaultValue;
-        set
-        {
-            if (_defaultValue == value) return;
-            _defaultValue = value;
-            OnValueChanged();
-        }
-    }
+    /// <summary>True for Text input (editor visibility for length/regex options).</summary>
+    [JsonIgnore]
+    public bool IsTextType => InputType == PromptInputType.Text;
+
+    /// <summary>True for Selection input (editor visibility for the value list).</summary>
+    [JsonIgnore]
+    public bool IsSelectionType => InputType == PromptInputType.Selection;
+
+    /// <summary>True for Boolean input.</summary>
+    [JsonIgnore]
+    public bool IsBooleanType => InputType == PromptInputType.Boolean;
+
+    /// <summary>All selectable input types — bound by the editor's ComboBox.</summary>
+    [JsonIgnore]
+    public static ImmutableArray<PromptInputType> AllInputTypes { get; } =
+        ImmutableCollectionsMarshal.AsImmutableArray(Enum.GetValues<PromptInputType>());
 
     public override MacroStepType StepType => MacroStepType.Prompt;
     public override string Icon => Glyph(0xF0CB6); // mdi-tooltip-edit

@@ -553,19 +553,26 @@
 
                                                             <DataTemplate DataType="{x:Type macros:RepeatStartStep}">
                                                                 <StackPanel Spacing="6">
-                                                                    <Grid ColumnDefinitions="Auto,140,Auto,Auto,Auto,140,Auto">
+                                                                    <Grid ColumnDefinitions="Auto,120,150,Auto,Auto,140,Auto">
                                                                         <TextBlock Grid.Column="0" Classes="editor-label lead"
                                                                                    Text="Repeat" Margin="0,0,10,0" />
-                                                                        <NumericUpDown Grid.Column="1"
+                                                                        <ComboBox Grid.Column="1"
+                                                                                  HorizontalAlignment="Stretch"
+                                                                                  ItemsSource="{x:Static macros:RepeatStartStep.AllModes}"
+                                                                                  SelectedItem="{Binding Mode, Mode=TwoWay}" />
+                                                                        <NumericUpDown Grid.Column="2" Margin="10,0,0,0"
                                                                                        Minimum="1" Maximum="100000"
                                                                                        Increment="1" FormatString="0"
-                                                                                       IsEnabled="{Binding !Infinite}"
+                                                                                       IsVisible="{Binding IsFixed}"
                                                                                        Value="{Binding Count, Mode=TwoWay}" />
-                                                                        <TextBlock Grid.Column="2" Classes="editor-label"
-                                                                                   Text="times" Margin="8,0,20,0" />
-                                                                        <CheckBox Grid.Column="3" Content="∞ Infinite" Margin="0,0,20,0"
-                                                                                  ToolTip.Tip="Repeat forever until stopped (Stop command / hotkey)"
-                                                                                  IsChecked="{Binding Infinite, Mode=TwoWay}" />
+                                                                        <TextBox Grid.Column="2" Margin="10,0,0,0"
+                                                                                 PlaceholderText="repeatCount"
+                                                                                 ToolTip.Tip="Variable name (or {name}) holding a whole number ≥ 0"
+                                                                                 IsVisible="{Binding IsVariableCount}"
+                                                                                 Text="{Binding CountVariable, Mode=TwoWay}" />
+                                                                        <TextBlock Grid.Column="3" Classes="editor-label"
+                                                                                   Text="times" Margin="8,0,20,0"
+                                                                                   IsVisible="{Binding !IsInfinite}" />
                                                                         <TextBlock Grid.Column="4" Classes="editor-label"
                                                                                    Text="Loop delay" Margin="0,0,10,0" />
                                                                         <NumericUpDown Grid.Column="5"
@@ -576,7 +583,7 @@
                                                                                    Text="ms" Margin="8,0,0,0" />
                                                                     </Grid>
                                                                     <TextBlock Classes="hint"
-                                                                               Text="Steps between this and the matching Repeat End repeat. Use Infinite + a Stop command/hotkey for endless loops; loop delay pauses between iterations." />
+                                                                               Text="Steps up to the matching Repeat End run a Fixed number of times, a Variable number (a variable name or {name} holding a whole number ≥ 0), or Infinite (until a Stop command/hotkey). An invalid variable count stops the macro; 0 runs the body zero times. Loop delay pauses between iterations." />
                                                                 </StackPanel>
                                                             </DataTemplate>
 
@@ -659,19 +666,88 @@
                                                                                  PlaceholderText="Prompt shown to the user"
                                                                                  Text="{Binding Message, Mode=TwoWay}" />
                                                                     </Grid>
-                                                                    <Grid ColumnDefinitions="Auto,200,Auto,*">
+                                                                    <Grid ColumnDefinitions="Auto,160,Auto,130,Auto,*">
                                                                         <TextBlock Grid.Column="0" Classes="editor-label lead"
                                                                                    Text="Store in" Margin="0,0,10,0" />
                                                                         <TextBox Grid.Column="1"
                                                                                  PlaceholderText="variable name"
                                                                                  Text="{Binding VariableName, Mode=TwoWay}" />
                                                                         <TextBlock Grid.Column="2" Classes="editor-label"
+                                                                                   Text="Type" Margin="14,0,10,0" />
+                                                                        <ComboBox Grid.Column="3"
+                                                                                  HorizontalAlignment="Stretch"
+                                                                                  ItemsSource="{x:Static macros:PromptStep.AllInputTypes}"
+                                                                                  SelectedItem="{Binding InputType, Mode=TwoWay}" />
+                                                                        <TextBlock Grid.Column="4" Classes="editor-label"
                                                                                    Text="Default" Margin="14,0,10,0" />
-                                                                        <TextBox Grid.Column="3"
+                                                                        <TextBox Grid.Column="5"
                                                                                  Text="{Binding DefaultValue, Mode=TwoWay}" />
                                                                     </Grid>
+
+                                                                    <!-- Numeric (Integer / Decimal) restrictions -->
+                                                                    <Grid ColumnDefinitions="Auto,110,Auto,110,Auto,Auto,Auto"
+                                                                          IsVisible="{Binding IsNumericType}">
+                                                                        <TextBlock Grid.Column="0" Classes="editor-label lead"
+                                                                                   Text="Min" Margin="0,0,10,0" />
+                                                                        <NumericUpDown Grid.Column="1"
+                                                                                       Increment="1"
+                                                                                       Value="{Binding Minimum, Mode=TwoWay}" />
+                                                                        <TextBlock Grid.Column="2" Classes="editor-label"
+                                                                                   Text="Max" Margin="14,0,10,0" />
+                                                                        <NumericUpDown Grid.Column="3"
+                                                                                       Increment="1"
+                                                                                       Value="{Binding Maximum, Mode=TwoWay}" />
+                                                                        <CheckBox Grid.Column="4" Content="Allow zero" Margin="14,0,10,0"
+                                                                                  IsChecked="{Binding AllowZero, Mode=TwoWay}" />
+                                                                        <CheckBox Grid.Column="5" Content="Allow negative" Margin="0,0,10,0"
+                                                                                  IsChecked="{Binding AllowNegative, Mode=TwoWay}" />
+                                                                        <CheckBox Grid.Column="6" Content="Allow empty"
+                                                                                  IsChecked="{Binding AllowEmpty, Mode=TwoWay}" />
+                                                                    </Grid>
+
+                                                                    <!-- Text restrictions -->
+                                                                    <Grid ColumnDefinitions="Auto,110,Auto,110,Auto,*,Auto"
+                                                                          IsVisible="{Binding IsTextType}">
+                                                                        <TextBlock Grid.Column="0" Classes="editor-label lead"
+                                                                                   Text="Min len" Margin="0,0,10,0" />
+                                                                        <NumericUpDown Grid.Column="1"
+                                                                                       Minimum="0" Maximum="100000"
+                                                                                       Increment="1" FormatString="0"
+                                                                                       Value="{Binding MinLength, Mode=TwoWay}" />
+                                                                        <TextBlock Grid.Column="2" Classes="editor-label"
+                                                                                   Text="Max len" Margin="14,0,10,0" />
+                                                                        <NumericUpDown Grid.Column="3"
+                                                                                       Minimum="0" Maximum="100000"
+                                                                                       Increment="1" FormatString="0"
+                                                                                       Value="{Binding MaxLength, Mode=TwoWay}" />
+                                                                        <TextBlock Grid.Column="4" Classes="editor-label"
+                                                                                   Text="Regex" Margin="14,0,10,0" />
+                                                                        <TextBox Grid.Column="5"
+                                                                                 PlaceholderText="optional pattern"
+                                                                                 Text="{Binding ValidationRegex, Mode=TwoWay}" />
+                                                                        <CheckBox Grid.Column="6" Content="Allow empty" Margin="14,0,0,0"
+                                                                                  IsChecked="{Binding AllowEmpty, Mode=TwoWay}" />
+                                                                    </Grid>
+
+                                                                    <!-- Selection restrictions -->
+                                                                    <Grid ColumnDefinitions="Auto,*,Auto"
+                                                                          IsVisible="{Binding IsSelectionType}">
+                                                                        <TextBlock Grid.Column="0" Classes="editor-label lead"
+                                                                                   Text="Values" Margin="0,3,10,0"
+                                                                                   VerticalAlignment="Top" />
+                                                                        <TextBox Grid.Column="1"
+                                                                                 AcceptsReturn="True"
+                                                                                 MinHeight="56"
+                                                                                 TextWrapping="Wrap"
+                                                                                 PlaceholderText="One allowed value per line"
+                                                                                 Text="{Binding SelectionItemsText, Mode=TwoWay}" />
+                                                                        <CheckBox Grid.Column="2" Content="Allow empty" Margin="14,0,0,0"
+                                                                                  VerticalAlignment="Top"
+                                                                                  IsChecked="{Binding AllowEmpty, Mode=TwoWay}" />
+                                                                    </Grid>
+
                                                                     <TextBlock Classes="hint"
-                                                                               Text="Pauses the macro and asks for a value, storing it in the variable for later {name} use. Cancelling leaves the variable unchanged and the macro continues." />
+                                                                               Text="Pauses the macro and asks for a value, validating it before storing it in the variable for later {name} use. Pick a Type to restrict the input (e.g. Integer with Min/Max for a repeat count). Cancelling leaves the variable unchanged and the macro continues." />
                                                                 </StackPanel>
                                                             </DataTemplate>
 

@@ -578,7 +578,12 @@ public partial class MacroEditorViewModel : DialogViewModelBase<DialogResult>, I
         DelayStep d => $"{d.Milliseconds} ms",
         KeyDownStep kd => $"↓{kd.Key}",
         KeyUpStep ku => $"↑{ku.Key}",
-        RepeatStartStep rs => rs.Infinite ? "Repeat ∞ [" : $"Repeat {rs.Count}× [",
+        RepeatStartStep rs => rs.Mode switch
+        {
+            RepeatMode.Infinite => "Repeat ∞ [",
+            RepeatMode.Variable => $"Repeat {rs.CountVariable}× [",
+            _ => $"Repeat {rs.Count}× ["
+        },
         RepeatEndStep => "]",
         _ => step.ValueText is { Length: > 0 } v ? Truncate(v) : step.TypeText
     };

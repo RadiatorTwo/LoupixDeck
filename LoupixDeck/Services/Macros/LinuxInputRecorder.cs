@@ -94,9 +94,16 @@ public sealed partial class LinuxInputRecorder : IInputRecorder
         }
     }
 
+    // Our own uinput virtual devices are named "LoupixVirtualKeyboard" / "LoupixVirtualMouse"
+    // (see UInputKeyboard / UInputMouse). They surface as ordinary evdev keyboards, so we skip
+    // them here — otherwise macro playback would feed back into the recorder and the global stop
+    // hotkey, letting a macro stop itself by pressing the configured hotkey.
+    private const string VirtualDeviceNamePrefix = "Loupix";
+
     /// <summary>
     /// Reads /proc/bus/input/devices and returns the /dev/input/eventN nodes of every
-    /// device exposing the "kbd" handler (i.e. real keyboards).
+    /// device exposing the "kbd" handler (i.e. real keyboards), excluding our own virtual
+    /// uinput devices.
     /// </summary>
     private static IEnumerable<string> DiscoverKeyboardNodes()
     {
@@ -111,13 +118,24 @@ public sealed partial class LinuxInputRecorder : IInputRecorder
             yield break;
         }
 
-        // Blocks are separated by blank lines; the "H: Handlers=" line lists kbd + eventN.
+        // Blocks are separated by blank lines; the "H: Handlers=" line lists kbd + eventN,
+        // and the "N: Name=" line carries the device name (quoted).
         foreach (var block in content.Split("\n\n"))
         {
-            var handlers = block.Split('\n')
-                .FirstOrDefault(l => l.StartsWith("H: Handlers="));
+            var lines = block.Split('\n');
+
+            var handlers = lines.FirstOrDefault(l => l.StartsWith("H: Handlers="));
             if (handlers == null || !handlers.Contains("kbd"))
                 continue;
+
+            // Skip our own injected-input devices so playback can't feed back in.
+            var nameLine = lines.FirstOrDefault(l => l.StartsWith("N: Name="));
+            if (nameLine != null && nameLine.Contains('"'))
+            {
+                var name = nameLine[(nameLine.IndexOf('"') + 1)..].TrimEnd('"');
+                if (name.StartsWith(VirtualDeviceNamePrefix, StringComparison.Ordinal))
+                    continue;
+            }
 
             var match = EventNodeRegex().Match(handlers);
             if (match.Success)

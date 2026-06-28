@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Globalization;
 using LoupixDeck.Models.Macros;
 using LoupixDeck.PluginSdk;
 using LoupixDeck.Services.Mouse;
@@ -183,16 +184,57 @@ public class MacroRunner : IDisposable
             switch (step)
             {
                 case RepeatStartStep repeatStart:
-                    stack.Push(new ControlFrame
                     {
-                        Kind = FrameKind.Loop,
-                        StartIndex = i,
-                        Remaining = Math.Max(1, repeatStart.Count),
-                        LoopDelayMs = repeatStart.LoopDelayMilliseconds,
-                        Infinite = repeatStart.Infinite
-                    });
-                    i++;
-                    break;
+                        if (repeatStart.Infinite)
+                        {
+                            stack.Push(new ControlFrame
+                            {
+                                Kind = FrameKind.Loop,
+                                StartIndex = i,
+                                Remaining = 0,
+                                LoopDelayMs = repeatStart.LoopDelayMilliseconds,
+                                Infinite = true
+                            });
+                            i++;
+                            break;
+                        }
+
+                        int count;
+                        if (repeatStart.CountMode == RepeatCountMode.Variable)
+                        {
+                            string raw = ResolveCountVariable(repeatStart, context);
+                            if (!TryParseRepeatCount(raw, out count, out string error))
+                            {
+                                Console.Error.WriteLine(
+                                    $"[MacroRunner] Macro '{macro.Name}' repeat count from '{repeatStart.CountVariable}' is invalid ({error}) — aborting.");
+                                return true;
+                            }
+                        }
+                        else
+                        {
+                            count = Math.Max(1, repeatStart.Count);
+                        }
+
+                        if (count <= 0)
+                        {
+                            // A valid zero count runs the body zero times — skip past the matching end.
+                            i = SkipPastMatchingRepeatEnd(steps, i);
+                        }
+                        else
+                        {
+                            stack.Push(new ControlFrame
+                            {
+                                Kind = FrameKind.Loop,
+                                StartIndex = i,
+                                Remaining = count,
+                                LoopDelayMs = repeatStart.LoopDelayMilliseconds,
+                                Infinite = false
+                            });
+                            i++;
+                        }
+
+                        break;
+                    }
 
                 case RepeatEndStep:
                     // Unmatched end (no loop on top) → ignore. Otherwise loop back until spent.
@@ -295,8 +337,8 @@ public class MacroRunner : IDisposable
 
                 case PromptStep prompt:
                     _executionRegistry.Report(macro.Name, MacroExecutionState.Waiting);
-                    var answer = await _promptService.RequestInputAsync(
-                        context.Expand(prompt.Message), context.Expand(prompt.DefaultValue), token);
+                    MacroPromptRequest request = MacroPromptRequest.FromStep(prompt, context.Expand);
+                    var answer = await _promptService.RequestInputAsync(request, token);
                     if (!token.IsCancellationRequested)
                         _executionRegistry.Report(macro.Name, MacroExecutionState.Running);
 
@@ -383,6 +425,76 @@ public class MacroRunner : IDisposable
 
             await Delay(pollMs, token);
         }
+    }
+
+    /// <summary>
+    /// Resolves the raw text a variable repeat count comes from. Accepts a bare variable name
+    /// (<c>repeatCount</c>) or a placeholder (<c>{repeatCount}</c>); an unknown/empty name yields
+    /// an empty string, which the caller rejects with a clear error.
+    /// </summary>
+    private static string ResolveCountVariable(RepeatStartStep step, MacroContext context)
+    {
+        string token = (step.CountVariable ?? string.Empty).Trim();
+        if (token.Length == 0)
+            return string.Empty;
+
+        if (token.Contains('{'))
+            return context.Expand(token);
+
+        return context.Variables.TryGetValue(token, out string value) ? value ?? string.Empty : string.Empty;
+    }
+
+    /// <summary>
+    /// Parses a resolved repeat-count string into a non-negative whole number. Empty, non-integer,
+    /// decimal, and negative inputs are rejected with a short reason in <paramref name="error"/>.
+    /// </summary>
+    private static bool TryParseRepeatCount(string raw, out int count, out string error)
+    {
+        count = 0;
+        error = string.Empty;
+        string trimmed = (raw ?? string.Empty).Trim();
+
+        if (trimmed.Length == 0)
+        {
+            error = "value is empty";
+            return false;
+        }
+
+        if (!int.TryParse(trimmed, NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out count))
+        {
+            error = $"'{trimmed}' is not a whole number";
+            return false;
+        }
+
+        if (count < 0)
+        {
+            error = $"'{trimmed}' is negative";
+            return false;
+        }
+
+        return true;
+    }
+
+    /// <summary>From a Repeat Start marker, returns the index just past the matching Repeat End.</summary>
+    private static int SkipPastMatchingRepeatEnd(List<MacroStep> steps, int startIndex)
+    {
+        var depth = 0;
+        for (var j = startIndex + 1; j < steps.Count; j++)
+        {
+            switch (steps[j])
+            {
+                case RepeatStartStep:
+                    depth++;
+                    break;
+                case RepeatEndStep when depth == 0:
+                    return j + 1;
+                case RepeatEndStep:
+                    depth--;
+                    break;
+            }
+        }
+
+        return steps.Count;
     }
 
     /// <summary>From an Else marker, returns the index just past the matching EndIf.</summary>
