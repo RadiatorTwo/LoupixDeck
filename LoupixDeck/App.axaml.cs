@@ -101,15 +101,32 @@ public partial class App : Application
             var registry = root.GetRequiredService<IDeviceHostRegistry>();
             var router = root.GetRequiredService<IDeviceRouter>();
 
-            // Pass 1: build every device's child provider and register it.
+            // Pass 1: build every device's child provider and register it. Each
+            // device is isolated: a failure to build one must not take the others
+            // (or the whole app) down with it (issue #146).
             IServiceProvider primaryProvider = null;
             foreach (var device in devices)
             {
-                var isPrimary = primary != null && device.ScopeKey == primary.ScopeKey;
-                var provider = BuildDeviceProvider(device, root);
-                var controller = provider.GetRequiredService<IDeviceController>();
-                registry.Add(new DeviceHost(device, provider, controller, isPrimary));
-                if (isPrimary) primaryProvider = provider;
+                try
+                {
+                    var isPrimary = primary != null && device.ScopeKey == primary.ScopeKey;
+                    var provider = BuildDeviceProvider(device, root);
+                    var controller = provider.GetRequiredService<IDeviceController>();
+                    registry.Add(new DeviceHost(device, provider, controller, isPrimary));
+                    if (isPrimary) primaryProvider = provider;
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[Init] Failed to build device '{device.ScopeKey}': {ex}");
+                }
+            }
+
+            if (registry.Hosts.Count == 0)
+            {
+                Console.WriteLine("[Init] No device could be brought up — shutting down.");
+                splashScreen.Close();
+                desktop.Shutdown();
+                return;
             }
 
             // The router falls back to the primary for spontaneous plugin callbacks
@@ -125,38 +142,58 @@ public partial class App : Application
             // so a secondary device needs no special headless path — only its own window tab.
             var shell = new MainShellViewModel();
             _shell = shell;
-            foreach (var host in registry.Hosts)
+            int broughtUp = 0;
+            foreach (var host in registry.Hosts.ToList())
             {
-                host.Provider.GetRequiredService<Services.Plugins.ISideStripProviderRegistry>().Rebuild();
-
-                var vm = host.Provider.GetRequiredService<MainWindowViewModel>();
-                shell.Add(vm);
-
-                if (host.IsPrimary)
+                // Isolate each device's bring-up: a single device throwing here must
+                // not abort the others or kill the app (issue #146).
+                try
                 {
-                    // Expose the primary's container so the CLI command channel resolves
-                    // its ICommandService (phase 2: CLI targets the primary device).
-                    Program.AppServices = host.Provider;
-                    shell.SelectedDevice = vm;
+                    host.Provider.GetRequiredService<Services.Plugins.ISideStripProviderRegistry>().Rebuild();
 
-                    var cfg = host.Provider.GetRequiredService<LoupedeckConfig>();
-                    RequestedThemeVariant = cfg.ThemeVariant switch
+                    var vm = host.Provider.GetRequiredService<MainWindowViewModel>();
+                    shell.Add(vm);
+
+                    if (host.IsPrimary)
                     {
-                        "Light" => ThemeVariant.Light,
-                        "Dark" => ThemeVariant.Dark,
-                        _ => ThemeVariant.Default
-                    };
+                        // Expose the primary's container so the CLI command channel resolves
+                        // its ICommandService (phase 2: CLI targets the primary device).
+                        Program.AppServices = host.Provider;
+                        shell.SelectedDevice = vm;
 
-                    await vm.LoupedeckController.Initialize(port, baudRate);
-                    ActiveDeviceResolver.RememberActive(host.Device);
+                        var cfg = host.Provider.GetRequiredService<LoupedeckConfig>();
+                        RequestedThemeVariant = cfg.ThemeVariant switch
+                        {
+                            "Light" => ThemeVariant.Light,
+                            "Dark" => ThemeVariant.Dark,
+                            _ => ThemeVariant.Default
+                        };
+
+                        await vm.LoupedeckController.Initialize(port, baudRate);
+                        ActiveDeviceResolver.RememberActive(host.Device);
+                    }
+                    else
+                    {
+                        await vm.LoupedeckController.Initialize(null, 0);
+                    }
+
+                    host.Provider.GetRequiredService<IDynamicTextManager>().Start();
+                    host.Provider.GetRequiredService<Services.Animation.IButtonAnimationManager>().Start();
+                    broughtUp++;
                 }
-                else
+                catch (Exception ex)
                 {
-                    await vm.LoupedeckController.Initialize(null, 0);
+                    Console.WriteLine($"[Init] Failed to bring up device '{host.Device.ScopeKey}': {ex}");
+                    registry.Remove(host);
                 }
+            }
 
-                host.Provider.GetRequiredService<IDynamicTextManager>().Start();
-                host.Provider.GetRequiredService<Services.Animation.IButtonAnimationManager>().Start();
+            if (broughtUp == 0)
+            {
+                Console.WriteLine("[Init] No device finished initialisation — shutting down.");
+                splashScreen.Close();
+                desktop.Shutdown();
+                return;
             }
 
             OnViewModelCreated(shell, splashScreen, desktop);
