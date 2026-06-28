@@ -52,7 +52,14 @@ public class LoupedeckDeviceService : IDeviceService
             IsBackground = true
         };
         deviceThread.Start();
-        _deviceCreatedEvent.WaitOne();
+
+        // Bounded wait: the device ctor now always returns promptly (a failed connect
+        // is swallowed and retried on a background thread, issue #146), but never block
+        // the calling (UI) thread indefinitely if a future ctor path hangs. On timeout
+        // throw so the per-device init catch in App.InitializeDevices isolates it.
+        if (!_deviceCreatedEvent.WaitOne(TimeSpan.FromSeconds(30)))
+            throw new TimeoutException(
+                $"Device creation for port '{devicePort}' did not complete within 30 s.");
     }
 
     /// <summary>
