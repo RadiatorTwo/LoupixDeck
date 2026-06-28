@@ -19,6 +19,11 @@ public sealed class WindowsInputRecorder : IInputRecorder
     private const int WM_SYSKEYDOWN = 0x0104;
     private const int WM_SYSKEYUP = 0x0105;
 
+    // KBDLLHOOKSTRUCT.flags bit set when the event was synthesized via SendInput
+    // (LLKHF_INJECTED). We ignore those so the app never reacts to its own macro
+    // playback — e.g. a macro pressing the configured stop hotkey can't stop itself.
+    private const uint LLKHF_INJECTED = 0x10;
+
     private readonly Lock _gate = new();
     private readonly HashSet<int> _pressed = [];
     private readonly Stopwatch _stopwatch = new();
@@ -110,6 +115,11 @@ public sealed class WindowsInputRecorder : IInputRecorder
         var isDown = message is WM_KEYDOWN or WM_SYSKEYDOWN;
         var isUp = message is WM_KEYUP or WM_SYSKEYUP;
         if (!isDown && !isUp)
+            return;
+
+        // Skip keystrokes we injected ourselves (macro playback) so they never feed
+        // back into the recorder or the global stop-hotkey listener.
+        if ((data.flags & LLKHF_INJECTED) != 0)
             return;
 
         var vk = (int)data.vkCode;
