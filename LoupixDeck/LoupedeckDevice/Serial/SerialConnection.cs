@@ -246,7 +246,22 @@ public class SerialConnection : ISerialConnection
         }
         finally
         {
-            _serialPort.Dispose();
+            try
+            {
+                // On Linux, SerialPort.Dispose() calls SerialStream.Flush() ->
+                // Termios.TermiosDrain() on the SafeSerialDeviceHandle. During shutdown
+                // the handle may already be disposed (the ReadLoop thread races with the
+                // main-thread teardown and calls Close() from its own finally block), so
+                // the drain throws ObjectDisposedException. Because this runs on the
+                // background ReadLoop thread, an unguarded throw becomes an unhandled
+                // exception that terminates the whole process on exit. Swallow it.
+                _serialPort?.Dispose();
+            }
+            catch
+            {
+                // Handle already gone (device unplugged / concurrent Close) — ignore.
+            }
+
             _serialPort = null;
         }
 
