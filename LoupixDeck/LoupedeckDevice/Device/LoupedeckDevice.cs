@@ -28,6 +28,12 @@ public class LoupedeckDevice
     private bool _queueWorkerStarted;
     private volatile bool _suppressAutoReconnect;
 
+    // 0 = no reconnect pending, 1 = one scheduled. Guards against spawning
+    // parallel reconnect chains: the Disconnected event can fire more than once
+    // for a single failed connection (the Send() error path fires it, then the
+    // following Close() fires it again).
+    private int _reconnectPending;
+
     // Accessed concurrently from the send-queue worker thread (insert) and the
     // serial read thread (lookup/remove). Plain Dictionary corrupts under that
     // race ("non-concurrent collection" / "Index was outside the bounds of the
@@ -177,13 +183,54 @@ public class LoupedeckDevice
         {
             OnDisconnect?.Invoke(this, e);
             if (_suppressAutoReconnect) return;
-            Thread.Sleep(ReconnectInterval);
-            ConnectBlind();
+            ScheduleReconnect();
         };
 
         _connection.Connect();
 
         StartQueueWorker();
+    }
+
+    /// <summary>
+    /// Schedules a single auto-reconnect attempt on a fresh background thread.
+    /// Crucially this does NOT retry inline: the Disconnected event is raised
+    /// synchronously from inside <see cref="SerialConnection.Connect"/>'s failure
+    /// path, so retrying on the firing thread would recurse (Connect → fail →
+    /// Disconnected → ConnectBlind → Connect → …) ~3 s per level and never return.
+    /// On the very first connect that recursion never lets the ctor finish, so
+    /// DeviceService.StartDevice blocks forever on _deviceCreatedEvent and the app
+    /// hangs at the splash with an empty log (issue #146). Off-loading to its own
+    /// thread lets the initial Connect() return and turns reconnect into a flat,
+    /// throttled loop (each attempt spawns the next, then dies — stack stays shallow).
+    /// </summary>
+    private void ScheduleReconnect()
+    {
+        // Only ever one reconnect attempt in flight at a time.
+        if (Interlocked.CompareExchange(ref _reconnectPending, 1, 0) != 0)
+            return;
+
+        Thread thread = new(() =>
+        {
+            try
+            {
+                Thread.Sleep(ReconnectInterval);
+            }
+            finally
+            {
+                // Release the slot before retrying so the next failure (raised
+                // synchronously from within ConnectBlind below) can schedule the
+                // following attempt instead of being silently dropped.
+                Interlocked.Exchange(ref _reconnectPending, 0);
+            }
+
+            if (_suppressAutoReconnect) return;
+            ConnectBlind();
+        })
+        {
+            IsBackground = true,
+            Name = "LoupedeckReconnect"
+        };
+        thread.Start();
     }
 
     /// <summary>
