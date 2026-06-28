@@ -42,6 +42,53 @@ public enum VariableOperation
     Decrement
 }
 
+/// <summary>
+/// Where a non-infinite <see cref="RepeatStartStep"/> gets its repeat count. Persisted; new
+/// members must be appended (the enum name is written to macros.json).
+/// </summary>
+public enum RepeatCountMode
+{
+    /// <summary>A literal number entered in the editor (<see cref="RepeatStartStep.Count"/>).</summary>
+    Fixed,
+
+    /// <summary>The integer value of a macro variable (<see cref="RepeatStartStep.CountVariable"/>).</summary>
+    Variable
+}
+
+/// <summary>
+/// UI-only three-way selector for a <see cref="RepeatStartStep"/>. Maps onto the persisted
+/// <see cref="RepeatStartStep.Infinite"/> + <see cref="RepeatStartStep.CountMode"/> fields and is
+/// never serialized itself.
+/// </summary>
+public enum RepeatMode
+{
+    Fixed,
+    Variable,
+    Infinite
+}
+
+/// <summary>
+/// How a <see cref="PromptStep"/> validates and stores the entered value. Default <see cref="Text"/>
+/// reproduces the original free-text behaviour. Persisted; append new members only.
+/// </summary>
+public enum PromptInputType
+{
+    /// <summary>Any text (optionally length/regex restricted).</summary>
+    Text,
+
+    /// <summary>A whole number (decimals rejected).</summary>
+    Integer,
+
+    /// <summary>A number that may have a fractional part.</summary>
+    Decimal,
+
+    /// <summary>A yes/no value, stored as <c>"true"</c> or <c>"false"</c>.</summary>
+    Boolean,
+
+    /// <summary>One value picked from a fixed list.</summary>
+    Selection
+}
+
 /// <summary>What a <see cref="MouseStep"/> does.</summary>
 public enum MouseStepAction
 {
