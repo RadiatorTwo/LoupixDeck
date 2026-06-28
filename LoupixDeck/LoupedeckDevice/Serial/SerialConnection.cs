@@ -138,6 +138,18 @@ public class SerialConnection : ISerialConnection
         }
         catch (Exception ex)
         {
+            // Surface the cause in the (startup) log. This path used to be silent,
+            // so a port that could not be opened — missing udev rule, user not in
+            // the 'dialout' group, or the port already in use — produced an empty
+            // log and no error window (issue #146).
+            string hint = ex switch
+            {
+                UnauthorizedAccessException =>
+                    " (permission denied — check the udev rule / 'dialout' group membership, or the port is already in use)",
+                _ => string.Empty
+            };
+            Console.WriteLine($"[Serial] Failed to open '{_portName}' @ {_baudRate}: {ex.Message}{hint}");
+
             // If something fails, close the port immediately.
             if (_serialPort != null && _serialPort.IsOpen)
             {
