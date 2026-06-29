@@ -15,10 +15,12 @@ namespace LoupixDeck.Services.Commands;
 public class PluginMenuContributor : IPluginMenuSource
 {
     private readonly IPluginManager _pluginManager;
+    private readonly ICommandBuilder _commandBuilder;
 
-    public PluginMenuContributor(IPluginManager pluginManager)
+    public PluginMenuContributor(IPluginManager pluginManager, ICommandBuilder commandBuilder)
     {
         _pluginManager = pluginManager;
+        _commandBuilder = commandBuilder;
     }
 
     public IReadOnlyList<DeferredMenuSource> GetDeferredSources(ButtonTargets target)
@@ -49,7 +51,7 @@ public class PluginMenuContributor : IPluginMenuSource
                 {
                     foreach (var node in nodes)
                     {
-                        var entry = Convert(node);
+                        var entry = Convert(node, target);
                         if (entry != null)
                             result.Add(entry);
                     }
@@ -79,10 +81,25 @@ public class PluginMenuContributor : IPluginMenuSource
         }
     }
 
-    private static MenuEntry Convert(MenuNode node)
+    private MenuEntry Convert(MenuNode node, ButtonTargets target)
     {
         if (node == null)
             return null;
+
+        // A rotary command group only makes sense on a rotary encoder. For any
+        // other target the group is ignored; such a node carries no command or
+        // children, so it produces nothing and is dropped.
+        if (node.RotaryGroup is { Count: > 0 })
+        {
+            if (!target.HasFlag(ButtonTargets.RotaryEncoder))
+                return null;
+
+            var map = BuildRotaryGroup(node.RotaryGroup);
+            if (map.Count == 0)
+                return null;
+
+            return new MenuEntry(node.Name, string.Empty) { RotaryGroup = map };
+        }
 
         var parameters = node.Parameters is { Count: > 0 }
             ? new Dictionary<string, string>(node.Parameters)
@@ -94,12 +111,42 @@ public class PluginMenuContributor : IPluginMenuSource
         {
             foreach (var child in node.Children)
             {
-                var converted = Convert(child);
+                var converted = Convert(child, target);
                 if (converted != null)
                     entry.Children.Add(converted);
             }
         }
 
         return entry;
+    }
+
+    /// <summary>
+    /// Builds the per-action raw command strings for a rotary group, reusing the
+    /// same command-string builder used for normal menu leaves so parameter
+    /// templates are filled identically. Actions whose command does not resolve
+    /// are dropped.
+    /// </summary>
+    private Dictionary<RotaryAction, string> BuildRotaryGroup(
+        IReadOnlyDictionary<RotaryAction, MenuCommandRef> group)
+    {
+        var map = new Dictionary<RotaryAction, string>();
+
+        foreach (var (action, reference) in group)
+        {
+            if (reference == null || string.IsNullOrWhiteSpace(reference.CommandName))
+                continue;
+
+            var parameters = reference.Parameters is { Count: > 0 }
+                ? new Dictionary<string, string>(reference.Parameters)
+                : null;
+
+            var raw = _commandBuilder.CreateCommandFromMenuEntry(
+                new MenuEntry(reference.CommandName, reference.CommandName, null, parameters));
+
+            if (!string.IsNullOrWhiteSpace(raw))
+                map[action] = raw;
+        }
+
+        return map;
     }
 }

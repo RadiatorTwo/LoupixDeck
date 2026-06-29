@@ -107,6 +107,23 @@ public class CommandSequenceSlot : ViewModelBase
     /// <summary>Appends a command (double-click in the tree) to the end of the chain.</summary>
     public void InsertCommand(MenuEntry menuEntry) => InsertCommandAt(menuEntry, Commands.Count);
 
+    /// <summary>Replaces the slot's whole chain with the given raw command string
+    /// (used when applying a command group). The chips are rebuilt from the string
+    /// so they stay individually editable afterwards.</summary>
+    public void SetCommand(string raw)
+    {
+        foreach (var segment in Commands)
+            segment.Changed -= OnSegmentChanged;
+        Commands.Clear();
+
+        _write(string.IsNullOrWhiteSpace(raw) ? string.Empty : raw);
+
+        foreach (var part in CommandStringParser.SplitChain(_read()))
+            Commands.Add(CreateSegment(part));
+
+        OnPropertyChanged(nameof(HasCommand));
+    }
+
     /// <summary>Inserts a command (drag from the tree) at the given chip index.</summary>
     public void InsertCommandAt(MenuEntry menuEntry, int index)
     {

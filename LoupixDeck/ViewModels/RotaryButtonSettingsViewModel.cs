@@ -88,8 +88,36 @@ public class RotaryButtonSettingsViewModel : DialogViewModelBase<RotaryButton, D
         OnPropertyChanged(nameof(ActiveSlot));
     }
 
-    /// <summary>Appends a command to the currently active slot (double-click in the tree).</summary>
-    public void InsertCommand(MenuEntry menuEntry) => ActiveSlot?.InsertCommand(menuEntry);
+    /// <summary>Handles a double-clicked tree entry: a command group fills all its
+    /// mapped slots at once, any other entry is appended to the active slot.</summary>
+    public void InsertCommand(MenuEntry menuEntry)
+    {
+        if (menuEntry?.RotaryGroup is { Count: > 0 } group)
+        {
+            ApplyGroup(group);
+            return;
+        }
+
+        ActiveSlot?.InsertCommand(menuEntry);
+    }
+
+    /// <summary>Applies a command group: each rotary action replaces the command of
+    /// its matching slot. Actions absent from the map leave their slot untouched.</summary>
+    private void ApplyGroup(IReadOnlyDictionary<RotaryAction, string> group)
+    {
+        foreach (var (action, raw) in group)
+        {
+            var slot = action switch
+            {
+                RotaryAction.CounterClockwise => RotaryLeftSlot,
+                RotaryAction.Clockwise => RotaryRightSlot,
+                RotaryAction.Press => ButtonPressSlot,
+                _ => null
+            };
+
+            slot?.SetCommand(raw);
+        }
+    }
 
     public void Cleanup()
     {

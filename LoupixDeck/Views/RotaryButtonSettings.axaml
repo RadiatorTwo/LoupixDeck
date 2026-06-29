@@ -321,6 +321,9 @@
                                                   DoubleTapped="OnCommandDoubleTapped">
                                                 <StackPanel Orientation="Horizontal">
                                                     <TextBlock Text="{Binding Name}" />
+                                                    <TextBlock Text="(group)" Margin="6,0,0,0"
+                                                               Foreground="#3B82F6" FontStyle="Italic"
+                                                               IsVisible="{Binding IsCommandGroup}" />
                                                     <TextBlock Text="(loading…)" Margin="6,0,0,0"
                                                                Foreground="Gray" FontStyle="Italic"
                                                                IsVisible="{Binding IsLoading}" />
