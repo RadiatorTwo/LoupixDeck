@@ -281,6 +281,17 @@ public partial class RotaryButtonSettings : Window
         UpdateDragGhost(e);
 
         var target = StripUnderPointer(e);
+
+        if (_treeDragCandidate?.RotaryGroup is { Count: > 0 })
+        {
+            // A group fills every slot at once: highlight all strips when over the
+            // drop area and show no per-slot insertion marker.
+            foreach (var (zone, _) in _strips)
+                zone.Classes.Set("drop-active", target.HasValue);
+            HideDropMarker();
+            return;
+        }
+
         foreach (var (zone, _) in _strips)
             zone.Classes.Set("drop-active", target.HasValue && ReferenceEquals(zone, target.Value.Zone));
 
@@ -295,7 +306,16 @@ public partial class RotaryButtonSettings : Window
         if (_treeDragging && _treeDragCandidate != null && StripUnderPointer(e) is { } target &&
             target.List.DataContext is CommandSequenceSlot slot)
         {
-            slot.InsertCommandAt(_treeDragCandidate, FindDropIndex(target.List, e));
+            if (_treeDragCandidate.RotaryGroup is { Count: > 0 } &&
+                DataContext is RotaryButtonSettingsViewModel vm)
+            {
+                // Dropping a group anywhere on the strips applies the whole mapping.
+                vm.InsertCommand(_treeDragCandidate);
+            }
+            else
+            {
+                slot.InsertCommandAt(_treeDragCandidate, FindDropIndex(target.List, e));
+            }
         }
 
         EndTreeDrag(e.Pointer);
@@ -344,18 +364,11 @@ public partial class RotaryButtonSettings : Window
         if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
             return;
 
-        if (menuEntry.RotaryGroup is { Count: > 0 })
+        if (menuEntry.RotaryGroup is { Count: > 0 } || !string.IsNullOrWhiteSpace(menuEntry.Command))
         {
-            // Command group: applied as a whole via double-click (OnCommandDoubleTapped).
-            // Don't arm a drag and don't toggle/handle, so the double-tap gesture fires.
-            return;
-        }
-
-        if (!string.IsNullOrWhiteSpace(menuEntry.Command))
-        {
-            // Command leaf: arm a possible drag-to-insert; SystemCommandsTree_PointerMoved
-            // promotes it to a real drag once the pointer moves far enough. Double-click-
-            // to-append is handled by OnCommandDoubleTapped.
+            // Command leaf or group: arm a possible drag-to-insert; SystemCommandsTree_PointerMoved
+            // promotes it to a real drag once the pointer moves far enough. Double-click-to-apply
+            // is handled by OnCommandDoubleTapped. (A group fills all slots; a leaf one slot.)
             _treeDragCandidate = menuEntry;
             _treeDragStart = e.GetPosition(this);
         }
