@@ -139,10 +139,16 @@ public partial class LoupedeckConfig : ObservableObject
     [NotifyPropertyChangedFor(nameof(RotaryPageLabel))]
     public partial ObservableCollection<RotaryButtonPage> RotaryButtonPages { get; set; }
 
-    partial void OnRotaryButtonPagesChanging(ObservableCollection<RotaryButtonPage> value) => RightRotaryButtonPages?.CollectionChanged -= OnRotaryPagesChanged;
-    partial void OnRotaryButtonPagesChanged(ObservableCollection<RotaryButtonPage> value) => RightRotaryButtonPages?.CollectionChanged += OnRotaryPagesChanged;
+    partial void OnRotaryButtonPagesChanging(ObservableCollection<RotaryButtonPage> value) => RotaryButtonPages?.CollectionChanged -= OnRotaryPagesChanged;
+    partial void OnRotaryButtonPagesChanged(ObservableCollection<RotaryButtonPage> value) => RotaryButtonPages?.CollectionChanged += OnRotaryPagesChanged;
     private void OnRotaryPagesChanged(object sender, NotifyCollectionChangedEventArgs e)
-        => OnPropertyChanged(nameof(RotaryPageLabel));
+    {
+        // Deleting a non-last page leaves CurrentRotaryPageIndex unchanged, so the
+        // index-driven [NotifyPropertyChangedFor] never fires even though the page
+        // at that index is now a different object. Re-evaluate the projection here.
+        OnPropertyChanged(nameof(RotaryPageLabel));
+        OnPropertyChanged(nameof(CurrentRotaryButtonPage));
+    }
 
     [ObservableProperty]
     [JsonIgnore]
@@ -178,7 +184,10 @@ public partial class LoupedeckConfig : ObservableObject
     partial void OnLeftRotaryButtonPagesChanging(ObservableCollection<RotaryButtonPage> value) => LeftRotaryButtonPages?.CollectionChanged -= OnLeftRotaryPagesChanged;
     partial void OnLeftRotaryButtonPagesChanged(ObservableCollection<RotaryButtonPage> value) => LeftRotaryButtonPages?.CollectionChanged += OnLeftRotaryPagesChanged;
     private void OnLeftRotaryPagesChanged(object sender, NotifyCollectionChangedEventArgs e)
-        => OnPropertyChanged(nameof(LeftRotaryPageLabel));
+    {
+        OnPropertyChanged(nameof(LeftRotaryPageLabel));
+        OnPropertyChanged(nameof(CurrentLeftRotaryButtonPage));
+    }
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(RightRotaryPageLabel))]
@@ -187,7 +196,10 @@ public partial class LoupedeckConfig : ObservableObject
     partial void OnRightRotaryButtonPagesChanging(ObservableCollection<RotaryButtonPage> value) => RightRotaryButtonPages?.CollectionChanged -= OnRightRotaryPagesChanged;
     partial void OnRightRotaryButtonPagesChanged(ObservableCollection<RotaryButtonPage> value) => RightRotaryButtonPages?.CollectionChanged += OnRightRotaryPagesChanged;
     private void OnRightRotaryPagesChanged(object sender, NotifyCollectionChangedEventArgs e)
-        => OnPropertyChanged(nameof(RightRotaryPageLabel));
+    {
+        OnPropertyChanged(nameof(RightRotaryPageLabel));
+        OnPropertyChanged(nameof(CurrentRightRotaryButtonPage));
+    }
 
     [ObservableProperty]
     [JsonIgnore]
@@ -241,7 +253,10 @@ public partial class LoupedeckConfig : ObservableObject
     partial void OnTouchButtonPagesChanging(ObservableCollection<TouchButtonPage> value) => TouchButtonPages?.CollectionChanged -= OnTouchPagesChanged;
     partial void OnTouchButtonPagesChanged(ObservableCollection<TouchButtonPage> value) => TouchButtonPages?.CollectionChanged += OnTouchPagesChanged;
     private void OnTouchPagesChanged(object sender, NotifyCollectionChangedEventArgs e)
-        => OnPropertyChanged(nameof(TouchPageLabel));
+    {
+        OnPropertyChanged(nameof(TouchPageLabel));
+        OnPropertyChanged(nameof(CurrentTouchButtonPage));
+    }
 
     [ObservableProperty]
     [JsonIgnore]
