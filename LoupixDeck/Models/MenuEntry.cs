@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using LoupixDeck.PluginSdk;
 
 namespace LoupixDeck.Models;
 
@@ -13,6 +14,18 @@ public class MenuEntry(string name, string command, string parentName = null, Di
     public Dictionary<string, string> Parameters { get; set; } = parameters ?? [];
 
     public ObservableCollection<MenuEntry> Children { get; set; } = [];
+
+    /// <summary>
+    /// When set, this entry is a rotary command group: each <see cref="RotaryAction"/>
+    /// maps to a fully-built, ready-to-persist command string. Applying the group
+    /// writes each action's string into the matching rotary slot. Null for normal
+    /// command/folder entries.
+    /// </summary>
+    public IReadOnlyDictionary<RotaryAction, string> RotaryGroup { get; set; }
+
+    /// <summary>True when this entry is a rotary command group (see
+    /// <see cref="RotaryGroup"/>), used by the menu template to badge it.</summary>
+    public bool IsCommandGroup => RotaryGroup is { Count: > 0 };
 
     private bool _isLoading;
 
