@@ -97,6 +97,9 @@ public partial class LoupedeckLiveSController
     private void OnStripTouchSample(RotarySide side, int idx, int y, byte touchId)
     {
         var st = _drag[idx];
+        // A new touch id (or no active drag) starts a fresh drag. Callers feed only the
+        // live (changed) touch here, so a different id means the previous finger is gone
+        // — possibly because its TOUCH_END frame was lost — and this is a new gesture.
         if (!st.Active || st.TouchId != touchId)
         {
             BeginStripDrag(side, idx, touchId, y);
@@ -285,8 +288,14 @@ public partial class LoupedeckLiveSController
             {
                 // The neighbour is now fully shown; committing makes it the current page
                 // and OnRotaryPageChanged → DrawSideStrip redraws identical pixels at 0.
-                if (direction < 0) pageManager.NextRotaryPage(side);
-                else pageManager.PreviousRotaryPage(side);
+                // Device touch events arrive on a background thread; the page change mutates
+                // bound (ObservableProperty/ObservableCollection) state, so marshal it to the
+                // UI thread — mirrors the GUI paging path (MainWindowViewModel.PageRotaryForSide).
+                await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+                {
+                    if (direction < 0) pageManager.NextRotaryPage(side);
+                    else pageManager.PreviousRotaryPage(side);
+                });
             }
             else
             {

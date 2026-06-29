@@ -508,10 +508,15 @@ public partial class LoupedeckLiveSController(
         if (StripAnimationApplicable(side))
             return;
 
-        if (e.Direction == SwipeDirection.Up)
-            pageManager.NextRotaryPage(side);
-        else
-            pageManager.PreviousRotaryPage(side);
+        // Device swipe arrives on a background thread; marshal the bound-state page change
+        // onto the UI thread, mirroring the GUI paging path.
+        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        {
+            if (e.Direction == SwipeDirection.Up)
+                pageManager.NextRotaryPage(side);
+            else
+                pageManager.PreviousRotaryPage(side);
+        });
     }
 
     private async void OnRotaryPageChanged(RotarySide side, int previousIndex, int newIndex)
@@ -1056,6 +1061,13 @@ public partial class LoupedeckLiveSController(
             // not arm the sliding-prevention slot, which guards the centre grid.
             if (IsSideStripSlot(slot))
             {
+                // The finger-follow tracks the live finger only. The device's touch set can
+                // retain a stale contact whose TOUCH_END was lost to a framing resync; such
+                // an entry is never the changed touch, so skipping non-changed touches here
+                // keeps a leaked id from hijacking the drag (frozen strip / dead swipes).
+                if (e.ChangedTouch != null && touch.Id != e.ChangedTouch.Id)
+                    continue;
+
                 var stripSide = slot == LoupedeckDevice.Device.RazerStreamControllerDevice.RightSideIndex
                     ? RotarySide.Right
                     : RotarySide.Left;
