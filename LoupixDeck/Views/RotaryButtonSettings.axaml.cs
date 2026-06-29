@@ -344,6 +344,13 @@ public partial class RotaryButtonSettings : Window
         if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
             return;
 
+        if (menuEntry.RotaryGroup is { Count: > 0 })
+        {
+            // Command group: applied as a whole via double-click (OnCommandDoubleTapped).
+            // Don't arm a drag and don't toggle/handle, so the double-tap gesture fires.
+            return;
+        }
+
         if (!string.IsNullOrWhiteSpace(menuEntry.Command))
         {
             // Command leaf: arm a possible drag-to-insert; SystemCommandsTree_PointerMoved
@@ -366,9 +373,11 @@ public partial class RotaryButtonSettings : Window
     private void OnCommandDoubleTapped(object sender, TappedEventArgs e)
     {
         if (sender is Control { DataContext: MenuEntry menuEntry } &&
-            menuEntry.Command != null && !string.IsNullOrWhiteSpace(menuEntry.Command) &&
-            DataContext is RotaryButtonSettingsViewModel vm)
+            DataContext is RotaryButtonSettingsViewModel vm &&
+            (menuEntry.RotaryGroup is { Count: > 0 } || !string.IsNullOrWhiteSpace(menuEntry.Command)))
         {
+            // A command group fills all its slots at once; a plain command appends
+            // to the active slot. The view model routes on the entry type.
             vm.InsertCommand(menuEntry);
             _treeDragCandidate = null;
             e.Handled = true;
