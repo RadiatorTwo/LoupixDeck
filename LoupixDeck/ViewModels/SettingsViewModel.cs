@@ -115,49 +115,8 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
         _pluginReload = pluginReload;
         _pluginManager = pluginManager;
 
-        NavigateCommand = new RelayCommand<SettingsView>(Navigate);
-        AddHapticStepCommand = new RelayCommand(AddHapticStep);
-        RemoveHapticStepCommand = new RelayCommand<HapticStep>(RemoveHapticStep);
-
-        AddAppBindingCommand = new RelayCommand(AddAppBinding);
-        RemoveAppBindingCommand = new RelayCommand<AppBindingRow>(RemoveAppBinding, p => p != null);
-
-        ReconnectDeviceCommand = new AsyncRelayCommand(ReconnectDevice);
-        AddTouchPageCommand = new AsyncRelayCommand(() => _pageManager.AddTouchButtonPage());
-        RemoveTouchPageCommand = new RelayCommand<TouchButtonPage>(
-            p => _ = RemoveTouchPage(p),
-            p => p != null && _pageManager.TouchButtonPages.Count > 1);
-        MoveTouchPageUpCommand = new RelayCommand<TouchButtonPage>(
-            p => MovePage(_pageManager.TouchButtonPages, p, -1),
-            p => p != null && _pageManager.TouchButtonPages.IndexOf(p) > 0);
-        MoveTouchPageDownCommand = new RelayCommand<TouchButtonPage>(
-            p => MovePage(_pageManager.TouchButtonPages, p, +1),
-            p => p != null && _pageManager.TouchButtonPages.IndexOf(p) < _pageManager.TouchButtonPages.Count - 1);
-        EditWallpaperCommand = new RelayCommand<TouchButtonPage>(
-            p => _ = EditWallpaper(p),
-            p => p != null);
-        EditPageCommandsCommand = new RelayCommand<object>(
-            p => _ = EditPageCommands(p),
-            p => p is TouchButtonPage or RotaryButtonPage);
-        AddRotaryPageCommand = new RelayCommand(() => _pageManager.AddRotaryButtonPage());
-        RemoveRotaryPageCommand = new RelayCommand<RotaryButtonPage>(
-            RemoveRotaryPage,
-            p => p != null && _pageManager.RotaryButtonPages.Count > 1);
-        MoveRotaryPageUpCommand = new RelayCommand<RotaryButtonPage>(
-            p => MovePage(_pageManager.RotaryButtonPages, p, -1),
-            p => p != null && _pageManager.RotaryButtonPages.IndexOf(p) > 0);
-        MoveRotaryPageDownCommand = new RelayCommand<RotaryButtonPage>(
-            p => MovePage(_pageManager.RotaryButtonPages, p, +1),
-            p => p != null && _pageManager.RotaryButtonPages.IndexOf(p) < _pageManager.RotaryButtonPages.Count - 1);
-
-        AddLeftRotaryPageCommand = new RelayCommand(() => _pageManager.AddRotaryButtonPage(RotarySide.Left));
-        RemoveLeftRotaryPageCommand = new RelayCommand<RotaryButtonPage>(
-            p => RemoveSideRotaryPage(RotarySide.Left, p),
-            p => p != null && LeftRotaryPages.Count > 1);
-        AddRightRotaryPageCommand = new RelayCommand(() => _pageManager.AddRotaryButtonPage(RotarySide.Right));
-        RemoveRightRotaryPageCommand = new RelayCommand<RotaryButtonPage>(
-            p => RemoveSideRotaryPage(RotarySide.Right, p),
-            p => p != null && RightRotaryPages.Count > 1);
+        // Commands are created lazily on first access by their `field ??= Relay.Create(...)`
+        // getters, so there is nothing to wire up here.
 
         // CollectionChanged can fire from a background thread (the parameterless
         // RelayCommand runs Execute via Task.Run). Marshal the CanExecute refresh
