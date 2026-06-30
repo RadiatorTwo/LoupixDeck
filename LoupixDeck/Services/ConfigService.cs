@@ -25,7 +25,8 @@ public class ConfigService : IConfigService
         new PluginConfigMigrator(),
         new RotaryPageSideSplitMigrator(),
         new WallpaperAssetMigrator(),
-        new WallpaperSlotMigrator()
+        new WallpaperSlotMigrator(),
+        new ButtonStatesMigrator()
     ];
 
     public ConfigService()
