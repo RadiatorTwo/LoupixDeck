@@ -30,6 +30,13 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         {
             ButtonData.ItemChanged += ButtonData_ItemChanged;
             ButtonData.PropertyChanged += ButtonData_PropertyChanged;
+
+            // Remember the runtime active state and start editing it; restored on Cleanup so the
+            // editor's state-switching does not leave the button on a non-default state at runtime.
+            _originalActiveStateId = ButtonData.ActiveStateId;
+            RefreshStateBadges();
+            SelectedState = ButtonData.ActiveState;
+
             SeedAnimatedLayerPreviews();
             UpdateEditorPreview();
 
@@ -40,6 +47,9 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
 
         BuildCommandSlots();
 
+        OnPropertyChanged(nameof(States));
+        OnPropertyChanged(nameof(ResetOnPageChange));
+        OnPropertyChanged(nameof(ResetOnRestart));
         OnPropertyChanged(nameof(ButtonNumber));
         OnPropertyChanged(nameof(ButtonLabel));
     }
@@ -297,6 +307,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     {
         _stripPage = page;
         OnPropertyChanged(nameof(IsStripCanvas));
+        OnPropertyChanged(nameof(ShowStatesSection));
         OnPropertyChanged(nameof(StripMode));
         OnPropertyChanged(nameof(CanEditCanvas));
         OnPropertyChanged(nameof(IsDrawDisabledHintVisible));
@@ -378,12 +389,23 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
             OnPropertyChanged(nameof(SelectedTextLayer));
             OnPropertyChanged(nameof(ScaleHandlesVisible));
             OnPropertyChanged(nameof(CanDeleteSelectedLayer));
+            OnPropertyChanged(nameof(HasSelectedLayer));
+            OnPropertyChanged(nameof(ShowStateProperties));
             UpdateSelectionBounds();
         }
     }
 
     public ImageLayer SelectedImageLayer => _selectedLayer as ImageLayer;
     public TextLayer SelectedTextLayer => _selectedLayer as TextLayer;
+
+    /// <summary>True when a layer is selected — the right panel then shows layer properties.</summary>
+    public bool HasSelectedLayer => _selectedLayer != null;
+
+    /// <summary>
+    /// True when the state itself is the editing context (no layer selected) on a grid touch
+    /// button — the right panel then shows the State properties instead of layer properties.
+    /// </summary>
+    public bool ShowStateProperties => ShowStatesSection && _selectedLayer == null;
 
     /// <summary>
     /// True when a deletable (user-created) layer is selected. Command-owned layers
@@ -495,6 +517,220 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
             OnPropertyChanged(nameof(SelectedVibrationPattern));
         }
     }
+
+    // ───────── States ─────────
+
+    // The active state at open time; restored on close so the runtime starts on the right state
+    // (the editor drives ButtonData's active state to edit each selected state in place).
+    private Guid _originalActiveStateId;
+
+    /// <summary>The button's states, shown in the left-panel States list.</summary>
+    public ObservableCollection<ButtonState> States => ButtonData?.States;
+
+    /// <summary>
+    /// The States section + transition UI are shown for ordinary grid touch buttons only.
+    /// Side-strip canvases keep their single default state and their per-segment command flow.
+    /// </summary>
+    public bool ShowStatesSection => !IsStripCanvas;
+
+    /// <summary>
+    /// The state currently being edited. Selecting a state makes it the button's active state so
+    /// the existing preview/layers/command machinery edits it in place (the device follows live).
+    /// </summary>
+    public ButtonState SelectedState
+    {
+        get => field;
+        set
+        {
+            if (ReferenceEquals(field, value)) return;
+            field = value;
+            if (value != null && ButtonData != null)
+                ButtonData.SetActiveState(value.Id);
+
+            SelectedLayer = null;
+            OnPropertyChanged(nameof(SelectedState));
+            OnPropertyChanged(nameof(SelectedStateLabel));
+            OnPropertyChanged(nameof(BehaviorTitle));
+            OnPropertyChanged(nameof(CanDeleteState));
+
+            if (ButtonData != null)
+            {
+                _selectedVibrationPattern = VibrationPatterns.FirstOrDefault(p => p.Value == ButtonData.VibrationPattern);
+                OnPropertyChanged(nameof(SelectedVibrationPattern));
+
+                SeedAnimatedLayerPreviews();
+                BuildCommandSlots();
+                UpdateEditorPreview();
+            }
+        }
+    }
+
+    /// <summary>"Selected State: X" label under the States list.</summary>
+    public string SelectedStateLabel => $"Selected State: {SelectedState?.Name ?? "-"}";
+
+    /// <summary>"Behavior for State: X" title above the bottom command/transition area.</summary>
+    public string BehaviorTitle => $"Behavior for State: {SelectedState?.Name ?? "-"}";
+
+    /// <summary>At least two states are needed before one can be deleted.</summary>
+    public bool CanDeleteState => ButtonData?.States is { Count: > 1 };
+
+    public IRelayCommand AddStateCommand => field ??= Relay.Create(AddState);
+    public IRelayCommand DuplicateStateCommand => field ??= Relay.Create(DuplicateState);
+    public IRelayCommand DeleteStateCommand => field ??= Relay.Create(DeleteState);
+    public IRelayCommand MoveStateUpCommand => field ??= Relay.Create(MoveStateUp);
+    public IRelayCommand MoveStateDownCommand => field ??= Relay.Create(MoveStateDown);
+    public IRelayCommand SetDefaultStateCommand => field ??= Relay.Create(SetDefaultStateSelected);
+
+    private string GetUniqueStateName(string baseName)
+    {
+        var states = ButtonData?.States;
+        if (states == null) return baseName;
+
+        bool Exists(string name) => states.Any(s => string.Equals(s.Name, name, StringComparison.Ordinal));
+        if (!Exists(baseName)) return baseName;
+
+        var index = 1;
+        while (Exists($"{baseName} {index}")) index++;
+        return $"{baseName} {index}";
+    }
+
+    private void AddState()
+    {
+        if (ButtonData?.States == null) return;
+        var state = new ButtonState { Name = GetUniqueStateName("State") };
+        ButtonData.States.Add(state);
+        RefreshStateBadges();
+        SelectedState = state;
+        OnPropertyChanged(nameof(CanDeleteState));
+    }
+
+    // Settings used to deep-clone a state (layers are polymorphic; colors need their converter).
+    private static readonly Newtonsoft.Json.JsonSerializerSettings StateCloneSettings = CreateStateCloneSettings();
+
+    private static Newtonsoft.Json.JsonSerializerSettings CreateStateCloneSettings()
+    {
+        var settings = new Newtonsoft.Json.JsonSerializerSettings();
+        settings.Converters.Add(new ColorJsonConverter());
+        settings.Converters.Add(new LayerJsonConverter());
+        return settings;
+    }
+
+    private void DuplicateState()
+    {
+        if (ButtonData?.States == null || SelectedState == null) return;
+
+        var json = Newtonsoft.Json.JsonConvert.SerializeObject(SelectedState, StateCloneSettings);
+        var clone = Newtonsoft.Json.JsonConvert.DeserializeObject<ButtonState>(json, StateCloneSettings);
+        if (clone == null) return;
+
+        clone.Id = Guid.NewGuid();
+        clone.IsDefault = false;
+        clone.Name = GetUniqueStateName(SelectedState.Name);
+        clone.RewireLayerHandlers();
+
+        var insertAt = ButtonData.States.IndexOf(SelectedState) + 1;
+        ButtonData.States.Insert(insertAt, clone);
+        RefreshStateBadges();
+        SelectedState = clone;
+        OnPropertyChanged(nameof(CanDeleteState));
+    }
+
+    private void DeleteState()
+    {
+        var states = ButtonData?.States;
+        if (states is not { Count: > 1 } || SelectedState == null) return;
+
+        var removed = SelectedState;
+        var idx = states.IndexOf(removed);
+        states.Remove(removed);
+
+        // Re-point the default if it was deleted; clear dangling Specific transitions.
+        if (ButtonData.DefaultStateId == removed.Id)
+            ButtonData.DefaultStateId = states[0].Id;
+        foreach (var s in states)
+        {
+            if (s.Transition?.Kind == StateTransitionKind.Specific && s.Transition.TargetStateId == removed.Id)
+                s.Transition.TargetStateId = null;
+        }
+
+        RefreshStateBadges();
+        var next = idx < states.Count ? states[idx] : states[^1];
+        SelectedState = next;
+        OnPropertyChanged(nameof(CanDeleteState));
+    }
+
+    private void MoveStateUp()
+    {
+        var states = ButtonData?.States;
+        if (states == null || SelectedState == null) return;
+        var idx = states.IndexOf(SelectedState);
+        if (idx <= 0) return;
+        states.Move(idx, idx - 1);
+        RefreshStateBadges();
+    }
+
+    private void MoveStateDown()
+    {
+        var states = ButtonData?.States;
+        if (states == null || SelectedState == null) return;
+        var idx = states.IndexOf(SelectedState);
+        if (idx < 0 || idx >= states.Count - 1) return;
+        states.Move(idx, idx + 1);
+        RefreshStateBadges();
+    }
+
+    private void SetDefaultStateSelected()
+    {
+        if (ButtonData == null || SelectedState == null) return;
+        ButtonData.DefaultStateId = SelectedState.Id;
+        RefreshStateBadges();
+    }
+
+    /// <summary>Updates the editor-only DisplayIndex / IsDefault badges on every state.</summary>
+    private void RefreshStateBadges()
+    {
+        var states = ButtonData?.States;
+        if (states == null) return;
+        for (var i = 0; i < states.Count; i++)
+        {
+            states[i].DisplayIndex = i + 1;
+            states[i].IsDefault = states[i].Id == ButtonData.DefaultStateId;
+        }
+    }
+
+    // ───────── Reset rules ─────────
+
+    public bool ResetOnPageChange
+    {
+        get => ButtonData?.ResetOnPageChange ?? false;
+        set
+        {
+            if (ButtonData == null || ButtonData.ResetOnPageChange == value) return;
+            ButtonData.ResetOnPageChange = value;
+            OnPropertyChanged(nameof(ResetOnPageChange));
+        }
+    }
+
+    public bool ResetOnRestart
+    {
+        get => ButtonData?.ResetOnRestart ?? true;
+        set
+        {
+            if (ButtonData == null || ButtonData.ResetOnRestart == value) return;
+            ButtonData.ResetOnRestart = value;
+            OnPropertyChanged(nameof(ResetOnRestart));
+        }
+    }
+
+    // ───────── Transition ─────────
+    // The transition pickers bind directly to the per-state model (SelectedState.Transition):
+    // the Kind combo to .Kind, the target combo's SelectedValue to .TargetStateId. Binding to the
+    // model (not a shared VM shim) means switching states never writes a value back into the wrong
+    // state, and the target list stays the full, stable States collection so it never clears.
+
+    /// <summary>The transition kinds shown in the picker (label via TransitionKindLabelConverter).</summary>
+    public IReadOnlyList<StateTransitionKind> TransitionKinds { get; } =
+        (StateTransitionKind[])Enum.GetValues(typeof(StateTransitionKind));
 
     public TouchButtonSettingsViewModel(
         ICommandBuilder commandBuilder,
@@ -845,6 +1081,13 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     {
         if (ButtonData != null)
         {
+            // Restore the runtime active state so editor state-switching is not persisted as the
+            // live state (the device repaints to it on close).
+            if (ButtonData.States?.Any(s => s.Id == _originalActiveStateId) == true)
+                ButtonData.SetActiveState(_originalActiveStateId);
+            else
+                ButtonData.ResetToDefaultState();
+
             ButtonData.ItemChanged -= ButtonData_ItemChanged;
             ButtonData.PropertyChanged -= ButtonData_PropertyChanged;
         }

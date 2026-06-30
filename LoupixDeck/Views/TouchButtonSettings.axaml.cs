@@ -68,6 +68,37 @@ public partial class TouchButtonSettings : Window
     private Point _treeDragStart;
     private bool _treeDragging;
 
+    protected override void OnOpened(EventArgs e)
+    {
+        base.OnOpened(e);
+
+        // Size the top area to the screen so the whole dialog fits without an outer scrollbar:
+        // tall on large displays (WQHD+), shorter on 1080p. SizeToContent then sizes the window to
+        // (top + bottom sequence), and we re-center afterwards. Scaling converts the physical
+        // working area to DIPs (the unit layout expects).
+        var screen = Screens.ScreenFromWindow(this) ?? Screens.Primary;
+        if (screen == null) return;
+
+        var available = (screen.WorkingArea.Height / screen.Scaling) - 48;
+        MaxHeight = available;
+
+        // Reserve ~300 DIP for the bottom behavior/sequence area + margins; clamp the top so the
+        // preview stays usable (>=600) but never forces the window past the screen.
+        var top = Math.Max(600, Math.Min(860, available - 300));
+        RootGrid.RowDefinitions[0].Height = new Avalonia.Controls.GridLength(top);
+
+        // Re-center after the SizeToContent resize settles (the initial center used the old size).
+        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        {
+            var s = Screens.ScreenFromWindow(this) ?? Screens.Primary;
+            if (s == null) return;
+            var wa = s.WorkingArea;
+            var w = (int)(Bounds.Width * s.Scaling);
+            var h = (int)(Bounds.Height * s.Scaling);
+            Position = new PixelPoint(wa.X + ((wa.Width - w) / 2), wa.Y + ((wa.Height - h) / 2));
+        }, Avalonia.Threading.DispatcherPriority.Loaded);
+    }
+
     public TouchButtonSettings()
     {
         InitializeComponent();
