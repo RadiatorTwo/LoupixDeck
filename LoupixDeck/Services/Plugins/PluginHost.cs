@@ -18,6 +18,9 @@ public sealed class PluginHost : IPluginHost
     private readonly Func<IExclusiveModeProvider, bool> _requestExclusiveMode;
     private readonly Action<IExclusiveModeProvider> _releaseExclusiveMode;
     private readonly Func<bool> _isInExclusiveMode;
+    private readonly Func<string, IReadOnlyList<string>> _getButtonStates;
+    private readonly Func<string, string> _getActiveButtonState;
+    private readonly Func<string, string, bool> _setActiveButtonState;
 
     public PluginHost(
         IPluginLogger logger,
@@ -30,7 +33,10 @@ public sealed class PluginHost : IPluginHost
         Func<int, int> getTouchSlotForRotary,
         Func<IExclusiveModeProvider, bool> requestExclusiveMode,
         Action<IExclusiveModeProvider> releaseExclusiveMode,
-        Func<bool> isInExclusiveMode)
+        Func<bool> isInExclusiveMode,
+        Func<string, IReadOnlyList<string>> getButtonStates,
+        Func<string, string> getActiveButtonState,
+        Func<string, string, bool> setActiveButtonState)
     {
         Logger = logger;
         Settings = settings;
@@ -43,6 +49,9 @@ public sealed class PluginHost : IPluginHost
         _requestExclusiveMode = requestExclusiveMode;
         _releaseExclusiveMode = releaseExclusiveMode;
         _isInExclusiveMode = isInExclusiveMode;
+        _getButtonStates = getButtonStates;
+        _getActiveButtonState = getActiveButtonState;
+        _setActiveButtonState = setActiveButtonState;
     }
 
     public IPluginLogger Logger { get; }
@@ -70,6 +79,15 @@ public sealed class PluginHost : IPluginHost
         _releaseExclusiveMode?.Invoke(provider);
 
     public bool IsInExclusiveMode => _isInExclusiveMode?.Invoke() ?? false;
+
+    public IReadOnlyList<string> GetButtonStates(string commandName) =>
+        _getButtonStates?.Invoke(commandName) ?? [];
+
+    public string GetActiveButtonState(string commandName) =>
+        _getActiveButtonState?.Invoke(commandName);
+
+    public bool SetActiveButtonState(string commandName, string stateNameOrId) =>
+        _setActiveButtonState?.Invoke(commandName, stateNameOrId) ?? false;
 
     public bool OpenBrowser(string url)
     {

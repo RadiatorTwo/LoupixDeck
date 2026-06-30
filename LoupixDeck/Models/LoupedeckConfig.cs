@@ -48,8 +48,11 @@ public partial class LoupedeckConfig : ObservableObject
     /// + scaling parameters on each page); see <c>WallpaperAssetMigrator</c>.
     /// v6 nested the flat main-wallpaper fields into a <c>MainWallpaper</c> slot and added
     /// optional left/right side-display wallpapers; see <c>WallpaperSlotMigrator</c>.
+    /// v7 introduced stateful buttons: each button's appearance moved into a default
+    /// <c>ButtonState</c> (touch buttons: layers/background/haptic; LED buttons: <c>ButtonColor</c>
+    /// → <c>LedColor</c>); the button now projects the active state. See <c>ButtonStatesMigrator</c>.
     /// </summary>
-    public const int CurrentVersion = 6;
+    public const int CurrentVersion = 7;
 
     public int Version { get; set; } = CurrentVersion;
 

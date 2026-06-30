@@ -15,9 +15,20 @@ public class SimpleButtonSettingsViewModel : DialogViewModelBase<SimpleButton, D
     {
         ButtonData = parameter;
 
+        // Remember the runtime active state and edit it; restored on Cleanup so the editor's
+        // state-switching does not leave the button on a non-default state at runtime.
+        _originalActiveStateId = ButtonData?.ActiveStateId ?? Guid.Empty;
+        RefreshStateBadges();
+        _selectedState = ButtonData?.ActiveState;
+
         LoadSegments();
 
+        OnPropertyChanged(nameof(States));
+        OnPropertyChanged(nameof(SelectedState));
+        OnPropertyChanged(nameof(CanDeleteState));
+        OnPropertyChanged(nameof(ResetOnRestart));
         OnPropertyChanged(nameof(ButtonLabel));
+        OnPropertyChanged(nameof(ButtonData));
         NotifyCommandChanged();
     }
 
@@ -52,6 +63,174 @@ public class SimpleButtonSettingsViewModel : DialogViewModelBase<SimpleButton, D
 
     /// <summary>True when the button has a non-empty command assigned.</summary>
     public bool HasCommand => !string.IsNullOrWhiteSpace(ButtonData?.Command);
+
+    // ───────── States ─────────
+
+    private Guid _originalActiveStateId;
+
+    /// <summary>The button's states, shown in the States list.</summary>
+    public ObservableCollection<ButtonState> States => ButtonData?.States;
+
+    private ButtonState _selectedState;
+
+    /// <summary>
+    /// The state being edited. Selecting a state makes it the button's active state, so the LED
+    /// color picker and the command sequence (which read the active state via the proxy/mirror)
+    /// edit it in place.
+    /// </summary>
+    public ButtonState SelectedState
+    {
+        get => _selectedState;
+        set
+        {
+            if (ReferenceEquals(_selectedState, value)) return;
+            _selectedState = value;
+            if (value != null)
+                ButtonData?.SetActiveState(value.Id);
+
+            OnPropertyChanged(nameof(SelectedState));
+            OnPropertyChanged(nameof(CanDeleteState));
+            OnPropertyChanged(nameof(ButtonData)); // re-read ButtonColor proxy
+
+            // Rebuild the command-sequence cards from the now-active state's command.
+            LoadSegments();
+            NotifyCommandChanged();
+        }
+    }
+
+    /// <summary>At least two states are needed before one can be deleted.</summary>
+    public bool CanDeleteState => ButtonData?.States is { Count: > 1 };
+
+    /// <summary>The transition kinds shown in the picker (label via TransitionKindLabelConverter).</summary>
+    public IReadOnlyList<StateTransitionKind> TransitionKinds { get; } =
+        (StateTransitionKind[])Enum.GetValues(typeof(StateTransitionKind));
+
+    public bool ResetOnRestart
+    {
+        get => ButtonData?.ResetOnRestart ?? true;
+        set
+        {
+            if (ButtonData == null || ButtonData.ResetOnRestart == value) return;
+            ButtonData.ResetOnRestart = value;
+            OnPropertyChanged(nameof(ResetOnRestart));
+        }
+    }
+
+    public IRelayCommand AddStateCommand => field ??= Relay.Create(AddState);
+    public IRelayCommand DuplicateStateCommand => field ??= Relay.Create(DuplicateState);
+    public IRelayCommand DeleteStateCommand => field ??= Relay.Create(DeleteState);
+    public IRelayCommand MoveStateUpCommand => field ??= Relay.Create(MoveStateUp);
+    public IRelayCommand MoveStateDownCommand => field ??= Relay.Create(MoveStateDown);
+    public IRelayCommand SetDefaultStateCommand => field ??= Relay.Create(SetDefaultStateSelected);
+
+    private string GetUniqueStateName(string baseName)
+    {
+        var states = ButtonData?.States;
+        if (states == null) return baseName;
+        bool Exists(string name) => states.Any(s => string.Equals(s.Name, name, StringComparison.Ordinal));
+        if (!Exists(baseName)) return baseName;
+        var index = 1;
+        while (Exists($"{baseName} {index}")) index++;
+        return $"{baseName} {index}";
+    }
+
+    private void AddState()
+    {
+        if (ButtonData?.States == null) return;
+        var state = new ButtonState { Name = GetUniqueStateName("State") };
+        ButtonData.States.Add(state);
+        RefreshStateBadges();
+        SelectedState = state;
+        OnPropertyChanged(nameof(CanDeleteState));
+    }
+
+    private static readonly Newtonsoft.Json.JsonSerializerSettings StateCloneSettings = CreateStateCloneSettings();
+
+    private static Newtonsoft.Json.JsonSerializerSettings CreateStateCloneSettings()
+    {
+        var settings = new Newtonsoft.Json.JsonSerializerSettings();
+        settings.Converters.Add(new Models.Converter.ColorJsonConverter());
+        settings.Converters.Add(new Models.Layers.LayerJsonConverter());
+        return settings;
+    }
+
+    private void DuplicateState()
+    {
+        if (ButtonData?.States == null || SelectedState == null) return;
+        var json = Newtonsoft.Json.JsonConvert.SerializeObject(SelectedState, StateCloneSettings);
+        var clone = Newtonsoft.Json.JsonConvert.DeserializeObject<ButtonState>(json, StateCloneSettings);
+        if (clone == null) return;
+
+        clone.Id = Guid.NewGuid();
+        clone.IsDefault = false;
+        clone.Name = GetUniqueStateName(SelectedState.Name);
+
+        var insertAt = ButtonData.States.IndexOf(SelectedState) + 1;
+        ButtonData.States.Insert(insertAt, clone);
+        RefreshStateBadges();
+        SelectedState = clone;
+        OnPropertyChanged(nameof(CanDeleteState));
+    }
+
+    private void DeleteState()
+    {
+        var states = ButtonData?.States;
+        if (states is not { Count: > 1 } || SelectedState == null) return;
+
+        var removed = SelectedState;
+        var idx = states.IndexOf(removed);
+        states.Remove(removed);
+
+        if (ButtonData.DefaultStateId == removed.Id)
+            ButtonData.DefaultStateId = states[0].Id;
+        foreach (var s in states)
+        {
+            if (s.Transition?.Kind == StateTransitionKind.Specific && s.Transition.TargetStateId == removed.Id)
+                s.Transition.TargetStateId = null;
+        }
+
+        RefreshStateBadges();
+        SelectedState = idx < states.Count ? states[idx] : states[^1];
+        OnPropertyChanged(nameof(CanDeleteState));
+    }
+
+    private void MoveStateUp()
+    {
+        var states = ButtonData?.States;
+        if (states == null || SelectedState == null) return;
+        var idx = states.IndexOf(SelectedState);
+        if (idx <= 0) return;
+        states.Move(idx, idx - 1);
+        RefreshStateBadges();
+    }
+
+    private void MoveStateDown()
+    {
+        var states = ButtonData?.States;
+        if (states == null || SelectedState == null) return;
+        var idx = states.IndexOf(SelectedState);
+        if (idx < 0 || idx >= states.Count - 1) return;
+        states.Move(idx, idx + 1);
+        RefreshStateBadges();
+    }
+
+    private void SetDefaultStateSelected()
+    {
+        if (ButtonData == null || SelectedState == null) return;
+        ButtonData.DefaultStateId = SelectedState.Id;
+        RefreshStateBadges();
+    }
+
+    private void RefreshStateBadges()
+    {
+        var states = ButtonData?.States;
+        if (states == null) return;
+        for (var i = 0; i < states.Count; i++)
+        {
+            states[i].DisplayIndex = i + 1;
+            states[i].IsDefault = states[i].Id == ButtonData.DefaultStateId;
+        }
+    }
 
     public SimpleButtonSettingsViewModel(
         ICommandBuilder commandBuilder,
@@ -174,6 +353,16 @@ public class SimpleButtonSettingsViewModel : DialogViewModelBase<SimpleButton, D
     /// <summary>Detaches segment handlers — called by the View when the dialog closes.</summary>
     public void Cleanup()
     {
+        // Restore the runtime active state so editor state-switching is not persisted as the live
+        // state (the LED repaints to it on close).
+        if (ButtonData != null)
+        {
+            if (ButtonData.States?.Any(s => s.Id == _originalActiveStateId) == true)
+                ButtonData.SetActiveState(_originalActiveStateId);
+            else
+                ButtonData.ResetToDefaultState();
+        }
+
         foreach (var segment in Commands)
             segment.Changed -= OnSegmentChanged;
     }

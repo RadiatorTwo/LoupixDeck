@@ -965,7 +965,7 @@ public partial class LoupedeckLiveSController(
         {
             if (_isDeviceOff && !button.EnableWhenOff) return;
             var wrapped = config.CurrentRotaryButtonPage?.SimpleButtonWrap?.Apply(button.Command) ?? button.Command;
-            FireAndForget(wrapped, ButtonTargets.SimpleButton);
+            FireSimpleButtonCommand(button, wrapped);
             return;
         }
 
@@ -995,6 +995,106 @@ public partial class LoupedeckLiveSController(
             try { await commandService.ExecuteCommand(command, target, sourceIndex); }
             catch (Exception ex) { Console.WriteLine($"Command failed ({command}): {ex.Message}"); }
         });
+    }
+
+    /// <summary>
+    /// Runs a simple (LED) button's active-state command off the serial-read thread, then — for a
+    /// Local stateful button — applies the state's transition so the LED updates to the new state.
+    /// External buttons never transition automatically; their state is driven by a plugin.
+    /// </summary>
+    private void FireSimpleButtonCommand(SimpleButton button, string wrapped)
+    {
+        var local = button.Mode == ButtonStateMode.Local;
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                if (!string.IsNullOrEmpty(wrapped))
+                    await commandService.ExecuteCommand(wrapped, ButtonTargets.SimpleButton, null);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Command failed ({wrapped}): {ex.Message}");
+            }
+            finally
+            {
+                if (local)
+                    ApplyStateTransition(button);
+            }
+        });
+    }
+
+    /// <summary>
+    /// Runs a touch button's active-state command (wrapped by the page) off the serial-read
+    /// thread, then — for a Local stateful button — applies the state's transition so the
+    /// device repaints the new state's background + layers in one pass. External buttons never
+    /// transition automatically; their state is driven by a plugin.
+    /// </summary>
+    private void FireTouchButtonCommand(TouchButton button)
+    {
+        var wrapped = config.CurrentTouchButtonPage.TouchButtonWrap?.Apply(button.Command) ?? button.Command;
+        var local = button.Mode == ButtonStateMode.Local;
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                if (!string.IsNullOrEmpty(wrapped))
+                    await commandService.ExecuteCommand(wrapped, ButtonTargets.TouchButton, null);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Command failed ({wrapped}): {ex.Message}");
+            }
+            finally
+            {
+                if (local)
+                    ApplyStateTransition(button);
+            }
+        });
+    }
+
+    /// <summary>
+    /// Resolves the active state's transition to the next state id and applies it on the UI
+    /// thread (never the serial-read thread). A Stay transition or a removed target is a no-op.
+    /// Shared by touch and simple (LED) stateful buttons.
+    /// </summary>
+    private static void ApplyStateTransition(StatefulButton button)
+    {
+        var states = button.States;
+        if (states == null || states.Count == 0) return;
+
+        var current = button.ActiveState;
+        if (current == null) return;
+
+        var transition = current.Transition ?? new StateTransition();
+        Guid? nextId = transition.Kind switch
+        {
+            StateTransitionKind.Next => NeighbourStateId(states, current, +1),
+            StateTransitionKind.Previous => NeighbourStateId(states, current, -1),
+            StateTransitionKind.Specific => transition.TargetStateId,
+            StateTransitionKind.ResetToDefault => button.DefaultState?.Id,
+            _ => null // Stay
+        };
+
+        if (nextId is not { } target || target == current.Id) return;
+        if (states.All(s => s.Id != target)) return; // target state was deleted
+
+        Avalonia.Threading.Dispatcher.UIThread.Post(() => button.SetActiveState(target));
+    }
+
+    private static Guid? NeighbourStateId(IList<ButtonState> states, ButtonState current, int direction)
+    {
+        var index = -1;
+        for (var i = 0; i < states.Count; i++)
+        {
+            if (states[i].Id == current.Id) { index = i; break; }
+        }
+        if (index < 0) return null;
+
+        var next = ((index + direction) % states.Count + states.Count) % states.Count;
+        return states[next].Id;
     }
 
     private void OnTouchButtonPress(object sender, TouchEventArgs e)
@@ -1104,8 +1204,7 @@ public partial class LoupedeckLiveSController(
             if (config.TouchFeedbackEnabled)
                 _ = ShowTouchFeedback(button);
 
-            var wrapped = config.CurrentTouchButtonPage.TouchButtonWrap?.Apply(button.Command) ?? button.Command;
-            FireAndForget(wrapped, ButtonTargets.TouchButton);
+            FireTouchButtonCommand(button);
         }
     }
 
@@ -1549,6 +1648,13 @@ public partial class LoupedeckLiveSController(
             foreach (var touchButton in config.TouchButtonPages[newIndex].TouchButtons)
             {
                 touchButton.ItemChanged += TouchItemChanged;
+
+                // Reset stateful buttons that opt into per-page reset back to their default state
+                // as the page becomes active. App-focus switches also flow through page changes,
+                // so this transitively covers "reset on active-app change". External (plugin-driven)
+                // buttons keep their state.
+                if (touchButton.ResetOnPageChange && touchButton.Mode == ButtonStateMode.Local)
+                    touchButton.ResetToDefaultState();
             }
         }
 

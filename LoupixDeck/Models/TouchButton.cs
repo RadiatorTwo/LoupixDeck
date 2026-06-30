@@ -1,5 +1,4 @@
-using System.Collections.Specialized;
-using System.ComponentModel;
+using System.Collections.ObjectModel;
 using Avalonia.Media;
 using LoupixDeck.Models.Layers;
 using LoupixDeck.Utils;
@@ -8,13 +7,17 @@ using SkiaSharp;
 
 namespace LoupixDeck.Models;
 
-public class TouchButton : LoupedeckButton
+/// <summary>
+/// A touch/LCD key. Holds one or more named <see cref="ButtonState"/>s; the button's rendered
+/// appearance (background + layers) and its press command/haptic are delegated to the active
+/// state. A button with a single state behaves exactly like a pre-stateful button — the v6→v7
+/// migration wraps every old button into one "Default" state.
+/// </summary>
+public class TouchButton : StatefulButton
 {
     public TouchButton(int index)
     {
         Index = index;
-        Layers = new System.Collections.ObjectModel.ObservableCollection<LayerBase>();
-        AttachLayerHandlers(Layers);
     }
 
     /// <summary>Parameterless ctor for the JSON deserializer.</summary>
@@ -25,62 +28,65 @@ public class TouchButton : LoupedeckButton
 
     public int Index { get; set; }
 
-    private Color _backColor = Colors.Black;
+    protected override void RaiseActiveStateProjections()
+    {
+        OnPropertyChanged(nameof(Layers));
+        OnPropertyChanged(nameof(BackColor));
+        OnPropertyChanged(nameof(VibrationEnabled));
+        OnPropertyChanged(nameof(VibrationPattern));
+    }
 
+    // ---- Appearance / haptic projected onto the active state --------------
+
+    [JsonIgnore]
     public Color BackColor
     {
-        get => _backColor;
+        get => ActiveState?.BackColor ?? Colors.Black;
         set
         {
-            if (Equals(value, _backColor)) return;
-            _backColor = value;
-            Refresh();
+            if (ActiveState == null || Equals(ActiveState.BackColor, value)) return;
+            ActiveState.BackColor = value;
+            OnPropertyChanged(nameof(BackColor));
         }
     }
 
-    private bool _vibrationEnabled;
-
+    [JsonIgnore]
     public bool VibrationEnabled
     {
-        get => _vibrationEnabled;
+        get => ActiveState?.VibrationEnabled ?? false;
         set
         {
-            if (value == _vibrationEnabled) return;
-            _vibrationEnabled = value;
+            if (ActiveState == null || ActiveState.VibrationEnabled == value) return;
+            ActiveState.VibrationEnabled = value;
             OnPropertyChanged(nameof(VibrationEnabled));
         }
     }
 
-    private byte _vibrationPattern;
-
+    [JsonIgnore]
     public byte VibrationPattern
     {
-        get => _vibrationPattern == 0
-            ? LoupedeckDevice.Constants.VibrationPattern.ShortLower
-            : _vibrationPattern;
+        get => ActiveState?.VibrationPattern ?? LoupedeckDevice.Constants.VibrationPattern.ShortLower;
         set
         {
-            if (value == _vibrationPattern) return;
-            _vibrationPattern = value;
+            if (ActiveState == null || ActiveState.VibrationPattern == value) return;
+            ActiveState.VibrationPattern = value;
             OnPropertyChanged(nameof(VibrationPattern));
         }
     }
 
-    private System.Collections.ObjectModel.ObservableCollection<LayerBase> _layers;
-
-    public System.Collections.ObjectModel.ObservableCollection<LayerBase> Layers
+    [JsonIgnore]
+    public ObservableCollection<LayerBase> Layers
     {
-        get => _layers;
+        get => ActiveState?.Layers;
         set
         {
-            if (ReferenceEquals(_layers, value)) return;
-            DetachLayerHandlers(_layers);
-            _layers = value ?? new System.Collections.ObjectModel.ObservableCollection<LayerBase>();
-            AttachLayerHandlers(_layers);
-            Refresh();
+            if (ActiveState == null) return;
+            ActiveState.Layers = value;
             OnPropertyChanged(nameof(Layers));
         }
     }
+
+    // ---- Rendered bitmap (unchanged) --------------------------------------
 
     private SKBitmap _renderedImage;
 
@@ -120,127 +126,35 @@ public class TouchButton : LoupedeckButton
         }
     }
 
-    private void AttachLayerHandlers(System.Collections.ObjectModel.ObservableCollection<LayerBase> layers)
-    {
-        if (layers == null) return;
-        layers.CollectionChanged += Layers_CollectionChanged;
-        foreach (var layer in layers)
-        {
-            layer?.PropertyChanged += Layer_PropertyChanged;
-        }
-    }
-
-    private void DetachLayerHandlers(System.Collections.ObjectModel.ObservableCollection<LayerBase> layers)
-    {
-        if (layers == null) return;
-        layers.CollectionChanged -= Layers_CollectionChanged;
-        foreach (var layer in layers)
-        {
-            layer?.PropertyChanged -= Layer_PropertyChanged;
-        }
-    }
-
-    private void Layers_CollectionChanged(object sender, NotifyCollectionChangedEventArgs e)
-    {
-        if (e.OldItems != null)
-        {
-            foreach (LayerBase l in e.OldItems)
-                l?.PropertyChanged -= Layer_PropertyChanged;
-        }
-
-        if (e.NewItems != null)
-        {
-            foreach (LayerBase l in e.NewItems)
-                l?.PropertyChanged += Layer_PropertyChanged;
-        }
-
-        Refresh();
-    }
-
-    private void Layer_PropertyChanged(object sender, PropertyChangedEventArgs e)
-    {
-        Refresh();
-    }
+    // ---- Command-owned layer helpers (forward to the active state) --------
 
     /// <summary>
-    /// Returns the plugin-managed <see cref="PluginLayer"/> bound to <paramref name="ownerKey"/>,
-    /// creating one (appended on top) if none exists. Used by image display commands so each
-    /// command's bitmap targets exactly its own layer instead of "the first matching one".
+    /// Returns the plugin-managed <see cref="PluginLayer"/> bound to <paramref name="ownerKey"/>
+    /// on the active state, creating one (appended on top) if none exists.
     /// </summary>
     public PluginLayer GetOrCreatePluginLayer(string ownerKey, string commandName)
-    {
-        foreach (var layer in Layers)
-        {
-            if (layer is PluginLayer plugin &&
-                string.Equals(plugin.OwnerKey, ownerKey, StringComparison.Ordinal))
-            {
-                return plugin;
-            }
-        }
-
-        var created = new PluginLayer
-        {
-            Name = string.IsNullOrEmpty(commandName) ? "Plugin" : commandName,
-            OwnerKey = ownerKey,
-            CommandName = commandName,
-            OwnerCreated = true
-        };
-        Layers.Add(created);
-        return created;
-    }
+        => ActiveState?.GetOrCreatePluginLayer(ownerKey, commandName);
 
     /// <summary>
-    /// Returns the command-owned <see cref="TextLayer"/> bound to <paramref name="ownerKey"/>.
-    /// If none is tagged yet, adopts the existing primary text layer (tagging it) so styling and
-    /// position of buttons configured before owner-keying are preserved; only when the button has
-    /// no text layer at all is a new one created. Used by every text display command (core or
-    /// plugin) for unique targeting in place of the former first-matching-text-layer lookup.
+    /// Returns the command-owned <see cref="TextLayer"/> bound to <paramref name="ownerKey"/>
+    /// on the active state, adopting or creating it as needed.
     /// </summary>
     public TextLayer GetOrAdoptOwnedTextLayer(string ownerKey, string commandName)
-    {
-        TextLayer firstUntagged = null;
-        foreach (var layer in Layers)
-        {
-            if (layer is not TextLayer text) continue;
-            if (string.Equals(text.OwnerKey, ownerKey, StringComparison.Ordinal))
-                return text;
-            firstUntagged ??= string.IsNullOrEmpty(text.OwnerKey) ? text : null;
-        }
-
-        if (firstUntagged != null)
-        {
-            firstUntagged.OwnerKey = ownerKey;
-            firstUntagged.CommandName = commandName;
-            return firstUntagged;
-        }
-
-        var created = new TextLayer
-        {
-            Name = string.IsNullOrEmpty(commandName) ? "Text" : commandName,
-            BoxWidth = 90,
-            BoxHeight = 90,
-            OwnerCreated = true,
-            OwnerKey = ownerKey,
-            CommandName = commandName
-        };
-        Layers.Add(created);
-        return created;
-    }
+        => ActiveState?.GetOrAdoptOwnedTextLayer(ownerKey, commandName);
 
     /// <summary>
-    /// Re-attaches PropertyChanged handlers to all layers — call after JSON
-    /// deserialization since the ObservableCollection setter wires up the
-    /// collection events but the individual layers were constructed by the
-    /// JSON converter, bypassing AttachLayerHandlers.
+    /// Re-attaches per-layer PropertyChanged handlers on every state and re-subscribes the active
+    /// state after JSON deserialization (the layers/states are built by the JSON converters and
+    /// bypass the collection setters). Also re-mirrors the active command.
     /// </summary>
     public void RewireLayerHandlers()
     {
-        if (_layers == null) return;
-        foreach (var layer in _layers)
+        if (States != null)
         {
-            if (layer == null) continue;
-            layer.PropertyChanged -= Layer_PropertyChanged;
-            layer.PropertyChanged += Layer_PropertyChanged;
+            foreach (var state in States)
+                state?.RewireLayerHandlers();
         }
+
+        NormalizeActiveStateAfterLoad();
     }
 }

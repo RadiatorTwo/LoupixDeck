@@ -8,15 +8,20 @@
     xmlns:local="clr-namespace:LoupixDeck"
     xmlns:vm="using:LoupixDeck.ViewModels"
     xmlns:layers="clr-namespace:LoupixDeck.Models.Layers"
+    xmlns:conv="clr-namespace:LoupixDeck.Models.Converter"
+    xmlns:models="clr-namespace:LoupixDeck.Models"
     x:DataType="vm:TouchButtonSettingsViewModel"
     Title="{Binding ButtonLabel}"
-    Width="1280"
+    Width="1440"
     SizeToContent="Height"
-    MaxHeight="1000"
+    MaxHeight="1240"
     mc:Ignorable="d"
     CanResize="False">
 
     <Window.Resources>
+        <conv:TransitionKindLabelConverter x:Key="TransitionKindLabel" />
+        <conv:EnumToBooleanConverter x:Key="EnumToBoolean" />
+
         <!-- Wrapped, left → top-to-bottom execution order, shared by all sequence strips. -->
         <ItemsPanelTemplate x:Key="ChipPanel">
             <WrapPanel Orientation="Horizontal" />
@@ -178,16 +183,18 @@
         </Style>
     </Window.Styles>
 
-    <!-- Top area has a fixed height so it never shrinks; the window grows
-         downwards (SizeToContent) as the sequence strip wraps onto more rows. -->
-    <Grid RowDefinitions="780,Auto" Margin="12">
+    <!-- Top area height is set adaptively in code-behind (OnOpened) to the screen size:
+         large on WQHD+, smaller on 1080p, so the whole dialog always fits without an outer
+         scrollbar. The window grows downwards (SizeToContent) with the bottom sequence. -->
+    <Grid x:Name="RootGrid" RowDefinitions="860,Auto" Margin="12">
 
         <!-- ===== Main area: left panel / preview / properties ===== -->
-        <Grid Grid.Row="0" ColumnDefinitions="240,*,360">
+        <!-- Center preview and the right tab panel both grow with the window (2:1). -->
+        <Grid Grid.Row="0" ColumnDefinitions="290,2*,*">
 
-            <!-- Left: button settings + layer list -->
+            <!-- Left: button settings + states + layer list -->
             <Border Grid.Column="0" Classes="editor-panel" Margin="0,0,12,0">
-                <Grid RowDefinitions="Auto,Auto,Auto,*,Auto">
+                <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,*,Auto">
 
                     <StackPanel Grid.Row="0">
                         <!-- Side-strip (Razer) mode picker — only when editing a strip
@@ -241,7 +248,89 @@
 
                     <Separator Grid.Row="1" Margin="0,12,0,12" />
 
-                    <StackPanel Grid.Row="2" IsEnabled="{Binding CanEditCanvas}">
+                    <!-- States: compact state management, between Button and Layers. Mirrors the
+                         Layers section's button sizes/layout. Fixed-height list (does not grow with
+                         entries). Grid-touch buttons only; no popups, no horizontal list. -->
+                    <StackPanel Grid.Row="2" IsVisible="{Binding ShowStatesSection}">
+                        <TextBlock Classes="panel-title" Text="States" />
+
+                        <UniformGrid Columns="2" Margin="0,0,0,8">
+                            <Button Classes="toolbar" Content="+ Add" Margin="0,0,4,0"
+                                    HorizontalAlignment="Stretch"
+                                    Command="{Binding AddStateCommand}"
+                                    ToolTip.Tip="Add a new state" />
+                            <Button Classes="toolbar" Content="Duplicate" Margin="0,0,0,0"
+                                    HorizontalAlignment="Stretch"
+                                    Command="{Binding DuplicateStateCommand}"
+                                    ToolTip.Tip="Duplicate the selected state" />
+                        </UniformGrid>
+
+                        <!-- Fixed, compact height — kept smaller than the Layers list below. -->
+                        <ListBox Height="108"
+                                 ItemsSource="{Binding States}"
+                                 SelectedItem="{Binding SelectedState, Mode=TwoWay}"
+                                 Background="{DynamicResource AppSurfaceLow}"
+                                 CornerRadius="6">
+                            <ListBox.Styles>
+                                <Style Selector="ListBoxItem">
+                                    <Setter Property="Padding" Value="8,5" />
+                                    <Setter Property="MinHeight" Value="32" />
+                                </Style>
+                            </ListBox.Styles>
+                            <ListBox.ItemTemplate>
+                                <DataTemplate DataType="models:ButtonState">
+                                    <Grid ColumnDefinitions="Auto,*,Auto">
+                                        <TextBlock Grid.Column="0" Text="{Binding DisplayIndex}"
+                                                   VerticalAlignment="Center" Margin="0,0,8,0"
+                                                   Foreground="{DynamicResource AppTextMuted}" />
+                                        <TextBlock Grid.Column="1" Text="{Binding Name}"
+                                                   VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                                                   ToolTip.Tip="{Binding Name}" />
+                                        <Border Grid.Column="2" Classes="layer-badge"
+                                                IsVisible="{Binding IsDefault}"
+                                                ToolTip.Tip="Default state">
+                                            <TextBlock Text="Default" />
+                                        </Border>
+                                    </Grid>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+
+                        <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                            <Button Classes="row-action" Content="▲"
+                                    Command="{Binding MoveStateUpCommand}"
+                                    ToolTip.Tip="Move state up" />
+                            <Button Classes="row-action" Content="▼"
+                                    Command="{Binding MoveStateDownCommand}"
+                                    ToolTip.Tip="Move state down" />
+                            <Button Classes="row-action"
+                                    Command="{Binding SetDefaultStateCommand}"
+                                    ToolTip.Tip="Set as default state">
+                                <TextBlock Text="&#xF04CE;" FontFamily="{StaticResource MdiFont}" />
+                            </Button>
+                            <Button Classes="row-action danger"
+                                    Command="{Binding DeleteStateCommand}"
+                                    IsEnabled="{Binding CanDeleteState}"
+                                    ToolTip.Tip="Delete the selected state">
+                                <TextBlock Text="&#xF01B4;" FontFamily="{StaticResource MdiFont}" />
+                            </Button>
+                        </StackPanel>
+
+                        <TextBlock Classes="label" Margin="0,8,0,0"
+                                   Text="{Binding SelectedState.Name, StringFormat='Selected State: {0}'}" />
+
+                        <CheckBox Content="Reset to default on page change"
+                                  IsChecked="{Binding ResetOnPageChange, Mode=TwoWay}"
+                                  Margin="0,8,0,0" />
+                        <CheckBox Content="Reset to default on restart"
+                                  IsChecked="{Binding ResetOnRestart, Mode=TwoWay}"
+                                  Margin="0,2,0,0" />
+                    </StackPanel>
+
+                    <Separator Grid.Row="3" Margin="0,12,0,12"
+                               IsVisible="{Binding ShowStatesSection}" />
+
+                    <StackPanel Grid.Row="4" IsEnabled="{Binding CanEditCanvas}">
                         <TextBlock Classes="panel-title" Text="Layers" />
                         <!-- 2×2 grid so all four add-layer buttons fit the fixed-width panel
                              regardless of label length (a single row overflowed the right edge). -->
@@ -261,7 +350,7 @@
                         </UniformGrid>
                     </StackPanel>
 
-                    <ListBox Grid.Row="3"
+                    <ListBox Grid.Row="5"
                              IsEnabled="{Binding CanEditCanvas}"
                              ItemsSource="{Binding ButtonData.Layers}"
                              SelectedItem="{Binding SelectedLayer, Mode=TwoWay}"
@@ -347,7 +436,7 @@
                         </ListBox.DataTemplates>
                     </ListBox>
 
-                    <StackPanel Grid.Row="4" Orientation="Horizontal" Margin="0,8,0,0"
+                    <StackPanel Grid.Row="6" Orientation="Horizontal" Margin="0,8,0,0"
                                 IsEnabled="{Binding CanEditCanvas}">
                         <Button Classes="row-action" Content="▲"
                                 Command="{Binding MoveLayerUpCommand}"
@@ -371,8 +460,14 @@
 
                     <!-- Preview header + (placeholder) view toolbar -->
                     <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="4,0,4,8">
-                        <TextBlock Grid.Column="0" Classes="panel-title" Text="Preview"
-                                   Margin="0" VerticalAlignment="Center" />
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10"
+                                    VerticalAlignment="Center">
+                            <TextBlock Classes="panel-title" Text="Preview"
+                                       Margin="0" VerticalAlignment="Center" />
+                            <TextBlock Classes="label" VerticalAlignment="Center"
+                                       IsVisible="{Binding ShowStatesSection}"
+                                       Text="{Binding SelectedState.Name, StringFormat='Editing State: {0}'}" />
+                        </StackPanel>
                         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4">
                             <Button Classes="toolbar" Content="&#x2212;"
                                     Command="{Binding ZoomOutCommand}"
@@ -543,12 +638,21 @@
                                 </StackPanel>
                             </Border>
 
-                            <!-- Per-layer panel -->
-                            <Border Classes="editor-panel">
+                            <!-- Selected state: rename. Shown when the state itself is the editing
+                                 context (no layer selected); mutually exclusive with layer props. -->
+                            <Border Classes="editor-panel" IsVisible="{Binding ShowStateProperties}">
                                 <StackPanel>
-                                    <TextBlock Classes="hint"
-                                               Text="Select a layer to edit its properties."
-                                               IsVisible="{Binding SelectedLayer, Converter={x:Static ObjectConverters.IsNull}}" />
+                                    <TextBlock Classes="panel-title" Text="State" />
+                                    <TextBlock Classes="label" Text="Name" />
+                                    <TextBox Text="{Binding SelectedState.Name, Mode=TwoWay}"
+                                             Margin="0,2,0,0" />
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Per-layer panel — shown only when a layer is selected
+                                 (mutually exclusive with the State properties panel above). -->
+                            <Border Classes="editor-panel" IsVisible="{Binding HasSelectedLayer}">
+                                <StackPanel>
                                     <ContentControl Content="{Binding SelectedLayer}">
                                 <ContentControl.DataTemplates>
 
@@ -935,8 +1039,8 @@
                          pipeline strip at the bottom of the window, so the tree
                          keeps its full height and never shifts. Double-click an
                          entry to append it, or drag it into the strip. -->
-                    <ScrollViewer Margin="0,4,0,0"
-                                  VerticalScrollBarVisibility="Auto"
+                    <Border Classes="editor-panel" Margin="0,4,4,0">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto"
                                   HorizontalScrollBarVisibility="Disabled">
                         <TreeView Name="SystemCommandsTreeView" ItemsSource="{Binding SystemCommandMenus}"
                                   SelectedItem="{Binding CurrentMenuEntry}"
@@ -963,18 +1067,52 @@
                             </TreeView.DataTemplates>
                         </TreeView>
                     </ScrollViewer>
+                    </Border>
                 </TabItem>
             </TabControl>
         </Grid>
 
-        <!-- ===== Bottom: command sequence strips =====
-             One strip for a normal button, three (top/middle/bottom segments) for a
-             FreeDraw side strip. Each strip wraps its chips and grows; the window grows
-             downward with them (SizeToContent). Each is a drop target for tree drags. -->
-        <ItemsControl Grid.Row="1" Name="SlotsHost"
-                      Margin="0,12,0,0"
-                      ItemsSource="{Binding CommandSlots}"
-                      ItemTemplate="{StaticResource SequenceStripTemplate}" />
+        <!-- ===== Bottom: behavior for the selected state =====
+             Panel with the title, the after-press transition (above), and the Actions /
+             command sequence (one strip for a normal button, three top/middle/bottom segments
+             for a FreeDraw side strip). The window grows downward (SizeToContent). -->
+        <Border Grid.Row="1" Classes="editor-panel" Margin="0,12,0,0">
+            <StackPanel>
+                <TextBlock Classes="panel-title" Margin="0,0,0,8"
+                           IsVisible="{Binding ShowStatesSection}"
+                           Text="{Binding SelectedState.Name, StringFormat='Behavior for State: {0}'}" />
+
+                <!-- After-press transition — above the command sequence. Bound directly to the
+                     selected state's transition so switching states never writes into the wrong one. -->
+                <StackPanel IsVisible="{Binding ShowStatesSection}" Margin="0,0,0,12">
+                    <TextBlock Classes="label" Text="Transition after press" Margin="0,0,0,4" />
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <ComboBox MinWidth="220"
+                                  ItemsSource="{Binding TransitionKinds}"
+                                  SelectedItem="{Binding SelectedState.Transition.Kind, Mode=TwoWay}">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate x:DataType="models:StateTransitionKind">
+                                    <TextBlock Text="{Binding Converter={StaticResource TransitionKindLabel}}" />
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+                        <ComboBox MinWidth="220"
+                                  IsVisible="{Binding SelectedState.Transition.Kind, Converter={StaticResource EnumToBoolean}, ConverterParameter=Specific}"
+                                  ItemsSource="{Binding States}"
+                                  SelectedValueBinding="{Binding Id}"
+                                  SelectedValue="{Binding SelectedState.Transition.TargetStateId, Mode=TwoWay}"
+                                  DisplayMemberBinding="{Binding Name}" />
+                    </StackPanel>
+                </StackPanel>
+
+                <TextBlock Classes="label" Text="Actions / Command sequence"
+                           IsVisible="{Binding ShowStatesSection}" Margin="0,0,0,4" />
+
+                <ItemsControl Name="SlotsHost"
+                              ItemsSource="{Binding CommandSlots}"
+                              ItemTemplate="{StaticResource SequenceStripTemplate}" />
+            </StackPanel>
+        </Border>
 
         <!-- ===== Drag ghost =====
              Floating chip that follows the cursor while dragging a command from
