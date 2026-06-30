@@ -987,22 +987,34 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         }
 
         var b = ButtonData;
+        var fresh = new ButtonState { Name = "Default" };
         b.IgnoreRefresh = true;
         try
         {
-            b.Command = null;
-            b.BackColor = Avalonia.Media.Colors.Black;
-            b.Layers.Clear();
+            // Reset to a single blank default state, discarding any extra states, and reset the
+            // mode / reset rules. (A single state behaves like a non-stateful button.)
+            b.States.Clear();
+            b.States.Add(fresh);
+            b.DefaultStateId = fresh.Id;
+            b.Mode = ButtonStateMode.Local;
+            b.ResetOnPageChange = false;
+            b.ResetOnRestart = true;
+            b.SetActiveState(fresh.Id);
         }
         finally
         {
             b.IgnoreRefresh = false;
         }
         b.Refresh();
-        SelectedLayer = null;
 
-        // Reload the sequence strips from the now-cleared sources.
-        BuildCommandSlots();
+        RefreshStateBadges();
+        SelectedLayer = null;
+        // Selecting the fresh state re-points the preview, layers and command slots.
+        SelectedState = fresh;
+
+        OnPropertyChanged(nameof(CanDeleteState));
+        OnPropertyChanged(nameof(ResetOnPageChange));
+        OnPropertyChanged(nameof(ResetOnRestart));
     }
 
     private void ButtonData_PropertyChanged(object sender, System.ComponentModel.PropertyChangedEventArgs e)
