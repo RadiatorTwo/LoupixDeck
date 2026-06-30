@@ -496,9 +496,40 @@ public class PluginManager : IPluginManager
             catch { return false; }
         }
 
+        IReadOnlyList<string> GetButtonStates(string commandName)
+        {
+            try { return Device.GetRequiredService<IButtonStateService>().GetStates(commandName); }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"PluginHost[{manifest.Id}]: GetButtonStates failed: {ex.Message}");
+                return [];
+            }
+        }
+
+        string GetActiveButtonState(string commandName)
+        {
+            try { return Device.GetRequiredService<IButtonStateService>().GetActiveState(commandName); }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"PluginHost[{manifest.Id}]: GetActiveButtonState failed: {ex.Message}");
+                return null;
+            }
+        }
+
+        bool SetActiveButtonState(string commandName, string stateNameOrId)
+        {
+            try { return Device.GetRequiredService<IButtonStateService>().SetActiveState(commandName, stateNameOrId); }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"PluginHost[{manifest.Id}]: SetActiveButtonState failed: {ex.Message}");
+                return false;
+            }
+        }
+
         return new PluginHost(logger, settings, device, ExecuteCommand, RequestButtonRefresh,
             OpenFolder, OverlayTouchText, GetTouchSlotForRotary,
-            RequestExclusiveMode, ReleaseExclusiveMode, IsInExclusiveMode);
+            RequestExclusiveMode, ReleaseExclusiveMode, IsInExclusiveMode,
+            GetButtonStates, GetActiveButtonState, SetActiveButtonState);
     }
 
     public void ShutdownAll()

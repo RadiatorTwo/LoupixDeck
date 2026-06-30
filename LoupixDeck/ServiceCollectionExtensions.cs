@@ -242,6 +242,9 @@ public static class ServiceCollectionExtensions
 
         collection.AddSingleton<IDynamicTextManager, DynamicTextManager>();
 
+        // Lets plugins query/set the active state of stateful touch buttons (issue #131).
+        collection.AddSingleton<IButtonStateService, ButtonStateService>();
+
         // Per-button animations (issue #121): one source per device on the central scheduler,
         // driving animated image layers and animated plugin commands.
         collection.AddSingleton<Services.Animation.IButtonAnimationManager, Services.Animation.ButtonAnimationManager>();
@@ -381,6 +384,13 @@ public static class ServiceCollectionExtensions
                     button?.RewireLayerHandlers();
                 }
             }
+        }
+
+        // Normalize each LED button's active state + command mirror after load (no layers).
+        if (config.SimpleButtons != null)
+        {
+            foreach (var button in config.SimpleButtons)
+                button?.RewireAfterLoad();
         }
     }
 }
