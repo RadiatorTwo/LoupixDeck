@@ -5,24 +5,37 @@ using Newtonsoft.Json;
 
 namespace LoupixDeck.Models;
 
-public class SimpleButton : LoupedeckButton
+/// <summary>
+/// A physical hardware button with an LED. Holds one or more named <see cref="ButtonState"/>s;
+/// the LED color and the press command are delegated to the active state (LED-only states carry
+/// <see cref="ButtonState.LedColor"/> + a command, no layers). A button with a single state
+/// behaves exactly like a pre-stateful button — the v7→v8 migration wraps every old button into
+/// one "Default" state.
+/// </summary>
+public class SimpleButton : StatefulButton
 {
     public Constants.ButtonType Id { get; set; }
-    
-    private Color _buttonColor;
+
+    protected override void RaiseActiveStateProjections()
+    {
+        OnPropertyChanged(nameof(ButtonColor));
+    }
+
+    /// <summary>The LED color, projected onto the active state's <see cref="ButtonState.LedColor"/>.</summary>
+    [JsonIgnore]
     public Color ButtonColor
     {
-        get => _buttonColor;
+        get => ActiveState?.LedColor ?? Colors.Black;
         set
         {
-            if (value.Equals(_buttonColor)) return;
-            _buttonColor = value;
-            //OnPropertyChanged(nameof(TextColor));
-            Refresh();
+            if (ActiveState == null || Equals(ActiveState.LedColor, value)) return;
+            ActiveState.LedColor = value; // raises ButtonState.Changed -> Refresh
+            OnPropertyChanged(nameof(ButtonColor));
         }
     }
-    
+
     private Bitmap _renderedImage;
+
     [JsonIgnore]
     public Bitmap RenderedImage
     {
@@ -34,4 +47,10 @@ public class SimpleButton : LoupedeckButton
             OnPropertyChanged(nameof(RenderedImage));
         }
     }
+
+    /// <summary>
+    /// Normalizes the active state and re-mirrors the active command after JSON deserialization.
+    /// Call once after config load (simple buttons have no layers to rewire).
+    /// </summary>
+    public void RewireAfterLoad() => NormalizeActiveStateAfterLoad();
 }
