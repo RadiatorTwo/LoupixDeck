@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+
+    <!-- Tiny native uninstaller: no Avalonia/Skia, just Win32 message boxes. -->
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>true</SelfContained>
+    <PublishAot>true</PublishAot>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <StripSymbols>true</StripSymbols>
+
+    <ApplicationIcon>..\LoupixDeck\Assets\logo.ico</ApplicationIcon>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <AssemblyName>LoupixDeck.Uninstall</AssemblyName>
+    <RootNamespace>LoupixDeck.Uninstall</RootNamespace>
+
+    <DefineConstants Condition="'$(OS)' == 'Windows_NT'">WINDOWS</DefineConstants>
+    <NoWarn>$(NoWarn);CA1416</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Win32.Registry" />
+  </ItemGroup>
+
+  <!-- Payload-free services shared with LoupixDeck.Setup (compiled into this tool too). -->
+  <ItemGroup>
+    <Compile Include="..\LoupixDeck.Setup\Services\AppPaths.cs" Link="Shared\AppPaths.cs" />
+    <Compile Include="..\LoupixDeck.Setup\Services\AutostartService.cs" Link="Shared\AutostartService.cs" />
+    <Compile Include="..\LoupixDeck.Setup\Services\FileOps.cs" Link="Shared\FileOps.cs" />
+    <Compile Include="..\LoupixDeck.Setup\Services\RunningAppControl.cs" Link="Shared\RunningAppControl.cs" />
+    <Compile Include="..\LoupixDeck.Setup\Services\UninstallRegistry.cs" Link="Shared\UninstallRegistry.cs" />
+    <Compile Include="..\LoupixDeck.Setup\Services\UninstallRunner.cs" Link="Shared\UninstallRunner.cs" />
+  </ItemGroup>
+</Project>
