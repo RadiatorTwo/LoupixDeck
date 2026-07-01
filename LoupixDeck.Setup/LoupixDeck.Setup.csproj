@@ -1,0 +1,76 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <!-- Windows-specific TFM: the Registry API is provided in-box (trim/AOT-annotated), so no
+         Microsoft.Win32.Registry compat package is needed. -->
+    <TargetFramework>net9.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+
+    <!-- Windows-only native setup tool. -->
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>true</SelfContained>
+
+    <!-- NativeAOT: single native exe, no .NET runtime dependency, fast start.
+         Only takes effect on `dotnet publish`; `dotnet build`/run stay managed
+         so local UI iteration doesn't need the MSVC toolchain. -->
+    <PublishAot>true</PublishAot>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <StripSymbols>true</StripSymbols>
+
+    <ApplicationIcon>..\LoupixDeck\Assets\logo.ico</ApplicationIcon>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+    <AssemblyName>LoupixDeck.Setup</AssemblyName>
+    <RootNamespace>LoupixDeck.Setup</RootNamespace>
+
+    <!-- Windows-only platform gate, mirroring the main app. -->
+    <DefineConstants Condition="'$(OS)' == 'Windows_NT'">WINDOWS</DefineConstants>
+
+    <!-- This tool only ever builds/runs as win-x64, so the Windows-only Registry/COM/identity
+         APIs are always available; silence the platform-compatibility analyzer. -->
+    <NoWarn>$(NoWarn);CA1416</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" />
+    <PackageReference Include="Avalonia.Desktop" />
+    <PackageReference Include="Avalonia.Themes.Fluent" />
+    <PackageReference Include="Avalonia.Fonts.Inter" />
+    <PackageReference Include="CommunityToolkit.Mvvm" />
+    <!-- Referenced directly so NativeBootstrap can register a DllImportResolver on the exact
+         SkiaSharp/HarfBuzzSharp assemblies (forces our embedded native libs over any stray copy). -->
+    <PackageReference Include="SkiaSharp" />
+    <PackageReference Include="HarfBuzzSharp" />
+  </ItemGroup>
+
+  <!-- App logo reused from the main project (not duplicated). -->
+  <ItemGroup>
+    <AvaloniaResource Include="..\LoupixDeck\Assets\logo.png">
+      <Link>Assets\logo.png</Link>
+    </AvaloniaResource>
+  </ItemGroup>
+
+  <!-- The release payload (assembled app + plugins, zipped by CI) is embedded so the
+       setup is a single self-contained exe. Local dev builds without PayloadZip get
+       no resource; the extractor treats a missing resource as "dry run".
+       The payload already carries the Avalonia native renderer libs (Skia / HarfBuzz / ANGLE)
+       at its root, so NativeBootstrap extracts THOSE for the setup's own UI instead of embedding
+       a second copy — the setup and the app are pinned to identical versions. -->
+  <ItemGroup Condition="'$(PayloadZip)' != ''">
+    <EmbeddedResource Include="$(PayloadZip)">
+      <LogicalName>payload.zip</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
+
+  <!-- The dedicated uninstaller (tiny, payload-free) is embedded and written into the install dir at
+       install time, so the install dir doesn't carry a full copy of this setup. Pass its path via
+       /p:UninstallerExe (see build-setup.ps1 / release.yml). -->
+  <ItemGroup Condition="'$(UninstallerExe)' != ''">
+    <EmbeddedResource Include="$(UninstallerExe)">
+      <LogicalName>uninstaller.exe</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
+</Project>
