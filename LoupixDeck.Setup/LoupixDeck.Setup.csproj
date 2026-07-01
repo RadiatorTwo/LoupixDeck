@@ -1,7 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net9.0</TargetFramework>
+    <!-- Windows-specific TFM: the Registry API is provided in-box (trim/AOT-annotated), so no
+         Microsoft.Win32.Registry compat package is needed. -->
+    <TargetFramework>net9.0-windows</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
@@ -38,7 +40,6 @@
     <PackageReference Include="Avalonia.Themes.Fluent" />
     <PackageReference Include="Avalonia.Fonts.Inter" />
     <PackageReference Include="CommunityToolkit.Mvvm" />
-    <PackageReference Include="Microsoft.Win32.Registry" />
     <!-- Referenced directly so NativeBootstrap can register a DllImportResolver on the exact
          SkiaSharp/HarfBuzzSharp assemblies (forces our embedded native libs over any stray copy). -->
     <PackageReference Include="SkiaSharp" />

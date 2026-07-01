@@ -1,7 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net9.0</TargetFramework>
+    <!-- Windows-specific TFM: the Registry API is provided in-box (trim/AOT-annotated), so no
+         Microsoft.Win32.Registry compat package is needed. -->
+    <TargetFramework>net9.0-windows</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
@@ -21,10 +23,6 @@
     <DefineConstants Condition="'$(OS)' == 'Windows_NT'">WINDOWS</DefineConstants>
     <NoWarn>$(NoWarn);CA1416</NoWarn>
   </PropertyGroup>
-
-  <ItemGroup>
-    <PackageReference Include="Microsoft.Win32.Registry" />
-  </ItemGroup>
 
   <!-- Payload-free services shared with LoupixDeck.Setup (compiled into this tool too). -->
   <ItemGroup>
