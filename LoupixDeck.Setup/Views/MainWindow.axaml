@@ -1,0 +1,205 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:LoupixDeck.Setup.ViewModels"
+        x:Class="LoupixDeck.Setup.Views.MainWindow"
+        x:DataType="vm:WizardViewModel"
+        Width="600" Height="600"
+        CanResize="False"
+        WindowStartupLocation="CenterScreen"
+        Background="{StaticResource WindowBackground}"
+        Title="LoupixDeck Setup">
+
+    <Grid Margin="28" RowDefinitions="Auto,Auto,*">
+
+        <!-- ── Brand ── -->
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+            <Image Source="avares://LoupixDeck.Setup/Assets/logo.png" Width="40" Height="40" />
+            <TextBlock Text="LoupixDeck" FontSize="18" FontWeight="SemiBold"
+                       VerticalAlignment="Center" Foreground="{StaticResource TextPrimary}" />
+        </StackPanel>
+
+        <!-- ── Title / subtitle ── -->
+        <StackPanel Grid.Row="1" Margin="0,22,0,18" Spacing="4">
+            <TextBlock Classes="h1" Text="{Binding HeaderTitle}" />
+            <TextBlock Classes="subtitle" Text="{Binding HeaderSubtitle}"
+                       IsVisible="{Binding HeaderSubtitle, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+        </StackPanel>
+
+        <!-- ── Screens ── -->
+        <Panel Grid.Row="2">
+
+            <!-- ══════════ Install (fresh) ══════════ -->
+            <Grid IsVisible="{Binding ShowInstallConfig}" RowDefinitions="*,Auto">
+                <StackPanel Grid.Row="0" Spacing="16">
+                    <Border Classes="card">
+                        <StackPanel Spacing="10">
+                            <TextBlock Classes="cardtitle" Text="Install location" />
+                            <Grid ColumnDefinitions="*,Auto">
+                                <TextBox Grid.Column="0" Text="{Binding InstallDir}" VerticalAlignment="Center" />
+                                <Button Grid.Column="1" Name="BrowseButton" Content="Change…" Margin="8,0,0,0"
+                                        Classes="secondary" VerticalAlignment="Center" />
+                            </Grid>
+                            <TextBlock Classes="subtitle" TextWrapping="Wrap"
+                                       Text="A location inside your user profile does not require administrator rights." />
+                        </StackPanel>
+                    </Border>
+
+                    <StackPanel Spacing="12">
+                        <CheckBox IsChecked="{Binding StartMenuShortcut}" Content="Create Start menu entry" />
+                        <CheckBox IsChecked="{Binding DesktopShortcut}" Content="Create desktop shortcut" />
+                        <CheckBox IsChecked="{Binding Autostart}" Content="Start on system startup" />
+                        <CheckBox IsChecked="{Binding LaunchAfter}" Content="Launch LoupixDeck when finished" />
+                    </StackPanel>
+                </StackPanel>
+
+                <Grid Grid.Row="1" ColumnDefinitions="Auto,*,Auto" Margin="0,20,0,0">
+                    <Button Grid.Column="0" Classes="secondary" Content="Cancel" Command="{Binding CancelCommand}" />
+                    <Button Grid.Column="2" Classes="accent" Content="Install" Command="{Binding StartInstallCommand}" />
+                </Grid>
+            </Grid>
+
+            <!-- ══════════ Existing install (update / repair landing) ══════════ -->
+            <Grid IsVisible="{Binding ShowExistingHome}" RowDefinitions="*,Auto">
+                <StackPanel Grid.Row="0" Spacing="16">
+
+                    <!-- Version status -->
+                    <Border Classes="card">
+                        <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto" RowSpacing="8" ColumnSpacing="16">
+                            <TextBlock Grid.Row="0" Grid.Column="0" Classes="subtitle" Text="Installed version" />
+                            <TextBlock Grid.Row="0" Grid.Column="1" Foreground="{StaticResource TextPrimary}"
+                                       Text="{Binding DetectedVersion}" />
+                            <TextBlock Grid.Row="1" Grid.Column="0" Classes="subtitle" Text="Available version" />
+                            <TextBlock Grid.Row="1" Grid.Column="1" Foreground="{StaticResource TextPrimary}"
+                                       Text="{Binding NewVersion}" />
+                            <TextBlock Grid.Row="2" Grid.Column="0" Classes="subtitle" Text="Location" />
+                            <TextBlock Grid.Row="2" Grid.Column="1" Foreground="{StaticResource TextPrimary}"
+                                       TextTrimming="CharacterEllipsis" Text="{Binding InstallDir}" />
+                        </Grid>
+                    </Border>
+
+                    <!-- Update available -->
+                    <Border Classes="accentcard" IsVisible="{Binding ShowUpdateCard}">
+                        <StackPanel Spacing="10">
+                            <TextBlock Classes="cardtitle" Text="Update available" />
+                            <TextBlock Classes="subtitle" TextWrapping="Wrap"
+                                       Text="Updates the application. Your settings are preserved." />
+                            <CheckBox IsChecked="{Binding LaunchAfter}" Content="Launch LoupixDeck when finished" />
+                            <Button Classes="accent" HorizontalAlignment="Left" Content="Install update"
+                                    Command="{Binding StartUpdateCommand}" />
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Up to date -->
+                    <Border Classes="card" IsVisible="{Binding ShowUpToDate}">
+                        <StackPanel Spacing="6">
+                            <TextBlock Classes="cardtitle" Text="LoupixDeck is up to date" />
+                            <TextBlock Classes="subtitle" TextWrapping="Wrap"
+                                       Text="The installed version matches this installer. You can repair or remove it below." />
+                        </StackPanel>
+                    </Border>
+
+                    <!-- More options -->
+                    <StackPanel Spacing="10">
+                        <TextBlock Classes="cardtitle" Text="More options" />
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <Button Classes="secondary" Content="Repair installation" Command="{Binding OpenRepairCommand}" />
+                            <Button Classes="secondary danger" Content="Uninstall" Command="{Binding UninstallCommand}" />
+                        </StackPanel>
+                    </StackPanel>
+                </StackPanel>
+
+                <Grid Grid.Row="1" ColumnDefinitions="Auto,*" Margin="0,20,0,0">
+                    <Button Grid.Column="0" Classes="secondary" Content="Close" Command="{Binding CancelCommand}" />
+                </Grid>
+            </Grid>
+
+            <!-- ══════════ Repair options ══════════ -->
+            <Grid IsVisible="{Binding ShowRepairOptions}" RowDefinitions="*,Auto">
+                <StackPanel Grid.Row="0" Spacing="14">
+                    <TextBlock Classes="subtitle" TextWrapping="Wrap"
+                               Text="Repairs damaged or missing parts of the installation. Select what to check and repair:" />
+                    <Border Classes="card">
+                        <StackPanel Spacing="12">
+                            <CheckBox IsChecked="{Binding RepairProgramFiles}" Content="Program files" />
+                            <CheckBox IsChecked="{Binding RepairPlugins}" Content="Plugins" />
+                            <CheckBox IsChecked="{Binding RepairShortcuts}" Content="Start menu and desktop shortcuts" />
+                            <CheckBox IsChecked="{Binding RepairAutostart}" Content="Autostart entry" />
+                            <StackPanel Spacing="2">
+                                <CheckBox IsChecked="{Binding RepairDeleteConfig}" Content="Reset configuration (with backup)" />
+                                <TextBlock Classes="subtitle" Margin="28,0,0,0" TextWrapping="Wrap"
+                                           Text="Backs up your current configuration and starts fresh. Plugins are reinstalled." />
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+                    <CheckBox IsChecked="{Binding LaunchAfter}" Content="Launch LoupixDeck when finished" />
+                </StackPanel>
+
+                <Grid Grid.Row="1" ColumnDefinitions="Auto,*,Auto" Margin="0,20,0,0">
+                    <Button Grid.Column="0" Classes="secondary" Content="Back" Command="{Binding BackToHomeCommand}" />
+                    <Button Grid.Column="2" Classes="accent" Content="Start repair" Command="{Binding StartRepairCommand}" />
+                </Grid>
+            </Grid>
+
+            <!-- ══════════ Running ══════════ -->
+            <StackPanel IsVisible="{Binding ShowRunning}" Spacing="18" VerticalAlignment="Center">
+                <ItemsControl ItemsSource="{Binding Steps}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:SetupStepItem">
+                            <Grid ColumnDefinitions="24,*" Margin="0,5">
+                                <TextBlock Text="{Binding Glyph}" FontWeight="Bold" FontSize="14"
+                                           Foreground="{Binding State, Converter={StaticResource StepStateToBrush}}" />
+                                <TextBlock Grid.Column="1" Text="{Binding Label}"
+                                           Foreground="{StaticResource TextPrimary}" />
+                            </Grid>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <StackPanel Spacing="8">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <ProgressBar Grid.Column="0" Minimum="0" Maximum="100" Value="{Binding ProgressValue}"
+                                     Height="6" Foreground="{StaticResource AccentBrushBright}" VerticalAlignment="Center" />
+                        <TextBlock Grid.Column="1" Margin="12,0,0,0" Text="{Binding ProgressPercentText}"
+                                   Foreground="{StaticResource TextSecondary}" VerticalAlignment="Center" />
+                    </Grid>
+                    <TextBlock Text="{Binding ProgressStatus}" Classes="subtitle"
+                               TextTrimming="CharacterEllipsis" />
+                </StackPanel>
+            </StackPanel>
+
+            <!-- ══════════ Done ══════════ -->
+            <Grid IsVisible="{Binding ShowDone}" RowDefinitions="*,Auto">
+                <StackPanel Grid.Row="0" Spacing="16">
+                    <ItemsControl ItemsSource="{Binding Steps}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:SetupStepItem">
+                                <Grid ColumnDefinitions="24,*" Margin="0,4">
+                                    <TextBlock Text="{Binding Glyph}" FontWeight="Bold" FontSize="14"
+                                               Foreground="{Binding State, Converter={StaticResource StepStateToBrush}}" />
+                                    <TextBlock Grid.Column="1" Text="{Binding Label}"
+                                               Foreground="{StaticResource TextPrimary}" />
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <TextBlock Text="{Binding ResultMessage}" TextWrapping="Wrap"
+                               Foreground="{StaticResource TextSecondary}" />
+
+                    <Border Classes="card" IsVisible="{Binding ShowLog}" MaxHeight="180">
+                        <ScrollViewer>
+                            <TextBlock Text="{Binding LogText}" FontFamily="Consolas,monospace" FontSize="11"
+                                       TextWrapping="Wrap" Foreground="{StaticResource TextSecondary}" />
+                        </ScrollViewer>
+                    </Border>
+                </StackPanel>
+
+                <Grid Grid.Row="1" ColumnDefinitions="Auto,*,Auto" Margin="0,20,0,0">
+                    <Button Grid.Column="0" Classes="secondary" Content="{Binding LogButtonText}"
+                            Command="{Binding ToggleLogCommand}" />
+                    <Button Grid.Column="2" Classes="accent" Content="Close" Command="{Binding FinishCommand}" />
+                </Grid>
+            </Grid>
+        </Panel>
+    </Grid>
+</Window>

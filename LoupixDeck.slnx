@@ -13,4 +13,6 @@
   </Folder>
   <Project Path="LoupixDeck.PluginSdk/LoupixDeck.PluginSdk.csproj" />
   <Project Path="LoupixDeck/LoupixDeck.csproj" />
+  <Project Path="LoupixDeck.Setup/LoupixDeck.Setup.csproj" />
+  <Project Path="LoupixDeck.Uninstall/LoupixDeck.Uninstall.csproj" />
 </Solution>
