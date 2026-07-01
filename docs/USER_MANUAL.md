@@ -53,6 +53,13 @@ Multiple devices can run at the same time. If more than one device is connected,
 
 ### Windows
 
+Recommended, native installer:
+
+1. Download `LoupixDeck-Setup-win-x64.exe` from the latest GitHub release.
+2. Run it. The installer sets up LoupixDeck and its bundled plugins, creates Start menu and desktop entries, and registers an uninstaller. No separate .NET runtime is needed.
+
+Portable, ZIP:
+
 1. Download `LoupixDeck-win-x64.zip` from the latest GitHub release.
 2. Extract the zip.
 3. Run `LoupixDeck.exe`.
@@ -141,6 +148,16 @@ Typical layer workflow:
 
 The editor has a live preview. Layers are useful because you can build a button from reusable pieces instead of flattening everything into one image.
 
+### Animated image layers
+
+An image layer can also show an animation. This is a property of a normal image layer, not a separate layer type: choose an animated source for an image layer and the button plays it in a loop.
+
+- GIF and animated WebP sources are stored as-is.
+- Video files (MP4, MOV, and similar) are converted once, at import time, into a small button-size looping GIF. This import step needs `ffmpeg` on your system `PATH`.
+- Playback itself does not need `ffmpeg`. Frames are decoded once and cached, so animated buttons stay light at runtime.
+
+Text and symbol layers can still sit on top of an animated image layer.
+
 ## Button States
 
 Touch buttons can have multiple states. This is useful for toggles, mode buttons, and buttons that should visually change after being pressed.
@@ -201,6 +218,14 @@ Each rotary control can have separate command sequences for:
 - Rotate left.
 - Rotate right.
 - Button press.
+
+### Command groups
+
+Some plugins offer command groups that configure a whole rotary in one step. In the rotary editor's command tree a group entry is marked with a blue italic `(group)` badge.
+
+- Double-click the group to fill all three rotary slots at once: counter-clockwise maps to rotate left, clockwise to rotate right, and the click maps to press.
+- Dragging the group onto the strips does the same. Dropping it anywhere applies the whole mapping, while a plain command drops into a single slot.
+- Slots that the group does not define are left untouched, and every command can still be reassigned individually afterwards.
 
 For devices with side strips, each knob can also have a strip label. On the Razer Stream Controller, side strips can show segmented knob labels or be edited as free-draw strip canvases depending on mode.
 
@@ -410,6 +435,23 @@ For multiple devices, target a specific device:
 ./LoupixDeck -d "Loupedeck Live S" nextpage
 ```
 
+### Available CLI verbs
+
+| Verb | Effect |
+| --- | --- |
+| `nextpage` / `previouspage` | Move to the next or previous touch page |
+| `page <N>` | Go to touch page number `N` |
+| `nextrotarypage` / `previousrotarypage` | Move to the next or previous rotary page |
+| `rotarypage <N>` | Go to rotary page number `N` |
+| `updatebutton <index> key=value ...` | Update a touch button at runtime |
+| `removelayer <index> <layerName>` | Remove a named layer from a button |
+| `off` / `on` / `toggle-device` | Blank, restore, or toggle the device display |
+| `wakeup` | Reconnect the serial link and restore the display |
+| `show` / `hide` / `toggle` | Show, hide, or toggle the LoupixDeck window |
+| `quit` | Quit the running instance |
+
+Any full `System.*` command string is also accepted and forwarded as-is, so you can trigger built-in and plugin commands by name (for example `System.ObsStartRecord`).
+
 Runtime button updates are not saved to the layout. That is intentional, so scripts can update button text, colors, and images frequently without rewriting the config.
 
 Useful runtime update properties:
@@ -538,6 +580,25 @@ Recording needs read access to `/dev/input/event*`. The installer attempts to ha
 - Check whether the plugin is installed and enabled.
 - Restart LoupixDeck if the plugin page says some changes need a restart.
 - Confirm that external services such as OBS, Spotify, or monitoring tools are running and configured.
+
+### Collecting crash logs
+
+If LoupixDeck closes unexpectedly, start it with a diagnostics flag to record what happened:
+
+```bash
+./LoupixDeck --crashlog
+```
+
+On Windows:
+
+```powershell
+.\LoupixDeck.exe --crashlog
+```
+
+- `--crashlog` writes unhandled errors to a `crash.log` file in the LoupixDeck user config directory.
+- `--firstchance` additionally logs every internal error as it is thrown. This is very noisy and is only meant for deep debugging. It implies `--crashlog`.
+
+These flags cover managed errors. Native crashes are not captured this way; for those, the standard .NET minidump environment variables can be used instead. Attaching `crash.log` to a bug report helps a lot.
 
 ## Notes and Limitations
 

@@ -5,71 +5,56 @@
 [![Platform](https://img.shields.io/badge/platform-windows-blue)](https://github.com/RadiatorTwo/LoupixDeck)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
-**LoupixDeck** is an open-source, cross-platform control deck application for **Loupedeck** devices (**Live**, **Live S** and **CT**) and the **Razer Stream Controller**.
+**LoupixDeck** is an open-source control deck application for **Loupedeck** devices and the **Razer Stream Controller**.
 
-> **Note:** Loupedeck **CT** support is still a work in progress and not yet feature-complete.
-
-It lets you build custom pages with touch buttons, rotary controls, physical buttons, macros, integrations and plugins — without depending on the official vendor software.
+It runs on **Linux** and **Windows**, lets you build custom touch pages, rotary controls, macros, integrations and plugins, and does not depend on the official vendor software.
 
 Built with **Avalonia** and **.NET 9**.
 
 ![LoupixDeck main window](docs/screenshots/main-window-loupedeck.png)
+
+> New here? The [**User Manual**](docs/USER_MANUAL.md) walks through pages, buttons, layers, states, macros, integrations and automation step by step.
 
 ---
 
 ## Highlights
 
 * **Linux and Windows support**
-* **Loupedeck Live**, **Live S**, **CT** (partial) and **Razer Stream Controller** support
-* **Multi-device support** with serial-scoped configuration
-* **Layer-based touch button editor** with images, text, symbols and wallpapers
-* **Rotary encoder pages** with separate actions for rotation, click and press
-* **Visual macro editor** for keyboard, mouse, delay and command sequences
-* **Native haptic feedback** on supported touch buttons
+* **Loupedeck Live**, **Live S**, **CT** *(partial)* and **Razer Stream Controller** support
+* **Multi-device support** with serial-scoped profiles
+* **Layer-based touch button editor** with images, animated images, text, symbols and wallpapers
+* **Stateful buttons** with multiple states and per-state actions
+* **Rotary encoder pages** with rotation, click and press actions
+* **Visual macro editor** with variables, conditions, loops, waits and prompts
 * **OBS Studio**, **Elgato Key Lights**, **Cooler Control**, **Argus Monitor** and **Windows Audio** integrations
-* **App-focus page switching**
-* **Local CLI / IPC channel** for scripts and automation
+* **Local CLI / IPC automation** for scripts and external tools
 * **Plugin SDK** for custom commands, dynamic text providers and settings UI
 
 ---
 
-## Supported Devices
+## Quick Start
 
-| Device                      |          VID:PID | Layout                                                                         |
-| --------------------------- | ---------------: | ------------------------------------------------------------------------------ |
-| **Loupedeck Live**          |      `2ec2:0004` | 4×3 touch grid, 2 side touch strips, 6 rotary encoders, 8 round buttons         |
-| **Loupedeck Live S**        |      `2ec2:0006` | 5×3 touch grid, 2 rotary encoders, 8 physical buttons                          |
-| **Razer Stream Controller** |      `1532:0d06` | 4×3 touch grid, 2 side panels, 6 rotary encoders, 8 LED buttons                |
-| **Loupedeck CT** *(partial)*| `2ec2:0003/0007` | 4×3 touch grid + round wheel touchscreen, 6 dials + wheel, 8 round + 12 square buttons |
+Pre-built releases are available here:
 
-> Loupedeck **CT** is supported but **not yet feature-complete** — some controls/behaviours are still being finished and need hardware verification.
+[**Download latest release**](https://github.com/RadiatorTwo/LoupixDeck/releases/latest)
 
-Multiple devices can run in parallel in a single LoupixDeck instance.
-Even two identical units are separated by USB serial and keep their own configuration.
-
----
-
-## Download
-
-Pre-built binaries are available on the GitHub Releases page:
-
-**https://github.com/RadiatorTwo/LoupixDeck/releases/latest**
-
-| Platform    | Asset                         |
-| ----------- | ----------------------------- |
-| **Windows** | `LoupixDeck-win-x64.zip`      |
-| **Linux**   | `LoupixDeck-linux-x64.tar.gz` |
-
-Release builds are self-contained.
-The .NET runtime is bundled and does not need to be installed separately.
-
----
-
-## Installation
+Release builds are self-contained. The .NET runtime is bundled and does not need to be installed separately.
 
 ### Windows
 
-Download `LoupixDeck-win-x64.zip`, extract it and run:
+Recommended installer:
+
+```text
+LoupixDeck-Setup-win-x64.exe
+```
+
+Portable ZIP:
+
+```text
+LoupixDeck-win-x64.zip
+```
+
+For the portable build, extract the ZIP and run:
 
 ```powershell
 LoupixDeck.exe
@@ -77,7 +62,7 @@ LoupixDeck.exe
 
 ### Linux
 
-Use the installer script:
+Recommended installer script:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/RadiatorTwo/LoupixDeck/master/install-loupixdeck.sh | bash
@@ -89,17 +74,17 @@ Or with `wget`:
 wget -qO- https://raw.githubusercontent.com/RadiatorTwo/LoupixDeck/master/install-loupixdeck.sh | bash
 ```
 
-The installer downloads the latest release build, installs LoupixDeck system-wide, adds udev rules and creates a desktop entry.
+The installer downloads the latest release, installs LoupixDeck system-wide, adds udev rules and creates a desktop entry.
 
-After installation, launch it with:
+After installation, start it with:
 
 ```bash
 loupixdeck
 ```
 
-Or start it from your application menu.
+Or launch it from your application menu.
 
-To inspect the script first:
+Prefer to inspect the installer first?
 
 ```bash
 curl -fsSLO https://raw.githubusercontent.com/RadiatorTwo/LoupixDeck/master/install-loupixdeck.sh
@@ -109,41 +94,57 @@ bash install-loupixdeck.sh
 
 ---
 
+## Supported Devices
+
+| Device                      | Status      | Layout                                                                            | VID:PID           |
+| --------------------------- | ----------- | --------------------------------------------------------------------------------- | ----------------- |
+| **Loupedeck Live**          | Supported   | 4×3 touch grid, 2 side touch strips, 6 rotary encoders, 8 round buttons            | `2ec2:0004`       |
+| **Loupedeck Live S**        | Supported   | 5×3 touch grid, 2 rotary encoders, 8 physical buttons                             | `2ec2:0006`       |
+| **Razer Stream Controller** | Supported   | 4×3 touch grid, 2 side panels, 6 rotary encoders, 8 LED buttons                   | `1532:0d06`       |
+| **Loupedeck CT**            | Partial     | 4×3 touch grid, round wheel touchscreen, 6 dials, wheel, round and square buttons | `2ec2:0003/0007`  |
+
+> Loupedeck **CT** support is still a work in progress. Some controls and behaviours are not feature-complete yet and need further hardware verification.
+
+Multiple devices can run in parallel in a single LoupixDeck instance. Even two identical units are separated by USB serial and keep their own configuration.
+
+---
+
 ## Features
 
 ### Touch Button Editor
 
-* Stack image, text and symbol layers per button
+Create custom touch buttons from multiple visual layers.
+
+* Image, animated image, text and symbol layers
 * Live preview with direct layer manipulation
-* Per-page wallpaper with opacity control
+* Per-page wallpapers with opacity control
 * Optional visual touch feedback
 * Content-addressed asset store for deduplicated images
 * Material Design Icons symbol picker
 
+### Stateful Buttons
+
+Buttons can hold several named states and cycle through them on press.
+
+* Per-state visuals and command sequences
+* Local mode for simple state cycling
+* External mode for states driven by plugins or live status commands
+
 ### Rotary Encoders
 
-* Independent rotary pages
-* Separate commands for:
+Rotary controls can use separate pages and separate actions for each input type.
 
-  * rotate left / right
-  * click
-  * press
+* Rotate left / right
+* Click
+* Press
 * Multi-command sequences per action
+* Plugin command groups for assigning related rotary actions together
 
 ### Macros
 
-LoupixDeck includes a visual macro editor for reusable macro sequences.
+LoupixDeck includes a visual macro editor for reusable automation sequences.
 
-Supported macro steps:
-
-| Step                  | Description                             |
-| --------------------- | --------------------------------------- |
-| **Text**              | Type a text string                      |
-| **Key Combination**   | Send combinations like `Ctrl+Shift+Esc` |
-| **Key Down / Key Up** | Hold or release individual keys         |
-| **Mouse**             | Click, press, release, move or scroll   |
-| **Delay**             | Wait for a configured time              |
-| **Command**           | Run another LoupixDeck command          |
+Supported macro actions include keyboard input, mouse input, delays, command execution, variables, conditions, loops, wait conditions and prompts.
 
 Input injection backends:
 
@@ -155,7 +156,7 @@ Input injection backends:
 
 ### Integrations
 
-LoupixDeck includes built-in commands and dynamic values for:
+Built-in commands and dynamic values are available for:
 
 * **OBS Studio** via obs-websocket
 * **Elgato Key Lights** via Zeroconf discovery
@@ -167,34 +168,33 @@ LoupixDeck includes built-in commands and dynamic values for:
 * Device power control
 * Runtime button updates
 
-### Native Haptic Feedback
+### Screensaver
 
-Touch buttons can use native vibration effects on supported devices.
+Play a full-display animated screensaver after a configurable idle time.
 
-Native haptic support is based on reverse-engineered firmware commands.
-Technical notes are available here:
-
-[`docs/NATIVE_HAPTIC.md`](docs/NATIVE_HAPTIC.md)
-
-Huge thanks to [@Athorus](https://github.com/Athorus) for the reverse-engineering work that made this possible.
+* GIF or MP4 source
+* Adjustable idle timeout
+* Wakes on the next touch or control interaction
 
 ### App-Focus Page Switching
 
-LoupixDeck can automatically switch pages when the foreground application changes.
+Automatically switch pages when the foreground application changes.
 
-Rules can match:
-
-* process name
-* optional window title substring
-* fallback page
-
-Supported platforms:
+Rules can match a process name, an optional window title substring and a fallback page.
 
 | Platform                 | Status                                  |
 | ------------------------ | --------------------------------------- |
 | **Windows**              | Supported                               |
 | **Linux X11 / XWayland** | Supported via `xprop`                   |
 | **Pure Wayland**         | Not supported, no common focus protocol |
+
+### Native Haptic Feedback
+
+Supported touch buttons can use native vibration effects.
+
+Native haptic support is based on reverse-engineered firmware commands. Technical notes are available in [docs/NATIVE_HAPTIC.md](docs/NATIVE_HAPTIC.md).
+
+Huge thanks to [@Athorus](https://github.com/Athorus) for the reverse-engineering work that made this possible.
 
 ### Multi-Device Support
 
@@ -205,25 +205,6 @@ LoupixDeck can drive multiple connected devices at the same time.
 * Devices can be connected or disconnected while LoupixDeck is running
 * A device switcher appears when more than one device is connected
 * CLI commands can target a specific device
-
----
-
-## Plugins
-
-LoupixDeck supports third-party plugins.
-
-Plugins can provide:
-
-* custom commands
-* dynamic text providers
-* settings UI
-* integration-specific functionality
-
-The Plugin SDK is maintained in a separate repository:
-
-**https://github.com/RadiatorTwo/LoupixDeck.PluginSdk**
-
-It is also available as the `LoupixDeck.PluginSdk` NuGet package.
 
 ---
 
@@ -240,6 +221,66 @@ It is also available as the `LoupixDeck.PluginSdk` NuGet package.
 | Settings                                                              | Macro Editor                                              |
 | --------------------------------------------------------------------- | --------------------------------------------------------- |
 | ![Settings sidebar navigation](docs/screenshots/settings-sidebar.png) | ![Visual macro editor](docs/screenshots/macro-editor.png) |
+
+---
+
+## Plugins
+
+LoupixDeck supports third-party plugins.
+
+Plugins can provide:
+
+* custom commands
+* dynamic text providers
+* settings UI
+* integration-specific functionality
+
+The Plugin SDK is maintained in a separate repository:
+
+[**LoupixDeck.PluginSdk**](https://github.com/RadiatorTwo/LoupixDeck.PluginSdk)
+
+It is also available as the `LoupixDeck.PluginSdk` NuGet package.
+
+---
+
+## CLI / Automation
+
+While LoupixDeck is running, external scripts can control it through a local IPC channel.
+
+The easiest way is to call the LoupixDeck binary again. If an instance is already running, the second process forwards the command and exits.
+
+### Examples
+
+Linux:
+
+```bash
+./LoupixDeck nextpage
+./LoupixDeck page 3
+./LoupixDeck updatebutton 6 text=Build_OK backColor=LimeGreen
+./LoupixDeck System.ObsStartRecord
+```
+
+Windows:
+
+```powershell
+.\LoupixDeck.exe nextpage
+.\LoupixDeck.exe page 3
+.\LoupixDeck.exe updatebutton 6 text=Build_OK backColor=LimeGreen
+```
+
+Target a specific device:
+
+```bash
+./LoupixDeck --device A1B2C3 page 3
+./LoupixDeck -d "Loupedeck Live S" nextpage
+```
+
+IPC endpoints:
+
+| Platform    | Endpoint                                      |
+| ----------- | --------------------------------------------- |
+| **Linux**   | Unix domain socket `/tmp/loupixdeck_app.sock` |
+| **Windows** | Named pipe `LoupixDeck_Pipe`                  |
 
 ---
 
@@ -265,43 +306,12 @@ If a configuration file becomes corrupted, LoupixDeck creates a backup before wr
 
 ---
 
-## CLI / Automation
+## Documentation
 
-While LoupixDeck is running, external scripts can control it through a local IPC channel.
-
-The easiest way is to call the LoupixDeck binary again.
-If an instance is already running, the second process forwards the command and exits.
-
-### Linux
-
-```bash
-./LoupixDeck nextpage
-./LoupixDeck page 3
-./LoupixDeck updatebutton 6 text=Build_OK backColor=LimeGreen
-./LoupixDeck System.ObsStartRecord
-```
-
-### Windows
-
-```powershell
-.\LoupixDeck.exe nextpage
-.\LoupixDeck.exe page 3
-.\LoupixDeck.exe updatebutton 6 text=Build_OK backColor=LimeGreen
-```
-
-When multiple devices are connected, a specific device can be targeted:
-
-```bash
-./LoupixDeck --device A1B2C3 page 3
-./LoupixDeck -d "Loupedeck Live S" nextpage
-```
-
-Available IPC endpoints:
-
-| Platform    | Endpoint                                      |
-| ----------- | --------------------------------------------- |
-| **Linux**   | Unix domain socket `/tmp/loupixdeck_app.sock` |
-| **Windows** | Named pipe `LoupixDeck_Pipe`                  |
+* [User Manual](docs/USER_MANUAL.md) — complete feature documentation
+* [Native Haptic Notes](docs/NATIVE_HAPTIC.md) — reverse-engineered haptic commands
+* [Plugin SDK](https://github.com/RadiatorTwo/LoupixDeck.PluginSdk) — build custom plugins
+* [Latest Releases](https://github.com/RadiatorTwo/LoupixDeck/releases/latest) — download pre-built binaries
 
 ---
 
@@ -323,25 +333,42 @@ dotnet publish LoupixDeck.csproj -c Release -r linux-x64 --self-contained true \
   -o publish/linux-x64
 ```
 
-On Linux, macro **execution** writes to `/dev/uinput` and macro **recording** reads
-`/dev/input/event*`. Both are gated behind the `input` group, so the recommended setup
-is a udev rule that grants `uinput` to the `input` group plus membership in that group:
+### Windows
+
+```powershell
+git clone https://github.com/RadiatorTwo/LoupixDeck.git
+cd LoupixDeck
+
+dotnet publish LoupixDeck.csproj -c Release -r win-x64 --self-contained true `
+  /p:PublishSingleFile=true `
+  /p:PublishTrimmed=false `
+  /p:EnableCompressionInSingleFile=true `
+  /p:ReadyToRun=true `
+  -o publish/win-x64
+```
+
+<details>
+<summary>Linux device and macro permissions</summary>
+
+On Linux, macro **execution** writes to `/dev/uinput` and macro **recording** reads `/dev/input/event*`.
+
+The bundled `install-loupixdeck.sh` already writes the uinput rule and adds the invoking user to the `input` group. Being able to run macros does **not** automatically mean recording works — recording additionally needs read access to `/dev/input/event*`, which the `input` group provides.
+
+Manual uinput rule:
 
 ```text
-# Grant uinput to the 'input' group (macro execution)
 KERNEL=="uinput", SUBSYSTEM=="misc", GROUP="input", MODE="0660", OPTIONS+="static_node=uinput"
 ```
 
+Add your user to the `input` group:
+
 ```bash
-sudo usermod -aG input "$USER"   # then log out and back in
+sudo usermod -aG input "$USER"
 ```
 
-> The bundled `install-loupixdeck.sh` already writes this uinput rule and adds the
-> invoking user to the `input` group. Note: being able to run macros does **not**
-> automatically mean recording works — recording additionally needs read access to
-> `/dev/input/event*`, which the `input` group provides.
+Then log out and back in.
 
-If the **device** itself is not accessible without `sudo`, add a udev rule for its VID/PID.
+If the device itself is not accessible without `sudo`, add a udev rule for its VID/PID.
 
 Example for the Loupedeck Live S:
 
@@ -359,19 +386,7 @@ sudo udevadm control --reload-rules
 sudo udevadm trigger
 ```
 
-### Windows
-
-```powershell
-git clone https://github.com/RadiatorTwo/LoupixDeck.git
-cd LoupixDeck
-
-dotnet publish LoupixDeck.csproj -c Release -r win-x64 --self-contained true `
-  /p:PublishSingleFile=true `
-  /p:PublishTrimmed=false `
-  /p:EnableCompressionInSingleFile=true `
-  /p:ReadyToRun=true `
-  -o publish/win-x64
-```
+</details>
 
 ---
 
@@ -397,8 +412,7 @@ For very noisy first-chance exception logging:
 
 Crash logs are written to the LoupixDeck user config directory.
 
-Native crashes are not captured by `--crashlog`.
-For native crashes, use the .NET minidump environment variables instead.
+Native crashes are not captured by `--crashlog`. For native crashes, use the .NET minidump environment variables instead.
 
 ---
 
@@ -422,9 +436,10 @@ Important notes:
 
 ## Project Status
 
-LoupixDeck is usable, but still actively developed.
+LoupixDeck is usable for daily use and actively developed.
 
-Features may change between releases and some areas may still have rough edges.
+Most core features are available for Loupedeck Live, Loupedeck Live S and Razer Stream Controller. Loupedeck CT support is still incomplete and depends on further hardware testing.
+
 Bug reports, testing feedback and pull requests are welcome.
 
 ---
