@@ -12,7 +12,7 @@
         mc:Ignorable="d"
         Title="Settings"
         Width="980"
-        Height="820">
+        Height="840">
 
     <Window.Resources>
         <cnv:EnumToBooleanConverter x:Key="EnumToBooleanConverter" />
@@ -177,10 +177,14 @@
                         </StackPanel>
                     </Border>
 
-                    <!-- Behavior card -->
+                    <!-- Startup card -->
                     <Border Classes="card">
                         <StackPanel>
-                            <TextBlock Classes="card-title" Text="Behavior" />
+                            <TextBlock Classes="card-title" Text="Startup" />
+                            <CheckBox Content="Start with Windows"
+                                      IsVisible="{Binding IsWindows}"
+                                      HorizontalAlignment="Left" Margin="0,0,0,10"
+                                      IsChecked="{Binding StartWithWindows, Mode=TwoWay}" />
                             <TextBlock Classes="label" Text="Startup touch page" />
                             <ComboBox Width="200" Margin="0,6,0,0"
                                       ItemsSource="{Binding TouchPages}"
