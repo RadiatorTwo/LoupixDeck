@@ -53,16 +53,35 @@ Multiple devices can run at the same time. If more than one device is connected,
 
 ### Windows
 
-Recommended, native installer:
+Windows users have two download choices:
+
+- `LoupixDeck-Setup-win-x64.exe`: native Windows installer.
+- `LoupixDeck-win-x64.zip`: portable ZIP, useful when you do not want an installed app.
+
+For most users, use the installer:
 
 1. Download `LoupixDeck-Setup-win-x64.exe` from the latest GitHub release.
-2. Run it. The installer sets up LoupixDeck and its bundled plugins, creates Start menu and desktop entries, and registers an uninstaller. No separate .NET runtime is needed.
+2. Run the installer.
+3. Choose the install location.
+4. Choose whether to create Start menu and desktop shortcuts.
+5. Choose whether LoupixDeck should start with Windows by enabling `Start on system startup`.
+6. Choose whether to launch LoupixDeck when setup finishes.
 
-Portable, ZIP:
+The installer is self-contained, so you do not need to install the .NET runtime separately.
 
-1. Download `LoupixDeck-win-x64.zip` from the latest GitHub release.
-2. Extract the zip.
+If you prefer the portable build:
+
+1. Download `LoupixDeck-win-x64.zip`.
+2. Extract it to a folder you control.
 3. Run `LoupixDeck.exe`.
+
+### Updating, Repairing, and Uninstalling on Windows
+
+If LoupixDeck is already installed, the Windows setup detects the existing installation and shows the installed and available versions. You can update in place while preserving your settings, or repair a damaged installation.
+
+The installer can register LoupixDeck to start with Windows using the `Start on system startup` checkbox. In v1.12.1 and later, you can also change this after installation from `Settings > General > Start with Windows` inside LoupixDeck.
+
+LoupixDeck also registers an uninstaller in Windows `Installed apps`. Uninstalling removes the program, shortcuts, and registry entries. Your configuration and plugins are kept by default, so reinstalling later should preserve your layouts and integrations.
 
 ### Linux
 
@@ -476,8 +495,11 @@ Underscores in `text` are treated as spaces in the short CLI form.
 - Reconnect.
 - Brightness.
 - Startup touch page.
+- Start with Windows (Windows only).
 - Close button behavior: minimize to tray or quit.
 - Start minimized to tray.
+
+On Windows, `Start with Windows` controls whether LoupixDeck launches at login. The installer can set the same behavior during setup with `Start on system startup`, but v1.12.1 and later let you turn it on or off from this settings page. Use it together with `Start minimized to tray` if you want LoupixDeck to launch quietly after login.
 
 ### Pages
 
