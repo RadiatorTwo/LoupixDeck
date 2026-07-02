@@ -146,6 +146,33 @@ jobs:
             /p:Version=$env:VERSION `
             -o publish/win-x64
 
+      # Place the native renderer libs (Skia / HarfBuzz / ANGLE) loose next to the single-file exe.
+      # The app self-extracts identical libs from its bundle, but a stray copy earlier on the DLL
+      # search path can shadow the bundled version and crash the app with a version mismatch; a loose
+      # copy in the app directory wins that search-order race. It also lets the setup's NativeBootstrap
+      # hoist these root-level libs out of the payload for its own Avalonia UI. A non-single-file
+      # publish is used purely to let NuGet resolve the exact matching native versions.
+      - name: Harvest native renderer libraries
+        run: |
+          dotnet publish $env:PROJECT_PATH -c Release -r win-x64 --self-contained true `
+            /p:PublishSingleFile=false `
+            /p:PublishTrimmed=false `
+            /p:ReadyToRun=false `
+            /p:Version=$env:VERSION `
+            -o publish/win-x64-natives
+          $prefixes = 'libSkiaSharp', 'libHarfBuzzSharp', 'av_'
+          $copied = 0
+          Get-ChildItem -Path publish/win-x64-natives -Filter *.dll | ForEach-Object {
+            $name = $_.Name
+            if ($prefixes | Where-Object { $name.StartsWith($_, [System.StringComparison]::OrdinalIgnoreCase) }) {
+              Copy-Item $_.FullName -Destination publish/win-x64 -Force
+              $copied++
+            }
+          }
+          if ($copied -eq 0) { throw "No native renderer libraries were harvested" }
+          Remove-Item publish/win-x64-natives -Recurse -Force
+          Write-Host "Placed $copied native lib(s) in the payload root."
+
       - name: Download plugins artifact
         uses: actions/download-artifact@v8
         with:
@@ -162,10 +189,33 @@ jobs:
           Get-ChildItem -Path publish/win-x64 -Filter *.pdb -Recurse | Remove-Item -Force
           Compress-Archive -Path publish/win-x64/* -DestinationPath LoupixDeck-win-x64.zip
 
-      - name: Upload Windows zip to release
+      # Tiny native uninstaller (no payload) — embedded into the setup and written into the install dir.
+      - name: Build uninstaller
+        run: |
+          dotnet publish ./LoupixDeck.Uninstall/LoupixDeck.Uninstall.csproj -c Release -r win-x64 `
+            /p:Version=$env:VERSION `
+            -o publish/uninstall
+
+      # Native single-exe installer (NativeAOT). The just-built zip IS the payload: its entries
+      # (LoupixDeck.exe, plugins/<id>/...) sit at the archive root, exactly what the installer's
+      # PayloadExtractor expects. windows-latest ships the MSVC toolchain ILC needs for AOT linking.
+      - name: Build installer
+        run: |
+          $payload = (Resolve-Path LoupixDeck-win-x64.zip).Path
+          $uninstaller = (Resolve-Path publish/uninstall/LoupixDeck.Uninstall.exe).Path
+          dotnet publish ./LoupixDeck.Setup/LoupixDeck.Setup.csproj -c Release -r win-x64 `
+            /p:Version=$env:VERSION `
+            /p:PayloadZip=$payload `
+            /p:UninstallerExe=$uninstaller `
+            -o publish/setup
+          Copy-Item publish/setup/LoupixDeck.Setup.exe LoupixDeck-Setup-win-x64.exe -Force
+
+      - name: Upload Windows assets to release
         uses: softprops/action-gh-release@v3
         with:
-          files: LoupixDeck-win-x64.zip
+          files: |
+            LoupixDeck-win-x64.zip
+            LoupixDeck-Setup-win-x64.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

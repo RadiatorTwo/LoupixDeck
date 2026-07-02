@@ -12,7 +12,7 @@
         mc:Ignorable="d"
         Title="Settings"
         Width="980"
-        Height="820">
+        Height="840">
 
     <Window.Resources>
         <cnv:EnumToBooleanConverter x:Key="EnumToBooleanConverter" />
@@ -35,7 +35,7 @@
                             Command="{Binding NavigateCommand}" CommandParameter="{x:Static bs:SettingsView.General}">
                         <Grid ColumnDefinitions="6,Auto,*">
                             <Border Grid.Column="0" Classes="nav-accent" />
-                            <TextBlock Grid.Column="1" Classes="nav-icon" Text="&#xF2FE;" Margin="6,0,0,0"/>
+                            <TextBlock Grid.Column="1" Classes="nav-icon" Text="&#xF0493;" Margin="6,0,0,0"/>
                             <TextBlock Grid.Column="2" Classes="nav-label" Text="General" />
                         </Grid>
                     </Button>
@@ -43,7 +43,7 @@
                             Command="{Binding NavigateCommand}" CommandParameter="{x:Static bs:SettingsView.Pages}">
                         <Grid ColumnDefinitions="6,Auto,*">
                             <Border Grid.Column="0" Classes="nav-accent" />
-                            <TextBlock Grid.Column="1" Classes="nav-icon" Text="&#xF24A;" Margin="6,0,0,0"/>
+                            <TextBlock Grid.Column="1" Classes="nav-icon" Text="&#xF0570;" Margin="6,0,0,0"/>
                             <TextBlock Grid.Column="2" Classes="nav-label" Text="Pages" />
                         </Grid>
                     </Button>
@@ -51,7 +51,7 @@
                             Command="{Binding NavigateCommand}" CommandParameter="{x:Static bs:SettingsView.Haptic}">
                         <Grid ColumnDefinitions="6,Auto,*">
                             <Border Grid.Column="0" Classes="nav-accent" />
-                            <TextBlock Grid.Column="1" Classes="nav-icon" Text="&#xF566;" Margin="6,0,0,0"/>
+                            <TextBlock Grid.Column="1" Classes="nav-icon" Text="&#xF0566;" Margin="6,0,0,0"/>
                             <TextBlock Grid.Column="2" Classes="nav-label" Text="Feedback" />
                         </Grid>
                     </Button>
@@ -69,7 +69,7 @@
                             Command="{Binding NavigateCommand}" CommandParameter="{x:Static bs:SettingsView.Plugins}">
                         <Grid ColumnDefinitions="6,Auto,*">
                             <Border Grid.Column="0" Classes="nav-accent" />
-                            <TextBlock Grid.Column="1" Classes="nav-icon" Text="&#xF567;" Margin="6,0,0,0"/>
+                            <TextBlock Grid.Column="1" Classes="nav-icon" Text="&#xF0431;" Margin="6,0,0,0"/>
                             <TextBlock Grid.Column="2" Classes="nav-label" Text="Plugins" />
                         </Grid>
                     </Button>
@@ -102,7 +102,7 @@
                             Command="{Binding NavigateCommand}" CommandParameter="{x:Static bs:SettingsView.Theme}">
                         <Grid ColumnDefinitions="6,Auto,*">
                             <Border Grid.Column="0" Classes="nav-accent" />
-                            <TextBlock Grid.Column="1" Classes="nav-icon" Text="&#xF50E;" Margin="6,0,0,0"/>
+                            <TextBlock Grid.Column="1" Classes="nav-icon" Text="&#xF03D8;" Margin="6,0,0,0"/>
                             <TextBlock Grid.Column="2" Classes="nav-label" Text="Theme" />
                         </Grid>
                     </Button>
@@ -112,7 +112,7 @@
                             Command="{Binding NavigateCommand}" CommandParameter="{x:Static bs:SettingsView.About}">
                         <Grid ColumnDefinitions="6,Auto,*">
                             <Border Grid.Column="0" Classes="nav-accent" />
-                            <TextBlock Grid.Column="1" Classes="nav-icon" Text="&#xF02D;" Margin="6,0,0,0"/>
+                            <TextBlock Grid.Column="1" Classes="nav-icon" Text="&#xF02FC;" Margin="6,0,0,0"/>
                             <TextBlock Grid.Column="2" Classes="nav-label" Text="About" />
                         </Grid>
                     </Button>
@@ -133,7 +133,7 @@
                     <Border Classes="card">
                         <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="*,Auto">
                             <StackPanel Grid.Row="0" Grid.Column="0" Orientation="Horizontal" Spacing="10">
-                                <TextBlock FontFamily="{StaticResource MdiFont}" Text="&#xF2FE;" FontSize="24" VerticalAlignment="Center"/>
+                                <TextBlock FontFamily="{StaticResource MdiFont}" Text="&#xF0297;" FontSize="24" VerticalAlignment="Center"/>
                                 <TextBlock Classes="card-title" Text="{Binding DeviceName}" Margin="0,0,0,0" VerticalAlignment="Center"/>
                             </StackPanel>
                             <Border Grid.Row="0" Grid.Column="1" Classes="pill"
@@ -168,19 +168,23 @@
                             <TextBlock Classes="card-title" Text="Display" />
                             <TextBlock Classes="label" Text="Brightness" />
                             <StackPanel Orientation="Horizontal" Spacing="12" Margin="0,6,0,0">
-                                <TextBlock FontFamily="{StaticResource MdiFont}" Text="&#xF1A4;" FontSize="16" VerticalAlignment="Center" Foreground="{DynamicResource AppTextSecondary}"/>
+                                <TextBlock FontFamily="{StaticResource MdiFont}" Text="&#xF00DE;" FontSize="16" VerticalAlignment="Center" Foreground="{DynamicResource AppTextSecondary}"/>
                                 <Slider Minimum="0" Maximum="100" Width="320" TickFrequency="1" IsSnapToTickEnabled="True"
                                         Value="{Binding Config.Brightness, Mode=TwoWay}" />
-                                <TextBlock FontFamily="{StaticResource MdiFont}" Text="&#xF59C;" FontSize="20" VerticalAlignment="Center"/>
+                                <TextBlock FontFamily="{StaticResource MdiFont}" Text="&#xF00E0;" FontSize="20" VerticalAlignment="Center"/>
                                 <TextBlock Classes="value" Text="{Binding Config.Brightness}" VerticalAlignment="Center" Width="36" TextAlignment="Right"/>
                             </StackPanel>
                         </StackPanel>
                     </Border>
 
-                    <!-- Behavior card -->
+                    <!-- Startup card -->
                     <Border Classes="card">
                         <StackPanel>
-                            <TextBlock Classes="card-title" Text="Behavior" />
+                            <TextBlock Classes="card-title" Text="Startup" />
+                            <CheckBox Content="Start with Windows"
+                                      IsVisible="{Binding IsWindows}"
+                                      HorizontalAlignment="Left" Margin="0,0,0,10"
+                                      IsChecked="{Binding StartWithWindows, Mode=TwoWay}" />
                             <TextBlock Classes="label" Text="Startup touch page" />
                             <ComboBox Width="200" Margin="0,6,0,0"
                                       ItemsSource="{Binding TouchPages}"

@@ -1,0 +1,101 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:conv="using:LoupixDeck.Setup.Converters"
+             x:Class="LoupixDeck.Setup.App"
+             RequestedThemeVariant="Dark">
+    <Application.Styles>
+        <FluentTheme />
+
+        <!-- Primary/accent action button. DynamicResource because these brushes are declared in
+             Application.Resources, which is evaluated after Application.Styles. -->
+        <Style Selector="Button.accent">
+            <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="MinWidth" Value="96" />
+            <Setter Property="Padding" Value="18,10" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
+        <Style Selector="Button.accent:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource AccentBrushBright}" />
+            <Setter Property="Foreground" Value="White" />
+        </Style>
+
+        <!-- Secondary/quiet button: outlined, subdued until hovered. -->
+        <Style Selector="Button.secondary">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource CardBorder}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="MinWidth" Value="96" />
+            <Setter Property="Padding" Value="16,9" />
+            <Setter Property="CornerRadius" Value="8" />
+        </Style>
+        <Style Selector="Button.secondary:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource SurfaceHover}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+        </Style>
+
+        <!-- Danger variant of the secondary button (uninstall). -->
+        <Style Selector="Button.danger">
+            <Setter Property="Foreground" Value="{DynamicResource DangerBrush}" />
+        </Style>
+
+        <!-- Rounded card container. -->
+        <Style Selector="Border.card">
+            <Setter Property="Background" Value="{DynamicResource SurfaceBackground}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource CardBorder}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="Padding" Value="18" />
+        </Style>
+
+        <!-- Accent-tinted card used for the primary "update available" call-to-action. -->
+        <Style Selector="Border.accentcard">
+            <Setter Property="Background" Value="{DynamicResource AccentSurface}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="Padding" Value="18" />
+        </Style>
+
+        <Style Selector="TextBlock.h1">
+            <Setter Property="FontSize" Value="22" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+        </Style>
+        <Style Selector="TextBlock.subtitle">
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
+        </Style>
+        <Style Selector="TextBlock.cardtitle">
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+        </Style>
+
+        <Style Selector="CheckBox">
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}" />
+        </Style>
+    </Application.Styles>
+
+    <Application.Resources>
+        <ResourceDictionary>
+            <conv:StepStateToBrushConverter x:Key="StepStateToBrush" />
+
+            <!-- Accent used across the wizard chrome. Matches the app's page-active blue. -->
+            <SolidColorBrush x:Key="AccentBrush" Color="#FF2F7DD1" />
+            <SolidColorBrush x:Key="AccentBrushBright" Color="#FF3D9BFF" />
+            <SolidColorBrush x:Key="AccentSurface" Color="#223D9BFF" />
+            <SolidColorBrush x:Key="RailBackground" Color="#151515" />
+            <SolidColorBrush x:Key="WindowBackground" Color="#1A1A1D" />
+            <SolidColorBrush x:Key="SurfaceBackground" Color="#232327" />
+            <SolidColorBrush x:Key="SurfaceHover" Color="#2E2E33" />
+            <SolidColorBrush x:Key="CardBorder" Color="#38383F" />
+            <SolidColorBrush x:Key="TextPrimary" Color="#E8E8EA" />
+            <SolidColorBrush x:Key="TextSecondary" Color="#9A9AA2" />
+            <SolidColorBrush x:Key="StepInactive" Color="#5A5A5A" />
+            <SolidColorBrush x:Key="DangerBrush" Color="#FFE05656" />
+            <SolidColorBrush x:Key="SuccessBrush" Color="#FF4CAF6A" />
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>

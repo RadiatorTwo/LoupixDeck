@@ -181,6 +181,11 @@ DocProject/Help/html
 # Click-Once directory
 publish/
 
+# LoupixDeck installer build output (see build-setup.ps1)
+/LoupixDeck-Setup-*.exe
+/payload.zip
+/plugins-src/
+
 # Publish Web Output
 *.[Pp]ublish.xml
 *.azurePubxml
