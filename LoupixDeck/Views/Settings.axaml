@@ -12,7 +12,7 @@
         mc:Ignorable="d"
         Title="Settings"
         Width="980"
-        Height="820">
+        Height="840">
 
     <Window.Resources>
         <cnv:EnumToBooleanConverter x:Key="EnumToBooleanConverter" />
