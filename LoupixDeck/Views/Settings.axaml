@@ -177,10 +177,14 @@
                         </StackPanel>
                     </Border>
 
-                    <!-- Behavior card -->
+                    <!-- Startup card -->
                     <Border Classes="card">
                         <StackPanel>
-                            <TextBlock Classes="card-title" Text="Behavior" />
+                            <TextBlock Classes="card-title" Text="Startup" />
+                            <CheckBox Content="Start with Windows"
+                                      IsVisible="{Binding IsWindows}"
+                                      HorizontalAlignment="Left" Margin="0,0,0,10"
+                                      IsChecked="{Binding StartWithWindows, Mode=TwoWay}" />
                             <TextBlock Classes="label" Text="Startup touch page" />
                             <ComboBox Width="200" Margin="0,6,0,0"
                                       ItemsSource="{Binding TouchPages}"
@@ -200,10 +204,6 @@
                     <Border Classes="card">
                         <StackPanel>
                             <TextBlock Classes="card-title" Text="Window" />
-                            <CheckBox Content="Start with Windows"
-                                      IsVisible="{Binding IsWindows}"
-                                      HorizontalAlignment="Left" Margin="0,6,0,0"
-                                      IsChecked="{Binding StartWithWindows, Mode=TwoWay}" />
                             <TextBlock Classes="label" Text="Close button behavior" />
                             <RadioButton GroupName="closeBehavior" Content="Minimize to tray"
                                          HorizontalAlignment="Left" Margin="0,6,0,0"
