@@ -200,6 +200,10 @@
                     <Border Classes="card">
                         <StackPanel>
                             <TextBlock Classes="card-title" Text="Window" />
+                            <CheckBox Content="Start with Windows"
+                                      IsVisible="{Binding IsWindows}"
+                                      HorizontalAlignment="Left" Margin="0,6,0,0"
+                                      IsChecked="{Binding StartWithWindows, Mode=TwoWay}" />
                             <TextBlock Classes="label" Text="Close button behavior" />
                             <RadioButton GroupName="closeBehavior" Content="Minimize to tray"
                                          HorizontalAlignment="Left" Margin="0,6,0,0"

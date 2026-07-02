@@ -30,6 +30,12 @@
     </Content>
   </ItemGroup>
 
+  <!-- Registry access for the Windows "start at login" toggle (Services/AutostartService.cs).
+       Not in the net9.0 shared framework, so referenced only on Windows builds. -->
+  <ItemGroup Condition="'$(OS)' == 'Windows_NT'">
+    <PackageReference Include="Microsoft.Win32.Registry" />
+  </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\LoupixDeck.PluginSdk\LoupixDeck.PluginSdk.csproj" />
   </ItemGroup>

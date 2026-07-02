@@ -22,6 +22,7 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
     private readonly IInterceptionService _interceptionService;
     private readonly IPluginReloadService _pluginReload;
     private readonly IPluginManager _pluginManager;
+    private readonly IAutostartService _autostart;
 
     /// <summary>
     /// All discovered plugins — drives the Plugins settings page. Read live from the
@@ -92,6 +93,14 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
 
     public bool IsWindows => OperatingSystem.IsWindows();
 
+    /// <summary>Windows "run at startup" toggle. Backed directly by the HKCU Run entry
+    /// (the same one the installer manages), so it needs no config field.</summary>
+    public bool StartWithWindows
+    {
+        get => _autostart.IsEnabled();
+        set { _autostart.SetEnabled(value); OnPropertyChanged(); }
+    }
+
     /// <summary>
     /// App-focus page switching is available on Windows and on Linux (X11/XWayland).
     /// Gates the "App Switching" settings page — wider than <see cref="IsWindows"/>,
@@ -105,7 +114,8 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
         IDialogService dialogService,
         IPluginManager pluginManager,
         IPluginReloadService pluginReload,
-        IInterceptionService interceptionService)
+        IInterceptionService interceptionService,
+        IAutostartService autostart)
     {
         Config = config;
         _deviceService = deviceService;
@@ -114,6 +124,7 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
         _interceptionService = interceptionService;
         _pluginReload = pluginReload;
         _pluginManager = pluginManager;
+        _autostart = autostart;
 
         // Commands are created lazily on first access by their `field ??= Relay.Create(...)`
         // getters, so there is nothing to wire up here.

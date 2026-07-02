@@ -55,6 +55,9 @@ public static class ServiceCollectionExtensions
         collection.AddSingleton<IConfigService, ConfigService>();
         collection.AddSingleton<IAssetService, AssetService>();
 
+        // "Start with Windows" toggle (settings). Registry-backed on Windows, no-op elsewhere.
+        collection.AddSingleton<IAutostartService, AutostartService>();
+
         // Animated-button assets (issue #121): decode-once frame cache and the import/transcode
         // pipeline are device-agnostic, so they live as shared root singletons (one decode shared
         // across devices) and are forwarded into each device provider.
@@ -126,6 +129,7 @@ public static class ServiceCollectionExtensions
         // Re-expose the root singletons device-bound services depend on.
         collection.Forward<IConfigService>(root);
         collection.Forward<IAssetService>(root);
+        collection.Forward<IAutostartService>(root);
         collection.Forward<IDBusController>(root);
         collection.Forward<ICommandRunner>(root);
         collection.Forward<ISystemPowerService>(root);
