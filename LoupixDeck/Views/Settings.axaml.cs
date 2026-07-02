@@ -364,7 +364,10 @@ public partial class Settings : Window
                 continue;
             }
 
-            PluginSettingsHost.Children.Add(new TextBlock { Text = descriptor.Label });
+            // A toggle carries its label inline as the checkbox content (label + box on one row);
+            // every other kind gets a label above its editor.
+            if (descriptor.Kind != PluginSettingKind.Toggle)
+                PluginSettingsHost.Children.Add(new TextBlock { Text = descriptor.Label });
 
             Control editor;
             switch (descriptor.Kind)
@@ -372,6 +375,7 @@ public partial class Settings : Window
                 case PluginSettingKind.Toggle:
                     editor = new CheckBox
                     {
+                        Content = descriptor.Label,
                         IsChecked = settings.Get(descriptor.Key, descriptor.DefaultValue is true)
                     };
                     break;
