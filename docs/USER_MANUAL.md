@@ -64,7 +64,7 @@ For most users, use the installer:
 2. Run the installer.
 3. Choose the install location.
 4. Choose whether to create Start menu and desktop shortcuts.
-5. Choose whether LoupixDeck should start with Windows.
+5. Choose whether LoupixDeck should start with Windows by enabling `Start on system startup`.
 6. Choose whether to launch LoupixDeck when setup finishes.
 
 The installer is self-contained, so you do not need to install the .NET runtime separately.
@@ -79,7 +79,7 @@ If you prefer the portable build:
 
 If LoupixDeck is already installed, the Windows setup detects the existing installation and shows the installed and available versions. You can update in place while preserving your settings, or repair a damaged installation.
 
-The installer can register LoupixDeck to start with Windows. If you also enable `Start minimized to tray` in LoupixDeck's settings, the app can start in the background after login.
+The installer can register LoupixDeck to start with Windows using the `Start on system startup` checkbox. This is an installer option, not an in-app setting. To change it later, run the installer again and update the option, or manage the startup entry from Windows.
 
 LoupixDeck also registers an uninstaller in Windows `Installed apps`. Uninstalling removes the program, shortcuts, and registry entries. Your configuration and plugins are kept by default, so reinstalling later should preserve your layouts and integrations.
 
@@ -463,7 +463,7 @@ Underscores in `text` are treated as spaces in the short CLI form.
 - Close button behavior: minimize to tray or quit.
 - Start minimized to tray.
 
-On Windows, starting LoupixDeck automatically with Windows is controlled by the Windows installer. Use that together with `Start minimized to tray` if you want LoupixDeck to launch quietly after login.
+On Windows, starting LoupixDeck automatically with Windows is controlled by the installer option `Start on system startup`, not by this settings page. To change that option later, run the installer again or manage the startup entry from Windows. Use it together with `Start minimized to tray` if you want LoupixDeck to launch quietly after login.
 
 ### Pages
 
