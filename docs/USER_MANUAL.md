@@ -79,7 +79,7 @@ If you prefer the portable build:
 
 If LoupixDeck is already installed, the Windows setup detects the existing installation and shows the installed and available versions. You can update in place while preserving your settings, or repair a damaged installation.
 
-The installer can register LoupixDeck to start with Windows using the `Start on system startup` checkbox. This is an installer option, not an in-app setting. To change it later, run the installer again and update the option, or manage the startup entry from Windows.
+The installer can register LoupixDeck to start with Windows using the `Start on system startup` checkbox. In v1.12.1 and later, you can also change this after installation from `Settings > General > Start with Windows` inside LoupixDeck.
 
 LoupixDeck also registers an uninstaller in Windows `Installed apps`. Uninstalling removes the program, shortcuts, and registry entries. Your configuration and plugins are kept by default, so reinstalling later should preserve your layouts and integrations.
 
@@ -495,10 +495,11 @@ Underscores in `text` are treated as spaces in the short CLI form.
 - Reconnect.
 - Brightness.
 - Startup touch page.
+- Start with Windows (Windows only).
 - Close button behavior: minimize to tray or quit.
 - Start minimized to tray.
 
-On Windows, starting LoupixDeck automatically with Windows is controlled by the installer option `Start on system startup`, not by this settings page. To change that option later, run the installer again or manage the startup entry from Windows. Use it together with `Start minimized to tray` if you want LoupixDeck to launch quietly after login.
+On Windows, `Start with Windows` controls whether LoupixDeck launches at login. The installer can set the same behavior during setup with `Start on system startup`, but v1.12.1 and later let you turn it on or off from this settings page. Use it together with `Start minimized to tray` if you want LoupixDeck to launch quietly after login.
 
 ### Pages
 
