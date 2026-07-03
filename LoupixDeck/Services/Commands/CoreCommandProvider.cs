@@ -37,7 +37,7 @@ public class CoreCommandProvider : ICommandProvider
 
             var isDisplay = false;
             var interval = TimeSpan.Zero;
-            Func<string[], string> getText = null;
+            Func<string[], IReadOnlyList<SequenceCommand>, string> getText = null;
 
             if (_sysCommandService.TryGetCommandType(name, out var type)
                 && typeof(IDynamicTextProvider).IsAssignableFrom(type))
@@ -50,7 +50,8 @@ public class CoreCommandProvider : ICommandProvider
                     var provider = (IDynamicTextProvider)ActivatorUtilities.CreateInstance(_serviceProvider, type);
                     isDisplay = true;
                     interval = provider.UpdateInterval;
-                    getText = provider.GetText;
+                    // Core display commands don't compose from siblings; ignore the sequence list.
+                    getText = (parms, _) => provider.GetText(parms);
                 }
                 catch (Exception ex)
                 {

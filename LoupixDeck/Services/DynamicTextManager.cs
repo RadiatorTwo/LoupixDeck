@@ -1,6 +1,7 @@
 using Avalonia.Threading;
 using LoupixDeck.Models;
 using LoupixDeck.Models.Layers;
+using LoupixDeck.PluginSdk;
 using LoupixDeck.Services.Commands;
 using LoupixDeck.Utils;
 using SkiaSharp;
@@ -28,6 +29,11 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
         public TouchButton Button;
         public RegisteredCommand Command;
         public string[] Parameters;
+
+        /// <summary>The button's full command sequence, handed to the rendering command so it can
+        /// compose from its siblings. Empty for single-command buttons.</summary>
+        public IReadOnlyList<SequenceCommand> SequenceCommands;
+
         public TimeSpan Interval;
         public DateTime NextDueUtc;
 
@@ -106,6 +112,7 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
                     Button = button,
                     Command = command,
                     Parameters = parms,
+                    SequenceCommands = CommandStringParser.BuildSequence(button.Command),
                     Interval = interval,
                     NextDueUtc = DateTime.UtcNow,
                     OwnerKey = PluginLayerKey.For(button.Command)
@@ -260,7 +267,7 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
                 {
                     using var canvas = new SKCanvas(bitmap);
                     var rc = new SkiaRenderCanvas(canvas, 90, 90);
-                    drew = command.RenderImage(entry.Parameters, rc);
+                    drew = command.RenderImage(entry.Parameters, entry.SequenceCommands, rc);
                     if (drew) canvas.Flush();
                 }
             }
@@ -288,7 +295,7 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
         string newText;
         try
         {
-            newText = command.GetText(entry.Parameters) ?? string.Empty;
+            newText = command.GetText(entry.Parameters, entry.SequenceCommands) ?? string.Empty;
         }
         catch (Exception ex)
         {

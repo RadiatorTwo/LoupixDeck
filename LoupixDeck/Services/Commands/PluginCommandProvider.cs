@@ -106,16 +106,17 @@ public class PluginCommandProvider : ICommandProvider
         var isAnimatedImage = false;
         var animatedFps = 0;
         var interval = TimeSpan.Zero;
-        Func<string[], string> getText = null;
-        Func<string[], IRenderCanvas, bool> renderImage = null;
-        Func<string[], IRenderCanvas, AnimationFrameContext, AnimationFrameInfo> renderAnimatedFrame = null;
+        Func<string[], IReadOnlyList<SequenceCommand>, string> getText = null;
+        Func<string[], IReadOnlyList<SequenceCommand>, IRenderCanvas, bool> renderImage = null;
+        Func<string[], IReadOnlyList<SequenceCommand>, IRenderCanvas, AnimationFrameContext, AnimationFrameInfo> renderAnimatedFrame = null;
 
-        CommandContext DisplayContext(string[] parameters) => new()
+        CommandContext DisplayContext(string[] parameters, IReadOnlyList<SequenceCommand> sequence) => new()
         {
             Parameters = parameters ?? Array.Empty<string>(),
             Target = ButtonTargets.TouchButton,
             Device = host?.ActiveDevice,
-            Host = host
+            Host = host,
+            SequenceCommands = sequence ?? []
         };
 
         // Classification precedence: animated → image → text. A command implementing several picks
@@ -126,20 +127,20 @@ public class PluginCommandProvider : ICommandProvider
         {
             isAnimatedImage = true;
             animatedFps = animatedCommand.TargetFps;
-            renderAnimatedFrame = (parameters, canvas, frame) =>
-                animatedCommand.RenderAnimatedFrame(DisplayContext(parameters), canvas, frame);
+            renderAnimatedFrame = (parameters, sequence, canvas, frame) =>
+                animatedCommand.RenderAnimatedFrame(DisplayContext(parameters, sequence), canvas, frame);
         }
         else if (command is IDisplayImageCommand imageCommand)
         {
             isImageDisplay = true;
             interval = imageCommand.UpdateInterval;
-            renderImage = (parameters, canvas) => imageCommand.RenderImage(DisplayContext(parameters), canvas);
+            renderImage = (parameters, sequence, canvas) => imageCommand.RenderImage(DisplayContext(parameters, sequence), canvas);
         }
         else if (command is IDisplayCommand displayCommand)
         {
             isDisplay = true;
             interval = displayCommand.UpdateInterval;
-            getText = parameters => displayCommand.GetText(DisplayContext(parameters));
+            getText = (parameters, sequence) => displayCommand.GetText(DisplayContext(parameters, sequence));
         }
 
         return new RegisteredCommand

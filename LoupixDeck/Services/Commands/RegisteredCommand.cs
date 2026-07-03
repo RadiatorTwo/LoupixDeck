@@ -62,19 +62,25 @@ public sealed class RegisteredCommand
     /// </summary>
     public Func<string[], ButtonTargets, int?, Task> Execute { get; init; }
 
-    /// <summary>For display commands: produces the current text. Null otherwise.</summary>
-    public Func<string[], string> GetText { get; init; }
+    /// <summary>
+    /// For display commands: produces the current text. Null otherwise. The second argument is the
+    /// button's full command sequence (empty for single-command buttons) — forwarded to
+    /// <c>CommandContext.SequenceCommands</c> for plugin commands; core commands ignore it.
+    /// </summary>
+    public Func<string[], IReadOnlyList<SequenceCommand>, string> GetText { get; init; }
 
     /// <summary>
     /// For image display commands: draws the current button content onto a host canvas, returning
-    /// true when drawn (false → leave the button unchanged). Null for non-image commands.
+    /// true when drawn (false → leave the button unchanged). Null for non-image commands. The second
+    /// argument is the button's full command sequence (empty for single-command buttons).
     /// </summary>
-    public Func<string[], LoupixDeck.PluginSdk.IRenderCanvas, bool> RenderImage { get; init; }
+    public Func<string[], IReadOnlyList<SequenceCommand>, LoupixDeck.PluginSdk.IRenderCanvas, bool> RenderImage { get; init; }
 
     /// <summary>
     /// For animated image commands: draws one animation frame onto a host canvas for the given
     /// timing snapshot, returning whether it drew and whether the animation finished. Null otherwise.
+    /// The second argument is the button's full command sequence (empty for single-command buttons).
     /// </summary>
-    public Func<string[], LoupixDeck.PluginSdk.IRenderCanvas, AnimationFrameContext, AnimationFrameInfo>
+    public Func<string[], IReadOnlyList<SequenceCommand>, LoupixDeck.PluginSdk.IRenderCanvas, AnimationFrameContext, AnimationFrameInfo>
         RenderAnimatedFrame { get; init; }
 }

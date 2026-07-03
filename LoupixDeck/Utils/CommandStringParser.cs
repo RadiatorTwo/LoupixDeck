@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using LoupixDeck.PluginSdk;
 
 namespace LoupixDeck.Utils;
 
@@ -54,5 +55,21 @@ public static partial class CommandStringParser
 
         var inner = segment.Substring(start + 1, end - start - 1);
         return inner.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+    }
+
+    /// <summary>
+    /// Builds the ordered sibling list handed to a display command via
+    /// <see cref="CommandContext.SequenceCommands"/>. Returns an empty list for a
+    /// single-command button (no <c>&amp;&amp;</c> chain) so a plugin can treat "in a
+    /// sequence" as a distinct signal; otherwise one entry per segment, in order.
+    /// The 4-command tile cap is intentionally left to the plugin — all segments flow through.
+    /// </summary>
+    public static IReadOnlyList<SequenceCommand> BuildSequence(string command)
+    {
+        List<string> segments = SplitChain(command).ToList();
+        if (segments.Count < 2)
+            return [];
+
+        return segments.Select(segment => new SequenceCommand(GetName(segment), GetParameters(segment))).ToList();
     }
 }

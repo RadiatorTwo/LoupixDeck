@@ -202,7 +202,7 @@ public sealed class ButtonAnimationSource : IAnimationSource, IDisposable
             {
                 using var canvas = new SKCanvas(bitmap);
                 var rc = new SkiaRenderCanvas(canvas, 90, 90);
-                info = render(entry.Parameters, rc, frameCtx);
+                info = render(entry.Parameters, entry.SequenceCommands, rc, frameCtx);
                 if (info.Drawn) canvas.Flush();
             }
         }
@@ -273,6 +273,11 @@ public sealed class ButtonAnimationSource : IAnimationSource, IDisposable
     {
         public required RegisteredCommand Command { get; init; }
         public required string[] Parameters { get; init; }
+
+        /// <summary>The button's full command sequence, forwarded to the plugin so it can compose
+        /// from its siblings. Empty for single-command buttons.</summary>
+        public IReadOnlyList<SequenceCommand> SequenceCommands { get; init; } = [];
+
         public required string OwnerKey { get; init; }
 
         /// <summary>The command's owner-keyed plugin layer, resolved by the manager on the UI thread

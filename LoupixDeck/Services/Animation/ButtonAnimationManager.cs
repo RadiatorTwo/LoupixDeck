@@ -1,10 +1,12 @@
 using Avalonia.Threading;
 using LoupixDeck.Models;
 using LoupixDeck.Models.Layers;
+using LoupixDeck.PluginSdk;
 using LoupixDeck.Services.Commands;
 using LoupixDeck.Services.Plugins;
 using LoupixDeck.Services.FolderNavigation;
 using LoupixDeck.Services.Screensaver;
+using LoupixDeck.Utils;
 
 namespace LoupixDeck.Services.Animation;
 
@@ -149,6 +151,7 @@ public sealed class ButtonAnimationManager : IButtonAnimationManager, IDisposabl
                         Button = button,
                         Command = command,
                         Parameters = PluginLayerKey.ParseParameters(button.Command),
+                        SequenceCommands = CommandStringParser.BuildSequence(button.Command),
                         OwnerKey = ownerKey,
                         PluginLayer = layer,
                         DesiredFps = command.AnimatedTargetFps > 0 ? command.AnimatedTargetFps : 0
@@ -192,6 +195,7 @@ public sealed class ButtonAnimationManager : IButtonAnimationManager, IDisposabl
                     Button = spec.Button,
                     Command = spec.Command,
                     Parameters = spec.Parameters,
+                    SequenceCommands = spec.SequenceCommands,
                     OwnerKey = spec.OwnerKey,
                     Layer = spec.PluginLayer,
                     DesiredFps = spec.DesiredFps
@@ -262,6 +266,7 @@ public sealed class ButtonAnimationManager : IButtonAnimationManager, IDisposabl
         // Plugin animation
         public RegisteredCommand Command { get; init; }
         public string[] Parameters { get; init; }
+        public IReadOnlyList<SequenceCommand> SequenceCommands { get; init; }
         public string OwnerKey { get; init; }
         public PluginLayer PluginLayer { get; init; }
         public int DesiredFps { get; init; }
