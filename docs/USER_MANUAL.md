@@ -411,6 +411,22 @@ The current binary installation includes these plugin manifests:
 
 Plugins can add commands, dynamic text, settings pages, folders, side-strip providers, or special integration behavior. The exact command names depend on the installed plugin version and what external app or service is configured.
 
+### Monitoring Plugins
+
+Argus Monitor, HWiNFO, and LibreHardwareMonitor can show sensor readings on touch buttons when the matching plugin is installed and enabled.
+
+In current releases, sensor commands render as monitoring tiles instead of plain text. A tile can show:
+
+- Sensor name or header.
+- Current value.
+- Gauge bar.
+
+You can put several sensor readings on one touch button by chaining sensor commands with `&&`. LoupixDeck draws one row per sensor, up to four rows. If the button has only one sensor command, it uses a larger single-value tile layout.
+
+Some monitoring plugins also offer a transparent background option. When enabled, the tile panel is removed so the page wallpaper shows through; text is outlined to stay readable.
+
+Monitoring plugin settings are device-specific. If you enable a plugin on one connected device, its commands and menu entries do not automatically appear on another device. Saved buttons still load, and re-enabling the plugin for that device restores the real command chips.
+
 ## Device Power and Window Commands
 
 Device control commands can be assigned to buttons or run from automation:
@@ -600,8 +616,13 @@ Recording needs read access to `/dev/input/event*`. The installer attempts to ha
 
 - Open `Settings > Plugins`.
 - Check whether the plugin is installed and enabled.
+- If you use more than one device, enable the plugin on the device where you want to use it.
 - Restart LoupixDeck if the plugin page says some changes need a restart.
 - Confirm that external services such as OBS, Spotify, or monitoring tools are running and configured.
+
+### Monitoring tiles look wrong or still use old settings
+
+Sensor plugins changed from plain text output to tile rendering. If an old Argus, HWiNFO, or LibreHardwareMonitor button looks wrong after updating, remove the old sensor command or plugin-specific layer/settings from the button and add the sensor command again.
 
 ### Collecting crash logs
 
