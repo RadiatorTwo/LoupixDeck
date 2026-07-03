@@ -1,4 +1,5 @@
 using LoupixDeck.Commands.Base;
+using LoupixDeck.Models;
 using LoupixDeck.PluginSdk;
 using LoupixDeck.Services.Plugins;
 
@@ -12,10 +13,12 @@ namespace LoupixDeck.Services.Commands;
 public class PluginCommandProvider : ICommandProvider
 {
     private readonly IPluginManager _pluginManager;
+    private readonly LoupedeckConfig _config;
 
-    public PluginCommandProvider(IPluginManager pluginManager)
+    public PluginCommandProvider(IPluginManager pluginManager, LoupedeckConfig config)
     {
         _pluginManager = pluginManager;
+        _config = config;
     }
 
     public IEnumerable<RegisteredCommand> GetCommands()
@@ -25,6 +28,13 @@ public class PluginCommandProvider : ICommandProvider
         foreach (var plugin in _pluginManager.Plugins)
         {
             if (plugin.Status != PluginLoadStatus.Loaded)
+                continue;
+
+            // Plugins load once and are shared across devices (union enable-gate), but this
+            // provider feeds a per-device registry. Filter to the plugins THIS device has
+            // enabled, so a command contributed by a plugin another device enabled does not
+            // become assignable/executable here (issue #163).
+            if (!PluginEnabledForDevice(plugin.Manifest?.Id))
                 continue;
 
             foreach (var command in plugin.Commands)
@@ -42,6 +52,17 @@ public class PluginCommandProvider : ICommandProvider
         }
 
         return result;
+    }
+
+    /// <summary>True when this device's config enables the plugin with the given id.</summary>
+    private bool PluginEnabledForDevice(string pluginId)
+    {
+        if (string.IsNullOrWhiteSpace(pluginId))
+            return false;
+
+        var enabled = _config?.EnabledPlugins;
+        return enabled != null
+               && enabled.Any(id => string.Equals(id, pluginId, StringComparison.OrdinalIgnoreCase));
     }
 
     private static RegisteredCommand Adapt(IPluginCommand command, IPluginHost host)
