@@ -16,11 +16,16 @@ public class PluginMenuContributor : IPluginMenuSource
 {
     private readonly IPluginManager _pluginManager;
     private readonly ICommandBuilder _commandBuilder;
+    private readonly Models.LoupedeckConfig _config;
 
-    public PluginMenuContributor(IPluginManager pluginManager, ICommandBuilder commandBuilder)
+    public PluginMenuContributor(
+        IPluginManager pluginManager,
+        ICommandBuilder commandBuilder,
+        Models.LoupedeckConfig config)
     {
         _pluginManager = pluginManager;
         _commandBuilder = commandBuilder;
+        _config = config;
     }
 
     public IReadOnlyList<DeferredMenuSource> GetDeferredSources(ButtonTargets target)
@@ -30,6 +35,12 @@ public class PluginMenuContributor : IPluginMenuSource
         foreach (var plugin in _pluginManager.Plugins)
         {
             if (plugin.Status != PluginLoadStatus.Loaded)
+                continue;
+
+            // Plugins are shared across devices; only surface a plugin's menu on the
+            // device that enabled it, so its commands aren't shown (and can't be
+            // assigned) on a device where the plugin is inactive (issue #163).
+            if (!PluginEnabledForDevice(plugin.Manifest?.Id))
                 continue;
 
             if (plugin.Instance is not SdkMenuContributor contributor)
@@ -62,6 +73,17 @@ public class PluginMenuContributor : IPluginMenuSource
         }
 
         return sources;
+    }
+
+    /// <summary>True when this device's config enables the plugin with the given id.</summary>
+    private bool PluginEnabledForDevice(string pluginId)
+    {
+        if (string.IsNullOrWhiteSpace(pluginId))
+            return false;
+
+        var enabled = _config?.EnabledPlugins;
+        return enabled != null
+               && enabled.Any(id => string.Equals(id, pluginId, StringComparison.OrdinalIgnoreCase));
     }
 
     private static IReadOnlyList<string> SafeGetGroupNames(LoupixPlugin plugin)
