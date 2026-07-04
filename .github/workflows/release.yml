@@ -3,6 +3,7 @@ name: .NET Release
 on:
   release:
     types: [published]
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -43,6 +44,12 @@ jobs:
           repository: RadiatorTwo/LoupixDeck.Plugin.CoolerControl
           path: src/LoupixDeck.Plugin.CoolerControl
 
+      - name: Checkout LibreHardwareMonitor plugin
+        uses: actions/checkout@v5
+        with:
+          repository: RadiatorTwo/LoupixDeck.Plugin.LibreHardwareMonitor
+          path: src/LoupixDeck.Plugin.LibreHardwareMonitor
+
       - name: Checkout Audio plugin
         uses: actions/checkout@v5
         with:
@@ -78,6 +85,7 @@ jobs:
             LoupixDeck.Plugin.Elgato \
             LoupixDeck.Plugin.HwInfo \
             LoupixDeck.Plugin.CoolerControl \
+            LoupixDeck.Plugin.LibreHardwareMonitor \
             LoupixDeck.Plugin.Audio \
             LoupixDeck.Plugin.Argus \
             LoupixDeck.Plugin.SpotifyPremium
