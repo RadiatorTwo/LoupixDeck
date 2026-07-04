@@ -140,7 +140,7 @@ From the main window you can quickly move between pages. From `Settings > Pages`
 
 ## Touch Buttons
 
-Click any touch button to open the touch button editor.
+Single-click a touch button to select it. Double-click it to open the touch button editor.
 
 Common button options:
 
@@ -152,6 +152,20 @@ Common button options:
 - Command sequence: controls what the button does when pressed.
 
 Changes are saved when you close the editor.
+
+### Editing and Rearranging Buttons
+
+In v1.14.0 and later, the main window supports faster editing for buttons and side displays:
+
+- Select a button with one click.
+- Open it for editing with a double-click.
+- Use `Ctrl+C`, `Ctrl+X`, and `Ctrl+V` to copy, cut, and paste the selected button.
+- Right-click a button to open a context menu with `Copy`, `Cut`, `Paste`, and `Clear`.
+- Drag a configured button onto another button of the same kind. Dropping onto an empty slot moves it. Dropping onto a filled slot swaps the two buttons.
+- Hold `Ctrl` while dragging to copy instead of move or swap.
+- Press `Esc` while dragging to cancel the drag.
+
+The drop-target ring previews the action before you release the mouse: green means move, amber means swap, blue means copy, and red means the drop is not valid. If a paste or `Ctrl`-drag copy would overwrite a configured target, LoupixDeck asks for confirmation first.
 
 ## Button Layers
 
