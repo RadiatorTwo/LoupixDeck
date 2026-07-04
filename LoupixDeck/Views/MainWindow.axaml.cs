@@ -1,5 +1,7 @@
 using System.ComponentModel;
 using Avalonia.Controls;
+using Avalonia.Input;
+using Avalonia.Interactivity;
 using Avalonia.Platform;
 using CommunityToolkit.Mvvm.Input;
 using LoupixDeck.Models;
@@ -26,6 +28,7 @@ public partial class MainWindow : Window
     public MainShellViewModel ViewModel => DataContext as MainShellViewModel;
 
     private MainShellViewModel _shell;
+    private DeviceDragDrop _dragDrop;
 
     public MainWindow()
     {
@@ -34,10 +37,38 @@ public partial class MainWindow : Window
         Instance = this;
 
         CreateTrayIcon();
+        InitDragDrop();
 
         this.Closing += OnWindowClosing;
         this.DataContextChanged += OnDataContextChanged;
     }
+
+    /// <summary>
+    /// Wire the window-level drag &amp; drop overlay (issue #166 phase 3). Pointer events are
+    /// handled as tunneling (preview) so the drag machine sees them regardless of the buttons; a
+    /// drag only starts past a movement threshold, so a plain click still selects and a
+    /// double-click still edits. Operations run against the active device's view model.
+    /// </summary>
+    private void InitDragDrop()
+    {
+        _dragDrop = new DeviceDragDrop(
+            this.FindControl<Grid>("RootGrid"),
+            this.FindControl<Canvas>("DragOverlay"),
+            this.FindControl<Border>("DragGhost"),
+            this.FindControl<Image>("DragGhostImage"),
+            this.FindControl<Border>("DropHighlight"),
+            () => ViewModel?.SelectedDevice);
+
+        AddHandler(PointerPressedEvent, OnPreviewPointerPressed, RoutingStrategies.Tunnel, handledEventsToo: true);
+        AddHandler(PointerMovedEvent, OnPreviewPointerMoved, RoutingStrategies.Tunnel, handledEventsToo: true);
+        AddHandler(PointerReleasedEvent, OnPreviewPointerReleased, RoutingStrategies.Tunnel, handledEventsToo: true);
+        AddHandler(PointerCaptureLostEvent, OnPreviewPointerCaptureLost, RoutingStrategies.Tunnel | RoutingStrategies.Bubble, handledEventsToo: true);
+    }
+
+    private void OnPreviewPointerPressed(object sender, PointerPressedEventArgs e) => _dragDrop?.PointerPressed(e);
+    private void OnPreviewPointerMoved(object sender, PointerEventArgs e) => _dragDrop?.PointerMoved(e);
+    private void OnPreviewPointerReleased(object sender, PointerReleasedEventArgs e) => _dragDrop?.PointerReleased(e);
+    private void OnPreviewPointerCaptureLost(object sender, PointerCaptureLostEventArgs e) => _dragDrop?.PointerCaptureLost(e);
 
     /// <summary>
     /// Pick the device-specific UserControl when DI hands us a VM. The child

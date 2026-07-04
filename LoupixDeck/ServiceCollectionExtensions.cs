@@ -87,6 +87,10 @@ public static class ServiceCollectionExtensions
         else
             collection.AddSingleton<IActiveWindowMonitor, NoOpActiveWindowMonitor>();
 
+        // In-app clipboard for button/side-display copy/paste (issue #166). Root singleton so a
+        // snapshot copied on one device can be pasted onto another.
+        collection.AddSingleton<IButtonClipboardService, ButtonClipboardService>();
+
         // User-defined macros: in-memory store (macros.json), shared across devices.
         collection.AddSingleton<IMacroManager, MacroManager>();
 
@@ -140,6 +144,7 @@ public static class ServiceCollectionExtensions
         collection.Forward<IMacroPromptService>(root);
         collection.Forward<IMacroManager>(root);
         collection.Forward<IMacroStopCoordinator>(root);
+        collection.Forward<IButtonClipboardService>(root);
         collection.Forward<IDeviceHostRegistry>(root);
         collection.Forward<IDeviceRouter>(root);
         collection.Forward<IPluginManager>(root);
@@ -323,6 +328,9 @@ public static class ServiceCollectionExtensions
         collection.AddTransient<About>();
         collection.AddTransient<AboutViewModel>();
 
+        collection.AddTransient<ConfirmDialog>();
+        collection.AddTransient<ConfirmDialogViewModel>();
+
         collection.AddSingleton<IDialogService, DialogService>();
     }
 
@@ -360,6 +368,7 @@ public static class ServiceCollectionExtensions
         dialogService.Register<SettingsViewModel, Settings>();
         dialogService.Register<MacroEditorViewModel, MacroEditor>();
         dialogService.Register<AboutViewModel, About>();
+        dialogService.Register<ConfirmDialogViewModel, ConfirmDialog>();
 
         // Heal configs that were saved before HapticSteps had ObjectCreationHandling.Replace —
         // those files accumulated duplicate steps on every save+load round.

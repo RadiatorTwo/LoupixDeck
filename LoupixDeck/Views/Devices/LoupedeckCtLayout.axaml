@@ -25,89 +25,90 @@
            the 6 side dials doesn't have room for a 7th control; see
            LoupedeckLiveSController.ResolveRotary. -->
     <UserControl.Styles>
+        <!-- Rotary dials: hover/selection shown as a round ring following the knob shape. -->
         <Style Selector="Button.Knob">
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderBrush" Value="Transparent" />
             <Setter Property="BorderThickness" Value="0" />
             <Setter Property="Padding" Value="0" />
             <Setter Property="Focusable" Value="False" />
-            <Setter Property="RenderTransformOrigin" Value="50%,50%" />
             <Setter Property="Template">
                 <ControlTemplate>
-                    <ContentPresenter Content="{TemplateBinding Content}"
-                                      ContentTemplate="{TemplateBinding ContentTemplate}"
-                                      HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
-                                      VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
+                    <Grid>
+                        <ContentPresenter Content="{TemplateBinding Content}"
+                                          ContentTemplate="{TemplateBinding ContentTemplate}"
+                                          HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                          VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
+                        <Ellipse Name="HighlightRing" Margin="3" StrokeThickness="3"
+                                 Stroke="Transparent" IsHitTestVisible="False"
+                                 Classes.selected="{Binding ((models:LoupedeckButton)CommandParameter).IsSelected, RelativeSource={RelativeSource TemplatedParent}, FallbackValue=False}" />
+                    </Grid>
                 </ControlTemplate>
             </Setter>
-            <Setter Property="Transitions">
-                <Transitions>
-                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.08" />
-                </Transitions>
-            </Setter>
         </Style>
-        <Style Selector="Button.Knob:pointerover">
-            <Setter Property="RenderTransform" Value="scale(1.04)" />
+        <Style Selector="Button.Knob:pointerover /template/ Ellipse#HighlightRing">
+            <Setter Property="Stroke" Value="#803D9BFF" />
         </Style>
-        <Style Selector="Button.Knob:pressed">
-            <Setter Property="RenderTransform" Value="scale(0.96)" />
+        <Style Selector="Button.Knob /template/ Ellipse#HighlightRing.selected">
+            <Setter Property="Stroke" Value="{StaticResource PageActiveBorderBrush}" />
         </Style>
 
+        <!-- Round LED buttons: hover/selection shown as a round ring following the LED shape. -->
         <Style Selector="Button.LedRound">
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderBrush" Value="Transparent" />
             <Setter Property="BorderThickness" Value="0" />
             <Setter Property="Padding" Value="0" />
             <Setter Property="Focusable" Value="False" />
-            <Setter Property="RenderTransformOrigin" Value="50%,50%" />
             <Setter Property="Template">
                 <ControlTemplate>
-                    <ContentPresenter Content="{TemplateBinding Content}"
-                                      ContentTemplate="{TemplateBinding ContentTemplate}"
-                                      HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
-                                      VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
+                    <Grid>
+                        <ContentPresenter Content="{TemplateBinding Content}"
+                                          ContentTemplate="{TemplateBinding ContentTemplate}"
+                                          HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                          VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
+                        <Ellipse Name="HighlightRing" Margin="3" StrokeThickness="3"
+                                 Stroke="Transparent" IsHitTestVisible="False"
+                                 Classes.selected="{Binding ((models:LoupedeckButton)CommandParameter).IsSelected, RelativeSource={RelativeSource TemplatedParent}, FallbackValue=False}" />
+                    </Grid>
                 </ControlTemplate>
             </Setter>
-            <Setter Property="Transitions">
-                <Transitions>
-                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.08" />
-                </Transitions>
-            </Setter>
         </Style>
-        <Style Selector="Button.LedRound:pointerover">
-            <Setter Property="RenderTransform" Value="scale(1.06)" />
+        <Style Selector="Button.LedRound:pointerover /template/ Ellipse#HighlightRing">
+            <Setter Property="Stroke" Value="#803D9BFF" />
         </Style>
-        <Style Selector="Button.LedRound:pressed">
-            <Setter Property="RenderTransform" Value="scale(0.94)" />
+        <Style Selector="Button.LedRound /template/ Ellipse#HighlightRing.selected">
+            <Setter Property="Stroke" Value="{StaticResource PageActiveBorderBrush}" />
         </Style>
 
-        <!-- Square named buttons: same chrome-free treatment as the round LEDs. -->
+        <!-- Square named buttons: same chrome-free treatment as the round LEDs, but the
+             hover/selection highlight is a rounded rectangle following the square shape. -->
         <Style Selector="Button.LedSquare">
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderBrush" Value="Transparent" />
             <Setter Property="BorderThickness" Value="0" />
             <Setter Property="Padding" Value="0" />
             <Setter Property="Focusable" Value="False" />
-            <Setter Property="RenderTransformOrigin" Value="50%,50%" />
             <Setter Property="Template">
                 <ControlTemplate>
-                    <ContentPresenter Content="{TemplateBinding Content}"
-                                      ContentTemplate="{TemplateBinding ContentTemplate}"
-                                      HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
-                                      VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
+                    <Grid>
+                        <ContentPresenter Content="{TemplateBinding Content}"
+                                          ContentTemplate="{TemplateBinding ContentTemplate}"
+                                          HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                          VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
+                        <Border Name="HighlightBorder" Margin="3" CornerRadius="6"
+                                BorderThickness="3" BorderBrush="Transparent"
+                                IsHitTestVisible="False"
+                                Classes.selected="{Binding ((models:LoupedeckButton)CommandParameter).IsSelected, RelativeSource={RelativeSource TemplatedParent}, FallbackValue=False}" />
+                    </Grid>
                 </ControlTemplate>
             </Setter>
-            <Setter Property="Transitions">
-                <Transitions>
-                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.08" />
-                </Transitions>
-            </Setter>
         </Style>
-        <Style Selector="Button.LedSquare:pointerover">
-            <Setter Property="RenderTransform" Value="scale(1.06)" />
+        <Style Selector="Button.LedSquare:pointerover /template/ Border#HighlightBorder">
+            <Setter Property="BorderBrush" Value="#803D9BFF" />
         </Style>
-        <Style Selector="Button.LedSquare:pressed">
-            <Setter Property="RenderTransform" Value="scale(0.94)" />
+        <Style Selector="Button.LedSquare /template/ Border#HighlightBorder.selected">
+            <Setter Property="BorderBrush" Value="{StaticResource PageActiveBorderBrush}" />
         </Style>
 
         <Style Selector="Button[Tag=Touch]">
@@ -116,31 +117,38 @@
             <Setter Property="BorderThickness" Value="0" />
             <Setter Property="Padding" Value="0" />
             <Setter Property="Focusable" Value="False" />
-            <Setter Property="RenderTransformOrigin" Value="50%,50%" />
             <Setter Property="Template">
                 <ControlTemplate>
-                    <ContentPresenter Content="{TemplateBinding Content}"
-                                      ContentTemplate="{TemplateBinding ContentTemplate}"
-                                      HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
-                                      VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
+                    <Grid>
+                        <ContentPresenter Content="{TemplateBinding Content}"
+                                          ContentTemplate="{TemplateBinding ContentTemplate}"
+                                          HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                          VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
+                        <!-- Hover / selection highlight, drawn inset over the tile so it clears
+                             the surrounding device bezel. The selected state follows the bound
+                             TouchButton's IsSelected (single click selects). -->
+                        <Border Name="HighlightBorder"
+                                Margin="5" CornerRadius="6"
+                                BorderThickness="3" BorderBrush="Transparent"
+                                IsHitTestVisible="False"
+                                Classes.selected="{Binding ((models:LoupedeckButton)CommandParameter).IsSelected, RelativeSource={RelativeSource TemplatedParent}, FallbackValue=False}" />
+                    </Grid>
                 </ControlTemplate>
             </Setter>
-            <Setter Property="Transitions">
-                <Transitions>
-                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.08" />
-                </Transitions>
-            </Setter>
         </Style>
-        <Style Selector="Button[Tag=Touch]:pointerover">
-            <Setter Property="ZIndex" Value="1" />
-            <Setter Property="RenderTransform" Value="scale(1.05)" />
+        <!-- MouseOver: a subtle border instead of the old zoom. -->
+        <Style Selector="Button[Tag=Touch]:pointerover /template/ Border#HighlightBorder">
+            <Setter Property="BorderBrush" Value="#803D9BFF" />
         </Style>
-        <Style Selector="Button[Tag=Touch]:pressed">
-            <Setter Property="RenderTransform" Value="scale(0.96)" />
+        <!-- Selected (single click): solid accent border; declared last so it wins over hover. -->
+        <Style Selector="Button[Tag=Touch] /template/ Border#HighlightBorder.selected">
+            <Setter Property="BorderBrush" Value="{StaticResource PageActiveBorderBrush}" />
         </Style>
     </UserControl.Styles>
 
-    <StackPanel Orientation="Vertical" HorizontalAlignment="Center" Spacing="2">
+    <StackPanel Orientation="Vertical" HorizontalAlignment="Center" Spacing="2"
+                Tapped="OnBackgroundTapped"
+                ContextRequested="OnButtonContextRequested">
 
         <!-- Independent rotary pagers for the 6 side dials (left/right columns). -->
         <Grid Margin="55,12,0,-24" ZIndex="1">
@@ -215,8 +223,8 @@
                         <Grid>
                             <Grid Margin="16" ColumnDefinitions="60,360,60">
                                 <Button Tag="Touch" Grid.Column="0" Width="60" Height="270"
-                                        Command="{Binding EditStripCanvasCommand}"
-                                        CommandParameter="{x:Static models:RotarySide.Left}">
+                                        Tapped="OnButtonTapped" DoubleTapped="OnStripDoubleTapped"
+                                        CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[12]}">
                                     <Border CornerRadius="0" ClipToBounds="True">
                                         <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[12].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
                                     </Border>
@@ -224,28 +232,28 @@
 
                                 <Grid Grid.Column="1" ColumnDefinitions="90,90,90,90" RowDefinitions="90,90,90">
                                     <Button Tag="Touch" Grid.Row="0" Grid.Column="0" Width="90" Height="90"
-                                            Command="{Binding TouchButtonCommand}"
+                                            Tapped="OnButtonTapped" DoubleTapped="OnButtonDoubleTapped"
                                             CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[0]}">
                                         <Border CornerRadius="0" ClipToBounds="True">
                                             <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[0].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
                                         </Border>
                                     </Button>
                                     <Button Tag="Touch" Grid.Row="0" Grid.Column="1" Width="90" Height="90"
-                                            Command="{Binding TouchButtonCommand}"
+                                            Tapped="OnButtonTapped" DoubleTapped="OnButtonDoubleTapped"
                                             CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[1]}">
                                         <Border CornerRadius="0" ClipToBounds="True">
                                             <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[1].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
                                         </Border>
                                     </Button>
                                     <Button Tag="Touch" Grid.Row="0" Grid.Column="2" Width="90" Height="90"
-                                            Command="{Binding TouchButtonCommand}"
+                                            Tapped="OnButtonTapped" DoubleTapped="OnButtonDoubleTapped"
                                             CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[2]}">
                                         <Border CornerRadius="0" ClipToBounds="True">
                                             <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[2].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
                                         </Border>
                                     </Button>
                                     <Button Tag="Touch" Grid.Row="0" Grid.Column="3" Width="90" Height="90"
-                                            Command="{Binding TouchButtonCommand}"
+                                            Tapped="OnButtonTapped" DoubleTapped="OnButtonDoubleTapped"
                                             CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[3]}">
                                         <Border CornerRadius="0" ClipToBounds="True">
                                             <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[3].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
@@ -253,28 +261,28 @@
                                     </Button>
 
                                     <Button Tag="Touch" Grid.Row="1" Grid.Column="0" Width="90" Height="90"
-                                            Command="{Binding TouchButtonCommand}"
+                                            Tapped="OnButtonTapped" DoubleTapped="OnButtonDoubleTapped"
                                             CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[4]}">
                                         <Border CornerRadius="0" ClipToBounds="True">
                                             <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[4].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
                                         </Border>
                                     </Button>
                                     <Button Tag="Touch" Grid.Row="1" Grid.Column="1" Width="90" Height="90"
-                                            Command="{Binding TouchButtonCommand}"
+                                            Tapped="OnButtonTapped" DoubleTapped="OnButtonDoubleTapped"
                                             CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[5]}">
                                         <Border CornerRadius="0" ClipToBounds="True">
                                             <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[5].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
                                         </Border>
                                     </Button>
                                     <Button Tag="Touch" Grid.Row="1" Grid.Column="2" Width="90" Height="90"
-                                            Command="{Binding TouchButtonCommand}"
+                                            Tapped="OnButtonTapped" DoubleTapped="OnButtonDoubleTapped"
                                             CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[6]}">
                                         <Border CornerRadius="0" ClipToBounds="True">
                                             <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[6].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
                                         </Border>
                                     </Button>
                                     <Button Tag="Touch" Grid.Row="1" Grid.Column="3" Width="90" Height="90"
-                                            Command="{Binding TouchButtonCommand}"
+                                            Tapped="OnButtonTapped" DoubleTapped="OnButtonDoubleTapped"
                                             CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[7]}">
                                         <Border CornerRadius="0" ClipToBounds="True">
                                             <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[7].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
@@ -282,28 +290,28 @@
                                     </Button>
 
                                     <Button Tag="Touch" Grid.Row="2" Grid.Column="0" Width="90" Height="90"
-                                            Command="{Binding TouchButtonCommand}"
+                                            Tapped="OnButtonTapped" DoubleTapped="OnButtonDoubleTapped"
                                             CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[8]}">
                                         <Border CornerRadius="0" ClipToBounds="True">
                                             <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[8].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
                                         </Border>
                                     </Button>
                                     <Button Tag="Touch" Grid.Row="2" Grid.Column="1" Width="90" Height="90"
-                                            Command="{Binding TouchButtonCommand}"
+                                            Tapped="OnButtonTapped" DoubleTapped="OnButtonDoubleTapped"
                                             CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[9]}">
                                         <Border CornerRadius="0" ClipToBounds="True">
                                             <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[9].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
                                         </Border>
                                     </Button>
                                     <Button Tag="Touch" Grid.Row="2" Grid.Column="2" Width="90" Height="90"
-                                            Command="{Binding TouchButtonCommand}"
+                                            Tapped="OnButtonTapped" DoubleTapped="OnButtonDoubleTapped"
                                             CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[10]}">
                                         <Border CornerRadius="0" ClipToBounds="True">
                                             <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[10].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
                                         </Border>
                                     </Button>
                                     <Button Tag="Touch" Grid.Row="2" Grid.Column="3" Width="90" Height="90"
-                                            Command="{Binding TouchButtonCommand}"
+                                            Tapped="OnButtonTapped" DoubleTapped="OnButtonDoubleTapped"
                                             CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[11]}">
                                         <Border CornerRadius="0" ClipToBounds="True">
                                             <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[11].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
@@ -312,8 +320,8 @@
                                 </Grid>
 
                                 <Button Tag="Touch" Grid.Column="2" Width="60" Height="270"
-                                        Command="{Binding EditStripCanvasCommand}"
-                                        CommandParameter="{x:Static models:RotarySide.Right}">
+                                        Tapped="OnButtonTapped" DoubleTapped="OnStripDoubleTapped"
+                                        CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[13]}">
                                     <Border CornerRadius="0" ClipToBounds="True">
                                         <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[13].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
                                     </Border>
@@ -348,89 +356,89 @@
 
                     <!-- ===== Left/right side dials (3 each), same geometry as Razer. ===== -->
                     <Button Classes="Knob" Canvas.Left="90" Canvas.Top="114" Width="80" Height="80"
-                            Command="{Binding RotaryButtonCommand}"
+                            Tapped="OnButtonTapped" DoubleTapped="OnButtonDoubleTapped"
                             CommandParameter="{Binding LoupedeckController.Config.CurrentLeftRotaryButtonPage.RotaryButtons[0], Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
                         <Image Source="{Binding RotaryKnobImage}" Width="80" Height="80" />
                     </Button>
                     <Button Classes="Knob" Canvas.Left="90" Canvas.Top="225" Width="80" Height="80"
-                            Command="{Binding RotaryButtonCommand}"
+                            Tapped="OnButtonTapped" DoubleTapped="OnButtonDoubleTapped"
                             CommandParameter="{Binding LoupedeckController.Config.CurrentLeftRotaryButtonPage.RotaryButtons[1], Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
                         <Image Source="{Binding RotaryKnobImage}" Width="80" Height="80" />
                     </Button>
                     <Button Classes="Knob" Canvas.Left="90" Canvas.Top="336" Width="80" Height="80"
-                            Command="{Binding RotaryButtonCommand}"
+                            Tapped="OnButtonTapped" DoubleTapped="OnButtonDoubleTapped"
                             CommandParameter="{Binding LoupedeckController.Config.CurrentLeftRotaryButtonPage.RotaryButtons[2], Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
                         <Image Source="{Binding RotaryKnobImage}" Width="80" Height="80" />
                     </Button>
 
                     <Button Classes="Knob" Canvas.Left="730" Canvas.Top="114" Width="80" Height="80"
-                            Command="{Binding RotaryButtonCommand}"
+                            Tapped="OnButtonTapped" DoubleTapped="OnButtonDoubleTapped"
                             CommandParameter="{Binding LoupedeckController.Config.CurrentRightRotaryButtonPage.RotaryButtons[0], Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
                         <Image Source="{Binding RotaryKnobImage}" Width="80" Height="80" />
                     </Button>
                     <Button Classes="Knob" Canvas.Left="730" Canvas.Top="225" Width="80" Height="80"
-                            Command="{Binding RotaryButtonCommand}"
+                            Tapped="OnButtonTapped" DoubleTapped="OnButtonDoubleTapped"
                             CommandParameter="{Binding LoupedeckController.Config.CurrentRightRotaryButtonPage.RotaryButtons[1], Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
                         <Image Source="{Binding RotaryKnobImage}" Width="80" Height="80" />
                     </Button>
                     <Button Classes="Knob" Canvas.Left="730" Canvas.Top="336" Width="80" Height="80"
-                            Command="{Binding RotaryButtonCommand}"
+                            Tapped="OnButtonTapped" DoubleTapped="OnButtonDoubleTapped"
                             CommandParameter="{Binding LoupedeckController.Config.CurrentRightRotaryButtonPage.RotaryButtons[2], Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
                         <Image Source="{Binding RotaryKnobImage}" Width="80" Height="80" />
                     </Button>
 
                     <!-- ===== 8 round LED buttons (SimpleButtons[0..7]). ===== -->
                     <Button Tag="Led" Classes="LedRound" Canvas.Left="104" Canvas.Top="437" Width="72" Height="72"
-                            Command="{Binding SimpleButtonCommand}"
+                            Tapped="OnButtonTapped" DoubleTapped="OnButtonDoubleTapped"
                             CommandParameter="{Binding LoupedeckController.Config.SimpleButtons[0]}">
                         <Border Background="Transparent" Width="72" Height="72" CornerRadius="36">
                             <Image Source="{Binding LoupedeckController.Config.SimpleButtons[0].RenderedImage}" />
                         </Border>
                     </Button>
                     <Button Tag="Led" Classes="LedRound" Canvas.Left="193" Canvas.Top="437" Width="72" Height="72"
-                            Command="{Binding SimpleButtonCommand}"
+                            Tapped="OnButtonTapped" DoubleTapped="OnButtonDoubleTapped"
                             CommandParameter="{Binding LoupedeckController.Config.SimpleButtons[1]}">
                         <Border Background="Transparent" Width="72" Height="72" CornerRadius="36">
                             <Image Source="{Binding LoupedeckController.Config.SimpleButtons[1].RenderedImage}" />
                         </Border>
                     </Button>
                     <Button Tag="Led" Classes="LedRound" Canvas.Left="281" Canvas.Top="437" Width="72" Height="72"
-                            Command="{Binding SimpleButtonCommand}"
+                            Tapped="OnButtonTapped" DoubleTapped="OnButtonDoubleTapped"
                             CommandParameter="{Binding LoupedeckController.Config.SimpleButtons[2]}">
                         <Border Background="Transparent" Width="72" Height="72" CornerRadius="36">
                             <Image Source="{Binding LoupedeckController.Config.SimpleButtons[2].RenderedImage}" />
                         </Border>
                     </Button>
                     <Button Tag="Led" Classes="LedRound" Canvas.Left="370" Canvas.Top="437" Width="72" Height="72"
-                            Command="{Binding SimpleButtonCommand}"
+                            Tapped="OnButtonTapped" DoubleTapped="OnButtonDoubleTapped"
                             CommandParameter="{Binding LoupedeckController.Config.SimpleButtons[3]}">
                         <Border Background="Transparent" Width="72" Height="72" CornerRadius="36">
                             <Image Source="{Binding LoupedeckController.Config.SimpleButtons[3].RenderedImage}" />
                         </Border>
                     </Button>
                     <Button Tag="Led" Classes="LedRound" Canvas.Left="458" Canvas.Top="437" Width="72" Height="72"
-                            Command="{Binding SimpleButtonCommand}"
+                            Tapped="OnButtonTapped" DoubleTapped="OnButtonDoubleTapped"
                             CommandParameter="{Binding LoupedeckController.Config.SimpleButtons[4]}">
                         <Border Background="Transparent" Width="72" Height="72" CornerRadius="36">
                             <Image Source="{Binding LoupedeckController.Config.SimpleButtons[4].RenderedImage}" />
                         </Border>
                     </Button>
                     <Button Tag="Led" Classes="LedRound" Canvas.Left="547" Canvas.Top="437" Width="72" Height="72"
-                            Command="{Binding SimpleButtonCommand}"
+                            Tapped="OnButtonTapped" DoubleTapped="OnButtonDoubleTapped"
                             CommandParameter="{Binding LoupedeckController.Config.SimpleButtons[5]}">
                         <Border Background="Transparent" Width="72" Height="72" CornerRadius="36">
                             <Image Source="{Binding LoupedeckController.Config.SimpleButtons[5].RenderedImage}" />
                         </Border>
                     </Button>
                     <Button Tag="Led" Classes="LedRound" Canvas.Left="635" Canvas.Top="437" Width="72" Height="72"
-                            Command="{Binding SimpleButtonCommand}"
+                            Tapped="OnButtonTapped" DoubleTapped="OnButtonDoubleTapped"
                             CommandParameter="{Binding LoupedeckController.Config.SimpleButtons[6]}">
                         <Border Background="Transparent" Width="72" Height="72" CornerRadius="36">
                             <Image Source="{Binding LoupedeckController.Config.SimpleButtons[6].RenderedImage}" />
                         </Border>
                     </Button>
                     <Button Tag="Led" Classes="LedRound" Canvas.Left="724" Canvas.Top="437" Width="72" Height="72"
-                            Command="{Binding SimpleButtonCommand}"
+                            Tapped="OnButtonTapped" DoubleTapped="OnButtonDoubleTapped"
                             CommandParameter="{Binding LoupedeckController.Config.SimpleButtons[7]}">
                         <Border Background="Transparent" Width="72" Height="72" CornerRadius="36">
                             <Image Source="{Binding LoupedeckController.Config.SimpleButtons[7].RenderedImage}" />
@@ -449,42 +457,42 @@
 
                     <!-- Left block. -->
                     <Button Tag="Led" Classes="LedSquare" Canvas.Left="170" Canvas.Top="520" Width="70" Height="55"
-                            Command="{Binding SimpleButtonCommand}"
+                            Tapped="OnButtonTapped" DoubleTapped="OnButtonDoubleTapped"
                             CommandParameter="{Binding LoupedeckController.Config.SimpleButtons[8]}">
                         <Border Background="Transparent" Width="70" Height="55" CornerRadius="6">
                             <Image Source="{Binding LoupedeckController.Config.SimpleButtons[8].RenderedImage}" />
                         </Border>
                     </Button>
                     <Button Tag="Led" Classes="LedSquare" Canvas.Left="250" Canvas.Top="520" Width="70" Height="55"
-                            Command="{Binding SimpleButtonCommand}"
+                            Tapped="OnButtonTapped" DoubleTapped="OnButtonDoubleTapped"
                             CommandParameter="{Binding LoupedeckController.Config.SimpleButtons[11]}">
                         <Border Background="Transparent" Width="70" Height="55" CornerRadius="6">
                             <Image Source="{Binding LoupedeckController.Config.SimpleButtons[11].RenderedImage}" />
                         </Border>
                     </Button>
                     <Button Tag="Led" Classes="LedSquare" Canvas.Left="170" Canvas.Top="585" Width="70" Height="55"
-                            Command="{Binding SimpleButtonCommand}"
+                            Tapped="OnButtonTapped" DoubleTapped="OnButtonDoubleTapped"
                             CommandParameter="{Binding LoupedeckController.Config.SimpleButtons[9]}">
                         <Border Background="Transparent" Width="70" Height="55" CornerRadius="6">
                             <Image Source="{Binding LoupedeckController.Config.SimpleButtons[9].RenderedImage}" />
                         </Border>
                     </Button>
                     <Button Tag="Led" Classes="LedSquare" Canvas.Left="250" Canvas.Top="585" Width="70" Height="55"
-                            Command="{Binding SimpleButtonCommand}"
+                            Tapped="OnButtonTapped" DoubleTapped="OnButtonDoubleTapped"
                             CommandParameter="{Binding LoupedeckController.Config.SimpleButtons[12]}">
                         <Border Background="Transparent" Width="70" Height="55" CornerRadius="6">
                             <Image Source="{Binding LoupedeckController.Config.SimpleButtons[12].RenderedImage}" />
                         </Border>
                     </Button>
                     <Button Tag="Led" Classes="LedSquare" Canvas.Left="170" Canvas.Top="650" Width="70" Height="55"
-                            Command="{Binding SimpleButtonCommand}"
+                            Tapped="OnButtonTapped" DoubleTapped="OnButtonDoubleTapped"
                             CommandParameter="{Binding LoupedeckController.Config.SimpleButtons[10]}">
                         <Border Background="Transparent" Width="70" Height="55" CornerRadius="6">
                             <Image Source="{Binding LoupedeckController.Config.SimpleButtons[10].RenderedImage}" />
                         </Border>
                     </Button>
                     <Button Tag="Led" Classes="LedSquare" Canvas.Left="250" Canvas.Top="650" Width="70" Height="55"
-                            Command="{Binding SimpleButtonCommand}"
+                            Tapped="OnButtonTapped" DoubleTapped="OnButtonDoubleTapped"
                             CommandParameter="{Binding LoupedeckController.Config.SimpleButtons[13]}">
                         <Border Background="Transparent" Width="70" Height="55" CornerRadius="6">
                             <Image Source="{Binding LoupedeckController.Config.SimpleButtons[13].RenderedImage}" />
@@ -506,42 +514,42 @@
 
                     <!-- Right block. -->
                     <Button Tag="Led" Classes="LedSquare" Canvas.Left="580" Canvas.Top="520" Width="70" Height="55"
-                            Command="{Binding SimpleButtonCommand}"
+                            Tapped="OnButtonTapped" DoubleTapped="OnButtonDoubleTapped"
                             CommandParameter="{Binding LoupedeckController.Config.SimpleButtons[14]}">
                         <Border Background="Transparent" Width="70" Height="55" CornerRadius="6">
                             <Image Source="{Binding LoupedeckController.Config.SimpleButtons[14].RenderedImage}" />
                         </Border>
                     </Button>
                     <Button Tag="Led" Classes="LedSquare" Canvas.Left="660" Canvas.Top="520" Width="70" Height="55"
-                            Command="{Binding SimpleButtonCommand}"
+                            Tapped="OnButtonTapped" DoubleTapped="OnButtonDoubleTapped"
                             CommandParameter="{Binding LoupedeckController.Config.SimpleButtons[15]}">
                         <Border Background="Transparent" Width="70" Height="55" CornerRadius="6">
                             <Image Source="{Binding LoupedeckController.Config.SimpleButtons[15].RenderedImage}" />
                         </Border>
                     </Button>
                     <Button Tag="Led" Classes="LedSquare" Canvas.Left="580" Canvas.Top="585" Width="70" Height="55"
-                            Command="{Binding SimpleButtonCommand}"
+                            Tapped="OnButtonTapped" DoubleTapped="OnButtonDoubleTapped"
                             CommandParameter="{Binding LoupedeckController.Config.SimpleButtons[16]}">
                         <Border Background="Transparent" Width="70" Height="55" CornerRadius="6">
                             <Image Source="{Binding LoupedeckController.Config.SimpleButtons[16].RenderedImage}" />
                         </Border>
                     </Button>
                     <Button Tag="Led" Classes="LedSquare" Canvas.Left="660" Canvas.Top="585" Width="70" Height="55"
-                            Command="{Binding SimpleButtonCommand}"
+                            Tapped="OnButtonTapped" DoubleTapped="OnButtonDoubleTapped"
                             CommandParameter="{Binding LoupedeckController.Config.SimpleButtons[17]}">
                         <Border Background="Transparent" Width="70" Height="55" CornerRadius="6">
                             <Image Source="{Binding LoupedeckController.Config.SimpleButtons[17].RenderedImage}" />
                         </Border>
                     </Button>
                     <Button Tag="Led" Classes="LedSquare" Canvas.Left="580" Canvas.Top="650" Width="70" Height="55"
-                            Command="{Binding SimpleButtonCommand}"
+                            Tapped="OnButtonTapped" DoubleTapped="OnButtonDoubleTapped"
                             CommandParameter="{Binding LoupedeckController.Config.SimpleButtons[18]}">
                         <Border Background="Transparent" Width="70" Height="55" CornerRadius="6">
                             <Image Source="{Binding LoupedeckController.Config.SimpleButtons[18].RenderedImage}" />
                         </Border>
                     </Button>
                     <Button Tag="Led" Classes="LedSquare" Canvas.Left="660" Canvas.Top="650" Width="70" Height="55"
-                            Command="{Binding SimpleButtonCommand}"
+                            Tapped="OnButtonTapped" DoubleTapped="OnButtonDoubleTapped"
                             CommandParameter="{Binding LoupedeckController.Config.SimpleButtons[19]}">
                         <Border Background="Transparent" Width="70" Height="55" CornerRadius="6">
                             <Image Source="{Binding LoupedeckController.Config.SimpleButtons[19].RenderedImage}" />

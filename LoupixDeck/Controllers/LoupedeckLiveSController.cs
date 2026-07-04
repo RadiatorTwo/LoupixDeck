@@ -49,6 +49,10 @@ public partial class LoupedeckLiveSController(
 
     public LoupedeckConfig Config => config;
 
+    /// <summary>True for devices with the two 60×270 side displays (Razer / Loupedeck CT).
+    /// Lets the UI tell a side-strip touch button apart from a normal grid button.</summary>
+    public bool HasSideStrips => deviceService.Device?.HasSideStrips == true;
+
     private volatile bool _isDeviceOff;
     public bool IsDeviceOff => _isDeviceOff;
 

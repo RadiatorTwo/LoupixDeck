@@ -12,13 +12,33 @@ using LoupixDeck.ViewModels.Base;
 
 namespace LoupixDeck.ViewModels;
 
+/// <summary>What a drag &amp; drop would do at the current target (issue #166 phase 3).</summary>
+public enum DropOperation
+{
+    None,
+    Move,
+    Swap,
+    Copy
+}
+
 public partial class MainWindowViewModel : ViewModelBase
 {
     private readonly IDialogService _dialogService;
+    private readonly IButtonClipboardService _clipboard;
+
+    // The two side displays occupy touch-button slots 12/13 on devices with side strips.
+    private const int LeftSideIndex = LoupixDeck.LoupedeckDevice.Device.RazerStreamControllerDevice.LeftSideIndex;
+    private const int RightSideIndex = LoupixDeck.LoupedeckDevice.Device.RazerStreamControllerDevice.RightSideIndex;
 
     public IAsyncRelayCommand RotaryButtonCommand { get; }
     public IAsyncRelayCommand SimpleButtonCommand { get; }
     public IAsyncRelayCommand TouchButtonCommand { get; }
+
+    // Copy / cut / paste / clear of the selected button or side display (issue #166).
+    public IRelayCommand CopySelectedCommand { get; }
+    public IRelayCommand CutSelectedCommand { get; }
+    public IAsyncRelayCommand PasteSelectedCommand { get; }
+    public IRelayCommand ClearSelectedCommand { get; }
 
     public IRelayCommand AddRotaryPageCommand { get; }
     public IRelayCommand DeleteRotaryPageCommand { get; }
@@ -101,6 +121,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
     public MainWindowViewModel(LoupedeckLiveSController loupedeck,
         IDialogService dialogService,
+        IButtonClipboardService clipboard,
         ICommandRegistry commandRegistry,
         IDynamicTextManager dynamicTextManager,
         Services.Animation.IButtonAnimationManager buttonAnimationManager,
@@ -148,10 +169,16 @@ public partial class MainWindowViewModel : ViewModelBase
         appSwitching.Start();
 
         _dialogService = dialogService;
+        _clipboard = clipboard;
 
         RotaryButtonCommand = new AsyncRelayCommand<RotaryButton>(RotaryButton_Click);
         SimpleButtonCommand = new AsyncRelayCommand<SimpleButton>(SimpleButton_Click);
         TouchButtonCommand = new AsyncRelayCommand<TouchButton>(TouchButton_Click);
+
+        CopySelectedCommand = new RelayCommand(CopySelected);
+        CutSelectedCommand = new RelayCommand(CutSelected);
+        PasteSelectedCommand = new AsyncRelayCommand(PasteSelected);
+        ClearSelectedCommand = new RelayCommand(ClearSelected);
 
         AddRotaryPageCommand = new RelayCommand(AddRotaryPageButton_Click);
         DeleteRotaryPageCommand = new RelayCommand(DeleteRotaryPageButton_Click);
@@ -360,6 +387,413 @@ public partial class MainWindowViewModel : ViewModelBase
         LoupedeckController.SaveConfig();
         _dynamicTextManager.Rescan();
         _buttonAnimationManager.Rescan();
+    }
+
+    private LoupedeckButton _selectedButton;
+
+    /// <summary>
+    /// Single-click selection in the device layout view. Highlights exactly one button at a
+    /// time (the layout shows the selection as a border); selecting a new button clears the
+    /// previous one. UI-only, not persisted.
+    /// </summary>
+    public void SelectButton(LoupedeckButton button)
+    {
+        if (ReferenceEquals(_selectedButton, button)) return;
+
+        if (_selectedButton != null)
+            _selectedButton.IsSelected = false;
+
+        _selectedButton = button;
+
+        if (button != null)
+            button.IsSelected = true;
+    }
+
+    // ─────────────────────────── Copy / cut / paste / clear (issue #166) ───────────────────────────
+
+    /// <summary>Classifies the selected element for clipboard compatibility. A side-strip touch
+    /// button (slot 12/13 on a device with side displays) is <see cref="ButtonKind.SideDisplay"/>,
+    /// not <see cref="ButtonKind.Touch"/> — its content lives on the rotary page's strip canvas.</summary>
+    private ButtonKind? Classify(LoupedeckButton button)
+    {
+        switch (button)
+        {
+            case TouchButton touch when IsSideStripButton(touch):
+                return ButtonKind.SideDisplay;
+            case TouchButton:
+                return ButtonKind.Touch;
+            case SimpleButton:
+                return ButtonKind.Simple;
+            case RotaryButton:
+                return ButtonKind.Rotary;
+            default:
+                return null;
+        }
+    }
+
+    private bool IsSideStripButton(TouchButton button)
+        => LoupedeckController.HasSideStrips &&
+           (button.Index == LeftSideIndex || button.Index == RightSideIndex);
+
+    private static RotarySide SideOf(TouchButton stripButton)
+        => stripButton.Index == RightSideIndex ? RotarySide.Right : RotarySide.Left;
+
+    /// <summary>The strip canvas (a 60×270 <see cref="TouchButton"/>) that backs the side display
+    /// on <paramref name="side"/>, created lazily like the strip editor does.</summary>
+    private TouchButton EnsureStripCanvas(RotarySide side, out RotaryButtonPage page)
+    {
+        page = LoupedeckController.PageManager.GetCurrentRotaryPage(side);
+        if (page == null) return null;
+        page.StripCanvas ??= new TouchButton(side == RotarySide.Left ? LeftSideIndex : RightSideIndex);
+        return page.StripCanvas;
+    }
+
+    public bool CanCopySelected() => Classify(_selectedButton) != null;
+
+    public bool CanPasteSelected()
+    {
+        ButtonKind? kind = Classify(_selectedButton);
+        return kind != null && _clipboard.CanPasteInto(kind.Value);
+    }
+
+    public bool CanClearSelected() => HasContent(_selectedButton);
+
+    /// <summary>True when the element currently holds user configuration (for a side display, its
+    /// strip canvas). Used to gate Clear and to disallow picking up an empty button in drag &amp;
+    /// drop.</summary>
+    private bool HasContent(LoupedeckButton button)
+    {
+        ButtonKind? kind = Classify(button);
+        if (kind == null) return false;
+
+        if (kind == ButtonKind.SideDisplay)
+        {
+            RotaryButtonPage page = LoupedeckController.PageManager.GetCurrentRotaryPage(SideOf((TouchButton)button));
+            return page?.StripCanvas != null && !_clipboard.IsEmpty(page.StripCanvas);
+        }
+
+        return !_clipboard.IsEmpty(button);
+    }
+
+    private void CopySelected()
+    {
+        LoupedeckButton button = _selectedButton;
+        ButtonKind? kind = Classify(button);
+        if (kind == null) return;
+
+        if (kind == ButtonKind.SideDisplay)
+        {
+            TouchButton canvas = EnsureStripCanvas(SideOf((TouchButton)button), out _);
+            if (canvas == null) return;
+            _clipboard.Copy(canvas, ButtonKind.SideDisplay);
+            return;
+        }
+
+        _clipboard.Copy(button, kind.Value);
+    }
+
+    private void CutSelected()
+    {
+        if (!CanClearSelected()) return;
+        CopySelected();
+        ClearSelected();
+    }
+
+    private async Task PasteSelected()
+    {
+        LoupedeckButton button = _selectedButton;
+        ButtonKind? kind = Classify(button);
+        if (kind == null || !_clipboard.CanPasteInto(kind.Value)) return;
+
+        if (kind == ButtonKind.SideDisplay)
+        {
+            TouchButton canvas = EnsureStripCanvas(SideOf((TouchButton)button), out RotaryButtonPage page);
+            if (canvas == null) return;
+            if (!_clipboard.IsEmpty(canvas) && !await ConfirmOverwrite()) return;
+
+            _clipboard.PasteInto(canvas);
+            LoupedeckController.RegisterStripCanvas(page);
+            LoupedeckController.SaveConfig();
+            await LoupedeckController.RefreshSideStrip(SideOf((TouchButton)button));
+            return;
+        }
+
+        if (!_clipboard.IsEmpty(button) && !await ConfirmOverwrite()) return;
+
+        _clipboard.PasteInto(button);
+
+        switch (kind)
+        {
+            case ButtonKind.Touch:
+                PostTouchChange();
+                break;
+            case ButtonKind.Simple:
+                LoupedeckController.SaveConfig();
+                break;
+            case ButtonKind.Rotary:
+                LoupedeckController.SaveConfig();
+                await RefreshRotarySide((RotaryButton)button);
+                break;
+        }
+    }
+
+    private void ClearSelected()
+    {
+        LoupedeckButton button = _selectedButton;
+        ButtonKind? kind = Classify(button);
+        if (kind == null) return;
+
+        switch (kind)
+        {
+            case ButtonKind.Touch:
+                ClearTouchContent((TouchButton)button);
+                PostTouchChange();
+                break;
+
+            case ButtonKind.Simple:
+                ClearSimpleContent((SimpleButton)button);
+                LoupedeckController.SaveConfig();
+                break;
+
+            case ButtonKind.Rotary:
+                ClearRotaryContent((RotaryButton)button);
+                LoupedeckController.SaveConfig();
+                _ = RefreshRotarySide((RotaryButton)button);
+                break;
+
+            case ButtonKind.SideDisplay:
+                RotarySide side = SideOf((TouchButton)button);
+                TouchButton canvas = EnsureStripCanvas(side, out RotaryButtonPage page);
+                if (canvas == null) return;
+                ClearTouchContent(canvas);
+                LoupedeckController.RegisterStripCanvas(page);
+                LoupedeckController.SaveConfig();
+                _ = LoupedeckController.RefreshSideStrip(side);
+                break;
+        }
+    }
+
+    /// <summary>Persist + rebuild the dynamic-text / animation entry sets after a touch button's
+    /// content changed (mirrors <see cref="TouchButton_Click"/>).</summary>
+    private void PostTouchChange()
+    {
+        LoupedeckController.SaveConfig();
+        _dynamicTextManager.Rescan();
+        _buttonAnimationManager.Rescan();
+    }
+
+    /// <summary>Repaint the side strip the given dial belongs to (a rotary command drives its
+    /// segment label). No-op on devices without side strips.</summary>
+    private async Task RefreshRotarySide(RotaryButton rotary)
+    {
+        IPageManager pageManager = LoupedeckController.PageManager;
+        foreach (RotarySide side in new[] { RotarySide.Left, RotarySide.Right })
+        {
+            if (pageManager.GetCurrentRotaryPage(side)?.RotaryButtons?.Contains(rotary) == true)
+            {
+                await LoupedeckController.RefreshSideStrip(side);
+                break;
+            }
+        }
+    }
+
+    private async Task<bool> ConfirmOverwrite()
+    {
+        DialogResult result = await _dialogService.ShowDialogAsync<ConfirmDialogViewModel, DialogResult>(vm =>
+            vm.Configure(
+                "This button already contains a configuration. Do you want to overwrite it?",
+                title: "Overwrite?",
+                confirmText: "Overwrite",
+                cancelText: "Cancel"));
+        return result.IsConfirmed;
+    }
+
+    // Collapse a touch/strip button to a single empty default state (keeps the instance, so its
+    // ItemChanged subscription survives), then repaint.
+    private static void ClearTouchContent(TouchButton button)
+    {
+        while (button.States.Count > 1)
+            button.States.RemoveAt(button.States.Count - 1);
+
+        ButtonState state = button.States[0];
+        state.Layers.Clear();
+        state.BackColor = Avalonia.Media.Colors.Black;
+        state.LedColor = Avalonia.Media.Colors.Black;
+        state.Command = null;
+        state.VibrationEnabled = false;
+
+        button.DefaultStateId = state.Id;
+        button.Command = null;
+        button.SetActiveState(state.Id);
+    }
+
+    private static void ClearSimpleContent(SimpleButton button)
+    {
+        while (button.States.Count > 1)
+            button.States.RemoveAt(button.States.Count - 1);
+
+        ButtonState state = button.States[0];
+        state.LedColor = Avalonia.Media.Colors.Black;
+        state.Command = null;
+
+        button.DefaultStateId = state.Id;
+        button.Command = null;
+        button.SetActiveState(state.Id);
+    }
+
+    private static void ClearRotaryContent(RotaryButton button)
+    {
+        button.Command = null;
+        button.RotaryLeftCommand = string.Empty;
+        button.RotaryRightCommand = string.Empty;
+        button.DisplayText = string.Empty;
+        button.Refresh();
+    }
+
+    // ─────────────────────────── Drag & drop (issue #166) ───────────────────────────
+
+    /// <summary>True when this element can be picked up for a drag — only non-empty buttons /
+    /// side displays, so an empty slot can't be dragged around and cause accidental swaps.</summary>
+    public bool CanDrag(LoupedeckButton button) => HasContent(button);
+
+    /// <summary>True when <paramref name="source"/> can be dropped onto <paramref name="target"/>
+    /// (same kind, different element).</summary>
+    public bool CanDropOnto(LoupedeckButton source, LoupedeckButton target)
+    {
+        if (source == null || target == null || ReferenceEquals(source, target)) return false;
+        ButtonKind? s = Classify(source);
+        ButtonKind? t = Classify(target);
+        return s != null && s == t;
+    }
+
+    /// <summary>What dropping <paramref name="source"/> onto <paramref name="target"/> would do
+    /// right now — used to preview move/swap/copy in the drag chrome before releasing.</summary>
+    public DropOperation PreviewDrop(LoupedeckButton source, LoupedeckButton target, bool copy)
+    {
+        if (!CanDropOnto(source, target)) return DropOperation.None;
+        if (copy) return DropOperation.Copy;
+        return HasContent(target) ? DropOperation.Swap : DropOperation.Move;
+    }
+
+    /// <summary>
+    /// Drag &amp; drop a button / side display onto another of the same kind. Without Ctrl an empty
+    /// target is a MOVE (source cleared) and a non-empty target is a SWAP; with Ctrl it is a COPY
+    /// that overwrites the target and leaves the source untouched. A Ctrl-copy onto a non-empty
+    /// target asks for confirmation first (like Ctrl+V paste); move and swap never lose data and
+    /// so are not confirmed.
+    /// </summary>
+    public async Task DropAsync(LoupedeckButton source, LoupedeckButton target, bool copy)
+    {
+        if (!CanDropOnto(source, target)) return;
+        ButtonKind kind = Classify(source).Value;
+
+        if (kind == ButtonKind.SideDisplay)
+        {
+            await DropSideDisplay((TouchButton)source, (TouchButton)target, copy);
+            SelectButton(target);
+            return;
+        }
+
+        // Only a Ctrl-copy clobbers the target's configuration; confirm before overwriting a
+        // non-empty target. Move (empty target) and swap (non-empty, no Ctrl) lose nothing.
+        if (copy && !_clipboard.IsEmpty(target) && !await ConfirmOverwrite()) return;
+
+        TransferOrSwap(source, target, copy, kind);
+
+        switch (kind)
+        {
+            case ButtonKind.Touch:
+                PostTouchChange();
+                break;
+            case ButtonKind.Simple:
+                LoupedeckController.SaveConfig();
+                break;
+            case ButtonKind.Rotary:
+                LoupedeckController.SaveConfig();
+                await RefreshRotarySide((RotaryButton)source);
+                await RefreshRotarySide((RotaryButton)target);
+                break;
+        }
+
+        SelectButton(target);
+    }
+
+    private void TransferOrSwap(LoupedeckButton source, LoupedeckButton target, bool copy, ButtonKind kind)
+    {
+        if (copy)
+        {
+            // Ctrl: overwrite the target, keep the source.
+            ButtonSnapshot.Apply(ButtonSnapshot.Capture(source), target);
+            return;
+        }
+
+        if (_clipboard.IsEmpty(target))
+        {
+            // Move: target gets the source, the source is emptied.
+            ButtonSnapshot.Apply(ButtonSnapshot.Capture(source), target);
+            ClearContent(source, kind);
+            return;
+        }
+
+        // Swap the two configurations.
+        string a = ButtonSnapshot.Capture(source);
+        string b = ButtonSnapshot.Capture(target);
+        ButtonSnapshot.Apply(b, source);
+        ButtonSnapshot.Apply(a, target);
+    }
+
+    private void ClearContent(LoupedeckButton button, ButtonKind kind)
+    {
+        switch (kind)
+        {
+            case ButtonKind.Touch:
+            case ButtonKind.SideDisplay:
+                ClearTouchContent((TouchButton)button);
+                break;
+            case ButtonKind.Simple:
+                ClearSimpleContent((SimpleButton)button);
+                break;
+            case ButtonKind.Rotary:
+                ClearRotaryContent((RotaryButton)button);
+                break;
+        }
+    }
+
+    private async Task DropSideDisplay(TouchButton source, TouchButton target, bool copy)
+    {
+        RotarySide srcSide = SideOf(source);
+        RotarySide dstSide = SideOf(target);
+        if (srcSide == dstSide) return;
+
+        TouchButton srcCanvas = EnsureStripCanvas(srcSide, out RotaryButtonPage srcPage);
+        TouchButton dstCanvas = EnsureStripCanvas(dstSide, out RotaryButtonPage dstPage);
+        if (srcCanvas == null || dstCanvas == null) return;
+
+        // Confirm a Ctrl-copy that would overwrite a non-empty target strip (see DropAsync).
+        if (copy && !_clipboard.IsEmpty(dstCanvas) && !await ConfirmOverwrite()) return;
+
+        if (copy)
+        {
+            ButtonSnapshot.Apply(ButtonSnapshot.Capture(srcCanvas), dstCanvas);
+        }
+        else if (_clipboard.IsEmpty(dstCanvas))
+        {
+            ButtonSnapshot.Apply(ButtonSnapshot.Capture(srcCanvas), dstCanvas);
+            ClearTouchContent(srcCanvas);
+        }
+        else
+        {
+            string a = ButtonSnapshot.Capture(srcCanvas);
+            string b = ButtonSnapshot.Capture(dstCanvas);
+            ButtonSnapshot.Apply(b, srcCanvas);
+            ButtonSnapshot.Apply(a, dstCanvas);
+        }
+
+        LoupedeckController.RegisterStripCanvas(srcPage);
+        LoupedeckController.RegisterStripCanvas(dstPage);
+        LoupedeckController.SaveConfig();
+        await LoupedeckController.RefreshSideStrip(srcSide);
+        await LoupedeckController.RefreshSideStrip(dstSide);
     }
 
     /// <summary>

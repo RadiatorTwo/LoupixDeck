@@ -12,6 +12,16 @@
         Icon="avares://LoupixDeck/Assets/logo.ico"
         Title="LoupixDeck"
         x:Name="RootWindow">
+    <!-- Copy/cut/paste of the selected button or side display (issue #166). Routed to the
+         active device's VM. A focused TextBox (page name) consumes these first, so editing
+         a page name still gets normal text copy/paste. Clear is intentionally menu-only
+         (no keyboard shortcut) so an accidental key press can't wipe a button while there
+         is no undo yet. -->
+    <Window.KeyBindings>
+        <KeyBinding Gesture="Ctrl+C" Command="{Binding SelectedDevice.CopySelectedCommand}" />
+        <KeyBinding Gesture="Ctrl+X" Command="{Binding SelectedDevice.CutSelectedCommand}" />
+        <KeyBinding Gesture="Ctrl+V" Command="{Binding SelectedDevice.PasteSelectedCommand}" />
+    </Window.KeyBindings>
     <Window.Styles>
         <!-- Device touch button chrome. The Razer centre grid relies on this
              window-level style; the Live S layout overrides Button[Tag=Touch]
@@ -119,7 +129,9 @@
          so its right edge lines up with the body's right edge instead of widening the
          window past the device. The body ends at SVG x=825 of the 900-wide viewBox,
          ~63px in from the 760px Viewbox's right edge. -->
-    <Grid RowDefinitions="Auto,*">
+    <!-- Focusable so a drag can grab keyboard focus and receive Esc / live Ctrl during the
+         gesture (issue #166 phase 3). IsTabStop=False keeps it out of the tab order. -->
+    <Grid Name="RootGrid" RowDefinitions="Auto,*" Focusable="True" IsTabStop="False">
         <!-- Device switcher: a dropdown of the running devices. Hidden for a single
              device so the window looks exactly as before (issue #116 phase 3). -->
         <ComboBox Grid.Row="0"
@@ -182,5 +194,25 @@
             </Button.Flyout>
             </Button>
         </Grid>
+
+        <!-- Drag & drop overlay (issue #166 phase 3): a drop-target ring coloured by the pending
+             operation (green move / amber swap / blue copy, red invalid) and a slightly
+             translucent ghost of the dragged button in its current state with a rounded frame like
+             the touch tiles. Non-hit-testable so it never intercepts pointer input. -->
+        <Canvas Name="DragOverlay" Grid.Row="0" Grid.RowSpan="2"
+                IsHitTestVisible="False" IsVisible="False">
+            <Border Name="DropHighlight"
+                    IsVisible="False"
+                    BorderThickness="3" CornerRadius="6"
+                    BorderBrush="#FF3DDB6E" Background="Transparent" />
+            <Border Name="DragGhost"
+                    IsVisible="False"
+                    Opacity="0.7"
+                    CornerRadius="6" ClipToBounds="True"
+                    BorderThickness="3" BorderBrush="{StaticResource PageActiveBorderBrush}"
+                    Background="#FF202020">
+                <Image Name="DragGhostImage" Stretch="Fill" />
+            </Border>
+        </Canvas>
     </Grid>
 </Window>
