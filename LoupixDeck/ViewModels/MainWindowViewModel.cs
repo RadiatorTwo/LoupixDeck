@@ -678,7 +678,9 @@ public partial class MainWindowViewModel : ViewModelBase
     /// <summary>
     /// Drag &amp; drop a button / side display onto another of the same kind. Without Ctrl an empty
     /// target is a MOVE (source cleared) and a non-empty target is a SWAP; with Ctrl it is a COPY
-    /// that overwrites the target and leaves the source untouched.
+    /// that overwrites the target and leaves the source untouched. A Ctrl-copy onto a non-empty
+    /// target asks for confirmation first (like Ctrl+V paste); move and swap never lose data and
+    /// so are not confirmed.
     /// </summary>
     public async Task DropAsync(LoupedeckButton source, LoupedeckButton target, bool copy)
     {
@@ -691,6 +693,10 @@ public partial class MainWindowViewModel : ViewModelBase
             SelectButton(target);
             return;
         }
+
+        // Only a Ctrl-copy clobbers the target's configuration; confirm before overwriting a
+        // non-empty target. Move (empty target) and swap (non-empty, no Ctrl) lose nothing.
+        if (copy && !_clipboard.IsEmpty(target) && !await ConfirmOverwrite()) return;
 
         TransferOrSwap(source, target, copy, kind);
 
@@ -762,6 +768,9 @@ public partial class MainWindowViewModel : ViewModelBase
         TouchButton srcCanvas = EnsureStripCanvas(srcSide, out RotaryButtonPage srcPage);
         TouchButton dstCanvas = EnsureStripCanvas(dstSide, out RotaryButtonPage dstPage);
         if (srcCanvas == null || dstCanvas == null) return;
+
+        // Confirm a Ctrl-copy that would overwrite a non-empty target strip (see DropAsync).
+        if (copy && !_clipboard.IsEmpty(dstCanvas) && !await ConfirmOverwrite()) return;
 
         if (copy)
         {
