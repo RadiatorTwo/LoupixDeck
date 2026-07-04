@@ -4,7 +4,8 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="using:LoupixDeck.ViewModels"
         mc:Ignorable="d"
-        Width="380" SizeToContent="Height"
+        Width="440" SizeToContent="Height"
+        MinHeight="150"
         x:Class="LoupixDeck.Views.ConfirmDialog"
         x:DataType="vm:ConfirmDialogViewModel"
         WindowStartupLocation="CenterOwner"
@@ -12,22 +13,91 @@
         ShowInTaskbar="False"
         CanResize="False">
 
-    <Grid Margin="20" RowDefinitions="*,Auto">
-        <TextBlock Grid.Row="0"
-                   Text="{Binding Message}"
-                   TextWrapping="Wrap"
-                   FontSize="14"
-                   Margin="0,0,0,20" />
+    <Window.Styles>
+        <!-- Flat, chrome-controlled action buttons (mirrors the app's PagerBtn pattern) so the
+             confirm button can carry the accent colour reliably across themes. -->
+        <Style Selector="Button.dialogBtn">
+            <Setter Property="MinWidth" Value="100" />
+            <Setter Property="Height" Value="34" />
+            <Setter Property="Padding" Value="14,0" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Border Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="{TemplateBinding CornerRadius}">
+                        <ContentPresenter Content="{TemplateBinding Content}"
+                                          Padding="{TemplateBinding Padding}"
+                                          HorizontalAlignment="Center"
+                                          VerticalAlignment="Center" />
+                    </Border>
+                </ControlTemplate>
+            </Setter>
+        </Style>
 
-        <StackPanel Grid.Row="1" Orientation="Horizontal"
-                    HorizontalAlignment="Right" Spacing="10">
-            <Button Content="{Binding CancelText}" MinWidth="90"
-                    HorizontalContentAlignment="Center"
-                    Command="{Binding CancelCommand}" />
-            <Button Content="{Binding ConfirmText}" MinWidth="90"
-                    HorizontalContentAlignment="Center"
-                    IsDefault="True"
-                    Command="{Binding ConfirmCommand}" />
-        </StackPanel>
+        <Style Selector="Button.dialogBtn.cancel">
+            <Setter Property="Background" Value="{DynamicResource AppControlBackground}" />
+            <Setter Property="Foreground" Value="{DynamicResource AppTextPrimary}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AppBorderSubtle}" />
+        </Style>
+        <Style Selector="Button.dialogBtn.cancel:pointerover">
+            <Setter Property="Background" Value="{DynamicResource AppControlBackgroundHover}" />
+        </Style>
+
+        <Style Selector="Button.dialogBtn.confirm">
+            <Setter Property="Background" Value="{StaticResource PageActiveBrush}" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="BorderBrush" Value="{StaticResource PageActiveBorderBrush}" />
+        </Style>
+        <Style Selector="Button.dialogBtn.confirm:pointerover">
+            <Setter Property="Background" Value="{StaticResource PageActiveBorderBrush}" />
+        </Style>
+    </Window.Styles>
+
+    <Grid RowDefinitions="*,Auto">
+        <!-- Header: caution glyph + title + message. -->
+        <Grid Grid.Row="0" ColumnDefinitions="Auto,*" Margin="24,24,24,20">
+            <Border Grid.Column="0"
+                    Width="40" Height="40" CornerRadius="20"
+                    Background="#26E8A33D"
+                    VerticalAlignment="Top" Margin="0,0,16,0">
+                <TextBlock Text="!" FontSize="24" FontWeight="Bold"
+                           Foreground="#FFE8A33D"
+                           HorizontalAlignment="Center" VerticalAlignment="Center" />
+            </Border>
+
+            <StackPanel Grid.Column="1" Spacing="7" VerticalAlignment="Center">
+                <TextBlock Text="{Binding DialogTitle}"
+                           FontSize="16" FontWeight="SemiBold"
+                           Foreground="{DynamicResource AppTextPrimary}"
+                           TextWrapping="Wrap" />
+                <TextBlock Text="{Binding Message}"
+                           FontSize="13" LineHeight="19"
+                           Foreground="{DynamicResource AppTextSecondary}"
+                           TextWrapping="Wrap" />
+            </StackPanel>
+        </Grid>
+
+        <!-- Action bar: a separated footer strip, right-aligned. -->
+        <Border Grid.Row="1"
+                Background="{DynamicResource AppSurfaceLow}"
+                BorderBrush="{DynamicResource AppBorderSubtle}"
+                BorderThickness="0,1,0,0"
+                Padding="16,12">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">
+                <Button Classes="dialogBtn cancel"
+                        Content="{Binding CancelText}"
+                        Command="{Binding CancelCommand}" />
+                <Button Classes="dialogBtn confirm"
+                        Content="{Binding ConfirmText}"
+                        IsDefault="True"
+                        Command="{Binding ConfirmCommand}" />
+            </StackPanel>
+        </Border>
     </Grid>
 </Window>
