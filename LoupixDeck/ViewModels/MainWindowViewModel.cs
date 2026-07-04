@@ -12,6 +12,15 @@ using LoupixDeck.ViewModels.Base;
 
 namespace LoupixDeck.ViewModels;
 
+/// <summary>What a drag &amp; drop would do at the current target (issue #166 phase 3).</summary>
+public enum DropOperation
+{
+    None,
+    Move,
+    Swap,
+    Copy
+}
+
 public partial class MainWindowViewModel : ViewModelBase
 {
     private readonly IDialogService _dialogService;
@@ -447,9 +456,13 @@ public partial class MainWindowViewModel : ViewModelBase
         return kind != null && _clipboard.CanPasteInto(kind.Value);
     }
 
-    public bool CanClearSelected()
+    public bool CanClearSelected() => HasContent(_selectedButton);
+
+    /// <summary>True when the element currently holds user configuration (for a side display, its
+    /// strip canvas). Used to gate Clear and to disallow picking up an empty button in drag &amp;
+    /// drop.</summary>
+    private bool HasContent(LoupedeckButton button)
     {
-        LoupedeckButton button = _selectedButton;
         ButtonKind? kind = Classify(button);
         if (kind == null) return false;
 
@@ -635,6 +648,143 @@ public partial class MainWindowViewModel : ViewModelBase
         button.RotaryRightCommand = string.Empty;
         button.DisplayText = string.Empty;
         button.Refresh();
+    }
+
+    // ─────────────────────────── Drag & drop (issue #166) ───────────────────────────
+
+    /// <summary>True when this element can be picked up for a drag — only non-empty buttons /
+    /// side displays, so an empty slot can't be dragged around and cause accidental swaps.</summary>
+    public bool CanDrag(LoupedeckButton button) => HasContent(button);
+
+    /// <summary>True when <paramref name="source"/> can be dropped onto <paramref name="target"/>
+    /// (same kind, different element).</summary>
+    public bool CanDropOnto(LoupedeckButton source, LoupedeckButton target)
+    {
+        if (source == null || target == null || ReferenceEquals(source, target)) return false;
+        ButtonKind? s = Classify(source);
+        ButtonKind? t = Classify(target);
+        return s != null && s == t;
+    }
+
+    /// <summary>What dropping <paramref name="source"/> onto <paramref name="target"/> would do
+    /// right now — used to preview move/swap/copy in the drag chrome before releasing.</summary>
+    public DropOperation PreviewDrop(LoupedeckButton source, LoupedeckButton target, bool copy)
+    {
+        if (!CanDropOnto(source, target)) return DropOperation.None;
+        if (copy) return DropOperation.Copy;
+        return HasContent(target) ? DropOperation.Swap : DropOperation.Move;
+    }
+
+    /// <summary>
+    /// Drag &amp; drop a button / side display onto another of the same kind. Without Ctrl an empty
+    /// target is a MOVE (source cleared) and a non-empty target is a SWAP; with Ctrl it is a COPY
+    /// that overwrites the target and leaves the source untouched.
+    /// </summary>
+    public async Task DropAsync(LoupedeckButton source, LoupedeckButton target, bool copy)
+    {
+        if (!CanDropOnto(source, target)) return;
+        ButtonKind kind = Classify(source).Value;
+
+        if (kind == ButtonKind.SideDisplay)
+        {
+            await DropSideDisplay((TouchButton)source, (TouchButton)target, copy);
+            SelectButton(target);
+            return;
+        }
+
+        TransferOrSwap(source, target, copy, kind);
+
+        switch (kind)
+        {
+            case ButtonKind.Touch:
+                PostTouchChange();
+                break;
+            case ButtonKind.Simple:
+                LoupedeckController.SaveConfig();
+                break;
+            case ButtonKind.Rotary:
+                LoupedeckController.SaveConfig();
+                await RefreshRotarySide((RotaryButton)source);
+                await RefreshRotarySide((RotaryButton)target);
+                break;
+        }
+
+        SelectButton(target);
+    }
+
+    private void TransferOrSwap(LoupedeckButton source, LoupedeckButton target, bool copy, ButtonKind kind)
+    {
+        if (copy)
+        {
+            // Ctrl: overwrite the target, keep the source.
+            ButtonSnapshot.Apply(ButtonSnapshot.Capture(source), target);
+            return;
+        }
+
+        if (_clipboard.IsEmpty(target))
+        {
+            // Move: target gets the source, the source is emptied.
+            ButtonSnapshot.Apply(ButtonSnapshot.Capture(source), target);
+            ClearContent(source, kind);
+            return;
+        }
+
+        // Swap the two configurations.
+        string a = ButtonSnapshot.Capture(source);
+        string b = ButtonSnapshot.Capture(target);
+        ButtonSnapshot.Apply(b, source);
+        ButtonSnapshot.Apply(a, target);
+    }
+
+    private void ClearContent(LoupedeckButton button, ButtonKind kind)
+    {
+        switch (kind)
+        {
+            case ButtonKind.Touch:
+            case ButtonKind.SideDisplay:
+                ClearTouchContent((TouchButton)button);
+                break;
+            case ButtonKind.Simple:
+                ClearSimpleContent((SimpleButton)button);
+                break;
+            case ButtonKind.Rotary:
+                ClearRotaryContent((RotaryButton)button);
+                break;
+        }
+    }
+
+    private async Task DropSideDisplay(TouchButton source, TouchButton target, bool copy)
+    {
+        RotarySide srcSide = SideOf(source);
+        RotarySide dstSide = SideOf(target);
+        if (srcSide == dstSide) return;
+
+        TouchButton srcCanvas = EnsureStripCanvas(srcSide, out RotaryButtonPage srcPage);
+        TouchButton dstCanvas = EnsureStripCanvas(dstSide, out RotaryButtonPage dstPage);
+        if (srcCanvas == null || dstCanvas == null) return;
+
+        if (copy)
+        {
+            ButtonSnapshot.Apply(ButtonSnapshot.Capture(srcCanvas), dstCanvas);
+        }
+        else if (_clipboard.IsEmpty(dstCanvas))
+        {
+            ButtonSnapshot.Apply(ButtonSnapshot.Capture(srcCanvas), dstCanvas);
+            ClearTouchContent(srcCanvas);
+        }
+        else
+        {
+            string a = ButtonSnapshot.Capture(srcCanvas);
+            string b = ButtonSnapshot.Capture(dstCanvas);
+            ButtonSnapshot.Apply(b, srcCanvas);
+            ButtonSnapshot.Apply(a, dstCanvas);
+        }
+
+        LoupedeckController.RegisterStripCanvas(srcPage);
+        LoupedeckController.RegisterStripCanvas(dstPage);
+        LoupedeckController.SaveConfig();
+        await LoupedeckController.RefreshSideStrip(srcSide);
+        await LoupedeckController.RefreshSideStrip(dstSide);
     }
 
     /// <summary>
