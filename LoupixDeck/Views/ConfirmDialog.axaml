@@ -1,0 +1,33 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="using:LoupixDeck.ViewModels"
+        mc:Ignorable="d"
+        Width="380" SizeToContent="Height"
+        x:Class="LoupixDeck.Views.ConfirmDialog"
+        x:DataType="vm:ConfirmDialogViewModel"
+        WindowStartupLocation="CenterOwner"
+        Title="{Binding DialogTitle}"
+        ShowInTaskbar="False"
+        CanResize="False">
+
+    <Grid Margin="20" RowDefinitions="*,Auto">
+        <TextBlock Grid.Row="0"
+                   Text="{Binding Message}"
+                   TextWrapping="Wrap"
+                   FontSize="14"
+                   Margin="0,0,0,20" />
+
+        <StackPanel Grid.Row="1" Orientation="Horizontal"
+                    HorizontalAlignment="Right" Spacing="10">
+            <Button Content="{Binding CancelText}" MinWidth="90"
+                    HorizontalContentAlignment="Center"
+                    Command="{Binding CancelCommand}" />
+            <Button Content="{Binding ConfirmText}" MinWidth="90"
+                    HorizontalContentAlignment="Center"
+                    IsDefault="True"
+                    Command="{Binding ConfirmCommand}" />
+        </StackPanel>
+    </Grid>
+</Window>

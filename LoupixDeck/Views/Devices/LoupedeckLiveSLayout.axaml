@@ -127,7 +127,8 @@
          and bottom LED sit in the left body margin (centre x=137.5), the three LEDs in
          the right body margin (centre x=762.5). -->
     <StackPanel Orientation="Vertical" HorizontalAlignment="Center" Spacing="2"
-                Tapped="OnBackgroundTapped">
+                Tapped="OnBackgroundTapped"
+                ContextRequested="OnButtonContextRequested">
 
         <!-- Rotary page controls as their own strip above the device (left, over the
              dials). The touch pager lives below the screen it controls (further down). -->

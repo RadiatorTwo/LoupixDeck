@@ -131,7 +131,8 @@
          y154/265/376), and the row of eight round LED buttons spans the bottom margin
          (centres y473, x140..760). -->
     <StackPanel Orientation="Vertical" HorizontalAlignment="Center" Spacing="2"
-                Tapped="OnBackgroundTapped">
+                Tapped="OnBackgroundTapped"
+                ContextRequested="OnButtonContextRequested">
 
         <!-- Independent rotary pagers: the left column and the right column page
              separately (mirroring the device's per-strip swipe). Left pager sits over

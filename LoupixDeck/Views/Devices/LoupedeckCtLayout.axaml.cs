@@ -84,4 +84,8 @@ public partial class LoupedeckCtLayout : UserControl
     {
         (DataContext as MainWindowViewModel)?.SelectButton(null);
     }
+
+    // Right-click a button → select it and open the Copy/Cut/Paste/Clear menu.
+    private void OnButtonContextRequested(object sender, ContextRequestedEventArgs e)
+        => LoupixDeck.Utils.DeviceButtonMenu.HandleContextRequested(e, DataContext as MainWindowViewModel);
 }

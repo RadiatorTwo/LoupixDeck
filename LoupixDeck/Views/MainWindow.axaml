@@ -12,6 +12,16 @@
         Icon="avares://LoupixDeck/Assets/logo.ico"
         Title="LoupixDeck"
         x:Name="RootWindow">
+    <!-- Copy/cut/paste of the selected button or side display (issue #166). Routed to the
+         active device's VM. A focused TextBox (page name) consumes these first, so editing
+         a page name still gets normal text copy/paste. Clear is intentionally menu-only
+         (no keyboard shortcut) so an accidental key press can't wipe a button while there
+         is no undo yet. -->
+    <Window.KeyBindings>
+        <KeyBinding Gesture="Ctrl+C" Command="{Binding SelectedDevice.CopySelectedCommand}" />
+        <KeyBinding Gesture="Ctrl+X" Command="{Binding SelectedDevice.CutSelectedCommand}" />
+        <KeyBinding Gesture="Ctrl+V" Command="{Binding SelectedDevice.PasteSelectedCommand}" />
+    </Window.KeyBindings>
     <Window.Styles>
         <!-- Device touch button chrome. The Razer centre grid relies on this
              window-level style; the Live S layout overrides Button[Tag=Touch]

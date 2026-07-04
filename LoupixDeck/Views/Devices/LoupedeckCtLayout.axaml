@@ -147,7 +147,8 @@
     </UserControl.Styles>
 
     <StackPanel Orientation="Vertical" HorizontalAlignment="Center" Spacing="2"
-                Tapped="OnBackgroundTapped">
+                Tapped="OnBackgroundTapped"
+                ContextRequested="OnButtonContextRequested">
 
         <!-- Independent rotary pagers for the 6 side dials (left/right columns). -->
         <Grid Margin="55,12,0,-24" ZIndex="1">
