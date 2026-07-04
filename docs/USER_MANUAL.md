@@ -408,12 +408,13 @@ The current binary installation includes these plugin manifests:
 | CoolerControl | All |
 | Argus Monitor | Windows |
 | HWiNFO | Windows |
+| LibreHardwareMonitor | Windows |
 
 Plugins can add commands, dynamic text, settings pages, folders, side-strip providers, or special integration behavior. The exact command names depend on the installed plugin version and what external app or service is configured.
 
 ### Monitoring Plugins
 
-Argus Monitor, HWiNFO, and LibreHardwareMonitor can show sensor readings on touch buttons when the matching plugin is installed and enabled.
+Argus Monitor, HWiNFO, and LibreHardwareMonitor can show sensor readings on touch buttons when the matching plugin is installed and enabled. LibreHardwareMonitor is bundled with LoupixDeck starting in v1.13.1.
 
 In current releases, sensor commands render as monitoring tiles instead of plain text. A tile can show:
 
@@ -426,6 +427,8 @@ You can put several sensor readings on one touch button by chaining sensor comma
 Some monitoring plugins also offer a transparent background option. When enabled, the tile panel is removed so the page wallpaper shows through; text is outlined to stay readable.
 
 Monitoring plugin settings are device-specific. If you enable a plugin on one connected device, its commands and menu entries do not automatically appear on another device. Saved buttons still load, and re-enabling the plugin for that device restores the real command chips.
+
+LibreHardwareMonitor setup has one extra requirement: LibreHardwareMonitor itself must be running in the background. In LibreHardwareMonitor, enable its HTTP web server in the settings. Current LibreHardwareMonitor versions use this HTTP server for external access; the LoupixDeck plugin does not need one exact LibreHardwareMonitor build, but it expects a version newer than v0.8.5. If you enable authentication for the HTTP server, enter the same username and password in the plugin settings. If authentication is off, leave those fields empty.
 
 ## Device Power and Window Commands
 
@@ -619,6 +622,7 @@ Recording needs read access to `/dev/input/event*`. The installer attempts to ha
 - If you use more than one device, enable the plugin on the device where you want to use it.
 - Restart LoupixDeck if the plugin page says some changes need a restart.
 - Confirm that external services such as OBS, Spotify, or monitoring tools are running and configured.
+- For LibreHardwareMonitor, confirm that LibreHardwareMonitor is running in the background and that its HTTP web server is enabled. If the web server uses authentication, check the username and password in the plugin settings.
 
 ### Monitoring tiles look wrong or still use old settings
 
