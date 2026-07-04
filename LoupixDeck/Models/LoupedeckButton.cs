@@ -1,4 +1,5 @@
 using CommunityToolkit.Mvvm.ComponentModel;
+using Newtonsoft.Json;
 
 namespace LoupixDeck.Models;
 
@@ -7,6 +8,14 @@ public partial class LoupedeckButton
 {
     [ObservableProperty]
     public partial string Command { get; set; }
+
+    /// <summary>
+    /// UI-only selection highlight shown in the device layout view (single click selects,
+    /// the layout draws a border). Transient — never persisted to the config.
+    /// </summary>
+    [ObservableProperty]
+    [JsonIgnore]
+    public partial bool IsSelected { get; set; }
 
     public bool IgnoreRefresh {
         get;

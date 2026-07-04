@@ -362,6 +362,26 @@ public partial class MainWindowViewModel : ViewModelBase
         _buttonAnimationManager.Rescan();
     }
 
+    private LoupedeckButton _selectedButton;
+
+    /// <summary>
+    /// Single-click selection in the device layout view. Highlights exactly one button at a
+    /// time (the layout shows the selection as a border); selecting a new button clears the
+    /// previous one. UI-only, not persisted.
+    /// </summary>
+    public void SelectButton(LoupedeckButton button)
+    {
+        if (ReferenceEquals(_selectedButton, button)) return;
+
+        if (_selectedButton != null)
+            _selectedButton.IsSelected = false;
+
+        _selectedButton = button;
+
+        if (button != null)
+            button.IsSelected = true;
+    }
+
     /// <summary>
     /// Opens the layer editor on the current rotary page's strip canvas (60×270).
     /// Always available — the canvas is editable regardless of the page's
