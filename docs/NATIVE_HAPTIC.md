@@ -19,9 +19,10 @@
 > `NativeHapticService` is kept for DI but performs no device I/O. The protocol notes
 > below are retained for reference in case the firmware path is revisited.
 >
-> Limitation: the software path plays a single effect, so the global pattern's
-> *Delay* / *Duration* / *second effect* (a firmware multi-step concept) have no effect;
-> simplifying that Settings UI is a possible follow-up.
+> The software path plays a single effect, so the firmware-only multi-step concept
+> (*Delay* / *Duration* / *second effect*) is gone: the Settings → Feedback → Haptic
+> card now exposes just the enable toggle and a single global effect. Old config files
+> still load (an unused second `HapticStep` is preserved, not deleted).
 
 Reverse-engineered firmware-side haptic for the Loupedeck Live S, based on
 notes from Athorus (GitHub issue) plus my own empirical testing on my device.

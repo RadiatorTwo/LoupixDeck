@@ -32,8 +32,6 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
     public IReadOnlyList<LoadedPlugin> Plugins => _pluginManager.Plugins;
 
     public IRelayCommand NavigateCommand => field ??= Relay.Create<SettingsView>(Navigate);
-    public IRelayCommand AddHapticStepCommand => field ??= Relay.Create(AddHapticStep);
-    public IRelayCommand RemoveHapticStepCommand => field ??= Relay.Create<HapticStep>(RemoveHapticStep);
 
     public IRelayCommand AddAppBindingCommand => field ??= Relay.Create(AddAppBinding);
     public IRelayCommand RemoveAppBindingCommand => field ??= Relay.Create<AppBindingRow>(RemoveAppBinding, static p => p != null);
@@ -583,36 +581,18 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
 
     // ───────── Haptic ─────────
 
+    // Old configs may still hold up to two haptic steps; only the first drives the
+    // global vibration effect now. Kept at 2 so DevicePostInit's heal loop preserves
+    // (rather than deletes) an existing second step from older config files.
     public const int MaxHapticSteps = 2;
 
     private void OnHapticStepsChanged(object sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
     {
         OnPropertyChanged(nameof(FirstHapticStep));
-        OnPropertyChanged(nameof(SecondHapticStep));
-        OnPropertyChanged(nameof(HasSecondHapticStep));
-        OnPropertyChanged(nameof(CanAddHapticStep));
     }
 
     public HapticStep FirstHapticStep =>
         Config.HapticSteps.Count > 0 ? Config.HapticSteps[0] : null;
-
-    public HapticStep SecondHapticStep =>
-        Config.HapticSteps.Count > 1 ? Config.HapticSteps[1] : null;
-
-    public bool HasSecondHapticStep => Config.HapticSteps.Count > 1;
-    public bool CanAddHapticStep => Config.HapticSteps.Count < MaxHapticSteps;
-
-    private void AddHapticStep()
-    {
-        if (Config.HapticSteps.Count >= MaxHapticSteps) return;
-        Config.HapticSteps.Add(new HapticStep());
-    }
-
-    private void RemoveHapticStep(HapticStep step)
-    {
-        if (Config.HapticSteps.Count <= 1) return;
-        Config.HapticSteps.RemoveAt(Config.HapticSteps.Count - 1);
-    }
 
     // ───────── Theme ─────────
 
