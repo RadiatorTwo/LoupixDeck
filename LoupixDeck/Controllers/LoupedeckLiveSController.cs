@@ -116,8 +116,10 @@ public partial class LoupedeckLiveSController(
                     await device.SetButtonColor(btn.Id, Avalonia.Media.Colors.Black);
                 }
             }
-            // Silence firmware-level haptic so touches on the dark screen don't buzz.
-            try { device.DisableNativeHaptic(); } catch { /* device may be gone */ }
+            // Firmware-side native haptic (0x2e) is no longer used — haptic runs through
+            // the software Vibrate() pulse, which only fires on an actual touch, so a dark
+            // display never buzzes. The 0x2e disable is intentionally not sent: it wedges
+            // the firmware haptic engine / can freeze the display (see docs/NATIVE_HAPTIC.md).
         }
         catch (Exception ex)
         {
@@ -1101,6 +1103,23 @@ public partial class LoupedeckLiveSController(
         return states[next].Id;
     }
 
+    /// <summary>
+    /// Resolves the haptic effect a touch on <paramref name="button"/> should play:
+    /// the per-button override pattern when the button's own "Vibration enabled" is set,
+    /// otherwise the global pattern's first effect (Settings -> Feedback) when global
+    /// haptic is enabled. Returns null when neither applies, i.e. no vibration.
+    /// </summary>
+    private byte? ResolveVibrationPattern(TouchButton button)
+    {
+        if (button.VibrationEnabled)
+            return button.VibrationPattern;
+
+        if (config.HapticEnabled && config.HapticSteps.Count > 0)
+            return config.HapticSteps[0].Effect;
+
+        return null;
+    }
+
     private void OnTouchButtonPress(object sender, TouchEventArgs e)
     {
         using var _routerScope = router.Enter(serviceProvider);
@@ -1109,8 +1128,8 @@ public partial class LoupedeckLiveSController(
         // screensaver, that input was a "wake" gesture — consume it (no normal action).
         if (screensaver.NotifyActivity()) return;
 
-        // Per-button override: native haptic skips these buttons entirely, so we
-        // drive the legacy software Vibrate() pulse on both touch start and end.
+        // Haptic feedback is driven by the software Vibrate() pulse (per-button override
+        // or the global pattern). Silence any active pulse on release the same way.
         if (e.EventType == Constants.TouchEventType.TOUCH_END)
         {
             // A side-strip swipe-follow drag commits/snaps-back (or taps) on release;
@@ -1122,7 +1141,7 @@ public partial class LoupedeckLiveSController(
             foreach (var touch in e.Touches)
             {
                 var btn = config.CurrentTouchButtonPage?.TouchButtons?.FindByIndex(touch.Target.Key);
-                if (btn != null && btn.VibrationEnabled)
+                if (btn != null && ResolveVibrationPattern(btn).HasValue)
                 {
                     deviceService.Device.Vibrate(Constants.VibrationPattern.Off);
                     break;
@@ -1202,8 +1221,11 @@ public partial class LoupedeckLiveSController(
 
             _activeTouchSlot = slot;
 
-            if (button.VibrationEnabled)
-                deviceService.Device.Vibrate(button.VibrationPattern);
+            // Per-button override wins; otherwise the global pattern (Settings -> Feedback)
+            // applies to every button. Fires immediately on touch — no press-and-hold.
+            byte? vibrationPattern = ResolveVibrationPattern(button);
+            if (vibrationPattern.HasValue)
+                deviceService.Device.Vibrate(vibrationPattern.Value);
 
             if (config.TouchFeedbackEnabled)
                 _ = ShowTouchFeedback(button);

@@ -109,67 +109,14 @@ public sealed class NativeHapticService : INativeHapticService, IDisposable
 
     private void SendNow()
     {
-        var dev = _deviceService.Device;
-        if (dev == null) return;
-
-        try
-        {
-            if (!_config.HapticEnabled)
-            {
-                dev.DisableNativeHaptic();
-                return;
-            }
-
-            var page = _config.CurrentTouchButtonPage;
-            var steps = _config.HapticSteps;
-            if (steps == null || steps.Count == 0)
-            {
-                dev.DisableNativeHaptic();
-                return;
-            }
-
-            // Clear any stale per-button slots from a previous config — otherwise removing
-            // a step (or enabling a per-button override) leaves the old seq entry alive
-            // in firmware.
-            dev.DisableNativeHaptic();
-
-            // One frame per button — combined frames with ~30 slots crashed the
-            // firmware in testing; per-button frames stay well under that limit.
-            // Buttons with their own VibrationEnabled override are skipped here —
-            // they are driven via the legacy software Vibrate() path from the
-            // touch-start/end handler so the firmware never plays a global pulse
-            // on top of the per-button one.
-            var btnCount = (byte)Math.Min(dev.TouchButtonCount, byte.MaxValue);
-            for (byte i = 0; i < btnCount; i++)
-            {
-                var btn = page?.TouchButtons?.FindByIndex(i);
-                if (btn != null && btn.VibrationEnabled)
-                {
-                    System.Diagnostics.Debug.WriteLine($"[haptic] btn={i} skipped (per-button override)");
-                    continue;
-                }
-
-                var slots = new List<LoupixDeck.LoupedeckDevice.Device.LoupedeckDevice.HapticSlot>(steps.Count);
-                for (var s = 0; s < steps.Count; s++)
-                {
-                    var step = steps[s];
-                    var delay = s == 0 ? (byte)0x04 : step.Delay;
-                    slots.Add(new LoupixDeck.LoupedeckDevice.Device.LoupedeckDevice.HapticSlot(
-                        i, (byte)s, step.Effect, delay, step.Duration));
-                }
-
-                if (slots.Count > 0)
-                {
-                    System.Diagnostics.Debug.WriteLine(
-                        $"[haptic] btn={i} global slots=[{string.Join(", ", slots.Select(s => $"(fx=0x{s.EffectId:x2},dly={s.DelayMs},dur={s.DurationMs})"))}]");
-                    dev.EnableNativeHaptic(slots);
-                }
-            }
-        }
-        catch
-        {
-            // Device may be disconnected — next event will retry.
-        }
+        // Firmware-side native haptic (op-code 0x2e) is intentionally NOT used: on the
+        // hardware it never played a touch pulse even with byte-correct frames (verified
+        // against Athorus' reference from issue #101), and its disable command wedges /
+        // freezes the device. Haptic feedback now runs entirely through the software
+        // Vibrate() pulse (0x1b) from the touch handler, which fires immediately on touch.
+        //
+        // This service is kept (config/page/step subscriptions still fire) but performs no
+        // device I/O, so it can neither program nor disable the firmware haptic engine.
     }
 
     public void Dispose()

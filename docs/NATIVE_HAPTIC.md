@@ -1,5 +1,28 @@
 # Native Haptic Feedback — Protocol Notes & Constraints
 
+> **Status (2026-07): the firmware-side native haptic (`0x2e`) below is NOT used.**
+> Haptic feedback now runs entirely through the software `Vibrate()` pulse (`0x1b`),
+> driven from the touch handler (`LoupedeckLiveSController.ResolveVibrationPattern` +
+> `OnTouchButtonPress`). A per-button "Vibration enabled" override wins; otherwise the
+> global pattern's first effect (Settings → Feedback, `HapticSteps[0].Effect`) applies
+> to every button, and it fires **immediately on touch** (no press-and-hold).
+>
+> Why `0x2e` was dropped (all reproduced live on the device, wire-logged):
+> - Byte-correct frames — identical to the `#103` implementation and to Athorus'
+>   reference from issue #101 — produced **no vibration**, with or without the
+>   `0x19` strength "arm", as single combined frames or one-frame-per-button.
+> - The `0x2e` **disable** command (`[0x4d,0x01]`) **wedges / freezes** the firmware
+>   haptic engine for the session (also reported in issue #101). It is no longer sent.
+> - `0x2e` only fires an effect *after* a delay while the finger is **held** — poor UX
+>   for tap feedback. `0x1b` fires instantly.
+>
+> `NativeHapticService` is kept for DI but performs no device I/O. The protocol notes
+> below are retained for reference in case the firmware path is revisited.
+>
+> Limitation: the software path plays a single effect, so the global pattern's
+> *Delay* / *Duration* / *second effect* (a firmware multi-step concept) have no effect;
+> simplifying that Settings UI is a possible follow-up.
+
 Reverse-engineered firmware-side haptic for the Loupedeck Live S, based on
 notes from Athorus (GitHub issue) plus my own empirical testing on my device.
 
