@@ -46,7 +46,7 @@ public class NextRotaryPageCommand(LoupedeckLiveSController loupedeck) : IExecut
             return Task.CompletedTask;
         }
 
-        loupedeck.PageManager.NextRotaryPage();
+        loupedeck.AnimateNextRotaryPage();
         return Task.CompletedTask;
     }
 }
@@ -62,7 +62,7 @@ public class PreviousRotaryPageCommand(LoupedeckLiveSController loupedeck) : IEx
             return Task.CompletedTask;
         }
 
-        loupedeck.PageManager.PreviousRotaryPage();
+        loupedeck.AnimatePreviousRotaryPage();
         return Task.CompletedTask;
     }
 }
@@ -111,7 +111,7 @@ public class GotoRotaryPageCommand(IDeviceController controller) : IExecutableCo
             Console.WriteLine($"Rotary page {page} out of range (1-{pages.Count})");
             return Task.CompletedTask;
         }
-        controller.PageManager.ApplyRotaryPage(index);
+        controller.AnimateGotoRotaryPage(index);
         return Task.CompletedTask;
     }
 }

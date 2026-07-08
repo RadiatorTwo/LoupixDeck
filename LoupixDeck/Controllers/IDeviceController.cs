@@ -63,4 +63,21 @@ public interface IDeviceController
     /// without side strips.
     /// </summary>
     Task RefreshSideStrips();
+
+    /// <summary>Global "next rotary page" with a slide transition on side-strip devices
+    /// (both columns animate); instant fallback otherwise or when animation is unavailable.</summary>
+    void AnimateNextRotaryPage();
+
+    /// <summary>Global "previous rotary page" with a slide transition on side-strip devices
+    /// (both columns animate); instant fallback otherwise or when animation is unavailable.</summary>
+    void AnimatePreviousRotaryPage();
+
+    /// <summary>Per-side rotary paging with a slide transition (on-screen GUI side buttons);
+    /// instant fallback when animation is unavailable.</summary>
+    void AnimateRotaryPageForSide(RotarySide side, bool next);
+
+    /// <summary>Goto-by-index rotary paging with a slide transition in the shortest wrap
+    /// direction; instant fallback when animation is unavailable. <paramref name="pageIndex"/>
+    /// is 0-based.</summary>
+    void AnimateGotoRotaryPage(int pageIndex);
 }

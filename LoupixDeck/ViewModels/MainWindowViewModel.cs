@@ -268,22 +268,17 @@ public partial class MainWindowViewModel : ViewModelBase
 
     private void RotaryPageButton_Click(int page)
     {
-        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
-        {
-            LoupedeckController.PageManager.ApplyRotaryPage(page - 1);
-        });
+        LoupedeckController.AnimateGotoRotaryPage(page - 1);
     }
 
     private void NextRotaryPage_Click()
     {
-        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
-            LoupedeckController.PageManager.NextRotaryPage());
+        LoupedeckController.AnimateNextRotaryPage();
     }
 
     private void PreviousRotaryPage_Click()
     {
-        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
-            LoupedeckController.PageManager.PreviousRotaryPage());
+        LoupedeckController.AnimatePreviousRotaryPage();
     }
 
     private void AddRotaryPageForSide(RotarySide side)
@@ -306,13 +301,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
     private void PageRotaryForSide(RotarySide side, bool next)
     {
-        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
-        {
-            if (next)
-                LoupedeckController.PageManager.NextRotaryPage(side);
-            else
-                LoupedeckController.PageManager.PreviousRotaryPage(side);
-        });
+        LoupedeckController.AnimateRotaryPageForSide(side, next);
     }
 
     private void AddTouchPageButton_Click()
