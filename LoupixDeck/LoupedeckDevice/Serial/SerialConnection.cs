@@ -1,6 +1,8 @@
+using System.Diagnostics;
 using System.IO.Ports;
 using System.Security.Cryptography;
 using System.Text;
+using LoupixDeck.LoupedeckDevice.Device;
 
 namespace LoupixDeck.LoupedeckDevice.Serial;
 
@@ -223,7 +225,22 @@ public class SerialConnection : ISerialConnection
                 Buffer.BlockCopy(maskedPayload, 0, frame, 14, data.Length);
             }
 
-            _serialPort?.Write(frame, 0, frame.Length);
+            // Time the blocking write when a benchmark/timing run is active, so the
+            // display benchmark can attribute wall-clock to the wire vs. ACK waits.
+            if (_serialPort != null)
+            {
+                if (SendDiagnostics.CaptureActive)
+                {
+                    var sw = Stopwatch.StartNew();
+                    _serialPort.Write(frame, 0, frame.Length);
+                    sw.Stop();
+                    SendDiagnostics.OnBytesWritten(data.Length, frame.Length, sw.Elapsed);
+                }
+                else
+                {
+                    _serialPort.Write(frame, 0, frame.Length);
+                }
+            }
         }
         catch (Exception ex)
         {

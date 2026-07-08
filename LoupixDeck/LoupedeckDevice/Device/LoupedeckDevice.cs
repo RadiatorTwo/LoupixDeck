@@ -177,7 +177,11 @@ public class LoupedeckDevice
             }
         }
 
-        _connection.Connected += (_, e) => OnConnect?.Invoke(this, e);
+        _connection.Connected += (_, e) =>
+        {
+            OnConnect?.Invoke(this, e);
+            MaybeStartDisplayBenchmark();
+        };
         _connection.MessageReceived += (_, e) => OnReceive(e.Data);
         _connection.Disconnected += (_, e) =>
         {
@@ -262,7 +266,7 @@ public class LoupedeckDevice
                     {
                         _pendingTransactions[_transactionId] = item.Completion;
                         _pendingTimeouts[_transactionId] = item.TimeoutCts;
-                        if (SendDiagnostics.Enabled) SendDiagnostics.OnSent(_transactionId);
+                        if (SendDiagnostics.CaptureActive) SendDiagnostics.OnSent(_transactionId);
                     }
 
                     _connection?.Send(packet);
@@ -487,7 +491,7 @@ public class LoupedeckDevice
             transaction.TrySetResult(payload);
         }
 
-        if (SendDiagnostics.Enabled) SendDiagnostics.OnReceived(transactionId, command, matched);
+        if (SendDiagnostics.CaptureActive) SendDiagnostics.OnReceived(transactionId, command, matched);
 
         // Additionally, cancel the timeout if it exists:
         if (_pendingTimeouts.TryRemove(transactionId, out var cts))
@@ -1047,6 +1051,118 @@ public class LoupedeckDevice
 
         // DRAW uses its own path: a missing ACK is tolerated (see SendDrawAsync / #149).
         await SendDrawAsync(displayInfo.Id);
+    }
+
+    // ---------------------------------------------------------------------------------
+    // Display-transfer benchmark (spike). Opt-in via LOUPIXDECK_DISPLAY_BENCH=1. Answers:
+    // is the animation bottleneck the blocking serial Write (link-bound) or the
+    // FRAMEBUFF/DRAW ACK round-trips (pipeline-bound)? Prints results via SendDiagnostics.
+    // ---------------------------------------------------------------------------------
+
+    private int _benchStarted;
+
+    /// <summary>
+    /// Fires the display benchmark once after connect when LOUPIXDECK_DISPLAY_BENCH=1.
+    /// Runs on its own background thread and waits a few seconds so DevicePostInit and the
+    /// initial page draw settle (and the send-queue worker, started right after Connect, is live).
+    /// </summary>
+    private void MaybeStartDisplayBenchmark()
+    {
+        if (Environment.GetEnvironmentVariable("LOUPIXDECK_DISPLAY_BENCH") != "1") return;
+        if (Interlocked.CompareExchange(ref _benchStarted, 1, 0) != 0) return;
+
+        Thread thread = new(() =>
+        {
+            Thread.Sleep(4000);
+            try
+            {
+                RunDisplayBenchmarkAsync().GetAwaiter().GetResult();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Bench] Display benchmark failed: {ex.Message}");
+            }
+        })
+        {
+            IsBackground = true,
+            Name = "LoupixDisplayBench"
+        };
+        thread.Start();
+    }
+
+    /// <summary>
+    /// Builds an RGB565 test buffer of the given size. Content is an arbitrary non-uniform
+    /// pattern — only the transfer is being measured, not what is drawn.
+    /// </summary>
+    private static byte[] BuildBenchmarkBuffer(int width, int height)
+    {
+        var buffer = new byte[width * height * 2];
+        for (var i = 0; i < buffer.Length; i++)
+            buffer[i] = (byte)(i * 31);
+        return buffer;
+    }
+
+    /// <summary>
+    /// Assembles the FRAMEBUFF payload (display id + 8-byte big-endian [x,y,w,h] header +
+    /// pixel buffer) exactly as <see cref="DrawBuffer"/> does, for the no-ACK bulk run.
+    /// </summary>
+    private static byte[] BuildFramebufferPayload(DisplayInfo display, int width, int height, byte[] buffer)
+    {
+        var header = new byte[8];
+        header[4] = (byte)((width >> 8) & 0xff);
+        header[5] = (byte)(width & 0xff);
+        header[6] = (byte)((height >> 8) & 0xff);
+        header[7] = (byte)(height & 0xff);
+        return display.Id.Concat(header).Concat(buffer).ToArray();
+    }
+
+    /// <summary>
+    /// Runs the three-part display-transfer benchmark. See the region comment above.
+    /// </summary>
+    private async Task RunDisplayBenchmarkAsync()
+    {
+        const int iterations = 60;
+
+        if (Displays == null || !Displays.TryGetValue("center", out var center))
+        {
+            Console.WriteLine("[Bench] No 'center' display on this device — skipping benchmark.");
+            return;
+        }
+
+        // Build the test buffers once so only the transfer is measured, not rendering.
+        var fullBuffer = BuildBenchmarkBuffer(center.Width, center.Height);
+        const int keySize = 90;
+        var keyBuffer = BuildBenchmarkBuffer(keySize, keySize);
+        var keyX = VisibleX is { Length: > 0 } ? VisibleX[0] : 0;
+
+        Console.WriteLine(
+            $"[Bench] Display transfer benchmark: {center.Width}x{center.Height} center, {iterations} iterations/run.");
+
+        // A — Full-screen, FRAMEBUFF (ack-waited) + DRAW (ack-waited) per frame.
+        const string labelA = "A full-screen (framebuff+draw, ack-waited)";
+        SendDiagnostics.BeginBenchmark(labelA);
+        for (var i = 0; i < iterations; i++)
+            await DrawBuffer("center", center.Width, center.Height, fullBuffer);
+        SendDiagnostics.EndBenchmark(labelA, iterations);
+
+        // B — Per-button 90x90 (mirrors the real animation path).
+        const string labelB = "B per-button 90x90 (framebuff+draw, ack-waited)";
+        SendDiagnostics.BeginBenchmark(labelB);
+        for (var i = 0; i < iterations; i++)
+            await DrawBuffer("center", keySize, keySize, keyBuffer, keyX, 0);
+        SendDiagnostics.EndBenchmark(labelB, iterations);
+
+        // C — Bandwidth isolation: full-screen FRAMEBUFF WITHOUT waiting the ACK, single
+        // DRAW at the end. Separates raw bulk throughput from per-frame round-trip stalls.
+        const string labelC = "C full-screen (framebuff no-ack, bulk)";
+        var fbPayload = BuildFramebufferPayload(center, center.Width, center.Height, fullBuffer);
+        SendDiagnostics.BeginBenchmark(labelC);
+        for (var i = 0; i < iterations; i++)
+            await SendNoResponseAsync(Constants.Command.FRAMEBUFF, fbPayload);
+        await Refresh("center");
+        SendDiagnostics.EndBenchmark(labelC, iterations);
+
+        Console.WriteLine("[Bench] Display transfer benchmark complete.");
     }
 
     /// <summary>
