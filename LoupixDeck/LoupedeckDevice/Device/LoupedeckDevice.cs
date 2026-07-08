@@ -266,7 +266,8 @@ public class LoupedeckDevice
                     {
                         _pendingTransactions[_transactionId] = item.Completion;
                         _pendingTimeouts[_transactionId] = item.TimeoutCts;
-                        if (SendDiagnostics.CaptureActive) SendDiagnostics.OnSent(_transactionId);
+                        if (SendDiagnostics.Enabled) SendDiagnostics.OnSent(_transactionId);
+                        if (_bench is { Active: true }) _bench.OnSent(_transactionId);
                     }
 
                     _connection?.Send(packet);
@@ -491,7 +492,8 @@ public class LoupedeckDevice
             transaction.TrySetResult(payload);
         }
 
-        if (SendDiagnostics.CaptureActive) SendDiagnostics.OnReceived(transactionId, command, matched);
+        if (SendDiagnostics.Enabled) SendDiagnostics.OnReceived(transactionId, command, matched);
+        if (matched && _bench is { Active: true }) _bench.OnReceived(transactionId, command);
 
         // Additionally, cancel the timeout if it exists:
         if (_pendingTimeouts.TryRemove(transactionId, out var cts))
@@ -1059,35 +1061,24 @@ public class LoupedeckDevice
     // FRAMEBUFF/DRAW ACK round-trips (pipeline-bound)? Prints results via SendDiagnostics.
     // ---------------------------------------------------------------------------------
 
-    private int _benchStarted;
+    private DisplayBenchmark _bench;
 
     /// <summary>
-    /// Fires the display benchmark once after connect when LOUPIXDECK_DISPLAY_BENCH=1.
-    /// Runs on its own background thread and waits a few seconds so DevicePostInit and the
-    /// initial page draw settle (and the send-queue worker, started right after Connect, is live).
+    /// Short human-readable tag identifying this physical device in benchmark output
+    /// (device type + serial port), e.g. "LoupedeckLiveS@COM5".
+    /// </summary>
+    private string DeviceTag => $"{Type ?? GetType().Name}@{(string.IsNullOrEmpty(Path) ? "?" : Path)}";
+
+    /// <summary>
+    /// Registers this device with the benchmark coordinator once after connect when
+    /// LOUPIXDECK_DISPLAY_BENCH=1. The coordinator debounces and then runs every registered
+    /// device first individually (Phase 1) and then all at once (Phase 2).
     /// </summary>
     private void MaybeStartDisplayBenchmark()
     {
         if (Environment.GetEnvironmentVariable("LOUPIXDECK_DISPLAY_BENCH") != "1") return;
-        if (Interlocked.CompareExchange(ref _benchStarted, 1, 0) != 0) return;
-
-        Thread thread = new(() =>
-        {
-            Thread.Sleep(4000);
-            try
-            {
-                RunDisplayBenchmarkAsync().GetAwaiter().GetResult();
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[Bench] Display benchmark failed: {ex.Message}");
-            }
-        })
-        {
-            IsBackground = true,
-            Name = "LoupixDisplayBench"
-        };
-        thread.Start();
+        _bench ??= new DisplayBenchmark(DeviceTag);
+        DisplayBenchmarkCoordinator.Register(this);
     }
 
     /// <summary>
@@ -1117,15 +1108,26 @@ public class LoupedeckDevice
     }
 
     /// <summary>
-    /// Runs the three-part display-transfer benchmark. See the region comment above.
+    /// Runs the three-part display-transfer benchmark for this device, tagging each run with
+    /// the <paramref name="phase"/> ("solo" or "parallel") so Phase 1 and Phase 2 output is
+    /// distinguishable. Invoked by <see cref="DisplayBenchmarkCoordinator"/>. See the region
+    /// comment above and <see cref="DisplayBenchmark"/>.
     /// </summary>
-    private async Task RunDisplayBenchmarkAsync()
+    internal async Task RunDisplayBenchmarkAsync(string phase)
     {
         const int iterations = 60;
 
+        _bench ??= new DisplayBenchmark(DeviceTag);
+
         if (Displays == null || !Displays.TryGetValue("center", out var center))
         {
-            Console.WriteLine("[Bench] No 'center' display on this device — skipping benchmark.");
+            Console.WriteLine($"[Bench][{DeviceTag}] No 'center' display — skipping benchmark.");
+            return;
+        }
+
+        if (_connection == null || !_connection.IsReady)
+        {
+            Console.WriteLine($"[Bench][{DeviceTag}] Not connected — skipping benchmark.");
             return;
         }
 
@@ -1135,34 +1137,41 @@ public class LoupedeckDevice
         var keyBuffer = BuildBenchmarkBuffer(keySize, keySize);
         var keyX = VisibleX is { Length: > 0 } ? VisibleX[0] : 0;
 
-        Console.WriteLine(
-            $"[Bench] Display transfer benchmark: {center.Width}x{center.Height} center, {iterations} iterations/run.");
+        // Route this device's write timing into its own session for the duration of the run.
+        _connection.WriteObserver = _bench.RecordWrite;
+        try
+        {
+            Console.WriteLine(
+                $"[Bench][{DeviceTag}] {phase}: {center.Width}x{center.Height} center, {iterations} iterations/run.");
 
-        // A — Full-screen, FRAMEBUFF (ack-waited) + DRAW (ack-waited) per frame.
-        const string labelA = "A full-screen (framebuff+draw, ack-waited)";
-        SendDiagnostics.BeginBenchmark(labelA);
-        for (var i = 0; i < iterations; i++)
-            await DrawBuffer("center", center.Width, center.Height, fullBuffer);
-        SendDiagnostics.EndBenchmark(labelA, iterations);
+            // A — Full-screen, FRAMEBUFF (ack-waited) + DRAW (ack-waited) per frame.
+            var labelA = $"{phase} A full-screen (framebuff+draw, ack-waited)";
+            _bench.Begin(labelA);
+            for (var i = 0; i < iterations; i++)
+                await DrawBuffer("center", center.Width, center.Height, fullBuffer);
+            _bench.End(labelA, iterations);
 
-        // B — Per-button 90x90 (mirrors the real animation path).
-        const string labelB = "B per-button 90x90 (framebuff+draw, ack-waited)";
-        SendDiagnostics.BeginBenchmark(labelB);
-        for (var i = 0; i < iterations; i++)
-            await DrawBuffer("center", keySize, keySize, keyBuffer, keyX, 0);
-        SendDiagnostics.EndBenchmark(labelB, iterations);
+            // B — Per-button 90x90 (mirrors the real animation path).
+            var labelB = $"{phase} B per-button 90x90 (framebuff+draw, ack-waited)";
+            _bench.Begin(labelB);
+            for (var i = 0; i < iterations; i++)
+                await DrawBuffer("center", keySize, keySize, keyBuffer, keyX, 0);
+            _bench.End(labelB, iterations);
 
-        // C — Bandwidth isolation: full-screen FRAMEBUFF WITHOUT waiting the ACK, single
-        // DRAW at the end. Separates raw bulk throughput from per-frame round-trip stalls.
-        const string labelC = "C full-screen (framebuff no-ack, bulk)";
-        var fbPayload = BuildFramebufferPayload(center, center.Width, center.Height, fullBuffer);
-        SendDiagnostics.BeginBenchmark(labelC);
-        for (var i = 0; i < iterations; i++)
-            await SendNoResponseAsync(Constants.Command.FRAMEBUFF, fbPayload);
-        await Refresh("center");
-        SendDiagnostics.EndBenchmark(labelC, iterations);
-
-        Console.WriteLine("[Bench] Display transfer benchmark complete.");
+            // C — Bandwidth isolation: full-screen FRAMEBUFF WITHOUT waiting the ACK, single
+            // DRAW at the end. Separates raw bulk throughput from per-frame round-trip stalls.
+            var labelC = $"{phase} C full-screen (framebuff no-ack, bulk)";
+            var fbPayload = BuildFramebufferPayload(center, center.Width, center.Height, fullBuffer);
+            _bench.Begin(labelC);
+            for (var i = 0; i < iterations; i++)
+                await SendNoResponseAsync(Constants.Command.FRAMEBUFF, fbPayload);
+            await Refresh("center");
+            _bench.End(labelC, iterations);
+        }
+        finally
+        {
+            _connection.WriteObserver = null;
+        }
     }
 
     /// <summary>

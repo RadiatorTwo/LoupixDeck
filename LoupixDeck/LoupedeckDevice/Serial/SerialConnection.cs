@@ -2,7 +2,6 @@ using System.Diagnostics;
 using System.IO.Ports;
 using System.Security.Cryptography;
 using System.Text;
-using LoupixDeck.LoupedeckDevice.Device;
 
 namespace LoupixDeck.LoupedeckDevice.Serial;
 
@@ -82,7 +81,10 @@ public class SerialConnection : ISerialConnection
     /// Indicates whether the serial port is open and ready for communication.
     /// </summary>
     public bool IsReady => _serialPort is not null && _serialPort.IsOpen;
-    
+
+    /// <inheritdoc />
+    public Action<int, int, TimeSpan> WriteObserver { get; set; }
+
     /// <summary>
     /// Searches for all available serial ports and returns them as a list.
     /// (Optional: Not part of the interface, but useful for a discovery-like feature.)
@@ -225,16 +227,18 @@ public class SerialConnection : ISerialConnection
                 Buffer.BlockCopy(maskedPayload, 0, frame, 14, data.Length);
             }
 
-            // Time the blocking write when a benchmark/timing run is active, so the
-            // display benchmark can attribute wall-clock to the wire vs. ACK waits.
+            // Time the blocking write only when a benchmark observer is attached, so the
+            // display benchmark can attribute wall-clock to the wire vs. ACK waits. Off by
+            // default (unchanged fast path).
+            var observer = WriteObserver;
             if (_serialPort != null)
             {
-                if (SendDiagnostics.CaptureActive)
+                if (observer != null)
                 {
                     var sw = Stopwatch.StartNew();
                     _serialPort.Write(frame, 0, frame.Length);
                     sw.Stop();
-                    SendDiagnostics.OnBytesWritten(data.Length, frame.Length, sw.Elapsed);
+                    observer(data.Length, frame.Length, sw.Elapsed);
                 }
                 else
                 {
