@@ -1038,6 +1038,21 @@ public class LoupedeckDevice
     }
 
     /// <summary>
+    /// Pushes a pre-composed grid-region bitmap (Columns*90 × Rows*90) to the "center"
+    /// display at the touch grid's x-origin, leaving any side-strip regions of a unified
+    /// buffer untouched. Used by the touch-page slide transition so a Razer's two side
+    /// strips aren't clobbered. One framebuffer write + one refresh. The grid x-origin is
+    /// <c>VisibleX[0]</c> here (unified 480-wide buffer); the CT overrides it to 0 because
+    /// its "center" is a dedicated grid-only buffer.
+    /// </summary>
+    public virtual async Task DrawCenterGridRegion(SKBitmap gridBitmap, bool refresh = true)
+    {
+        ArgumentNullException.ThrowIfNull(gridBitmap);
+        var xBase = VisibleX is { Length: > 0 } ? VisibleX[0] : 0;
+        await DrawCanvasRegion("center", gridBitmap.Width, gridBitmap.Height, gridBitmap, xBase, 0, refresh);
+    }
+
+    /// <summary>
     /// Triggers a refresh (redraw) of the display.
     /// </summary>
     private async Task Refresh(string id)

@@ -1682,6 +1682,68 @@ public static class BitmapHelper
         return bitmap;
     }
 
+    /// <summary>
+    /// Horizontal analogue of <see cref="ComposeVerticalSlide"/> for the touch-page slide.
+    /// <paramref name="current"/> is drawn shifted horizontally by <paramref name="offsetX"/>
+    /// and <paramref name="neighbor"/> fills the gap it leaves: a negative offset (paging to
+    /// the next page) reveals the neighbor entering from the right; a positive offset (previous
+    /// page) reveals it from the left. <paramref name="neighbor"/> may be null — then only the
+    /// shifted current page is drawn over black.
+    /// </summary>
+    public static SKBitmap ComposeHorizontalSlide(SKBitmap current, SKBitmap neighbor, int offsetX)
+    {
+        ArgumentNullException.ThrowIfNull(current);
+
+        var width = current.Width;
+        var height = current.Height;
+        var bitmap = new SKBitmap(width, height);
+
+        lock (SkiaRenderGate.Sync)
+        {
+            using var canvas = new SKCanvas(bitmap);
+            canvas.Clear(SKColors.Black);
+            canvas.DrawBitmap(current, offsetX, 0);
+            if (neighbor != null)
+            {
+                var neighborX = offsetX < 0 ? offsetX + width : offsetX - width;
+                canvas.DrawBitmap(neighbor, neighborX, 0);
+            }
+            canvas.Flush();
+        }
+
+        return bitmap;
+    }
+
+    /// <summary>
+    /// Composes a page's 90×90 slot bitmaps into a single grid-region bitmap
+    /// (<paramref name="columns"/>*90 × <paramref name="rows"/>*90), laid out left-to-right,
+    /// top-to-bottom. Null slots stay black. Only the first <c>columns*rows</c> slots (the
+    /// touch grid) are used — trailing side-strip slots are ignored. Used to build the
+    /// outgoing/incoming frames for the touch-page slide.
+    /// </summary>
+    public static SKBitmap ComposeTouchGrid(IReadOnlyList<SKBitmap> slots, int columns, int rows, int keySize = 90)
+    {
+        var bitmap = new SKBitmap(columns * keySize, rows * keySize);
+
+        lock (SkiaRenderGate.Sync)
+        {
+            using var canvas = new SKCanvas(bitmap);
+            canvas.Clear(SKColors.Black);
+            var count = Math.Min(slots?.Count ?? 0, columns * rows);
+            for (var i = 0; i < count; i++)
+            {
+                var slot = slots[i];
+                if (slot == null) continue;
+                var x = (i % columns) * keySize;
+                var y = (i / columns) * keySize;
+                canvas.DrawBitmap(slot, x, y);
+            }
+            canvas.Flush();
+        }
+
+        return bitmap;
+    }
+
     // The unified panel is 480px wide; the side strips occupy its outer 60px columns.
     public const int PanelWidth = 480;
     public const int PanelHeight = 270;

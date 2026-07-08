@@ -268,22 +268,17 @@ public partial class MainWindowViewModel : ViewModelBase
 
     private void RotaryPageButton_Click(int page)
     {
-        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
-        {
-            LoupedeckController.PageManager.ApplyRotaryPage(page - 1);
-        });
+        LoupedeckController.AnimateGotoRotaryPage(page - 1);
     }
 
     private void NextRotaryPage_Click()
     {
-        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
-            LoupedeckController.PageManager.NextRotaryPage());
+        LoupedeckController.AnimateNextRotaryPage();
     }
 
     private void PreviousRotaryPage_Click()
     {
-        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
-            LoupedeckController.PageManager.PreviousRotaryPage());
+        LoupedeckController.AnimatePreviousRotaryPage();
     }
 
     private void AddRotaryPageForSide(RotarySide side)
@@ -306,13 +301,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
     private void PageRotaryForSide(RotarySide side, bool next)
     {
-        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
-        {
-            if (next)
-                LoupedeckController.PageManager.NextRotaryPage(side);
-            else
-                LoupedeckController.PageManager.PreviousRotaryPage(side);
-        });
+        LoupedeckController.AnimateRotaryPageForSide(side, next);
     }
 
     private void AddTouchPageButton_Click()
@@ -335,22 +324,17 @@ public partial class MainWindowViewModel : ViewModelBase
 
     private void TouchPageButton_Click(int page)
     {
-        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
-        {
-            LoupedeckController.PageManager.ApplyTouchPage(page - 1);
-        });
+        LoupedeckController.AnimateGotoTouchPage(page - 1);
     }
 
     private void NextTouchPage_Click()
     {
-        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
-            _ = LoupedeckController.PageManager.NextTouchPage());
+        LoupedeckController.AnimateNextTouchPage();
     }
 
     private void PreviousTouchPage_Click()
     {
-        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
-            _ = LoupedeckController.PageManager.PreviousTouchPage());
+        LoupedeckController.AnimatePreviousTouchPage();
     }
 
     private async Task RotaryButton_Click(RotaryButton button)

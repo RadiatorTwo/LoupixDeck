@@ -182,6 +182,10 @@ public partial class LoupedeckLiveSController(
         }
         catch { /* best effort */ }
 
+        // Detach the transition sources before halting the loop.
+        try { UnregisterStripAnimationSource(); } catch { /* best effort */ }
+        try { UnregisterTouchAnimationSource(); } catch { /* best effort */ }
+
         // Halt the central animation loop so no frame is pushed to the gone device.
         try { animationScheduler.Stop(); } catch { /* best effort */ }
 
@@ -414,6 +418,13 @@ public partial class LoupedeckLiveSController(
 
         // Repaint the affected side strip whenever its rotary page changes.
         pageManager.OnRotaryPageChanged += OnRotaryPageChanged;
+
+        // Register the side-strip transition source on the central animation scheduler so
+        // swipe-release and command/GUI-driven rotary page slides are paced centrally (#119).
+        RegisterStripAnimationSource();
+
+        // Register the touch-page transition source on the same central scheduler.
+        RegisterTouchAnimationSource();
     }
 
     /// <summary>
