@@ -1095,11 +1095,15 @@ public class LoupedeckDevice
 
     /// <summary>
     /// Assembles the FRAMEBUFF payload (display id + 8-byte big-endian [x,y,w,h] header +
-    /// pixel buffer) exactly as <see cref="DrawBuffer"/> does, for the no-ACK bulk run.
+    /// pixel buffer) exactly as <see cref="DrawBuffer"/> does, for the no-ACK runs.
     /// </summary>
-    private static byte[] BuildFramebufferPayload(DisplayInfo display, int width, int height, byte[] buffer)
+    private static byte[] BuildFramebufferPayload(DisplayInfo display, int x, int y, int width, int height, byte[] buffer)
     {
         var header = new byte[8];
+        header[0] = (byte)((x >> 8) & 0xff);
+        header[1] = (byte)(x & 0xff);
+        header[2] = (byte)((y >> 8) & 0xff);
+        header[3] = (byte)(y & 0xff);
         header[4] = (byte)((width >> 8) & 0xff);
         header[5] = (byte)(width & 0xff);
         header[6] = (byte)((height >> 8) & 0xff);
@@ -1161,12 +1165,53 @@ public class LoupedeckDevice
             // C — Bandwidth isolation: full-screen FRAMEBUFF WITHOUT waiting the ACK, single
             // DRAW at the end. Separates raw bulk throughput from per-frame round-trip stalls.
             var labelC = $"{phase} C full-screen (framebuff no-ack, bulk)";
-            var fbPayload = BuildFramebufferPayload(center, center.Width, center.Height, fullBuffer);
+            var fbPayload = BuildFramebufferPayload(center, 0, 0, center.Width, center.Height, fullBuffer);
             _bench.Begin(labelC);
             for (var i = 0; i < iterations; i++)
                 await SendNoResponseAsync(Constants.Command.FRAMEBUFF, fbPayload);
             await Refresh("center");
             _bench.End(labelC, iterations);
+
+            // Multi-button runs: one "tick" updates every grid button once, mirroring a busy
+            // animated page. D is the current path (per-button FRAMEBUFF + DRAW); E batches all
+            // button writes and issues ONE DRAW per tick. Comparing D vs E quantifies the win of
+            // draw-batching before changing the real animation path (ButtonAnimationSource).
+            var keyCount = Math.Max(1, Columns * Rows);
+            var xBase = VisibleX is { Length: > 0 } ? VisibleX[0] : 0;
+            const int ticks = 30;
+
+            (int X, int Y) KeyPos(int index) =>
+                (xBase + ((index % Columns) * keySize), (index / Columns) * keySize);
+
+            // D — current path: each button drawn individually with its own refresh.
+            var labelD = $"{phase} D multi-button x{keyCount}/tick (per-button refresh)";
+            _bench.Begin(labelD);
+            for (var t = 0; t < ticks; t++)
+                for (var k = 0; k < keyCount; k++)
+                {
+                    var (x, y) = KeyPos(k);
+                    await DrawBuffer("center", keySize, keySize, keyBuffer, x, y);
+                }
+            _bench.End(labelD, ticks);
+
+            // E — batched: write every button's framebuffer (no per-button ACK/refresh), then a
+            // single DRAW per tick.
+            var labelE = $"{phase} E multi-button x{keyCount}/tick (batched, 1 draw)";
+            var keyPayloads = new byte[keyCount][];
+            for (var k = 0; k < keyCount; k++)
+            {
+                var (x, y) = KeyPos(k);
+                keyPayloads[k] = BuildFramebufferPayload(center, x, y, keySize, keySize, keyBuffer);
+            }
+
+            _bench.Begin(labelE);
+            for (var t = 0; t < ticks; t++)
+            {
+                for (var k = 0; k < keyCount; k++)
+                    await SendNoResponseAsync(Constants.Command.FRAMEBUFF, keyPayloads[k]);
+                await Refresh("center");
+            }
+            _bench.End(labelE, ticks);
         }
         finally
         {
