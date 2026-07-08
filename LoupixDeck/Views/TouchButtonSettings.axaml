@@ -190,8 +190,9 @@
     <Grid x:Name="RootGrid" RowDefinitions="860,Auto" Margin="12">
 
         <!-- ===== Main area: left panel / preview / properties ===== -->
-        <!-- Center preview and the right tab panel both grow with the window (2:1). -->
-        <Grid Grid.Row="0" ColumnDefinitions="290,2*,*">
+        <!-- The right tab panel (Properties / Commands) is a fixed 420 px to match the
+             Rotary and Simple editors; the center preview takes the remaining width. -->
+        <Grid Grid.Row="0" ColumnDefinitions="290,*,420">
 
             <!-- Left: button settings + states + layer list -->
             <Border Grid.Column="0" Classes="editor-panel" Margin="0,0,12,0">
