@@ -1,6 +1,6 @@
+using System.Reflection;
 using LoupixDeck.Commands.Base;
 using Microsoft.Extensions.DependencyInjection;
-using System.Reflection;
 
 namespace LoupixDeck.Services;
 

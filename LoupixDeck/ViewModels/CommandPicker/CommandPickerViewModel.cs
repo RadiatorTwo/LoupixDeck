@@ -124,14 +124,14 @@ public partial class CommandPickerViewModel : ViewModelBase
             return;
 
         foreach (var section in Sections)
-        foreach (var category in section.Categories)
-        {
-            if (ReferenceEquals(category.Group, group))
+            foreach (var category in section.Categories)
             {
-                category.NotifyStateChanged();
-                return;
+                if (ReferenceEquals(category.Group, group))
+                {
+                    category.NotifyStateChanged();
+                    return;
+                }
             }
-        }
     }
 
     private void Rebuild()
@@ -213,12 +213,12 @@ public partial class CommandPickerViewModel : ViewModelBase
         var query = SearchText.Trim();
 
         foreach (var section in Sections)
-        foreach (var category in section.Categories)
-        {
-            var matches = category.Commands.Where(r => Matches(r, query)).ToList();
-            if (matches.Count > 0)
-                SearchResults.Add(new CommandSearchGroupViewModel(category.Title, category.Icon, matches));
-        }
+            foreach (var category in section.Categories)
+            {
+                var matches = category.Commands.Where(r => Matches(r, query)).ToList();
+                if (matches.Count > 0)
+                    SearchResults.Add(new CommandSearchGroupViewModel(category.Title, category.Icon, matches));
+            }
     }
 
     private static bool Matches(CommandRowViewModel row, string query) =>

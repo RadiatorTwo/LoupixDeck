@@ -531,58 +531,58 @@ public partial class TouchButtonSettings : Window
         switch (_dragMode)
         {
             case DragMode.Move:
-            {
-                var dxDev = (int)Math.Round((pos.X - _dragStartCanvas.X) * canvasToDevice);
-                var dyDev = (int)Math.Round((pos.Y - _dragStartCanvas.Y) * canvasToDevice);
-                var newPosX = _startPosX + dxDev;
-                var newPosY = _startPosY + dyDev;
-
-                if (vm.SnapToGrid && _moveHasBase)
                 {
-                    const int step = TouchButtonSettingsViewModel.GridStepDevice;
-                    var snappedLeft = Math.Round((_moveBaseLeftDev + newPosX) / step) * step;
-                    var snappedTop = Math.Round((_moveBaseTopDev + newPosY) / step) * step;
-                    newPosX = (int)Math.Round(snappedLeft - _moveBaseLeftDev);
-                    newPosY = (int)Math.Round(snappedTop - _moveBaseTopDev);
-                }
+                    var dxDev = (int)Math.Round((pos.X - _dragStartCanvas.X) * canvasToDevice);
+                    var dyDev = (int)Math.Round((pos.Y - _dragStartCanvas.Y) * canvasToDevice);
+                    var newPosX = _startPosX + dxDev;
+                    var newPosY = _startPosY + dyDev;
 
-                vm.SelectedLayer.PositionX = newPosX;
-                vm.SelectedLayer.PositionY = newPosY;
-                break;
-            }
+                    if (vm.SnapToGrid && _moveHasBase)
+                    {
+                        const int step = TouchButtonSettingsViewModel.GridStepDevice;
+                        var snappedLeft = Math.Round((_moveBaseLeftDev + newPosX) / step) * step;
+                        var snappedTop = Math.Round((_moveBaseTopDev + newPosY) / step) * step;
+                        newPosX = (int)Math.Round(snappedLeft - _moveBaseLeftDev);
+                        newPosY = (int)Math.Round(snappedTop - _moveBaseTopDev);
+                    }
+
+                    vm.SelectedLayer.PositionX = newPosX;
+                    vm.SelectedLayer.PositionY = newPosY;
+                    break;
+                }
             case DragMode.Handle:
-            {
-                var altHeld   = e.KeyModifiers.HasFlag(KeyModifiers.Alt);
-                var shiftHeld = e.KeyModifiers.HasFlag(KeyModifiers.Shift);
-
-                // In device-pixel space:
-                var dxDev = (pos.X - _dragStartCanvas.X) * canvasToDevice;
-                var dyDev = (pos.Y - _dragStartCanvas.Y) * canvasToDevice;
-
-                // Snap the dragged edge/corner to the grid. The active edge moves by
-                // exactly dxDev/dyDev from its start position (true for both resize and
-                // crop), so snapping the edge reduces to snapping the delta.
-                if (vm.SnapToGrid)
                 {
-                    const int step = TouchButtonSettingsViewModel.GridStepDevice;
-                    if (_handleSignX != 0)
-                    {
-                        var startEdgeX = _startDrawX + (_handleSignX > 0 ? _startDstW : 0);
-                        dxDev = (Math.Round((startEdgeX + dxDev) / step) * step) - startEdgeX;
-                    }
-                    if (_handleSignY != 0)
-                    {
-                        var startEdgeY = _startDrawY + (_handleSignY > 0 ? _startDstH : 0);
-                        dyDev = (Math.Round((startEdgeY + dyDev) / step) * step) - startEdgeY;
-                    }
-                }
+                    var altHeld = e.KeyModifiers.HasFlag(KeyModifiers.Alt);
+                    var shiftHeld = e.KeyModifiers.HasFlag(KeyModifiers.Shift);
 
-                if (altHeld && _isImageLayer && vm.SelectedLayer is ImageLayer img)
-                    ApplyCrop(img, dxDev, dyDev);
-                else
-                    ApplyResize(vm.SelectedLayer, dxDev, dyDev, shiftHeld);
-                break;
-            }
+                    // In device-pixel space:
+                    var dxDev = (pos.X - _dragStartCanvas.X) * canvasToDevice;
+                    var dyDev = (pos.Y - _dragStartCanvas.Y) * canvasToDevice;
+
+                    // Snap the dragged edge/corner to the grid. The active edge moves by
+                    // exactly dxDev/dyDev from its start position (true for both resize and
+                    // crop), so snapping the edge reduces to snapping the delta.
+                    if (vm.SnapToGrid)
+                    {
+                        const int step = TouchButtonSettingsViewModel.GridStepDevice;
+                        if (_handleSignX != 0)
+                        {
+                            var startEdgeX = _startDrawX + (_handleSignX > 0 ? _startDstW : 0);
+                            dxDev = (Math.Round((startEdgeX + dxDev) / step) * step) - startEdgeX;
+                        }
+                        if (_handleSignY != 0)
+                        {
+                            var startEdgeY = _startDrawY + (_handleSignY > 0 ? _startDstH : 0);
+                            dyDev = (Math.Round((startEdgeY + dyDev) / step) * step) - startEdgeY;
+                        }
+                    }
+
+                    if (altHeld && _isImageLayer && vm.SelectedLayer is ImageLayer img)
+                        ApplyCrop(img, dxDev, dyDev);
+                    else
+                        ApplyResize(vm.SelectedLayer, dxDev, dyDev, shiftHeld);
+                    break;
+                }
         }
 
         vm.PreviewRefreshDuringDrag();
@@ -891,14 +891,14 @@ public partial class TouchButtonSettings : Window
         switch (tag)
         {
             case "NW": signX = -1; signY = -1; return true;
-            case "N":  signX =  0; signY = -1; return true;
-            case "NE": signX =  1; signY = -1; return true;
-            case "W":  signX = -1; signY =  0; return true;
-            case "E":  signX =  1; signY =  0; return true;
-            case "SW": signX = -1; signY =  1; return true;
-            case "S":  signX =  0; signY =  1; return true;
-            case "SE": signX =  1; signY =  1; return true;
-            default:   signX =  0; signY =  0; return false;
+            case "N": signX = 0; signY = -1; return true;
+            case "NE": signX = 1; signY = -1; return true;
+            case "W": signX = -1; signY = 0; return true;
+            case "E": signX = 1; signY = 0; return true;
+            case "SW": signX = -1; signY = 1; return true;
+            case "S": signX = 0; signY = 1; return true;
+            case "SE": signX = 1; signY = 1; return true;
+            default: signX = 0; signY = 0; return false;
         }
     }
 

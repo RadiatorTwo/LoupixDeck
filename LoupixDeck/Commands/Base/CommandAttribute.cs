@@ -35,7 +35,7 @@ public class CommandAttribute(
     public string Description { get; set; }
 
     public string[] ParameterNames { get; } = parameterNames;
-    public Type[] ParameterTypes { get; } =  parameterTypes;
+    public Type[] ParameterTypes { get; } = parameterTypes;
 
     public CommandPlatform Platform { get; set; } = CommandPlatform.All;
 

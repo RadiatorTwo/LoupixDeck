@@ -6,7 +6,7 @@ namespace LoupixDeck.Commands;
 
 // ── Touch pages ───────────────────────────────────────────────────────────────────────
 
-[Command("System.NextPage","Next Touch Page", "Pages", Description = "Go to the next touch page")]
+[Command("System.NextPage", "Next Touch Page", "Pages", Description = "Go to the next touch page")]
 public class PreviousTouchPageCommand(LoupedeckLiveSController loupedeck) : IExecutableCommand
 {
     public Task Execute(string[] parameters)
@@ -22,7 +22,7 @@ public class PreviousTouchPageCommand(LoupedeckLiveSController loupedeck) : IExe
     }
 }
 
-[Command("System.PreviousPage","Previous Touch Page", "Pages", Description = "Go to the previous touch page")]
+[Command("System.PreviousPage", "Previous Touch Page", "Pages", Description = "Go to the previous touch page")]
 public class NextTouchPageCommand(LoupedeckLiveSController loupedeck) : IExecutableCommand
 {
     public Task Execute(string[] parameters)
@@ -66,7 +66,7 @@ public class GotoPageCommand(IDeviceController controller) : IExecutableCommand
 
 // ── Rotary pages — global (both columns on side-strip devices) ─────────────────────────
 
-[Command("System.NextRotaryPage","Next Rotary Page", "Pages", Description = "Go to the next rotary page")]
+[Command("System.NextRotaryPage", "Next Rotary Page", "Pages", Description = "Go to the next rotary page")]
 public class NextRotaryPageCommand(LoupedeckLiveSController loupedeck) : IExecutableCommand
 {
     public Task Execute(string[] parameters)
@@ -82,7 +82,7 @@ public class NextRotaryPageCommand(LoupedeckLiveSController loupedeck) : IExecut
     }
 }
 
-[Command("System.PreviousRotaryPage","Previous Rotary Page", "Pages", Description = "Go to the previous rotary page")]
+[Command("System.PreviousRotaryPage", "Previous Rotary Page", "Pages", Description = "Go to the previous rotary page")]
 public class PreviousRotaryPageCommand(LoupedeckLiveSController loupedeck) : IExecutableCommand
 {
     public Task Execute(string[] parameters)
