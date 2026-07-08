@@ -7,13 +7,6 @@
          the view-model (bound `.selected` classes); keyboard focus is a separate
          blue outline so it never reads as selection. -->
 
-    <!-- Header title next to the logo. -->
-    <Style Selector="TextBlock.picker-header">
-        <Setter Property="FontSize" Value="18" />
-        <Setter Property="FontWeight" Value="Bold" />
-        <Setter Property="VerticalAlignment" Value="Center" />
-    </Style>
-
     <!-- Search bar shortcut hint pill ("Ctrl K"). -->
     <Style Selector="Border.picker-kbd">
         <Setter Property="Background" Value="{DynamicResource AppSurfaceAlt}" />
@@ -66,7 +59,9 @@
         <Setter Property="CornerRadius" Value="10" />
         <Setter Property="Padding" Value="14" />
         <Setter Property="Margin" Value="6" />
-        <Setter Property="MinHeight" Value="118" />
+        <!-- Fixed height so every card is identical regardless of description length. -->
+        <Setter Property="Height" Value="118" />
+        <Setter Property="ClipToBounds" Value="True" />
     </Style>
     <!-- Hover: brighter surface + stronger border. -->
     <Style Selector="Button.picker-card:pointerover Border.picker-card-face">
@@ -127,6 +122,9 @@
         <Setter Property="FontSize" Value="12" />
         <Setter Property="Foreground" Value="{DynamicResource AppTextSecondary}" />
         <Setter Property="TextWrapping" Value="Wrap" />
+        <!-- Cap at two lines so the description never grows the fixed-height card. -->
+        <Setter Property="MaxLines" Value="2" />
+        <Setter Property="TextTrimming" Value="CharacterEllipsis" />
     </Style>
 
     <!-- ===== Detail header ===== -->
@@ -152,6 +150,52 @@
         <Setter Property="FontSize" Value="12" />
         <Setter Property="Foreground" Value="{DynamicResource AppTextSecondary}" />
         <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <!-- ===== Group node (inline accordion header) ===== -->
+    <!-- A chromeless full-width ToggleButton; IsChecked is bound to IsExpanded, so a
+         mouse click or Enter/Space toggles the group. Looks like a compact section
+         row (subtle block), never a TreeView node. -->
+    <Style Selector="ToggleButton.picker-group">
+        <Setter Property="Background" Value="{DynamicResource AppSurface}" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="Padding" Value="10,8" />
+        <Setter Property="Margin" Value="0,0,0,4" />
+        <Setter Property="MinHeight" Value="44" />
+        <Setter Property="HorizontalAlignment" Value="Stretch" />
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        <Setter Property="Cursor" Value="Hand" />
+    </Style>
+    <Style Selector="ToggleButton.picker-group /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Padding" Value="0" />
+    </Style>
+    <Style Selector="ToggleButton.picker-group:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource AppSurfaceAlt}" />
+    </Style>
+    <Style Selector="ToggleButton.picker-group:checked /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource AppSurfaceAlt}" />
+    </Style>
+    <Style Selector="ToggleButton.picker-group:focus-visible /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="BorderBrush" Value="{DynamicResource PickerFocusBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+    </Style>
+
+    <!-- Expand/collapse chevron: right when collapsed, down when expanded (glyph swap,
+         mirroring the card-expand ToggleButton — no rotation converter in the project). -->
+    <Style Selector="ToggleButton.picker-group TextBlock.picker-group-chevron">
+        <Setter Property="FontFamily" Value="{DynamicResource MdiFont}" />
+        <Setter Property="FontSize" Value="18" />
+        <Setter Property="Foreground" Value="{DynamicResource AppTextSecondary}" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="Width" Value="24" />
+        <Setter Property="Text" Value="&#xF0142;" />
+        <!-- mdi-chevron-right -->
+    </Style>
+    <Style Selector="ToggleButton.picker-group:checked TextBlock.picker-group-chevron">
+        <Setter Property="Text" Value="&#xF0140;" />
+        <!-- mdi-chevron-down -->
+        <Setter Property="Foreground" Value="{DynamicResource AppTextPrimary}" />
     </Style>
 
     <!-- ===== Command row ===== -->

@@ -13,9 +13,11 @@ namespace LoupixDeck.ViewModels.CommandPicker;
 /// Reusable view-model for the card-based command picker (issue #171). It projects
 /// the host's <c>SystemCommandMenus</c> (<see cref="MenuEntry"/> group→leaf tree,
 /// filled by <c>IMenuTreeBuilder.BuildInto</c>) into a sectioned category-card grid
-/// with a searchable command list. Selection and search live here; command
-/// insertion stays with the host (the View raises activation/drag events carrying the
-/// selected leaf <see cref="MenuEntry"/>).
+/// with a searchable command list. Categories can nest arbitrarily deep (e.g. Audio's
+/// <c>device → commands</c>); the detail area shows those sub-groups as inline
+/// accordion sections. Selection and search live here; command insertion stays with
+/// the host (the View raises activation/drag events carrying the selected leaf
+/// <see cref="MenuEntry"/>).
 /// </summary>
 public partial class CommandPickerViewModel : ViewModelBase
 {
@@ -32,7 +34,12 @@ public partial class CommandPickerViewModel : ViewModelBase
 
     private readonly ObservableCollection<MenuEntry> _source;
     private readonly List<MenuEntry> _subscribedGroups = [];
-    private readonly List<CommandRowViewModel> _allRows = [];
+
+    // Every insertable leaf across all categories, flattened for search (each remembers
+    // the group path it lives under so results can be grouped by that path).
+    private readonly List<SearchLeaf> _searchLeaves = [];
+
+    private sealed record SearchLeaf(CommandRowViewModel Row, string GroupPath, string GroupIcon);
 
     /// <summary>Sections shown as the card grid when not searching.</summary>
     public ObservableCollection<CommandSectionViewModel> Sections { get; } = [];
@@ -137,11 +144,10 @@ public partial class CommandPickerViewModel : ViewModelBase
     private void Rebuild()
     {
         var previousCategory = SelectedCategory?.Title;
-        var previousCommand = SelectedCommand?.Title;
 
         UnsubscribeGroups();
         Sections.Clear();
-        _allRows.Clear();
+        _searchLeaves.Clear();
         SelectedCategory = null;
         SelectedCommand = null;
 
@@ -158,7 +164,9 @@ public partial class CommandPickerViewModel : ViewModelBase
             var icon = string.IsNullOrEmpty(group.Icon) ? PluginFallbackIcon : group.Icon;
             var categoryVm = new CommandCategoryViewModel(group, icon);
             sectionVm.Categories.Add(categoryVm);
-            _allRows.AddRange(categoryVm.Commands);
+
+            // Flatten every leaf in the category subtree for search.
+            CollectLeaves(group, group.Name, icon, _searchLeaves);
 
             SubscribeGroup(group);
         }
@@ -170,13 +178,13 @@ public partial class CommandPickerViewModel : ViewModelBase
                 Sections.Add(sectionVm);
         }
 
-        RestoreSelection(previousCategory, previousCommand);
+        RestoreSelection(previousCategory);
 
         if (IsSearching)
             ApplyFilter();
     }
 
-    private void RestoreSelection(string categoryTitle, string commandTitle)
+    private void RestoreSelection(string categoryTitle)
     {
         CommandCategoryViewModel target = null;
 
@@ -189,16 +197,28 @@ public partial class CommandPickerViewModel : ViewModelBase
 
         // Default to the first category so the detail area is never empty on open.
         target ??= Sections.SelectMany(s => s.Categories).FirstOrDefault();
-        if (target == null)
-            return;
+        if (target != null)
+            SelectCategory(target);
+    }
 
-        SelectCategory(target);
-
-        if (commandTitle != null)
+    /// <summary>
+    /// Walks a category subtree, emitting one <see cref="SearchLeaf"/> per insertable
+    /// command and remembering the group path (e.g. "Audio / Realtek Speakers") so
+    /// search results can be grouped by that path.
+    /// </summary>
+    private static void CollectLeaves(MenuEntry node, string path, string icon, List<SearchLeaf> output)
+    {
+        foreach (MenuEntry child in node.Children)
         {
-            var command = target.Commands.FirstOrDefault(r => r.Title == commandTitle);
-            if (command != null)
-                SelectCommand(command);
+            if (child.IsGroup())
+            {
+                var childIcon = string.IsNullOrEmpty(child.Icon) ? icon : child.Icon;
+                CollectLeaves(child, $"{path} / {child.Name}", childIcon, output);
+            }
+            else if (child.IsCommand())
+            {
+                output.Add(new SearchLeaf(new CommandRowViewModel(child, icon), path, icon));
+            }
         }
     }
 
@@ -212,13 +232,23 @@ public partial class CommandPickerViewModel : ViewModelBase
 
         var query = SearchText.Trim();
 
-        foreach (var section in Sections)
-            foreach (var category in section.Categories)
+        // Preserve tree order while grouping matches by their group path.
+        var groups = new Dictionary<string, CommandSearchGroupViewModel>(StringComparer.Ordinal);
+
+        foreach (var leaf in _searchLeaves)
+        {
+            if (!Matches(leaf.Row, query))
+                continue;
+
+            if (!groups.TryGetValue(leaf.GroupPath, out var group))
             {
-                var matches = category.Commands.Where(r => Matches(r, query)).ToList();
-                if (matches.Count > 0)
-                    SearchResults.Add(new CommandSearchGroupViewModel(category.Title, category.Icon, matches));
+                group = new CommandSearchGroupViewModel(leaf.GroupPath, leaf.GroupIcon, []);
+                groups[leaf.GroupPath] = group;
+                SearchResults.Add(group);
             }
+
+            group.Commands.Add(leaf.Row);
+        }
     }
 
     private static bool Matches(CommandRowViewModel row, string query) =>
