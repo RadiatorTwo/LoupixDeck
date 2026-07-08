@@ -131,7 +131,8 @@ public class LoupedeckCtDevice : LoupedeckDevice
 
     /// <inheritdoc />
     /// <remarks>Side panels (12/13) are owned by the rotary-label renderer, same as Razer.</remarks>
-    public override async Task DrawTouchButton(TouchButton touchButton, LoupedeckConfig config, bool refresh, int columns)
+    public override async Task DrawTouchButton(TouchButton touchButton, LoupedeckConfig config, bool refresh, int columns,
+        bool autoRefresh = true)
     {
         ArgumentNullException.ThrowIfNull(touchButton);
 
@@ -145,7 +146,10 @@ public class LoupedeckCtDevice : LoupedeckDevice
             if (renderedBitmap == null) return;
         }
 
-        await DrawTouchButtonAt(touchButton.Index, touchButton.RenderedImage, refresh);
+        // autoRefresh (not refresh) drives the display DRAW: refresh only controls whether the
+        // button bitmap is re-rendered. The animation source stages several buttons with
+        // autoRefresh:false and issues one RefreshDisplay afterwards.
+        await DrawTouchButtonAt(touchButton.Index, touchButton.RenderedImage, autoRefresh);
     }
 
     /// <inheritdoc />

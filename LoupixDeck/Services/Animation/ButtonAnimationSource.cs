@@ -148,11 +148,22 @@ public sealed class ButtonAnimationSource : IAnimationSource, IDisposable
         _idle.Reset();
         try
         {
+            // Batch the tick: stage every changed button's framebuffer (autoRefresh: false)
+            // and issue a SINGLE display refresh afterwards. Refreshing per button instead
+            // triggers a full-display DRAW for each one — the screen rebuilds slot-by-slot
+            // (tearing) and every button pays a DRAW round-trip. One refresh per tick removes
+            // both. Track whether anything was actually staged so we don't refresh for nothing.
+            var staged = false;
             foreach (var button in dirty)
             {
                 if (context.CancellationToken.IsCancellationRequested) return;
-                await device.DrawTouchButton(button, _config, refresh: true, columns).ConfigureAwait(false);
+                await device.DrawTouchButton(button, _config, refresh: true, columns, autoRefresh: false)
+                    .ConfigureAwait(false);
+                staged = true;
             }
+
+            if (staged && !context.CancellationToken.IsCancellationRequested)
+                await device.RefreshDisplay("center").ConfigureAwait(false);
         }
         finally
         {

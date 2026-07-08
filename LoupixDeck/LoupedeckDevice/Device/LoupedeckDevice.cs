@@ -890,11 +890,18 @@ public class LoupedeckDevice
     /// <summary>
     /// Draws a touch button on the corresponding key, optionally with an image and text overlay.
     /// </summary>
+    /// <param name="autoRefresh">
+    /// When true (default) the framebuffer write is followed by an immediate display refresh.
+    /// Pass false to only stage the framebuffer and trigger a single <see cref="RefreshDisplay"/>
+    /// after drawing several buttons — this avoids one full-display refresh per button (the
+    /// slot-by-slot rebuild/tearing) and the per-button DRAW round-trip.
+    /// </param>
     public virtual async Task DrawTouchButton(
         TouchButton touchButton,
         LoupedeckConfig config,
         bool refresh,
-        int columns)
+        int columns,
+        bool autoRefresh = true)
     {
         ArgumentNullException.ThrowIfNull(touchButton);
 
@@ -907,7 +914,7 @@ public class LoupedeckDevice
 
         try
         {
-            await DrawKey(touchButton.Index, touchButton.RenderedImage);
+            await DrawKey(touchButton.Index, touchButton.RenderedImage, autoRefresh);
         }
         catch (TimeoutException ex)
         {
@@ -1041,6 +1048,28 @@ public class LoupedeckDevice
         ArgumentNullException.ThrowIfNull(bitmap);
 
         await DrawCanvas(id, 0, 0, bitmap, autoRefresh: refresh);
+    }
+
+    /// <summary>
+    /// Triggers a single display refresh, for callers that staged one or more framebuffer
+    /// writes with <c>autoRefresh: false</c> (e.g. the animation source drawing several
+    /// buttons per tick) and want exactly one DRAW afterwards. Errors are swallowed like the
+    /// other draw entry points so a mid-teardown refresh cannot crash the render loop.
+    /// </summary>
+    public async Task RefreshDisplay(string id = "center")
+    {
+        try
+        {
+            await Refresh(id);
+        }
+        catch (TimeoutException ex)
+        {
+            Console.WriteLine($"Timeout occurred: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Unexpected error: {ex.Message}");
+        }
     }
 
     /// <summary>

@@ -101,13 +101,14 @@ public class RazerStreamControllerDevice : LoupedeckDevice
     /// <see cref="DrawTouchSlot"/> on rotary-page changes. Skipping them here keeps
     /// touch-page redraws from overwriting the rotary labels.
     /// </summary>
-    public override async Task DrawTouchButton(TouchButton touchButton, LoupedeckConfig config, bool refresh, int columns)
+    public override async Task DrawTouchButton(TouchButton touchButton, LoupedeckConfig config, bool refresh, int columns,
+        bool autoRefresh = true)
     {
         ArgumentNullException.ThrowIfNull(touchButton);
 
         if (touchButton.Index < Columns * Rows)
         {
-            await base.DrawTouchButton(touchButton, config, refresh, columns);
+            await base.DrawTouchButton(touchButton, config, refresh, columns, autoRefresh);
             return;
         }
 
