@@ -123,6 +123,7 @@ public class SysCommandService : ISysCommandService
                 Group = entry.Attribute.Group,
                 ParameterTemplate = entry.Attribute.ParameterTemplate,
                 Hidden = entry.Attribute.Hidden,
+                RequiresSideStrips = entry.Attribute.RequiresSideStrips,
                 Parameters = CreateParameterDescriptors(entry.Attribute)
             };
         }
@@ -139,6 +140,7 @@ public class SysCommandService : ISysCommandService
             Group = kvp.Value.Attribute.Group,
             ParameterTemplate = kvp.Value.Attribute.ParameterTemplate,
             Hidden = kvp.Value.Attribute.Hidden,
+            RequiresSideStrips = kvp.Value.Attribute.RequiresSideStrips,
             Parameters = CreateParameterDescriptors(kvp.Value.Attribute)
         });
     }

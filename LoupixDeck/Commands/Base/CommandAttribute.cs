@@ -33,4 +33,13 @@ public class CommandAttribute(
     /// developer commands that should not be user-discoverable.
     /// </summary>
     public bool Hidden { get; set; }
+
+    /// <summary>
+    /// When true the command is only listed in the command-selection menu for devices
+    /// that have separate side-display rotary areas (<c>HasSideStrips</c>: Loupedeck Live,
+    /// Razer Stream Controller, Loupedeck CT). Devices without them (e.g. the Loupedeck
+    /// Live S) never see it. Like <see cref="Hidden"/>, this only affects menu listing —
+    /// the command stays registered and executable by name.
+    /// </summary>
+    public bool RequiresSideStrips { get; set; }
 }

@@ -1,7 +1,10 @@
 using LoupixDeck.Commands.Base;
 using LoupixDeck.Controllers;
+using LoupixDeck.Models;
 
 namespace LoupixDeck.Commands;
+
+// ── Touch pages ───────────────────────────────────────────────────────────────────────
 
 [Command("System.NextPage","Next Touch Page", "Pages")]
 public class PreviousTouchPageCommand(LoupedeckLiveSController loupedeck) : IExecutableCommand
@@ -35,6 +38,33 @@ public class NextTouchPageCommand(LoupedeckLiveSController loupedeck) : IExecuta
     }
 }
 
+[Command("System.GotoPage", "Go to Touch Page by number", "Pages",
+    parameterTemplate: "({Page})",
+    parameterNames: ["Page"],
+    parameterTypes: [typeof(int)])]
+public class GotoPageCommand(IDeviceController controller) : IExecutableCommand
+{
+    public Task Execute(string[] parameters)
+    {
+        if (parameters.Length != 1 || !int.TryParse(parameters[0], out var page))
+        {
+            Console.WriteLine("Usage: System.GotoPage(pageNumber) — 1-based");
+            return Task.CompletedTask;
+        }
+        var index = page - 1;
+        var pages = controller.PageManager.TouchButtonPages;
+        if (index < 0 || index >= pages.Count)
+        {
+            Console.WriteLine($"Touch page {page} out of range (1-{pages.Count})");
+            return Task.CompletedTask;
+        }
+        controller.AnimateGotoTouchPage(index);
+        return Task.CompletedTask;
+    }
+}
+
+// ── Rotary pages — global (both columns on side-strip devices) ─────────────────────────
+
 [Command("System.NextRotaryPage","Next Rotary Page", "Pages")]
 public class NextRotaryPageCommand(LoupedeckLiveSController loupedeck) : IExecutableCommand
 {
@@ -67,31 +97,6 @@ public class PreviousRotaryPageCommand(LoupedeckLiveSController loupedeck) : IEx
     }
 }
 
-[Command("System.GotoPage", "Go to Touch Page by number", "Pages",
-    parameterTemplate: "({Page})",
-    parameterNames: ["Page"],
-    parameterTypes: [typeof(int)])]
-public class GotoPageCommand(IDeviceController controller) : IExecutableCommand
-{
-    public Task Execute(string[] parameters)
-    {
-        if (parameters.Length != 1 || !int.TryParse(parameters[0], out var page))
-        {
-            Console.WriteLine("Usage: System.GotoPage(pageNumber) — 1-based");
-            return Task.CompletedTask;
-        }
-        var index = page - 1;
-        var pages = controller.PageManager.TouchButtonPages;
-        if (index < 0 || index >= pages.Count)
-        {
-            Console.WriteLine($"Touch page {page} out of range (1-{pages.Count})");
-            return Task.CompletedTask;
-        }
-        controller.AnimateGotoTouchPage(index);
-        return Task.CompletedTask;
-    }
-}
-
 [Command("System.GotoRotaryPage", "Go to Rotary Page by number", "Pages",
     parameterTemplate: "({Page})",
     parameterNames: ["Page"],
@@ -113,6 +118,127 @@ public class GotoRotaryPageCommand(IDeviceController controller) : IExecutableCo
             return Task.CompletedTask;
         }
         controller.AnimateGotoRotaryPage(index);
+        return Task.CompletedTask;
+    }
+}
+
+// ── Rotary pages — per side (issue #138) ──────────────────────────────────────────────
+// Only offered on devices with separate side-display rotary areas (RequiresSideStrips);
+// the Loupedeck Live S never sees them. The global commands above already page both
+// columns, so there is no separate "both" variant.
+
+[Command("System.NextRotaryPageLeft", "Next Left Rotary Page", "Pages", RequiresSideStrips = true)]
+public class NextLeftRotaryPageCommand(IDeviceController controller) : IExecutableCommand
+{
+    public Task Execute(string[] parameters)
+    {
+        if (parameters.Length != 0)
+        {
+            Console.WriteLine("Invalid Parameter count");
+            return Task.CompletedTask;
+        }
+
+        controller.AnimateRotaryPageForSide(RotarySide.Left, next: true);
+        return Task.CompletedTask;
+    }
+}
+
+[Command("System.PreviousRotaryPageLeft", "Previous Left Rotary Page", "Pages", RequiresSideStrips = true)]
+public class PreviousLeftRotaryPageCommand(IDeviceController controller) : IExecutableCommand
+{
+    public Task Execute(string[] parameters)
+    {
+        if (parameters.Length != 0)
+        {
+            Console.WriteLine("Invalid Parameter count");
+            return Task.CompletedTask;
+        }
+
+        controller.AnimateRotaryPageForSide(RotarySide.Left, next: false);
+        return Task.CompletedTask;
+    }
+}
+
+[Command("System.GotoRotaryPageLeft", "Go to Left Rotary Page by number", "Pages",
+    parameterTemplate: "({Page})",
+    parameterNames: ["Page"],
+    parameterTypes: [typeof(int)],
+    RequiresSideStrips = true)]
+public class GotoLeftRotaryPageCommand(IDeviceController controller) : IExecutableCommand
+{
+    public Task Execute(string[] parameters)
+    {
+        if (parameters.Length != 1 || !int.TryParse(parameters[0], out var page))
+        {
+            Console.WriteLine("Usage: System.GotoRotaryPageLeft(pageNumber) — 1-based");
+            return Task.CompletedTask;
+        }
+        var index = page - 1;
+        var pages = controller.PageManager.GetRotaryPages(RotarySide.Left);
+        if (index < 0 || index >= pages.Count)
+        {
+            Console.WriteLine($"Left rotary page {page} out of range (1-{pages.Count})");
+            return Task.CompletedTask;
+        }
+        controller.AnimateGotoRotaryPageForSide(RotarySide.Left, index);
+        return Task.CompletedTask;
+    }
+}
+
+[Command("System.NextRotaryPageRight", "Next Right Rotary Page", "Pages", RequiresSideStrips = true)]
+public class NextRightRotaryPageCommand(IDeviceController controller) : IExecutableCommand
+{
+    public Task Execute(string[] parameters)
+    {
+        if (parameters.Length != 0)
+        {
+            Console.WriteLine("Invalid Parameter count");
+            return Task.CompletedTask;
+        }
+
+        controller.AnimateRotaryPageForSide(RotarySide.Right, next: true);
+        return Task.CompletedTask;
+    }
+}
+
+[Command("System.PreviousRotaryPageRight", "Previous Right Rotary Page", "Pages", RequiresSideStrips = true)]
+public class PreviousRightRotaryPageCommand(IDeviceController controller) : IExecutableCommand
+{
+    public Task Execute(string[] parameters)
+    {
+        if (parameters.Length != 0)
+        {
+            Console.WriteLine("Invalid Parameter count");
+            return Task.CompletedTask;
+        }
+
+        controller.AnimateRotaryPageForSide(RotarySide.Right, next: false);
+        return Task.CompletedTask;
+    }
+}
+
+[Command("System.GotoRotaryPageRight", "Go to Right Rotary Page by number", "Pages",
+    parameterTemplate: "({Page})",
+    parameterNames: ["Page"],
+    parameterTypes: [typeof(int)],
+    RequiresSideStrips = true)]
+public class GotoRightRotaryPageCommand(IDeviceController controller) : IExecutableCommand
+{
+    public Task Execute(string[] parameters)
+    {
+        if (parameters.Length != 1 || !int.TryParse(parameters[0], out var page))
+        {
+            Console.WriteLine("Usage: System.GotoRotaryPageRight(pageNumber) — 1-based");
+            return Task.CompletedTask;
+        }
+        var index = page - 1;
+        var pages = controller.PageManager.GetRotaryPages(RotarySide.Right);
+        if (index < 0 || index >= pages.Count)
+        {
+            Console.WriteLine($"Right rotary page {page} out of range (1-{pages.Count})");
+            return Task.CompletedTask;
+        }
+        controller.AnimateGotoRotaryPageForSide(RotarySide.Right, index);
         return Task.CompletedTask;
     }
 }
