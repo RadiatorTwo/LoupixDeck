@@ -1,0 +1,180 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:LoupixDeck.ViewModels.CommandPicker"
+             mc:Ignorable="d"
+             x:Class="LoupixDeck.Views.CommandPickerView"
+             x:DataType="vm:CommandPickerViewModel"
+             x:CompileBindings="True">
+
+    <UserControl.Styles>
+        <StyleInclude Source="avares://LoupixDeck/Views/Styles/SettingsStyles.axaml" />
+        <StyleInclude Source="avares://LoupixDeck/Views/Styles/CommandPickerStyles.axaml" />
+    </UserControl.Styles>
+
+    <UserControl.Resources>
+        <!-- Shared command-row template (used by the detail list and search results). -->
+        <DataTemplate x:Key="CommandRowTemplate" x:DataType="vm:CommandRowViewModel">
+            <Border Classes="picker-row-face"
+                    Classes.selected="{Binding IsSelected}"
+                    Focusable="True"
+                    Background="Transparent"
+                    PointerPressed="Row_PointerPressed"
+                    DoubleTapped="Row_DoubleTapped"
+                    KeyDown="Row_KeyDown">
+                <Grid ColumnDefinitions="Auto,Auto,*">
+                    <Border Grid.Column="0" Classes="picker-row-bar" />
+                    <TextBlock Grid.Column="1" Classes="picker-row-icon" Text="{Binding Icon}" />
+                    <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                        <TextBlock Classes="picker-row-title" Text="{Binding Title}" />
+                        <TextBlock Classes="picker-row-desc" Text="{Binding Description}"
+                                   IsVisible="{Binding HasDescription}" />
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </DataTemplate>
+    </UserControl.Resources>
+
+    <Grid RowDefinitions="Auto,Auto,*,Auto"
+          Margin="4"
+          KeyDown="Root_KeyDown">
+
+        <!-- 1. Header -->
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="8,4,8,10">
+            <Image Source="avares://LoupixDeck/Assets/logo.png"
+                   Width="26" Height="26" VerticalAlignment="Center" />
+            <TextBlock Classes="picker-header" Text="LoupixDeck" Margin="10,0,0,0" />
+        </StackPanel>
+
+        <!-- 2. Search bar -->
+        <Border Grid.Row="1" Margin="8,0,8,10"
+                Background="{DynamicResource AppControlBackground}"
+                BorderBrush="{DynamicResource AppBorderSubtle}" BorderThickness="1"
+                CornerRadius="8" Padding="10,6">
+            <Grid ColumnDefinitions="Auto,*,Auto">
+                <TextBlock Grid.Column="0" FontFamily="{DynamicResource MdiFont}"
+                           Text="&#xF0349;" FontSize="18"
+                           Foreground="{DynamicResource AppTextSecondary}"
+                           VerticalAlignment="Center" Margin="0,0,8,0" />
+                <TextBox Grid.Column="1" Name="SearchBox"
+                         Text="{Binding SearchText, Mode=TwoWay}"
+                         Watermark="Search commands..."
+                         BorderThickness="0" Background="Transparent"
+                         VerticalAlignment="Center" />
+                <Border Grid.Column="2" Classes="picker-kbd">
+                    <TextBlock Text="Ctrl K" />
+                </Border>
+            </Grid>
+        </Border>
+
+        <!-- 3. Main area: card grid (or search results) on top, detail list below -->
+        <Grid Grid.Row="2" RowDefinitions="*,Auto">
+
+            <!-- Card grid + search results share the scroll region -->
+            <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto"
+                          HorizontalScrollBarVisibility="Disabled" Padding="4,0">
+              <Panel>
+
+                <!-- Card grid (normal mode) -->
+                <ItemsControl ItemsSource="{Binding Sections}"
+                              IsVisible="{Binding !IsSearching}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:CommandSectionViewModel">
+                            <StackPanel Margin="0,0,0,8">
+                                <!-- Section header -->
+                                <Grid ColumnDefinitions="Auto,*,Auto" Margin="4,10,4,4">
+                                    <TextBlock Grid.Column="0" Classes="picker-section-icon" Text="{Binding Icon}" />
+                                    <TextBlock Grid.Column="1" Classes="picker-section-title" Text="{Binding Title}" />
+                                    <ToggleButton Grid.Column="2" Classes="card-expand"
+                                                  IsChecked="{Binding IsExpanded, Mode=TwoWay}"
+                                                  ToolTip.Tip="Collapse / expand section" />
+                                </Grid>
+
+                                <!-- Two-column category cards -->
+                                <ItemsControl ItemsSource="{Binding Categories}"
+                                              IsVisible="{Binding IsExpanded}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <UniformGrid Columns="2" />
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:CommandCategoryViewModel">
+                                            <Button Classes="picker-card" Click="Card_Click">
+                                                <Border Classes="picker-card-face"
+                                                        Classes.selected="{Binding IsSelected}">
+                                                    <StackPanel>
+                                                        <Grid ColumnDefinitions="*,Auto">
+                                                            <TextBlock Grid.Column="0" Classes="picker-card-icon"
+                                                                       Text="{Binding Icon}" />
+                                                            <Border Grid.Column="1" Classes="picker-count">
+                                                                <TextBlock Text="{Binding Count}" />
+                                                            </Border>
+                                                        </Grid>
+                                                        <TextBlock Classes="picker-card-title" Text="{Binding Title}" />
+                                                        <TextBlock Classes="picker-card-desc" Text="{Binding Description}"
+                                                                   IsVisible="{Binding HasDescription}" />
+                                                    </StackPanel>
+                                                </Border>
+                                            </Button>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <!-- Search results (search mode) -->
+                <ItemsControl ItemsSource="{Binding SearchResults}"
+                              IsVisible="{Binding IsSearching}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:CommandSearchGroupViewModel">
+                            <StackPanel Margin="0,0,0,6">
+                                <Grid ColumnDefinitions="Auto,*" Margin="4,10,4,4">
+                                    <TextBlock Grid.Column="0" Classes="picker-section-icon"
+                                               FontSize="16" Width="22" Text="{Binding Icon}" />
+                                    <TextBlock Grid.Column="1" Classes="picker-detail-title" Text="{Binding Title}" />
+                                </Grid>
+                                <ItemsControl ItemsSource="{Binding Commands}"
+                                              ItemTemplate="{StaticResource CommandRowTemplate}" />
+                            </StackPanel>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </Panel>
+            </ScrollViewer>
+
+            <!-- 4./6./7. Detail area for the selected category (hidden while searching) -->
+            <Grid Grid.Row="1" RowDefinitions="Auto,Auto"
+                  IsVisible="{Binding HasSelectedCategory}">
+                <Border Grid.Row="0" Classes="picker-detail-header"
+                        IsVisible="{Binding !IsSearching}">
+                    <Grid ColumnDefinitions="Auto,*,Auto">
+                        <TextBlock Grid.Column="0" Classes="picker-detail-icon"
+                                   Text="{Binding SelectedCategory.Icon}" />
+                        <TextBlock Grid.Column="1" Classes="picker-detail-title"
+                                   Text="{Binding SelectedCategory.Title}" />
+                        <TextBlock Grid.Column="2" Classes="picker-detail-count"
+                                   Text="{Binding SelectedCategory.Count, StringFormat='{}{0} commands'}" />
+                    </Grid>
+                </Border>
+                <ScrollViewer Grid.Row="1" MaxHeight="240"
+                              VerticalScrollBarVisibility="Auto"
+                              HorizontalScrollBarVisibility="Disabled"
+                              IsVisible="{Binding !IsSearching}"
+                              Padding="4,0">
+                    <ItemsControl ItemsSource="{Binding SelectedCategory.Commands}"
+                                  ItemTemplate="{StaticResource CommandRowTemplate}" />
+                </ScrollViewer>
+            </Grid>
+        </Grid>
+
+        <!-- 9. Footer hint -->
+        <Border Grid.Row="3" Classes="picker-footer" Margin="4,6,4,0">
+            <TextBlock Classes="picker-footer-text"
+                       Text="Tip: Use &#x2191;&#x2193; to navigate, Enter to add, Esc to clear search" />
+        </Border>
+    </Grid>
+</UserControl>
