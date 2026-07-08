@@ -75,6 +75,20 @@ public sealed class ScreensaverAnimationSource : IAnimationSource, IDisposable
     private long _dbgDropped;
     private long _dbgWindowStart;
 
+    // Dirty-rect state: the BGRA bytes of the last frame pushed to each display, so we can send
+    // only the changed bounding rectangle instead of the whole buffer. Only touched from the
+    // scheduler's single render thread (PushFrameAsync is serialized), so no locking is needed.
+    // Opt out via LOUPIX_SS_FULLFRAME=1 to restore the always-full-frame path (a kill-switch if
+    // partial-region DRAWs ever tear on some hardware).
+    private static readonly bool _fullFrameOnly =
+        Environment.GetEnvironmentVariable("LOUPIX_SS_FULLFRAME") is "1" or "true" or "True";
+    private readonly Dictionary<string, byte[]> _prevFrames = [];
+
+    // A dirty rect covering at least this fraction of the display is sent as a full frame: the
+    // partial-DRAW saving is gone while the tearing risk remains, so a near-full change just
+    // takes the proven full-blit path.
+    private const double DirtyRectFullThreshold = 0.70;
+
     // Signaled while no frame is being pushed to the device. Dispose() waits on this so a
     // caller that closes the serial port right after (controller shutdown on app quit)
     // can't cut a full-screen framebuffer write mid-stream — that desyncs the device's
@@ -423,24 +437,24 @@ public sealed class ScreensaverAnimationSource : IAnimationSource, IDisposable
             foreach (var draw in draws)
             {
                 if (token.IsCancellationRequested) return;
-                // refresh:true — one atomic full-display FRAMEBUFF + DRAW per frame. A
-                // framebuffer write WITHOUT a DRAW does not reliably present on the device
-                // (the last DRAW'd page content stays visible), so the frame must be drawn.
-                // A single full-screen blit + DRAW is the no-tearing path (same as
-                // DrawTouchSlotsAtomic); only per-slot writes cause tearing.
+                // Push only the changed bounding rectangle vs. the previous frame (dirty-rect),
+                // falling back to a full-display blit when there's no previous frame, the change
+                // is near-full, or the opt-out is set. Either way it is one FRAMEBUFF + one DRAW
+                // per display: a framebuffer write WITHOUT a DRAW does not reliably present, and a
+                // single region + DRAW keeps the no-tearing property of the full-blit path.
                 if (_debug)
                 {
                     var ts = Stopwatch.GetTimestamp();
-                    await _device.DrawScreen(draw.Id, draw.Bitmap, refresh: true).ConfigureAwait(false);
+                    await PushDisplayAsync(draw.Id, draw.Bitmap).ConfigureAwait(false);
                     var ms = Stopwatch.GetElapsedTime(ts).TotalMilliseconds;
                     // Flag slow draws (a multi-second value means the FRAMEBUFF/DRAW ACK is
                     // timing out, not just slow serial throughput).
                     if (ms > 500)
-                        Console.WriteLine($"[Screensaver][perf] slow DrawScreen('{draw.Id}'): {ms:F0} ms");
+                        Console.WriteLine($"[Screensaver][perf] slow push('{draw.Id}'): {ms:F0} ms");
                 }
                 else
                 {
-                    await _device.DrawScreen(draw.Id, draw.Bitmap, refresh: true).ConfigureAwait(false);
+                    await PushDisplayAsync(draw.Id, draw.Bitmap).ConfigureAwait(false);
                 }
             }
         }
@@ -454,6 +468,152 @@ public sealed class ScreensaverAnimationSource : IAnimationSource, IDisposable
             }
             _idle.Set();
         }
+    }
+
+    /// <summary>
+    /// Pushes one display's frame, sending only the changed bounding rectangle relative to the
+    /// previous frame for that display. Falls back to a full <see cref="LoupedeckDevice.Device.LoupedeckDevice.DrawScreen"/>
+    /// on the first frame, when the change covers most of the display, or when the dirty-rect
+    /// path is disabled. When nothing changed, nothing is sent at all.
+    /// </summary>
+    private async Task PushDisplayAsync(string id, SKBitmap bitmap)
+    {
+        if (_fullFrameOnly)
+        {
+            await _device.DrawScreen(id, bitmap, refresh: true).ConfigureAwait(false);
+            return;
+        }
+
+        // Decide everything synchronously first: a Span (the pixel data) cannot be held across
+        // an await, so compute the dirty rect, crop the region, and stash the frame for the next
+        // diff BEFORE issuing any device I/O. `full` selects the full-blit fallback.
+        var full = false;
+        var rx = 0;
+        var ry = 0;
+        SKBitmap region = null;
+
+        {
+            var width = bitmap.Width;
+            var height = bitmap.Height;
+            var stride = bitmap.RowBytes;
+            var cur = bitmap.GetPixelSpan();
+
+            if (!_prevFrames.TryGetValue(id, out var prev) || prev.Length != cur.Length)
+            {
+                // First frame / geometry change for this display.
+                full = true;
+            }
+            else if (!TryGetDirtyRect(cur, prev, width, height, stride, out rx, out ry, out var rw, out var rh))
+            {
+                return; // identical to what's already on the display — send nothing
+            }
+            else if ((long)rw * rh >= (long)(width * height * DirtyRectFullThreshold))
+            {
+                // Near-full change: the partial-DRAW win is gone, take the proven full-blit path.
+                full = true;
+            }
+            else
+            {
+                // Crop the dirty rectangle into a tightly-packed bitmap (the device converter
+                // needs contiguous rows) under the shared Skia gate.
+                lock (SkiaRenderGate.Sync)
+                {
+                    region = new SKBitmap(new SKImageInfo(rw, rh, SKColorType.Bgra8888, SKAlphaType.Opaque));
+                    using var canvas = new SKCanvas(region);
+                    canvas.DrawBitmap(bitmap, new SKRect(rx, ry, rx + rw, ry + rh), new SKRect(0, 0, rw, rh));
+                }
+            }
+
+            StorePrevFrame(id, cur);
+        }
+
+        if (full)
+        {
+            await _device.DrawScreen(id, bitmap, refresh: true).ConfigureAwait(false);
+            return;
+        }
+
+        try
+        {
+            await _device.DrawScreenRegion(id, region, rx, ry, refresh: true).ConfigureAwait(false);
+        }
+        finally
+        {
+            lock (SkiaRenderGate.Sync) region.Dispose();
+        }
+    }
+
+    /// <summary>Stores a copy of the just-pushed frame for the next dirty-rect diff.</summary>
+    private void StorePrevFrame(string id, ReadOnlySpan<byte> cur)
+    {
+        if (!_prevFrames.TryGetValue(id, out var buf) || buf.Length != cur.Length)
+        {
+            buf = new byte[cur.Length];
+            _prevFrames[id] = buf;
+        }
+
+        cur.CopyTo(buf);
+    }
+
+    /// <summary>
+    /// Finds the bounding rectangle of the pixels that differ between <paramref name="cur"/> and
+    /// <paramref name="prev"/> (both BGRA, <paramref name="stride"/> bytes/row). Returns false
+    /// when the frames are identical. Changed rows are found with a vectorized per-row compare;
+    /// the horizontal bounds are then narrowed only within those rows.
+    /// </summary>
+    private static bool TryGetDirtyRect(ReadOnlySpan<byte> cur, ReadOnlySpan<byte> prev,
+        int width, int height, int stride, out int rx, out int ry, out int rw, out int rh)
+    {
+        rx = ry = rw = rh = 0;
+
+        var minY = -1;
+        var maxY = -1;
+        for (var y = 0; y < height; y++)
+        {
+            var off = y * stride;
+            if (cur.Slice(off, stride).SequenceEqual(prev.Slice(off, stride)))
+                continue;
+            if (minY < 0) minY = y;
+            maxY = y;
+        }
+
+        if (minY < 0) return false; // no change
+
+        var minX = width;
+        var maxX = -1;
+        for (var y = minY; y <= maxY; y++)
+        {
+            var rowOff = y * stride;
+            for (var x = 0; x < minX; x++)
+            {
+                var p = rowOff + (x * 4);
+                if (cur[p] != prev[p] || cur[p + 1] != prev[p + 1] ||
+                    cur[p + 2] != prev[p + 2] || cur[p + 3] != prev[p + 3])
+                {
+                    minX = x;
+                    break;
+                }
+            }
+
+            for (var x = width - 1; x > maxX; x--)
+            {
+                var p = rowOff + (x * 4);
+                if (cur[p] != prev[p] || cur[p + 1] != prev[p + 1] ||
+                    cur[p + 2] != prev[p + 2] || cur[p + 3] != prev[p + 3])
+                {
+                    maxX = x;
+                    break;
+                }
+            }
+        }
+
+        if (maxX < minX) return false; // defensive: rows changed but no column found
+
+        rx = minX;
+        ry = minY;
+        rw = (maxX - minX) + 1;
+        rh = (maxY - minY) + 1;
+        return true;
     }
 
     /// <summary>
@@ -510,6 +670,7 @@ public sealed class ScreensaverAnimationSource : IAnimationSource, IDisposable
         try { _cts?.Dispose(); } catch { /* ignore */ }
         _cts = null;
         try { _idle.Dispose(); } catch { /* ignore */ }
+        _prevFrames.Clear();
     }
 
     /// <summary>One display's slice of the panel: which buffer, the source rectangle in the

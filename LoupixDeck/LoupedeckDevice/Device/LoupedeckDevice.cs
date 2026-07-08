@@ -1051,6 +1051,20 @@ public class LoupedeckDevice
     }
 
     /// <summary>
+    /// Draws a sub-rectangle of a display: the <paramref name="subBitmap"/> (already cropped
+    /// to the changed region) is written at (<paramref name="x"/>, <paramref name="y"/>) in the
+    /// display buffer via a partial FRAMEBUFF. Used by the screensaver's dirty-rect path to send
+    /// only what changed between frames instead of the whole 480×270 buffer. The device-level
+    /// primitive (<c>DrawBuffer</c>) already supports the [x,y,w,h] region header.
+    /// </summary>
+    public async Task DrawScreenRegion(string id, SKBitmap subBitmap, int x, int y, bool refresh = true)
+    {
+        ArgumentNullException.ThrowIfNull(subBitmap);
+
+        await DrawCanvas(id, subBitmap.Width, subBitmap.Height, subBitmap, x, y, refresh);
+    }
+
+    /// <summary>
     /// Triggers a single display refresh, for callers that staged one or more framebuffer
     /// writes with <c>autoRefresh: false</c> (e.g. the animation source drawing several
     /// buttons per tick) and want exactly one DRAW afterwards. Errors are swallowed like the
