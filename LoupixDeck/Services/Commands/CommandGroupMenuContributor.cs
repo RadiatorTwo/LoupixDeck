@@ -19,11 +19,13 @@ public class CommandGroupMenuContributor : IMenuContributor
 
     private readonly ICommandRegistry _registry;
     private readonly IDeviceService _deviceService;
+    private readonly IGroupCatalog _groupCatalog;
 
-    public CommandGroupMenuContributor(ICommandRegistry registry, IDeviceService deviceService)
+    public CommandGroupMenuContributor(ICommandRegistry registry, IDeviceService deviceService, IGroupCatalog groupCatalog)
     {
         _registry = registry;
         _deviceService = deviceService;
+        _groupCatalog = groupCatalog;
     }
 
     public Task<IReadOnlyList<MenuEntry>> Contribute(ButtonTargets target)
@@ -44,9 +46,20 @@ public class CommandGroupMenuContributor : IMenuContributor
 
         foreach (var group in groups)
         {
-            var groupMenu = new MenuEntry(group.Key, string.Empty);
+            var groupInfo = _groupCatalog.Resolve(group.Key);
+            var groupMenu = new MenuEntry(group.Key, string.Empty)
+            {
+                Icon = groupInfo.Icon,
+                Description = groupInfo.Description,
+                Section = groupInfo.Section
+            };
+
             foreach (var command in group)
-                groupMenu.Children.Add(new MenuEntry(command.Info.DisplayName, command.CommandName));
+                groupMenu.Children.Add(new MenuEntry(command.Info.DisplayName, command.CommandName)
+                {
+                    Icon = command.Info.Icon,
+                    Description = command.Info.Description
+                });
 
             if (groupMenu.Children.Count > 0)
                 result.Add(groupMenu);

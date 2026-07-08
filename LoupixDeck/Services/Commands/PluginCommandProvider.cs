@@ -74,6 +74,8 @@ public class PluginCommandProvider : ICommandProvider
             CommandName = descriptor.CommandName,
             DisplayName = descriptor.DisplayName,
             Group = descriptor.Group,
+            Icon = descriptor.Icon,
+            Description = descriptor.Description,
             ParameterTemplate = descriptor.ParameterTemplate,
             Parameters = descriptor.Parameters
                 .Select(p => new ParameterDescriptor(p.Name, p.ParameterType))

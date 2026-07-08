@@ -16,6 +16,21 @@ public class MenuEntry(string name, string command, string parentName = null, Di
     public ObservableCollection<MenuEntry> Children { get; set; } = [];
 
     /// <summary>
+    /// Optional MDI glyph for the command picker. On a group entry it is the category
+    /// card icon; on a leaf it is the command-row icon (which falls back to the
+    /// category icon when null). Purely cosmetic — never persisted.
+    /// </summary>
+    public string Icon { get; set; }
+
+    /// <summary>Optional one-line description: the category card subtitle on a group
+    /// entry, the command-row subtitle on a leaf. Purely cosmetic — never persisted.</summary>
+    public string Description { get; set; }
+
+    /// <summary>On a group entry, the picker section (Core / Macros / Plugins) the
+    /// category is filed under. Null on leaves (and treated as Plugins when unset).</summary>
+    public CommandGroupSection? Section { get; set; }
+
+    /// <summary>
     /// When set, this entry is a rotary command group: each <see cref="RotaryAction"/>
     /// maps to a fully-built, ready-to-persist command string. Applying the group
     /// writes each action's string into the matching rotary slot. Null for normal

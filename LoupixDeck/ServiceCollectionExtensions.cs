@@ -225,6 +225,10 @@ public static class ServiceCollectionExtensions
         collection.AddSingleton<ICommandProvider, PluginCommandProvider>();
         collection.AddSingleton<ICommandRegistry, CommandRegistry>();
 
+        // Resolves per-category card metadata (section/icon/description) for the
+        // command picker, from core [CommandGroup] attributes and plugin descriptors.
+        collection.AddSingleton<IGroupCatalog, GroupCatalog>();
+
         // The command-selection menu is assembled generically from these contributors.
         collection.AddSingleton<IMenuContributor, CommandGroupMenuContributor>();
         collection.AddSingleton<IMenuContributor, UserMacroMenuContributor>();
