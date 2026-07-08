@@ -9,6 +9,7 @@ using LoupixDeck.Services.Commands;
 using LoupixDeck.Services.Plugins;
 using LoupixDeck.Utils;
 using LoupixDeck.ViewModels.Base;
+using LoupixDeck.ViewModels.CommandPicker;
 using SkiaSharp;
 
 namespace LoupixDeck.ViewModels;
@@ -353,7 +354,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     public IAsyncRelayCommand AddImageLayerCommand => field ??= Relay.Create(AddImageLayer);
     public IAsyncRelayCommand AddAnimatedImageLayerCommand => field ??= Relay.Create(AddAnimatedImageLayer);
     public IRelayCommand AddTextLayerCommand => field ??= Relay.Create(AddTextLayer);
-    public IAsyncRelayCommand  AddSymbolLayerCommand => field ??= Relay.Create(AddSymbolLayer);
+    public IAsyncRelayCommand AddSymbolLayerCommand => field ??= Relay.Create(AddSymbolLayer);
     public IRelayCommand RemoveLayerCommand => field ??= Relay.Create(RemoveSelectedLayer);
     public IRelayCommand MoveLayerUpCommand => field ??= Relay.Create(MoveSelectedLayerUp);
     public IRelayCommand MoveLayerDownCommand => field ??= Relay.Create(MoveSelectedLayerDown);
@@ -483,24 +484,27 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     private double Hx(double cx) => cx - (HandleSize / 2.0);
     private double Hy(double cy) => cy - (HandleSize / 2.0);
     public double HandleNwLeft => Hx(SelectionLeft);
-    public double HandleNwTop  => Hy(SelectionTop);
+    public double HandleNwTop => Hy(SelectionTop);
     public double HandleNeLeft => Hx(SelectionLeft + SelectionWidth);
-    public double HandleNeTop  => Hy(SelectionTop);
+    public double HandleNeTop => Hy(SelectionTop);
     public double HandleSwLeft => Hx(SelectionLeft);
-    public double HandleSwTop  => Hy(SelectionTop + SelectionHeight);
+    public double HandleSwTop => Hy(SelectionTop + SelectionHeight);
     public double HandleSeLeft => Hx(SelectionLeft + SelectionWidth);
-    public double HandleSeTop  => Hy(SelectionTop + SelectionHeight);
-    public double HandleNLeft  => Hx(SelectionLeft + (SelectionWidth / 2.0));
-    public double HandleNTop   => Hy(SelectionTop);
-    public double HandleSLeft  => Hx(SelectionLeft + (SelectionWidth / 2.0));
-    public double HandleSTop   => Hy(SelectionTop + SelectionHeight);
-    public double HandleWLeft  => Hx(SelectionLeft);
-    public double HandleWTop   => Hy(SelectionTop + (SelectionHeight / 2.0));
-    public double HandleELeft  => Hx(SelectionLeft + SelectionWidth);
-    public double HandleETop   => Hy(SelectionTop + (SelectionHeight / 2.0));
+    public double HandleSeTop => Hy(SelectionTop + SelectionHeight);
+    public double HandleNLeft => Hx(SelectionLeft + (SelectionWidth / 2.0));
+    public double HandleNTop => Hy(SelectionTop);
+    public double HandleSLeft => Hx(SelectionLeft + (SelectionWidth / 2.0));
+    public double HandleSTop => Hy(SelectionTop + SelectionHeight);
+    public double HandleWLeft => Hx(SelectionLeft);
+    public double HandleWTop => Hy(SelectionTop + (SelectionHeight / 2.0));
+    public double HandleELeft => Hx(SelectionLeft + SelectionWidth);
+    public double HandleETop => Hy(SelectionTop + (SelectionHeight / 2.0));
 
     public ObservableCollection<MenuEntry> SystemCommandMenus { get; set; }
     public MenuEntry CurrentMenuEntry { get; set; }
+
+    /// <summary>The card-based command picker (issue #171).</summary>
+    public CommandPickerViewModel CommandPicker { get; }
 
     public ObservableCollection<VibrationPatternItem> VibrationPatterns => VibrationPatternCatalog.All;
 
@@ -759,6 +763,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         _sideStripRegistry.ProvidersChanged += OnStripProvidersChanged;
 
         SystemCommandMenus = new ObservableCollection<MenuEntry>();
+        CommandPicker = new CommandPickerViewModel(SystemCommandMenus);
     }
 
     public async Task InitializeAsync()
@@ -1108,6 +1113,8 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
 
         foreach (var slot in CommandSlots)
             slot.Cleanup();
+
+        CommandPicker.Cleanup();
     }
 
     private void OnStripProvidersChanged()

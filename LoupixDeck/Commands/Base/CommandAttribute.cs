@@ -21,8 +21,21 @@ public class CommandAttribute(
     public string Group { get; } = group;
     public string ParameterTemplate { get; set; } = parameterTemplate;
 
+    /// <summary>
+    /// Optional Material Design Icons glyph (a single UTF-32 code point as a string,
+    /// e.g. <c>"\U000F040A"</c>) shown next to the command in the command picker.
+    /// Null falls back to the category's icon. Purely cosmetic — never persisted.
+    /// </summary>
+    public string Icon { get; set; }
+
+    /// <summary>
+    /// Optional one-line description shown as the command's subtitle in the picker.
+    /// Null shows no subtitle. Purely cosmetic — never persisted.
+    /// </summary>
+    public string Description { get; set; }
+
     public string[] ParameterNames { get; } = parameterNames;
-    public Type[] ParameterTypes { get; } =  parameterTypes;
+    public Type[] ParameterTypes { get; } = parameterTypes;
 
     public CommandPlatform Platform { get; set; } = CommandPlatform.All;
 

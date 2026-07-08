@@ -64,6 +64,9 @@
                     <!-- Subtle accent tint behind an active/selected slot (pairs with the
                          theme-invariant blue accent border). -->
                     <SolidColorBrush x:Key="AppAccentSubtle" Color="#1F2A3A" />
+                    <!-- Violet tint behind a selected command-picker card (pairs with
+                         the theme-invariant violet accent border). -->
+                    <SolidColorBrush x:Key="PickerAccentSubtle" Color="#241B33" />
                     <SolidColorBrush x:Key="AppTextPrimary" Color="#E4E4E4" />
                     <SolidColorBrush x:Key="AppTextSecondary" Color="#9A9A9A" />
                     <SolidColorBrush x:Key="AppTextMuted" Color="#707070" />
@@ -96,6 +99,9 @@
                     <!-- Subtle accent tint behind an active/selected slot (pairs with the
                          theme-invariant blue accent border). -->
                     <SolidColorBrush x:Key="AppAccentSubtle" Color="#D6E8FB" />
+                    <!-- Violet tint behind a selected command-picker card (pairs with
+                         the theme-invariant violet accent border). -->
+                    <SolidColorBrush x:Key="PickerAccentSubtle" Color="#EDE7FB" />
                     <SolidColorBrush x:Key="AppTextPrimary" Color="#1C1C1C" />
                     <SolidColorBrush x:Key="AppTextSecondary" Color="#5C5C5C" />
                     <SolidColorBrush x:Key="AppTextMuted" Color="#8A8A8A" />
@@ -129,6 +135,13 @@
             <SolidColorBrush x:Key="PageActiveBrush" Color="#FF2F7DD1" />
             <SolidColorBrush x:Key="PageActiveBorderBrush" Color="#FF3D9BFF" />
             <SolidColorBrush x:Key="PageChipBorderBrush" Color="#FF454545" />
+
+            <!-- Command-picker accent (violet, theme-invariant): marks the selected
+                 category card and command row. Keyboard focus uses the separate blue
+                 PickerFocusBrush so focus never reads as selection (issue #171). -->
+            <SolidColorBrush x:Key="PickerAccentBrush" Color="#FF8B5CF6" />
+            <SolidColorBrush x:Key="PickerAccentBorderBrush" Color="#FFA78BFA" />
+            <SolidColorBrush x:Key="PickerFocusBrush" Color="#FF4DA3FF" />
 
             <DropShadowEffect x:Key="InnerShadow"
                               Color="#77000000"

@@ -18,13 +18,10 @@ public partial class SimpleButtonSettings : Window
     private Point _segmentDragStart;
     private bool _segmentDragging;
 
-    // Tree node armed for a drag-to-insert; promoted to a real drag once the pointer
-    // moves past the threshold (so a click/double-click is not swallowed). We use the
-    // same pointer-capture approach as the chip reorder rather than the OS drag loop,
-    // which keeps double-click-to-append working.
-    private MenuEntry _treeDragCandidate;
-    private Point _treeDragStart;
-    private bool _treeDragging;
+    // The command being dragged from the picker into the sequence; null when idle.
+    // The picker (CommandPickerView) owns the pointer capture and threshold and raises
+    // drag lifecycle events; this window only positions the ghost / drop marker.
+    private MenuEntry _pickerDragEntry;
 
     public SimpleButtonSettings()
     {
@@ -34,6 +31,12 @@ public partial class SimpleButtonSettings : Window
         // leading arrow) after every layout pass — covers adds, removes, reorders
         // and resizes that re-wrap the sequence.
         CommandList.LayoutUpdated += (_, _) => UpdateConnectorVisibility();
+
+        // Card-based command picker → sequence-strip assignment (issue #171).
+        PickerControl.CommandActivated += Picker_CommandActivated;
+        PickerControl.CommandDragStarted += Picker_CommandDragStarted;
+        PickerControl.CommandDragMoved += Picker_CommandDragMoved;
+        PickerControl.CommandDragReleased += Picker_CommandDragReleased;
 
         Closing += (_, _) =>
         {
@@ -222,41 +225,50 @@ public partial class SimpleButtonSettings : Window
         }
     }
 
-    // Drag a command from the tree into the chain at a specific position. Mirrors the
-    // chip reorder: arm on press, promote to a drag past a small threshold, then track
-    // the pointer (captured on the tree) and insert on release when over the chain.
+    // Drag a command from the picker into the chain at a specific position. The picker
+    // owns the pointer capture and movement threshold; this window just tracks the ghost
+    // and drop marker and inserts on release when the pointer is over the chain.
 
-    private void SystemCommandsTree_PointerMoved(object sender, PointerEventArgs e)
+    private void Picker_CommandActivated(object sender, MenuEntry entry)
     {
-        if (_treeDragCandidate == null)
+        if (entry != null && DataContext is SimpleButtonSettingsViewModel vm)
+            vm.InsertCommand(entry);
+    }
+
+    private void Picker_CommandDragStarted(object sender, CommandDragEventArgs e)
+    {
+        _pickerDragEntry = e.Entry;
+        ShowDragGhost(e.Entry?.Name);
+        Picker_CommandDragMoved(sender, e);
+    }
+
+    private void Picker_CommandDragMoved(object sender, CommandDragEventArgs e)
+    {
+        if (_pickerDragEntry == null)
             return;
 
-        var point = e.GetCurrentPoint(this);
-        if (!point.Properties.IsLeftButtonPressed)
-        {
-            EndTreeDrag(e.Pointer);
-            return;
-        }
+        UpdateDragGhost(e.Pointer);
 
-        var pos = point.Position;
-        if (!_treeDragging)
-        {
-            if (Math.Abs(pos.X - _treeDragStart.X) < 4 && Math.Abs(pos.Y - _treeDragStart.Y) < 4)
-                return;
-
-            _treeDragging = true;
-            e.Pointer.Capture(SystemCommandsTreeView);
-            ShowDragGhost(_treeDragCandidate?.Name);
-        }
-
-        UpdateDragGhost(e);
-
-        var over = IsOverDropZone(e);
+        var over = IsOverDropZone(e.Pointer);
         CommandDropZone.Classes.Set("drop-active", over);
         if (over)
-            UpdateDropMarker(FindDropIndex(e));
+            UpdateDropMarker(FindDropIndex(e.Pointer));
         else
             HideDropMarker();
+    }
+
+    private void Picker_CommandDragReleased(object sender, CommandDragEventArgs e)
+    {
+        if (_pickerDragEntry != null && IsOverDropZone(e.Pointer) &&
+            DataContext is SimpleButtonSettingsViewModel vm)
+        {
+            vm.InsertCommandAt(_pickerDragEntry, FindDropIndex(e.Pointer));
+        }
+
+        _pickerDragEntry = null;
+        HideDragGhost();
+        HideDropMarker();
+        CommandDropZone.Classes.Set("drop-active", false);
     }
 
     private void ShowDragGhost(string label)
@@ -278,77 +290,11 @@ public partial class SimpleButtonSettings : Window
 
     private void HideDragGhost() => DragGhostLayer.IsVisible = false;
 
-    private void SystemCommandsTree_PointerReleased(object sender, PointerReleasedEventArgs e)
-    {
-        if (_treeDragging && _treeDragCandidate != null &&
-            DataContext is SimpleButtonSettingsViewModel vm && IsOverDropZone(e))
-        {
-            vm.InsertCommandAt(_treeDragCandidate, FindDropIndex(e));
-        }
-
-        EndTreeDrag(e.Pointer);
-    }
-
-    private void SystemCommandsTree_PointerCaptureLost(object sender, PointerCaptureLostEventArgs e)
-        => EndTreeDrag(null);
-
-    private void EndTreeDrag(IPointer pointer)
-    {
-        _treeDragCandidate = null;
-        _treeDragging = false;
-        HideDragGhost();
-        HideDropMarker();
-        CommandDropZone.Classes.Set("drop-active", false);
-        pointer?.Capture(null);
-    }
-
     private bool IsOverDropZone(PointerEventArgs e)
     {
         var pos = e.GetPosition(CommandDropZone);
         return pos.X >= 0 && pos.Y >= 0 &&
                pos.X <= CommandDropZone.Bounds.Width &&
                pos.Y <= CommandDropZone.Bounds.Height;
-    }
-
-    private void OnPointerPressed(object sender, PointerPressedEventArgs e)
-    {
-        // The handler sits on the row's full-width root container, so its
-        // DataContext is the entry regardless of where in the row the click lands.
-        if (sender is not Control { DataContext: MenuEntry menuEntry })
-            return;
-        if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
-            return;
-
-        if (!string.IsNullOrWhiteSpace(menuEntry.Command))
-        {
-            // Command leaf: arm a possible drag-to-insert; SystemCommandsTree_PointerMoved
-            // promotes it to a real drag once the pointer moves far enough. Double-click-
-            // to-append is handled by OnCommandDoubleTapped.
-            _treeDragCandidate = menuEntry;
-            _treeDragStart = e.GetPosition(this);
-        }
-        else if ((sender as Control).FindAncestorOfType<TreeViewItem>() is { } treeViewItem)
-        {
-            // Group node: expand/collapse on a click anywhere along the row.
-            treeViewItem.IsExpanded = !treeViewItem.IsExpanded;
-            e.Handled = true;
-        }
-    }
-
-    // Append a command on double-click, driven by Avalonia's DoubleTapped gesture.
-    // The gesture recognizer handles the platform double-click time and a small
-    // movement tolerance itself, and re-arms after each pair — so the same command
-    // can be added repeatedly without jiggling the mouse, and a little jitter
-    // between the two clicks no longer cancels the double-click.
-    private void OnCommandDoubleTapped(object sender, TappedEventArgs e)
-    {
-        if (sender is Control { DataContext: MenuEntry menuEntry } &&
-            menuEntry.Command != null && !string.IsNullOrWhiteSpace(menuEntry.Command) &&
-            DataContext is SimpleButtonSettingsViewModel vm)
-        {
-            vm.InsertCommand(menuEntry);
-            _treeDragCandidate = null;
-            e.Handled = true;
-        }
     }
 }

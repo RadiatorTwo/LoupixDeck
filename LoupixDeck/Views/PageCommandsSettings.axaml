@@ -4,11 +4,12 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="using:LoupixDeck.ViewModels"
         xmlns:local="using:LoupixDeck"
+        xmlns:views="using:LoupixDeck.Views"
         x:Class="LoupixDeck.Views.PageCommandsSettings"
         x:DataType="vm:PageCommandsSettingsViewModel"
         mc:Ignorable="d"
         Title="Page Commands"
-        Width="940"
+        Width="1040"
         Height="660"
         WindowStartupLocation="CenterOwner"
         CanResize="False">
@@ -21,7 +22,7 @@
         <TextBlock Grid.Row="0" Classes="card-title" Margin="0"
                    Text="{Binding PageName, StringFormat='Page Commands — {0}'}" />
 
-        <Grid Grid.Row="1" ColumnDefinitions="*,12,300">
+        <Grid Grid.Row="1" ColumnDefinitions="*,12,400">
 
             <!-- Slot editor -->
             <ScrollViewer Grid.Column="0" HorizontalScrollBarVisibility="Disabled">
@@ -53,28 +54,14 @@
                 </ItemsControl>
             </ScrollViewer>
 
-            <!-- System command picker -->
-            <StackPanel Grid.Column="2" Orientation="Vertical">
-                <TextBlock Text="System Commands" FontWeight="Bold" Margin="0,0,0,5" />
-                <TextBlock Classes="hint" Margin="0,0,0,6"
-                           Text="Double-click an entry to append it to the focused command box." />
-                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                    <TreeView Name="SystemCommandsTreeView" ItemsSource="{Binding SystemCommandMenus}"
-                              SelectedItem="{Binding CurrentMenuEntry}" MaxHeight="520">
-                        <TreeView.DataTemplates>
-                            <TreeDataTemplate DataType="{x:Type local:Models.MenuEntry}"
-                                              ItemsSource="{Binding Children}">
-                                <StackPanel Orientation="Horizontal" PointerPressed="OnPointerPressed">
-                                    <TextBlock Text="{Binding Name}" />
-                                    <TextBlock Text="(loading…)" Margin="6,0,0,0"
-                                               Foreground="Gray" FontStyle="Italic"
-                                               IsVisible="{Binding IsLoading}" />
-                                </StackPanel>
-                            </TreeDataTemplate>
-                        </TreeView.DataTemplates>
-                    </TreeView>
-                </ScrollViewer>
-            </StackPanel>
+            <!-- Card-based command picker (issue #171). Double-click a command to
+                 append it to the focused command box. -->
+            <Border Grid.Column="2"
+                    BorderBrush="{DynamicResource AppBorderSubtle}" BorderThickness="1" CornerRadius="4"
+                    Padding="4">
+                <views:CommandPickerView Name="PickerControl"
+                                         DataContext="{Binding CommandPicker}" />
+            </Border>
         </Grid>
 
         <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">

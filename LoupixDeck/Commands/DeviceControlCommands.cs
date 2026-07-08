@@ -11,19 +11,22 @@ using SkiaSharp;
 
 namespace LoupixDeck.Commands;
 
-[Command("System.DeviceOff", "Device OFF (blank display + LEDs)", "Device Control")]
+[Command("System.DeviceOff", "Device OFF (blank display + LEDs)", "Device Control",
+    Icon = "\U000F0425", Description = "Blank the display and LEDs")]
 public class DeviceOffCommand(IDeviceController controller) : IExecutableCommand
 {
     public Task Execute(string[] parameters) => controller.ClearDeviceState();
 }
 
-[Command("System.DeviceOn", "Device ON (restore from config)", "Device Control")]
+[Command("System.DeviceOn", "Device ON (restore from config)", "Device Control",
+    Icon = "\U000F0425", Description = "Restore the device from your config")]
 public class DeviceOnCommand(IDeviceController controller) : IExecutableCommand
 {
     public Task Execute(string[] parameters) => controller.RestoreDeviceState();
 }
 
-[Command("System.DeviceToggle", "Device Toggle ON/OFF", "Device Control")]
+[Command("System.DeviceToggle", "Device Toggle ON/OFF", "Device Control",
+    Icon = "\U000F0425", Description = "Toggle the device on or off")]
 public class DeviceToggleCommand(IDeviceController controller) : IExecutableCommand
 {
     public Task Execute(string[] parameters) => controller.ToggleDeviceState();
@@ -496,7 +499,8 @@ public class PlayVideoCommand(IDeviceService deviceService, IExclusiveModeServic
     }
 }
 
-[Command("System.ToggleWindow", "Toggle Main Window visibility", "Device Control")]
+[Command("System.ToggleWindow", "Toggle Main Window visibility", "Device Control",
+    Icon = "\U000F0208", Description = "Show or hide the main window")]
 public class ToggleWindowCommand : IExecutableCommand
 {
     public Task Execute(string[] parameters)

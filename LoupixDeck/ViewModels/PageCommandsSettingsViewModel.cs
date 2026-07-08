@@ -7,6 +7,7 @@ using LoupixDeck.Services;
 using LoupixDeck.Services.Commands;
 using LoupixDeck.Utils;
 using LoupixDeck.ViewModels.Base;
+using LoupixDeck.ViewModels.CommandPicker;
 using RelayCommand = CommunityToolkit.Mvvm.Input.RelayCommand;
 
 namespace LoupixDeck.ViewModels;
@@ -26,6 +27,14 @@ public class PageCommandsSettingsViewModel(ICommandBuilder commandBuilder, IMenu
     public ObservableCollection<WrapSlot> Slots { get; } = new();
     public ObservableCollection<MenuEntry> SystemCommandMenus { get; } = new();
     public MenuEntry CurrentMenuEntry { get; set; }
+
+    // Created lazily so it can reference the SystemCommandMenus instance (a property
+    // initializer cannot). Bound as the CommandPickerView's DataContext (issue #171).
+    private CommandPickerViewModel _commandPicker;
+    public CommandPickerViewModel CommandPicker => _commandPicker ??= new CommandPickerViewModel(SystemCommandMenus);
+
+    /// <summary>Detaches the picker from its source collection when the dialog closes.</summary>
+    public void Cleanup() => _commandPicker?.Cleanup();
 
     public string PageName { get; private set; }
 

@@ -22,11 +22,13 @@ public class MenuTreeBuilder : IMenuTreeBuilder
 
     private readonly IEnumerable<IMenuContributor> _contributors;
     private readonly IPluginMenuSource _pluginMenuSource;
+    private readonly IGroupCatalog _groupCatalog;
 
-    public MenuTreeBuilder(IEnumerable<IMenuContributor> contributors, IPluginMenuSource pluginMenuSource)
+    public MenuTreeBuilder(IEnumerable<IMenuContributor> contributors, IPluginMenuSource pluginMenuSource, IGroupCatalog groupCatalog)
     {
         _contributors = contributors;
         _pluginMenuSource = pluginMenuSource;
+        _groupCatalog = groupCatalog;
     }
 
     public async Task BuildInto(ObservableCollection<MenuEntry> target, ButtonTargets buttonTarget)
@@ -62,7 +64,13 @@ public class MenuTreeBuilder : IMenuTreeBuilder
                 var group = target.FirstOrDefault(g => g.Name == groupName);
                 if (group == null)
                 {
-                    group = new MenuEntry(groupName, string.Empty);
+                    var groupInfo = _groupCatalog.Resolve(groupName);
+                    group = new MenuEntry(groupName, string.Empty)
+                    {
+                        Icon = groupInfo.Icon,
+                        Description = groupInfo.Description,
+                        Section = groupInfo.Section
+                    };
                     MergeGroup(target, group);
                 }
 

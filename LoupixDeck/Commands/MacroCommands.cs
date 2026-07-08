@@ -11,7 +11,9 @@ namespace LoupixDeck.Commands;
     "({Text})",
     ["Text"],
     [typeof(string)],
-    Platform = CommandPlatform.All)]
+    Platform = CommandPlatform.All,
+    Icon = "\U000F040A", // mdi-play
+    Description = "Run a basic macro")]
 public class SimpleMacroCommand(IUInputKeyboard uInputKeyboard) : IExecutableCommand
 {
     public Task Execute(string[] parameters)
@@ -34,7 +36,9 @@ public class SimpleMacroCommand(IUInputKeyboard uInputKeyboard) : IExecutableCom
     "({Keys})",
     ["Keys"],
     [typeof(string)],
-    Platform = CommandPlatform.All)]
+    Platform = CommandPlatform.All,
+    Icon = "\U000F030C", // mdi-keyboard
+    Description = "Execute key sequences")]
 public class KeyCombinationCommand(IUInputKeyboard uInputKeyboard) : IExecutableCommand
 {
     public Task Execute(string[] parameters)
@@ -93,7 +97,9 @@ public class MacroCommand(IMacroManager macroManager, MacroRunner macroRunner) :
     "System.StopMacros",
     "Stop Macros",
     "User Macros",
-    Platform = CommandPlatform.All)]
+    Platform = CommandPlatform.All,
+    Icon = "\U000F04DB", // mdi-stop
+    Description = "Cancel all running macros")]
 public class StopMacrosCommand(MacroRunner macroRunner) : IExecutableCommand
 {
     public Task Execute(string[] parameters)
