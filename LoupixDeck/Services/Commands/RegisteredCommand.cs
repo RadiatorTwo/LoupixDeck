@@ -26,6 +26,13 @@ public sealed class RegisteredCommand
     /// </summary>
     public bool HiddenFromMenu { get; init; }
 
+    /// <summary>
+    /// When true the command is only listed in the selection menu for devices with
+    /// separate side-display rotary areas (<c>HasSideStrips</c>). It stays registered
+    /// and executable on all devices; this only gates menu visibility.
+    /// </summary>
+    public bool RequiresSideStrips { get; init; }
+
     /// <summary>True when the command renders dynamic text onto a touch button.</summary>
     public bool IsDisplayCommand { get; init; }
 

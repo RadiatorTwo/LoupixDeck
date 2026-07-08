@@ -7,5 +7,6 @@ public class CommandInfo
     public string Group { get; set; }
     public string ParameterTemplate { get; set; }
     public bool Hidden { get; set; }
+    public bool RequiresSideStrips { get; set; }
     public List<ParameterDescriptor> Parameters { get; set; } = [];
 }
