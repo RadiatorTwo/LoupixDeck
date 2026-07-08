@@ -1,0 +1,234 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- ===== Command picker (issue #171) =====
+         A dark, card-based command selection panel: header → search → sectioned
+         category-card grid → detail command list → footer. Selection is driven by
+         the view-model (bound `.selected` classes); keyboard focus is a separate
+         blue outline so it never reads as selection. -->
+
+    <!-- Header title next to the logo. -->
+    <Style Selector="TextBlock.picker-header">
+        <Setter Property="FontSize" Value="18" />
+        <Setter Property="FontWeight" Value="Bold" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <!-- Search bar shortcut hint pill ("Ctrl K"). -->
+    <Style Selector="Border.picker-kbd">
+        <Setter Property="Background" Value="{DynamicResource AppSurfaceAlt}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource AppBorderSubtle}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="4" />
+        <Setter Property="Padding" Value="6,2" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+    <Style Selector="Border.picker-kbd TextBlock">
+        <Setter Property="FontSize" Value="11" />
+        <Setter Property="Foreground" Value="{DynamicResource AppTextSecondary}" />
+    </Style>
+
+    <!-- Section header row (icon + title + collapse chevron). -->
+    <Style Selector="TextBlock.picker-section-icon">
+        <Setter Property="FontFamily" Value="{DynamicResource MdiFont}" />
+        <Setter Property="FontSize" Value="20" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="Width" Value="26" />
+    </Style>
+    <Style Selector="TextBlock.picker-section-title">
+        <Setter Property="FontSize" Value="17" />
+        <Setter Property="FontWeight" Value="Bold" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="Margin" Value="6,0,0,0" />
+    </Style>
+
+    <!-- ===== Category card ===== -->
+    <!-- The clickable wrapper is a chromeless Button (gives focus, Enter/Space,
+         Tab); its inner face carries the visuals. -->
+    <Style Selector="Button.picker-card">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="Margin" Value="0,0,0,0" />
+        <Setter Property="HorizontalAlignment" Value="Stretch" />
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        <Setter Property="Cursor" Value="Hand" />
+    </Style>
+    <Style Selector="Button.picker-card /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Padding" Value="0" />
+    </Style>
+
+    <Style Selector="Border.picker-card-face">
+        <Setter Property="Background" Value="{DynamicResource AppSurface}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource AppBorderSubtle}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="10" />
+        <Setter Property="Padding" Value="14" />
+        <Setter Property="Margin" Value="6" />
+        <Setter Property="MinHeight" Value="118" />
+    </Style>
+    <!-- Hover: brighter surface + stronger border. -->
+    <Style Selector="Button.picker-card:pointerover Border.picker-card-face">
+        <Setter Property="Background" Value="{DynamicResource AppSurfaceAlt}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource AppTextMuted}" />
+    </Style>
+    <!-- Keyboard focus: distinct blue outline (never confused with selection). -->
+    <Style Selector="Button.picker-card:focus-visible Border.picker-card-face">
+        <Setter Property="BorderBrush" Value="{DynamicResource PickerFocusBrush}" />
+        <Setter Property="BorderThickness" Value="2" />
+    </Style>
+    <!-- Selected: violet accent outline + tint + glow. Declared last so it wins over hover. -->
+    <Style Selector="Border.picker-card-face.selected">
+        <Setter Property="Background" Value="{DynamicResource PickerAccentSubtle}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource PickerAccentBorderBrush}" />
+        <Setter Property="BorderThickness" Value="2" />
+        <Setter Property="BoxShadow" Value="0 0 12 0 #558B5CF6" />
+    </Style>
+
+    <!-- Card icon (upper-left). -->
+    <Style Selector="TextBlock.picker-card-icon">
+        <Setter Property="FontFamily" Value="{DynamicResource MdiFont}" />
+        <Setter Property="FontSize" Value="26" />
+        <Setter Property="Foreground" Value="{DynamicResource AppTextPrimary}" />
+    </Style>
+    <Style Selector="Border.picker-card-face.selected TextBlock.picker-card-icon">
+        <Setter Property="Foreground" Value="{DynamicResource PickerAccentBorderBrush}" />
+    </Style>
+
+    <!-- Command-count badge (upper-right dark pill). -->
+    <Style Selector="Border.picker-count">
+        <Setter Property="Background" Value="{DynamicResource AppSurfaceAlt}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource AppBorderSubtle}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="6" />
+        <Setter Property="MinWidth" Value="26" />
+        <Setter Property="Padding" Value="7,2" />
+        <Setter Property="VerticalAlignment" Value="Top" />
+    </Style>
+    <Style Selector="Border.picker-count TextBlock">
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Foreground" Value="{DynamicResource AppTextSecondary}" />
+        <Setter Property="HorizontalAlignment" Value="Center" />
+    </Style>
+    <Style Selector="Border.picker-card-face.selected Border.picker-count TextBlock">
+        <Setter Property="Foreground" Value="{DynamicResource PickerAccentBorderBrush}" />
+    </Style>
+
+    <Style Selector="TextBlock.picker-card-title">
+        <Setter Property="FontSize" Value="15" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Foreground" Value="{DynamicResource AppTextPrimary}" />
+        <Setter Property="Margin" Value="0,10,0,2" />
+        <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+    </Style>
+    <Style Selector="TextBlock.picker-card-desc">
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="Foreground" Value="{DynamicResource AppTextSecondary}" />
+        <Setter Property="TextWrapping" Value="Wrap" />
+    </Style>
+
+    <!-- ===== Detail header ===== -->
+    <Style Selector="Border.picker-detail-header">
+        <Setter Property="BorderBrush" Value="{DynamicResource AppBorderSubtle}" />
+        <Setter Property="BorderThickness" Value="0,1,0,0" />
+        <Setter Property="Padding" Value="4,10,4,8" />
+        <Setter Property="Margin" Value="0,6,0,4" />
+    </Style>
+    <Style Selector="TextBlock.picker-detail-icon">
+        <Setter Property="FontFamily" Value="{DynamicResource MdiFont}" />
+        <Setter Property="FontSize" Value="18" />
+        <Setter Property="Foreground" Value="{DynamicResource PickerAccentBorderBrush}" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+    <Style Selector="TextBlock.picker-detail-title">
+        <Setter Property="FontSize" Value="15" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="Margin" Value="8,0,0,0" />
+    </Style>
+    <Style Selector="TextBlock.picker-detail-count">
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="Foreground" Value="{DynamicResource AppTextSecondary}" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <!-- ===== Command row ===== -->
+    <Style Selector="Button.picker-row">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="Margin" Value="0,0,0,4" />
+        <Setter Property="HorizontalAlignment" Value="Stretch" />
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        <Setter Property="Cursor" Value="Hand" />
+    </Style>
+    <Style Selector="Button.picker-row /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Padding" Value="0" />
+    </Style>
+
+    <Style Selector="Border.picker-row-face">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderBrush" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="Padding" Value="10,8" />
+        <Setter Property="MinHeight" Value="52" />
+    </Style>
+    <Style Selector="Button.picker-row:pointerover Border.picker-row-face">
+        <Setter Property="Background" Value="{DynamicResource AppSurfaceAlt}" />
+    </Style>
+    <Style Selector="Button.picker-row:focus-visible Border.picker-row-face">
+        <Setter Property="BorderBrush" Value="{DynamicResource PickerFocusBrush}" />
+    </Style>
+    <!-- Selected row: subtle tint + left violet accent bar (declared last). -->
+    <Style Selector="Border.picker-row-face.selected">
+        <Setter Property="Background" Value="{DynamicResource PickerAccentSubtle}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource PickerAccentBorderBrush}" />
+    </Style>
+
+    <!-- Left accent bar; only visible on the selected row. -->
+    <Style Selector="Border.picker-row-bar">
+        <Setter Property="Width" Value="3" />
+        <Setter Property="CornerRadius" Value="2" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Margin" Value="0,0,10,0" />
+    </Style>
+    <Style Selector="Border.picker-row-face.selected Border.picker-row-bar">
+        <Setter Property="Background" Value="{DynamicResource PickerAccentBrush}" />
+    </Style>
+
+    <Style Selector="TextBlock.picker-row-icon">
+        <Setter Property="FontFamily" Value="{DynamicResource MdiFont}" />
+        <Setter Property="FontSize" Value="20" />
+        <Setter Property="Foreground" Value="{DynamicResource AppTextSecondary}" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="Width" Value="26" />
+    </Style>
+    <Style Selector="TextBlock.picker-row-title">
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Foreground" Value="{DynamicResource AppTextPrimary}" />
+        <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+    </Style>
+    <Style Selector="TextBlock.picker-row-desc">
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="Foreground" Value="{DynamicResource AppTextSecondary}" />
+        <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+    </Style>
+
+    <!-- Footer hint. -->
+    <Style Selector="Border.picker-footer">
+        <Setter Property="BorderBrush" Value="{DynamicResource AppBorderSubtle}" />
+        <Setter Property="BorderThickness" Value="0,1,0,0" />
+        <Setter Property="Padding" Value="4,8,4,2" />
+    </Style>
+    <Style Selector="TextBlock.picker-footer-text">
+        <Setter Property="FontSize" Value="11" />
+        <Setter Property="Foreground" Value="{DynamicResource AppTextMuted}" />
+        <Setter Property="TextWrapping" Value="Wrap" />
+    </Style>
+
+</Styles>
