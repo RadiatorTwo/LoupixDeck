@@ -4,6 +4,7 @@ using LoupixDeck.PluginSdk;
 using LoupixDeck.Services;
 using LoupixDeck.Services.Commands;
 using LoupixDeck.ViewModels.Base;
+using LoupixDeck.ViewModels.CommandPicker;
 
 namespace LoupixDeck.ViewModels;
 
@@ -46,6 +47,9 @@ public class RotaryButtonSettingsViewModel : DialogViewModelBase<RotaryButton, D
     public ObservableCollection<MenuEntry> SystemCommandMenus { get; set; }
     public MenuEntry CurrentMenuEntry { get; set; }
 
+    /// <summary>The card-based command picker (issue #171).</summary>
+    public CommandPickerViewModel CommandPicker { get; }
+
     /// <summary>The three command sequences of a rotary encoder: left turn, right
     /// turn and the knob press. Each is an independent, editable chip pipeline.</summary>
     public CommandSequenceSlot RotaryLeftSlot { get; private set; }
@@ -68,6 +72,7 @@ public class RotaryButtonSettingsViewModel : DialogViewModelBase<RotaryButton, D
         _commandRegistry = commandRegistry;
 
         SystemCommandMenus = new ObservableCollection<MenuEntry>();
+        CommandPicker = new CommandPickerViewModel(SystemCommandMenus);
     }
 
     public async Task InitializeAsync()
@@ -123,5 +128,7 @@ public class RotaryButtonSettingsViewModel : DialogViewModelBase<RotaryButton, D
     {
         foreach (var slot in Slots)
             slot.Cleanup();
+
+        CommandPicker.Cleanup();
     }
 }

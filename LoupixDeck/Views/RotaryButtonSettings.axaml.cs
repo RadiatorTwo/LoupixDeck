@@ -24,11 +24,11 @@ public partial class RotaryButtonSettings : Window
     private Point _segmentDragStart;
     private bool _segmentDragging;
 
-    // ───────── Tree drag-to-insert state ─────────
+    // ───────── Picker drag-to-insert state ─────────
 
-    private MenuEntry _treeDragCandidate;
-    private Point _treeDragStart;
-    private bool _treeDragging;
+    // The command being dragged from the picker; null when idle. The picker owns the
+    // pointer capture and threshold; this window positions the ghost / per-strip marker.
+    private MenuEntry _pickerDragEntry;
 
     public RotaryButtonSettings()
     {
@@ -45,6 +45,12 @@ public partial class RotaryButtonSettings : Window
         // leading arrow) after every layout pass, for each strip independently.
         foreach (var (_, list) in _strips)
             list.LayoutUpdated += (_, _) => UpdateConnectorVisibility(list);
+
+        // Card-based command picker → sequence-strip assignment (issue #171).
+        PickerControl.CommandActivated += Picker_CommandActivated;
+        PickerControl.CommandDragStarted += Picker_CommandDragStarted;
+        PickerControl.CommandDragMoved += Picker_CommandDragMoved;
+        PickerControl.CommandDragReleased += Picker_CommandDragReleased;
 
         // Clicking anywhere inside a strip makes it the double-click target. Tunnel
         // so it fires even when a child (button, chip grip) handles the press itself.
@@ -253,36 +259,36 @@ public partial class RotaryButtonSettings : Window
         }
     }
 
-    // ───────── Tree drag-to-insert ─────────
+    // ───────── Picker drag-to-insert ─────────
+    // The picker owns the pointer capture and threshold; this window tracks the ghost
+    // and per-strip drop marker and inserts on release over a strip. A rotary command
+    // group fills all three slots; a plain command lands in the strip under the pointer.
 
-    private void SystemCommandsTree_PointerMoved(object sender, PointerEventArgs e)
+    private void Picker_CommandActivated(object sender, MenuEntry entry)
     {
-        if (_treeDragCandidate == null)
+        // A group fills all slots; a plain command appends to the active slot. The
+        // view model routes on the entry type.
+        if (entry != null && DataContext is RotaryButtonSettingsViewModel vm)
+            vm.InsertCommand(entry);
+    }
+
+    private void Picker_CommandDragStarted(object sender, CommandDragEventArgs e)
+    {
+        _pickerDragEntry = e.Entry;
+        ShowDragGhost(e.Entry?.Name);
+        Picker_CommandDragMoved(sender, e);
+    }
+
+    private void Picker_CommandDragMoved(object sender, CommandDragEventArgs e)
+    {
+        if (_pickerDragEntry == null)
             return;
 
-        var point = e.GetCurrentPoint(this);
-        if (!point.Properties.IsLeftButtonPressed)
-        {
-            EndTreeDrag(e.Pointer);
-            return;
-        }
+        UpdateDragGhost(e.Pointer);
 
-        var pos = point.Position;
-        if (!_treeDragging)
-        {
-            if (Math.Abs(pos.X - _treeDragStart.X) < 4 && Math.Abs(pos.Y - _treeDragStart.Y) < 4)
-                return;
+        var target = StripUnderPointer(e.Pointer);
 
-            _treeDragging = true;
-            e.Pointer.Capture(SystemCommandsTreeView);
-            ShowDragGhost(_treeDragCandidate?.Name);
-        }
-
-        UpdateDragGhost(e);
-
-        var target = StripUnderPointer(e);
-
-        if (_treeDragCandidate?.RotaryGroup is { Count: > 0 })
+        if (_pickerDragEntry.RotaryGroup is { Count: > 0 })
         {
             // A group fills every slot at once: highlight all strips when over the
             // drop area and show no per-slot insertion marker.
@@ -296,43 +302,33 @@ public partial class RotaryButtonSettings : Window
             zone.Classes.Set("drop-active", target.HasValue && ReferenceEquals(zone, target.Value.Zone));
 
         if (target.HasValue)
-            UpdateDropMarker(target.Value.List, FindDropIndex(target.Value.List, e));
+            UpdateDropMarker(target.Value.List, FindDropIndex(target.Value.List, e.Pointer));
         else
             HideDropMarker();
     }
 
-    private void SystemCommandsTree_PointerReleased(object sender, PointerReleasedEventArgs e)
+    private void Picker_CommandDragReleased(object sender, CommandDragEventArgs e)
     {
-        if (_treeDragging && _treeDragCandidate != null && StripUnderPointer(e) is { } target &&
+        if (_pickerDragEntry != null && StripUnderPointer(e.Pointer) is { } target &&
             target.List.DataContext is CommandSequenceSlot slot)
         {
-            if (_treeDragCandidate.RotaryGroup is { Count: > 0 } &&
+            if (_pickerDragEntry.RotaryGroup is { Count: > 0 } &&
                 DataContext is RotaryButtonSettingsViewModel vm)
             {
                 // Dropping a group anywhere on the strips applies the whole mapping.
-                vm.InsertCommand(_treeDragCandidate);
+                vm.InsertCommand(_pickerDragEntry);
             }
             else
             {
-                slot.InsertCommandAt(_treeDragCandidate, FindDropIndex(target.List, e));
+                slot.InsertCommandAt(_pickerDragEntry, FindDropIndex(target.List, e.Pointer));
             }
         }
 
-        EndTreeDrag(e.Pointer);
-    }
-
-    private void SystemCommandsTree_PointerCaptureLost(object sender, PointerCaptureLostEventArgs e)
-        => EndTreeDrag(null);
-
-    private void EndTreeDrag(IPointer pointer)
-    {
-        _treeDragCandidate = null;
-        _treeDragging = false;
+        _pickerDragEntry = null;
         HideDragGhost();
         HideDropMarker();
         foreach (var (zone, _) in _strips)
             zone.Classes.Set("drop-active", false);
-        pointer?.Capture(null);
     }
 
     // ───────── Drag ghost ─────────
@@ -354,48 +350,6 @@ public partial class RotaryButtonSettings : Window
     }
 
     private void HideDragGhost() => DragGhostLayer.IsVisible = false;
-
-    // ───────── Tree interaction ─────────
-
-    private void OnPointerPressed(object sender, PointerPressedEventArgs e)
-    {
-        if (sender is not Control { DataContext: MenuEntry menuEntry })
-            return;
-        if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
-            return;
-
-        if (menuEntry.RotaryGroup is { Count: > 0 } || !string.IsNullOrWhiteSpace(menuEntry.Command))
-        {
-            // Command leaf or group: arm a possible drag-to-insert; SystemCommandsTree_PointerMoved
-            // promotes it to a real drag once the pointer moves far enough. Double-click-to-apply
-            // is handled by OnCommandDoubleTapped. (A group fills all slots; a leaf one slot.)
-            _treeDragCandidate = menuEntry;
-            _treeDragStart = e.GetPosition(this);
-        }
-        else if ((sender as Control).FindAncestorOfType<TreeViewItem>() is { } treeViewItem)
-        {
-            // Group node: expand/collapse on a click anywhere along the row.
-            treeViewItem.IsExpanded = !treeViewItem.IsExpanded;
-            e.Handled = true;
-        }
-    }
-
-    // Append to the active slot on double-click, driven by Avalonia's DoubleTapped
-    // gesture (handles the platform double-click time and movement tolerance, and
-    // re-arms after each pair so the same command can be added repeatedly).
-    private void OnCommandDoubleTapped(object sender, TappedEventArgs e)
-    {
-        if (sender is Control { DataContext: MenuEntry menuEntry } &&
-            DataContext is RotaryButtonSettingsViewModel vm &&
-            (menuEntry.RotaryGroup is { Count: > 0 } || !string.IsNullOrWhiteSpace(menuEntry.Command)))
-        {
-            // A command group fills all its slots at once; a plain command appends
-            // to the active slot. The view model routes on the entry type.
-            vm.InsertCommand(menuEntry);
-            _treeDragCandidate = null;
-            e.Handled = true;
-        }
-    }
 
     // ───────── Helpers ─────────
 

@@ -7,6 +7,7 @@
     xmlns:ccp="clr-namespace:Avalonia.Controls;assembly=Avalonia.Controls.ColorPicker"
     xmlns:local="clr-namespace:LoupixDeck"
     xmlns:vm="using:LoupixDeck.ViewModels"
+    xmlns:views="using:LoupixDeck.Views"
     xmlns:conv="clr-namespace:LoupixDeck.Models.Converter"
     xmlns:models="clr-namespace:LoupixDeck.Models"
     x:DataType="vm:SimpleButtonSettingsViewModel"
@@ -311,45 +312,12 @@
                         </Border>
                     </Grid>
 
-                    <!-- Right: command library tree, full height -->
+                    <!-- Right: card-based command picker, full height (issue #171) -->
                     <Border Grid.Column="1"
                             BorderBrush="{DynamicResource AppBorderSubtle}" BorderThickness="1" CornerRadius="4"
                             Padding="4">
-                        <Grid RowDefinitions="Auto,*">
-                            <TextBlock Grid.Row="0"
-                                       Text="System Commands"
-                                       FontWeight="Bold"
-                                       Margin="4,2,0,6" />
-                            <ScrollViewer Grid.Row="1"
-                                          VerticalScrollBarVisibility="Auto"
-                                          HorizontalScrollBarVisibility="Disabled">
-                                <TreeView Name="SystemCommandsTreeView"
-                                          ItemsSource="{Binding SystemCommandMenus}"
-                                          SelectedItem="{Binding CurrentMenuEntry}"
-                                          PointerMoved="SystemCommandsTree_PointerMoved"
-                                          PointerReleased="SystemCommandsTree_PointerReleased"
-                                          PointerCaptureLost="SystemCommandsTree_PointerCaptureLost">
-                                    <TreeView.DataTemplates>
-                                        <TreeDataTemplate DataType="{x:Type local:Models.MenuEntry}"
-                                                          ItemsSource="{Binding Children}">
-                                            <!-- Transparent, full-width root so a click anywhere
-                                                 on the row is caught, not only on the glyph text. -->
-                                            <Grid Background="Transparent"
-                                                  HorizontalAlignment="Stretch"
-                                                  PointerPressed="OnPointerPressed"
-                                                  DoubleTapped="OnCommandDoubleTapped">
-                                                <StackPanel Orientation="Horizontal">
-                                                    <TextBlock Text="{Binding Name}" />
-                                                    <TextBlock Text="(loading…)" Margin="6,0,0,0"
-                                                               Foreground="Gray" FontStyle="Italic"
-                                                               IsVisible="{Binding IsLoading}" />
-                                                </StackPanel>
-                                            </Grid>
-                                        </TreeDataTemplate>
-                                    </TreeView.DataTemplates>
-                                </TreeView>
-                            </ScrollViewer>
-                        </Grid>
+                        <views:CommandPickerView Name="PickerControl"
+                                                 DataContext="{Binding CommandPicker}" />
                     </Border>
                 </Grid>
             </Grid>

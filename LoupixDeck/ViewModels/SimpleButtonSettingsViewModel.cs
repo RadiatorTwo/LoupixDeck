@@ -6,6 +6,7 @@ using LoupixDeck.Services;
 using LoupixDeck.Services.Commands;
 using LoupixDeck.Utils;
 using LoupixDeck.ViewModels.Base;
+using LoupixDeck.ViewModels.CommandPicker;
 
 namespace LoupixDeck.ViewModels;
 
@@ -53,6 +54,10 @@ public class SimpleButtonSettingsViewModel : DialogViewModelBase<SimpleButton, D
 
     public ObservableCollection<MenuEntry> SystemCommandMenus { get; set; }
     public MenuEntry CurrentMenuEntry { get; set; }
+
+    /// <summary>The card-based command picker (issue #171), projecting
+    /// <see cref="SystemCommandMenus"/> into its sectioned category grid.</summary>
+    public CommandPickerViewModel CommandPicker { get; }
 
     /// <summary>The button's command chain as individual, editable cards. The raw
     /// <see cref="LoupedeckButton.Command"/> string stays the persisted source of truth;
@@ -246,6 +251,7 @@ public class SimpleButtonSettingsViewModel : DialogViewModelBase<SimpleButton, D
         Commands.CollectionChanged += (_, _) => RenumberSegments();
 
         SystemCommandMenus = new ObservableCollection<MenuEntry>();
+        CommandPicker = new CommandPickerViewModel(SystemCommandMenus);
     }
 
     public async Task InitializeAsync()
@@ -365,5 +371,7 @@ public class SimpleButtonSettingsViewModel : DialogViewModelBase<SimpleButton, D
 
         foreach (var segment in Commands)
             segment.Changed -= OnSegmentChanged;
+
+        CommandPicker.Cleanup();
     }
 }

@@ -9,6 +9,7 @@ using LoupixDeck.Services.Commands;
 using LoupixDeck.Services.Plugins;
 using LoupixDeck.Utils;
 using LoupixDeck.ViewModels.Base;
+using LoupixDeck.ViewModels.CommandPicker;
 using SkiaSharp;
 
 namespace LoupixDeck.ViewModels;
@@ -502,6 +503,9 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     public ObservableCollection<MenuEntry> SystemCommandMenus { get; set; }
     public MenuEntry CurrentMenuEntry { get; set; }
 
+    /// <summary>The card-based command picker (issue #171).</summary>
+    public CommandPickerViewModel CommandPicker { get; }
+
     public ObservableCollection<VibrationPatternItem> VibrationPatterns => VibrationPatternCatalog.All;
 
     private VibrationPatternItem _selectedVibrationPattern;
@@ -759,6 +763,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         _sideStripRegistry.ProvidersChanged += OnStripProvidersChanged;
 
         SystemCommandMenus = new ObservableCollection<MenuEntry>();
+        CommandPicker = new CommandPickerViewModel(SystemCommandMenus);
     }
 
     public async Task InitializeAsync()
@@ -1108,6 +1113,8 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
 
         foreach (var slot in CommandSlots)
             slot.Cleanup();
+
+        CommandPicker.Cleanup();
     }
 
     private void OnStripProvidersChanged()
