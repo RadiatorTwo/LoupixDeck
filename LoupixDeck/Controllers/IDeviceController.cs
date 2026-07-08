@@ -81,6 +81,11 @@ public interface IDeviceController
     /// is 0-based.</summary>
     void AnimateGotoRotaryPage(int pageIndex);
 
+    /// <summary>Per-side goto-by-index rotary paging with a slide transition in the shortest wrap
+    /// direction (side-strip devices); instant fallback otherwise or when animation is unavailable.
+    /// <paramref name="pageIndex"/> is 0-based.</summary>
+    void AnimateGotoRotaryPageForSide(RotarySide side, int pageIndex);
+
     /// <summary>"Next touch page" with a horizontal slide transition; instant fallback when the
     /// animation is unavailable.</summary>
     void AnimateNextTouchPage();

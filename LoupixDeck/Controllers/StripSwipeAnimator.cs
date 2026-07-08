@@ -557,6 +557,12 @@ public partial class LoupedeckLiveSController
     public void AnimateRotaryPageForSide(RotarySide side, bool next)
         => PageRotarySideAnimated(side, next ? -1 : +1);
 
+    /// <summary>Animated per-side goto-by-index for one dial column, sliding in the shortest wrap
+    /// direction. Instant fallback when the strip animation doesn't apply (see
+    /// <see cref="GotoRotarySideAnimated"/>).</summary>
+    public void AnimateGotoRotaryPageForSide(RotarySide side, int pageIndex)
+        => GotoRotarySideAnimated(side, pageIndex);
+
     /// <summary>Animated goto-by-index. On the Razer Stream Controller each column animates
     /// toward <paramref name="pageIndex"/> in its own shortest direction; on any other device
     /// the page changes instantly (shared list).</summary>
