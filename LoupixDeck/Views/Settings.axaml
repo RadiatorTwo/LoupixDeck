@@ -366,6 +366,12 @@
                             <CheckBox Content="Show page name overlay when switching pages"
                                       IsChecked="{Binding Config.ShowPageNameOverlayEnabled, Mode=TwoWay}"
                                       ToolTip.Tip="Briefly displays the new page name on the first touch button (~2s) after switching touch or rotary pages." />
+                            <CheckBox Content="Animate rotary page transitions"
+                                      IsChecked="{Binding Config.RotaryPageTransitionAnimationEnabled, Mode=TwoWay}"
+                                      ToolTip.Tip="Slide the side displays when a rotary page is changed by a command or button. Swipe gestures always animate. Turn off for instant command paging." />
+                            <CheckBox Content="Animate touch page transitions"
+                                      IsChecked="{Binding Config.TouchPageTransitionAnimationEnabled, Mode=TwoWay}"
+                                      ToolTip.Tip="Slide the touch display when a touch page changes. Turn off for instant paging." />
                         </StackPanel>
                     </Border>
                 </StackPanel>

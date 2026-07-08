@@ -130,8 +130,9 @@ public partial class LoupedeckLiveSController
     }
 
     /// <summary>True when the side's current page supports the finger-follow animation:
-    /// a side-strip device, not off/exclusive/folder, a non-plugin page, and more than
-    /// one page to slide between.</summary>
+    /// a side-strip device, not off/exclusive/folder, a non-plugin page, and more than one
+    /// page to slide between. This gates the swipe finger-follow, which always animates; the
+    /// RotaryPageTransitionAnimationEnabled setting only affects the command/GUI paths.</summary>
     private bool StripAnimationApplicable(RotarySide side)
     {
         if (deviceService.Device?.HasSideStrips != true) return false;
@@ -456,9 +457,11 @@ public partial class LoupedeckLiveSController
     {
         var idx = SideIndex(side);
 
-        // Device strips not driven here, not animatable, or a live finger drag owns the
-        // strip → change instantly.
-        if (!StripAnimatorDrivesDevice || !StripAnimationApplicable(side) || _drag[idx].Active)
+        // Setting off, device strips not driven here, not animatable, or a live finger drag
+        // owns the strip → change instantly. (The setting only affects this command/GUI path;
+        // the swipe finger-follow always animates.)
+        if (!config.RotaryPageTransitionAnimationEnabled || !StripAnimatorDrivesDevice
+            || !StripAnimationApplicable(side) || _drag[idx].Active)
         {
             Avalonia.Threading.Dispatcher.UIThread.Post(() =>
             {
@@ -509,7 +512,8 @@ public partial class LoupedeckLiveSController
         var from = pageManager.GetCurrentRotaryPageIndex(side);
         if (from == targetIndex) return;
 
-        if (!StripAnimatorDrivesDevice || !StripAnimationApplicable(side) || _drag[idx].Active)
+        if (!config.RotaryPageTransitionAnimationEnabled || !StripAnimatorDrivesDevice
+            || !StripAnimationApplicable(side) || _drag[idx].Active)
         {
             Avalonia.Threading.Dispatcher.UIThread.Post(() => pageManager.ApplyRotaryPage(side, targetIndex));
             return;

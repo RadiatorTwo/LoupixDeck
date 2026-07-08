@@ -39,7 +39,13 @@ public interface IPageManager
 
     Task NextTouchPage();
     Task PreviousTouchPage();
-    Task ApplyTouchPage(int pageIndex, bool init = false);
+
+    /// <summary>Switches the active touch page. When <paramref name="draw"/> is false the page
+    /// state is committed (index, selection, <see cref="OnTouchPageChanged"/>) but the buttons
+    /// are NOT drawn to the device and the page-name overlay is suppressed — used by the
+    /// touch-page slide animation, which renders the incoming page itself and paints the final
+    /// frame. Defaults to true (the normal immediate redraw).</summary>
+    Task ApplyTouchPage(int pageIndex, bool init = false, bool draw = true);
 
     void AddRotaryButtonPage(bool init = false);
     void DeleteRotaryButtonPage();
@@ -213,7 +219,7 @@ public class PageManager : IPageManager
         await ApplyTouchPage((CurrentTouchPageIndex - 1 + TouchButtonPages.Count) % TouchButtonPages.Count);
     }
 
-    public async Task ApplyTouchPage(int pageIndex, bool init = false)
+    public async Task ApplyTouchPage(int pageIndex, bool init = false, bool draw = true)
     {
         if (CurrentTouchPageIndex == pageIndex) return;
 
@@ -228,6 +234,12 @@ public class PageManager : IPageManager
         CurrentTouchButtonPage.Selected = true;
 
         OnTouchPageChanged?.Invoke(PreviousTouchPageIndex, CurrentTouchPageIndex);
+
+        // The animated path (draw:false) commits page state only; it renders the incoming
+        // page and paints the slide/final frame itself, so skip the slot-by-slot redraw and
+        // the page-name overlay here (the controller re-shows the overlay after the slide).
+        if (!draw) return;
+
         await DrawTouchButtons();
 
         if (!init && _config.ShowPageNameOverlayEnabled)

@@ -291,6 +291,16 @@ public partial class LoupedeckConfig : ObservableObject
     [ObservableProperty]
     public partial bool ShowPageNameOverlayEnabled { get; set; }
 
+    // Slide transition when a rotary (side-strip) page changes. On by default; a user who
+    // finds the slide distracting can switch to instant paging. Additive optional field —
+    // absent from an old config it defaults to true (unchanged behaviour after the feature).
+    [ObservableProperty]
+    public partial bool RotaryPageTransitionAnimationEnabled { get; set; } = true;
+
+    // Slide transition when a touch page changes. Same opt-out semantics as the rotary flag.
+    [ObservableProperty]
+    public partial bool TouchPageTransitionAnimationEnabled { get; set; } = true;
+
     [ObservableProperty]
     public partial bool HapticEnabled { get; set; }
 

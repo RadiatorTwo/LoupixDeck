@@ -14,7 +14,7 @@ public class PreviousTouchPageCommand(LoupedeckLiveSController loupedeck) : IExe
             return Task.CompletedTask;
         }
 
-        loupedeck.PageManager.NextTouchPage();
+        loupedeck.AnimateNextTouchPage();
         return Task.CompletedTask;
     }
 }
@@ -30,7 +30,7 @@ public class NextTouchPageCommand(LoupedeckLiveSController loupedeck) : IExecuta
             return Task.CompletedTask;
         }
 
-        loupedeck.PageManager.PreviousTouchPage();
+        loupedeck.AnimatePreviousTouchPage();
         return Task.CompletedTask;
     }
 }
@@ -73,21 +73,22 @@ public class PreviousRotaryPageCommand(LoupedeckLiveSController loupedeck) : IEx
     parameterTypes: [typeof(int)])]
 public class GotoPageCommand(IDeviceController controller) : IExecutableCommand
 {
-    public async Task Execute(string[] parameters)
+    public Task Execute(string[] parameters)
     {
         if (parameters.Length != 1 || !int.TryParse(parameters[0], out var page))
         {
             Console.WriteLine("Usage: System.GotoPage(pageNumber) — 1-based");
-            return;
+            return Task.CompletedTask;
         }
         var index = page - 1;
         var pages = controller.PageManager.TouchButtonPages;
         if (index < 0 || index >= pages.Count)
         {
             Console.WriteLine($"Touch page {page} out of range (1-{pages.Count})");
-            return;
+            return Task.CompletedTask;
         }
-        await controller.PageManager.ApplyTouchPage(index);
+        controller.AnimateGotoTouchPage(index);
+        return Task.CompletedTask;
     }
 }
 

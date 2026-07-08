@@ -190,6 +190,15 @@ public class LoupedeckCtDevice : LoupedeckDevice
         }
     }
 
+    /// <inheritdoc />
+    /// <remarks>The CT's "center" is its own dedicated grid-only buffer starting at 0, so
+    /// the grid region is pushed at x=0 (the base uses VisibleX[0]=60 into a unified buffer).</remarks>
+    public override async Task DrawCenterGridRegion(SKBitmap gridBitmap, bool refresh = true)
+    {
+        ArgumentNullException.ThrowIfNull(gridBitmap);
+        await DrawCanvasRegion("center", gridBitmap.Width, gridBitmap.Height, gridBitmap, 0, 0, refresh);
+    }
+
     /// <summary>
     /// Writes a 90x90 bitmap to the "center" buffer at the grid position for
     /// <paramref name="index"/>, using a 0-based origin (the CT's center buffer is

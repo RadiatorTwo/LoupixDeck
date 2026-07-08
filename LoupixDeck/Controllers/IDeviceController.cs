@@ -80,4 +80,17 @@ public interface IDeviceController
     /// direction; instant fallback when animation is unavailable. <paramref name="pageIndex"/>
     /// is 0-based.</summary>
     void AnimateGotoRotaryPage(int pageIndex);
+
+    /// <summary>"Next touch page" with a horizontal slide transition; instant fallback when the
+    /// animation is unavailable.</summary>
+    void AnimateNextTouchPage();
+
+    /// <summary>"Previous touch page" with a horizontal slide transition; instant fallback when
+    /// the animation is unavailable.</summary>
+    void AnimatePreviousTouchPage();
+
+    /// <summary>Goto-by-index touch paging with a slide transition in the shortest wrap
+    /// direction; instant fallback when the animation is unavailable. <paramref name="pageIndex"/>
+    /// is 0-based.</summary>
+    void AnimateGotoTouchPage(int pageIndex);
 }

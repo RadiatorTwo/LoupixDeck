@@ -324,22 +324,17 @@ public partial class MainWindowViewModel : ViewModelBase
 
     private void TouchPageButton_Click(int page)
     {
-        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
-        {
-            LoupedeckController.PageManager.ApplyTouchPage(page - 1);
-        });
+        LoupedeckController.AnimateGotoTouchPage(page - 1);
     }
 
     private void NextTouchPage_Click()
     {
-        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
-            _ = LoupedeckController.PageManager.NextTouchPage());
+        LoupedeckController.AnimateNextTouchPage();
     }
 
     private void PreviousTouchPage_Click()
     {
-        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
-            _ = LoupedeckController.PageManager.PreviousTouchPage());
+        LoupedeckController.AnimatePreviousTouchPage();
     }
 
     private async Task RotaryButton_Click(RotaryButton button)
