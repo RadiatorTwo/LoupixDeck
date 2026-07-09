@@ -141,8 +141,8 @@
              the Viewbox that follows it: the negative bottom margin makes the Viewbox
              overlap upward, and since it is drawn later its transparent shadow band would
              otherwise swallow this pager's clicks and hover. -->
-        <Border Classes="Pager" HorizontalAlignment="Left" Margin="63,12,12,-55" ZIndex="1">
-            <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+        <Border Classes="Pager" HorizontalAlignment="Left" Margin="63,10,12,-55" ZIndex="1">
+            <StackPanel Orientation="Horizontal" Spacing="3" VerticalAlignment="Center">
                 <Button Classes="PagerBtn PagerNav" Content="‹"
                         ToolTip.Tip="Previous rotary page"
                         Command="{Binding PreviousRotaryPageCommand}" />
@@ -417,7 +417,7 @@
              (SVG y=495) so the gap to the body (~10px) matches the top pager; the larger
              bottom margin keeps it clear of the window edge. -->
         <Border Classes="Pager" HorizontalAlignment="Center" Margin="0,-30,0,12">
-            <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+            <StackPanel Orientation="Horizontal" Spacing="3" VerticalAlignment="Center">
                 <Button Classes="PagerBtn PagerNav" Content="‹"
                         ToolTip.Tip="Previous touch page"
                         Command="{Binding PreviousTouchPageCommand}" />

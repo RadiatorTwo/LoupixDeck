@@ -39,6 +39,23 @@
                             <TextBlock Grid.Column="2" Classes="nav-label" Text="General" />
                         </Grid>
                     </Button>
+                    <Button Classes="nav" Classes.active="{Binding CurrentView, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Profiles}"
+                            Command="{Binding NavigateCommand}" CommandParameter="{x:Static bs:SettingsView.Profiles}">
+                        <Grid ColumnDefinitions="6,Auto,*">
+                            <Border Grid.Column="0" Classes="nav-accent" />
+                            <TextBlock Grid.Column="1" Classes="nav-icon" Text="&#xF00D6;" Margin="6,0,0,0"/>
+                            <TextBlock Grid.Column="2" Classes="nav-label" Text="Profiles" />
+                        </Grid>
+                    </Button>
+                    <Button Classes="nav" IsVisible="{Binding IsAppSwitchingSupported}"
+                            Classes.active="{Binding CurrentView, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=AppSwitching}"
+                            Command="{Binding NavigateCommand}" CommandParameter="{x:Static bs:SettingsView.AppSwitching}">
+                        <Grid ColumnDefinitions="6,Auto,*">
+                            <Border Grid.Column="0" Classes="nav-accent" />
+                            <TextBlock Grid.Column="1" Classes="nav-icon" Text="&#xF05DF;" Margin="6,0,0,0"/>
+                            <TextBlock Grid.Column="2" Classes="nav-label" Text="Profile Rules" />
+                        </Grid>
+                    </Button>
                     <Button Classes="nav" Classes.active="{Binding CurrentView, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Pages}"
                             Command="{Binding NavigateCommand}" CommandParameter="{x:Static bs:SettingsView.Pages}">
                         <Grid ColumnDefinitions="6,Auto,*">
@@ -85,18 +102,6 @@
                         </Button>
                     </StackPanel>
 
-                    <StackPanel IsVisible="{Binding IsAppSwitchingSupported}">
-                        <TextBlock Classes="section-header" Text="AUTOMATION" />
-                        <Button Classes="nav" Classes.active="{Binding CurrentView, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=AppSwitching}"
-                                Command="{Binding NavigateCommand}" CommandParameter="{x:Static bs:SettingsView.AppSwitching}">
-                            <Grid ColumnDefinitions="6,Auto,*">
-                                <Border Grid.Column="0" Classes="nav-accent" />
-                                <TextBlock Grid.Column="1" Classes="nav-icon" Text="&#xF05DF;" Margin="6,0,0,0"/>
-                                <TextBlock Grid.Column="2" Classes="nav-label" Text="App Switching" />
-                            </Grid>
-                        </Button>
-                    </StackPanel>
-
                     <TextBlock Classes="section-header" Text="APPEARANCE" />
                     <Button Classes="nav" Classes.active="{Binding CurrentView, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Theme}"
                             Command="{Binding NavigateCommand}" CommandParameter="{x:Static bs:SettingsView.Theme}">
@@ -122,8 +127,21 @@
         </Border>
 
         <!-- ===== Right pane ===== -->
-        <ScrollViewer Grid.Column="1" Padding="24,16,4,16" HorizontalScrollBarVisibility="Disabled">
-            <Grid>
+        <!-- The inset lives on the inner Grid's Margin, NOT on the ScrollViewer's Padding:
+             ScrollViewer.Padding is not folded into the scrollable extent, so a bottom
+             padding leaves the last item unreachable (cut off) and a small right padding
+             lets the overlay scrollbar float over content. As a content Margin the inset
+             is part of the extent (fully scrollable to the bottom) and the right inset
+             becomes a real gutter the scrollbar sits in. The scoped style drops the shared
+             card's 20px right margin inside this pane only, so cards stay symmetric with
+             the Grid inset while every other view that reuses Border.card is unaffected. -->
+        <ScrollViewer Grid.Column="1" HorizontalScrollBarVisibility="Disabled">
+            <ScrollViewer.Styles>
+                <Style Selector="Border.card">
+                    <Setter Property="Margin" Value="0,0,0,12" />
+                </Style>
+            </ScrollViewer.Styles>
+            <Grid Margin="24,16,24,16">
 
                 <!-- ====== General ====== -->
                 <StackPanel IsVisible="{Binding CurrentView, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=General}">
@@ -142,7 +160,7 @@
                                 <TextBlock Text="{Binding DeviceStatusText}" />
                             </Border>
 
-                            <Grid Grid.Row="1" Grid.ColumnSpan="2" ColumnDefinitions="140,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto" Margin="0,16,0,0">
+                            <Grid Grid.Row="1" Grid.ColumnSpan="2" ColumnDefinitions="140,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto" Margin="0,10,0,0">
                                 <TextBlock Grid.Row="0" Grid.Column="0" Classes="label" Text="Port" />
                                 <TextBlock Grid.Row="0" Grid.Column="1" Classes="value" Text="{Binding Config.DevicePort}" />
 
@@ -157,7 +175,7 @@
 
                                 <Button Grid.Row="4" Grid.ColumnSpan="2" Content="Reconnect"
                                         Command="{Binding ReconnectDeviceCommand}"
-                                        HorizontalAlignment="Left" Margin="0,16,0,0"/>
+                                        HorizontalAlignment="Left" Margin="0,12,0,0"/>
                             </Grid>
                         </Grid>
                     </Border>
@@ -195,8 +213,6 @@
                                     </DataTemplate>
                                 </ComboBox.ItemTemplate>
                             </ComboBox>
-                            <TextBlock Classes="hint" Margin="0,6,0,0"
-                                       Text="Applied on next app launch." />
                         </StackPanel>
                     </Border>
 
@@ -222,6 +238,81 @@
                                       IsChecked="{Binding Config.StartMinimizedToTray, Mode=TwoWay}" />
                         </StackPanel>
                     </Border>
+                </StackPanel>
+
+                <!-- ====== Pages ====== -->
+                <!-- ====== Profiles ====== -->
+                <StackPanel IsVisible="{Binding CurrentView, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Profiles}">
+                    <TextBlock Classes="page-title" Text="Profiles" />
+                    <TextBlock Classes="hint"
+                               Text="Profiles group workspaces for an app or scenario. Each profile opens on its Home workspace. Activating a workspace switches what the device shows and edits its pages under Pages." />
+                    <Button Content="+ Add Profile" HorizontalAlignment="Left" Margin="0,12,0,0"
+                            Command="{Binding AddProfileCommand}" />
+
+                    <ItemsControl ItemsSource="{Binding ProfileRows}" Margin="0,12,0,0">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate DataType="vm:ProfileRow">
+                                <Border Classes="card" Margin="0,0,0,12">
+                                    <StackPanel>
+                                        <!-- Profile header: name + actions on one stable row -->
+                                        <Grid ColumnDefinitions="*,Auto">
+                                            <TextBox Grid.Column="0" Text="{Binding Name, Mode=TwoWay}" PlaceholderText="Profile name" VerticalAlignment="Center" />
+                                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" Margin="12,0,0,0" VerticalAlignment="Center">
+                                                <Button Content="Activate" ToolTip.Tip="Activate this profile (opens its Home workspace)"
+                                                        Command="{Binding $parent[Window].DataContext.ActivateProfileCommand}" CommandParameter="{Binding}" />
+                                                <Button Content="Set Default" ToolTip.Tip="Open this profile at launch"
+                                                        Command="{Binding $parent[Window].DataContext.SetStartupProfileCommand}" CommandParameter="{Binding}" />
+                                                <Button Classes="row-action danger" Content="✕" ToolTip.Tip="Delete profile"
+                                                        Command="{Binding $parent[Window].DataContext.RemoveProfileCommand}" CommandParameter="{Binding}" />
+                                            </StackPanel>
+                                        </Grid>
+                                        <!-- Badges on their own line so they never resize the name field -->
+                                        <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,8,0,0">
+                                            <Border Classes="pill ok" IsVisible="{Binding IsActiveProfile}"><TextBlock Text="Active" /></Border>
+                                            <Border Classes="pill neutral" IsVisible="{Binding IsStartupProfile}"><TextBlock Text="Default" /></Border>
+                                        </StackPanel>
+
+                                        <!-- Workspaces: indented and divided from the profile header -->
+                                        <Border Margin="4,12,0,0" Padding="16,4,0,0"
+                                                BorderBrush="{DynamicResource AppBorderSubtle}" BorderThickness="2,0,0,0">
+                                            <StackPanel>
+                                                <Grid ColumnDefinitions="*,Auto">
+                                                    <TextBlock Grid.Column="0" Classes="card-title" Text="Workspaces" VerticalAlignment="Center" />
+                                                    <Button Grid.Column="1" Content="+ Add Workspace"
+                                                            Command="{Binding $parent[Window].DataContext.AddWorkspaceCommand}" CommandParameter="{Binding}" />
+                                                </Grid>
+                                                <ItemsControl ItemsSource="{Binding Workspaces}" Margin="0,8,0,0">
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate DataType="vm:WorkspaceRow">
+                                                            <Border Background="{DynamicResource AppSurfaceAlt}" CornerRadius="4" Padding="8" Margin="0,0,0,6">
+                                                                <StackPanel>
+                                                                    <Grid ColumnDefinitions="*,Auto">
+                                                                        <TextBox Grid.Column="0" Text="{Binding Name, Mode=TwoWay}" PlaceholderText="Workspace name" VerticalAlignment="Center" />
+                                                                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" Margin="12,0,0,0" VerticalAlignment="Center">
+                                                                            <Button Content="Open" ToolTip.Tip="Activate this workspace and edit its pages"
+                                                                                    Command="{Binding $parent[Window].DataContext.ActivateWorkspaceCommand}" CommandParameter="{Binding}" />
+                                                                            <Button Content="Set Home" ToolTip.Tip="Make this the profile's Home workspace"
+                                                                                    Command="{Binding $parent[Window].DataContext.SetHomeWorkspaceCommand}" CommandParameter="{Binding}" />
+                                                                            <Button Classes="row-action danger" Content="✕" ToolTip.Tip="Delete workspace"
+                                                                                    Command="{Binding $parent[Window].DataContext.RemoveWorkspaceCommand}" CommandParameter="{Binding}" />
+                                                                        </StackPanel>
+                                                                    </Grid>
+                                                                    <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,8,0,0">
+                                                                        <Border Classes="pill ok" IsVisible="{Binding IsActiveWorkspace}"><TextBlock Text="Active" /></Border>
+                                                                        <Border Classes="pill neutral" IsVisible="{Binding IsHome}"><TextBlock Text="Home" /></Border>
+                                                                    </StackPanel>
+                                                                </StackPanel>
+                                                            </Border>
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+                                            </StackPanel>
+                                        </Border>
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
                 </StackPanel>
 
                 <!-- ====== Pages ====== -->
@@ -612,66 +703,128 @@
                     </Border>
                 </StackPanel>
 
-                <!-- ====== App Switching ====== -->
+                <!-- ====== Profile Rules ====== -->
                 <StackPanel IsVisible="{Binding CurrentView, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=AppSwitching}">
-                    <TextBlock Classes="page-title" Text="App Switching" />
+                    <TextBlock Classes="page-title" Text="Profile Rules" />
 
+                    <!-- ===== Automatic switching ===== -->
                     <Border Classes="card">
-                        <StackPanel>
-                            <TextBlock Classes="card-title" Text="Automatic page switching" />
-                            <CheckBox Content="Switch pages based on the focused application"
-                                      IsChecked="{Binding Config.AppSwitchingEnabled, Mode=TwoWay}" Margin="0,4,0,0" />
-                            <TextBlock Classes="hint" Margin="0,6,0,0"
-                                       Text="When the foreground window changes, the deck switches to the page bound by the first matching rule. Process name is matched case-insensitively (a trailing &quot;.exe&quot; is ignored). On Linux this requires an X11 / XWayland session and the 'xprop' tool." />
-
-                            <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,12,0,0" VerticalAlignment="Center">
-                                <TextBlock Classes="label" Text="No-match fallback page" VerticalAlignment="Center" />
-                                <ComboBox Width="160"
-                                          ItemsSource="{Binding FallbackPageOptions}"
-                                          SelectedIndex="{Binding FallbackSelectionIndex, Mode=TwoWay}" />
+                        <StackPanel Spacing="10">
+                            <StackPanel Spacing="4">
+                                <TextBlock Classes="card-title" Text="Automatic switching" Margin="0" />
+                                <CheckBox Content="Switch profiles and workspaces based on the active application"
+                                          FontWeight="SemiBold"
+                                          IsChecked="{Binding Config.AppSwitchingEnabled, Mode=TwoWay}" />
+                                <TextBlock Classes="hint" FontSize="12"
+                                           Text="The highest-priority matching rule activates its profile and workspace. Process names match case-insensitively; a trailing &quot;.exe&quot; is ignored. On Linux this needs an X11 / XWayland session and 'xprop'." />
                             </StackPanel>
-                            <TextBlock Classes="hint" Margin="0,6,0,0"
-                                       Text="When no rule matches the focused app, switch to this touch page. '(do nothing)' keeps the current page." />
+
+                            <!-- Fallback option + its profile, grouped as one unit. -->
+                            <Border Classes="rule-group">
+                                <StackPanel Spacing="8">
+                                    <CheckBox Content="Return to a fixed fallback profile when leaving matched apps"
+                                              IsChecked="{Binding UseFixedFallbackProfile, Mode=TwoWay}" />
+                                    <Grid ColumnDefinitions="Auto,*" Margin="26,0,0,0"
+                                          IsEnabled="{Binding UseFixedFallbackProfile}">
+                                        <TextBlock Grid.Column="0" Classes="label" Text="Fallback profile"
+                                                   VerticalAlignment="Center" Margin="0,0,10,0" />
+                                        <ComboBox Grid.Column="1" Width="240" HorizontalAlignment="Left"
+                                                  ItemsSource="{Binding RuleProfiles}"
+                                                  SelectedItem="{Binding FallbackProfile, Mode=TwoWay}">
+                                            <ComboBox.ItemTemplate>
+                                                <DataTemplate DataType="m:Profile">
+                                                    <TextBlock Text="{Binding Name}" />
+                                                </DataTemplate>
+                                            </ComboBox.ItemTemplate>
+                                        </ComboBox>
+                                    </Grid>
+                                    <TextBlock Classes="hint" FontSize="12" Margin="26,0,0,0"
+                                               Text="Off: return to whichever profile was active before a rule took over." />
+                                </StackPanel>
+                            </Border>
                         </StackPanel>
                     </Border>
 
+                    <!-- ===== Rules ===== -->
                     <Border Classes="card">
-                        <StackPanel>
-                            <Grid ColumnDefinitions="*,Auto">
-                                <TextBlock Grid.Column="0" Classes="card-title" Text="Rules" />
-                                <Button Grid.Column="1" Content="+ Add rule" Command="{Binding AddAppBindingCommand}" />
+                        <StackPanel Spacing="10">
+                            <Grid ColumnDefinitions="*,Auto" VerticalAlignment="Center">
+                                <TextBlock Grid.Column="0" Classes="card-title" Text="Rules"
+                                           Margin="0" VerticalAlignment="Center" />
+                                <Button Grid.Column="1" Classes="accent" Content="+ Add rule"
+                                        Command="{Binding AddContextRuleCommand}" />
                             </Grid>
 
-                            <Grid ColumnDefinitions="*,*,120,120,40" Margin="0,8,0,4">
-                                <TextBlock Grid.Column="0" Classes="label" Text="Process" />
-                                <TextBlock Grid.Column="1" Classes="label" Text="Title contains" Margin="8,0,0,0" />
-                                <TextBlock Grid.Column="2" Classes="label" Text="Touch page" Margin="8,0,0,0" />
-                                <TextBlock Grid.Column="3" Classes="label" Text="Rotary page" Margin="8,0,0,0" />
-                            </Grid>
-
-                            <ItemsControl ItemsSource="{Binding AppBindingRows}">
+                            <ItemsControl ItemsSource="{Binding ContextRuleRows}">
                                 <ItemsControl.ItemTemplate>
-                                    <DataTemplate DataType="vm:AppBindingRow">
-                                        <Border Background="{DynamicResource AppSurfaceAlt}" CornerRadius="4" Padding="8" Margin="0,0,0,6">
-                                            <Grid ColumnDefinitions="*,*,120,120,40">
-                                                <TextBox Grid.Column="0" PlaceholderText="chrome"
-                                                         Text="{Binding Binding.ProcessName, Mode=TwoWay}" />
-                                                <TextBox Grid.Column="1" PlaceholderText="(optional)" Margin="8,0,0,0"
-                                                         Text="{Binding Binding.TitleContains, Mode=TwoWay}" />
-                                                <ComboBox Grid.Column="2" Margin="8,0,0,0" HorizontalAlignment="Stretch"
-                                                          ItemsSource="{Binding TouchPages}"
-                                                          SelectedIndex="{Binding Binding.TouchPageIndex, Mode=TwoWay}">
-                                                    <ComboBox.ItemTemplate>
-                                                        <DataTemplate DataType="m:TouchButtonPage">
-                                                            <TextBlock Text="{Binding PageName}" />
-                                                        </DataTemplate>
-                                                    </ComboBox.ItemTemplate>
-                                                </ComboBox>
-                                                <ComboBox Grid.Column="3" Margin="8,0,0,0" HorizontalAlignment="Stretch"
-                                                          ItemsSource="{Binding RotaryPageOptions}"
-                                                          SelectedIndex="{Binding Binding.RotarySelectionIndex, Mode=TwoWay}" />
-                                                <Button Grid.Column="4" Classes="row-action danger" Content="✕" ToolTip.Tip="Remove rule"
-                                                        Command="{Binding $parent[Window].DataContext.RemoveAppBindingCommand}"
+                                    <DataTemplate DataType="vm:ContextRuleRow">
+                                        <Border Classes="rule-card">
+                                            <Grid ColumnDefinitions="*,Auto">
+                                                <StackPanel Grid.Column="0" Spacing="12">
+
+                                                    <!-- Match -->
+                                                    <StackPanel Spacing="5">
+                                                        <TextBlock Classes="group-label" Text="Match" />
+                                                        <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" RowSpacing="3">
+                                                            <TextBlock Grid.Row="0" Grid.Column="0" Classes="label" Text="Process" />
+                                                            <TextBlock Grid.Row="0" Grid.Column="1" Classes="label"
+                                                                       Text="Window title filter" Margin="12,0,0,0" />
+                                                            <TextBox Grid.Row="1" Grid.Column="0" PlaceholderText="obs64"
+                                                                     Text="{Binding Rule.ProcessName, Mode=TwoWay}" />
+                                                            <TextBox Grid.Row="1" Grid.Column="1" PlaceholderText="Optional"
+                                                                     Margin="12,0,0,0"
+                                                                     Text="{Binding Rule.TitleContains, Mode=TwoWay}" />
+                                                        </Grid>
+                                                    </StackPanel>
+
+                                                    <!-- Target -->
+                                                    <StackPanel Spacing="5">
+                                                        <TextBlock Classes="group-label" Text="Target" />
+                                                        <Grid ColumnDefinitions="*,Auto,*" RowDefinitions="Auto,Auto" RowSpacing="3">
+                                                            <TextBlock Grid.Row="0" Grid.Column="0" Classes="label" Text="Profile" />
+                                                            <TextBlock Grid.Row="0" Grid.Column="2" Classes="label" Text="Workspace" />
+                                                            <ComboBox Grid.Row="1" Grid.Column="0" HorizontalAlignment="Stretch"
+                                                                      ItemsSource="{Binding Profiles}"
+                                                                      SelectedItem="{Binding SelectedProfile, Mode=TwoWay}">
+                                                                <ComboBox.ItemTemplate>
+                                                                    <DataTemplate DataType="m:Profile">
+                                                                        <TextBlock Text="{Binding Name}" />
+                                                                    </DataTemplate>
+                                                                </ComboBox.ItemTemplate>
+                                                            </ComboBox>
+                                                            <TextBlock Grid.Row="1" Grid.Column="1" Classes="target-arrow"
+                                                                       Text="&#x2192;" Margin="12,0" />
+                                                            <ComboBox Grid.Row="1" Grid.Column="2" HorizontalAlignment="Stretch"
+                                                                      ItemsSource="{Binding Workspaces}"
+                                                                      SelectedItem="{Binding SelectedWorkspace, Mode=TwoWay}">
+                                                                <ComboBox.ItemTemplate>
+                                                                    <DataTemplate DataType="m:Workspace">
+                                                                        <TextBlock Text="{Binding Name}" />
+                                                                    </DataTemplate>
+                                                                </ComboBox.ItemTemplate>
+                                                            </ComboBox>
+                                                        </Grid>
+                                                    </StackPanel>
+
+                                                    <!-- Additional options -->
+                                                    <StackPanel Spacing="5">
+                                                        <TextBlock Classes="group-label" Text="Additional options" />
+                                                        <StackPanel Orientation="Horizontal" Spacing="20" VerticalAlignment="Center">
+                                                            <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                                                <TextBlock Classes="label" Text="Priority" VerticalAlignment="Center" />
+                                                                <TextBox Width="64" Text="{Binding PriorityText, Mode=TwoWay}" />
+                                                            </StackPanel>
+                                                            <CheckBox Content="Trigger when process starts" VerticalAlignment="Center"
+                                                                      IsChecked="{Binding Rule.ActivateOnProcessStart, Mode=TwoWay}"
+                                                                      ToolTip.Tip="Also apply this rule when the process starts, not only on focus" />
+                                                        </StackPanel>
+                                                    </StackPanel>
+                                                </StackPanel>
+
+                                                <Button Grid.Column="1" Classes="rule-delete" Content="✕"
+                                                        VerticalAlignment="Top" Margin="8,0,0,0"
+                                                        ToolTip.Tip="Remove rule"
+                                                        Command="{Binding $parent[Window].DataContext.RemoveContextRuleCommand}"
                                                         CommandParameter="{Binding}" />
                                             </Grid>
                                         </Border>
@@ -679,8 +832,8 @@
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
 
-                            <TextBlock Classes="hint" Margin="0,6,0,0"
-                                       Text="Rules are evaluated top to bottom — the first match wins. &quot;Rotary page&quot; is optional: '(unchanged)' leaves the current rotary page as-is." />
+                            <TextBlock Classes="hint" FontSize="12"
+                                       Text="The highest-priority matching rule wins; ties are broken by list order. Leave 'Profile' empty to keep the current profile, and 'Workspace' empty to open the profile's Home workspace. A manual profile/workspace switch pauses automatic switching until you change apps." />
                         </StackPanel>
                     </Border>
                 </StackPanel>

@@ -23,6 +23,7 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
     private readonly IPluginReloadService _pluginReload;
     private readonly IPluginManager _pluginManager;
     private readonly IAutostartService _autostart;
+    private readonly IWorkspaceActivationService _activation;
 
     /// <summary>
     /// All discovered plugins — drives the Plugins settings page. Read live from the
@@ -113,7 +114,8 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
         IPluginManager pluginManager,
         IPluginReloadService pluginReload,
         IInterceptionService interceptionService,
-        IAutostartService autostart)
+        IAutostartService autostart,
+        IWorkspaceActivationService activation)
     {
         Config = config;
         _deviceService = deviceService;
@@ -123,34 +125,24 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
         _pluginReload = pluginReload;
         _pluginManager = pluginManager;
         _autostart = autostart;
+        _activation = activation;
 
         // Commands are created lazily on first access by their `field ??= Relay.Create(...)`
         // getters, so there is nothing to wire up here.
 
-        // CollectionChanged can fire from a background thread (the parameterless
-        // RelayCommand runs Execute via Task.Run). Marshal the CanExecute refresh
-        // back to the UI thread so Avalonia's Button.IsEnabled update is safe.
-        _pageManager.TouchButtonPages.CollectionChanged += (_, _) =>
-            Dispatcher.UIThread.Post(() =>
-            {
-                RefreshTouchPageCommands();
-                SyncFallbackPageOptions();
-            });
-        _pageManager.RotaryButtonPages.CollectionChanged += (_, _) =>
-            Dispatcher.UIThread.Post(() =>
-            {
-                RefreshRotaryPageCommands();
-                SyncRotaryPageOptions();
-            });
+        // The page-editor collections forward to the active workspace (issue #132), so their
+        // instances change when a different workspace is activated. Bind through a rebindable
+        // helper and re-target on ActiveWorkspaceChanged so the Pages editor follows the active
+        // workspace. CollectionChanged can fire from a background thread (the parameterless
+        // RelayCommand runs Execute via Task.Run), so the handlers marshal to the UI thread.
+        BindPageCollections();
 
-        // Side-page lists drive the Remove buttons' CanExecute on side-strip devices.
-        if (HasIndependentRotarySides)
-        {
-            LeftRotaryPages.CollectionChanged += (_, _) =>
-                Dispatcher.UIThread.Post(RemoveLeftRotaryPageCommand.NotifyCanExecuteChanged);
-            RightRotaryPages.CollectionChanged += (_, _) =>
-                Dispatcher.UIThread.Post(RemoveRightRotaryPageCommand.NotifyCanExecuteChanged);
-        }
+        // Build the Profiles tree editor rows from the config.
+        foreach (var profile in Config.Profiles)
+            ProfileRows.Add(new ProfileRow(profile, this));
+
+        _activation.ActiveProfileChanged += _ => OnActiveWorkspaceChangedForEditor();
+        _activation.ActiveWorkspaceChanged += _ => OnActiveWorkspaceChangedForEditor();
 
         SyncRotaryPageOptions();
         SyncFallbackPageOptions();
@@ -160,6 +152,12 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
         // (the only mutation paths), so no event subscription is needed here.
         foreach (var binding in Config.AppPageBindings)
             AppBindingRows.Add(new AppBindingRow(binding, TouchPages, RotaryPageOptions));
+
+        // Context rules (issue #132). By the time settings can be opened the context engine has
+        // folded any legacy AppPageBindings into Config.ContextRules, so this shows both migrated
+        // and user-created rules.
+        foreach (var rule in Config.ContextRules)
+            ContextRuleRows.Add(new ContextRuleRow(rule, Config.Profiles));
 
         Config.HapticSteps.CollectionChanged += OnHapticStepsChanged;
 
@@ -376,6 +374,188 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
         }
     }
 
+    // Page-editor collections forward to the active workspace, so their instances change on a
+    // workspace switch. Track what we are subscribed to so we can rebind (issue #132).
+    private ObservableCollection<TouchButtonPage> _boundTouchPages;
+    private ObservableCollection<RotaryButtonPage> _boundRotaryPages;
+    private ObservableCollection<RotaryButtonPage> _boundLeftRotaryPages;
+    private ObservableCollection<RotaryButtonPage> _boundRightRotaryPages;
+
+    private void BindPageCollections()
+    {
+        Rebind(ref _boundTouchPages, _pageManager.TouchButtonPages, OnTouchPagesChanged);
+        Rebind(ref _boundRotaryPages, _pageManager.RotaryButtonPages, OnRotaryPagesChangedHandler);
+
+        if (HasIndependentRotarySides)
+        {
+            Rebind(ref _boundLeftRotaryPages, _pageManager.GetRotaryPages(RotarySide.Left), OnLeftRotaryPagesChanged);
+            Rebind(ref _boundRightRotaryPages, _pageManager.GetRotaryPages(RotarySide.Right), OnRightRotaryPagesChanged);
+        }
+    }
+
+    private static void Rebind(ref ObservableCollection<RotaryButtonPage> bound,
+        ObservableCollection<RotaryButtonPage> next,
+        System.Collections.Specialized.NotifyCollectionChangedEventHandler handler)
+    {
+        if (bound != null) bound.CollectionChanged -= handler;
+        bound = next;
+        if (bound != null) bound.CollectionChanged += handler;
+    }
+
+    private static void Rebind(ref ObservableCollection<TouchButtonPage> bound,
+        ObservableCollection<TouchButtonPage> next,
+        System.Collections.Specialized.NotifyCollectionChangedEventHandler handler)
+    {
+        if (bound != null) bound.CollectionChanged -= handler;
+        bound = next;
+        if (bound != null) bound.CollectionChanged += handler;
+    }
+
+    private void OnTouchPagesChanged(object sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e) =>
+        Dispatcher.UIThread.Post(() =>
+        {
+            RefreshTouchPageCommands();
+            SyncFallbackPageOptions();
+        });
+
+    private void OnRotaryPagesChangedHandler(object sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e) =>
+        Dispatcher.UIThread.Post(() =>
+        {
+            RefreshRotaryPageCommands();
+            SyncRotaryPageOptions();
+        });
+
+    private void OnLeftRotaryPagesChanged(object sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e) =>
+        Dispatcher.UIThread.Post(RemoveLeftRotaryPageCommand.NotifyCanExecuteChanged);
+
+    private void OnRightRotaryPagesChanged(object sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e) =>
+        Dispatcher.UIThread.Post(RemoveRightRotaryPageCommand.NotifyCanExecuteChanged);
+
+    /// <summary>Re-targets the Pages editor onto the newly active workspace's collections and
+    /// refreshes the Profiles tree badges (issue #132).</summary>
+    private void OnActiveWorkspaceChangedForEditor() =>
+        Dispatcher.UIThread.Post(() =>
+        {
+            BindPageCollections();
+            OnPropertyChanged(nameof(TouchPages));
+            OnPropertyChanged(nameof(RotaryPages));
+            OnPropertyChanged(nameof(LeftRotaryPages));
+            OnPropertyChanged(nameof(RightRotaryPages));
+            OnPropertyChanged(nameof(TouchPageIndices));
+            RefreshTouchPageCommands();
+            RefreshRotaryPageCommands();
+            SyncRotaryPageOptions();
+            SyncFallbackPageOptions();
+            foreach (var row in ProfileRows) row.RefreshFlags();
+        });
+
+    // ───────── Profiles / Workspaces (issue #132) ─────────
+
+    /// <summary>Editor rows for the Profiles settings tree, kept in sync with
+    /// <c>Config.Profiles</c> in the Add/Remove commands (the only mutation paths).</summary>
+    public ObservableCollection<ProfileRow> ProfileRows { get; } = new();
+
+    public IRelayCommand AddProfileCommand => field ??= Relay.Create(AddProfile);
+    public IAsyncRelayCommand RemoveProfileCommand => field ??= Relay.Create<ProfileRow>(
+        RemoveProfile, p => p != null && Config.Profiles.Count > 1);
+    public IRelayCommand SetStartupProfileCommand => field ??= Relay.Create<ProfileRow>(SetStartupProfile, p => p != null);
+    public IAsyncRelayCommand ActivateProfileCommand => field ??= Relay.Create<ProfileRow>(
+        p => _activation.ActivateProfile(p.Profile.Id), p => p != null);
+
+    public IRelayCommand AddWorkspaceCommand => field ??= Relay.Create<ProfileRow>(AddWorkspace, p => p != null);
+    public IAsyncRelayCommand RemoveWorkspaceCommand => field ??= Relay.Create<WorkspaceRow>(
+        RemoveWorkspace, p => p != null && p.Parent.Profile.Workspaces.Count > 1);
+    public IRelayCommand SetHomeWorkspaceCommand => field ??= Relay.Create<WorkspaceRow>(SetHomeWorkspace, p => p != null);
+    public IAsyncRelayCommand ActivateWorkspaceCommand => field ??= Relay.Create<WorkspaceRow>(ActivateWorkspace, p => p != null);
+
+    private void AddProfile()
+    {
+        var workspace = new Workspace { Name = "Home" };
+        var profile = new Profile { Name = "New Profile", HomeWorkspaceId = workspace.Id };
+        profile.Workspaces.Add(workspace);
+        Config.Profiles.Add(profile);
+        ProfileRows.Add(new ProfileRow(profile, this));
+        RemoveProfileCommand.NotifyCanExecuteChanged();
+    }
+
+    private async Task RemoveProfile(ProfileRow row)
+    {
+        if (row == null || Config.Profiles.Count <= 1) return;
+
+        var wasActive = Config.ActiveProfileId == row.Profile.Id;
+        var wasStartup = Config.StartupProfileId == row.Profile.Id;
+
+        Config.Profiles.Remove(row.Profile);
+        ProfileRows.Remove(row);
+
+        if (wasStartup)
+            Config.StartupProfileId = Config.Profiles[0].Id;
+
+        // Activating a surviving profile also re-targets the editor and refreshes the badges.
+        if (wasActive)
+            await _activation.ActivateProfile(Config.Profiles[0].Id);
+        else
+            foreach (var r in ProfileRows) r.RefreshFlags();
+
+        RemoveProfileCommand.NotifyCanExecuteChanged();
+    }
+
+    private void SetStartupProfile(ProfileRow row)
+    {
+        if (row == null) return;
+        Config.StartupProfileId = row.Profile.Id;
+        foreach (var r in ProfileRows) r.RefreshFlags();
+    }
+
+    private void AddWorkspace(ProfileRow row)
+    {
+        if (row == null) return;
+        var workspace = new Workspace { Name = "New Workspace" };
+        row.Profile.Workspaces.Add(workspace);
+        row.Workspaces.Add(new WorkspaceRow(workspace, row));
+        RemoveWorkspaceCommand.NotifyCanExecuteChanged();
+    }
+
+    private async Task RemoveWorkspace(WorkspaceRow row)
+    {
+        if (row == null) return;
+        var profile = row.Parent.Profile;
+        if (profile.Workspaces.Count <= 1) return;
+
+        var wasHome = profile.HomeWorkspaceId == row.Workspace.Id;
+        var wasActive = Config.ActiveProfileId == profile.Id && Config.ActiveWorkspaceId == row.Workspace.Id;
+
+        profile.Workspaces.Remove(row.Workspace);
+        row.Parent.Workspaces.Remove(row);
+
+        if (wasHome)
+            profile.HomeWorkspaceId = profile.Workspaces[0].Id;
+
+        if (wasActive)
+            await _activation.GoToHomeWorkspace();
+
+        row.Parent.RefreshFlags();
+        RemoveWorkspaceCommand.NotifyCanExecuteChanged();
+    }
+
+    private void SetHomeWorkspace(WorkspaceRow row)
+    {
+        if (row == null) return;
+        row.Parent.Profile.HomeWorkspaceId = row.Workspace.Id;
+        row.Parent.RefreshFlags();
+    }
+
+    private async Task ActivateWorkspace(WorkspaceRow row)
+    {
+        if (row == null) return;
+
+        // Activate the owning profile first (opens its home), then the specific workspace.
+        if (Config.ActiveProfileId != row.Parent.Profile.Id)
+            await _activation.ActivateProfile(row.Parent.Profile.Id);
+
+        await _activation.ActivateWorkspace(row.Workspace.Id);
+    }
+
     // ───────── App Switching ─────────
 
     // The rule editor's touch-page selector binds directly to the live TouchPages
@@ -437,6 +617,59 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
         if (row == null) return;
         Config.AppPageBindings.Remove(row.Binding);
         AppBindingRows.Remove(row);
+    }
+
+    // ───────── Context rules (issue #132) ─────────
+
+    /// <summary>Profiles for the rule/fallback ComboBoxes.</summary>
+    public ObservableCollection<Profile> RuleProfiles => Config.Profiles;
+
+    /// <summary>Editor rows for the context-rule list, kept in sync with <c>Config.ContextRules</c>.</summary>
+    public ObservableCollection<ContextRuleRow> ContextRuleRows { get; } = new();
+
+    public IRelayCommand AddContextRuleCommand => field ??= Relay.Create(AddContextRule);
+    public IRelayCommand RemoveContextRuleCommand => field ??= Relay.Create<ContextRuleRow>(RemoveContextRule, p => p != null);
+
+    private void AddContextRule()
+    {
+        var rule = new ContextRule();
+        Config.ContextRules.Add(rule);
+        ContextRuleRows.Add(new ContextRuleRow(rule, Config.Profiles));
+    }
+
+    private void RemoveContextRule(ContextRuleRow row)
+    {
+        if (row == null) return;
+        Config.ContextRules.Remove(row.Rule);
+        ContextRuleRows.Remove(row);
+    }
+
+    /// <summary>When on, leaving all rule-matched apps returns to a fixed <see cref="FallbackProfile"/>;
+    /// when off, it restores whichever profile was active before a rule took over.</summary>
+    public bool UseFixedFallbackProfile
+    {
+        get => Config.FallbackProfileId != null;
+        set
+        {
+            if (!value)
+                Config.FallbackProfileId = null;
+            else
+                Config.FallbackProfileId ??= Config.Profiles.FirstOrDefault()?.Id;
+
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(FallbackProfile));
+        }
+    }
+
+    public Profile FallbackProfile
+    {
+        get => Config.Profiles.FirstOrDefault(p => p.Id == Config.FallbackProfileId);
+        set
+        {
+            Config.FallbackProfileId = value?.Id;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(UseFixedFallbackProfile));
+        }
     }
 
     private async Task RemoveTouchPage(TouchButtonPage page)

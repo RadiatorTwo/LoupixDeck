@@ -92,6 +92,8 @@ public class CoreCommandProvider : ICommandProvider
         return group switch
         {
             "Pages" => ButtonTargets.All,
+            // Profile/workspace switching — assignable to every button type (issue #132).
+            "Profiles" => ButtonTargets.All,
             "Device Control" => ButtonTargets.All,
             // Arbitrary shell command — assignable to every button type.
             "Shell" => ButtonTargets.All,

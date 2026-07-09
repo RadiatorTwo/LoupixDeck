@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using System.Windows.Input;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -25,6 +26,13 @@ public partial class MainWindowViewModel : ViewModelBase
 {
     private readonly IDialogService _dialogService;
     private readonly IButtonClipboardService _clipboard;
+    private readonly IWorkspaceActivationService _workspaceActivation;
+    private readonly LoupedeckConfig _config;
+
+    // Guards the profile/workspace ComboBox selection against feedback loops: set while we
+    // push an external activation (context rules, commands, buttons) back into the bound
+    // SelectedProfile/SelectedWorkspace, so their OnChanged hooks don't re-activate.
+    private bool _suppressActivationSync;
 
     // The two side displays occupy touch-button slots 12/13 on devices with side strips.
     private const int LeftSideIndex = LoupixDeck.LoupedeckDevice.Device.RazerStreamControllerDevice.LeftSideIndex;
@@ -119,6 +127,96 @@ public partial class MainWindowViewModel : ViewModelBase
     [ObservableProperty]
     public partial string ExclusiveModeTitle { get; private set; }
 
+    // ─────────────────────────── Profile / workspace switcher (issue #132) ───────────────────────────
+
+    /// <summary>The profiles configured on this device — the source for the header's Profile
+    /// dropdown. Mutating this collection in Settings (add/rename/remove) updates the dropdown live.</summary>
+    public ObservableCollection<Profile> Profiles => _config.Profiles;
+
+    private Profile _selectedProfile;
+
+    /// <summary>Selected profile in the header dropdown. Bound two-way; picking a new one activates it
+    /// (opening its home workspace). Kept in sync with external activations via
+    /// <see cref="IWorkspaceActivationService.ActiveProfileChanged"/>.</summary>
+    public Profile SelectedProfile
+    {
+        get => _selectedProfile;
+        set
+        {
+            // Switching the active device swaps this ComboBox's ItemsSource; Avalonia clears its
+            // SelectedItem to null in the process, and the TwoWay binding would write that null
+            // back — wiping the device's stored selection. Ignore the transient null while the
+            // current selection is still a valid member of Profiles (a device switch), and
+            // re-assert it so the ComboBox rebinds. A real profile change (non-null, or the old
+            // value no longer in the list) passes straight through.
+            if (value == null && _selectedProfile != null && Profiles != null && Profiles.Contains(_selectedProfile))
+            {
+                Avalonia.Threading.Dispatcher.UIThread.Post(() => OnPropertyChanged(nameof(SelectedProfile)));
+                return;
+            }
+
+            if (!SetProperty(ref _selectedProfile, value)) return;
+            OnPropertyChanged(nameof(Workspaces));
+
+            // Only user-driven dropdown changes activate; syncing from an external activation is suppressed.
+            if (!_suppressActivationSync && value != null)
+                _ = _workspaceActivation.ActivateProfile(value.Id);
+        }
+    }
+
+    /// <summary>Workspaces of the <see cref="SelectedProfile"/> — the source for the header's
+    /// Workspace dropdown. Re-projected whenever the selected profile changes.</summary>
+    public ObservableCollection<Workspace> Workspaces => SelectedProfile?.Workspaces;
+
+    private Workspace _selectedWorkspace;
+
+    /// <summary>Selected workspace in the header dropdown. Bound two-way; picking a new one activates
+    /// it within the current profile. Kept in sync with external activations via
+    /// <see cref="IWorkspaceActivationService.ActiveWorkspaceChanged"/>.</summary>
+    public Workspace SelectedWorkspace
+    {
+        get => _selectedWorkspace;
+        set
+        {
+            // Same transient-null guard as SelectedProfile: reject the null the ComboBox writes
+            // when its ItemsSource is swapped on a device switch (current workspace still valid),
+            // but allow it when the profile changed (old workspace no longer in the new list) so
+            // the activation event can move us to the new home workspace.
+            ObservableCollection<Workspace> workspaces = Workspaces;
+            if (value == null && _selectedWorkspace != null && workspaces != null && workspaces.Contains(_selectedWorkspace))
+            {
+                Avalonia.Threading.Dispatcher.UIThread.Post(() => OnPropertyChanged(nameof(SelectedWorkspace)));
+                return;
+            }
+
+            if (!SetProperty(ref _selectedWorkspace, value)) return;
+
+            if (!_suppressActivationSync && value != null)
+                _ = _workspaceActivation.ActivateWorkspace(value.Id);
+        }
+    }
+
+    private void OnActiveProfileChanged(Profile profile)
+    {
+        // Activation can be raised off the UI thread (context engine / app-switching worker).
+        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        {
+            _suppressActivationSync = true;
+            SelectedProfile = profile;
+            _suppressActivationSync = false;
+        });
+    }
+
+    private void OnActiveWorkspaceChanged(Workspace workspace)
+    {
+        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        {
+            _suppressActivationSync = true;
+            SelectedWorkspace = workspace;
+            _suppressActivationSync = false;
+        });
+    }
+
     public MainWindowViewModel(LoupedeckLiveSController loupedeck,
         IDialogService dialogService,
         IButtonClipboardService clipboard,
@@ -128,6 +226,7 @@ public partial class MainWindowViewModel : ViewModelBase
         ISystemPowerService powerService,
         IExclusiveModeService exclusiveMode,
         IAppSwitchingService appSwitching,
+        IWorkspaceActivationService workspaceActivation,
         LoupedeckConfig config,
         LoupixDeck.Registry.DeviceRegistry.DeviceInfo deviceInfo,
         LoupixDeck.Registry.ResolvedDevice resolved)
@@ -141,6 +240,18 @@ public partial class MainWindowViewModel : ViewModelBase
         _dynamicTextManager = dynamicTextManager;
         _buttonAnimationManager = buttonAnimationManager;
         _exclusiveMode = exclusiveMode;
+        _workspaceActivation = workspaceActivation;
+        _config = config;
+
+        // Seed the header dropdowns from the current active profile/workspace, and keep them in
+        // sync with activations that originate elsewhere (context rules, commands, device buttons).
+        // Suppressed so the initial assignment doesn't re-trigger an activation.
+        _suppressActivationSync = true;
+        SelectedProfile = _workspaceActivation.ActiveProfile;
+        SelectedWorkspace = _workspaceActivation.ActiveWorkspace;
+        _suppressActivationSync = false;
+        _workspaceActivation.ActiveProfileChanged += OnActiveProfileChanged;
+        _workspaceActivation.ActiveWorkspaceChanged += OnActiveWorkspaceChanged;
 
         commandRegistry.Initialize();
 
@@ -226,6 +337,8 @@ public partial class MainWindowViewModel : ViewModelBase
         if (Avalonia.Application.Current is { } app)
             app.ActualThemeVariantChanged -= OnThemeVariantChanged;
         _exclusiveMode.StateChanged -= OnExclusiveModeStateChanged;
+        _workspaceActivation.ActiveProfileChanged -= OnActiveProfileChanged;
+        _workspaceActivation.ActiveWorkspaceChanged -= OnActiveWorkspaceChanged;
     }
 
     private void OnThemeVariantChanged(object sender, EventArgs e)

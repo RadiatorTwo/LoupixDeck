@@ -209,11 +209,17 @@ public static class ServiceCollectionExtensions
                 // App.InitializeDevices catches and shuts down silently.
                 SeedSerialPortFromSibling(config, configService, deviceInfo);
             }
+
+            // Guarantee a resolvable active profile/workspace (issue #132): a fresh config gets a
+            // Default profile with a Home workspace; a migrated config already has one and is left
+            // as is. Also binds the active-workspace facade so the page properties resolve.
+            config.EnsureDefaultProfile();
             return config;
         });
 
         collection.AddSingleton<IDeviceService, LoupedeckDeviceService>();
         collection.AddSingleton<IPageManager, PageManager>();
+        collection.AddSingleton<IWorkspaceActivationService, WorkspaceActivationService>();
 
         // Command catalog — device-scoped so command activation
         // (SysCommandService → ActivatorUtilities.CreateInstance(this provider))
@@ -232,6 +238,7 @@ public static class ServiceCollectionExtensions
         // The command-selection menu is assembled generically from these contributors.
         collection.AddSingleton<IMenuContributor, CommandGroupMenuContributor>();
         collection.AddSingleton<IMenuContributor, UserMacroMenuContributor>();
+        collection.AddSingleton<IMenuContributor, ProfileMenuContributor>();
         collection.AddSingleton<IPluginMenuSource, PluginMenuContributor>();
         collection.AddSingleton<IMenuTreeBuilder, MenuTreeBuilder>();
 

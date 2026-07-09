@@ -213,6 +213,73 @@
         <Setter Property="Background" Value="#4A2A2A" />
     </Style>
 
+    <!-- ===== Profile / context rule cards (Profile Rules settings) ===== -->
+
+    <!-- One card per rule; slightly raised surface, subtle border, gentle hover. -->
+    <Style Selector="Border.rule-card">
+        <Setter Property="Background" Value="{DynamicResource AppSurfaceAlt}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource AppBorderSubtle}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="Padding" Value="14" />
+        <Setter Property="Margin" Value="0,0,0,10" />
+    </Style>
+    <Style Selector="Border.rule-card:pointerover">
+        <Setter Property="Background" Value="{DynamicResource AppControlBackgroundActive}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource AppTextMuted}" />
+    </Style>
+
+    <!-- Small section heading inside a rule card (Match / Target / Additional options). -->
+    <Style Selector="TextBlock.group-label">
+        <Setter Property="FontSize" Value="11" />
+        <Setter Property="FontWeight" Value="Bold" />
+        <Setter Property="Foreground" Value="{DynamicResource AppTextSecondary}" />
+    </Style>
+
+    <!-- Grouping box that visually ties related controls together (e.g. fallback profile). -->
+    <Style Selector="Border.rule-group">
+        <Setter Property="Background" Value="{DynamicResource AppSurfaceAlt}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource AppBorderSubtle}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="6" />
+        <Setter Property="Padding" Value="12,10" />
+    </Style>
+
+    <!-- Connector arrow between the Profile and Workspace target fields. -->
+    <Style Selector="TextBlock.target-arrow">
+        <Setter Property="FontSize" Value="18" />
+        <Setter Property="Foreground" Value="{DynamicResource AppTextMuted}" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="HorizontalAlignment" Value="Center" />
+    </Style>
+
+    <!-- Uniform field height for the rule inputs (text boxes, combo boxes). -->
+    <Style Selector="Border.rule-card TextBox">
+        <Setter Property="MinHeight" Value="32" />
+    </Style>
+    <Style Selector="Border.rule-card ComboBox">
+        <Setter Property="MinHeight" Value="32" />
+    </Style>
+
+    <!-- Delete button: neutral by default, red on hover (reuses the danger palette
+         already used by Button.row-action.danger). -->
+    <Style Selector="Button.rule-delete">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="CornerRadius" Value="4" />
+        <Setter Property="Width" Value="28" />
+        <Setter Property="Height" Value="28" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="HorizontalContentAlignment" Value="Center" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="Foreground" Value="{DynamicResource AppTextMuted}" />
+    </Style>
+    <Style Selector="Button.rule-delete:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="#4A2A2A" />
+        <Setter Property="Foreground" Value="#E08A8A" />
+    </Style>
+
     <!-- ===== Command-chain cards (touch-button command editor) ===== -->
 
     <!-- Drop zone for the command chain; highlights while dragging a command over it.

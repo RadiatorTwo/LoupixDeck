@@ -26,7 +26,8 @@ public class ConfigService : IConfigService
         new RotaryPageSideSplitMigrator(),
         new WallpaperAssetMigrator(),
         new WallpaperSlotMigrator(),
-        new ButtonStatesMigrator()
+        new ButtonStatesMigrator(),
+        new ProfilesWorkspacesMigrator()
     ];
 
     public ConfigService()
