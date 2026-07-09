@@ -207,11 +207,13 @@ public partial class LoupedeckLiveSController(
         exclusiveMode.StateChanged -= OnExclusiveStateChanged;
         config.PropertyChanged -= ConfigOnPropertyChanged;
 
-        if (config.TouchButtonPages != null)
+        // Detach from whichever workspace's pages we are currently bound to (issue #132).
+        if (_boundTouchPages != null)
         {
-            config.TouchButtonPages.CollectionChanged -= TouchButtonPagesOnCollectionChanged;
-            foreach (var page in config.TouchButtonPages)
+            _boundTouchPages.CollectionChanged -= TouchButtonPagesOnCollectionChanged;
+            foreach (var page in _boundTouchPages)
                 page.PropertyChanged -= TouchButtonPageOnPropertyChanged;
+            _boundTouchPages = null;
         }
     }
 
@@ -323,14 +325,10 @@ public partial class LoupedeckLiveSController(
         folderNav.StateChanged += OnFolderStateChanged;
         exclusiveMode.StateChanged += OnExclusiveStateChanged;
 
-        // Subscribe to page property changes for wallpaper updates
-        foreach (var page in config.TouchButtonPages)
-        {
-            page.PropertyChanged += TouchButtonPageOnPropertyChanged;
-        }
-
-        // Subscribe to collection changes to handle newly added pages
-        config.TouchButtonPages.CollectionChanged += TouchButtonPagesOnCollectionChanged;
+        // Bind the active workspace's touch pages (per-page wallpaper property changes + the
+        // collection itself). Factored so a workspace/profile switch can rebind onto the new
+        // workspace's pages (issue #132).
+        BindActiveWorkspaceTouchPages();
 
         config.SimpleButtons = await BuildSimpleButtons();
 
@@ -1715,6 +1713,41 @@ public partial class LoupedeckLiveSController(
         // The side strips share the page wallpaper, so repaint them for the new page.
         if (!_isDeviceOff && !folderNav.IsActive && !exclusiveMode.IsActive)
             _ = RedrawSideStrips();
+    }
+
+    // Tracks which touch-page collection our CollectionChanged/PropertyChanged handlers are
+    // currently attached to, so a workspace switch can detach from the old workspace's pages
+    // before attaching to the new one (issue #132). The active workspace's TouchButtonPages is a
+    // different collection instance per workspace, so binding once at init is not enough.
+    private System.Collections.ObjectModel.ObservableCollection<TouchButtonPage> _boundTouchPages;
+
+    /// <summary>
+    /// (Re)subscribes the controller's touch-page handlers to the active workspace's pages: the
+    /// per-page wallpaper <see cref="TouchButtonPageOnPropertyChanged"/> and the collection's
+    /// <see cref="TouchButtonPagesOnCollectionChanged"/>. Detaches from the previously bound
+    /// collection first, so activating a different workspace/profile moves the wiring onto the new
+    /// pages. Idempotent — a no-op when already bound to the active collection.
+    /// </summary>
+    public void BindActiveWorkspaceTouchPages()
+    {
+        var pages = config.TouchButtonPages;
+        if (ReferenceEquals(pages, _boundTouchPages)) return;
+
+        if (_boundTouchPages != null)
+        {
+            _boundTouchPages.CollectionChanged -= TouchButtonPagesOnCollectionChanged;
+            foreach (var page in _boundTouchPages)
+                page.PropertyChanged -= TouchButtonPageOnPropertyChanged;
+        }
+
+        _boundTouchPages = pages;
+
+        if (_boundTouchPages != null)
+        {
+            foreach (var page in _boundTouchPages)
+                page.PropertyChanged += TouchButtonPageOnPropertyChanged;
+            _boundTouchPages.CollectionChanged += TouchButtonPagesOnCollectionChanged;
+        }
     }
 
     private void TouchButtonPagesOnCollectionChanged(object sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
