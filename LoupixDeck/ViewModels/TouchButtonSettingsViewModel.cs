@@ -809,6 +809,8 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
             CachedImage = _assetService.Load(relative)
         };
 
+        ApplyInitialStripHeightFit(layer, layer.CachedImage?.Width ?? 0, layer.CachedImage?.Height ?? 0);
+
         ButtonData.Layers.Add(layer);
         SelectedLayer = layer;
     }
@@ -841,8 +843,13 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         if (string.IsNullOrEmpty(path) || !File.Exists(path)) return;
 
         // GIF/WebP are stored as-is; a video is transcoded once here (needs ffmpeg). The decode
-        // and any transcode run off the UI thread.
-        var relative = await Task.Run(() => _animatedImageImporter.ImportAsync(path));
+        // and any transcode run off the UI thread. Pass the edited surface size so a video is
+        // fitted to the real target (60×270 for a side strip) preserving aspect, not a 90×90 square.
+        var targetW = DeviceWidth;
+        var targetH = DeviceHeight;
+        // A side strip (tall, non-square) fills its height; a square button letterboxes.
+        var fill = IsStripCanvas;
+        var relative = await Task.Run(() => _animatedImageImporter.ImportAsync(path, targetW, targetH, fill));
         if (string.IsNullOrEmpty(relative))
         {
             // Most likely a video was picked without ffmpeg on PATH.
@@ -863,8 +870,31 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
             CachedImage = anim.Frames[0]
         };
 
+        ApplyInitialStripHeightFit(layer, anim.Frames[0]?.Width ?? 0, anim.Frames[0]?.Height ?? 0);
+
         ButtonData.Layers.Add(layer);
         SelectedLayer = layer;
+    }
+
+    /// <summary>
+    /// For a side-strip canvas (tall, non-square) scales a freshly added image/animation layer so it
+    /// fills the strip HEIGHT while preserving aspect, centred — the surplus width is clipped by the
+    /// strip, the shortfall shows a thin side margin. Nothing is squashed to the 60px width. Ordinary
+    /// square touch buttons keep the default (Scale 1 = aspect-fit within the button), unaffected.
+    /// </summary>
+    private void ApplyInitialStripHeightFit(ImageLayer layer, int sourceWidth, int sourceHeight)
+    {
+        if (layer == null || !IsStripCanvas || sourceWidth <= 0 || sourceHeight <= 0) return;
+
+        // The device render (BitmapHelper.DrawImageLayer) uses fit = min(W/sw, H/sh) then * Scale.
+        // Choosing Scale = H / (sh * fit) makes the displayed height exactly the surface height,
+        // so the clip fills the strip vertically at native resolution (no upscale) and the width
+        // follows the aspect ratio.
+        double fit = Math.Min((double)DeviceWidth / sourceWidth, (double)DeviceHeight / sourceHeight);
+        if (fit <= 0) return;
+
+        double heightFill = DeviceHeight / (sourceHeight * fit);
+        if (heightFill > 1.0) layer.Scale = heightFill;
     }
 
     private void AddTextLayer()

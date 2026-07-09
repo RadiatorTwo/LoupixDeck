@@ -25,8 +25,16 @@ public interface IAnimatedImageImporter
     /// Imports <paramref name="sourcePath"/> and returns the stored asset relative path
     /// (e.g. <c>assets/animations/&lt;hash&gt;.gif</c>), or null on failure / unsupported type /
     /// missing ffmpeg for a video. Runs the transcode (if any) on a background thread.
+    /// <paramref name="targetWidth"/>/<paramref name="targetHeight"/> are the edited surface size
+    /// (default 90×90 for a touch button; pass the strip's 60×270 for a side display). Aspect ratio
+    /// is always preserved, never squashed. With <paramref name="fill"/> false (square button) the
+    /// clip is fitted WITHIN the box (letterboxed). With <paramref name="fill"/> true (a tall side
+    /// strip) the clip is scaled to the target HEIGHT keeping its full width — so it is stored at the
+    /// strip's native vertical resolution (never shrunk to the 60px width). The whole clip is kept in
+    /// the asset; the layer then fills the strip height and the surplus width is centre-clipped on
+    /// screen. GIF/animated WebP are stored verbatim (already the author's chosen aspect/resolution).
     /// </summary>
-    Task<string> ImportAsync(string sourcePath);
+    Task<string> ImportAsync(string sourcePath, int targetWidth = 90, int targetHeight = 90, bool fill = false);
 }
 
 /// <inheritdoc cref="IAnimatedImageImporter"/>
@@ -34,9 +42,10 @@ public sealed class AnimatedImageImporter : IAnimatedImageImporter
 {
     private const string AnimationsSubFolder = "animations";
 
-    // Button-size normalization. The deck button is 90×90; cap frame rate and length so the
-    // imported GIF stays small and decodes to a bounded number of frames.
-    private const int ButtonSize = 90;
+    // Default transcode box (a 90×90 touch button). The video is fitted WITHIN the box preserving
+    // aspect (never padded to it), so callers pass the real surface (e.g. 60×270 for a side strip).
+    private const int DefaultTargetSize = 90;
+    // Cap frame rate and length so the imported GIF stays small and decodes to a bounded frame count.
     private const int ImportFps = 15;
     private const int MaxSeconds = 10;
 
@@ -54,7 +63,7 @@ public sealed class AnimatedImageImporter : IAnimatedImageImporter
     public IReadOnlyCollection<string> AnimatedImageExtensions => _animatedImageExt;
     public IReadOnlyCollection<string> VideoExtensions => _videoExt;
 
-    public async Task<string> ImportAsync(string sourcePath)
+    public async Task<string> ImportAsync(string sourcePath, int targetWidth = DefaultTargetSize, int targetHeight = DefaultTargetSize, bool fill = false)
     {
         if (string.IsNullOrWhiteSpace(sourcePath) || !File.Exists(sourcePath))
             return null;
@@ -66,13 +75,13 @@ public sealed class AnimatedImageImporter : IAnimatedImageImporter
             return _assetService.Import(sourcePath, AnimationsSubFolder);
 
         if (_videoExt.Contains(ext))
-            return await ImportVideoAsync(sourcePath).ConfigureAwait(false);
+            return await ImportVideoAsync(sourcePath, targetWidth, targetHeight, fill).ConfigureAwait(false);
 
         // Unknown extension: try as a still/animated image SkiaSharp might still read.
         return _assetService.Import(sourcePath, AnimationsSubFolder);
     }
 
-    private async Task<string> ImportVideoAsync(string sourcePath)
+    private async Task<string> ImportVideoAsync(string sourcePath, int targetWidth, int targetHeight, bool fill)
     {
         if (!FfmpegDetector.IsAvailable())
         {
@@ -83,13 +92,23 @@ public sealed class AnimatedImageImporter : IAnimatedImageImporter
         var tempGif = Path.Combine(Path.GetTempPath(),
             "loupix_anim_" + Guid.NewGuid().ToString("N") + ".gif");
 
+        var w = Math.Max(1, targetWidth);
+        var h = Math.Max(1, targetHeight);
+
         try
         {
-            // Single transcode to a button-size looping GIF. palettegen/paletteuse give acceptable
-            // quality at small size; force_original_aspect_ratio + pad keep the square button frame.
+            // Single transcode to a looping GIF; palettegen/paletteuse give acceptable quality.
+            // Aspect ratio is always preserved. Two modes:
+            //  • fill (tall side strip): scale to the target HEIGHT, width follows the aspect (-2 =
+            //    auto, even). The whole clip is kept at the strip's native vertical resolution — NOT
+            //    shrunk to the 60px width — so filling the strip height later never upscales into
+            //    blocks. The layer centres it and the strip clips the surplus width.
+            //  • letterbox (square button): fit WITHIN the box (decrease), nothing cropped.
+            var geometry = fill
+                ? $"scale=-2:{h}:flags=lanczos"
+                : $"scale={w}:{h}:flags=lanczos:force_original_aspect_ratio=decrease";
             var vf =
-                $"fps={ImportFps},scale={ButtonSize}:{ButtonSize}:flags=lanczos:force_original_aspect_ratio=decrease," +
-                $"pad={ButtonSize}:{ButtonSize}:(ow-iw)/2:(oh-ih)/2,split[s0][s1];" +
+                $"fps={ImportFps},{geometry},split[s0][s1];" +
                 "[s0]palettegen=max_colors=128[p];[s1][p]paletteuse=dither=bayer";
 
             var args =
