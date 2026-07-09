@@ -100,7 +100,7 @@
                             <Grid ColumnDefinitions="6,Auto,*">
                                 <Border Grid.Column="0" Classes="nav-accent" />
                                 <TextBlock Grid.Column="1" Classes="nav-icon" Text="&#xF05DF;" Margin="6,0,0,0"/>
-                                <TextBlock Grid.Column="2" Classes="nav-label" Text="App Switching" />
+                                <TextBlock Grid.Column="2" Classes="nav-label" Text="Context Rules" />
                             </Grid>
                         </Button>
                     </StackPanel>
@@ -689,26 +689,34 @@
                     </Border>
                 </StackPanel>
 
-                <!-- ====== App Switching ====== -->
+                <!-- ====== Context Rules ====== -->
                 <StackPanel IsVisible="{Binding CurrentView, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=AppSwitching}">
-                    <TextBlock Classes="page-title" Text="App Switching" />
+                    <TextBlock Classes="page-title" Text="Context Rules" />
 
                     <Border Classes="card">
                         <StackPanel>
-                            <TextBlock Classes="card-title" Text="Automatic page switching" />
-                            <CheckBox Content="Switch pages based on the focused application"
+                            <TextBlock Classes="card-title" Text="Automatic profile / workspace switching" />
+                            <CheckBox Content="Switch profiles and workspaces based on the active application"
                                       IsChecked="{Binding Config.AppSwitchingEnabled, Mode=TwoWay}" Margin="0,4,0,0" />
                             <TextBlock Classes="hint" Margin="0,6,0,0"
-                                       Text="When the foreground window changes, the deck switches to the page bound by the first matching rule. Process name is matched case-insensitively (a trailing &quot;.exe&quot; is ignored). On Linux this requires an X11 / XWayland session and the 'xprop' tool." />
+                                       Text="When the foreground window changes (or a rule's process starts), the highest-priority matching rule activates its profile and workspace. Process name is matched case-insensitively (a trailing &quot;.exe&quot; is ignored). On Linux this requires an X11 / XWayland session and the 'xprop' tool." />
 
-                            <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,12,0,0" VerticalAlignment="Center">
-                                <TextBlock Classes="label" Text="No-match fallback page" VerticalAlignment="Center" />
-                                <ComboBox Width="160"
-                                          ItemsSource="{Binding FallbackPageOptions}"
-                                          SelectedIndex="{Binding FallbackSelectionIndex, Mode=TwoWay}" />
+                            <CheckBox Content="Return to a fixed fallback profile when leaving matched apps"
+                                      IsChecked="{Binding UseFixedFallbackProfile, Mode=TwoWay}" Margin="0,12,0,0" />
+                            <StackPanel Orientation="Horizontal" Spacing="10" Margin="24,6,0,0" VerticalAlignment="Center"
+                                        IsEnabled="{Binding UseFixedFallbackProfile}">
+                                <TextBlock Classes="label" Text="Fallback profile" VerticalAlignment="Center" />
+                                <ComboBox Width="200" ItemsSource="{Binding RuleProfiles}"
+                                          SelectedItem="{Binding FallbackProfile, Mode=TwoWay}">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate DataType="m:Profile">
+                                            <TextBlock Text="{Binding Name}" />
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
                             </StackPanel>
-                            <TextBlock Classes="hint" Margin="0,6,0,0"
-                                       Text="When no rule matches the focused app, switch to this touch page. '(do nothing)' keeps the current page." />
+                            <TextBlock Classes="hint" Margin="24,6,0,0"
+                                       Text="Off: return to whichever profile was active before a rule took over." />
                         </StackPanel>
                     </Border>
 
@@ -716,39 +724,51 @@
                         <StackPanel>
                             <Grid ColumnDefinitions="*,Auto">
                                 <TextBlock Grid.Column="0" Classes="card-title" Text="Rules" />
-                                <Button Grid.Column="1" Content="+ Add rule" Command="{Binding AddAppBindingCommand}" />
+                                <Button Grid.Column="1" Content="+ Add rule" Command="{Binding AddContextRuleCommand}" />
                             </Grid>
 
-                            <Grid ColumnDefinitions="*,*,120,120,40" Margin="0,8,0,4">
+                            <Grid ColumnDefinitions="*,*,140,140,56,64,36" Margin="0,8,0,4">
                                 <TextBlock Grid.Column="0" Classes="label" Text="Process" />
                                 <TextBlock Grid.Column="1" Classes="label" Text="Title contains" Margin="8,0,0,0" />
-                                <TextBlock Grid.Column="2" Classes="label" Text="Touch page" Margin="8,0,0,0" />
-                                <TextBlock Grid.Column="3" Classes="label" Text="Rotary page" Margin="8,0,0,0" />
+                                <TextBlock Grid.Column="2" Classes="label" Text="Profile" Margin="8,0,0,0" />
+                                <TextBlock Grid.Column="3" Classes="label" Text="Workspace" Margin="8,0,0,0" />
+                                <TextBlock Grid.Column="4" Classes="label" Text="Priority" Margin="8,0,0,0" />
+                                <TextBlock Grid.Column="5" Classes="label" Text="On start" Margin="8,0,0,0" />
                             </Grid>
 
-                            <ItemsControl ItemsSource="{Binding AppBindingRows}">
+                            <ItemsControl ItemsSource="{Binding ContextRuleRows}">
                                 <ItemsControl.ItemTemplate>
-                                    <DataTemplate DataType="vm:AppBindingRow">
+                                    <DataTemplate DataType="vm:ContextRuleRow">
                                         <Border Background="{DynamicResource AppSurfaceAlt}" CornerRadius="4" Padding="8" Margin="0,0,0,6">
-                                            <Grid ColumnDefinitions="*,*,120,120,40">
-                                                <TextBox Grid.Column="0" PlaceholderText="chrome"
-                                                         Text="{Binding Binding.ProcessName, Mode=TwoWay}" />
+                                            <Grid ColumnDefinitions="*,*,140,140,56,64,36">
+                                                <TextBox Grid.Column="0" PlaceholderText="obs64"
+                                                         Text="{Binding Rule.ProcessName, Mode=TwoWay}" />
                                                 <TextBox Grid.Column="1" PlaceholderText="(optional)" Margin="8,0,0,0"
-                                                         Text="{Binding Binding.TitleContains, Mode=TwoWay}" />
+                                                         Text="{Binding Rule.TitleContains, Mode=TwoWay}" />
                                                 <ComboBox Grid.Column="2" Margin="8,0,0,0" HorizontalAlignment="Stretch"
-                                                          ItemsSource="{Binding TouchPages}"
-                                                          SelectedIndex="{Binding Binding.TouchPageIndex, Mode=TwoWay}">
+                                                          ItemsSource="{Binding Profiles}"
+                                                          SelectedItem="{Binding SelectedProfile, Mode=TwoWay}">
                                                     <ComboBox.ItemTemplate>
-                                                        <DataTemplate DataType="m:TouchButtonPage">
-                                                            <TextBlock Text="{Binding PageName}" />
+                                                        <DataTemplate DataType="m:Profile">
+                                                            <TextBlock Text="{Binding Name}" />
                                                         </DataTemplate>
                                                     </ComboBox.ItemTemplate>
                                                 </ComboBox>
                                                 <ComboBox Grid.Column="3" Margin="8,0,0,0" HorizontalAlignment="Stretch"
-                                                          ItemsSource="{Binding RotaryPageOptions}"
-                                                          SelectedIndex="{Binding Binding.RotarySelectionIndex, Mode=TwoWay}" />
-                                                <Button Grid.Column="4" Classes="row-action danger" Content="✕" ToolTip.Tip="Remove rule"
-                                                        Command="{Binding $parent[Window].DataContext.RemoveAppBindingCommand}"
+                                                          ItemsSource="{Binding Workspaces}"
+                                                          SelectedItem="{Binding SelectedWorkspace, Mode=TwoWay}">
+                                                    <ComboBox.ItemTemplate>
+                                                        <DataTemplate DataType="m:Workspace">
+                                                            <TextBlock Text="{Binding Name}" />
+                                                        </DataTemplate>
+                                                    </ComboBox.ItemTemplate>
+                                                </ComboBox>
+                                                <TextBox Grid.Column="4" Margin="8,0,0,0" Text="{Binding PriorityText, Mode=TwoWay}" />
+                                                <CheckBox Grid.Column="5" Margin="8,0,0,0" HorizontalAlignment="Center"
+                                                          IsChecked="{Binding Rule.ActivateOnProcessStart, Mode=TwoWay}"
+                                                          ToolTip.Tip="Also apply this rule when the process starts, not only on focus" />
+                                                <Button Grid.Column="6" Classes="row-action danger" Content="✕" ToolTip.Tip="Remove rule"
+                                                        Command="{Binding $parent[Window].DataContext.RemoveContextRuleCommand}"
                                                         CommandParameter="{Binding}" />
                                             </Grid>
                                         </Border>
@@ -757,7 +777,7 @@
                             </ItemsControl>
 
                             <TextBlock Classes="hint" Margin="0,6,0,0"
-                                       Text="Rules are evaluated top to bottom — the first match wins. &quot;Rotary page&quot; is optional: '(unchanged)' leaves the current rotary page as-is." />
+                                       Text="The highest-priority matching rule wins; ties are broken by list order. Leave 'Profile' empty to keep the current profile, and 'Workspace' empty to open the profile's Home workspace. A manual profile/workspace switch pauses automatic switching until you change apps." />
                         </StackPanel>
                     </Border>
                 </StackPanel>

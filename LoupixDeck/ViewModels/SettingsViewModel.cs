@@ -153,6 +153,12 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
         foreach (var binding in Config.AppPageBindings)
             AppBindingRows.Add(new AppBindingRow(binding, TouchPages, RotaryPageOptions));
 
+        // Context rules (issue #132). By the time settings can be opened the context engine has
+        // folded any legacy AppPageBindings into Config.ContextRules, so this shows both migrated
+        // and user-created rules.
+        foreach (var rule in Config.ContextRules)
+            ContextRuleRows.Add(new ContextRuleRow(rule, Config.Profiles));
+
         Config.HapticSteps.CollectionChanged += OnHapticStepsChanged;
 
         CurrentView = SettingsView.General;
@@ -611,6 +617,59 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
         if (row == null) return;
         Config.AppPageBindings.Remove(row.Binding);
         AppBindingRows.Remove(row);
+    }
+
+    // ───────── Context rules (issue #132) ─────────
+
+    /// <summary>Profiles for the rule/fallback ComboBoxes.</summary>
+    public ObservableCollection<Profile> RuleProfiles => Config.Profiles;
+
+    /// <summary>Editor rows for the context-rule list, kept in sync with <c>Config.ContextRules</c>.</summary>
+    public ObservableCollection<ContextRuleRow> ContextRuleRows { get; } = new();
+
+    public IRelayCommand AddContextRuleCommand => field ??= Relay.Create(AddContextRule);
+    public IRelayCommand RemoveContextRuleCommand => field ??= Relay.Create<ContextRuleRow>(RemoveContextRule, p => p != null);
+
+    private void AddContextRule()
+    {
+        var rule = new ContextRule();
+        Config.ContextRules.Add(rule);
+        ContextRuleRows.Add(new ContextRuleRow(rule, Config.Profiles));
+    }
+
+    private void RemoveContextRule(ContextRuleRow row)
+    {
+        if (row == null) return;
+        Config.ContextRules.Remove(row.Rule);
+        ContextRuleRows.Remove(row);
+    }
+
+    /// <summary>When on, leaving all rule-matched apps returns to a fixed <see cref="FallbackProfile"/>;
+    /// when off, it restores whichever profile was active before a rule took over.</summary>
+    public bool UseFixedFallbackProfile
+    {
+        get => Config.FallbackProfileId != null;
+        set
+        {
+            if (!value)
+                Config.FallbackProfileId = null;
+            else
+                Config.FallbackProfileId ??= Config.Profiles.FirstOrDefault()?.Id;
+
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(FallbackProfile));
+        }
+    }
+
+    public Profile FallbackProfile
+    {
+        get => Config.Profiles.FirstOrDefault(p => p.Id == Config.FallbackProfileId);
+        set
+        {
+            Config.FallbackProfileId = value?.Id;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(UseFixedFallbackProfile));
+        }
     }
 
     private async Task RemoveTouchPage(TouchButtonPage page)
