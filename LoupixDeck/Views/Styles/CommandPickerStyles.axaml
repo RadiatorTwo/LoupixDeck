@@ -263,6 +263,21 @@
         <Setter Property="TextTrimming" Value="CharacterEllipsis" />
     </Style>
 
+    <!-- "Group" pill on a rotary command-group row (violet accent, matching selection). -->
+    <Style Selector="Border.picker-group-badge">
+        <Setter Property="Background" Value="{DynamicResource PickerAccentSubtle}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource PickerAccentBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="4" />
+        <Setter Property="Padding" Value="6,1" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+    <Style Selector="Border.picker-group-badge TextBlock">
+        <Setter Property="FontSize" Value="10" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Foreground" Value="{DynamicResource PickerAccentBorderBrush}" />
+    </Style>
+
     <!-- Footer hint. -->
     <Style Selector="Border.picker-footer">
         <Setter Property="BorderBrush" Value="{DynamicResource AppBorderSubtle}" />

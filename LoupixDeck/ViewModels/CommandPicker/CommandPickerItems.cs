@@ -82,6 +82,10 @@ public partial class CommandRowViewModel : ViewModelBase
     public string Description => Entry.Description;
     public bool HasDescription => !string.IsNullOrWhiteSpace(Entry.Description);
 
+    /// <summary>True when this row inserts a rotary command group (fills several
+    /// rotary slots at once) rather than a single command — badged in the picker.</summary>
+    public bool IsCommandGroup => Entry.IsCommandGroup;
+
     /// <summary>Resolved row glyph: the command's own icon, else the category icon.</summary>
     public string Icon { get; }
 

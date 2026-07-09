@@ -29,7 +29,14 @@
                     <Border Grid.Column="0" Classes="picker-row-bar" />
                     <TextBlock Grid.Column="1" Classes="picker-row-icon" Text="{Binding Icon}" />
                     <StackPanel Grid.Column="2" VerticalAlignment="Center">
-                        <TextBlock Classes="picker-row-title" Text="{Binding Title}" />
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <TextBlock Classes="picker-row-title" Text="{Binding Title}" />
+                            <!-- Badge for a rotary command group (fills several slots at once). -->
+                            <Border Classes="picker-group-badge" IsVisible="{Binding IsCommandGroup}"
+                                    ToolTip.Tip="Fills all rotary actions (turn left / right / press) at once">
+                                <TextBlock Text="Group" />
+                            </Border>
+                        </StackPanel>
                         <TextBlock Classes="picker-row-desc" Text="{Binding Description}"
                                    IsVisible="{Binding HasDescription}" />
                     </StackPanel>
