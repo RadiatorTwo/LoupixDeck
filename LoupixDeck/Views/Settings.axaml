@@ -127,8 +127,21 @@
         </Border>
 
         <!-- ===== Right pane ===== -->
-        <ScrollViewer Grid.Column="1" Padding="24,16,4,16" HorizontalScrollBarVisibility="Disabled">
-            <Grid>
+        <!-- The inset lives on the inner Grid's Margin, NOT on the ScrollViewer's Padding:
+             ScrollViewer.Padding is not folded into the scrollable extent, so a bottom
+             padding leaves the last item unreachable (cut off) and a small right padding
+             lets the overlay scrollbar float over content. As a content Margin the inset
+             is part of the extent (fully scrollable to the bottom) and the right inset
+             becomes a real gutter the scrollbar sits in. The scoped style drops the shared
+             card's 20px right margin inside this pane only, so cards stay symmetric with
+             the Grid inset while every other view that reuses Border.card is unaffected. -->
+        <ScrollViewer Grid.Column="1" HorizontalScrollBarVisibility="Disabled">
+            <ScrollViewer.Styles>
+                <Style Selector="Border.card">
+                    <Setter Property="Margin" Value="0,0,0,12" />
+                </Style>
+            </ScrollViewer.Styles>
+            <Grid Margin="24,16,24,16">
 
                 <!-- ====== General ====== -->
                 <StackPanel IsVisible="{Binding CurrentView, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=General}">
@@ -147,7 +160,7 @@
                                 <TextBlock Text="{Binding DeviceStatusText}" />
                             </Border>
 
-                            <Grid Grid.Row="1" Grid.ColumnSpan="2" ColumnDefinitions="140,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto" Margin="0,16,0,0">
+                            <Grid Grid.Row="1" Grid.ColumnSpan="2" ColumnDefinitions="140,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto" Margin="0,10,0,0">
                                 <TextBlock Grid.Row="0" Grid.Column="0" Classes="label" Text="Port" />
                                 <TextBlock Grid.Row="0" Grid.Column="1" Classes="value" Text="{Binding Config.DevicePort}" />
 
@@ -162,7 +175,7 @@
 
                                 <Button Grid.Row="4" Grid.ColumnSpan="2" Content="Reconnect"
                                         Command="{Binding ReconnectDeviceCommand}"
-                                        HorizontalAlignment="Left" Margin="0,16,0,0"/>
+                                        HorizontalAlignment="Left" Margin="0,12,0,0"/>
                             </Grid>
                         </Grid>
                     </Border>
@@ -200,8 +213,6 @@
                                     </DataTemplate>
                                 </ComboBox.ItemTemplate>
                             </ComboBox>
-                            <TextBlock Classes="hint" Margin="0,6,0,0"
-                                       Text="Applied on next app launch." />
                         </StackPanel>
                     </Border>
 
