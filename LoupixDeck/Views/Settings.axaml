@@ -39,6 +39,14 @@
                             <TextBlock Grid.Column="2" Classes="nav-label" Text="General" />
                         </Grid>
                     </Button>
+                    <Button Classes="nav" Classes.active="{Binding CurrentView, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Profiles}"
+                            Command="{Binding NavigateCommand}" CommandParameter="{x:Static bs:SettingsView.Profiles}">
+                        <Grid ColumnDefinitions="6,Auto,*">
+                            <Border Grid.Column="0" Classes="nav-accent" />
+                            <TextBlock Grid.Column="1" Classes="nav-icon" Text="&#xF00D6;" Margin="6,0,0,0"/>
+                            <TextBlock Grid.Column="2" Classes="nav-label" Text="Profiles" />
+                        </Grid>
+                    </Button>
                     <Button Classes="nav" Classes.active="{Binding CurrentView, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Pages}"
                             Command="{Binding NavigateCommand}" CommandParameter="{x:Static bs:SettingsView.Pages}">
                         <Grid ColumnDefinitions="6,Auto,*">
@@ -222,6 +230,75 @@
                                       IsChecked="{Binding Config.StartMinimizedToTray, Mode=TwoWay}" />
                         </StackPanel>
                     </Border>
+                </StackPanel>
+
+                <!-- ====== Pages ====== -->
+                <!-- ====== Profiles ====== -->
+                <StackPanel IsVisible="{Binding CurrentView, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Profiles}">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBlock Grid.Column="0" Classes="page-title" Text="Profiles" />
+                        <Button Grid.Column="1" Content="+ Add Profile" VerticalAlignment="Center"
+                                Command="{Binding AddProfileCommand}" />
+                    </Grid>
+                    <TextBlock Classes="hint"
+                               Text="Profiles group workspaces for an app or scenario. Each profile opens on its Home workspace. Activating a workspace switches what the device shows and edits its pages under Pages." />
+
+                    <ItemsControl ItemsSource="{Binding ProfileRows}" Margin="0,12,0,0">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate DataType="vm:ProfileRow">
+                                <Border Classes="card" Margin="0,0,0,12">
+                                    <StackPanel>
+                                        <!-- Profile header -->
+                                        <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto,Auto">
+                                            <TextBox Grid.Column="0" Text="{Binding Name, Mode=TwoWay}" PlaceholderText="Profile name" VerticalAlignment="Center" />
+                                            <Border Grid.Column="1" Classes="pill ok" Margin="8,0,0,0" IsVisible="{Binding IsActiveProfile}">
+                                                <TextBlock Text="Active" />
+                                            </Border>
+                                            <Border Grid.Column="2" Classes="pill neutral" Margin="6,0,0,0" IsVisible="{Binding IsStartupProfile}">
+                                                <TextBlock Text="Startup" />
+                                            </Border>
+                                            <Button Grid.Column="3" Classes="row-action" Content="Activate" Margin="8,0,0,0" ToolTip.Tip="Activate this profile (opens its Home workspace)"
+                                                    Command="{Binding $parent[Window].DataContext.ActivateProfileCommand}" CommandParameter="{Binding}" />
+                                            <Button Grid.Column="4" Classes="row-action" Content="Set startup" ToolTip.Tip="Open this profile at launch"
+                                                    Command="{Binding $parent[Window].DataContext.SetStartupProfileCommand}" CommandParameter="{Binding}" />
+                                            <Button Grid.Column="5" Classes="row-action danger" Content="✕" ToolTip.Tip="Delete profile"
+                                                    Command="{Binding $parent[Window].DataContext.RemoveProfileCommand}" CommandParameter="{Binding}" />
+                                        </Grid>
+
+                                        <!-- Workspaces -->
+                                        <Grid ColumnDefinitions="*,Auto" Margin="0,10,0,0">
+                                            <TextBlock Grid.Column="0" Classes="card-title" Text="Workspaces" VerticalAlignment="Center" />
+                                            <Button Grid.Column="1" Content="+ Add Workspace"
+                                                    Command="{Binding $parent[Window].DataContext.AddWorkspaceCommand}" CommandParameter="{Binding}" />
+                                        </Grid>
+                                        <ItemsControl ItemsSource="{Binding Workspaces}" Margin="0,8,0,0">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate DataType="vm:WorkspaceRow">
+                                                    <Border Background="{DynamicResource AppSurfaceAlt}" CornerRadius="4" Padding="8" Margin="0,0,0,6">
+                                                        <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto,Auto">
+                                                            <TextBox Grid.Column="0" Text="{Binding Name, Mode=TwoWay}" PlaceholderText="Workspace name" VerticalAlignment="Center" />
+                                                            <Border Grid.Column="1" Classes="pill ok" Margin="8,0,0,0" IsVisible="{Binding IsActiveWorkspace}">
+                                                                <TextBlock Text="Active" />
+                                                            </Border>
+                                                            <Border Grid.Column="2" Classes="pill neutral" Margin="6,0,0,0" IsVisible="{Binding IsHome}">
+                                                                <TextBlock Text="Home" />
+                                                            </Border>
+                                                            <Button Grid.Column="3" Classes="row-action" Content="Open" Margin="8,0,0,0" ToolTip.Tip="Activate this workspace and edit its pages"
+                                                                    Command="{Binding $parent[Window].DataContext.ActivateWorkspaceCommand}" CommandParameter="{Binding}" />
+                                                            <Button Grid.Column="4" Classes="row-action" Content="Set home" ToolTip.Tip="Make this the profile's Home workspace"
+                                                                    Command="{Binding $parent[Window].DataContext.SetHomeWorkspaceCommand}" CommandParameter="{Binding}" />
+                                                            <Button Grid.Column="5" Classes="row-action danger" Content="✕" ToolTip.Tip="Delete workspace"
+                                                                    Command="{Binding $parent[Window].DataContext.RemoveWorkspaceCommand}" CommandParameter="{Binding}" />
+                                                        </Grid>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
                 </StackPanel>
 
                 <!-- ====== Pages ====== -->
