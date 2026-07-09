@@ -44,27 +44,30 @@
 
         <!-- Compact page pager (shared by every device layout): a single name field
              flanked by prev/next chevrons plus add/delete. Constant size regardless
-             of how many pages exist, so the window never grows with page count. -->
+             of how many pages exist, so the window never grows with page count.
+             Deliberately the SECONDARY tier of the top area: tighter, squarer and more
+             technical than the context switcher above it, with a fill and hairline that
+             barely lift off the window so it never competes with that bar. -->
         <Style Selector="Border.Pager">
-            <Setter Property="Background" Value="{DynamicResource AppSurfaceLow}" />
-            <Setter Property="BorderBrush" Value="{DynamicResource AppBorderSubtle}" />
+            <Setter Property="Background" Value="{DynamicResource AppSurfaceBar}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AppBorderFaint}" />
             <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="CornerRadius" Value="8" />
-            <Setter Property="Padding" Value="6,4" />
+            <Setter Property="CornerRadius" Value="5" />
+            <Setter Property="Padding" Value="4,3" />
         </Style>
 
         <!-- Prev/next chevrons and add/delete actions share a chrome-free custom
              template so hover/press never paint the default grey button box. -->
         <Style Selector="Button.PagerBtn">
-            <Setter Property="Width" Value="28" />
-            <Setter Property="Height" Value="28" />
+            <Setter Property="Width" Value="24" />
+            <Setter Property="Height" Value="24" />
             <Setter Property="Padding" Value="0" />
-            <Setter Property="FontSize" Value="16" />
+            <Setter Property="FontSize" Value="13" />
             <Setter Property="Foreground" Value="{DynamicResource AppTextPrimary}" />
-            <Setter Property="Background" Value="{DynamicResource AppControlBackground}" />
-            <Setter Property="BorderBrush" Value="{StaticResource PageChipBorderBrush}" />
+            <Setter Property="Background" Value="{DynamicResource AppSurfaceAlt}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AppBorderFaint}" />
             <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="CornerRadius" Value="4" />
             <Setter Property="Template">
                 <ControlTemplate>
                     <Border Background="{TemplateBinding Background}"
@@ -78,14 +81,15 @@
                 </ControlTemplate>
             </Setter>
         </Style>
+        <!-- Hover lifts the fill and firms the hairline; no accent ring and no thickness
+             change, so the group stays quiet and nothing shifts. -->
         <Style Selector="Button.PagerBtn:pointerover">
             <Setter Property="Background" Value="{DynamicResource AppControlBackgroundHover}" />
-            <Setter Property="BorderBrush" Value="{StaticResource PageActiveBorderBrush}" />
-            <Setter Property="BorderThickness" Value="2" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AppBorderSubtle}" />
         </Style>
-        <!-- Chevrons sit flush either side of the name field (no rounded outer edge). -->
+        <!-- Chevrons carry the glyph a touch larger than the +/✕ actions. -->
         <Style Selector="Button.PagerNav">
-            <Setter Property="FontSize" Value="18" />
+            <Setter Property="FontSize" Value="15" />
         </Style>
         <!-- Delete gets a danger-coloured hover so it reads apart from add. -->
         <Style Selector="Button.PagerBtn.delete:pointerover">
@@ -98,10 +102,11 @@
              page number (PageName fallback) when the page has no custom name. -->
         <Style Selector="TextBox.PageName">
             <Setter Property="Width" Value="128" />
-            <Setter Property="Height" Value="28" />
-            <Setter Property="MinHeight" Value="28" />
-            <Setter Property="Padding" Value="6,1" />
-            <Setter Property="FontSize" Value="13" />
+            <Setter Property="Height" Value="24" />
+            <Setter Property="MinHeight" Value="24" />
+            <Setter Property="Padding" Value="6,0" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="CornerRadius" Value="4" />
             <Setter Property="TextAlignment" Value="Center" />
             <Setter Property="VerticalContentAlignment" Value="Center" />
         </Style>
@@ -114,12 +119,38 @@
             <Setter Property="PlaceholderForeground" Value="{DynamicResource AppTextPrimary}" />
         </Style>
 
-        <!-- "current / total" page counter shown beside the name field. -->
+        <!-- "current / total" page counter shown beside the name field. Kept at the
+             secondary text colour (muted read as disabled at this size), and at 13px
+             Medium: below that the digits and the slash go ragged, since Avalonia 12
+             offers no way to opt these glyphs into subpixel antialiasing. Its
+             subordinate role is carried by colour alone, not by size. -->
         <Style Selector="TextBlock.PageCount">
             <Setter Property="VerticalAlignment" Value="Center" />
-            <Setter Property="Margin" Value="2,0,4,0" />
-            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Margin" Value="3,0,3,0" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="FontWeight" Value="Medium" />
             <Setter Property="Foreground" Value="{DynamicResource AppTextSecondary}" />
+        </Style>
+
+        <!-- Hamburger action button, anchored at the right end of the context bar so it
+             belongs to the same top zone instead of floating over the device. Same
+             squared-off chrome language as the pager buttons, one size up. -->
+        <Style Selector="Button.HeaderAction">
+            <Setter Property="Width" Value="34" />
+            <Setter Property="Height" Value="34" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Background" Value="{DynamicResource AppSurfaceBar}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AppBorderFaint}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="6" />
+        </Style>
+        <Style Selector="Button.HeaderAction:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource AppControlBackgroundHover}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AppBorderSubtle}" />
+        </Style>
+        <Style Selector="Button.HeaderAction:pressed /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource AppControlBackgroundActive}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AppBorderSubtle}" />
         </Style>
 
         <!-- ───────── Device / Profile / Workspace switcher header (issue #132) ─────────
@@ -128,27 +159,30 @@
              The three selectors are fused into ONE framed bar (SwitcherGroup) with fine
              inner dividers, so Device / Profile / Workspace read as a single context path
              rather than three separate drop-downs. -->
+        <!-- The bar spans the window as the primary navigation zone: no fill of its own, so
+             the framed group below reads against the window rather than against a second
+             band. It sits tight to the top edge and defines the gap down to the pagers. -->
         <Style Selector="Border.SwitcherBar">
-            <Setter Property="Background" Value="{DynamicResource AppSurfaceLow}" />
-            <Setter Property="BorderBrush" Value="{DynamicResource AppBorderSubtle}" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AppBorderFaint}" />
             <Setter Property="BorderThickness" Value="0,0,0,1" />
-            <Setter Property="Padding" Value="16,8" />
+            <Setter Property="Padding" Value="16,6,16,8" />
         </Style>
-        <!-- The unified outer frame around all three selectors: a dark fill one step
-             lighter than the toolbar, a single unobtrusive hairline border, and softly
-             rounded corners. ClipToBounds keeps per-segment hover fills inside the radius. -->
+        <!-- The unified outer frame around all three selectors: a fill only barely lifted
+             off the window, a faint hairline border, and softly rounded corners.
+             ClipToBounds keeps per-segment hover fills inside the radius. -->
         <Style Selector="Border.SwitcherGroup">
-            <Setter Property="Background" Value="{DynamicResource AppSurface}" />
-            <Setter Property="BorderBrush" Value="{DynamicResource AppBorderSubtle}" />
+            <Setter Property="Background" Value="{DynamicResource AppSurfaceBar}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AppBorderFaint}" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="CornerRadius" Value="8" />
             <Setter Property="ClipToBounds" Value="True" />
         </Style>
-        <!-- One selector cell inside the bar (label above its combobox). Roomy padding so
-             the contents never feel cramped; hover subtly lifts the whole cell. -->
+        <!-- One selector cell inside the bar (label above its combobox). Compact padding
+             keeps the bar low; hover subtly lifts the whole cell. -->
         <Style Selector="Border.SwitcherSegment">
             <Setter Property="Background" Value="Transparent" />
-            <Setter Property="Padding" Value="14,6,10,7" />
+            <Setter Property="Padding" Value="12,5,8,6" />
         </Style>
         <Style Selector="Border.SwitcherSegment:pointerover">
             <Setter Property="Background" Value="{DynamicResource AppSurfaceAlt}" />
@@ -157,26 +191,27 @@
              a quiet separator rather than a full-height rule. -->
         <Style Selector="Border.SwitcherDivider">
             <Setter Property="Width" Value="1" />
-            <Setter Property="Background" Value="{DynamicResource AppBorderSubtle}" />
-            <Setter Property="Margin" Value="0,6" />
+            <Setter Property="Background" Value="{DynamicResource AppBorderFaint}" />
+            <Setter Property="Margin" Value="0,7" />
             <Setter Property="VerticalAlignment" Value="Stretch" />
         </Style>
         <!-- Small, restrained caption above each selector (DEVICE / PROFILE / WORKSPACE):
-             smaller type, tighter tracking, and a slim gap down to its selector. -->
+             muted, near-normal tracking, and a slim gap down to its selector, so the
+             selected value is what the eye lands on. -->
         <Style Selector="TextBlock.SwitcherCaption">
             <Setter Property="FontSize" Value="9" />
             <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="Foreground" Value="{DynamicResource AppTextSecondary}" />
+            <Setter Property="Foreground" Value="{DynamicResource AppTextMuted}" />
             <Setter Property="Margin" Value="1,0,0,1" />
-            <Setter Property="LetterSpacing" Value="0.4" />
+            <Setter Property="LetterSpacing" Value="0.15" />
         </Style>
         <!-- Each selector is chrome-free (the SwitcherGroup provides the frame); it only
              contributes its content and dropdown glyph. Consistent width keeps the cells
              balanced. -->
         <Style Selector="ComboBox.Switcher">
-            <Setter Property="MinWidth" Value="180" />
-            <Setter Property="Height" Value="26" />
-            <Setter Property="MinHeight" Value="26" />
+            <Setter Property="MinWidth" Value="168" />
+            <Setter Property="Height" Value="24" />
+            <Setter Property="MinHeight" Value="24" />
             <Setter Property="Padding" Value="8,0,0,0" />
             <Setter Property="VerticalContentAlignment" Value="Center" />
             <Setter Property="FontSize" Value="13" />
@@ -188,7 +223,7 @@
         <Style Selector="ComboBox.Switcher /template/ Border#Background">
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderBrush" Value="Transparent" />
-            <Setter Property="BorderThickness" Value="0,0,0,2" />
+            <Setter Property="BorderThickness" Value="0,0,0,1.5" />
             <Setter Property="CornerRadius" Value="0" />
         </Style>
         <!-- Hover is carried by the segment cell, so the combobox stays transparent here. -->
@@ -209,9 +244,9 @@
         </Style>
         <!-- Small, clean, uniform dropdown chevron in a muted colour, held off the right edge. -->
         <Style Selector="ComboBox.Switcher /template/ PathIcon#DropDownGlyph">
-            <Setter Property="Width" Value="9" />
-            <Setter Property="Height" Value="5" />
-            <Setter Property="Foreground" Value="{DynamicResource AppTextSecondary}" />
+            <Setter Property="Width" Value="8" />
+            <Setter Property="Height" Value="4.5" />
+            <Setter Property="Foreground" Value="{DynamicResource AppTextMuted}" />
             <Setter Property="Margin" Value="0,0,4,0" />
         </Style>
 
@@ -253,10 +288,6 @@
         <vm:MainShellViewModel />
     </Design.DataContext>
 
-    <!-- The hamburger overlays the device cell (rather than sitting in its own column)
-         so its right edge lines up with the body's right edge instead of widening the
-         window past the device. The body ends at SVG x=825 of the 900-wide viewBox,
-         ~63px in from the 760px Viewbox's right edge. -->
     <!-- Focusable so a drag can grab keyboard focus and receive Esc / live Ctrl during the
          gesture (issue #166 phase 3). IsTabStop=False keeps it out of the tab order. -->
     <Grid Name="RootGrid" RowDefinitions="Auto,*" Focusable="True" IsTabStop="False">
@@ -265,6 +296,9 @@
              when more than one device is connected (single-device users see just their
              Profile and Workspace). -->
         <Border Grid.Row="0" Classes="SwitcherBar">
+          <!-- The hamburger is overlaid at the right end of this same zone rather than
+               reserving a column, so the selector group stays centred in the window. -->
+          <Grid>
             <!-- One framed bar fusing the three selectors into a single context path. Fine
                  vertical hairlines separate the cells; each cell keeps its own label and
                  dropdown. The Device cell (and its trailing divider) only appears when more
@@ -324,24 +358,16 @@
                     </Border>
                 </StackPanel>
             </Border>
-        </Border>
 
-        <Grid Grid.Row="1">
-            <ContentControl Name="DeviceLayoutHost" Padding="0" />
-
-            <Button VerticalAlignment="Top" HorizontalAlignment="Right"
-                VerticalContentAlignment="Center" HorizontalContentAlignment="Center"
-                Width="50" Height="50"
-                Margin="0,4,63,0"
-                Background="Transparent"
-                BorderBrush="Transparent"
-                BorderThickness="0">
+            <Button Classes="HeaderAction"
+                VerticalAlignment="Center" HorizontalAlignment="Right"
+                VerticalContentAlignment="Center" HorizontalContentAlignment="Center">
             <!-- Theme-aware hamburger (three bars) so the menu icon follows Light/Dark
                  instead of being a fixed-white SVG that vanishes on a light window. -->
-            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="4">
-                <Rectangle Width="24" Height="2.5" RadiusX="1.25" RadiusY="1.25" Fill="{DynamicResource AppTextPrimary}" />
-                <Rectangle Width="24" Height="2.5" RadiusX="1.25" RadiusY="1.25" Fill="{DynamicResource AppTextPrimary}" />
-                <Rectangle Width="24" Height="2.5" RadiusX="1.25" RadiusY="1.25" Fill="{DynamicResource AppTextPrimary}" />
+            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="3.5">
+                <Rectangle Width="16" Height="1.5" RadiusX="0.75" RadiusY="0.75" Fill="{DynamicResource AppTextPrimary}" />
+                <Rectangle Width="16" Height="1.5" RadiusX="0.75" RadiusY="0.75" Fill="{DynamicResource AppTextPrimary}" />
+                <Rectangle Width="16" Height="1.5" RadiusX="0.75" RadiusY="0.75" Fill="{DynamicResource AppTextPrimary}" />
             </StackPanel>
             <Button.Flyout>
                 <Flyout Placement="Left">
@@ -371,6 +397,11 @@
                 </Flyout>
             </Button.Flyout>
             </Button>
+          </Grid>
+        </Border>
+
+        <Grid Grid.Row="1">
+            <ContentControl Name="DeviceLayoutHost" Padding="0" />
         </Grid>
 
         <!-- Drag & drop overlay (issue #166 phase 3): a drop-target ring coloured by the pending
