@@ -696,81 +696,123 @@
                 <StackPanel IsVisible="{Binding CurrentView, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=AppSwitching}">
                     <TextBlock Classes="page-title" Text="Profile Rules" />
 
+                    <!-- ===== Automatic switching ===== -->
                     <Border Classes="card">
-                        <StackPanel>
-                            <TextBlock Classes="card-title" Text="Automatic profile / workspace switching" />
-                            <CheckBox Content="Switch profiles and workspaces based on the active application"
-                                      IsChecked="{Binding Config.AppSwitchingEnabled, Mode=TwoWay}" Margin="0,4,0,0" />
-                            <TextBlock Classes="hint" Margin="0,6,0,0"
-                                       Text="When the foreground window changes (or a rule's process starts), the highest-priority matching rule activates its profile and workspace. Process name is matched case-insensitively (a trailing &quot;.exe&quot; is ignored). On Linux this requires an X11 / XWayland session and the 'xprop' tool." />
-
-                            <CheckBox Content="Return to a fixed fallback profile when leaving matched apps"
-                                      IsChecked="{Binding UseFixedFallbackProfile, Mode=TwoWay}" Margin="0,12,0,0" />
-                            <StackPanel Orientation="Horizontal" Spacing="10" Margin="24,6,0,0" VerticalAlignment="Center"
-                                        IsEnabled="{Binding UseFixedFallbackProfile}">
-                                <TextBlock Classes="label" Text="Fallback profile" VerticalAlignment="Center" />
-                                <ComboBox Width="200" ItemsSource="{Binding RuleProfiles}"
-                                          SelectedItem="{Binding FallbackProfile, Mode=TwoWay}">
-                                    <ComboBox.ItemTemplate>
-                                        <DataTemplate DataType="m:Profile">
-                                            <TextBlock Text="{Binding Name}" />
-                                        </DataTemplate>
-                                    </ComboBox.ItemTemplate>
-                                </ComboBox>
+                        <StackPanel Spacing="10">
+                            <StackPanel Spacing="4">
+                                <TextBlock Classes="card-title" Text="Automatic switching" Margin="0" />
+                                <CheckBox Content="Switch profiles and workspaces based on the active application"
+                                          FontWeight="SemiBold"
+                                          IsChecked="{Binding Config.AppSwitchingEnabled, Mode=TwoWay}" />
+                                <TextBlock Classes="hint" FontSize="12"
+                                           Text="The highest-priority matching rule activates its profile and workspace. Process names match case-insensitively; a trailing &quot;.exe&quot; is ignored. On Linux this needs an X11 / XWayland session and 'xprop'." />
                             </StackPanel>
-                            <TextBlock Classes="hint" Margin="24,6,0,0"
-                                       Text="Off: return to whichever profile was active before a rule took over." />
+
+                            <!-- Fallback option + its profile, grouped as one unit. -->
+                            <Border Classes="rule-group">
+                                <StackPanel Spacing="8">
+                                    <CheckBox Content="Return to a fixed fallback profile when leaving matched apps"
+                                              IsChecked="{Binding UseFixedFallbackProfile, Mode=TwoWay}" />
+                                    <Grid ColumnDefinitions="Auto,*" Margin="26,0,0,0"
+                                          IsEnabled="{Binding UseFixedFallbackProfile}">
+                                        <TextBlock Grid.Column="0" Classes="label" Text="Fallback profile"
+                                                   VerticalAlignment="Center" Margin="0,0,10,0" />
+                                        <ComboBox Grid.Column="1" Width="240" HorizontalAlignment="Left"
+                                                  ItemsSource="{Binding RuleProfiles}"
+                                                  SelectedItem="{Binding FallbackProfile, Mode=TwoWay}">
+                                            <ComboBox.ItemTemplate>
+                                                <DataTemplate DataType="m:Profile">
+                                                    <TextBlock Text="{Binding Name}" />
+                                                </DataTemplate>
+                                            </ComboBox.ItemTemplate>
+                                        </ComboBox>
+                                    </Grid>
+                                    <TextBlock Classes="hint" FontSize="12" Margin="26,0,0,0"
+                                               Text="Off: return to whichever profile was active before a rule took over." />
+                                </StackPanel>
+                            </Border>
                         </StackPanel>
                     </Border>
 
+                    <!-- ===== Rules ===== -->
                     <Border Classes="card">
-                        <StackPanel>
-                            <Grid ColumnDefinitions="*,Auto">
-                                <TextBlock Grid.Column="0" Classes="card-title" Text="Rules" />
-                                <Button Grid.Column="1" Content="+ Add rule" Command="{Binding AddContextRuleCommand}" />
-                            </Grid>
-
-                            <Grid ColumnDefinitions="*,*,140,140,56,64,36" Margin="0,8,0,4">
-                                <TextBlock Grid.Column="0" Classes="label" Text="Process" />
-                                <TextBlock Grid.Column="1" Classes="label" Text="Title contains" Margin="8,0,0,0" />
-                                <TextBlock Grid.Column="2" Classes="label" Text="Profile" Margin="8,0,0,0" />
-                                <TextBlock Grid.Column="3" Classes="label" Text="Workspace" Margin="8,0,0,0" />
-                                <TextBlock Grid.Column="4" Classes="label" Text="Priority" Margin="8,0,0,0" />
-                                <TextBlock Grid.Column="5" Classes="label" Text="On start" Margin="8,0,0,0" />
+                        <StackPanel Spacing="10">
+                            <Grid ColumnDefinitions="*,Auto" VerticalAlignment="Center">
+                                <TextBlock Grid.Column="0" Classes="card-title" Text="Rules"
+                                           Margin="0" VerticalAlignment="Center" />
+                                <Button Grid.Column="1" Classes="accent" Content="+ Add rule"
+                                        Command="{Binding AddContextRuleCommand}" />
                             </Grid>
 
                             <ItemsControl ItemsSource="{Binding ContextRuleRows}">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate DataType="vm:ContextRuleRow">
-                                        <Border Background="{DynamicResource AppSurfaceAlt}" CornerRadius="4" Padding="8" Margin="0,0,0,6">
-                                            <Grid ColumnDefinitions="*,*,140,140,56,64,36">
-                                                <TextBox Grid.Column="0" PlaceholderText="obs64"
-                                                         Text="{Binding Rule.ProcessName, Mode=TwoWay}" />
-                                                <TextBox Grid.Column="1" PlaceholderText="(optional)" Margin="8,0,0,0"
-                                                         Text="{Binding Rule.TitleContains, Mode=TwoWay}" />
-                                                <ComboBox Grid.Column="2" Margin="8,0,0,0" HorizontalAlignment="Stretch"
-                                                          ItemsSource="{Binding Profiles}"
-                                                          SelectedItem="{Binding SelectedProfile, Mode=TwoWay}">
-                                                    <ComboBox.ItemTemplate>
-                                                        <DataTemplate DataType="m:Profile">
-                                                            <TextBlock Text="{Binding Name}" />
-                                                        </DataTemplate>
-                                                    </ComboBox.ItemTemplate>
-                                                </ComboBox>
-                                                <ComboBox Grid.Column="3" Margin="8,0,0,0" HorizontalAlignment="Stretch"
-                                                          ItemsSource="{Binding Workspaces}"
-                                                          SelectedItem="{Binding SelectedWorkspace, Mode=TwoWay}">
-                                                    <ComboBox.ItemTemplate>
-                                                        <DataTemplate DataType="m:Workspace">
-                                                            <TextBlock Text="{Binding Name}" />
-                                                        </DataTemplate>
-                                                    </ComboBox.ItemTemplate>
-                                                </ComboBox>
-                                                <TextBox Grid.Column="4" Margin="8,0,0,0" Text="{Binding PriorityText, Mode=TwoWay}" />
-                                                <CheckBox Grid.Column="5" Margin="8,0,0,0" HorizontalAlignment="Center"
-                                                          IsChecked="{Binding Rule.ActivateOnProcessStart, Mode=TwoWay}"
-                                                          ToolTip.Tip="Also apply this rule when the process starts, not only on focus" />
-                                                <Button Grid.Column="6" Classes="row-action danger" Content="✕" ToolTip.Tip="Remove rule"
+                                        <Border Classes="rule-card">
+                                            <Grid ColumnDefinitions="*,Auto">
+                                                <StackPanel Grid.Column="0" Spacing="12">
+
+                                                    <!-- Match -->
+                                                    <StackPanel Spacing="5">
+                                                        <TextBlock Classes="group-label" Text="Match" />
+                                                        <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" RowSpacing="3">
+                                                            <TextBlock Grid.Row="0" Grid.Column="0" Classes="label" Text="Process" />
+                                                            <TextBlock Grid.Row="0" Grid.Column="1" Classes="label"
+                                                                       Text="Window title filter" Margin="12,0,0,0" />
+                                                            <TextBox Grid.Row="1" Grid.Column="0" PlaceholderText="obs64"
+                                                                     Text="{Binding Rule.ProcessName, Mode=TwoWay}" />
+                                                            <TextBox Grid.Row="1" Grid.Column="1" PlaceholderText="Optional"
+                                                                     Margin="12,0,0,0"
+                                                                     Text="{Binding Rule.TitleContains, Mode=TwoWay}" />
+                                                        </Grid>
+                                                    </StackPanel>
+
+                                                    <!-- Target -->
+                                                    <StackPanel Spacing="5">
+                                                        <TextBlock Classes="group-label" Text="Target" />
+                                                        <Grid ColumnDefinitions="*,Auto,*" RowDefinitions="Auto,Auto" RowSpacing="3">
+                                                            <TextBlock Grid.Row="0" Grid.Column="0" Classes="label" Text="Profile" />
+                                                            <TextBlock Grid.Row="0" Grid.Column="2" Classes="label" Text="Workspace" />
+                                                            <ComboBox Grid.Row="1" Grid.Column="0" HorizontalAlignment="Stretch"
+                                                                      ItemsSource="{Binding Profiles}"
+                                                                      SelectedItem="{Binding SelectedProfile, Mode=TwoWay}">
+                                                                <ComboBox.ItemTemplate>
+                                                                    <DataTemplate DataType="m:Profile">
+                                                                        <TextBlock Text="{Binding Name}" />
+                                                                    </DataTemplate>
+                                                                </ComboBox.ItemTemplate>
+                                                            </ComboBox>
+                                                            <TextBlock Grid.Row="1" Grid.Column="1" Classes="target-arrow"
+                                                                       Text="&#x2192;" Margin="12,0" />
+                                                            <ComboBox Grid.Row="1" Grid.Column="2" HorizontalAlignment="Stretch"
+                                                                      ItemsSource="{Binding Workspaces}"
+                                                                      SelectedItem="{Binding SelectedWorkspace, Mode=TwoWay}">
+                                                                <ComboBox.ItemTemplate>
+                                                                    <DataTemplate DataType="m:Workspace">
+                                                                        <TextBlock Text="{Binding Name}" />
+                                                                    </DataTemplate>
+                                                                </ComboBox.ItemTemplate>
+                                                            </ComboBox>
+                                                        </Grid>
+                                                    </StackPanel>
+
+                                                    <!-- Additional options -->
+                                                    <StackPanel Spacing="5">
+                                                        <TextBlock Classes="group-label" Text="Additional options" />
+                                                        <StackPanel Orientation="Horizontal" Spacing="20" VerticalAlignment="Center">
+                                                            <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                                                <TextBlock Classes="label" Text="Priority" VerticalAlignment="Center" />
+                                                                <TextBox Width="64" Text="{Binding PriorityText, Mode=TwoWay}" />
+                                                            </StackPanel>
+                                                            <CheckBox Content="Trigger when process starts" VerticalAlignment="Center"
+                                                                      IsChecked="{Binding Rule.ActivateOnProcessStart, Mode=TwoWay}"
+                                                                      ToolTip.Tip="Also apply this rule when the process starts, not only on focus" />
+                                                        </StackPanel>
+                                                    </StackPanel>
+                                                </StackPanel>
+
+                                                <Button Grid.Column="1" Classes="rule-delete" Content="✕"
+                                                        VerticalAlignment="Top" Margin="8,0,0,0"
+                                                        ToolTip.Tip="Remove rule"
                                                         Command="{Binding $parent[Window].DataContext.RemoveContextRuleCommand}"
                                                         CommandParameter="{Binding}" />
                                             </Grid>
@@ -779,7 +821,7 @@
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
 
-                            <TextBlock Classes="hint" Margin="0,6,0,0"
+                            <TextBlock Classes="hint" FontSize="12"
                                        Text="The highest-priority matching rule wins; ties are broken by list order. Leave 'Profile' empty to keep the current profile, and 'Workspace' empty to open the profile's Home workspace. A manual profile/workspace switch pauses automatic switching until you change apps." />
                         </StackPanel>
                     </Border>
