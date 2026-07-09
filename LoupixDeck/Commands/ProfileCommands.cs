@@ -10,6 +10,7 @@ namespace LoupixDeck.Commands;
     parameterTemplate: "({Profile})",
     parameterNames: ["Profile"],
     parameterTypes: [typeof(string)],
+    Hidden = true,
     Description = "Activate a profile and open its home workspace")]
 public class ActivateProfileCommand(IWorkspaceActivationService activation) : IExecutableCommand
 {
@@ -29,6 +30,7 @@ public class ActivateProfileCommand(IWorkspaceActivationService activation) : IE
     parameterTemplate: "({Workspace})",
     parameterNames: ["Workspace"],
     parameterTypes: [typeof(string)],
+    Hidden = true,
     Description = "Switch to a workspace within the active profile")]
 public class GotoWorkspaceCommand(IWorkspaceActivationService activation) : IExecutableCommand
 {

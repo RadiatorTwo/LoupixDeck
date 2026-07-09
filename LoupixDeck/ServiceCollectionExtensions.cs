@@ -238,6 +238,7 @@ public static class ServiceCollectionExtensions
         // The command-selection menu is assembled generically from these contributors.
         collection.AddSingleton<IMenuContributor, CommandGroupMenuContributor>();
         collection.AddSingleton<IMenuContributor, UserMacroMenuContributor>();
+        collection.AddSingleton<IMenuContributor, ProfileMenuContributor>();
         collection.AddSingleton<IPluginMenuSource, PluginMenuContributor>();
         collection.AddSingleton<IMenuTreeBuilder, MenuTreeBuilder>();
 
