@@ -642,6 +642,23 @@ public partial class LoupedeckLiveSController(
     }
 
     /// <inheritdoc/>
+    public Task RefreshSideStripAnimationFrame(RotarySide side)
+    {
+        if (deviceService.Device?.HasSideStrips != true || side == RotarySide.Both)
+            return Task.CompletedTask;
+
+        var idx = SideIndex(side);
+
+        // A swipe drag/settle owns the strip until it lands; a frame push mid-swipe would
+        // draw the page flat at offset 0 and fight the slide. Skip this frame; the next tick
+        // (or the transition's own commit) repaints. Route through the shared coalescing gate
+        // so an animation frame can't double-push against a provider redraw or the swipe.
+        if (IsStripDragBusy(idx)) return Task.CompletedTask;
+
+        return RedrawStripCoalesced(side, idx);
+    }
+
+    /// <inheritdoc/>
     public void DetachAllSideStripProviders()
     {
         ResetStripDrags();

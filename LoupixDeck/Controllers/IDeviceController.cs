@@ -64,6 +64,13 @@ public interface IDeviceController
     /// </summary>
     Task RefreshSideStrips();
 
+    /// <summary>
+    /// Re-renders and pushes one side's strip for a single animation frame, honoring the
+    /// per-side redraw gate / rate-limit and skipping while a swipe drag or transition owns
+    /// the strip. No-op on devices without side strips. Safe to call from the animation loop.
+    /// </summary>
+    Task RefreshSideStripAnimationFrame(RotarySide side);
+
     /// <summary>Global "next rotary page" with a slide transition on side-strip devices
     /// (both columns animate); instant fallback otherwise or when animation is unavailable.</summary>
     void AnimateNextRotaryPage();
