@@ -262,6 +262,10 @@ public static class ServiceCollectionExtensions
         // driving animated image layers and animated plugin commands.
         collection.AddSingleton<Services.Animation.IButtonAnimationManager, Services.Animation.ButtonAnimationManager>();
 
+        // Animated side-display content (issue #123): one source per device on the central scheduler,
+        // driving animated image layers on the FreeDraw side-strip canvases.
+        collection.AddSingleton<Services.Animation.ISideDisplayAnimationManager, Services.Animation.SideDisplayAnimationManager>();
+
         collection.AddSingleton<IFolderNavigationService, FolderNavigationService>();
         collection.AddSingleton<IExclusiveModeService, ExclusiveModeService>();
         collection.AddSingleton<INativeHapticService, NativeHapticService>();
