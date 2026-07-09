@@ -35,6 +35,7 @@ public sealed class PluginReloadService : IPluginReloadService
     private readonly ISideStripProviderRegistry _sideStripRegistry;
     private readonly IDynamicTextManager _dynamicText;
     private readonly Animation.IButtonAnimationManager _buttonAnimation;
+    private readonly Animation.ISideDisplayAnimationManager _sideDisplayAnimation;
     private readonly IExclusiveModeService _exclusiveMode;
     private readonly IFolderNavigationService _folderNav;
     private readonly IDeviceController _deviceController;
@@ -49,6 +50,7 @@ public sealed class PluginReloadService : IPluginReloadService
         ISideStripProviderRegistry sideStripRegistry,
         IDynamicTextManager dynamicText,
         Animation.IButtonAnimationManager buttonAnimation,
+        Animation.ISideDisplayAnimationManager sideDisplayAnimation,
         IExclusiveModeService exclusiveMode,
         IFolderNavigationService folderNav,
         IDeviceController deviceController,
@@ -60,6 +62,7 @@ public sealed class PluginReloadService : IPluginReloadService
         _sideStripRegistry = sideStripRegistry;
         _dynamicText = dynamicText;
         _buttonAnimation = buttonAnimation;
+        _sideDisplayAnimation = sideDisplayAnimation;
         _exclusiveMode = exclusiveMode;
         _folderNav = folderNav;
         _deviceController = deviceController;
@@ -152,6 +155,7 @@ public sealed class PluginReloadService : IPluginReloadService
         _commandRegistry.Initialize();
         _dynamicText.Rescan();
         _buttonAnimation.Rescan();
+        _sideDisplayAnimation.Rescan();
         TryCollectUnloaded();
 
         // Now attempt the delete; a cleanly-collected plugin is removed live, a
@@ -172,6 +176,7 @@ public sealed class PluginReloadService : IPluginReloadService
         _sideStripRegistry.Rebuild();
         _dynamicText.Rescan();
         _buttonAnimation.Rescan();
+        _sideDisplayAnimation.Rescan();
         await _deviceController.RedrawCurrentTouchPage();
         await _deviceController.RefreshSideStrips();
     }
