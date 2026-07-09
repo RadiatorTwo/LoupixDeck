@@ -219,6 +219,7 @@ public static class ServiceCollectionExtensions
 
         collection.AddSingleton<IDeviceService, LoupedeckDeviceService>();
         collection.AddSingleton<IPageManager, PageManager>();
+        collection.AddSingleton<IWorkspaceActivationService, WorkspaceActivationService>();
 
         // Command catalog — device-scoped so command activation
         // (SysCommandService → ActivatorUtilities.CreateInstance(this provider))

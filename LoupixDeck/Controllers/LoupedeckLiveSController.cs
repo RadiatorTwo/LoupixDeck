@@ -346,11 +346,10 @@ public partial class LoupedeckLiveSController(
             config.CurrentTouchPageIndex = startupIndex;
             await pageManager.ApplyTouchPage(config.CurrentTouchPageIndex, true);
 
-            // With an existing config, we need to apply the item changed event to the current Touch Button Page
-            foreach (var touchButton in config.CurrentTouchButtonPage.TouchButtons)
-            {
-                touchButton.ItemChanged += TouchItemChanged;
-            }
+            // ApplyTouchPage early-returns here (the index was pre-set), so OnTouchPageChanged
+            // does not fire — wire the current page's ItemChanged explicitly (tracked so a later
+            // page/workspace switch detaches it cleanly).
+            AttachTouchItemChanged(config.CurrentTouchButtonPage);
 
             foreach (var touchButton in config.CurrentTouchButtonPage.TouchButtons)
             {
@@ -1687,20 +1686,18 @@ public partial class LoupedeckLiveSController(
 
     private void OnTouchPageChanged(int oldIndex, int newIndex)
     {
-        if (oldIndex >= 0 && oldIndex < config.TouchButtonPages.Count && config.TouchButtonPages[oldIndex] != null)
-        {
-            foreach (var touchButton in config.TouchButtonPages[oldIndex].TouchButtons)
-            {
-                touchButton.ItemChanged -= TouchItemChanged;
-            }
-        }
+        var newPage = (newIndex >= 0 && newIndex < config.TouchButtonPages.Count)
+            ? config.TouchButtonPages[newIndex]
+            : null;
 
-        if (newIndex >= 0 && newIndex < config.TouchButtonPages.Count && config.TouchButtonPages[newIndex] != null)
-        {
-            foreach (var touchButton in config.TouchButtonPages[newIndex].TouchButtons)
-            {
-                touchButton.ItemChanged += TouchItemChanged;
+        // Move the per-button ItemChanged wiring onto the newly active page (detaches the
+        // previously wired page, which may belong to a different workspace after a switch).
+        AttachTouchItemChanged(newPage);
 
+        if (newPage != null)
+        {
+            foreach (var touchButton in newPage.TouchButtons)
+            {
                 // Reset stateful buttons that opt into per-page reset back to their default state
                 // as the page becomes active. App-focus switches also flow through page changes,
                 // so this transitively covers "reset on active-app change". External (plugin-driven)
@@ -1748,6 +1745,66 @@ public partial class LoupedeckLiveSController(
                 page.PropertyChanged += TouchButtonPageOnPropertyChanged;
             _boundTouchPages.CollectionChanged += TouchButtonPagesOnCollectionChanged;
         }
+    }
+
+    // The touch page whose buttons currently have ItemChanged wired. Tracked so page/workspace
+    // switches move the per-button redraw wiring cleanly (issue #132) instead of leaking
+    // subscriptions on the previously active page.
+    private TouchButtonPage _itemChangedPage;
+
+    /// <summary>Wires <see cref="TouchItemChanged"/> onto the given page's buttons, detaching the
+    /// previously wired page first. Idempotent when the page is already wired.</summary>
+    private void AttachTouchItemChanged(TouchButtonPage page)
+    {
+        if (ReferenceEquals(page, _itemChangedPage)) return;
+        DetachTouchItemChanged();
+        if (page?.TouchButtons == null) return;
+        foreach (var touchButton in page.TouchButtons)
+            touchButton.ItemChanged += TouchItemChanged;
+        _itemChangedPage = page;
+    }
+
+    private void DetachTouchItemChanged()
+    {
+        if (_itemChangedPage?.TouchButtons != null)
+            foreach (var touchButton in _itemChangedPage.TouchButtons)
+                touchButton.ItemChanged -= TouchItemChanged;
+        _itemChangedPage = null;
+    }
+
+    /// <summary>
+    /// Re-applies and repaints the active workspace after a profile/workspace switch (issue #132):
+    /// rebinds the touch-page handlers, re-seeds the rotary pages, selects the workspace's startup
+    /// touch page (forcing a redraw even when the remembered index is unchanged) and repaints the
+    /// touch display and side strips. No device I/O happens while the device is off or another mode
+    /// owns the screen. Must run on the UI thread.
+    /// </summary>
+    public async Task ApplyActiveWorkspace()
+    {
+        BindActiveWorkspaceTouchPages();
+        InitializeRotaryPages();
+
+        if (config.TouchButtonPages == null || config.TouchButtonPages.Count == 0)
+        {
+            await pageManager.AddTouchButtonPage(true);
+        }
+        else
+        {
+            var startupIndex = config.StartupTouchPageIndex;
+            if (startupIndex < 0 || startupIndex >= config.TouchButtonPages.Count)
+                startupIndex = 0;
+
+            // The freshly activated workspace remembers its own current index; reset it so
+            // ApplyTouchPage (which early-returns when the index is unchanged) always repaints.
+            pageManager.CurrentTouchPageIndex = -1;
+            await pageManager.ApplyTouchPage(startupIndex, true);
+        }
+
+        config.CurrentRotaryButtonPage?.Selected = true;
+        config.CurrentTouchButtonPage?.Selected = true;
+
+        if (!_isDeviceOff && !folderNav.IsActive && !exclusiveMode.IsActive)
+            await RedrawSideStrips();
     }
 
     private void TouchButtonPagesOnCollectionChanged(object sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)

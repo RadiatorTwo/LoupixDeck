@@ -197,14 +197,15 @@ public partial class LoupedeckConfig : ObservableObject
             Profiles.Add(profile);
         }
 
-        if (Profiles.All(p => p.Id != ActiveProfileId))
-            ActiveProfileId = Profiles[0].Id;
-
+        // Resolve the configured startup profile (heal if it points nowhere).
         if (Profiles.All(p => p.Id != StartupProfileId))
-            StartupProfileId = ActiveProfileId;
+            StartupProfileId = Profiles[0].Id;
 
-        if (ActiveProfile is { } active && active.Workspaces.All(w => w.Id != ActiveWorkspaceId))
-            ActiveWorkspaceId = active.HomeWorkspace?.Id ?? Guid.Empty;
+        // A launch always starts on the configured startup profile, opened at its home workspace
+        // (issue #132 — "configurable startup profile + Home", replacing the former single startup
+        // page). EnsureDefaultProfile runs once at load, so this is the launch entry point.
+        ActiveProfileId = StartupProfileId;
+        ActiveWorkspaceId = ActiveProfile?.HomeWorkspace?.Id ?? Guid.Empty;
 
         RebindActiveWorkspace();
     }

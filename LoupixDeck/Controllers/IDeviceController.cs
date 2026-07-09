@@ -105,4 +105,14 @@ public interface IDeviceController
     /// direction; instant fallback when the animation is unavailable. <paramref name="pageIndex"/>
     /// is 0-based.</summary>
     void AnimateGotoTouchPage(int pageIndex);
+
+    /// <summary>(Re)binds the controller's touch-page event handlers onto the active workspace's
+    /// pages, detaching the previously bound workspace first (issue #132). Called after a
+    /// profile/workspace switch changes which page collection is active.</summary>
+    void BindActiveWorkspaceTouchPages();
+
+    /// <summary>Re-applies and repaints the active workspace after a profile/workspace switch:
+    /// rebinds handlers, re-seeds rotary pages, selects the workspace's startup touch page and
+    /// repaints the touch display and side strips (issue #132). UI thread.</summary>
+    Task ApplyActiveWorkspace();
 }
