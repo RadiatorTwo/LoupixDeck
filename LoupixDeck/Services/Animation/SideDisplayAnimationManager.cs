@@ -110,6 +110,16 @@ public sealed class SideDisplayAnimationManager : ISideDisplayAnimationManager, 
         referenced = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var specs = new List<Spec>();
 
+        // Only devices that page their dial columns independently have addressable side strips
+        // (Razer). On single-column devices there is nothing to animate — drop any subscriptions
+        // and return an empty set so the source stays inactive.
+        if (!_pageManager.HasIndependentRotarySides)
+        {
+            for (var slot = 0; slot < 2; slot++)
+                SubscribeCanvas(slot, null);
+            return specs;
+        }
+
         for (var slot = 0; slot < 2; slot++)
         {
             var side = slot == 0 ? RotarySide.Left : RotarySide.Right;
