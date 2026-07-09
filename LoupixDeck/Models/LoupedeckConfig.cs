@@ -381,4 +381,16 @@ public partial class LoupedeckConfig : ObservableObject
 
     // Touch page to switch to when no rule matches. null = do nothing on no-match.
     public int? AppSwitchingFallbackTouchPageIndex { get; set; }
+
+    // --- Context rules (issue #132) -------------------------------------------
+    // Profile/workspace-aware successor to AppPageBindings. Additive and optional: a config saved
+    // before #132 has no ContextRules, so it loads with an empty list and the context engine folds
+    // the legacy AppPageBindings in at runtime (see AppSwitchingService). ObjectCreationHandling
+    // .Replace for the same reason as HapticSteps/AppPageBindings.
+    [Newtonsoft.Json.JsonProperty(ObjectCreationHandling = Newtonsoft.Json.ObjectCreationHandling.Replace)]
+    public ObservableCollection<ContextRule> ContextRules { get; set; } = [];
+
+    // Profile to activate when leaving all rule-matched apps. null = restore whichever profile was
+    // active before a rule first took over (previous-profile behaviour).
+    public Guid? FallbackProfileId { get; set; }
 }
