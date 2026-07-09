@@ -9,30 +9,31 @@ This manual is for people who want to use LoupixDeck, not develop plugins for it
 3. [Install and Start](#install-and-start)
 4. [First Launch](#first-launch)
 5. [The Main Window](#the-main-window)
-6. [Pages](#pages)
-7. [Touch Buttons](#touch-buttons)
-8. [Button Layers](#button-layers)
-9. [Button States](#button-states)
-10. [Commands and Command Sequences](#commands-and-command-sequences)
-11. [Rotary Controls](#rotary-controls)
-12. [Physical Buttons](#physical-buttons)
-13. [Macros](#macros)
-14. [Dynamic Text](#dynamic-text)
-15. [Wallpapers](#wallpapers)
-16. [Feedback and Haptics](#feedback-and-haptics)
-17. [Screensaver](#screensaver)
-18. [App Switching](#app-switching)
-19. [Plugins and Integrations](#plugins-and-integrations)
-20. [Device Power and Window Commands](#device-power-and-window-commands)
-21. [Automation and CLI](#automation-and-cli)
-22. [Settings Reference](#settings-reference)
-23. [Files, Profiles, and Backup](#files-profiles-and-backup)
-24. [Troubleshooting](#troubleshooting)
-25. [Notes and Limitations](#notes-and-limitations)
+6. [Profiles and Workspaces](#profiles-and-workspaces)
+7. [Pages](#pages)
+8. [Touch Buttons](#touch-buttons)
+9. [Button Layers](#button-layers)
+10. [Button States](#button-states)
+11. [Commands and Command Sequences](#commands-and-command-sequences)
+12. [Rotary Controls](#rotary-controls)
+13. [Physical Buttons](#physical-buttons)
+14. [Macros](#macros)
+15. [Dynamic Text](#dynamic-text)
+16. [Wallpapers](#wallpapers)
+17. [Feedback and Haptics](#feedback-and-haptics)
+18. [Screensaver](#screensaver)
+19. [Profile Rules](#profile-rules)
+20. [Plugins and Integrations](#plugins-and-integrations)
+21. [Device Power and Window Commands](#device-power-and-window-commands)
+22. [Automation and CLI](#automation-and-cli)
+23. [Settings Reference](#settings-reference)
+24. [Files and Backup](#files-and-backup)
+25. [Troubleshooting](#troubleshooting)
+26. [Notes and Limitations](#notes-and-limitations)
 
 ## What LoupixDeck Is
 
-LoupixDeck is an open-source control deck app for Loupedeck and Razer Stream Controller devices. It lets you build pages of touch buttons, assign commands to knobs and physical buttons, create macros, display dynamic values, and connect to apps such as OBS, audio devices, lighting tools, monitoring tools, and Spotify Premium.
+LoupixDeck is an open-source control deck app for Loupedeck and Razer Stream Controller devices. It lets you build profiles, workspaces, and pages of touch buttons, assign commands to knobs and physical buttons, create macros, display dynamic values, and connect to apps such as OBS, audio devices, lighting tools, monitoring tools, and Spotify Premium.
 
 You do not need the official Loupedeck application to use LoupixDeck.
 
@@ -118,15 +119,48 @@ The main window is a live editor for your connected device.
 - Edit the page name directly in the page name field.
 - Use the hamburger menu for `Settings`, `Macros`, `About`, and `Quit`.
 
-When multiple devices are connected, choose the device from the selector at the top of the window.
+The top header shows your current context. It contains `DEVICE`, `PROFILE`, and `WORKSPACE` selectors. If only one device is connected, the device selector is hidden and you will usually just see the profile and workspace selectors. The hamburger menu sits at the right end of this header.
+
+Changing profile or workspace from the header changes what the device shows and what the editor is editing. The selectors also update when a rule, command, or device button switches context for you.
+
+## Profiles and Workspaces
+
+LoupixDeck organises layouts as:
+
+`Device > Profile > Workspace > Pages`
+
+A profile is a larger context, such as an app, activity, or setup. A workspace lives inside a profile and contains its own touch pages and rotary pages. This means one profile can hold several complete page sets without mixing them into one flat list.
+
+For example, you might create:
+
+| Profile | Workspaces |
+| --- | --- |
+| Streaming | Setup, Live, Moderation |
+| Editing | Timeline, Color, Export |
+| General | Home, Audio, System |
+
+Open `Settings > Profiles` to manage this structure. From there you can:
+
+- Add, rename, and delete profiles.
+- Add, rename, and delete workspaces inside each profile.
+- Activate a profile. It opens on that profile's Home workspace.
+- Open a workspace so the device shows it and the editor edits its pages.
+- Set a workspace as the profile's Home workspace.
+- Set the Default profile that opens when LoupixDeck starts.
+
+Old layouts are migrated automatically. If you had pages before profiles and workspaces existed, they are placed in a `Default` profile with a `Home` workspace, so the app should behave as it did before.
+
+Profiles and workspaces can also be changed from commands. The command picker has a `Profiles` group with commands such as `Activate Profile`, `Go to Workspace`, `Next Workspace`, `Previous Workspace`, and `Go to Home Workspace`. In the picker, profile and workspace choices are shown by their real names.
 
 ## Pages
 
-LoupixDeck uses separate page sets for touch buttons and rotary controls.
+Pages belong to the active workspace. When you switch workspace, LoupixDeck switches to that workspace's own touch and rotary pages.
+
+Inside a workspace, LoupixDeck uses separate page sets for touch buttons and rotary controls.
 
 Touch pages contain the touch grid layout. Rotary pages contain knob actions. Some devices, such as the Razer Stream Controller, can have independent left and right rotary pages.
 
-From the main window you can quickly move between pages. From `Settings > Pages`, you can:
+From the main window you can quickly move between pages in the current workspace. From `Settings > Pages`, you can:
 
 - Add touch pages.
 - Add rotary pages.
@@ -135,7 +169,7 @@ From the main window you can quickly move between pages. From `Settings > Pages`
 - Edit a touch page wallpaper.
 - Edit page-level commands.
 
-`Settings > General` also lets you choose the startup touch page used on the next app launch.
+`Settings > General` also lets you choose the startup touch page used when the current workspace opens.
 
 Page changes normally slide horizontally when triggered from the on-screen page buttons or page commands. In `Settings > General > Page switching`, turn off `Animate touch page transitions` or `Animate rotary page transitions` if you prefer instant page changes. LoupixDeck also falls back to an instant change when an animation is not possible, such as when the device is off, inside folders, on single-page sets, or on hardware without side displays.
 
@@ -188,6 +222,8 @@ An image layer can also show an animation. This is a property of a normal image 
 
 - GIF and animated WebP sources are stored as-is.
 - Video files (MP4, MOV, and similar) are converted once, at import time, into a small button-size looping GIF. This import step needs `ffmpeg` on your system `PATH`.
+- Animated image/video content can also be used on side displays on devices that have them.
+- Video import keeps the source aspect ratio. On square touch buttons, video is letterboxed inside the button. On tall side strips, video is scaled to the strip height at full width, so it stays centred instead of being squashed.
 - Playback itself does not need `ffmpeg`. Frames are decoded once and cached, so animated buttons stay light at runtime.
 
 Text and symbol layers can still sit on top of an animated image layer.
@@ -236,6 +272,7 @@ Built-in command groups include:
 | Group | Examples |
 | --- | --- |
 | Pages | Next/previous touch page, next/previous rotary page, go to page number, left/right rotary page commands on devices with side displays |
+| Profiles | Activate profile, go to workspace, next/previous workspace, go to Home workspace |
 | Macros | Type text, key combination, run a named macro, stop macros |
 | Shell | Run a shell command |
 | Button Control | Update a touch button at runtime, remove a named layer |
@@ -258,7 +295,7 @@ Each rotary control can have separate command sequences for:
 
 ### Command groups
 
-Some plugins offer command groups that configure a whole rotary in one step. In the rotary editor's command picker a group entry is marked with a `Group` badge.
+Some plugins offer command groups that configure a whole rotary in one step. In the rotary editor's command picker, a group entry is marked with a violet `Group` badge and a tooltip.
 
 - Double-click the group to fill all three rotary slots at once: counter-clockwise maps to rotate left, clockwise to rotate right, and the click maps to press.
 - Dragging the group onto the strips does the same. Dropping it anywhere applies the whole mapping, while a plain command drops into a single slot.
@@ -384,25 +421,32 @@ Options include:
 
 The screensaver needs `ffmpeg` on your system `PATH`. If LoupixDeck cannot find it, the settings page shows a warning.
 
-## App Switching
+## Profile Rules
 
-Open `Settings > App Switching`.
+Open `Settings > Profile Rules`.
 
-App switching changes pages automatically when the foreground application changes.
+Profile Rules change context automatically when applications start or become active. They replace the older App Switching page.
 
 You can:
 
-- Enable or disable app switching.
+- Enable or disable automatic profile and workspace switching.
 - Add rules.
 - Match by process name.
 - Optionally match by part of the window title.
-- Choose a touch page.
-- Optionally choose a rotary page.
-- Choose a fallback touch page when no rule matches.
+- Choose a profile.
+- Choose a workspace.
+- Optionally choose a page.
+- Give each rule a priority.
+- Trigger a rule when its process starts, not only when its window comes to the front.
+- Choose whether LoupixDeck should return to a fixed fallback profile when you leave matched apps.
 
-Rules are evaluated from top to bottom. The first matching rule wins.
+The highest-priority matching rule wins. If rules have the same priority, list order breaks the tie.
 
-Process matching is case-insensitive, and a trailing `.exe` is ignored. On Linux, app switching requires X11 or XWayland plus `xprop`; pure Wayland is not supported by the current README.
+If a rule leaves `Profile` empty, it keeps the current profile. If it leaves `Workspace` empty, it opens the chosen profile's Home workspace. If no rule matches, LoupixDeck restores the previous profile and workspace, unless you configured a fixed fallback profile.
+
+When you switch profile or workspace by hand, LoupixDeck pauses automatic switching until the foreground app changes. This prevents a rule from immediately pulling you back while you are deliberately working somewhere else.
+
+Process matching is case-insensitive, and a trailing `.exe` is ignored. On Linux, Profile Rules require X11 or XWayland plus `xprop`; pure Wayland is not supported by the current README.
 
 ## Plugins and Integrations
 
@@ -503,6 +547,9 @@ For multiple devices, target a specific device:
 | `System.NextRotaryPageLeft` / `System.PreviousRotaryPageLeft` | Move the left rotary side to the next or previous page, on devices with side displays |
 | `System.NextRotaryPageRight` / `System.PreviousRotaryPageRight` | Move the right rotary side to the next or previous page, on devices with side displays |
 | `System.GotoRotaryPageLeft(<N>)` / `System.GotoRotaryPageRight(<N>)` | Go to rotary page number `N` on only one side, on devices with side displays |
+| `System.NextWorkspace` / `System.PreviousWorkspace` | Move to the next or previous workspace in the active profile |
+| `System.GoHomeWorkspace` | Return to the active profile's Home workspace |
+| `System.ActivateProfile(<profileId>)` / `System.GotoWorkspace(<workspaceId>)` | Advanced: activate a profile or workspace by internal id |
 | `updatebutton <index> key=value ...` | Update a touch button at runtime |
 | `removelayer <index> <layerName>` | Remove a named layer from a button |
 | `off` / `on` / `toggle-device` | Blank, restore, or toggle the device display |
@@ -543,10 +590,18 @@ Underscores in `text` are treated as spaces in the short CLI form.
 
 On Windows, `Start with Windows` controls whether LoupixDeck launches at login. The installer can set the same behavior during setup with `Start on system startup`, but v1.12.1 and later let you turn it on or off from this settings page. Use it together with `Start minimized to tray` if you want LoupixDeck to launch quietly after login.
 
+### Profiles
+
+- Add, rename, and delete profiles.
+- Add, rename, and delete workspaces inside profiles.
+- Activate a profile or workspace.
+- Set a profile's Home workspace.
+- Set the Default profile used at startup.
+
 ### Pages
 
-- Manage touch pages.
-- Manage rotary pages.
+- Manage touch pages for the active workspace.
+- Manage rotary pages for the active workspace.
 - Reorder pages.
 - Edit wallpapers.
 - Edit page commands.
@@ -572,12 +627,14 @@ Windows only. Shows Interception driver status and lets you install, uninstall, 
 
 Important: Interception is third-party software. It is not bundled with LoupixDeck, and commercial use may require a separate license from its author.
 
-### App Switching
+### Profile Rules
 
-- Enable automatic page switching.
+- Enable automatic profile and workspace switching.
 - Add rules based on process name and optional title text.
-- Choose touch and rotary page behavior.
-- Choose fallback page.
+- Choose profile, workspace, and optional page behavior.
+- Set rule priority.
+- Trigger rules when a process starts.
+- Choose fallback profile behavior.
 
 ### Theme
 
@@ -592,7 +649,7 @@ Some controls may keep the old palette until the next app launch.
 - Version.
 - Project website link.
 
-## Files, Profiles, and Backup
+## Files and Backup
 
 LoupixDeck stores configuration as JSON in the user config directory. Typical files include:
 
@@ -603,7 +660,7 @@ LoupixDeck stores configuration as JSON in the user config directory. Typical fi
 | `macros.json` | Shared macro definitions |
 | Plugin config files | Integration-specific settings |
 
-Per-device layout is scoped by serial number when possible. If a config file is corrupted, LoupixDeck creates a backup before writing a fresh file.
+Per-device layout is scoped by serial number when possible. The per-device layout file contains that device's profiles, workspaces, pages, and device-specific settings. If a config file is corrupted, LoupixDeck creates a backup before writing a fresh file.
 
 ## Troubleshooting
 
@@ -632,11 +689,18 @@ Recording needs read access to `/dev/input/event*`. The installer attempts to ha
 - Try a lower FPS limit.
 - Test with a simple local video file.
 
-### App switching does not work on Linux
+### Profile Rules do not work on Linux
 
 - It needs X11 or XWayland.
 - Install `xprop`.
 - Pure Wayland is not currently supported according to the README.
+
+### Wrong profile or workspace keeps opening
+
+- Open `Settings > Profile Rules` and check whether automatic switching is enabled.
+- Check the priority of matching rules. The highest-priority match wins.
+- Check whether a fixed fallback profile is configured.
+- If you just switched profile or workspace manually, automatic switching waits until the foreground app changes before taking over again.
 
 ### Plugin commands are missing
 
