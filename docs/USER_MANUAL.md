@@ -111,9 +111,8 @@ If the app cannot talk to the device:
 
 The main window is a live editor for your connected device.
 
-- Click a touch button to edit its image, text, symbol layers, states, and actions.
-- Click a rotary control to edit what happens on rotate left, rotate right, and press.
-- Click a physical button to assign actions.
+- Single-click a touch button, rotary control, or physical button to select it.
+- Double-click the selected control to edit its image, text, symbol layers, states, and actions.
 - Use page arrows near the device controls to move between pages.
 - Use `+` and delete controls to add or remove pages.
 - Edit the page name directly in the page name field.
@@ -137,6 +136,8 @@ From the main window you can quickly move between pages. From `Settings > Pages`
 - Edit page-level commands.
 
 `Settings > General` also lets you choose the startup touch page used on the next app launch.
+
+Page changes normally slide horizontally when triggered from the on-screen page buttons or page commands. In `Settings > General > Page switching`, turn off `Animate touch page transitions` or `Animate rotary page transitions` if you prefer instant page changes. LoupixDeck also falls back to an instant change when an animation is not possible, such as when the device is off, inside folders, on single-page sets, or on hardware without side displays.
 
 ## Touch Buttons
 
@@ -221,17 +222,20 @@ To assign commands:
 
 1. Open a touch button, physical button, rotary control, or page command editor.
 2. Select the command strip you want to edit.
-3. Open the command tree.
-4. Double-click a command to append it, or drag it into the strip.
-5. Use the edit icon on a command chip to set parameters.
-6. Drag chips to reorder them.
-7. Use remove or clear to delete commands.
+3. Open the command picker.
+4. Choose a category card, or press `Ctrl+K` and search across all available commands.
+5. Double-click a command to append it, press `Enter` on the selected command, or drag it into the strip.
+6. Use the edit icon on a command chip to set parameters.
+7. Drag chips to reorder them.
+8. Use remove or clear to delete commands.
+
+The command picker groups commands into `Core`, `Macros`, and `Plugins`. Each category card has an icon, description, and command count. Plugin groups can expand inline, so nested commands such as audio devices, OBS scenes, and Elgato lights can be opened without leaving the picker. Search results include their group path, which helps when different plugins expose similarly named commands.
 
 Built-in command groups include:
 
 | Group | Examples |
 | --- | --- |
-| Pages | Next/previous touch page, next/previous rotary page, go to page number |
+| Pages | Next/previous touch page, next/previous rotary page, go to page number, left/right rotary page commands on devices with side displays |
 | Macros | Type text, key combination, run a named macro, stop macros |
 | Shell | Run a shell command |
 | Button Control | Update a touch button at runtime, remove a named layer |
@@ -244,7 +248,7 @@ Some commands have parameters, such as a page number, key combination, date/time
 
 ## Rotary Controls
 
-Click a rotary control to open its editor.
+Single-click a rotary control to select it. Double-click it to open its editor.
 
 Each rotary control can have separate command sequences for:
 
@@ -254,7 +258,7 @@ Each rotary control can have separate command sequences for:
 
 ### Command groups
 
-Some plugins offer command groups that configure a whole rotary in one step. In the rotary editor's command tree a group entry is marked with a blue italic `(group)` badge.
+Some plugins offer command groups that configure a whole rotary in one step. In the rotary editor's command picker a group entry is marked with a `Group` badge.
 
 - Double-click the group to fill all three rotary slots at once: counter-clockwise maps to rotate left, clockwise to rotate right, and the click maps to press.
 - Dragging the group onto the strips does the same. Dropping it anywhere applies the whole mapping, while a plain command drops into a single slot.
@@ -262,11 +266,13 @@ Some plugins offer command groups that configure a whole rotary in one step. In 
 
 For devices with side strips, each knob can also have a strip label. On the Razer Stream Controller, side strips can show segmented knob labels or be edited as free-draw strip canvases depending on mode.
 
+Devices with separate side displays also offer left and right variants of the rotary page commands. Use the normal `Next Rotary Page`, `Previous Rotary Page`, or `Go to Rotary Page` commands when you want both rotary columns to move together. Use the left/right variants when you want to page only one side.
+
 Use rotary controls for repeated actions such as volume up/down, scene switching, light brightness, timeline navigation, zooming, or page changes.
 
 ## Physical Buttons
 
-Physical buttons are edited similarly to touch buttons, but without the touch-screen layer editor. Click a physical button in the main window, then assign one or more commands.
+Physical buttons are edited similarly to touch buttons, but without the touch-screen layer editor. Double-click a physical button in the main window, then assign one or more commands.
 
 Good uses include:
 
@@ -352,15 +358,14 @@ Wallpapers are separate from button layers. They are best for page-wide context,
 
 ## Feedback and Haptics
 
-Open `Settings > Feedback` to configure global haptic feedback steps. Touch buttons also have per-button vibration controls.
+Open `Settings > Feedback` to configure touch feedback and haptics. Touch buttons also have per-button vibration controls.
 
-The settings support up to two haptic steps. Each step has:
+The Feedback page has:
 
-- Pattern.
-- Delay.
-- Duration.
+- Touch flash: optional visual flash on touch-button press, with color and opacity controls.
+- Haptic: an enable toggle and one global effect picker.
 
-Native haptics are based on reverse-engineered device commands and may depend on the device model.
+In current releases, haptics use LoupixDeck's software vibration pulse. Older config files still load, but the old delay, duration, second-step, and firmware haptic controls are no longer part of the settings page.
 
 ## Screensaver
 
@@ -495,6 +500,9 @@ For multiple devices, target a specific device:
 | `page <N>` | Go to touch page number `N` |
 | `nextrotarypage` / `previousrotarypage` | Move to the next or previous rotary page |
 | `rotarypage <N>` | Go to rotary page number `N` |
+| `System.NextRotaryPageLeft` / `System.PreviousRotaryPageLeft` | Move the left rotary side to the next or previous page, on devices with side displays |
+| `System.NextRotaryPageRight` / `System.PreviousRotaryPageRight` | Move the right rotary side to the next or previous page, on devices with side displays |
+| `System.GotoRotaryPageLeft(<N>)` / `System.GotoRotaryPageRight(<N>)` | Go to rotary page number `N` on only one side, on devices with side displays |
 | `updatebutton <index> key=value ...` | Update a touch button at runtime |
 | `removelayer <index> <layerName>` | Remove a named layer from a button |
 | `off` / `on` / `toggle-device` | Blank, restore, or toggle the device display |
@@ -531,6 +539,7 @@ Underscores in `text` are treated as spaces in the short CLI form.
 - Start with Windows (Windows only).
 - Close button behavior: minimize to tray or quit.
 - Start minimized to tray.
+- Page switching: show the page name overlay, animate rotary page transitions, and animate touch page transitions.
 
 On Windows, `Start with Windows` controls whether LoupixDeck launches at login. The installer can set the same behavior during setup with `Start on system startup`, but v1.12.1 and later let you turn it on or off from this settings page. Use it together with `Start minimized to tray` if you want LoupixDeck to launch quietly after login.
 
@@ -544,8 +553,8 @@ On Windows, `Start with Windows` controls whether LoupixDeck launches at login. 
 
 ### Feedback
 
-- Configure haptic pattern steps.
-- Set delay and duration.
+- Configure touch flash color and opacity.
+- Enable haptic feedback and choose the global haptic effect.
 
 ### Screensaver
 
