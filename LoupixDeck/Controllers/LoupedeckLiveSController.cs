@@ -2034,6 +2034,27 @@ public partial class LoupedeckLiveSController(
             }
         }
 
+        // Side-strip free-draw canvases (Razer/CT) keep their own image + animated assets on each
+        // rotary page's StripCanvas, independent of the touch buttons. Without harvesting these,
+        // save-time cleanup would delete a just-imported side-strip image/animation (issue #123).
+        foreach (var page in EnumerateAllRotaryPages())
+        {
+            var canvas = page?.StripCanvas;
+            if (canvas?.States == null) continue;
+            foreach (var state in canvas.States)
+            {
+                if (state?.Layers == null) continue;
+                foreach (var layer in state.Layers)
+                {
+                    if (layer is not ImageLayer img) continue;
+                    if (!string.IsNullOrWhiteSpace(img.AssetRelativePath))
+                        yield return img.AssetRelativePath;
+                    if (!string.IsNullOrWhiteSpace(img.AnimatedAssetPath))
+                        yield return img.AnimatedAssetPath;
+                }
+            }
+        }
+
         // The asset folder is shared by EVERY per-device config file
         // (config_<slug>[_<serial>].json) in the same config dir, but the live
         // `config` object only represents the active device. Without also honouring
@@ -2042,6 +2063,18 @@ public partial class LoupedeckLiveSController(
         // even though their AssetPath is intact on disk. Harvest those references too.
         foreach (var path in HarvestAssetPathsFromOtherConfigs())
             yield return path;
+    }
+
+    /// <summary>All rotary pages across the shared list and the independent left/right side-strip
+    /// lists. A device uses one scheme or the other, but harvesting all is harmless and future-proof.</summary>
+    private IEnumerable<RotaryButtonPage> EnumerateAllRotaryPages()
+    {
+        if (config.RotaryButtonPages != null)
+            foreach (var page in config.RotaryButtonPages) yield return page;
+        if (config.LeftRotaryButtonPages != null)
+            foreach (var page in config.LeftRotaryButtonPages) yield return page;
+        if (config.RightRotaryButtonPages != null)
+            foreach (var page in config.RightRotaryButtonPages) yield return page;
     }
 
     /// <summary>
