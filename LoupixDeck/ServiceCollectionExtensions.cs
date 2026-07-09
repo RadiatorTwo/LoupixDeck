@@ -209,6 +209,11 @@ public static class ServiceCollectionExtensions
                 // App.InitializeDevices catches and shuts down silently.
                 SeedSerialPortFromSibling(config, configService, deviceInfo);
             }
+
+            // Guarantee a resolvable active profile/workspace (issue #132): a fresh config gets a
+            // Default profile with a Home workspace; a migrated config already has one and is left
+            // as is. Also binds the active-workspace facade so the page properties resolve.
+            config.EnsureDefaultProfile();
             return config;
         });
 

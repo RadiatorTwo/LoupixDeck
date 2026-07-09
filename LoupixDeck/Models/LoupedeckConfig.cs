@@ -1,5 +1,4 @@
 using System.Collections.ObjectModel;
-using System.Collections.Specialized;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Newtonsoft.Json;
 
@@ -26,10 +25,7 @@ public partial class LoupedeckConfig : ObservableObject
         // But in fact an inline `... { get; set; } = new();` goes straight to the field
         // bypassing any extra event-wiring - thus, this constructor enforces the execution of MvvmToolkit's
         // generated setters (and calling of our handlers)
-        RotaryButtonPages = new();
-        LeftRotaryButtonPages = new();
-        RightRotaryButtonPages = new();
-        TouchButtonPages = new();
+        Profiles = new();
 
         // AppPageBindings and HapticSteps don't need
         // to be assigned here, because (as of writing) there is no
@@ -51,8 +47,13 @@ public partial class LoupedeckConfig : ObservableObject
     /// v7 introduced stateful buttons: each button's appearance moved into a default
     /// <c>ButtonState</c> (touch buttons: layers/background/haptic; LED buttons: <c>ButtonColor</c>
     /// → <c>LedColor</c>); the button now projects the active state. See <c>ButtonStatesMigrator</c>.
+    /// v8 introduced profiles and workspaces (issue #132): the touch/rotary page collections and
+    /// <c>StartupTouchPageIndex</c> moved off the config root into a <c>Home</c> <see cref="Workspace"/>
+    /// inside a <c>Default</c> <see cref="Profile"/>; the root now holds <see cref="Profiles"/> plus the
+    /// active/startup profile ids, and the former page properties forward to the active workspace.
+    /// See <c>ProfilesWorkspacesMigrator</c>.
     /// </summary>
-    public const int CurrentVersion = 7;
+    public const int CurrentVersion = 8;
 
     public int Version { get; set; } = CurrentVersion;
 
@@ -73,7 +74,6 @@ public partial class LoupedeckConfig : ObservableObject
     /// </summary>
     public string DeviceSerial { get; set; }
 
-    public int StartupTouchPageIndex { get; set; }
     public string ThemeVariant { get; set; } = "Dark";
 
     public CloseButtonBehavior CloseButtonBehavior { get; set; } = CloseButtonBehavior.MinimizeToTray;
@@ -138,149 +138,201 @@ public partial class LoupedeckConfig : ObservableObject
 
     public SimpleButton[] SimpleButtons { get; set; }
 
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(RotaryPageLabel))]
-    public partial ObservableCollection<RotaryButtonPage> RotaryButtonPages { get; set; }
-
-    partial void OnRotaryButtonPagesChanging(ObservableCollection<RotaryButtonPage> value) => RotaryButtonPages?.CollectionChanged -= OnRotaryPagesChanged;
-    partial void OnRotaryButtonPagesChanged(ObservableCollection<RotaryButtonPage> value) => RotaryButtonPages?.CollectionChanged += OnRotaryPagesChanged;
-    private void OnRotaryPagesChanged(object sender, NotifyCollectionChangedEventArgs e)
-    {
-        // Deleting a non-last page leaves CurrentRotaryPageIndex unchanged, so the
-        // index-driven [NotifyPropertyChangedFor] never fires even though the page
-        // at that index is now a different object. Re-evaluate the projection here.
-        OnPropertyChanged(nameof(RotaryPageLabel));
-        OnPropertyChanged(nameof(CurrentRotaryButtonPage));
-    }
+    // ───────── Profiles / Workspaces (issue #132) ─────────
+    // The touch/rotary page collections and their active-page projections used to live
+    // directly here. Since v8 they live inside the active workspace (Profiles → Workspaces →
+    // Pages). The former root-level properties are kept below as forwarding facades so every
+    // existing binding and caller (PageManager, device layouts, SettingsViewModel) keeps
+    // working unchanged; they resolve against ActiveWorkspace.
 
     [ObservableProperty]
-    [JsonIgnore]
-    [NotifyPropertyChangedFor(nameof(CurrentRotaryButtonPage))]
-    [NotifyPropertyChangedFor(nameof(RotaryPageLabel))]
-    public partial int CurrentRotaryPageIndex { get; set; } = -1;
+    public partial ObservableCollection<Profile> Profiles { get; set; }
 
+    /// <summary>Id of the currently active profile. Persisted; resolved via <see cref="ActiveProfile"/>.</summary>
+    [ObservableProperty]
+    public partial Guid ActiveProfileId { get; set; }
+
+    /// <summary>Id of the profile activated at launch (issue #132 replaced the former single
+    /// device-wide startup page). Each profile then opens on its home workspace.</summary>
+    public Guid StartupProfileId { get; set; }
+
+    /// <summary>Runtime-only id of the active workspace within the active profile. Not persisted —
+    /// a launch always starts on the startup profile's home workspace.</summary>
+    [ObservableProperty]
     [JsonIgnore]
-    public RotaryButtonPage CurrentRotaryButtonPage =>
-        (RotaryButtonPages != null &&
-         CurrentRotaryPageIndex >= 0 &&
-         CurrentRotaryPageIndex < RotaryButtonPages.Count)
-            ? RotaryButtonPages[CurrentRotaryPageIndex]
+    public partial Guid ActiveWorkspaceId { get; set; }
+
+    /// <summary>The active profile resolved from <see cref="ActiveProfileId"/>, falling back to the
+    /// first profile. Null only before <see cref="EnsureDefaultProfile"/> has run.</summary>
+    [JsonIgnore]
+    public Profile ActiveProfile =>
+        Profiles?.FirstOrDefault(p => p.Id == ActiveProfileId) ?? Profiles?.FirstOrDefault();
+
+    /// <summary>The active workspace resolved from <see cref="ActiveWorkspaceId"/> within the active
+    /// profile, falling back to the profile's home workspace.</summary>
+    [JsonIgnore]
+    public Workspace ActiveWorkspace =>
+        ActiveProfile is { } p
+            ? (p.Workspaces?.FirstOrDefault(w => w.Id == ActiveWorkspaceId) ?? p.HomeWorkspace)
             : null;
 
-    /// <summary>"current / total" label for the rotary pager (1-based).</summary>
-    [JsonIgnore]
-    public string RotaryPageLabel =>
-        RotaryButtonPages is { Count: > 0 }
-            ? $"{Math.Clamp(CurrentRotaryPageIndex + 1, 1, RotaryButtonPages.Count)} / {RotaryButtonPages.Count}"
-            : "0 / 0";
+    // The workspace whose PropertyChanged we currently forward. Kept so we can unhook it on switch.
+    private Workspace _boundWorkspace;
 
-    // --- Independent left/right rotary pages (devices with side strips) -------
-    // Devices with side strips (Razer Stream Controller) page each dial column on
-    // its own: LeftRotaryButtonPages / RightRotaryButtonPages each hold that side's
-    // knobs (3 on the Razer, re-indexed 0-based per side). Devices without side
-    // strips (Live S) leave these empty and keep using RotaryButtonPages (Both).
-
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(LeftRotaryPageLabel))]
-    public partial ObservableCollection<RotaryButtonPage> LeftRotaryButtonPages { get; set; }
-
-    partial void OnLeftRotaryButtonPagesChanging(ObservableCollection<RotaryButtonPage> value) => LeftRotaryButtonPages?.CollectionChanged -= OnLeftRotaryPagesChanged;
-    partial void OnLeftRotaryButtonPagesChanged(ObservableCollection<RotaryButtonPage> value) => LeftRotaryButtonPages?.CollectionChanged += OnLeftRotaryPagesChanged;
-    private void OnLeftRotaryPagesChanged(object sender, NotifyCollectionChangedEventArgs e)
+    /// <summary>
+    /// Ensures the config always has at least a Default profile with a Home workspace, and that the
+    /// active/startup ids resolve. Idempotent — a migrated or already-populated config is left as is
+    /// (only empty ids are healed). Also (re)binds the active-workspace forwarding. Call once after
+    /// load / construction (see the device DI factory).
+    /// </summary>
+    public void EnsureDefaultProfile()
     {
-        OnPropertyChanged(nameof(LeftRotaryPageLabel));
-        OnPropertyChanged(nameof(CurrentLeftRotaryButtonPage));
+        Profiles ??= new();
+
+        if (Profiles.Count == 0)
+        {
+            var workspace = new Workspace { Name = "Home" };
+            var profile = new Profile { Name = "Default", HomeWorkspaceId = workspace.Id };
+            profile.Workspaces.Add(workspace);
+            Profiles.Add(profile);
+        }
+
+        if (Profiles.All(p => p.Id != ActiveProfileId))
+            ActiveProfileId = Profiles[0].Id;
+
+        if (Profiles.All(p => p.Id != StartupProfileId))
+            StartupProfileId = ActiveProfileId;
+
+        if (ActiveProfile is { } active && active.Workspaces.All(w => w.Id != ActiveWorkspaceId))
+            ActiveWorkspaceId = active.HomeWorkspace?.Id ?? Guid.Empty;
+
+        RebindActiveWorkspace();
     }
 
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(RightRotaryPageLabel))]
-    public partial ObservableCollection<RotaryButtonPage> RightRotaryButtonPages { get; set; }
+    partial void OnActiveProfileIdChanged(Guid value) => RebindActiveWorkspace();
+    partial void OnActiveWorkspaceIdChanged(Guid value) => RebindActiveWorkspace();
 
-    partial void OnRightRotaryButtonPagesChanging(ObservableCollection<RotaryButtonPage> value) => RightRotaryButtonPages?.CollectionChanged -= OnRightRotaryPagesChanged;
-    partial void OnRightRotaryButtonPagesChanged(ObservableCollection<RotaryButtonPage> value) => RightRotaryButtonPages?.CollectionChanged += OnRightRotaryPagesChanged;
-    private void OnRightRotaryPagesChanged(object sender, NotifyCollectionChangedEventArgs e)
+    /// <summary>
+    /// Re-points the facade at the current <see cref="ActiveWorkspace"/>: unhooks the previously
+    /// forwarded workspace, subscribes to the new one, and raises change notifications for every
+    /// forwarded property so all bindings refresh when the active profile/workspace switches.
+    /// </summary>
+    public void RebindActiveWorkspace()
     {
-        OnPropertyChanged(nameof(RightRotaryPageLabel));
-        OnPropertyChanged(nameof(CurrentRightRotaryButtonPage));
+        var workspace = ActiveWorkspace;
+        if (!ReferenceEquals(workspace, _boundWorkspace))
+        {
+            if (_boundWorkspace != null)
+                _boundWorkspace.PropertyChanged -= OnActiveWorkspacePropertyChanged;
+            _boundWorkspace = workspace;
+            if (_boundWorkspace != null)
+                _boundWorkspace.PropertyChanged += OnActiveWorkspacePropertyChanged;
+        }
+
+        RaiseActiveWorkspaceProjections();
     }
 
-    [ObservableProperty]
-    [JsonIgnore]
-    [NotifyPropertyChangedFor(nameof(CurrentLeftRotaryButtonPage))]
-    [NotifyPropertyChangedFor(nameof(LeftRotaryPageLabel))]
-    public partial int CurrentLeftRotaryPageIndex { get; set; } = -1;
+    // The active workspace projects page state under the same property names as the facade below,
+    // so forwarding the notification 1:1 refreshes the corresponding facade binding.
+    private void OnActiveWorkspacePropertyChanged(object sender, System.ComponentModel.PropertyChangedEventArgs e)
+        => OnPropertyChanged(e.PropertyName);
 
-    [ObservableProperty]
-    [JsonIgnore]
-    [NotifyPropertyChangedFor(nameof(CurrentRightRotaryButtonPage))]
-    [NotifyPropertyChangedFor(nameof(RightRotaryPageLabel))]
-    public partial int CurrentRightRotaryPageIndex { get; set; } = -1;
-
-    [JsonIgnore]
-    public RotaryButtonPage CurrentLeftRotaryButtonPage =>
-        (LeftRotaryButtonPages != null &&
-         CurrentLeftRotaryPageIndex >= 0 &&
-         CurrentLeftRotaryPageIndex < LeftRotaryButtonPages.Count)
-            ? LeftRotaryButtonPages[CurrentLeftRotaryPageIndex]
-            : null;
-
-    [JsonIgnore]
-    public RotaryButtonPage CurrentRightRotaryButtonPage =>
-        (RightRotaryButtonPages != null &&
-         CurrentRightRotaryPageIndex >= 0 &&
-         CurrentRightRotaryPageIndex < RightRotaryButtonPages.Count)
-            ? RightRotaryButtonPages[CurrentRightRotaryPageIndex]
-            : null;
-
-    /// <summary>"current / total" label for the left rotary pager (1-based).</summary>
-    [JsonIgnore]
-    public string LeftRotaryPageLabel =>
-        LeftRotaryButtonPages is { Count: > 0 }
-            ? $"{Math.Clamp(CurrentLeftRotaryPageIndex + 1, 1, LeftRotaryButtonPages.Count)} / {LeftRotaryButtonPages.Count}"
-            : "0 / 0";
-
-    /// <summary>"current / total" label for the right rotary pager (1-based).</summary>
-    [JsonIgnore]
-    public string RightRotaryPageLabel =>
-        RightRotaryButtonPages is { Count: > 0 }
-            ? $"{Math.Clamp(CurrentRightRotaryPageIndex + 1, 1, RightRotaryButtonPages.Count)} / {RightRotaryButtonPages.Count}"
-            : "0 / 0";
-
-    // Strip rendering mode is per rotary page (see RotaryButtonPage.StripMode), not
-    // global per side — each page on a column can independently be Segmented/FreeDraw.
-
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(TouchPageLabel))]
-    public partial ObservableCollection<TouchButtonPage> TouchButtonPages { get; set; }
-
-    partial void OnTouchButtonPagesChanging(ObservableCollection<TouchButtonPage> value) => TouchButtonPages?.CollectionChanged -= OnTouchPagesChanged;
-    partial void OnTouchButtonPagesChanged(ObservableCollection<TouchButtonPage> value) => TouchButtonPages?.CollectionChanged += OnTouchPagesChanged;
-    private void OnTouchPagesChanged(object sender, NotifyCollectionChangedEventArgs e)
+    private void RaiseActiveWorkspaceProjections()
     {
-        OnPropertyChanged(nameof(TouchPageLabel));
+        OnPropertyChanged(nameof(ActiveProfile));
+        OnPropertyChanged(nameof(ActiveWorkspace));
+        OnPropertyChanged(nameof(TouchButtonPages));
+        OnPropertyChanged(nameof(RotaryButtonPages));
+        OnPropertyChanged(nameof(LeftRotaryButtonPages));
+        OnPropertyChanged(nameof(RightRotaryButtonPages));
         OnPropertyChanged(nameof(CurrentTouchButtonPage));
+        OnPropertyChanged(nameof(CurrentRotaryButtonPage));
+        OnPropertyChanged(nameof(CurrentLeftRotaryButtonPage));
+        OnPropertyChanged(nameof(CurrentRightRotaryButtonPage));
+        OnPropertyChanged(nameof(CurrentTouchPageIndex));
+        OnPropertyChanged(nameof(CurrentRotaryPageIndex));
+        OnPropertyChanged(nameof(CurrentLeftRotaryPageIndex));
+        OnPropertyChanged(nameof(CurrentRightRotaryPageIndex));
+        OnPropertyChanged(nameof(TouchPageLabel));
+        OnPropertyChanged(nameof(RotaryPageLabel));
+        OnPropertyChanged(nameof(LeftRotaryPageLabel));
+        OnPropertyChanged(nameof(RightRotaryPageLabel));
+        OnPropertyChanged(nameof(StartupTouchPageIndex));
     }
 
-    [ObservableProperty]
-    [JsonIgnore]
-    [NotifyPropertyChangedFor(nameof(CurrentTouchButtonPage))]
-    [NotifyPropertyChangedFor(nameof(TouchPageLabel))]
-    public partial int CurrentTouchPageIndex { get; set; } = -1;
+    // ───────── Active-workspace facade (forwards to ActiveWorkspace) ─────────
+    // All [JsonIgnore]: the data now serializes under Profiles/Workspaces, not at the root.
 
     [JsonIgnore]
-    public TouchButtonPage CurrentTouchButtonPage =>
-        (TouchButtonPages != null &&
-         CurrentTouchPageIndex >= 0 &&
-         CurrentTouchPageIndex < TouchButtonPages.Count)
-            ? TouchButtonPages[CurrentTouchPageIndex]
-            : null;
+    public int StartupTouchPageIndex
+    {
+        get => ActiveWorkspace?.StartupTouchPageIndex ?? 0;
+        set { if (ActiveWorkspace is { } ws) ws.StartupTouchPageIndex = value; }
+    }
 
-    /// <summary>"current / total" label for the touch pager (1-based).</summary>
     [JsonIgnore]
-    public string TouchPageLabel =>
-        TouchButtonPages is { Count: > 0 }
-            ? $"{Math.Clamp(CurrentTouchPageIndex + 1, 1, TouchButtonPages.Count)} / {TouchButtonPages.Count}"
-            : "0 / 0";
+    public ObservableCollection<RotaryButtonPage> RotaryButtonPages => ActiveWorkspace?.RotaryButtonPages;
+
+    [JsonIgnore]
+    public ObservableCollection<RotaryButtonPage> LeftRotaryButtonPages => ActiveWorkspace?.LeftRotaryButtonPages;
+
+    [JsonIgnore]
+    public ObservableCollection<RotaryButtonPage> RightRotaryButtonPages => ActiveWorkspace?.RightRotaryButtonPages;
+
+    [JsonIgnore]
+    public ObservableCollection<TouchButtonPage> TouchButtonPages => ActiveWorkspace?.TouchButtonPages;
+
+    [JsonIgnore]
+    public int CurrentRotaryPageIndex
+    {
+        get => ActiveWorkspace?.CurrentRotaryPageIndex ?? -1;
+        set { if (ActiveWorkspace is { } ws) ws.CurrentRotaryPageIndex = value; }
+    }
+
+    [JsonIgnore]
+    public int CurrentLeftRotaryPageIndex
+    {
+        get => ActiveWorkspace?.CurrentLeftRotaryPageIndex ?? -1;
+        set { if (ActiveWorkspace is { } ws) ws.CurrentLeftRotaryPageIndex = value; }
+    }
+
+    [JsonIgnore]
+    public int CurrentRightRotaryPageIndex
+    {
+        get => ActiveWorkspace?.CurrentRightRotaryPageIndex ?? -1;
+        set { if (ActiveWorkspace is { } ws) ws.CurrentRightRotaryPageIndex = value; }
+    }
+
+    [JsonIgnore]
+    public int CurrentTouchPageIndex
+    {
+        get => ActiveWorkspace?.CurrentTouchPageIndex ?? -1;
+        set { if (ActiveWorkspace is { } ws) ws.CurrentTouchPageIndex = value; }
+    }
+
+    [JsonIgnore]
+    public RotaryButtonPage CurrentRotaryButtonPage => ActiveWorkspace?.CurrentRotaryButtonPage;
+
+    [JsonIgnore]
+    public RotaryButtonPage CurrentLeftRotaryButtonPage => ActiveWorkspace?.CurrentLeftRotaryButtonPage;
+
+    [JsonIgnore]
+    public RotaryButtonPage CurrentRightRotaryButtonPage => ActiveWorkspace?.CurrentRightRotaryButtonPage;
+
+    [JsonIgnore]
+    public TouchButtonPage CurrentTouchButtonPage => ActiveWorkspace?.CurrentTouchButtonPage;
+
+    [JsonIgnore]
+    public string RotaryPageLabel => ActiveWorkspace?.RotaryPageLabel ?? "0 / 0";
+
+    [JsonIgnore]
+    public string LeftRotaryPageLabel => ActiveWorkspace?.LeftRotaryPageLabel ?? "0 / 0";
+
+    [JsonIgnore]
+    public string RightRotaryPageLabel => ActiveWorkspace?.RightRotaryPageLabel ?? "0 / 0";
+
+    [JsonIgnore]
+    public string TouchPageLabel => ActiveWorkspace?.TouchPageLabel ?? "0 / 0";
 
     [ObservableProperty]
     public partial int Brightness { get; set; } = 100;
