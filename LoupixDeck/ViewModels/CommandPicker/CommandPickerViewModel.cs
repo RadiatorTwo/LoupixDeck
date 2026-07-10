@@ -49,6 +49,7 @@ public partial class CommandPickerViewModel : ViewModelBase
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasSelectedCategory))]
+    [NotifyPropertyChangedFor(nameof(IsDetailVisible))]
     public partial CommandCategoryViewModel SelectedCategory { get; set; }
 
     [ObservableProperty]
@@ -64,12 +65,16 @@ public partial class CommandPickerViewModel : ViewModelBase
             if (SetProperty(ref field, value))
             {
                 OnPropertyChanged(nameof(IsSearching));
+                OnPropertyChanged(nameof(IsDetailVisible));
                 ApplyFilter();
             }
         }
     } = string.Empty;
 
     public bool IsSearching => !string.IsNullOrWhiteSpace(SearchText);
+
+    /// <summary>The detail area only makes sense for a picked category outside of search mode.</summary>
+    public bool IsDetailVisible => (SelectedCategory != null) && !IsSearching;
 
     public IRelayCommand<CommandCategoryViewModel> SelectCategoryCommand { get; }
     public IRelayCommand<CommandRowViewModel> SelectCommandCommand { get; }

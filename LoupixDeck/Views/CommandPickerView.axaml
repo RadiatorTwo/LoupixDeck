@@ -184,27 +184,34 @@
 
             <!-- 4./6./7. Detail area for the selected category (hidden while searching).
                  Direct commands render as rows; sub-groups render as inline accordions. -->
-            <Grid Grid.Row="1" RowDefinitions="Auto,*"
-                  IsVisible="{Binding HasSelectedCategory}">
-                <Border Grid.Row="0" Classes="picker-detail-header"
-                        IsVisible="{Binding !IsSearching}">
-                    <Grid ColumnDefinitions="Auto,*,Auto">
-                        <TextBlock Grid.Column="0" Classes="picker-detail-icon"
-                                   Text="{Binding SelectedCategory.Icon}" />
-                        <TextBlock Grid.Column="1" Classes="picker-detail-title"
-                                   Text="{Binding SelectedCategory.Title}" />
-                        <TextBlock Grid.Column="2" Classes="picker-detail-count"
-                                   Text="{Binding SelectedCategory.Count, StringFormat='{}{0} commands'}" />
-                    </Grid>
-                </Border>
-                <ScrollViewer Grid.Row="1"
-                              VerticalScrollBarVisibility="Hidden"
-                              HorizontalScrollBarVisibility="Disabled"
-                              IsVisible="{Binding !IsSearching}"
-                              Padding="4,0">
-                    <ItemsControl ItemsSource="{Binding SelectedCategory.DetailNodes}" />
-                </ScrollViewer>
-            </Grid>
+            <!-- Rendered through a template on SelectedCategory so the inner bindings stay
+                 unevaluated while no category is picked (IsVisible alone does not stop binding). -->
+            <ContentControl Grid.Row="1"
+                            IsVisible="{Binding IsDetailVisible}"
+                            Content="{Binding SelectedCategory}">
+                <ContentControl.ContentTemplate>
+                    <DataTemplate DataType="vm:CommandCategoryViewModel">
+                        <Grid RowDefinitions="Auto,*">
+                            <Border Grid.Row="0" Classes="picker-detail-header">
+                                <Grid ColumnDefinitions="Auto,*,Auto">
+                                    <TextBlock Grid.Column="0" Classes="picker-detail-icon"
+                                               Text="{Binding Icon}" />
+                                    <TextBlock Grid.Column="1" Classes="picker-detail-title"
+                                               Text="{Binding Title}" />
+                                    <TextBlock Grid.Column="2" Classes="picker-detail-count"
+                                               Text="{Binding Count, StringFormat='{}{0} commands'}" />
+                                </Grid>
+                            </Border>
+                            <ScrollViewer Grid.Row="1"
+                                          VerticalScrollBarVisibility="Hidden"
+                                          HorizontalScrollBarVisibility="Disabled"
+                                          Padding="4,0">
+                                <ItemsControl ItemsSource="{Binding DetailNodes}" />
+                            </ScrollViewer>
+                        </Grid>
+                    </DataTemplate>
+                </ContentControl.ContentTemplate>
+            </ContentControl>
         </Grid>
 
         <!-- 3. Footer hint -->
