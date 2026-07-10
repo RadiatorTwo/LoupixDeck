@@ -191,6 +191,9 @@
                                         Value="{Binding Config.Brightness, Mode=TwoWay}" />
                                 <TextBlock FontFamily="{StaticResource MdiFont}" Text="&#xF00E0;" FontSize="20" VerticalAlignment="Center"/>
                                 <TextBlock Classes="value" Text="{Binding Config.Brightness}" VerticalAlignment="Center" Width="36" TextAlignment="Right"/>
+                                <CheckBox Content="Dithering" VerticalAlignment="Center" Margin="12,0,0,0"
+                                          IsChecked="{Binding Config.DitheringEnabled, Mode=TwoWay}"
+                                          ToolTip.Tip="Smooths colour gradients by mixing adjacent shades. Most noticeable on the Razer Stream Controller, whose panel shows only 16 levels of red." />
                             </StackPanel>
                         </StackPanel>
                     </Border>

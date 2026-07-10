@@ -27,11 +27,11 @@ public class LoupedeckDevice
     /// hard steps of a gradient into a pattern the eye averages back into intermediate tones.
     /// Colours already sitting on the panel grid are unaffected.
     ///
-    /// Set the environment variable <c>LOUPIXDECK_DITHER=0</c> to fall back to plain rounding
-    /// for an A/B comparison on real hardware.
+    /// Driven by <see cref="Models.LoupedeckConfig.DitheringEnabled"/>: the controller applies it
+    /// on start-up and whenever the setting changes. Defaults to on so a device that draws before
+    /// any config has been applied already dithers.
     /// </summary>
-    public bool DitherFramebuffer { get; set; } =
-        Environment.GetEnvironmentVariable("LOUPIXDECK_DITHER") != "0";
+    public bool DitherFramebuffer { get; set; } = true;
 
     private byte[] _ditherLutRed;
     private byte[] _ditherLutGreen;

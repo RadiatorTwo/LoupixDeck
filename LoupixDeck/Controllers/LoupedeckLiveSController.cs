@@ -364,6 +364,7 @@ public partial class LoupedeckLiveSController(
 
         config.PropertyChanged += ConfigOnPropertyChanged;
 
+        deviceService.Device.DitherFramebuffer = config.DitheringEnabled;
         await deviceService.Device.SetBrightness(config.Brightness / 100.0);
 
         // Re-apply the simple-button LED colours now that the device is fully initialised.
@@ -2251,6 +2252,15 @@ public partial class LoupedeckLiveSController(
                 case nameof(LoupedeckConfig.Brightness):
                     await Task.Delay(100, token); // Debounce
                     await deviceService.Device.SetBrightness(config.Brightness / 100.0);
+                    break;
+
+                case nameof(LoupedeckConfig.DitheringEnabled):
+                    // Dithering is applied while converting a bitmap to the framebuffer, so
+                    // nothing already on the panel changes by itself — repaint what is visible.
+                    deviceService.Device.DitherFramebuffer = config.DitheringEnabled;
+                    await pageManager.ApplyTouchPage(config.CurrentTouchPageIndex, true);
+                    if (deviceService.Device.HasSideStrips)
+                        await RefreshSideStrips();
                     break;
             }
         }

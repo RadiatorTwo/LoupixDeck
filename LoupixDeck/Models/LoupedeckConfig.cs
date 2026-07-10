@@ -338,6 +338,15 @@ public partial class LoupedeckConfig : ObservableObject
     [ObservableProperty]
     public partial int Brightness { get; set; } = 100;
 
+    // Ordered dithering when downsampling to the panel's RGB565 framebuffer. Trades the
+    // hard steps of a gradient for a fine pattern the eye averages into intermediate tones.
+    // Matters most on the Razer Stream Controller, whose panel discards the low bit of red
+    // and so shows only 16 red levels. On by default; the pattern is a matter of taste, and
+    // a user who prefers hard steps to fine grain can switch it off. Absent from older
+    // config files, where the default applies.
+    [ObservableProperty]
+    public partial bool DitheringEnabled { get; set; } = true;
+
     // Briefly draws the page name on touch button 0 after switching pages.
     // Opt-in: many users find the 2s overlay distracting and prefer to keep
     // their layout visible.
