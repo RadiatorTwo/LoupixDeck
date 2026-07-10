@@ -28,10 +28,10 @@ public class LoupedeckDevice
     /// Colours already sitting on the panel grid are unaffected.
     ///
     /// Driven by <see cref="Models.LoupedeckConfig.DitheringEnabled"/>: the controller applies it
-    /// on start-up and whenever the setting changes. Defaults to on so a device that draws before
-    /// any config has been applied already dithers.
+    /// on start-up and whenever the setting changes. Defaults to off, matching that setting's
+    /// default, so a device that draws before any config has been applied behaves as it always did.
     /// </summary>
-    public bool DitherFramebuffer { get; set; } = true;
+    public bool DitherFramebuffer { get; set; }
 
     private byte[] _ditherLutRed;
     private byte[] _ditherLutGreen;
