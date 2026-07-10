@@ -24,6 +24,24 @@ public class RazerStreamControllerDevice : LoupedeckDevice
     /// <inheritdoc />
     public override bool HasSideStrips => true;
 
+    /// <summary>
+    /// The panel discards bit 11 of the RGB565 word — the low bit of the red field — so its
+    /// effective layout is R4-X1-G6-B5 and red carries 16 levels, not 32. Green (64 levels)
+    /// and blue (32) resolve fully, matching the Loupedeck Live S.
+    ///
+    /// Confirmed on hardware with the colour-depth test pattern: the 32 transmitted red bars
+    /// merge pairwise into 16 evenly across the whole range, the adjacent pair (2,3) shows no
+    /// seam while (15,16) does, and — decisively — two bright blocks striping levels that
+    /// differ ONLY in bit 11 (16/17 and 24/25) render perfectly flat, while a control block
+    /// striping across the next bit up (23/24) stays visibly striped. Gamma cannot flatten
+    /// the first two blocks and leave the control, at the same brightness, striped. The Live S
+    /// shows stripes in all three.
+    ///
+    /// Dithering targets this grid; aiming at RGB565's nominal 5-bit red would put the whole
+    /// pattern into the bit the panel throws away, which produces grain and no smoothing.
+    /// </summary>
+    public override (int Red, int Green, int Blue) PanelChannelBits => (4, 6, 5);
+
     /// <inheritdoc />
     /// <remarks>The left strip occupies panel x 0–60, so the centre grid starts at 60.</remarks>
     public override int WallpaperGridXOffset => 60;
