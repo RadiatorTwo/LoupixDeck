@@ -835,10 +835,12 @@ public class LoupedeckDevice
                     byte r = srcPtr[2];
                     // byte a = srcPtr[3]; // optional
 
-                    // RGB888 → RGB565
-                    ushort r5 = (ushort)((r * 31) / 255);
-                    ushort g6 = (ushort)((g * 63) / 255);
-                    ushort b5 = (ushort)((b * 31) / 255);
+                    // RGB888 → RGB565, rounding to the nearest level. Plain truncation
+                    // biases every channel towards black by up to one level (8/255 on the
+                    // 5-bit channels) instead of at most half a level.
+                    ushort r5 = (ushort)(((r * 31) + 127) / 255);
+                    ushort g6 = (ushort)(((g * 63) + 127) / 255);
+                    ushort b5 = (ushort)(((b * 31) + 127) / 255);
 
                     ushort rgb565 = (ushort)((r5 << 11) | (g6 << 5) | b5);
 
