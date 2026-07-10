@@ -132,13 +132,11 @@ public static class Rgb565Dither
                     dithered = level + ((residual * Thresholds) > (threshold * span) ? 1 : 0);
                 }
 
-                // The top panel level emits the maximum wire code rather than
-                // maxLevel << shift. Under the measured "panel discards the low bits"
-                // behaviour the two are indistinguishable, but if a panel instead rounds
-                // the code, emitting 30 for pure red would dim white by one level. The
-                // saturating code is correct under either reading.
-                int code = (dithered == maxLevel) ? (1 << wireBits) - 1 : dithered << shift;
-                lut[(value * Thresholds) + threshold] = (byte)code;
+                // The panel level is placed in the high bits; the bits it discards stay zero.
+                // For the Razer's red channel that yields exactly the R4-X1-G6-B5 layout
+                // (bit 11 always clear). Hardware confirmed the panel ignores those bits, so
+                // there is nothing to gain by setting them.
+                lut[(value * Thresholds) + threshold] = (byte)(dithered << shift);
             }
         }
 
@@ -156,12 +154,32 @@ public static class Rgb565Dither
     /// benefit from the dithering.
     ///
     /// Targets <see cref="SnapBits"/> — the coarsest depth across devices — because the render
-    /// happens before the bitmap reaches any particular device. The shift is at most half a
-    /// panel step and is not perceptible on its own.
+    /// happens before the bitmap reaches any particular device. The shift is at most one panel
+    /// step and is not perceptible on its own.
     /// </summary>
     public static SKColor SnapToGrid(SKColor color) => new(
-        (byte)Expand5(GetLut(5, SnapBits.Red)[(color.Red * Thresholds) + RoundThreshold]),
-        (byte)Expand6(GetLut(6, SnapBits.Green)[(color.Green * Thresholds) + RoundThreshold]),
-        (byte)Expand5(GetLut(5, SnapBits.Blue)[(color.Blue * Thresholds) + RoundThreshold]),
+        SnapChannel(color.Red, 5, SnapBits.Red),
+        SnapChannel(color.Green, 6, SnapBits.Green),
+        SnapChannel(color.Blue, 5, SnapBits.Blue),
         color.Alpha);
+
+    /// <summary>
+    /// Snaps one channel to the nearest value that quantizes without a dither pattern.
+    ///
+    /// A value is pattern-free when its residual against the panel grid is zero — or when it
+    /// saturates the top panel level, since the quantizer cannot bump past the maximum. The
+    /// top level therefore keeps 255 rather than collapsing to the grid point below it: on the
+    /// Razer that point is 247, and snapping white text down to it would tint white cyan while
+    /// gaining nothing, as the panel shows both as its brightest red.
+    /// </summary>
+    private static byte SnapChannel(byte value, int wireBits, int panelBits)
+    {
+        int shift = wireBits - panelBits;
+        int code = GetLut(wireBits, panelBits)[(value * Thresholds) + RoundThreshold];
+
+        if ((code >> shift) >= (1 << panelBits) - 1)
+            return 255;
+
+        return (byte)Expand(code, wireBits);
+    }
 }
