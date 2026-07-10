@@ -2257,10 +2257,13 @@ public partial class LoupedeckLiveSController(
                 case nameof(LoupedeckConfig.DitheringEnabled):
                     // Dithering is applied while converting a bitmap to the framebuffer, so
                     // nothing already on the panel changes by itself — repaint what is visible.
+                    // RedrawCurrentTouchPage covers the touch grid and the side strips, and
+                    // no-ops while another owner (device-off, folder, exclusive mode,
+                    // screensaver) holds the screen; that owner repaints when it releases.
+                    // ApplyTouchPage cannot be used here: it early-returns when the requested
+                    // page is already current, which is always the case for a settings toggle.
                     deviceService.Device.DitherFramebuffer = config.DitheringEnabled;
-                    await pageManager.ApplyTouchPage(config.CurrentTouchPageIndex, true);
-                    if (deviceService.Device.HasSideStrips)
-                        await RefreshSideStrips();
+                    await RedrawCurrentTouchPage();
                     break;
             }
         }
