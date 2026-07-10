@@ -14,6 +14,29 @@ namespace LoupixDeck.LoupedeckDevice.Device;
 /// </summary>
 public class LoupedeckDevice
 {
+    /// <summary>
+    /// Bits per channel the panel actually resolves, which is not always what the RGB565
+    /// wire format encodes. Drives the dither target grid in
+    /// <see cref="ConvertSKBitmapToRaw16BppUnsafe"/>. Base is the full RGB565 depth, which
+    /// the Loupedeck Live S was measured to resolve; devices that resolve less override.
+    /// </summary>
+    public virtual (int Red, int Green, int Blue) PanelChannelBits => (5, 6, 5);
+
+    /// <summary>
+    /// Applies ordered dithering when downsampling to the panel's framebuffer, turning the
+    /// hard steps of a gradient into a pattern the eye averages back into intermediate tones.
+    /// Colours already sitting on the panel grid are unaffected.
+    ///
+    /// Set the environment variable <c>LOUPIXDECK_DITHER=0</c> to fall back to plain rounding
+    /// for an A/B comparison on real hardware.
+    /// </summary>
+    public bool DitherFramebuffer { get; set; } =
+        Environment.GetEnvironmentVariable("LOUPIXDECK_DITHER") != "0";
+
+    private byte[] _ditherLutRed;
+    private byte[] _ditherLutGreen;
+    private byte[] _ditherLutBlue;
+
     private ISerialConnection _connection;
     private byte _transactionId;
 
@@ -783,17 +806,40 @@ public class LoupedeckDevice
         if (height == 0)
             height = displayInfo.Height;
 
-        // Convert the RenderTargetBitmap into a 16-bit-5-6-5 array
-        var buffer = ConvertSKBitmapToRaw16BppUnsafe(bitmap);
+        // Convert the RenderTargetBitmap into a 16-bit-5-6-5 array. The destination position
+        // is passed along so the dither pattern anchors to absolute display coordinates
+        // rather than to this region's local origin.
+        var buffer = ConvertSKBitmapToRaw16BppUnsafe(bitmap, x, y);
 
         // Pass the buffer to the actual DrawBuffer
         await DrawBuffer(id, width, height, buffer, x, y, autoRefresh);
     }
 
     /// <summary>
+    /// Resolves (and caches) the per-channel dither tables for this device's panel depth.
+    /// The tables themselves are shared process-wide per (wireBits, panelBits) pair, so two
+    /// devices of the same kind do not build them twice.
+    /// </summary>
+    private (byte[] Red, byte[] Green, byte[] Blue) GetDitherLuts()
+    {
+        if (_ditherLutRed == null)
+        {
+            (int red, int green, int blue) = PanelChannelBits;
+            _ditherLutRed = Rgb565Dither.GetLut(5, red);
+            _ditherLutGreen = Rgb565Dither.GetLut(6, green);
+            _ditherLutBlue = Rgb565Dither.GetLut(5, blue);
+        }
+
+        return (_ditherLutRed, _ditherLutGreen, _ditherLutBlue);
+    }
+
+    /// <summary>
     /// Converts a RenderTargetBitmap (usually BGRA32) into a 16-bit-565 byte array.
     /// </summary>
-    private unsafe byte[] ConvertSKBitmapToRaw16BppUnsafe(SKBitmap bitmap)
+    /// <param name="bitmap">Source bitmap in BGRA8888.</param>
+    /// <param name="originX">Absolute X of the bitmap on the target display.</param>
+    /// <param name="originY">Absolute Y of the bitmap on the target display.</param>
+    private unsafe byte[] ConvertSKBitmapToRaw16BppUnsafe(SKBitmap bitmap, int originX = 0, int originY = 0)
     {
         if (bitmap == null || bitmap.IsNull)
             throw new InvalidOperationException("Bitmap ist null oder leer.");
@@ -820,35 +866,62 @@ public class LoupedeckDevice
             if (pixmap == null)
                 throw new InvalidOperationException("Bitmap pixel data is not accessible (PeekPixels returned null).");
 
-            byte* srcPtr = (byte*)pixmap.GetPixels().ToPointer();
-            if (srcPtr == null)
+            byte* srcBase = (byte*)pixmap.GetPixels().ToPointer();
+            if (srcBase == null)
                 throw new InvalidOperationException("Bitmap pixel pointer is null.");
 
+            // Rows are not necessarily contiguous — honour the pixmap's stride.
+            int srcRowBytes = pixmap.RowBytes;
+
+            bool dither = DitherFramebuffer;
+            byte[] lutR = null, lutG = null, lutB = null;
+            if (dither)
+            {
+                (lutR, lutG, lutB) = GetDitherLuts();
+            }
+
             fixed (byte* destPtrFixed = output)
+            fixed (byte* lutRFixed = lutR, lutGFixed = lutG, lutBFixed = lutB)
             {
                 byte* destPtr = destPtrFixed;
 
-                for (int i = 0; i < pixelCount; i++)
+                for (int row = 0; row < height; row++)
                 {
-                    byte b = srcPtr[0];
-                    byte g = srcPtr[1];
-                    byte r = srcPtr[2];
-                    // byte a = srcPtr[3]; // optional
+                    byte* srcPtr = srcBase + ((long)row * srcRowBytes);
+                    for (int col = 0; col < width; col++)
+                    {
+                        byte b = srcPtr[0];
+                        byte g = srcPtr[1];
+                        byte r = srcPtr[2];
+                        // byte a = srcPtr[3]; // optional
 
-                    // RGB888 → RGB565, rounding to the nearest level. Plain truncation
-                    // biases every channel towards black by up to one level (8/255 on the
-                    // 5-bit channels) instead of at most half a level.
-                    ushort r5 = (ushort)(((r * 31) + 127) / 255);
-                    ushort g6 = (ushort)(((g * 63) + 127) / 255);
-                    ushort b5 = (ushort)(((b * 31) + 127) / 255);
+                        int r5, g6, b5;
+                        if (dither)
+                        {
+                            // Dither against the panel's real depth, not against RGB565's.
+                            int t = Rgb565Dither.ThresholdAt(originX + col, originY + row);
+                            r5 = lutRFixed[(r * Rgb565Dither.Thresholds) + t];
+                            g6 = lutGFixed[(g * Rgb565Dither.Thresholds) + t];
+                            b5 = lutBFixed[(b * Rgb565Dither.Thresholds) + t];
+                        }
+                        else
+                        {
+                            // RGB888 → RGB565, rounding to the nearest level. Plain truncation
+                            // biases every channel towards black by up to one level (8/255 on
+                            // the 5-bit channels) instead of at most half a level.
+                            r5 = ((r * 31) + 127) / 255;
+                            g6 = ((g * 63) + 127) / 255;
+                            b5 = ((b * 31) + 127) / 255;
+                        }
 
-                    ushort rgb565 = (ushort)((r5 << 11) | (g6 << 5) | b5);
+                        ushort rgb565 = (ushort)((r5 << 11) | (g6 << 5) | b5);
 
-                    destPtr[0] = (byte)(rgb565 & 0xFF);       // LSB
-                    destPtr[1] = (byte)((rgb565 >> 8) & 0xFF); // MSB
+                        destPtr[0] = (byte)(rgb565 & 0xFF);       // LSB
+                        destPtr[1] = (byte)((rgb565 >> 8) & 0xFF); // MSB
 
-                    srcPtr += 4;   // advance 4 bytes (BGRA8888)
-                    destPtr += 2;  // advance 2 bytes (RGB565)
+                        srcPtr += 4;   // advance 4 bytes (BGRA8888)
+                        destPtr += 2;  // advance 2 bytes (RGB565)
+                    }
                 }
             }
 

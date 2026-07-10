@@ -24,6 +24,17 @@ public class RazerStreamControllerDevice : LoupedeckDevice
     /// <inheritdoc />
     public override bool HasSideStrips => true;
 
+    /// <summary>
+    /// The panel discards the low bit of red: measured with the colour-depth test pattern,
+    /// its 32 transmitted red levels merge pairwise into 16 evenly across the whole range,
+    /// the adjacent-level pairs (2,3) and (4,5) show no seam, and a 1-LSB red checkerboard
+    /// reads as a coarse pattern rather than a flat tone. Green (64 levels) and blue (32)
+    /// resolve fully, matching the Loupedeck Live S. Dithering targets this grid; aiming at
+    /// RGB565's nominal 5-bit red would put the whole pattern into the bit the panel throws
+    /// away, which produces grain and no smoothing.
+    /// </summary>
+    public override (int Red, int Green, int Blue) PanelChannelBits => (4, 6, 5);
+
     /// <inheritdoc />
     /// <remarks>The left strip occupies panel x 0–60, so the centre grid starts at 60.</remarks>
     public override int WallpaperGridXOffset => 60;

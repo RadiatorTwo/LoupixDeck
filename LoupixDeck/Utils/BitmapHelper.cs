@@ -1991,6 +1991,15 @@ public static class BitmapHelper
         if (canvas == null || string.IsNullOrEmpty(text))
             throw new ArgumentException("Canvas and text must not be null!");
 
+        // Snap fill/outline onto the panel colour grid. A glyph interior is a flat fill, and a
+        // grid-aligned colour quantizes with a zero residual, so it picks up no dither pattern
+        // — on text that would read as grain rather than as a smoother gradient. Anti-aliased
+        // edges blend towards the background and still dither, which keeps them smooth.
+        // Symbols, images and animations are deliberately left to dither. See
+        // Rgb565Dither.SnapToGrid.
+        color = Rgb565Dither.SnapToGrid(color);
+        outlineColor = Rgb565Dither.SnapToGrid(outlineColor);
+
         // Reuse the cached typeface; only the per-size SKFont is allocated here and
         // it is disposed at scope exit so it does not leak to the finalizer thread.
         var typeface = GetTextTypeface(bold, italic);
