@@ -210,10 +210,6 @@ LoupixDeck can drive multiple connected devices at the same time.
 
 ## Screenshots
 
-| Loupedeck Live S                                                              | Razer Stream Controller                                                          |
-| ----------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
-| ![Main window — Loupedeck Live S](docs/screenshots/main-window-loupedeck.png) | ![Main window — Razer Stream Controller](docs/screenshots/main-window-razer.png) |
-
 | Layer Editor                                                          | Symbol Picker                                                              |
 | --------------------------------------------------------------------- | -------------------------------------------------------------------------- |
 | ![Layer-based touch button editor](docs/screenshots/layer-editor.png) | ![Material Design Icons symbol picker](docs/screenshots/symbol-picker.png) |
