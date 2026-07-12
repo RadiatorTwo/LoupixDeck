@@ -66,8 +66,11 @@ public partial class SymbolPickerViewModel : DialogViewModelBase<SymbolPickerReq
     [NotifyCanExecuteChangedFor(nameof(ConfirmCommand))]
     public partial SymbolDefinition SelectedSymbol { get; set; }
 
-    public IRelayCommand ConfirmCommand => Relay.Create(ConfirmSelection, () => SelectedSymbol != null);
-    public IRelayCommand CancelCommand => Relay.Create(CancelSelection);
+    private IRelayCommand _confirmCommand;
+    private IRelayCommand _cancelCommand;
+
+    public IRelayCommand ConfirmCommand => Relay.Ref(ref _confirmCommand, ConfirmSelection, () => SelectedSymbol != null);
+    public IRelayCommand CancelCommand => Relay.Ref(ref _cancelCommand, CancelSelection);
 
     /// <summary>Raised when the dialog should close (after Confirm or Cancel).</summary>
     public event Action CloseRequested;
