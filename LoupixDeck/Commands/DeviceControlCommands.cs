@@ -32,6 +32,56 @@ public class DeviceToggleCommand(IDeviceController controller) : IExecutableComm
     public Task Execute(string[] parameters) => controller.ToggleDeviceState();
 }
 
+[Command("System.BrightnessUp", "Brightness Up", "Device Control",
+    parameterTemplate: "({Step})",
+    parameterNames: ["Step"],
+    parameterTypes: [typeof(int)],
+    parameterDefaults: ["5"],
+    Icon = "\U000F00DF", Description = "Increase display brightness by a step (0–100%)")]
+public class BrightnessUpCommand(LoupedeckConfig config) : IExecutableCommand
+{
+    public Task Execute(string[] parameters)
+    {
+        // The Step is a command-defined setting, pre-filled in the settings flyout and
+        // editable per assignment. On a rotary this fires once per detent, so turning the
+        // knob raises brightness by Step each click; the controller observes config.Brightness
+        // and pushes it to the device.
+        config.Brightness = Math.Clamp(config.Brightness + BrightnessStep.Parse(parameters), 0, 100);
+        return Task.CompletedTask;
+    }
+}
+
+[Command("System.BrightnessDown", "Brightness Down", "Device Control",
+    parameterTemplate: "({Step})",
+    parameterNames: ["Step"],
+    parameterTypes: [typeof(int)],
+    parameterDefaults: ["5"],
+    Icon = "\U000F00DE", Description = "Decrease display brightness by a step (0–100%)")]
+public class BrightnessDownCommand(LoupedeckConfig config) : IExecutableCommand
+{
+    public Task Execute(string[] parameters)
+    {
+        config.Brightness = Math.Clamp(config.Brightness - BrightnessStep.Parse(parameters), 0, 100);
+        return Task.CompletedTask;
+    }
+}
+
+/// <summary>Shared parsing of the brightness commands' single Step parameter.</summary>
+internal static class BrightnessStep
+{
+    public static int Parse(string[] parameters)
+    {
+        if (parameters is { Length: > 0 } &&
+            int.TryParse(parameters[0], System.Globalization.NumberStyles.Integer,
+                System.Globalization.CultureInfo.InvariantCulture, out int step))
+        {
+            return Math.Abs(step);
+        }
+
+        return 5; // matches the command-declared default
+    }
+}
+
 [Command("System.DeviceWakeup", "Device Wakeup (reconnect serial + ON)", "Device Control")]
 public class DeviceWakeupCommand(IDeviceController controller, IDeviceService deviceService) : IExecutableCommand
 {
