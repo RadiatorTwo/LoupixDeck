@@ -14,7 +14,8 @@ public class CommandAttribute(
     string group,
     string parameterTemplate = null,
     string[] parameterNames = null,
-    Type[] parameterTypes = null) : Attribute
+    Type[] parameterTypes = null,
+    string[] parameterDefaults = null) : Attribute
 {
     public string CommandName { get; } = commandName;
     public string DisplayName { get; } = displayName;
@@ -36,6 +37,15 @@ public class CommandAttribute(
 
     public string[] ParameterNames { get; } = parameterNames;
     public Type[] ParameterTypes { get; } = parameterTypes;
+
+    /// <summary>
+    /// Optional per-parameter default values (aligned by index with
+    /// <see cref="ParameterNames"/>/<see cref="ParameterTypes"/>). When a parameter has a
+    /// default here, it pre-fills the command's settings flyout on insert instead of the
+    /// generic target/type default. Absent or shorter than the parameter list simply means
+    /// "no command-defined default" for the missing entries — fully backward compatible.
+    /// </summary>
+    public string[] ParameterDefaults { get; } = parameterDefaults;
 
     public CommandPlatform Platform { get; set; } = CommandPlatform.All;
 

@@ -195,11 +195,16 @@ public class SysCommandService : ISysCommandService
         if (attribute.ParameterNames == null || attribute.ParameterTypes == null)
             return list;
 
+        var defaults = attribute.ParameterDefaults;
+
         for (var i = 0; i < attribute.ParameterNames.Length; i++)
         {
+            var defaultValue = defaults != null && i < defaults.Length ? defaults[i] : null;
+
             list.Add(new ParameterDescriptor(
                 attribute.ParameterNames[i],
-                attribute.ParameterTypes[i]
+                attribute.ParameterTypes[i],
+                defaultValue
             ));
         }
 
