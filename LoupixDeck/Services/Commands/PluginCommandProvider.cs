@@ -78,7 +78,7 @@ public class PluginCommandProvider : ICommandProvider
             Description = descriptor.Description,
             ParameterTemplate = descriptor.ParameterTemplate,
             Parameters = descriptor.Parameters
-                .Select(p => new ParameterDescriptor(p.Name, p.ParameterType))
+                .Select(p => new ParameterDescriptor(p.Name, p.ParameterType, p.DefaultValue))
                 .ToList()
         };
 
