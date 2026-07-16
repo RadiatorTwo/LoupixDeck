@@ -76,6 +76,17 @@ jobs:
       - name: Build Plugin SDK package
         run: dotnet build src/LoupixDeck.PluginSdk -c Release
 
+      # Plugin nuget.config files reference the SDK local feed via one of two relative
+      # paths, depending on when each plugin was last updated for the submodule layout:
+      #   ..\LoupixDeck.PluginSdk\nupkg          (SDK as a standalone sibling repo)
+      #   ..\LoupixDeck\LoupixDeck.PluginSdk\nupkg (SDK nested inside the core repo)
+      # A missing local source is a hard NU1301 error, so mirror the freshly built feed
+      # to the nested path as well and every plugin resolves regardless of convention.
+      - name: Mirror SDK feed for nested-path plugins
+        run: |
+          mkdir -p src/LoupixDeck/LoupixDeck.PluginSdk
+          cp -r src/LoupixDeck.PluginSdk/nupkg src/LoupixDeck/LoupixDeck.PluginSdk/nupkg
+
       - name: Build and assemble plugins
         run: |
           set -euo pipefail
