@@ -32,7 +32,15 @@ public class CommandBuilder : ICommandBuilder
         {
             var parameter = command.Parameters[i];
 
-            if (i == 0)
+            // A command-defined default always wins — it pre-fills the settings flyout with
+            // the value the command declares (e.g. a rotary adjustment's step). Only when the
+            // parameter declares no default do we fall back to the legacy behaviour: the first
+            // parameter is treated as the menu-derived Target, the rest get a type default.
+            if (!string.IsNullOrEmpty(parameter.DefaultValue))
+            {
+                parameters.Add(parameter.Name, parameter.DefaultValue);
+            }
+            else if (i == 0)
             {
                 // First parameter is always Target.
                 if (!string.IsNullOrEmpty(menuEntry.ParentName))
