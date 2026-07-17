@@ -281,7 +281,9 @@ Built-in command groups include:
 | User Macros | One entry per macro you create |
 | Plugin groups | Commands supplied by installed plugins |
 
-Some commands have parameters, such as a page number, key combination, date/time format, shell command, or target button index. Parameter fields appear in the command chip editor.
+Some commands have parameters, such as a page number, key combination, date/time format, shell command, or target button index. Parameter fields appear in the command chip editor, opened with the pencil icon on the command chip.
+
+In v1.17.0 and later, commands can provide their own default settings. When you add such a command, its settings popup is already filled with sensible values. You can still change those values for that one button, knob direction, physical button, or page command. Existing assignments are left as they were.
 
 ## Rotary Controls
 
@@ -306,6 +308,8 @@ For devices with side strips, each knob can also have a strip label. On the Raze
 Devices with separate side displays also offer left and right variants of the rotary page commands. Use the normal `Next Rotary Page`, `Previous Rotary Page`, or `Go to Rotary Page` commands when you want both rotary columns to move together. Use the left/right variants when you want to page only one side.
 
 Use rotary controls for repeated actions such as volume up/down, scene switching, light brightness, timeline navigation, zooming, or page changes.
+
+For device brightness, use `Brightness Up` and `Brightness Down` from the `Device Control` group. A common setup is to put `Brightness Down` on rotate left and `Brightness Up` on rotate right. Each command has a `Step` setting, pre-filled with `5`, which controls how much brightness changes per rotary click. Brightness is clamped to the 0 to 100 range.
 
 ## Physical Buttons
 
@@ -475,6 +479,8 @@ The current binary installation includes these plugin manifests:
 
 Plugins can add commands, dynamic text, settings pages, folders, side-strip providers, or special integration behavior. The exact command names depend on the installed plugin version and what external app or service is configured.
 
+Plugins can also provide default values for command settings. In current bundled plugins, some Audio, Elgato, and Spotify commands use this for editable step sizes, so a rotary can move volume, light brightness, or a Spotify value faster or slower without special syntax.
+
 ### Monitoring Plugins
 
 Argus Monitor, HWiNFO, and LibreHardwareMonitor can show sensor readings on touch buttons when the matching plugin is installed and enabled. LibreHardwareMonitor is bundled with LoupixDeck starting in v1.13.1.
@@ -504,6 +510,7 @@ Device control commands can be assigned to buttons or run from automation:
 | Device Toggle | Toggle between off and on |
 | Device Wakeup | Reconnect serial and restore display |
 | Toggle Main Window | Show or hide the LoupixDeck window |
+| Brightness Up / Brightness Down | Raise or lower display brightness by an editable step |
 
 These are useful for a sleep/wake button, a clean desk mode, or a button that brings the editor back when hidden.
 
@@ -554,6 +561,7 @@ For multiple devices, target a specific device:
 | `removelayer <index> <layerName>` | Remove a named layer from a button |
 | `off` / `on` / `toggle-device` | Blank, restore, or toggle the device display |
 | `wakeup` | Reconnect the serial link and restore the display |
+| `System.BrightnessUp(<Step>)` / `System.BrightnessDown(<Step>)` | Raise or lower display brightness by `Step`; if omitted or invalid, the command uses `5` |
 | `show` / `hide` / `toggle` | Show, hide, or toggle the LoupixDeck window |
 | `quit` | Quit the running instance |
 
@@ -582,6 +590,7 @@ Underscores in `text` are treated as spaces in the short CLI form.
 - Firmware and serial.
 - Reconnect.
 - Brightness.
+- Dithering.
 - Startup touch page.
 - Start with Windows (Windows only).
 - Close button behavior: minimize to tray or quit.
@@ -589,6 +598,8 @@ Underscores in `text` are treated as spaces in the short CLI form.
 - Page switching: show the page name overlay, animate rotary page transitions, and animate touch page transitions.
 
 On Windows, `Start with Windows` controls whether LoupixDeck launches at login. The installer can set the same behavior during setup with `Start on system startup`, but v1.12.1 and later let you turn it on or off from this settings page. Use it together with `Start minimized to tray` if you want LoupixDeck to launch quietly after login.
+
+`Dithering` is next to the brightness control. It is off by default. Turning it on smooths gradients and can reduce colour banding on the device displays, especially on the Razer Stream Controller. The setting repaints the current display immediately when changed.
 
 ### Profiles
 
