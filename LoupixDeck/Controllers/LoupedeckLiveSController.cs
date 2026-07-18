@@ -281,6 +281,21 @@ public partial class LoupedeckLiveSController(
         _ = RedrawCurrentTouchPage();
     }
 
+    /// <summary>
+    /// While a plugin full-display takeover (issue #124) is active the device is fully owned: buttons
+    /// have no normal function and any press ends the stream (mirroring the screensaver wake gesture).
+    /// Returns true when the input was consumed for that purpose, so the caller must not run the normal
+    /// action. Stops off the input thread so decoder teardown never stalls input handling.
+    /// </summary>
+    private bool StopFullDisplayOnInput()
+    {
+        if (!_fullDisplayActive)
+            return false;
+
+        _ = Task.Run(fullDisplay.StopActive);
+        return true;
+    }
+
     /// <summary>Ends any active full-display or exclusive-mode takeover. Called on a profile/workspace
     /// switch — the takeover belonged to the workspace being left, and neither mode auto-restarts
     /// (the owning plugin re-enters via its own command). Safe to call when nothing is active.</summary>
@@ -544,6 +559,8 @@ public partial class LoupedeckLiveSController(
         // Any hardware input resets the screensaver idle timer; when it stops a running
         // screensaver, that input was a "wake" gesture — consume it (no normal action).
         if (screensaver.NotifyActivity()) return;
+
+        if (StopFullDisplayOnInput()) return;
 
         if (_isDeviceOff || exclusiveMode.IsActive || folderNav.IsActive || _screensaverActive || _fullDisplayActive)
             return;
@@ -999,6 +1016,8 @@ public partial class LoupedeckLiveSController(
         if (e.EventType != Constants.ButtonEventType.BUTTON_DOWN)
             return;
 
+        if (StopFullDisplayOnInput()) return;
+
         if (exclusiveMode.IsActive)
         {
             // Exclusive provider receives the raw 0-based button index. Rotary
@@ -1224,6 +1243,8 @@ public partial class LoupedeckLiveSController(
         if (e.EventType != Constants.TouchEventType.TOUCH_START)
             return;
 
+        if (StopFullDisplayOnInput()) return;
+
         if (exclusiveMode.IsActive)
         {
             foreach (var touch in e.Touches)
@@ -1381,6 +1402,8 @@ public partial class LoupedeckLiveSController(
         // Any hardware input resets the screensaver idle timer; when it stops a running
         // screensaver, that input was a "wake" gesture — consume it (no normal action).
         if (screensaver.NotifyActivity()) return;
+
+        if (StopFullDisplayOnInput()) return;
 
         if (exclusiveMode.IsActive)
         {
