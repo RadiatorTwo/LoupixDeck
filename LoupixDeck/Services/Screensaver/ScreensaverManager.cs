@@ -12,6 +12,7 @@ public sealed class ScreensaverManager : IScreensaverManager, IDisposable
 {
     private readonly IDeviceService _deviceService;
     private readonly IExclusiveModeService _exclusiveMode;
+    private readonly IFullDisplayRenderService _fullDisplay;
     private readonly IAnimationScheduler _scheduler;
     private readonly IAssetService _assetService;
     private readonly IFolderNavigationService _folderNav;
@@ -35,6 +36,7 @@ public sealed class ScreensaverManager : IScreensaverManager, IDisposable
     public ScreensaverManager(
         IDeviceService deviceService,
         IExclusiveModeService exclusiveMode,
+        IFullDisplayRenderService fullDisplay,
         IAnimationScheduler scheduler,
         IAssetService assetService,
         IFolderNavigationService folderNav,
@@ -42,6 +44,7 @@ public sealed class ScreensaverManager : IScreensaverManager, IDisposable
     {
         _deviceService = deviceService;
         _exclusiveMode = exclusiveMode;
+        _fullDisplay = fullDisplay;
         _scheduler = scheduler;
         _assetService = assetService;
         _folderNav = folderNav;
@@ -49,6 +52,17 @@ public sealed class ScreensaverManager : IScreensaverManager, IDisposable
 
         _idleTimer = new Timer(_ => OnIdleElapsed(), null, Timeout.Infinite, Timeout.Infinite);
         _config.PropertyChanged += OnConfigChanged;
+
+        // A plugin full-display takeover pre-empts a running screensaver (the screensaver is the
+        // lowest-priority display owner). Stop it off the caller's thread so killing ffmpeg never
+        // stalls the plugin's enter path.
+        _fullDisplay.Started += OnFullDisplayStarted;
+    }
+
+    private void OnFullDisplayStarted()
+    {
+        if (IsRunning)
+            _ = Task.Run(StopScreensaver);
     }
 
     public bool IsRunning
@@ -125,10 +139,10 @@ public sealed class ScreensaverManager : IScreensaverManager, IDisposable
             var device = _deviceService.Device;
             if (device == null) return;
 
-            // Don't start over a plugin takeover (exclusive mode) or folder navigation —
-            // we only READ those states here; the screensaver never enters exclusive mode
-            // itself (that mode is reserved for plugin takeovers).
-            if (_exclusiveMode.IsActive || _folderNav.IsActive) return;
+            // Don't start over a plugin takeover (exclusive mode or a full-display renderer) or
+            // folder navigation — we only READ those states here; the screensaver never enters
+            // those modes itself (they're reserved for plugin takeovers).
+            if (_exclusiveMode.IsActive || _fullDisplay.IsActive || _folderNav.IsActive) return;
 
             var absolute = _assetService.ResolveAbsolute(_config.ScreensaverVideoPath);
             if (string.IsNullOrWhiteSpace(absolute) || !File.Exists(absolute))
@@ -242,6 +256,7 @@ public sealed class ScreensaverManager : IScreensaverManager, IDisposable
         }
 
         _config.PropertyChanged -= OnConfigChanged;
+        _fullDisplay.Started -= OnFullDisplayStarted;
         StopScreensaver();
         try { _idleTimer.Dispose(); } catch { /* ignore */ }
     }

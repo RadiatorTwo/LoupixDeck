@@ -30,6 +30,7 @@ public partial class LoupedeckLiveSController(
     IConfigService configService,
     IFolderNavigationService folderNav,
     IExclusiveModeService exclusiveMode,
+    IFullDisplayRenderService fullDisplay,
     ISideStripProviderRegistry sideStripRegistry,
     IAssetService assetService,
     INativeHapticService nativeHapticService,
@@ -61,6 +62,11 @@ public partial class LoupedeckLiveSController(
     // side-strip provider frames don't paint over the video. NOT the plugin exclusive
     // mode (that stays reserved for plugin takeovers).
     private volatile bool _screensaverActive;
+
+    // True while a plugin owns the whole display via the raw full-display renderer path (issue
+    // #124, e.g. video streaming). Gates the controller's own redraw paths exactly like
+    // _screensaverActive so dynamic text / side-strip frames don't paint over the plugin's frames.
+    private volatile bool _fullDisplayActive;
 
     // Tracks the slot index of the currently active touch contact. Set on the
     // first TOUCH_START of a finger-down sequence, cleared on TOUCH_END.
@@ -178,6 +184,8 @@ public partial class LoupedeckLiveSController(
         {
             screensaver.Started -= OnScreensaverStarted;
             screensaver.Stopped -= OnScreensaverStopped;
+            fullDisplay.Started -= OnFullDisplayStarted;
+            fullDisplay.Stopped -= OnFullDisplayStopped;
             screensaver.Stop();
         }
         catch { /* best effort */ }
@@ -222,7 +230,7 @@ public partial class LoupedeckLiveSController(
         // No-op while something else owns the screen — the owner repaints when it
         // releases (device-off → RestoreDeviceState, folder/exclusive → their exit
         // handlers), so painting here would fight them.
-        if (_isDeviceOff || folderNav.IsActive || exclusiveMode.IsActive || _screensaverActive)
+        if (_isDeviceOff || folderNav.IsActive || exclusiveMode.IsActive || _screensaverActive || _fullDisplayActive)
             return;
 
         var device = deviceService.Device;
@@ -252,6 +260,24 @@ public partial class LoupedeckLiveSController(
     private void OnScreensaverStopped()
     {
         _screensaverActive = false;
+        _ = RedrawCurrentTouchPage();
+    }
+
+    // ───────── Plugin full-display renderer (issue #124) ─────────
+
+    /// <summary>A plugin took the whole display over via the raw full-display renderer: suppress our
+    /// own redraws and stop the side-strip provider timers, exactly as for the screensaver.</summary>
+    private void OnFullDisplayStarted()
+    {
+        _fullDisplayActive = true;
+        try { DetachAllSideStripProviders(); } catch { /* best effort */ }
+    }
+
+    /// <summary>The plugin released the display: repaint the active page (this also re-attaches the
+    /// side-strip providers).</summary>
+    private void OnFullDisplayStopped()
+    {
+        _fullDisplayActive = false;
         _ = RedrawCurrentTouchPage();
     }
 
@@ -387,6 +413,8 @@ public partial class LoupedeckLiveSController(
         // and the startup page is drawn (issue #120). Any input resets the countdown.
         screensaver.Started += OnScreensaverStarted;
         screensaver.Stopped += OnScreensaverStopped;
+        fullDisplay.Started += OnFullDisplayStarted;
+        fullDisplay.Stopped += OnFullDisplayStopped;
         screensaver.Arm();
 
         await Task.CompletedTask;
@@ -501,7 +529,7 @@ public partial class LoupedeckLiveSController(
         // screensaver, that input was a "wake" gesture — consume it (no normal action).
         if (screensaver.NotifyActivity()) return;
 
-        if (_isDeviceOff || exclusiveMode.IsActive || folderNav.IsActive || _screensaverActive)
+        if (_isDeviceOff || exclusiveMode.IsActive || folderNav.IsActive || _screensaverActive || _fullDisplayActive)
             return;
 
         var side = ToRotarySide(e.Side);
@@ -540,7 +568,7 @@ public partial class LoupedeckLiveSController(
         if (deviceService.Device?.HasSideStrips != true || side == RotarySide.Both)
             return;
 
-        if (_isDeviceOff || exclusiveMode.IsActive || folderNav.IsActive || _screensaverActive)
+        if (_isDeviceOff || exclusiveMode.IsActive || folderNav.IsActive || _screensaverActive || _fullDisplayActive)
             return;
 
         try
@@ -635,7 +663,7 @@ public partial class LoupedeckLiveSController(
     /// <inheritdoc/>
     public async Task RefreshSideStrips()
     {
-        if (_isDeviceOff || folderNav.IsActive || exclusiveMode.IsActive || _screensaverActive) return;
+        if (_isDeviceOff || folderNav.IsActive || exclusiveMode.IsActive || _screensaverActive || _fullDisplayActive) return;
         await RedrawSideStrips();
     }
 
@@ -917,7 +945,7 @@ public partial class LoupedeckLiveSController(
             // A later request already rendered at least this fresh (RenderStrip reads
             // live provider state, so the newest frame is always what gets drawn).
             if (Interlocked.Read(ref _stripDrawnGen[idx]) >= requested) return;
-            if (_isDeviceOff || folderNav.IsActive || exclusiveMode.IsActive || _screensaverActive) return;
+            if (_isDeviceOff || folderNav.IsActive || exclusiveMode.IsActive || _screensaverActive || _fullDisplayActive) return;
 
             var since = Environment.TickCount64 - _stripLastDrawTick[idx];
             if (since < StripMinRedrawMs)
@@ -1875,7 +1903,7 @@ public partial class LoupedeckLiveSController(
         // Folder mode, exclusive mode, or the screensaver owns the touch display —
         // suppress per-button redraws (e.g. from DynamicTextManager) so they don't paint
         // over the active view. When the owner exits, its handler repaints the page.
-        if (folderNav.IsActive || exclusiveMode.IsActive || _screensaverActive) return;
+        if (folderNav.IsActive || exclusiveMode.IsActive || _screensaverActive || _fullDisplayActive) return;
 
         var button = config.CurrentTouchButtonPage.TouchButtons.FirstOrDefault(b => b.Index == item.Index);
 
@@ -1900,7 +1928,7 @@ public partial class LoupedeckLiveSController(
     private async void StripCanvasItemChanged(object sender, EventArgs e)
     {
         if (sender is not TouchButton canvas) return;
-        if (_isDeviceOff || folderNav.IsActive || exclusiveMode.IsActive || _screensaverActive) return;
+        if (_isDeviceOff || folderNav.IsActive || exclusiveMode.IsActive || _screensaverActive || _fullDisplayActive) return;
 
         // The canvas Index encodes its column (LeftSideIndex / RightSideIndex), so the
         // strip is repainted via the free-draw renderer, not the grid touch path.

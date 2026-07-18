@@ -462,6 +462,12 @@ public class PluginManager : IPluginManager
             try
             {
                 var target = ResolveEnablingDevice(manifest.Id);
+                // Mutual exclusion with the raw full-display renderer path (issue #124): both take
+                // the whole display, so whoever owns it first wins. The reverse guard (full-display
+                // rejected while exclusive mode is active) lives in FullDisplayRenderService.
+                if (target.GetRequiredService<IFullDisplayRenderService>().IsActive)
+                    return false;
+
                 if (target.GetRequiredService<IExclusiveModeService>().TryEnter(provider))
                 {
                     exclusiveTarget = target;
@@ -494,6 +500,24 @@ public class PluginManager : IPluginManager
         {
             try { return (exclusiveTarget ?? Device).GetRequiredService<IExclusiveModeService>().IsActive; }
             catch { return false; }
+        }
+
+        IFullDisplayRenderSession RequestFullDisplayRenderer(IFullDisplayRenderer renderer)
+        {
+            try
+            {
+                // Hit the device that ENABLED this plugin (same reasoning as RequestExclusiveMode:
+                // a plugin's own worker thread has no ambient device). The session handle returned
+                // to the plugin routes its own Release back to the owning service, so — unlike
+                // exclusive mode — there is no pinned target to track for teardown.
+                var target = ResolveEnablingDevice(manifest.Id);
+                return target.GetRequiredService<IFullDisplayRenderService>().TryEnter(renderer);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"PluginHost[{manifest.Id}]: RequestFullDisplayRenderer failed: {ex.Message}");
+                return null;
+            }
         }
 
         IReadOnlyList<string> GetButtonStates(string commandName)
@@ -529,6 +553,7 @@ public class PluginManager : IPluginManager
         return new PluginHost(logger, settings, device, ExecuteCommand, RequestButtonRefresh,
             OpenFolder, OverlayTouchText, GetTouchSlotForRotary,
             RequestExclusiveMode, ReleaseExclusiveMode, IsInExclusiveMode,
+            RequestFullDisplayRenderer,
             GetButtonStates, GetActiveButtonState, SetActiveButtonState);
     }
 

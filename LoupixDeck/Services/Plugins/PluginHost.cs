@@ -18,6 +18,7 @@ public sealed class PluginHost : IPluginHost
     private readonly Func<IExclusiveModeProvider, bool> _requestExclusiveMode;
     private readonly Action<IExclusiveModeProvider> _releaseExclusiveMode;
     private readonly Func<bool> _isInExclusiveMode;
+    private readonly Func<IFullDisplayRenderer, IFullDisplayRenderSession> _requestFullDisplayRenderer;
     private readonly Func<string, IReadOnlyList<string>> _getButtonStates;
     private readonly Func<string, string> _getActiveButtonState;
     private readonly Func<string, string, bool> _setActiveButtonState;
@@ -34,6 +35,7 @@ public sealed class PluginHost : IPluginHost
         Func<IExclusiveModeProvider, bool> requestExclusiveMode,
         Action<IExclusiveModeProvider> releaseExclusiveMode,
         Func<bool> isInExclusiveMode,
+        Func<IFullDisplayRenderer, IFullDisplayRenderSession> requestFullDisplayRenderer,
         Func<string, IReadOnlyList<string>> getButtonStates,
         Func<string, string> getActiveButtonState,
         Func<string, string, bool> setActiveButtonState)
@@ -49,6 +51,7 @@ public sealed class PluginHost : IPluginHost
         _requestExclusiveMode = requestExclusiveMode;
         _releaseExclusiveMode = releaseExclusiveMode;
         _isInExclusiveMode = isInExclusiveMode;
+        _requestFullDisplayRenderer = requestFullDisplayRenderer;
         _getButtonStates = getButtonStates;
         _getActiveButtonState = getActiveButtonState;
         _setActiveButtonState = setActiveButtonState;
@@ -79,6 +82,9 @@ public sealed class PluginHost : IPluginHost
         _releaseExclusiveMode?.Invoke(provider);
 
     public bool IsInExclusiveMode => _isInExclusiveMode?.Invoke() ?? false;
+
+    public IFullDisplayRenderSession RequestFullDisplayRenderer(IFullDisplayRenderer renderer) =>
+        _requestFullDisplayRenderer?.Invoke(renderer);
 
     public IReadOnlyList<string> GetButtonStates(string commandName) =>
         _getButtonStates?.Invoke(commandName) ?? [];
