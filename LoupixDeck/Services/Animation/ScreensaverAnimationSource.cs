@@ -1,9 +1,6 @@
 using System.Buffers;
 using System.Diagnostics;
-using System.Runtime.InteropServices;
 using System.Threading.Channels;
-using LoupixDeck.Utils;
-using SkiaSharp;
 
 namespace LoupixDeck.Services.Animation;
 
@@ -30,12 +27,11 @@ namespace LoupixDeck.Services.Animation;
 /// </summary>
 public sealed class ScreensaverAnimationSource : IAnimationSource, IDisposable
 {
-    // The continuous virtual panel the wallpaper system assumes: 480px wide spanning the
-    // centre grid plus both 60px side-strip columns, 270px tall.
-    private const int PanelWidth = 480;
-    private const int PanelHeight = 270;
-    private const int StripWidth = 60;
-    private const int FrameBytes = PanelWidth * PanelHeight * 4;
+    // Panel geometry / frame size come from the shared writer (the continuous 480×270 virtual
+    // panel the wallpaper system assumes).
+    private const int PanelWidth = FullDisplayFrameWriter.PanelWidth;
+    private const int PanelHeight = FullDisplayFrameWriter.PanelHeight;
+    private const int FrameBytes = FullDisplayFrameWriter.FrameBytes;
 
     // Read-ahead depth: how many realtime-paced frames may sit queued ahead of presentation.
     // The cushion (≈ FrameQueueDepth / fps seconds) lets the background reader ride out a
@@ -51,7 +47,8 @@ public sealed class ScreensaverAnimationSource : IAnimationSource, IDisposable
     private readonly bool _loop;
     private readonly Action _onEnded;
 
-    private readonly List<DisplayTarget> _targets = [];
+    // Shared full-display transfer path (per-display slicing + atomic blit + mid-write guard).
+    private readonly FullDisplayFrameWriter _writer;
 
     private Process _ffmpeg;
     private Stream _stdout;
@@ -75,12 +72,6 @@ public sealed class ScreensaverAnimationSource : IAnimationSource, IDisposable
     private long _dbgDropped;
     private long _dbgWindowStart;
 
-    // Signaled while no frame is being pushed to the device. Dispose() waits on this so a
-    // caller that closes the serial port right after (controller shutdown on app quit)
-    // can't cut a full-screen framebuffer write mid-stream — that desyncs the device's
-    // protocol and makes the next launch's handshake time out until a power-cycle.
-    private readonly ManualResetEventSlim _idle = new(true);
-
     public ScreensaverAnimationSource(LoupedeckDevice.Device.LoupedeckDevice device,
         string absoluteVideoPath, int fps, bool loop, Action onEnded)
     {
@@ -89,6 +80,7 @@ public sealed class ScreensaverAnimationSource : IAnimationSource, IDisposable
         _fps = Math.Clamp(fps <= 0 ? 30 : fps, 1, 120);
         _loop = loop;
         _onEnded = onEnded;
+        _writer = new FullDisplayFrameWriter(device, _debug, "[Screensaver]");
     }
 
     public int TargetFps => _fps;
@@ -101,8 +93,7 @@ public sealed class ScreensaverAnimationSource : IAnimationSource, IDisposable
     /// </summary>
     public bool Start()
     {
-        BuildTargets();
-        if (_targets.Count == 0)
+        if (_writer.TargetCount == 0)
         {
             Console.WriteLine("[Screensaver] no drawable display on this device.");
             return false;
@@ -344,7 +335,7 @@ public sealed class ScreensaverAnimationSource : IAnimationSource, IDisposable
         {
             if (!_debug)
             {
-                await PushFrameAsync(buffer, token).ConfigureAwait(false);
+                await _writer.PushAsync(buffer, token).ConfigureAwait(false);
                 return;
             }
 
@@ -352,7 +343,7 @@ public sealed class ScreensaverAnimationSource : IAnimationSource, IDisposable
             // latency apart from the serial framebuffer write.
             var readMs = Stopwatch.GetElapsedTime(readStart).TotalMilliseconds;
             var pushStart = Stopwatch.GetTimestamp();
-            await PushFrameAsync(buffer, token).ConfigureAwait(false);
+            await _writer.PushAsync(buffer, token).ConfigureAwait(false);
             var pushMs = Stopwatch.GetElapsedTime(pushStart).TotalMilliseconds;
 
             _dbgReadMs += readMs;
@@ -380,113 +371,6 @@ public sealed class ScreensaverAnimationSource : IAnimationSource, IDisposable
         }
     }
 
-    /// <summary>
-    /// Composites the per-display slices under the shared Skia gate, then pushes each to
-    /// its display outside the gate (the device's pixel conversion takes the gate itself,
-    /// and it can't be held across the awaited device I/O).
-    /// </summary>
-    private async Task PushFrameAsync(byte[] bgra, CancellationToken token)
-    {
-        SKBitmap frame = null;
-        var draws = new List<(string Id, SKBitmap Bitmap, bool Owned)>(_targets.Count);
-
-        lock (SkiaRenderGate.Sync)
-        {
-            frame = new SKBitmap(new SKImageInfo(PanelWidth, PanelHeight, SKColorType.Bgra8888, SKAlphaType.Opaque));
-            // Copy exactly one frame: the buffer is pooled (ArrayPool) so it may be larger
-            // than FrameBytes — never use bgra.Length here.
-            Marshal.Copy(bgra, 0, frame.GetPixels(), FrameBytes);
-
-            foreach (var target in _targets)
-            {
-                if (target.IsFullFrame)
-                {
-                    // The whole 480×270 frame goes straight to the unified buffer.
-                    draws.Add((target.DisplayId, frame, false));
-                    continue;
-                }
-
-                var slice = new SKBitmap(new SKImageInfo(target.DestWidth, target.DestHeight,
-                    SKColorType.Bgra8888, SKAlphaType.Opaque));
-                using (var canvas = new SKCanvas(slice))
-                {
-                    canvas.DrawBitmap(frame, target.SrcRect,
-                        new SKRect(0, 0, target.DestWidth, target.DestHeight));
-                }
-                draws.Add((target.DisplayId, slice, true));
-            }
-        }
-
-        _idle.Reset();
-        try
-        {
-            foreach (var draw in draws)
-            {
-                if (token.IsCancellationRequested) return;
-                // refresh:true — one atomic full-display FRAMEBUFF + DRAW per frame. A
-                // framebuffer write WITHOUT a DRAW does not reliably present on the device
-                // (the last DRAW'd page content stays visible), so the frame must be drawn.
-                // A single full-screen blit + DRAW is the no-tearing path (same as
-                // DrawTouchSlotsAtomic); only per-slot writes cause tearing.
-                if (_debug)
-                {
-                    var ts = Stopwatch.GetTimestamp();
-                    await _device.DrawScreen(draw.Id, draw.Bitmap, refresh: true).ConfigureAwait(false);
-                    var ms = Stopwatch.GetElapsedTime(ts).TotalMilliseconds;
-                    // Flag slow draws (a multi-second value means the FRAMEBUFF/DRAW ACK is
-                    // timing out, not just slow serial throughput).
-                    if (ms > 500)
-                        Console.WriteLine($"[Screensaver][perf] slow DrawScreen('{draw.Id}'): {ms:F0} ms");
-                }
-                else
-                {
-                    await _device.DrawScreen(draw.Id, draw.Bitmap, refresh: true).ConfigureAwait(false);
-                }
-            }
-        }
-        finally
-        {
-            lock (SkiaRenderGate.Sync)
-            {
-                foreach (var draw in draws)
-                    if (draw.Owned) draw.Bitmap.Dispose();
-                frame.Dispose();
-            }
-            _idle.Set();
-        }
-    }
-
-    /// <summary>
-    /// Builds the slice targets from the device's displays. A unified device exposes a
-    /// single 480-wide "center" buffer (the Razer's side strips are columns of it); the CT
-    /// exposes independent narrower buffers that each map to a column of the panel.
-    /// </summary>
-    private void BuildTargets()
-    {
-        var (centerW, centerH) = _device.GetDisplaySize("center");
-        if (centerW <= 0 || centerH <= 0) return;
-
-        if (centerW >= PanelWidth)
-        {
-            // Unified panel: push the full frame as-is (covers grid + any side columns).
-            _targets.Add(DisplayTarget.Full("center", centerW, centerH));
-            return;
-        }
-
-        // Segmented displays (CT): slice the continuous panel into its columns.
-        AddSlice("left", 0, StripWidth);
-        AddSlice("center", StripWidth, centerW);
-        AddSlice("right", PanelWidth - StripWidth, StripWidth);
-        // "knob" (240×240) is deliberately omitted — see class summary.
-    }
-
-    private void AddSlice(string displayId, int srcX, int srcWidth)
-    {
-        var (w, h) = _device.GetDisplaySize(displayId);
-        if (w <= 0 || h <= 0) return;
-        _targets.Add(DisplayTarget.Slice(displayId, srcX, srcWidth, w, h));
-    }
-
     private void SignalEnded()
     {
         _active = false;
@@ -502,42 +386,13 @@ public sealed class ScreensaverAnimationSource : IAnimationSource, IDisposable
         try { _cts?.Cancel(); } catch { /* already disposed */ }
         try { _frames?.Writer.TryComplete(); } catch { /* ignore */ }
         try { if (_ffmpeg is { HasExited: false }) _ffmpeg.Kill(true); } catch { /* already gone */ }
-        // …then wait for any frame that is currently being drawn to the device to finish,
-        // so the caller can safely close the serial port without cutting a write mid-stream.
-        try { _idle.Wait(1000); } catch { /* ignore */ }
+        // …then dispose the writer, which waits for any frame currently being drawn to the
+        // device to finish, so the caller can safely close the serial port without cutting a
+        // write mid-stream.
+        try { _writer.Dispose(); } catch { /* ignore */ }
         try { _ffmpeg?.Dispose(); } catch { /* ignore */ }
         _ffmpeg = null;
         try { _cts?.Dispose(); } catch { /* ignore */ }
         _cts = null;
-        try { _idle.Dispose(); } catch { /* ignore */ }
-    }
-
-    /// <summary>One display's slice of the panel: which buffer, the source rectangle in the
-    /// 480×270 frame, and the destination size (the display's own pixels).</summary>
-    private sealed class DisplayTarget
-    {
-        public string DisplayId { get; private init; }
-        public bool IsFullFrame { get; private init; }
-        public SKRect SrcRect { get; private init; }
-        public int DestWidth { get; private init; }
-        public int DestHeight { get; private init; }
-
-        public static DisplayTarget Full(string id, int width, int height) => new()
-        {
-            DisplayId = id,
-            IsFullFrame = true,
-            SrcRect = new SKRect(0, 0, width, height),
-            DestWidth = width,
-            DestHeight = height
-        };
-
-        public static DisplayTarget Slice(string id, int srcX, int srcWidth, int destWidth, int destHeight) => new()
-        {
-            DisplayId = id,
-            IsFullFrame = false,
-            SrcRect = new SKRect(srcX, 0, srcX + srcWidth, PanelHeight),
-            DestWidth = destWidth,
-            DestHeight = destHeight
-        };
     }
 }
