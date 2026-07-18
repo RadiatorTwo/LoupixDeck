@@ -24,6 +24,11 @@ public interface IFullDisplayRenderService
     /// goes inactive). No-op when nothing is active.</summary>
     void SetPaused(bool paused);
 
+    /// <summary>Releases the active session, if any, from the host side (e.g. on a profile/workspace
+    /// switch). The owning plugin's session becomes inactive; it does not auto-restart — the plugin
+    /// re-enters via its own command. No-op when nothing is active.</summary>
+    void StopActive();
+
     /// <summary>Fired when a renderer takes the display over. The controller suppresses its own
     /// rendering and detaches side-strip providers, mirroring the screensaver.</summary>
     event Action Started;

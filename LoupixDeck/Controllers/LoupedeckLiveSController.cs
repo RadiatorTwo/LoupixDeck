@@ -281,6 +281,22 @@ public partial class LoupedeckLiveSController(
         _ = RedrawCurrentTouchPage();
     }
 
+    /// <summary>Ends any active full-display or exclusive-mode takeover. Called on a profile/workspace
+    /// switch — the takeover belonged to the workspace being left, and neither mode auto-restarts
+    /// (the owning plugin re-enters via its own command). Safe to call when nothing is active.</summary>
+    private void StopDisplayTakeovers()
+    {
+        try
+        {
+            if (exclusiveMode.IsActive)
+                exclusiveMode.Exit(exclusiveMode.Current);
+        }
+        catch (Exception ex) { Console.WriteLine($"StopDisplayTakeovers (exclusive) failed: {ex.Message}"); }
+
+        try { fullDisplay.StopActive(); }
+        catch (Exception ex) { Console.WriteLine($"StopDisplayTakeovers (full-display) failed: {ex.Message}"); }
+    }
+
     public async Task Initialize(string port = null, int baudrate = 0)
     {
         if (port != null)
@@ -1810,6 +1826,11 @@ public partial class LoupedeckLiveSController(
     /// </summary>
     public async Task ApplyActiveWorkspace()
     {
+        // A profile/workspace switch ends any full-display takeover (issue #124) and exclusive mode:
+        // the takeover belonged to the workspace we are leaving. Neither auto-restarts — the owning
+        // plugin re-enters explicitly via its own command.
+        StopDisplayTakeovers();
+
         BindActiveWorkspaceTouchPages();
         InitializeRotaryPages();
 

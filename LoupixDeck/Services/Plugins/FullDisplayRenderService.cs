@@ -98,6 +98,13 @@ public sealed class FullDisplayRenderService : IFullDisplayRenderService
         current?.Source.SetPaused(paused);
     }
 
+    public void StopActive()
+    {
+        Session current;
+        lock (_gate) current = _current;
+        current?.Release();
+    }
+
     private void Exit(Session session)
     {
         PluginFullDisplayAnimationSource source;
