@@ -31,16 +31,29 @@ public static class ContextRuleMatcher
         return best;
     }
 
-    /// <summary>True when the rule's process equals <paramref name="process"/> (case-insensitive,
-    /// ".exe" stripped) and, if set, <paramref name="title"/> contains the rule's title substring.
-    /// <paramref name="process"/> is expected already normalized.</summary>
+    /// <summary>True when, for each of <see cref="ContextRule.ProcessName"/> and
+    /// <see cref="ContextRule.TitleContains"/> that is set, the corresponding argument matches
+    /// (process case-insensitively and ".exe"-stripped, title by substring); a rule with neither set
+    /// never matches. <paramref name="process"/> is expected already normalized.
+    ///
+    /// Leaving ProcessName blank matters on Linux for sandboxed apps (Flatpak/Snap): their window's
+    /// _NET_WM_PID is a PID inside the sandbox's own namespace, meaningless to the host's /proc
+    /// lookup, so ProcessName can never resolve correctly for them — TitleContains is the only
+    /// usable match key.</summary>
     public static bool Matches(ContextRule rule, string process, string title)
     {
         var ruleProcess = Normalize(rule.ProcessName);
-        if (string.IsNullOrEmpty(ruleProcess)) return false;
-        if (!string.Equals(ruleProcess, process, StringComparison.OrdinalIgnoreCase)) return false;
+        var hasTitleFilter = !string.IsNullOrEmpty(rule.TitleContains);
 
-        if (!string.IsNullOrEmpty(rule.TitleContains) &&
+        if (string.IsNullOrEmpty(ruleProcess) && !hasTitleFilter) return false;
+
+        if (!string.IsNullOrEmpty(ruleProcess) &&
+            !string.Equals(ruleProcess, process, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        if (hasTitleFilter &&
             (title ?? string.Empty).IndexOf(rule.TitleContains, StringComparison.OrdinalIgnoreCase) < 0)
         {
             return false;
