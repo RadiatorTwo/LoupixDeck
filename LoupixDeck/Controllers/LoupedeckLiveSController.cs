@@ -2091,60 +2091,16 @@ public partial class LoupedeckLiveSController(
         if (!string.IsNullOrWhiteSpace(config.ScreensaverVideoPath))
             yield return config.ScreensaverVideoPath;
 
-        if (config.TouchButtonPages == null) yield break;
-
-        foreach (var page in config.TouchButtonPages)
-        {
-            if (page == null) continue;
-
-            // The page wallpapers' originals (main + optional side displays) live in
-            // the asset folder too.
-            if (!string.IsNullOrWhiteSpace(page.MainWallpaper?.AssetPath))
-                yield return page.MainWallpaper.AssetPath;
-            if (!string.IsNullOrWhiteSpace(page.LeftWallpaper?.AssetPath))
-                yield return page.LeftWallpaper.AssetPath;
-            if (!string.IsNullOrWhiteSpace(page.RightWallpaper?.AssetPath))
-                yield return page.RightWallpaper.AssetPath;
-
-            if (page.TouchButtons == null) continue;
-            foreach (var button in page.TouchButtons)
-            {
-                if (button?.Layers == null) continue;
-                foreach (var layer in button.Layers)
-                {
-                    if (layer is ImageLayer img)
-                    {
-                        if (!string.IsNullOrWhiteSpace(img.AssetRelativePath))
-                            yield return img.AssetRelativePath;
-                        // The animated source (GIF/transcoded clip) lives in the asset folder too —
-                        // keep it referenced so save-time cleanup never deletes it (issue #121).
-                        if (!string.IsNullOrWhiteSpace(img.AnimatedAssetPath))
-                            yield return img.AnimatedAssetPath;
-                    }
-                }
-            }
-        }
-
-        // Side-strip free-draw canvases (Razer/CT) keep their own image + animated assets on each
-        // rotary page's StripCanvas, independent of the touch buttons. Without harvesting these,
-        // save-time cleanup would delete a just-imported side-strip image/animation (issue #123).
-        foreach (var page in EnumerateAllRotaryPages())
-        {
-            var canvas = page?.StripCanvas;
-            if (canvas?.States == null) continue;
-            foreach (var state in canvas.States)
-            {
-                if (state?.Layers == null) continue;
-                foreach (var layer in state.Layers)
-                {
-                    if (layer is not ImageLayer img) continue;
-                    if (!string.IsNullOrWhiteSpace(img.AssetRelativePath))
-                        yield return img.AssetRelativePath;
-                    if (!string.IsNullOrWhiteSpace(img.AnimatedAssetPath))
-                        yield return img.AnimatedAssetPath;
-                }
-            }
-        }
+        // Schema-agnostic scan of the just-saved config file itself, exactly like
+        // HarvestAssetPathsFromOtherConfigs below already does for sibling device configs.
+        // This used to be a manual walk of config.TouchButtonPages/RotaryButtonPages, which
+        // since #132 only reflect the ACTIVE profile's active workspace — every other
+        // profile's images were invisible to it and got deleted as "orphans" on every save.
+        // Scanning the serialized JSON for any "assets/…" string covers every profile,
+        // workspace, and future asset-referencing field without having to keep this in
+        // lockstep with the config schema.
+        foreach (var path in HarvestAssetPathsFromConfigFile(_configPath))
+            yield return path;
 
         // The asset folder is shared by EVERY per-device config file
         // (config_<slug>[_<serial>].json) in the same config dir, but the live
@@ -2156,24 +2112,10 @@ public partial class LoupedeckLiveSController(
             yield return path;
     }
 
-    /// <summary>All rotary pages across the shared list and the independent left/right side-strip
-    /// lists. A device uses one scheme or the other, but harvesting all is harmless and future-proof.</summary>
-    private IEnumerable<RotaryButtonPage> EnumerateAllRotaryPages()
-    {
-        if (config.RotaryButtonPages != null)
-            foreach (var page in config.RotaryButtonPages) yield return page;
-        if (config.LeftRotaryButtonPages != null)
-            foreach (var page in config.LeftRotaryButtonPages) yield return page;
-        if (config.RightRotaryButtonPages != null)
-            foreach (var page in config.RightRotaryButtonPages) yield return page;
-    }
-
     /// <summary>
     /// Scans sibling config files (all <c>config*.json</c> in the config dir except
     /// the one this controller owns) and returns every stored asset-relative path
-    /// found anywhere in them. Done as a schema-agnostic string walk (any JSON value
-    /// under the "assets/" prefix) so it stays correct for wallpapers, image layers,
-    /// and any future asset reference without having to mirror the config schema here.
+    /// found anywhere in them, via <see cref="HarvestAssetPathsFromConfigFile"/>.
     /// </summary>
     private IEnumerable<string> HarvestAssetPathsFromOtherConfigs()
     {
@@ -2201,31 +2143,37 @@ public partial class LoupedeckLiveSController(
 
         foreach (var file in files)
         {
-            // Skip the active config — its references already came from the live object.
+            // The active config's references already came from the direct scan above.
             if (string.Equals(Path.GetFullPath(file), Path.GetFullPath(_configPath), StringComparison.OrdinalIgnoreCase))
                 continue;
 
-            List<string> harvested;
-            try
-            {
-                var root = JToken.Parse(File.ReadAllText(file)) as JContainer;
-                harvested = (root?.DescendantsAndSelf() ?? Enumerable.Empty<JToken>())
-                    .OfType<JValue>()
-                    .Where(v => v.Type == JTokenType.String)
-                    .Select(v => (string)v.Value)
-                    .Where(IsAssetPath)
-                    .ToList();
-            }
-            catch (Exception ex)
-            {
-                // A corrupt/unreadable sibling config must not abort cleanup — but
-                // it also must not cause its assets to be deleted, so log and skip.
-                Console.WriteLine($"Asset cleanup: skipping unreadable config '{file}': {ex.Message}");
-                continue;
-            }
-
-            foreach (var path in harvested)
+            foreach (var path in HarvestAssetPathsFromConfigFile(file))
                 yield return path;
+        }
+    }
+
+    /// <summary>Parses a config file and returns every string value anywhere in it that looks
+    /// like an asset-folder relative path. Schema-agnostic on purpose (any JSON value under the
+    /// "assets/" prefix) so it stays correct for wallpapers, image layers, and any future asset
+    /// reference — in any profile/workspace — without having to mirror the config schema here.</summary>
+    private static List<string> HarvestAssetPathsFromConfigFile(string path)
+    {
+        try
+        {
+            var root = JToken.Parse(File.ReadAllText(path)) as JContainer;
+            return (root?.DescendantsAndSelf() ?? Enumerable.Empty<JToken>())
+                .OfType<JValue>()
+                .Where(v => v.Type == JTokenType.String)
+                .Select(v => (string)v.Value)
+                .Where(IsAssetPath)
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+            // A corrupt/unreadable config must not abort cleanup — but it also must not cause
+            // its assets to be deleted, so log and report nothing found for it.
+            Console.WriteLine($"Asset cleanup: skipping unreadable config '{path}': {ex.Message}");
+            return new List<string>();
         }
     }
 
