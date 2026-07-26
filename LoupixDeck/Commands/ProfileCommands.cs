@@ -1,5 +1,6 @@
 using LoupixDeck.Commands.Base;
 using LoupixDeck.Services;
+using LoupixDeck.Services.FolderNavigation;
 
 namespace LoupixDeck.Commands;
 
@@ -80,7 +81,8 @@ public class PreviousWorkspaceCommand(IWorkspaceActivationService activation) : 
 
 [Command("System.GoHomeWorkspace", "Go to Home Workspace", "Profiles",
     Description = "Return to the active profile's home workspace")]
-public class GoHomeWorkspaceCommand(IWorkspaceActivationService activation) : IExecutableCommand
+public class GoHomeWorkspaceCommand(IWorkspaceActivationService activation, IFolderNavigationService folderNav)
+    : IExecutableCommand
 {
     public async Task Execute(string[] parameters)
     {
@@ -89,6 +91,14 @@ public class GoHomeWorkspaceCommand(IWorkspaceActivationService activation) : IE
             Console.WriteLine("Invalid Parameter count");
             return;
         }
+
+        // Dismiss any open folder view first. Folder navigation is a separate stack from the
+        // active workspace (see IFolderNavigationService) — switching the workspace underneath
+        // never touched it, so a plugin folder (e.g. a game/device picker) calling this command
+        // after acting on a selection saw the folder stay stuck open on top of the new workspace
+        // instead of the "return to base" a plugin author would reasonably expect from this command.
+        if (folderNav.IsActive)
+            await folderNav.ExitAll();
 
         await activation.GoToHomeWorkspace();
     }
