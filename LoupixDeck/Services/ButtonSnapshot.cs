@@ -52,17 +52,28 @@ public static class ButtonSnapshot
     {
         if (target == null || json == null) return;
 
-        JsonConvert.PopulateObject(json, target, Settings);
-
-        // Re-attach the handlers/active-state wiring the JSON converters bypass, then repaint.
-        switch (target)
+        try
         {
-            case TouchButton touch:
-                touch.RewireLayerHandlers();
-                break;
-            case SimpleButton simple:
-                simple.RewireAfterLoad();
-                break;
+            JsonConvert.PopulateObject(json, target, Settings);
+
+            // Re-attach the handlers/active-state wiring the JSON converters bypass.
+            switch (target)
+            {
+                case TouchButton touch:
+                    touch.RewireLayerHandlers();
+                    break;
+                case SimpleButton simple:
+                    simple.RewireAfterLoad();
+                    break;
+            }
+        }
+        catch (Exception ex)
+        {
+            // The target may now be partially populated (Newtonsoft applies properties as it
+            // walks the JSON). Still fall through to Refresh() below — leaving the grid/device
+            // showing stale content until something unrelated forces a repaint is worse than
+            // repainting whatever partial state resulted.
+            Console.WriteLine($"[ButtonSnapshot] Apply failed, target may be partially populated: {ex}");
         }
 
         target.Refresh();
