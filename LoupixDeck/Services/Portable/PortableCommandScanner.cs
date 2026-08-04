@@ -37,6 +37,10 @@ public static class PortableCommandScanner
         "CommandString"
     };
 
+    /// <summary>True when a JSON property holds a command string (or an array of them).</summary>
+    public static bool IsCommandProperty(string propertyName) =>
+        propertyName != null && CommandProperties.Contains(propertyName);
+
     /// <summary>
     /// Returns every command string stored anywhere below <paramref name="root"/>, in document
     /// order and including duplicates (the caller decides how to aggregate).

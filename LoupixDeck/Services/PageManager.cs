@@ -17,6 +17,13 @@ public interface IPageManager
     /// <summary>True when the active device pages its dial columns independently (side strips).</summary>
     bool HasIndependentRotarySides { get; }
 
+    /// <summary>
+    /// Number of knobs a single side page holds on a side-strip device (3 of the Razer's 6).
+    /// Exposed so callers that build or resize a side page — the profile package importer —
+    /// use the same figure the page factory does instead of re-deriving it.
+    /// </summary>
+    int SideRotaryButtonCount { get; }
+
     void NextRotaryPage();
     void PreviousRotaryPage();
     void ApplyRotaryPage(int pageIndex, bool init = false);
@@ -94,7 +101,7 @@ public class PageManager : IPageManager
     public bool HasIndependentRotarySides => _deviceService.Device?.HasSideStrips ?? false;
 
     // Number of knobs per side page on a side-strip device (3 on the Razer's 6).
-    private int SideRotaryButtonCount => Math.Max(1, _deviceService.RotaryButtonCount / 2);
+    public int SideRotaryButtonCount => Math.Max(1, _deviceService.RotaryButtonCount / 2);
 
     public ObservableCollection<RotaryButtonPage> GetRotaryPages(RotarySide side) => side switch
     {

@@ -1,6 +1,7 @@
 using System.IO.Compression;
 using System.Reflection;
 using Avalonia.Threading;
+using LoupixDeck.Controllers;
 using LoupixDeck.Models;
 using LoupixDeck.Models.Macros;
 using LoupixDeck.Models.Portable;
@@ -23,6 +24,8 @@ public sealed class ProfilePackageService(
     ICommandRegistry commandRegistry,
     IDeviceService deviceService,
     IPageManager pageManager,
+    IWorkspaceActivationService workspaceActivation,
+    IDeviceController controller,
     LoupedeckConfig config,
     DeviceRegistry.DeviceInfo deviceInfo) : IProfilePackageService
 {
@@ -474,6 +477,544 @@ public sealed class ProfilePackageService(
         }
 
         return result;
+    }
+
+    // ───────────────────────────────── Import ─────────────────────────────────
+
+    public async Task<ProfilePackageResult> ImportAsync(ProfilePackageAnalysis analysis,
+        ProfilePackageImportOptions options)
+    {
+        if (analysis == null || !analysis.IsImportable)
+            return ProfilePackageResult.Fail(analysis?.BlockReason ?? "The package cannot be imported.");
+
+        options ??= new ProfilePackageImportOptions();
+        List<string> warnings = [.. analysis.Warnings];
+
+        try
+        {
+            // 1. Back the target up before anything is written. The backup IS an export, so it can
+            //    be restored through the very same import dialog. A failed backup aborts the
+            //    import — the point of the backup is that it exists before the damage.
+            if (options.Mode == PackageImportMode.Replace && options.BackupReplacedItem)
+            {
+                ProfilePackageResult backup = await BackupReplaceTargetAsync(analysis, options);
+                if (backup != null && !backup.Success)
+                    return ProfilePackageResult.Fail($"Import aborted: the backup failed ({backup.Message}).", warnings);
+
+                if (backup?.PackagePath != null)
+                    warnings.Add($"Previous version backed up to {backup.PackagePath}.");
+            }
+
+            // 2. Macros. Written before the payload is attached because the payload's macro
+            //    references must be rewritten with the resolutions applied here.
+            Dictionary<string, string> macroRenames = ApplyMacros(analysis, options, warnings);
+
+            // 3. Assets into the (content-addressed) store. Import is a no-op for anything this
+            //    machine already has, so a same-machine re-import copies nothing.
+            Dictionary<string, string> assetMap = ImportAssets(analysis, warnings);
+
+            // 4. Rewrite the staged payload: fresh ids (seeded for Replace), macro renames and any
+            //    asset path the store handed back under a different name — one JSON pass.
+            ProfilePackagePayload payload = RewriteAndLoadPayload(analysis, options, macroRenames, assetMap);
+            if (payload == null)
+                return ProfilePackageResult.Fail("The package payload could not be prepared for import.", warnings);
+
+            // 5+6. Attach and persist on the UI thread. Everything below is ObservableCollections
+            //      with setter-driven wiring, and the config must reach disk in the same
+            //      continuation — see the asset-cleanup note on PersistImport.
+            ProfilePackageResult result = await Dispatcher.UIThread.InvokeAsync(() =>
+                AttachPayload(analysis, options, payload, warnings));
+
+            return result;
+        }
+        catch (Exception ex)
+        {
+            return ProfilePackageResult.Fail($"Import failed: {ex.Message}", warnings);
+        }
+        finally
+        {
+            DiscardAnalysis(analysis);
+        }
+    }
+
+    private Task<ProfilePackageResult> BackupReplaceTargetAsync(ProfilePackageAnalysis analysis,
+        ProfilePackageImportOptions options)
+    {
+        string backupDir = Path.Combine(FileDialogHelper.GetConfigDir(), "backups");
+        Directory.CreateDirectory(backupDir);
+
+        string Target(string name) => Path.Combine(backupDir,
+            $"{SafeFileName(deviceInfo?.Slug ?? "device")}_{analysis.Manifest.Kind}_{SafeFileName(name)}_" +
+            $"{DateTime.Now:yyyyMMdd_HHmmss}.{ProfilePackageFiles.Extension}");
+
+        switch (analysis.Manifest.Kind)
+        {
+            case PackageKind.Profile:
+            {
+                Profile profile = FindProfile(options.ReplaceTargetProfileId);
+                return profile == null
+                    ? Task.FromResult<ProfilePackageResult>(null)
+                    : ExportProfileAsync(profile, Target(profile.Name), "Automatic backup before import.");
+            }
+
+            case PackageKind.Workspace:
+            {
+                Workspace workspace = FindWorkspace(options.ReplaceTargetWorkspaceId);
+                return workspace == null
+                    ? Task.FromResult<ProfilePackageResult>(null)
+                    : ExportWorkspaceAsync(workspace, Target(workspace.Name), "Automatic backup before import.");
+            }
+
+            case PackageKind.TouchPage:
+            {
+                TouchButtonPage page = TouchPageAt(options);
+                return page == null
+                    ? Task.FromResult<ProfilePackageResult>(null)
+                    : ExportTouchPageAsync(page, Target(page.Name), "Automatic backup before import.");
+            }
+
+            case PackageKind.RotaryPage:
+            {
+                RotaryButtonPage page = RotaryPageAt(analysis, options);
+                return page == null
+                    ? Task.FromResult<ProfilePackageResult>(null)
+                    : ExportRotaryPageAsync(page, Target(page.Name), "Automatic backup before import.");
+            }
+
+            default:
+                return Task.FromResult<ProfilePackageResult>(null);
+        }
+    }
+
+    /// <summary>
+    /// Merges the package's macros into the local set according to the user's per-macro decisions
+    /// and returns the old → new names of the renamed ones. Persists macros.json immediately —
+    /// <c>ReplaceAll</c> is the only mutation path there.
+    /// </summary>
+    private Dictionary<string, string> ApplyMacros(ProfilePackageAnalysis analysis,
+        ProfilePackageImportOptions options, List<string> warnings)
+    {
+        Dictionary<string, string> renames = new(StringComparer.OrdinalIgnoreCase);
+
+        string macroPath = Path.Combine(analysis.StageDirectory, ProfilePackageFiles.Macros);
+        if (!File.Exists(macroPath))
+            return renames;
+
+        IReadOnlyList<Macro> incoming = macroManager.DeserializeSubset(File.ReadAllText(macroPath));
+        if (incoming.Count == 0)
+            return renames;
+
+        List<Macro> working = macroManager.Macros.ToList();
+        List<string> skipped = [];
+        bool changed = false;
+
+        foreach (Macro macro in incoming)
+        {
+            Macro existing = working.FirstOrDefault(m =>
+                string.Equals(m.Name, macro.Name, StringComparison.OrdinalIgnoreCase));
+
+            if (existing == null)
+            {
+                working.Add(macro);
+                changed = true;
+                continue;
+            }
+
+            // Identical content needs no decision — the local macro already is the incoming one.
+            if (string.Equals(macroManager.SerializeSubset([existing]), macroManager.SerializeSubset([macro]),
+                    StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            MacroConflictResolution resolution =
+                options.MacroResolutions.TryGetValue(macro.Name, out MacroConflictResolution chosen)
+                    ? chosen
+                    : MacroConflictResolution.Skip;
+
+            switch (resolution)
+            {
+                case MacroConflictResolution.Replace:
+                    working[working.IndexOf(existing)] = macro;
+                    changed = true;
+                    break;
+
+                case MacroConflictResolution.Rename:
+                    string newName = ResolveRenameTarget(macro.Name, options, working);
+                    renames[macro.Name] = newName;
+                    macro.Name = newName;
+                    working.Add(macro);
+                    changed = true;
+                    break;
+
+                default:
+                    skipped.Add(macro.Name);
+                    break;
+            }
+        }
+
+        if (skipped.Count > 0)
+        {
+            // The reference is left in place on purpose: the runtime tolerates an unknown command
+            // (it falls through to the shell runner) and the editor keeps it as free text, so the
+            // binding survives if the macro is added later.
+            warnings.Add("Skipped macro(s) — buttons referencing them keep an unresolved reference: " +
+                         string.Join(", ", skipped));
+        }
+
+        if (changed)
+            macroManager.ReplaceAll(working);
+
+        return renames;
+    }
+
+    private static string ResolveRenameTarget(string originalName, ProfilePackageImportOptions options,
+        List<Macro> working)
+    {
+        string requested = options.MacroRenames.GetValueOrDefault(originalName);
+
+        bool Taken(string name) => working.Any(m => string.Equals(m.Name, name, StringComparison.OrdinalIgnoreCase));
+
+        if (!string.IsNullOrWhiteSpace(requested) && MacroManager.HasValidNameCharacters(requested) && !Taken(requested))
+            return requested.Trim();
+
+        // Fall back to a suffix so a missing or unusable rename never silently overwrites.
+        string candidate = $"{originalName} (imported)";
+        int suffix = 2;
+        while (Taken(candidate))
+            candidate = $"{originalName} (imported {suffix++})";
+
+        return candidate;
+    }
+
+    /// <summary>
+    /// Moves the package's assets into the local store and returns any path that changed on the
+    /// way in. Content addressing makes an already-present asset a free no-op.
+    /// </summary>
+    private Dictionary<string, string> ImportAssets(ProfilePackageAnalysis analysis, List<string> warnings)
+    {
+        Dictionary<string, string> map = new(StringComparer.OrdinalIgnoreCase);
+        int missing = 0;
+
+        foreach (string relative in analysis.Manifest.Assets ?? [])
+        {
+            string staged = Path.Combine(analysis.StageDirectory,
+                relative.Replace('/', Path.DirectorySeparatorChar));
+
+            if (!File.Exists(staged))
+            {
+                missing++;
+                continue;
+            }
+
+            string subFolder = SubFolderOf(relative);
+            string imported = assetService.Import(staged, subFolder);
+
+            if (!string.IsNullOrEmpty(imported) &&
+                !string.Equals(imported, relative, StringComparison.OrdinalIgnoreCase))
+            {
+                map[relative] = imported;
+            }
+        }
+
+        if (missing > 0)
+            warnings.Add($"{missing} image file(s) listed in the package were not inside it.");
+
+        return map;
+    }
+
+    /// <summary>Returns the asset sub-folder of a stored path ("wallpapers"), or null at the root.</summary>
+    private static string SubFolderOf(string relativePath)
+    {
+        string[] parts = relativePath.Replace('\\', '/').Split('/', StringSplitOptions.RemoveEmptyEntries);
+
+        // parts[0] is the "assets" prefix, the last part is the file name.
+        return parts.Length > 2 ? string.Join('/', parts[1..^1]) : null;
+    }
+
+    private ProfilePackagePayload RewriteAndLoadPayload(ProfilePackageAnalysis analysis,
+        ProfilePackageImportOptions options, Dictionary<string, string> macroRenames,
+        Dictionary<string, string> assetMap)
+    {
+        string payloadPath = Path.Combine(analysis.StageDirectory,
+            string.IsNullOrWhiteSpace(analysis.Manifest.PayloadFile)
+                ? ProfilePackageFiles.Payload
+                : analysis.Manifest.PayloadFile);
+
+        if (!File.Exists(payloadPath))
+            return null;
+
+        JObject payloadJson = JObject.Parse(File.ReadAllText(payloadPath));
+
+        // Replace keeps the target's identity so everything already pointing at it — active and
+        // startup profile, fallback profile, context rules — keeps resolving after the swap.
+        Dictionary<Guid, Guid> seed = [];
+        if (options.Mode == PackageImportMode.Replace)
+        {
+            Guid? incoming = IncomingRootId(analysis, payloadJson);
+            Guid? target = analysis.Manifest.Kind switch
+            {
+                PackageKind.Profile => options.ReplaceTargetProfileId,
+                PackageKind.Workspace => options.ReplaceTargetWorkspaceId,
+                _ => null
+            };
+
+            if (incoming.HasValue && target.HasValue)
+                seed[incoming.Value] = target.Value;
+        }
+
+        PortableIdRemapper.Remap(payloadJson, seed);
+        PortablePayloadRewriter.RenameMacroReferences(payloadJson, macroRenames);
+        PortablePayloadRewriter.RemapAssetPaths(payloadJson, assetMap);
+
+        File.WriteAllText(payloadPath, payloadJson.ToString());
+
+        return configService.LoadConfig<ProfilePackagePayload>(payloadPath);
+    }
+
+    private static Guid? IncomingRootId(ProfilePackageAnalysis analysis, JObject payloadJson)
+    {
+        string slot = analysis.Manifest.Kind switch
+        {
+            PackageKind.Profile => nameof(ProfilePackagePayload.Profile),
+            PackageKind.Workspace => nameof(ProfilePackagePayload.Workspace),
+            _ => null
+        };
+
+        if (slot == null)
+            return null;
+
+        JToken id = payloadJson[slot]?["Id"];
+        return id != null && Guid.TryParse(id.ToString(), out Guid parsed) ? parsed : null;
+    }
+
+    /// <summary>
+    /// Attaches the prepared payload to the config and persists it. UI thread.
+    /// </summary>
+    /// <remarks>
+    /// Saving here is not optional. <c>AssetService.Cleanup</c> is a mark-and-sweep over the whole
+    /// asset tree whose keep-set is built from the config files <i>on disk</i>, and it runs on
+    /// every save of every device. Between importing the assets and writing this config, the new
+    /// files are referenced by nothing on disk — another device saving in that window would delete
+    /// them and leave the imported item rendering blanks.
+    /// </remarks>
+    private ProfilePackageResult AttachPayload(ProfilePackageAnalysis analysis,
+        ProfilePackageImportOptions options, ProfilePackagePayload payload, List<string> warnings)
+    {
+        int touchCount = deviceService.TouchButtonCount;
+        int rotaryCount = deviceService.RotaryButtonCount;
+        int sideCount = pageManager.SideRotaryButtonCount;
+        string name = string.IsNullOrWhiteSpace(options.NewName) ? analysis.Manifest.Name : options.NewName.Trim();
+
+        EnablePlugins(analysis, options, warnings);
+
+        Guid? importedProfileId = null;
+        string what;
+
+        switch (analysis.Manifest.Kind)
+        {
+            case PackageKind.Profile:
+            {
+                Profile profile = payload.Profile;
+                profile.Name = name;
+                PortablePayloadNormalizer.Normalize(profile, touchCount, rotaryCount, sideCount);
+                importedProfileId = profile.Id;
+
+                Profile existing = options.Mode == PackageImportMode.Replace
+                    ? FindProfile(options.ReplaceTargetProfileId)
+                    : null;
+
+                if (existing != null)
+                {
+                    int index = config.Profiles.IndexOf(existing);
+                    bool wasActive = config.ActiveProfileId == existing.Id;
+
+                    config.Profiles.RemoveAt(index);
+                    config.Profiles.Insert(index, profile);
+
+                    if (wasActive)
+                        workspaceActivation.ActivateProfile(profile.Id);
+
+                    warnings.Add("Buttons in other profiles that jump to a specific workspace of the " +
+                                 "replaced profile may no longer resolve.");
+                }
+                else
+                {
+                    config.Profiles.Add(profile);
+                }
+
+                what = $"profile '{profile.Name}'";
+                break;
+            }
+
+            case PackageKind.Workspace:
+            {
+                Workspace workspace = payload.Workspace;
+                workspace.Name = name;
+                PortablePayloadNormalizer.Normalize(workspace, touchCount, rotaryCount, sideCount);
+
+                Profile owner = FindProfile(options.TargetProfileId) ?? config.ActiveProfile;
+                if (owner == null)
+                    return ProfilePackageResult.Fail("There is no profile to import the workspace into.", warnings);
+
+                Workspace existing = options.Mode == PackageImportMode.Replace
+                    ? owner.Workspaces.FirstOrDefault(w => w.Id == options.ReplaceTargetWorkspaceId)
+                    : null;
+
+                if (existing != null)
+                {
+                    int index = owner.Workspaces.IndexOf(existing);
+                    owner.Workspaces.RemoveAt(index);
+                    owner.Workspaces.Insert(index, workspace);
+                }
+                else
+                {
+                    owner.Workspaces.Add(workspace);
+                }
+
+                importedProfileId = owner.Id;
+                what = $"workspace '{workspace.Name}' into profile '{owner.Name}'";
+                break;
+            }
+
+            case PackageKind.TouchPage:
+            {
+                TouchButtonPage page = payload.TouchPage;
+                page.Name = name;
+                PortablePayloadNormalizer.Normalize(page, touchCount);
+
+                Workspace target = FindWorkspaceById(options.TargetWorkspaceId) ?? config.ActiveWorkspace;
+                if (target == null)
+                    return ProfilePackageResult.Fail("There is no workspace to import the page into.", warnings);
+
+                InsertOrReplace(target.TouchButtonPages, page, options);
+                what = $"touch page '{page.Name}' into workspace '{target.Name}'";
+                break;
+            }
+
+            case PackageKind.RotaryPage:
+            {
+                RotaryButtonPage page = payload.RotaryPage;
+                page.Name = name;
+
+                // On a device without side strips there is only the shared list, so a page bound to
+                // one column would otherwise land somewhere nothing ever displays.
+                if (!pageManager.HasIndependentRotarySides && page.Side != RotarySide.Both)
+                {
+                    page.Side = RotarySide.Both;
+                    warnings.Add("The page was bound to a single dial column; this device has none, " +
+                                 "so it was imported into the shared rotary pages.");
+                }
+
+                PortablePayloadNormalizer.Normalize(page, rotaryCount, sideCount);
+
+                Workspace target = FindWorkspaceById(options.TargetWorkspaceId) ?? config.ActiveWorkspace;
+                if (target == null)
+                    return ProfilePackageResult.Fail("There is no workspace to import the page into.", warnings);
+
+                InsertOrReplace(RotaryPagesOf(target, page.Side), page, options);
+                what = $"rotary page '{page.Name}' into workspace '{target.Name}'";
+                break;
+            }
+
+            default:
+                return ProfilePackageResult.Fail("Unsupported package content.", warnings);
+        }
+
+        controller.SaveConfig();
+
+        return ProfilePackageResult.Ok($"Imported {what}.", warnings, importedProfileId: importedProfileId);
+    }
+
+    private void EnablePlugins(ProfilePackageAnalysis analysis, ProfilePackageImportOptions options,
+        List<string> warnings)
+    {
+        if (!options.EnableRequiredPlugins)
+            return;
+
+        config.EnabledPlugins ??= [];
+        List<string> enabled = [];
+
+        foreach (PackagePluginStatus status in analysis.Plugins
+                     .Where(p => p.State == PackagePluginState.InstalledButDisabled))
+        {
+            config.EnabledPlugins.Add(status.Requirement.Id);
+            enabled.Add(status.Requirement.Name ?? status.Requirement.Id);
+        }
+
+        if (enabled.Count > 0)
+        {
+            warnings.Add("Enabled for this device (takes effect after a restart): " + string.Join(", ", enabled));
+        }
+    }
+
+    private static void InsertOrReplace<T>(IList<T> pages, T page, ProfilePackageImportOptions options)
+        where T : ButtonPageBase
+    {
+        if (options.Mode == PackageImportMode.Replace &&
+            options.ReplaceTargetPageIndex is { } index &&
+            index >= 0 && index < pages.Count)
+        {
+            pages.RemoveAt(index);
+            pages.Insert(index, page);
+        }
+        else
+        {
+            pages.Add(page);
+        }
+
+        for (int i = 0; i < pages.Count; i++)
+            pages[i].Page = i + 1;
+    }
+
+    private Profile FindProfile(Guid? id) =>
+        id.HasValue ? config.Profiles?.FirstOrDefault(p => p.Id == id.Value) : null;
+
+    private Workspace FindWorkspace(Guid? id) => FindWorkspaceById(id);
+
+    private Workspace FindWorkspaceById(Guid? id) =>
+        id.HasValue
+            ? config.Profiles?.SelectMany(p => p.Workspaces ?? []).FirstOrDefault(w => w.Id == id.Value)
+            : null;
+
+    private static IList<RotaryButtonPage> RotaryPagesOf(Workspace workspace, RotarySide side) => side switch
+    {
+        RotarySide.Left => workspace.LeftRotaryButtonPages,
+        RotarySide.Right => workspace.RightRotaryButtonPages,
+        _ => workspace.RotaryButtonPages
+    };
+
+    private TouchButtonPage TouchPageAt(ProfilePackageImportOptions options)
+    {
+        Workspace workspace = FindWorkspaceById(options.TargetWorkspaceId) ?? config.ActiveWorkspace;
+        int? index = options.ReplaceTargetPageIndex;
+
+        return workspace?.TouchButtonPages != null && index is >= 0 && index < workspace.TouchButtonPages.Count
+            ? workspace.TouchButtonPages[index.Value]
+            : null;
+    }
+
+    private RotaryButtonPage RotaryPageAt(ProfilePackageAnalysis analysis, ProfilePackageImportOptions options)
+    {
+        Workspace workspace = FindWorkspaceById(options.TargetWorkspaceId) ?? config.ActiveWorkspace;
+        if (workspace == null)
+            return null;
+
+        RotarySide side = analysis.Payload?.RotaryPage?.Side ?? RotarySide.Both;
+        IList<RotaryButtonPage> pages = RotaryPagesOf(workspace, side);
+        int? index = options.ReplaceTargetPageIndex;
+
+        return pages != null && index is >= 0 && index < pages.Count ? pages[index.Value] : null;
+    }
+
+    /// <summary>Strips characters that are not valid in a file name (a profile can be "OBS / Live").</summary>
+    private static string SafeFileName(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+            return "profile";
+
+        string cleaned = new(name.Select(c => Path.GetInvalidFileNameChars().Contains(c) ? '_' : c).ToArray());
+        return cleaned.Trim();
     }
 
     /// <summary>

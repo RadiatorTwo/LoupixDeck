@@ -34,6 +34,13 @@ public interface IProfilePackageService
     Task<ProfilePackageAnalysis> InspectAsync(string packagePath);
 
     /// <summary>
+    /// Commits an inspected package into this device's configuration according to
+    /// <paramref name="options"/>, then persists the config. Consumes the analysis: its staging
+    /// folder is gone afterwards either way.
+    /// </summary>
+    Task<ProfilePackageResult> ImportAsync(ProfilePackageAnalysis analysis, ProfilePackageImportOptions options);
+
+    /// <summary>
     /// Throws away the staging folder of an analysis the user cancelled. Safe to call twice.
     /// </summary>
     void DiscardAnalysis(ProfilePackageAnalysis analysis);
