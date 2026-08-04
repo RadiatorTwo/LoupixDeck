@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using LoupixDeck.PluginSdk;
 using LoupixDeck.Registry;
 using Microsoft.Extensions.DependencyInjection;
@@ -60,6 +61,13 @@ public class PluginManager : IPluginManager
     // reference, so readers (e.g. PluginCommandProvider during a registry rebuild)
     // always see a consistent, immutable list — never a torn mid-mutation state.
     private volatile IReadOnlyList<LoadedPlugin> _plugins = Array.Empty<LoadedPlugin>();
+
+    // Full-display render sessions (issue #124) handed out per plugin id. Purely a teardown safety
+    // net: a well-behaved plugin releases its session in Shutdown, but if it doesn't, the renderer
+    // would keep being ticked by the scheduler after its collectible load context is unloaded.
+    // Releasing is idempotent, so force-releasing an already-released session is a no-op.
+    private readonly ConcurrentDictionary<string, List<IFullDisplayRenderSession>> _fullDisplaySessions =
+        new(StringComparer.OrdinalIgnoreCase);
 
     public PluginManager(IDeviceRouter router, IDeviceHostRegistry hostRegistry)
     {
@@ -243,6 +251,10 @@ public class PluginManager : IPluginManager
             try { plugin.Instance?.Shutdown(); }
             catch (Exception ex) { Console.WriteLine($"PluginManager: '{pluginId}' Shutdown threw: {ex.Message}"); }
         }
+
+        // Safety net after Shutdown had its chance: never leave a renderer of an unloaded plugin
+        // registered with the animation scheduler (issue #124).
+        ReleaseFullDisplaySessions(pluginId);
 
         ReplacePlugins(list =>
             list.RemoveAll(p => string.Equals(p.Manifest?.Id, pluginId, StringComparison.OrdinalIgnoreCase)));
@@ -462,6 +474,12 @@ public class PluginManager : IPluginManager
             try
             {
                 var target = ResolveEnablingDevice(manifest.Id);
+                // Mutual exclusion with the raw full-display renderer path (issue #124): both take
+                // the whole display, so whoever owns it first wins. The reverse guard (full-display
+                // rejected while exclusive mode is active) lives in FullDisplayRenderService.
+                if (target.GetRequiredService<IFullDisplayRenderService>().IsActive)
+                    return false;
+
                 if (target.GetRequiredService<IExclusiveModeService>().TryEnter(provider))
                 {
                     exclusiveTarget = target;
@@ -494,6 +512,27 @@ public class PluginManager : IPluginManager
         {
             try { return (exclusiveTarget ?? Device).GetRequiredService<IExclusiveModeService>().IsActive; }
             catch { return false; }
+        }
+
+        IFullDisplayRenderSession RequestFullDisplayRenderer(IFullDisplayRenderer renderer)
+        {
+            try
+            {
+                // Hit the device that ENABLED this plugin (same reasoning as RequestExclusiveMode:
+                // a plugin's own worker thread has no ambient device). The session handle routes
+                // its own Release back to the owning service, so no pinned target is needed — but
+                // we do track it per plugin id so unload/shutdown can force-release it.
+                var target = ResolveEnablingDevice(manifest.Id);
+                var session = target.GetRequiredService<IFullDisplayRenderService>().TryEnter(renderer);
+                if (session != null)
+                    TrackFullDisplaySession(manifest.Id, session);
+                return session;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"PluginHost[{manifest.Id}]: RequestFullDisplayRenderer failed: {ex.Message}");
+                return null;
+            }
         }
 
         IReadOnlyList<string> GetButtonStates(string commandName)
@@ -529,7 +568,49 @@ public class PluginManager : IPluginManager
         return new PluginHost(logger, settings, device, ExecuteCommand, RequestButtonRefresh,
             OpenFolder, OverlayTouchText, GetTouchSlotForRotary,
             RequestExclusiveMode, ReleaseExclusiveMode, IsInExclusiveMode,
+            RequestFullDisplayRenderer,
             GetButtonStates, GetActiveButtonState, SetActiveButtonState);
+    }
+
+    /// <summary>Remembers a full-display session handed to a plugin, pruning released ones.</summary>
+    private void TrackFullDisplaySession(string pluginId, IFullDisplayRenderSession session)
+    {
+        if (string.IsNullOrWhiteSpace(pluginId) || session == null)
+            return;
+
+        List<IFullDisplayRenderSession> sessions = _fullDisplaySessions.GetOrAdd(pluginId, _ => []);
+        lock (sessions)
+        {
+            sessions.RemoveAll(s => s == null || !s.IsActive);
+            sessions.Add(session);
+        }
+    }
+
+    /// <summary>
+    /// Force-releases every full-display session (issue #124) still held by a plugin. Called after
+    /// the plugin's own <see cref="LoupixPlugin.Shutdown"/> so a well-behaved plugin releases first
+    /// and this is a no-op; it only matters when the plugin didn't, since a renderer left registered
+    /// with the scheduler would be ticked inside an unloaded load context.
+    /// </summary>
+    private void ReleaseFullDisplaySessions(string pluginId)
+    {
+        if (string.IsNullOrWhiteSpace(pluginId) || !_fullDisplaySessions.TryRemove(pluginId, out var sessions))
+            return;
+
+        lock (sessions)
+        {
+            foreach (IFullDisplayRenderSession session in sessions)
+            {
+                try { session?.Release(); }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(
+                        $"PluginManager: '{pluginId}' full-display session release threw: {ex.Message}");
+                }
+            }
+
+            sessions.Clear();
+        }
     }
 
     public void ShutdownAll()
@@ -544,6 +625,9 @@ public class PluginManager : IPluginManager
             {
                 Console.WriteLine($"PluginManager: '{plugin.Manifest?.Id}' Shutdown threw: {ex.Message}");
             }
+
+            // Same safety net as UnloadPlugin — see ReleaseFullDisplaySessions.
+            ReleaseFullDisplaySessions(plugin.Manifest?.Id);
 
             try
             {

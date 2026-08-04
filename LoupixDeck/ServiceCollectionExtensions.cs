@@ -275,6 +275,11 @@ public static class ServiceCollectionExtensions
 
         collection.AddSingleton<IFolderNavigationService, FolderNavigationService>();
         collection.AddSingleton<IExclusiveModeService, ExclusiveModeService>();
+
+        // Plugin full-display raw-BGRA renderer (issue #124): single-owner, drives a plugin
+        // IFullDisplayRenderer on the central scheduler for high-throughput full-screen content
+        // (e.g. video streaming) that Exclusive Mode's per-slot PNG tiles can't sustain.
+        collection.AddSingleton<IFullDisplayRenderService, FullDisplayRenderService>();
         collection.AddSingleton<INativeHapticService, NativeHapticService>();
         collection.AddSingleton<IAppSwitchingService, AppSwitchingService>();
 
