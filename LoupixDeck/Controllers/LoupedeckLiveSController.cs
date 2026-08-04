@@ -107,6 +107,10 @@ public partial class LoupedeckLiveSController(
         // Disarm the screensaver while the device is manually off (don't run a video
         // against a blanked, brightness-0 display). RestoreDeviceState re-arms it.
         try { screensaver.Stop(); } catch { /* best effort */ }
+        // A plugin full-display takeover (issue #124) is only paused, not released: the device
+        // going off is a temporary state and the plugin keeps its producer warm, so the stream
+        // resumes on RestoreDeviceState without the plugin having to re-enter.
+        try { fullDisplay.SetPaused(true); } catch { /* best effort */ }
         // Stop any plugin-strip providers so their timers don't churn while off.
         DetachAllSideStripProviders();
         try
@@ -150,6 +154,16 @@ public partial class LoupedeckLiveSController(
                     await device.SetButtonColor(btn.Id, btn.ButtonColor);
                 }
             }
+            // A paused full-display takeover (issue #124) still owns the display: resume its frames
+            // instead of repainting the page over them. The screensaver stays disarmed while a
+            // plugin owns the display, so there is nothing to re-arm here either.
+            if (_fullDisplayActive)
+            {
+                try { fullDisplay.SetPaused(false); } catch { /* best effort */ }
+                nativeHapticService.Apply();
+                return;
+            }
+
             if (config.CurrentTouchButtonPage?.TouchButtons != null)
             {
                 foreach (var tb in config.CurrentTouchButtonPage.TouchButtons)
@@ -189,6 +203,10 @@ public partial class LoupedeckLiveSController(
             screensaver.Stop();
         }
         catch { /* best effort */ }
+
+        // Release any plugin full-display takeover (issue #124) so the plugin's OnStop runs and its
+        // source leaves the scheduler before the animation loop is halted.
+        try { fullDisplay.StopActive(); } catch { /* best effort */ }
 
         // Detach the transition sources before halting the loop.
         try { UnregisterStripAnimationSource(); } catch { /* best effort */ }
