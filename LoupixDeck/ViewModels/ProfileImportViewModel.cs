@@ -154,6 +154,21 @@ public sealed partial class ProfileImportViewModel : DialogViewModelBase<DialogR
 
     public IAsyncRelayCommand ImportCommand => field ??= Relay.Create(ImportAsync, () => CanImport);
 
+    /// <summary>
+    /// <see cref="ImportCommand"/> is a hand-rolled command, so its CanExecute is only re-evaluated
+    /// when it is explicitly told to. Raising <see cref="CanImport"/> alone would leave the button
+    /// stuck on the very first evaluation — made while the package was still being inspected and
+    /// nothing was importable yet. Hooking the notification here covers every source at once: the
+    /// generated [NotifyPropertyChangedFor] setters, the analysis result, and the macro rows.
+    /// </summary>
+    protected override void OnPropertyChanged(System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        base.OnPropertyChanged(e);
+
+        if (e.PropertyName == nameof(CanImport))
+            ImportCommand.NotifyCanExecuteChanged();
+    }
+
     public IRelayCommand CancelCommand => field ??= Relay.Create(() =>
     {
         DiscardAnalysis();
