@@ -23,6 +23,7 @@ public sealed class ProfilePackageService(
     ICommandRegistry commandRegistry,
     IDeviceService deviceService,
     IPageManager pageManager,
+    LoupedeckConfig config,
     DeviceRegistry.DeviceInfo deviceInfo) : IProfilePackageService
 {
     /// <summary>
@@ -145,6 +146,334 @@ public sealed class ProfilePackageService(
         {
             TryDeleteDirectory(stage);
         }
+    }
+
+    // ─────────────────────────────── Inspection ───────────────────────────────
+
+    public async Task<ProfilePackageAnalysis> InspectAsync(string packagePath)
+    {
+        if (string.IsNullOrWhiteSpace(packagePath) || !File.Exists(packagePath))
+            return ProfilePackageAnalysis.Blocked(packagePath, "The selected file does not exist.");
+
+        string stage = Path.Combine(Path.GetTempPath(), "loupixdeck_profile_" + Guid.NewGuid().ToString("N"));
+
+        try
+        {
+            await Task.Run(() => ExtractPackage(packagePath, stage));
+        }
+        catch (Exception ex)
+        {
+            TryDeleteDirectory(stage);
+            return ProfilePackageAnalysis.Blocked(packagePath, $"Could not read the package: {ex.Message}");
+        }
+
+        try
+        {
+            return await Task.Run(() => AnalyzeStagedPackage(packagePath, stage));
+        }
+        catch (Exception ex)
+        {
+            TryDeleteDirectory(stage);
+            return ProfilePackageAnalysis.Blocked(packagePath, $"Could not read the package: {ex.Message}");
+        }
+    }
+
+    public void DiscardAnalysis(ProfilePackageAnalysis analysis)
+    {
+        if (!string.IsNullOrEmpty(analysis?.StageDirectory))
+            TryDeleteDirectory(analysis.StageDirectory);
+    }
+
+    /// <summary>
+    /// Extracts the package entry by entry, refusing any entry that would land outside
+    /// <paramref name="stage"/>. A package is untrusted input downloaded from the internet, unlike
+    /// a config file, so the zip-slip check is made explicitly rather than relying on the runtime.
+    /// </summary>
+    private static void ExtractPackage(string packagePath, string stage)
+    {
+        Directory.CreateDirectory(stage);
+        string stageRoot = Path.GetFullPath(stage) + Path.DirectorySeparatorChar;
+
+        using ZipArchive archive = ZipFile.OpenRead(packagePath);
+
+        foreach (ZipArchiveEntry entry in archive.Entries)
+        {
+            // Directory entries have an empty name; their path is created with the files.
+            if (string.IsNullOrEmpty(entry.Name))
+                continue;
+
+            string destination = Path.GetFullPath(Path.Combine(stage, entry.FullName));
+            if (!destination.StartsWith(stageRoot, StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException($"The package contains an unsafe path: {entry.FullName}");
+
+            Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+            entry.ExtractToFile(destination, overwrite: true);
+        }
+    }
+
+    private ProfilePackageAnalysis AnalyzeStagedPackage(string packagePath, string stage)
+    {
+        string manifestPath = Path.Combine(stage, ProfilePackageFiles.Manifest);
+        if (!File.Exists(manifestPath))
+        {
+            TryDeleteDirectory(stage);
+            return ProfilePackageAnalysis.Blocked(packagePath,
+                $"The package has no {ProfilePackageFiles.Manifest}.");
+        }
+
+        // Read the envelope version before deserializing anything: a package from a newer build
+        // may well contain fields and a payload shape this build would misread.
+        JObject manifestJson = JObject.Parse(File.ReadAllText(manifestPath));
+        int formatVersion = manifestJson.Value<int?>(nameof(ProfilePackageManifest.FormatVersion))
+                            ?? manifestJson.Value<int?>("formatVersion")
+                            ?? 0;
+
+        if (formatVersion > ProfilePackageManifest.CurrentFormatVersion)
+        {
+            TryDeleteDirectory(stage);
+            return ProfilePackageAnalysis.Blocked(packagePath,
+                $"This package was created by a newer version of LoupixDeck (package format v{formatVersion}, " +
+                $"this build understands v{ProfilePackageManifest.CurrentFormatVersion}). Update LoupixDeck to import it.");
+        }
+
+        ProfilePackageManifest manifest = manifestJson.ToObject<ProfilePackageManifest>();
+        if (manifest == null)
+        {
+            TryDeleteDirectory(stage);
+            return ProfilePackageAnalysis.Blocked(packagePath, "The package manifest is unreadable.");
+        }
+
+        string payloadPath = Path.Combine(stage,
+            string.IsNullOrWhiteSpace(manifest.PayloadFile) ? ProfilePackageFiles.Payload : manifest.PayloadFile);
+
+        if (!File.Exists(payloadPath))
+        {
+            TryDeleteDirectory(stage);
+            return ProfilePackageAnalysis.Blocked(packagePath, "The package has no payload.", manifest);
+        }
+
+        JObject payloadJson = JObject.Parse(File.ReadAllText(payloadPath));
+
+        // Walk the envelope migration chain. Empty at v1; the loop exists so v2 is additive.
+        List<IPackageMigration> applicable = _migrations
+            .Where(m => m.FromVersion >= formatVersion)
+            .OrderBy(m => m.FromVersion)
+            .ToList();
+
+        foreach (IPackageMigration migration in applicable)
+            migration.Apply(manifestJson, payloadJson);
+
+        if (applicable.Count > 0)
+        {
+            // Persist the upgraded documents so the payload is loaded through the very same
+            // IConfigService round-trip an un-migrated package takes.
+            manifest = manifestJson.ToObject<ProfilePackageManifest>() ?? manifest;
+            File.WriteAllText(payloadPath, payloadJson.ToString());
+        }
+
+        List<string> warnings = [];
+
+        if (manifest.ConfigSchemaVersion > LoupedeckConfig.CurrentVersion)
+        {
+            TryDeleteDirectory(stage);
+            return ProfilePackageAnalysis.Blocked(packagePath,
+                $"This package uses a newer configuration schema (v{manifest.ConfigSchemaVersion}) than this " +
+                $"build supports (v{LoupedeckConfig.CurrentVersion}). Update LoupixDeck to import it.", manifest);
+        }
+
+        if (manifest.ConfigSchemaVersion > 0 && manifest.ConfigSchemaVersion < LoupedeckConfig.CurrentVersion)
+        {
+            // Every field added since is additive with a working default, so this is safe — but the
+            // config migration chain works on a whole config root and cannot run on a subtree, so
+            // the newer settings simply fall back to their defaults.
+            warnings.Add($"Created with an older configuration schema (v{manifest.ConfigSchemaVersion} vs " +
+                         $"v{LoupedeckConfig.CurrentVersion}); settings added since will use their defaults.");
+        }
+
+        // Deserialize through IConfigService so the payload goes through exactly the converter set
+        // it was written with (the polymorphic layer converter above all). A parse failure there
+        // moves the file aside and yields null — harmless inside the staging folder, but it means
+        // "corrupt package", never "empty package".
+        ProfilePackagePayload payload = configService.LoadConfig<ProfilePackagePayload>(payloadPath);
+
+        if (payload == null)
+        {
+            TryDeleteDirectory(stage);
+            return ProfilePackageAnalysis.Blocked(packagePath, "The package payload is corrupt.", manifest);
+        }
+
+        if (PayloadItem(manifest.Kind, payload) == null)
+        {
+            TryDeleteDirectory(stage);
+            return ProfilePackageAnalysis.Blocked(packagePath,
+                $"The package claims to contain a {manifest.Kind} but its payload is empty.", manifest);
+        }
+
+        (bool mismatch, string mismatchMessage, int surplus, bool sideStripData) = ClassifyDevice(manifest, payloadJson);
+        List<PackagePluginStatus> plugins = ClassifyPlugins(manifest);
+        List<string> unknownCommands = ClassifyCommands(manifest, payloadJson);
+        List<PackageMacroStatus> macros = ClassifyMacros(stage);
+
+        return new ProfilePackageAnalysis
+        {
+            PackagePath = packagePath,
+            StageDirectory = stage,
+            Manifest = manifest,
+            Payload = payload,
+            IsImportable = true,
+            DeviceMismatch = mismatch,
+            DeviceMismatchMessage = mismatchMessage,
+            SurplusTouchButtons = surplus,
+            SideStripDataOnNonStripDevice = sideStripData,
+            Plugins = plugins,
+            UnknownCommands = unknownCommands,
+            Macros = macros,
+            Warnings = warnings
+        };
+    }
+
+    /// <summary>Returns the populated payload slot for a kind, or null when it is empty.</summary>
+    private static object PayloadItem(PackageKind kind, ProfilePackagePayload payload) => kind switch
+    {
+        PackageKind.Profile => payload.Profile,
+        PackageKind.Workspace => payload.Workspace,
+        PackageKind.TouchPage => payload.TouchPage,
+        PackageKind.RotaryPage => payload.RotaryPage,
+        _ => null
+    };
+
+    private (bool Mismatch, string Message, int Surplus, bool SideStripData) ClassifyDevice(
+        ProfilePackageManifest manifest, JObject payloadJson)
+    {
+        bool sameDevice = string.Equals(manifest.SourceDeviceSlug, deviceInfo?.Slug, StringComparison.OrdinalIgnoreCase);
+        int surplus = Math.Max(0, manifest.SourceTouchButtonCount - deviceService.TouchButtonCount);
+        bool sideStripData = manifest.SourceHasSideStrips && !pageManager.HasIndependentRotarySides &&
+                             HasSideSpecificRotaryPages(payloadJson);
+
+        if (sameDevice && surplus == 0 && !sideStripData)
+            return (false, null, 0, false);
+
+        List<string> parts = [];
+
+        if (!sameDevice)
+        {
+            parts.Add($"Exported from {manifest.SourceDeviceName ?? manifest.SourceDeviceSlug ?? "an unknown device"}; " +
+                      $"this device is a {deviceInfo?.Name ?? "different model"}.");
+        }
+
+        if (surplus > 0)
+        {
+            parts.Add($"{surplus} touch key(s) per page have no key on this device. They are kept in the " +
+                      "configuration but are not shown, and reappear if you export back to the original device.");
+        }
+
+        if (sideStripData)
+        {
+            parts.Add("The package pages its dial columns independently (side strips); this device does not, " +
+                      "so those pages are imported into the shared rotary page list.");
+        }
+
+        // Not a blocker on purpose: Live and Live S share most layouts, and a surplus page simply
+        // carries buttons this device cannot show.
+        return (parts.Count > 0, string.Join(" ", parts), surplus, sideStripData);
+    }
+
+    /// <summary>True when the payload contains a rotary page bound to a single side.</summary>
+    private static bool HasSideSpecificRotaryPages(JObject payloadJson)
+    {
+        return payloadJson.DescendantsAndSelf()
+            .OfType<JProperty>()
+            .Any(p => string.Equals(p.Name, "Side", StringComparison.OrdinalIgnoreCase) &&
+                      p.Value is JValue { Type: JTokenType.String } v &&
+                      !string.Equals((string)v.Value, nameof(RotarySide.Both), StringComparison.OrdinalIgnoreCase));
+    }
+
+    private List<PackagePluginStatus> ClassifyPlugins(ProfilePackageManifest manifest)
+    {
+        List<PackagePluginStatus> result = [];
+
+        foreach (ProfilePackagePluginRequirement requirement in manifest.RequiredPlugins ?? [])
+        {
+            if (string.IsNullOrWhiteSpace(requirement?.Id))
+                continue;
+
+            LoadedPlugin installed = pluginManager.Plugins.FirstOrDefault(p =>
+                string.Equals(p?.Manifest?.Id, requirement.Id, StringComparison.OrdinalIgnoreCase));
+
+            PackagePluginState state;
+            if (installed == null)
+                state = PackagePluginState.Missing;
+            else if (config.EnabledPlugins?.Any(id =>
+                         string.Equals(id, requirement.Id, StringComparison.OrdinalIgnoreCase)) == true)
+                state = PackagePluginState.Installed;
+            else
+                state = PackagePluginState.InstalledButDisabled;
+
+            result.Add(new PackagePluginStatus
+            {
+                Requirement = requirement,
+                State = state,
+                InstalledVersion = installed?.Manifest?.Version
+            });
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Command names the package references that resolve to nothing here. Names owned by a plugin
+    /// listed as missing/disabled are left out — the plugin section already explains those, and
+    /// repeating them as "unknown" would double-report the same cause.
+    /// </summary>
+    private List<string> ClassifyCommands(ProfilePackageManifest manifest, JObject payloadJson)
+    {
+        IEnumerable<string> names = manifest.ReferencedCommands is { Count: > 0 }
+            ? manifest.ReferencedCommands
+            : PortableCommandScanner.CollectCommandNames(payloadJson);
+
+        HashSet<string> pluginOwned = new(StringComparer.Ordinal);
+        foreach (LoadedPlugin plugin in pluginManager.Plugins)
+        {
+            foreach (PluginSdk.IPluginCommand command in plugin?.Commands ?? [])
+            {
+                if (command?.Descriptor?.CommandName != null)
+                    pluginOwned.Add(command.Descriptor.CommandName);
+            }
+        }
+
+        return names
+            .Where(name => !string.IsNullOrWhiteSpace(name))
+            .Where(name => !commandRegistry.Contains(name) && !pluginOwned.Contains(name))
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(name => name, StringComparer.Ordinal)
+            .ToList();
+    }
+
+    private List<PackageMacroStatus> ClassifyMacros(string stage)
+    {
+        string macroPath = Path.Combine(stage, ProfilePackageFiles.Macros);
+        if (!File.Exists(macroPath))
+            return [];
+
+        List<PackageMacroStatus> result = [];
+
+        foreach (Macro incoming in macroManager.DeserializeSubset(File.ReadAllText(macroPath)))
+        {
+            Macro existing = macroManager.Get(incoming.Name);
+
+            PackageMacroState state;
+            if (existing == null)
+                state = PackageMacroState.New;
+            else if (string.Equals(macroManager.SerializeSubset([existing]),
+                         macroManager.SerializeSubset([incoming]), StringComparison.Ordinal))
+                state = PackageMacroState.Identical;
+            else
+                state = PackageMacroState.Conflicting;
+
+            result.Add(new PackageMacroStatus { Name = incoming.Name, State = state });
+        }
+
+        return result;
     }
 
     /// <summary>

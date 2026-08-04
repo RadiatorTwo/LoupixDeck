@@ -24,4 +24,17 @@ public interface IProfilePackageService
 
     /// <summary>Writes a single rotary page to <paramref name="targetPath"/>.</summary>
     Task<ProfilePackageResult> ExportRotaryPageAsync(RotaryButtonPage page, string targetPath, string description = null);
+
+    /// <summary>
+    /// Extracts a package into an isolated staging folder and reports everything the import
+    /// preview needs. Touches neither the asset store, nor macros.json, nor the config — nothing
+    /// is committed until the returned analysis is handed to the import.
+    /// Always returns an analysis; check <see cref="ProfilePackageAnalysis.IsImportable"/>.
+    /// </summary>
+    Task<ProfilePackageAnalysis> InspectAsync(string packagePath);
+
+    /// <summary>
+    /// Throws away the staging folder of an analysis the user cancelled. Safe to call twice.
+    /// </summary>
+    void DiscardAnalysis(ProfilePackageAnalysis analysis);
 }
