@@ -276,6 +276,10 @@ public static class ServiceCollectionExtensions
         collection.AddSingleton<IFolderNavigationService, FolderNavigationService>();
         collection.AddSingleton<IExclusiveModeService, ExclusiveModeService>();
 
+        // Portable .loupixprofile packages (issue #133): export/import of a profile,
+        // workspace or page. Device-scoped — it needs this device's config and geometry.
+        collection.AddSingleton<Services.Portable.IProfilePackageService, Services.Portable.ProfilePackageService>();
+
         // Plugin full-display raw-BGRA renderer (issue #124): single-owner, drives a plugin
         // IFullDisplayRenderer on the central scheduler for high-throughput full-screen content
         // (e.g. video streaming) that Exclusive Mode's per-slot PNG tiles can't sustain.
@@ -351,6 +355,9 @@ public static class ServiceCollectionExtensions
         collection.AddTransient<ConfirmDialog>();
         collection.AddTransient<ConfirmDialogViewModel>();
 
+        collection.AddTransient<ProfileImport>();
+        collection.AddTransient<ProfileImportViewModel>();
+
         collection.AddSingleton<IDialogService, DialogService>();
     }
 
@@ -389,6 +396,7 @@ public static class ServiceCollectionExtensions
         dialogService.Register<MacroEditorViewModel, MacroEditor>();
         dialogService.Register<AboutViewModel, About>();
         dialogService.Register<ConfirmDialogViewModel, ConfirmDialog>();
+        dialogService.Register<ProfileImportViewModel, ProfileImport>();
 
         // Heal configs that were saved before HapticSteps had ObjectCreationHandling.Replace —
         // those files accumulated duplicate steps on every save+load round.

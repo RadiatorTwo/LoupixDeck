@@ -8,6 +8,7 @@ using LoupixDeck.Models;
 using LoupixDeck.Models.Converter;
 using LoupixDeck.Services;
 using LoupixDeck.Services.Plugins;
+using LoupixDeck.Services.Portable;
 using LoupixDeck.Utils;
 using LoupixDeck.ViewModels.Base;
 
@@ -24,6 +25,7 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
     private readonly IPluginManager _pluginManager;
     private readonly IAutostartService _autostart;
     private readonly IWorkspaceActivationService _activation;
+    private readonly IProfilePackageService _packageService;
 
     /// <summary>
     /// All discovered plugins — drives the Plugins settings page. Read live from the
@@ -115,7 +117,8 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
         IPluginReloadService pluginReload,
         IInterceptionService interceptionService,
         IAutostartService autostart,
-        IWorkspaceActivationService activation)
+        IWorkspaceActivationService activation,
+        IProfilePackageService packageService)
     {
         Config = config;
         _deviceService = deviceService;
@@ -126,6 +129,7 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
         _pluginManager = pluginManager;
         _autostart = autostart;
         _activation = activation;
+        _packageService = packageService;
 
         // Commands are created lazily on first access by their `field ??= Relay.Create(...)`
         // getters, so there is nothing to wire up here.
@@ -138,8 +142,7 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
         BindPageCollections();
 
         // Build the Profiles tree editor rows from the config.
-        foreach (var profile in Config.Profiles)
-            ProfileRows.Add(new ProfileRow(profile, this));
+        BuildProfileRows();
 
         _activation.ActiveProfileChanged += _ => OnActiveWorkspaceChangedForEditor();
         _activation.ActiveWorkspaceChanged += _ => OnActiveWorkspaceChangedForEditor();
@@ -455,6 +458,16 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
     /// <c>Config.Profiles</c> in the Add/Remove commands (the only mutation paths).</summary>
     public ObservableCollection<ProfileRow> ProfileRows { get; } = new();
 
+    /// <summary>(Re)builds the tree rows from <c>Config.Profiles</c>. Used at construction and
+    /// after an import, which writes into the profile collection from outside this editor.</summary>
+    private void BuildProfileRows()
+    {
+        ProfileRows.Clear();
+
+        foreach (Profile profile in Config.Profiles)
+            ProfileRows.Add(new ProfileRow(profile, this));
+    }
+
     public IRelayCommand AddProfileCommand => field ??= Relay.Create(AddProfile);
     public IAsyncRelayCommand RemoveProfileCommand => field ??= Relay.Create<ProfileRow>(
         RemoveProfile, p => p != null && Config.Profiles.Count > 1);
@@ -467,6 +480,80 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
         RemoveWorkspace, p => p != null && p.Parent.Profile.Workspaces.Count > 1);
     public IRelayCommand SetHomeWorkspaceCommand => field ??= Relay.Create<WorkspaceRow>(SetHomeWorkspace, p => p != null);
     public IAsyncRelayCommand ActivateWorkspaceCommand => field ??= Relay.Create<WorkspaceRow>(ActivateWorkspace, p => p != null);
+
+    // ───────── Portable profile packages (issue #133) ─────────
+
+    /// <summary>Result of the last export/import, shown under the Profiles pane header.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasPackageStatus))]
+    public partial string PackageStatusMessage { get; set; } = string.Empty;
+
+    public bool HasPackageStatus => !string.IsNullOrWhiteSpace(PackageStatusMessage);
+
+    public IAsyncRelayCommand ExportProfileCommand => field ??= Relay.Create<ProfileRow>(
+        row => ExportPackage(row.Profile.Name,
+            path => _packageService.ExportProfileAsync(row.Profile, path)),
+        static row => row != null);
+
+    public IAsyncRelayCommand ExportWorkspaceCommand => field ??= Relay.Create<WorkspaceRow>(
+        row => ExportPackage(row.Workspace.Name,
+            path => _packageService.ExportWorkspaceAsync(row.Workspace, path)),
+        static row => row != null);
+
+    public IAsyncRelayCommand ExportTouchPageCommand => field ??= Relay.Create<TouchButtonPage>(
+        page => ExportPackage(page.PageName, path => _packageService.ExportTouchPageAsync(page, path)),
+        static page => page != null);
+
+    public IAsyncRelayCommand ExportRotaryPageCommand => field ??= Relay.Create<RotaryButtonPage>(
+        page => ExportPackage(page.PageName, path => _packageService.ExportRotaryPageAsync(page, path)),
+        static page => page != null);
+
+    public IAsyncRelayCommand ImportPackageCommand => field ??= Relay.Create(ImportPackage);
+
+    private async Task ExportPackage(string itemName, Func<string, Task<ProfilePackageResult>> export)
+    {
+        string target = await FileDialogHelper.SaveProfilePackageDialog(
+            WindowHelper.GetActiveWindow(), FileDialogHelper.SuggestPackageFileName(itemName));
+
+        if (string.IsNullOrEmpty(target))
+            return;
+
+        ProfilePackageResult result = await export(target);
+        ReportPackageResult(result);
+    }
+
+    private async Task ImportPackage()
+    {
+        string source = await FileDialogHelper.OpenProfilePackageDialog(WindowHelper.GetActiveWindow());
+        if (string.IsNullOrEmpty(source))
+            return;
+
+        ProfileImportViewModel importViewModel = null;
+
+        DialogResult dialogResult = await _dialogService.ShowDialogAsync<ProfileImportViewModel, DialogResult>(vm =>
+        {
+            importViewModel = vm;
+            vm.Configure(source);
+        });
+
+        if (dialogResult?.IsConfirmed != true || importViewModel?.Result == null)
+            return;
+
+        ReportPackageResult(importViewModel.Result);
+
+        // The import writes straight into Config.Profiles, so the tree editor has to be rebuilt.
+        if (importViewModel.Result.Success)
+            BuildProfileRows();
+    }
+
+    private void ReportPackageResult(ProfilePackageResult result)
+    {
+        if (result == null) return;
+
+        List<string> parts = [result.Message];
+        parts.AddRange(result.Warnings);
+        PackageStatusMessage = string.Join(Environment.NewLine, parts);
+    }
 
     private void AddProfile()
     {
