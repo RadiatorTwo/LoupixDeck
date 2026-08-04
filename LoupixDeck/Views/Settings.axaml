@@ -249,8 +249,16 @@
                     <TextBlock Classes="page-title" Text="Profiles" />
                     <TextBlock Classes="hint"
                                Text="Profiles group workspaces for an app or scenario. Each profile opens on its Home workspace. Activating a workspace switches what the device shows and edits its pages under Pages." />
-                    <Button Content="+ Add Profile" HorizontalAlignment="Left" Margin="0,12,0,0"
-                            Command="{Binding AddProfileCommand}" />
+                    <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Left" Margin="0,12,0,0">
+                        <Button Content="+ Add Profile" Command="{Binding AddProfileCommand}" />
+                        <Button Content="Import Package…" ToolTip.Tip="Import a .loupixprofile package"
+                                Command="{Binding ImportPackageCommand}" />
+                    </StackPanel>
+
+                    <!-- Result of the last export/import, including any non-fatal notes. -->
+                    <Border Classes="card" Margin="0,12,0,0" IsVisible="{Binding HasPackageStatus}">
+                        <TextBlock Text="{Binding PackageStatusMessage}" TextWrapping="Wrap" />
+                    </Border>
 
                     <ItemsControl ItemsSource="{Binding ProfileRows}" Margin="0,12,0,0">
                         <ItemsControl.ItemTemplate>
@@ -265,6 +273,8 @@
                                                         Command="{Binding $parent[Window].DataContext.ActivateProfileCommand}" CommandParameter="{Binding}" />
                                                 <Button Content="Set Default" ToolTip.Tip="Open this profile at launch"
                                                         Command="{Binding $parent[Window].DataContext.SetStartupProfileCommand}" CommandParameter="{Binding}" />
+                                                <Button Content="Export" ToolTip.Tip="Export this profile as a .loupixprofile package"
+                                                        Command="{Binding $parent[Window].DataContext.ExportProfileCommand}" CommandParameter="{Binding}" />
                                                 <Button Classes="row-action danger" Content="✕" ToolTip.Tip="Delete profile"
                                                         Command="{Binding $parent[Window].DataContext.RemoveProfileCommand}" CommandParameter="{Binding}" />
                                             </StackPanel>
@@ -296,6 +306,8 @@
                                                                                     Command="{Binding $parent[Window].DataContext.ActivateWorkspaceCommand}" CommandParameter="{Binding}" />
                                                                             <Button Content="Set Home" ToolTip.Tip="Make this the profile's Home workspace"
                                                                                     Command="{Binding $parent[Window].DataContext.SetHomeWorkspaceCommand}" CommandParameter="{Binding}" />
+                                                                            <Button Content="Export" ToolTip.Tip="Export this workspace as a .loupixprofile package"
+                                                                                    Command="{Binding $parent[Window].DataContext.ExportWorkspaceCommand}" CommandParameter="{Binding}" />
                                                                             <Button Classes="row-action danger" Content="✕" ToolTip.Tip="Delete workspace"
                                                                                     Command="{Binding $parent[Window].DataContext.RemoveWorkspaceCommand}" CommandParameter="{Binding}" />
                                                                         </StackPanel>
@@ -333,7 +345,7 @@
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate DataType="m:TouchButtonPage">
                                             <Border Background="{DynamicResource AppSurfaceAlt}" CornerRadius="4" Padding="8" Margin="0,0,0,6">
-                                                <Grid ColumnDefinitions="80,*,Auto,Auto,Auto,Auto,Auto">
+                                                <Grid ColumnDefinitions="80,*,Auto,Auto,Auto,Auto,Auto,Auto">
                                                     <Border Grid.Column="0" BorderBrush="{DynamicResource AppBorderSubtle}" BorderThickness="1" CornerRadius="3" Height="40">
                                                         <Image Source="{Binding Wallpaper, Converter={StaticResource SkiaToBitmapConverter}}" Stretch="UniformToFill" />
                                                     </Border>
@@ -354,7 +366,12 @@
                                                     <Button Grid.Column="5" Classes="row-action" Content="↓" ToolTip.Tip="Move down"
                                                             Command="{Binding $parent[Window].DataContext.MoveTouchPageDownCommand}"
                                                             CommandParameter="{Binding}" />
-                                                    <Button Grid.Column="6" Classes="row-action danger" Content="✕" ToolTip.Tip="Remove page"
+                                                    <Button Grid.Column="6" Classes="row-action" ToolTip.Tip="Export this page as a .loupixprofile package"
+                                                            Command="{Binding $parent[Window].DataContext.ExportTouchPageCommand}"
+                                                            CommandParameter="{Binding}">
+                                                        <TextBlock FontFamily="{StaticResource MdiFont}" Text="&#xF0207;" FontSize="16" VerticalAlignment="Center" HorizontalAlignment="Center" />
+                                                    </Button>
+                                                    <Button Grid.Column="7" Classes="row-action danger" Content="✕" ToolTip.Tip="Remove page"
                                                             Command="{Binding $parent[Window].DataContext.RemoveTouchPageCommand}"
                                                             CommandParameter="{Binding}" />
                                                 </Grid>
@@ -377,7 +394,7 @@
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate DataType="m:RotaryButtonPage">
                                                 <Border Background="{DynamicResource AppSurfaceAlt}" CornerRadius="4" Padding="8" Margin="0,0,0,6">
-                                                    <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto">
+                                                    <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto,Auto">
                                                         <TextBlock Grid.Column="0" Text="{Binding PageName}" VerticalAlignment="Center" />
                                                         <Button Grid.Column="1" Classes="row-action" ToolTip.Tip="Edit page commands"
                                                                 Command="{Binding $parent[Window].DataContext.EditPageCommandsCommand}"
@@ -390,7 +407,12 @@
                                                         <Button Grid.Column="3" Classes="row-action" Content="↓" ToolTip.Tip="Move down"
                                                                 Command="{Binding $parent[Window].DataContext.MoveRotaryPageDownCommand}"
                                                                 CommandParameter="{Binding}" />
-                                                        <Button Grid.Column="4" Classes="row-action danger" Content="✕" ToolTip.Tip="Remove rotary page"
+                                                        <Button Grid.Column="4" Classes="row-action" ToolTip.Tip="Export this page as a .loupixprofile package"
+                                                                Command="{Binding $parent[Window].DataContext.ExportRotaryPageCommand}"
+                                                                CommandParameter="{Binding}">
+                                                            <TextBlock FontFamily="{StaticResource MdiFont}" Text="&#xF0207;" FontSize="16" VerticalAlignment="Center" HorizontalAlignment="Center" />
+                                                        </Button>
+                                                        <Button Grid.Column="5" Classes="row-action danger" Content="✕" ToolTip.Tip="Remove rotary page"
                                                                 Command="{Binding $parent[Window].DataContext.RemoveRotaryPageCommand}"
                                                                 CommandParameter="{Binding}" />
                                                     </Grid>
@@ -410,14 +432,19 @@
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate DataType="m:RotaryButtonPage">
                                                 <Border Background="{DynamicResource AppSurfaceAlt}" CornerRadius="4" Padding="8" Margin="0,0,0,6">
-                                                    <Grid ColumnDefinitions="*,Auto,Auto">
+                                                    <Grid ColumnDefinitions="*,Auto,Auto,Auto">
                                                         <TextBlock Grid.Column="0" Text="{Binding PageName}" VerticalAlignment="Center" />
                                                         <Button Grid.Column="1" Classes="row-action" ToolTip.Tip="Edit page commands"
                                                                 Command="{Binding $parent[Window].DataContext.EditPageCommandsCommand}"
                                                                 CommandParameter="{Binding}">
                                                             <TextBlock FontFamily="{StaticResource MdiFont}" Text="&#xF18D8;" FontSize="16" VerticalAlignment="Center" HorizontalAlignment="Center" />
                                                         </Button>
-                                                        <Button Grid.Column="2" Classes="row-action danger" Content="✕" ToolTip.Tip="Remove rotary page"
+                                                        <Button Grid.Column="2" Classes="row-action" ToolTip.Tip="Export this page as a .loupixprofile package"
+                                                                Command="{Binding $parent[Window].DataContext.ExportRotaryPageCommand}"
+                                                                CommandParameter="{Binding}">
+                                                            <TextBlock FontFamily="{StaticResource MdiFont}" Text="&#xF0207;" FontSize="16" VerticalAlignment="Center" HorizontalAlignment="Center" />
+                                                        </Button>
+                                                        <Button Grid.Column="3" Classes="row-action danger" Content="✕" ToolTip.Tip="Remove rotary page"
                                                                 Command="{Binding $parent[Window].DataContext.RemoveLeftRotaryPageCommand}"
                                                                 CommandParameter="{Binding}" />
                                                     </Grid>
@@ -434,14 +461,19 @@
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate DataType="m:RotaryButtonPage">
                                                 <Border Background="{DynamicResource AppSurfaceAlt}" CornerRadius="4" Padding="8" Margin="0,0,0,6">
-                                                    <Grid ColumnDefinitions="*,Auto,Auto">
+                                                    <Grid ColumnDefinitions="*,Auto,Auto,Auto">
                                                         <TextBlock Grid.Column="0" Text="{Binding PageName}" VerticalAlignment="Center" />
                                                         <Button Grid.Column="1" Classes="row-action" ToolTip.Tip="Edit page commands"
                                                                 Command="{Binding $parent[Window].DataContext.EditPageCommandsCommand}"
                                                                 CommandParameter="{Binding}">
                                                             <TextBlock FontFamily="{StaticResource MdiFont}" Text="&#xF18D8;" FontSize="16" VerticalAlignment="Center" HorizontalAlignment="Center" />
                                                         </Button>
-                                                        <Button Grid.Column="2" Classes="row-action danger" Content="✕" ToolTip.Tip="Remove rotary page"
+                                                        <Button Grid.Column="2" Classes="row-action" ToolTip.Tip="Export this page as a .loupixprofile package"
+                                                                Command="{Binding $parent[Window].DataContext.ExportRotaryPageCommand}"
+                                                                CommandParameter="{Binding}">
+                                                            <TextBlock FontFamily="{StaticResource MdiFont}" Text="&#xF0207;" FontSize="16" VerticalAlignment="Center" HorizontalAlignment="Center" />
+                                                        </Button>
+                                                        <Button Grid.Column="3" Classes="row-action danger" Content="✕" ToolTip.Tip="Remove rotary page"
                                                                 Command="{Binding $parent[Window].DataContext.RemoveRightRotaryPageCommand}"
                                                                 CommandParameter="{Binding}" />
                                                     </Grid>

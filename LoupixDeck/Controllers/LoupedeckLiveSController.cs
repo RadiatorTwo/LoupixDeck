@@ -1,5 +1,4 @@
 using System.ComponentModel;
-using Newtonsoft.Json.Linq;
 using LoupixDeck.LoupedeckDevice;
 using LoupixDeck.Models;
 using LoupixDeck.Models.Extensions;
@@ -2189,7 +2188,7 @@ public partial class LoupedeckLiveSController(
         // Scanning the serialized JSON for any "assets/…" string covers every profile,
         // workspace, and future asset-referencing field without having to keep this in
         // lockstep with the config schema.
-        foreach (var path in HarvestAssetPathsFromConfigFile(_configPath))
+        foreach (var path in AssetPathHarvester.HarvestFromFile(_configPath))
             yield return path;
 
         // The asset folder is shared by EVERY per-device config file
@@ -2205,7 +2204,7 @@ public partial class LoupedeckLiveSController(
     /// <summary>
     /// Scans sibling config files (all <c>config*.json</c> in the config dir except
     /// the one this controller owns) and returns every stored asset-relative path
-    /// found anywhere in them, via <see cref="HarvestAssetPathsFromConfigFile"/>.
+    /// found anywhere in them, via <see cref="AssetPathHarvester.HarvestFromFile"/>.
     /// </summary>
     private IEnumerable<string> HarvestAssetPathsFromOtherConfigs()
     {
@@ -2237,42 +2236,9 @@ public partial class LoupedeckLiveSController(
             if (string.Equals(Path.GetFullPath(file), Path.GetFullPath(_configPath), StringComparison.OrdinalIgnoreCase))
                 continue;
 
-            foreach (var path in HarvestAssetPathsFromConfigFile(file))
+            foreach (var path in AssetPathHarvester.HarvestFromFile(file))
                 yield return path;
         }
-    }
-
-    /// <summary>Parses a config file and returns every string value anywhere in it that looks
-    /// like an asset-folder relative path. Schema-agnostic on purpose (any JSON value under the
-    /// "assets/" prefix) so it stays correct for wallpapers, image layers, and any future asset
-    /// reference — in any profile/workspace — without having to mirror the config schema here.</summary>
-    private static List<string> HarvestAssetPathsFromConfigFile(string path)
-    {
-        try
-        {
-            var root = JToken.Parse(File.ReadAllText(path)) as JContainer;
-            return (root?.DescendantsAndSelf() ?? Enumerable.Empty<JToken>())
-                .OfType<JValue>()
-                .Where(v => v.Type == JTokenType.String)
-                .Select(v => (string)v.Value)
-                .Where(IsAssetPath)
-                .ToList();
-        }
-        catch (Exception ex)
-        {
-            // A corrupt/unreadable config must not abort cleanup — but it also must not cause
-            // its assets to be deleted, so log and report nothing found for it.
-            Console.WriteLine($"Asset cleanup: skipping unreadable config '{path}': {ex.Message}");
-            return new List<string>();
-        }
-    }
-
-    /// <summary>True when a stored string looks like an asset-folder relative path.</summary>
-    private static bool IsAssetPath(string value)
-    {
-        if (string.IsNullOrWhiteSpace(value)) return false;
-        var normalized = value.Replace('\\', '/').TrimStart('/');
-        return normalized.StartsWith("assets/", StringComparison.OrdinalIgnoreCase);
     }
 
     private CancellationTokenSource _propertyChangedCts;

@@ -36,6 +36,22 @@ public interface IMacroManager
     /// </summary>
     bool IsNameValid(string name, Macro ignore = null);
 
+    /// <summary>
+    /// Serializes an arbitrary subset of macros into a <c>macros.json</c>-shaped document,
+    /// using the manager's own step converter. Exposed so callers that ship macros outside
+    /// the config directory (profile packages, #133) do not have to re-declare the converter
+    /// set — the step discriminator must never leak into config.json serialization.
+    /// The global stop hotkey is deliberately never included; it is a user-level preference.
+    /// </summary>
+    string SerializeSubset(IEnumerable<Macro> macros);
+
+    /// <summary>
+    /// Counterpart of <see cref="SerializeSubset"/>: reads a <c>macros.json</c>-shaped document
+    /// and returns its macros. Steps with unknown discriminators are dropped, exactly like
+    /// <see cref="Load"/> does. Returns an empty list when the document cannot be parsed.
+    /// </summary>
+    IReadOnlyList<Macro> DeserializeSubset(string json);
+
     /// <summary>Raised after the macro set changed (editor save).</summary>
     event EventHandler MacrosChanged;
 }

@@ -1,0 +1,299 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="using:LoupixDeck.ViewModels"
+        mc:Ignorable="d"
+        Width="660" Height="700"
+        MinWidth="560" MinHeight="480"
+        x:Class="LoupixDeck.Views.ProfileImport"
+        x:DataType="vm:ProfileImportViewModel"
+        WindowStartupLocation="CenterOwner"
+        Title="Import Profile Package"
+        ShowInTaskbar="False">
+
+    <Window.Styles>
+        <Style Selector="TextBlock.sectionHeader">
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{DynamicResource AppTextPrimary}" />
+            <Setter Property="Margin" Value="0,0,0,6" />
+        </Style>
+
+        <Style Selector="TextBlock.hint">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="LineHeight" Value="17" />
+            <Setter Property="Foreground" Value="{DynamicResource AppTextSecondary}" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+        </Style>
+
+        <Style Selector="Border.card">
+            <Setter Property="Background" Value="{DynamicResource AppSurfaceLow}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AppBorderSubtle}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="Padding" Value="12" />
+        </Style>
+
+        <Style Selector="Border.banner">
+            <Setter Property="Background" Value="#26E8A33D" />
+            <Setter Property="BorderBrush" Value="#66E8A33D" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="Padding" Value="12" />
+        </Style>
+
+        <Style Selector="Border.pill">
+            <Setter Property="CornerRadius" Value="9" />
+            <Setter Property="Padding" Value="8,2" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+
+        <Style Selector="Button.dialogBtn">
+            <Setter Property="MinWidth" Value="100" />
+            <Setter Property="Height" Value="34" />
+            <Setter Property="Padding" Value="14,0" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Border Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="{TemplateBinding CornerRadius}">
+                        <ContentPresenter Content="{TemplateBinding Content}"
+                                          Padding="{TemplateBinding Padding}"
+                                          HorizontalAlignment="Center"
+                                          VerticalAlignment="Center" />
+                    </Border>
+                </ControlTemplate>
+            </Setter>
+        </Style>
+
+        <Style Selector="Button.dialogBtn.cancel">
+            <Setter Property="Background" Value="{DynamicResource AppControlBackground}" />
+            <Setter Property="Foreground" Value="{DynamicResource AppTextPrimary}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AppBorderSubtle}" />
+        </Style>
+        <Style Selector="Button.dialogBtn.cancel:pointerover">
+            <Setter Property="Background" Value="{DynamicResource AppControlBackgroundHover}" />
+        </Style>
+
+        <Style Selector="Button.dialogBtn.confirm">
+            <Setter Property="Background" Value="{StaticResource PageActiveBrush}" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="BorderBrush" Value="{StaticResource PageActiveBorderBrush}" />
+        </Style>
+        <Style Selector="Button.dialogBtn.confirm:pointerover">
+            <Setter Property="Background" Value="{StaticResource PageActiveBorderBrush}" />
+        </Style>
+        <Style Selector="Button.dialogBtn:disabled">
+            <Setter Property="Opacity" Value="0.5" />
+        </Style>
+    </Window.Styles>
+
+    <Grid RowDefinitions="*,Auto">
+
+        <!-- Busy / blocked states replace the whole body; only one is ever visible. -->
+        <TextBlock Grid.Row="0"
+                   Text="Reading package…"
+                   IsVisible="{Binding IsLoading}"
+                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                   FontSize="13"
+                   Foreground="{DynamicResource AppTextSecondary}" />
+
+        <Border Grid.Row="0"
+                Classes="banner"
+                IsVisible="{Binding HasBlockReason}"
+                Margin="24" VerticalAlignment="Center">
+            <TextBlock Text="{Binding BlockReason}" Classes="hint" />
+        </Border>
+
+        <ScrollViewer Grid.Row="0" IsVisible="{Binding ShowContent}">
+            <!-- Inset lives on the content, never on the ScrollViewer: Avalonia does not fold
+                 ScrollViewer.Padding into the scrollable extent, so a bottom padding cuts off the
+                 last item and a right padding lets the overlay scrollbar float over content. -->
+            <StackPanel Margin="24,20,24,20" Spacing="16">
+
+                <!-- Header -->
+                <StackPanel Spacing="8">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Border Classes="pill" Background="{DynamicResource AppControlBackground}">
+                            <TextBlock Text="{Binding KindText}" FontSize="11"
+                                       Foreground="{DynamicResource AppTextSecondary}" />
+                        </Border>
+                        <TextBlock Text="{Binding ProvenanceText}" Classes="hint" VerticalAlignment="Center" />
+                    </StackPanel>
+
+                    <TextBox Text="{Binding NewName}" PlaceholderText="Name" FontSize="15" />
+
+                    <TextBlock Text="{Binding Description}" Classes="hint"
+                               IsVisible="{Binding HasDescription}" />
+                </StackPanel>
+
+                <!-- Device capability difference: informative, never blocking. -->
+                <Border Classes="banner" IsVisible="{Binding HasDeviceMismatch}">
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="Different device" FontSize="12" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource AppTextPrimary}" />
+                        <TextBlock Text="{Binding DeviceMismatchMessage}" Classes="hint" />
+                    </StackPanel>
+                </Border>
+
+                <!-- Required plugins -->
+                <StackPanel Spacing="6" IsVisible="{Binding HasPlugins}">
+                    <TextBlock Text="Required plugins" Classes="sectionHeader" />
+                    <ItemsControl ItemsSource="{Binding Plugins}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate DataType="vm:PackagePluginRow">
+                                <Border Classes="card" Margin="0,0,0,6">
+                                    <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto">
+                                        <TextBlock Grid.Row="0" Grid.Column="0"
+                                                   Text="{Binding Name}" FontSize="13"
+                                                   Foreground="{DynamicResource AppTextPrimary}" />
+                                        <Border Grid.Row="0" Grid.Column="1" Classes="pill"
+                                                Background="{DynamicResource AppControlBackground}">
+                                            <TextBlock Text="{Binding StateText}" FontSize="11"
+                                                       Foreground="{DynamicResource AppTextSecondary}" />
+                                        </Border>
+
+                                        <TextBlock Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2"
+                                                   Text="{Binding VersionText}" Classes="hint"
+                                                   Margin="0,4,0,0" />
+
+                                        <StackPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2"
+                                                    Orientation="Horizontal" Spacing="12" Margin="0,6,0,0">
+                                            <CheckBox Content="Enable for this device on import"
+                                                      IsChecked="{Binding EnableOnImport}"
+                                                      IsVisible="{Binding IsDisabled}"
+                                                      FontSize="12" />
+                                            <Button Content="Open project page"
+                                                    Command="{Binding OpenProjectCommand}"
+                                                    IsVisible="{Binding HasProjectUrl}"
+                                                    FontSize="12" Padding="8,2" />
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+
+                <!-- Commands that resolve to nothing here -->
+                <StackPanel Spacing="6" IsVisible="{Binding HasUnknownCommands}">
+                    <TextBlock Text="Unknown commands" Classes="sectionHeader" />
+                    <TextBlock Classes="hint"
+                               Text="These assignments are kept exactly as they are. They appear as free text in the command editor and are passed to the shell at runtime, so they start working again as soon as whatever provides them is installed." />
+                    <Border Classes="card">
+                        <ItemsControl ItemsSource="{Binding UnknownCommands}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="x:String">
+                                    <TextBlock Text="{Binding}" FontSize="12" FontFamily="Consolas,monospace"
+                                               Foreground="{DynamicResource AppTextSecondary}"
+                                               TextWrapping="Wrap" Margin="0,1" />
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </Border>
+                </StackPanel>
+
+                <!-- Macro name conflicts -->
+                <StackPanel Spacing="6" IsVisible="{Binding HasMacros}">
+                    <TextBlock Text="Macro name conflicts" Classes="sectionHeader" />
+                    <TextBlock Classes="hint"
+                               Text="A macro of the same name already exists here with different steps. Skipping keeps your macro and leaves the imported buttons pointing at an unresolved reference." />
+                    <ItemsControl ItemsSource="{Binding Macros}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate DataType="vm:MacroConflictRow">
+                                <Border Classes="card" Margin="0,0,0,6">
+                                    <Grid ColumnDefinitions="*,140" RowDefinitions="Auto,Auto">
+                                        <TextBlock Grid.Row="0" Grid.Column="0"
+                                                   Text="{Binding Name}" FontSize="13"
+                                                   VerticalAlignment="Center"
+                                                   Foreground="{DynamicResource AppTextPrimary}" />
+                                        <ComboBox Grid.Row="0" Grid.Column="1"
+                                                  ItemsSource="{Binding Source={x:Static vm:MacroConflictRow.AllResolutions}}"
+                                                  SelectedItem="{Binding Resolution}"
+                                                  HorizontalAlignment="Stretch" FontSize="12" />
+
+                                        <TextBox Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2"
+                                                 Text="{Binding NewName}"
+                                                 PlaceholderText="New macro name"
+                                                 IsVisible="{Binding IsRename}"
+                                                 FontSize="12" Margin="0,6,0,0" />
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+
+                <!-- Where it goes -->
+                <StackPanel Spacing="8">
+                    <TextBlock Text="Import mode" Classes="sectionHeader" />
+
+                    <StackPanel Spacing="6" IsVisible="{Binding HasImportTargets}">
+                        <TextBlock Text="{Binding ImportTargetLabel}" Classes="hint" />
+                        <ComboBox ItemsSource="{Binding ImportTargets}"
+                                  SelectedItem="{Binding SelectedImportTarget}"
+                                  HorizontalAlignment="Stretch">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate DataType="vm:ImportTargetRow">
+                                    <TextBlock Text="{Binding Label}" />
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+                    </StackPanel>
+
+                    <CheckBox Content="Replace an existing item instead of adding a copy"
+                              IsChecked="{Binding ReplaceExisting}" FontSize="12" />
+
+                    <StackPanel Spacing="6" IsVisible="{Binding IsReplace}" Margin="20,0,0,0">
+                        <ComboBox ItemsSource="{Binding ReplaceTargets}"
+                                  SelectedItem="{Binding SelectedReplaceTarget}"
+                                  HorizontalAlignment="Stretch">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate DataType="vm:ImportTargetRow">
+                                    <TextBlock Text="{Binding Label}" />
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+                        <CheckBox Content="Back the replaced item up first"
+                                  IsChecked="{Binding BackupReplacedItem}" FontSize="12" />
+                    </StackPanel>
+                </StackPanel>
+
+                <!-- Notes -->
+                <StackPanel Spacing="6" IsVisible="{Binding HasWarnings}">
+                    <TextBlock Text="Notes" Classes="sectionHeader" />
+                    <Border Classes="card">
+                        <ItemsControl ItemsSource="{Binding Warnings}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="x:String">
+                                    <TextBlock Text="{Binding}" Classes="hint" Margin="0,1" />
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </Border>
+                </StackPanel>
+            </StackPanel>
+        </ScrollViewer>
+
+        <Border Grid.Row="1"
+                Background="{DynamicResource AppSurfaceLow}"
+                BorderBrush="{DynamicResource AppBorderSubtle}"
+                BorderThickness="0,1,0,0"
+                Padding="16,12">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">
+                <Button Classes="dialogBtn cancel" Content="Cancel"
+                        Command="{Binding CancelCommand}" />
+                <Button Classes="dialogBtn confirm" Content="Import"
+                        IsDefault="True"
+                        Command="{Binding ImportCommand}" />
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>

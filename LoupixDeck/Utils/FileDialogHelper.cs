@@ -1,5 +1,6 @@
 using Avalonia.Controls;
 using Avalonia.Platform.Storage;
+using LoupixDeck.Models.Portable;
 
 namespace LoupixDeck.Utils;
 
@@ -137,6 +138,90 @@ public abstract class FileDialogHelper
         if (files.Count == 0) return string.Empty;
 
         return Uri.UnescapeDataString(files[0].Path.AbsolutePath);
+    }
+
+    /// <summary>
+    /// Picks a <c>.loupixprofile</c> package to import. Parented to <paramref name="owner"/> when
+    /// given (the open settings dialog), falling back to the main window. Returns the absolute
+    /// path, an empty string if cancelled, or null when there's no window.
+    /// </summary>
+    public static async Task<string> OpenProfilePackageDialog(Window owner = null)
+    {
+        owner ??= WindowHelper.GetMainWindow();
+        if (owner == null) return null;
+
+        IReadOnlyList<IStorageFile> files = await owner.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = "Import Profile Package",
+            AllowMultiple = false,
+            FileTypeFilter =
+            [
+                new FilePickerFileType("LoupixDeck profile package")
+                {
+                    Patterns = [$"*.{ProfilePackageFiles.Extension}"]
+                },
+                new FilePickerFileType("All files")
+                {
+                    Patterns = ["*"]
+                }
+            ]
+        });
+
+        return files.Count == 0 ? string.Empty : ResolveLocalPath(files[0]);
+    }
+
+    /// <summary>
+    /// Asks where to write a <c>.loupixprofile</c> package. Returns the absolute path, an empty
+    /// string if cancelled, or null when there's no window. The picker itself confirms an
+    /// overwrite, so the caller may delete an existing file without asking again.
+    /// </summary>
+    public static async Task<string> SaveProfilePackageDialog(Window owner, string suggestedFileName)
+    {
+        owner ??= WindowHelper.GetMainWindow();
+        if (owner == null) return null;
+
+        IStorageFile file = await owner.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+        {
+            Title = "Export Profile Package",
+            SuggestedFileName = suggestedFileName,
+            DefaultExtension = ProfilePackageFiles.Extension,
+            ShowOverwritePrompt = true,
+            FileTypeChoices =
+            [
+                new FilePickerFileType("LoupixDeck profile package")
+                {
+                    Patterns = [$"*.{ProfilePackageFiles.Extension}"]
+                }
+            ]
+        });
+
+        return file == null ? string.Empty : ResolveLocalPath(file);
+    }
+
+    /// <summary>
+    /// Builds a file name for a package from an item name. Characters a file name cannot hold are
+    /// replaced, so a profile called "OBS / Stream" does not produce an invalid path.
+    /// </summary>
+    public static string SuggestPackageFileName(string itemName)
+    {
+        string cleaned = string.IsNullOrWhiteSpace(itemName)
+            ? "profile"
+            : new string(itemName.Select(c => Path.GetInvalidFileNameChars().Contains(c) ? '_' : c).ToArray()).Trim();
+
+        if (cleaned.Length == 0)
+            cleaned = "profile";
+
+        return $"{cleaned}.{ProfilePackageFiles.Extension}";
+    }
+
+    /// <summary>
+    /// Prefer the real OS path over the URI's AbsolutePath, which on Windows yields "/C:/Users/…"
+    /// and can silently break File.Exists / File.Copy.
+    /// </summary>
+    private static string ResolveLocalPath(IStorageFile file)
+    {
+        string local = file.TryGetLocalPath();
+        return !string.IsNullOrEmpty(local) ? local : Uri.UnescapeDataString(file.Path.AbsolutePath);
     }
 
     public static string GetConfigPath(string fileName)

@@ -86,19 +86,56 @@ public class MacroManager : IMacroManager
         lock (_lock)
         {
             _stopHotkey = settings.StopHotkey?.Trim() ?? string.Empty;
-
-            // Steps with unknown discriminators deserialize to null — drop them.
-            _macros = settings.Macros?
-                .Where(m => m != null && !string.IsNullOrWhiteSpace(m.Name))
-                .ToList() ?? [];
-
-            foreach (var macro in _macros)
-            {
-                var steps = macro.Steps?.Where(s => s != null).ToList() ?? [];
-                macro.Steps = new System.Collections.ObjectModel.ObservableCollection<MacroStep>(steps);
-            }
-
+            _macros = Sanitize(settings.Macros);
             RebuildIndex();
+        }
+    }
+
+    /// <summary>
+    /// Drops nameless macros and null steps (a step with an unknown discriminator deserializes
+    /// to null, which keeps loading forward-tolerant) and re-materializes the step collections.
+    /// </summary>
+    private static List<Macro> Sanitize(IEnumerable<Macro> macros)
+    {
+        List<Macro> result = macros?
+            .Where(m => m != null && !string.IsNullOrWhiteSpace(m.Name))
+            .ToList() ?? [];
+
+        foreach (Macro macro in result)
+        {
+            List<MacroStep> steps = macro.Steps?.Where(s => s != null).ToList() ?? [];
+            macro.Steps = new System.Collections.ObjectModel.ObservableCollection<MacroStep>(steps);
+        }
+
+        return result;
+    }
+
+    public string SerializeSubset(IEnumerable<Macro> macros)
+    {
+        MacroSettings settings = new()
+        {
+            Macros = macros?.Where(m => m != null).ToList() ?? [],
+            // Never export the global stop hotkey — importing someone else's would hijack a hotkey.
+            StopHotkey = string.Empty
+        };
+
+        return JsonConvert.SerializeObject(settings, SerializerSettings);
+    }
+
+    public IReadOnlyList<Macro> DeserializeSubset(string json)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+            return [];
+
+        try
+        {
+            MacroSettings settings = JsonConvert.DeserializeObject<MacroSettings>(json, SerializerSettings);
+            return Sanitize(settings?.Macros);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[MacroManager] Failed to read macro document: {ex.Message}");
+            return [];
         }
     }
 

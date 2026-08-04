@@ -27,6 +27,7 @@ Built with **Avalonia** and **.NET 9**.
 * **Rotary encoder pages** with rotation, click and press actions
 * **Visual macro editor** with variables, conditions, loops, waits and prompts
 * **OBS Studio**, **Elgato Key Lights**, **Cooler Control**, **Argus Monitor** and **Windows Audio** integrations
+* **Portable profiles** — export a profile, workspace or page as a `.loupixprofile` file and import it anywhere
 * **Local CLI / IPC automation** for scripts and external tools
 * **Plugin SDK** for custom commands, dynamic text providers and settings UI
 
@@ -206,6 +207,42 @@ LoupixDeck can drive multiple connected devices at the same time.
 * A device switcher appears when more than one device is connected
 * CLI commands can target a specific device
 
+### Portable Profiles
+
+A profile, a workspace or a single page can be exported to a `.loupixprofile` file and imported on
+another machine — for backups, for moving a setup to a new computer, or for sharing a layout through
+a release, a chat or a repository.
+
+The file is a plain ZIP:
+
+```text
+manifest.json     what the package is, where it came from, what it needs
+payload.json      the exported profile / workspace / page
+macros.json       only the macros the exported item actually references
+assets/           only the images the exported item actually uses
+```
+
+Export lives on the profile and workspace rows under **Settings → Profiles** and on each page row
+under **Settings → Pages**; **Import Package…** sits next to **+ Add Profile**.
+
+Before anything is written, the import preview shows what the package would mean on this machine:
+
+* plugins it needs — installed, installed but disabled for this device (with a one-click enable), or
+  not installed at all (with a link to the project page)
+* commands that resolve to nothing here; these are kept exactly as they are and start working again
+  as soon as whatever provides them is installed
+* a warning when the package came from a different device model, naming the concrete consequence.
+  Importing is still allowed
+* macros whose name is already taken, each with a skip / rename / replace choice
+
+Two import modes: **Add as Copy** gives the imported item fresh identities so it lives next to the
+original, and **Replace** swaps an existing item in place, keeping its identity — and, unless you
+turn it off, writing a backup package of the previous version to `backups/` in the config directory
+first.
+
+Not included by design, because they are device-wide rather than part of a profile: the enabled
+plugin list, context rules, app bindings and the screensaver clip.
+
 ---
 
 ## Screenshots
@@ -295,6 +332,7 @@ Typical files:
 | `obs.json`             | OBS integration settings              |
 | `elgato.json`          | Elgato integration settings           |
 | `macros.json`          | Shared macro definitions              |
+| `backups/`             | Automatic backups written before a profile package replaces an item |
 
 Per-device configuration is scoped by USB serial whenever possible, so two identical devices do not overwrite each other's layouts.
 
