@@ -929,14 +929,15 @@ public sealed class ProfilePackageService(
     private void EnablePlugins(ProfilePackageAnalysis analysis, ProfilePackageImportOptions options,
         List<string> warnings)
     {
-        if (!options.EnableRequiredPlugins)
+        if (options.PluginIdsToEnable is not { Count: > 0 })
             return;
 
         config.EnabledPlugins ??= [];
         List<string> enabled = [];
 
         foreach (PackagePluginStatus status in analysis.Plugins
-                     .Where(p => p.State == PackagePluginState.InstalledButDisabled))
+                     .Where(p => p.State == PackagePluginState.InstalledButDisabled)
+                     .Where(p => options.PluginIdsToEnable.Contains(p.Requirement.Id, StringComparer.OrdinalIgnoreCase)))
         {
             config.EnabledPlugins.Add(status.Requirement.Id);
             enabled.Add(status.Requirement.Name ?? status.Requirement.Id);

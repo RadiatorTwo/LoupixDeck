@@ -55,10 +55,10 @@ public sealed class ProfilePackageImportOptions
         new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
-    /// Add the required plugin ids that are installed but not enabled here to this device's
-    /// enabled list. Importing never enables a plugin silently.
+    /// Ids of installed-but-disabled plugins the user chose to enable for this device. Empty by
+    /// default — importing never enables a plugin silently.
     /// </summary>
-    public bool EnableRequiredPlugins { get; set; }
+    public IReadOnlyList<string> PluginIdsToEnable { get; set; } = [];
 
     /// <summary>Export the item being replaced to a package under the config dir first.</summary>
     public bool BackupReplacedItem { get; set; } = true;
