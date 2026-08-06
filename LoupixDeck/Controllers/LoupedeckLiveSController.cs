@@ -579,7 +579,8 @@ public partial class LoupedeckLiveSController(
 
         if (StopFullDisplayOnInput()) return;
 
-        if (_isDeviceOff || exclusiveMode.IsActive || folderNav.IsActive || _screensaverActive || _fullDisplayActive)
+        if (_isDeviceOff || exclusiveMode.Owns(ExclusiveControlScope.SideDisplays) ||
+            folderNav.IsActive || _screensaverActive || _fullDisplayActive)
             return;
 
         var side = ToRotarySide(e.Side);
@@ -1039,13 +1040,19 @@ public partial class LoupedeckLiveSController(
         {
             // Exclusive provider receives the raw 0-based button index. Rotary
             // presses are forwarded through OnRotaryPressed; everything else is
-            // a simple button.
+            // a simple button. Only the control categories the provider actually
+            // declared are taken over (#127) — the rest falls through below and
+            // keeps running the user's normal assignment.
             if (TryGetRotaryIndex(e.ButtonId, out var rIdx))
             {
-                try { exclusiveMode.Current?.OnRotaryPressed(rIdx); }
-                catch (Exception ex) { Console.WriteLine($"Exclusive rotary press: {ex.Message}"); }
+                if (exclusiveMode.Owns(ExclusiveControlScope.RotaryPress))
+                {
+                    try { exclusiveMode.Current?.OnRotaryPressed(rIdx); }
+                    catch (Exception ex) { Console.WriteLine($"Exclusive rotary press: {ex.Message}"); }
+                    return;
+                }
             }
-            else
+            else if (exclusiveMode.Owns(ExclusiveControlScope.SimpleButtons))
             {
                 var sbIdx = Array.FindIndex(config.SimpleButtons ?? Array.Empty<SimpleButton>(),
                     b => b != null && b.Id == e.ButtonId);
@@ -1054,8 +1061,11 @@ public partial class LoupedeckLiveSController(
                     try { exclusiveMode.Current?.OnSimpleButtonPressed(sbIdx); }
                     catch (Exception ex) { Console.WriteLine($"Exclusive button press: {ex.Message}"); }
                 }
+
+                // Owned category: consume the press even when no configured button
+                // matches, so an unmapped key can't leak into the normal path.
+                return;
             }
-            return;
         }
 
         if (folderNav.IsActive)
@@ -1262,17 +1272,10 @@ public partial class LoupedeckLiveSController(
 
         if (StopFullDisplayOnInput()) return;
 
-        if (exclusiveMode.IsActive)
-        {
-            foreach (var touch in e.Touches)
-            {
-                try { exclusiveMode.Current?.OnTouchPressed(touch.Target.Key); }
-                catch (Exception ex) { Console.WriteLine($"Exclusive touch: {ex.Message}"); }
-            }
-            return;
-        }
-
-        if (folderNav.IsActive)
+        // Exclusive mode freezes folder navigation, so the folder path only applies when
+        // no provider is active at all. Slots the provider does not claim (#127) fall
+        // through to the normal per-slot handling below.
+        if (!exclusiveMode.IsActive && folderNav.IsActive)
         {
             foreach (var touch in e.Touches)
             {
@@ -1284,6 +1287,18 @@ public partial class LoupedeckLiveSController(
         foreach (var touch in e.Touches)
         {
             var slot = touch.Target.Key;
+
+            // A slot belongs to the exclusive provider only when its scope covers that
+            // slot's category: the two side-strip slots need SideDisplays, every grid
+            // slot needs TouchButtons.
+            if (exclusiveMode.Owns(IsSideStripSlot(slot)
+                    ? ExclusiveControlScope.SideDisplays
+                    : ExclusiveControlScope.TouchButtons))
+            {
+                try { exclusiveMode.Current?.OnTouchPressed(slot); }
+                catch (Exception ex) { Console.WriteLine($"Exclusive touch: {ex.Message}"); }
+                continue;
+            }
 
             // Side strips are label + swipe areas, not command buttons. A tap does nothing
             // in free-draw mode; in plugin-override mode it goes to the owning provider; in
@@ -1422,7 +1437,9 @@ public partial class LoupedeckLiveSController(
 
         if (StopFullDisplayOnInput()) return;
 
-        if (exclusiveMode.IsActive)
+        // Only forwarded when the provider declared it overrides rotary turns (#127);
+        // otherwise the dial keeps running the user's normal command below.
+        if (exclusiveMode.Owns(ExclusiveControlScope.RotaryTurn))
         {
             if (TryGetRotaryIndex(e.ButtonId, out var rIdx))
             {
