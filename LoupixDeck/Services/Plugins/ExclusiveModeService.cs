@@ -15,6 +15,34 @@ public sealed class ExclusiveModeService : IExclusiveModeService
 
     public IExclusiveModeProvider Current => _current;
 
+    public ExclusiveControlScope ActiveScope
+    {
+        get
+        {
+            IExclusiveModeProvider provider = _current;
+            if (provider == null)
+                return ExclusiveControlScope.None;
+
+            // Read fresh every time — a provider may narrow or widen its override while
+            // running. A throwing getter must not silently un-guard the device, so fall
+            // back to the pre-#127 behaviour (whole-device takeover).
+            try { return provider.Scope; }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"ExclusiveMode.Scope threw: {ex.Message}");
+                return ExclusiveControlScope.All;
+            }
+        }
+    }
+
+    public bool Owns(ExclusiveControlScope scope)
+    {
+        if (scope == ExclusiveControlScope.None)
+            return false;
+
+        return (ActiveScope & scope) == scope;
+    }
+
     public event Action StateChanged;
 
     public bool TryEnter(IExclusiveModeProvider provider)

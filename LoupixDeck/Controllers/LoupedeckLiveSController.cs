@@ -247,16 +247,25 @@ public partial class LoupedeckLiveSController(
         // No-op while something else owns the screen — the owner repaints when it
         // releases (device-off → RestoreDeviceState, folder/exclusive → their exit
         // handlers), so painting here would fight them.
-        if (_isDeviceOff || folderNav.IsActive || exclusiveMode.IsActive || _screensaverActive || _fullDisplayActive)
+        if (_isDeviceOff || folderNav.IsActive || _screensaverActive || _fullDisplayActive)
             return;
 
         var device = deviceService.Device;
         if (device == null || config.CurrentTouchButtonPage?.TouchButtons == null)
             return;
 
-        foreach (var tb in config.CurrentTouchButtonPage.TouchButtons)
+        // An exclusive provider suppresses only the surfaces it claimed (#127); the rest
+        // of the page keeps rendering normally.
+        if (!exclusiveMode.Owns(ExclusiveControlScope.TouchButtons))
         {
-            await device.DrawTouchButton(tb, config, true, device.Columns);
+            var stripsTaken = exclusiveMode.Owns(ExclusiveControlScope.SideDisplays);
+            foreach (var tb in config.CurrentTouchButtonPage.TouchButtons)
+            {
+                // Slots 12/13 are the side strips; skip them only when the provider owns
+                // the side displays, so a grid repaint can't paint over its strips.
+                if (stripsTaken && IsSideStripSlot(tb.Index)) continue;
+                await device.DrawTouchButton(tb, config, true, device.Columns);
+            }
         }
 
         await RedrawSideStrips();
@@ -579,7 +588,8 @@ public partial class LoupedeckLiveSController(
 
         if (StopFullDisplayOnInput()) return;
 
-        if (_isDeviceOff || exclusiveMode.IsActive || folderNav.IsActive || _screensaverActive || _fullDisplayActive)
+        if (_isDeviceOff || exclusiveMode.Owns(ExclusiveControlScope.SideDisplays) ||
+            folderNav.IsActive || _screensaverActive || _fullDisplayActive)
             return;
 
         var side = ToRotarySide(e.Side);
@@ -618,7 +628,8 @@ public partial class LoupedeckLiveSController(
         if (deviceService.Device?.HasSideStrips != true || side == RotarySide.Both)
             return;
 
-        if (_isDeviceOff || exclusiveMode.IsActive || folderNav.IsActive || _screensaverActive || _fullDisplayActive)
+        if (_isDeviceOff || exclusiveMode.Owns(ExclusiveControlScope.SideDisplays) ||
+            folderNav.IsActive || _screensaverActive || _fullDisplayActive)
             return;
 
         try
@@ -687,10 +698,12 @@ public partial class LoupedeckLiveSController(
     }
 
     /// <summary>Re-evaluates plugin-override attachment for both strips, then repaints
-    /// them (no-op on devices without side strips).</summary>
+    /// them (no-op on devices without side strips, or while an exclusive provider owns
+    /// the side displays).</summary>
     private async Task RedrawSideStrips()
     {
         if (deviceService.Device?.HasSideStrips != true) return;
+        if (exclusiveMode.Owns(ExclusiveControlScope.SideDisplays)) return;
         EnsureStripAttachment(RotarySide.Left);
         EnsureStripAttachment(RotarySide.Right);
         EnsureSegmentAttachment(RotarySide.Left);
@@ -713,7 +726,8 @@ public partial class LoupedeckLiveSController(
     /// <inheritdoc/>
     public async Task RefreshSideStrips()
     {
-        if (_isDeviceOff || folderNav.IsActive || exclusiveMode.IsActive || _screensaverActive || _fullDisplayActive) return;
+        if (_isDeviceOff || folderNav.IsActive || exclusiveMode.Owns(ExclusiveControlScope.SideDisplays) ||
+            _screensaverActive || _fullDisplayActive) return;
         await RedrawSideStrips();
     }
 
@@ -995,7 +1009,8 @@ public partial class LoupedeckLiveSController(
             // A later request already rendered at least this fresh (RenderStrip reads
             // live provider state, so the newest frame is always what gets drawn).
             if (Interlocked.Read(ref _stripDrawnGen[idx]) >= requested) return;
-            if (_isDeviceOff || folderNav.IsActive || exclusiveMode.IsActive || _screensaverActive || _fullDisplayActive) return;
+            if (_isDeviceOff || folderNav.IsActive || exclusiveMode.Owns(ExclusiveControlScope.SideDisplays) ||
+                _screensaverActive || _fullDisplayActive) return;
 
             var since = Environment.TickCount64 - _stripLastDrawTick[idx];
             if (since < StripMinRedrawMs)
@@ -1039,13 +1054,19 @@ public partial class LoupedeckLiveSController(
         {
             // Exclusive provider receives the raw 0-based button index. Rotary
             // presses are forwarded through OnRotaryPressed; everything else is
-            // a simple button.
+            // a simple button. Only the control categories the provider actually
+            // declared are taken over (#127) — the rest falls through below and
+            // keeps running the user's normal assignment.
             if (TryGetRotaryIndex(e.ButtonId, out var rIdx))
             {
-                try { exclusiveMode.Current?.OnRotaryPressed(rIdx); }
-                catch (Exception ex) { Console.WriteLine($"Exclusive rotary press: {ex.Message}"); }
+                if (exclusiveMode.Owns(ExclusiveControlScope.RotaryPress))
+                {
+                    try { exclusiveMode.Current?.OnRotaryPressed(rIdx); }
+                    catch (Exception ex) { Console.WriteLine($"Exclusive rotary press: {ex.Message}"); }
+                    return;
+                }
             }
-            else
+            else if (exclusiveMode.Owns(ExclusiveControlScope.SimpleButtons))
             {
                 var sbIdx = Array.FindIndex(config.SimpleButtons ?? Array.Empty<SimpleButton>(),
                     b => b != null && b.Id == e.ButtonId);
@@ -1054,8 +1075,11 @@ public partial class LoupedeckLiveSController(
                     try { exclusiveMode.Current?.OnSimpleButtonPressed(sbIdx); }
                     catch (Exception ex) { Console.WriteLine($"Exclusive button press: {ex.Message}"); }
                 }
+
+                // Owned category: consume the press even when no configured button
+                // matches, so an unmapped key can't leak into the normal path.
+                return;
             }
-            return;
         }
 
         if (folderNav.IsActive)
@@ -1262,17 +1286,10 @@ public partial class LoupedeckLiveSController(
 
         if (StopFullDisplayOnInput()) return;
 
-        if (exclusiveMode.IsActive)
-        {
-            foreach (var touch in e.Touches)
-            {
-                try { exclusiveMode.Current?.OnTouchPressed(touch.Target.Key); }
-                catch (Exception ex) { Console.WriteLine($"Exclusive touch: {ex.Message}"); }
-            }
-            return;
-        }
-
-        if (folderNav.IsActive)
+        // Exclusive mode freezes folder navigation, so the folder path only applies when
+        // no provider is active at all. Slots the provider does not claim (#127) fall
+        // through to the normal per-slot handling below.
+        if (!exclusiveMode.IsActive && folderNav.IsActive)
         {
             foreach (var touch in e.Touches)
             {
@@ -1284,6 +1301,18 @@ public partial class LoupedeckLiveSController(
         foreach (var touch in e.Touches)
         {
             var slot = touch.Target.Key;
+
+            // A slot belongs to the exclusive provider only when its scope covers that
+            // slot's category: the two side-strip slots need SideDisplays, every grid
+            // slot needs TouchButtons.
+            if (exclusiveMode.Owns(IsSideStripSlot(slot)
+                    ? ExclusiveControlScope.SideDisplays
+                    : ExclusiveControlScope.TouchButtons))
+            {
+                try { exclusiveMode.Current?.OnTouchPressed(slot); }
+                catch (Exception ex) { Console.WriteLine($"Exclusive touch: {ex.Message}"); }
+                continue;
+            }
 
             // Side strips are label + swipe areas, not command buttons. A tap does nothing
             // in free-draw mode; in plugin-override mode it goes to the owning provider; in
@@ -1422,7 +1451,9 @@ public partial class LoupedeckLiveSController(
 
         if (StopFullDisplayOnInput()) return;
 
-        if (exclusiveMode.IsActive)
+        // Only forwarded when the provider declared it overrides rotary turns (#127);
+        // otherwise the dial keeps running the user's normal command below.
+        if (exclusiveMode.Owns(ExclusiveControlScope.RotaryTurn))
         {
             if (TryGetRotaryIndex(e.ButtonId, out var rIdx))
             {
@@ -1503,10 +1534,14 @@ public partial class LoupedeckLiveSController(
 
     private async void OnExclusiveStateChanged()
     {
-        // A whole-device takeover owns the strips too: stop any plugin-strip providers
-        // (idempotent). They re-attach when exclusive mode exits via RedrawSideStrips.
-        if (exclusiveMode.IsActive)
+        // A takeover that claims the side displays owns the strips too: stop any
+        // plugin-strip providers (idempotent). They re-attach when exclusive mode exits
+        // via RedrawSideStrips. A provider that left the strips out (#127) keeps them
+        // running — repaint them so a scope change takes effect right away.
+        if (exclusiveMode.Owns(ExclusiveControlScope.SideDisplays))
             DetachAllSideStripProviders();
+        else if (exclusiveMode.IsActive)
+            await RedrawSideStrips();
 
         var requested = Interlocked.Increment(ref _exclusiveGen);
 
@@ -1552,6 +1587,16 @@ public partial class LoupedeckLiveSController(
         {
             var provider = exclusiveMode.Current;
 
+            // A provider only paints the surfaces it declared (#127). Nothing claimed →
+            // nothing to push here; the normal redraw paths are unblocked and own the page.
+            var ownsGrid = exclusiveMode.Owns(ExclusiveControlScope.TouchButtons);
+            var ownsStrips = exclusiveMode.Owns(ExclusiveControlScope.SideDisplays);
+            if (!ownsGrid && !ownsStrips)
+            {
+                ResetDirtyTiles();
+                return;
+            }
+
             // Map provider's entries by slot for quick lookup; remaining
             // slots get blanked so leftover page content can't bleed
             // through. Slot bounds match the folder renderer.
@@ -1586,29 +1631,45 @@ public partial class LoupedeckLiveSController(
 
                 default: // FullScreen
                     ResetDirtyTiles();
-                    await DrawExclusiveFullScreen(device, bySlot);
+                    await DrawExclusiveFullScreen(device, bySlot, ownsGrid, ownsStrips);
                     return;
             }
         }
 
-        // Exclusive ended — repaint the active page.
+        // Exclusive ended — repaint the active page (grid + strips).
         ResetDirtyTiles();
-        if (config.CurrentTouchButtonPage?.TouchButtons != null)
-        {
-            foreach (var touchButton in config.CurrentTouchButtonPage.TouchButtons)
-            {
-                await device.DrawTouchButton(touchButton, config, true, device.Columns);
-            }
-        }
-
-        await RedrawSideStrips();
+        await RedrawCurrentTouchPage();
     }
+
+    /// <summary>True when the active exclusive provider claimed the surface this slot lives on:
+    /// the two side-strip slots belong to SideDisplays, every other slot to TouchButtons.</summary>
+    private bool ExclusiveOwnsSlot(int slot) =>
+        exclusiveMode.Owns(IsSideStripSlot(slot)
+            ? ExclusiveControlScope.SideDisplays
+            : ExclusiveControlScope.TouchButtons);
 
     // FullScreen: render every slot, push the whole frame in ONE atomic blit + DRAW.
     // Drawing slot-by-slot here would refresh the full display 15× per frame.
     private async Task DrawExclusiveFullScreen(LoupedeckDevice.Device.LoupedeckDevice device,
-        IReadOnlyDictionary<int, PluginSdk.FolderEntry> bySlot)
+        IReadOnlyDictionary<int, PluginSdk.FolderEntry> bySlot, bool ownsGrid, bool ownsStrips)
     {
+        // The atomic push clears and rewrites the WHOLE centre buffer, which on a
+        // side-strip device also covers the 60px strip regions. A provider that left the
+        // strips out must not wipe them, so push just the grid region instead.
+        if (ownsGrid && !ownsStrips && device.HasSideStrips)
+        {
+            await DrawExclusiveGridRegion(device, bySlot);
+            return;
+        }
+
+        // Grid not claimed (strips only): no full-frame push exists for that, fall back
+        // to the per-slot path so the normal page keeps the grid.
+        if (!ownsGrid)
+        {
+            await DrawExclusiveGrid(device, bySlot);
+            return;
+        }
+
         var slotBitmaps = new SkiaSharp.SKBitmap[FolderConstants.TotalSlots];
         for (var slot = 0; slot < FolderConstants.TotalSlots; slot++)
             slotBitmaps[slot] = RenderSlot(bySlot, slot);
@@ -1618,12 +1679,42 @@ public partial class LoupedeckLiveSController(
         foreach (var b in slotBitmaps) b?.Dispose();
     }
 
+    // FullScreen for a grid-only takeover: composite the grid slots into one bitmap and
+    // push it as the centre grid region, leaving the side-panel columns of the framebuffer
+    // untouched. Same single blit + DRAW cost as the full-frame path.
+    private async Task DrawExclusiveGridRegion(LoupedeckDevice.Device.LoupedeckDevice device,
+        IReadOnlyDictionary<int, PluginSdk.FolderEntry> bySlot)
+    {
+        const int keySize = 90;
+        var gridSlots = device.Columns * device.Rows;
+
+        using var grid = new SkiaSharp.SKBitmap(new SkiaSharp.SKImageInfo(
+            device.Columns * keySize, device.Rows * keySize,
+            SkiaSharp.SKColorType.Bgra8888, SkiaSharp.SKAlphaType.Premul));
+
+        // Composite under the shared render gate, mirroring DrawTouchSlotsAtomic.
+        lock (SkiaRenderGate.Sync)
+        {
+            using var canvas = new SkiaSharp.SKCanvas(grid);
+            canvas.Clear(SkiaSharp.SKColors.Black);
+            for (var slot = 0; slot < gridSlots; slot++)
+            {
+                using var bmp = RenderSlot(bySlot, slot);
+                if (bmp == null) continue;
+                canvas.DrawBitmap(bmp, (slot % device.Columns) * keySize, (slot / device.Columns) * keySize);
+            }
+        }
+
+        await device.DrawCenterGridRegion(grid, refresh: true);
+    }
+
     // Grid: every slot as its own 90x90 framebuffer, no DRAW.
     private async Task DrawExclusiveGrid(LoupedeckDevice.Device.LoupedeckDevice device,
         IReadOnlyDictionary<int, PluginSdk.FolderEntry> bySlot)
     {
         for (var slot = 0; slot < FolderConstants.TotalSlots; slot++)
         {
+            if (!ExclusiveOwnsSlot(slot)) continue;
             using var bmp = RenderSlot(bySlot, slot);
             await device.DrawTouchSlot(slot, bmp, refresh: false);
         }
@@ -1634,6 +1725,7 @@ public partial class LoupedeckLiveSController(
         IReadOnlyDictionary<int, PluginSdk.FolderEntry> bySlot, int slotIndex)
     {
         if (slotIndex < 0 || slotIndex >= FolderConstants.TotalSlots) slotIndex = 0;
+        if (!ExclusiveOwnsSlot(slotIndex)) return;
         using var bmp = RenderSlot(bySlot, slotIndex);
         await device.DrawTouchSlot(slotIndex, bmp, refresh: false);
     }
@@ -1652,6 +1744,8 @@ public partial class LoupedeckLiveSController(
 
         for (var slot = 0; slot < FolderConstants.TotalSlots; slot++)
         {
+            if (!ExclusiveOwnsSlot(slot)) continue;
+
             var sig = bySlot.TryGetValue(slot, out var entry) ? TileSig.Of(entry) : TileSig.Empty;
             var prev = _dirtyKeys[slot];
             if (prev.HasValue && prev.Value.Equals(sig))
@@ -1793,7 +1887,7 @@ public partial class LoupedeckLiveSController(
         }
 
         // The side strips share the page wallpaper, so repaint them for the new page.
-        if (!_isDeviceOff && !folderNav.IsActive && !exclusiveMode.IsActive)
+        if (!_isDeviceOff && !folderNav.IsActive && !exclusiveMode.Owns(ExclusiveControlScope.SideDisplays))
             _ = RedrawSideStrips();
     }
 
@@ -1893,7 +1987,7 @@ public partial class LoupedeckLiveSController(
         config.CurrentRotaryButtonPage?.Selected = true;
         config.CurrentTouchButtonPage?.Selected = true;
 
-        if (!_isDeviceOff && !folderNav.IsActive && !exclusiveMode.IsActive)
+        if (!_isDeviceOff && !folderNav.IsActive && !exclusiveMode.Owns(ExclusiveControlScope.SideDisplays))
             await RedrawSideStrips();
     }
 
@@ -1964,7 +2058,8 @@ public partial class LoupedeckLiveSController(
         // Folder mode, exclusive mode, or the screensaver owns the touch display —
         // suppress per-button redraws (e.g. from DynamicTextManager) so they don't paint
         // over the active view. When the owner exits, its handler repaints the page.
-        if (folderNav.IsActive || exclusiveMode.IsActive || _screensaverActive || _fullDisplayActive) return;
+        if (folderNav.IsActive || exclusiveMode.Owns(ExclusiveControlScope.TouchButtons) ||
+            _screensaverActive || _fullDisplayActive) return;
 
         var button = config.CurrentTouchButtonPage.TouchButtons.FirstOrDefault(b => b.Index == item.Index);
 
@@ -1989,7 +2084,8 @@ public partial class LoupedeckLiveSController(
     private async void StripCanvasItemChanged(object sender, EventArgs e)
     {
         if (sender is not TouchButton canvas) return;
-        if (_isDeviceOff || folderNav.IsActive || exclusiveMode.IsActive || _screensaverActive || _fullDisplayActive) return;
+        if (_isDeviceOff || folderNav.IsActive || exclusiveMode.Owns(ExclusiveControlScope.SideDisplays) ||
+            _screensaverActive || _fullDisplayActive) return;
 
         // The canvas Index encodes its column (LeftSideIndex / RightSideIndex), so the
         // strip is repainted via the free-draw renderer, not the grid touch path.

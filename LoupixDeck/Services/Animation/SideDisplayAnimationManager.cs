@@ -1,6 +1,7 @@
 using Avalonia.Threading;
 using LoupixDeck.Models;
 using LoupixDeck.Models.Layers;
+using LoupixDeck.PluginSdk;
 using LoupixDeck.Services.FolderNavigation;
 using LoupixDeck.Services.Plugins;
 using LoupixDeck.Services.Screensaver;
@@ -214,10 +215,13 @@ public sealed class SideDisplayAnimationManager : ISideDisplayAnimationManager, 
             _scheduler.RequestFrame(_source);
     }
 
-    /// <summary>Enabled only when no other feature owns the display (mirrors the controller's veto).</summary>
+    /// <summary>Enabled only when no other feature owns the side displays (mirrors the controller's
+    /// veto). An exclusive provider that left the strips out of its scope (#127) does not stop these
+    /// frames.</summary>
     private void UpdateEnabled()
     {
-        var enabled = !_screensaverActive && !_exclusiveMode.IsActive && !_folderNav.IsActive;
+        var enabled = !_screensaverActive && !_folderNav.IsActive &&
+                      !_exclusiveMode.Owns(ExclusiveControlScope.SideDisplays);
         _source.SetEnabled(enabled);
     }
 
