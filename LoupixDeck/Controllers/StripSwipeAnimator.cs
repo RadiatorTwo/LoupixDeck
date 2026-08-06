@@ -136,7 +136,8 @@ public partial class LoupedeckLiveSController
     private bool StripAnimationApplicable(RotarySide side)
     {
         if (deviceService.Device?.HasSideStrips != true) return false;
-        if (_isDeviceOff || folderNav.IsActive || exclusiveMode.IsActive) return false;
+        if (_isDeviceOff || folderNav.IsActive) return false;
+        if (exclusiveMode.Owns(PluginSdk.ExclusiveControlScope.SideDisplays)) return false;
         var page = pageManager.GetCurrentRotaryPage(side);
         if (page == null || page.StripMode == StripMode.PluginOverride) return false;
         return pageManager.GetRotaryPages(side).Count > 1;
@@ -259,7 +260,8 @@ public partial class LoupedeckLiveSController
             DrainStripDisposeQueue(idx);
 
             if (Interlocked.Read(ref _stripDrawnGen[idx]) >= requested) return;
-            if (_isDeviceOff || folderNav.IsActive || exclusiveMode.IsActive) return;
+            if (_isDeviceOff || folderNav.IsActive ||
+                exclusiveMode.Owns(PluginSdk.ExclusiveControlScope.SideDisplays)) return;
 
             var since = Environment.TickCount64 - _stripLastDrawTick[idx];
             if (since < StripMinRedrawMs)

@@ -229,10 +229,12 @@ public sealed class ButtonAnimationManager : IButtonAnimationManager, IDisposabl
             _scheduler.RequestFrame(_source);
     }
 
-    /// <summary>Enabled only when no other feature owns the display (mirrors the controller's veto).</summary>
+    /// <summary>Enabled only when no other feature owns the touch grid (mirrors the controller's veto).
+    /// An exclusive provider that left the grid out of its scope (#127) does not stop these frames.</summary>
     private void UpdateEnabled()
     {
-        var enabled = !_screensaverActive && !_exclusiveMode.IsActive && !_folderNav.IsActive;
+        var enabled = !_screensaverActive && !_folderNav.IsActive &&
+                      !_exclusiveMode.Owns(ExclusiveControlScope.TouchButtons);
         _source.SetEnabled(enabled);
     }
 

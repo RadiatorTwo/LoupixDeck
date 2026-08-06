@@ -72,7 +72,8 @@ public partial class LoupedeckLiveSController
     private bool TouchAnimationApplicable()
     {
         if (!config.TouchPageTransitionAnimationEnabled) return false;
-        if (_isDeviceOff || folderNav.IsActive || exclusiveMode.IsActive || _screensaverActive) return false;
+        if (_isDeviceOff || folderNav.IsActive || _screensaverActive) return false;
+        if (exclusiveMode.Owns(PluginSdk.ExclusiveControlScope.TouchButtons)) return false;
         if (deviceService.Device == null) return false;
         return pageManager.TouchButtonPages.Count > 1;
     }
@@ -247,7 +248,8 @@ public partial class LoupedeckLiveSController
         // Another feature took over the display mid-slide (device off, screensaver, folder,
         // exclusive) → abort. The page was already committed, so the takeover's own redraw
         // (e.g. OnScreensaverStopped) paints the settled page.
-        if (_isDeviceOff || folderNav.IsActive || exclusiveMode.IsActive || _screensaverActive)
+        if (_isDeviceOff || folderNav.IsActive || _screensaverActive ||
+            exclusiveMode.Owns(PluginSdk.ExclusiveControlScope.TouchButtons))
         {
             tr.Active = false;
             tr.Outgoing = null;
