@@ -415,3 +415,6 @@ package-lock.json
 
 # Local build Artifacts
 LoupixDeck.PluginSdk/nupkg/
+
+# Local demo material (not part of the repo)
+/docs/demo/
