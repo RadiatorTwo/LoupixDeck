@@ -10,26 +10,27 @@ This manual is for people who want to use LoupixDeck, not develop plugins for it
 4. [First Launch](#first-launch)
 5. [The Main Window](#the-main-window)
 6. [Profiles and Workspaces](#profiles-and-workspaces)
-7. [Pages](#pages)
-8. [Touch Buttons](#touch-buttons)
-9. [Button Layers](#button-layers)
-10. [Button States](#button-states)
-11. [Commands and Command Sequences](#commands-and-command-sequences)
-12. [Rotary Controls](#rotary-controls)
-13. [Physical Buttons](#physical-buttons)
-14. [Macros](#macros)
-15. [Dynamic Text](#dynamic-text)
-16. [Wallpapers](#wallpapers)
-17. [Feedback and Haptics](#feedback-and-haptics)
-18. [Screensaver](#screensaver)
-19. [Profile Rules](#profile-rules)
-20. [Plugins and Integrations](#plugins-and-integrations)
-21. [Device Power and Window Commands](#device-power-and-window-commands)
-22. [Automation and CLI](#automation-and-cli)
-23. [Settings Reference](#settings-reference)
-24. [Files and Backup](#files-and-backup)
-25. [Troubleshooting](#troubleshooting)
-26. [Notes and Limitations](#notes-and-limitations)
+7. [Portable Profiles](#portable-profiles)
+8. [Pages](#pages)
+9. [Touch Buttons](#touch-buttons)
+10. [Button Layers](#button-layers)
+11. [Button States](#button-states)
+12. [Commands and Command Sequences](#commands-and-command-sequences)
+13. [Rotary Controls](#rotary-controls)
+14. [Physical Buttons](#physical-buttons)
+15. [Macros](#macros)
+16. [Dynamic Text](#dynamic-text)
+17. [Wallpapers](#wallpapers)
+18. [Feedback and Haptics](#feedback-and-haptics)
+19. [Screensaver](#screensaver)
+20. [Profile Rules](#profile-rules)
+21. [Plugins and Integrations](#plugins-and-integrations)
+22. [Device Power and Window Commands](#device-power-and-window-commands)
+23. [Automation and CLI](#automation-and-cli)
+24. [Settings Reference](#settings-reference)
+25. [Files and Backup](#files-and-backup)
+26. [Troubleshooting](#troubleshooting)
+27. [Notes and Limitations](#notes-and-limitations)
 
 ## What LoupixDeck Is
 
@@ -151,6 +152,21 @@ Open `Settings > Profiles` to manage this structure. From there you can:
 Old layouts are migrated automatically. If you had pages before profiles and workspaces existed, they are placed in a `Default` profile with a `Home` workspace, so the app should behave as it did before.
 
 Profiles and workspaces can also be changed from commands. The command picker has a `Profiles` group with commands such as `Activate Profile`, `Go to Workspace`, `Next Workspace`, `Previous Workspace`, and `Go to Home Workspace`. In the picker, profile and workspace choices are shown by their real names.
+
+## Portable Profiles
+
+You can move layouts between machines or devices with a `.loupixprofile` package. Open `Settings > Profiles` and use the `Export` button beside a profile, workspace, or individual touch/rotary page. The package includes the selected layout, its images, and the macros referenced by its buttons, so the receiving machine does not need those assets prepared in advance.
+
+To use a package on another machine, choose `Import Package…` in `Settings > Profiles` and select the `.loupixprofile` file. LoupixDeck shows a preview before changing anything. Review:
+
+- Whether the package came from a different device type or model.
+- Which plugins the layout needs and whether they are installed or enabled for this device.
+- Commands that cannot currently be resolved because their plugin is missing. These assignments are kept and can start working after the plugin is installed.
+- Macro name conflicts. For each conflict, keep the local macro (`Skip`), import the incoming macro under a new name (`Rename`), or replace the local macro (`Replace`).
+
+You can import as a copy, which adds a new profile or inserts a workspace/page into a chosen destination, or choose replace to overwrite an existing matching item. Replace creates an automatic backup first; that backup can be restored through the same import dialog. An installed plugin is never enabled silently, but the preview can offer to enable an installed, disabled plugin for the current device.
+
+The package is deliberately layout-focused. Enabled plugins, Profile Rules, app bindings, and the screensaver clip are device-wide settings and do not travel with the package. Check those settings separately on the receiving machine.
 
 ## Pages
 
@@ -494,6 +510,12 @@ In current releases, sensor commands render as monitoring tiles instead of plain
 You can put several sensor readings on one touch button by chaining sensor commands with `&&`. LoupixDeck draws one row per sensor, up to four rows. If the button has only one sensor command, it uses a larger single-value tile layout.
 
 Some monitoring plugins also offer a transparent background option. When enabled, the tile panel is removed so the page wallpaper shows through; text is outlined to stay readable.
+
+### Plugin display takeover
+
+Some plugins can temporarily render animated content directly on the device, including full-display video or other continuously changing scenes. While a plugin owns the whole display, a button press ends the stream. Switching profile or workspace also ends it. Turning the device off pauses the stream; turning it on again resumes it.
+
+Plugins can also claim only selected surfaces. For example, a plugin may take over the touch grid while leaving rotary controls, physical buttons, or side displays available for their normal assignments. The exact surfaces depend on the plugin. Starting a plugin takeover stops a running screensaver, and the screensaver does not start while a takeover is active.
 
 Monitoring plugin settings are device-specific. If you enable a plugin on one connected device, its commands and menu entries do not automatically appear on another device. Saved buttons still load, and re-enabling the plugin for that device restores the real command chips.
 
