@@ -33,6 +33,7 @@ public sealed class PluginReloadService : IPluginReloadService
     private readonly IPluginManager _pluginManager;
     private readonly ICommandRegistry _commandRegistry;
     private readonly ISideStripProviderRegistry _sideStripRegistry;
+    private readonly IScreensaverProviderRegistry _screensaverRegistry;
     private readonly IDynamicTextManager _dynamicText;
     private readonly Animation.IButtonAnimationManager _buttonAnimation;
     private readonly Animation.ISideDisplayAnimationManager _sideDisplayAnimation;
@@ -48,6 +49,7 @@ public sealed class PluginReloadService : IPluginReloadService
         IPluginManager pluginManager,
         ICommandRegistry commandRegistry,
         ISideStripProviderRegistry sideStripRegistry,
+        IScreensaverProviderRegistry screensaverRegistry,
         IDynamicTextManager dynamicText,
         Animation.IButtonAnimationManager buttonAnimation,
         Animation.ISideDisplayAnimationManager sideDisplayAnimation,
@@ -60,6 +62,7 @@ public sealed class PluginReloadService : IPluginReloadService
         _pluginManager = pluginManager;
         _commandRegistry = commandRegistry;
         _sideStripRegistry = sideStripRegistry;
+        _screensaverRegistry = screensaverRegistry;
         _dynamicText = dynamicText;
         _buttonAnimation = buttonAnimation;
         _sideDisplayAnimation = sideDisplayAnimation;
@@ -168,12 +171,13 @@ public sealed class PluginReloadService : IPluginReloadService
     // ───────── internals ─────────
 
     /// <summary>Registry rebuild + dynamic-text rescan + current-page repaint, plus
-    /// side-strip provider rebuild and re-attachment (so a reloaded provider re-binds
-    /// and orphaned bindings fall back to segmented).</summary>
+    /// side-strip and screensaver provider rebuild and re-attachment (so a reloaded provider
+    /// re-binds and orphaned bindings fall back to segmented / to no screensaver).</summary>
     private async Task RefreshAsync()
     {
         _commandRegistry.Initialize();
         _sideStripRegistry.Rebuild();
+        _screensaverRegistry.Rebuild();
         _dynamicText.Rescan();
         _buttonAnimation.Rescan();
         _sideDisplayAnimation.Rescan();
