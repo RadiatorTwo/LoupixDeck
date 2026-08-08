@@ -107,6 +107,12 @@ public sealed class ScreensaverManager : IScreensaverManager, IDisposable
         StopScreensaver();
     }
 
+    public void StopRunning()
+    {
+        StopScreensaver();
+        RestartIdleTimer();
+    }
+
     private void RestartIdleTimer()
     {
         bool armed;

@@ -27,6 +27,13 @@ public interface IScreensaverManager
     /// <summary>Stops any running screensaver and the idle countdown. Call on shutdown.</summary>
     void Stop();
 
+    /// <summary>Stops a running screensaver synchronously but stays armed — the idle countdown
+    /// restarts, so the screensaver comes back after the next idle period. Used when something
+    /// must positively release the current source before continuing (e.g. unloading the plugin
+    /// that provides it), where the fire-and-forget stop of <see cref="NotifyActivity"/> would
+    /// race the caller.</summary>
+    void StopRunning();
+
     /// <summary>Raised when the screensaver starts playing. The controller suppresses its
     /// own rendering (and stops side-strip provider timers) while it owns the display.</summary>
     event Action Started;
