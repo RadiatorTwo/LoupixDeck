@@ -40,6 +40,7 @@ public sealed class PluginReloadService : IPluginReloadService
     private readonly IExclusiveModeService _exclusiveMode;
     private readonly IFolderNavigationService _folderNav;
     private readonly IDeviceController _deviceController;
+    private readonly Screensaver.IScreensaverManager _screensaver;
     private readonly IPluginInstaller _installer;
     private readonly Models.LoupedeckConfig _config;
 
@@ -56,6 +57,7 @@ public sealed class PluginReloadService : IPluginReloadService
         IExclusiveModeService exclusiveMode,
         IFolderNavigationService folderNav,
         IDeviceController deviceController,
+        Screensaver.IScreensaverManager screensaver,
         IPluginInstaller installer,
         Models.LoupedeckConfig config)
     {
@@ -69,6 +71,7 @@ public sealed class PluginReloadService : IPluginReloadService
         _exclusiveMode = exclusiveMode;
         _folderNav = folderNav;
         _deviceController = deviceController;
+        _screensaver = screensaver;
         _installer = installer;
         _config = config;
     }
@@ -202,6 +205,12 @@ public sealed class PluginReloadService : IPluginReloadService
         // A live side-strip provider attached to a strip roots this plugin's load
         // context. Detach all (cheap; RefreshAsync re-attaches the still-loaded ones).
         _deviceController.DetachAllSideStripProviders();
+
+        // A running plugin screensaver holds a live IFullDisplayRenderer, which roots the load
+        // context exactly like a strip session does (issue #124). Stop it synchronously — the
+        // fire-and-forget stop on the input path would race the unload. StopRunning keeps the
+        // idle countdown armed, so the screensaver returns once the provider is back.
+        _screensaver.StopRunning();
 
         if (_folderNav.IsActive)
             _folderNav.ExitAll().GetAwaiter().GetResult(); // completes synchronously
