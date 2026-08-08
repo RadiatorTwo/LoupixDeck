@@ -136,6 +136,17 @@ public partial class LoupedeckConfig : ObservableObject
     [ObservableProperty]
     public partial bool ScreensaverLoop { get; set; } = true;
 
+    // Which source drives the screensaver (issue #124). Absent in configs saved before the plugin
+    // source existed, so the default reproduces the original video playback exactly.
+    [ObservableProperty]
+    public partial ScreensaverSourceKind ScreensaverSource { get; set; } = ScreensaverSourceKind.Video;
+
+    // Id of the selected IScreensaverProvider while ScreensaverSource is Plugin; null otherwise.
+    // Only the id is persisted (mirroring RotaryButtonPage.StripPluginId), so an uninstalled plugin
+    // leaves an orphaned id that simply resolves to nothing instead of breaking the config.
+    [ObservableProperty]
+    public partial string ScreensaverPluginId { get; set; }
+
     public SimpleButton[] SimpleButtons { get; set; }
 
     // ───────── Profiles / Workspaces (issue #132) ─────────
