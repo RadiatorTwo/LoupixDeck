@@ -731,22 +731,39 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
         ContextRuleRows.Remove(row);
     }
 
-    /// <summary>When on, leaving all rule-matched apps returns to a fixed <see cref="FallbackProfile"/>;
-    /// when off, it restores whichever profile was active before a rule took over.</summary>
-    public bool UseFixedFallbackProfile
+    /// <summary>The three no-match behaviours, in the order they are offered.</summary>
+    public IReadOnlyList<NoMatchBehaviorOption> NoMatchBehaviorOptions { get; } =
+    [
+        new(NoMatchProfileBehavior.KeepCurrent, "Keep the current profile"),
+        new(NoMatchProfileBehavior.RestorePrevious, "Return to the profile active before the rule"),
+        new(NoMatchProfileBehavior.FixedProfile, "Switch to a fixed fallback profile")
+    ];
+
+    /// <summary>What happens to the active profile when no rule matches any more.</summary>
+    public NoMatchBehaviorOption SelectedNoMatchBehavior
     {
-        get => Config.FallbackProfileId != null;
+        get
+        {
+            var current = Config.EffectiveNoMatchBehavior;
+            return NoMatchBehaviorOptions.FirstOrDefault(o => o.Value == current)
+                   ?? NoMatchBehaviorOptions[0];
+        }
         set
         {
-            if (!value)
-                Config.FallbackProfileId = null;
-            else
+            Config.NoMatchBehavior = value?.Value ?? NoMatchProfileBehavior.KeepCurrent;
+
+            // Give the fixed mode a usable profile right away instead of an empty ComboBox.
+            if (Config.NoMatchBehavior == NoMatchProfileBehavior.FixedProfile)
                 Config.FallbackProfileId ??= Config.Profiles.FirstOrDefault()?.Id;
 
             OnPropertyChanged();
+            OnPropertyChanged(nameof(UseFixedFallbackProfile));
             OnPropertyChanged(nameof(FallbackProfile));
         }
     }
+
+    /// <summary>True while the fixed-profile mode is selected; enables the fallback-profile picker.</summary>
+    public bool UseFixedFallbackProfile => Config.EffectiveNoMatchBehavior == NoMatchProfileBehavior.FixedProfile;
 
     public Profile FallbackProfile
     {
@@ -755,7 +772,6 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
         {
             Config.FallbackProfileId = value?.Id;
             OnPropertyChanged();
-            OnPropertyChanged(nameof(UseFixedFallbackProfile));
         }
     }
 

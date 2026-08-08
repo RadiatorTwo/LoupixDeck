@@ -757,13 +757,27 @@
                             <!-- Fallback option + its profile, grouped as one unit. -->
                             <Border Classes="rule-group">
                                 <StackPanel Spacing="8">
-                                    <CheckBox Content="Return to a fixed fallback profile when leaving matched apps"
-                                              IsChecked="{Binding UseFixedFallbackProfile, Mode=TwoWay}" />
-                                    <Grid ColumnDefinitions="Auto,*" Margin="26,0,0,0"
-                                          IsEnabled="{Binding UseFixedFallbackProfile}">
-                                        <TextBlock Grid.Column="0" Classes="label" Text="Fallback profile"
+                                    <!-- One grid for both rows so the labels share a column and the
+                                         two ComboBoxes line up on the same left edge and width. -->
+                                    <Grid ColumnDefinitions="Auto,320" RowDefinitions="Auto,Auto" RowSpacing="8"
+                                          HorizontalAlignment="Left">
+                                        <TextBlock Grid.Row="0" Grid.Column="0" Classes="label" Text="When leaving matched apps"
                                                    VerticalAlignment="Center" Margin="0,0,10,0" />
-                                        <ComboBox Grid.Column="1" Width="240" HorizontalAlignment="Left"
+                                        <ComboBox Grid.Row="0" Grid.Column="1" HorizontalAlignment="Stretch"
+                                                  ItemsSource="{Binding NoMatchBehaviorOptions}"
+                                                  SelectedItem="{Binding SelectedNoMatchBehavior, Mode=TwoWay}">
+                                            <ComboBox.ItemTemplate>
+                                                <DataTemplate DataType="vm:NoMatchBehaviorOption">
+                                                    <TextBlock Text="{Binding Label}" />
+                                                </DataTemplate>
+                                            </ComboBox.ItemTemplate>
+                                        </ComboBox>
+
+                                        <TextBlock Grid.Row="1" Grid.Column="0" Classes="label" Text="Fallback profile"
+                                                   VerticalAlignment="Center" Margin="0,0,10,0"
+                                                   IsEnabled="{Binding UseFixedFallbackProfile}" />
+                                        <ComboBox Grid.Row="1" Grid.Column="1" HorizontalAlignment="Stretch"
+                                                  IsEnabled="{Binding UseFixedFallbackProfile}"
                                                   ItemsSource="{Binding RuleProfiles}"
                                                   SelectedItem="{Binding FallbackProfile, Mode=TwoWay}">
                                             <ComboBox.ItemTemplate>
@@ -773,8 +787,8 @@
                                             </ComboBox.ItemTemplate>
                                         </ComboBox>
                                     </Grid>
-                                    <TextBlock Classes="hint" FontSize="12" Margin="26,0,0,0"
-                                               Text="Off: return to whichever profile was active before a rule took over." />
+                                    <TextBlock Classes="hint" FontSize="12"
+                                               Text="Keep the current profile: the profile the last rule activated stays active until another rule matches. Return to the profile active before the rule: undo the switch a rule made. Switch to a fixed fallback profile: always activate the profile chosen above." />
                                 </StackPanel>
                             </Border>
                         </StackPanel>

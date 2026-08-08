@@ -458,11 +458,19 @@ You can:
 - Optionally choose a page.
 - Give each rule a priority.
 - Trigger a rule when its process starts, not only when its window comes to the front.
-- Choose whether LoupixDeck should return to a fixed fallback profile when you leave matched apps.
+- Choose what happens to the profile when you leave matched apps.
 
 The highest-priority matching rule wins. If rules have the same priority, list order breaks the tie.
 
-If a rule leaves `Profile` empty, it keeps the current profile. If it leaves `Workspace` empty, it opens the chosen profile's Home workspace. If no rule matches, LoupixDeck restores the previous profile and workspace, unless you configured a fixed fallback profile.
+If a rule leaves `Profile` empty, it keeps the current profile. If it leaves `Workspace` empty, it opens the chosen profile's Home workspace. What happens when no rule matches is set by `When leaving matched apps`:
+
+| Option | Behavior |
+| --- | --- |
+| Keep the current profile | The profile is not changed. Whatever the last matching rule activated stays active until another rule matches. This is the default. |
+| Return to the profile active before the rule | LoupixDeck goes back to the profile that was active before a rule first took over. |
+| Switch to a fixed fallback profile | LoupixDeck always activates the profile you pick in `Fallback profile`. |
+
+The workspace and page are not restored separately; they follow the profile that gets activated.
 
 When you switch profile or workspace by hand, LoupixDeck pauses automatic switching until the foreground app changes. This prevents a rule from immediately pulling you back while you are deliberately working somewhere else.
 
@@ -667,7 +675,7 @@ Important: Interception is third-party software. It is not bundled with LoupixDe
 - Choose profile, workspace, and optional page behavior.
 - Set rule priority.
 - Trigger rules when a process starts.
-- Choose fallback profile behavior.
+- Choose what happens to the profile when you leave matched apps.
 
 ### Theme
 
@@ -732,7 +740,7 @@ Recording needs read access to `/dev/input/event*`. The installer attempts to ha
 
 - Open `Settings > Profile Rules` and check whether automatic switching is enabled.
 - Check the priority of matching rules. The highest-priority match wins.
-- Check whether a fixed fallback profile is configured.
+- Check the `When leaving matched apps` setting; it decides whether the profile stays, returns to the previous one, or switches to a fixed fallback profile.
 - If you just switched profile or workspace manually, automatic switching waits until the foreground app changes before taking over again.
 
 ### Plugin commands are missing

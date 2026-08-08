@@ -398,7 +398,23 @@ public partial class LoupedeckConfig : ObservableObject
     [Newtonsoft.Json.JsonProperty(ObjectCreationHandling = Newtonsoft.Json.ObjectCreationHandling.Replace)]
     public ObservableCollection<ContextRule> ContextRules { get; set; } = [];
 
-    // Profile to activate when leaving all rule-matched apps. null = restore whichever profile was
-    // active before a rule first took over (previous-profile behaviour).
+    // Profile to activate when leaving all rule-matched apps, used by NoMatchProfileBehavior
+    // .FixedProfile. Kept as its own value so switching the behaviour back and forth does not
+    // forget the chosen profile.
     public Guid? FallbackProfileId { get; set; }
+
+    // What happens to the active profile when no rule matches any more. Null in configs written
+    // before this setting existed — see EffectiveNoMatchBehavior for how those are read.
+    public NoMatchProfileBehavior? NoMatchBehavior { get; set; }
+
+    /// <summary>
+    /// <see cref="NoMatchBehavior"/> with the fallback for older config files: those only had
+    /// <see cref="FallbackProfileId"/>, where a set id means "switch to that profile" and null means
+    /// "keep the current profile".
+    /// </summary>
+    [Newtonsoft.Json.JsonIgnore]
+    public NoMatchProfileBehavior EffectiveNoMatchBehavior =>
+        NoMatchBehavior ?? (FallbackProfileId != null
+            ? NoMatchProfileBehavior.FixedProfile
+            : NoMatchProfileBehavior.KeepCurrent);
 }

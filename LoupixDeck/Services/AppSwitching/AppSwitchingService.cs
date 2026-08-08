@@ -11,8 +11,9 @@ namespace LoupixDeck.Services.AppSwitching;
 /// <summary>
 /// Context engine (issue #132): maps the foreground window — and process starts — to profiles and
 /// workspaces. On a foreground change it picks the highest-priority matching <see cref="ContextRule"/>
-/// and activates its profile/workspace (optionally jumping to a page); when no rule matches it
-/// restores the previously active profile or a configured fallback. A manual profile/workspace
+/// and activates its profile/workspace (optionally jumping to a page); when no rule matches the
+/// configured <see cref="NoMatchProfileBehavior"/> decides whether the active profile stays, returns
+/// to what it was before a rule took over, or switches to a fixed fallback. A manual profile/workspace
 /// selection pins the choice until the foreground app changes. Legacy <see cref="AppPageBinding"/>s
 /// are folded into rules at start so pre-#132 configs behave identically.
 ///
@@ -44,8 +45,8 @@ public sealed class AppSwitchingService : IAppSwitchingService
     private string _manualOverrideProcess;
     private string _lastForegroundProcess = string.Empty;
 
-    // Restore-on-exit: the profile that was active before a rule first took over, and whether we are
-    // currently inside a rule-matched app.
+    // Restore-on-exit (NoMatchProfileBehavior.RestorePrevious): the profile that was active before a
+    // rule first took over, and whether we are currently inside a rule-matched app.
     private Guid? _previousProfileId;
     private bool _inMatchedApp;
 
@@ -197,12 +198,18 @@ public sealed class AppSwitchingService : IAppSwitchingService
         }
     }
 
-    /// <summary>Restores the profile to switch back to when leaving all rule-matched apps, then
-    /// applies the legacy no-match fallback page (so migrated single-profile configs still jump to
-    /// their configured fallback page).</summary>
+    /// <summary>Applies the configured <see cref="NoMatchProfileBehavior"/> when leaving all
+    /// rule-matched apps, then the legacy no-match fallback page (so migrated single-profile configs
+    /// still jump to their configured fallback page).</summary>
     private async Task ApplyNoMatch()
     {
-        var restoreId = _config.FallbackProfileId ?? (_inMatchedApp ? _previousProfileId : null);
+        var restoreId = _config.EffectiveNoMatchBehavior switch
+        {
+            NoMatchProfileBehavior.FixedProfile => _config.FallbackProfileId,
+            NoMatchProfileBehavior.RestorePrevious => _inMatchedApp ? _previousProfileId : null,
+            _ => null
+        };
+
         _inMatchedApp = false;
 
         if (restoreId is { } rid && rid != _config.ActiveProfileId)
