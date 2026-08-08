@@ -266,6 +266,7 @@ public class PluginManager : IPluginManager
         plugin.Host = null;
         plugin.Commands = Array.Empty<IPluginCommand>();
         plugin.SideStripProviders = Array.Empty<ISideStripProvider>();
+        plugin.ScreensaverProviders = Array.Empty<IScreensaverProvider>();
         plugin.LoadContext = null;
 
         try { context?.Unload(); }
@@ -360,6 +361,9 @@ public class PluginManager : IPluginManager
             var stripProviders = instance.GetSideStripProviders()?.Where(p => p != null).ToList()
                                  ?? new List<ISideStripProvider>();
 
+            var screensaverProviders = instance.GetScreensaverProviders()?.Where(p => p != null).ToList()
+                                       ?? new List<IScreensaverProvider>();
+
             return new LoadedPlugin
             {
                 Manifest = manifest,
@@ -369,7 +373,8 @@ public class PluginManager : IPluginManager
                 LoadContext = context,
                 Host = host,
                 Commands = commands,
-                SideStripProviders = stripProviders
+                SideStripProviders = stripProviders,
+                ScreensaverProviders = screensaverProviders
             };
         }
         catch (Exception ex)
