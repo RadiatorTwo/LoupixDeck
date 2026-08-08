@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using LoupixDeck.Models;
 using LoupixDeck.Services.Animation;
+using LoupixDeck.PluginSdk;
 using LoupixDeck.Services.FolderNavigation;
 using LoupixDeck.Services.Plugins;
 using LoupixDeck.Utils;
@@ -16,6 +17,7 @@ public sealed class ScreensaverManager : IScreensaverManager, IDisposable
     private readonly IAnimationScheduler _scheduler;
     private readonly IAssetService _assetService;
     private readonly IFolderNavigationService _folderNav;
+    private readonly IScreensaverProviderRegistry _providerRegistry;
     private readonly LoupedeckConfig _config;
 
     // Floor on the idle timeout so a mistyped tiny value can't make the screensaver
@@ -25,7 +27,12 @@ public sealed class ScreensaverManager : IScreensaverManager, IDisposable
     private readonly object _gate = new();
     private readonly Timer _idleTimer;
 
-    private ScreensaverAnimationSource _source;
+    // Either a ScreensaverAnimationSource (video clip) or a PluginFullDisplayAnimationSource
+    // (plugin provider) — both are IAnimationSource + IDisposable, and nothing here needs more.
+    private IAnimationSource _source;
+    // Id of the provider behind a running plugin screensaver; null on the video path. Lets us stop
+    // the screensaver when that provider disappears from the registry.
+    private string _runningPluginId;
     private int _previousFpsLimit;
     private bool _armed;
     private bool _disposed;
@@ -40,6 +47,7 @@ public sealed class ScreensaverManager : IScreensaverManager, IDisposable
         IAnimationScheduler scheduler,
         IAssetService assetService,
         IFolderNavigationService folderNav,
+        IScreensaverProviderRegistry providerRegistry,
         LoupedeckConfig config)
     {
         _deviceService = deviceService;
@@ -48,6 +56,7 @@ public sealed class ScreensaverManager : IScreensaverManager, IDisposable
         _scheduler = scheduler;
         _assetService = assetService;
         _folderNav = folderNav;
+        _providerRegistry = providerRegistry;
         _config = config;
 
         _idleTimer = new Timer(_ => OnIdleElapsed(), null, Timeout.Infinite, Timeout.Infinite);
@@ -57,12 +66,26 @@ public sealed class ScreensaverManager : IScreensaverManager, IDisposable
         // lowest-priority display owner). Stop it off the caller's thread so killing ffmpeg never
         // stalls the plugin's enter path.
         _fullDisplay.Started += OnFullDisplayStarted;
+
+        // Safety net for a plugin screensaver whose provider goes away while it plays (plugin
+        // disabled, removed or reloaded). The reload path also stops us explicitly; this catches
+        // every other rebuild, including the ones triggered on another device's reload service.
+        _providerRegistry.ProvidersChanged += OnProvidersChanged;
     }
 
     private void OnFullDisplayStarted()
     {
         if (IsRunning)
             _ = Task.Run(StopScreensaver);
+    }
+
+    private void OnProvidersChanged()
+    {
+        string runningId;
+        lock (_gate) runningId = _runningPluginId;
+
+        if (runningId != null && _providerRegistry.Get(runningId) == null)
+            StopRunning();
     }
 
     public bool IsRunning
@@ -150,24 +173,13 @@ public sealed class ScreensaverManager : IScreensaverManager, IDisposable
             // those modes itself (they're reserved for plugin takeovers).
             if (_exclusiveMode.IsActive || _fullDisplay.IsActive || _folderNav.IsActive) return;
 
-            var absolute = _assetService.ResolveAbsolute(_config.ScreensaverVideoPath);
-            if (string.IsNullOrWhiteSpace(absolute) || !File.Exists(absolute))
-            {
-                Console.WriteLine("[Screensaver] no playable video configured.");
-                return;
-            }
+            // Build (and start) the configured source. Both branches start outside the lock,
+            // because a start touches ffmpeg / plugin code that must not run under _gate.
+            var (source, fpsCap, pluginId) = _config.ScreensaverSource == ScreensaverSourceKind.Plugin
+                ? TryStartPlugin(device)
+                : TryStartVideo(device);
 
-            if (!FfmpegDetector.IsAvailable())
-            {
-                Console.WriteLine("[Screensaver] ffmpeg not found on PATH — feature unavailable.");
-                return;
-            }
-
-            var source = new ScreensaverAnimationSource(
-                device, absolute, _config.ScreensaverFps, _config.ScreensaverLoop,
-                onEnded: () => _ = Task.Run(StopScreensaver));
-
-            if (!source.Start())
+            if (source == null)
                 return;
 
             lock (_gate)
@@ -175,11 +187,12 @@ public sealed class ScreensaverManager : IScreensaverManager, IDisposable
                 if (_disposed || !_armed)
                 {
                     // Disarmed while we were starting — unwind.
-                    source.Dispose();
+                    (source as IDisposable)?.Dispose();
                     return;
                 }
 
                 _source = source;
+                _runningPluginId = pluginId;
             }
 
             // Tell the controller to suppress its own rendering while the screensaver owns
@@ -190,7 +203,7 @@ public sealed class ScreensaverManager : IScreensaverManager, IDisposable
             // default limit isn't clamped. Safe because the screensaver is the only source
             // drawing while it runs; the previous cap is restored on stop.
             _previousFpsLimit = _scheduler.GlobalFpsLimit;
-            _scheduler.SetGlobalFpsLimit(_config.ScreensaverFps);
+            _scheduler.SetGlobalFpsLimit(fpsCap);
 
             _scheduler.Register(source);
             Console.WriteLine("[Screensaver] started.");
@@ -201,19 +214,95 @@ public sealed class ScreensaverManager : IScreensaverManager, IDisposable
         }
     }
 
+    /// <summary>Builds the video-clip source (the pre-#124 behavior). ffmpeg is only required —
+    /// and only probed — here.</summary>
+    private (IAnimationSource Source, int FpsCap, string PluginId) TryStartVideo(
+        LoupedeckDevice.Device.LoupedeckDevice device)
+    {
+        var absolute = _assetService.ResolveAbsolute(_config.ScreensaverVideoPath);
+        if (string.IsNullOrWhiteSpace(absolute) || !File.Exists(absolute))
+        {
+            Console.WriteLine("[Screensaver] no playable video configured.");
+            return default;
+        }
+
+        if (!FfmpegDetector.IsAvailable())
+        {
+            Console.WriteLine("[Screensaver] ffmpeg not found on PATH — feature unavailable.");
+            return default;
+        }
+
+        var source = new ScreensaverAnimationSource(
+            device, absolute, _config.ScreensaverFps, _config.ScreensaverLoop,
+            onEnded: () => _ = Task.Run(StopScreensaver));
+
+        return source.Start() ? (source, _config.ScreensaverFps, null) : default;
+    }
+
+    /// <summary>
+    /// Builds a source from the configured plugin provider (issue #124). Mirrors
+    /// <see cref="Plugins.FullDisplayRenderService"/>'s enter path — including starting outside the
+    /// lock — but the host, not the plugin, owns the renderer's lifetime here. A missing provider is
+    /// not an error: the screensaver is simply skipped and the active page stays on screen.
+    /// </summary>
+    private (IAnimationSource Source, int FpsCap, string PluginId) TryStartPlugin(
+        LoupedeckDevice.Device.LoupedeckDevice device)
+    {
+        var provider = _providerRegistry.Get(_config.ScreensaverPluginId);
+        if (provider == null)
+        {
+            Console.WriteLine(
+                $"[Screensaver] no screensaver provider '{_config.ScreensaverPluginId}' loaded.");
+            return default;
+        }
+
+        IFullDisplayRenderer renderer;
+        try
+        {
+            renderer = provider.CreateRenderer();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Screensaver] '{provider.Id}' CreateRenderer threw: {ex.Message}");
+            return default;
+        }
+
+        if (renderer == null)
+        {
+            Console.WriteLine($"[Screensaver] '{provider.Id}' declined to create a renderer.");
+            return default;
+        }
+
+        // A one-shot plugin screensaver ends the screensaver, exactly like a non-looping clip.
+        var source = new PluginFullDisplayAnimationSource(
+            device, renderer, onEnded: () => _ = Task.Run(StopScreensaver));
+
+        if (source.TargetCount == 0 || !source.Start())
+        {
+            source.Dispose();
+            return default;
+        }
+
+        // The plugin's declared rate wins; the configured FPS is the fallback for a renderer
+        // that leaves TargetFps at 0 ("use the host's default").
+        var fps = renderer.TargetFps > 0 ? renderer.TargetFps : _config.ScreensaverFps;
+        return (source, fps, provider.Id);
+    }
+
     private void StopScreensaver()
     {
-        ScreensaverAnimationSource source;
+        IAnimationSource source;
         lock (_gate)
         {
             source = _source;
             _source = null;
+            _runningPluginId = null;
         }
 
         if (source == null) return;
 
         try { _scheduler.Unregister(source); } catch { /* best effort */ }
-        try { source.Dispose(); } catch { /* best effort */ }
+        try { (source as IDisposable)?.Dispose(); } catch { /* best effort */ }
         // Restore the scheduler's global FPS cap we raised on start.
         if (_previousFpsLimit > 0)
             try { _scheduler.SetGlobalFpsLimit(_previousFpsLimit); } catch { /* best effort */ }
@@ -239,8 +328,10 @@ public sealed class ScreensaverManager : IScreensaverManager, IDisposable
                 break;
 
             case nameof(LoupedeckConfig.ScreensaverVideoPath):
-                // The clip changed — stop a running screensaver so the next idle trigger
-                // picks up the new video instead of continuing to play the old one.
+            case nameof(LoupedeckConfig.ScreensaverSource):
+            case nameof(LoupedeckConfig.ScreensaverPluginId):
+                // The source changed — stop a running screensaver so the next idle trigger
+                // picks up the new clip/provider instead of continuing to play the old one.
                 if (IsRunning)
                     _ = Task.Run(StopScreensaver);
                 // Re-arm the idle countdown. Stopping above leaves the one-shot idle timer
@@ -263,6 +354,7 @@ public sealed class ScreensaverManager : IScreensaverManager, IDisposable
 
         _config.PropertyChanged -= OnConfigChanged;
         _fullDisplay.Started -= OnFullDisplayStarted;
+        _providerRegistry.ProvidersChanged -= OnProvidersChanged;
         StopScreensaver();
         try { _idleTimer.Dispose(); } catch { /* ignore */ }
     }

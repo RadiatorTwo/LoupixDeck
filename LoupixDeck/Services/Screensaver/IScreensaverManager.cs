@@ -3,8 +3,9 @@ namespace LoupixDeck.Services.Screensaver;
 /// <summary>
 /// Per-device owner of the idle-driven full-display screensaver (issue #120). Watches an
 /// idle countdown that any hardware input resets; when it elapses it takes the display
-/// over (via exclusive mode) and plays the configured clip through the central animation
-/// scheduler. The first input afterwards stops it and repaints the active page.
+/// over and plays the configured source through the central animation scheduler — either the
+/// configured video clip or a plugin-provided full-display renderer (issue #124). The first input
+/// afterwards stops it and repaints the active page.
 /// </summary>
 public interface IScreensaverManager
 {
