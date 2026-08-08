@@ -43,6 +43,10 @@ public partial class Settings : Window
         if (DataContext is not SettingsViewModel vm || PluginList == null)
             return;
 
+        // Enabling/disabling/installing/removing a plugin also changes the screensaver providers
+        // the picker offers (issue #124), and every one of those paths rebuilds this list.
+        vm.RefreshScreensaverProviders();
+
         PluginList.Items.Clear();
         foreach (var plugin in vm.Plugins)
         {
