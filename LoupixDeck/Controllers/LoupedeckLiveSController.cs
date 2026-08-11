@@ -1134,13 +1134,16 @@ public partial class LoupedeckLiveSController(
     }
 
     /// <summary>
-    /// Runs a simple (LED) button's active-state command off the serial-read thread, then — for a
-    /// Local stateful button — applies the state's transition so the LED updates to the new state.
-    /// External buttons never transition automatically; their state is driven by a plugin.
+    /// Runs a simple (LED) button's active-state command off the serial-read thread. For a Local
+    /// stateful button the state's transition is applied up front — resolved against the state that
+    /// was active at press time — so the LED updates to the new state immediately instead of waiting
+    /// for the command to finish (#186). External buttons never transition automatically; their
+    /// state is driven by a plugin.
     /// </summary>
     private void FireSimpleButtonCommand(SimpleButton button, string wrapped)
     {
-        var local = button.Mode == ButtonStateMode.Local;
+        if (button.Mode == ButtonStateMode.Local)
+            ApplyStateTransition(button, button.ActiveState);
 
         _ = Task.Run(async () =>
         {
@@ -1153,24 +1156,22 @@ public partial class LoupedeckLiveSController(
             {
                 Console.WriteLine($"Command failed ({wrapped}): {ex.Message}");
             }
-            finally
-            {
-                if (local)
-                    ApplyStateTransition(button);
-            }
         });
     }
 
     /// <summary>
     /// Runs a touch button's active-state command (wrapped by the page) off the serial-read
-    /// thread, then — for a Local stateful button — applies the state's transition so the
-    /// device repaints the new state's background + layers in one pass. External buttons never
+    /// thread. For a Local stateful button the state's transition is applied up front — resolved
+    /// against the state that was active at press time — so the device repaints the new state
+    /// immediately instead of waiting for the command to finish (#186). External buttons never
     /// transition automatically; their state is driven by a plugin.
     /// </summary>
     private void FireTouchButtonCommand(TouchButton button)
     {
         var wrapped = config.CurrentTouchButtonPage.TouchButtonWrap?.Apply(button.Command) ?? button.Command;
-        var local = button.Mode == ButtonStateMode.Local;
+
+        if (button.Mode == ButtonStateMode.Local)
+            ApplyStateTransition(button, button.ActiveState);
 
         _ = Task.Run(async () =>
         {
@@ -1183,25 +1184,24 @@ public partial class LoupedeckLiveSController(
             {
                 Console.WriteLine($"Command failed ({wrapped}): {ex.Message}");
             }
-            finally
-            {
-                if (local)
-                    ApplyStateTransition(button);
-            }
         });
     }
 
     /// <summary>
-    /// Resolves the active state's transition to the next state id and applies it on the UI
-    /// thread (never the serial-read thread). A Stay transition or a removed target is a no-op.
+    /// Resolves <paramref name="current"/>'s transition to the next state id and applies it on the
+    /// UI thread (never the serial-read thread). A Stay transition or a removed target is a no-op.
     /// Shared by touch and simple (LED) stateful buttons.
+    /// <para>
+    /// The state is passed in rather than re-read from the button: the caller captures it at press
+    /// time, so a slow command can't make the transition resolve against a state the user has since
+    /// moved on from (#186).
+    /// </para>
     /// </summary>
-    private static void ApplyStateTransition(StatefulButton button)
+    private static void ApplyStateTransition(StatefulButton button, ButtonState current)
     {
         var states = button.States;
         if (states == null || states.Count == 0) return;
 
-        var current = button.ActiveState;
         if (current == null) return;
 
         var transition = current.Transition ?? new StateTransition();
