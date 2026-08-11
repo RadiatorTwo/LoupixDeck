@@ -408,6 +408,42 @@ public static class KeyNames
     }
 
     /// <summary>
+    /// Splits a key combination ("Ctrl+Shift+S") into its key names. '+' is the separator and
+    /// at the same time a key name of its own, so a plain
+    /// <c>Split('+', RemoveEmptyEntries)</c> would swallow the plus key and turn "Ctrl++"
+    /// (zoom in, on a German layout) into a bare "Ctrl". An empty segment between two
+    /// separators is therefore read as the plus key itself; a trailing one is dropped as a
+    /// dangling separator.
+    /// </summary>
+    public static List<string> SplitCombination(string combination)
+    {
+        var keys = new List<string>();
+        if (string.IsNullOrWhiteSpace(combination))
+            return keys;
+
+        var parts = combination.Split('+');
+        for (var i = 0; i < parts.Length; i++)
+        {
+            var part = parts[i].Trim();
+            if (part.Length > 0)
+            {
+                keys.Add(part);
+                continue;
+            }
+
+            // Empty segment: two separators in a row. With a segment still following, the
+            // second '+' is a key; otherwise it is a trailing separator and gets dropped.
+            if (i + 1 < parts.Length)
+            {
+                keys.Add("+");
+                i++;
+            }
+        }
+
+        return keys;
+    }
+
+    /// <summary>
     /// True when the name denotes a single character (e.g. "ü", "#", "+", "z") rather than a
     /// name from the tables. Such names are resolved by the backends against the active
     /// keyboard layout, which is the only thing that knows where the character lives.

@@ -545,9 +545,8 @@ public class MacroRunner : IDisposable
                 break;
 
             case KeyCombinationStep combo:
-                var keys = (combo.Keys ?? string.Empty)
-                    .Split('+', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-                if (keys.Length > 0)
+                var keys = Utils.KeyNames.SplitCombination(combo.Keys);
+                if (keys.Count > 0)
                     _keyboard.SendKeyCombination(keys);
                 break;
 

@@ -111,11 +111,8 @@ public sealed class MacroStopHotkeyService(IMacroManager macroManager, IMacroSto
     private static HashSet<string> ParseCombo(string hotkey)
     {
         var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        if (!string.IsNullOrWhiteSpace(hotkey))
-        {
-            foreach (var part in hotkey.Split('+', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-                set.Add(Utils.KeyNames.Canonicalize(part));
-        }
+        foreach (var part in Utils.KeyNames.SplitCombination(hotkey))
+            set.Add(Utils.KeyNames.Canonicalize(part));
 
         return set;
     }
