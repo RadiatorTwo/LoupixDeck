@@ -398,6 +398,16 @@ The **Wait For** step offers the condition **Trigger button released**, which pa
 The key is now held for exactly as long as you hold the button. To repeat something while the button is held, put the steps in an infinite **Repeat** block and add a **Wait For** on **Trigger button released** with **Negate** enabled, a short timeout, and **On timeout: Fail**. Releasing the button ends the macro, and any key it still holds is released automatically.
 
 This condition needs a real button press. When a macro is started another way, for example with the Test button in the editor, from a hotkey, or by a plugin, it counts as released and the wait continues immediately. A press whose release never arrives, for instance because the device was unplugged, counts as released after 30 seconds so no key can stay stuck.
+### Key names
+
+Key Combination, Key Down and Key Up take key names joined with `+`, for example `Ctrl+Shift+Esc`. The easiest way to fill them in is the **Capture** button next to the field: press the keys and LoupixDeck writes them down for you.
+
+A key can be named in two ways:
+
+- By the character it types, such as `Ü`, `Ä`, `ß`, `#` or `+` — so `Ctrl+Ü` and `Ctrl++` work. These are resolved through the keyboard layout that is active when the macro runs, which means the macro follows the layout rather than a fixed position.
+- By its position on the keyboard, using the US legend: `Semicolon`, `LeftBracket`, `Minus`, `Oem102`, `Num5`, `PrintScreen`, `F13`. These always hit the same physical key, whatever the layout. Capture uses them for keys that type no character, such as the dead keys `^` and `´`.
+
+Both spellings can be mixed in one combination.
 
 ### Macro input backends
 
