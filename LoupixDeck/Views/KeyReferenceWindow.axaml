@@ -1,0 +1,59 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="using:LoupixDeck.ViewModels"
+        mc:Ignorable="d"
+        d:DesignWidth="560" d:DesignHeight="700"
+        Width="560" Height="700"
+        MinWidth="380" MinHeight="300"
+        x:Class="LoupixDeck.Views.KeyReferenceWindow"
+        x:DataType="vm:KeyReferenceViewModel"
+        WindowStartupLocation="CenterOwner"
+        Title="Usable key names">
+
+    <Window.Styles>
+        <Style Selector="SelectableTextBlock.intro">
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="Opacity" Value="0.75" />
+            <Setter Property="FontSize" Value="12" />
+        </Style>
+        <Style Selector="TextBlock.group-title">
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Margin" Value="0,14,0,4" />
+        </Style>
+        <Style Selector="SelectableTextBlock.keys">
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="FontFamily" Value="Consolas, Menlo, Monospace" />
+            <Setter Property="FontSize" Value="12" />
+        </Style>
+    </Window.Styles>
+
+    <Grid RowDefinitions="Auto,*,Auto">
+        <StackPanel Grid.Row="0" Margin="16,16,16,8" Spacing="6">
+            <SelectableTextBlock Classes="intro" Text="{Binding Intro}" />
+            <SelectableTextBlock Classes="intro" Text="{Binding CharacterHint}" />
+        </StackPanel>
+
+        <!-- No Padding on the ScrollViewer: it is not part of the scrollable extent
+             (see CLAUDE.md), so the inset lives on the content's Margin instead. -->
+        <ScrollViewer Grid.Row="1">
+            <ItemsControl ItemsSource="{Binding Groups}" Margin="16,0,16,16">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate DataType="vm:KeyReferenceGroup">
+                        <StackPanel>
+                            <TextBlock Classes="group-title" Text="{Binding Title}" />
+                            <SelectableTextBlock Classes="keys" Text="{Binding Text}" />
+                        </StackPanel>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right"
+                    Margin="16,8,16,16" Spacing="8">
+            <Button Content="Copy all" Click="CopyAll_Click" />
+            <Button Content="Close" Click="Close_Click" />
+        </StackPanel>
+    </Grid>
+</Window>
