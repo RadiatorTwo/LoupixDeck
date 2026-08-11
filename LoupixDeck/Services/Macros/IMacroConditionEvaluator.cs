@@ -27,6 +27,7 @@ public sealed class MacroConditionEvaluator(IActiveWindowState activeWindow) : I
             ConditionType.ActiveWindowTitleContains => ContainsIgnoreCase(
                 activeWindow.Current?.Title, context.Expand(condition.Target)),
             ConditionType.Variable => EvaluateVariable(condition, context),
+            ConditionType.TriggerButtonHeld => context.IsTriggerHeld,
             _ => false
         };
 

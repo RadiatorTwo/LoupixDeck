@@ -626,6 +626,7 @@
                                                                                   ToolTip.Tip="Invert the test (true becomes false)"
                                                                                   IsChecked="{Binding Negate, Mode=TwoWay}" />
                                                                         <TextBox Grid.Column="3"
+                                                                                 IsVisible="{Binding HasTarget}"
                                                                                  PlaceholderText="{Binding TargetLabel}"
                                                                                  Text="{Binding Target, Mode=TwoWay}" />
                                                                     </Grid>
@@ -764,6 +765,7 @@
                                                                                   ToolTip.Tip="Invert the test (e.g. wait until a process is NOT running)"
                                                                                   IsChecked="{Binding Condition.Negate, Mode=TwoWay}" />
                                                                         <TextBox Grid.Column="3"
+                                                                                 IsVisible="{Binding Condition.HasTarget}"
                                                                                  PlaceholderText="{Binding Condition.TargetLabel}"
                                                                                  Text="{Binding Condition.Target, Mode=TwoWay}" />
                                                                     </Grid>
@@ -805,7 +807,7 @@
                                                                                   SelectedItem="{Binding OnTimeout, Mode=TwoWay}" />
                                                                     </Grid>
                                                                     <TextBlock Classes="hint"
-                                                                               Text="Pauses until the condition is true. Timeout 0 waits forever (until stopped). On timeout, Fail aborts the macro; Continue runs the next step anyway." />
+                                                                               Text="Pauses until the condition is true. Timeout 0 waits forever (until stopped). On timeout, Fail aborts the macro; Continue runs the next step anyway. Trigger button held is true while the button or touch that started this macro is still down — combine it with Negate to hold a key until the button is released. When the macro was started some other way (editor test, hotkey, plugin) it is false, so the wait falls through immediately." />
                                                                 </StackPanel>
                                                             </DataTemplate>
 
