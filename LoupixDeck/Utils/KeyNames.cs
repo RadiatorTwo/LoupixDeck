@@ -10,6 +10,19 @@ namespace LoupixDeck.Utils;
 ///
 /// Names are matched case-insensitively and a few common aliases are accepted
 /// ("Control"->Ctrl, "Escape"->Esc, "Windows"/"Super"->Win, ...).
+///
+/// Two naming families exist side by side:
+///
+/// - <b>Position names</b> (this table) identify a key by its physical place on the board,
+///   using the US legend as the naming basis: "Semicolon", "LeftBracket", "Minus", "Oem102",
+///   "Num5", "F13". They are layout-neutral, so a macro keeps hitting the same physical key
+///   on any layout. The "Oem*" aliases name the same positions the way Windows does.
+/// - <b>Character names</b> ("ü", "ä", "ß", "#", "+") are resolved by the backends against
+///   the active keyboard layout, not by this table — see the char paths in the keyboard
+///   backends. That is what makes umlauts and punctuation work at all: their physical
+///   position differs per layout, so only the layout can answer where they live.
+///
+/// Both spellings resolve, so a config may mix them and older configs keep working.
 /// </summary>
 public static class KeyNames
 {
@@ -59,6 +72,42 @@ public static class KeyNames
         // Digits (number row)
         ["0"] = 11, ["1"] = 2, ["2"] = 3, ["3"] = 4, ["4"] = 5, ["5"] = 6, ["6"] = 7,
         ["7"] = 8, ["8"] = 9, ["9"] = 10,
+
+        // Punctuation / OEM keys, named by their US-layout position. On a German board these
+        // are the umlaut and sign keys (LeftBracket = ü, Semicolon = ö, Quote = ä, Minus = ß).
+        ["grave"] = 41,        // KEY_GRAVE        (US `~   / DE ^°)
+        ["minus"] = 12,        // KEY_MINUS        (US -_   / DE ß?)
+        ["equals"] = 13,       // KEY_EQUAL        (US =+   / DE ´`)
+        ["leftbracket"] = 26,  // KEY_LEFTBRACE    (US [{   / DE ü)
+        ["rightbracket"] = 27, // KEY_RIGHTBRACE   (US ]}   / DE +*)
+        ["semicolon"] = 39,    // KEY_SEMICOLON    (US ;:   / DE ö)
+        ["quote"] = 40,        // KEY_APOSTROPHE   (US '"   / DE ä)
+        ["backslash"] = 43,    // KEY_BACKSLASH    (US \|   / DE #')
+        ["comma"] = 51,        // KEY_COMMA        (US ,<   / DE ,;)
+        ["period"] = 52,       // KEY_DOT          (US .>   / DE .:)
+        ["slash"] = 53,        // KEY_SLASH        (US /?   / DE -_)
+        ["oem102"] = 86,       // KEY_102ND        (extra key next to left shift, DE <>|)
+
+        // Numeric keypad
+        ["numlock"] = 69,      // KEY_NUMLOCK
+        ["num0"] = 82, ["num1"] = 79, ["num2"] = 80, ["num3"] = 81, ["num4"] = 75,
+        ["num5"] = 76, ["num6"] = 77, ["num7"] = 71, ["num8"] = 72, ["num9"] = 73,
+        ["numdivide"] = 98,    // KEY_KPSLASH
+        ["nummultiply"] = 55,  // KEY_KPASTERISK
+        ["numminus"] = 74,     // KEY_KPMINUS
+        ["numplus"] = 78,      // KEY_KPPLUS
+        ["numenter"] = 96,     // KEY_KPENTER
+        ["numdecimal"] = 83,   // KEY_KPDOT
+
+        // System keys
+        ["printscreen"] = 99,  // KEY_SYSRQ
+        ["scrolllock"] = 70,   // KEY_SCROLLLOCK
+        ["pause"] = 119,       // KEY_PAUSE
+
+        // Extended function keys (KEY_F13..KEY_F24)
+        ["f13"] = 183, ["f14"] = 184, ["f15"] = 185, ["f16"] = 186, ["f17"] = 187,
+        ["f18"] = 188, ["f19"] = 189, ["f20"] = 190, ["f21"] = 191, ["f22"] = 192,
+        ["f23"] = 193, ["f24"] = 194,
     };
 
     // Canonical name -> Windows virtual-key code (VK_*) + extended-key flag.
@@ -119,6 +168,36 @@ public static class KeyNames
             ["3"] = (0x33, false), ["4"] = (0x34, false), ["5"] = (0x35, false),
             ["6"] = (0x36, false), ["7"] = (0x37, false), ["8"] = (0x38, false),
             ["9"] = (0x39, false),
+
+            // Numeric keypad (VK_NUMPAD0..9 and the operator keys)
+            ["numlock"] = (0x90, false),     // VK_NUMLOCK
+            ["num0"] = (0x60, false), ["num1"] = (0x61, false), ["num2"] = (0x62, false),
+            ["num3"] = (0x63, false), ["num4"] = (0x64, false), ["num5"] = (0x65, false),
+            ["num6"] = (0x66, false), ["num7"] = (0x67, false), ["num8"] = (0x68, false),
+            ["num9"] = (0x69, false),
+            ["nummultiply"] = (0x6A, false), // VK_MULTIPLY
+            ["numplus"] = (0x6B, false),     // VK_ADD
+            ["numminus"] = (0x6D, false),    // VK_SUBTRACT
+            ["numdecimal"] = (0x6E, false),  // VK_DECIMAL
+            ["numdivide"] = (0x6F, true),    // VK_DIVIDE (extended)
+            ["numenter"] = (0x0D, true),     // VK_RETURN on the keypad (extended)
+
+            // System keys
+            ["printscreen"] = (0x2C, true),  // VK_SNAPSHOT (extended)
+            ["scrolllock"] = (0x91, false),  // VK_SCROLL
+            ["pause"] = (0x13, false),       // VK_PAUSE
+
+            // Extended function keys (VK_F13..VK_F24)
+            ["f13"] = (0x7C, false), ["f14"] = (0x7D, false), ["f15"] = (0x7E, false),
+            ["f16"] = (0x7F, false), ["f17"] = (0x80, false), ["f18"] = (0x81, false),
+            ["f19"] = (0x82, false), ["f20"] = (0x83, false), ["f21"] = (0x84, false),
+            ["f22"] = (0x85, false), ["f23"] = (0x86, false), ["f24"] = (0x87, false),
+
+            // Note: no entries for the punctuation / OEM positions. Which VK_OEM_* code a
+            // physical key carries depends on the active layout (the ü key is VK_OEM_1 on a
+            // German board but VK_OEM_4 on a US one), so a fixed table would be wrong on half
+            // the layouts. The SendInput backend resolves those positions from their scan code
+            // via MapVirtualKey(MAPVK_VSC_TO_VK_EX), which always answers for the live layout.
         };
 
     // Canonical name -> PS/2 set-1 scan code + E0-extended flag (used by Interception).
@@ -180,6 +259,45 @@ public static class KeyNames
             ["3"] = (0x04, false), ["4"] = (0x05, false), ["5"] = (0x06, false),
             ["6"] = (0x07, false), ["7"] = (0x08, false), ["8"] = (0x09, false),
             ["9"] = (0x0A, false),
+
+            // Punctuation / OEM keys (US-legend positions, see the Linux table)
+            ["grave"] = (0x29, false),
+            ["minus"] = (0x0C, false),
+            ["equals"] = (0x0D, false),
+            ["leftbracket"] = (0x1A, false),
+            ["rightbracket"] = (0x1B, false),
+            ["semicolon"] = (0x27, false),
+            ["quote"] = (0x28, false),
+            ["backslash"] = (0x2B, false),
+            ["comma"] = (0x33, false),
+            ["period"] = (0x34, false),
+            ["slash"] = (0x35, false),
+            ["oem102"] = (0x56, false),
+
+            // Numeric keypad. The non-E0 codes 0x47..0x53 are the keypad keys; the same codes
+            // with E0 are the navigation block above (already mapped there).
+            ["numlock"] = (0x45, false),
+            ["num0"] = (0x52, false), ["num1"] = (0x4F, false), ["num2"] = (0x50, false),
+            ["num3"] = (0x51, false), ["num4"] = (0x4B, false), ["num5"] = (0x4C, false),
+            ["num6"] = (0x4D, false), ["num7"] = (0x47, false), ["num8"] = (0x48, false),
+            ["num9"] = (0x49, false),
+            ["numdivide"] = (0x35, true),
+            ["nummultiply"] = (0x37, false),
+            ["numminus"] = (0x4A, false),
+            ["numplus"] = (0x4E, false),
+            ["numenter"] = (0x1C, true),
+            ["numdecimal"] = (0x53, false),
+
+            // System keys. Pause is deliberately absent: it is the only key with a multi-byte
+            // make sequence (E1 1D 45), which a single scan code cannot express.
+            ["printscreen"] = (0x37, true),
+            ["scrolllock"] = (0x46, false),
+
+            // Extended function keys
+            ["f13"] = (0x64, false), ["f14"] = (0x65, false), ["f15"] = (0x66, false),
+            ["f16"] = (0x67, false), ["f17"] = (0x68, false), ["f18"] = (0x69, false),
+            ["f19"] = (0x6A, false), ["f20"] = (0x6B, false), ["f21"] = (0x6C, false),
+            ["f22"] = (0x6D, false), ["f23"] = (0x6E, false), ["f24"] = (0x76, false),
         };
 
     // Aliases -> canonical name.
@@ -214,6 +332,63 @@ public static class KeyNames
         ["arrowdown"] = "down",
         ["arrowleft"] = "left",
         ["arrowright"] = "right",
+
+        // OEM names (as Windows/WPF names them on a US layout) -> position names. The bare
+        // numeric forms Oem1..Oem7 are deliberately absent: they read as "the key Windows
+        // calls VK_OEM_1", which is the ö key on a German layout but the ü key's US
+        // counterpart here — a name that means two different keys is worse than no name.
+        // Use the character ("ö") or the position ("Semicolon") instead.
+        ["oemplus"] = "equals",
+        ["oemminus"] = "minus",
+        ["oemcomma"] = "comma",
+        ["oemperiod"] = "period",
+        ["oemsemicolon"] = "semicolon",
+        ["oemquestion"] = "slash",
+        ["oemtilde"] = "grave",
+        ["oemopenbrackets"] = "leftbracket",
+        ["oemclosebrackets"] = "rightbracket",
+        ["oempipe"] = "backslash",
+        ["oemquotes"] = "quote",
+        ["oembackslash"] = "oem102",
+        ["oem102nd"] = "oem102",
+        ["102nd"] = "oem102",
+        ["apostrophe"] = "quote",
+        ["dot"] = "period",
+        ["backtick"] = "grave",
+
+        // Keypad
+        ["numpad0"] = "num0",
+        ["numpad1"] = "num1",
+        ["numpad2"] = "num2",
+        ["numpad3"] = "num3",
+        ["numpad4"] = "num4",
+        ["numpad5"] = "num5",
+        ["numpad6"] = "num6",
+        ["numpad7"] = "num7",
+        ["numpad8"] = "num8",
+        ["numpad9"] = "num9",
+        ["numpadadd"] = "numplus",
+        ["numpadsubtract"] = "numminus",
+        ["numpadmultiply"] = "nummultiply",
+        ["numpaddivide"] = "numdivide",
+        ["numpaddecimal"] = "numdecimal",
+        ["numpadenter"] = "numenter",
+        ["add"] = "numplus",
+        ["subtract"] = "numminus",
+        ["multiply"] = "nummultiply",
+        ["divide"] = "numdivide",
+        ["decimal"] = "numdecimal",
+        ["numlk"] = "numlock",
+
+        // System keys
+        ["print"] = "printscreen",
+        ["prtsc"] = "printscreen",
+        ["prtscn"] = "printscreen",
+        ["snapshot"] = "printscreen",
+        ["druck"] = "printscreen",
+        ["scroll"] = "scrolllock",
+        ["rollen"] = "scrolllock",
+        ["break"] = "pause",
     };
 
     private static string Normalize(string name)
@@ -230,6 +405,25 @@ public static class KeyNames
     public static string Canonicalize(string name)
     {
         return string.IsNullOrWhiteSpace(name) ? string.Empty : Normalize(name).ToLowerInvariant();
+    }
+
+    /// <summary>
+    /// True when the name denotes a single character (e.g. "ü", "#", "+", "z") rather than a
+    /// name from the tables. Such names are resolved by the backends against the active
+    /// keyboard layout, which is the only thing that knows where the character lives.
+    /// The character is lower-cased so "Ü" and "ü" mean the same key without an added Shift.
+    /// </summary>
+    public static bool TryGetCharacter(string name, out char character)
+    {
+        var trimmed = name?.Trim() ?? string.Empty;
+        if (trimmed.Length == 1)
+        {
+            character = char.ToLowerInvariant(trimmed[0]);
+            return true;
+        }
+
+        character = '\0';
+        return false;
     }
 
     /// <summary>Resolves a key name to its Linux evdev key code.</summary>

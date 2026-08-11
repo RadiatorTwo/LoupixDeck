@@ -243,7 +243,11 @@ public static class KeyboardLayouts
         [':'] = (52, true),
 
         ['-'] = (53, false),
-        ['_'] = (53, true)
+        ['_'] = (53, true),
+
+        // Extra key next to the left Shift (KEY_102ND), absent from US boards.
+        ['<'] = (86, false),
+        ['>'] = (86, true)
     });
 
     public static KeyboardLayout GetLayout(string locale)

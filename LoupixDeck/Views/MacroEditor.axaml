@@ -417,7 +417,7 @@
                                                                                       LostFocus="Capture_LostFocus" />
                                                                     </Grid>
                                                                     <TextBlock Classes="hint"
-                                                                               Text="Key names joined with '+', e.g. Ctrl+Shift+Esc or Tab or Enter. Or click Capture and press the keys." />
+                                                                               Text="Key names joined with '+', e.g. Ctrl+Shift+Esc, Ctrl+Ü, Alt+Num5 or Enter. Characters like Ü, Ä, ß or # are resolved via the active keyboard layout. Or click Capture and press the keys." />
                                                                 </StackPanel>
                                                             </DataTemplate>
 

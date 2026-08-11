@@ -154,12 +154,7 @@ public class InterceptionKeyboard : IUInputKeyboard
 
         var keys = new List<(int scanCode, bool e0)>(keyNames.Count);
         foreach (var name in keyNames)
-        {
-            if (KeyNames.TryGetInterception(name, out var scanCode, out var e0))
-                keys.Add((scanCode, e0));
-            else
-                Console.Error.WriteLine($"[InterceptionKeyboard] Unknown key name: '{name}'");
-        }
+            keys.AddRange(Resolve(name));
 
         if (keys.Count == 0) return;
 
@@ -188,17 +183,49 @@ public class InterceptionKeyboard : IUInputKeyboard
 
     private void SendSingle(string keyName, bool up)
     {
-        if (!KeyNames.TryGetInterception(keyName, out var scanCode, out var e0))
-        {
-            Console.Error.WriteLine($"[InterceptionKeyboard] Unknown key name: '{keyName}'");
-            return;
-        }
+        var keys = Resolve(keyName);
+        if (keys.Count == 0) return;
 
         lock (_lock)
         {
             if (!EnsureContext()) return;
-            SendStrokeVerified((ushort)scanCode, e0, up);
+
+            // Press in order, release in reverse, so a shifted character releases its key
+            // before the Shift it needed.
+            for (var i = 0; i < keys.Count; i++)
+            {
+                var (scanCode, e0) = up ? keys[keys.Count - 1 - i] : keys[i];
+                SendStrokeVerified((ushort)scanCode, e0, up);
+            }
         }
+    }
+
+    /// <summary>
+    /// Resolves a key name to the scan codes that produce it, in press order: an optional
+    /// Shift prefix followed by the key itself. Single characters ("ü", "#", "z") are looked
+    /// up in the active layout first — their physical position is layout-specific, so only
+    /// the layout can answer it — everything else comes from the position table in
+    /// <see cref="KeyNames"/>. An unknown name resolves to nothing and is logged.
+    ///
+    /// The layout tables carry evdev key codes, which are identical to the PS/2 set-1 make
+    /// codes across the whole alphanumeric block they cover (that is what
+    /// <see cref="SendText"/> already relies on), so they can be sent as scan codes as-is.
+    /// </summary>
+    private List<(int scanCode, bool e0)> Resolve(string name)
+    {
+        if (KeyNames.TryGetCharacter(name, out var character) &&
+            _layout.KeyMap.TryGetValue(character, out var mapped))
+        {
+            return mapped.shift
+                ? [(ScanLeftShift, false), (mapped.keycode, false)]
+                : [(mapped.keycode, false)];
+        }
+
+        if (KeyNames.TryGetInterception(name, out var scanCode, out var e0))
+            return [(scanCode, e0)];
+
+        Console.Error.WriteLine($"[InterceptionKeyboard] Unknown key name: '{name}'");
+        return [];
     }
 
     public void Dispose()

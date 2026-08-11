@@ -3,11 +3,17 @@ using Avalonia.Input;
 namespace LoupixDeck.Utils;
 
 /// <summary>
-/// Maps an Avalonia <see cref="Key"/> captured from the UI to the canonical key name
-/// used in macro steps (the same names <see cref="KeyNames"/> understands). Only keys
-/// that the keyboard backends can actually replay are mapped; everything else is ignored.
-/// Names are produced in a display-friendly casing (e.g. "Ctrl", "F5", "PageUp", "S"),
-/// which <see cref="KeyNames"/> resolves case-insensitively.
+/// Maps a key press captured from the UI to the canonical key name used in macro steps
+/// (the same names <see cref="KeyNames"/> understands). Names are produced in a
+/// display-friendly casing (e.g. "Ctrl", "F5", "PageUp", "S"), which
+/// <see cref="KeyNames"/> resolves case-insensitively.
+///
+/// Three sources are consulted in order, see <see cref="TryResolve"/>: the
+/// <see cref="Key"/> table below, then the character the key produced, then its physical
+/// position. The character step matters for everything outside the alphanumeric block —
+/// the ü key reports <see cref="Key.OemSemicolon"/> on a German layout but
+/// <see cref="Key.OemOpenBrackets"/> on a US one, so the <see cref="Key"/> value alone
+/// cannot name a punctuation key; the character it produced can.
 /// </summary>
 public static class KeyCaptureMap
 {
@@ -62,11 +68,77 @@ public static class KeyCaptureMap
         [Key.D5] = "5", [Key.D6] = "6", [Key.D7] = "7", [Key.D8] = "8", [Key.D9] = "9",
     };
 
+    // Physical position -> canonical position name. Used for keys that produce no character
+    // (dead keys such as ^ and ´ on a German board, the keypad, F13+, PrintScreen) and as the
+    // last resort for punctuation. Positions are layout-neutral, so this table is correct on
+    // every layout — unlike the Key values, which are not.
+    private static readonly Dictionary<PhysicalKey, string> Physical = new()
+    {
+        // Punctuation / OEM row
+        [PhysicalKey.Backquote] = "Grave",
+        [PhysicalKey.Minus] = "Minus",
+        [PhysicalKey.Equal] = "Equals",
+        [PhysicalKey.BracketLeft] = "LeftBracket",
+        [PhysicalKey.BracketRight] = "RightBracket",
+        [PhysicalKey.Semicolon] = "Semicolon",
+        [PhysicalKey.Quote] = "Quote",
+        [PhysicalKey.Backslash] = "Backslash",
+        [PhysicalKey.Comma] = "Comma",
+        [PhysicalKey.Period] = "Period",
+        [PhysicalKey.Slash] = "Slash",
+        [PhysicalKey.IntlBackslash] = "Oem102",
+
+        // Numeric keypad
+        [PhysicalKey.NumLock] = "NumLock",
+        [PhysicalKey.NumPad0] = "Num0", [PhysicalKey.NumPad1] = "Num1",
+        [PhysicalKey.NumPad2] = "Num2", [PhysicalKey.NumPad3] = "Num3",
+        [PhysicalKey.NumPad4] = "Num4", [PhysicalKey.NumPad5] = "Num5",
+        [PhysicalKey.NumPad6] = "Num6", [PhysicalKey.NumPad7] = "Num7",
+        [PhysicalKey.NumPad8] = "Num8", [PhysicalKey.NumPad9] = "Num9",
+        [PhysicalKey.NumPadDivide] = "NumDivide",
+        [PhysicalKey.NumPadMultiply] = "NumMultiply",
+        [PhysicalKey.NumPadSubtract] = "NumMinus",
+        [PhysicalKey.NumPadAdd] = "NumPlus",
+        [PhysicalKey.NumPadEnter] = "NumEnter",
+        [PhysicalKey.NumPadDecimal] = "NumDecimal",
+
+        // System keys
+        [PhysicalKey.PrintScreen] = "PrintScreen",
+        [PhysicalKey.ScrollLock] = "ScrollLock",
+        [PhysicalKey.Pause] = "Pause",
+
+        // Extended function keys
+        [PhysicalKey.F13] = "F13", [PhysicalKey.F14] = "F14", [PhysicalKey.F15] = "F15",
+        [PhysicalKey.F16] = "F16", [PhysicalKey.F17] = "F17", [PhysicalKey.F18] = "F18",
+        [PhysicalKey.F19] = "F19", [PhysicalKey.F20] = "F20", [PhysicalKey.F21] = "F21",
+        [PhysicalKey.F22] = "F22", [PhysicalKey.F23] = "F23", [PhysicalKey.F24] = "F24",
+    };
+
     /// <summary>True for keys that are modifiers (used to keep them first in a combo).</summary>
     public static bool IsModifier(Key key) => key is
         Key.LeftCtrl or Key.RightCtrl or Key.LeftShift or Key.RightShift or
         Key.LeftAlt or Key.RightAlt or Key.LWin or Key.RWin or Key.Apps;
 
-    /// <summary>Resolves an Avalonia key to its canonical macro key name.</summary>
-    public static bool TryGet(Key key, out string name) => Map.TryGetValue(key, out name);
+    /// <summary>
+    /// Resolves a captured key press to its canonical macro key name, trying the named-key
+    /// table, then the character the press produced, then the physical position.
+    /// </summary>
+    /// <param name="key">The Avalonia key, layout-mapped.</param>
+    /// <param name="physicalKey">The physical position of the key, layout-neutral.</param>
+    /// <param name="keySymbol">The character the press produced, if any.</param>
+    public static bool TryResolve(Key key, PhysicalKey physicalKey, string keySymbol, out string name)
+    {
+        if (Map.TryGetValue(key, out name))
+            return true;
+
+        // A single printable character names the key by what it types ("ü", "#", "+"), which
+        // is both readable and layout-correct: the backends resolve it through the layout.
+        if (keySymbol?.Length == 1 && !char.IsControl(keySymbol[0]) && !char.IsWhiteSpace(keySymbol[0]))
+        {
+            name = keySymbol;
+            return true;
+        }
+
+        return Physical.TryGetValue(physicalKey, out name);
+    }
 }

@@ -253,12 +253,7 @@ public class UInputKeyboard : IUInputKeyboard
 
         var codes = new List<int>(keyNames.Count);
         foreach (var name in keyNames)
-        {
-            if (KeyNames.TryGetLinux(name, out var code))
-                codes.Add(code);
-            else
-                Console.Error.WriteLine($"[UInputKeyboard] Unknown key name: '{name}'");
-        }
+            codes.AddRange(Resolve(name));
 
         if (codes.Count == 0)
             return;
@@ -275,10 +270,8 @@ public class UInputKeyboard : IUInputKeyboard
         if (!Connected)
             return;
 
-        if (KeyNames.TryGetLinux(keyName, out var code))
+        foreach (var code in Resolve(keyName))
             PressKey(code);
-        else
-            Console.Error.WriteLine($"[UInputKeyboard] Unknown key name: '{keyName}'");
     }
 
     public void KeyUp(string keyName)
@@ -286,10 +279,32 @@ public class UInputKeyboard : IUInputKeyboard
         if (!Connected)
             return;
 
-        if (KeyNames.TryGetLinux(keyName, out var code))
-            ReleaseKey(code);
-        else
-            Console.Error.WriteLine($"[UInputKeyboard] Unknown key name: '{keyName}'");
+        // Reverse order, so a shifted character releases its key before the Shift.
+        var codes = Resolve(keyName);
+        for (var i = codes.Count - 1; i >= 0; i--)
+            ReleaseKey(codes[i]);
+    }
+
+    /// <summary>
+    /// Resolves a key name to the evdev codes that produce it, in press order: an optional
+    /// Shift prefix followed by the key itself. Single characters ("ü", "#", "z") are looked
+    /// up in the active layout first — their physical position is layout-specific, so only
+    /// the layout can answer it — everything else comes from the position table in
+    /// <see cref="KeyNames"/>. An unknown name resolves to nothing and is logged.
+    /// </summary>
+    private List<int> Resolve(string name)
+    {
+        if (KeyNames.TryGetCharacter(name, out var character) &&
+            _layout.KeyMap.TryGetValue(character, out var mapped))
+        {
+            return mapped.shift ? [KEY_LEFTSHIFT, mapped.keycode] : [mapped.keycode];
+        }
+
+        if (KeyNames.TryGetLinux(name, out var code))
+            return [code];
+
+        Console.Error.WriteLine($"[UInputKeyboard] Unknown key name: '{name}'");
+        return [];
     }
 
     public void Dispose()
@@ -406,6 +421,21 @@ public class WindowsUInputKeyboard : IUInputKeyboard
 
     private const uint MAPVK_VK_TO_VSC = 0;
 
+    // Scan code -> virtual key, distinguishing left/right modifiers and honouring the E0
+    // prefix. Used to resolve punctuation/OEM positions, whose VK differs per layout.
+    private const uint MAPVK_VSC_TO_VK_EX = 3;
+
+    // Virtual keys for the modifiers a shifted character may need.
+    private const int VK_SHIFT = 0x10;
+    private const int VK_CONTROL = 0x11;
+    private const int VK_MENU = 0x12;
+    private const int VK_RMENU = 0xA5; // AltGr — Windows reports it as Ctrl+Alt
+
+    // VkKeyScanEx shift-state bits (high byte of the return value).
+    private const int ShiftStateShift = 1;
+    private const int ShiftStateCtrl = 2;
+    private const int ShiftStateAlt = 4;
+
     [StructLayout(LayoutKind.Sequential)]
     private struct KEYBDINPUT
     {
@@ -448,6 +478,21 @@ public class WindowsUInputKeyboard : IUInputKeyboard
 
     [DllImport("user32.dll")]
     private static extern uint MapVirtualKey(uint uCode, uint uMapType);
+
+    [DllImport("user32.dll")]
+    private static extern uint MapVirtualKeyEx(uint uCode, uint uMapType, IntPtr dwhkl);
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode, EntryPoint = "VkKeyScanExW")]
+    private static extern short VkKeyScanEx(char ch, IntPtr dwhkl);
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr GetKeyboardLayout(uint idThread);
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr GetForegroundWindow();
+
+    [DllImport("user32.dll")]
+    private static extern uint GetWindowThreadProcessId(IntPtr hWnd, IntPtr lpdwProcessId);
 
     private static readonly int InputSize = Marshal.SizeOf<INPUT>();
 
@@ -493,12 +538,7 @@ public class WindowsUInputKeyboard : IUInputKeyboard
 
         var keys = new List<(int virtualKey, bool extended)>(keyNames.Count);
         foreach (var name in keyNames)
-        {
-            if (KeyNames.TryGetWindows(name, out var virtualKey, out var extended))
-                keys.Add((virtualKey, extended));
-            else
-                Console.Error.WriteLine($"[WindowsUInputKeyboard] Unknown key name: '{name}'");
-        }
+            keys.AddRange(Resolve(name));
 
         if (keys.Count == 0)
             return;
@@ -530,10 +570,89 @@ public class WindowsUInputKeyboard : IUInputKeyboard
         if (!Connected)
             return;
 
-        if (KeyNames.TryGetWindows(keyName, out var virtualKey, out var extended))
-            Send([KeyInput(virtualKey, extended, up)]);
-        else
-            Console.Error.WriteLine($"[WindowsUInputKeyboard] Unknown key name: '{keyName}'");
+        var keys = Resolve(keyName);
+        if (keys.Count == 0)
+            return;
+
+        // Press in order, release in reverse, so a shifted character releases its key
+        // before the Shift it needed.
+        var inputs = new INPUT[keys.Count];
+        for (var i = 0; i < keys.Count; i++)
+        {
+            var (virtualKey, extended) = up ? keys[keys.Count - 1 - i] : keys[i];
+            inputs[i] = KeyInput(virtualKey, extended, up);
+        }
+
+        Send(inputs);
+    }
+
+    /// <summary>
+    /// Resolves a key name to the virtual keys that produce it, in press order: the modifiers
+    /// a character needs (Shift / AltGr) followed by the key itself.
+    ///
+    /// Three sources are tried in turn: the layout-stable table in <see cref="KeyNames"/>,
+    /// then single characters ("ü", "#", "+") via <c>VkKeyScanEx</c> against the active
+    /// layout, then the punctuation/OEM positions via their scan code — those carry a
+    /// different VK on every layout, so only <c>MapVirtualKeyEx</c> can answer for the live
+    /// one. An unknown name resolves to nothing and is logged.
+    /// </summary>
+    private static List<(int virtualKey, bool extended)> Resolve(string name)
+    {
+        if (KeyNames.TryGetWindows(name, out var tableKey, out var tableExtended))
+            return [(tableKey, tableExtended)];
+
+        var layout = ActiveLayout();
+
+        if (KeyNames.TryGetCharacter(name, out var character))
+        {
+            var scan = VkKeyScanEx(character, layout);
+            if (scan != -1)
+            {
+                var keys = new List<(int, bool)>(2);
+                var shiftState = (scan >> 8) & 0xFF;
+
+                // Ctrl+Alt is how Windows spells AltGr; send the physical AltGr key for it.
+                if ((shiftState & ShiftStateCtrl) != 0 && (shiftState & ShiftStateAlt) != 0)
+                {
+                    keys.Add((VK_RMENU, true));
+                }
+                else
+                {
+                    if ((shiftState & ShiftStateCtrl) != 0) keys.Add((VK_CONTROL, false));
+                    if ((shiftState & ShiftStateAlt) != 0) keys.Add((VK_MENU, false));
+                }
+
+                if ((shiftState & ShiftStateShift) != 0)
+                    keys.Add((VK_SHIFT, false));
+
+                keys.Add((scan & 0xFF, false));
+                return keys;
+            }
+        }
+
+        if (KeyNames.TryGetInterception(name, out var scanCode, out var e0))
+        {
+            var virtualKey = MapVirtualKeyEx(e0 ? 0xE000u | (uint)scanCode : (uint)scanCode,
+                MAPVK_VSC_TO_VK_EX, layout);
+            if (virtualKey != 0)
+                return [((int)virtualKey, e0)];
+        }
+
+        Console.Error.WriteLine($"[WindowsUInputKeyboard] Unknown key name: '{name}'");
+        return [];
+    }
+
+    // Keyboard layout of the window that will receive the input. Layouts are per-thread on
+    // Windows, so the foreground window's layout — not this app's — decides where a character
+    // sits. Falls back to the calling thread's layout when there is no foreground window.
+    private static IntPtr ActiveLayout()
+    {
+        var window = GetForegroundWindow();
+        if (window == IntPtr.Zero)
+            return GetKeyboardLayout(0);
+
+        var thread = GetWindowThreadProcessId(window, IntPtr.Zero);
+        return GetKeyboardLayout(thread);
     }
 
     public void Dispose()
