@@ -257,14 +257,14 @@ In the touch button editor you can:
 - Delete a state.
 - Give each state its own layers and command sequence.
 
-The `Transition after press` setting controls what happens after the button runs:
+The `Transition after press` setting controls what happens when you press the button:
 
 - Stay in the current state.
 - Move to the next/previous state.
 - Jump to a specific state.
 - Return to the default state.
 
-Exact transition names may vary, but the idea is simple: a button can press, do work, and then choose its next visual/action state.
+The transition is applied immediately at press time, using the state that was active for that press. The command sequence then continues running separately. This means a long macro, a macro with a delay, or an endless repeat loop does not keep the old visual state on screen until the command finishes. It also prevents a late transition from undoing a newer press. For example, a start/stop macro pair now changes state and works in two presses, even when one macro keeps running.
 
 ## Commands and Command Sequences
 
