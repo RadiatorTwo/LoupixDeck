@@ -20,9 +20,14 @@ public partial class MacroEditor : Window
     // The step a "Capture keys" toggle is currently recording into; null when idle.
     private MacroStep _captureStep;
     private ToggleButton _captureToggle;
-    // Keys currently held down (canonical names) and the largest combo seen this capture.
-    private readonly List<string> _pressedKeys = [];
+    // Keys currently held down and the largest combo seen this capture. Held keys are tracked
+    // by their physical position as well, so a release is matched even when it resolves to a
+    // different name than the press did (e.g. the character changes with the modifier state).
+    private readonly List<(PhysicalKey Physical, string Name)> _pressedKeys = [];
     private List<string> _maxCombo = [];
+
+    // The non-modal key-name reference opened from a key step; null while it is closed.
+    private KeyReferenceWindow _keyReferenceWindow;
 
     public MacroEditor() : this(null)
     {
@@ -47,6 +52,9 @@ public partial class MacroEditor : Window
 
             // Changes apply instantly (debounced) — persist anything still pending.
             ViewModel?.FlushPendingChanges();
+
+            // The key reference belongs to this editor and must not outlive it.
+            _keyReferenceWindow?.Close();
 
             if (DataContext is IDialogViewModel dlg && !dlg.DialogResult.Task.IsCompleted)
             {
@@ -90,6 +98,26 @@ public partial class MacroEditor : Window
             ViewModel?.InsertCommandIntoStep(step, menuEntry);
     }
 
+    // ───────── Key name reference ─────────
+
+    /// <summary>
+    /// Opens the list of usable key names next to a key step. The window is non-modal and
+    /// owned by the editor, so the editor stays usable and the reference closes with it. A
+    /// second click brings the existing window to the front instead of opening another one.
+    /// </summary>
+    private void KeyReference_Click(object sender, RoutedEventArgs e)
+    {
+        if (_keyReferenceWindow != null)
+        {
+            _keyReferenceWindow.Activate();
+            return;
+        }
+
+        _keyReferenceWindow = new KeyReferenceWindow();
+        _keyReferenceWindow.Closed += (_, _) => _keyReferenceWindow = null;
+        _keyReferenceWindow.Show(this);
+    }
+
     // ───────── Key capture ─────────
     //
     // A "Capture keys" toggle in the KeyCombination / KeyDown / KeyUp editors records
@@ -125,18 +153,18 @@ public partial class MacroEditor : Window
         // Swallow every key so it neither toggles the button nor fires app shortcuts.
         e.Handled = true;
 
-        if (!KeyCaptureMap.TryGet(e.Key, out var name))
+        if (!KeyCaptureMap.TryResolve(e.Key, e.PhysicalKey, e.KeySymbol, out var name))
             return;
 
         if (_captureStep is KeyCombinationStep combo)
         {
-            if (!_pressedKeys.Contains(name))
-                _pressedKeys.Add(name);
+            if (_pressedKeys.All(k => k.Physical != e.PhysicalKey || k.Name != name))
+                _pressedKeys.Add((e.PhysicalKey, name));
 
             // Remember the chord at its widest extent; releasing keys must not shrink it.
             if (_pressedKeys.Count >= _maxCombo.Count)
             {
-                _maxCombo = SortModifiersFirst(_pressedKeys);
+                _maxCombo = SortModifiersFirst(_pressedKeys.Select(k => k.Name));
                 combo.Keys = string.Join("+", _maxCombo);
             }
         }
@@ -154,8 +182,17 @@ public partial class MacroEditor : Window
 
         e.Handled = true;
 
-        if (KeyCaptureMap.TryGet(e.Key, out var name))
-            _pressedKeys.Remove(name);
+        // Match the release by physical position first — the name may resolve differently now
+        // (releasing Shift changes which character the still-held key would produce).
+        var index = e.PhysicalKey != PhysicalKey.None
+            ? _pressedKeys.FindIndex(k => k.Physical == e.PhysicalKey)
+            : -1;
+
+        if (index < 0 && KeyCaptureMap.TryResolve(e.Key, e.PhysicalKey, e.KeySymbol, out var name))
+            index = _pressedKeys.FindIndex(k => k.Name == name);
+
+        if (index >= 0)
+            _pressedKeys.RemoveAt(index);
 
         // Whole chord released → commit (combo.Keys already holds _maxCombo) and stop.
         if (_captureStep is KeyCombinationStep && _pressedKeys.Count == 0 && _maxCombo.Count > 0)
