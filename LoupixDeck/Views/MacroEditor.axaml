@@ -824,7 +824,7 @@
                                                                                   SelectedItem="{Binding OnTimeout, Mode=TwoWay}" />
                                                                     </Grid>
                                                                     <TextBlock Classes="hint"
-                                                                               Text="Pauses until the condition is true. Timeout 0 waits forever (until stopped). On timeout, Fail aborts the macro; Continue runs the next step anyway. Trigger button held is true while the button or touch that started this macro is still down — combine it with Negate to hold a key until the button is released. When the macro was started some other way (editor test, hotkey, plugin) it is false, so the wait falls through immediately." />
+                                                                               Text="Pauses until the condition is true. Timeout 0 waits forever (until stopped). On timeout, Fail aborts the macro; Continue runs the next step anyway. Trigger button released waits until the button or touch that started this macro is let go, so a Key Down before it and a Key Up after it hold the key exactly that long. Negate it to wait while the button is still down. When the macro was started some other way (editor test, hotkey, plugin) it counts as released, so the wait falls through immediately." />
                                                                 </StackPanel>
                                                             </DataTemplate>
 

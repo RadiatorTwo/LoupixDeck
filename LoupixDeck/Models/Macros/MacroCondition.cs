@@ -20,11 +20,12 @@ public enum ConditionType
     Variable,
 
     /// <summary>
-    /// True while the physical button or touch that triggered this macro is still held down.
-    /// False when the macro was started any other way (editor test run, hotkey, plugin), so a
-    /// wait on it falls through immediately instead of hanging. Uses no target or operand.
+    /// True once the physical button or touch that triggered this macro has been let go.
+    /// Negate it to test the opposite ("still held"). Also true when the macro was started any
+    /// other way (editor test run, hotkey, plugin), so a wait on it falls through immediately
+    /// instead of hanging. Uses no target or operand.
     /// </summary>
-    TriggerButtonHeld
+    TriggerButtonReleased
 }
 
 /// <summary>Comparison used by <see cref="ConditionType.Variable"/> conditions.</summary>
@@ -88,7 +89,7 @@ public partial class MacroCondition
 
     /// <summary>False for condition types that need no <see cref="Target"/> (editor visibility).</summary>
     [Newtonsoft.Json.JsonIgnore]
-    public bool HasTarget => Type != ConditionType.TriggerButtonHeld;
+    public bool HasTarget => Type != ConditionType.TriggerButtonReleased;
 
     /// <summary>Editor label for the <see cref="Target"/> field, which differs per type.</summary>
     [Newtonsoft.Json.JsonIgnore]
@@ -98,7 +99,7 @@ public partial class MacroCondition
         ConditionType.ActiveWindowProcessIs => "Process",
         ConditionType.ActiveWindowTitleContains => "Title contains",
         ConditionType.Variable => "Variable",
-        ConditionType.TriggerButtonHeld => string.Empty,
+        ConditionType.TriggerButtonReleased => string.Empty,
         _ => "Value"
     };
 
@@ -115,7 +116,7 @@ public partial class MacroCondition
                 ConditionType.ActiveWindowProcessIs => $"active app is {not}'{Target}'",
                 ConditionType.ActiveWindowTitleContains => $"title {not}contains '{Target}'",
                 ConditionType.Variable => $"{not}({Target} {OperatorText} {Operand})",
-                ConditionType.TriggerButtonHeld => $"trigger button {not}held",
+                ConditionType.TriggerButtonReleased => $"trigger button {not}released",
                 _ => string.Empty
             };
         }

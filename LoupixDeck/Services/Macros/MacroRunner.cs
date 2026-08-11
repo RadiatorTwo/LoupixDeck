@@ -418,7 +418,7 @@ public class MacroRunner : IDisposable
         // moment the button comes up, so a held modifier is released without the poll interval's
         // tail (#185). Every other condition type keeps the plain poll loop. The poll arm stays in
         // place either way — it keeps the timeout ticking and covers a run with no trigger press.
-        Task releaseSignal = step.Condition.Type == ConditionType.TriggerButtonHeld
+        Task releaseSignal = step.Condition.Type == ConditionType.TriggerButtonReleased
             ? context.TriggerPress?.Released
             : null;
 

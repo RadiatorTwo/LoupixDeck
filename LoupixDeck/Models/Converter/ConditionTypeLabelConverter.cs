@@ -22,7 +22,7 @@ public class ConditionTypeLabelConverter : IValueConverter
         ConditionType.ActiveWindowProcessIs => "Active window process is",
         ConditionType.ActiveWindowTitleContains => "Active window title contains",
         ConditionType.Variable => "Variable",
-        ConditionType.TriggerButtonHeld => "Trigger button held",
+        ConditionType.TriggerButtonReleased => "Trigger button released",
         _ => type.ToString()
     };
 }
