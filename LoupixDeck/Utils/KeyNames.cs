@@ -606,4 +606,161 @@ public static class KeyNames
     {
         return LinuxReverse.Value.TryGetValue(keyCode, out name);
     }
+
+    // ───────── Catalog (for the key reference shown in the macro editor) ─────────
+
+    // Aliases grouped by the canonical name they resolve to, so the catalog never restates
+    // them. Built once from the Aliases table.
+    private static readonly Lazy<Dictionary<string, List<string>>> AliasesByName = new(() =>
+    {
+        var map = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+        foreach (var pair in Aliases)
+        {
+            // The blank alias for Space is a separator artefact, not something to advertise.
+            if (string.IsNullOrWhiteSpace(pair.Key))
+                continue;
+
+            if (!map.TryGetValue(pair.Value, out var list))
+            {
+                list = [];
+                map[pair.Value] = list;
+            }
+
+            list.Add(pair.Key);
+        }
+
+        foreach (var list in map.Values)
+            list.Sort(StringComparer.OrdinalIgnoreCase);
+
+        return map;
+    });
+
+    // Category members that no prefix rule can derive. Names not covered by these sets or by
+    // the rules in Classify fall into KeyNameCategory.Other, so a table entry added later
+    // still shows up in the reference instead of disappearing from it.
+    private static readonly HashSet<string> ModifierNames = new(StringComparer.OrdinalIgnoreCase)
+        { "ctrl", "rctrl", "shift", "rshift", "alt", "altgr", "win", "menu" };
+
+    private static readonly HashSet<string> ControlNames = new(StringComparer.OrdinalIgnoreCase)
+        { "space", "enter", "tab", "esc", "backspace", "capslock" };
+
+    private static readonly HashSet<string> NavigationNames = new(StringComparer.OrdinalIgnoreCase)
+        { "ins", "del", "home", "end", "pageup", "pagedown", "up", "down", "left", "right" };
+
+    private static readonly HashSet<string> PunctuationNames = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "grave", "minus", "equals", "leftbracket", "rightbracket", "semicolon", "quote",
+        "backslash", "comma", "period", "slash", "oem102"
+    };
+
+    private static readonly HashSet<string> SystemNames = new(StringComparer.OrdinalIgnoreCase)
+        { "printscreen", "scrolllock", "pause" };
+
+    private static readonly HashSet<string> MediaNames = new(StringComparer.OrdinalIgnoreCase)
+        { "playpause", "nexttrack", "prevtrack", "mediastop", "mute", "volumedown", "volumeup" };
+
+    private static KeyNameCategory Classify(string name)
+    {
+        if (ModifierNames.Contains(name)) return KeyNameCategory.Modifiers;
+        if (ControlNames.Contains(name)) return KeyNameCategory.Control;
+        if (NavigationNames.Contains(name)) return KeyNameCategory.Navigation;
+        if (PunctuationNames.Contains(name)) return KeyNameCategory.Punctuation;
+        if (SystemNames.Contains(name)) return KeyNameCategory.System;
+        if (MediaNames.Contains(name)) return KeyNameCategory.Media;
+
+        if (name.StartsWith("browser", StringComparison.OrdinalIgnoreCase) ||
+            name.StartsWith("launch", StringComparison.OrdinalIgnoreCase))
+        {
+            return KeyNameCategory.Browser;
+        }
+
+        if (name.StartsWith("num", StringComparison.OrdinalIgnoreCase))
+            return KeyNameCategory.Keypad;
+
+        if (name.Length > 1 &&
+            (name[0] == 'f' || name[0] == 'F') &&
+            int.TryParse(name.AsSpan(1), out _))
+        {
+            return KeyNameCategory.FunctionKeys;
+        }
+
+        if (name.Length == 1 && char.IsLetter(name[0])) return KeyNameCategory.Letters;
+        if (name.Length == 1 && char.IsDigit(name[0])) return KeyNameCategory.Digits;
+
+        return KeyNameCategory.Other;
+    }
+
+    // Sort key that keeps trailing numbers in numeric order, so F2 comes before F10 and
+    // Num2 before Num10 instead of the plain alphabetical order.
+    private static (string Prefix, int Number, string Name) SortKey(string name)
+    {
+        var digits = 0;
+        while (digits < name.Length && char.IsDigit(name[name.Length - 1 - digits]))
+            digits++;
+
+        if (digits == 0 || !int.TryParse(name.AsSpan(name.Length - digits), out var number))
+            return (name.ToLowerInvariant(), -1, name);
+
+        return (name[..^digits].ToLowerInvariant(), number, name);
+    }
+
+    private static readonly Lazy<IReadOnlyList<KeyNameInfo>> CatalogEntries = new(() =>
+    {
+        // Only advertise names the backend in use on this platform can actually produce.
+        // On Windows the Interception backend is selectable at runtime, so its names count too.
+        HashSet<string> names;
+        if (OperatingSystem.IsWindows())
+        {
+            names = new HashSet<string>(Windows.Keys, StringComparer.OrdinalIgnoreCase);
+            names.UnionWith(Interception.Keys);
+        }
+        else
+        {
+            names = new HashSet<string>(Linux.Keys, StringComparer.OrdinalIgnoreCase);
+        }
+
+        return names
+            .Select(name => new KeyNameInfo(
+                name,
+                Classify(name),
+                AliasesByName.Value.TryGetValue(name, out var aliases)
+                    ? aliases
+                    : []))
+            .OrderBy(entry => entry.Category)
+            .ThenBy(entry => SortKey(entry.Name).Prefix, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(entry => SortKey(entry.Name).Number)
+            .ToList();
+    });
+
+    /// <summary>
+    /// Every key name accepted on the current platform, grouped-ready: each entry carries its
+    /// category and the alias spellings that resolve to it. Derived from the same tables the
+    /// keyboard backends resolve against, so the reference cannot drift from the real behaviour.
+    /// Character names ("ü", "#", "+") are not listed — they are resolved by the active
+    /// keyboard layout, not by a table.
+    /// </summary>
+    public static IReadOnlyList<KeyNameInfo> Catalog => CatalogEntries.Value;
 }
+
+/// <summary>Grouping used by the key-name reference in the macro editor.</summary>
+public enum KeyNameCategory
+{
+    Modifiers,
+    Control,
+    Navigation,
+    FunctionKeys,
+    Letters,
+    Digits,
+    Punctuation,
+    Keypad,
+    System,
+    Media,
+    Browser,
+    Other
+}
+
+/// <summary>A single key name plus the alternative spellings that resolve to it.</summary>
+/// <param name="Name">The canonical name as written in the platform tables.</param>
+/// <param name="Category">The group the name is shown under.</param>
+/// <param name="Aliases">Accepted alternative spellings, may be empty.</param>
+public sealed record KeyNameInfo(string Name, KeyNameCategory Category, IReadOnlyList<string> Aliases);

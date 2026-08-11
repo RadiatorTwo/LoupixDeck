@@ -227,4 +227,24 @@ public static class KeyCaptureMap
 
     private static bool IsPrintable(string keySymbol) =>
         keySymbol?.Length == 1 && !char.IsControl(keySymbol[0]) && !char.IsWhiteSpace(keySymbol[0]);
+
+    // Every name this map can produce, keyed case-insensitively by itself. The tables above
+    // already spell the names the way they should be shown ("PageUp", "NumDecimal"), so the
+    // display casing needs no second table of its own.
+    private static readonly Lazy<Dictionary<string, string>> DisplayNames = new(() =>
+    {
+        var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var name in Map.Values.Concat(Physical.Values))
+            map.TryAdd(name, name);
+        return map;
+    });
+
+    /// <summary>
+    /// Returns the display-friendly spelling of a key name ("pageup" -> "PageUp"), as produced
+    /// by a capture. Falls back to the name as given when the capture cannot produce it.
+    /// </summary>
+    public static string GetDisplayName(string name)
+    {
+        return DisplayNames.Value.TryGetValue(name, out var display) ? display : name;
+    }
 }
