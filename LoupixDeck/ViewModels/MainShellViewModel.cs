@@ -31,7 +31,12 @@ public sealed class MainShellViewModel : ViewModelBase
     {
         if (device == null) return;
         Devices.Add(device);
-        _selectedDevice ??= device;
+        // Go through the property so the change is announced: after the last device
+        // was unplugged SelectedDevice is null, and writing the backing field here
+        // would make the caller's later "SelectedDevice = vm" a silent no-op — the
+        // window would never rebuild its device layout (blank shell on re-plug).
+        if (_selectedDevice == null)
+            SelectedDevice = device;
         OnPropertyChanged(nameof(HasMultipleDevices));
     }
 
