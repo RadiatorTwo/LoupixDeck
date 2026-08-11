@@ -166,9 +166,22 @@ public static class KeyCaptureMap
         Key.LeftCtrl or Key.RightCtrl or Key.LeftShift or Key.RightShift or
         Key.LeftAlt or Key.RightAlt or Key.LWin or Key.RWin or Key.Apps;
 
+    // Positions that carry a printable character and are therefore named after it. The
+    // keypad and the F13+ / system keys are excluded on purpose: the keypad plus also types
+    // "+", but naming it that way would silently retarget the macro to the number-row plus.
+    private static readonly HashSet<string> CharacterPositions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "Grave", "Minus", "Equals", "LeftBracket", "RightBracket", "Semicolon",
+        "Quote", "Backslash", "Comma", "Period", "Slash", "Oem102",
+    };
+
     /// <summary>
     /// Resolves a captured key press to its canonical macro key name, trying the named-key
-    /// table, then the character the press produced, then the physical position.
+    /// table, then the physical position, then the character the press produced.
+    ///
+    /// A punctuation key is named after the character it types <i>unmodified</i>, not after
+    /// the one this press produced: with Shift held the ü key reports "Ü", with Ctrl held it
+    /// reports no character at all, and both should still be written down as the same key.
     /// </summary>
     /// <param name="key">The Avalonia key, layout-mapped.</param>
     /// <param name="physicalKey">The physical position of the key, layout-neutral.</param>
@@ -178,14 +191,40 @@ public static class KeyCaptureMap
         if (Map.TryGetValue(key, out name))
             return true;
 
-        // A single printable character names the key by what it types ("ü", "#", "+"), which
-        // is both readable and layout-correct: the backends resolve it through the layout.
-        if (keySymbol?.Length == 1 && !char.IsControl(keySymbol[0]) && !char.IsWhiteSpace(keySymbol[0]))
+        if (Physical.TryGetValue(physicalKey, out var position))
+        {
+            if (!CharacterPositions.Contains(position))
+            {
+                name = position;
+                return true;
+            }
+
+            // Ask the layout what this key types on its own; fall back to what the press
+            // produced, and to the position name when neither is available (dead keys, or a
+            // platform that cannot be asked).
+            if (KeyNames.TryGetInterception(position, out var scanCode, out var e0) &&
+                LayoutKeyCharacters.TryGetUnmodified(scanCode, e0, out var character))
+            {
+                name = character.ToString();
+                return true;
+            }
+
+            name = IsPrintable(keySymbol) ? keySymbol.ToLowerInvariant() : position;
+            return true;
+        }
+
+        // No known position: the character the press produced is still a usable name, and the
+        // backends resolve it through the layout.
+        if (IsPrintable(keySymbol))
         {
             name = keySymbol;
             return true;
         }
 
-        return Physical.TryGetValue(physicalKey, out name);
+        name = null;
+        return false;
     }
+
+    private static bool IsPrintable(string keySymbol) =>
+        keySymbol?.Length == 1 && !char.IsControl(keySymbol[0]) && !char.IsWhiteSpace(keySymbol[0]);
 }
