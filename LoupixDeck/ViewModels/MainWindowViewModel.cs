@@ -78,7 +78,6 @@ public partial class MainWindowViewModel : ViewModelBase
     public IAsyncRelayCommand SettingsMenuCommand { get; }
     public IAsyncRelayCommand MacroEditorMenuCommand { get; }
     public IAsyncRelayCommand AboutMenuCommand { get; }
-    public IRelayCommand QuitApplicationCommand { get; }
     public IRelayCommand ToggleDeviceStateCommand { get; }
 
     public LoupedeckLiveSController LoupedeckController { get; }
@@ -317,7 +316,6 @@ public partial class MainWindowViewModel : ViewModelBase
         SettingsMenuCommand = new AsyncRelayCommand(SettingsMenuButton_Click);
         MacroEditorMenuCommand = new AsyncRelayCommand(MacroEditorMenuButton_Click);
         AboutMenuCommand = new AsyncRelayCommand(AboutMenuButton_Click);
-        QuitApplicationCommand = new RelayCommand(QuitApplication);
         ToggleDeviceStateCommand = new AsyncRelayCommand(LoupedeckController.ToggleDeviceState);
 
         // Follow Light/Dark for the rendered device chrome (knob + LED/RGB buttons),
@@ -941,16 +939,5 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         await _dialogService.ShowDialogAsync<AboutViewModel, DialogResult>();
         LoupedeckController.SaveConfig();
-    }
-
-    private void QuitApplication()
-    {
-        var window = Utils.WindowHelper.GetMainWindow();
-        if (window is Views.MainWindow mw)
-        {
-            mw.QuitApplication();
-            return;
-        }
-        Environment.Exit(0);
     }
 }
