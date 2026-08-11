@@ -381,11 +381,23 @@ Available step types include:
 | Command | Runs a LoupixDeck command |
 | Set Variable | Stores a value for later use |
 | If / Else / End If | Runs steps conditionally |
-| Wait For | Waits until a condition becomes true |
+| Wait For | Waits until a condition becomes true, including until the triggering button is released |
 | Prompt | Asks for a value while the macro runs |
 | Repeat Start / Repeat End | Repeats a block of steps |
 
 Prompts and variables allow more flexible macros. For example, a macro can ask for a name, store it, and then type text that includes that value.
+
+### Holding a key while the button is held
+
+The **Wait For** step offers the condition **Trigger button held**, which is true for as long as the button or touch that started the macro is still pressed. Combined with **Negate** it pauses the macro until you let go:
+
+1. **Key Down** with the key you want to hold, for example `Ctrl`.
+2. **Wait For** with condition **Trigger button held**, **Negate** enabled, and timeout `0`.
+3. **Key Up** with the same key.
+
+The key is now held for exactly as long as you hold the button. To repeat something while the button is held, put the steps in an infinite **Repeat** block and add a **Wait For** on **Trigger button held** without Negate, a short timeout, and **On timeout: Fail**. Releasing the button ends the macro, and any key it still holds is released automatically.
+
+This condition needs a real button press. When a macro is started another way, for example with the Test button in the editor, from a hotkey, or by a plugin, the condition is false and the wait continues immediately. A press whose release never arrives, for instance because the device was unplugged, counts as released after 30 seconds so no key can stay stuck.
 
 ### Macro input backends
 
