@@ -104,7 +104,9 @@ public class MacroRunner : IDisposable
         lock (_runLock)
             _activeRuns.Add(cts);
 
-        var context = new MacroContext();
+        // Capture the triggering press before the first await, while the caller's ambient is
+        // still in scope, so a "wait until the trigger is released" step can see it (#185).
+        var context = new MacroContext { TriggerPress = TriggerPressScope.Current };
         var failed = false;
         _executionRegistry.Report(macro.Name, MacroExecutionState.Running);
         try
@@ -412,6 +414,14 @@ public class MacroRunner : IDisposable
         var pollMs = Math.Max(10, step.PollIntervalMilliseconds);
         var elapsed = Stopwatch.StartNew();
 
+        // Waiting for the trigger button is signalled, not polled: the press completes a task the
+        // moment the button comes up, so a held modifier is released without the poll interval's
+        // tail (#185). Every other condition type keeps the plain poll loop. The poll arm stays in
+        // place either way — it keeps the timeout ticking and covers a run with no trigger press.
+        Task releaseSignal = step.Condition.Type == ConditionType.TriggerButtonReleased
+            ? context.TriggerPress?.Released
+            : null;
+
         while (true)
         {
             if (token.IsCancellationRequested)
@@ -423,7 +433,12 @@ public class MacroRunner : IDisposable
             if (step.TimeoutMilliseconds > 0 && elapsed.Elapsed.TotalMilliseconds >= step.TimeoutMilliseconds)
                 return false;
 
-            await Delay(pollMs, token);
+            // Only race the signal while the press is actually held — once it has completed,
+            // WhenAny would return instantly and spin the loop until the timeout.
+            if (releaseSignal is { IsCompleted: false })
+                await Task.WhenAny(releaseSignal, Task.Delay(pollMs, token));
+            else
+                await Delay(pollMs, token);
         }
     }
 

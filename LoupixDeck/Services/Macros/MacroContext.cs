@@ -17,6 +17,15 @@ public sealed partial class MacroContext
     /// </summary>
     public Dictionary<string, string> Variables { get; } = new(StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// The physical button / touch press that started this run (#185), or null when the macro
+    /// was triggered some other way (editor test run, stop hotkey, plugin, IPC).
+    /// </summary>
+    public TriggerPress TriggerPress { get; init; }
+
+    /// <summary>True while the button that triggered this macro is still held down.</summary>
+    public bool IsTriggerHeld => TriggerPress?.IsHeld == true;
+
     // Insertion-ordered so cleanup can release in reverse acquisition order.
     private readonly List<string> _heldKeys = [];
     private readonly List<MouseButton> _heldButtons = [];

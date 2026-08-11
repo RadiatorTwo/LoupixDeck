@@ -5,6 +5,7 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:vm="using:LoupixDeck.ViewModels"
+    xmlns:conv="clr-namespace:LoupixDeck.Models.Converter"
     xmlns:macros="using:LoupixDeck.Models.Macros"
     xmlns:models="using:LoupixDeck.Models"
     x:DataType="vm:MacroEditorViewModel"
@@ -15,6 +16,10 @@
     CanResize="True"
     MinWidth="1300"
     MinHeight="620">
+
+    <Window.Resources>
+        <conv:ConditionTypeLabelConverter x:Key="ConditionTypeLabel" />
+    </Window.Resources>
 
     <Window.Styles>
         <StyleInclude Source="avares://LoupixDeck/Views/Styles/SettingsStyles.axaml" />
@@ -621,11 +626,18 @@
                                                                         <ComboBox Grid.Column="1"
                                                                                   HorizontalAlignment="Stretch"
                                                                                   ItemsSource="{x:Static macros:MacroCondition.AllTypes}"
-                                                                                  SelectedItem="{Binding Type, Mode=TwoWay}" />
+                                                                                  SelectedItem="{Binding Type, Mode=TwoWay}">
+                                                                            <ComboBox.ItemTemplate>
+                                                                                <DataTemplate x:DataType="macros:ConditionType">
+                                                                                    <TextBlock Text="{Binding Converter={StaticResource ConditionTypeLabel}}" />
+                                                                                </DataTemplate>
+                                                                            </ComboBox.ItemTemplate>
+                                                                        </ComboBox>
                                                                         <CheckBox Grid.Column="2" Content="Negate" Margin="14,0,10,0"
                                                                                   ToolTip.Tip="Invert the test (true becomes false)"
                                                                                   IsChecked="{Binding Negate, Mode=TwoWay}" />
                                                                         <TextBox Grid.Column="3"
+                                                                                 IsVisible="{Binding HasTarget}"
                                                                                  PlaceholderText="{Binding TargetLabel}"
                                                                                  Text="{Binding Target, Mode=TwoWay}" />
                                                                     </Grid>
@@ -759,11 +771,18 @@
                                                                         <ComboBox Grid.Column="1"
                                                                                   HorizontalAlignment="Stretch"
                                                                                   ItemsSource="{x:Static macros:MacroCondition.AllTypes}"
-                                                                                  SelectedItem="{Binding Condition.Type, Mode=TwoWay}" />
+                                                                                  SelectedItem="{Binding Condition.Type, Mode=TwoWay}">
+                                                                            <ComboBox.ItemTemplate>
+                                                                                <DataTemplate x:DataType="macros:ConditionType">
+                                                                                    <TextBlock Text="{Binding Converter={StaticResource ConditionTypeLabel}}" />
+                                                                                </DataTemplate>
+                                                                            </ComboBox.ItemTemplate>
+                                                                        </ComboBox>
                                                                         <CheckBox Grid.Column="2" Content="Negate" Margin="14,0,10,0"
                                                                                   ToolTip.Tip="Invert the test (e.g. wait until a process is NOT running)"
                                                                                   IsChecked="{Binding Condition.Negate, Mode=TwoWay}" />
                                                                         <TextBox Grid.Column="3"
+                                                                                 IsVisible="{Binding Condition.HasTarget}"
                                                                                  PlaceholderText="{Binding Condition.TargetLabel}"
                                                                                  Text="{Binding Condition.Target, Mode=TwoWay}" />
                                                                     </Grid>
@@ -805,7 +824,7 @@
                                                                                   SelectedItem="{Binding OnTimeout, Mode=TwoWay}" />
                                                                     </Grid>
                                                                     <TextBlock Classes="hint"
-                                                                               Text="Pauses until the condition is true. Timeout 0 waits forever (until stopped). On timeout, Fail aborts the macro; Continue runs the next step anyway." />
+                                                                               Text="Pauses until the condition is true. Timeout 0 waits forever (until stopped). On timeout, Fail aborts the macro; Continue runs the next step anyway. Trigger button released waits until the button or touch that started this macro is let go, so a Key Down before it and a Key Up after it hold the key exactly that long. Negate it to wait while the button is still down. When the macro was started some other way (editor test, hotkey, plugin) it counts as released, so the wait falls through immediately." />
                                                                 </StackPanel>
                                                             </DataTemplate>
 

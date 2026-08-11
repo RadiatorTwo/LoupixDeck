@@ -412,6 +412,11 @@ CLAUDE.md
 .github/copilot-instructions.md
 package.json
 package-lock.json
+/plans/
+/build-setup.ps1
+
+# Per-developer launch profiles
+**/Properties/launchSettings.json
 
 # Local build Artifacts
 LoupixDeck.PluginSdk/nupkg/

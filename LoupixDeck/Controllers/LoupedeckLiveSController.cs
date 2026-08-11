@@ -7,6 +7,7 @@ using LoupixDeck.PluginSdk;
 using LoupixDeck.Registry;
 using LoupixDeck.Services;
 using LoupixDeck.Services.FolderNavigation;
+using LoupixDeck.Services.Macros;
 using LoupixDeck.Services.Plugins;
 using LoupixDeck.Utils;
 
@@ -103,6 +104,9 @@ public partial class LoupedeckLiveSController(
     {
         if (_isDeviceOff) return;
         _isDeviceOff = true;
+        // The device goes dark (or the machine suspends) — a held button's release will never
+        // arrive, so nothing may keep waiting on it (#185).
+        ReleaseAllPresses();
         // Disarm the screensaver while the device is manually off (don't run a video
         // against a blanked, brightness-0 display). RestoreDeviceState re-arms it.
         try { screensaver.Stop(); } catch { /* best effort */ }
@@ -140,6 +144,8 @@ public partial class LoupedeckLiveSController(
     {
         if (!_isDeviceOff) return;
         _isDeviceOff = false;
+        // Anything still tracked from before the device went off is stale by definition (#185).
+        ReleaseAllPresses();
         try
         {
             var device = deviceService.Device;
@@ -186,6 +192,9 @@ public partial class LoupedeckLiveSController(
 
     public void Shutdown()
     {
+        // Let go of every tracked press first — after this the release events stop arriving (#185).
+        ReleaseAllPresses();
+
         // Persist any last runtime state before we close.
         try { SaveConfig(); } catch (Exception ex) { Console.WriteLine($"Shutdown SaveConfig failed: {ex.Message}"); }
 
@@ -1039,6 +1048,13 @@ public partial class LoupedeckLiveSController(
 
     private void OnSimpleButtonPress(object sender, ButtonEventArgs e)
     {
+        // A release ends the trigger-press token (#185). Done first and deliberately without
+        // returning, so a screensaver wake or a display takeover consuming this event cannot
+        // strand a macro waiting for the button to come up. A release still falls out at the
+        // BUTTON_DOWN filter below, exactly as before.
+        if (e.EventType != Constants.ButtonEventType.BUTTON_DOWN)
+            CompleteButtonPress(e.ButtonId);
+
         using var _routerScope = router.Enter(serviceProvider);
 
         // Any hardware input resets the screensaver idle timer; when it stops a running
@@ -1101,7 +1117,7 @@ public partial class LoupedeckLiveSController(
         {
             if (_isDeviceOff && !button.EnableWhenOff) return;
             var wrapped = config.CurrentRotaryButtonPage?.SimpleButtonWrap?.Apply(button.Command) ?? button.Command;
-            FireSimpleButtonCommand(button, wrapped);
+            DispatchWithPress(e.ButtonId, () => FireSimpleButtonCommand(button, wrapped));
             return;
         }
 
@@ -1113,7 +1129,7 @@ public partial class LoupedeckLiveSController(
         var cmd = rotary.Command;
         if (string.IsNullOrEmpty(cmd)) return;
         var wrappedRotary = page.KnobPressWrap?.Apply(cmd) ?? cmd;
-        FireAndForget(wrappedRotary, ButtonTargets.RotaryEncoder, idx);
+        DispatchWithPress(e.ButtonId, () => FireAndForget(wrappedRotary, ButtonTargets.RotaryEncoder, idx));
     }
 
     /// <summary>
@@ -1252,6 +1268,13 @@ public partial class LoupedeckLiveSController(
 
     private void OnTouchButtonPress(object sender, TouchEventArgs e)
     {
+        // A lifted finger ends its trigger-press token (#185). Done before every early return
+        // below so a wake gesture, a takeover or a failing strip handler cannot strand a macro
+        // waiting for the touch to end. The device removes the id from its touch set before
+        // raising this, so ChangedTouch is the contact that was lifted.
+        if (e.EventType == Constants.TouchEventType.TOUCH_END && e.ChangedTouch != null)
+            CompleteTouchPress(e.ChangedTouch.Id);
+
         using var _routerScope = router.Enter(serviceProvider);
 
         // Any hardware input resets the screensaver idle timer; when it stops a running
@@ -1367,7 +1390,10 @@ public partial class LoupedeckLiveSController(
             if (config.TouchFeedbackEnabled)
                 _ = ShowTouchFeedback(button);
 
-            FireTouchButtonCommand(button);
+            // Track the press by touch id so a macro can wait for this finger to lift (#185).
+            TriggerPress press = BeginTouchPress(touch.Id);
+            using (TriggerPressScope.Enter(press))
+                FireTouchButtonCommand(button);
         }
     }
 
@@ -1960,6 +1986,9 @@ public partial class LoupedeckLiveSController(
     /// </summary>
     public async Task ApplyActiveWorkspace()
     {
+        // The workspace being left may own a macro that is waiting for its trigger to come up (#185).
+        ReleaseAllPresses();
+
         // A profile/workspace switch ends any full-display takeover (issue #124) and exclusive mode:
         // the takeover belonged to the workspace we are leaving. Neither auto-restarts — the owning
         // plugin re-enters explicitly via its own command.
