@@ -66,6 +66,31 @@ public static class KeyCaptureMap
         // Digits (number row)
         [Key.D0] = "0", [Key.D1] = "1", [Key.D2] = "2", [Key.D3] = "3", [Key.D4] = "4",
         [Key.D5] = "5", [Key.D6] = "6", [Key.D7] = "7", [Key.D8] = "8", [Key.D9] = "9",
+
+        // Media and volume keys. Their virtual keys do not depend on the layout, so unlike
+        // the punctuation keys they can be named from the Key value alone. Windows delivers
+        // them as WM_APPCOMMAND rather than a key message, so a capture may never see them —
+        // the names can always be typed into the field instead.
+        [Key.MediaPlayPause] = "PlayPause",
+        [Key.MediaNextTrack] = "NextTrack",
+        [Key.MediaPreviousTrack] = "PrevTrack",
+        [Key.MediaStop] = "MediaStop",
+        [Key.VolumeMute] = "Mute",
+        [Key.VolumeDown] = "VolumeDown",
+        [Key.VolumeUp] = "VolumeUp",
+
+        // Browser and launcher keys
+        [Key.BrowserBack] = "BrowserBack",
+        [Key.BrowserForward] = "BrowserForward",
+        [Key.BrowserRefresh] = "BrowserRefresh",
+        [Key.BrowserStop] = "BrowserStop",
+        [Key.BrowserSearch] = "BrowserSearch",
+        [Key.BrowserFavorites] = "BrowserFavorites",
+        [Key.BrowserHome] = "BrowserHome",
+        [Key.LaunchMail] = "LaunchMail",
+        [Key.SelectMedia] = "LaunchMedia",
+        [Key.LaunchApplication1] = "LaunchComputer",
+        [Key.LaunchApplication2] = "LaunchCalculator",
     };
 
     // Physical position -> canonical position name. Used for keys that produce no character
@@ -106,6 +131,28 @@ public static class KeyCaptureMap
         [PhysicalKey.PrintScreen] = "PrintScreen",
         [PhysicalKey.ScrollLock] = "ScrollLock",
         [PhysicalKey.Pause] = "Pause",
+
+        // Media and volume keys
+        [PhysicalKey.MediaPlayPause] = "PlayPause",
+        [PhysicalKey.MediaTrackNext] = "NextTrack",
+        [PhysicalKey.MediaTrackPrevious] = "PrevTrack",
+        [PhysicalKey.MediaStop] = "MediaStop",
+        [PhysicalKey.AudioVolumeMute] = "Mute",
+        [PhysicalKey.AudioVolumeDown] = "VolumeDown",
+        [PhysicalKey.AudioVolumeUp] = "VolumeUp",
+
+        // Browser and launcher keys
+        [PhysicalKey.BrowserBack] = "BrowserBack",
+        [PhysicalKey.BrowserForward] = "BrowserForward",
+        [PhysicalKey.BrowserRefresh] = "BrowserRefresh",
+        [PhysicalKey.BrowserStop] = "BrowserStop",
+        [PhysicalKey.BrowserSearch] = "BrowserSearch",
+        [PhysicalKey.BrowserFavorites] = "BrowserFavorites",
+        [PhysicalKey.BrowserHome] = "BrowserHome",
+        [PhysicalKey.LaunchMail] = "LaunchMail",
+        [PhysicalKey.MediaSelect] = "LaunchMedia",
+        [PhysicalKey.LaunchApp1] = "LaunchComputer",
+        [PhysicalKey.LaunchApp2] = "LaunchCalculator",
 
         // Extended function keys
         [PhysicalKey.F13] = "F13", [PhysicalKey.F14] = "F14", [PhysicalKey.F15] = "F15",

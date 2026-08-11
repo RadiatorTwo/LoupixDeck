@@ -409,6 +409,8 @@ A key can be named in two ways:
 
 Both spellings can be mixed in one combination.
 
+Media, volume, browser and launcher keys have names of their own: `PlayPause`, `NextTrack`, `PrevTrack`, `MediaStop`, `Mute`, `VolumeUp`, `VolumeDown`, `BrowserBack`, `BrowserForward`, `BrowserHome`, `LaunchMail`, `LaunchCalculator` and friends. On Windows these keys usually cannot be recorded with Capture, because the system reports them to applications in a different way than ordinary keys — type the name into the field instead. Note that `Pause` is the Pause/Break key; the media key is `PlayPause`.
+
 ### Macro input backends
 
 On Windows, normal macros use `SendInput`. LoupixDeck can optionally use the Interception driver for applications that read raw input.

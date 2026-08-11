@@ -108,6 +108,28 @@ public static class KeyNames
         ["f13"] = 183, ["f14"] = 184, ["f15"] = 185, ["f16"] = 186, ["f17"] = 187,
         ["f18"] = 188, ["f19"] = 189, ["f20"] = 190, ["f21"] = 191, ["f22"] = 192,
         ["f23"] = 193, ["f24"] = 194,
+
+        // Media and volume keys
+        ["playpause"] = 164,   // KEY_PLAYPAUSE
+        ["nexttrack"] = 163,   // KEY_NEXTSONG
+        ["prevtrack"] = 165,   // KEY_PREVIOUSSONG
+        ["mediastop"] = 166,   // KEY_STOPCD
+        ["mute"] = 113,        // KEY_MUTE
+        ["volumedown"] = 114,  // KEY_VOLUMEDOWN
+        ["volumeup"] = 115,    // KEY_VOLUMEUP
+
+        // Browser and launcher keys
+        ["browserback"] = 158,      // KEY_BACK
+        ["browserforward"] = 159,   // KEY_FORWARD
+        ["browserrefresh"] = 173,   // KEY_REFRESH
+        ["browserstop"] = 128,      // KEY_STOP
+        ["browsersearch"] = 217,    // KEY_SEARCH
+        ["browserfavorites"] = 156, // KEY_BOOKMARKS
+        ["browserhome"] = 172,      // KEY_HOMEPAGE
+        ["launchmail"] = 155,       // KEY_MAIL
+        ["launchmedia"] = 226,      // KEY_MEDIA
+        ["launchcomputer"] = 157,   // KEY_COMPUTER
+        ["launchcalculator"] = 140, // KEY_CALC
     };
 
     // Canonical name -> Windows virtual-key code (VK_*) + extended-key flag.
@@ -192,6 +214,29 @@ public static class KeyNames
             ["f16"] = (0x7F, false), ["f17"] = (0x80, false), ["f18"] = (0x81, false),
             ["f19"] = (0x82, false), ["f20"] = (0x83, false), ["f21"] = (0x84, false),
             ["f22"] = (0x85, false), ["f23"] = (0x86, false), ["f24"] = (0x87, false),
+
+            // Media and volume keys (all extended). Windows delivers these to apps as
+            // WM_APPCOMMAND, but SendInput takes them as ordinary virtual keys.
+            ["playpause"] = (0xB3, true),  // VK_MEDIA_PLAY_PAUSE
+            ["nexttrack"] = (0xB0, true),  // VK_MEDIA_NEXT_TRACK
+            ["prevtrack"] = (0xB1, true),  // VK_MEDIA_PREV_TRACK
+            ["mediastop"] = (0xB2, true),  // VK_MEDIA_STOP
+            ["mute"] = (0xAD, true),       // VK_VOLUME_MUTE
+            ["volumedown"] = (0xAE, true), // VK_VOLUME_DOWN
+            ["volumeup"] = (0xAF, true),   // VK_VOLUME_UP
+
+            // Browser and launcher keys (all extended)
+            ["browserback"] = (0xA6, true),      // VK_BROWSER_BACK
+            ["browserforward"] = (0xA7, true),   // VK_BROWSER_FORWARD
+            ["browserrefresh"] = (0xA8, true),   // VK_BROWSER_REFRESH
+            ["browserstop"] = (0xA9, true),      // VK_BROWSER_STOP
+            ["browsersearch"] = (0xAA, true),    // VK_BROWSER_SEARCH
+            ["browserfavorites"] = (0xAB, true), // VK_BROWSER_FAVORITES
+            ["browserhome"] = (0xAC, true),      // VK_BROWSER_HOME
+            ["launchmail"] = (0xB4, true),       // VK_LAUNCH_MAIL
+            ["launchmedia"] = (0xB5, true),      // VK_LAUNCH_MEDIA_SELECT
+            ["launchcomputer"] = (0xB6, true),   // VK_LAUNCH_APP1
+            ["launchcalculator"] = (0xB7, true), // VK_LAUNCH_APP2
 
             // Note: no entries for the punctuation / OEM positions. Which VK_OEM_* code a
             // physical key carries depends on the active layout (the ü key is VK_OEM_1 on a
@@ -298,6 +343,28 @@ public static class KeyNames
             ["f16"] = (0x67, false), ["f17"] = (0x68, false), ["f18"] = (0x69, false),
             ["f19"] = (0x6A, false), ["f20"] = (0x6B, false), ["f21"] = (0x6C, false),
             ["f22"] = (0x6D, false), ["f23"] = (0x6E, false), ["f24"] = (0x76, false),
+
+            // Media and volume keys (multimedia keyboards emit these as E0 codes)
+            ["playpause"] = (0x22, true),
+            ["nexttrack"] = (0x19, true),
+            ["prevtrack"] = (0x10, true),
+            ["mediastop"] = (0x24, true),
+            ["mute"] = (0x20, true),
+            ["volumedown"] = (0x2E, true),
+            ["volumeup"] = (0x30, true),
+
+            // Browser and launcher keys (all E0)
+            ["browserback"] = (0x6A, true),
+            ["browserforward"] = (0x69, true),
+            ["browserrefresh"] = (0x67, true),
+            ["browserstop"] = (0x68, true),
+            ["browsersearch"] = (0x65, true),
+            ["browserfavorites"] = (0x66, true),
+            ["browserhome"] = (0x32, true),
+            ["launchmail"] = (0x6C, true),
+            ["launchmedia"] = (0x6D, true),
+            ["launchcomputer"] = (0x6B, true),
+            ["launchcalculator"] = (0x21, true),
         };
 
     // Aliases -> canonical name.
@@ -379,6 +446,30 @@ public static class KeyNames
         ["divide"] = "numdivide",
         ["decimal"] = "numdecimal",
         ["numlk"] = "numlock",
+
+        // Media and volume keys
+        // ("pause" is deliberately not an alias — that is the Pause/Break key.)
+        ["play"] = "playpause",
+        ["mediaplaypause"] = "playpause",
+        ["medianexttrack"] = "nexttrack",
+        ["medianext"] = "nexttrack",
+        ["mediaprevioustrack"] = "prevtrack",
+        ["mediaprevtrack"] = "prevtrack",
+        ["mediaprev"] = "prevtrack",
+        ["previoustrack"] = "prevtrack",
+        ["mediastoptrack"] = "mediastop",
+        ["volumemute"] = "mute",
+        ["audiovolumemute"] = "mute",
+        ["audiovolumeup"] = "volumeup",
+        ["audiovolumedown"] = "volumedown",
+        ["volup"] = "volumeup",
+        ["voldown"] = "volumedown",
+        ["mediaselect"] = "launchmedia",
+        ["launchapp1"] = "launchcomputer",
+        ["launchapp2"] = "launchcalculator",
+        ["mycomputer"] = "launchcomputer",
+        ["calculator"] = "launchcalculator",
+        ["mail"] = "launchmail",
 
         // System keys
         ["print"] = "printscreen",
