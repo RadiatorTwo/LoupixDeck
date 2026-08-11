@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using CommunityToolkit.Mvvm.Input;
 using LoupixDeck.ViewModels.Base;
 
 namespace LoupixDeck.ViewModels;
@@ -20,18 +21,45 @@ public sealed class MainShellViewModel : ViewModelBase
     public MainWindowViewModel SelectedDevice
     {
         get => _selectedDevice;
-        set => SetProperty(ref _selectedDevice, value);
+        set
+        {
+            if (SetProperty(ref _selectedDevice, value))
+                OnPropertyChanged(nameof(HasDevice));
+        }
     }
 
     /// <summary>Show the device tab strip only when more than one device is present,
     /// so the single-device window looks exactly as it did before phase 3.</summary>
     public bool HasMultipleDevices => Devices.Count > 1;
 
+    /// <summary>False while every device is unplugged. The window then hides the
+    /// context switcher (its Profile/Workspace selectors have nothing to show) and
+    /// puts an explicit "no device connected" state in the device area instead.</summary>
+    public bool HasDevice => _selectedDevice != null;
+
+    /// <summary>Quit is the one menu entry that has to work with no device connected,
+    /// so the shell owns it rather than delegating to a device's view model.</summary>
+    public IRelayCommand QuitApplicationCommand { get; } = new RelayCommand(() =>
+    {
+        if (Utils.WindowHelper.GetMainWindow() is Views.MainWindow window)
+        {
+            window.QuitApplication();
+            return;
+        }
+
+        Environment.Exit(0);
+    });
+
     public void Add(MainWindowViewModel device)
     {
         if (device == null) return;
         Devices.Add(device);
-        _selectedDevice ??= device;
+        // Go through the property so the change is announced: after the last device
+        // was unplugged SelectedDevice is null, and writing the backing field here
+        // would make the caller's later "SelectedDevice = vm" a silent no-op — the
+        // window would never rebuild its device layout (blank shell on re-plug).
+        if (_selectedDevice == null)
+            SelectedDevice = device;
         OnPropertyChanged(nameof(HasMultipleDevices));
     }
 

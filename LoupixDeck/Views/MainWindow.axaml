@@ -296,14 +296,17 @@
              when more than one device is connected (single-device users see just their
              Profile and Workspace). -->
         <Border Grid.Row="0" Classes="SwitcherBar">
-          <!-- The hamburger is overlaid at the right end of this same zone rather than
-               reserving a column, so the selector group stays centred in the window. -->
-          <Grid>
+          <!-- The hamburger gets its own column at the right end of this zone, mirrored by
+               an equally wide spacer on the left, so the selector group stays centred in the
+               window AND the button never overlaps it on a narrow window. -->
+          <Grid ColumnDefinitions="44,*,44">
             <!-- One framed bar fusing the three selectors into a single context path. Fine
                  vertical hairlines separate the cells; each cell keeps its own label and
                  dropdown. The Device cell (and its trailing divider) only appears when more
-                 than one device is connected. -->
-            <Border Classes="SwitcherGroup" HorizontalAlignment="Center">
+                 than one device is connected. With no device at all the whole group goes
+                 away — its Profile/Workspace selectors would just be two empty boxes. -->
+            <Border Grid.Column="1" Classes="SwitcherGroup" HorizontalAlignment="Center"
+                    IsVisible="{Binding HasDevice}">
                 <StackPanel Orientation="Horizontal">
                     <!-- Device -->
                     <Border Classes="SwitcherSegment" IsVisible="{Binding HasMultipleDevices}">
@@ -359,7 +362,7 @@
                 </StackPanel>
             </Border>
 
-            <Button Classes="HeaderAction"
+            <Button Grid.Column="2" Classes="HeaderAction"
                 VerticalAlignment="Center" HorizontalAlignment="Right"
                 VerticalContentAlignment="Center" HorizontalContentAlignment="Center">
             <!-- Theme-aware hamburger (three bars) so the menu icon follows Light/Dark
@@ -372,27 +375,33 @@
             <Button.Flyout>
                 <Flyout Placement="Left">
                     <StackPanel>
+                        <!-- Everything but Quit acts on the selected device, so those entries
+                             go inactive while no device is connected. Quit lives on the shell
+                             and stays usable. -->
                         <Button Width="100" Height="40" VerticalContentAlignment="Center"
                                 HorizontalContentAlignment="Center"
                                 FontSize="18"
                                 Content="Settings"
+                                IsEnabled="{Binding HasDevice}"
                                 Command="{Binding SelectedDevice.SettingsMenuCommand}" />
                         <Button Width="100" Height="40" VerticalContentAlignment="Center" Margin="0,5,0,0"
                                 HorizontalContentAlignment="Center"
                                 FontSize="18"
                                 Content="Macros"
+                                IsEnabled="{Binding HasDevice}"
                                 Command="{Binding SelectedDevice.MacroEditorMenuCommand}" />
                         <Separator />
                         <Button Width="100" Height="40" VerticalContentAlignment="Center"
                                 HorizontalContentAlignment="Center"
                                 FontSize="18"
                                 Content="About"
+                                IsEnabled="{Binding HasDevice}"
                                 Command="{Binding SelectedDevice.AboutMenuCommand}" />
                         <Button Width="100" Height="40" VerticalContentAlignment="Center" Margin="0,5,0,0"
                                 HorizontalContentAlignment="Center"
                                 FontSize="18"
                                 Content="Quit"
-                                Command="{Binding SelectedDevice.QuitApplicationCommand}" />
+                                Command="{Binding QuitApplicationCommand}" />
                     </StackPanel>
                 </Flyout>
             </Button.Flyout>
@@ -402,6 +411,42 @@
 
         <Grid Grid.Row="1">
             <ContentControl Name="DeviceLayoutHost" Padding="0" />
+
+            <!-- Empty state (issue #191): with every device unplugged the layout host is
+                 cleared, which used to leave a bare window with no explanation. The minimum
+                 size keeps the window from collapsing to the width of the hamburger, since
+                 the window sizes to its content. -->
+            <Border IsVisible="{Binding !HasDevice}"
+                    MinWidth="480" MinHeight="260" Padding="32,24">
+                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="14">
+                    <!-- A quiet outline of a deck (3x2 keys) rather than an icon font, so it
+                         follows the theme like the rest of the window chrome. -->
+                    <Border Width="86" Height="60" CornerRadius="8"
+                            HorizontalAlignment="Center"
+                            BorderThickness="1.5"
+                            BorderBrush="{DynamicResource AppBorderSubtle}"
+                            Background="{DynamicResource AppSurfaceBar}">
+                        <UniformGrid Rows="2" Columns="3" Margin="10">
+                            <Border Margin="2" CornerRadius="2" Background="{DynamicResource AppBorderFaint}" />
+                            <Border Margin="2" CornerRadius="2" Background="{DynamicResource AppBorderFaint}" />
+                            <Border Margin="2" CornerRadius="2" Background="{DynamicResource AppBorderFaint}" />
+                            <Border Margin="2" CornerRadius="2" Background="{DynamicResource AppBorderFaint}" />
+                            <Border Margin="2" CornerRadius="2" Background="{DynamicResource AppBorderFaint}" />
+                            <Border Margin="2" CornerRadius="2" Background="{DynamicResource AppBorderFaint}" />
+                        </UniformGrid>
+                    </Border>
+
+                    <TextBlock Text="No device connected"
+                               HorizontalAlignment="Center"
+                               FontSize="17" FontWeight="SemiBold"
+                               Foreground="{DynamicResource AppTextPrimary}" />
+                    <TextBlock Text="Plug in your deck over USB — it is picked up automatically and this view comes back."
+                               MaxWidth="360" TextWrapping="Wrap" TextAlignment="Center"
+                               HorizontalAlignment="Center"
+                               FontSize="13"
+                               Foreground="{DynamicResource AppTextSecondary}" />
+                </StackPanel>
+            </Border>
         </Grid>
 
         <!-- Drag & drop overlay (issue #166 phase 3): a drop-target ring coloured by the pending
