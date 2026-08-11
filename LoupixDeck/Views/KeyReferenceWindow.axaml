@@ -52,7 +52,6 @@
 
         <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right"
                     Margin="16,8,16,16" Spacing="8">
-            <Button Content="Copy all" Click="CopyAll_Click" />
             <Button Content="Close" Click="Close_Click" />
         </StackPanel>
     </Grid>

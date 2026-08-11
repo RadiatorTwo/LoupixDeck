@@ -1,5 +1,4 @@
 using Avalonia.Controls;
-using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
 using LoupixDeck.ViewModels;
 
@@ -16,22 +15,6 @@ public partial class KeyReferenceWindow : Window
     {
         DataContext = new KeyReferenceViewModel();
         InitializeComponent();
-    }
-
-    private KeyReferenceViewModel ViewModel => DataContext as KeyReferenceViewModel;
-
-    private async void CopyAll_Click(object sender, RoutedEventArgs e)
-    {
-        try
-        {
-            var clipboard = GetTopLevel(this)?.Clipboard;
-            if (clipboard != null && ViewModel != null)
-                await clipboard.SetTextAsync(ViewModel.ToPlainText());
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Failed to copy the key list: {ex.Message}");
-        }
     }
 
     private void Close_Click(object sender, RoutedEventArgs e)

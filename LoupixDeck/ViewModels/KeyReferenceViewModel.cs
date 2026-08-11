@@ -1,4 +1,3 @@
-using System.Text;
 using LoupixDeck.Utils;
 using LoupixDeck.ViewModels.Base;
 
@@ -36,23 +35,6 @@ public sealed class KeyReferenceViewModel : ViewModelBase
         "keyboard types are resolved through the active keyboard layout, so they need no " +
         "name from this list. The names below identify a key by its physical place on the " +
         "board instead (US legend), which keeps a macro on the same key on every layout.";
-
-    /// <summary>Plain-text rendering of the whole list, for the Copy button.</summary>
-    public string ToPlainText()
-    {
-        var builder = new StringBuilder();
-        builder.AppendLine(Intro).AppendLine();
-        builder.AppendLine(CharacterHint).AppendLine();
-
-        foreach (var group in Groups)
-        {
-            builder.AppendLine(group.Title);
-            builder.AppendLine(group.Text);
-            builder.AppendLine();
-        }
-
-        return builder.ToString();
-    }
 
     private static string CategoryTitle(KeyNameCategory category) => category switch
     {

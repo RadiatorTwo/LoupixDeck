@@ -409,7 +409,7 @@ A key can be named in two ways:
 
 Both spellings can be mixed in one combination.
 
-The **ⓘ** button next to Capture opens a list of every key name that works on your system, grouped by kind and with the alternative spellings that mean the same key. The list stays open while you keep editing the macro, its text can be selected and copied, and **Copy all** puts the whole list on the clipboard.
+The **ⓘ** button next to Capture opens a list of every key name that works on your system, grouped by kind and with the alternative spellings that mean the same key. The list stays open while you keep editing the macro, and its text can be selected and copied.
 
 Media, volume, browser and launcher keys have names of their own: `PlayPause`, `NextTrack`, `PrevTrack`, `MediaStop`, `Mute`, `VolumeUp`, `VolumeDown`, `BrowserBack`, `BrowserForward`, `BrowserHome`, `LaunchMail`, `LaunchCalculator` and friends. On Windows these keys usually cannot be recorded with Capture, because the system reports them to applications in a different way than ordinary keys — type the name into the field instead. Note that `Pause` is the Pause/Break key; the media key is `PlayPause`.
 
