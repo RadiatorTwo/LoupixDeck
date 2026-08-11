@@ -403,7 +403,7 @@
 
                                                             <DataTemplate DataType="{x:Type macros:KeyCombinationStep}">
                                                                 <StackPanel Spacing="4">
-                                                                    <Grid ColumnDefinitions="Auto,*,Auto">
+                                                                    <Grid ColumnDefinitions="Auto,*,Auto,Auto">
                                                                         <TextBlock Grid.Column="0" Classes="editor-label lead"
                                                                                    Text="Keys" Margin="0,0,10,0" />
                                                                         <TextBox Grid.Column="1"
@@ -415,6 +415,11 @@
                                                                                       KeyDown="Capture_KeyDown"
                                                                                       KeyUp="Capture_KeyUp"
                                                                                       LostFocus="Capture_LostFocus" />
+                                                                        <Button Grid.Column="3" Classes="row-action" Margin="6,0,0,0"
+                                                                                FontFamily="{StaticResource MdiFont}"
+                                                                                Content="&#xF02FD;"
+                                                                                ToolTip.Tip="Show the usable key names"
+                                                                                Click="KeyReference_Click" />
                                                                     </Grid>
                                                                     <TextBlock Classes="hint"
                                                                                Text="Key names joined with '+', e.g. Ctrl+Shift+Esc, Ctrl+Ü, Alt+Num5 or Enter. Characters like Ü, Ä, ß or # are resolved via the active keyboard layout. Or click Capture and press the keys." />
@@ -436,7 +441,7 @@
 
                                                             <DataTemplate DataType="{x:Type macros:KeyDownStep}">
                                                                 <StackPanel Spacing="4">
-                                                                    <Grid ColumnDefinitions="Auto,*,Auto">
+                                                                    <Grid ColumnDefinitions="Auto,*,Auto,Auto">
                                                                         <TextBlock Grid.Column="0" Classes="editor-label lead"
                                                                                    Text="Key" Margin="0,0,10,0" />
                                                                         <TextBox Grid.Column="1"
@@ -448,6 +453,11 @@
                                                                                       KeyDown="Capture_KeyDown"
                                                                                       KeyUp="Capture_KeyUp"
                                                                                       LostFocus="Capture_LostFocus" />
+                                                                        <Button Grid.Column="3" Classes="row-action" Margin="6,0,0,0"
+                                                                                FontFamily="{StaticResource MdiFont}"
+                                                                                Content="&#xF02FD;"
+                                                                                ToolTip.Tip="Show the usable key names"
+                                                                                Click="KeyReference_Click" />
                                                                     </Grid>
                                                                     <TextBlock Classes="hint"
                                                                                Text="Single key name to hold down, e.g. Shift, Ctrl, A. Release it with a Key Up step." />
@@ -456,7 +466,7 @@
 
                                                             <DataTemplate DataType="{x:Type macros:KeyUpStep}">
                                                                 <StackPanel Spacing="4">
-                                                                    <Grid ColumnDefinitions="Auto,*,Auto">
+                                                                    <Grid ColumnDefinitions="Auto,*,Auto,Auto">
                                                                         <TextBlock Grid.Column="0" Classes="editor-label lead"
                                                                                    Text="Key" Margin="0,0,10,0" />
                                                                         <TextBox Grid.Column="1"
@@ -468,6 +478,11 @@
                                                                                       KeyDown="Capture_KeyDown"
                                                                                       KeyUp="Capture_KeyUp"
                                                                                       LostFocus="Capture_LostFocus" />
+                                                                        <Button Grid.Column="3" Classes="row-action" Margin="6,0,0,0"
+                                                                                FontFamily="{StaticResource MdiFont}"
+                                                                                Content="&#xF02FD;"
+                                                                                ToolTip.Tip="Show the usable key names"
+                                                                                Click="KeyReference_Click" />
                                                                     </Grid>
                                                                     <TextBlock Classes="hint"
                                                                                Text="Single key name to release, e.g. Shift, Ctrl, A." />

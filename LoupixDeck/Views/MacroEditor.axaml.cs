@@ -26,6 +26,9 @@ public partial class MacroEditor : Window
     private readonly List<(PhysicalKey Physical, string Name)> _pressedKeys = [];
     private List<string> _maxCombo = [];
 
+    // The non-modal key-name reference opened from a key step; null while it is closed.
+    private KeyReferenceWindow _keyReferenceWindow;
+
     public MacroEditor() : this(null)
     {
     }
@@ -49,6 +52,9 @@ public partial class MacroEditor : Window
 
             // Changes apply instantly (debounced) — persist anything still pending.
             ViewModel?.FlushPendingChanges();
+
+            // The key reference belongs to this editor and must not outlive it.
+            _keyReferenceWindow?.Close();
 
             if (DataContext is IDialogViewModel dlg && !dlg.DialogResult.Task.IsCompleted)
             {
@@ -90,6 +96,26 @@ public partial class MacroEditor : Window
         var treeView = textBlock.FindAncestorOfType<TreeView>();
         if (treeView?.Tag is CommandStep step)
             ViewModel?.InsertCommandIntoStep(step, menuEntry);
+    }
+
+    // ───────── Key name reference ─────────
+
+    /// <summary>
+    /// Opens the list of usable key names next to a key step. The window is non-modal and
+    /// owned by the editor, so the editor stays usable and the reference closes with it. A
+    /// second click brings the existing window to the front instead of opening another one.
+    /// </summary>
+    private void KeyReference_Click(object sender, RoutedEventArgs e)
+    {
+        if (_keyReferenceWindow != null)
+        {
+            _keyReferenceWindow.Activate();
+            return;
+        }
+
+        _keyReferenceWindow = new KeyReferenceWindow();
+        _keyReferenceWindow.Closed += (_, _) => _keyReferenceWindow = null;
+        _keyReferenceWindow.Show(this);
     }
 
     // ───────── Key capture ─────────
