@@ -11,8 +11,8 @@ namespace LoupixDeck.Commands;
 /// mainly to surface the entry in the command picker and to allow execution by name.
 /// </summary>
 [Command(
-    "System.Shell",
-    "Shell Command",
+    ShellCommand.CommandName,
+    ShellCommand.DisplayName,
     "Shell",
     "({Command})",
     ["Command"],
@@ -21,6 +21,7 @@ namespace LoupixDeck.Commands;
 public class ShellCommand(ICommandRunner commandRunner) : IExecutableCommand
 {
     public const string CommandName = "System.Shell";
+    public const string DisplayName = "Shell Command";
 
     public Task Execute(string[] parameters)
     {

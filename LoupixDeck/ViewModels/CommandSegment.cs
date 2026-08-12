@@ -82,7 +82,17 @@ public partial class CommandSegment
 
     public bool IsKnown => _info != null;
     public string CommandName { get; }
-    public string DisplayName { get; }
+
+    /// <summary>Fallback label: the command's display name for known commands, and the
+    /// placeholder shown for a shell segment whose text is still empty.</summary>
+    private readonly string _displayName;
+
+    /// <summary>Chip label. A shell segment shows the command text the user is typing,
+    /// so the chip stays in sync with the free-text editor.</summary>
+    public string DisplayName => (IsKnown || string.IsNullOrWhiteSpace(ShellText))
+        ? _displayName
+        : ShellText;
+
     public ObservableCollection<CommandParameter> Parameters { get; } = [];
 
     /// <summary>The current raw text of this single segment (e.g. <c>"OBS.SetScene(Scene 1)"</c>).</summary>
@@ -94,7 +104,7 @@ public partial class CommandSegment
         _commandBuilder = commandBuilder;
         _info = info;
         CommandName = commandName;
-        DisplayName = displayName;
+        _displayName = displayName;
         Raw = raw;
     }
 
@@ -117,7 +127,8 @@ public partial class CommandSegment
         {
             var fromMenu = info != null;
             var shellRaw = fromMenu ? string.Empty : raw;
-            var shellDisplay = fromMenu ? info.DisplayName : shellRaw;
+            // Only used while the free-text is empty — otherwise the chip shows the typed text.
+            var shellDisplay = fromMenu ? info.DisplayName : ShellCommand.DisplayName;
             var shell = new CommandSegment(commandBuilder, null,
                 CommandStringParser.GetName(shellRaw), shellDisplay, shellRaw)
             {
@@ -170,9 +181,9 @@ public partial class CommandSegment
         {
             if (!SetProperty(ref field, value)) return;
             Raw = value ?? string.Empty;
-            OnPropertyChanged();
             OnPropertyChanged(nameof(Raw));
             OnPropertyChanged(nameof(Summary));
+            OnPropertyChanged(nameof(DisplayName));
             Changed?.Invoke(this, EventArgs.Empty);
         }
     } = string.Empty;
