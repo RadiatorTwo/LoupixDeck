@@ -235,10 +235,12 @@ public partial class LoupedeckLiveSController(
 
         try
         {
+            Console.WriteLine($"[Resync] pushing {(_isDeviceOff ? "blank" : "full")} state to the device");
             if (_isDeviceOff)
                 await PushBlankState();
             else
                 await PushFullState();
+            Console.WriteLine("[Resync] done");
         }
         finally
         {
@@ -256,6 +258,7 @@ public partial class LoupedeckLiveSController(
     private void OnDeviceConnected(object sender, ConnectionEventArgs e)
     {
         Interlocked.Increment(ref _connectResyncs);
+        Console.WriteLine($"[Device] link established on {e.PortName} — re-pushing the state");
 
         // Raised from inside the connect call, i.e. before the read thread runs — hop off
         // that thread and let the link settle before drawing.
@@ -281,11 +284,14 @@ public partial class LoupedeckLiveSController(
         if (device == null)
             return;
 
-        // The handle the device woke up with is dead even when the OS still lists the port,
-        // so writes would go nowhere. Re-establish the link first; its connect event does
-        // the re-push. The port can need a few seconds to come back, hence the retries.
+        // The handle the device woke up with is dead even when the OS still lists the port
+        // and the handle still reports itself as open — writes then go nowhere. So the link
+        // is torn down and rebuilt unconditionally (its connect event does the re-push),
+        // never skipped just because the stale handle still looks healthy. The port can
+        // need a few seconds to come back, hence the retries.
         var before = Volatile.Read(ref _connectResyncs);
-        for (var attempt = 1; attempt <= 3 && !device.IsConnected; attempt++)
+        Console.WriteLine($"[Resume] reconnecting {config.DevicePort} (handle reports connected={device.IsConnected})");
+        for (var attempt = 1; attempt <= 3; attempt++)
         {
             try
             {
@@ -299,10 +305,13 @@ public partial class LoupedeckLiveSController(
             }
 
             if (device.IsConnected) break;
+            Console.WriteLine($"[Resume] attempt {attempt}: link still down");
             await Task.Delay(1000);
         }
 
-        // The link never dropped (or reconnected without an event) — re-push here instead.
+        Console.WriteLine($"[Resume] link {(device.IsConnected ? "up" : "DOWN")}");
+
+        // Reconnected without a connect event (or the link never dropped) — re-push here.
         await Task.Delay(ReconnectSettleMs);
         if (Volatile.Read(ref _connectResyncs) == before)
             await ResyncDeviceState();

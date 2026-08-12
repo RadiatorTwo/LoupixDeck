@@ -67,14 +67,11 @@ public static class ServiceCollectionExtensions
         collection.AddSingleton<IDBusController, DBusController>();
         collection.AddSingleton<ICommandRunner, CommandRunner>();
 
-        if (OperatingSystem.IsLinux())
-            collection.AddSingleton<ISystemPowerService, LinuxSystemPowerService>();
-#if WINDOWS
-        else if (OperatingSystem.IsWindows())
-            collection.AddSingleton<ISystemPowerService, WindowsSystemPowerService>();
-#endif
-        else
-            collection.AddSingleton<ISystemPowerService, NoOpSystemPowerService>();
+        // The platform service is wrapped in the wall-clock resume detector: its notification
+        // is missing entirely on Modern-Standby machines and wherever the Linux signal source
+        // is unavailable, and a wake nobody reports leaves the device dark (issue #195).
+        collection.AddSingleton<ISystemPowerService>(_ =>
+            new ResumeDetectingSystemPowerService(CreatePlatformPowerService()));
 
         // Foreground-window monitor. The Linux monitor needs no #if guard (it only uses
         // Process + /proc); only the Windows type lives behind #if WINDOWS.
@@ -321,6 +318,18 @@ public static class ServiceCollectionExtensions
         {
             Console.WriteLine($"[Config] Sibling-port seed failed: {ex.Message}");
         }
+    }
+
+    /// <summary>The OS-level suspend/resume source, or a no-op on platforms without one.</summary>
+    private static ISystemPowerService CreatePlatformPowerService()
+    {
+        if (OperatingSystem.IsLinux())
+            return new LinuxSystemPowerService();
+#if WINDOWS
+        if (OperatingSystem.IsWindows())
+            return new WindowsSystemPowerService();
+#endif
+        return new NoOpSystemPowerService();
     }
 
     private static void InitDialogs(IServiceCollection collection)
