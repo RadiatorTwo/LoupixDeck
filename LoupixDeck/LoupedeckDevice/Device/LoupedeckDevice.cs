@@ -38,6 +38,15 @@ public class LoupedeckDevice
     private byte[] _ditherLutBlue;
 
     private ISerialConnection _connection;
+
+    /// <summary>
+    /// Serializes every connect attempt. Without it the auto-reconnect loop and an explicit
+    /// <see cref="Reconnect"/> (Settings button / system resume, issue #195) can open the
+    /// port at the same time — the second one fails with "port already open" and drops the
+    /// working connection object.
+    /// </summary>
+    private readonly Lock _connectGate = new();
+
     private byte _transactionId;
 
     private record QueueItem(
@@ -162,13 +171,19 @@ public class LoupedeckDevice
     /// </summary>
     private void ConnectBlind()
     {
-        try
+        lock (_connectGate)
         {
-            Connect();
-        }
-        catch
-        {
-            // Errors are reported in the Disconnect event
+            // Another attempt won the race and is already connected.
+            if (_connection is { IsReady: true }) return;
+
+            try
+            {
+                Connect();
+            }
+            catch
+            {
+                // Errors are reported in the Disconnect event
+            }
         }
     }
 
@@ -305,6 +320,12 @@ public class LoupedeckDevice
     }
 
     /// <summary>
+    /// True while the serial link is open and usable. Lets callers tell a successful
+    /// <see cref="Reconnect"/> from one that silently failed (issue #195).
+    /// </summary>
+    public bool IsConnected => _connection is { IsReady: true };
+
+    /// <summary>
     /// Closes the current connection.
     /// </summary>
     public void Close()
@@ -324,32 +345,37 @@ public class LoupedeckDevice
     /// </summary>
     public void Reconnect()
     {
-        _suppressAutoReconnect = true;
-        try
+        // Held across the whole tear-down + re-open so a pending auto-reconnect attempt
+        // can't grab the port in between (the lock is re-entered by ConnectBlind below).
+        lock (_connectGate)
         {
-            _connection?.Close();
-        }
-        catch
-        {
-            // ignored — best-effort tear-down
-        }
-        _connection = null;
+            _suppressAutoReconnect = true;
+            try
+            {
+                _connection?.Close();
+            }
+            catch
+            {
+                // ignored — best-effort tear-down
+            }
+            _connection = null;
 
-        // Give the OS time to release the COM port; without this, the next
-        // SerialPort.Open() throws UnauthorizedAccessException on Windows.
-        Thread.Sleep(500);
+            // Give the OS time to release the COM port; without this, the next
+            // SerialPort.Open() throws UnauthorizedAccessException on Windows.
+            Thread.Sleep(500);
 
-        try
-        {
-            ProbeWake();
-        }
-        catch
-        {
-            // ignored — Connect() will surface the real error
-        }
+            try
+            {
+                ProbeWake();
+            }
+            catch
+            {
+                // ignored — Connect() will surface the real error
+            }
 
-        _suppressAutoReconnect = false;
-        ConnectBlind();
+            _suppressAutoReconnect = false;
+            ConnectBlind();
+        }
     }
 
     /// <summary>
