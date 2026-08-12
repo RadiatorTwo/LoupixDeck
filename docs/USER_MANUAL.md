@@ -103,6 +103,8 @@ loupixdeck
 
 On start, LoupixDeck auto-detects supported USB devices. If a device is connected, the main window opens with a visual layout matching the device.
 
+If no device is connected, the device area shows `No device connected` instead of empty profile and workspace selectors. Plug a supported deck in over USB and LoupixDeck picks it up automatically; after a re-plug, the layout and the device-bound parts of the window are restored. Until a device is available, actions that need a device are disabled, but `Quit` remains available from the hamburger menu.
+
 If the app cannot talk to the device:
 
 - Check that the device is plugged in directly or through a reliable hub.
