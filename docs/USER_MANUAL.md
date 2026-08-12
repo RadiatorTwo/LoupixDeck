@@ -105,6 +105,8 @@ On start, LoupixDeck auto-detects supported USB devices. If a device is connecte
 
 If no device is connected, the device area shows `No device connected` instead of empty profile and workspace selectors. Plug a supported deck in over USB and LoupixDeck picks it up automatically; after a re-plug, the layout and the device-bound parts of the window are restored. Until a device is available, actions that need a device are disabled, but `Quit` remains available from the hamburger menu.
 
+When the computer wakes from sleep or standby, LoupixDeck rebuilds the device connection and sends the current state again. Brightness, LED colours, the active touch page, and side-strip content are restored. The same state refresh happens after automatic reconnect or after you press `Reconnect` in `Settings > General`, so the display should not remain black after the link returns.
+
 If the app cannot talk to the device:
 
 - Check that the device is plugged in directly or through a reliable hub.
@@ -300,6 +302,8 @@ Built-in command groups include:
 | Plugin groups | Commands supplied by installed plugins |
 
 Some commands have parameters, such as a page number, key combination, date/time format, shell command, or target button index. Parameter fields appear in the command chip editor, opened with the pencil icon on the command chip.
+
+For the `Shell Command` chip, the chip label follows the command text while you edit it. If the field is empty, it returns to the `Shell Command` placeholder.
 
 In v1.17.0 and later, commands can provide their own default settings. When you add such a command, its settings popup is already filled with sensible values. You can still change those values for that one button, knob direction, physical button, or page command. Existing assignments are left as they were.
 
