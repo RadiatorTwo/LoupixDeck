@@ -50,6 +50,21 @@ public interface IDeviceController
     Task ToggleDeviceState();
 
     /// <summary>
+    /// Re-pushes the state the hardware lost across a power cycle — brightness, LED
+    /// colours, the current touch page and the side strips — after the serial link was
+    /// re-established (issue #195). Unlike <see cref="RestoreDeviceState"/> it does not
+    /// turn the device on: while it is manually off, the blanked state is re-applied.
+    /// </summary>
+    Task ResyncDeviceState();
+
+    /// <summary>
+    /// Handles a system resume: re-establishes the serial link (the handle from before
+    /// the suspend is dead even when the port is still listed), takes the device out of
+    /// the state the suspend handler blanked it into, and re-pushes everything (#195).
+    /// </summary>
+    Task HandleSystemResume();
+
+    /// <summary>
     /// Detaches any plugin-override side-strip providers currently driving a strip
     /// (calls their OnDetach). Used before a plugin unload so a live provider can't
     /// pin its collectible load context. No-op on devices without side strips.
