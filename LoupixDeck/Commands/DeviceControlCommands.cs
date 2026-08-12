@@ -83,15 +83,15 @@ internal static class BrightnessStep
 }
 
 [Command("System.DeviceWakeup", "Device Wakeup (reconnect serial + ON)", "Device Control")]
-public class DeviceWakeupCommand(IDeviceController controller, IDeviceService deviceService) : IExecutableCommand
+public class DeviceWakeupCommand(IDeviceController controller) : IExecutableCommand
 {
     public async Task Execute(string[] parameters)
     {
         try
         {
-            deviceService.ReconnectDevice();
-            await Task.Delay(500);
-            await controller.RestoreDeviceState();
+            // Same path the system-resume handler takes: reconnect the serial link, then
+            // re-push everything the device lost across the power cycle (issue #195).
+            await controller.HandleSystemResume();
         }
         catch (Exception ex)
         {

@@ -267,11 +267,9 @@ public partial class MainWindowViewModel : ViewModelBase
             Avalonia.Threading.Dispatcher.UIThread.Post(() => _ = LoupedeckController.ClearDeviceState());
         powerService.Resuming += (_, _) =>
             Avalonia.Threading.Dispatcher.UIThread.Post(async () =>
-            {
-                // Give the USB stack a moment to re-enumerate the device after wake.
-                await Task.Delay(1000);
-                await LoupedeckController.RestoreDeviceState();
-            });
+                // Waits for the USB stack, re-establishes the serial link and re-pushes the
+                // full state — restoring state alone wrote to a dead handle (issue #195).
+                await LoupedeckController.HandleSystemResume());
         powerService.StartMonitoring();
 
         // Foreground-window → page switching. Started on the UI thread because the

@@ -116,6 +116,16 @@ public partial class LoupedeckLiveSController(
         try { fullDisplay.SetPaused(true); } catch { /* best effort */ }
         // Stop any plugin-strip providers so their timers don't churn while off.
         DetachAllSideStripProviders();
+        await PushBlankState();
+    }
+
+    /// <summary>
+    /// Blanks the hardware: brightness to 0 and every LED button black. Split out of
+    /// <see cref="ClearDeviceState"/> so a reconnect can re-apply it without touching the
+    /// off-state bookkeeping (issue #195).
+    /// </summary>
+    private async Task PushBlankState()
+    {
         try
         {
             var device = deviceService.Device;
@@ -136,7 +146,7 @@ public partial class LoupedeckLiveSController(
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"ClearDeviceState failed: {ex.Message}");
+            Console.WriteLine($"Blanking the device failed: {ex.Message}");
         }
     }
 
@@ -146,6 +156,17 @@ public partial class LoupedeckLiveSController(
         _isDeviceOff = false;
         // Anything still tracked from before the device went off is stale by definition (#185).
         ReleaseAllPresses();
+        await PushFullState();
+    }
+
+    /// <summary>
+    /// Pushes the complete visible state — brightness, LED colours, the current touch page,
+    /// the side strips and the firmware haptic — to the hardware. Split out of
+    /// <see cref="RestoreDeviceState"/> so a reconnect can re-push it without the off-state
+    /// guard (issue #195).
+    /// </summary>
+    private async Task PushFullState()
+    {
         try
         {
             var device = deviceService.Device;
@@ -184,11 +205,110 @@ public partial class LoupedeckLiveSController(
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"RestoreDeviceState failed: {ex.Message}");
+            Console.WriteLine($"Pushing the device state failed: {ex.Message}");
         }
     }
 
     public Task ToggleDeviceState() => _isDeviceOff ? RestoreDeviceState() : ClearDeviceState();
+
+    // ───────── Reconnect / system resume (issue #195) ─────────
+
+    /// <summary>Serializes the state re-push so an auto-reconnect, the Settings "Reconnect"
+    /// button and a system resume can't paint over each other.</summary>
+    private readonly SemaphoreSlim _resyncGate = new(1, 1);
+
+    /// <summary>Counts the re-pushes triggered by the device's own connect event, so the
+    /// resume path can tell whether the reconnect already covered it.</summary>
+    private int _connectResyncs;
+
+    /// <summary>Time given to a freshly established link before the first frame goes out.
+    /// The connect event fires before the read thread is up, so an immediate draw would
+    /// wait on a response nobody reads yet.</summary>
+    private const int ReconnectSettleMs = 750;
+
+    public async Task ResyncDeviceState()
+    {
+        // Skip rather than queue: a second re-push right behind the first would only
+        // repaint the same picture.
+        if (!await _resyncGate.WaitAsync(0))
+            return;
+
+        try
+        {
+            if (_isDeviceOff)
+                await PushBlankState();
+            else
+                await PushFullState();
+        }
+        finally
+        {
+            _resyncGate.Release();
+        }
+    }
+
+    /// <summary>
+    /// The serial link came back — after the device's own auto-reconnect, the Settings
+    /// "Reconnect" button, or a system resume. The hardware kept nothing across the
+    /// power cycle (the display still shows its boot image and the LEDs their boot
+    /// colours), so the full state has to go out again; restoring only the transport is
+    /// what left the device blank in issue #195.
+    /// </summary>
+    private void OnDeviceConnected(object sender, ConnectionEventArgs e)
+    {
+        Interlocked.Increment(ref _connectResyncs);
+
+        // Raised from inside the connect call, i.e. before the read thread runs — hop off
+        // that thread and let the link settle before drawing.
+        Avalonia.Threading.Dispatcher.UIThread.Post(async () =>
+        {
+            await Task.Delay(ReconnectSettleMs);
+            await ResyncDeviceState();
+        });
+    }
+
+    public async Task HandleSystemResume()
+    {
+        // Give the USB stack time to re-enumerate the device after wake.
+        await Task.Delay(1000);
+
+        // The suspend handler blanked the device; take it out of the off state before the
+        // re-push so it paints the real page instead of black. Anything still tracked from
+        // before the suspend is stale by definition (#185).
+        _isDeviceOff = false;
+        ReleaseAllPresses();
+
+        var device = deviceService.Device;
+        if (device == null)
+            return;
+
+        // The handle the device woke up with is dead even when the OS still lists the port
+        // and the handle still reports itself as open — writes then go nowhere. So the link
+        // is torn down and rebuilt unconditionally (its connect event does the re-push),
+        // never skipped just because the stale handle still looks healthy. The port can
+        // need a few seconds to come back, hence the retries.
+        var before = Volatile.Read(ref _connectResyncs);
+        for (var attempt = 1; attempt <= 3; attempt++)
+        {
+            try
+            {
+                // Blocking: port tear-down, DTR probe and handshake add up to ~2 s, and
+                // this runs on the UI thread (power event → dispatcher).
+                await Task.Run(deviceService.ReconnectDevice);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Resume] reconnect attempt {attempt} failed: {ex.Message}");
+            }
+
+            if (device.IsConnected) break;
+            await Task.Delay(1000);
+        }
+
+        // Reconnected without a connect event (or the link never dropped) — re-push here.
+        await Task.Delay(ReconnectSettleMs);
+        if (Volatile.Read(ref _connectResyncs) == before)
+            await ResyncDeviceState();
+    }
 
     public void Shutdown()
     {
@@ -230,6 +350,7 @@ public partial class LoupedeckLiveSController(
             device.OnTouch -= OnTouchButtonPress;
             device.OnRotate -= OnRotate;
             device.OnSwipe -= OnSwipe;
+            device.OnConnect -= OnDeviceConnected;
             // Close() suppresses the device's auto-reconnect loop and releases the port.
             try { device.Close(); } catch (Exception ex) { Console.WriteLine($"Shutdown device close failed: {ex.Message}"); }
         }
@@ -507,6 +628,9 @@ public partial class LoupedeckLiveSController(
         device.OnTouch += OnTouchButtonPress;
         device.OnRotate += OnRotate;
         device.OnSwipe += OnSwipe;
+        // Wired only here, after Initialize has already drawn everything, so the very
+        // first connect doesn't repaint a second time — every later connect does (#195).
+        device.OnConnect += OnDeviceConnected;
 
         // Repaint the affected side strip whenever its rotary page changes.
         pageManager.OnRotaryPageChanged += OnRotaryPageChanged;
