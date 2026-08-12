@@ -740,6 +740,12 @@ Per-device layout is scoped by serial number when possible. The per-device layou
 - On Linux, check that udev rules were installed and reconnect the device.
 - Avoid unreliable USB hubs.
 
+### Device stays dark after the PC wakes from sleep
+
+- LoupixDeck blanks the device when the host suspends and reconnects it on wake, then redraws brightness, button lights, the current page, and the side displays. Give it a few seconds; the reconnect is retried.
+- If the device is still dark, use `Settings > General > Reconnect`. The display is redrawn as soon as the link is back.
+- The `Device Wakeup` command does the same from a button or the CLI (`wakeup`).
+
 ### Macros do not affect the target app
 
 - On Windows, try running without Interception first.
