@@ -46,17 +46,9 @@ public sealed class ResumeDetectingSystemPowerService(ISystemPowerService inner)
         _timer = new Timer(_ => Tick(), null, TickInterval, TickInterval);
     }
 
-    private void OnInnerSuspending(object sender, EventArgs e)
-    {
-        Console.WriteLine("[Power] suspend reported by the OS");
-        Suspending?.Invoke(this, EventArgs.Empty);
-    }
+    private void OnInnerSuspending(object sender, EventArgs e) => Suspending?.Invoke(this, EventArgs.Empty);
 
-    private void OnInnerResuming(object sender, EventArgs e)
-    {
-        Console.WriteLine("[Power] resume reported by the OS");
-        RaiseResume();
-    }
+    private void OnInnerResuming(object sender, EventArgs e) => RaiseResume();
 
     private void Tick()
     {
@@ -67,13 +59,8 @@ public sealed class ResumeDetectingSystemPowerService(ISystemPowerService inner)
         if (gap < SuspendGap) return;
 
         // The platform service may have reported this very wake moments ago.
-        if (now - _lastResumeUtc < DuplicateWindow)
-        {
-            Console.WriteLine($"[Power] {gap.TotalSeconds:F0}s gap — already handled as a resume");
-            return;
-        }
+        if (now - _lastResumeUtc < DuplicateWindow) return;
 
-        Console.WriteLine($"[Power] {gap.TotalSeconds:F0}s gap in the wall clock — treating it as a resume");
         RaiseResume();
     }
 
