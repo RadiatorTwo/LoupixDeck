@@ -14,10 +14,12 @@
     x:DataType="vm:TouchButtonSettingsViewModel"
     Title="{Binding ButtonLabel}"
     Width="1440"
-    SizeToContent="Height"
+    Height="1160"
+    MinWidth="1100"
+    MinHeight="820"
     MaxHeight="1240"
     mc:Ignorable="d"
-    CanResize="False">
+    CanResize="True">
 
     <Window.Resources>
         <conv:TransitionKindLabelConverter x:Key="TransitionKindLabel" />
@@ -184,10 +186,10 @@
         </Style>
     </Window.Styles>
 
-    <!-- Top area height is set adaptively in code-behind (OnOpened) to the screen size:
-         large on WQHD+, smaller on 1080p, so the whole dialog always fits without an outer
-         scrollbar. The window grows downwards (SizeToContent) with the bottom sequence. -->
-    <Grid x:Name="RootGrid" RowDefinitions="860,Auto" Margin="12">
+    <!-- The top area takes whatever height is left over after the bottom sequence, so the
+         dialog can be resized freely. The window's start height is clamped to the screen in
+         code-behind (OnOpened) so the whole dialog fits without an outer scrollbar. -->
+    <Grid x:Name="RootGrid" RowDefinitions="*,Auto" Margin="12">
 
         <!-- ===== Main area: left panel / preview / properties ===== -->
         <!-- The right tab panel (Properties / Commands) is a fixed 550 px so its command
@@ -1065,43 +1067,47 @@
         <!-- ===== Bottom: behavior for the selected state =====
              Panel with the title, the after-press transition (above), and the Actions /
              command sequence (one strip for a normal button, three top/middle/bottom segments
-             for a FreeDraw side strip). The window grows downward (SizeToContent). -->
-        <Border Grid.Row="1" Classes="editor-panel" Margin="0,12,0,0">
-            <StackPanel>
-                <TextBlock Classes="panel-title" Margin="0,0,0,8"
-                           IsVisible="{Binding ShowStatesSection}"
-                           Text="{Binding SelectedState.Name, StringFormat='Behavior for State: {0}'}" />
+             for a FreeDraw side strip). Capped in height and scrollable inside, so a long
+             sequence never squeezes the editor area out of a resized window. -->
+        <Border Grid.Row="1" Classes="editor-panel" Margin="0,12,0,0" MaxHeight="320">
+            <ScrollViewer VerticalScrollBarVisibility="Auto"
+                          HorizontalScrollBarVisibility="Disabled">
+                <StackPanel>
+                    <TextBlock Classes="panel-title" Margin="0,0,0,8"
+                               IsVisible="{Binding ShowStatesSection}"
+                               Text="{Binding SelectedState.Name, StringFormat='Behavior for State: {0}'}" />
 
-                <!-- After-press transition — above the command sequence. Bound directly to the
-                     selected state's transition so switching states never writes into the wrong one. -->
-                <StackPanel IsVisible="{Binding ShowStatesSection}" Margin="0,0,0,12">
-                    <TextBlock Classes="label" Text="Transition after press" Margin="0,0,0,4" />
-                    <StackPanel Orientation="Horizontal" Spacing="8">
-                        <ComboBox MinWidth="220"
-                                  ItemsSource="{Binding TransitionKinds}"
-                                  SelectedItem="{Binding SelectedState.Transition.Kind, Mode=TwoWay}">
-                            <ComboBox.ItemTemplate>
-                                <DataTemplate x:DataType="models:StateTransitionKind">
-                                    <TextBlock Text="{Binding Converter={StaticResource TransitionKindLabel}}" />
-                                </DataTemplate>
-                            </ComboBox.ItemTemplate>
-                        </ComboBox>
-                        <ComboBox MinWidth="220"
-                                  IsVisible="{Binding SelectedState.Transition.Kind, Converter={StaticResource EnumToBoolean}, ConverterParameter=Specific}"
-                                  ItemsSource="{Binding States}"
-                                  SelectedValueBinding="{Binding Id}"
-                                  SelectedValue="{Binding SelectedState.Transition.TargetStateId, Mode=TwoWay}"
-                                  DisplayMemberBinding="{Binding Name}" />
+                    <!-- After-press transition — above the command sequence. Bound directly to the
+                         selected state's transition so switching states never writes into the wrong one. -->
+                    <StackPanel IsVisible="{Binding ShowStatesSection}" Margin="0,0,0,12">
+                        <TextBlock Classes="label" Text="Transition after press" Margin="0,0,0,4" />
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <ComboBox MinWidth="220"
+                                      ItemsSource="{Binding TransitionKinds}"
+                                      SelectedItem="{Binding SelectedState.Transition.Kind, Mode=TwoWay}">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate x:DataType="models:StateTransitionKind">
+                                        <TextBlock Text="{Binding Converter={StaticResource TransitionKindLabel}}" />
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                            <ComboBox MinWidth="220"
+                                      IsVisible="{Binding SelectedState.Transition.Kind, Converter={StaticResource EnumToBoolean}, ConverterParameter=Specific}"
+                                      ItemsSource="{Binding States}"
+                                      SelectedValueBinding="{Binding Id}"
+                                      SelectedValue="{Binding SelectedState.Transition.TargetStateId, Mode=TwoWay}"
+                                      DisplayMemberBinding="{Binding Name}" />
+                        </StackPanel>
                     </StackPanel>
+
+                    <TextBlock Classes="label" Text="Actions / Command sequence"
+                               IsVisible="{Binding ShowStatesSection}" Margin="0,0,0,4" />
+
+                    <ItemsControl Name="SlotsHost"
+                                  ItemsSource="{Binding CommandSlots}"
+                                  ItemTemplate="{StaticResource SequenceStripTemplate}" />
                 </StackPanel>
-
-                <TextBlock Classes="label" Text="Actions / Command sequence"
-                           IsVisible="{Binding ShowStatesSection}" Margin="0,0,0,4" />
-
-                <ItemsControl Name="SlotsHost"
-                              ItemsSource="{Binding CommandSlots}"
-                              ItemTemplate="{StaticResource SequenceStripTemplate}" />
-            </StackPanel>
+            </ScrollViewer>
         </Border>
 
         <!-- ===== Drag ghost =====

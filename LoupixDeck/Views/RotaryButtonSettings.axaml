@@ -11,7 +11,9 @@
         Title="{Binding KnobLabel}"
         Width="1000"
         Height="700"
-        CanResize="False">
+        MinWidth="820"
+        MinHeight="560"
+        CanResize="True">
 
     <Window.Resources>
         <!-- Wrapped, left → top-to-bottom execution order, shared by all three strips. -->

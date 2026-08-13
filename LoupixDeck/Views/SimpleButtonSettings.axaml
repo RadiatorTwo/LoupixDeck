@@ -14,8 +14,10 @@
     Title="{Binding ButtonLabel}"
     Width="1080"
     Height="820"
+    MinWidth="900"
+    MinHeight="640"
     mc:Ignorable="d"
-    CanResize="False">
+    CanResize="True">
 
     <Window.Styles>
         <StyleInclude Source="avares://LoupixDeck/Views/Styles/SettingsStyles.axaml" />
