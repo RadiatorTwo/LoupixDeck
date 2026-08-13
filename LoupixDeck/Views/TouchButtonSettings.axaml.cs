@@ -69,22 +69,18 @@ public partial class TouchButtonSettings : Window
     {
         base.OnOpened(e);
 
-        // Size the top area to the screen so the whole dialog fits without an outer scrollbar:
-        // tall on large displays (WQHD+), shorter on 1080p. SizeToContent then sizes the window to
-        // (top + bottom sequence), and we re-center afterwards. Scaling converts the physical
-        // working area to DIPs (the unit layout expects).
+        // Clamp the start height to the screen so the whole dialog fits without an outer
+        // scrollbar: tall on large displays (WQHD+), shorter on 1080p. The window stays
+        // resizable from there — the top area (star-sized row) absorbs the difference.
+        // Scaling converts the physical working area to DIPs (the unit layout expects).
         var screen = Screens.ScreenFromWindow(this) ?? Screens.Primary;
         if (screen == null) return;
 
         var available = (screen.WorkingArea.Height / screen.Scaling) - 48;
         MaxHeight = available;
+        Height = Math.Max(MinHeight, Math.Min(Height, available));
 
-        // Reserve ~300 DIP for the bottom behavior/sequence area + margins; clamp the top so the
-        // preview stays usable (>=600) but never forces the window past the screen.
-        var top = Math.Max(600, Math.Min(860, available - 300));
-        RootGrid.RowDefinitions[0].Height = new Avalonia.Controls.GridLength(top);
-
-        // Re-center after the SizeToContent resize settles (the initial center used the old size).
+        // Re-center after the resize settles (the initial center used the old size).
         Avalonia.Threading.Dispatcher.UIThread.Post(() =>
         {
             var s = Screens.ScreenFromWindow(this) ?? Screens.Primary;
@@ -614,7 +610,8 @@ public partial class TouchButtonSettings : Window
         // snap-to-grid can compute the rect's edge from any candidate position offset.
         var bounds = BitmapHelper.GetLayerEditorBounds(
             layer,
-            TouchButtonSettingsViewModel.EditorCanvasSize,
+            vm.EditorCanvasWidth,
+            vm.EditorCanvasHeight,
             vm.DeviceWidth,
             vm.DeviceHeight);
         if (bounds is { } b)
@@ -917,7 +914,8 @@ public partial class TouchButtonSettings : Window
 
             var rect = BitmapHelper.GetLayerEditorBounds(
                 layer,
-                TouchButtonSettingsViewModel.EditorCanvasSize,
+                vm.EditorCanvasWidth,
+                vm.EditorCanvasHeight,
                 vm.DeviceWidth,
                 vm.DeviceHeight);
 

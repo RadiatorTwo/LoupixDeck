@@ -702,13 +702,6 @@ public static class BitmapHelper
         return bitmap;
     }
 
-    /// <summary>
-    /// Renders the touch-button settings dialog preview: a <paramref name="canvasSize"/>
-    /// square with a centered <paramref name="frameSize"/>-pixel frame representing the
-    /// real 90×90 device area. Layers may extend beyond the frame so the user can drag
-    /// images past the button edge — frame clipping happens only on the device-side
-    /// render produced by <see cref="RenderTouchButtonContent"/>.
-    /// </summary>
     /// <summary>Largest editor-frame extent (canvas px). The frame's longer side maps
     /// to this; the shorter side scales proportionally. A square 90×90 button yields a
     /// 300×300 frame (scale 3.333), matching the original fixed layout.</summary>
@@ -726,10 +719,19 @@ public static class BitmapHelper
         return (scale, deviceWidth * scale, deviceHeight * scale);
     }
 
+    /// <summary>
+    /// Renders the touch-button settings dialog preview: a
+    /// <paramref name="canvasWidth"/>×<paramref name="canvasHeight"/> bitmap with the
+    /// centered device frame in the middle and a bleed margin around it. Layers may
+    /// extend into that bleed so the user can drag images past the button edge — frame
+    /// clipping happens only on the device-side render produced by
+    /// <see cref="RenderTouchButtonContent"/>.
+    /// </summary>
     public static SKBitmap RenderEditorCanvas(
         TouchButton touchButton,
         LoupedeckConfig config,
-        int canvasSize = 600,
+        int canvasWidth = 450,
+        int canvasHeight = 450,
         int deviceWidth = 90,
         int deviceHeight = 90,
         bool drawGrid = false,
@@ -740,15 +742,15 @@ public static class BitmapHelper
 
         var (scale, frameW, frameH) = ComputeEditorFrame(deviceWidth, deviceHeight);
 
-        var bmp = new SKBitmap(canvasSize, canvasSize);
+        var bmp = new SKBitmap(canvasWidth, canvasHeight);
         using var canvas = new SKCanvas(bmp);
 
         // Transparent outside the button frame — the editor window paints the
         // theme-aware canvas background (and plate shadow) behind this bitmap.
         canvas.Clear(SKColors.Transparent);
 
-        var frameOffsetX = (canvasSize - frameW) / 2f;
-        var frameOffsetY = (canvasSize - frameH) / 2f;
+        var frameOffsetX = (canvasWidth - frameW) / 2f;
+        var frameOffsetY = (canvasHeight - frameH) / 2f;
         var frameRect = new SKRect(frameOffsetX, frameOffsetY,
             frameOffsetX + frameW, frameOffsetY + frameH);
 
@@ -847,7 +849,8 @@ public static class BitmapHelper
     /// </summary>
     public static SKRect? GetLayerEditorBounds(
         LayerBase layer,
-        int canvasSize = 600,
+        int canvasWidth = 450,
+        int canvasHeight = 450,
         int deviceWidth = 90,
         int deviceHeight = 90)
     {
@@ -857,8 +860,8 @@ public static class BitmapHelper
         if (deviceRect == null) return null;
 
         var (scale, frameW, frameH) = ComputeEditorFrame(deviceWidth, deviceHeight);
-        var frameOffsetX = (canvasSize - frameW) / 2f;
-        var frameOffsetY = (canvasSize - frameH) / 2f;
+        var frameOffsetX = (canvasWidth - frameW) / 2f;
+        var frameOffsetY = (canvasHeight - frameH) / 2f;
         var dr = deviceRect.Value;
         return new SKRect(
             frameOffsetX + (dr.Left * scale),

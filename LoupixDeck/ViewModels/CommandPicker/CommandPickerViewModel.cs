@@ -10,12 +10,12 @@ using LoupixDeck.ViewModels.Base;
 namespace LoupixDeck.ViewModels.CommandPicker;
 
 /// <summary>
-/// Reusable view-model for the card-based command picker (issue #171). It projects
+/// Reusable view-model for the master-detail command picker (issue #171). It projects
 /// the host's <c>SystemCommandMenus</c> (<see cref="MenuEntry"/> group→leaf tree,
-/// filled by <c>IMenuTreeBuilder.BuildInto</c>) into a sectioned category-card grid
-/// with a searchable command list. Categories can nest arbitrarily deep (e.g. Audio's
-/// <c>device → commands</c>); the detail area shows those sub-groups as inline
-/// accordion sections. Selection and search live here; command insertion stays with
+/// filled by <c>IMenuTreeBuilder.BuildInto</c>) into a sectioned group rail plus the
+/// searchable command list of the selected group. Categories can nest arbitrarily deep
+/// (e.g. Audio's <c>device → commands</c>); the detail list shows those sub-groups as
+/// inline accordion sections. Selection and search live here; command insertion stays with
 /// the host (the View raises activation/drag events carrying the selected leaf
 /// <see cref="MenuEntry"/>).
 /// </summary>
@@ -53,9 +53,17 @@ public partial class CommandPickerViewModel : ViewModelBase
     public partial CommandCategoryViewModel SelectedCategory { get; set; }
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasSelectedCommand))]
+    [NotifyPropertyChangedFor(nameof(SelectedCommandLabel))]
     public partial CommandRowViewModel SelectedCommand { get; set; }
 
     public bool HasSelectedCategory => SelectedCategory != null;
+
+    /// <summary>Drives the footer's "Add" button: without a selection there is nothing to insert.</summary>
+    public bool HasSelectedCommand => SelectedCommand != null;
+
+    /// <summary>Footer caption naming the row the "Add" button acts on.</summary>
+    public string SelectedCommandLabel => SelectedCommand?.Title ?? "Select a command";
 
     public string SearchText
     {

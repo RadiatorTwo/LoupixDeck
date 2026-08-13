@@ -66,7 +66,12 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     private readonly Services.Animation.IAnimatedImageCache _animatedImageCache;
     private readonly LoupedeckConfig _config;
 
-    public const int EditorCanvasSize = 600;
+    /// <summary>
+    /// Smallest working margin (canvas px) kept around the frame on every side, so a
+    /// layer dragged past the button edge stays visible and grabbable. The canvas grows
+    /// past this to fill the viewport — see <see cref="EditorCanvasWidth"/>.
+    /// </summary>
+    public const int EditorCanvasBleed = 75;
 
     // Device-pixel dimensions of the edited surface. 90×90 for grid touch buttons;
     // set to 60×270 for a Razer side-strip free-draw canvas via SetCanvasSize.
@@ -80,9 +85,37 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     public double FrameWidth => BitmapHelper.ComputeEditorFrame(DeviceWidth, DeviceHeight).FrameWidth;
     public double FrameHeight => BitmapHelper.ComputeEditorFrame(DeviceWidth, DeviceHeight).FrameHeight;
 
-    /// <summary>Top-left of the centered frame inside the square editor canvas.</summary>
-    public double FrameOffsetX => (EditorCanvasSize - FrameWidth) / 2.0;
-    public double FrameOffsetY => (EditorCanvasSize - FrameHeight) / 2.0;
+    /// <summary>
+    /// Editor canvas size (canvas px): the frame plus at least <see cref="EditorCanvasBleed"/>
+    /// on each side, grown to fill the preview viewport at the current zoom. Filling the
+    /// viewport is what keeps the panel free of dead grey bars around the canvas — every
+    /// pixel the user sees is drawable, so a layer dragged off the button stays visible
+    /// instead of vanishing where the canvas ended.
+    /// </summary>
+    public int EditorCanvasWidth => CanvasExtent(FrameWidth, _viewport.Width);
+    public int EditorCanvasHeight => CanvasExtent(FrameHeight, _viewport.Height);
+
+    private int CanvasExtent(double frameExtent, double viewportExtent)
+    {
+        double minimum = frameExtent + (2.0 * EditorCanvasBleed);
+
+        // Floor, so the zoomed content never exceeds the viewport by a rounding pixel and
+        // trips the scrollbar. The viewport is only known once the View has measured.
+        //
+        // The zoom divisor is clamped at 1 so zooming out cannot inflate the canvas — and
+        // with it the rendered bitmap, which is re-rendered on every drag step — past the
+        // panel's own size. Below 100% the canvas therefore stays put and the view simply
+        // shows the workspace smaller.
+        double fill = viewportExtent > 0
+            ? Math.Floor(viewportExtent / Math.Max(1.0, ZoomFactor))
+            : 0;
+
+        return (int)Math.Round(Math.Max(minimum, fill));
+    }
+
+    /// <summary>Top-left of the centered frame inside the editor canvas.</summary>
+    public double FrameOffsetX => (EditorCanvasWidth - FrameWidth) / 2.0;
+    public double FrameOffsetY => (EditorCanvasHeight - FrameHeight) / 2.0;
 
     /// <summary>
     /// Sets the edited surface's device-pixel dimensions (e.g. 60×270 for a side-strip
@@ -97,6 +130,8 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         OnPropertyChanged(nameof(EditorToDeviceScale));
         OnPropertyChanged(nameof(FrameWidth));
         OnPropertyChanged(nameof(FrameHeight));
+        OnPropertyChanged(nameof(EditorCanvasWidth));
+        OnPropertyChanged(nameof(EditorCanvasHeight));
         OnPropertyChanged(nameof(FrameOffsetX));
         OnPropertyChanged(nameof(FrameOffsetY));
         OnPropertyChanged(nameof(CanvasSizeText));
@@ -121,6 +156,10 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
             field = clamped;
             OnPropertyChanged(nameof(ZoomFactor));
             OnPropertyChanged(nameof(ZoomPercentText));
+
+            // The canvas is sized to fill the viewport at the current zoom, so it has to
+            // be re-measured and re-rendered whenever the zoom changes.
+            RefreshCanvasExtent();
         }
     } = 1.0;
 
@@ -135,12 +174,34 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     public void SetViewport(double width, double height)
     {
         if (width <= 0 || height <= 0) return;
+        if (Math.Abs(_viewport.Width - width) < 0.5 && Math.Abs(_viewport.Height - height) < 0.5) return;
+
         _viewport = new Avalonia.Size(width, height);
+
+        // The canvas fills the viewport, so a resized panel means a resized canvas.
+        RefreshCanvasExtent();
+    }
+
+    /// <summary>
+    /// Re-publishes the canvas geometry and repaints the preview after something that
+    /// changes the canvas extent (zoom or viewport). The frame keeps its size — only the
+    /// drawable area around it grows or shrinks.
+    /// </summary>
+    private void RefreshCanvasExtent()
+    {
+        OnPropertyChanged(nameof(EditorCanvasWidth));
+        OnPropertyChanged(nameof(EditorCanvasHeight));
+        OnPropertyChanged(nameof(FrameOffsetX));
+        OnPropertyChanged(nameof(FrameOffsetY));
+        UpdateEditorPreview();
+        UpdateSelectionBounds();
     }
 
     private void FitToViewport()
     {
         if (_viewport.Width <= 0 || _viewport.Height <= 0) return;
+        // Fit the frame, not the canvas: the canvas always fills the viewport, so fitting
+        // it would be a no-op. 0.92 leaves a little of the surrounding work area visible.
         var fw = FrameWidth;
         var fh = FrameHeight;
         if (fw <= 0 || fh <= 0) return;
@@ -1083,8 +1144,8 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         // strip; the renderer further gates them on the grid toggle.
         var segmentCount = IsSegmentCommandMode ? RotaryButtonPage.StripSegmentCount : 0;
         EditorPreview = BitmapHelper.RenderEditorCanvas(
-            ButtonData, _config, EditorCanvasSize, DeviceWidth, DeviceHeight, ShowGrid, GridStepDevice,
-            segmentCount);
+            ButtonData, _config, EditorCanvasWidth, EditorCanvasHeight, DeviceWidth, DeviceHeight,
+            ShowGrid, GridStepDevice, segmentCount);
     }
 
     /// <summary>
@@ -1108,7 +1169,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         }
 
         var rect = BitmapHelper.GetLayerEditorBounds(
-            _selectedLayer, EditorCanvasSize, DeviceWidth, DeviceHeight);
+            _selectedLayer, EditorCanvasWidth, EditorCanvasHeight, DeviceWidth, DeviceHeight);
 
         if (rect == null)
         {
