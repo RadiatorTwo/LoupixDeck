@@ -81,6 +81,8 @@ If you prefer the portable build:
 
 If LoupixDeck is already installed, the Windows setup detects the existing installation and shows the installed and available versions. You can update in place while preserving your settings, or repair a damaged installation.
 
+The updater can install in place even when the installation folder was held open by a shell command. Shell commands now run from your home directory, so programs started by them should not lock the LoupixDeck installation folder. If an update still cannot proceed, the error identifies the program that must be closed.
+
 The installer can register LoupixDeck to start with Windows using the `Start on system startup` checkbox. In v1.12.1 and later, you can also change this after installation from `Settings > General > Start with Windows` inside LoupixDeck.
 
 LoupixDeck also registers an uninstaller in Windows `Installed apps`. Uninstalling removes the program, shortcuts, and registry entries. Your configuration and plugins are kept by default, so reinstalling later should preserve your layouts and integrations.
@@ -106,6 +108,8 @@ On start, LoupixDeck auto-detects supported USB devices. If a device is connecte
 If no device is connected, the device area shows `No device connected` instead of empty profile and workspace selectors. Plug a supported deck in over USB and LoupixDeck picks it up automatically; after a re-plug, the layout and the device-bound parts of the window are restored. Until a device is available, actions that need a device are disabled, but `Quit` remains available from the hamburger menu.
 
 When the computer wakes from sleep or standby, LoupixDeck rebuilds the device connection and sends the current state again. Brightness, LED colours, the active touch page, and side-strip content are restored. The same state refresh happens after automatic reconnect or after you press `Reconnect` in `Settings > General`, so the display should not remain black after the link returns.
+
+This also covers Modern Standby, hibernate, hybrid sleep, and Fast Startup, even when Windows does not report a normal resume event. After a wake, LoupixDeck keeps retrying the rebuilt connection for up to 30 seconds and retries repaint requests that have not reached the hardware. If you turned the device off yourself, it stays off rather than being switched back on by resume recovery.
 
 If the app cannot talk to the device:
 
@@ -304,6 +308,8 @@ Built-in command groups include:
 Some commands have parameters, such as a page number, key combination, date/time format, shell command, or target button index. Parameter fields appear in the command chip editor, opened with the pencil icon on the command chip.
 
 For the `Shell Command` chip, the chip label follows the command text while you edit it. If the field is empty, it returns to the `Shell Command` placeholder.
+
+Shell commands start in your home directory, not in the LoupixDeck installation folder. Use absolute paths when a command refers to a program or file in a particular location; relative paths are resolved from your home directory.
 
 In v1.17.0 and later, commands can provide their own default settings. When you add such a command, its settings popup is already filled with sensible values. You can still change those values for that one button, knob direction, physical button, or page command. Existing assignments are left as they were.
 
@@ -721,6 +727,8 @@ Some controls may keep the old palette until the next app launch.
 
 - Version.
 - Project website link.
+
+You can close the About window from its title-bar close button as well as from its dialog controls. Other dialogs can also be closed from the title bar without leaving the app stuck or keeping their menu entry disabled.
 
 ## Files and Backup
 
