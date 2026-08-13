@@ -66,7 +66,14 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     private readonly Services.Animation.IAnimatedImageCache _animatedImageCache;
     private readonly LoupedeckConfig _config;
 
-    public const int EditorCanvasSize = 600;
+    /// <summary>
+    /// Working margin (canvas px) kept around the frame on every side, so a layer
+    /// dragged past the button edge stays visible and grabbable. The canvas used to be
+    /// a fixed 600×600 square, which left wide dead bars beside the frame — most of all
+    /// for non-square surfaces such as the 60×270 side strip — and cost the dialog
+    /// horizontal space that the command picker needs.
+    /// </summary>
+    public const int EditorCanvasBleed = 75;
 
     // Device-pixel dimensions of the edited surface. 90×90 for grid touch buttons;
     // set to 60×270 for a Razer side-strip free-draw canvas via SetCanvasSize.
@@ -80,9 +87,13 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     public double FrameWidth => BitmapHelper.ComputeEditorFrame(DeviceWidth, DeviceHeight).FrameWidth;
     public double FrameHeight => BitmapHelper.ComputeEditorFrame(DeviceWidth, DeviceHeight).FrameHeight;
 
-    /// <summary>Top-left of the centered frame inside the square editor canvas.</summary>
-    public double FrameOffsetX => (EditorCanvasSize - FrameWidth) / 2.0;
-    public double FrameOffsetY => (EditorCanvasSize - FrameHeight) / 2.0;
+    /// <summary>Editor canvas size (canvas px) — the frame plus the bleed on each side.</summary>
+    public int EditorCanvasWidth => (int)Math.Round(FrameWidth) + (2 * EditorCanvasBleed);
+    public int EditorCanvasHeight => (int)Math.Round(FrameHeight) + (2 * EditorCanvasBleed);
+
+    /// <summary>Top-left of the centered frame inside the editor canvas.</summary>
+    public double FrameOffsetX => (EditorCanvasWidth - FrameWidth) / 2.0;
+    public double FrameOffsetY => (EditorCanvasHeight - FrameHeight) / 2.0;
 
     /// <summary>
     /// Sets the edited surface's device-pixel dimensions (e.g. 60×270 for a side-strip
@@ -97,6 +108,8 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         OnPropertyChanged(nameof(EditorToDeviceScale));
         OnPropertyChanged(nameof(FrameWidth));
         OnPropertyChanged(nameof(FrameHeight));
+        OnPropertyChanged(nameof(EditorCanvasWidth));
+        OnPropertyChanged(nameof(EditorCanvasHeight));
         OnPropertyChanged(nameof(FrameOffsetX));
         OnPropertyChanged(nameof(FrameOffsetY));
         OnPropertyChanged(nameof(CanvasSizeText));
@@ -141,11 +154,14 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     private void FitToViewport()
     {
         if (_viewport.Width <= 0 || _viewport.Height <= 0) return;
-        var fw = FrameWidth;
-        var fh = FrameHeight;
-        if (fw <= 0 || fh <= 0) return;
-        const double pad = 0.92;
-        var fit = Math.Min(_viewport.Width * pad / fw, _viewport.Height * pad / fh);
+        // Fit the whole canvas — frame plus bleed — so nothing is cut off at the sides.
+        // Fitting only the frame pushed the bleed outside the viewport, which is what
+        // made layers dragged past the button edge disappear behind the panel edges.
+        double cw = EditorCanvasWidth;
+        double ch = EditorCanvasHeight;
+        if (cw <= 0 || ch <= 0) return;
+        const double pad = 0.98;
+        var fit = Math.Min(_viewport.Width * pad / cw, _viewport.Height * pad / ch);
         ZoomFactor = fit;
     }
 
@@ -1083,8 +1099,8 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         // strip; the renderer further gates them on the grid toggle.
         var segmentCount = IsSegmentCommandMode ? RotaryButtonPage.StripSegmentCount : 0;
         EditorPreview = BitmapHelper.RenderEditorCanvas(
-            ButtonData, _config, EditorCanvasSize, DeviceWidth, DeviceHeight, ShowGrid, GridStepDevice,
-            segmentCount);
+            ButtonData, _config, EditorCanvasWidth, EditorCanvasHeight, DeviceWidth, DeviceHeight,
+            ShowGrid, GridStepDevice, segmentCount);
     }
 
     /// <summary>
@@ -1108,7 +1124,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         }
 
         var rect = BitmapHelper.GetLayerEditorBounds(
-            _selectedLayer, EditorCanvasSize, DeviceWidth, DeviceHeight);
+            _selectedLayer, EditorCanvasWidth, EditorCanvasHeight, DeviceWidth, DeviceHeight);
 
         if (rect == null)
         {

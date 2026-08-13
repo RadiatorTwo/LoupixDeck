@@ -190,9 +190,14 @@
     <Grid x:Name="RootGrid" RowDefinitions="860,Auto" Margin="12">
 
         <!-- ===== Main area: left panel / preview / properties ===== -->
-        <!-- The right tab panel (Properties / Commands) is a fixed 420 px to match the
-             Rotary and Simple editors; the center preview takes the remaining width. -->
-        <Grid Grid.Row="0" ColumnDefinitions="290,*,420">
+        <!-- The right tab panel (Properties / Commands) is a fixed 550 px so its command
+             picker ends up at least as wide as the Rotary editor's (measured: 484 px of
+             picker vs. the rotary editor's 480 — 550 minus 12 tab margin, tab chrome,
+             4 panel margin and 24 panel padding).
+             The center preview takes the remaining width; it no longer needs the space,
+             because the canvas is now sized to the frame plus a bleed instead of a fixed
+             600×600 square. -->
+        <Grid Grid.Row="0" ColumnDefinitions="290,*,550">
 
             <!-- Left: button settings + states + layer list -->
             <Border Grid.Column="0" Classes="editor-panel" Margin="0,0,12,0">
@@ -518,7 +523,12 @@
                                                         ScaleY="{Binding ZoomFactor}" />
                                     </LayoutTransformControl.LayoutTransform>
 
-                                    <Grid Width="600" Height="600">
+                                    <!-- The canvas is the device frame plus a fixed bleed on every
+                                         side (EditorCanvasBleed) — no longer a 600×600 square, which
+                                         left wide dead bars beside the frame and ate the width the
+                                         command picker needs. -->
+                                    <Grid Width="{Binding EditorCanvasWidth}"
+                                          Height="{Binding EditorCanvasHeight}">
                                         <!-- Button plate: border + shadow behind the rendered
                                              frame. Sized to the aspect-correct frame so non-square
                                              canvases (e.g. 60×270 side strips) get a matching plate. -->
@@ -529,18 +539,21 @@
                                                 IsHitTestVisible="False" />
 
                                         <Grid Name="EditorRoot"
-                                              Width="600" Height="600"
+                                              Width="{Binding EditorCanvasWidth}"
+                                              Height="{Binding EditorCanvasHeight}"
                                               HorizontalAlignment="Center" VerticalAlignment="Center"
                                               Background="Transparent"
                                               IsEnabled="{Binding CanEditCanvas}"
                                               PointerPressed="Editor_PointerPressed"
                                               PointerMoved="Editor_PointerMoved"
                                               PointerReleased="Editor_PointerReleased">
-                                <Image Width="600" Height="600"
+                                <Image Width="{Binding EditorCanvasWidth}"
+                                       Height="{Binding EditorCanvasHeight}"
                                        Stretch="None"
                                        IsHitTestVisible="False"
                                        Source="{Binding EditorPreview, Converter={StaticResource SkiaToBitmapConverter}}" />
-                                <Canvas Width="600" Height="600" Background="Transparent">
+                                <Canvas Width="{Binding EditorCanvasWidth}"
+                                        Height="{Binding EditorCanvasHeight}" Background="Transparent">
                                     <Rectangle Stroke="#CC5B9BD5"
                                                StrokeThickness="1"
                                                StrokeDashArray="4,3"

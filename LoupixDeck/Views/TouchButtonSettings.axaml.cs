@@ -614,7 +614,8 @@ public partial class TouchButtonSettings : Window
         // snap-to-grid can compute the rect's edge from any candidate position offset.
         var bounds = BitmapHelper.GetLayerEditorBounds(
             layer,
-            TouchButtonSettingsViewModel.EditorCanvasSize,
+            vm.EditorCanvasWidth,
+            vm.EditorCanvasHeight,
             vm.DeviceWidth,
             vm.DeviceHeight);
         if (bounds is { } b)
@@ -917,7 +918,8 @@ public partial class TouchButtonSettings : Window
 
             var rect = BitmapHelper.GetLayerEditorBounds(
                 layer,
-                TouchButtonSettingsViewModel.EditorCanvasSize,
+                vm.EditorCanvasWidth,
+                vm.EditorCanvasHeight,
                 vm.DeviceWidth,
                 vm.DeviceHeight);
 
