@@ -59,6 +59,15 @@ public class DialogService(IServiceProvider serviceProvider) : IDialogService
         }
 
         await window.ShowDialog(WindowHelper.GetMainWindow());
+
+        // The window is gone, so nothing can set the result any more. A dialog closed by
+        // the title bar's X — or one that simply closes without confirming, like About —
+        // never called Confirm/Cancel, and awaiting its task below would then hang
+        // forever: the caller's AsyncRelayCommand stays "running", which leaves the menu
+        // entry that opened it permanently disabled (issue #201). Treat any such close as
+        // a cancel; a result the view model already set wins (TrySetResult).
+        viewModel.DialogResult.TrySetResult(Models.DialogResult.Cancel());
+
         return await viewModel.DialogResult.Task;
     }
 }
