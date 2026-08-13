@@ -1037,7 +1037,7 @@
                 </TabItem>
 
                 <TabItem Header="Commands">
-                    <!-- Card-based command picker (issue #171). The assigned sequence
+                    <!-- Master-detail command picker (issue #171). The assigned sequence
                          lives in the pipeline strip at the bottom of the window; the
                          picker keeps its full height. Double-click an entry to append
                          it, or drag it into the strip. -->

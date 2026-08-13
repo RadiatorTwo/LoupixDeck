@@ -312,7 +312,7 @@
                         </Border>
                     </Grid>
 
-                    <!-- Right: card-based command picker, full height (issue #171) -->
+                    <!-- Right: master-detail command picker, full height (issue #171) -->
                     <Border Grid.Column="1"
                             BorderBrush="{DynamicResource AppBorderSubtle}" BorderThickness="1" CornerRadius="4"
                             Padding="4">

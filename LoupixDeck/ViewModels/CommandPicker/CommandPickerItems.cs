@@ -180,17 +180,17 @@ public partial class CommandCategoryViewModel : ViewModelBase
     }
 }
 
-/// <summary>A collapsible section (Core / Macros / Plugins) holding category cards.</summary>
+/// <summary>A section (Core / Macros / Plugins) grouping the category entries in the rail.</summary>
 public partial class CommandSectionViewModel : ViewModelBase
 {
     public CommandGroupSection Section { get; }
     public string Title { get; }
     public string Icon { get; }
 
-    public ObservableCollection<CommandCategoryViewModel> Categories { get; } = [];
+    /// <summary>Upper-cased title for the rail's section caption (Avalonia has no text-transform).</summary>
+    public string Caption => Title.ToUpperInvariant();
 
-    [ObservableProperty]
-    public partial bool IsExpanded { get; set; } = true;
+    public ObservableCollection<CommandCategoryViewModel> Categories { get; } = [];
 
     public CommandSectionViewModel(CommandGroupSection section, string title, string icon)
     {

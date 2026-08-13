@@ -17,8 +17,8 @@ public sealed class CommandDragEventArgs(MenuEntry entry, PointerEventArgs point
 }
 
 /// <summary>
-/// Reusable card-based command picker (issue #171). Renders the sectioned category
-/// grid, search and detail list bound to a <see cref="CommandPickerViewModel"/>, and
+/// Reusable master-detail command picker (issue #171). Renders the sectioned group
+/// rail, search and command list bound to a <see cref="CommandPickerViewModel"/>, and
 /// raises activation / drag events carrying the selected leaf <see cref="MenuEntry"/>
 /// so the host button-editor can insert it into its command sequence exactly as
 /// before (the old tree used the same insertion contract).
@@ -50,9 +50,9 @@ public partial class CommandPickerView : UserControl
 
     private CommandPickerViewModel ViewModel => DataContext as CommandPickerViewModel;
 
-    // ── Category cards ───────────────────────────────────────────────────────
+    // ── Group rail ───────────────────────────────────────────────────────────
 
-    private void Card_Click(object sender, RoutedEventArgs e)
+    private void RailItem_Click(object sender, RoutedEventArgs e)
     {
         if (sender is Control { DataContext: CommandCategoryViewModel category })
             ViewModel?.SelectCategory(category);
@@ -80,6 +80,19 @@ public partial class CommandPickerView : UserControl
             return;
 
         CommandActivated?.Invoke(this, row.Entry);
+        _dragCandidate = null;
+        e.Handled = true;
+    }
+
+    /// <summary>"+ Add" pill on the selected row — the explicit equivalent of a double-click.</summary>
+    private void Add_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Control { DataContext: CommandRowViewModel row })
+            return;
+
+        CommandActivated?.Invoke(this, row.Entry);
+        // The press already armed a drag on the row underneath; cancel it so the
+        // click does not turn into a drag-to-insert as well.
         _dragCandidate = null;
         e.Handled = true;
     }
