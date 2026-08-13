@@ -264,7 +264,10 @@ public partial class MainWindowViewModel : ViewModelBase
         // Both handlers must hop to the UI thread because they touch ObservableCollections
         // (TouchButtons / SimpleButtons) that the UI binds to.
         powerService.Suspending += (_, _) =>
-            Avalonia.Threading.Dispatcher.UIThread.Post(() => _ = LoupedeckController.ClearDeviceState());
+            // Not ClearDeviceState: the off state is tagged as host-initiated so the
+            // reconnect after wake switches the device back on even without a resume
+            // event (issue #195).
+            Avalonia.Threading.Dispatcher.UIThread.Post(() => _ = LoupedeckController.HandleSystemSuspend());
         powerService.Resuming += (_, _) =>
             Avalonia.Threading.Dispatcher.UIThread.Post(async () =>
                 // Waits for the USB stack, re-establishes the serial link and re-pushes the
