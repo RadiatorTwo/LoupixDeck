@@ -164,7 +164,13 @@
 
                 <!-- Two columns: left = the three command sequences, right = the
                      command library to pick from. -->
-                <Grid Grid.Row="2" ColumnDefinitions="*,420">
+                <!-- The left column is sized to fit exactly two command chips per row
+                     with equal space either side: 2 chips = 2 x (22 gutter + 210 chip
+                     + 6 margin) = 476, minus the leading gutter and trailing margin
+                     absorbed by the negative margins above = 448 of strip content,
+                     + 24 strip padding + 2 strip border + 12 gap to the picker = 486.
+                     Everything left over goes to the picker. -->
+                <Grid Grid.Row="2" ColumnDefinitions="486,*">
 
                     <!-- Left: three sequence strips, equal share of the height. Click
                          a strip to make it the double-click target. -->
@@ -193,7 +199,12 @@
                                             ToolTip.Tip="Remove all commands in this sequence" />
                                 </Grid>
                                 <Panel Grid.Row="1" MinHeight="36">
-                                    <ScrollViewer HorizontalScrollBarVisibility="Disabled"
+                                    <!-- Pulled left by the leading arrow gutter (22) so the first
+                                         chip of each row lines up with the strip's title, and
+                                         widened right by the chip's trailing margin (6) so the
+                                         wrap width still fits two chips per row. -->
+                                    <ScrollViewer Margin="-22,0,-6,0"
+                                                  HorizontalScrollBarVisibility="Disabled"
                                                   VerticalScrollBarVisibility="Auto">
                                         <ItemsControl Name="CommandListLeft"
                                                       ItemsSource="{Binding Commands}"
@@ -234,7 +245,12 @@
                                             ToolTip.Tip="Remove all commands in this sequence" />
                                 </Grid>
                                 <Panel Grid.Row="1" MinHeight="36">
-                                    <ScrollViewer HorizontalScrollBarVisibility="Disabled"
+                                    <!-- Pulled left by the leading arrow gutter (22) so the first
+                                         chip of each row lines up with the strip's title, and
+                                         widened right by the chip's trailing margin (6) so the
+                                         wrap width still fits two chips per row. -->
+                                    <ScrollViewer Margin="-22,0,-6,0"
+                                                  HorizontalScrollBarVisibility="Disabled"
                                                   VerticalScrollBarVisibility="Auto">
                                         <ItemsControl Name="CommandListRight"
                                                       ItemsSource="{Binding Commands}"
@@ -274,7 +290,12 @@
                                             ToolTip.Tip="Remove all commands in this sequence" />
                                 </Grid>
                                 <Panel Grid.Row="1" MinHeight="36">
-                                    <ScrollViewer HorizontalScrollBarVisibility="Disabled"
+                                    <!-- Pulled left by the leading arrow gutter (22) so the first
+                                         chip of each row lines up with the strip's title, and
+                                         widened right by the chip's trailing margin (6) so the
+                                         wrap width still fits two chips per row. -->
+                                    <ScrollViewer Margin="-22,0,-6,0"
+                                                  HorizontalScrollBarVisibility="Disabled"
                                                   VerticalScrollBarVisibility="Auto">
                                         <ItemsControl Name="CommandListPress"
                                                       ItemsSource="{Binding Commands}"
