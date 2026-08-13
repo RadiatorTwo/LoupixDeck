@@ -47,7 +47,12 @@
 
                 <!-- Two columns: left = color + assigned command sequence,
                      right = the command library to pick from. -->
-                <Grid Grid.Row="2" ColumnDefinitions="*,420">
+                <!-- The left column is sized to just fit two command chips per row:
+                     2 x (22 gutter + 210 chip + 6 margin) = 476 of strip content,
+                     + 24 strip padding + 2 strip border + 12 gap to the picker = 514,
+                     rounded up to 536 for a little slack. Everything left over goes
+                     to the picker, which keeps it wider than the rotary editor's. -->
+                <Grid Grid.Row="2" ColumnDefinitions="536,*">
 
                     <!-- Left: States + selected-state behavior on top, the command sequence grows
                          to fill the remaining height below. -->
