@@ -3,25 +3,67 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="using:LoupixDeck.ViewModels"
-        mc:Ignorable="d" 
-        d:DesignWidth="400" d:DesignHeight="300"
-        Width="400" Height="300"
+        mc:Ignorable="d"
+        d:DesignWidth="400" d:DesignHeight="320"
+        Width="400" Height="320"
         x:Class="LoupixDeck.Views.About"
         x:DataType="vm:AboutViewModel"
         WindowStartupLocation="CenterScreen"
         Title="About"
-        CanResize="False">
-    
-    <Grid Margin="10">
-        <StackPanel Spacing="10" HorizontalAlignment="Center" VerticalAlignment="Center">
-            <TextBlock Text="LoupixDeck" FontSize="24" FontWeight="Bold" HorizontalAlignment="Center" />
-            <TextBlock Text="{Binding Version}" FontSize="16" HorizontalAlignment="Center" />
-            <TextBlock Text="© 2025-2026 RadiatorTwo" FontSize="14" HorizontalAlignment="Center" />
-            <Separator/>
-            <Button Content="Project Website" Width="150" HorizontalAlignment="Center"
-                    Command="{Binding OpenWebsiteCommand}" />
-            <Button Content="Close" Width="100" HorizontalAlignment="Center" Margin="0,10,0,0"
-                    Command="{Binding CloseCommand}" />
-        </StackPanel>
-    </Grid>
+        CanResize="False"
+        WindowDecorations="None"
+        TransparencyLevelHint="Transparent"
+        Background="Transparent">
+
+    <!-- No system decorations: the dialog has a Close button of its own, so the title bar
+         only carried a redundant X (issue #201). The native BorderOnly frame that remained
+         after removing the bar was a hairline in the window's own colour, so the chrome is
+         drawn here instead. The window background is transparent for the rounded corners;
+         where the platform cannot do transparency (X11 without a compositor) only the four
+         corner pixels fall back, the frame itself still reads.
+         The bar was also the only handle the window could be dragged by — the code-behind
+         starts a move drag on a press anywhere the buttons do not handle. -->
+    <Border Background="{DynamicResource AppSurface}"
+            BorderBrush="{DynamicResource AppBorderSubtle}"
+            BorderThickness="1"
+            CornerRadius="8"
+            ClipToBounds="True"
+            PointerPressed="OnChromePressed">
+        <Grid RowDefinitions="Auto,*">
+
+            <!-- Header band: carries the identity, so the body below is free for the
+                 details and the buttons. -->
+            <Border Grid.Row="0"
+                    Background="{DynamicResource AppSurfaceBar}"
+                    BorderBrush="{DynamicResource AppBorderFaint}"
+                    BorderThickness="0,0,0,1"
+                    Padding="20,18">
+                <StackPanel Spacing="4" HorizontalAlignment="Center">
+                    <TextBlock Text="LoupixDeck"
+                               FontSize="24" FontWeight="SemiBold"
+                               Foreground="{DynamicResource AppTextPrimary}"
+                               HorizontalAlignment="Center" />
+                    <TextBlock Text="{Binding Version}"
+                               FontSize="13"
+                               Foreground="{DynamicResource AppTextSecondary}"
+                               HorizontalAlignment="Center" />
+                </StackPanel>
+            </Border>
+
+            <StackPanel Grid.Row="1" Spacing="12"
+                        Margin="24,20,24,20"
+                        HorizontalAlignment="Center" VerticalAlignment="Center">
+                <TextBlock Text="© 2025-2026 RadiatorTwo"
+                           FontSize="13"
+                           Foreground="{DynamicResource AppTextSecondary}"
+                           HorizontalAlignment="Center" />
+                <Button Content="Project Website" Width="160" HorizontalAlignment="Center"
+                        HorizontalContentAlignment="Center"
+                        Command="{Binding OpenWebsiteCommand}" />
+                <Button Content="Close" Width="160" HorizontalAlignment="Center"
+                        HorizontalContentAlignment="Center"
+                        Command="{Binding CloseCommand}" />
+            </StackPanel>
+        </Grid>
+    </Border>
 </Window>
