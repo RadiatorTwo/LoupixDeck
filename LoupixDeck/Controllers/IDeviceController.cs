@@ -52,10 +52,19 @@ public interface IDeviceController
     /// <summary>
     /// Re-pushes the state the hardware lost across a power cycle — brightness, LED
     /// colours, the current touch page and the side strips — after the serial link was
-    /// re-established (issue #195). Unlike <see cref="RestoreDeviceState"/> it does not
-    /// turn the device on: while it is manually off, the blanked state is re-applied.
+    /// re-established (issue #195). A device blanked by <see cref="HandleSystemSuspend"/>
+    /// is switched back on here, because the connect proves the hardware power-cycled;
+    /// a device the user turned off has its blanked state re-applied instead.
     /// </summary>
     Task ResyncDeviceState();
+
+    /// <summary>
+    /// Blanks the device because the host is suspending. Same visible result as
+    /// <see cref="ClearDeviceState"/>, but the off state is marked as not the user's
+    /// doing, so the next connect turns the device back on even when the OS never
+    /// reports the resume (Modern Standby / S0, issue #195).
+    /// </summary>
+    Task HandleSystemSuspend();
 
     /// <summary>
     /// Handles a system resume: re-establishes the serial link (the handle from before

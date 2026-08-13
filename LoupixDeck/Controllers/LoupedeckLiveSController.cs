@@ -57,6 +57,15 @@ public partial class LoupedeckLiveSController(
     private volatile bool _isDeviceOff;
     public bool IsDeviceOff => _isDeviceOff;
 
+    /// <summary>
+    /// True while the off state was entered by the host suspending, not by the user. The
+    /// hardware power-cycles across a suspend, so the next connect is proof the device is
+    /// back and must be switched on again — without waiting for a resume event the OS may
+    /// never deliver (Modern Standby / S0, issue #195). A user-toggled off device keeps
+    /// this false and stays blank across the same reconnect.
+    /// </summary>
+    private volatile bool _blankedForSuspend;
+
     // True while the full-display screensaver owns the display (issue #120). Like
     // _isDeviceOff, this gates the controller's own redraw paths so dynamic text /
     // side-strip provider frames don't paint over the video. NOT the plugin exclusive
@@ -100,10 +109,20 @@ public partial class LoupedeckLiveSController(
 
     private static int SideIndex(RotarySide side) => side == RotarySide.Right ? 1 : 0;
 
-    public async Task ClearDeviceState()
+    public Task ClearDeviceState() => EnterOffState(false);
+
+    /// <summary>
+    /// The host is suspending: blank the device exactly like the manual off, but remember
+    /// that it was not the user's doing, so the next connect switches it back on (#195).
+    /// A device the user had already turned off stays off across the suspend.
+    /// </summary>
+    public Task HandleSystemSuspend() => EnterOffState(true);
+
+    private async Task EnterOffState(bool forSuspend)
     {
         if (_isDeviceOff) return;
         _isDeviceOff = true;
+        _blankedForSuspend = forSuspend;
         // The device goes dark (or the machine suspends) — a held button's release will never
         // arrive, so nothing may keep waiting on it (#185).
         ReleaseAllPresses();
@@ -124,12 +143,14 @@ public partial class LoupedeckLiveSController(
     /// <see cref="ClearDeviceState"/> so a reconnect can re-apply it without touching the
     /// off-state bookkeeping (issue #195).
     /// </summary>
-    private async Task PushBlankState()
+    /// <returns>True when everything reached the hardware. A dead handle swallows writes
+    /// or throws halfway, and the caller must not treat that as a painted device.</returns>
+    private async Task<bool> PushBlankState()
     {
         try
         {
             var device = deviceService.Device;
-            if (device == null) return;
+            if (device == null) return false;
             await device.SetBrightness(0);
             if (config.SimpleButtons != null)
             {
@@ -143,10 +164,12 @@ public partial class LoupedeckLiveSController(
             // the software Vibrate() pulse, which only fires on an actual touch, so a dark
             // display never buzzes. The 0x2e disable is intentionally not sent: it wedges
             // the firmware haptic engine / can freeze the display (see docs/NATIVE_HAPTIC.md).
+            return true;
         }
         catch (Exception ex)
         {
             Console.WriteLine($"Blanking the device failed: {ex.Message}");
+            return false;
         }
     }
 
@@ -154,6 +177,7 @@ public partial class LoupedeckLiveSController(
     {
         if (!_isDeviceOff) return;
         _isDeviceOff = false;
+        _blankedForSuspend = false;
         // Anything still tracked from before the device went off is stale by definition (#185).
         ReleaseAllPresses();
         await PushFullState();
@@ -165,12 +189,15 @@ public partial class LoupedeckLiveSController(
     /// <see cref="RestoreDeviceState"/> so a reconnect can re-push it without the off-state
     /// guard (issue #195).
     /// </summary>
-    private async Task PushFullState()
+    /// <returns>True when the whole picture reached the hardware. A push that dies partway
+    /// (brightness through, touch buttons not) leaves exactly the wrong picture #195 reports,
+    /// so the caller has to be able to tell.</returns>
+    private async Task<bool> PushFullState()
     {
         try
         {
             var device = deviceService.Device;
-            if (device == null) return;
+            if (device == null) return false;
             await device.SetBrightness(config.Brightness / 100.0);
             if (config.SimpleButtons != null)
             {
@@ -187,7 +214,7 @@ public partial class LoupedeckLiveSController(
             {
                 try { fullDisplay.SetPaused(false); } catch { /* best effort */ }
                 nativeHapticService.Apply();
-                return;
+                return true;
             }
 
             if (config.CurrentTouchButtonPage?.TouchButtons != null)
@@ -202,10 +229,12 @@ public partial class LoupedeckLiveSController(
             nativeHapticService.Apply();
             // Device is back on — resume screensaver idle monitoring.
             try { screensaver.Arm(); } catch { /* best effort */ }
+            return true;
         }
         catch (Exception ex)
         {
             Console.WriteLine($"Pushing the device state failed: {ex.Message}");
+            return false;
         }
     }
 
@@ -217,32 +246,69 @@ public partial class LoupedeckLiveSController(
     /// button and a system resume can't paint over each other.</summary>
     private readonly SemaphoreSlim _resyncGate = new(1, 1);
 
-    /// <summary>Counts the re-pushes triggered by the device's own connect event, so the
-    /// resume path can tell whether the reconnect already covered it.</summary>
-    private int _connectResyncs;
+    /// <summary>Number of re-pushes running or waiting. One may queue behind the running
+    /// one — a request that arrives mid-push must not be dropped, because it may be the
+    /// one carrying the newer state (#195) — further requests would only repaint the same
+    /// picture a third time and are skipped.</summary>
+    private int _resyncWaiters;
 
     /// <summary>Time given to a freshly established link before the first frame goes out.
     /// The connect event fires before the read thread is up, so an immediate draw would
     /// wait on a response nobody reads yet.</summary>
-    private const int ReconnectSettleMs = 750;
+    private const int ReconnectSettleMs = 1500;
+
+    /// <summary>How long a resume keeps trying to rebuild the link. Three fixed tries were
+    /// enough for an S3 wake, where the port is usually back before we even ask. A resume
+    /// from hibernate or hybrid sleep re-enumerates USB during a firmware POST while the
+    /// kernel image is still coming off disk, so the port can stay away far longer (#195).</summary>
+    private static readonly TimeSpan ResumeReconnectWindow = TimeSpan.FromSeconds(30);
 
     public async Task ResyncDeviceState()
     {
-        // Skip rather than queue: a second re-push right behind the first would only
-        // repaint the same picture.
-        if (!await _resyncGate.WaitAsync(0))
+        // One push running plus one queued is enough to cover every ordering; anything
+        // beyond that would repaint an identical picture.
+        if (Interlocked.Increment(ref _resyncWaiters) > 2)
+        {
+            Interlocked.Decrement(ref _resyncWaiters);
             return;
+        }
 
         try
         {
-            if (_isDeviceOff)
-                await PushBlankState();
-            else
-                await PushFullState();
+            await _resyncGate.WaitAsync();
+            try
+            {
+                // The device power-cycled while the host slept, so it is physically back
+                // on — leaving it in the suspend-blanked state would repaint black and
+                // require the manual off/on toggle (#195). A user-off device stays blank.
+                var takeOnline = _blankedForSuspend;
+
+                var pushed = (takeOnline || !_isDeviceOff)
+                    ? await PushFullState()
+                    : await PushBlankState();
+
+                // A push into a dead handle fails silently or stops halfway. Clearing the
+                // suspend mark anyway would leave the controller convinced the device is on
+                // and painted, and nothing would ever repaint it — that is what still forced
+                // the manual off/on toggle after a wake. So the mark survives a failed push
+                // and the next connect (auto-reconnect or resume retry) tries again.
+                if (!pushed) return;
+
+                if (takeOnline)
+                {
+                    _blankedForSuspend = false;
+                    _isDeviceOff = false;
+                    ReleaseAllPresses();
+                }
+            }
+            finally
+            {
+                _resyncGate.Release();
+            }
         }
         finally
         {
-            _resyncGate.Release();
+            Interlocked.Decrement(ref _resyncWaiters);
         }
     }
 
@@ -255,8 +321,6 @@ public partial class LoupedeckLiveSController(
     /// </summary>
     private void OnDeviceConnected(object sender, ConnectionEventArgs e)
     {
-        Interlocked.Increment(ref _connectResyncs);
-
         // Raised from inside the connect call, i.e. before the read thread runs — hop off
         // that thread and let the link settle before drawing.
         Avalonia.Threading.Dispatcher.UIThread.Post(async () =>
@@ -271,12 +335,6 @@ public partial class LoupedeckLiveSController(
         // Give the USB stack time to re-enumerate the device after wake.
         await Task.Delay(1000);
 
-        // The suspend handler blanked the device; take it out of the off state before the
-        // re-push so it paints the real page instead of black. Anything still tracked from
-        // before the suspend is stale by definition (#185).
-        _isDeviceOff = false;
-        ReleaseAllPresses();
-
         var device = deviceService.Device;
         if (device == null)
             return;
@@ -285,9 +343,12 @@ public partial class LoupedeckLiveSController(
         // and the handle still reports itself as open — writes then go nowhere. So the link
         // is torn down and rebuilt unconditionally (its connect event does the re-push),
         // never skipped just because the stale handle still looks healthy. The port can
-        // need a few seconds to come back, hence the retries.
-        var before = Volatile.Read(ref _connectResyncs);
-        for (var attempt = 1; attempt <= 3; attempt++)
+        // need a few seconds to come back, so we keep trying for the whole window rather
+        // than giving up after a fixed number of tries.
+        var deadline = Environment.TickCount64 + (long)ResumeReconnectWindow.TotalMilliseconds;
+        var retryDelayMs = 1000;
+
+        while (true)
         {
             try
             {
@@ -297,17 +358,20 @@ public partial class LoupedeckLiveSController(
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[Resume] reconnect attempt {attempt} failed: {ex.Message}");
+                Console.WriteLine($"[Resume] reconnect failed: {ex.Message}");
             }
 
-            if (device.IsConnected) break;
-            await Task.Delay(1000);
+            if (device.IsConnected || Environment.TickCount64 >= deadline) break;
+
+            await Task.Delay(retryDelayMs);
+            retryDelayMs = Math.Min(retryDelayMs * 2, 4000);
         }
 
-        // Reconnected without a connect event (or the link never dropped) — re-push here.
+        // Always re-push at the end instead of trusting the connect event to have done it:
+        // the resume may land before or after the reconnect, and a second push of the same
+        // picture is harmless (redundant pushes coalesce in ResyncDeviceState).
         await Task.Delay(ReconnectSettleMs);
-        if (Volatile.Read(ref _connectResyncs) == before)
-            await ResyncDeviceState();
+        await ResyncDeviceState();
     }
 
     public void Shutdown()
