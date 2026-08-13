@@ -67,11 +67,9 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     private readonly LoupedeckConfig _config;
 
     /// <summary>
-    /// Working margin (canvas px) kept around the frame on every side, so a layer
-    /// dragged past the button edge stays visible and grabbable. The canvas used to be
-    /// a fixed 600×600 square, which left wide dead bars beside the frame — most of all
-    /// for non-square surfaces such as the 60×270 side strip — and cost the dialog
-    /// horizontal space that the command picker needs.
+    /// Smallest working margin (canvas px) kept around the frame on every side, so a
+    /// layer dragged past the button edge stays visible and grabbable. The canvas grows
+    /// past this to fill the viewport — see <see cref="EditorCanvasWidth"/>.
     /// </summary>
     public const int EditorCanvasBleed = 75;
 
@@ -87,9 +85,33 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     public double FrameWidth => BitmapHelper.ComputeEditorFrame(DeviceWidth, DeviceHeight).FrameWidth;
     public double FrameHeight => BitmapHelper.ComputeEditorFrame(DeviceWidth, DeviceHeight).FrameHeight;
 
-    /// <summary>Editor canvas size (canvas px) — the frame plus the bleed on each side.</summary>
-    public int EditorCanvasWidth => (int)Math.Round(FrameWidth) + (2 * EditorCanvasBleed);
-    public int EditorCanvasHeight => (int)Math.Round(FrameHeight) + (2 * EditorCanvasBleed);
+    /// <summary>
+    /// Editor canvas size (canvas px): the frame plus at least <see cref="EditorCanvasBleed"/>
+    /// on each side, grown to fill the preview viewport at the current zoom. Filling the
+    /// viewport is what keeps the panel free of dead grey bars around the canvas — every
+    /// pixel the user sees is drawable, so a layer dragged off the button stays visible
+    /// instead of vanishing where the canvas ended.
+    /// </summary>
+    public int EditorCanvasWidth => CanvasExtent(FrameWidth, _viewport.Width);
+    public int EditorCanvasHeight => CanvasExtent(FrameHeight, _viewport.Height);
+
+    private int CanvasExtent(double frameExtent, double viewportExtent)
+    {
+        double minimum = frameExtent + (2.0 * EditorCanvasBleed);
+
+        // Floor, so the zoomed content never exceeds the viewport by a rounding pixel and
+        // trips the scrollbar. The viewport is only known once the View has measured.
+        //
+        // The zoom divisor is clamped at 1 so zooming out cannot inflate the canvas — and
+        // with it the rendered bitmap, which is re-rendered on every drag step — past the
+        // panel's own size. Below 100% the canvas therefore stays put and the view simply
+        // shows the workspace smaller.
+        double fill = viewportExtent > 0
+            ? Math.Floor(viewportExtent / Math.Max(1.0, ZoomFactor))
+            : 0;
+
+        return (int)Math.Round(Math.Max(minimum, fill));
+    }
 
     /// <summary>Top-left of the centered frame inside the editor canvas.</summary>
     public double FrameOffsetX => (EditorCanvasWidth - FrameWidth) / 2.0;
@@ -134,6 +156,10 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
             field = clamped;
             OnPropertyChanged(nameof(ZoomFactor));
             OnPropertyChanged(nameof(ZoomPercentText));
+
+            // The canvas is sized to fill the viewport at the current zoom, so it has to
+            // be re-measured and re-rendered whenever the zoom changes.
+            RefreshCanvasExtent();
         }
     } = 1.0;
 
@@ -148,20 +174,39 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     public void SetViewport(double width, double height)
     {
         if (width <= 0 || height <= 0) return;
+        if (Math.Abs(_viewport.Width - width) < 0.5 && Math.Abs(_viewport.Height - height) < 0.5) return;
+
         _viewport = new Avalonia.Size(width, height);
+
+        // The canvas fills the viewport, so a resized panel means a resized canvas.
+        RefreshCanvasExtent();
+    }
+
+    /// <summary>
+    /// Re-publishes the canvas geometry and repaints the preview after something that
+    /// changes the canvas extent (zoom or viewport). The frame keeps its size — only the
+    /// drawable area around it grows or shrinks.
+    /// </summary>
+    private void RefreshCanvasExtent()
+    {
+        OnPropertyChanged(nameof(EditorCanvasWidth));
+        OnPropertyChanged(nameof(EditorCanvasHeight));
+        OnPropertyChanged(nameof(FrameOffsetX));
+        OnPropertyChanged(nameof(FrameOffsetY));
+        UpdateEditorPreview();
+        UpdateSelectionBounds();
     }
 
     private void FitToViewport()
     {
         if (_viewport.Width <= 0 || _viewport.Height <= 0) return;
-        // Fit the whole canvas — frame plus bleed — so nothing is cut off at the sides.
-        // Fitting only the frame pushed the bleed outside the viewport, which is what
-        // made layers dragged past the button edge disappear behind the panel edges.
-        double cw = EditorCanvasWidth;
-        double ch = EditorCanvasHeight;
-        if (cw <= 0 || ch <= 0) return;
-        const double pad = 0.98;
-        var fit = Math.Min(_viewport.Width * pad / cw, _viewport.Height * pad / ch);
+        // Fit the frame, not the canvas: the canvas always fills the viewport, so fitting
+        // it would be a no-op. 0.92 leaves a little of the surrounding work area visible.
+        var fw = FrameWidth;
+        var fh = FrameHeight;
+        if (fw <= 0 || fh <= 0) return;
+        const double pad = 0.92;
+        var fit = Math.Min(_viewport.Width * pad / fw, _viewport.Height * pad / fh);
         ZoomFactor = fit;
     }
 
