@@ -41,6 +41,27 @@ public class CommandRunner : ICommandRunner
         }
     }
 
+    /// <summary>
+    /// Working directory for spawned shell commands. Our own current directory is the installation
+    /// folder — both the launcher and the start-menu shortcut set it — and a long-lived program
+    /// started from here would inherit it and keep a handle on that folder open for its whole
+    /// lifetime. On Windows that blocks the updater from replacing the installation, even after
+    /// LoupixDeck itself has exited. The user's home directory is what a freshly opened shell would
+    /// use anyway, and no install, update or uninstall path ever touches it. Consequence: shell
+    /// commands must use absolute paths; relative ones resolve from the home directory.
+    /// </summary>
+    private static readonly string ShellWorkingDirectory = ResolveShellWorkingDirectory();
+
+    private static string ResolveShellWorkingDirectory()
+    {
+        string home = Environment.GetEnvironmentVariable("HOME")
+                      ?? Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+
+        // An empty string leaves ProcessStartInfo at its default (inherit our own directory),
+        // which is still better than failing to start the command at all.
+        return !string.IsNullOrWhiteSpace(home) && Directory.Exists(home) ? home : string.Empty;
+    }
+
     public void ExecuteCommand(string command)
     {
         Process process = null;
@@ -50,6 +71,7 @@ public class CommandRunner : ICommandRunner
             {
                 FileName = OperatingSystem.IsWindows() ? "cmd.exe" : "/bin/bash",
                 Arguments = OperatingSystem.IsWindows() ? $"/c \"{command}\"" : $"-c \"{command}\"",
+                WorkingDirectory = ShellWorkingDirectory,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 UseShellExecute = false,

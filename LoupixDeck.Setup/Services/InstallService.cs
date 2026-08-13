@@ -129,7 +129,7 @@ public sealed class InstallService
     private OpResult Update(string installDir, bool restartAfter, IProgress<ProgressReport>? progress)
     {
         string backupDir = installDir.TrimEnd(Path.DirectorySeparatorChar) + ".bak";
-        bool backedUp = false;
+        BackupMode? backedUp = null;
 
         // Read the previous choices before the backup move relocates the manifest.
         InstallManifest? prev = InstallManifest.TryLoad(installDir);
@@ -147,8 +147,22 @@ public sealed class InstallService
             if (Directory.Exists(installDir))
             {
                 Report(progress, 0.08, "Backing up current version…", SetupSteps.Backup);
-                Directory.Move(installDir, backupDir);
-                backedUp = true;
+
+                // Renaming the install dir aside is the cheap path, but it fails whenever another
+                // process holds that folder — typically a program launched by a LoupixDeck shell
+                // command, which inherits it as its working directory and keeps it open long after
+                // LoupixDeck itself has exited. Copy the previous version aside in that case and
+                // update in place instead: the extractor overwrites every payload file and prunes
+                // what the new version no longer ships, so the outcome is the same.
+                if (FileOps.TryMoveDirectory(installDir, backupDir))
+                {
+                    backedUp = BackupMode.Moved;
+                }
+                else
+                {
+                    FileOps.CopyDirectory(installDir, backupDir);
+                    backedUp = BackupMode.Copied;
+                }
             }
 
             List<string> pluginIds = ExtractPayload(installDir, ExtractScope.All, progress, 0.10, 0.80);
@@ -181,11 +195,19 @@ public sealed class InstallService
             // Roll back to the previous version.
             try
             {
-                if (backedUp)
+                if (backedUp == BackupMode.Moved)
                 {
                     FileOps.TryDeleteDirectory(installDir);
                     if (Directory.Exists(backupDir))
                         Directory.Move(backupDir, installDir);
+                }
+                else if (backedUp == BackupMode.Copied && Directory.Exists(backupDir))
+                {
+                    // The install dir itself can't be removed here (something holds it), so restore
+                    // its contents in place from the copy.
+                    FileOps.DeleteDirectoryContents(installDir);
+                    FileOps.CopyDirectory(backupDir, installDir);
+                    FileOps.TryDeleteDirectory(backupDir);
                 }
             }
             catch
@@ -193,7 +215,11 @@ public sealed class InstallService
                 // best effort — surface the original error below
             }
 
-            return OpResult.Fail($"Update failed and was rolled back: {ex.Message}");
+            // A failure at this point almost always means a file in the install dir is locked. Name
+            // the culprit instead of leaving the user with a bare access-denied message.
+            string holders = LockingProcesses.DescribeSentence(installDir);
+            string detail = string.IsNullOrEmpty(holders) ? string.Empty : $"\n{holders}";
+            return OpResult.Fail($"Update failed and was rolled back: {ex.Message}{detail}");
         }
     }
 
