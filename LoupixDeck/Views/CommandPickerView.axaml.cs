@@ -84,15 +84,14 @@ public partial class CommandPickerView : UserControl
         e.Handled = true;
     }
 
-    /// <summary>"+ Add" pill on the selected row — the explicit equivalent of a double-click.</summary>
+    /// <summary>"+ Add" button in the footer — the explicit equivalent of a double-click
+    /// on the selected row.</summary>
     private void Add_Click(object sender, RoutedEventArgs e)
     {
-        if (sender is not Control { DataContext: CommandRowViewModel row })
+        if (ViewModel?.SelectedCommand is not { } row)
             return;
 
         CommandActivated?.Invoke(this, row.Entry);
-        // The press already armed a drag on the row underneath; cancel it so the
-        // click does not turn into a drag-to-insert as well.
         _dragCandidate = null;
         e.Handled = true;
     }

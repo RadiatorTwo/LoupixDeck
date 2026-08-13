@@ -219,15 +219,15 @@
     </Style>
 
     <!-- ===== Command row ===== -->
-    <!-- A dense two-line row: accent bar, title over description, and an "Add" pill
-         that appears on the selected row. Rows are separated by a hairline instead of
-         gaps so the list reads as one continuous column. -->
+    <!-- A dense two-line row: title over description across the row's full width (the
+         insertion button sits in the footer, not on the row). The selection marker is a
+         2px accent edge running the row's full height; its thickness is always reserved
+         so selecting a row tints it instead of shifting the content sideways. -->
     <Style Selector="Border.picker-row-face">
         <Setter Property="Background" Value="Transparent" />
-        <Setter Property="BorderBrush" Value="{DynamicResource AppBorderFaint}" />
-        <Setter Property="BorderThickness" Value="0,0,0,1" />
-        <Setter Property="Padding" Value="10,4" />
-        <Setter Property="MinHeight" Value="38" />
+        <Setter Property="BorderBrush" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="2,0,0,0" />
+        <Setter Property="Padding" Value="12,7" />
         <Setter Property="Cursor" Value="Hand" />
     </Style>
     <Style Selector="Border.picker-row-face:pointerover">
@@ -235,57 +235,27 @@
     </Style>
     <Style Selector="Border.picker-row-face:focus-visible">
         <Setter Property="BorderBrush" Value="{DynamicResource PickerFocusBrush}" />
-        <Setter Property="BorderThickness" Value="1" />
     </Style>
-    <!-- Selected row: subtle violet tint (declared last so it wins over hover). -->
+    <!-- Selected row: subtle violet tint + accent edge (declared last so it wins over hover). -->
     <Style Selector="Border.picker-row-face.selected">
         <Setter Property="Background" Value="{DynamicResource PickerAccentSubtle}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource PickerAccentBrush}" />
     </Style>
 
-    <!-- Left accent bar: muted on a normal row, violet on the selected one. -->
-    <Style Selector="Border.picker-row-bar">
-        <Setter Property="Width" Value="3" />
-        <Setter Property="Height" Value="16" />
-        <Setter Property="CornerRadius" Value="2" />
-        <Setter Property="Background" Value="{DynamicResource AppBorderSubtle}" />
-        <Setter Property="VerticalAlignment" Value="Center" />
-        <Setter Property="Margin" Value="0,0,9,0" />
-    </Style>
-    <Style Selector="Border.picker-row-face.selected Border.picker-row-bar">
-        <Setter Property="Background" Value="{DynamicResource PickerAccentBrush}" />
-    </Style>
-
+    <!-- Explicit line heights keep the two-line row at a fixed 46 px regardless of the
+         font's own metrics. -->
     <Style Selector="TextBlock.picker-row-title">
         <Setter Property="FontSize" Value="12.5" />
+        <Setter Property="LineHeight" Value="16" />
         <Setter Property="FontWeight" Value="SemiBold" />
         <Setter Property="Foreground" Value="{DynamicResource AppTextPrimary}" />
         <Setter Property="TextTrimming" Value="CharacterEllipsis" />
     </Style>
     <Style Selector="TextBlock.picker-row-desc">
-        <Setter Property="FontSize" Value="11" />
+        <Setter Property="FontSize" Value="11.5" />
+        <Setter Property="LineHeight" Value="16" />
         <Setter Property="Foreground" Value="{DynamicResource AppTextSecondary}" />
         <Setter Property="TextTrimming" Value="CharacterEllipsis" />
-    </Style>
-
-    <!-- "Add" pill: the explicit affordance for the double-click / Enter insertion,
-         revealed on the selected row. -->
-    <Style Selector="Button.picker-row-add">
-        <Setter Property="Background" Value="{DynamicResource PickerAccentBrush}" />
-        <Setter Property="BorderThickness" Value="0" />
-        <Setter Property="CornerRadius" Value="4" />
-        <Setter Property="Padding" Value="9,3" />
-        <Setter Property="Margin" Value="8,0,0,0" />
-        <Setter Property="FontSize" Value="11" />
-        <Setter Property="FontWeight" Value="SemiBold" />
-        <Setter Property="Foreground" Value="#FF12131A" />
-        <Setter Property="VerticalAlignment" Value="Center" />
-        <Setter Property="Cursor" Value="Hand" />
-    </Style>
-    <Style Selector="Button.picker-row-add /template/ ContentPresenter#PART_ContentPresenter">
-        <Setter Property="Background" Value="{DynamicResource PickerAccentBrush}" />
-    </Style>
-    <Style Selector="Button.picker-row-add:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-        <Setter Property="Background" Value="{DynamicResource PickerAccentBorderBrush}" />
     </Style>
 
     <!-- "Group" pill on a rotary command-group row (violet accent, matching selection). -->
@@ -303,17 +273,48 @@
         <Setter Property="Foreground" Value="{DynamicResource PickerAccentBorderBrush}" />
     </Style>
 
-    <!-- Footer hint. -->
+    <!-- ===== Footer: selected command + insertion button ===== -->
+    <!-- Separated from the last row by a small gap, so the divider reads as the panel's
+         base line rather than as another row separator. -->
     <Style Selector="Border.picker-footer">
         <Setter Property="Background" Value="{DynamicResource AppSurfaceLow}" />
         <Setter Property="BorderBrush" Value="{DynamicResource AppBorderSubtle}" />
         <Setter Property="BorderThickness" Value="0,1,0,0" />
-        <Setter Property="Padding" Value="10,6" />
+        <Setter Property="Margin" Value="0,6,0,0" />
+        <Setter Property="Padding" Value="14,7,10,7" />
     </Style>
+    <!-- Names the row the button acts on; truncates rather than pushing the button out. -->
     <Style Selector="TextBlock.picker-footer-text">
-        <Setter Property="FontSize" Value="11" />
+        <Setter Property="FontSize" Value="10.5" />
         <Setter Property="Foreground" Value="{DynamicResource AppTextMuted}" />
-        <Setter Property="TextWrapping" Value="Wrap" />
+        <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+        <Setter Property="TextWrapping" Value="NoWrap" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="Margin" Value="0,0,8,0" />
+    </Style>
+
+    <!-- "Add" pill: the explicit affordance for the double-click / Enter insertion.
+         Disabled while no command is selected. -->
+    <Style Selector="Button.picker-footer-add">
+        <Setter Property="Background" Value="{DynamicResource PickerAccentBrush}" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="CornerRadius" Value="5" />
+        <Setter Property="Padding" Value="10,4" />
+        <Setter Property="FontSize" Value="10.5" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Foreground" Value="#FFFFFFFF" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="Cursor" Value="Hand" />
+    </Style>
+    <Style Selector="Button.picker-footer-add /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource PickerAccentBrush}" />
+    </Style>
+    <Style Selector="Button.picker-footer-add:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource PickerAccentBorderBrush}" />
+    </Style>
+    <Style Selector="Button.picker-footer-add:disabled /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource AppSurfaceAlt}" />
+        <Setter Property="TextBlock.Foreground" Value="{DynamicResource AppTextMuted}" />
     </Style>
 
 </Styles>

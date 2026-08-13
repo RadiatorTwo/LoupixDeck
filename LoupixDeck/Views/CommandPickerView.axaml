@@ -21,31 +21,23 @@
             <Border Classes="picker-row-face"
                     Classes.selected="{Binding IsSelected}"
                     Focusable="True"
-                    Background="Transparent"
                     PointerPressed="Row_PointerPressed"
                     DoubleTapped="Row_DoubleTapped"
                     KeyDown="Row_KeyDown">
-                <Grid ColumnDefinitions="Auto,*,Auto">
-                    <Border Grid.Column="0" Classes="picker-row-bar" />
-                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                        <StackPanel Orientation="Horizontal" Spacing="6">
-                            <TextBlock Classes="picker-row-title" Text="{Binding Title}" />
-                            <!-- Badge for a rotary command group (fills several slots at once). -->
-                            <Border Classes="picker-group-badge" IsVisible="{Binding IsCommandGroup}"
-                                    ToolTip.Tip="Fills all rotary actions (turn left / right / press) at once">
-                                <TextBlock Text="Group" />
-                            </Border>
-                        </StackPanel>
-                        <TextBlock Classes="picker-row-desc" Text="{Binding Description}"
-                                   IsVisible="{Binding HasDescription}" />
+                <!-- The row uses its full width: the insertion affordance lives in the
+                     footer, so nothing overlays the description. -->
+                <StackPanel VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <TextBlock Classes="picker-row-title" Text="{Binding Title}" />
+                        <!-- Badge for a rotary command group (fills several slots at once). -->
+                        <Border Classes="picker-group-badge" IsVisible="{Binding IsCommandGroup}"
+                                ToolTip.Tip="Fills all rotary actions (turn left / right / press) at once">
+                            <TextBlock Text="Group" />
+                        </Border>
                     </StackPanel>
-                    <!-- Explicit insertion affordance, revealed on the selected row. -->
-                    <Button Grid.Column="2" Classes="picker-row-add"
-                            Content="+ Add"
-                            IsVisible="{Binding IsSelected}"
-                            Click="Add_Click"
-                            ToolTip.Tip="Add this command to the selected action" />
-                </Grid>
+                    <TextBlock Classes="picker-row-desc" Text="{Binding Description}"
+                               IsVisible="{Binding HasDescription}" />
+                </StackPanel>
             </Border>
         </DataTemplate>
 
@@ -198,10 +190,18 @@
                 </ScrollViewer>
             </Panel>
 
-            <!-- Footer hint. -->
+            <!-- Footer: names the selected row and carries the insertion button, so the
+                 affordance never overlays the list. -->
             <Border Grid.Row="2" Classes="picker-footer">
-                <TextBlock Classes="picker-footer-text"
-                           Text="Double-click or Enter adds to the selected action" />
+                <Grid ColumnDefinitions="*,Auto">
+                    <TextBlock Grid.Column="0" Classes="picker-footer-text"
+                               Text="{Binding SelectedCommandLabel}" />
+                    <Button Grid.Column="1" Classes="picker-footer-add"
+                            Content="+ Add  &#x23CE;"
+                            IsEnabled="{Binding HasSelectedCommand}"
+                            Click="Add_Click"
+                            ToolTip.Tip="Add the selected command to the selected action" />
+                </Grid>
             </Border>
         </Grid>
     </Grid>

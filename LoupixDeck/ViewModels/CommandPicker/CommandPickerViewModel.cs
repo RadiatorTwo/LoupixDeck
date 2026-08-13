@@ -53,9 +53,17 @@ public partial class CommandPickerViewModel : ViewModelBase
     public partial CommandCategoryViewModel SelectedCategory { get; set; }
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasSelectedCommand))]
+    [NotifyPropertyChangedFor(nameof(SelectedCommandLabel))]
     public partial CommandRowViewModel SelectedCommand { get; set; }
 
     public bool HasSelectedCategory => SelectedCategory != null;
+
+    /// <summary>Drives the footer's "Add" button: without a selection there is nothing to insert.</summary>
+    public bool HasSelectedCommand => SelectedCommand != null;
+
+    /// <summary>Footer caption naming the row the "Add" button acts on.</summary>
+    public string SelectedCommandLabel => SelectedCommand?.Title ?? "Select a command";
 
     public string SearchText
     {
