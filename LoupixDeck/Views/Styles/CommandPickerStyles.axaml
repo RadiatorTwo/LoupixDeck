@@ -28,7 +28,7 @@
         <Setter Property="Background" Value="{DynamicResource AppSurfaceLow}" />
         <Setter Property="BorderBrush" Value="{DynamicResource AppBorderSubtle}" />
         <Setter Property="BorderThickness" Value="0,0,1,0" />
-        <Setter Property="Width" Value="140" />
+        <Setter Property="Width" Value="172" />
     </Style>
 
     <!-- Section caption above a run of rail items ("CORE", "MACROS", "PLUGINS"). -->
