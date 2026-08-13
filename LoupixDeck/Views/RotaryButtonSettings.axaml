@@ -134,196 +134,192 @@
 
     <!-- Single-cell root so the drag-ghost canvas can float over the whole window. -->
     <Grid>
-        <Border BorderThickness="2"
-                BorderBrush="DarkGray"
-                Padding="4">
-            <Grid RowDefinitions="Auto,Auto,*" Margin="6">
+        <Grid RowDefinitions="Auto,Auto,*" Margin="12">
 
-                <!-- Title -->
-                <TextBlock Grid.Row="0"
-                           Text="{Binding KnobLabel}"
-                           FontSize="22" FontWeight="Bold"
-                           Margin="0,0,0,8" />
+            <!-- Title -->
+            <TextBlock Grid.Row="0"
+                       Text="{Binding KnobLabel}"
+                       FontSize="22" FontWeight="Bold"
+                       Margin="0,0,0,8" />
 
-                <!-- OFF toggle + side-strip label sit directly under the title, above
-                     the command slots. The label shows on the dial's side-strip segment
-                     (segmented mode, Razer); ignored on devices without side strips. -->
-                <Grid Grid.Row="1" ColumnDefinitions="Auto,*" Margin="0,0,0,8">
-                    <CheckBox Grid.Column="0"
-                              Content="Run also when device is OFF"
-                              IsChecked="{Binding ButtonData.EnableWhenOff}"
-                              VerticalAlignment="Center" />
-                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8"
-                                HorizontalAlignment="Right" VerticalAlignment="Center">
-                        <TextBlock Text="Strip label" VerticalAlignment="Center" />
-                        <TextBox Width="200"
-                                 Text="{Binding ButtonData.DisplayText, Mode=TwoWay}"
-                                 ToolTip.Tip="Label shown for this knob on the side strip (Razer, segmented mode)" />
-                    </StackPanel>
-                </Grid>
+            <!-- OFF toggle + side-strip label sit directly under the title, above
+                 the command slots. The label shows on the dial's side-strip segment
+                 (segmented mode, Razer); ignored on devices without side strips. -->
+            <Grid Grid.Row="1" ColumnDefinitions="Auto,*" Margin="0,0,0,8">
+                <CheckBox Grid.Column="0"
+                          Content="Run also when device is OFF"
+                          IsChecked="{Binding ButtonData.EnableWhenOff}"
+                          VerticalAlignment="Center" />
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8"
+                            HorizontalAlignment="Right" VerticalAlignment="Center">
+                    <TextBlock Text="Strip label" VerticalAlignment="Center" />
+                    <TextBox Width="200"
+                             Text="{Binding ButtonData.DisplayText, Mode=TwoWay}"
+                             ToolTip.Tip="Label shown for this knob on the side strip (Razer, segmented mode)" />
+                </StackPanel>
+            </Grid>
 
-                <!-- Two columns: left = the three command sequences, right = the
-                     command library to pick from. -->
-                <!-- The left column is sized to fit exactly two command chips per row
-                     with equal space either side: 2 chips = 2 x (22 gutter + 210 chip
-                     + 6 margin) = 476, minus the leading gutter and trailing margin
-                     absorbed by the negative margins above = 448 of strip content,
-                     + 24 strip padding + 2 strip border + 12 gap to the picker = 486.
-                     Everything left over goes to the picker. -->
-                <Grid Grid.Row="2" ColumnDefinitions="486,*">
+            <!-- Two columns: left = the three command sequences, right = the
+                 command library to pick from. -->
+            <!-- The left column is sized to fit exactly two command chips per row
+                 with equal space either side: 2 chips = 2 x (22 gutter + 210 chip
+                 + 6 margin) = 476, minus the leading gutter and trailing margin
+                 absorbed by the negative margins above = 448 of strip content,
+                 + 24 strip padding + 2 strip border + 12 gap to the picker = 486.
+                 Everything left over goes to the picker. -->
+            <Grid Grid.Row="2" ColumnDefinitions="486,*">
 
-                    <!-- Left: three sequence strips, equal share of the height. Click
-                         a strip to make it the double-click target. -->
-                    <Grid Grid.Column="0" RowDefinitions="*,*,*" Margin="0,0,12,0">
+                <!-- Left: three sequence strips, equal share of the height. Click
+                     a strip to make it the double-click target. -->
+                <Grid Grid.Column="0" RowDefinitions="*,*,*" Margin="0,0,12,0">
 
-                        <!-- Rotate Left -->
-                        <Border Grid.Row="0" Name="CommandDropZoneLeft"
-                                x:DataType="vm:CommandSequenceSlot"
-                                DataContext="{Binding RotaryLeftSlot}"
-                                Classes="sequence-strip"
-                                Classes.active="{Binding IsActive}"
-                                Margin="0,0,0,10">
-                            <Grid RowDefinitions="Auto,*">
-                                <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,8">
-                                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
-                                        <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
-                                        <TextBlock Classes="hint"
-                                                   Text="{Binding Commands.Count, StringFormat='{}{0} command(s)'}" />
-                                    </StackPanel>
-                                    <Button Grid.Column="1" Content="Clear"
-                                            Command="{Binding ClearCommandCommand}"
-                                            IsEnabled="{Binding HasCommand}"
-                                            VerticalAlignment="Center"
-                                            MinWidth="70"
-                                            HorizontalContentAlignment="Center"
-                                            ToolTip.Tip="Remove all commands in this sequence" />
-                                </Grid>
-                                <Panel Grid.Row="1" MinHeight="36">
-                                    <!-- Pulled left by the leading arrow gutter (22) so the first
-                                         chip of each row lines up with the strip's title, and
-                                         widened right by the chip's trailing margin (6) so the
-                                         wrap width still fits two chips per row. -->
-                                    <ScrollViewer Margin="-22,0,-6,0"
-                                                  HorizontalScrollBarVisibility="Disabled"
-                                                  VerticalScrollBarVisibility="Auto">
-                                        <ItemsControl Name="CommandListLeft"
-                                                      ItemsSource="{Binding Commands}"
-                                                      VerticalAlignment="Top"
-                                                      ItemsPanel="{StaticResource ChipPanel}"
-                                                      ItemTemplate="{StaticResource CommandChipTemplate}"
-                                                      PointerMoved="CommandList_PointerMoved"
-                                                      PointerReleased="CommandList_PointerReleased"
-                                                      PointerCaptureLost="CommandList_PointerCaptureLost" />
-                                    </ScrollViewer>
-                                    <TextBlock Classes="hint" VerticalAlignment="Center"
-                                               Text="Empty — click this strip, then double-click a command, or drag one over here."
-                                               IsVisible="{Binding !Commands.Count}" />
-                                </Panel>
+                    <!-- Rotate Left -->
+                    <Border Grid.Row="0" Name="CommandDropZoneLeft"
+                            x:DataType="vm:CommandSequenceSlot"
+                            DataContext="{Binding RotaryLeftSlot}"
+                            Classes="sequence-strip"
+                            Classes.active="{Binding IsActive}"
+                            Margin="0,0,0,10">
+                        <Grid RowDefinitions="Auto,*">
+                            <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,8">
+                                <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
+                                    <TextBlock Classes="hint"
+                                               Text="{Binding Commands.Count, StringFormat='{}{0} command(s)'}" />
+                                </StackPanel>
+                                <Button Grid.Column="1" Content="Clear"
+                                        Command="{Binding ClearCommandCommand}"
+                                        IsEnabled="{Binding HasCommand}"
+                                        VerticalAlignment="Center"
+                                        MinWidth="70"
+                                        HorizontalContentAlignment="Center"
+                                        ToolTip.Tip="Remove all commands in this sequence" />
                             </Grid>
-                        </Border>
+                            <Panel Grid.Row="1" MinHeight="36">
+                                <!-- Pulled left by the leading arrow gutter (22) so the first
+                                     chip of each row lines up with the strip's title, and
+                                     widened right by the chip's trailing margin (6) so the
+                                     wrap width still fits two chips per row. -->
+                                <ScrollViewer Margin="-22,0,-6,0"
+                                              HorizontalScrollBarVisibility="Disabled"
+                                              VerticalScrollBarVisibility="Auto">
+                                    <ItemsControl Name="CommandListLeft"
+                                                  ItemsSource="{Binding Commands}"
+                                                  VerticalAlignment="Top"
+                                                  ItemsPanel="{StaticResource ChipPanel}"
+                                                  ItemTemplate="{StaticResource CommandChipTemplate}"
+                                                  PointerMoved="CommandList_PointerMoved"
+                                                  PointerReleased="CommandList_PointerReleased"
+                                                  PointerCaptureLost="CommandList_PointerCaptureLost" />
+                                </ScrollViewer>
+                                <TextBlock Classes="hint" VerticalAlignment="Center"
+                                           Text="Empty — click this strip, then double-click a command, or drag one over here."
+                                           IsVisible="{Binding !Commands.Count}" />
+                            </Panel>
+                        </Grid>
+                    </Border>
 
-                        <!-- Rotate Right -->
-                        <Border Grid.Row="1" Name="CommandDropZoneRight"
-                                x:DataType="vm:CommandSequenceSlot"
-                                DataContext="{Binding RotaryRightSlot}"
-                                Classes="sequence-strip"
-                                Classes.active="{Binding IsActive}"
-                                Margin="0,0,0,10">
-                            <Grid RowDefinitions="Auto,*">
-                                <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,8">
-                                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
-                                        <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
-                                        <TextBlock Classes="hint"
-                                                   Text="{Binding Commands.Count, StringFormat='{}{0} command(s)'}" />
-                                    </StackPanel>
-                                    <Button Grid.Column="1" Content="Clear"
-                                            Command="{Binding ClearCommandCommand}"
-                                            IsEnabled="{Binding HasCommand}"
-                                            VerticalAlignment="Center"
-                                            MinWidth="70"
-                                            HorizontalContentAlignment="Center"
-                                            ToolTip.Tip="Remove all commands in this sequence" />
-                                </Grid>
-                                <Panel Grid.Row="1" MinHeight="36">
-                                    <!-- Pulled left by the leading arrow gutter (22) so the first
-                                         chip of each row lines up with the strip's title, and
-                                         widened right by the chip's trailing margin (6) so the
-                                         wrap width still fits two chips per row. -->
-                                    <ScrollViewer Margin="-22,0,-6,0"
-                                                  HorizontalScrollBarVisibility="Disabled"
-                                                  VerticalScrollBarVisibility="Auto">
-                                        <ItemsControl Name="CommandListRight"
-                                                      ItemsSource="{Binding Commands}"
-                                                      VerticalAlignment="Top"
-                                                      ItemsPanel="{StaticResource ChipPanel}"
-                                                      ItemTemplate="{StaticResource CommandChipTemplate}"
-                                                      PointerMoved="CommandList_PointerMoved"
-                                                      PointerReleased="CommandList_PointerReleased"
-                                                      PointerCaptureLost="CommandList_PointerCaptureLost" />
-                                    </ScrollViewer>
-                                    <TextBlock Classes="hint" VerticalAlignment="Center"
-                                               Text="Empty — click this strip, then double-click a command, or drag one over here."
-                                               IsVisible="{Binding !Commands.Count}" />
-                                </Panel>
+                    <!-- Rotate Right -->
+                    <Border Grid.Row="1" Name="CommandDropZoneRight"
+                            x:DataType="vm:CommandSequenceSlot"
+                            DataContext="{Binding RotaryRightSlot}"
+                            Classes="sequence-strip"
+                            Classes.active="{Binding IsActive}"
+                            Margin="0,0,0,10">
+                        <Grid RowDefinitions="Auto,*">
+                            <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,8">
+                                <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
+                                    <TextBlock Classes="hint"
+                                               Text="{Binding Commands.Count, StringFormat='{}{0} command(s)'}" />
+                                </StackPanel>
+                                <Button Grid.Column="1" Content="Clear"
+                                        Command="{Binding ClearCommandCommand}"
+                                        IsEnabled="{Binding HasCommand}"
+                                        VerticalAlignment="Center"
+                                        MinWidth="70"
+                                        HorizontalContentAlignment="Center"
+                                        ToolTip.Tip="Remove all commands in this sequence" />
                             </Grid>
-                        </Border>
+                            <Panel Grid.Row="1" MinHeight="36">
+                                <!-- Pulled left by the leading arrow gutter (22) so the first
+                                     chip of each row lines up with the strip's title, and
+                                     widened right by the chip's trailing margin (6) so the
+                                     wrap width still fits two chips per row. -->
+                                <ScrollViewer Margin="-22,0,-6,0"
+                                              HorizontalScrollBarVisibility="Disabled"
+                                              VerticalScrollBarVisibility="Auto">
+                                    <ItemsControl Name="CommandListRight"
+                                                  ItemsSource="{Binding Commands}"
+                                                  VerticalAlignment="Top"
+                                                  ItemsPanel="{StaticResource ChipPanel}"
+                                                  ItemTemplate="{StaticResource CommandChipTemplate}"
+                                                  PointerMoved="CommandList_PointerMoved"
+                                                  PointerReleased="CommandList_PointerReleased"
+                                                  PointerCaptureLost="CommandList_PointerCaptureLost" />
+                                </ScrollViewer>
+                                <TextBlock Classes="hint" VerticalAlignment="Center"
+                                           Text="Empty — click this strip, then double-click a command, or drag one over here."
+                                           IsVisible="{Binding !Commands.Count}" />
+                            </Panel>
+                        </Grid>
+                    </Border>
 
-                        <!-- Button Press -->
-                        <Border Grid.Row="2" Name="CommandDropZonePress"
-                                x:DataType="vm:CommandSequenceSlot"
-                                DataContext="{Binding ButtonPressSlot}"
-                                Classes="sequence-strip"
-                                Classes.active="{Binding IsActive}">
-                            <Grid RowDefinitions="Auto,*">
-                                <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,8">
-                                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
-                                        <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
-                                        <TextBlock Classes="hint"
-                                                   Text="{Binding Commands.Count, StringFormat='{}{0} command(s)'}" />
-                                    </StackPanel>
-                                    <Button Grid.Column="1" Content="Clear"
-                                            Command="{Binding ClearCommandCommand}"
-                                            IsEnabled="{Binding HasCommand}"
-                                            VerticalAlignment="Center"
-                                            MinWidth="70"
-                                            HorizontalContentAlignment="Center"
-                                            ToolTip.Tip="Remove all commands in this sequence" />
-                                </Grid>
-                                <Panel Grid.Row="1" MinHeight="36">
-                                    <!-- Pulled left by the leading arrow gutter (22) so the first
-                                         chip of each row lines up with the strip's title, and
-                                         widened right by the chip's trailing margin (6) so the
-                                         wrap width still fits two chips per row. -->
-                                    <ScrollViewer Margin="-22,0,-6,0"
-                                                  HorizontalScrollBarVisibility="Disabled"
-                                                  VerticalScrollBarVisibility="Auto">
-                                        <ItemsControl Name="CommandListPress"
-                                                      ItemsSource="{Binding Commands}"
-                                                      VerticalAlignment="Top"
-                                                      ItemsPanel="{StaticResource ChipPanel}"
-                                                      ItemTemplate="{StaticResource CommandChipTemplate}"
-                                                      PointerMoved="CommandList_PointerMoved"
-                                                      PointerReleased="CommandList_PointerReleased"
-                                                      PointerCaptureLost="CommandList_PointerCaptureLost" />
-                                    </ScrollViewer>
-                                    <TextBlock Classes="hint" VerticalAlignment="Center"
-                                               Text="Empty — click this strip, then double-click a command, or drag one over here."
-                                               IsVisible="{Binding !Commands.Count}" />
-                                </Panel>
+                    <!-- Button Press -->
+                    <Border Grid.Row="2" Name="CommandDropZonePress"
+                            x:DataType="vm:CommandSequenceSlot"
+                            DataContext="{Binding ButtonPressSlot}"
+                            Classes="sequence-strip"
+                            Classes.active="{Binding IsActive}">
+                        <Grid RowDefinitions="Auto,*">
+                            <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,8">
+                                <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
+                                    <TextBlock Classes="hint"
+                                               Text="{Binding Commands.Count, StringFormat='{}{0} command(s)'}" />
+                                </StackPanel>
+                                <Button Grid.Column="1" Content="Clear"
+                                        Command="{Binding ClearCommandCommand}"
+                                        IsEnabled="{Binding HasCommand}"
+                                        VerticalAlignment="Center"
+                                        MinWidth="70"
+                                        HorizontalContentAlignment="Center"
+                                        ToolTip.Tip="Remove all commands in this sequence" />
                             </Grid>
-                        </Border>
-                    </Grid>
-
-                    <!-- Right: master-detail command picker, full height (issue #171) -->
-                    <Border Grid.Column="1"
-                            BorderBrush="{DynamicResource AppBorderSubtle}" BorderThickness="1" CornerRadius="4"
-                            Padding="4">
-                        <views:CommandPickerView Name="PickerControl"
-                                                 DataContext="{Binding CommandPicker}" />
+                            <Panel Grid.Row="1" MinHeight="36">
+                                <!-- Pulled left by the leading arrow gutter (22) so the first
+                                     chip of each row lines up with the strip's title, and
+                                     widened right by the chip's trailing margin (6) so the
+                                     wrap width still fits two chips per row. -->
+                                <ScrollViewer Margin="-22,0,-6,0"
+                                              HorizontalScrollBarVisibility="Disabled"
+                                              VerticalScrollBarVisibility="Auto">
+                                    <ItemsControl Name="CommandListPress"
+                                                  ItemsSource="{Binding Commands}"
+                                                  VerticalAlignment="Top"
+                                                  ItemsPanel="{StaticResource ChipPanel}"
+                                                  ItemTemplate="{StaticResource CommandChipTemplate}"
+                                                  PointerMoved="CommandList_PointerMoved"
+                                                  PointerReleased="CommandList_PointerReleased"
+                                                  PointerCaptureLost="CommandList_PointerCaptureLost" />
+                                </ScrollViewer>
+                                <TextBlock Classes="hint" VerticalAlignment="Center"
+                                           Text="Empty — click this strip, then double-click a command, or drag one over here."
+                                           IsVisible="{Binding !Commands.Count}" />
+                            </Panel>
+                        </Grid>
                     </Border>
                 </Grid>
+
+                <!-- Right: master-detail command picker, full height (issue #171) -->
+                <Border Grid.Column="1"
+                        BorderBrush="{DynamicResource AppBorderSubtle}" BorderThickness="1" CornerRadius="4"
+                        Padding="4">
+                    <views:CommandPickerView Name="PickerControl"
+                                             DataContext="{Binding CommandPicker}" />
+                </Border>
             </Grid>
-        </Border>
+        </Grid>
 
         <!-- ===== Drag ghost =====
              Floating chip that follows the cursor while dragging a command from
