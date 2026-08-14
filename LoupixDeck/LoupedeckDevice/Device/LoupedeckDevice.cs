@@ -1073,7 +1073,7 @@ public class LoupedeckDevice
                 if (bmp == null) continue;
                 var x = xBase + ((slot % Columns) * keySize);
                 var y = (slot / Columns) * keySize;
-                canvas.DrawBitmap(bmp, x, y);
+                canvas.DrawBitmap(bmp, x, y, SKSamplingOptions.Default, paint: null);
             }
         }
 

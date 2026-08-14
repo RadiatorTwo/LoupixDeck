@@ -513,7 +513,7 @@ public class PlayVideoCommand(IDeviceService deviceService, IExclusiveModeServic
             var col = s % cols;
             var row = s / cols;
             var src = new SKRect(col * 90, row * 90, (col * 90) + 90, (row * 90) + 90);
-            canvas.DrawBitmap(full, src, dst); // opaque source fully overwrites the tile
+            canvas.DrawBitmap(full, src, dst, SKSamplingOptions.Default, paint: null); // opaque source fully overwrites the tile
             await device.DrawTouchSlot(s, tile, refresh: false);
         }
     }

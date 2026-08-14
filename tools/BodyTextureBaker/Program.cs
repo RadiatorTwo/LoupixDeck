@@ -162,7 +162,7 @@ static int Bake(Variant variant, string input, string output, int W, double dark
     // Small-radius low-pass to isolate the fine grain (texture minus low-pass = grain).
     using var lowSurf = SKSurface.Create(info);
     using (var paint = new SKPaint { ImageFilter = SKImageFilter.CreateBlur(2.2f, 2.2f) })
-        lowSurf.Canvas.DrawBitmap(resized!, 0, 0, paint);
+        lowSurf.Canvas.DrawBitmap(resized!, 0, 0, SKSamplingOptions.Default, paint);
     using var low = SKBitmap.FromImage(lowSurf.Snapshot());
 
     static double Lum(SKColor c) => (0.299 * c.Red) + (0.587 * c.Green) + (0.114 * c.Blue);

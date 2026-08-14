@@ -158,8 +158,9 @@ public static class BitmapHelper
                 const float sweepAngle = 360f - gapAngle;
                 var coreWidth = 2.4f * ss;
 
-                using var ringPath = new SKPath();
-                ringPath.AddArc(oval, startAngle, sweepAngle);
+                using var ringBuilder = new SKPathBuilder();
+                ringBuilder.AddArc(oval, startAngle, sweepAngle);
+                using var ringPath = ringBuilder.Detach();
 
                 // Wide soft halo.
                 using (var halo = new SKPaint
@@ -575,7 +576,7 @@ public static class BitmapHelper
         using var canvas = new SKCanvas(dst);
         canvas.Translate(source.Width, 0);
         canvas.Scale(-1, 1);
-        canvas.DrawBitmap(source, 0, 0);
+        canvas.DrawBitmap(source, 0, 0, SKSamplingOptions.Default, paint: null);
         canvas.Flush();
         return dst;
     }
@@ -677,7 +678,7 @@ public static class BitmapHelper
                 var destRect = new SKRect(0, 0, width, height);
 
                 // Draw Wallpaper Cutout
-                canvas.DrawBitmap(wallpaperToUse, srcRect, destRect);
+                canvas.DrawBitmap(wallpaperToUse, srcRect, destRect, SKSamplingOptions.Default, paint: null);
 
                 // Semi-transparent background
                 using var paint = new SKPaint();
@@ -994,7 +995,8 @@ public static class BitmapHelper
         var drawX = ((deviceW - dstW) / 2f) + layer.PositionX;
         var drawY = ((deviceH - dstH) / 2f) + layer.PositionY;
 
-        canvas.DrawBitmap(bmp, srcRect, new SKRect(drawX, drawY, drawX + dstW, drawY + dstH));
+        canvas.DrawBitmap(bmp, srcRect, new SKRect(drawX, drawY, drawX + dstW, drawY + dstH),
+            SKSamplingOptions.Default, paint: null);
     }
 
     /// <summary>
@@ -1058,7 +1060,8 @@ public static class BitmapHelper
 
         canvas.Save();
         canvas.ClipRect(new SKRect(0, 0, width, height));
-        canvas.DrawBitmap(bmp, srcRect, new SKRect(drawX, drawY, drawX + dstW, drawY + dstH));
+        canvas.DrawBitmap(bmp, srcRect, new SKRect(drawX, drawY, drawX + dstW, drawY + dstH),
+            SKSamplingOptions.Default, paint: null);
         canvas.Restore();
     }
 
@@ -1084,7 +1087,8 @@ public static class BitmapHelper
             canvas.Save();
             canvas.ClipRect(new SKRect(0, 0, width, height));
             ApplyRotation(canvas, layer.Rotation, drawX + (dstW / 2f), drawY + (dstH / 2f));
-            canvas.DrawBitmap(bmp, new SKRect(drawX, drawY, drawX + dstW, drawY + dstH));
+            canvas.DrawBitmap(bmp, new SKRect(drawX, drawY, drawX + dstW, drawY + dstH),
+                SKSamplingOptions.Default, paint: null);
             canvas.Restore();
         }
     }
@@ -1116,7 +1120,8 @@ public static class BitmapHelper
 
             canvas.Save();
             ApplyRotation(canvas, layer.Rotation, drawX + (dstW / 2f), drawY + (dstH / 2f));
-            canvas.DrawBitmap(bmp, new SKRect(drawX, drawY, drawX + dstW, drawY + dstH));
+            canvas.DrawBitmap(bmp, new SKRect(drawX, drawY, drawX + dstW, drawY + dstH),
+                SKSamplingOptions.Default, paint: null);
             canvas.Restore();
         }
     }
@@ -1456,7 +1461,9 @@ public static class BitmapHelper
             var destRect = new SKRect(drawX, drawY, drawX + dstW, drawY + dstH);
             canvas.DrawBitmap(scaledBmp,
                 new SKRect(0, 0, dstW, dstH), // Quelle 1:1
-                destRect);
+                destRect,
+                sampling,
+                paint: null);
         }
 
         canvas.Flush();
@@ -1491,7 +1498,7 @@ public static class BitmapHelper
         {
             var destRect = new SKRect(0, 0, width, height);
             using var scaledImage = ScaleAndPositionBitmap(entry.Image, width, height);
-            canvas.DrawBitmap(scaledImage, destRect);
+            canvas.DrawBitmap(scaledImage, destRect, SKSamplingOptions.Default, paint: null);
         }
 
         if (!string.IsNullOrEmpty(entry.Text))
@@ -1542,10 +1549,11 @@ public static class BitmapHelper
         var cy = height / 2f;
         var size = Math.Min(width, height) * 0.30f;
 
-        using var path = new SKPath();
-        path.MoveTo(cx + (size * 0.5f), cy - size);
-        path.LineTo(cx - (size * 0.5f), cy);
-        path.LineTo(cx + (size * 0.5f), cy + size);
+        using var builder = new SKPathBuilder();
+        builder.MoveTo(cx + (size * 0.5f), cy - size);
+        builder.LineTo(cx - (size * 0.5f), cy);
+        builder.LineTo(cx + (size * 0.5f), cy + size);
+        using var path = builder.Detach();
 
         canvas.DrawPath(path, arrowPaint);
 
@@ -1673,11 +1681,11 @@ public static class BitmapHelper
         {
             using var canvas = new SKCanvas(bitmap);
             canvas.Clear(SKColors.Black);
-            canvas.DrawBitmap(current, 0, offsetY);
+            canvas.DrawBitmap(current, 0, offsetY, SKSamplingOptions.Default, paint: null);
             if (neighbor != null)
             {
                 var neighborY = offsetY < 0 ? offsetY + height : offsetY - height;
-                canvas.DrawBitmap(neighbor, 0, neighborY);
+                canvas.DrawBitmap(neighbor, 0, neighborY, SKSamplingOptions.Default, paint: null);
             }
             canvas.Flush();
         }
@@ -1705,11 +1713,11 @@ public static class BitmapHelper
         {
             using var canvas = new SKCanvas(bitmap);
             canvas.Clear(SKColors.Black);
-            canvas.DrawBitmap(current, offsetX, 0);
+            canvas.DrawBitmap(current, offsetX, 0, SKSamplingOptions.Default, paint: null);
             if (neighbor != null)
             {
                 var neighborX = offsetX < 0 ? offsetX + width : offsetX - width;
-                canvas.DrawBitmap(neighbor, neighborX, 0);
+                canvas.DrawBitmap(neighbor, neighborX, 0, SKSamplingOptions.Default, paint: null);
             }
             canvas.Flush();
         }
@@ -1739,7 +1747,7 @@ public static class BitmapHelper
                 if (slot == null) continue;
                 var x = (i % columns) * keySize;
                 var y = (i / columns) * keySize;
-                canvas.DrawBitmap(slot, x, y);
+                canvas.DrawBitmap(slot, x, y, SKSamplingOptions.Default, paint: null);
             }
             canvas.Flush();
         }
@@ -1805,7 +1813,7 @@ public static class BitmapHelper
         if (sideWallpaper != null)
         {
             var sideDest = new SKRect(0, 0, width, height);
-            canvas.DrawBitmap(sideWallpaper, sideDest);
+            canvas.DrawBitmap(sideWallpaper, sideDest, SKSamplingOptions.Default, paint: null);
             if (sideOpacity > 0)
             {
                 using var dim = new SKPaint { Color = new SKColor(0, 0, 0, (byte)(255 * sideOpacity)) };
@@ -1834,7 +1842,7 @@ public static class BitmapHelper
             height * scaleY);
         var destRect = new SKRect(0, 0, width, height);
 
-        canvas.DrawBitmap(wallpaper, srcRect, destRect);
+        canvas.DrawBitmap(wallpaper, srcRect, destRect, SKSamplingOptions.Default, paint: null);
 
         if (opacity > 0)
         {
@@ -1866,7 +1874,7 @@ public static class BitmapHelper
                 (row + 1) * height);
             var destRect = new SKRect(0, 0, width, height);
 
-            canvas.DrawBitmap(wallpaperToUse, srcRect, destRect);
+            canvas.DrawBitmap(wallpaperToUse, srcRect, destRect, SKSamplingOptions.Default, paint: null);
 
             using var paint = new SKPaint();
             paint.Color = new SKColor(0, 0, 0, (byte)(255 * opacityToUse));
@@ -2059,10 +2067,10 @@ public static class BitmapHelper
                 outlinePaint.StrokeJoin = SKStrokeJoin.Round;
                 outlinePaint.StrokeCap = SKStrokeCap.Round;
 
-                canvas.DrawText(line, drawX, drawY, font, outlinePaint);
+                canvas.DrawText(line, drawX, drawY, SKTextAlign.Left, font, outlinePaint);
             }
 
-            canvas.DrawText(line, drawX, drawY, font, textPaint);
+            canvas.DrawText(line, drawX, drawY, SKTextAlign.Left, font, textPaint);
         }
     }
 

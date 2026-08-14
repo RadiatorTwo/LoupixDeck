@@ -1605,7 +1605,8 @@ public partial class LoupedeckLiveSController(
             using var flash = new SkiaSharp.SKBitmap(width, height);
             using (var canvas = new SkiaSharp.SKCanvas(flash))
             {
-                if (original != null) canvas.DrawBitmap(original, 0, 0);
+                if (original != null)
+                    canvas.DrawBitmap(original, 0, 0, SkiaSharp.SKSamplingOptions.Default, paint: null);
                 var c = config.TouchFeedbackColor;
                 var alpha = (byte)Math.Clamp(255 * config.TouchFeedbackOpacity, 0, 255);
                 using var paint = new SkiaSharp.SKPaint
@@ -1915,7 +1916,8 @@ public partial class LoupedeckLiveSController(
             {
                 using var bmp = RenderSlot(bySlot, slot);
                 if (bmp == null) continue;
-                canvas.DrawBitmap(bmp, (slot % device.Columns) * keySize, (slot / device.Columns) * keySize);
+                canvas.DrawBitmap(bmp, (slot % device.Columns) * keySize, (slot / device.Columns) * keySize,
+                    SkiaSharp.SKSamplingOptions.Default, paint: null);
             }
         }
 
