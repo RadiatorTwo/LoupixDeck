@@ -62,6 +62,12 @@
     <!-- Was previously pulled in transitively via obs-websocket-dotnet, which
          moved into the OBS plugin; the core uses Newtonsoft.Json directly. -->
     <PackageReference Include="Newtonsoft.Json" />
+    <!-- Direct refs so CPM's SkiaSharp/HarfBuzzSharp pins win over Svg.Controls /
+         Avalonia transitives. The setup extracts these same Win32 natives from the
+         payload; a drift (e.g. 4.148 vs 4.151) crash-exits the installer UI. -->
+    <PackageReference Include="SkiaSharp" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Win32" />
+    <PackageReference Include="HarfBuzzSharp" />
     <PackageReference Include="SkiaSharp.NativeAssets.Linux" />
     <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" />
     <PackageReference Include="System.Drawing.Common" />
