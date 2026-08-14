@@ -5,8 +5,8 @@ command — clicking the assigned button writes a line to the host log.
 
 ## Prerequisites
 
-- [.NET 9 SDK](https://dotnet.microsoft.com/download/dotnet/9.0)
-- An IDE that supports .NET 9 (Rider, Visual Studio 2022 17.12+, or VS Code with
+- [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
+- An IDE that supports .NET 10 (Rider, Visual Studio 2022 17.14+, or VS Code with
   the C# Dev Kit)
 - LoupixDeck installed locally so you can drop the built plugin into its plugin
   folder and watch it load
@@ -16,7 +16,7 @@ command — clicking the assigned button writes a line to the host log.
 ## 1. Create the project
 
 ```powershell
-dotnet new classlib -n MyPlugin -f net9.0
+dotnet new classlib -n MyPlugin -f net10.0
 cd MyPlugin
 ```
 
@@ -115,7 +115,7 @@ A few rules baked into this sample:
 dotnet build -c Release
 ```
 
-The output lands in `bin/Release/net9.0/MyPlugin.dll`.
+The output lands in `bin/Release/net10.0/MyPlugin.dll`.
 
 ## 5. Install into LoupixDeck
 

@@ -33,7 +33,7 @@ assembly regardless of which 1.x package the plugin was built against.
 dotnet build -c Release
 ```
 
-Ship the contents of `bin/Release/net9.0/` **minus** `LoupixDeck.PluginSdk.dll`:
+Ship the contents of `bin/Release/net10.0/` **minus** `LoupixDeck.PluginSdk.dll`:
 
 - `MyPlugin.dll` — your plugin
 - Any third-party runtime dependencies (HttpClient libs, JSON serializers your
@@ -106,6 +106,6 @@ There is no central plugin registry yet. Typical release flow:
 
 1. Bump `PluginMetadata.Version` and the `<Version>` in the `.csproj`.
 2. `dotnet build -c Release`.
-3. Zip the `bin/Release/net9.0/` folder (without the SDK DLL).
+3. Zip the `bin/Release/net10.0/` folder (without the SDK DLL).
 4. Publish the zip as a GitHub Release on the plugin's own repo and tell users
    to extract it into `<plugin root>/<id>/`.

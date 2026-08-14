@@ -9,7 +9,7 @@
 
 It runs on **Linux** and **Windows**, lets you build custom touch pages, rotary controls, macros, integrations and plugins, and does not depend on the official vendor software.
 
-Built with **Avalonia** and **.NET 9**.
+Built with **Avalonia** and **.NET 10**.
 
 ![LoupixDeck main window](docs/screenshots/main-window-loupedeck.png)
 
@@ -351,7 +351,7 @@ If a configuration file becomes corrupted, LoupixDeck creates a backup before wr
 
 ## Build from Source
 
-Requires the [.NET 9 SDK](https://dotnet.microsoft.com/download).
+Requires the [.NET 10 SDK](https://dotnet.microsoft.com/download).
 
 ### Linux
 

@@ -8,7 +8,7 @@ library that references this SDK, ships as a folder under the host's plugin
 directory, and is loaded dynamically at startup.
 
 - **Current SDK version:** 1.6.0
-- **Target framework:** `net9.0`
+- **Target framework:** `net10.0`
 - **Package:** `LoupixDeck.PluginSdk` (NuGet)
 - **License:** MIT
 
