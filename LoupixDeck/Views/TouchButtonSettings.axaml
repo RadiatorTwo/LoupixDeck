@@ -184,6 +184,7 @@
             <Setter Property="Stroke" Value="#FF5B9BD5" />
             <Setter Property="StrokeThickness" Value="1" />
         </Style>
+
     </Window.Styles>
 
     <!-- The top area takes whatever height is left over after the bottom sequence, so the
@@ -756,20 +757,26 @@
                                                        IsVisible="{Binding IsCommandOwned}"
                                                        Text="{Binding CommandName, StringFormat='Text supplied by {0}'}" />
 
-                                            <Grid ColumnDefinitions="*,12,*" Margin="0,0,0,8">
-                                                <StackPanel Grid.Column="0">
-                                                    <TextBlock Classes="label" Text="Size" />
-                                                    <NumericUpDown Value="{Binding TextSize, Mode=TwoWay}"
-                                                                   Minimum="4" Maximum="80"
-                                                                   Increment="1" FormatString="0"
-                                                                   Margin="0,2,0,0" />
-                                                </StackPanel>
-                                                <StackPanel Grid.Column="2">
-                                                    <TextBlock Classes="label" Text="Color" />
+                                            <Grid ColumnDefinitions="*,12,*"
+                                                  RowDefinitions="Auto,Auto"
+                                                  Margin="0,0,0,8">
+                                                <TextBlock Grid.Row="0" Grid.Column="0"
+                                                           Classes="label" Text="Size" />
+                                                <NumericUpDown Grid.Row="1" Grid.Column="0"
+                                                               Value="{Binding TextSize, Mode=TwoWay}"
+                                                               Minimum="4" Maximum="80"
+                                                               Increment="1" FormatString="0"
+                                                               Height="32"
+                                                               Margin="0,2,0,0" />
+                                                <TextBlock Grid.Row="0" Grid.Column="2"
+                                                           Classes="label" Text="Color" />
+                                                <!-- Explicit pixel width: theme Width=64 is copied onto the
+                                                     inner DropDownButton; NaN collapses the swatch. -->
+                                                <Panel Grid.Row="1" Grid.Column="2" Margin="0,2,0,0">
                                                     <ccp:ColorPicker Color="{Binding TextColor, Mode=TwoWay}"
-                                                                     HorizontalAlignment="Stretch"
-                                                                     Margin="0,2,0,0" />
-                                                </StackPanel>
+                                                                     Height="32"
+                                                                     Width="{Binding $parent[Panel].Bounds.Width}" />
+                                                </Panel>
                                             </Grid>
 
                                             <TextBlock Classes="label" Text="Style" />
