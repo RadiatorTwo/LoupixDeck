@@ -48,7 +48,9 @@
                 <ToggleButton Classes="picker-group"
                               IsChecked="{Binding IsExpanded, Mode=TwoWay}"
                               ToolTip.Tip="Expand / collapse group">
-                    <Grid ColumnDefinitions="Auto,Auto,*,Auto">
+                    <!-- Inset on the grid (presenter padding is 0 for full-bleed
+                         hover). Right 20px is the overlay-scrollbar gutter. -->
+                    <Grid ColumnDefinitions="Auto,Auto,*,Auto" Margin="10,4,20,4">
                         <TextBlock Grid.Column="0" Classes="picker-group-chevron" />
                         <TextBlock Grid.Column="1" Classes="picker-rail-icon" Text="{Binding Icon}" />
                         <TextBlock Grid.Column="2" Classes="picker-group-title" Text="{Binding Title}" />

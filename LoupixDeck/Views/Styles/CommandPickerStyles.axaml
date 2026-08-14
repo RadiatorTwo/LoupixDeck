@@ -112,7 +112,7 @@
     <Style Selector="Border.picker-detail-header">
         <Setter Property="BorderBrush" Value="{DynamicResource AppBorderSubtle}" />
         <Setter Property="BorderThickness" Value="0,0,0,1" />
-        <Setter Property="Padding" Value="10,7,10,6" />
+        <Setter Property="Padding" Value="10,7,20,6" />
     </Style>
     <Style Selector="TextBlock.picker-detail-title">
         <Setter Property="FontSize" Value="13" />
@@ -140,7 +140,8 @@
         <Setter Property="Background" Value="{DynamicResource AppSurfaceLow}" />
         <Setter Property="BorderBrush" Value="{DynamicResource AppBorderSubtle}" />
         <Setter Property="BorderThickness" Value="0,1,0,1" />
-        <Setter Property="Padding" Value="10,4" />
+        <!-- Extra right inset: same overlay-scrollbar gutter as the group count. -->
+        <Setter Property="Padding" Value="10,4,20,4" />
     </Style>
     <Style Selector="Border.picker-result-header TextBlock.picker-rail-icon">
         <Setter Property="FontSize" Value="14" />
@@ -156,7 +157,10 @@
         <Setter Property="BorderBrush" Value="{DynamicResource AppBorderFaint}" />
         <Setter Property="BorderThickness" Value="0,0,0,1" />
         <Setter Property="CornerRadius" Value="0" />
-        <Setter Property="Padding" Value="10,4" />
+        <!-- Content inset (including the overlay-scrollbar gutter) lives on
+             the inner grid. Padding here is unused: the ContentPresenter
+             padding is forced to 0 so hover/checked fill the full row. -->
+        <Setter Property="Padding" Value="0" />
         <Setter Property="MinHeight" Value="34" />
         <Setter Property="HorizontalAlignment" Value="Stretch" />
         <Setter Property="HorizontalContentAlignment" Value="Stretch" />
@@ -227,7 +231,9 @@
         <Setter Property="Background" Value="Transparent" />
         <Setter Property="BorderBrush" Value="Transparent" />
         <Setter Property="BorderThickness" Value="2,0,0,0" />
-        <Setter Property="Padding" Value="12,9" />
+        <!-- Extra right inset matches the group-header gutter so row text
+             stays clear of the overlay scrollbar. -->
+        <Setter Property="Padding" Value="12,9,20,9" />
         <Setter Property="Cursor" Value="Hand" />
     </Style>
     <Style Selector="Border.picker-row-face:pointerover">
