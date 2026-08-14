@@ -212,6 +212,12 @@ Common button options:
 
 Changes are saved when you close the editor.
 
+### Button editor windows
+
+The touch-button, rotary, and physical-button editors can be resized. Drag a window edge or corner if you need more room for the preview, command sequence, or settings. Each editor has a minimum size so its controls remain usable.
+
+The command picker is wider in these editors. In the Touch Button editor, the behavior area has its own scroll bar, so a long command sequence scrolls inside that panel without pushing the main preview out of view. The Rotary and physical-button editors use the same clean picker layout without the old gray outer frame.
+
 ### Editing and Rearranging Buttons
 
 In v1.14.0 and later, the main window supports faster editing for buttons and side displays:
@@ -283,13 +289,14 @@ To assign commands:
 1. Open a touch button, physical button, rotary control, or page command editor.
 2. Select the command strip you want to edit.
 3. Open the command picker.
-4. Choose a category card, or press `Ctrl+K` and search across all available commands.
-5. Double-click a command to append it, press `Enter` on the selected command, or drag it into the strip.
-6. Use the edit icon on a command chip to set parameters.
-7. Drag chips to reorder them.
-8. Use remove or clear to delete commands.
+4. Select a group in the slim rail on the left: `Core`, `Macros`, or `Plugins`.
+5. Select a command in the list on the right. Plugin sub-groups still open inline when needed.
+6. Press `+ Add` in the footer to insert the selected command, or double-click/press `Enter` on a command as a shortcut.
+7. Use the edit icon on a command chip to set parameters.
+8. Drag chips to reorder them.
+9. Use remove or clear to delete commands.
 
-The command picker groups commands into `Core`, `Macros`, and `Plugins`. Each category card has an icon, description, and command count. Plugin groups can expand inline, so nested commands such as audio devices, OBS scenes, and Elgato lights can be opened without leaving the picker. Search results include their group path, which helps when different plugins expose similarly named commands.
+The picker shows the selected group's commands at full panel height. Rows use a compact two-line layout with an accent bar and separators. The footer identifies the selected command; `+ Add` stays disabled until a command is selected. Search with `Ctrl+K` still filters across all groups, including nested plugin commands, and shows each result's group path.
 
 Built-in command groups include:
 
