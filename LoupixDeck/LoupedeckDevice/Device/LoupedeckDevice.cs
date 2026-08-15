@@ -1,3 +1,5 @@
+using System.Buffers;
+using System.Buffers.Binary;
 using System.Collections.Concurrent;
 using System.Threading.Channels;
 using Avalonia.Media;
@@ -49,14 +51,22 @@ public class LoupedeckDevice
 
     private byte _transactionId;
 
-    private record QueueItem(
+    private readonly record struct QueueItem(
         Constants.Command Command,
         byte[] Data,
+        int Offset,
+        int Length,
         TaskCompletionSource<byte[]> Completion,
         bool ExpectResponse,
-        CancellationTokenSource TimeoutCts);
+        CancellationTokenSource TimeoutCts,
+        bool ReturnDataToPool,
+        bool HasReservedWsPrefix);
 
     private readonly Channel<QueueItem> _sendChannel = Channel.CreateUnbounded<QueueItem>();
+
+    // Reused after TryReset(). A cancelled CTS (real or DRAW timeout) cannot be reset and is disposed.
+    private static readonly ConcurrentBag<CancellationTokenSource> TimeoutCtsPool = [];
+    private static readonly CancellationTokenSource FireAndForgetCts = new();
     private bool _queueWorkerStarted;
     private volatile bool _suppressAutoReconnect;
 
@@ -292,18 +302,32 @@ public class LoupedeckDevice
                     if (_transactionId == 0)
                         _transactionId++;
 
-                    var length = (byte)Math.Min(3 + item.Data.Length, 0xff);
-                    byte[] header = [length, (byte)item.Command, _transactionId];
-                    var packet = header.Concat(item.Data).ToArray();
+                    int packetLength = 3 + item.Length;
+                    byte lengthByte = (byte)Math.Min(packetLength, 0xff);
 
                     if (item.ExpectResponse)
                     {
+                        // A previous command on this 1-byte id may have timed out without an
+                        // ACK; reclaim its CTS so the pool does not leak across the wrap.
+                        if (_pendingTimeouts.TryRemove(_transactionId, out CancellationTokenSource staleCts))
+                            ReturnTimeoutCts(staleCts);
+
                         _pendingTransactions[_transactionId] = item.Completion;
                         _pendingTimeouts[_transactionId] = item.TimeoutCts;
                         if (SendDiagnostics.Enabled) SendDiagnostics.OnSent(_transactionId);
                     }
 
-                    _connection?.Send(packet);
+                    if (item.HasReservedWsPrefix)
+                    {
+                        item.Data[item.Offset] = lengthByte;
+                        item.Data[item.Offset + 1] = (byte)item.Command;
+                        item.Data[item.Offset + 2] = _transactionId;
+                        _connection?.SendMaskedInPlace(item.Data, item.Offset, packetLength);
+                    }
+                    else
+                    {
+                        SendSmallPacket(item, lengthByte);
+                    }
 
                     if (!item.ExpectResponse)
                     {
@@ -314,6 +338,11 @@ public class LoupedeckDevice
                 catch (Exception ex)
                 {
                     item.Completion.TrySetException(ex);
+                }
+                finally
+                {
+                    if (item.ReturnDataToPool)
+                        ArrayPool<byte>.Shared.Return(item.Data);
                 }
             }
         });
@@ -405,25 +434,19 @@ public class LoupedeckDevice
     /// <param name="command">The command to send to the device.</param>
     /// <param name="data">Optional payload data for the command.</param>
     /// <returns>A task that completes with the device's response payload.</returns>
-    private async Task<byte[]> SendAsync(Constants.Command command, byte[] data = null)
+    private Task<byte[]> SendAsync(Constants.Command command, byte[] data = null)
     {
         data ??= [];
-
-        var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
-        var tcs = new TaskCompletionSource<byte[]>(TaskCreationOptions.RunContinuationsAsynchronously);
-
-        timeoutCts.Token.Register(() =>
-        {
-            tcs.TrySetException(new TimeoutException($"Timeout waiting for response to command {command}."));
-        });
-
-        var item = new QueueItem(command, data, tcs, true, timeoutCts);
-
-        // The cancellation token is not used for the write operation:
-        // ReSharper disable once MethodSupportsCancellation
-        await _sendChannel.Writer.WriteAsync(item);
-
-        return await tcs.Task;
+        return EnqueueAsync(
+            command,
+            data,
+            offset: 0,
+            length: data.Length,
+            expectResponse: true,
+            tolerateMissingAck: false,
+            timeout: TimeSpan.FromSeconds(3),
+            returnDataToPool: false,
+            hasReservedWsPrefix: false);
     }
 
     /// <summary>
@@ -441,28 +464,19 @@ public class LoupedeckDevice
     /// path is not stalled for the full default timeout. A real ACK, when it arrives,
     /// still completes the task via OnReceive exactly like any other command.
     /// </summary>
-    private async Task SendDrawAsync(byte[] data)
+    private Task SendDrawAsync(byte[] data)
     {
         data ??= [];
-
-        var timeoutCts = new CancellationTokenSource(DrawAckTimeout);
-        var tcs = new TaskCompletionSource<byte[]>(TaskCreationOptions.RunContinuationsAsynchronously);
-
-        timeoutCts.Token.Register(() =>
-        {
-            // Benign: complete successfully on a missing ACK. TrySetResult returns false
-            // if a real response already won via OnReceive, so this stays a no-op then.
-            if (tcs.TrySetResult([]) && SendDiagnostics.Enabled)
-                SendDiagnostics.OnTimeout(Constants.Command.DRAW, benign: true);
-        });
-
-        var item = new QueueItem(Constants.Command.DRAW, data, tcs, true, timeoutCts);
-
-        // The cancellation token is not used for the write operation:
-        // ReSharper disable once MethodSupportsCancellation
-        await _sendChannel.Writer.WriteAsync(item);
-
-        await tcs.Task;
+        return EnqueueAsync(
+            Constants.Command.DRAW,
+            data,
+            offset: 0,
+            length: data.Length,
+            expectResponse: true,
+            tolerateMissingAck: true,
+            timeout: DrawAckTimeout,
+            returnDataToPool: false,
+            hasReservedWsPrefix: false);
     }
 
     /// <summary>
@@ -472,18 +486,125 @@ public class LoupedeckDevice
     /// <param name="command">The command to send to the device.</param>
     /// <param name="data">Optional payload data for the command.</param>
     /// <returns>A task that completes when the command has been sent.</returns>
-    private async Task SendNoResponseAsync(Constants.Command command, byte[] data = null)
+    private Task SendNoResponseAsync(Constants.Command command, byte[] data = null)
     {
         data ??= [];
+        return EnqueueAsync(
+            command,
+            data,
+            offset: 0,
+            length: data.Length,
+            expectResponse: false,
+            tolerateMissingAck: false,
+            timeout: null,
+            returnDataToPool: false,
+            hasReservedWsPrefix: false);
+    }
 
-        var dummyCts = new CancellationTokenSource();
-        var tcs = new TaskCompletionSource<byte[]>(TaskCreationOptions.RunContinuationsAsynchronously);
+    private async Task<byte[]> EnqueueAsync(
+        Constants.Command command,
+        byte[] data,
+        int offset,
+        int length,
+        bool expectResponse,
+        bool tolerateMissingAck,
+        TimeSpan? timeout,
+        bool returnDataToPool,
+        bool hasReservedWsPrefix)
+    {
+        TaskCompletionSource<byte[]> tcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        CancellationTokenSource timeoutCts = expectResponse
+            ? RentTimeoutCts(timeout!.Value)
+            : FireAndForgetCts;
 
-        var item = new QueueItem(command, data, tcs, false, dummyCts);
+        if (expectResponse)
+        {
+            timeoutCts.Token.Register(() =>
+            {
+                if (tolerateMissingAck)
+                {
+                    // Benign: complete successfully on a missing ACK. TrySetResult returns false
+                    // if a real response already won via OnReceive, so this stays a no-op then.
+                    if (tcs.TrySetResult([]) && SendDiagnostics.Enabled)
+                        SendDiagnostics.OnTimeout(command, benign: true);
+                }
+                else
+                {
+                    tcs.TrySetException(new TimeoutException($"Timeout waiting for response to command {command}."));
+                }
+            });
+        }
 
-        // The cancellation token is not used for the write operation:
-        // ReSharper disable once MethodSupportsCancellation
-        await _sendChannel.Writer.WriteAsync(item);
+        QueueItem item = new(
+            command,
+            data,
+            offset,
+            length,
+            tcs,
+            expectResponse,
+            timeoutCts,
+            returnDataToPool,
+            hasReservedWsPrefix);
+
+        try
+        {
+            // The cancellation token is not used for the write operation:
+            // ReSharper disable once MethodSupportsCancellation
+            await _sendChannel.Writer.WriteAsync(item);
+        }
+        catch
+        {
+            if (returnDataToPool)
+                ArrayPool<byte>.Shared.Return(data);
+            if (expectResponse)
+                ReturnTimeoutCts(timeoutCts);
+            throw;
+        }
+
+        return await tcs.Task;
+    }
+
+    private void SendSmallPacket(in QueueItem item, byte lengthByte)
+    {
+        int packetLength = 3 + item.Length;
+        Span<byte> packet = packetLength <= 256
+            ? stackalloc byte[packetLength]
+            : new byte[packetLength];
+
+        packet[0] = lengthByte;
+        packet[1] = (byte)item.Command;
+        packet[2] = _transactionId;
+        if (item.Length > 0)
+            item.Data.AsSpan(item.Offset, item.Length).CopyTo(packet.Slice(3));
+
+        _connection?.Send(packet);
+    }
+
+    private static CancellationTokenSource RentTimeoutCts(TimeSpan timeout)
+    {
+        if (TimeoutCtsPool.TryTake(out CancellationTokenSource cts))
+        {
+            if (cts.TryReset())
+            {
+                cts.CancelAfter(timeout);
+                return cts;
+            }
+
+            cts.Dispose();
+        }
+
+        return new CancellationTokenSource(timeout);
+    }
+
+    private static void ReturnTimeoutCts(CancellationTokenSource cts)
+    {
+        if (ReferenceEquals(cts, FireAndForgetCts))
+            return;
+
+        if (cts.TryReset())
+            TimeoutCtsPool.Add(cts);
+        else
+            cts.Dispose();
     }
 
     /// <summary>
@@ -538,12 +659,8 @@ public class LoupedeckDevice
 
         if (SendDiagnostics.Enabled) SendDiagnostics.OnReceived(transactionId, command, matched);
 
-        // Additionally, cancel the timeout if it exists:
-        if (_pendingTimeouts.TryRemove(transactionId, out var cts))
-        {
-            cts.Cancel();
-            cts.Dispose();
-        }
+        if (_pendingTimeouts.TryRemove(transactionId, out CancellationTokenSource cts))
+            ReturnTimeoutCts(cts);
 
         // Dispatch based on the received command
         switch (command)
@@ -767,39 +884,49 @@ public class LoupedeckDevice
 
     /// <summary>
     /// Sends a 16-bit (5-6-5) image buffer to display "id" at the position (x,y).
+    /// <paramref name="packet"/> is a rented buffer whose layout is
+    /// [WS header slot][3-byte command header][display id][x,y,w,h][pixels].
+    /// Ownership of the rental transfers to the send queue.
     /// </summary>
-    private async Task DrawBuffer(string id, int width, int height, byte[] buffer, int x = 0, int y = 0,
-        bool autoRefresh = true)
+    private async Task DrawBuffer(
+        string id,
+        DisplayInfo displayInfo,
+        int width,
+        int height,
+        byte[] packet,
+        int packetOffset,
+        int packetLength,
+        bool autoRefresh)
     {
-        if (Displays == null || !Displays.TryGetValue(id, out var displayInfo))
-            throw new Exception($"Display '{id}' is not available on this device!");
+        try
+        {
+            int pixelBytes = width * height * 2;
+            int expectedPacket = 3 + displayInfo.Id.Length + 8 + pixelBytes;
+            if (packetLength != expectedPacket)
+                throw new Exception($"Expected buffer length of {pixelBytes}, got {packetLength - 3 - displayInfo.Id.Length - 8}!");
 
-        if (width == 0)
-            width = displayInfo.Width;
-        if (height == 0)
-            height = displayInfo.Height;
+            Task send = EnqueueAsync(
+                Constants.Command.FRAMEBUFF,
+                packet,
+                packetOffset,
+                packetLength - 3,
+                expectResponse: true,
+                tolerateMissingAck: false,
+                timeout: TimeSpan.FromSeconds(3),
+                returnDataToPool: true,
+                hasReservedWsPrefix: true);
+            packet = null;
 
-        if (buffer.Length != width * height * 2)
-            throw new Exception($"Expected buffer length of {width * height * 2}, got {buffer.Length}!");
+            await send;
 
-        var header = new byte[8];
-
-        // Write x, y, width, and height as big-endian UInt16
-
-        header[0] = (byte)((x >> 8) & 0xff);
-        header[1] = (byte)(x & 0xff);
-        header[2] = (byte)((y >> 8) & 0xff);
-        header[3] = (byte)(y & 0xff);
-        header[4] = (byte)((width >> 8) & 0xff);
-        header[5] = (byte)(width & 0xff);
-        header[6] = (byte)((height >> 8) & 0xff);
-        header[7] = (byte)(height & 0xff);
-
-        var data = displayInfo.Id.Concat(header).Concat(buffer).ToArray();
-        await SendAsync(Constants.Command.FRAMEBUFF, data);
-
-        if (autoRefresh)
-            await Refresh(id);
+            if (autoRefresh)
+                await Refresh(id);
+        }
+        finally
+        {
+            if (packet != null)
+                ArrayPool<byte>.Shared.Return(packet);
+        }
     }
 
     /// <summary>
@@ -832,13 +959,41 @@ public class LoupedeckDevice
         if (height == 0)
             height = displayInfo.Height;
 
-        // Convert the RenderTargetBitmap into a 16-bit-5-6-5 array. The destination position
-        // is passed along so the dither pattern anchors to absolute display coordinates
-        // rather than to this region's local origin.
-        var buffer = ConvertSKBitmapToRaw16BppUnsafe(bitmap, x, y);
+        // One rented buffer holds the WS prefix, command header, display id, x/y/w/h,
+        // and RGB565 pixels. The send queue writes the command header and masks in place.
+        byte[] displayId = displayInfo.Id;
+        int pixelBytes = width * height * 2;
+        int commandPacketLength = 3 + displayId.Length + 8 + pixelBytes;
+        int wsHeaderLength = SerialConnection.MaskedHeaderLength(commandPacketLength);
+        int packetOffset = wsHeaderLength;
+        int bodyOffset = packetOffset + 3;
 
-        // Pass the buffer to the actual DrawBuffer
-        await DrawBuffer(id, width, height, buffer, x, y, autoRefresh);
+        byte[] rented = ArrayPool<byte>.Shared.Rent(wsHeaderLength + commandPacketLength);
+        try
+        {
+            displayId.CopyTo(rented.AsSpan(bodyOffset));
+
+            Span<byte> header = rented.AsSpan(bodyOffset + displayId.Length, 8);
+            BinaryPrimitives.WriteUInt16BigEndian(header, (ushort)x);
+            BinaryPrimitives.WriteUInt16BigEndian(header.Slice(2), (ushort)y);
+            BinaryPrimitives.WriteUInt16BigEndian(header.Slice(4), (ushort)width);
+            BinaryPrimitives.WriteUInt16BigEndian(header.Slice(6), (ushort)height);
+
+            ConvertSKBitmapToRaw16BppUnsafe(
+                bitmap,
+                rented.AsSpan(bodyOffset + displayId.Length + 8, pixelBytes),
+                x,
+                y);
+
+            byte[] packet = rented;
+            rented = null;
+            await DrawBuffer(id, displayInfo, width, height, packet, packetOffset, commandPacketLength, autoRefresh);
+        }
+        finally
+        {
+            if (rented != null)
+                ArrayPool<byte>.Shared.Return(rented);
+        }
     }
 
     /// <summary>
@@ -860,25 +1015,29 @@ public class LoupedeckDevice
     }
 
     /// <summary>
-    /// Converts a RenderTargetBitmap (usually BGRA32) into a 16-bit-565 byte array.
+    /// Converts a RenderTargetBitmap (usually BGRA32) into 16-bit-565 bytes in <paramref name="output"/>.
     /// </summary>
     /// <param name="bitmap">Source bitmap in BGRA8888.</param>
+    /// <param name="output">Destination RGB565 bytes; must be at least width*height*2 long.
+    /// A rented array may be larger than that — only the exact pixel count is written.</param>
     /// <param name="originX">Absolute X of the bitmap on the target display.</param>
     /// <param name="originY">Absolute Y of the bitmap on the target display.</param>
-    private unsafe byte[] ConvertSKBitmapToRaw16BppUnsafe(SKBitmap bitmap, int originX = 0, int originY = 0)
+    private unsafe void ConvertSKBitmapToRaw16BppUnsafe(SKBitmap bitmap, Span<byte> output, int originX = 0, int originY = 0)
     {
         if (bitmap == null || bitmap.IsNull)
-            throw new InvalidOperationException("Bitmap ist null oder leer.");
+            throw new InvalidOperationException("Bitmap is null or empty.");
 
         if (bitmap.ColorType != SKColorType.Bgra8888)
-            throw new InvalidOperationException("Bitmap muss im Format BGRA8888 vorliegen.");
+            throw new InvalidOperationException("Bitmap must be BGRA8888.");
 
         int width = bitmap.Width;
         int height = bitmap.Height;
         int pixelCount = width * height;
+        int pixelBytes = pixelCount * 2;
+        if (output.Length < pixelBytes)
+            throw new ArgumentException($"RGB565 destination is {output.Length} bytes, need {pixelBytes}.", nameof(output));
 
-        // Output array for 16-bit RGB565 (2 bytes per pixel)
-        byte[] output = new byte[pixelCount * 2];
+        output = output.Slice(0, pixelBytes);
 
         // Pixel access runs under the shared render gate so it never overlaps a
         // RenderTouchButtonContent/composite on another thread
@@ -955,8 +1114,6 @@ public class LoupedeckDevice
             // to) is not finalized during the loop → no use-after-free.
             GC.KeepAlive(bitmap);
         }
-
-        return output;
     }
 
     /// <summary>

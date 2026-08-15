@@ -67,6 +67,7 @@
     <PackageReference Include="System.Drawing.Common" />
     <PackageReference Include="System.IO.Ports" />
     <PackageReference Include="System.Management" />
+    <PackageReference Include="System.Numerics.Tensors" />
     <PackageReference Include="Tmds.DBus" />
   </ItemGroup>
 </Project>

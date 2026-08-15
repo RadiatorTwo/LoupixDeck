@@ -1,4 +1,7 @@
+using System.Buffers;
+using System.Buffers.Binary;
 using System.IO.Ports;
+using System.Numerics.Tensors;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -166,71 +169,137 @@ public class SerialConnection : ISerialConnection
     }
 
     /// <summary>
-    /// Sends data over the serial connection (including a header).
-    /// In the Node.js equivalent code, there is a distinction between raw and non-raw data.
-    /// This interface only provides Send(byte[] data), so a header is always included.
-    /// If you need a raw send, the interface would need to be adapted.
+    /// Bytes occupied by a masked binary WebSocket header (opcode + length + 4-byte mask)
+    /// for a payload of <paramref name="payloadLength"/> bytes. FRAMEBUFF writers reserve
+    /// this many bytes in front of the command packet so masking can happen in place.
     /// </summary>
-    /// <param name="data">The data to be sent.</param>
-    public void Send(byte[] data)
+    public static int MaskedHeaderLength(int payloadLength)
+    {
+        if (payloadLength <= 125) return 6;
+        if (payloadLength <= 0xFFFF) return 8;
+        return 14;
+    }
+
+    /// <summary>
+    /// Sends data over the serial connection as a masked binary WebSocket frame
+    /// (RFC 6455 §5.2/§5.3). Newer Loupedeck firmware (>=0.2.26) rejects unmasked frames.
+    /// </summary>
+    public void Send(ReadOnlySpan<byte> data)
     {
         if (!IsReady)
-        {
             return;
-        }
 
+        int payloadLength = data.Length;
+        int headerLength = MaskedHeaderLength(payloadLength);
+        int frameLength = headerLength + payloadLength;
+        byte[] frame = ArrayPool<byte>.Shared.Rent(frameLength);
         try
         {
-            // Binary WebSocket frame (opcode 0x2). As a client we MUST mask the
-            // payload (RFC 6455 §5.2/§5.3): a 4-byte mask key follows the length
-            // field and each payload byte is XOR'd with mask[i % 4]. The mask bit
-            // (0x80) is set in the length byte. Newer Loupedeck firmware (>=0.2.26)
-            // rejects unmasked frames, so the whole frame is written in one call.
-            var mask = RandomNumberGenerator.GetBytes(4);
-            var maskedPayload = new byte[data.Length];
-            for (var i = 0; i < data.Length; i++)
-                maskedPayload[i] = (byte)(data[i] ^ mask[i % 4]);
-
-            byte[] frame;
-            if (data.Length <= 125)
-            {
-                // 2-byte header + 4-byte mask + payload.
-                frame = new byte[6 + data.Length];
-                frame[0] = 0x82;
-                frame[1] = (byte)(0x80 | data.Length);
-                Buffer.BlockCopy(mask, 0, frame, 2, 4);
-                Buffer.BlockCopy(maskedPayload, 0, frame, 6, data.Length);
-            }
-            else if (data.Length <= 0xFFFF)
-            {
-                // 0xFE = masked + 16-bit extended length.
-                frame = new byte[8 + data.Length];
-                frame[0] = 0x82;
-                frame[1] = 0xFE;
-                frame[2] = (byte)((data.Length >> 8) & 0xFF);
-                frame[3] = (byte)(data.Length & 0xFF);
-                Buffer.BlockCopy(mask, 0, frame, 4, 4);
-                Buffer.BlockCopy(maskedPayload, 0, frame, 8, data.Length);
-            }
-            else
-            {
-                // 0xFF = masked + 64-bit extended length.
-                frame = new byte[14 + data.Length];
-                frame[0] = 0x82;
-                frame[1] = 0xFF;
-                WriteUInt64Be(frame, 2, (ulong)data.Length);
-                Buffer.BlockCopy(mask, 0, frame, 10, 4);
-                Buffer.BlockCopy(maskedPayload, 0, frame, 14, data.Length);
-            }
-
-            _serialPort?.Write(frame, 0, frame.Length);
+            WriteMaskedFrame(frame.AsSpan(0, frameLength), data, payloadLength);
+            _serialPort?.Write(frame, 0, frameLength);
         }
         catch (Exception ex)
         {
-            // On send error, trigger Disconnected or handle as appropriate.
             Disconnected?.Invoke(this, new ConnectionEventArgs(_portName, ex));
             Close();
         }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(frame);
+        }
+    }
+
+    /// <inheritdoc />
+    public void SendMaskedInPlace(byte[] buffer, int payloadOffset, int payloadLength)
+    {
+        if (!IsReady)
+            return;
+
+        ArgumentNullException.ThrowIfNull(buffer);
+
+        int headerLength = MaskedHeaderLength(payloadLength);
+        if (payloadOffset < headerLength)
+            throw new ArgumentException("Buffer has no reserved WebSocket header prefix.", nameof(payloadOffset));
+        if (payloadOffset + payloadLength > buffer.Length)
+            throw new ArgumentOutOfRangeException(nameof(payloadLength));
+
+        int start = payloadOffset - headerLength;
+        int frameLength = headerLength + payloadLength;
+        try
+        {
+            WriteMaskedFrame(
+                buffer.AsSpan(start, frameLength),
+                buffer.AsSpan(payloadOffset, payloadLength),
+                payloadLength);
+            _serialPort?.Write(buffer, start, frameLength);
+        }
+        catch (Exception ex)
+        {
+            Disconnected?.Invoke(this, new ConnectionEventArgs(_portName, ex));
+            Close();
+        }
+    }
+
+    /// <summary>
+    /// Builds a masked binary WebSocket frame in <paramref name="frame"/>. The payload
+    /// region of <paramref name="frame"/> may alias <paramref name="payload"/> (in-place).
+    /// </summary>
+    private static void WriteMaskedFrame(Span<byte> frame, ReadOnlySpan<byte> payload, int payloadLength)
+    {
+        int maskOffset;
+        frame[0] = 0x82;
+        if (payloadLength <= 125)
+        {
+            frame[1] = (byte)(0x80 | payloadLength);
+            maskOffset = 2;
+        }
+        else if (payloadLength <= 0xFFFF)
+        {
+            frame[1] = 0xFE;
+            BinaryPrimitives.WriteUInt16BigEndian(frame.Slice(2), (ushort)payloadLength);
+            maskOffset = 4;
+        }
+        else
+        {
+            frame[1] = 0xFF;
+            BinaryPrimitives.WriteUInt64BigEndian(frame.Slice(2), (ulong)payloadLength);
+            maskOffset = 10;
+        }
+
+        Span<byte> mask = frame.Slice(maskOffset, 4);
+        RandomNumberGenerator.Fill(mask);
+
+        Span<byte> payloadDest = frame.Slice(maskOffset + 4, payloadLength);
+        XorRepeatingMask(payload, mask, payloadDest);
+    }
+
+    /// <summary>
+    /// XOR <paramref name="source"/> with a repeating 4-byte mask into <paramref name="destination"/>.
+    /// Source and destination may be the same span. The mask is tiled to 256 bytes so
+    /// <see cref="TensorPrimitives.Xor{T}(ReadOnlySpan{T}, ReadOnlySpan{T}, Span{T})"/> runs as SIMD.
+    /// </summary>
+    private static void XorRepeatingMask(ReadOnlySpan<byte> source, ReadOnlySpan<byte> mask4, Span<byte> destination)
+    {
+        Span<byte> tiled = stackalloc byte[256];
+        byte m0 = mask4[0], m1 = mask4[1], m2 = mask4[2], m3 = mask4[3];
+        for (int i = 0; i < tiled.Length; i += 4)
+        {
+            tiled[i] = m0;
+            tiled[i + 1] = m1;
+            tiled[i + 2] = m2;
+            tiled[i + 3] = m3;
+        }
+
+        int offset = 0;
+        while (offset + tiled.Length <= source.Length)
+        {
+            TensorPrimitives.Xor(source.Slice(offset, tiled.Length), tiled, destination.Slice(offset, tiled.Length));
+            offset += tiled.Length;
+        }
+
+        int remaining = source.Length - offset;
+        if (remaining > 0)
+            TensorPrimitives.Xor(source.Slice(offset, remaining), tiled.Slice(0, remaining), destination.Slice(offset, remaining));
     }
 
     /// <summary>
@@ -427,39 +496,6 @@ public class SerialConnection : ISerialConnection
             // Ensure the connection is closed in any case
             Close();
         }
-    }
-
-    /// <summary>
-    /// Writes a 32-bit unsigned integer into the specified buffer using big-endian format.
-    /// </summary>
-    /// <param name="buffer">The target buffer.</param>
-    /// <param name="startIndex">Position to begin writing in the buffer.</param>
-    /// <param name="value">The 32-bit unsigned integer value.</param>
-    private static void WriteUInt32Be(byte[] buffer, int startIndex, uint value)
-    {
-        buffer[startIndex] = (byte)((value >> 24) & 0xFF);
-        buffer[startIndex + 1] = (byte)((value >> 16) & 0xFF);
-        buffer[startIndex + 2] = (byte)((value >> 8) & 0xFF);
-        buffer[startIndex + 3] = (byte)(value & 0xFF);
-    }
-
-    /// <summary>
-    /// Writes a 64-bit unsigned integer into the specified buffer using big-endian format.
-    /// Used for WebSocket frames whose payload exceeds 0xFFFF bytes.
-    /// </summary>
-    /// <param name="buffer">The target buffer.</param>
-    /// <param name="startIndex">Position to begin writing in the buffer.</param>
-    /// <param name="value">The 64-bit unsigned integer value.</param>
-    private static void WriteUInt64Be(byte[] buffer, int startIndex, ulong value)
-    {
-        buffer[startIndex] = (byte)((value >> 56) & 0xFF);
-        buffer[startIndex + 1] = (byte)((value >> 48) & 0xFF);
-        buffer[startIndex + 2] = (byte)((value >> 40) & 0xFF);
-        buffer[startIndex + 3] = (byte)((value >> 32) & 0xFF);
-        buffer[startIndex + 4] = (byte)((value >> 24) & 0xFF);
-        buffer[startIndex + 5] = (byte)((value >> 16) & 0xFF);
-        buffer[startIndex + 6] = (byte)((value >> 8) & 0xFF);
-        buffer[startIndex + 7] = (byte)(value & 0xFF);
     }
 
 }
