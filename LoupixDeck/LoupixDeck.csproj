@@ -65,6 +65,7 @@
     <PackageReference Include="SkiaSharp.NativeAssets.Linux" />
     <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" />
     <PackageReference Include="System.Drawing.Common" />
+    <PackageReference Include="System.IO.Hashing" />
     <PackageReference Include="System.IO.Ports" />
     <PackageReference Include="System.Management" />
     <PackageReference Include="System.Numerics.Tensors" />

@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.IO.Hashing;
 using LoupixDeck.LoupedeckDevice;
 using LoupixDeck.Models;
 using LoupixDeck.Models.Extensions;
@@ -2002,12 +2003,7 @@ public partial class LoupedeckLiveSController(
         private static int HashImage(byte[] img)
         {
             if (img == null || img.Length == 0) return 0;
-            unchecked
-            {
-                var h = (int)2166136261;
-                foreach (var b in img) h = (h ^ b) * 16777619;
-                return h;
-            }
+            return unchecked((int)XxHash32.HashToUInt32(img));
         }
     }
 

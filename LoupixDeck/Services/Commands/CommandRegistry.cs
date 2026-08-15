@@ -1,3 +1,4 @@
+using System.Collections.Frozen;
 using LoupixDeck.PluginSdk;
 
 namespace LoupixDeck.Services.Commands;
@@ -13,7 +14,7 @@ public class CommandRegistry : ICommandRegistry
     // readers take a local copy of the reference and an in-flight Execute keeps
     // running against the snapshot it already captured.
     private volatile IReadOnlyDictionary<string, RegisteredCommand> _commands =
-        new Dictionary<string, RegisteredCommand>(StringComparer.Ordinal);
+        FrozenDictionary<string, RegisteredCommand>.Empty;
 
     public CommandRegistry(IEnumerable<ICommandProvider> providers)
     {
@@ -48,7 +49,7 @@ public class CommandRegistry : ICommandRegistry
             }
         }
 
-        _commands = next; // atomic publish
+        _commands = next.ToFrozenDictionary(StringComparer.Ordinal);
     }
 
     public bool Contains(string commandName)

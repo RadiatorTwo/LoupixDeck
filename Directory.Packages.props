@@ -32,6 +32,7 @@
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.11" />
     <PackageVersion Include="Microsoft.Win32.SystemEvents" Version="10.0.11" />
     <PackageVersion Include="System.Drawing.Common" Version="10.0.11" />
+    <PackageVersion Include="System.IO.Hashing" Version="10.0.11" />
     <PackageVersion Include="System.IO.Ports" Version="10.0.11" />
     <PackageVersion Include="System.Management" Version="10.0.11" />
     <PackageVersion Include="System.Numerics.Tensors" Version="10.0.11" />

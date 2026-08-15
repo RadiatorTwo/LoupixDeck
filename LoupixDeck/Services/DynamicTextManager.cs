@@ -89,7 +89,7 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
                 if (button == null || string.IsNullOrWhiteSpace(button.Command))
                     continue;
 
-                var name = ParseCommandName(button.Command);
+                var name = CommandStringParser.GetName(button.Command);
                 if (string.IsNullOrEmpty(name))
                     continue;
 
@@ -102,7 +102,7 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
                 if (!isText && !isImage)
                     continue;
 
-                var parms = ParseParameters(button.Command);
+                var parms = CommandStringParser.GetParameters(button.Command);
                 var interval = command.UpdateInterval;
                 if (interval < TimeSpan.FromMilliseconds(250))
                     interval = TimeSpan.FromMilliseconds(250);
@@ -370,7 +370,7 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
         if (button == null || string.IsNullOrWhiteSpace(button.Command))
             return null;
 
-        var name = ParseCommandName(button.Command);
+        var name = CommandStringParser.GetName(button.Command);
         if (string.IsNullOrEmpty(name))
             return null;
 
@@ -414,26 +414,4 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
         StopLoop();
     }
 
-    private static string ParseCommandName(string command)
-    {
-        if (string.IsNullOrWhiteSpace(command))
-            return string.Empty;
-
-        var end = command.IndexOf('(');
-        return end == -1 ? command : command.Substring(0, end);
-    }
-
-    private static string[] ParseParameters(string command)
-    {
-        if (string.IsNullOrWhiteSpace(command))
-            return Array.Empty<string>();
-
-        var start = command.IndexOf('(');
-        var end = command.IndexOf(')');
-        if (start == -1 || end == -1 || end <= start)
-            return Array.Empty<string>();
-
-        var parameterString = command.Substring(start + 1, end - start - 1);
-        return parameterString.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-    }
 }

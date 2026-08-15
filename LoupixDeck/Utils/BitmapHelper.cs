@@ -2076,71 +2076,113 @@ public static class BitmapHelper
 
     private static List<string> WrapText(string text, SKFont font, float maxWidth)
     {
-        var lines = new List<string>();
+        List<string> lines = [];
+        if (string.IsNullOrEmpty(text))
+            return lines;
 
-        // Honor explicit line breaks first — each segment is then width-wrapped
-        // independently. Without this, '\n' (and '\r') would fall into the
-        // space-split below and render as missing-glyph boxes.
-        var segments = text.Replace("\r\n", "\n").Split('\n');
-        if (segments.Length > 1)
+        ReadOnlySpan<char> span = text.AsSpan();
+        if (span.Contains('\n'))
         {
-            foreach (var segment in segments)
-                lines.AddRange(WrapText(segment, font, maxWidth));
+            foreach (Range range in span.Split('\n'))
+            {
+                ReadOnlySpan<char> segment = span[range];
+                if (segment is [.., '\r'])
+                    segment = segment[..^1];
+                WrapParagraph(segment, font, maxWidth, lines);
+            }
+
             return lines;
         }
 
-        var words = text.Split(' ');
-        var currentLine = new StringBuilder();
+        WrapParagraph(span, font, maxWidth, lines);
+        return lines;
+    }
 
-        foreach (var word in words)
+    private static void WrapParagraph(ReadOnlySpan<char> text, SKFont font, float maxWidth, List<string> lines)
+    {
+        StringBuilder currentLine = new();
+
+        foreach (Range wordRange in text.Split(' '))
         {
-            var testLine = currentLine.Length == 0 ? word : currentLine + " " + word;
-            var testWidth = font.MeasureText(testLine);
-
-            if (testWidth <= maxWidth)
+            ReadOnlySpan<char> word = text[wordRange];
+            if (MeasureJoined(font, currentLine, word) <= maxWidth)
             {
-                currentLine.Append(currentLine.Length == 0 ? word : " " + word);
+                if (currentLine.Length > 0)
+                    currentLine.Append(' ');
+                currentLine.Append(word);
+                continue;
+            }
+
+            if (currentLine.Length > 0)
+            {
+                lines.Add(currentLine.ToString());
+                currentLine.Clear();
+            }
+
+            if (font.MeasureText(word) > maxWidth)
+            {
+                foreach (char c in word)
+                {
+                    int mark = currentLine.Length;
+                    currentLine.Append(c);
+                    if (MeasureLine(font, currentLine) <= maxWidth)
+                        continue;
+
+                    currentLine.Length = mark;
+                    lines.Add(currentLine.ToString());
+                    currentLine.Clear();
+                    currentLine.Append(c);
+                }
             }
             else
             {
-                if (currentLine.Length > 0)
-                {
-                    lines.Add(currentLine.ToString());
-                    currentLine.Clear();
-                }
-
-                // If a single word is too long, break it down
-                if (font.MeasureText(word) > maxWidth)
-                {
-                    var chars = word.ToCharArray();
-                    currentLine.Clear();
-                    foreach (var c in chars)
-                    {
-                        var testChar = currentLine.ToString() + c;
-                        if (font.MeasureText(testChar) <= maxWidth)
-                        {
-                            currentLine.Append(c);
-                        }
-                        else
-                        {
-                            lines.Add(currentLine.ToString());
-                            currentLine.Clear();
-                            currentLine.Append(c);
-                        }
-                    }
-                }
-                else
-                {
-                    currentLine.Append(word);
-                }
+                currentLine.Append(word);
             }
         }
 
         if (currentLine.Length > 0)
-        {
             lines.Add(currentLine.ToString());
+    }
+
+    private static float MeasureJoined(SKFont font, StringBuilder current, ReadOnlySpan<char> word)
+    {
+        int extra = current.Length == 0 ? word.Length : 1 + word.Length;
+        int total = current.Length + extra;
+        if (total == 0)
+            return 0;
+
+        if (total <= 256)
+        {
+            Span<char> buffer = stackalloc char[total];
+            current.CopyTo(0, buffer, current.Length);
+            int written = current.Length;
+            if (written > 0)
+                buffer[written++] = ' ';
+            word.CopyTo(buffer[written..]);
+            return font.MeasureText(buffer);
         }
 
-        return lines;
+        int mark = current.Length;
+        if (mark > 0)
+            current.Append(' ');
+        current.Append(word);
+        float width = MeasureLine(font, current);
+        current.Length = mark;
+        return width;
+    }
+
+    private static float MeasureLine(SKFont font, StringBuilder line)
+    {
+        if (line.Length == 0)
+            return 0;
+
+        if (line.Length <= 256)
+        {
+            Span<char> buffer = stackalloc char[line.Length];
+            line.CopyTo(0, buffer, line.Length);
+            return font.MeasureText(buffer);
+        }
+
+        return font.MeasureText(line.ToString());
     }
 }

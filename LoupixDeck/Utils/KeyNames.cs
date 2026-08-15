@@ -1,3 +1,5 @@
+using System.Collections.Frozen;
+
 namespace LoupixDeck.Utils;
 
 /// <summary>
@@ -27,7 +29,7 @@ namespace LoupixDeck.Utils;
 public static class KeyNames
 {
     // Canonical name -> Linux evdev key code (see input-event-codes.h).
-    private static readonly Dictionary<string, int> Linux = new(StringComparer.OrdinalIgnoreCase)
+    private static readonly FrozenDictionary<string, int> Linux = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
     {
         // Modifiers
         ["ctrl"] = 29,        // KEY_LEFTCTRL
@@ -130,13 +132,16 @@ public static class KeyNames
         ["launchmedia"] = 226,      // KEY_MEDIA
         ["launchcomputer"] = 157,   // KEY_COMPUTER
         ["launchcalculator"] = 140, // KEY_CALC
-    };
+    }.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
+
+    private static readonly FrozenDictionary<string, int>.AlternateLookup<ReadOnlySpan<char>> LinuxBySpan =
+        Linux.GetAlternateLookup<ReadOnlySpan<char>>();
 
     // Canonical name -> Windows virtual-key code (VK_*) + extended-key flag.
     // Extended keys (right ctrl/alt, Win/Apps, navigation block, arrows) require
     // KEYEVENTF_EXTENDEDKEY when sent via SendInput.
-    private static readonly Dictionary<string, (int virtualKey, bool extended)> Windows =
-        new(StringComparer.OrdinalIgnoreCase)
+    private static readonly FrozenDictionary<string, (int virtualKey, bool extended)> Windows =
+        new Dictionary<string, (int virtualKey, bool extended)>(StringComparer.OrdinalIgnoreCase)
         {
             // Modifiers
             ["ctrl"] = (0x11, false),   // VK_CONTROL
@@ -243,14 +248,17 @@ public static class KeyNames
             // German board but VK_OEM_4 on a US one), so a fixed table would be wrong on half
             // the layouts. The SendInput backend resolves those positions from their scan code
             // via MapVirtualKey(MAPVK_VSC_TO_VK_EX), which always answers for the live layout.
-        };
+        }.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
+
+    private static readonly FrozenDictionary<string, (int virtualKey, bool extended)>.AlternateLookup<ReadOnlySpan<char>> WindowsBySpan =
+        Windows.GetAlternateLookup<ReadOnlySpan<char>>();
 
     // Canonical name -> PS/2 set-1 scan code + E0-extended flag (used by Interception).
     // Interception works at scan-code level, not virtual keys: the "make" code is sent with
     // state 0 (key down) / 1 (key up); the E0 flag adds 2 to the state for extended keys
     // (right ctrl/alt, Win/Apps, navigation block, arrows).
-    private static readonly Dictionary<string, (int scanCode, bool e0)> Interception =
-        new(StringComparer.OrdinalIgnoreCase)
+    private static readonly FrozenDictionary<string, (int scanCode, bool e0)> Interception =
+        new Dictionary<string, (int scanCode, bool e0)>(StringComparer.OrdinalIgnoreCase)
         {
             // Modifiers
             ["ctrl"] = (0x1D, false),   // Left Ctrl
@@ -365,11 +373,15 @@ public static class KeyNames
             ["launchmedia"] = (0x6D, true),
             ["launchcomputer"] = (0x6B, true),
             ["launchcalculator"] = (0x21, true),
-        };
+        }.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
+
+    private static readonly FrozenDictionary<string, (int scanCode, bool e0)>.AlternateLookup<ReadOnlySpan<char>> InterceptionBySpan =
+        Interception.GetAlternateLookup<ReadOnlySpan<char>>();
 
     // Aliases -> canonical name.
-    private static readonly Dictionary<string, string> Aliases = new(StringComparer.OrdinalIgnoreCase)
-    {
+    private static readonly FrozenDictionary<string, string> Aliases =
+        new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
         ["control"] = "ctrl",
         ["strg"] = "ctrl",
         ["ctl"] = "ctrl",
@@ -480,12 +492,27 @@ public static class KeyNames
         ["scroll"] = "scrolllock",
         ["rollen"] = "scrolllock",
         ["break"] = "pause",
-    };
+    }.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
+
+    private static readonly FrozenDictionary<string, string>.AlternateLookup<ReadOnlySpan<char>> AliasesBySpan =
+        Aliases.GetAlternateLookup<ReadOnlySpan<char>>();
 
     private static string Normalize(string name)
     {
-        var key = name.Trim();
-        return Aliases.TryGetValue(key, out var canonical) ? canonical : key;
+        string trimmed = name.Trim();
+        return Aliases.TryGetValue(trimmed, out string canonical) ? canonical : trimmed;
+    }
+
+    private static bool TryResolve<T>(string name, FrozenDictionary<string, T>.AlternateLookup<ReadOnlySpan<char>> table, out T value)
+    {
+        value = default;
+        if (string.IsNullOrWhiteSpace(name))
+            return false;
+
+        ReadOnlySpan<char> key = name.AsSpan().Trim();
+        if (AliasesBySpan.TryGetValue(key, out string canonical))
+            return table.TryGetValue(canonical, out value);
+        return table.TryGetValue(key, out value);
     }
 
     /// <summary>
@@ -508,30 +535,44 @@ public static class KeyNames
     /// </summary>
     public static List<string> SplitCombination(string combination)
     {
-        var keys = new List<string>();
+        List<string> keys = [];
         if (string.IsNullOrWhiteSpace(combination))
             return keys;
 
-        var parts = combination.Split('+');
-        for (var i = 0; i < parts.Length; i++)
+        ReadOnlySpan<char> span = combination.AsSpan();
+        Span<Range> ranges = stackalloc Range[32];
+        int count = span.Split(ranges, '+');
+        if (count == ranges.Length)
         {
-            var part = parts[i].Trim();
+            Range[] overflow = new Range[span.Length + 1];
+            count = span.Split(overflow, '+');
+            SplitCombinationRanges(span, overflow.AsSpan(0, count), keys);
+            return keys;
+        }
+
+        SplitCombinationRanges(span, ranges[..count], keys);
+        return keys;
+    }
+
+    private static void SplitCombinationRanges(ReadOnlySpan<char> span, ReadOnlySpan<Range> ranges, List<string> keys)
+    {
+        for (int i = 0; i < ranges.Length; i++)
+        {
+            ReadOnlySpan<char> part = span[ranges[i]].Trim();
             if (part.Length > 0)
             {
-                keys.Add(part);
+                keys.Add(part.ToString());
                 continue;
             }
 
             // Empty segment: two separators in a row. With a segment still following, the
             // second '+' is a key; otherwise it is a trailing separator and gets dropped.
-            if (i + 1 < parts.Length)
+            if (i + 1 < ranges.Length)
             {
                 keys.Add("+");
                 i++;
             }
         }
-
-        return keys;
     }
 
     /// <summary>
@@ -542,7 +583,7 @@ public static class KeyNames
     /// </summary>
     public static bool TryGetCharacter(string name, out char character)
     {
-        var trimmed = name?.Trim() ?? string.Empty;
+        ReadOnlySpan<char> trimmed = name.AsSpan().Trim();
         if (trimmed.Length == 1)
         {
             character = char.ToLowerInvariant(trimmed[0]);
@@ -556,13 +597,13 @@ public static class KeyNames
     /// <summary>Resolves a key name to its Linux evdev key code.</summary>
     public static bool TryGetLinux(string name, out int keyCode)
     {
-        return Linux.TryGetValue(Normalize(name), out keyCode);
+        return TryResolve(name, LinuxBySpan, out keyCode);
     }
 
     /// <summary>Resolves a key name to its Windows virtual-key code (VK_*) and extended flag.</summary>
     public static bool TryGetWindows(string name, out int virtualKey, out bool extended)
     {
-        if (Windows.TryGetValue(Normalize(name), out var entry))
+        if (TryResolve(name, WindowsBySpan, out (int virtualKey, bool extended) entry))
         {
             virtualKey = entry.virtualKey;
             extended = entry.extended;
@@ -577,7 +618,7 @@ public static class KeyNames
     /// <summary>Resolves a key name to its PS/2 set-1 scan code and E0-extended flag (for Interception).</summary>
     public static bool TryGetInterception(string name, out int scanCode, out bool e0)
     {
-        if (Interception.TryGetValue(Normalize(name), out var entry))
+        if (TryResolve(name, InterceptionBySpan, out (int scanCode, bool e0) entry))
         {
             scanCode = entry.scanCode;
             e0 = entry.e0;
