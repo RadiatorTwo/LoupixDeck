@@ -4,10 +4,9 @@ using LoupixDeck.Utils;
 #if WINDOWS
 using System.Diagnostics.CodeAnalysis;
 using System.Management;
-using System.Text.RegularExpressions;
 #endif
 
-public static partial class SerialDeviceHelper
+public static class SerialDeviceHelper
 {
     // NormalizedSerial is the platform-uniform identity value (Windows hex→ASCII
     // decoded, '&'-synthesized location ids → null); Serial keeps the raw value
@@ -24,14 +23,6 @@ public static partial class SerialDeviceHelper
     );
 
 #if WINDOWS
-    [GeneratedRegex(@"PID_([0-9A-F]{4})", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
-    private static partial Regex regexPid { get; }
-
-    [GeneratedRegex(@"VID_([0-9A-F]{4})", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
-    private static partial Regex regexVid { get; }
-
-    [GeneratedRegex(@"\(COM(\d+)\)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
-    private static partial Regex regexCom { get; }
 
     // SuppressMessage rather than [SupportedOSPlatform] — the latter cascades to
     // every caller and forces platform attributes on otherwise cross-platform
@@ -52,13 +43,9 @@ public static partial class SerialDeviceHelper
 
             if (string.IsNullOrEmpty(deviceId) || string.IsNullOrEmpty(name)) continue;
 
-            var matchVid = regexVid.Match(deviceId);
-            var matchPid = regexPid.Match(deviceId);
-            var matchCom = regexCom.Match(name);
-
-            var vid = matchVid.Success ? matchVid.Groups[1].Value : null;
-            var pid = matchPid.Success ? matchPid.Groups[1].Value : null;
-            var comPort = matchCom.Success ? $"COM{matchCom.Groups[1].Value}" : null;
+            var vid = TryExtractTaggedHex4(deviceId, "VID_");
+            var pid = TryExtractTaggedHex4(deviceId, "PID_");
+            var comPort = TryExtractComPort(name);
 
             var parts = deviceId.Split('\\');
             var serial = parts.Length > 2 ? parts[2] : null;
@@ -82,6 +69,45 @@ public static partial class SerialDeviceHelper
         }
 
         return result;
+    }
+
+    // VID_xxxx / PID_xxxx (4 hex digits, case-insensitive tag).
+    private static string TryExtractTaggedHex4(ReadOnlySpan<char> haystack, ReadOnlySpan<char> tag)
+    {
+        int index = haystack.IndexOf(tag, StringComparison.OrdinalIgnoreCase);
+        if (index < 0)
+            return null;
+
+        int start = index + tag.Length;
+        if (start + 4 > haystack.Length)
+            return null;
+
+        ReadOnlySpan<char> hex = haystack.Slice(start, 4);
+        for (int i = 0; i < hex.Length; i++)
+        {
+            if (!char.IsAsciiHexDigit(hex[i]))
+                return null;
+        }
+
+        return hex.ToString();
+    }
+
+    // "(COMn)" / "(comn)" → "COMn".
+    private static string TryExtractComPort(ReadOnlySpan<char> name)
+    {
+        int index = name.IndexOf("(COM", StringComparison.OrdinalIgnoreCase);
+        if (index < 0)
+            return null;
+
+        int digits = index + 4;
+        int end = digits;
+        while (end < name.Length && char.IsAsciiDigit(name[end]))
+            end++;
+
+        if (end == digits || end >= name.Length || name[end] != ')')
+            return null;
+
+        return string.Concat("COM", name.Slice(digits, end - digits));
     }
 #else
     public static List<SerialDeviceInfo> ListSerialUsbDevices()

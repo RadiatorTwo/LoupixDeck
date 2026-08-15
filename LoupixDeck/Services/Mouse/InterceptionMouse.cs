@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using LoupixDeck.Models.Macros;
 
@@ -16,7 +17,7 @@ namespace LoupixDeck.Services.Mouse;
 /// is missing or the driver is not loaded, this backend reports itself unavailable and the
 /// router falls back to SendInput.
 /// </summary>
-public class InterceptionMouse : IVirtualMouse
+public partial class InterceptionMouse : IVirtualMouse
 {
     // INTERCEPTION_MOUSE(0): keyboards are devices 1..10, mice 11..20.
     private const int MouseDevice = 11;
@@ -64,15 +65,18 @@ public class InterceptionMouse : IVirtualMouse
     private const int SM_CXVIRTUALSCREEN = 78;
     private const int SM_CYVIRTUALSCREEN = 79;
 
-    [DllImport("interception.dll", CallingConvention = CallingConvention.Cdecl)]
-    private static extern IntPtr interception_create_context();
+    [LibraryImport("interception.dll")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    private static partial IntPtr interception_create_context();
 
-    [DllImport("interception.dll", CallingConvention = CallingConvention.Cdecl)]
-    private static extern void interception_destroy_context(IntPtr context);
+    [LibraryImport("interception.dll")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    private static partial void interception_destroy_context(IntPtr context);
 
-    [DllImport("interception.dll", CallingConvention = CallingConvention.Cdecl)]
-    private static extern int interception_send(IntPtr context, int device,
-        [In] InterceptionStroke[] stroke, uint nstroke);
+    [LibraryImport("interception.dll")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    private static partial int interception_send(IntPtr context, int device,
+        ReadOnlySpan<InterceptionStroke> stroke, uint nstroke);
 
     // Native InterceptionMouseStroke layout:
     //   ushort state; ushort flags; short rolling; int x; int y; uint information;
@@ -89,11 +93,11 @@ public class InterceptionMouse : IVirtualMouse
         [FieldOffset(16)] public uint Information;
     }
 
-    [DllImport("user32.dll")]
-    private static extern short GetAsyncKeyState(int vKey);
+    [LibraryImport("user32.dll")]
+    private static partial short GetAsyncKeyState(int vKey);
 
-    [DllImport("user32.dll")]
-    private static extern int GetSystemMetrics(int nIndex);
+    [LibraryImport("user32.dll")]
+    private static partial int GetSystemMetrics(int nIndex);
 
     private readonly Lock _lock = new();
 
@@ -313,7 +317,7 @@ public class InterceptionMouse : IVirtualMouse
 
             while (sent < strokes.Length)
             {
-                var chunk = sent == 0 ? strokes : strokes[sent..];
+                ReadOnlySpan<InterceptionStroke> chunk = strokes.AsSpan(sent);
                 var accepted = interception_send(_context, MouseDevice, chunk, (uint)chunk.Length);
 
                 if (accepted > 0)

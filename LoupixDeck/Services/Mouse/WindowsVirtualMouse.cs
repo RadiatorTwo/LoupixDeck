@@ -10,7 +10,7 @@ namespace LoupixDeck.Services.Mouse;
 /// <see cref="WindowsUInputKeyboard"/>) — <see cref="InterceptionMouse"/> covers
 /// that case; <see cref="WindowsMouseRouter"/> picks between the two per call.
 /// </summary>
-public class WindowsVirtualMouse : IVirtualMouse
+public partial class WindowsVirtualMouse : IVirtualMouse
 {
     private const int INPUT_MOUSE = 0;
 
@@ -70,11 +70,11 @@ public class WindowsVirtualMouse : IVirtualMouse
         public INPUTUNION u;
     }
 
-    [DllImport("user32.dll", SetLastError = true)]
-    private static extern uint SendInput(uint nInputs, INPUT[] pInputs, int cbSize);
+    [LibraryImport("user32.dll", SetLastError = true)]
+    private static partial uint SendInput(uint nInputs, ReadOnlySpan<INPUT> pInputs, int cbSize);
 
-    [DllImport("user32.dll")]
-    private static extern int GetSystemMetrics(int nIndex);
+    [LibraryImport("user32.dll")]
+    private static partial int GetSystemMetrics(int nIndex);
 
     private static readonly int InputSize = Marshal.SizeOf<INPUT>();
 

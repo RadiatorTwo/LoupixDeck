@@ -1,3 +1,4 @@
+using System.Collections.Frozen;
 using LoupixDeck.Models;
 using LoupixDeck.Utils;
 using SkiaSharp;
@@ -77,7 +78,7 @@ public class LoupedeckCtDevice : LoupedeckDevice
             // VERIFY ON HARDWARE: firmware expects this buffer big-endian; the base
             // class's pixel converter is little-endian-only today (Phase 2 work).
             ["knob"] = new() { Id = "\0W"u8.ToArray(), Width = 240, Height = 240 }
-        };
+        }.ToFrozenDictionary();
     }
 
     /// <summary>

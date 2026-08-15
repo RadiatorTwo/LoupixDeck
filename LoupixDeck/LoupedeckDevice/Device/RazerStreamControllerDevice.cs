@@ -1,3 +1,4 @@
+using System.Collections.Frozen;
 using LoupixDeck.Models;
 using SkiaSharp;
 
@@ -67,7 +68,7 @@ public class RazerStreamControllerDevice : LoupedeckDevice
         Displays = new Dictionary<string, DisplayInfo>
         {
             ["center"] = new() { Id = "\0M"u8.ToArray(), Width = 480, Height = 270 }
-        };
+        }.ToFrozenDictionary();
     }
 
     protected override TouchTarget GetTarget(int x, int y)

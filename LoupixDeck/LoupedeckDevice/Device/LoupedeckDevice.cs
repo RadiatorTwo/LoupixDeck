@@ -1,6 +1,7 @@
 using System.Buffers;
 using System.Buffers.Binary;
 using System.Collections.Concurrent;
+using System.Collections.Frozen;
 using System.Threading.Channels;
 using Avalonia.Media;
 using LoupixDeck.LoupedeckDevice.Serial;
@@ -89,7 +90,8 @@ public class LoupedeckDevice
     private string Path { get; set; }
     private int Baudrate { get; set; }
 
-    protected Dictionary<string, DisplayInfo> Displays { get; init; } = new();
+    protected FrozenDictionary<string, DisplayInfo> Displays { get; init; } =
+        FrozenDictionary<string, DisplayInfo>.Empty;
     public int[] Buttons { get; set; }
     public int Columns { get; protected init; }
     public int Rows { get; protected init; }
