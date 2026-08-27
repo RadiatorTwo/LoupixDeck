@@ -43,9 +43,13 @@ using SkiaSharp;
 var opts = ParseArgs(args);
 if (opts is null) return 0; // --help printed
 
+// tools/ sits at the repository root while Assets/ lives one level deeper, inside the
+// LoupixDeck project directory. Both are derived from the repository root, which is
+// found by a marker that actually sits there -- keying off LoupixDeck.csproj instead
+// resolved to a path that does not exist, and the tool could not bake anything.
 string repoRoot = FindRepoRoot();
 string toolDir = Path.Combine(repoRoot, "tools", "BodyTextureBaker");
-string assetsDir = Path.Combine(repoRoot, "Assets");
+string assetsDir = Path.Combine(repoRoot, "LoupixDeck", "Assets");
 
 // --- Per-variant defaults. The lighting stops below are shared; each variant
 //     scales the vignette/sheen, sets its own base brightness + shadow fill, and
@@ -256,20 +260,35 @@ static void Spread(double[] buf, int w, int h, int x, int y, double v)
     if (x >= 0 && x < w && y >= 0 && y < h) buf[(y * w) + x] += v;
 }
 
+/// <summary>
+/// Repository root, found by walking up from the working directory and from the tool's
+/// own build output until a directory carrying a root-level marker is seen. Checking both
+/// starting points means the tool works whether it is run via `dotnet run` from anywhere
+/// in the repo or executed directly from its bin folder.
+/// </summary>
 static string FindRepoRoot()
 {
+    string[] markers = ["LoupixDeck.slnx", ".git"];
     foreach (var start in new[] { Directory.GetCurrentDirectory(), AppContext.BaseDirectory })
     {
         var dir = new DirectoryInfo(start);
         while (dir is not null)
         {
-            if (File.Exists(Path.Combine(dir.FullName, "LoupixDeck.csproj")))
-                return dir.FullName;
+            foreach (var marker in markers)
+            {
+                if (File.Exists(Path.Combine(dir.FullName, marker))
+                    || Directory.Exists(Path.Combine(dir.FullName, marker)))
+                {
+                    return dir.FullName;
+                }
+            }
             dir = dir.Parent;
         }
     }
-    // Fallback: tool lives at <root>/tools/BodyTextureBaker, bin output a few levels down.
-    return Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
+
+    throw new DirectoryNotFoundException(
+        "Could not locate the repository root (looked for LoupixDeck.slnx or .git above "
+        + "the current directory and above the tool's own location).");
 }
 
 static Options? ParseArgs(string[] args)
