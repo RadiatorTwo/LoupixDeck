@@ -27,7 +27,7 @@
 //   dotnet run --project tools/BodyTextureBaker -- --variant dark --grain 0.35 --dark 0.55
 //
 // Options (defaults reproduce the committed SVGs):
-//   --variant <dark|light|both>  which variant(s) to bake  (default: both)
+//   --variant <dark|light|both|razer|razer-x|all>  which variant(s) to bake  (default: both)
 //   --input  <path>   source texture        (default: per-variant texture next to the tool)
 //   --output <path>   SVG to write          (default: per-variant SVG under <repo>/Assets)
 //   --width  <int>    baked image width px  (default: 1100; height derived from body 750x420)
@@ -64,9 +64,15 @@ string assetsDir = Path.Combine(repoRoot, "LoupixDeck", "Assets");
 //                is symmetric about x=450; the 480x270 display is centred (x=210-690,
 //                y130-400), a knob column sits on each side (centres x130/x770,
 //                y154/265/376), and the row of 8 round LED buttons + RAZER wordmark
-//                live in the taller bottom margin (button centres y473). ---
+//                live in the taller bottom margin (button centres y473).
+//       Razer Stream Controller X — reuses the Live S geometry for now. The real
+//                device is a knob-less 5x3 key grid and is physically more compact,
+//                but its dimensions were not available; the Live S body was chosen as
+//                the stand-in so the proportions can be re-baked later without
+//                touching anything else. Its 480x288 grid fits the 750x420 body. ---
 var liveGeom = (VW: 900, VH: 540, BX: 75, BY: 75, BW: 750, BH: 420, BR: 60);
 var razerGeom = (VW: 900, VH: 600, BX: 80, BY: 50, BW: 740, BH: 505, BR: 42);
+var razerXGeom = liveGeom;
 
 string texDark = Path.Combine(toolDir, "texture-no-light.png");
 string texLight = Path.Combine(toolDir, "texture-light.png");
@@ -95,6 +101,16 @@ var allVariants = new Dictionary<string, Variant>
         Output: Path.Combine(assetsDir, "razer-gehaeuse-light.svg"),
         Dark: 0.92, Grain: 0.5,
         BodyFill: "#d9d9d9", VignetteScale: 0.55, SheenScale: 0.5, Geom: razerGeom),
+    ["razer-x-dark"] = new(
+        Name: "razer-x-dark", Input: texDark,
+        Output: Path.Combine(assetsDir, "razer-x-gehaeuse.svg"),
+        Dark: 0.6, Grain: 0.5,
+        BodyFill: "#151414", VignetteScale: 1.0, SheenScale: 1.0, Geom: razerXGeom),
+    ["razer-x-light"] = new(
+        Name: "razer-x-light", Input: texLight,
+        Output: Path.Combine(assetsDir, "razer-x-gehaeuse-light.svg"),
+        Dark: 0.92, Grain: 0.5,
+        BodyFill: "#d9d9d9", VignetteScale: 0.55, SheenScale: 0.5, Geom: razerXGeom),
 };
 
 // Group selectors expand to one or more concrete variants; single names map 1:1.
@@ -102,7 +118,8 @@ string[] selected = opts.Variant switch
 {
     "both" => ["dark", "light"],
     "razer" => ["razer-dark", "razer-light"],
-    "all" => ["dark", "light", "razer-dark", "razer-light"],
+    "razer-x" => ["razer-x-dark", "razer-x-light"],
+    "all" => ["dark", "light", "razer-dark", "razer-light", "razer-x-dark", "razer-x-light"],
     _ => [opts.Variant],
 };
 var variants = selected.Select(n => allVariants[n]).ToList();
@@ -303,10 +320,12 @@ static Options? ParseArgs(string[] args)
             case "--variant":
                 o.Variant = Next().ToLowerInvariant();
                 if (o.Variant is not ("dark" or "light" or "both"
-                    or "razer-dark" or "razer-light" or "razer" or "all"))
+                    or "razer-dark" or "razer-light" or "razer"
+                    or "razer-x-dark" or "razer-x-light" or "razer-x" or "all"))
                 {
                     throw new ArgumentException(
-                        "--variant must be dark, light, both, razer-dark, razer-light, razer or all");
+                        "--variant must be dark, light, both, razer-dark, razer-light, razer, "
+                        + "razer-x-dark, razer-x-light, razer-x or all");
                 }
 
                 break;
@@ -317,7 +336,7 @@ static Options? ParseArgs(string[] args)
             case "--grain": o.Grain = double.Parse(Next(), CultureInfo.InvariantCulture); break;
             case "-h" or "--help":
                 Console.WriteLine("Regenerates the device body SVGs (Live S + Razer, Dark + Light) from matte textures.");
-                Console.WriteLine("Options: --variant <dark|light|both|razer-dark|razer-light|razer|all> --input <path> --output <path> --width <int> --dark <0..1> --grain <0..1>");
+                Console.WriteLine("Options: --variant <dark|light|both|razer-dark|razer-light|razer|razer-x-dark|razer-x-light|razer-x|all> --input <path> --output <path> --width <int> --dark <0..1> --grain <0..1>");
                 Console.WriteLine("Defaults reproduce the committed SVGs (width 1100; dark 0.6/grain 0.5 for dark, dark 0.92/grain 0.5 for light).");
                 return null;
             default:

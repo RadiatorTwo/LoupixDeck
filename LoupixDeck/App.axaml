@@ -89,6 +89,7 @@
                     <x:String x:Key="DeviceBodySvgPath">avares://LoupixDeck/Assets/loupedeck-gehaeuse.svg</x:String>
                     <x:String x:Key="RazerBodySvgPath">avares://LoupixDeck/Assets/razer-gehaeuse.svg</x:String>
                     <x:String x:Key="LoupedeckCtBodySvgPath">avares://LoupixDeck/Assets/loupedeck-ct-gehaeuse.svg</x:String>
+                    <x:String x:Key="RazerXBodySvgPath">avares://LoupixDeck/Assets/razer-x-gehaeuse.svg</x:String>
                 </ResourceDictionary>
                 <ResourceDictionary x:Key="Light">
                     <SolidColorBrush x:Key="AppWindowBackground" Color="#F3F3F3" />
@@ -130,6 +131,7 @@
                     <x:String x:Key="DeviceBodySvgPath">avares://LoupixDeck/Assets/loupedeck-gehaeuse-light.svg</x:String>
                     <x:String x:Key="RazerBodySvgPath">avares://LoupixDeck/Assets/razer-gehaeuse-light.svg</x:String>
                     <x:String x:Key="LoupedeckCtBodySvgPath">avares://LoupixDeck/Assets/loupedeck-ct-gehaeuse-light.svg</x:String>
+                    <x:String x:Key="RazerXBodySvgPath">avares://LoupixDeck/Assets/razer-x-gehaeuse-light.svg</x:String>
                 </ResourceDictionary>
             </ResourceDictionary.ThemeDictionaries>
 
