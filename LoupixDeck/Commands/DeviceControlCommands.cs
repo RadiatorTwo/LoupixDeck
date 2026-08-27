@@ -171,11 +171,12 @@ public class DrawBenchmarkCommand(IDeviceService deviceService, LoupedeckConfig 
         }
 
         var slots = device.TouchButtonCount;
-        Console.WriteLine($"[Benchmark] start — {frames} frames, {slots} slots (90x90), key blit");
+        var keySize = device.KeySize;
+        Console.WriteLine($"[Benchmark] start — {frames} frames, {slots} slots ({keySize}x{keySize}), key blit");
 
         // Alternate two colours so the panel can't short-circuit identical frames.
-        using var keyA = MakeSolid(90, 90, new SKColor(255, 0, 0));
-        using var keyB = MakeSolid(90, 90, new SKColor(0, 0, 255));
+        using var keyA = MakeSolid(keySize, keySize, new SKColor(255, 0, 0));
+        using var keyB = MakeSolid(keySize, keySize, new SKColor(0, 0, 255));
 
         try
         {
@@ -364,14 +365,14 @@ public class PlayVideoCommand(IDeviceService deviceService, IExclusiveModeServic
             {
                 case VideoMode.Tile:
                     // Single 90x90 touch slot.
-                    w = 90;
-                    h = 90;
+                    w = device.KeySize;
+                    h = device.KeySize;
                     break;
                 case VideoMode.Grid:
-                    // Scale to exactly the touch grid (cols*90 x rows*90) so each
-                    // slot gets one 90x90 chunk with no leftover margin.
-                    w = cols * 90;
-                    h = rows * 90;
+                    // Scale to exactly the touch grid (cols*KeySize x rows*KeySize) so each
+                    // slot gets one KeySize-square chunk with no leftover margin.
+                    w = cols * device.KeySize;
+                    h = rows * device.KeySize;
                     break;
                 default: // Full
                     (w, h) = device.GetDisplaySize();
@@ -496,23 +497,24 @@ public class PlayVideoCommand(IDeviceService deviceService, IExclusiveModeServic
         }
     }
 
-    // Splits one full-grid frame (cols*90 x rows*90) into individual 90x90 tiles and
+    // Splits one full-grid frame (cols*KeySize x rows*KeySize) into individual square tiles and
     // writes each as its own FRAMEBUFF (no DRAW). One reusable tile bitmap is filled
     // per slot — the per-slot DrawTouchSlot is awaited before the next overwrite, so
     // sharing the buffer is safe.
     private static async Task DrawGridTiles(LoupixDeck.LoupedeckDevice.Device.LoupedeckDevice device,
         SKBitmap full, int cols, int rows, CancellationToken token)
     {
-        using var tile = new SKBitmap(new SKImageInfo(90, 90, SKColorType.Bgra8888, SKAlphaType.Opaque));
+        var keySize = device.KeySize;
+        using var tile = new SKBitmap(new SKImageInfo(keySize, keySize, SKColorType.Bgra8888, SKAlphaType.Opaque));
         using var canvas = new SKCanvas(tile);
-        var dst = new SKRect(0, 0, 90, 90);
+        var dst = new SKRect(0, 0, keySize, keySize);
 
         for (var s = 0; s < cols * rows; s++)
         {
             if (token.IsCancellationRequested) return;
             var col = s % cols;
             var row = s / cols;
-            var src = new SKRect(col * 90, row * 90, (col * 90) + 90, (row * 90) + 90);
+            var src = new SKRect(col * keySize, row * keySize, (col * keySize) + keySize, (row * keySize) + keySize);
             canvas.DrawBitmap(full, src, dst); // opaque source fully overwrites the tile
             await device.DrawTouchSlot(s, tile, refresh: false);
         }

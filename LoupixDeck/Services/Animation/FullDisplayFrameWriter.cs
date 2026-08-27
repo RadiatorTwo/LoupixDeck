@@ -22,6 +22,15 @@ public sealed class FullDisplayFrameWriter : IDisposable
 {
     // The continuous virtual panel the wallpaper system assumes: 480px wide spanning the
     // centre grid plus both 60px side-strip columns, 270px tall.
+    //
+    // NOTE: this is a SECOND, independent panel constant — BitmapHelper.PanelHeight drives
+    // the wallpaper bake and is passed per-device, but the full-display animation and
+    // screensaver paths still hard-code 270 here (and ScreensaverAnimationSource's ffmpeg
+    // "scale=480:270"), and PluginFullDisplayAnimationSource ships these numbers to plugins
+    // as an SDK surface. The Razer Stream Controller X's panel is 288 tall, so on that
+    // device the bottom 18px go unused. Making this per-device is deliberately deferred:
+    // it changes plugin-facing dimensions and so belongs in its own change with its own
+    // SDK version, verified against real hardware.
     public const int PanelWidth = 480;
     public const int PanelHeight = 270;
     public const int StripWidth = 60;

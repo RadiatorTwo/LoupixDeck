@@ -108,6 +108,32 @@ public class LoupedeckDevice
     public virtual int WallpaperGridXOffset => 0;
 
     /// <summary>
+    /// Edge length in device pixels of one touch-grid tile. Every bitmap handed to
+    /// <see cref="DrawKey"/> / <see cref="DrawTouchSlot"/> / <see cref="DrawTouchSlotsAtomic"/>
+    /// must be exactly this square: DrawBuffer rejects a buffer whose length does not
+    /// match the target region, so a mismatch surfaces as
+    /// "Expected buffer length of ..." rather than as a wrong-looking key.
+    /// 90 on every Loupedeck; the Razer Stream Controller X uses 96.
+    /// </summary>
+    public virtual int KeySize => 90;
+
+    /// <summary>
+    /// True when the touch grid is made of physical keys whose presses are translated
+    /// into synthetic touches (Razer Stream Controller X) rather than reported by a
+    /// touchscreen. A held key stays in the touch set for as long as it is down, so
+    /// consumers must act only on the changed contact — see the guard in
+    /// <c>LoupedeckLiveSController.OnTouchButtonPress</c>. False on every device with a
+    /// real touchscreen, which keeps their behaviour unchanged.
+    /// </summary>
+    public virtual bool GridIsPhysicalKeys => false;
+
+    /// <summary>
+    /// Whether the device has a haptic motor. False suppresses the per-button
+    /// vibration UI so the user is not offered a setting that cannot do anything.
+    /// </summary>
+    public virtual bool SupportsVibration => true;
+
+    /// <summary>
     /// Returns the touch slot that physically sits next to the rotary at
     /// <paramref name="rotaryIndex"/>, or -1 when the device has no such
     /// neighbour. Plugins use this for transient feedback overlays (e.g. a
@@ -967,9 +993,8 @@ public class LoupedeckDevice
         if (index < 0 || index >= Columns * Rows)
             throw new Exception($"Key {index} is not a valid key");
 
-        // Example dimension values from the old code
-        const int keyWidth = 90;
-        const int keyHeight = 90;
+        var keyWidth = KeySize;
+        var keyHeight = KeySize;
 
         if (VisibleX == null || Columns == 0)
             throw new Exception("VisibleX or Columns is not set");
@@ -996,7 +1021,8 @@ public class LoupedeckDevice
         if (refresh || touchButton.RenderedImage == null)
         {
             var renderedBitmap =
-                BitmapHelper.RenderTouchButtonContent(touchButton, config, 90, 90, columns, WallpaperGridXOffset);
+                BitmapHelper.RenderTouchButtonContent(touchButton, config, KeySize, KeySize, columns,
+                    WallpaperGridXOffset, GetDisplaySize().Height);
             if (renderedBitmap == null) return;
         }
 
@@ -1053,7 +1079,7 @@ public class LoupedeckDevice
         if (Displays == null || !Displays.TryGetValue("center", out var center)) return;
 
         var xBase = VisibleX is { Length: > 0 } ? VisibleX[0] : 0;
-        const int keySize = 90;
+        var keySize = KeySize;
 
         using var full = new SKBitmap(new SKImageInfo(center.Width, center.Height,
             SKColorType.Bgra8888, SKAlphaType.Premul));
@@ -1100,7 +1126,7 @@ public class LoupedeckDevice
         if (string.IsNullOrEmpty(text))
             throw new ArgumentException("Text must not be null or empty.", nameof(text));
 
-        var renderedBitmap = BitmapHelper.RenderTextToBitmap(text, 90, 90);
+        var renderedBitmap = BitmapHelper.RenderTextToBitmap(text, KeySize, KeySize);
         if (renderedBitmap == null)
             throw new Exception("The rendering of the text has failed.");
 
@@ -1139,7 +1165,7 @@ public class LoupedeckDevice
     }
 
     /// <summary>
-    /// Pushes a pre-composed grid-region bitmap (Columns*90 × Rows*90) to the "center"
+    /// Pushes a pre-composed grid-region bitmap (Columns*KeySize × Rows*KeySize) to the "center"
     /// display at the touch grid's x-origin, leaving any side-strip regions of a unified
     /// buffer untouched. Used by the touch-page slide transition so a Razer's two side
     /// strips aren't clobbered. One framebuffer write + one refresh. The grid x-origin is

@@ -544,7 +544,8 @@ public static class BitmapHelper
     public static SKBitmap GetOrBakeSlot(WallpaperSlot slot, int width, int height)
     {
         if (slot == null || !slot.HasImage) return null;
-        if (slot.Baked != null) return slot.Baked;
+        // Reuse the cache only at the size it was baked for — see WallpaperSlot.BakedSize.
+        if (slot.Baked != null && slot.BakedSize == (width, height)) return slot.Baked;
 
         var original = AssetResolver?.Invoke(slot.AssetPath);
         if (original == null) return null;
@@ -564,7 +565,12 @@ public static class BitmapHelper
             }
         }
 
+        // Deliberately not disposing the previous bake: a consumer may still be drawing
+        // with it (ResolveWallpaper hands the instance out), and tearing native pixels
+        // out from under a live draw is exactly the AccessViolation class this codebase
+        // guards against elsewhere. Let the GC reclaim it.
         slot.Baked = baked;
+        slot.BakedSize = (width, height);
         return baked;
     }
 
@@ -606,12 +612,15 @@ public static class BitmapHelper
     /// view. Returns (null, 0) when the source page has no main wallpaper. Shared by the
     /// centre grid and the Razer side strips so they stay in sync.
     /// </summary>
-    private static (SKBitmap wallpaper, double opacity) ResolveWallpaper(LoupedeckConfig config)
+    /// <param name="panelHeight">Panel height to bake for. 0 uses <see cref="PanelHeight"/>
+    /// (270). The Razer Stream Controller X's panel is 288 tall, so its grid would sample
+    /// past the bottom of a 270-tall bake.</param>
+    private static (SKBitmap wallpaper, double opacity) ResolveWallpaper(LoupedeckConfig config, int panelHeight = 0)
     {
         var page = ResolveWallpaperSourcePage(config);
         if (page == null) return (null, 0);
 
-        var baked = GetOrBakeSlot(page.MainWallpaper, PanelWidth, PanelHeight);
+        var baked = GetOrBakeSlot(page.MainWallpaper, PanelWidth, panelHeight > 0 ? panelHeight : PanelHeight);
         return baked != null ? (baked, page.MainWallpaper.Opacity) : (null, 0);
     }
 
@@ -640,13 +649,16 @@ public static class BitmapHelper
         int width,
         int height,
         int gridColumns = 0,
-        int wallpaperXOffset = 0)
+        int wallpaperXOffset = 0,
+        int panelHeight = 0)
     {
         ArgumentNullException.ThrowIfNull(touchButton);
 
         // Determine which wallpaper to use: current page's or fallback to first page's.
-        // ResolveWallpaper bakes the 480×270 bitmap from the page's asset on demand.
-        var (wallpaperToUse, opacityToUse) = ResolveWallpaper(config);
+        // ResolveWallpaper bakes the panel-sized bitmap from the page's asset on demand.
+        // panelHeight must be the device's real panel height, or the bottom grid row
+        // samples past the end of the bake (Razer Stream Controller X: 288, not 270).
+        var (wallpaperToUse, opacityToUse) = ResolveWallpaper(config, panelHeight);
 
         // All SkiaSharp drawing happens under the shared render gate so it can never
         // overlap another render/convert running on a different thread (see
@@ -692,7 +704,27 @@ public static class BitmapHelper
                 canvas.Clear(touchButton.BackColor.ToSKColor());
             }
 
-            DrawLayers(canvas, touchButton.Layers, width, height);
+            // Layer geometry is authored against a 90x90 tile (see LayerBase /
+            // ImageLayer.DeviceBaseSize) and persisted that way, device-independently.
+            // Images, symbols and plugin bitmaps scale on their own because their sizes
+            // are unitless multipliers, but the absolute device-pixel properties —
+            // PositionX/Y, TextSize, the text box, outline width, shadow blur/offset —
+            // do not. A button designed on a 90px device would therefore sit ~6.7% off
+            // on a 96px key. Running the whole layer pass through one uniform scale keeps
+            // all of them proportional instead of scaling each property by hand.
+            // The factor is exactly 1 on every 90px device, so their output is unchanged.
+            var layerScale = width / (float)AuthoringTileSize;
+            if (layerScale is > 0f and not 1f)
+            {
+                canvas.Save();
+                canvas.Scale(layerScale);
+                DrawLayers(canvas, touchButton.Layers, AuthoringTileSize, AuthoringTileSize);
+                canvas.Restore();
+            }
+            else
+            {
+                DrawLayers(canvas, touchButton.Layers, width, height);
+            }
         }
 
         // Publish the finished bitmap (fires OnPropertyChanged for the UI binding);
@@ -1746,6 +1778,15 @@ public static class BitmapHelper
 
         return bitmap;
     }
+
+    /// <summary>
+    /// Tile size that layer geometry is authored and persisted against. Absolute layer
+    /// properties (position, text size, box, outline, shadow) are stored in this space so
+    /// a button design stays device-independent and portable between devices; the renderer
+    /// scales the whole layer pass to the target key size. Do not change — it is a
+    /// persisted-config contract (see TextLayer.EffectiveBoxWidth's 90 fallback).
+    /// </summary>
+    public const int AuthoringTileSize = 90;
 
     // The unified panel is 480px wide; the side strips occupy its outer 60px columns.
     public const int PanelWidth = 480;

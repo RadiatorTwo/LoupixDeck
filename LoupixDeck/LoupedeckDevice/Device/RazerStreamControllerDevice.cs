@@ -86,8 +86,8 @@ public class RazerStreamControllerDevice : LoupedeckDevice
         // Centre 4×3 grid — clamp and translate into grid coords.
         x = Math.Clamp(x, VisibleX[0], VisibleX[1]) - VisibleX[0];
         y = Math.Clamp(y, VisibleY[0], VisibleY[1]);
-        var column = x / 90;
-        var row = y / 90;
+        var column = x / KeySize;
+        var row = y / KeySize;
         var key = (row * Columns) + column;
         return new TouchTarget { Screen = "center", Key = key };
     }

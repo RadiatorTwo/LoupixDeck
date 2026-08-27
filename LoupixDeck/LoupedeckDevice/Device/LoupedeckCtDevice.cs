@@ -98,8 +98,8 @@ public class LoupedeckCtDevice : LoupedeckDevice
 
         x = Math.Clamp(x, VisibleX[0], VisibleX[1]) - VisibleX[0];
         y = Math.Clamp(y, VisibleY[0], VisibleY[1]);
-        var column = x / 90;
-        var row = y / 90;
+        var column = x / KeySize;
+        var row = y / KeySize;
         var key = (row * Columns) + column;
         return new TouchTarget { Screen = "center", Key = key };
     }
@@ -141,7 +141,8 @@ public class LoupedeckCtDevice : LoupedeckDevice
         if (refresh || touchButton.RenderedImage == null)
         {
             var renderedBitmap =
-                BitmapHelper.RenderTouchButtonContent(touchButton, config, 90, 90, columns, WallpaperGridXOffset);
+                BitmapHelper.RenderTouchButtonContent(touchButton, config, KeySize, KeySize, columns,
+                    WallpaperGridXOffset, GetDisplaySize().Height);
             if (renderedBitmap == null) return;
         }
 
@@ -161,7 +162,7 @@ public class LoupedeckCtDevice : LoupedeckDevice
         var (width, height) = GetDisplaySize("center");
         if (width == 0) return;
 
-        const int keySize = 90;
+        var keySize = KeySize;
 
         using var full = new SKBitmap(new SKImageInfo(width, height,
             SKColorType.Bgra8888, SKAlphaType.Premul));
@@ -207,12 +208,12 @@ public class LoupedeckCtDevice : LoupedeckDevice
     /// </summary>
     private async Task DrawTouchButtonAt(int index, SKBitmap bitmap, bool refresh)
     {
-        var x = (index % Columns) * 90;
-        var y = (index / Columns) * 90;
+        var x = (index % Columns) * KeySize;
+        var y = (index / Columns) * KeySize;
 
         try
         {
-            await DrawCanvasRegion("center", 90, 90, bitmap, x, y, refresh);
+            await DrawCanvasRegion("center", KeySize, KeySize, bitmap, x, y, refresh);
         }
         catch (TimeoutException ex)
         {

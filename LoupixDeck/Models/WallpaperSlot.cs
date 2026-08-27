@@ -63,11 +63,20 @@ public partial class WallpaperSlot
     }
 
     /// <summary>
-    /// Cached baked bitmap (480×270 for main, 60×270 for sides). NOT serialized —
-    /// computed lazily via <see cref="BitmapHelper.GetOrBakeSlot"/>.
+    /// Cached baked bitmap (panel-sized for main, 60×panel-height for sides). NOT
+    /// serialized — computed lazily via <see cref="BitmapHelper.GetOrBakeSlot"/>.
     /// </summary>
     [JsonIgnore]
     public SKBitmap Baked { get; set; }
+
+    /// <summary>
+    /// Pixel size <see cref="Baked"/> was produced at. The bake is only reused when the
+    /// requested size matches: panel height is per-device (270, but 288 on the Razer
+    /// Stream Controller X), and callers reach GetOrBakeSlot in no fixed order, so
+    /// without this a bake made for one size would be handed back for another.
+    /// </summary>
+    [JsonIgnore]
+    public (int Width, int Height) BakedSize { get; set; }
 
     [JsonIgnore]
     public bool HasImage => !string.IsNullOrWhiteSpace(AssetPath);
@@ -81,6 +90,7 @@ public partial class WallpaperSlot
     private void Invalidate()
     {
         Baked = null;
+        BakedSize = default;
         RaiseChanged();
     }
 
