@@ -1500,10 +1500,20 @@ public partial class LoupedeckLiveSController(
         // Exclusive mode freezes folder navigation, so the folder path only applies when
         // no provider is active at all. Slots the provider does not claim (#127) fall
         // through to the normal per-slot handling below.
+        // On a device whose grid is physical keys, a held key stays in the touch set for
+        // as long as it is down, and every further press re-raises TOUCH_START with the
+        // whole set. Acting on all of them would re-fire a held key's command on each new
+        // press, so only the contact that actually changed is handled. A real touchscreen
+        // never re-sends TOUCH_START for a resting finger, so it keeps the old behaviour.
+        var physicalKeys = deviceService.Device?.GridIsPhysicalKeys == true;
+
         if (!exclusiveMode.IsActive && folderNav.IsActive)
         {
             foreach (var touch in e.Touches)
             {
+                if (physicalKeys && e.ChangedTouch != null && touch.Id != e.ChangedTouch.Id)
+                    continue;
+
                 HandleFolderTouch(touch.Target.Key);
             }
             return;
@@ -1511,6 +1521,9 @@ public partial class LoupedeckLiveSController(
 
         foreach (var touch in e.Touches)
         {
+            if (physicalKeys && e.ChangedTouch != null && touch.Id != e.ChangedTouch.Id)
+                continue;
+
             var slot = touch.Target.Key;
 
             // A slot belongs to the exclusive provider only when its scope covers that

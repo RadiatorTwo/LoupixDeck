@@ -610,6 +610,21 @@ public class LoupedeckDevice
         var btn = buff[0];
         var evt = (buff[1] == 0x00) ? Constants.ButtonEventType.BUTTON_DOWN : Constants.ButtonEventType.BUTTON_UP;
 
+        // Devices whose touch grid is physical keys report those keys here rather than as
+        // TOUCH frames. Translate them into a synthetic touch so the whole consumer path
+        // stays the touchscreen one, and do not also raise OnButton for them.
+        if (TryMapButtonToTouchSlot(btn, out var keySlot))
+        {
+            if (DebugProtocol)
+                Console.WriteLine($"[Protocol] BUTTON_PRESS byte 0x{btn:x2} -> key slot {keySlot} ({evt})");
+
+            RaiseSyntheticKeyTouch(keySlot,
+                evt == Constants.ButtonEventType.BUTTON_DOWN
+                    ? Constants.TouchEventType.TOUCH_START
+                    : Constants.TouchEventType.TOUCH_END);
+            return;
+        }
+
         if (!Constants.Buttons.TryGetValue(btn, out var id))
         {
             if (DebugProtocol)
@@ -790,6 +805,45 @@ public class LoupedeckDevice
     /// This method is overridden in derived classes to determine which area or key is touched.
     /// </summary>
     protected virtual TouchTarget GetTarget(int x, int y) => new() { Screen = "center", Key = -1 };
+
+    /// <summary>
+    /// Maps a BUTTON_PRESS byte to a touch-grid slot, for devices whose touch grid is
+    /// physical keys (Razer Stream Controller X) instead of a touchscreen. Returning true
+    /// suppresses the normal <see cref="OnButton"/> dispatch for that byte and raises a
+    /// synthetic touch instead, so folder navigation, exclusive mode, press feedback and
+    /// command dispatch all run through their existing touch path unchanged.
+    ///
+    /// Kept as a per-device hook rather than an entry in <see cref="Constants.Buttons"/>:
+    /// that dictionary is global, so mapping these bytes there would decode them for every
+    /// device and would also silence the "unmapped byte" diagnostic that is how unknown
+    /// hardware codes get identified in the first place.
+    /// </summary>
+    protected virtual bool TryMapButtonToTouchSlot(byte code, out int slot)
+    {
+        slot = -1;
+        return false;
+    }
+
+    /// <summary>
+    /// Builds the same 6-byte payload the firmware sends for a real touch and feeds it
+    /// through <see cref="OnTouchReceived"/>, so the touch bookkeeping, <see cref="GetTarget"/>
+    /// and the <see cref="OnTouch"/> contract are shared verbatim with the touchscreen path.
+    /// The coordinate is the centre of the key, matching the reference implementation.
+    /// </summary>
+    private void RaiseSyntheticKeyTouch(int slot, Constants.TouchEventType type)
+    {
+        if (Columns <= 0 || slot < 0 || slot >= Columns * Rows) return;
+
+        var xBase = VisibleX is { Length: > 0 } ? VisibleX[0] : 0;
+        var x = xBase + (int)(((slot % Columns) + 0.5) * KeySize);
+        var y = (int)(((slot / Columns) + 0.5) * KeySize);
+
+        // Touch id = slot. The reference implementation uses a fixed 0; using the slot
+        // means two keys held at once cannot overwrite one another in the touch set, and
+        // releasing one cannot remove the other's entry. Safe because a device that maps
+        // buttons to slots has no touchscreen handing out ids of its own.
+        OnTouchReceived(type, [0x00, (byte)(x >> 8), (byte)x, (byte)(y >> 8), (byte)y, (byte)slot]);
+    }
 
     /// <summary>
     /// Sends a 16-bit (5-6-5) image buffer to display "id" at the position (x,y).
@@ -1223,7 +1277,7 @@ public class LoupedeckDevice
     /// <summary>
     /// Sets the color of a button by its ID.
     /// </summary>
-    public async Task SetButtonColor(Constants.ButtonType id, Color color)
+    public virtual async Task SetButtonColor(Constants.ButtonType id, Color color)
     {
         byte key = 0;
         var found = false;
@@ -1251,7 +1305,7 @@ public class LoupedeckDevice
     /// <summary>
     /// Triggers a haptic vibration.
     /// </summary>
-    public void Vibrate(byte pattern = Constants.VibrationPattern.Short)
+    public virtual void Vibrate(byte pattern = Constants.VibrationPattern.Short)
     {
         SendNoResponse(Constants.Command.SET_VIBRATION, [pattern]);
     }
