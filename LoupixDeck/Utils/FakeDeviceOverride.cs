@@ -16,6 +16,31 @@ public static class FakeDeviceOverride
     private const string EnvVar = "LOUPIXDECK_FAKE_DEVICE";
 
     /// <summary>
+    /// In-code counterpart to <c>LOUPIXDECK_FAKE_DEVICE</c>, for testing a device without
+    /// having to set an environment variable: put a device slug here (e.g.
+    /// <c>"razer-stream-controller-x"</c> or <c>"loupedeck-live-s"</c>) and run. Takes
+    /// precedence over the environment variable.
+    ///
+    /// Set back to <c>null</c> before committing. With <c>null</c> the compiler folds the
+    /// override away, so release behaviour is exactly as if it were not here.
+    /// </summary>
+    public const string ForcedSlug = null;
+
+    /// <summary>
+    /// The slug to pretend, from either source, or null when no override is active.
+    /// </summary>
+    private static string ResolveSlug() =>
+        !string.IsNullOrWhiteSpace(ForcedSlug)
+            ? ForcedSlug
+            : Environment.GetEnvironmentVariable(EnvVar);
+
+    /// <summary>
+    /// Whether a device override is in effect. Single place to ask, so callers do not each
+    /// read the environment variable and miss <see cref="ForcedSlug"/>.
+    /// </summary>
+    public static bool IsActive => !string.IsNullOrWhiteSpace(ResolveSlug());
+
+    /// <summary>
     /// Returns the resolved device with its type swapped when the env var is set to
     /// a known slug, otherwise returns <paramref name="actual"/> unchanged. Only the
     /// device <em>type</em> is coerced — the real serial flows through, so per-device
@@ -24,14 +49,14 @@ public static class FakeDeviceOverride
     /// </summary>
     public static ResolvedDevice Apply(ResolvedDevice actual)
     {
-        var slug = Environment.GetEnvironmentVariable(EnvVar);
+        var slug = ResolveSlug();
         if (string.IsNullOrWhiteSpace(slug)) return actual;
 
         var match = DeviceRegistry.SupportedDevices
             .FirstOrDefault(d => string.Equals(d.Slug, slug.Trim(), StringComparison.OrdinalIgnoreCase));
         if (match == null)
         {
-            Console.WriteLine($"[FakeDeviceOverride] {EnvVar}='{slug}' did not match any registered device; ignoring.");
+            Console.WriteLine($"[FakeDeviceOverride] '{slug}' did not match any registered device; ignoring.");
             return actual;
         }
 

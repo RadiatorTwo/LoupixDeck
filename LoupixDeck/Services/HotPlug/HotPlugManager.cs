@@ -142,8 +142,9 @@ public sealed class HotPlugManager : IHotPlugManager
         }
     }
 
-    private static bool FakeDeviceActive()
-        => !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("LOUPIXDECK_FAKE_DEVICE"));
+    // Asks FakeDeviceOverride rather than reading the environment variable directly, so
+    // the in-code FakeDeviceOverride.ForcedSlug is honoured here too.
+    private static bool FakeDeviceActive() => Utils.FakeDeviceOverride.IsActive;
 
     private static void Raise<T>(Action<T> handler, T arg)
     {
