@@ -1,0 +1,290 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:LoupixDeck.ViewModels"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:models="clr-namespace:LoupixDeck.Models"
+             xmlns:svg="clr-namespace:Avalonia.Svg.Skia;assembly=Svg.Controls.Skia.Avalonia"
+             mc:Ignorable="d"
+             x:Class="LoupixDeck.Views.Devices.RazerStreamControllerXLayout"
+             x:DataType="vm:MainWindowViewModel"
+             x:Name="RootControl">
+    <UserControl.Styles>
+        <!-- Keys: chrome-free so only the rendered image shows, with the dark bezel
+             behind it filling the gaps and rounded corners. No grey button background
+             in any state (hover, press, focus, dialog). Mirrors the Live S touch style;
+             this device's keys are physical, but the editor treats them the same. -->
+        <Style Selector="Button[Tag=Touch]">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Focusable" Value="False" />
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Grid>
+                        <ContentPresenter Content="{TemplateBinding Content}"
+                                          ContentTemplate="{TemplateBinding ContentTemplate}"
+                                          HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                          VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
+                        <!-- Hover / selection highlight, drawn inset over the tile so it clears
+                             the surrounding device bezel. The selected state follows the bound
+                             TouchButton's IsSelected (single click selects). -->
+                        <Border Name="HighlightBorder"
+                                Margin="5" CornerRadius="6"
+                                BorderThickness="3" BorderBrush="Transparent"
+                                IsHitTestVisible="False"
+                                Classes.selected="{Binding ((models:LoupedeckButton)CommandParameter).IsSelected, RelativeSource={RelativeSource TemplatedParent}, FallbackValue=False}" />
+                    </Grid>
+                </ControlTemplate>
+            </Setter>
+        </Style>
+        <!-- MouseOver: a subtle border. -->
+        <Style Selector="Button[Tag=Touch]:pointerover /template/ Border#HighlightBorder">
+            <Setter Property="BorderBrush" Value="#803D9BFF" />
+        </Style>
+        <!-- Selected (single click): solid accent border; declared last so it wins over hover. -->
+        <Style Selector="Button[Tag=Touch] /template/ Border#HighlightBorder.selected">
+            <Setter Property="BorderBrush" Value="{StaticResource PageActiveBorderBrush}" />
+        </Style>
+    </UserControl.Styles>
+
+    <!-- The device is drawn from its SVG body (Assets/razer-x-gehaeuse.svg) with the
+         interactive controls overlaid on a Canvas whose coordinate space matches the SVG
+         viewBox (900x540). Both share one Viewbox so the controls scale in lockstep with
+         the body image. The pager stays outside the Viewbox so its text never scales.
+
+         Unlike every other supported device this one has no rotary dials, no LED buttons
+         and no side strips - just the key grid - so there is no rotary pager here and
+         nothing binds SimpleButtons or RotaryButtons.
+
+         Geometry: the keys are 96px (not 90), so the 5x3 grid is 480x288 and is centred
+         in the viewBox at (210,126). The bezel keeps the Live S insets around it
+         (25 units left/right, 10 top/bottom) -> (185,116) 530x308, which sits inside the
+         body rect inherited from the Live S: (75,75)-(825,495). -->
+    <StackPanel Orientation="Vertical" HorizontalAlignment="Center" Spacing="2"
+                Tapped="OnBackgroundTapped"
+                ContextRequested="OnButtonContextRequested">
+
+        <!-- Device body (SVG) + control overlay, scaled together. -->
+        <Viewbox Width="760" Stretch="Uniform">
+            <Grid Width="900" Height="540">
+
+                <!-- Gehaeuse / body artwork. -->
+                <svg:Svg Path="{DynamicResource RazerXBodySvgPath}"
+                         Stretch="Fill" Width="900" Height="540" />
+
+                <!-- Interactive controls in SVG-viewBox coordinates. -->
+                <Canvas Width="900" Height="540">
+
+                    <!-- Screen bezel/recess behind the key grid. -->
+                    <Border Canvas.Left="185" Canvas.Top="116" Width="530" Height="308"
+                            CornerRadius="24" Background="{DynamicResource DeviceBezelBrush}" />
+
+                    <!-- Key grid: 5x3 of 96px keys (480x288). The keys sit gapless so a page
+                         wallpaper runs seamlessly across them; the dark seam frame is painted
+                         ON TOP as an overlay (IsHitTestVisible=False). -->
+                    <Border Canvas.Left="210" Canvas.Top="126" Width="480" Height="288"
+                            CornerRadius="0" ClipToBounds="True"
+                            Background="{DynamicResource DeviceBezelBrush}">
+                        <Grid>
+                            <Grid ColumnDefinitions="96,96,96,96,96" RowDefinitions="96,96,96">
+                                <Button Tag="Touch" Grid.Row="0" Grid.Column="0" Width="96" Height="96"
+                                        Tapped="OnButtonTapped" DoubleTapped="OnButtonDoubleTapped"
+                                        CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[0]}">
+                                    <Border CornerRadius="0" ClipToBounds="True">
+                                        <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[0].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
+                                    </Border>
+                                </Button>
+                                <Button Tag="Touch" Grid.Row="0" Grid.Column="1" Width="96" Height="96"
+                                        Tapped="OnButtonTapped" DoubleTapped="OnButtonDoubleTapped"
+                                        CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[1]}">
+                                    <Border CornerRadius="0" ClipToBounds="True">
+                                        <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[1].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
+                                    </Border>
+                                </Button>
+                                <Button Tag="Touch" Grid.Row="0" Grid.Column="2" Width="96" Height="96"
+                                        Tapped="OnButtonTapped" DoubleTapped="OnButtonDoubleTapped"
+                                        CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[2]}">
+                                    <Border CornerRadius="0" ClipToBounds="True">
+                                        <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[2].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
+                                    </Border>
+                                </Button>
+                                <Button Tag="Touch" Grid.Row="0" Grid.Column="3" Width="96" Height="96"
+                                        Tapped="OnButtonTapped" DoubleTapped="OnButtonDoubleTapped"
+                                        CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[3]}">
+                                    <Border CornerRadius="0" ClipToBounds="True">
+                                        <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[3].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
+                                    </Border>
+                                </Button>
+                                <Button Tag="Touch" Grid.Row="0" Grid.Column="4" Width="96" Height="96"
+                                        Tapped="OnButtonTapped" DoubleTapped="OnButtonDoubleTapped"
+                                        CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[4]}">
+                                    <Border CornerRadius="0" ClipToBounds="True">
+                                        <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[4].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
+                                    </Border>
+                                </Button>
+
+                                <Button Tag="Touch" Grid.Row="1" Grid.Column="0" Width="96" Height="96"
+                                        Tapped="OnButtonTapped" DoubleTapped="OnButtonDoubleTapped"
+                                        CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[5]}">
+                                    <Border CornerRadius="0" ClipToBounds="True">
+                                        <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[5].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
+                                    </Border>
+                                </Button>
+                                <Button Tag="Touch" Grid.Row="1" Grid.Column="1" Width="96" Height="96"
+                                        Tapped="OnButtonTapped" DoubleTapped="OnButtonDoubleTapped"
+                                        CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[6]}">
+                                    <Border CornerRadius="0" ClipToBounds="True">
+                                        <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[6].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
+                                    </Border>
+                                </Button>
+                                <Button Tag="Touch" Grid.Row="1" Grid.Column="2" Width="96" Height="96"
+                                        Tapped="OnButtonTapped" DoubleTapped="OnButtonDoubleTapped"
+                                        CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[7]}">
+                                    <Border CornerRadius="0" ClipToBounds="True">
+                                        <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[7].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
+                                    </Border>
+                                </Button>
+                                <Button Tag="Touch" Grid.Row="1" Grid.Column="3" Width="96" Height="96"
+                                        Tapped="OnButtonTapped" DoubleTapped="OnButtonDoubleTapped"
+                                        CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[8]}">
+                                    <Border CornerRadius="0" ClipToBounds="True">
+                                        <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[8].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
+                                    </Border>
+                                </Button>
+                                <Button Tag="Touch" Grid.Row="1" Grid.Column="4" Width="96" Height="96"
+                                        Tapped="OnButtonTapped" DoubleTapped="OnButtonDoubleTapped"
+                                        CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[9]}">
+                                    <Border CornerRadius="0" ClipToBounds="True">
+                                        <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[9].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
+                                    </Border>
+                                </Button>
+
+                                <Button Tag="Touch" Grid.Row="2" Grid.Column="0" Width="96" Height="96"
+                                        Tapped="OnButtonTapped" DoubleTapped="OnButtonDoubleTapped"
+                                        CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[10]}">
+                                    <Border CornerRadius="0" ClipToBounds="True">
+                                        <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[10].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
+                                    </Border>
+                                </Button>
+                                <Button Tag="Touch" Grid.Row="2" Grid.Column="1" Width="96" Height="96"
+                                        Tapped="OnButtonTapped" DoubleTapped="OnButtonDoubleTapped"
+                                        CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[11]}">
+                                    <Border CornerRadius="0" ClipToBounds="True">
+                                        <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[11].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
+                                    </Border>
+                                </Button>
+                                <Button Tag="Touch" Grid.Row="2" Grid.Column="2" Width="96" Height="96"
+                                        Tapped="OnButtonTapped" DoubleTapped="OnButtonDoubleTapped"
+                                        CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[12]}">
+                                    <Border CornerRadius="0" ClipToBounds="True">
+                                        <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[12].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
+                                    </Border>
+                                </Button>
+                                <Button Tag="Touch" Grid.Row="2" Grid.Column="3" Width="96" Height="96"
+                                        Tapped="OnButtonTapped" DoubleTapped="OnButtonDoubleTapped"
+                                        CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[13]}">
+                                    <Border CornerRadius="0" ClipToBounds="True">
+                                        <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[13].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
+                                    </Border>
+                                </Button>
+                                <Button Tag="Touch" Grid.Row="2" Grid.Column="4" Width="96" Height="96"
+                                        Tapped="OnButtonTapped" DoubleTapped="OnButtonDoubleTapped"
+                                        CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[14]}">
+                                    <Border CornerRadius="0" ClipToBounds="True">
+                                        <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[14].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
+                                    </Border>
+                                </Button>
+                            </Grid>
+                            <!-- Frame overlay drawn ON TOP of the gapless keys: a panel with one
+                                 rounded-rectangle hole per key (EvenOdd punches the holes out of
+                                 the outer 480x288 rect) so each key keeps rounded corners while
+                                 the wallpaper underneath stays continuous. Filled with the
+                                 theme-aware DeviceBezelBrush so the seam is one piece with the
+                                 surrounding screen frame and follows Light/Dark.
+                                 The insets are the Live S proportions scaled to the 96px key
+                                 (4.5/90 -> 4.8/96): 9.6px seams between keys, rounded inner
+                                 edge r=6.4. IsHitTestVisible=False so clicks pass through. -->
+                            <Path IsHitTestVisible="False"
+                                  HorizontalAlignment="Left" VerticalAlignment="Top"
+                                  Fill="{DynamicResource DeviceBezelBrush}">
+                                <Path.Data>
+                                    <GeometryGroup FillRule="EvenOdd">
+                                        <RectangleGeometry Rect="0,0,480,288" />
+                                        <RectangleGeometry Rect="4.8,4.8,86.4,86.4" RadiusX="6.4" RadiusY="6.4" />
+                                        <RectangleGeometry Rect="100.8,4.8,86.4,86.4" RadiusX="6.4" RadiusY="6.4" />
+                                        <RectangleGeometry Rect="196.8,4.8,86.4,86.4" RadiusX="6.4" RadiusY="6.4" />
+                                        <RectangleGeometry Rect="292.8,4.8,86.4,86.4" RadiusX="6.4" RadiusY="6.4" />
+                                        <RectangleGeometry Rect="388.8,4.8,86.4,86.4" RadiusX="6.4" RadiusY="6.4" />
+                                        <RectangleGeometry Rect="4.8,100.8,86.4,86.4" RadiusX="6.4" RadiusY="6.4" />
+                                        <RectangleGeometry Rect="100.8,100.8,86.4,86.4" RadiusX="6.4" RadiusY="6.4" />
+                                        <RectangleGeometry Rect="196.8,100.8,86.4,86.4" RadiusX="6.4" RadiusY="6.4" />
+                                        <RectangleGeometry Rect="292.8,100.8,86.4,86.4" RadiusX="6.4" RadiusY="6.4" />
+                                        <RectangleGeometry Rect="388.8,100.8,86.4,86.4" RadiusX="6.4" RadiusY="6.4" />
+                                        <RectangleGeometry Rect="4.8,196.8,86.4,86.4" RadiusX="6.4" RadiusY="6.4" />
+                                        <RectangleGeometry Rect="100.8,196.8,86.4,86.4" RadiusX="6.4" RadiusY="6.4" />
+                                        <RectangleGeometry Rect="196.8,196.8,86.4,86.4" RadiusX="6.4" RadiusY="6.4" />
+                                        <RectangleGeometry Rect="292.8,196.8,86.4,86.4" RadiusX="6.4" RadiusY="6.4" />
+                                        <RectangleGeometry Rect="388.8,196.8,86.4,86.4" RadiusX="6.4" RadiusY="6.4" />
+                                    </GeometryGroup>
+                                </Path.Data>
+                            </Path>
+                        </Grid>
+                    </Border>
+                </Canvas>
+
+                <!-- Exclusive-mode overlay: while a provider owns the device, none of the
+                     on-screen controls reflect or affect it, so cover the whole device and
+                     swallow all input with a notice. -->
+                <Border IsVisible="{Binding IsExclusiveModeActive}"
+                        Background="#E60F0F0F"
+                        BorderBrush="{StaticResource SelectedBrush}"
+                        BorderThickness="2"
+                        CornerRadius="6">
+                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8">
+                        <TextBlock Text="Exclusive Mode Active"
+                                   FontSize="22" FontWeight="Bold" Foreground="White"
+                                   HorizontalAlignment="Center" />
+                        <TextBlock Text="{Binding ExclusiveModeTitle}"
+                                   FontSize="16" Foreground="#CCCCCC"
+                                   HorizontalAlignment="Center"
+                                   IsVisible="{Binding ExclusiveModeTitle, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                        <TextBlock Text="The device is being controlled. Its buttons are inactive."
+                                   FontSize="12" Foreground="#999999"
+                                   TextWrapping="Wrap" MaxWidth="420" TextAlignment="Center"
+                                   HorizontalAlignment="Center" />
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </Viewbox>
+
+        <!-- Touch page pager, centred below the key grid it controls. The negative top
+             margin pulls it up into the transparent band below the visible body
+             (SVG y=495), matching the Live S spacing. -->
+        <Border Classes="Pager" HorizontalAlignment="Center" Margin="0,-30,0,12">
+            <StackPanel Orientation="Horizontal" Spacing="3" VerticalAlignment="Center">
+                <Button Classes="PagerBtn PagerNav" Content="&#8249;"
+                        ToolTip.Tip="Previous touch page"
+                        Command="{Binding PreviousTouchPageCommand}" />
+                <TextBox Classes="PageName"
+                         Text="{Binding LoupedeckController.Config.CurrentTouchButtonPage.Name, Mode=TwoWay}"
+                         PlaceholderText="{Binding LoupedeckController.Config.CurrentTouchButtonPage.PageName}"
+                         KeyDown="OnPageNameKeyDown" LostFocus="OnPageNameCommit" />
+                <Button Classes="PagerBtn PagerNav" Content="&#8250;"
+                        ToolTip.Tip="Next touch page"
+                        Command="{Binding NextTouchPageCommand}" />
+                <TextBlock Classes="PageCount"
+                           Text="{Binding LoupedeckController.Config.TouchPageLabel}"
+                           ToolTip.Tip="Current / total touch pages" />
+                <Button Classes="PagerBtn" Content="+"
+                        ToolTip.Tip="Add touch page"
+                        Command="{Binding AddTouchPageCommand}" />
+                <Button Classes="PagerBtn delete" Content="&#10005;"
+                        ToolTip.Tip="Delete current touch page"
+                        Command="{Binding DeleteTouchPageCommand}" />
+            </StackPanel>
+        </Border>
+
+    </StackPanel>
+</UserControl>

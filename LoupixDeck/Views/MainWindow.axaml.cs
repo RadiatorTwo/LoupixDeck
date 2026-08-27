@@ -113,6 +113,9 @@ public partial class MainWindow : Window
             // so it reuses the Razer editor layout. The on-screen chassis art is the
             // Razer body until a dedicated Loupedeck Live SVG is added.
             "razer-stream-controller" or "loupedeck-live" => new RazerStreamControllerLayout { DataContext = vm },
+            // The Stream Controller X shares nothing but the grid with the other Razer:
+            // 5x3 physical keys, no dials, no LEDs, no side strips.
+            "razer-stream-controller-x" => new RazerStreamControllerXLayout { DataContext = vm },
             "loupedeck-ct" => new LoupedeckCtLayout { DataContext = vm },
             _ => new LoupedeckLiveSLayout { DataContext = vm }
         };
