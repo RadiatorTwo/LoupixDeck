@@ -25,11 +25,15 @@ public sealed class PluginFullDisplayAnimationSource : IAnimationSource, IDispos
     {
         _renderer = renderer;
         _writer = new FullDisplayFrameWriter(device);
+        // The surface is the device's real panel (480 × its own panel height), not a fixed
+        // 480×270. A plugin reads these dimensions off the surface it is handed in OnStart,
+        // so one that respects them fills the whole screen on every device; one that assumes
+        // 480×270 still renders exactly as it did before on the devices that are 270 tall.
         _surface = new FullDisplaySurface
         {
-            Width = FullDisplayFrameWriter.PanelWidth,
-            Height = FullDisplayFrameWriter.PanelHeight,
-            Stride = FullDisplayFrameWriter.PanelWidth * 4,
+            Width = _writer.PanelWidth,
+            Height = _writer.PanelHeight,
+            Stride = _writer.PanelWidth * 4,
             PixelFormat = FullDisplayPixelFormat.Bgra8888
         };
     }
@@ -76,7 +80,7 @@ public sealed class PluginFullDisplayAnimationSource : IAnimationSource, IDispos
         if (!_enabled || _paused)
             return;
 
-        var buffer = ArrayPool<byte>.Shared.Rent(FullDisplayFrameWriter.FrameBytes);
+        var buffer = ArrayPool<byte>.Shared.Rent(_writer.FrameBytes);
         try
         {
             FullDisplayFrameContext frame = new()

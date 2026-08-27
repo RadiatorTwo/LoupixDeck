@@ -6,8 +6,8 @@ using SkiaSharp;
 namespace LoupixDeck.Services.Animation;
 
 /// <summary>
-/// Shared full-display frame push path. Takes one raw BGRA panel (the continuous 480×270 virtual
-/// panel the wallpaper system assumes) and fans it out across every display of a device: unified
+/// Shared full-display frame push path. Takes one raw BGRA panel (the continuous virtual panel
+/// the wallpaper system assumes — 480 wide by the device's own panel height) and fans it out across every display of a device: unified
 /// devices (Live S / Razer) take the whole frame on their single "center" buffer; the CT's
 /// independent left/centre/right buffers each take their column. The CT knob screen is intentionally
 /// not driven (its framebuffer needs big-endian conversion the device layer doesn't implement yet).
@@ -21,20 +21,25 @@ namespace LoupixDeck.Services.Animation;
 public sealed class FullDisplayFrameWriter : IDisposable
 {
     // The continuous virtual panel the wallpaper system assumes: 480px wide spanning the
-    // centre grid plus both 60px side-strip columns, 270px tall.
+    // centre grid plus both 60px side-strip columns. Its height is the device's own panel
+    // height — 270 on every Loupedeck/Razer, 288 on the Razer Stream Controller X — so a
+    // full-display frame covers the whole screen instead of leaving the bottom 18px stale.
     //
-    // NOTE: this is a SECOND, independent panel constant — BitmapHelper.PanelHeight drives
-    // the wallpaper bake and is passed per-device, but the full-display animation and
-    // screensaver paths still hard-code 270 here (and ScreensaverAnimationSource's ffmpeg
-    // "scale=480:270"), and PluginFullDisplayAnimationSource ships these numbers to plugins
-    // as an SDK surface. The Razer Stream Controller X's panel is 288 tall, so on that
-    // device the bottom 18px go unused. Making this per-device is deliberately deferred:
-    // it changes plugin-facing dimensions and so belongs in its own change with its own
-    // SDK version, verified against real hardware.
-    public const int PanelWidth = 480;
-    public const int PanelHeight = 270;
+    // Only the fallbacks are constant. The width stays 480 even on the segmented CT, whose
+    // "center" buffer is 360 wide: the missing 60px columns are its separate left/right
+    // buffers, which BuildTargets slices out of the same frame.
+    public const int DefaultPanelWidth = 480;
+    public const int DefaultPanelHeight = 270;
     public const int StripWidth = 60;
-    public const int FrameBytes = PanelWidth * PanelHeight * 4;
+
+    /// <summary>Width of the virtual panel a frame must be supplied at.</summary>
+    public int PanelWidth { get; }
+
+    /// <summary>Height of the virtual panel a frame must be supplied at — the device's panel height.</summary>
+    public int PanelHeight { get; }
+
+    /// <summary>Size of exactly one BGRA panel frame, in bytes.</summary>
+    public int FrameBytes => PanelWidth * PanelHeight * 4;
 
     private readonly LoupedeckDevice.Device.LoupedeckDevice _device;
     private readonly List<DisplayTarget> _targets = [];
@@ -56,6 +61,14 @@ public sealed class FullDisplayFrameWriter : IDisposable
         _device = device;
         _debug = debug;
         _logPrefix = logPrefix;
+
+        // The panel is the device's own "center" geometry, widened to the full 480 on the
+        // segmented CT (see the constants above). A device that reports nothing drawable
+        // falls back to the historic size; BuildTargets then adds no targets anyway.
+        var (centerWidth, centerHeight) = device.GetDisplaySize("center");
+        PanelWidth = centerWidth >= DefaultPanelWidth ? centerWidth : DefaultPanelWidth;
+        PanelHeight = centerHeight > 0 ? centerHeight : DefaultPanelHeight;
+
         BuildTargets();
     }
 
@@ -85,7 +98,7 @@ public sealed class FullDisplayFrameWriter : IDisposable
             {
                 if (target.IsFullFrame)
                 {
-                    // The whole 480×270 frame goes straight to the unified buffer.
+                    // The whole panel frame goes straight to the unified buffer.
                     draws.Add((target.DisplayId, frame, false));
                     continue;
                 }
@@ -142,7 +155,7 @@ public sealed class FullDisplayFrameWriter : IDisposable
 
     /// <summary>
     /// Builds the slice targets from the device's displays. A unified device exposes a single
-    /// 480-wide "center" buffer (the Razer's side strips are columns of it); the CT exposes
+    /// full-width "center" buffer (the Razer's side strips are columns of it); the CT exposes
     /// independent narrower buffers that each map to a column of the panel.
     /// </summary>
     private void BuildTargets()
@@ -168,7 +181,7 @@ public sealed class FullDisplayFrameWriter : IDisposable
     {
         var (w, h) = _device.GetDisplaySize(displayId);
         if (w <= 0 || h <= 0) return;
-        _targets.Add(DisplayTarget.Slice(displayId, srcX, srcWidth, w, h));
+        _targets.Add(DisplayTarget.Slice(displayId, srcX, srcWidth, PanelHeight, w, h));
     }
 
     /// <summary>Waits for any in-flight frame push to finish so the caller can safely close the
@@ -180,7 +193,7 @@ public sealed class FullDisplayFrameWriter : IDisposable
     }
 
     /// <summary>One display's slice of the panel: which buffer, the source rectangle in the
-    /// 480×270 frame, and the destination size (the display's own pixels).</summary>
+    /// panel frame, and the destination size (the display's own pixels).</summary>
     private sealed class DisplayTarget
     {
         public string DisplayId { get; private init; }
@@ -198,11 +211,12 @@ public sealed class FullDisplayFrameWriter : IDisposable
             DestHeight = height
         };
 
-        public static DisplayTarget Slice(string id, int srcX, int srcWidth, int destWidth, int destHeight) => new()
+        public static DisplayTarget Slice(string id, int srcX, int srcWidth, int srcHeight,
+            int destWidth, int destHeight) => new()
         {
             DisplayId = id,
             IsFullFrame = false,
-            SrcRect = new SKRect(srcX, 0, srcX + srcWidth, PanelHeight),
+            SrcRect = new SKRect(srcX, 0, srcX + srcWidth, srcHeight),
             DestWidth = destWidth,
             DestHeight = destHeight
         };

@@ -19,7 +19,8 @@ namespace LoupixDeck.Services.Animation;
 /// correct speed and skips frames instead of sliding into slow motion. Each device runs its
 /// own ffmpeg + queue, so the two never share a clock.
 ///
-/// The decode geometry mirrors the wallpaper system's continuous 480×270 panel: the frame
+/// The decode geometry mirrors the wallpaper system's continuous panel (480 × the device's own
+/// panel height): the frame
 /// is decoded at panel size and sliced per display. Unified devices (Live S / Razer) take
 /// the whole frame on their single buffer; the CT's independent left/centre/right buffers
 /// each take their column. The CT knob screen is intentionally not driven (its framebuffer
@@ -27,17 +28,19 @@ namespace LoupixDeck.Services.Animation;
 /// </summary>
 public sealed class ScreensaverAnimationSource : IAnimationSource, IDisposable
 {
-    // Panel geometry / frame size come from the shared writer (the continuous 480×270 virtual
-    // panel the wallpaper system assumes).
-    private const int PanelWidth = FullDisplayFrameWriter.PanelWidth;
-    private const int PanelHeight = FullDisplayFrameWriter.PanelHeight;
-    private const int FrameBytes = FullDisplayFrameWriter.FrameBytes;
+    // Panel geometry / frame size come from the shared writer, which derives them from the
+    // attached device: 480 wide by the device's own panel height (270, or 288 on the Razer
+    // Stream Controller X). ffmpeg is told to scale to exactly that, so a frame always
+    // covers the whole screen.
+    private readonly int _panelWidth;
+    private readonly int _panelHeight;
+    private readonly int _frameBytes;
 
     // Read-ahead depth: how many realtime-paced frames may sit queued ahead of presentation.
     // The cushion (≈ FrameQueueDepth / fps seconds) lets the background reader ride out a
     // transient decode spike on a large/high-bitrate clip (e.g. a fat keyframe) without
     // starving the scheduler, and gives a lagging device a few frames to drop-skip back to
-    // realtime. The bound keeps memory flat (FrameQueueDepth × FrameBytes ≈ 3 MB at 6) and
+    // realtime. The bound keeps memory flat (FrameQueueDepth × _frameBytes ≈ 3 MB at 6) and
     // caps how stale a dropped-to frame can be.
     private const int FrameQueueDepth = 6;
 
@@ -81,6 +84,9 @@ public sealed class ScreensaverAnimationSource : IAnimationSource, IDisposable
         _loop = loop;
         _onEnded = onEnded;
         _writer = new FullDisplayFrameWriter(device, _debug, "[Screensaver]");
+        _panelWidth = _writer.PanelWidth;
+        _panelHeight = _writer.PanelHeight;
+        _frameBytes = _writer.FrameBytes;
     }
 
     public int TargetFps => _fps;
@@ -124,7 +130,7 @@ public sealed class ScreensaverAnimationSource : IAnimationSource, IDisposable
         // freshest one (see RenderFrameAsync) so playback stays at the right speed and instead
         // skips frames. Without -re a slow consumer would just decode slower → slow motion.
         //
-        // scale=…:flags=fast_bilinear — the panel is tiny (480×270), so the source is always
+        // scale=…:flags=fast_bilinear — the panel is tiny, so the source is always
         // downscaled hard; fast_bilinear is the cheapest scaler and measured ~15% more decode
         // headroom than the default bicubic on 1080p clips with no visible quality loss at this
         // size. Hardware decode (-hwaccel) was tried and is slower here (the GPU→system-memory
@@ -135,7 +141,7 @@ public sealed class ScreensaverAnimationSource : IAnimationSource, IDisposable
             $"-hide_banner -loglevel {logLevel} " +
             "-probesize 500000 -analyzeduration 0 -re " +
             $"{loopArg}-i \"{_absoluteVideoPath}\" " +
-            $"-an -f rawvideo -r {_fps} -pix_fmt bgra -vf scale={PanelWidth}:{PanelHeight}:flags=fast_bilinear -";
+            $"-an -f rawvideo -r {_fps} -pix_fmt bgra -vf scale={_panelWidth}:{_panelHeight}:flags=fast_bilinear -";
 
         if (_debug)
             Console.WriteLine($"[Screensaver] ffmpeg {args}");
@@ -220,17 +226,17 @@ public sealed class ScreensaverAnimationSource : IAnimationSource, IDisposable
         {
             while (!token.IsCancellationRequested)
             {
-                var buffer = ArrayPool<byte>.Shared.Rent(FrameBytes);
+                var buffer = ArrayPool<byte>.Shared.Rent(_frameBytes);
 
                 // Read exactly one full panel frame.
                 var read = 0;
                 var ended = false;
-                while (read < FrameBytes)
+                while (read < _frameBytes)
                 {
                     int r;
                     try
                     {
-                        r = await stream.ReadAsync(buffer.AsMemory(read, FrameBytes - read), token)
+                        r = await stream.ReadAsync(buffer.AsMemory(read, _frameBytes - read), token)
                             .ConfigureAwait(false);
                     }
                     catch (OperationCanceledException)
