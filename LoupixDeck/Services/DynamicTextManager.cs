@@ -48,6 +48,11 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
     private readonly ICommandRegistry _commandRegistry;
     private readonly IServiceProvider _deviceProvider;
     private readonly IDeviceRouter _router;
+    private readonly IDeviceService _deviceService;
+
+    // Key edge length used when no device is attached (every Loupedeck; the Razer Stream
+    // Controller X is 96).
+    private const int DefaultKeySize = 90;
 
     private readonly Lock _gate = new();
     private List<Entry> _active = new();
@@ -59,12 +64,14 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
         IPageManager pageManager,
         ICommandRegistry commandRegistry,
         IServiceProvider deviceProvider,
-        IDeviceRouter router)
+        IDeviceRouter router,
+        IDeviceService deviceService)
     {
         _pageManager = pageManager;
         _commandRegistry = commandRegistry;
         _deviceProvider = deviceProvider;
         _router = router;
+        _deviceService = deviceService;
     }
 
     public void Start()
@@ -257,16 +264,23 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
 
         if (command.IsImageDisplayCommand && command.RenderImage != null)
         {
-            // The plugin draws the 90×90 button onto a host canvas; serialize with all other Skia
-            // work (font/glyph caches + the layer's gated bitmap swap) so it can't race the pipeline.
-            var bitmap = new SKBitmap(90, 90);
+            // The plugin draws one key of the attached device onto a host canvas, at that
+            // device's real size (96 on the Razer Stream Controller X) rather than a fixed 90,
+            // so the frame is not upscaled by the layer pass afterwards. The size is handed to
+            // the plugin on the render canvas, which is where a plugin reads it from.
+            //
+            // Serialize with all other Skia work (font/glyph caches + the layer's gated bitmap
+            // swap) so it can't race the pipeline.
+            var keySize = _deviceService?.Device?.KeySize ?? DefaultKeySize;
+
+            var bitmap = new SKBitmap(keySize, keySize);
             bool drew;
             try
             {
                 lock (SkiaRenderGate.Sync)
                 {
                     using var canvas = new SKCanvas(bitmap);
-                    var rc = new SkiaRenderCanvas(canvas, 90, 90);
+                    var rc = new SkiaRenderCanvas(canvas, keySize, keySize);
                     drew = command.RenderImage(entry.Parameters, entry.SequenceCommands, rc);
                     if (drew) canvas.Flush();
                 }
