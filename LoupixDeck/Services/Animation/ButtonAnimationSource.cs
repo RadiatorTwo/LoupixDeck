@@ -30,10 +30,14 @@ namespace LoupixDeck.Services.Animation;
 /// </summary>
 public sealed class ButtonAnimationSource : IAnimationSource, IDisposable
 {
-    // Image animations are capped well below the global limit: the device is 90×90 and re-rendering
+    // Image animations are capped well below the global limit: a key is under 100px square and re-rendering
     // takes the global Skia gate (a known cross-device bottleneck), so a higher rate buys nothing
     // visible while costing contention. Plugins request their own rate (still globally clamped).
     private const int ImageFps = 15;
+
+    // Key edge length used when no device is attached (every Loupedeck; the Razer Stream
+    // Controller X is 96).
+    private const int DefaultKeySize = 90;
 
     private readonly IDeviceService _deviceService;
     private readonly LoupedeckConfig _config;
@@ -193,7 +197,12 @@ public sealed class ButtonAnimationSource : IAnimationSource, IDisposable
             EffectiveFps = context.EffectiveFps
         };
 
-        var bitmap = new SKBitmap(90, 90);
+        // One key of the attached device, so the plugin draws at native resolution instead of
+        // being upscaled from 90 on a device with larger keys. The size is handed to the plugin
+        // on the render canvas, which is where a plugin is meant to read it from.
+        var keySize = _deviceService.Device?.KeySize ?? DefaultKeySize;
+
+        var bitmap = new SKBitmap(keySize, keySize);
         AnimationFrameInfo info;
         try
         {
@@ -201,7 +210,7 @@ public sealed class ButtonAnimationSource : IAnimationSource, IDisposable
             lock (SkiaRenderGate.Sync)
             {
                 using var canvas = new SKCanvas(bitmap);
-                var rc = new SkiaRenderCanvas(canvas, 90, 90);
+                var rc = new SkiaRenderCanvas(canvas, keySize, keySize);
                 info = render(entry.Parameters, entry.SequenceCommands, rc, frameCtx);
                 if (info.Drawn) canvas.Flush();
             }

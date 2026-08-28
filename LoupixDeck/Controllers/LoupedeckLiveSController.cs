@@ -1611,9 +1611,9 @@ public partial class LoupedeckLiveSController(
 
             var original = button.RenderedImage;
             // Use the original bitmap's dimensions so we cover Razer side panels
-            // (60×270) and regular grid buttons (90×90) without special-casing.
-            var width = original?.Width ?? 90;
-            var height = original?.Height ?? 90;
+            // (60×270) and regular grid buttons (one key square) without special-casing.
+            var width = original?.Width ?? device.KeySize;
+            var height = original?.Height ?? device.KeySize;
 
             using var flash = new SkiaSharp.SKBitmap(width, height);
             using (var canvas = new SkiaSharp.SKCanvas(flash))
