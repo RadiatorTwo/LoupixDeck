@@ -64,6 +64,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     private readonly IDynamicTextManager _dynamicTextManager;
     private readonly Services.Animation.IAnimatedImageImporter _animatedImageImporter;
     private readonly Services.Animation.IAnimatedImageCache _animatedImageCache;
+    private readonly IDeviceService _deviceService;
     private readonly LoupedeckConfig _config;
 
     /// <summary>
@@ -807,6 +808,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         IDynamicTextManager dynamicTextManager,
         Services.Animation.IAnimatedImageImporter animatedImageImporter,
         Services.Animation.IAnimatedImageCache animatedImageCache,
+        IDeviceService deviceService,
         LoupedeckConfig config)
     {
         _commandBuilder = commandBuilder;
@@ -818,6 +820,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         _dynamicTextManager = dynamicTextManager;
         _animatedImageImporter = animatedImageImporter;
         _animatedImageCache = animatedImageCache;
+        _deviceService = deviceService;
         _config = config;
 
         // The provider list can change on a plugin hot-reload while the editor is open.
@@ -904,10 +907,17 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         if (string.IsNullOrEmpty(path) || !File.Exists(path)) return;
 
         // GIF/WebP are stored as-is; a video is transcoded once here (needs ffmpeg). The decode
-        // and any transcode run off the UI thread. Pass the edited surface size so a video is
-        // fitted to the real target (60×270 for a side strip) preserving aspect, not a 90×90 square.
-        var targetW = DeviceWidth;
-        var targetH = DeviceHeight;
+        // and any transcode run off the UI thread. Pass the real device surface so the video is
+        // fitted to it preserving aspect, not to a 90×90 square.
+        //
+        // A side strip IS the device surface (60×270), so the editor's own canvas size is right
+        // there. A grid button is not: it is authored against the 90px authoring tile (a config
+        // contract — see BitmapHelper.AuthoringTileSize) but drawn at the device's key size, 96
+        // on the Razer Stream Controller X. Transcoding at 90 would mean every frame is upscaled
+        // at draw time, so use the key size instead.
+        var keySize = _deviceService?.Device?.KeySize ?? BitmapHelper.AuthoringTileSize;
+        var targetW = IsStripCanvas ? DeviceWidth : keySize;
+        var targetH = IsStripCanvas ? DeviceHeight : keySize;
         // A side strip (tall, non-square) fills its height; a square button letterboxes.
         var fill = IsStripCanvas;
         var relative = await Task.Run(() => _animatedImageImporter.ImportAsync(path, targetW, targetH, fill));
