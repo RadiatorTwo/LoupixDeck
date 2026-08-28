@@ -535,10 +535,10 @@ public static class BitmapHelper
 
     /// <summary>
     /// Returns the slot's baked bitmap at <paramref name="width"/>×<paramref name="height"/>
-    /// (480×270 for the main panel, 60×270 for a side display), computing and caching it
-    /// on first use. The original image is resolved from the asset folder via
-    /// <see cref="AssetResolver"/>, scaled/positioned with the slot's parameters and
-    /// optionally horizontally mirrored. Returns null when the slot has no image or the
+    /// (the device's panel for the main wallpaper, 60×panel-height for a side display),
+    /// computing and caching it on first use. The original image is resolved from the asset
+    /// folder via <see cref="AssetResolver"/>, scaled/positioned with the slot's parameters
+    /// and optionally horizontally mirrored. Returns null when the slot has no image or the
     /// asset is missing.
     /// </summary>
     public static SKBitmap GetOrBakeSlot(WallpaperSlot slot, int width, int height)
@@ -547,23 +547,8 @@ public static class BitmapHelper
         // Reuse the cache only at the size it was baked for — see WallpaperSlot.BakedSize.
         if (slot.Baked != null && slot.BakedSize == (width, height)) return slot.Baked;
 
-        var original = AssetResolver?.Invoke(slot.AssetPath);
-        if (original == null) return null;
-
-        SKBitmap baked;
-        lock (SkiaRenderGate.Sync)
-        {
-            baked = ScaleAndPositionBitmap(
-                original, width, height,
-                slot.Scaling, slot.PositionX, slot.PositionY, slot.ScalingOption);
-
-            if (slot.Mirror)
-            {
-                var flipped = FlipHorizontal(baked);
-                baked.Dispose();
-                baked = flipped;
-            }
-        }
+        var baked = BakeSlot(slot, width, height);
+        if (baked == null) return null;
 
         // Deliberately not disposing the previous bake: a consumer may still be drawing
         // with it (ResolveWallpaper hands the instance out), and tearing native pixels
@@ -572,6 +557,50 @@ public static class BitmapHelper
         slot.Baked = baked;
         slot.BakedSize = (width, height);
         return baked;
+    }
+
+    /// <summary>
+    /// Returns the slot's baked bitmap at the fixed <see cref="ThumbnailWidth"/>×<see
+    /// cref="ThumbnailHeight"/> list-thumbnail size, cached separately from the panel bake.
+    ///
+    /// It needs its own cache because the panel bake is per-device: a caller with no device to
+    /// ask (the page list in Settings) would otherwise request a different height than the
+    /// device draw path on a device whose panel is not 270 tall, and the two would evict each
+    /// other's bake on every repaint. The thumbnail is drawn a few dozen pixels wide, so its
+    /// own size only has to be big enough not to look soft.
+    /// </summary>
+    public static SKBitmap GetOrBakeSlotThumbnail(WallpaperSlot slot)
+    {
+        if (slot == null || !slot.HasImage) return null;
+        if (slot.Thumbnail != null) return slot.Thumbnail;
+
+        var baked = BakeSlot(slot, ThumbnailWidth, ThumbnailHeight);
+        if (baked == null) return null;
+
+        // Not disposing the previous thumbnail, for the same reason GetOrBakeSlot doesn't:
+        // a bound Image may still be reading it.
+        slot.Thumbnail = baked;
+        return baked;
+    }
+
+    /// <summary>Bakes a slot's image to an exact size, uncached. See <see cref="GetOrBakeSlot"/>.</summary>
+    private static SKBitmap BakeSlot(WallpaperSlot slot, int width, int height)
+    {
+        var original = AssetResolver?.Invoke(slot.AssetPath);
+        if (original == null) return null;
+
+        lock (SkiaRenderGate.Sync)
+        {
+            var baked = ScaleAndPositionBitmap(
+                original, width, height,
+                slot.Scaling, slot.PositionX, slot.PositionY, slot.ScalingOption);
+
+            if (!slot.Mirror) return baked;
+
+            var flipped = FlipHorizontal(baked);
+            baked.Dispose();
+            return flipped;
+        }
     }
 
     /// <summary>Returns a horizontally mirrored copy of <paramref name="source"/>.</summary>
@@ -1791,6 +1820,11 @@ public static class BitmapHelper
     // The unified panel is 480px wide; the side strips occupy its outer 60px columns.
     public const int PanelWidth = 480;
     public const int PanelHeight = 270;
+
+    /// <summary>Size the page-list wallpaper thumbnail is baked at — see
+    /// <see cref="GetOrBakeSlotThumbnail"/>. Deliberately device-independent.</summary>
+    public const int ThumbnailWidth = 240;
+    public const int ThumbnailHeight = 135;
     private const int StripWidth = 60;
 
     /// <summary>

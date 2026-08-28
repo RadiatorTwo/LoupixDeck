@@ -12,10 +12,12 @@ using SkiaSharp;
 namespace LoupixDeck.ViewModels;
 
 /// <summary>
-/// Edits a touch page's wallpapers. Supports three independent targets — the main
-/// 480×270 panel and (on devices with side strips) the left/right 60×270 side
-/// displays. The left panel is a clickable device preview; the right panel binds to
-/// the currently selected target's settings.
+/// Edits a touch page's wallpapers. Supports three independent targets — the main panel
+/// and (on devices with side strips) the left/right side displays. Every target is baked at
+/// the attached device's real panel height (270, or 288 on the Razer Stream Controller X),
+/// so the preview has the device's aspect ratio and shares its bake. The left panel is a
+/// clickable device preview; the right panel binds to the currently selected target's
+/// settings.
 /// </summary>
 public class TouchPageWallpaperSettingsViewModel : DialogViewModelBase<TouchButtonPage, DialogResult>
 {
@@ -23,6 +25,9 @@ public class TouchPageWallpaperSettingsViewModel : DialogViewModelBase<TouchButt
 
     // Asset sub-folder for page wallpapers — kept in sync with WallpaperAssetMigrator.
     private const string WallpapersSubFolder = "wallpapers";
+
+    // Width of one side display. Only side-strip devices have them and they are all 60 wide.
+    private const int SideStripWidth = 60;
 
     private readonly IAssetService _assetService;
     private TouchButtonPage _targetPage;
@@ -58,6 +63,9 @@ public class TouchPageWallpaperSettingsViewModel : DialogViewModelBase<TouchButt
     {
         _assetService = assetService;
         HasSideStrips = deviceService?.Device?.HasSideStrips ?? false;
+
+        var panelHeight = deviceService?.Device?.GetDisplaySize().Height ?? 0;
+        PanelHeight = panelHeight > 0 ? panelHeight : BitmapHelper.PanelHeight;
     }
 
     public override void Initialize(TouchButtonPage parameter)
@@ -81,6 +89,9 @@ public class TouchPageWallpaperSettingsViewModel : DialogViewModelBase<TouchButt
 
     /// <summary>Only Razer-class devices expose the side displays.</summary>
     public bool HasSideStrips { get; }
+
+    /// <summary>Panel height of the attached device — the height every target is baked at.</summary>
+    private int PanelHeight { get; }
 
     // ───────── Target selection ─────────
 
@@ -118,9 +129,9 @@ public class TouchPageWallpaperSettingsViewModel : DialogViewModelBase<TouchButt
 
     public string ActiveTargetSizeInfo => SelectedTarget switch
     {
-        WallpaperTarget.Left => "Left Side Display: 60 × 270",
-        WallpaperTarget.Right => "Right Side Display: 60 × 270",
-        _ => "Main Wallpaper",
+        WallpaperTarget.Left => $"Left Side Display: {SideStripWidth} × {PanelHeight}",
+        WallpaperTarget.Right => $"Right Side Display: {SideStripWidth} × {PanelHeight}",
+        _ => $"Main Wallpaper: {BitmapHelper.PanelWidth} × {PanelHeight}",
     };
 
     // Raise everything that depends on the active target.
@@ -192,13 +203,13 @@ public class TouchPageWallpaperSettingsViewModel : DialogViewModelBase<TouchButt
     // ───────── Previews ─────────
 
     public SKBitmap MainPreview =>
-        BitmapHelper.GetOrBakeSlot(_targetPage?.MainWallpaper, BitmapHelper.PanelWidth, BitmapHelper.PanelHeight);
+        BitmapHelper.GetOrBakeSlot(_targetPage?.MainWallpaper, BitmapHelper.PanelWidth, PanelHeight);
 
     public SKBitmap LeftPreview =>
-        BitmapHelper.GetOrBakeSlot(_targetPage?.LeftWallpaper, 60, BitmapHelper.PanelHeight);
+        BitmapHelper.GetOrBakeSlot(_targetPage?.LeftWallpaper, SideStripWidth, PanelHeight);
 
     public SKBitmap RightPreview =>
-        BitmapHelper.GetOrBakeSlot(_targetPage?.RightWallpaper, 60, BitmapHelper.PanelHeight);
+        BitmapHelper.GetOrBakeSlot(_targetPage?.RightWallpaper, SideStripWidth, PanelHeight);
 
     public SKBitmap ActivePreview => SelectedTarget switch
     {

@@ -10,7 +10,7 @@ public sealed partial class TouchButtonPage(int pageSize) : ButtonPageBase()
     public ObservableCollection<TouchButton> TouchButtons { get; } = new(Enumerable.Range(0, pageSize).Select(static i => new TouchButton(i)));
 
     /// <summary>
-    /// Main 480×270 wallpaper. Always non-null; an empty slot (no
+    /// Main panel wallpaper (480 × the device's panel height). Always non-null; an empty slot (no
     /// <see cref="WallpaperSlot.AssetPath"/>) means "no wallpaper".
     /// </summary>
     public WallpaperSlot MainWallpaper
@@ -61,12 +61,15 @@ public sealed partial class TouchButtonPage(int pageSize) : ButtonPageBase()
     } = new();
 
     /// <summary>
-    /// Baked main wallpaper, used for thumbnails/previews (settings list). Read-only;
-    /// computed on demand from <see cref="MainWallpaper"/>. Returns null when unset.
+    /// Baked main wallpaper thumbnail for the page list in Settings. Read-only; computed on
+    /// demand from <see cref="MainWallpaper"/>. Returns null when unset.
+    ///
+    /// Deliberately the device-independent thumbnail bake, not the panel bake: a page has no
+    /// device to ask for the panel height, and requesting a fixed 480×270 here would fight the
+    /// device draw path's bake on a device whose panel is 288 tall.
     /// </summary>
     [JsonIgnore]
-    public SKBitmap Wallpaper =>
-        BitmapHelper.GetOrBakeSlot(MainWallpaper, BitmapHelper.PanelWidth, BitmapHelper.PanelHeight);
+    public SKBitmap Wallpaper => BitmapHelper.GetOrBakeSlotThumbnail(MainWallpaper);
 
     /// <summary>Change signal (no value) raised whenever any wallpaper slot's
     /// rendered result changes, so the controller repaints. JsonIgnore — purely a

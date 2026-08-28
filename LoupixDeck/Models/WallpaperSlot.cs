@@ -6,8 +6,8 @@ using SkiaSharp;
 namespace LoupixDeck.Models;
 
 /// <summary>
-/// One wallpaper target — either the main 480×270 panel or one of the Razer side
-/// displays (60×270). Holds the persistent reference to the original image in the
+/// One wallpaper target — either the main panel (480 × the device's panel height) or one
+/// of the Razer side displays (60 × panel height). Holds the persistent reference to the original image in the
 /// asset folder plus its scaling / position / opacity / mirror parameters; the
 /// scaled bitmap actually drawn is baked on demand from these and cached in
 /// <see cref="Baked"/> (not serialized). Mirrors the per-page wallpaper model that
@@ -78,6 +78,15 @@ public partial class WallpaperSlot
     [JsonIgnore]
     public (int Width, int Height) BakedSize { get; set; }
 
+    /// <summary>
+    /// Cached thumbnail bake for the page list, at the fixed device-independent size
+    /// <see cref="BitmapHelper.GetOrBakeSlotThumbnail"/> uses. Kept apart from
+    /// <see cref="Baked"/> so a caller with no device to ask cannot evict the panel bake.
+    /// NOT serialized.
+    /// </summary>
+    [JsonIgnore]
+    public SKBitmap Thumbnail { get; set; }
+
     [JsonIgnore]
     public bool HasImage => !string.IsNullOrWhiteSpace(AssetPath);
 
@@ -91,6 +100,7 @@ public partial class WallpaperSlot
     {
         Baked = null;
         BakedSize = default;
+        Thumbnail = null;
         RaiseChanged();
     }
 
