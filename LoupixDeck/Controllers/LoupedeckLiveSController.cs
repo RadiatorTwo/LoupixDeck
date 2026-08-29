@@ -1854,6 +1854,13 @@ public partial class LoupedeckLiveSController(
                     await DrawExclusiveGrid(device, bySlot);
                     return;
 
+                case PluginSdk.ExclusiveRenderMode.None:
+                    // The provider writes its own frames to the device. Compositing the
+                    // touch entries here would paint over them (an empty entry list blanks
+                    // the whole panel), so push nothing and only keep the page suppressed.
+                    ResetDirtyTiles();
+                    return;
+
                 case PluginSdk.ExclusiveRenderMode.DirtyTiles:
                     await DrawExclusiveDirtyTiles(device, provider, bySlot);
                     return;

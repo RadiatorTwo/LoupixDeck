@@ -281,6 +281,11 @@ public sealed class DisplayTestCommand(IDeviceService deviceService, IExclusiveM
     {
         public string Title => "Display Test";
 
+        // The command owns the pixels. Under any other mode the host would composite this
+        // provider's (empty) touch entries over the pattern the moment exclusive mode is
+        // entered, i.e. blank the panel — which looks exactly like the test drawing nothing.
+        public ExclusiveRenderMode RenderMode => ExclusiveRenderMode.None;
+
         public event EventHandler EntriesChanged
         {
             add { }
