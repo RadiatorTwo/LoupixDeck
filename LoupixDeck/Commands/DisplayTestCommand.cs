@@ -147,6 +147,7 @@ public sealed class DisplayTestCommand(IDeviceService deviceService, IExclusiveM
 
                 LogExpectation(pattern);
                 await DrawPattern(device, pattern);
+                Console.WriteLine($"[DisplayTest] {pattern}: frame pushed to the device.");
 
                 try { await Task.Delay(TimeSpan.FromSeconds(seconds), token); }
                 catch (OperationCanceledException) { break; }
@@ -199,6 +200,7 @@ public sealed class DisplayTestCommand(IDeviceService deviceService, IExclusiveM
 
             using SKBitmap panel = DisplayTestPatternRenderer.RenderPanel(width, height, gridOriginX, keySize,
                 columns, rows, device.Type);
+            Console.WriteLine($"[DisplayTest] pushing {width}x{height} full-panel frame to \"center\".");
             await device.DrawScreen("center", panel);
             return;
         }
@@ -210,6 +212,7 @@ public sealed class DisplayTestCommand(IDeviceService deviceService, IExclusiveM
             for (int slot = 0; slot < slots; slot++)
                 tiles.Add(DisplayTestPatternRenderer.RenderTile(pattern, slot, columns, keySize));
 
+            Console.WriteLine($"[DisplayTest] pushing {slots} tiles of {keySize}x{keySize} as one atomic frame.");
             await device.DrawTouchSlotsAtomic(tiles);
         }
         finally
