@@ -535,8 +535,9 @@ public static class BitmapHelper
 
     /// <summary>
     /// Returns the slot's baked bitmap at <paramref name="width"/>×<paramref name="height"/>
-    /// (480×270 for the main panel, 60×270 for a side display), computing and caching it
-    /// on first use. The original image is resolved from the asset folder via
+    /// (the device's panel for the main slot, a side strip for the others), computing and
+    /// caching it on first use. The cache is keyed on the requested size, so a slot baked
+    /// for one device's panel is re-baked rather than reused on a differently sized one. The original image is resolved from the asset folder via
     /// <see cref="AssetResolver"/>, scaled/positioned with the slot's parameters and
     /// optionally horizontally mirrored. Returns null when the slot has no image or the
     /// asset is missing.
@@ -544,7 +545,11 @@ public static class BitmapHelper
     public static SKBitmap GetOrBakeSlot(WallpaperSlot slot, int width, int height)
     {
         if (slot == null || !slot.HasImage) return null;
-        if (slot.Baked != null) return slot.Baked;
+        if (slot.Baked != null && slot.BakedSize == (width, height)) return slot.Baked;
+
+        // Drop the reference without disposing: the previous bake may still be bound to a
+        // UI image or held by an in-flight render, and Invalidate() releases it the same way.
+        slot.Baked = null;
 
         var original = AssetResolver?.Invoke(slot.AssetPath);
         if (original == null) return null;
@@ -565,6 +570,7 @@ public static class BitmapHelper
         }
 
         slot.Baked = baked;
+        slot.BakedSize = (width, height);
         return baked;
     }
 
