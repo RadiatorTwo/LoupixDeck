@@ -5,7 +5,7 @@
 [![Platform](https://img.shields.io/badge/platform-windows-blue)](https://github.com/RadiatorTwo/LoupixDeck)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
-**LoupixDeck** is an open-source control deck application for **Loupedeck** devices and the **Razer Stream Controller**.
+**LoupixDeck** is an open-source control deck application for **Loupedeck** devices and the **Razer Stream Controller** family.
 
 It runs on **Linux** and **Windows**, lets you build custom touch pages, rotary controls, macros, integrations and plugins, and does not depend on the official vendor software.
 
@@ -20,7 +20,7 @@ Built with **Avalonia** and **.NET 9**.
 ## Highlights
 
 * **Linux and Windows support**
-* **Loupedeck Live**, **Live S**, **CT** *(partial)* and **Razer Stream Controller** support
+* **Loupedeck Live**, **Live S**, **CT** *(partial)*, **Razer Stream Controller** and **Stream Controller X** *(untested)* support
 * **Multi-device support** with serial-scoped profiles
 * **Layer-based touch button editor** with images, animated images, text, symbols and wallpapers
 * **Stateful buttons** with multiple states and per-state actions
@@ -102,9 +102,14 @@ bash install-loupixdeck.sh
 | **Loupedeck Live**          | Supported   | 4×3 touch grid, 2 side touch strips, 6 rotary encoders, 8 round buttons            | `2ec2:0004`       |
 | **Loupedeck Live S**        | Supported   | 5×3 touch grid, 2 rotary encoders, 8 physical buttons                             | `2ec2:0006`       |
 | **Razer Stream Controller** | Supported   | 4×3 touch grid, 2 side panels, 6 rotary encoders, 8 LED buttons                   | `1532:0d06`       |
+| **Razer Stream Controller X** | Untested  | 5×3 grid of physical keys, nothing else                                          | `1532:0d09`       |
 | **Loupedeck CT**            | Partial     | 4×3 touch grid, round wheel touchscreen, 6 dials, wheel, round and square buttons | `2ec2:0003/0007`  |
 
 > Loupedeck **CT** support is still a work in progress. Some controls and behaviours are not feature-complete yet and need further hardware verification.
+
+> The **Razer Stream Controller X** is implemented but has not been verified on hardware yet. It is the odd one out of the family: its fifteen keys are physical
+> buttons rather than a touchscreen, and it has no dials, LED buttons, side strips or haptic motor. The keys are 96px on a 480×288 panel instead of the 90px keys
+> on 480×270 every other device uses, so the app renders and stores its button layers natively at that size — nothing is scaled on the way to the display.
 
 Multiple devices can run in parallel in a single LoupixDeck instance. Even two identical units are separated by USB serial and keep their own configuration.
 
@@ -411,7 +416,7 @@ SUBSYSTEM=="usb", ATTRS{idVendor}=="2ec2", ATTRS{idProduct}=="0006", MODE="0666"
 SUBSYSTEM=="tty", ATTRS{idVendor}=="2ec2", ATTRS{idProduct}=="0006", MODE="0666"
 ```
 
-For the Razer Stream Controller, replace `2ec2:0006` with `1532:0d06`.
+For the Razer Stream Controller, replace `2ec2:0006` with `1532:0d06`; for the Stream Controller X, with `1532:0d09`.
 
 Reload rules and reconnect the device:
 

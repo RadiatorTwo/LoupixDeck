@@ -1928,7 +1928,7 @@ public partial class LoupedeckLiveSController(
         await device.DrawCenterGridRegion(grid, refresh: true);
     }
 
-    // Grid: every slot as its own 90x90 framebuffer, no DRAW.
+    // Grid: every slot as its own key-sized framebuffer, no DRAW.
     private async Task DrawExclusiveGrid(LoupedeckDevice.Device.LoupedeckDevice device,
         IReadOnlyDictionary<int, PluginSdk.FolderEntry> bySlot)
     {
@@ -1940,7 +1940,7 @@ public partial class LoupedeckLiveSController(
         }
     }
 
-    // SingleTile: draw just one 90x90 slot, no DRAW.
+    // SingleTile: draw just one key-sized slot, no DRAW.
     private async Task DrawExclusiveSingleTile(LoupedeckDevice.Device.LoupedeckDevice device,
         IReadOnlyDictionary<int, PluginSdk.FolderEntry> bySlot, int slotIndex)
     {

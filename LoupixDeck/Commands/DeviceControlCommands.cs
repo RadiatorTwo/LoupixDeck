@@ -123,9 +123,9 @@ public class ExclusiveStressTestCommand(IExclusiveModeService exclusiveMode) : I
 
         // Mode maps directly to the SDK render strategy the controller uses:
         //   full  → full-screen atomic blit + DRAW (default baseline)
-        //   grid  → every slot as its own 90x90 tile, no DRAW
+        //   grid  → every slot as its own key-sized tile, no DRAW
         //   dirty → only changed tiles re-sent, no DRAW
-        //   tile  → single 90x90 slot (14), no DRAW
+        //   tile  → single key-sized slot (14), no DRAW
         var modeStr = parameters is { Length: > 1 } ? parameters[1].Trim().ToLowerInvariant() : "full";
         var renderMode = modeStr switch
         {
@@ -184,19 +184,19 @@ public class DrawBenchmarkCommand(IDeviceService deviceService, LoupedeckConfig 
             // and WITHOUT it (FRAMEBUFF only) — so the cost of the per-frame DRAW is
             // directly visible. The official software streams frames without DRAW.
 
-            // 1) Single 90x90 slot, WITH DRAW (FRAMEBUFF + DRAW round-trip).
+            // 1) Single key-sized slot, WITH DRAW (FRAMEBUFF + DRAW round-trip).
             var sw = Stopwatch.StartNew();
             for (var i = 0; i < frames; i++)
                 await device.DrawTouchSlot(0, (i & 1) == 0 ? keyA : keyB, refresh: true);
             sw.Stop();
-            Report("single slot 90x90  [with DRAW]", frames, sw.Elapsed);
+            Report($"single slot {keySize}x{keySize}  [with DRAW]", frames, sw.Elapsed);
 
-            // 1b) Single 90x90 slot, NO DRAW (FRAMEBUFF only).
+            // 1b) Single key-sized slot, NO DRAW (FRAMEBUFF only).
             sw.Restart();
             for (var i = 0; i < frames; i++)
                 await device.DrawTouchSlot(0, (i & 1) == 0 ? keyA : keyB, refresh: false);
             sw.Stop();
-            Report("single slot 90x90  [no DRAW] ", frames, sw.Elapsed);
+            Report($"single slot {keySize}x{keySize}  [no DRAW] ", frames, sw.Elapsed);
 
             // 2) Full grid drawn as N individual slot blits — exactly what the
             //    exclusive-mode redraw does (slots × 2 serial round-trips/frame).
@@ -283,9 +283,9 @@ public class PlayVideoCommand(IDeviceService deviceService, IExclusiveModeServic
 
     private enum VideoMode
     {
-        Full, // one full-screen 480x270 framebuffer per frame
-        Tile, // one single 90x90 slot
-        Grid  // full frame split across all 90x90 slots, drawn as individual tiles
+        Full, // one full-panel framebuffer per frame
+        Tile, // one single key-sized slot
+        Grid  // full frame split across all slots, drawn as individual key-sized tiles
     }
 
     public Task Execute(string[] parameters)
@@ -313,9 +313,9 @@ public class PlayVideoCommand(IDeviceService deviceService, IExclusiveModeServic
 
             // Mode (all draw WITHOUT the trailing DRAW 0x0f — FRAMEBUFF only, like the
             // official software streaming a GIF):
-            //   full → one full-screen 480x270 framebuffer per frame
-            //   tile → video squeezed into a single 90x90 touch slot
-            //   grid → full video spread across ALL touch slots as individual 90x90 tiles
+            //   full → one full-panel framebuffer per frame
+            //   tile → video squeezed into a single touch slot
+            //   grid → full video spread across ALL touch slots as individual key-sized tiles
             var modeStr = parameters.Length > 2 ? parameters[2].Trim().ToLowerInvariant() : "full";
             var mode = modeStr switch
             {
@@ -335,7 +335,7 @@ public class PlayVideoCommand(IDeviceService deviceService, IExclusiveModeServic
     }
 
     // Pipes raw BGRA frames from ffmpeg and pushes each as ONE FRAMEBUFF write with
-    // NO trailing DRAW (full-screen in "full" mode, a single 90x90 slot in "tile" mode).
+    // NO trailing DRAW (full-screen in "full" mode, a single key-sized slot in "tile" mode).
     // Timing: ffmpeg emits constant-rate frames (no -re, so the consumer's wall
     // clock is the sole pace authority — option 3); each frame has a target
     // presentation time of frameIndex/fps. Frames that are already more than one
