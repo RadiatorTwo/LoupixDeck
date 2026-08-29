@@ -904,6 +904,8 @@ public class LoupedeckDevice
         int y = 0,
         bool autoRefresh = true)
     {
+        ArgumentNullException.ThrowIfNull(bitmap);
+
         // Determine the display
         if (Displays == null || !Displays.TryGetValue(id, out var displayInfo))
             throw new Exception($"Display '{id}' is not available on this device!");
@@ -913,6 +915,19 @@ public class LoupedeckDevice
             width = displayInfo.Width;
         if (height == 0)
             height = displayInfo.Height;
+
+        // The bitmap must cover the declared region exactly: the conversion below sizes the
+        // buffer from the BITMAP while the FRAMEBUFF header describes the REGION, so any
+        // mismatch produces a buffer the device reads under the wrong geometry. DrawBuffer
+        // catches the case where the total area differs, but a transposed region (a 90x96
+        // bitmap into a 96x90 key) has the same byte count and passes that check, landing on
+        // the panel as a sheared image. Fail here instead, where the display, the position
+        // and both sizes are still known — a key-sized bitmap built for the wrong device
+        // geometry (90px tile on the 96px Stream Controller X) is then named outright.
+        if (bitmap.Width != width || bitmap.Height != height)
+            throw new ArgumentException(
+                $"Bitmap is {bitmap.Width}x{bitmap.Height} but the region on display '{id}' at " +
+                $"({x},{y}) is {width}x{height}.", nameof(bitmap));
 
         // Convert the RenderTargetBitmap into a 16-bit-5-6-5 array. The destination position
         // is passed along so the dither pattern anchors to absolute display coordinates
@@ -1054,6 +1069,13 @@ public class LoupedeckDevice
 
         if (VisibleX == null || Columns == 0)
             throw new Exception("VisibleX or Columns is not set");
+
+        // DrawCanvas rejects a mismatch too; repeating it here is what names the key, which
+        // is the part that identifies the caller that built the tile at the wrong size.
+        if (bitmap == null || bitmap.Width != keyWidth || bitmap.Height != keyHeight)
+            throw new ArgumentException(
+                $"Key {index} needs a {keyWidth}x{keyHeight} bitmap, got " +
+                $"{(bitmap == null ? "null" : $"{bitmap.Width}x{bitmap.Height}")}.", nameof(bitmap));
 
         // Calculate position
         var x = VisibleX[0] + ((index % Columns) * keyWidth);
