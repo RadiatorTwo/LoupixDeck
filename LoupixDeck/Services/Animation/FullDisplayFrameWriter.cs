@@ -76,7 +76,7 @@ public sealed class FullDisplayFrameWriter : IDisposable
             {
                 if (target.IsFullFrame)
                 {
-                    // The whole 480×270 frame goes straight to the unified buffer.
+                    // The whole panel frame goes straight to the unified buffer.
                     draws.Add((target.DisplayId, frame, false));
                     continue;
                 }

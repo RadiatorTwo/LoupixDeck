@@ -60,6 +60,12 @@ public partial class LoupedeckLiveSController(
     /// </summary>
     private int KeySize => deviceInfo?.Geometry.KeySize ?? DeviceGeometry.Default.KeySize;
 
+    /// <summary>Width of one side display strip in device pixels.</summary>
+    private int StripWidth => deviceInfo?.Geometry.StripWidth ?? DeviceGeometry.Default.StripWidth;
+
+    /// <summary>Height of a side strip — it spans the full panel height.</summary>
+    private int StripHeight => deviceInfo?.Geometry.PanelHeight ?? DeviceGeometry.Default.PanelHeight;
+
     private volatile bool _isDeviceOff;
     public bool IsDeviceOff => _isDeviceOff;
 
@@ -891,12 +897,12 @@ public partial class LoupedeckLiveSController(
         {
             StripMode.PluginOverride => useSessions
                 ? RenderPluginStripOrFallback(page, side)
-                : BitmapHelper.RenderRotaryStrip(page, config, 60, 270, side),
-            StripMode.FreeDraw => BitmapHelper.RenderStripCanvas(page.StripCanvas, config, 60, 270, side),
+                : BitmapHelper.RenderRotaryStrip(page, config, StripWidth, StripHeight, side),
+            StripMode.FreeDraw => BitmapHelper.RenderStripCanvas(page.StripCanvas, config, StripWidth, StripHeight, side),
             _ => useSessions
-                ? BitmapHelper.RenderRotaryStrip(page, config, 60, 270, side,
+                ? BitmapHelper.RenderRotaryStrip(page, config, StripWidth, StripHeight, side,
                     (i, rc) => (_segmentSession[SideIndex(side)] as ISegmentStripSession)?.RenderSegment(i, rc) ?? false)
-                : BitmapHelper.RenderRotaryStrip(page, config, 60, 270, side)
+                : BitmapHelper.RenderRotaryStrip(page, config, StripWidth, StripHeight, side)
         };
     }
 
@@ -973,13 +979,13 @@ public partial class LoupedeckLiveSController(
         {
             // The session draws with SkiaSharp via the canvas; serialize with all other Skia work
             // so a plugin frame can't race the host's render pipeline (caches aren't thread-safe).
-            var bitmap = new SkiaSharp.SKBitmap(60, 270);
+            var bitmap = new SkiaSharp.SKBitmap(StripWidth, StripHeight);
             try
             {
                 lock (SkiaRenderGate.Sync)
                 {
                     using var canvas = new SkiaSharp.SKCanvas(bitmap);
-                    var rc = new SkiaRenderCanvas(canvas, 60, 270);
+                    var rc = new SkiaRenderCanvas(canvas, StripWidth, StripHeight);
                     if (session.RenderStrip(rc))
                     {
                         canvas.Flush();
@@ -996,7 +1002,7 @@ public partial class LoupedeckLiveSController(
         }
 
         // Unbound / orphaned id / declined / failed → segmented labels.
-        return BitmapHelper.RenderRotaryStrip(page, config, 60, 270, side);
+        return BitmapHelper.RenderRotaryStrip(page, config, StripWidth, StripHeight, side);
     }
 
     /// <summary>
@@ -1030,8 +1036,8 @@ public partial class LoupedeckLiveSController(
         var context = new SideStripContext
         {
             Side = side == RotarySide.Right ? StripSide.Right : StripSide.Left,
-            Width = 60,
-            Height = 270,
+            Width = StripWidth,
+            Height = StripHeight,
             Rotaries = BuildStripRotaries(page),
             RequestNextPage = () => pageManager.NextRotaryPage(side),
             RequestPreviousPage = () => pageManager.PreviousRotaryPage(side)
@@ -1124,8 +1130,8 @@ public partial class LoupedeckLiveSController(
         var context = new SideStripContext
         {
             Side = side == RotarySide.Right ? StripSide.Right : StripSide.Left,
-            Width = 60,
-            Height = 270,
+            Width = StripWidth,
+            Height = StripHeight,
             Rotaries = BuildStripRotaries(page),
             RequestNextPage = () => pageManager.NextRotaryPage(side),
             RequestPreviousPage = () => pageManager.PreviousRotaryPage(side)
