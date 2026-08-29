@@ -2,6 +2,7 @@ using Avalonia.Threading;
 using LoupixDeck.Models;
 using LoupixDeck.Models.Layers;
 using LoupixDeck.PluginSdk;
+using LoupixDeck.Registry;
 using LoupixDeck.Services.Commands;
 using LoupixDeck.Utils;
 using SkiaSharp;
@@ -55,16 +56,20 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
     private PeriodicTimer _timer;
     private Task _loopTask;
 
+    private readonly DeviceGeometry _geometry;
+
     public DynamicTextManager(
         IPageManager pageManager,
         ICommandRegistry commandRegistry,
         IServiceProvider deviceProvider,
-        IDeviceRouter router)
+        IDeviceRouter router,
+        DeviceGeometry geometry)
     {
         _pageManager = pageManager;
         _commandRegistry = commandRegistry;
         _deviceProvider = deviceProvider;
         _router = router;
+        _geometry = geometry ?? DeviceGeometry.Default;
     }
 
     public void Start()
@@ -257,16 +262,18 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
 
         if (command.IsImageDisplayCommand && command.RenderImage != null)
         {
-            // The plugin draws the 90×90 button onto a host canvas; serialize with all other Skia
-            // work (font/glyph caches + the layer's gated bitmap swap) so it can't race the pipeline.
-            var bitmap = new SKBitmap(90, 90);
+            // The plugin draws the button onto a host canvas at the device's key size; serialize
+            // with all other Skia work (font/glyph caches + the layer's gated bitmap swap) so it
+            // can't race the pipeline.
+            int keySize = _geometry.KeySize;
+            var bitmap = new SKBitmap(keySize, keySize);
             bool drew;
             try
             {
                 lock (SkiaRenderGate.Sync)
                 {
                     using var canvas = new SKCanvas(bitmap);
-                    var rc = new SkiaRenderCanvas(canvas, 90, 90);
+                    var rc = new SkiaRenderCanvas(canvas, keySize, keySize);
                     drew = command.RenderImage(entry.Parameters, entry.SequenceCommands, rc);
                     if (drew) canvas.Flush();
                 }

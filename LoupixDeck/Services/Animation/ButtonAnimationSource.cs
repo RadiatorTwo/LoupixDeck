@@ -30,7 +30,7 @@ namespace LoupixDeck.Services.Animation;
 /// </summary>
 public sealed class ButtonAnimationSource : IAnimationSource, IDisposable
 {
-    // Image animations are capped well below the global limit: the device is 90×90 and re-rendering
+    // Image animations are capped well below the global limit: one key is small and re-rendering
     // takes the global Skia gate (a known cross-device bottleneck), so a higher rate buys nothing
     // visible while costing contention. Plugins request their own rate (still globally clamped).
     private const int ImageFps = 15;
@@ -193,7 +193,8 @@ public sealed class ButtonAnimationSource : IAnimationSource, IDisposable
             EffectiveFps = context.EffectiveFps
         };
 
-        var bitmap = new SKBitmap(90, 90);
+        int keySize = _config.Geometry.KeySize;
+        var bitmap = new SKBitmap(keySize, keySize);
         AnimationFrameInfo info;
         try
         {
@@ -201,7 +202,7 @@ public sealed class ButtonAnimationSource : IAnimationSource, IDisposable
             lock (SkiaRenderGate.Sync)
             {
                 using var canvas = new SKCanvas(bitmap);
-                var rc = new SkiaRenderCanvas(canvas, 90, 90);
+                var rc = new SkiaRenderCanvas(canvas, keySize, keySize);
                 info = render(entry.Parameters, entry.SequenceCommands, rc, frameCtx);
                 if (info.Drawn) canvas.Flush();
             }
