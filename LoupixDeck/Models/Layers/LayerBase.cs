@@ -7,8 +7,9 @@ namespace LoupixDeck.Models.Layers;
 /// <summary>
 /// Base class for all touch-button layers (image, text, symbol, …).
 /// Property changes fire <see cref="INotifyPropertyChanged"/> so the owning
-/// <see cref="TouchButton"/> can re-render. Position/Scale are expressed in
-/// 90×90 device-pixel space; the editor canvas applies its own zoom factor.
+/// <see cref="TouchButton"/> can re-render. Position/Scale are expressed in the
+/// device's own key-pixel space (see <see cref="DeviceBaseWidth"/>); the editor
+/// canvas applies its own zoom factor.
 /// </summary>
 [ObservableObject]
 public abstract partial class LayerBase
@@ -101,7 +102,48 @@ public abstract partial class LayerBase
     public double EffectiveScaleY => ScaleY > 0 ? ScaleY : EffectiveScaleX;
 
     /// <summary>
-    /// Displayed width of the layer in 90×90 device-pixel space. Bridges the
+    /// Size of the surface this layer is drawn onto, in device pixels — one key on the
+    /// touch grid, or the side strip when editing a strip canvas. Runtime-only and never
+    /// persisted: the renderer computes from the width/height it is handed, and only the
+    /// editor's size fields read the projections below. Defaults to the Loupedeck family's
+    /// 90px key so every non-editor path is unchanged; the layer editor assigns the real
+    /// size of the device being edited.
+    /// </summary>
+    [JsonIgnore]
+    public int DeviceBaseWidth
+    {
+        get;
+        set
+        {
+            if (field == value) return;
+            field = value;
+            OnDisplaySizeChanged();
+        }
+    } = 90;
+
+    /// <inheritdoc cref="DeviceBaseWidth"/>
+    [JsonIgnore]
+    public int DeviceBaseHeight
+    {
+        get;
+        set
+        {
+            if (field == value) return;
+            field = value;
+            OnDisplaySizeChanged();
+        }
+    } = 90;
+
+    /// <summary>
+    /// Reference edge for layers that scale uniformly (symbol glyphs, fitted images):
+    /// the short side of the surface, which is what the renderer's Math.Min(width, height)
+    /// resolves to.
+    /// </summary>
+    [JsonIgnore]
+    protected double DeviceBaseSize => Math.Min(DeviceBaseWidth, DeviceBaseHeight);
+
+    /// <summary>
+    /// Displayed width of the layer in device-pixel space. Bridges the
     /// editor's size fields to the underlying <see cref="Scale"/> multiplier.
     /// Base implementation is inert; concrete layers that have a resolvable
     /// size (image, symbol) override it.
@@ -114,7 +156,7 @@ public abstract partial class LayerBase
     }
 
     /// <summary>
-    /// Displayed height of the layer in 90×90 device-pixel space. See
+    /// Displayed height of the layer in device-pixel space. See
     /// <see cref="DisplayWidth"/>.
     /// </summary>
     [JsonIgnore]

@@ -35,6 +35,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
             // Remember the runtime active state and start editing it; restored on Cleanup so the
             // editor's state-switching does not leave the button on a non-default state at runtime.
             _originalActiveStateId = ButtonData.ActiveStateId;
+            ApplyDeviceBaseToLayers();
             RefreshStateBadges();
             SelectedState = ButtonData.ActiveState;
 
@@ -125,6 +126,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     {
         DeviceWidth = Math.Max(1, deviceWidth);
         DeviceHeight = Math.Max(1, deviceHeight);
+        ApplyDeviceBaseToLayers();
         OnPropertyChanged(nameof(DeviceWidth));
         OnPropertyChanged(nameof(DeviceHeight));
         OnPropertyChanged(nameof(EditorToDeviceScale));
@@ -137,6 +139,30 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         OnPropertyChanged(nameof(CanvasSizeText));
         UpdateEditorPreview();
         UpdateSelectionBounds();
+    }
+
+    /// <summary>
+    /// Tells every layer of the edited button how big the surface it is drawn onto is, so the
+    /// editor's size fields report real device pixels. Purely a runtime projection — nothing
+    /// here is persisted.
+    /// </summary>
+    private void ApplyDeviceBaseToLayers()
+    {
+        if (ButtonData?.Layers == null) return;
+        foreach (LayerBase layer in ButtonData.Layers)
+        {
+            if (layer == null) continue;
+            layer.DeviceBaseWidth = DeviceWidth;
+            layer.DeviceBaseHeight = DeviceHeight;
+        }
+    }
+
+    /// <summary>Adds a newly created layer, stamped with the surface size like the existing ones.</summary>
+    private void AddLayer(LayerBase layer)
+    {
+        layer.DeviceBaseWidth = DeviceWidth;
+        layer.DeviceBaseHeight = DeviceHeight;
+        ButtonData.Layers.Add(layer);
     }
 
     // ───────── Editor zoom ─────────
@@ -612,6 +638,9 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
             if (value != null && ButtonData != null)
                 ButtonData.SetActiveState(value.Id);
 
+            // Layers projects the active state, so the new state's layers need stamping too.
+            ApplyDeviceBaseToLayers();
+
             SelectedLayer = null;
             OnPropertyChanged(nameof(SelectedState));
             OnPropertyChanged(nameof(SelectedStateLabel));
@@ -872,7 +901,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
 
         ApplyInitialStripHeightFit(layer, layer.CachedImage?.Width ?? 0, layer.CachedImage?.Height ?? 0);
 
-        ButtonData.Layers.Add(layer);
+        AddLayer(layer);
         SelectedLayer = layer;
     }
 
@@ -933,7 +962,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
 
         ApplyInitialStripHeightFit(layer, anim.Frames[0]?.Width ?? 0, anim.Frames[0]?.Height ?? 0);
 
-        ButtonData.Layers.Add(layer);
+        AddLayer(layer);
         SelectedLayer = layer;
     }
 
@@ -971,7 +1000,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
             BoxWidth = box,
             BoxHeight = box
         };
-        ButtonData.Layers.Add(layer);
+        AddLayer(layer);
         SelectedLayer = layer;
     }
 
@@ -992,7 +1021,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
             SymbolId = def.Id,
             Scale = 0.7
         };
-        ButtonData.Layers.Add(layer);
+        AddLayer(layer);
         SelectedLayer = layer;
     }
 

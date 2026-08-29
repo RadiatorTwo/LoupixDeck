@@ -26,10 +26,10 @@ public partial class TextLayer : LayerBase
     public partial int BoxHeight { get; set; }
 
     [JsonIgnore]
-    public int EffectiveBoxWidth => BoxWidth > 0 ? BoxWidth : 90;
+    public int EffectiveBoxWidth => BoxWidth > 0 ? BoxWidth : DeviceBaseWidth;
 
     [JsonIgnore]
-    public int EffectiveBoxHeight => BoxHeight > 0 ? BoxHeight : 90;
+    public int EffectiveBoxHeight => BoxHeight > 0 ? BoxHeight : DeviceBaseHeight;
 
     [ObservableProperty]
     public partial string Text { get; set; } = string.Empty;

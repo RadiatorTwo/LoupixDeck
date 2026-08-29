@@ -220,8 +220,9 @@ public partial class ButtonState : ObservableObject
         var created = new TextLayer
         {
             Name = string.IsNullOrEmpty(commandName) ? "Text" : commandName,
-            BoxWidth = 90,
-            BoxHeight = 90,
+            // 0 means "fill the device's key", which is what a fixed 90 used to mean.
+            BoxWidth = 0,
+            BoxHeight = 0,
             OwnerCreated = true,
             OwnerKey = ownerKey,
             CommandName = commandName

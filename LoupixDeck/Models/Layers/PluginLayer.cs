@@ -18,9 +18,6 @@ public class PluginLayer : LayerBase
 {
     public const string Kind = "plugin";
 
-    /// <summary>Device-pixel frame size the image is fitted into (90×90 button).</summary>
-    private const double DeviceBaseSize = 90.0;
-
     private SKBitmap _renderedBitmap;
 
     // A bitmap just replaced as RenderedBitmap may still be read by an in-flight render
