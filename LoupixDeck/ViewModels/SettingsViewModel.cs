@@ -17,6 +17,11 @@ namespace LoupixDeck.ViewModels;
 public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
 {
     public LoupedeckConfig Config { get; }
+
+    /// <summary>False on a device without a haptic motor — the haptic card is hidden
+    /// rather than shown doing nothing.</summary>
+    public bool IsVibrationSupported { get; }
+
     private readonly IDeviceService _deviceService;
     private readonly IPageManager _pageManager;
     private readonly IDialogService _dialogService;
@@ -121,6 +126,7 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
         IProfilePackageService packageService)
     {
         Config = config;
+        IsVibrationSupported = config?.Geometry.HasVibration ?? true;
         _deviceService = deviceService;
         _pageManager = pageManager;
         _dialogService = dialogService;

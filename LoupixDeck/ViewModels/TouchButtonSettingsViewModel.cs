@@ -76,6 +76,10 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     public const int EditorCanvasBleed = 75;
 
     // Device-pixel dimensions of the edited surface. 90×90 for grid touch buttons;
+    /// <summary>False on a device without a haptic motor — the per-button vibration
+    /// controls are hidden rather than shown doing nothing.</summary>
+    public bool IsVibrationSupported { get; }
+
     // set to the side-strip size for a Razer free-draw canvas via SetCanvasSize.
     public int DeviceWidth { get; private set; } = DeviceGeometry.Default.KeySize;
     public int DeviceHeight { get; private set; } = DeviceGeometry.Default.KeySize;
@@ -857,6 +861,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         // overrides this via SetCanvasSize.
         DeviceWidth = geometry?.KeySize ?? DeviceGeometry.Default.KeySize;
         DeviceHeight = DeviceWidth;
+        IsVibrationSupported = geometry?.HasVibration ?? true;
 
         // The provider list can change on a plugin hot-reload while the editor is open.
         _sideStripRegistry.ProvidersChanged += OnStripProvidersChanged;

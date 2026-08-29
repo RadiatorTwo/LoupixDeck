@@ -539,8 +539,8 @@
                         </StackPanel>
                     </Border>
 
-                    <!-- Haptic (enable + global effect) -->
-                    <Border Classes="card">
+                    <!-- Haptic (enable + global effect) — hidden on devices with no motor -->
+                    <Border Classes="card" IsVisible="{Binding IsVibrationSupported}">
                         <StackPanel>
                             <TextBlock Classes="card-title" Text="Haptic" />
                             <CheckBox Content="Enable haptic feedback"

@@ -1207,10 +1207,14 @@ public class LoupedeckDevice
     }
 
     /// <summary>
-    /// Sets the color of a button by its ID.
+    /// Sets the color of a button by its ID. A no-op on devices without addressable LED
+    /// buttons — the reference driver throws there, but the shared controller drives this
+    /// from the config's button list and a silent skip keeps every caller device-agnostic.
     /// </summary>
     public async Task SetButtonColor(Constants.ButtonType id, Color color)
     {
+        if (!Geometry.HasLedButtons) return;
+
         byte key = 0;
         var found = false;
 
@@ -1235,10 +1239,14 @@ public class LoupedeckDevice
     }
 
     /// <summary>
-    /// Triggers a haptic vibration.
+    /// Triggers a haptic vibration. A no-op on devices without a haptic motor: both call
+    /// sites sit in the shared controller's touch handler, so gating here rather than there
+    /// keeps a device with no motor from being sent SET_VIBRATION on every touch.
     /// </summary>
     public void Vibrate(byte pattern = Constants.VibrationPattern.Short)
     {
+        if (!Geometry.HasVibration) return;
+
         SendNoResponse(Constants.Command.SET_VIBRATION, [pattern]);
     }
 
