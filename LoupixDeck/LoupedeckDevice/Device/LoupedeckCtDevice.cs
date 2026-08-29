@@ -1,4 +1,5 @@
 using LoupixDeck.Models;
+using LoupixDeck.Registry;
 using LoupixDeck.Utils;
 using SkiaSharp;
 
@@ -39,6 +40,22 @@ public class LoupedeckCtDevice : LoupedeckDevice
 
     /// <inheritdoc />
     public override bool HasSideStrips => true;
+
+    /// <summary>
+    /// 90px keys on a 480x270 panel with 60px side strips. The panel stays 480 wide even
+    /// though the CT draws it through four separate framebuffers (60 left + 360 centre +
+    /// 60 right): touch coordinates and the page wallpaper are unified across all three.
+    /// </summary>
+    public static readonly DeviceGeometry KnownGeometry = new()
+    {
+        KeySize = 90,
+        PanelWidth = 480,
+        PanelHeight = 270,
+        StripWidth = 60
+    };
+
+    /// <inheritdoc />
+    public override DeviceGeometry Geometry => KnownGeometry;
 
     /// <inheritdoc />
     /// <remarks>

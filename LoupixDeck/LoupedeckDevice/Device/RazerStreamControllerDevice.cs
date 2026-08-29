@@ -1,4 +1,5 @@
 using LoupixDeck.Models;
+using LoupixDeck.Registry;
 using SkiaSharp;
 
 namespace LoupixDeck.LoupedeckDevice.Device;
@@ -45,6 +46,18 @@ public class RazerStreamControllerDevice : LoupedeckDevice
     /// <inheritdoc />
     /// <remarks>The left strip occupies panel x 0–60, so the centre grid starts at 60.</remarks>
     public override int WallpaperGridXOffset => 60;
+
+    /// <summary>90px keys on the 480x270 unified panel, with a 60px side strip either end.</summary>
+    public static readonly DeviceGeometry KnownGeometry = new()
+    {
+        KeySize = 90,
+        PanelWidth = 480,
+        PanelHeight = 270,
+        StripWidth = 60
+    };
+
+    /// <inheritdoc />
+    public override DeviceGeometry Geometry => KnownGeometry;
 
     public RazerStreamControllerDevice(string host = null, string path = null, int baudrate = 0,
         bool autoConnect = true, int reconnectInterval = Constants.DefaultReconnectInterval)

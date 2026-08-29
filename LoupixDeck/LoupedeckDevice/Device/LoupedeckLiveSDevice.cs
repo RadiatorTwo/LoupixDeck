@@ -1,7 +1,21 @@
+using LoupixDeck.Registry;
+
 namespace LoupixDeck.LoupedeckDevice.Device;
 
 public class LoupedeckLiveSDevice : LoupedeckDevice
 {
+    /// <summary>90px keys on the 480x270 unified panel; no side strips.</summary>
+    public static readonly DeviceGeometry KnownGeometry = new()
+    {
+        KeySize = 90,
+        PanelWidth = 480,
+        PanelHeight = 270,
+        StripWidth = 0
+    };
+
+    /// <inheritdoc />
+    public override DeviceGeometry Geometry => KnownGeometry;
+
     public LoupedeckLiveSDevice(string host = null, string path = null, int baudrate = 0, bool autoConnect = true, int reconnectInterval = Constants.DefaultReconnectInterval)
         : base(host, path, baudrate, autoConnect, reconnectInterval)
     {

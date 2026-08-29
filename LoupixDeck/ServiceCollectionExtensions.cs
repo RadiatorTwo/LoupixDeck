@@ -127,6 +127,11 @@ public static class ServiceCollectionExtensions
         collection.AddSingleton(resolved);
         collection.AddSingleton(deviceInfo);
 
+        // Pixel geometry comes from the registry entry rather than from IDeviceService.Device:
+        // the device object is created on a background thread and stays null for seconds after
+        // start-up (forever without hardware), while services are resolved immediately.
+        collection.AddSingleton(deviceInfo.Geometry);
+
         // Re-expose the root singletons device-bound services depend on.
         collection.Forward<IConfigService>(root);
         collection.Forward<IAssetService>(root);

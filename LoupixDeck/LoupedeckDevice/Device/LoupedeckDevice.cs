@@ -3,6 +3,7 @@ using System.Threading.Channels;
 using Avalonia.Media;
 using LoupixDeck.LoupedeckDevice.Serial;
 using LoupixDeck.Models;
+using LoupixDeck.Registry;
 using LoupixDeck.Utils;
 using SkiaSharp;
 
@@ -14,6 +15,17 @@ namespace LoupixDeck.LoupedeckDevice.Device;
 /// </summary>
 public class LoupedeckDevice
 {
+    /// <summary>
+    /// Pixel geometry and capabilities of this device model. Every key- and panel-sized
+    /// drawing operation reads its dimensions from here instead of a constant, so a device
+    /// with a different tile or panel size renders pixel-exact without any scaling step.
+    /// Base is the Loupedeck family's 90px key on a 480x270 panel; subclasses override.
+    /// </summary>
+    public virtual DeviceGeometry Geometry => DeviceGeometry.Default;
+
+    /// <summary>Edge length of one centre-grid touch key in device pixels. Shorthand for <see cref="Geometry"/>.</summary>
+    public int KeySize => Geometry.KeySize;
+
     /// <summary>
     /// Bits per channel the panel actually resolves, which is not always what the RGB565
     /// wire format encodes. Drives the dither target grid in
