@@ -112,6 +112,17 @@ public class LoupedeckDevice
     public virtual bool HasSideStrips => false;
 
     /// <summary>
+    /// Maps a raw BUTTON_PRESS byte to a centre-grid slot on devices whose grid is physical
+    /// keys instead of a touchscreen. Base never matches, so every other device resolves its
+    /// button bytes through <see cref="Constants.Buttons"/> exactly as before.
+    /// </summary>
+    protected virtual bool TryGetPhysicalKeySlot(byte raw, out int slot)
+    {
+        slot = -1;
+        return false;
+    }
+
+    /// <summary>
     /// X-offset (in panel/wallpaper pixels) at which the centre touch grid starts on
     /// the unified panel. Devices with side strips reserve the leftmost strip width
     /// (Razer: 60), so the page wallpaper maps to its true panel position and stays
@@ -596,6 +607,18 @@ public class LoupedeckDevice
         var btn = buff[0];
         var evt = (buff[1] == 0x00) ? Constants.ButtonEventType.BUTTON_DOWN : Constants.ButtonEventType.BUTTON_UP;
 
+        // A physical-key grid reports its keys here rather than as TOUCH frames. Translate
+        // them into synthetic touches instead of emitting a simple-button event: such a
+        // device has no LED buttons, so a button event would have no config entry to match.
+        if (TryGetPhysicalKeySlot(btn, out var keySlot))
+        {
+            if (DebugProtocol)
+                Console.WriteLine($"[Protocol] BUTTON_PRESS byte 0x{btn:x2} -> physical key slot {keySlot} ({evt})");
+
+            EmitSyntheticKeyTouch(keySlot, evt);
+            return;
+        }
+
         if (!Constants.Buttons.TryGetValue(btn, out var id))
         {
             if (DebugProtocol)
@@ -629,6 +652,43 @@ public class LoupedeckDevice
             Console.WriteLine($"[Protocol] KNOB_ROTATE byte 0x{btn:x2} -> {id} delta={delta}");
 
         OnRotate?.Invoke(this, new RotateEventArgs { ButtonId = id, Delta = delta });
+    }
+
+    /// <summary>
+    /// Synthetic touch ids start above any contact id the firmware assigns, so an emulated
+    /// key press can never collide with a real finger on a device that has both.
+    /// </summary>
+    private const byte SyntheticTouchIdBase = 0x80;
+
+    /// <summary>
+    /// Feeds a physical key press into the normal touch path as a touch at the centre of that
+    /// key. Re-entering <see cref="OnTouchReceived"/> rather than raising OnTouch directly is
+    /// what keeps the live-contact bookkeeping (and therefore press-and-hold) correct and the
+    /// event shape identical to a real touch, so no consumer needs to know the difference.
+    /// </summary>
+    private void EmitSyntheticKeyTouch(int slot, Constants.ButtonEventType evt)
+    {
+        int keySize = KeySize;
+        int xBase = VisibleX is { Length: > 0 } ? VisibleX[0] : 0;
+        int yBase = VisibleY is { Length: > 0 } ? VisibleY[0] : 0;
+
+        // Half a key past the corner puts the point in the middle of the key.
+        int x = xBase + (int)(((slot % Columns) + 0.5) * keySize);
+        int y = yBase + (int)(((slot / Columns) + 0.5) * keySize);
+
+        byte[] buff =
+        [
+            0,
+            (byte)(x >> 8), (byte)(x & 0xff),
+            (byte)(y >> 8), (byte)(y & 0xff),
+            (byte)(SyntheticTouchIdBase + slot)
+        ];
+
+        OnTouchReceived(
+            evt == Constants.ButtonEventType.BUTTON_DOWN
+                ? Constants.TouchEventType.TOUCH_START
+                : Constants.TouchEventType.TOUCH_END,
+            buff);
     }
 
     /// <summary>
