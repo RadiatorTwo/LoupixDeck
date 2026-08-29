@@ -31,6 +31,18 @@ public partial class App : Application
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
+            // The device emulation is compiled out of Release builds, so a Release launch
+            // ignores LOUPIXDECK_FAKE_DEVICE without a word. State the build and the value
+            // once at startup — otherwise "the override does nothing" has three
+            // indistinguishable causes.
+#if DEBUG
+            Console.WriteLine("[Startup] DEBUG build — device emulation available. " +
+                              $"LOUPIXDECK_FAKE_DEVICE='{Environment.GetEnvironmentVariable("LOUPIXDECK_FAKE_DEVICE") ?? "<unset>"}'");
+#else
+            Console.WriteLine("[Startup] RELEASE build — device emulation is compiled out; " +
+                              "LOUPIXDECK_FAKE_DEVICE has no effect.");
+#endif
+
             // Bring up EVERY connected supported device in parallel (issue #116 phase 2).
             var connected = ActiveDeviceResolver.ResolveAll();
 
