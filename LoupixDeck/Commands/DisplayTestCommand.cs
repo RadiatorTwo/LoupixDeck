@@ -203,10 +203,12 @@ public sealed class DisplayTestCommand(IDeviceService deviceService, IExclusiveM
         string expectation = pattern switch
         {
             DisplayTestPattern.KeyGrid =>
-                "every key shows a white frame touching all four edges, four coloured corner blocks " +
-                "(TL magenta, TR cyan, BL yellow, BR green) and its slot number in reading order. " +
-                "Missing frame/corners => the panel shows less than one key tile; wrong numbering => " +
-                "the slot-to-position mapping is off.",
+                "every key shows a white frame on all four edges, four coloured corner blocks " +
+                "(TL magenta, TR cyan, BL yellow, BR green), three concentric squares (cyan/yellow/" +
+                "green) and its slot number in reading order. Compare the four gaps around each " +
+                "square: unequal gaps => the tile sits off-centre. Missing frame/corners => the " +
+                "panel shows less than one key tile. Wrong numbering => the slot-to-position " +
+                "mapping is off.",
             DisplayTestPattern.Ruler =>
                 "read the highest white label (counted from the top/left) and the highest red label " +
                 "(counted from the bottom/right) still visible on a key. Their sum plus the hidden ticks " +
@@ -218,9 +220,11 @@ public sealed class DisplayTestCommand(IDeviceService deviceService, IExclusiveM
                 "heavy banding points at the colour-depth conversion.",
             _ =>
                 "a white 1px frame must run along the very edge of the panel with a red frame 4px inside " +
-                "it, coloured brackets in all four corners and a centred crosshair. A cut-off frame => the " +
-                "panel is smaller than the framebuffer; an off-centre crosshair => the framebuffer is offset. " +
-                "The blue lines are where the app believes the key boundaries are."
+                "it, coloured brackets in all four corners, three concentric squares and a centred " +
+                "crosshair. A cut-off frame => the panel is smaller than the framebuffer. Unequal gaps " +
+                "around the squares, or an off-centre crosshair => the framebuffer is offset; squares that " +
+                "are not square => the panel is stretched. The blue lines are where the app believes the " +
+                "key boundaries are."
         };
 
         Console.WriteLine($"[DisplayTest] {pattern}: {expectation}");

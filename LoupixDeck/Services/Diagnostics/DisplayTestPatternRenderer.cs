@@ -117,10 +117,22 @@ public static class DisplayTestPatternRenderer
         FillRect(canvas, 0, keySize - marker, marker, marker, MarkerBottomLeft);
         FillRect(canvas, keySize - marker, keySize - marker, marker, marker, MarkerBottomRight);
 
-        DrawCentredText(canvas, slot.ToString(), keySize / 2f, (keySize / 2f) + (keySize / 9f),
-            keySize / 2.6f, SKColors.White, bold: true);
-        DrawCentredText(canvas, $"{keySize}px", keySize / 2f, keySize - marker - 4f,
-            Math.Max(8f, keySize / 9f), new SKColor(180, 180, 180), bold: false);
+        // Squares centred on the tile. The corner blocks alone read badly once a bezel eats
+        // the outer pixels — these sit well inside it, and because they are concentric the
+        // eye compares the four gaps around each one against each other instead of against
+        // an edge it cannot see. Unequal gaps are an off-centre tile even when nothing is
+        // visibly clipped.
+        // Sized so the innermost square still clears a two-digit slot number and the
+        // outermost one clears the corner blocks — a square the number runs through cannot
+        // be read as a gap any more. The key size is not printed on the tile: the label sat
+        // on the bottom frame line, and that line is the primary "is this edge still on the
+        // glass" signal. It is on the Ruler pattern and in the log instead.
+        DrawCentredSquares(canvas, keySize / 2f, keySize / 2f,
+            [keySize / 1.45f, keySize / 2f, keySize / 2.9f],
+            [new SKColor(0, 200, 255), new SKColor(255, 210, 0), new SKColor(120, 255, 120)]);
+
+        DrawCentredText(canvas, slot.ToString(), keySize / 2f, (keySize / 2f) + (keySize / 13f),
+            keySize / 4.6f, SKColors.White, bold: true);
     }
 
     /// <summary>
@@ -259,14 +271,67 @@ public static class DisplayTestPatternRenderer
 
         float centreX = width / 2f;
         float centreY = height / 2f;
-        using SKPaint cross = new() { Color = SKColors.White, IsStroke = true, StrokeWidth = 1, IsAntialias = true };
-        canvas.DrawLine(centreX - 20, centreY, centreX + 20, centreY, cross);
-        canvas.DrawLine(centreX, centreY - 20, centreX, centreY + 20, cross);
-        canvas.DrawCircle(centreX, centreY, 12, cross);
 
-        DrawCentredText(canvas, $"{width}x{height}", centreX, centreY - 26, 16f, SKColors.White, bold: true);
-        DrawCentredText(canvas, $"{deviceName}  key {keySize}  grid x={gridOriginX}", centreX, centreY + 40, 12f,
+        // Concentric squares on the panel centre. The outer frame is the first thing a bezel
+        // hides, so these carry the centring read on their own: sized off the SHORTER panel
+        // axis, they stay square, and any inequality between the gaps left and right versus
+        // top and bottom is the framebuffer sitting off-centre.
+        float shortSide = Math.Min(width, height);
+        float outerSquare = shortSide * 0.72f;
+        DrawCentredSquares(canvas, centreX, centreY,
+            [outerSquare, shortSide * 0.50f, shortSide * 0.28f],
+            [new SKColor(0, 200, 255), new SKColor(255, 210, 0), new SKColor(120, 255, 120)]);
+
+        // The arms are snapped to pixel centres and drawn without antialiasing: on an even
+        // panel dimension the centre falls between two rows, and an antialiased 1px line
+        // then lands as two half-bright ones — which is exactly the "barely visible" case.
+        float armX = MathF.Round(centreX) + 0.5f;
+        float armY = MathF.Round(centreY) + 0.5f;
+        using SKPaint cross = new() { Color = SKColors.White, IsStroke = true, StrokeWidth = 1, IsAntialias = false };
+        canvas.DrawLine(centreX - 20, armY, centreX + 20, armY, cross);
+        canvas.DrawLine(armX, centreY - 20, armX, centreY + 20, cross);
+
+        using SKPaint circle = new() { Color = SKColors.White, IsStroke = true, StrokeWidth = 1, IsAntialias = true };
+        canvas.DrawCircle(centreX, centreY, 12, circle);
+
+        // Both captions live in the band between the panel frame and the outer square, so
+        // nothing crosses the squares — text running through one turns the gap being judged
+        // into a guess.
+        float band = (height - outerSquare) / 2f;
+        DrawCentredText(canvas, $"{width}x{height}", centreX, band - 8f, 16f, SKColors.White, bold: true);
+        DrawCentredText(canvas, $"{deviceName}  key {keySize}  grid x={gridOriginX}", centreX, height - 8f, 12f,
             new SKColor(180, 180, 180), bold: false);
+    }
+
+    /// <summary>
+    /// Draws concentric 1px squares of the given edge lengths around (<paramref name="centreX"/>,
+    /// <paramref name="centreY"/>), each in its own colour. Squares — not rectangles scaled to
+    /// the surface — because a square only looks square when the pixel aspect and the visible
+    /// area are both right, which makes a stretched or clipped panel obvious on its own.
+    /// </summary>
+    private static void DrawCentredSquares(SKCanvas canvas, float centreX, float centreY,
+        ReadOnlySpan<float> sizes, ReadOnlySpan<SKColor> colors)
+    {
+        for (int i = 0; i < sizes.Length; i++)
+        {
+            float half = MathF.Round(sizes[i] / 2f);
+            if (half < 2f) continue;
+
+            using SKPaint paint = new()
+            {
+                Color = colors[Math.Min(i, colors.Length - 1)],
+                IsStroke = true,
+                StrokeWidth = 1,
+                IsAntialias = false
+            };
+
+            // Half-pixel offsets keep the 1px stroke on whole pixels instead of smeared
+            // across two — at these sizes a smeared edge is the difference between reading
+            // the gap and guessing it.
+            canvas.DrawRect(new SKRect(
+                MathF.Round(centreX) - half + 0.5f, MathF.Round(centreY) - half + 0.5f,
+                MathF.Round(centreX) + half - 0.5f, MathF.Round(centreY) + half - 0.5f), paint);
+        }
     }
 
     private static void FillRect(SKCanvas canvas, int x, int y, int width, int height, SKColor color)
