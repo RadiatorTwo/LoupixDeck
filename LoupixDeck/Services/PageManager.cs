@@ -341,6 +341,7 @@ public class PageManager : IPageManager
         var newPage = new TouchButtonPage(touchCount)
         {
             Page = TouchButtonPages.Count + 1,
+            Geometry = _config.Geometry,
             // Carry over the wallpapers by cloning their persistent parameters
             // (the baked bitmaps are just render caches).
             MainWallpaper = previous?.MainWallpaper?.Clone() ?? new WallpaperSlot(),

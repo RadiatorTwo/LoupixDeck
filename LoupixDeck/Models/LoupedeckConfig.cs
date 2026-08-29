@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
+using LoupixDeck.Registry;
 using Newtonsoft.Json;
 
 namespace LoupixDeck.Models;
@@ -56,6 +57,31 @@ public partial class LoupedeckConfig : ObservableObject
     public const int CurrentVersion = 8;
 
     public int Version { get; set; } = CurrentVersion;
+
+    /// <summary>
+    /// Pixel geometry of the device this config belongs to. Runtime-only carrier so the
+    /// static renderers in <c>BitmapHelper</c> — which only ever receive a config — can size
+    /// panel-sized surfaces per device. Never persisted: the geometry belongs to the model,
+    /// not to the file, and is re-applied on every load via <see cref="ApplyDeviceGeometry"/>.
+    /// </summary>
+    [JsonIgnore]
+    public DeviceGeometry Geometry { get; private set; } = DeviceGeometry.Default;
+
+    /// <summary>
+    /// Applies the attached device's geometry to this config and to every touch page it
+    /// holds (across all profiles and workspaces, not just the active one), so wallpaper
+    /// baking uses the real panel size everywhere.
+    /// </summary>
+    public void ApplyDeviceGeometry(DeviceGeometry geometry)
+    {
+        Geometry = geometry ?? DeviceGeometry.Default;
+
+        foreach (Profile profile in Profiles ?? [])
+        foreach (Workspace workspace in profile?.Workspaces ?? [])
+        foreach (TouchButtonPage page in workspace?.TouchButtonPages ?? [])
+            if (page != null)
+                page.Geometry = Geometry;
+    }
 
     public string DevicePort { get; set; }
     public int DeviceBaudrate { get; set; }

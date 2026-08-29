@@ -216,6 +216,10 @@ public static class ServiceCollectionExtensions
             // Default profile with a Home workspace; a migrated config already has one and is left
             // as is. Also binds the active-workspace facade so the page properties resolve.
             config.EnsureDefaultProfile();
+
+            // Panel geometry is not persisted — re-attach it on every load so the static
+            // renderers size wallpapers to this device's panel rather than a fixed 480x270.
+            config.ApplyDeviceGeometry(deviceInfo.Geometry);
             return config;
         });
 

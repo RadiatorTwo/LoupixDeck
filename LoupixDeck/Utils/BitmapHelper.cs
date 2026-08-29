@@ -611,7 +611,7 @@ public static class BitmapHelper
         var page = ResolveWallpaperSourcePage(config);
         if (page == null) return (null, 0);
 
-        var baked = GetOrBakeSlot(page.MainWallpaper, PanelWidth, PanelHeight);
+        var baked = GetOrBakeSlot(page.MainWallpaper, config.Geometry.PanelWidth, config.Geometry.PanelHeight);
         return baked != null ? (baked, page.MainWallpaper.Opacity) : (null, 0);
     }
 
@@ -1749,11 +1749,6 @@ public static class BitmapHelper
         return bitmap;
     }
 
-    // The unified panel is 480px wide; the side strips occupy its outer 60px columns.
-    public const int PanelWidth = 480;
-    public const int PanelHeight = 270;
-    private const int StripWidth = 60;
-
     /// <summary>
     /// Renders a side strip in free-draw mode: the strip's wallpaper region as the
     /// background, with the page's <see cref="RotaryButtonPage.StripCanvas"/> layers
@@ -1824,15 +1819,17 @@ public static class BitmapHelper
             return;
         }
 
-        // Panel-space x where this strip starts: left at 0, right at 480-60=420.
-        var panelStartX = side == RotarySide.Right ? PanelWidth - StripWidth : 0;
-        var scaleX = wallpaper.Width / (float)PanelWidth;
-        var scaleY = wallpaper.Height / (float)height; // strip height == panel height (270)
+        // Panel-space x where this strip starts: left at 0, right at panel width - strip width.
+        int panelWidth = config.Geometry.PanelWidth;
+        int stripWidth = config.Geometry.StripWidth;
+        var panelStartX = side == RotarySide.Right ? panelWidth - stripWidth : 0;
+        var scaleX = wallpaper.Width / (float)panelWidth;
+        var scaleY = wallpaper.Height / (float)height; // strip height == panel height
 
         var srcRect = new SKRect(
             panelStartX * scaleX,
             0,
-            (panelStartX + StripWidth) * scaleX,
+            (panelStartX + stripWidth) * scaleX,
             height * scaleY);
         var destRect = new SKRect(0, 0, width, height);
 

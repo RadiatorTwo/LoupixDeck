@@ -1,13 +1,14 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using LoupixDeck.Registry;
 using LoupixDeck.Utils;
 using SkiaSharp;
 
 namespace LoupixDeck.Services.Animation;
 
 /// <summary>
-/// Shared full-display frame push path. Takes one raw BGRA panel (the continuous 480×270 virtual
-/// panel the wallpaper system assumes) and fans it out across every display of a device: unified
+/// Shared full-display frame push path. Takes one raw BGRA panel (the continuous virtual panel
+/// the wallpaper system assumes, sized by the device's geometry) and fans it out across every display of a device: unified
 /// devices (Live S / Razer) take the whole frame on their single "center" buffer; the CT's
 /// independent left/centre/right buffers each take their column. The CT knob screen is intentionally
 /// not driven (its framebuffer needs big-endian conversion the device layer doesn't implement yet).
@@ -20,14 +21,11 @@ namespace LoupixDeck.Services.Animation;
 /// </summary>
 public sealed class FullDisplayFrameWriter : IDisposable
 {
-    // The continuous virtual panel the wallpaper system assumes: 480px wide spanning the
-    // centre grid plus both 60px side-strip columns, 270px tall.
-    public const int PanelWidth = 480;
-    public const int PanelHeight = 270;
-    public const int StripWidth = 60;
-    public const int FrameBytes = PanelWidth * PanelHeight * 4;
-
     private readonly LoupedeckDevice.Device.LoupedeckDevice _device;
+
+    // The continuous virtual panel the wallpaper system assumes, taken from the device:
+    // its full width spanning the centre grid plus any side-strip columns.
+    private readonly DeviceGeometry _geometry;
     private readonly List<DisplayTarget> _targets = [];
 
     private readonly bool _debug;
@@ -45,6 +43,7 @@ public sealed class FullDisplayFrameWriter : IDisposable
         string logPrefix = "[FullDisplay]")
     {
         _device = device;
+        _geometry = device.Geometry;
         _debug = debug;
         _logPrefix = logPrefix;
         BuildTargets();
@@ -58,7 +57,7 @@ public sealed class FullDisplayFrameWriter : IDisposable
     /// Composites the per-display slices under the shared Skia gate, then pushes each to its
     /// display outside the gate (the device's pixel conversion takes the gate itself, and it can't
     /// be held across the awaited device I/O). <paramref name="bgra"/> is exactly one panel frame
-    /// (<see cref="FrameBytes"/> bytes are read; the buffer may be larger when pooled).
+    /// (the geometry's FrameBytes are read; the buffer may be larger when pooled).
     /// </summary>
     public async Task PushAsync(byte[] bgra, CancellationToken token)
     {
@@ -67,10 +66,11 @@ public sealed class FullDisplayFrameWriter : IDisposable
 
         lock (SkiaRenderGate.Sync)
         {
-            frame = new SKBitmap(new SKImageInfo(PanelWidth, PanelHeight, SKColorType.Bgra8888, SKAlphaType.Opaque));
+            frame = new SKBitmap(new SKImageInfo(_geometry.PanelWidth, _geometry.PanelHeight,
+                SKColorType.Bgra8888, SKAlphaType.Opaque));
             // Copy exactly one frame: the buffer may be pooled (ArrayPool) so it can be larger
-            // than FrameBytes — never use bgra.Length here.
-            Marshal.Copy(bgra, 0, frame.GetPixels(), FrameBytes);
+            // than one frame — never use bgra.Length here.
+            Marshal.Copy(bgra, 0, frame.GetPixels(), _geometry.FrameBytes);
 
             foreach (var target in _targets)
             {
@@ -141,7 +141,7 @@ public sealed class FullDisplayFrameWriter : IDisposable
         var (centerW, centerH) = _device.GetDisplaySize("center");
         if (centerW <= 0 || centerH <= 0) return;
 
-        if (centerW >= PanelWidth)
+        if (centerW >= _geometry.PanelWidth)
         {
             // Unified panel: push the full frame as-is (covers grid + any side columns).
             _targets.Add(DisplayTarget.Full("center", centerW, centerH));
@@ -149,9 +149,10 @@ public sealed class FullDisplayFrameWriter : IDisposable
         }
 
         // Segmented displays (CT): slice the continuous panel into its columns.
-        AddSlice("left", 0, StripWidth);
-        AddSlice("center", StripWidth, centerW);
-        AddSlice("right", PanelWidth - StripWidth, StripWidth);
+        int stripWidth = _geometry.StripWidth;
+        AddSlice("left", 0, stripWidth);
+        AddSlice("center", stripWidth, centerW);
+        AddSlice("right", _geometry.PanelWidth - stripWidth, stripWidth);
         // "knob" (240×240) is deliberately omitted — see class summary.
     }
 
@@ -159,7 +160,7 @@ public sealed class FullDisplayFrameWriter : IDisposable
     {
         var (w, h) = _device.GetDisplaySize(displayId);
         if (w <= 0 || h <= 0) return;
-        _targets.Add(DisplayTarget.Slice(displayId, srcX, srcWidth, w, h));
+        _targets.Add(DisplayTarget.Slice(displayId, srcX, srcWidth, w, h, _geometry.PanelHeight));
     }
 
     /// <summary>Waits for any in-flight frame push to finish so the caller can safely close the
@@ -171,7 +172,7 @@ public sealed class FullDisplayFrameWriter : IDisposable
     }
 
     /// <summary>One display's slice of the panel: which buffer, the source rectangle in the
-    /// 480×270 frame, and the destination size (the display's own pixels).</summary>
+    /// panel frame, and the destination size (the display's own pixels).</summary>
     private sealed class DisplayTarget
     {
         public string DisplayId { get; private init; }
@@ -189,11 +190,12 @@ public sealed class FullDisplayFrameWriter : IDisposable
             DestHeight = height
         };
 
-        public static DisplayTarget Slice(string id, int srcX, int srcWidth, int destWidth, int destHeight) => new()
+        public static DisplayTarget Slice(string id, int srcX, int srcWidth, int destWidth, int destHeight,
+            int panelHeight) => new()
         {
             DisplayId = id,
             IsFullFrame = false,
-            SrcRect = new SKRect(srcX, 0, srcX + srcWidth, PanelHeight),
+            SrcRect = new SKRect(srcX, 0, srcX + srcWidth, panelHeight),
             DestWidth = destWidth,
             DestHeight = destHeight
         };
