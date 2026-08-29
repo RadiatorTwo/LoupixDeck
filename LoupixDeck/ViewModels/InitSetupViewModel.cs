@@ -26,16 +26,17 @@ public partial class InitSetupViewModel : ViewModelBase
 
 #if DEBUG
     public ObservableCollection<int> BaudRates { get; } =
-        [9600, 19200, 38400, 57600, 115200, 230400, 460800, 921600, 1500000, 3000000, 480000000];
+        [9600, 19200, 38400, 57600, 115200, 230400, 256000, 460800, 921600, 1500000, 3000000, 480000000];
 #else
-    public ObservableCollection<int> BaudRates { get; } = [9600, 19200, 38400, 57600, 115200, 230400, 460800, 921600];
+    public ObservableCollection<int> BaudRates { get; } =
+        [9600, 19200, 38400, 57600, 115200, 230400, 256000, 460800, 921600];
 #endif
 
     [ObservableProperty] private DeviceItem _selectedDevice;
 
     // [ObservableProperty] private string _manualDevicePath;
 
-    [ObservableProperty] private int _selectedBaudRate = 921600;
+    [ObservableProperty] private int _selectedBaudRate = LoupedeckDevice.Constants.DefaultBaudrate;
 
     [ObservableProperty] private string _connectionTestResult = string.Empty;
 
@@ -78,10 +79,16 @@ public partial class InitSetupViewModel : ViewModelBase
         }
     }
 
-    // partial void OnSelectedDeviceChanged(DeviceItem value)
-    // {
-    //     ManualDevicePath = value.Path;
-    // }
+    /// <summary>
+    /// Follows the selection with the rate the registry states for that model, so this
+    /// fallback picker starts on the same value the auto-detect path would use instead of
+    /// on a fixed one. The user can still override it before confirming.
+    /// </summary>
+    partial void OnSelectedDeviceChanged(DeviceItem value)
+    {
+        if (value?.Info != null)
+            SelectedBaudRate = value.Info.Baudrate;
+    }
 
     [RelayCommand]
     private void TestConnection()

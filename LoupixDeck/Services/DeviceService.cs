@@ -39,6 +39,12 @@ public class LoupedeckDeviceService : IDeviceService
             // ActiveDeviceResolver / InitSetup). Falling back to Live S keeps very
             // old configs that predate the device registry alive.
             var type = _deviceInfo?.DeviceType ?? typeof(LoupedeckLiveSDevice);
+
+            // An unset rate resolves against the registry entry for this model, so the
+            // registry stays the source of truth even when the config carries no value.
+            if (deviceBaudrate <= 0)
+                deviceBaudrate = _deviceInfo?.Baudrate ?? LoupedeckDevice.Constants.DefaultBaudrate;
+
             Device = (LoupedeckDevice.Device.LoupedeckDevice)Activator.CreateInstance(
                 type,
                 null, // host

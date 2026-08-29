@@ -192,7 +192,10 @@ public class LoupedeckDevice
         Host = host;
         Path = path;
         ReconnectInterval = reconnectInterval;
-        Baudrate = baudrate > 0 ? baudrate : 115200;
+        // 0 means "not configured" — the caller normally passes the model's rate from the
+        // device registry, so this fallback only covers a device constructed outside that
+        // path. It used to be a literal 115200, which no entry in the registry states.
+        Baudrate = baudrate > 0 ? baudrate : Constants.DefaultBaudrate;
         if (autoConnect)
         {
             ConnectBlind();

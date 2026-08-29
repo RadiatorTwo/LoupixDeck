@@ -69,8 +69,9 @@ public class SerialConnection : ISerialConnection
     /// Initializes a new instance of the <see cref="SerialConnection"/> class.
     /// </summary>
     /// <param name="portName">The name of the serial port to connect to.</param>
-    /// <param name="baudRate">The baud rate. Defaults to 256000 if not specified.</param>
-    public SerialConnection(string portName, int baudRate = 921600)
+    /// <param name="baudRate">The baud rate. Defaults to
+    /// <see cref="Constants.DefaultBaudrate"/> if not specified.</param>
+    public SerialConnection(string portName, int baudRate = Constants.DefaultBaudrate)
     {
         _portName = portName;
         _baudRate = baudRate;

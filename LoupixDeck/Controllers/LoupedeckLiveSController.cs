@@ -552,11 +552,14 @@ public partial class LoupedeckLiveSController(
         if (baudrate > 0)
             Config.DeviceBaudrate = baudrate;
 
-        // Auto-detect path never sets baudrate, so the config would otherwise
-        // persist as 0 and Settings would show "0" even though the device runs
-        // on the 115200 fallback inside LoupedeckDevice.
+        // Auto-detect path never sets baudrate, so the config would otherwise persist as 0
+        // and Settings would show "0". Stamp the model's rate from the device registry, not
+        // a literal: this used to write 115200 for every model regardless of what the device
+        // actually runs at. A config that already holds a rate keeps it — an explicit value
+        // is indistinguishable from an earlier stamp, so old configs are left exactly as they
+        // are and can be re-stamped by clearing the field in Settings.
         if (Config.DeviceBaudrate <= 0)
-            Config.DeviceBaudrate = 115200;
+            Config.DeviceBaudrate = deviceInfo?.Baudrate ?? LoupedeckDevice.Constants.DefaultBaudrate;
 
         // Stamp the active device's VID/PID (and serial) into the config so
         // subsequent launches load the right per-device file via ActiveDeviceResolver.

@@ -10,12 +10,20 @@ public static class DeviceRegistry
     /// <see cref="LoupixDeck.LoupedeckDevice.Device.LoupedeckDevice"/> — because services are
     /// built before the device object exists (and it never appears at all without hardware).
     /// </param>
+    /// <param name="Baudrate">
+    /// Serial rate this model is opened at. Carried here rather than inside the device class
+    /// so the connection rate is resolved before the device object exists — the same reason
+    /// <paramref name="Geometry"/> lives on the entry. Defaults to
+    /// <see cref="LoupixDeck.LoupedeckDevice.Constants.DefaultBaudrate"/>; a model that needs
+    /// a different rate states it on its own entry.
+    /// </param>
     public record DeviceInfo(
         string Name,
         string VendorId,
         string ProductId,
         Type DeviceType,
-        DeviceGeometry Geometry)
+        DeviceGeometry Geometry,
+        int Baudrate = LoupixDeck.LoupedeckDevice.Constants.DefaultBaudrate)
     {
         /// <summary>
         /// Filesystem-safe slug derived from the device name. Used to scope the

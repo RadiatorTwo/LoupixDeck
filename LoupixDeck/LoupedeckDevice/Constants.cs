@@ -78,6 +78,16 @@ public static class Constants
 
     public const int ConnectionTimeout = 3000;
     public const int DefaultReconnectInterval = 3000;
+
+    /// <summary>
+    /// Serial rate the Loupedeck/Razer firmware family is driven at, and the last-resort
+    /// fallback when a device is constructed without one. The per-model rate lives on the
+    /// registry entry (<see cref="Registry.DeviceRegistry.DeviceInfo.Baudrate"/>) — this is
+    /// only what a model that does not state its own inherits. Note these devices enumerate
+    /// as USB CDC, where the rate is negotiated by the class driver rather than by the wire,
+    /// so a wrong value here has historically gone unnoticed.
+    /// </summary>
+    public const int DefaultBaudrate = 256000;
     public const int MaxBrightness = 10;
 
     public enum Command : byte
