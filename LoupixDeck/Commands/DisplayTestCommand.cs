@@ -25,9 +25,15 @@ namespace LoupixDeck.Commands;
     parameterTemplate: "({Pattern},{Seconds})",
     parameterNames: ["Pattern", "Seconds"],
     parameterTypes: [typeof(string), typeof(int)],
-    parameterDefaults: ["cycle", "5"],
+    // Pattern declares NO default on purpose: a command-defined default outranks the value a
+    // menu entry carries, so declaring one here would make every entry in the picker insert
+    // that same pattern. It comes from DisplayTestMenuContributor's leaves instead.
+    parameterDefaults: ["", "5"],
     Icon = "\U000F03D8",
-    Description = "Test pattern: cycle, grid, ruler, color or edges — press any key to end")]
+    // Hidden from the generic group listing: DisplayTestMenuContributor lists the patterns as
+    // pickable entries, which is the point — the tokens are not something to memorise.
+    Hidden = true,
+    Description = "Check the display output against the device geometry — press any key to end")]
 public sealed class DisplayTestCommand(IDeviceService deviceService, IExclusiveModeService exclusiveMode)
     : IExecutableCommand
 {
