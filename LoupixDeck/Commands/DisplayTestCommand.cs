@@ -19,12 +19,15 @@ namespace LoupixDeck.Commands;
 /// and repaints the normal page; running the command a second time also ends it.
 /// </summary>
 [Command("System.DisplayTest", "Display Test Pattern (toggle)", "Device Control",
+    // Each name MUST equal the placeholder token in the template: CommandBuilder substitutes
+    // by "{" + parameter name + "}", so a descriptive name here silently leaves the raw
+    // "({Pattern},{Seconds})" in the button's command string.
     parameterTemplate: "({Pattern},{Seconds})",
-    parameterNames: ["Pattern (cycle/grid/ruler/color/edges)", "Seconds per pattern"],
+    parameterNames: ["Pattern", "Seconds"],
     parameterTypes: [typeof(string), typeof(int)],
     parameterDefaults: ["cycle", "5"],
     Icon = "\U000F03D8",
-    Description = "Check the display output against the device geometry — press any key to end")]
+    Description = "Test pattern: cycle, grid, ruler, color or edges — press any key to end")]
 public sealed class DisplayTestCommand(IDeviceService deviceService, IExclusiveModeService exclusiveMode)
     : IExecutableCommand
 {
@@ -45,10 +48,28 @@ public sealed class DisplayTestCommand(IDeviceService deviceService, IExclusiveM
             }
 
             string patternArg = parameters is { Length: > 0 } ? parameters[0]?.Trim().ToLowerInvariant() : null;
-            bool cycle = string.IsNullOrEmpty(patternArg) || patternArg == "cycle";
-            DisplayTestPattern[] patterns = cycle
-                ? [DisplayTestPattern.KeyGrid, DisplayTestPattern.Ruler, DisplayTestPattern.Color, DisplayTestPattern.Edges]
-                : [ParsePattern(patternArg)];
+
+            // Anything not naming a pattern cycles: an empty argument, an explicit "cycle",
+            // the type placeholder the command builder inserts when no default applies, and
+            // an un-substituted "{Pattern}" from a button written by an older build. Sticking
+            // on one pattern because the argument was unreadable looks exactly like a broken
+            // cycle, so say which token was not understood instead of silently picking one.
+            DisplayTestPattern[] patterns;
+            if (TryParsePattern(patternArg, out DisplayTestPattern single))
+            {
+                patterns = [single];
+            }
+            else
+            {
+                if (!string.IsNullOrEmpty(patternArg) && patternArg != "cycle")
+                    Console.WriteLine($"[DisplayTest] unknown pattern '{parameters[0]}' — cycling through all.");
+
+                patterns =
+                [
+                    DisplayTestPattern.KeyGrid, DisplayTestPattern.Ruler,
+                    DisplayTestPattern.Color, DisplayTestPattern.Edges
+                ];
+            }
 
             int seconds = 5;
             if (parameters is { Length: > 1 } && int.TryParse(parameters[1], out int parsed) && parsed > 0)
@@ -61,13 +82,28 @@ public sealed class DisplayTestCommand(IDeviceService deviceService, IExclusiveM
         }
     }
 
-    private static DisplayTestPattern ParsePattern(string value) => value switch
+    /// <summary>True only for a token that names one pattern; every other value cycles.</summary>
+    private static bool TryParsePattern(string value, out DisplayTestPattern pattern)
     {
-        "ruler" or "pixels" => DisplayTestPattern.Ruler,
-        "color" or "colour" or "rgb" => DisplayTestPattern.Color,
-        "edges" or "edge" or "panel" => DisplayTestPattern.Edges,
-        _ => DisplayTestPattern.KeyGrid
-    };
+        switch (value)
+        {
+            case "grid" or "keygrid" or "keys":
+                pattern = DisplayTestPattern.KeyGrid;
+                return true;
+            case "ruler" or "pixels":
+                pattern = DisplayTestPattern.Ruler;
+                return true;
+            case "color" or "colour" or "rgb":
+                pattern = DisplayTestPattern.Color;
+                return true;
+            case "edges" or "edge" or "panel":
+                pattern = DisplayTestPattern.Edges;
+                return true;
+            default:
+                pattern = DisplayTestPattern.KeyGrid;
+                return false;
+        }
+    }
 
     private async Task RunAsync(DisplayTestPattern[] patterns, int seconds, CancellationTokenSource cts)
     {
