@@ -4,6 +4,7 @@ using LoupixDeck.Models;
 using LoupixDeck.Models.Converter;
 using LoupixDeck.Models.Layers;
 using LoupixDeck.PluginSdk;
+using LoupixDeck.Registry;
 using LoupixDeck.Services;
 using LoupixDeck.Services.Commands;
 using LoupixDeck.Services.Plugins;
@@ -75,9 +76,9 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     public const int EditorCanvasBleed = 75;
 
     // Device-pixel dimensions of the edited surface. 90×90 for grid touch buttons;
-    // set to 60×270 for a Razer side-strip free-draw canvas via SetCanvasSize.
-    public int DeviceWidth { get; private set; } = 90;
-    public int DeviceHeight { get; private set; } = 90;
+    // set to the side-strip size for a Razer free-draw canvas via SetCanvasSize.
+    public int DeviceWidth { get; private set; } = DeviceGeometry.Default.KeySize;
+    public int DeviceHeight { get; private set; } = DeviceGeometry.Default.KeySize;
 
     /// <summary>Editor → device coordinate factor (canvas pixels per device pixel).</summary>
     public double EditorToDeviceScale => BitmapHelper.ComputeEditorFrame(DeviceWidth, DeviceHeight).Scale;
@@ -119,8 +120,9 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     public double FrameOffsetY => (EditorCanvasHeight - FrameHeight) / 2.0;
 
     /// <summary>
-    /// Sets the edited surface's device-pixel dimensions (e.g. 60×270 for a side-strip
-    /// free-draw canvas). Call before <see cref="Initialize"/>. Defaults to 90×90.
+    /// Sets the edited surface's device-pixel dimensions (e.g. the side-strip size for a
+    /// free-draw canvas). Call before <see cref="Initialize"/>. Defaults to the attached
+    /// device's key size.
     /// </summary>
     public void SetCanvasSize(int deviceWidth, int deviceHeight)
     {
@@ -836,7 +838,8 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         IDynamicTextManager dynamicTextManager,
         Services.Animation.IAnimatedImageImporter animatedImageImporter,
         Services.Animation.IAnimatedImageCache animatedImageCache,
-        LoupedeckConfig config)
+        LoupedeckConfig config,
+        DeviceGeometry geometry)
     {
         _commandBuilder = commandBuilder;
         _menuTreeBuilder = menuTreeBuilder;
@@ -848,6 +851,12 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         _animatedImageImporter = animatedImageImporter;
         _animatedImageCache = animatedImageCache;
         _config = config;
+
+        // A grid touch button is edited at the device's own key size — natively, with no
+        // scaling step between the editor canvas and the framebuffer. The strip canvas
+        // overrides this via SetCanvasSize.
+        DeviceWidth = geometry?.KeySize ?? DeviceGeometry.Default.KeySize;
+        DeviceHeight = DeviceWidth;
 
         // The provider list can change on a plugin hot-reload while the editor is open.
         _sideStripRegistry.ProvidersChanged += OnStripProvidersChanged;
