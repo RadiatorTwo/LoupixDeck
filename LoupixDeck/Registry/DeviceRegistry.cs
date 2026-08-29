@@ -29,6 +29,7 @@ public static class DeviceRegistry
         new("Loupedeck Live", "2ec2", "0004", typeof(LoupedeckLiveDevice), RazerStreamControllerDevice.KnownGeometry),
         new("Loupedeck Live S", "2ec2", "0006", typeof(LoupedeckLiveSDevice), LoupedeckLiveSDevice.KnownGeometry),
         new("Razer Stream Controller", "1532", "0d06", typeof(RazerStreamControllerDevice), RazerStreamControllerDevice.KnownGeometry),
+        new("Razer Stream Controller X", "1532", "0d09", typeof(RazerStreamControllerXDevice), RazerStreamControllerXDevice.KnownGeometry),
         new("Loupedeck CT", "2ec2", "0003", typeof(LoupedeckCtDevice), LoupedeckCtDevice.KnownGeometry),
         new("Loupedeck CT", "2ec2", "0007", typeof(LoupedeckCtDevice), LoupedeckCtDevice.KnownGeometry)
     ];
