@@ -131,6 +131,16 @@ public class LoupedeckDevice
     public virtual int WallpaperGridXOffset => 0;
 
     /// <summary>
+    /// X-origin of the centre touch grid inside the "center" framebuffer. Devices with a
+    /// unified panel buffer place the grid at <c>VisibleX[0]</c> (Razer: 60, Live S: 15,
+    /// Stream Controller X: 0); the CT, whose "center" is a dedicated grid-only buffer,
+    /// overrides this to 0. Mirrors the origin <see cref="DrawTouchSlotsAtomic"/> and
+    /// <see cref="DrawCenterGridRegion"/> compute inline; named here so diagnostics can draw
+    /// against the same one. Framebuffer space only — touch coordinates use VisibleX directly.
+    /// </summary>
+    public virtual int GridOriginX => VisibleX is { Length: > 0 } ? VisibleX[0] : 0;
+
+    /// <summary>
     /// Returns the touch slot that physically sits next to the rotary at
     /// <paramref name="rotaryIndex"/>, or -1 when the device has no such
     /// neighbour. Plugins use this for transient feedback overlays (e.g. a

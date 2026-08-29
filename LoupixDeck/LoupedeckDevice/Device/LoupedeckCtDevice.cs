@@ -69,6 +69,11 @@ public class LoupedeckCtDevice : LoupedeckDevice
     /// </remarks>
     public override int WallpaperGridXOffset => 60;
 
+    /// <inheritdoc />
+    /// <remarks>The CT's "center" is its own dedicated 360-wide grid-only framebuffer, so the
+    /// grid starts at 0 there — unlike the unified 480-wide buffer of Live/Razer.</remarks>
+    public override int GridOriginX => 0;
+
     public LoupedeckCtDevice(string host = null, string path = null, int baudrate = 0,
         bool autoConnect = true, int reconnectInterval = Constants.DefaultReconnectInterval)
         : base(host, path, baudrate, autoConnect, reconnectInterval)
