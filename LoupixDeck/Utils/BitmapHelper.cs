@@ -956,8 +956,8 @@ public static class BitmapHelper
     {
         var (boxLeft, boxTop) = TextBoxOrigin(layer, deviceW, deviceH);
         return new SKRect(boxLeft, boxTop,
-            boxLeft + layer.EffectiveBoxWidth,
-            boxTop + layer.EffectiveBoxHeight);
+            boxLeft + layer.ResolveBoxWidth(deviceW),
+            boxTop + layer.ResolveBoxHeight(deviceH));
     }
 
     /// <summary>
@@ -1125,8 +1125,8 @@ public static class BitmapHelper
     {
         if (string.IsNullOrEmpty(layer.Text)) return;
 
-        var boxW = layer.EffectiveBoxWidth;
-        var boxH = layer.EffectiveBoxHeight;
+        var boxW = layer.ResolveBoxWidth(width);
+        var boxH = layer.ResolveBoxHeight(height);
         var (boxLeft, boxTop) = TextBoxOrigin(layer, width, height);
 
         var saved = canvas.Save();
@@ -1152,8 +1152,8 @@ public static class BitmapHelper
 
     private static (float Left, float Top) TextBoxOrigin(TextLayer layer, int deviceW, int deviceH)
     {
-        var boxW = layer.EffectiveBoxWidth;
-        var boxH = layer.EffectiveBoxHeight;
+        var boxW = layer.ResolveBoxWidth(deviceW);
+        var boxH = layer.ResolveBoxHeight(deviceH);
         if (layer.Centered)
         {
             return (((deviceW - boxW) / 2f) + layer.PositionX,
