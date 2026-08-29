@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using LoupixDeck.Models.Extensions;
+using LoupixDeck.Registry;
 using LoupixDeck.Utils;
 using SkiaSharp;
 
@@ -173,11 +174,12 @@ public partial class LoupedeckLiveSController
     private SKBitmap ComposeCurrentTouchGrid(int columns, int rows)
     {
         var page = config.CurrentTouchButtonPage;
+        int keySize = deviceService.Device?.KeySize ?? DeviceGeometry.Default.KeySize;
         var slots = new SKBitmap[columns * rows];
         if (page?.TouchButtons != null)
             for (var i = 0; i < slots.Length; i++)
                 slots[i] = page.TouchButtons.FindByIndex(i)?.RenderedImage;
-        return BitmapHelper.ComposeTouchGrid(slots, columns, rows);
+        return BitmapHelper.ComposeTouchGrid(slots, columns, rows, keySize);
     }
 
     /// <summary>Renders every grid button of the (now current) incoming page and composes them
@@ -186,15 +188,17 @@ public partial class LoupedeckLiveSController
     {
         var page = config.CurrentTouchButtonPage;
         var xOffset = deviceService.Device?.WallpaperGridXOffset ?? 0;
+        int keySize = deviceService.Device?.KeySize ?? DeviceGeometry.Default.KeySize;
         var slots = new SKBitmap[columns * rows];
         if (page?.TouchButtons != null)
             for (var i = 0; i < slots.Length; i++)
             {
                 var button = page.TouchButtons.FindByIndex(i);
                 if (button != null)
-                    slots[i] = BitmapHelper.RenderTouchButtonContent(button, config, 90, 90, columns, xOffset);
+                    slots[i] = BitmapHelper.RenderTouchButtonContent(button, config, keySize, keySize, columns,
+                        xOffset);
             }
-        return BitmapHelper.ComposeTouchGrid(slots, columns, rows);
+        return BitmapHelper.ComposeTouchGrid(slots, columns, rows, keySize);
     }
 
     /// <summary>Arms a touch-page transition and wakes the scheduler. Supersedes any in-flight

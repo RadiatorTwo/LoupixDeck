@@ -1718,13 +1718,15 @@ public static class BitmapHelper
     }
 
     /// <summary>
-    /// Composes a page's 90×90 slot bitmaps into a single grid-region bitmap
-    /// (<paramref name="columns"/>*90 × <paramref name="rows"/>*90), laid out left-to-right,
-    /// top-to-bottom. Null slots stay black. Only the first <c>columns*rows</c> slots (the
-    /// touch grid) are used — trailing side-strip slots are ignored. Used to build the
-    /// outgoing/incoming frames for the touch-page slide.
+    /// Composes a page's slot bitmaps into a single grid-region bitmap
+    /// (<paramref name="columns"/>*<paramref name="keySize"/> × <paramref name="rows"/>*<paramref name="keySize"/>),
+    /// laid out left-to-right, top-to-bottom. Null slots stay black. Only the first
+    /// <c>columns*rows</c> slots (the touch grid) are used — trailing side-strip slots are
+    /// ignored. Used to build the outgoing/incoming frames for the touch-page slide.
     /// </summary>
-    public static SKBitmap ComposeTouchGrid(IReadOnlyList<SKBitmap> slots, int columns, int rows, int keySize = 90)
+    /// <param name="keySize">Edge length of one key, from the device's geometry. Required
+    /// rather than defaulted so a caller that still assumes 90 fails to compile.</param>
+    public static SKBitmap ComposeTouchGrid(IReadOnlyList<SKBitmap> slots, int columns, int rows, int keySize)
     {
         var bitmap = new SKBitmap(columns * keySize, rows * keySize);
 

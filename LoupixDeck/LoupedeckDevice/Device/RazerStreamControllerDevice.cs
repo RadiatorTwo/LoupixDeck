@@ -99,8 +99,8 @@ public class RazerStreamControllerDevice : LoupedeckDevice
         // Centre 4×3 grid — clamp and translate into grid coords.
         x = Math.Clamp(x, VisibleX[0], VisibleX[1]) - VisibleX[0];
         y = Math.Clamp(y, VisibleY[0], VisibleY[1]);
-        var column = x / 90;
-        var row = y / 90;
+        int column = x / KeySize;
+        int row = y / KeySize;
         var key = (row * Columns) + column;
         return new TouchTarget { Screen = "center", Key = key };
     }
@@ -108,7 +108,7 @@ public class RazerStreamControllerDevice : LoupedeckDevice
     /// <summary>
     /// Draws an arbitrary bitmap to one touch slot — handles the 60×270 side
     /// panels (12/13) by routing to their unified-display X offsets; everything
-    /// else falls through to the base 90×90 grid path.
+    /// else falls through to the base KeySize grid path.
     /// </summary>
     public override async Task DrawTouchSlot(int index, SKBitmap bitmap, bool refresh = true)
     {

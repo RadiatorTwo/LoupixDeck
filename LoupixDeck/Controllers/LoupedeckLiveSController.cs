@@ -54,6 +54,12 @@ public partial class LoupedeckLiveSController(
     /// Lets the UI tell a side-strip touch button apart from a normal grid button.</summary>
     public bool HasSideStrips => deviceService.Device?.HasSideStrips == true;
 
+    /// <summary>
+    /// Edge length of one centre-grid key in device pixels. Read from the registry entry
+    /// rather than from the live device so it is correct before the device has connected.
+    /// </summary>
+    private int KeySize => deviceInfo?.Geometry.KeySize ?? DeviceGeometry.Default.KeySize;
+
     private volatile bool _isDeviceOff;
     public bool IsDeviceOff => _isDeviceOff;
 
@@ -1598,9 +1604,9 @@ public partial class LoupedeckLiveSController(
 
             var original = button.RenderedImage;
             // Use the original bitmap's dimensions so we cover Razer side panels
-            // (60×270) and regular grid buttons (90×90) without special-casing.
-            var width = original?.Width ?? 90;
-            var height = original?.Height ?? 90;
+            // (60×270) and regular grid buttons (one key square) without special-casing.
+            var width = original?.Width ?? KeySize;
+            var height = original?.Height ?? KeySize;
 
             using var flash = new SkiaSharp.SKBitmap(width, height);
             using (var canvas = new SkiaSharp.SKCanvas(flash))
@@ -1899,7 +1905,7 @@ public partial class LoupedeckLiveSController(
     private async Task DrawExclusiveGridRegion(LoupedeckDevice.Device.LoupedeckDevice device,
         IReadOnlyDictionary<int, PluginSdk.FolderEntry> bySlot)
     {
-        const int keySize = 90;
+        int keySize = device.KeySize;
         var gridSlots = device.Columns * device.Rows;
 
         using var grid = new SkiaSharp.SKBitmap(new SkiaSharp.SKImageInfo(
@@ -1975,7 +1981,7 @@ public partial class LoupedeckLiveSController(
     private SkiaSharp.SKBitmap RenderSlot(IReadOnlyDictionary<int, PluginSdk.FolderEntry> bySlot, int slot)
         => bySlot.TryGetValue(slot, out var entry)
             ? RenderSdkEntry(entry, slot)
-            : BitmapHelper.RenderEmptyFolderSlot(config, slot, 90, 90, FolderConstants.Columns);
+            : BitmapHelper.RenderEmptyFolderSlot(config, slot, KeySize, KeySize, FolderConstants.Columns);
 
     // --- DirtyTiles bookkeeping -------------------------------------------------
     private PluginSdk.IExclusiveModeProvider _dirtyOwner;
@@ -2010,7 +2016,7 @@ public partial class LoupedeckLiveSController(
     }
 
     /// <summary>Adapts an SDK FolderEntry to the core FolderEntry renderer.</summary>
-    private static SkiaSharp.SKBitmap RenderSdkEntry(PluginSdk.FolderEntry e, int slot)
+    private SkiaSharp.SKBitmap RenderSdkEntry(PluginSdk.FolderEntry e, int slot)
     {
         var core = new Services.FolderNavigation.FolderEntry
         {
@@ -2021,7 +2027,7 @@ public partial class LoupedeckLiveSController(
             TextSize = e.TextSize,
             Bold = e.Bold
         };
-        return BitmapHelper.RenderFolderEntry(core, null, slot, 90, 90, FolderConstants.Columns);
+        return BitmapHelper.RenderFolderEntry(core, null, slot, KeySize, KeySize, FolderConstants.Columns);
     }
 
     private async void OnFolderStateChanged()
@@ -2046,15 +2052,15 @@ public partial class LoupedeckLiveSController(
                     SkiaSharp.SKBitmap bmp;
                     if (slot == FolderConstants.BackSlotIndex)
                     {
-                        bmp = BitmapHelper.RenderFolderBackButton(config, slot, 90, 90, FolderConstants.Columns);
+                        bmp = BitmapHelper.RenderFolderBackButton(config, slot, KeySize, KeySize, FolderConstants.Columns);
                     }
                     else if (folderNav.CurrentEntries.TryGetValue(slot, out var entry))
                     {
-                        bmp = BitmapHelper.RenderFolderEntry(entry, config, slot, 90, 90, FolderConstants.Columns);
+                        bmp = BitmapHelper.RenderFolderEntry(entry, config, slot, KeySize, KeySize, FolderConstants.Columns);
                     }
                     else
                     {
-                        bmp = BitmapHelper.RenderEmptyFolderSlot(config, slot, 90, 90, FolderConstants.Columns);
+                        bmp = BitmapHelper.RenderEmptyFolderSlot(config, slot, KeySize, KeySize, FolderConstants.Columns);
                     }
 
                     await device.DrawTouchSlot(slot, bmp);

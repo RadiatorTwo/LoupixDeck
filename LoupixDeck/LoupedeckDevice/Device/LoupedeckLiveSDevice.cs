@@ -57,8 +57,8 @@ public class LoupedeckLiveSDevice : LoupedeckDevice
         y = Math.Min(y, VisibleY[1]);
         x -= VisibleX[0];
         y -= VisibleY[0];
-        var column = x / 90;
-        var row = y / 90;
+        int column = x / KeySize;
+        int row = y / KeySize;
         var key = (row * Columns) + column;
         return new TouchTarget { Screen = "center", Key = key };
     }
