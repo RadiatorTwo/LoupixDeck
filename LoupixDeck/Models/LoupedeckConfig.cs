@@ -53,8 +53,11 @@ public partial class LoupedeckConfig : ObservableObject
     /// inside a <c>Default</c> <see cref="Profile"/>; the root now holds <see cref="Profiles"/> plus the
     /// active/startup profile ids, and the former page properties forward to the active workspace.
     /// See <c>ProfilesWorkspacesMigrator</c>.
+    /// v9 stores touch-button layer geometry in the owning device's own key pixels instead of a
+    /// fixed 90x90 authoring tile, so nothing is scaled between the editor and the framebuffer.
+    /// A no-op on every 90px device (the factor is 1); see <c>PerDeviceKeySizeMigrator</c>.
     /// </summary>
-    public const int CurrentVersion = 8;
+    public const int CurrentVersion = 9;
 
     public int Version { get; set; } = CurrentVersion;
 
