@@ -62,6 +62,11 @@ public partial class Settings : Window
             ? name
             : $"{name}  ({plugin.Status})";
 
+        // A user copy that overrides a built-in: show which version it replaced, so
+        // "Reset to built-in" is understandable before pressing it.
+        if (plugin.BundledFallbackVersion != null)
+            label += $"  (built-in v{plugin.BundledFallbackVersion})";
+
         var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
 
         var id = plugin.Manifest?.Id;
@@ -138,8 +143,13 @@ public partial class Settings : Window
         }
 
         var name = plugin.Manifest?.Name ?? plugin.Directory;
-        var confirmed = await ConfirmDialogHelper.AskYesNoAsync(this, "Remove plugin",
-            $"Remove '{name}'? This deletes the plugin's folder and cannot be undone.");
+        var isOverride = plugin.BundledFallbackVersion != null;
+        var confirmed = isOverride
+            ? await ConfirmDialogHelper.AskYesNoAsync(this, "Reset to built-in",
+                $"Reset '{name}' to the built-in v{plugin.BundledFallbackVersion}? " +
+                "This deletes the installed copy and cannot be undone.")
+            : await ConfirmDialogHelper.AskYesNoAsync(this, "Remove plugin",
+                $"Remove '{name}'? This deletes the plugin's folder and cannot be undone.");
         if (!confirmed)
             return;
 
@@ -147,14 +157,28 @@ public partial class Settings : Window
 
         if (result.Success)
         {
-            // The plugin is already unloaded live; drop its row. The on-disk delete
-            // (or a deferred one) and the enabled-list change persist on dialog close.
-            if (PluginList.SelectedItem is ListBoxItem item)
-                PluginList.Items.Remove(item);
+            // Rebuild from the live plugin list: the row disappears for a removal, and
+            // reappears as the bundled version when an override was reset. The on-disk
+            // delete (or a deferred one) and the enabled-list change persist on close.
             PluginSettingsHost?.Children.Clear();
+            PopulatePluginList();
         }
 
         ShowPluginActionResult(result);
+    }
+
+    /// <summary>
+    /// A user copy overriding a built-in is reset, not removed (the bundled version
+    /// takes over); a plain built-in cannot be touched at all.
+    /// </summary>
+    private void UpdateRemovePluginButton(LoadedPlugin plugin)
+    {
+        if (RemovePluginButton == null)
+            return;
+
+        var isOverride = plugin?.BundledFallbackVersion != null;
+        RemovePluginButton.Content = isOverride ? "Reset to built-in" : "Remove";
+        RemovePluginButton.IsEnabled = plugin == null || isOverride || !plugin.IsBundled;
     }
 
     private void ShowPluginActionResult(PluginActionResult result)
@@ -185,7 +209,12 @@ public partial class Settings : Window
         PluginSettingsHost.Children.Clear();
 
         if (PluginList?.SelectedItem is not ListBoxItem { Tag: LoadedPlugin plugin })
+        {
+            UpdateRemovePluginButton(null);
             return;
+        }
+
+        UpdateRemovePluginButton(plugin);
 
         // Manifest metadata header — shown for every plugin regardless of load status.
         BuildPluginHeader(plugin);

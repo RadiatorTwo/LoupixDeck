@@ -28,6 +28,19 @@ public sealed class LoadedPlugin
 
     public PluginLoadStatus Status { get; set; }
 
+    /// <summary>
+    /// True when this copy lives in the bundled <c>plugins/</c> folder next to the
+    /// executable (read-only), false for a copy in the user plugins folder.
+    /// </summary>
+    public bool IsBundled { get; set; }
+
+    /// <summary>
+    /// The version of the bundled copy this user copy overrides; null when there is
+    /// no bundled copy of this id (or when this entry <em>is</em> the bundled one).
+    /// Deleting such an override falls back to the bundled version.
+    /// </summary>
+    public string BundledFallbackVersion { get; set; }
+
     /// <summary>Human-readable reason when <see cref="Status"/> is not Loaded.</summary>
     public string FailureReason { get; set; }
 

@@ -26,8 +26,11 @@ public sealed class PluginActionResult
 /// <summary>
 /// Local, restart-based plugin lifecycle: install from a zip and remove an
 /// installed plugin. Both operate only on the per-user plugins directory
-/// (<c>~/.config/LoupixDeck[/debug]/plugins</c>); bundled plugins next to the
-/// executable are read-only. Loaded plugins are never hot-unloaded here — a
+/// (<c>~/.config/LoupixDeck[/debug]/plugins</c>); the bundled folder next to the
+/// executable is never written to. A bundled plugin is updated by installing a
+/// newer copy of the same id into the user directory, which the loader then
+/// prefers (see <see cref="PluginManager"/>); removing that copy falls back to the
+/// bundled version. Loaded plugins are never hot-unloaded here — a
 /// removal that can't delete locked files (Windows holds the entry assembly of a
 /// loaded plugin) is deferred to the next startup via a pending-removals marker.
 /// </summary>
@@ -36,7 +39,11 @@ public interface IPluginInstaller
     /// <summary>Validates and installs (or updates) a plugin from a zip archive.</summary>
     Task<PluginActionResult> InstallFromZipAsync(string zipPath);
 
-    /// <summary>Removes an installed (user) plugin and drops it from the enabled list.</summary>
+    /// <summary>
+    /// Removes an installed (user) plugin and drops it from the enabled list. For a
+    /// copy overriding a bundled plugin this is a revert: only the override is
+    /// deleted and the id stays enabled so the bundled version takes over.
+    /// </summary>
     PluginActionResult Remove(LoadedPlugin plugin);
 }
 
@@ -66,6 +73,54 @@ public sealed class PluginInstaller : IPluginInstaller
         _config = config;
         _userRoot = Path.Combine(Utils.FileDialogHelper.GetConfigDir(), "plugins");
         _bundledRoot = Path.Combine(AppContext.BaseDirectory, "plugins");
+    }
+
+    /// <summary>
+    /// Parses a manifest version leniently for the override comparison: a missing or
+    /// unparseable version sorts lowest, and a pre-release/build suffix ("1.2.0-beta")
+    /// is ignored rather than rejected.
+    /// </summary>
+    internal static Version ParseVersion(string versionText)
+    {
+        if (string.IsNullOrWhiteSpace(versionText))
+            return new Version(0, 0);
+
+        int cut = versionText.IndexOfAny(['-', '+', ' ']);
+        string numeric = (cut >= 0 ? versionText[..cut] : versionText).Trim();
+
+        if (Version.TryParse(numeric, out Version parsed))
+            return parsed;
+
+        return int.TryParse(numeric, out int major) ? new Version(major, 0) : new Version(0, 0);
+    }
+
+    /// <summary>The bundled copy of a plugin id, or null when there is none.</summary>
+    private (string Directory, string VersionText, Version Version)? FindBundled(string pluginId)
+    {
+        if (string.IsNullOrWhiteSpace(pluginId) || !Directory.Exists(_bundledRoot))
+            return null;
+
+        foreach (string dir in Directory.GetDirectories(_bundledRoot))
+        {
+            string manifestPath = Path.Combine(dir, "plugin.json");
+            if (!File.Exists(manifestPath))
+                continue;
+
+            PluginManifest manifest;
+            try
+            {
+                manifest = JsonConvert.DeserializeObject<PluginManifest>(File.ReadAllText(manifestPath));
+            }
+            catch
+            {
+                continue;
+            }
+
+            if (string.Equals(manifest?.Id, pluginId, StringComparison.OrdinalIgnoreCase))
+                return (dir, manifest.Version, ParseVersion(manifest.Version));
+        }
+
+        return null;
     }
 
     public async Task<PluginActionResult> InstallFromZipAsync(string zipPath)
@@ -144,14 +199,20 @@ public sealed class PluginInstaller : IPluginInstaller
                 $"Entry assembly '{manifest.EntryAssembly}' is missing from the zip.");
         }
 
-        // A bundled plugin with the same id always shadows a user copy (PluginManager
-        // scans the app dir first), so installing one would silently do nothing.
-        if (Directory.Exists(Path.Combine(_bundledRoot, manifest.Id)))
-            return PluginActionResult.Fail($"'{manifest.Id}' is a built-in plugin and cannot be replaced.");
-
         Directory.CreateDirectory(_userRoot);
         var targetDir = Path.Combine(_userRoot, manifest.Id);
         var name = string.IsNullOrWhiteSpace(manifest.Name) ? manifest.Id : manifest.Name;
+
+        // A built-in plugin is updated by placing a newer copy in the user folder;
+        // the loader prefers the higher version, so an older copy would be ignored.
+        // Reject it here instead of installing something that never loads.
+        var bundled = FindBundled(manifest.Id);
+        if (bundled != null && ParseVersion(manifest.Version) < bundled.Value.Version)
+        {
+            return PluginActionResult.Fail(
+                $"'{name}' is built-in at v{bundled.Value.VersionText}; this zip is v{manifest.Version} " +
+                "and would not be loaded.");
+        }
 
         // Enable it right away so the reload coordinator loads it (and a restart
         // would too) — installing a chosen package implies the user wants it active
@@ -218,16 +279,20 @@ public sealed class PluginInstaller : IPluginInstaller
         if (plugin?.Manifest == null || string.IsNullOrWhiteSpace(plugin.Directory))
             return PluginActionResult.Fail("This plugin cannot be removed.");
 
-        // Only user-installed plugins are deletable; bundled ones are read-only.
+        // Only user-installed copies are deletable; a bundled folder is read-only.
         if (!IsUnderUserRoot(plugin.Directory))
             return PluginActionResult.Fail("Built-in plugins cannot be removed.");
 
         var id = plugin.Manifest.Id;
         var name = string.IsNullOrWhiteSpace(plugin.Manifest.Name) ? id : plugin.Manifest.Name;
 
+        // Deleting a copy that overrides a built-in is a revert, not a removal: the
+        // bundled version takes over, so the id has to stay enabled.
+        var bundled = FindBundled(id);
+
         // Drop it from the enabled list regardless of how the delete goes; this is
         // persisted when the Settings dialog closes (same path as the toggle).
-        if (!string.IsNullOrWhiteSpace(id))
+        if (bundled == null && !string.IsNullOrWhiteSpace(id))
             _config.EnabledPlugins?.RemoveAll(e => string.Equals(e, id, StringComparison.OrdinalIgnoreCase));
 
         try
@@ -235,7 +300,11 @@ public sealed class PluginInstaller : IPluginInstaller
             if (Directory.Exists(plugin.Directory))
                 Directory.Delete(plugin.Directory, recursive: true);
 
-            return PluginActionResult.Ok($"Removed '{name}'. Restart to fully unload it.");
+            return bundled != null
+                ? PluginActionResult.Ok(
+                    $"Reverted '{name}' to the built-in v{bundled.Value.VersionText}.",
+                    requiresRestart: false, pluginId: id)
+                : PluginActionResult.Ok($"Removed '{name}'. Restart to fully unload it.");
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
@@ -243,8 +312,9 @@ public sealed class PluginInstaller : IPluginInstaller
             // to the next startup, before the plugin is loaded again.
             if (MarkForRemoval(plugin.Directory))
             {
-                return PluginActionResult.Ok(
-                    $"'{name}' is in use; it will be deleted on the next restart.");
+                return PluginActionResult.Ok(bundled != null
+                    ? $"'{name}' is in use; the built-in v{bundled.Value.VersionText} is restored on the next restart."
+                    : $"'{name}' is in use; it will be deleted on the next restart.");
             }
 
             return PluginActionResult.Fail($"Could not remove '{name}': {ex.Message}");

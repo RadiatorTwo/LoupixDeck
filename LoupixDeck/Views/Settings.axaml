@@ -629,7 +629,7 @@
                         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8"
                                     VerticalAlignment="Center">
                             <Button Content="Install from Zip…" Click="OnInstallPluginClick" />
-                            <Button Content="Remove" Click="OnRemovePluginClick" />
+                            <Button x:Name="RemovePluginButton" Content="Remove" Click="OnRemovePluginClick" />
                             <Button Content="Open Plugins Folder"
                                     Command="{Binding OpenPluginsFolderCommand}" />
                         </StackPanel>

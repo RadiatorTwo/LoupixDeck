@@ -161,7 +161,17 @@ public sealed class PluginReloadService : IPluginReloadService
         // Now attempt the delete; a cleanly-collected plugin is removed live, a
         // still-locked one falls back to the .pending-removals marker (next startup).
         var result = _installer.Remove(plugin);
-        await _deviceController.RedrawCurrentTouchPage();
+
+        // Deleting a copy that overrode a built-in reverts to the bundled version —
+        // load it back live now that the override is gone. When the delete was
+        // deferred (locked files) the override still shadows it until the restart.
+        if (result.Success && plugin.BundledFallbackVersion != null &&
+            !string.IsNullOrWhiteSpace(id) && !Directory.Exists(plugin.Directory))
+        {
+            _pluginManager.LoadPlugin(id);
+        }
+
+        await RefreshAsync();
         return result;
     });
 
