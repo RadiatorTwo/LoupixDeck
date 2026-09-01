@@ -11,6 +11,9 @@ public abstract class LoupixPlugin
     public virtual  void Initialize(IPluginHost host) { }
     public virtual  void Shutdown() { }
     public abstract IEnumerable<IPluginCommand> GetCommands();
+    public virtual  IReadOnlyList<CommandGroupDescriptor> GetCommandGroups() => [];
+    public virtual  IEnumerable<ISideStripProvider> GetSideStripProviders() => [];
+    public virtual  IEnumerable<IScreensaverProvider> GetScreensaverProviders() => [];
 }
 ```
 
@@ -37,6 +40,23 @@ Returns all commands the plugin contributes. Called once per load. Yielding
 zero commands is legal (e.g. a plugin that only contributes settings or a
 folder view).
 
+### `GetCommandGroups()`
+
+Returns optional descriptors for command-picker groups. Groups without a
+descriptor still load with the host's generic plugin presentation.
+
+### `GetSideStripProviders()`
+
+Returns side-strip renderer factories that users can bind to a rotary page in
+`PluginOverride` mode. A provider creates an independent session for each side
+attachment. See [Plugin Screensavers and Animated Side Strips](Advanced-Screensavers-and-Side-Strips#side-strip-providers).
+
+### `GetScreensaverProviders()`
+
+Returns discoverable screensaver factories shown when the user selects
+`Plugin` in `Settings > Screensaver`. The host creates a fresh renderer for
+each idle run. See [Plugin Screensavers and Animated Side Strips](Advanced-Screensavers-and-Side-Strips#plugin-screensavers).
+
 ### `Shutdown()`
 
 Called on plugin unload or application exit. Release resources, cancel timers,
@@ -45,7 +65,7 @@ close sockets. Default implementation does nothing.
 ## Lifecycle ordering
 
 ```
-ctor → Initialize(host) → GetCommands() → … → Shutdown()
+ctor → Initialize(host) → collect commands/groups/providers → … → Shutdown()
 ```
 
 The host never calls `Initialize` twice. `Shutdown` runs at most once and may

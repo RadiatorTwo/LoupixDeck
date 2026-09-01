@@ -38,7 +38,17 @@ interfaces, and a few value types. Everything lives in the
 | `FolderLayout` | [Folder Navigation](Advanced-Folders#folderlayout) | Grid geometry constants. |
 | `RotaryOverride` | [Folder Navigation](Advanced-Folders#rotaryoverride) | Per-encoder behavior while a folder is open. |
 | `IExclusiveModeProvider` | [Exclusive Mode](Advanced-Exclusive-Mode#iexclusivemodeprovider) | Full-device takeover (HUD, screensaver, video). |
-| `ExclusiveRenderMode` | [Exclusive Mode](Advanced-Exclusive-Mode#exclusiverendermode) | How the host pushes a provider's frames (full screen / grid / dirty tiles / single tile). |
+| `ExclusiveRenderMode` | [Exclusive Mode](Advanced-Exclusive-Mode#exclusiverendermode) | How the host pushes a provider's frames, including `None` for provider-owned output. |
+| `IFullDisplayRenderer` | [Full-Display Renderer](Advanced-Full-Display-Renderer#ifulldisplayrenderer) | Streams raw BGRA frames to the whole display (video, visualizers). |
+| `IFullDisplayRenderSession` | [Full-Display Renderer](Advanced-Full-Display-Renderer#requesting-the-display) | Ownership handle for an active full-display takeover. |
+| `FullDisplaySurface` | [Full-Display Renderer](Advanced-Full-Display-Renderer#the-frame-buffer) | Geometry and pixel layout of the frame buffer. |
+| `FullDisplayFrameContext` | [Full-Display Renderer](Advanced-Full-Display-Renderer#timing) | Per-frame timing snapshot. |
+| `FullDisplayFrameResult` | [Full-Display Renderer](Advanced-Full-Display-Renderer#renderframe-must-be-fast) | What the renderer did this tick (skip / frame / final). |
+| `IScreensaverProvider` | [Plugin Rendering](Advanced-Screensavers-and-Side-Strips#plugin-screensavers) | Discoverable full-display renderer factory for the host's idle screensaver. |
+| `ISideStripProvider` | [Plugin Rendering](Advanced-Screensavers-and-Side-Strips#side-strip-providers) | Renderer factory that can own one side strip for a rotary page. |
+| `ISideStripSession` | [Plugin Rendering](Advanced-Screensavers-and-Side-Strips#side-strip-providers) | One live, disposable strip attachment. |
+| `IAnimatedSideStripSession` | [Plugin Rendering](Advanced-Screensavers-and-Side-Strips#animated-side-strip-sessions) | Optional scheduler-driven animation capability for a strip session. |
+| `AnimationFrameInfo` | [Plugin Rendering](Advanced-Screensavers-and-Side-Strips#frame-results-and-timing) | Dirty key and skip/frame/final result for an animated strip frame. |
 | `IPluginSettingsPage` | [Settings Page](Advanced-Settings-Page#ipluginsettingspage) | Exposes user-editable settings. |
 | `PluginSettingDescriptor` | [Settings Page](Advanced-Settings-Page#pluginsettingdescriptor) | One editable setting. |
 | `PluginSettingKind` | [Settings Page](Advanced-Settings-Page#pluginsettingkind) | Editor kind enum. |
@@ -50,10 +60,15 @@ interfaces, and a few value types. Everything lives in the
 ```csharp
 public static class SdkInfo
 {
-    public static readonly Version Version = new(1, 2, 0);
+    public static readonly Version Version = new(1, 20, 0);
 }
 ```
 
 Always set `PluginMetadata.SdkVersion = SdkInfo.Version`. The host loads a
 plugin only when `SdkVersion.Major` matches its own — within a major version,
 the contracts are guaranteed source- and binary-compatible.
+
+SDK 1.20.0 adds optional screensaver and animated-side-strip contracts plus
+`ExclusiveRenderMode.None`. These changes are additive: existing 1.x plugins
+continue to load without a rebuild. The package targets both `net9.0` and
+`net10.0` so plugins on either target can reference the same contract version.
