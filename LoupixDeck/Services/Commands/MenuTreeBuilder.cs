@@ -102,8 +102,11 @@ public class MenuTreeBuilder : IMenuTreeBuilder
             foreach (var group in groups.Where(g => g != null))
                 MergeGroup(target, group);
 
-            // Clear the loading state; drop any group that stayed an empty stub
-            // (a plugin with only hidden commands that failed to contribute).
+            // Clear the loading state. A group that stayed an empty stub keeps its
+            // card and gets a non-actionable info row instead of being removed: a
+            // plugin whose commands are all hidden (it contributes only dynamic
+            // submenus) would otherwise vanish from the picker entirely, leaving no
+            // hint that it is loaded but currently has nothing to offer.
             foreach (var groupName in source.GroupNames)
             {
                 var group = target.FirstOrDefault(g => g.Name == groupName);
@@ -112,10 +115,21 @@ public class MenuTreeBuilder : IMenuTreeBuilder
 
                 group.IsLoading = false;
                 if (group.Children.Count == 0 && CoreGroupIndex(group) == int.MaxValue)
-                    target.Remove(group);
+                    group.Children.Add(EmptyGroupNotice(source.PluginName));
             }
         });
     }
+
+    /// <summary>
+    /// The placeholder leaf shown inside a plugin group that contributed nothing.
+    /// It carries no command and no children, so the picker classifies it as a
+    /// non-actionable info row: visible, but neither selectable nor insertable.
+    /// </summary>
+    private static MenuEntry EmptyGroupNotice(string pluginName) =>
+        new("Nothing to show", string.Empty)
+        {
+            Description = $"'{pluginName}' is loaded but currently offers no commands."
+        };
 
     /// <summary>
     /// Adds <paramref name="group"/> to <paramref name="target"/>: if a group

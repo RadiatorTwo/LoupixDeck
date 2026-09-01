@@ -20,7 +20,8 @@
         <DataTemplate DataType="vm:CommandRowViewModel">
             <Border Classes="picker-row-face"
                     Classes.selected="{Binding IsSelected}"
-                    Focusable="True"
+                    Classes.info="{Binding !IsSelectable}"
+                    Focusable="{Binding IsSelectable}"
                     PointerPressed="Row_PointerPressed"
                     DoubleTapped="Row_DoubleTapped"
                     KeyDown="Row_KeyDown">
