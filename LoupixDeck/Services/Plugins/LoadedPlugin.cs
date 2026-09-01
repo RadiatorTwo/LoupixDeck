@@ -60,4 +60,9 @@ public sealed class LoadedPlugin
     /// side display strip in plugin-override mode).</summary>
     public IReadOnlyList<ISideStripProvider> SideStripProviders { get; set; } =
         Array.Empty<ISideStripProvider>();
+
+    /// <summary>Screensaver providers contributed by the plugin (selectable as the
+    /// idle screensaver source in settings).</summary>
+    public IReadOnlyList<IScreensaverProvider> ScreensaverProviders { get; set; } =
+        Array.Empty<IScreensaverProvider>();
 }

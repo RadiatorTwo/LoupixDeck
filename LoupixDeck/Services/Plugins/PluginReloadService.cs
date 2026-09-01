@@ -33,12 +33,14 @@ public sealed class PluginReloadService : IPluginReloadService
     private readonly IPluginManager _pluginManager;
     private readonly ICommandRegistry _commandRegistry;
     private readonly ISideStripProviderRegistry _sideStripRegistry;
+    private readonly IScreensaverProviderRegistry _screensaverRegistry;
     private readonly IDynamicTextManager _dynamicText;
     private readonly Animation.IButtonAnimationManager _buttonAnimation;
     private readonly Animation.ISideDisplayAnimationManager _sideDisplayAnimation;
     private readonly IExclusiveModeService _exclusiveMode;
     private readonly IFolderNavigationService _folderNav;
     private readonly IDeviceController _deviceController;
+    private readonly Screensaver.IScreensaverManager _screensaver;
     private readonly IPluginInstaller _installer;
     private readonly Models.LoupedeckConfig _config;
 
@@ -48,24 +50,28 @@ public sealed class PluginReloadService : IPluginReloadService
         IPluginManager pluginManager,
         ICommandRegistry commandRegistry,
         ISideStripProviderRegistry sideStripRegistry,
+        IScreensaverProviderRegistry screensaverRegistry,
         IDynamicTextManager dynamicText,
         Animation.IButtonAnimationManager buttonAnimation,
         Animation.ISideDisplayAnimationManager sideDisplayAnimation,
         IExclusiveModeService exclusiveMode,
         IFolderNavigationService folderNav,
         IDeviceController deviceController,
+        Screensaver.IScreensaverManager screensaver,
         IPluginInstaller installer,
         Models.LoupedeckConfig config)
     {
         _pluginManager = pluginManager;
         _commandRegistry = commandRegistry;
         _sideStripRegistry = sideStripRegistry;
+        _screensaverRegistry = screensaverRegistry;
         _dynamicText = dynamicText;
         _buttonAnimation = buttonAnimation;
         _sideDisplayAnimation = sideDisplayAnimation;
         _exclusiveMode = exclusiveMode;
         _folderNav = folderNav;
         _deviceController = deviceController;
+        _screensaver = screensaver;
         _installer = installer;
         _config = config;
     }
@@ -178,12 +184,13 @@ public sealed class PluginReloadService : IPluginReloadService
     // ───────── internals ─────────
 
     /// <summary>Registry rebuild + dynamic-text rescan + current-page repaint, plus
-    /// side-strip provider rebuild and re-attachment (so a reloaded provider re-binds
-    /// and orphaned bindings fall back to segmented).</summary>
+    /// side-strip and screensaver provider rebuild and re-attachment (so a reloaded provider
+    /// re-binds and orphaned bindings fall back to segmented / to no screensaver).</summary>
     private async Task RefreshAsync()
     {
         _commandRegistry.Initialize();
         _sideStripRegistry.Rebuild();
+        _screensaverRegistry.Rebuild();
         _dynamicText.Rescan();
         _buttonAnimation.Rescan();
         _sideDisplayAnimation.Rescan();
@@ -208,6 +215,12 @@ public sealed class PluginReloadService : IPluginReloadService
         // A live side-strip provider attached to a strip roots this plugin's load
         // context. Detach all (cheap; RefreshAsync re-attaches the still-loaded ones).
         _deviceController.DetachAllSideStripProviders();
+
+        // A running plugin screensaver holds a live IFullDisplayRenderer, which roots the load
+        // context exactly like a strip session does (issue #124). Stop it synchronously — the
+        // fire-and-forget stop on the input path would race the unload. StopRunning keeps the
+        // idle countdown armed, so the screensaver returns once the provider is back.
+        _screensaver.StopRunning();
 
         if (_folderNav.IsActive)
             _folderNav.ExitAll().GetAwaiter().GetResult(); // completes synchronously

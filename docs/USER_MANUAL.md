@@ -473,18 +473,30 @@ In current releases, haptics use LoupixDeck's software vibration pulse. Older co
 
 Open `Settings > Screensaver`.
 
-The screensaver can play a video or GIF across the whole device display after the device is idle. It stops when the device receives input.
+The screensaver fills the whole device display after the device is idle. It stops when the device receives input, and that first input only wakes the display — it does not also run the button or dial action.
+
+Choose the **Source** first:
+
+- **Video** plays a video or GIF file.
+- **Plugin** plays an animation provided by an installed plugin.
 
 Options include:
 
 - Enable animated screensaver.
-- Select video.
-- Clear selected video.
+- Source (Video or Plugin).
+- Select or clear the video (Video source).
+- Choose the plugin providing the animation (Plugin source).
 - Idle timeout in seconds.
 - FPS limit.
-- Loop continuously.
+- Loop continuously (Video source).
 
-The screensaver needs `ffmpeg` on your system `PATH`. If LoupixDeck cannot find it, the settings page shows a warning.
+A **video** screensaver needs `ffmpeg` on your system `PATH`. If LoupixDeck cannot find it, the settings page shows a warning.
+
+A **plugin** screensaver does not need `ffmpeg` — the plugin renders the frames itself. Notes:
+
+- The FPS limit only applies when the plugin does not declare a frame rate of its own.
+- If the selected plugin is disabled or uninstalled, no screensaver plays and the normal page stays on screen. Selecting an available plugin again restores it.
+- A plugin animation that reaches its end stops the screensaver and returns to the active page, just like a video that is not set to loop.
 
 ## Profile Rules
 
@@ -772,10 +784,11 @@ Recording needs read access to `/dev/input/event*`. The installer attempts to ha
 
 ### Screensaver does not play
 
-- Install `ffmpeg`.
-- Make sure `ffmpeg` is on `PATH`.
+- Check the selected **Source** in `Settings > Screensaver`.
+- For a video source: install `ffmpeg` and make sure it is on `PATH`.
 - Try a lower FPS limit.
 - Test with a simple local video file.
+- For a plugin source: make sure the plugin is still installed and enabled in `Settings > Plugins`, and that it is selected in the screensaver picker.
 
 ### Profile Rules do not work on Linux
 
