@@ -33,7 +33,7 @@ public sealed class PluginSettingDescriptor
     public required string             Label        { get; init; }
     public PluginSettingKind           Kind         { get; init; } = PluginSettingKind.Text;
     public string                      Description  { get; init; } = string.Empty;
-    public object                      DefaultValue { get; init; }
+    public object?                     DefaultValue { get; init; }
 }
 ```
 
@@ -44,8 +44,9 @@ One editable field.
 - `Label` — field label rendered next to the editor.
 - `Kind` — editor kind / stored type. See [PluginSettingKind](#pluginsettingkind).
 - `Description` — optional helper text under the field.
-- `DefaultValue` — value used when the key is absent. Match the CLR type the
-  kind stores.
+- `DefaultValue` — optional value used when the key is absent. Match the CLR
+  type the kind stores. If omitted or `null`, the host uses `string.Empty` for
+  text/password, `0` for number, or `false` for toggle.
 
 ## PluginSettingKind
 

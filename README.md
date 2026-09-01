@@ -29,7 +29,7 @@ Built with **Avalonia** and **.NET 10**.
 * **OBS Studio**, **Elgato Key Lights**, **Cooler Control**, **Argus Monitor** and **Windows Audio** integrations
 * **Portable profiles** — export a profile, workspace or page as a `.loupixprofile` file and import it anywhere
 * **Local CLI / IPC automation** for scripts and external tools
-* **Plugin SDK** for custom commands, dynamic text providers and settings UI
+* **Plugin SDK** for custom commands, dynamic text, settings UI, plugin screensavers and animated side strips
 
 ---
 
@@ -173,9 +173,14 @@ Built-in commands and dynamic values are available for:
 
 Play a full-display animated screensaver after a configurable idle time.
 
-* GIF or MP4 source
+* Video/GIF or plugin-provided source
 * Adjustable idle timeout
 * Wakes on the next touch or control interaction
+* `ffmpeg` is needed only for video sources; plugin renderers supply their own frames
+
+### Runtime Efficiency
+
+The display pipeline reuses pooled frame buffers, masks WebSocket payloads in place and parses incoming serial data on a fixed buffer. Command parsing, frozen lookup tables and generated native interop further reduce temporary allocations while displays and animations are updating. These optimisations are automatic and need no user configuration.
 
 ### App-Focus Page Switching
 
@@ -266,7 +271,11 @@ Plugins can provide:
 * custom commands
 * dynamic text providers
 * settings UI
+* full-display screensavers
+* static or animated side-strip renderers
 * integration-specific functionality
+
+Plugins installed from a zip live in the user plugin folder. When a user plugin and a bundled plugin have the same id, LoupixDeck loads the higher manifest version; a version tie favours the user copy. This lets a newer zip update a built-in plugin without modifying the application folder. If a later LoupixDeck release bundles a newer version, that bundled copy takes over automatically. Removing a user override restores the bundled copy instead of uninstalling the plugin.
 
 The Plugin SDK is maintained in a separate repository:
 
