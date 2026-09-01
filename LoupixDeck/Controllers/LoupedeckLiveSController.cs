@@ -403,6 +403,7 @@ public partial class LoupedeckLiveSController(
 
         // Detach the transition sources before halting the loop.
         try { UnregisterStripAnimationSource(); } catch { /* best effort */ }
+        try { UnregisterPluginStripAnimationSource(); } catch { /* best effort */ }
         try { UnregisterTouchAnimationSource(); } catch { /* best effort */ }
 
         // Halt the central animation loop so no frame is pushed to the gone device.
@@ -703,6 +704,7 @@ public partial class LoupedeckLiveSController(
         // Register the side-strip transition source on the central animation scheduler so
         // swipe-release and command/GUI-driven rotary page slides are paced centrally (#119).
         RegisterStripAnimationSource();
+        RegisterPluginStripAnimationSource();
 
         // Register the touch-page transition source on the same central scheduler.
         RegisterTouchAnimationSource();
@@ -1038,6 +1040,7 @@ public partial class LoupedeckLiveSController(
             if (session == null) return;
             _stripSession[idx] = session;
             session.StripChanged += OnStripSessionChanged;
+            AttachAnimatedStripSession(idx, session);
         }
         catch (Exception ex)
         {
@@ -1073,6 +1076,8 @@ public partial class LoupedeckLiveSController(
         _stripSession[idx] = null;
         _stripProvider[idx] = null;
         _stripPage[idx] = null;
+        // Clear the animation slot before disposing, so no new frame starts on a dying session.
+        DetachAnimatedStripSession(idx);
         if (session == null) return;
 
         session.StripChanged -= OnStripSessionChanged;
@@ -1195,6 +1200,18 @@ public partial class LoupedeckLiveSController(
         // A provider frame mid-swipe would draw the page flat at offset 0 and fight the
         // slide; the drag owns the strip until it settles, then the next change repaints.
         if (IsStripDragBusy(idx)) return;
+
+        // For an animated session the scheduler owns the pixels: StripChanged means "render the
+        // next frame now" and resumes a session that had ended with a final frame (issue #124).
+        // Only the strip session can be animated — a segment session always takes the redraw path.
+        if (ReferenceEquals(_stripSession[idx], session) && _animatedStripSession[idx] != null)
+        {
+            _animatedStripFinished[idx] = false;
+            if (_pluginStripAnimationSource != null)
+                animationScheduler.RequestFrame(_pluginStripAnimationSource);
+            return;
+        }
+
         _ = RedrawStripCoalesced(idx == 0 ? RotarySide.Left : RotarySide.Right, idx);
     }
 

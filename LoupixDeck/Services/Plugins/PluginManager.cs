@@ -90,20 +90,135 @@ public class PluginManager : IPluginManager
         _plugins = next; // atomic reference swap
     }
 
-    /// <summary>The two discovery roots, app dir first so bundled plugins win.</summary>
-    private static string[] GetPluginRoots()
+    /// <summary>The bundled root next to the executable, and the user plugins root.</summary>
+    private static (string Bundled, string User) GetPluginRoots() =>
+        (Path.Combine(AppContext.BaseDirectory, "plugins"),
+            Path.Combine(Utils.FileDialogHelper.GetConfigDir(), "plugins"));
+
+    /// <summary>One plugin folder found under a discovery root.</summary>
+    private sealed record PluginCandidate(
+        string Directory,
+        string ManifestPath,
+        string Id,
+        string VersionText,
+        Version Version,
+        bool IsBundled);
+
+    /// <summary>
+    /// The copy of one plugin id that actually gets loaded, plus the bundled copy it
+    /// shadows (null unless a user copy overrides a bundled plugin).
+    /// </summary>
+    private sealed record ResolvedPlugin(PluginCandidate Winner, PluginCandidate ShadowedBundled);
+
+    /// <summary>
+    /// Reads the manifests under <paramref name="root"/>. Folders whose manifest has
+    /// no readable id land in <paramref name="unidentified"/> — they cannot collide
+    /// with anything, and loading them still surfaces the failure in the UI.
+    /// </summary>
+    private static void ScanRoot(
+        string root,
+        bool isBundled,
+        Dictionary<string, PluginCandidate> byId,
+        List<PluginCandidate> unidentified)
     {
-        var userPluginsRoot = Path.Combine(Utils.FileDialogHelper.GetConfigDir(), "plugins");
-        return
-        [
-            Path.Combine(AppContext.BaseDirectory, "plugins"),
-            userPluginsRoot
-        ];
+        if (!Directory.Exists(root))
+        {
+            Console.WriteLine($"PluginManager: no plugins directory at '{root}'.");
+            return;
+        }
+
+        foreach (string dir in Directory.GetDirectories(root))
+        {
+            string manifestPath = Path.Combine(dir, "plugin.json");
+            if (!File.Exists(manifestPath))
+                continue;
+
+            PluginManifest manifest = null;
+            try
+            {
+                manifest = JsonConvert.DeserializeObject<PluginManifest>(File.ReadAllText(manifestPath));
+            }
+            catch
+            {
+                // Left to LoadOne, which reports it as a Failed entry.
+            }
+
+            string id = manifest?.Id;
+            PluginCandidate candidate = new(
+                dir, manifestPath, id, manifest?.Version,
+                PluginInstaller.ParseVersion(manifest?.Version), isBundled);
+
+            if (string.IsNullOrWhiteSpace(id))
+            {
+                unidentified.Add(candidate);
+                continue;
+            }
+
+            // Two folders in the same root claiming one id: keep the first.
+            byId.TryAdd(id, candidate);
+        }
     }
 
     /// <summary>
-    /// Finds the directory + manifest path for a plugin id across both roots
-    /// (app dir wins). Returns false when no manifest with that id exists.
+    /// Resolves every discovered plugin id to the copy that wins. A user copy
+    /// overrides a bundled plugin of the same id when its version is greater or
+    /// equal, so an app update shipping a newer bundled version supersedes a stale
+    /// override automatically. The bundled copy is never written to — it simply
+    /// stays in place as the fallback once the override is removed.
+    /// </summary>
+    private static List<ResolvedPlugin> ResolvePlugins()
+    {
+        (string bundledRoot, string userRoot) = GetPluginRoots();
+
+        Dictionary<string, PluginCandidate> bundled = new(StringComparer.OrdinalIgnoreCase);
+        Dictionary<string, PluginCandidate> user = new(StringComparer.OrdinalIgnoreCase);
+        List<PluginCandidate> unidentified = [];
+
+        ScanRoot(bundledRoot, isBundled: true, bundled, unidentified);
+        ScanRoot(userRoot, isBundled: false, user, unidentified);
+
+        List<ResolvedPlugin> resolved = [];
+
+        foreach ((string id, PluginCandidate bundledCandidate) in bundled)
+        {
+            if (!user.TryGetValue(id, out PluginCandidate userCandidate))
+            {
+                resolved.Add(new ResolvedPlugin(bundledCandidate, null));
+                continue;
+            }
+
+            if (userCandidate.Version >= bundledCandidate.Version)
+            {
+                Console.WriteLine(
+                    $"PluginManager: '{id}' v{userCandidate.VersionText} in the user folder overrides " +
+                    $"the built-in v{bundledCandidate.VersionText}.");
+                resolved.Add(new ResolvedPlugin(userCandidate, bundledCandidate));
+            }
+            else
+            {
+                Console.WriteLine(
+                    $"PluginManager: ignoring '{id}' v{userCandidate.VersionText} in the user folder — " +
+                    $"the built-in v{bundledCandidate.VersionText} is newer.");
+                resolved.Add(new ResolvedPlugin(bundledCandidate, null));
+            }
+        }
+
+        foreach ((string id, PluginCandidate userCandidate) in user)
+        {
+            if (!bundled.ContainsKey(id))
+                resolved.Add(new ResolvedPlugin(userCandidate, null));
+        }
+
+        foreach (PluginCandidate candidate in unidentified)
+            resolved.Add(new ResolvedPlugin(candidate, null));
+
+        return resolved;
+    }
+
+    /// <summary>
+    /// Finds the directory + manifest path for a plugin id, applying the same
+    /// override rule as <see cref="ResolvePlugins"/>. Returns false when no manifest
+    /// with that id exists.
     /// </summary>
     private static bool TryResolvePluginDir(string pluginId, out string dir, out string manifestPath)
     {
@@ -112,50 +227,36 @@ public class PluginManager : IPluginManager
         if (string.IsNullOrWhiteSpace(pluginId))
             return false;
 
-        foreach (var root in GetPluginRoots())
-        {
-            if (!Directory.Exists(root))
-                continue;
+        ResolvedPlugin resolved = ResolvePlugins().FirstOrDefault(
+            r => string.Equals(r.Winner.Id, pluginId, StringComparison.OrdinalIgnoreCase));
+        if (resolved == null)
+            return false;
 
-            foreach (var candidate in Directory.GetDirectories(root))
-            {
-                var candidateManifest = Path.Combine(candidate, "plugin.json");
-                if (!File.Exists(candidateManifest))
-                    continue;
+        dir = resolved.Winner.Directory;
+        manifestPath = resolved.Winner.ManifestPath;
+        return true;
+    }
 
-                string id;
-                try
-                {
-                    id = JsonConvert.DeserializeObject<PluginManifest>(File.ReadAllText(candidateManifest))?.Id;
-                }
-                catch
-                {
-                    continue;
-                }
-
-                if (string.Equals(id, pluginId, StringComparison.OrdinalIgnoreCase))
-                {
-                    dir = candidate;
-                    manifestPath = candidateManifest;
-                    return true;
-                }
-            }
-        }
-
-        return false;
+    /// <summary>Records which copy a loaded entry came from, for the Plugins page.</summary>
+    private static LoadedPlugin StampProvenance(LoadedPlugin loaded, ResolvedPlugin resolved)
+    {
+        loaded.IsBundled = resolved.Winner.IsBundled;
+        loaded.BundledFallbackVersion = resolved.ShadowedBundled?.VersionText;
+        return loaded;
     }
 
     public void LoadPlugins()
     {
         var loadedPlugins = new List<LoadedPlugin>();
 
-        // Plugins are discovered from two roots: the bundled `plugins/` folder
-        // next to the executable, and a user `plugins/` folder alongside the
-        // config files (~/.config/LoupixDeck/plugins). The app directory is
-        // scanned first so bundled plugins win when an id appears in both.
-        // The user plugins folder is created on startup so it always exists for
-        // the user to drop plugins into (and for "Open Plugins Folder" to open).
-        var userPluginsRoot = Path.Combine(Utils.FileDialogHelper.GetConfigDir(), "plugins");
+        // Plugins are discovered from two roots: the bundled `plugins/` folder next
+        // to the executable, and a user `plugins/` folder alongside the config files
+        // (~/.config/LoupixDeck/plugins). When an id exists in both, ResolvePlugins
+        // picks the higher version (ties go to the user copy), so a user copy can
+        // update a built-in plugin without touching the app directory.
+        // The user plugins folder is created on startup so it always exists for the
+        // user to drop plugins into (and for "Open Plugins Folder" to open).
+        string userPluginsRoot = GetPluginRoots().User;
         try
         {
             Directory.CreateDirectory(userPluginsRoot);
@@ -171,43 +272,10 @@ public class PluginManager : IPluginManager
         PluginInstaller.ProcessPendingInstalls(userPluginsRoot);
         PluginInstaller.ProcessPendingRemovals(userPluginsRoot);
 
-        var pluginsRoots = new[]
+        foreach (ResolvedPlugin resolved in ResolvePlugins())
         {
-            Path.Combine(AppContext.BaseDirectory, "plugins"),
-            userPluginsRoot
-        };
-
-        var seenIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-        foreach (var pluginsRoot in pluginsRoots)
-        {
-            if (!Directory.Exists(pluginsRoot))
-            {
-                Console.WriteLine($"PluginManager: no plugins directory at '{pluginsRoot}'.");
-                continue;
-            }
-
-            foreach (var dir in Directory.GetDirectories(pluginsRoot))
-            {
-                var manifestPath = Path.Combine(dir, "plugin.json");
-                if (!File.Exists(manifestPath))
-                    continue;
-
-                var loaded = LoadOne(dir, manifestPath);
-
-                // Skip a plugin whose id was already discovered in an earlier
-                // root, so a user copy can't shadow/collide with a bundled one.
-                var id = loaded.Manifest?.Id;
-                if (!string.IsNullOrWhiteSpace(id) && !seenIds.Add(id))
-                {
-                    Console.WriteLine(
-                        $"PluginManager: skipping duplicate plugin id '{id}' at '{dir}' " +
-                        "(already loaded from an earlier directory).");
-                    continue;
-                }
-
-                loadedPlugins.Add(loaded);
-            }
+            loadedPlugins.Add(StampProvenance(
+                LoadOne(resolved.Winner.Directory, resolved.Winner.ManifestPath), resolved));
         }
 
         _plugins = loadedPlugins; // single atomic publish
@@ -230,6 +298,11 @@ public class PluginManager : IPluginManager
         UnloadPlugin(pluginId);
 
         var loaded = LoadOne(dir, manifestPath);
+        ResolvedPlugin resolved = ResolvePlugins().FirstOrDefault(
+            r => string.Equals(r.Winner.Id, pluginId, StringComparison.OrdinalIgnoreCase));
+        if (resolved != null)
+            StampProvenance(loaded, resolved);
+
         ReplacePlugins(list =>
         {
             list.RemoveAll(p => string.Equals(p.Manifest?.Id, pluginId, StringComparison.OrdinalIgnoreCase));
@@ -266,6 +339,7 @@ public class PluginManager : IPluginManager
         plugin.Host = null;
         plugin.Commands = Array.Empty<IPluginCommand>();
         plugin.SideStripProviders = Array.Empty<ISideStripProvider>();
+        plugin.ScreensaverProviders = Array.Empty<IScreensaverProvider>();
         plugin.LoadContext = null;
 
         try { context?.Unload(); }
@@ -360,6 +434,9 @@ public class PluginManager : IPluginManager
             var stripProviders = instance.GetSideStripProviders()?.Where(p => p != null).ToList()
                                  ?? new List<ISideStripProvider>();
 
+            var screensaverProviders = instance.GetScreensaverProviders()?.Where(p => p != null).ToList()
+                                       ?? new List<IScreensaverProvider>();
+
             return new LoadedPlugin
             {
                 Manifest = manifest,
@@ -369,7 +446,8 @@ public class PluginManager : IPluginManager
                 LoadContext = context,
                 Host = host,
                 Commands = commands,
-                SideStripProviders = stripProviders
+                SideStripProviders = stripProviders,
+                ScreensaverProviders = screensaverProviders
             };
         }
         catch (Exception ex)
