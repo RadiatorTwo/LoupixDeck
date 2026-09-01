@@ -89,6 +89,11 @@ public partial class CommandRowViewModel : ViewModelBase
     /// <summary>Resolved row glyph: the command's own icon, else the category icon.</summary>
     public string Icon { get; }
 
+    /// <summary>False for a non-actionable info row (a leaf with neither a command
+    /// nor children, e.g. "No Key Lights found"). Such a row is shown greyed out and
+    /// can be neither selected nor inserted.</summary>
+    public bool IsSelectable => Entry.IsCommand();
+
     [ObservableProperty]
     public partial bool IsSelected { get; set; }
 

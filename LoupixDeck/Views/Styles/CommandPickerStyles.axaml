@@ -247,6 +247,19 @@
         <Setter Property="Background" Value="{DynamicResource PickerAccentSubtle}" />
         <Setter Property="BorderBrush" Value="{DynamicResource PickerAccentBrush}" />
     </Style>
+    <!-- Info row: a non-actionable notice inside an otherwise empty group. No hover
+         affordance and a muted title, so it never reads as an insertable command. -->
+    <Style Selector="Border.picker-row-face.info">
+        <Setter Property="Cursor" Value="Arrow" />
+    </Style>
+    <Style Selector="Border.picker-row-face.info:pointerover">
+        <Setter Property="Background" Value="Transparent" />
+    </Style>
+    <Style Selector="Border.picker-row-face.info TextBlock.picker-row-title">
+        <Setter Property="FontWeight" Value="Normal" />
+        <Setter Property="FontStyle" Value="Italic" />
+        <Setter Property="Foreground" Value="{DynamicResource AppTextSecondary}" />
+    </Style>
 
     <!-- Explicit line heights keep the two-line row at a fixed 50 px regardless of the
          font's own metrics. -->
