@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using LoupixDeck.Models;
 using LoupixDeck.Utils;
@@ -17,7 +18,7 @@ namespace LoupixDeck.Services;
 /// the user installs the driver. If the DLL is missing or the driver is not loaded, this
 /// backend reports itself unavailable and the router falls back to SendInput.
 /// </summary>
-public class InterceptionKeyboard : IUInputKeyboard
+public partial class InterceptionKeyboard : IUInputKeyboard
 {
     // INTERCEPTION_KEYBOARD(0): keyboards are devices 1..10, mice 11..20.
     private const int KeyboardDevice = 1;
@@ -55,15 +56,18 @@ public class InterceptionKeyboard : IUInputKeyboard
 
     // interception.dll uses the C default calling convention (cdecl). On x64 there is only
     // one convention, but Cdecl keeps it correct should an x86 build ever exist.
-    [DllImport("interception.dll", CallingConvention = CallingConvention.Cdecl)]
-    private static extern IntPtr interception_create_context();
+    [LibraryImport("interception.dll")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    private static partial IntPtr interception_create_context();
 
-    [DllImport("interception.dll", CallingConvention = CallingConvention.Cdecl)]
-    private static extern void interception_destroy_context(IntPtr context);
+    [LibraryImport("interception.dll")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    private static partial void interception_destroy_context(IntPtr context);
 
-    [DllImport("interception.dll", CallingConvention = CallingConvention.Cdecl)]
-    private static extern int interception_send(IntPtr context, int device,
-        [In] InterceptionStroke[] stroke, uint nstroke);
+    [LibraryImport("interception.dll")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    private static partial int interception_send(IntPtr context, int device,
+        ReadOnlySpan<InterceptionStroke> stroke, uint nstroke);
 
     // Native InterceptionStroke is a byte blob sized to the larger of the key/mouse strokes
     // (the mouse stroke = 20 bytes). For a keyboard device the driver reads the first 8 bytes
@@ -77,14 +81,14 @@ public class InterceptionKeyboard : IUInputKeyboard
         [FieldOffset(4)] public uint Information;
     }
 
-    [DllImport("user32.dll")]
-    private static extern IntPtr GetKeyboardLayout(uint idThread);
+    [LibraryImport("user32.dll")]
+    private static partial IntPtr GetKeyboardLayout(uint idThread);
 
-    [DllImport("user32.dll")]
-    private static extern short GetAsyncKeyState(int vKey);
+    [LibraryImport("user32.dll")]
+    private static partial short GetAsyncKeyState(int vKey);
 
-    [DllImport("user32.dll")]
-    private static extern uint MapVirtualKey(uint uCode, uint uMapType);
+    [LibraryImport("user32.dll", EntryPoint = "MapVirtualKeyW")]
+    private static partial uint MapVirtualKey(uint uCode, uint uMapType);
 
     private readonly Lock _lock = new();
     private readonly KeyboardLayout _layout;
@@ -337,7 +341,7 @@ public class InterceptionKeyboard : IUInputKeyboard
 
             while (sent < strokes.Length)
             {
-                var chunk = sent == 0 ? strokes : strokes[sent..];
+                ReadOnlySpan<InterceptionStroke> chunk = strokes.AsSpan(sent);
                 var accepted = interception_send(_context, KeyboardDevice, chunk, (uint)chunk.Length);
 
                 if (accepted > 0)

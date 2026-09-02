@@ -1,3 +1,4 @@
+using System.Collections.Frozen;
 using LoupixDeck.Registry;
 
 namespace LoupixDeck.LoupedeckDevice.Device;
@@ -31,7 +32,7 @@ public class LoupedeckLiveSDevice : LoupedeckDevice
         Displays = new Dictionary<string, DisplayInfo>
         {
             ["center"] = new() { Id = "\0M"u8.ToArray(), Width = 480, Height = 270 }
-        };
+        }.ToFrozenDictionary();
     }
 
     // The Live S has two rotaries stacked vertically on the left of the touch

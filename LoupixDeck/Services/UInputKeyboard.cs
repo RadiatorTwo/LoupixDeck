@@ -1,5 +1,7 @@
+using System.Buffers.Binary;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using System.Text;
 using LoupixDeck.Models;
 using LoupixDeck.Utils;
 // ReSharper disable CollectionNeverQueried.Local
@@ -43,7 +45,7 @@ public interface IUInputKeyboard : IDisposable
     void KeyUp(string keyName);
 }
 
-public class UInputKeyboard : IUInputKeyboard
+public partial class UInputKeyboard : IUInputKeyboard
 {
     private readonly KeyboardLayout _layout;
     private const string UINPUT_PATH = "/dev/uinput";
@@ -65,66 +67,27 @@ public class UInputKeyboard : IUInputKeyboard
     // Shift key
     private const int KEY_LEFTSHIFT = 42;
 
-    [StructLayout(LayoutKind.Sequential)]
-    private struct InputEvent
-    {
-        public TimeVal time;
-        public ushort type;
-        public ushort code;
-        public int value;
-    }
+    // linux-x64 input_event: timeval (16) + type/code (4) + value (4).
+    private const int InputEventSize = 24;
 
-    [StructLayout(LayoutKind.Sequential)]
-    private struct TimeVal
-    {
-        public long tv_sec;   // time_t
-        public long tv_usec;  // microseconds
-    }
+    // uinput_user_dev: name[80] + input_id (8) + ff_effects_max (4) + 4 * abs[64].
+    private const int UinputMaxNameSize = 80;
+    private const int AbsCnt = 64;
+    private const int UinputUserDevSize = UinputMaxNameSize + 8 + 4 + (AbsCnt * 4 * 4);
 
-    [StructLayout(LayoutKind.Sequential)]
-    private struct UinputUserDev
-    {
-        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 80)]
-        public string name;
-        public ushort id_bustype;
-        public ushort id_vendor;
-        public ushort id_product;
-        public ushort id_version;
-        public int ff_effects_max;
-        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 64)]
-        public int[] absmax;
-        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 64)]
-        public int[] absmin;
-        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 64)]
-        public int[] absfuzz;
-        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 64)]
-        public int[] absflat;
-    }
+    [LibraryImport("libc", EntryPoint = "open", SetLastError = true, StringMarshalling = StringMarshalling.Utf8)]
+    private static partial int open(string pathname, int flags);
 
-    private struct SsizeT(IntPtr value)
-    {
-        public IntPtr Value = value;
-    }
+    [LibraryImport("libc", EntryPoint = "ioctl", SetLastError = true)]
+    private static partial int ioctl(int fd, int request, int value);
 
-    private struct SizeT(int v)
-    {
-        public IntPtr Value = v;
-    }
+    [LibraryImport("libc", EntryPoint = "write", SetLastError = true)]
+    private static partial nint write(int fd, ReadOnlySpan<byte> buffer, nuint count);
 
-    [DllImport("libc", EntryPoint = "open", SetLastError = true)]
-    private static extern int open(string pathname, int flags);
-
-    [DllImport("libc", EntryPoint = "ioctl", SetLastError = true)]
-    private static extern int ioctl(int fd, int request, int value);
-
-    [DllImport("libc", EntryPoint = "write", SetLastError = true)]
-    private static extern SsizeT write(int fd, IntPtr buffer, SizeT count);
-
-    [DllImport("libc", EntryPoint = "close", SetLastError = true)]
-    private static extern int close(int fd);
+    [LibraryImport("libc", EntryPoint = "close", SetLastError = true)]
+    private static partial int close(int fd);
 
     private int _fileDescriptor;
-    private IntPtr _devPtr;
     private bool _disposed;
 
     public bool Connected { get; set; }
@@ -174,27 +137,7 @@ public class UInputKeyboard : IUInputKeyboard
         }
 
         // Step 3: Create virtual device
-        var dev = new UinputUserDev
-        {
-            name = "LoupixVirtualKeyboard",
-            id_bustype = 0,
-            id_vendor = 0x1234,
-            id_product = 0x5678,
-            id_version = 1,
-            absmax = new int[64],
-            absmin = new int[64],
-            absfuzz = new int[64],
-            absflat = new int[64]
-        };
-
-        // Copy Struct to unmanaged memory
-        _devPtr = Marshal.AllocHGlobal(Marshal.SizeOf(dev));
-        Marshal.StructureToPtr(dev, _devPtr, false);
-
-        // Write user_dev-Struct to /dev/uinput
-        write(_fileDescriptor, _devPtr, new SizeT(Marshal.SizeOf(dev)));
-
-        // Create device
+        WriteUserDev("LoupixVirtualKeyboard", vendor: 0x1234, product: 0x5678);
         ioctl(_fileDescriptor, UI_DEV_CREATE, 0);
 
         Connected = true;
@@ -317,12 +260,6 @@ public class UInputKeyboard : IUInputKeyboard
         close(_fileDescriptor);
         _fileDescriptor = -1;
 
-        if (_devPtr != IntPtr.Zero)
-        {
-            Marshal.FreeHGlobal(_devPtr);
-            _devPtr = IntPtr.Zero;
-        }
-
         _disposed = true;
     }
 
@@ -345,20 +282,22 @@ public class UInputKeyboard : IUInputKeyboard
 
     private void SendInputEvent(int type, int code, int value)
     {
-        var inputEvent = new InputEvent
-        {
-            type = (ushort)type,
-            code = (ushort)code,
-            value = value
-        };
+        Span<byte> buffer = stackalloc byte[InputEventSize];
+        BinaryPrimitives.WriteUInt16LittleEndian(buffer.Slice(16), (ushort)type);
+        BinaryPrimitives.WriteUInt16LittleEndian(buffer.Slice(18), (ushort)code);
+        BinaryPrimitives.WriteInt32LittleEndian(buffer.Slice(20), value);
+        write(_fileDescriptor, buffer, (nuint)InputEventSize);
+    }
 
-        int size = Marshal.SizeOf(inputEvent);
-        IntPtr ptr = Marshal.AllocHGlobal(size);
-        Marshal.StructureToPtr(inputEvent, ptr, false);
-
-        write(_fileDescriptor, ptr, new SizeT(size));
-
-        Marshal.FreeHGlobal(ptr);
+    private void WriteUserDev(string name, ushort vendor, ushort product)
+    {
+        Span<byte> buffer = stackalloc byte[UinputUserDevSize];
+        buffer.Clear();
+        Encoding.ASCII.GetBytes(name, buffer.Slice(0, UinputMaxNameSize - 1));
+        BinaryPrimitives.WriteUInt16LittleEndian(buffer.Slice(82), vendor);
+        BinaryPrimitives.WriteUInt16LittleEndian(buffer.Slice(84), product);
+        BinaryPrimitives.WriteUInt16LittleEndian(buffer.Slice(86), 1);
+        write(_fileDescriptor, buffer, (nuint)UinputUserDevSize);
     }
     
     private string GetCurrentKeyboardLayout()
@@ -411,7 +350,7 @@ public class UInputKeyboard : IUInputKeyboard
 /// (some games / anti-cheat) may ignore them — that is a fundamental limit of any
 /// user-mode injection and cannot be bypassed without a kernel driver.
 /// </summary>
-public class WindowsUInputKeyboard : IUInputKeyboard
+public partial class WindowsUInputKeyboard : IUInputKeyboard
 {
     private const int INPUT_KEYBOARD = 1;
 
@@ -473,26 +412,26 @@ public class WindowsUInputKeyboard : IUInputKeyboard
         public INPUTUNION u;
     }
 
-    [DllImport("user32.dll", SetLastError = true)]
-    private static extern uint SendInput(uint nInputs, INPUT[] pInputs, int cbSize);
+    [LibraryImport("user32.dll", SetLastError = true)]
+    private static partial uint SendInput(uint nInputs, ReadOnlySpan<INPUT> pInputs, int cbSize);
 
-    [DllImport("user32.dll")]
-    private static extern uint MapVirtualKey(uint uCode, uint uMapType);
+    [LibraryImport("user32.dll", EntryPoint = "MapVirtualKeyW")]
+    private static partial uint MapVirtualKey(uint uCode, uint uMapType);
 
-    [DllImport("user32.dll")]
-    private static extern uint MapVirtualKeyEx(uint uCode, uint uMapType, IntPtr dwhkl);
+    [LibraryImport("user32.dll", EntryPoint = "MapVirtualKeyExW")]
+    private static partial uint MapVirtualKeyEx(uint uCode, uint uMapType, IntPtr dwhkl);
 
-    [DllImport("user32.dll", CharSet = CharSet.Unicode, EntryPoint = "VkKeyScanExW")]
-    private static extern short VkKeyScanEx(char ch, IntPtr dwhkl);
+    [LibraryImport("user32.dll", EntryPoint = "VkKeyScanExW")]
+    private static partial short VkKeyScanEx(ushort ch, IntPtr dwhkl);
 
-    [DllImport("user32.dll")]
-    private static extern IntPtr GetKeyboardLayout(uint idThread);
+    [LibraryImport("user32.dll")]
+    private static partial IntPtr GetKeyboardLayout(uint idThread);
 
-    [DllImport("user32.dll")]
-    private static extern IntPtr GetForegroundWindow();
+    [LibraryImport("user32.dll")]
+    private static partial IntPtr GetForegroundWindow();
 
-    [DllImport("user32.dll")]
-    private static extern uint GetWindowThreadProcessId(IntPtr hWnd, IntPtr lpdwProcessId);
+    [LibraryImport("user32.dll")]
+    private static partial uint GetWindowThreadProcessId(IntPtr hWnd, IntPtr lpdwProcessId);
 
     private static readonly int InputSize = Marshal.SizeOf<INPUT>();
 

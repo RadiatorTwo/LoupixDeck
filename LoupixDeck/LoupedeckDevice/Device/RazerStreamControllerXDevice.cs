@@ -1,3 +1,4 @@
+using System.Collections.Frozen;
 using LoupixDeck.Registry;
 
 namespace LoupixDeck.LoupedeckDevice.Device;
@@ -63,7 +64,7 @@ public sealed class RazerStreamControllerXDevice : LoupedeckDevice
         Displays = new Dictionary<string, DisplayInfo>
         {
             ["center"] = new() { Id = "\0M"u8.ToArray(), Width = 480, Height = 288 }
-        };
+        }.ToFrozenDictionary();
     }
 
     /// <inheritdoc />

@@ -8,7 +8,7 @@ namespace LoupixDeck.Setup.Services;
 /// is typically held by a program a LoupixDeck shell command launched, which inherited the folder as its
 /// working directory and is in no way obvious from the failure itself.
 /// </summary>
-internal static unsafe class LockingProcesses
+internal static unsafe partial class LockingProcesses
 {
     private const int RmRebootReasonNone = 0;
     private const int CchRmSessionKey = 32;
@@ -41,19 +41,21 @@ internal static unsafe class LockingProcesses
         public int Restartable;
     }
 
-    [DllImport("rstrtmgr.dll", CharSet = CharSet.Unicode)]
-    private static extern int RmStartSession(out uint sessionHandle, int sessionFlags, char* sessionKey);
+    [LibraryImport("rstrtmgr.dll", StringMarshalling = StringMarshalling.Utf16)]
+    private static partial int RmStartSession(out uint sessionHandle, int sessionFlags, char* sessionKey);
 
-    [DllImport("rstrtmgr.dll", CharSet = CharSet.Unicode)]
-    private static extern int RmRegisterResources(uint sessionHandle, uint files, string[] fileNames,
-        uint applications, void* applicationList, uint services, string[]? serviceNames);
+    [LibraryImport("rstrtmgr.dll", StringMarshalling = StringMarshalling.Utf16)]
+    private static partial int RmRegisterResources(uint sessionHandle, uint files,
+        [MarshalAs(UnmanagedType.LPArray, ArraySubType = UnmanagedType.LPWStr)] string[] fileNames,
+        uint applications, void* applicationList, uint services,
+        [MarshalAs(UnmanagedType.LPArray, ArraySubType = UnmanagedType.LPWStr)] string[]? serviceNames);
 
-    [DllImport("rstrtmgr.dll")]
-    private static extern int RmGetList(uint sessionHandle, out uint procInfoNeeded, ref uint procInfo,
+    [LibraryImport("rstrtmgr.dll")]
+    private static partial int RmGetList(uint sessionHandle, out uint procInfoNeeded, ref uint procInfo,
         RmProcessInfo* affectedApps, out uint rebootReasons);
 
-    [DllImport("rstrtmgr.dll")]
-    private static extern int RmEndSession(uint sessionHandle);
+    [LibraryImport("rstrtmgr.dll")]
+    private static partial int RmEndSession(uint sessionHandle);
 
     /// <summary>
     /// Names the processes holding any of <paramref name="paths"/>, formatted as "Name (PID n)". Returns

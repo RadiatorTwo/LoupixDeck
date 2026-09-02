@@ -76,7 +76,8 @@ public enum ExclusiveRenderMode
     FullScreen,  // 0 — composite all slots, one full-screen blit + DRAW
     Grid,        // 1 — every slot as its own 90x90 tile, no DRAW
     DirtyTiles,  // 2 — only the tiles whose content changed, no DRAW
-    SingleTile   // 3 — one slot (SingleTileSlot), no DRAW
+    SingleTile,  // 3 — one slot (SingleTileSlot), no DRAW
+    None         // 4 — host pushes nothing; provider writes its own frames
 }
 ```
 
@@ -86,6 +87,7 @@ public enum ExclusiveRenderMode
 | `Grid` | All 15 slots as individual 90×90 framebuffers, no `DRAW`. | Full-grid content that changes a lot every frame. |
 | `DirtyTiles` | Only the slots whose **visible content changed** since the last frame, no `DRAW`. | Per-tile **live data** where just a few slots move each frame — telemetry HUDs, dashboards. |
 | `SingleTile` | One 90×90 slot (`SingleTileSlot`), no `DRAW`. | Streaming a GIF/video onto a single button. |
+| `None` | No host-rendered framebuffer. Exclusive mode still suppresses normal pages and routes input to the provider. | Providers that write their own frames outside the host's slot model. |
 
 Rough throughput on a Loupedeck Live S (≈115 kbit serial): a single 90×90 tile
 reaches several hundred fps, while a full-screen blit tops out around ~44 fps.
@@ -158,3 +160,16 @@ public sealed class SpeedHud : IExclusiveModeProvider
   strategy at runtime if needed (e.g. `Grid` on entry, `DirtyTiles` once steady).
 - **Pick the cheapest mode that looks right.** `DirtyTiles` for live dashboards,
   `FullScreen` or `Grid` for a screensaver, `SingleTile` for one-button media.
+- **Use `None` only when you own output transport.** The host will not paint or
+  refresh the display for you, so your provider must push every frame it needs.
+  Input routing and exclusive ownership still behave normally.
+- **Start it from a command, not automatically.** Enter exclusive mode in response
+  to an explicit command the user runs (an `IPluginCommand`), not implicitly when
+  the plugin loads/initializes or a game is detected. This keeps two exclusive-mode
+  plugins from fighting over the device and lets one plugin expose several different
+  takeovers (one start command each).
+- **A profile/workspace switch ends the takeover.** The host calls `OnExit` and
+  restores the normal page when the active profile or workspace changes (the
+  takeover belonged to the workspace being left). It does **not** auto-restart —
+  the user re-enters by running your start command again. Keep `OnExit` cheap and
+  idempotent; don't try to re-enter from inside it.

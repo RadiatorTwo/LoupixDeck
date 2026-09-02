@@ -27,13 +27,18 @@ The SDK's `AssemblyVersion` is intentionally pinned at `1.0.0.0` across the
 entire 1.x package range so the plugin load context resolves one shared SDK
 assembly regardless of which 1.x package the plugin was built against.
 
+SDK 1.20.0 targets both `net9.0` and `net10.0`. Existing 1.x plugins built for
+.NET 9 continue to load in LoupixDeck v1.22.0 without a rebuild; new plugins can
+target .NET 10. The new screensaver, animated-side-strip and provider-owned
+exclusive-rendering contracts are optional and additive.
+
 ## Build output
 
 ```powershell
 dotnet build -c Release
 ```
 
-Ship the contents of `bin/Release/net9.0/` **minus** `LoupixDeck.PluginSdk.dll`:
+Ship the contents of `bin/Release/net10.0/` **minus** `LoupixDeck.PluginSdk.dll`:
 
 - `MyPlugin.dll` — your plugin
 - Any third-party runtime dependencies (HttpClient libs, JSON serializers your
@@ -106,6 +111,6 @@ There is no central plugin registry yet. Typical release flow:
 
 1. Bump `PluginMetadata.Version` and the `<Version>` in the `.csproj`.
 2. `dotnet build -c Release`.
-3. Zip the `bin/Release/net9.0/` folder (without the SDK DLL).
+3. Zip the `bin/Release/net10.0/` folder (without the SDK DLL).
 4. Publish the zip as a GitHub Release on the plugin's own repo and tell users
    to extract it into `<plugin root>/<id>/`.

@@ -3,7 +3,7 @@
     <OutputType>WinExe</OutputType>
     <!-- Windows-specific TFM: the Registry API is provided in-box (trim/AOT-annotated), so no
          Microsoft.Win32.Registry compat package is needed. -->
-    <TargetFramework>net9.0-windows</TargetFramework>
+    <TargetFramework>net10.0-windows</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
@@ -40,8 +40,8 @@
     <PackageReference Include="Avalonia.Themes.Fluent" />
     <PackageReference Include="Avalonia.Fonts.Inter" />
     <PackageReference Include="CommunityToolkit.Mvvm" />
-    <!-- Referenced directly so NativeBootstrap can register a DllImportResolver on the exact
-         SkiaSharp/HarfBuzzSharp assemblies (forces our embedded native libs over any stray copy). -->
+    <!-- Same CPM pins as the main app. NativeBootstrap hoists the payload's root-level
+         copies (harvested from that app publish) so the setup stays a single exe. -->
     <PackageReference Include="SkiaSharp" />
     <PackageReference Include="HarfBuzzSharp" />
   </ItemGroup>
@@ -57,8 +57,8 @@
        setup is a single self-contained exe. Local dev builds without PayloadZip get
        no resource; the extractor treats a missing resource as "dry run".
        The payload already carries the Avalonia native renderer libs (Skia / HarfBuzz / ANGLE)
-       at its root, so NativeBootstrap extracts THOSE for the setup's own UI instead of embedding
-       a second copy — the setup and the app are pinned to identical versions. -->
+       at its root, so NativeBootstrap extracts those for the setup's own UI — the setup
+       and the app must resolve the same SkiaSharp/HarfBuzzSharp (direct CPM refs on both). -->
   <ItemGroup Condition="'$(PayloadZip)' != ''">
     <EmbeddedResource Include="$(PayloadZip)">
       <LogicalName>payload.zip</LogicalName>

@@ -1,3 +1,4 @@
+using System.Collections.Frozen;
 using System.Reflection;
 using LoupixDeck.Commands.Base;
 using Microsoft.Extensions.DependencyInjection;
@@ -44,8 +45,8 @@ public interface ISysCommandService
 
 public class SysCommandService : ISysCommandService
 {
-    private readonly Dictionary<string, (Type CommandType, CommandAttribute Attribute)> _commands
-        = new Dictionary<string, (Type CommandType, CommandAttribute Attribute)>();
+    private FrozenDictionary<string, (Type CommandType, CommandAttribute Attribute)> _commands =
+        FrozenDictionary<string, (Type CommandType, CommandAttribute Attribute)>.Empty;
 
     private readonly IServiceProvider _serviceProvider;
     private readonly IUInputKeyboard _uInputKeyboard;
@@ -66,6 +67,8 @@ public class SysCommandService : ISysCommandService
                         && !t.IsInterface
                         && !t.IsAbstract);
 
+        var next = new Dictionary<string, (Type CommandType, CommandAttribute Attribute)>();
+
         foreach (var type in commandTypes)
         {
             var attribute = type.GetCustomAttribute<CommandAttribute>();
@@ -77,8 +80,10 @@ public class SysCommandService : ISysCommandService
             if (attribute.Platform == CommandPlatform.Linux && !OperatingSystem.IsLinux())
                 continue;
 
-            _commands[attribute.CommandName] = (type, attribute);
+            next[attribute.CommandName] = (type, attribute);
         }
+
+        _commands = next.ToFrozenDictionary();
     }
 
     public async Task ExecuteCommand(string commandName, string[] parameters)

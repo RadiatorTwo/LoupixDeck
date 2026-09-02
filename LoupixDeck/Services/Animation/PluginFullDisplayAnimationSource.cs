@@ -15,18 +15,27 @@ public sealed class PluginFullDisplayAnimationSource : IAnimationSource, IDispos
     private readonly IFullDisplayRenderer _renderer;
     private readonly FullDisplayFrameWriter _writer;
     private readonly FullDisplaySurface _surface;
+    private readonly Action _onEnded;
 
     private readonly DeviceGeometry _geometry;
     private volatile bool _enabled;
     private volatile bool _paused;
     private bool _started;
+    private bool _endedRaised;
     private long _lastPushed = -1;
 
+    /// <param name="onEnded">Optional: invoked once, right after the final frame was pushed, when the
+    /// renderer reports <see cref="FullDisplayFrameResult.IsFinal"/>. Callers that own the display
+    /// through a plugin session leave this null — the stream then simply freezes on its last frame
+    /// and the plugin releases the session itself. The screensaver passes a callback so a one-shot
+    /// renderer ends the screensaver, exactly like a non-looping video clip.</param>
     public PluginFullDisplayAnimationSource(
-        LoupedeckDevice.Device.LoupedeckDevice device, IFullDisplayRenderer renderer)
+        LoupedeckDevice.Device.LoupedeckDevice device, IFullDisplayRenderer renderer,
+        Action onEnded = null)
     {
         _renderer = renderer;
         _geometry = device.Geometry;
+        _onEnded = onEnded;
         _writer = new FullDisplayFrameWriter(device);
         // The plugin sees the device's real panel through IRenderCanvas' runtime
         // Width/Height, so a differently sized panel needs no SDK change.
@@ -114,8 +123,19 @@ public sealed class PluginFullDisplayAnimationSource : IAnimationSource, IDispos
             }
 
             // A one-shot source freezes on its last frame; the session stays open until released.
+            // When a caller supplied an end callback it decides what "the stream ended" means for
+            // it (the screensaver stops and repaints the page). Raised at most once.
             if (result.IsFinal)
+            {
                 _enabled = false;
+
+                if (_onEnded != null && !_endedRaised)
+                {
+                    _endedRaised = true;
+                    try { _onEnded(); }
+                    catch (Exception ex) { Console.WriteLine($"[PluginFullDisplay] onEnded threw: {ex.Message}"); }
+                }
+            }
         }
         finally
         {

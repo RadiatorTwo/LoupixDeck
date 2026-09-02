@@ -60,12 +60,12 @@ public class CommandService : ICommandService
     {
         if (string.IsNullOrWhiteSpace(command)) return;
 
-        var cleanCommand = CommandStringParser.GetName(command);
-
-        if (_commandRegistry.Contains(cleanCommand))
+        string cleanCommand = CommandStringParser.GetName(command);
+        RegisteredCommand registered = _commandRegistry.Get(cleanCommand);
+        if (registered != null)
         {
-            var parameters = CommandStringParser.GetParameters(command);
-            await _commandRegistry.Execute(cleanCommand, parameters, target, sourceIndex);
+            string[] parameters = CommandStringParser.GetParameters(command);
+            await registered.Execute(parameters ?? [], target, sourceIndex);
         }
         else
         {

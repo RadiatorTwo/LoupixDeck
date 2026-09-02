@@ -6,6 +6,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using LoupixDeck.Models;
 using LoupixDeck.Models.Converter;
+using LoupixDeck.PluginSdk;
 using LoupixDeck.Services;
 using LoupixDeck.Services.Plugins;
 using LoupixDeck.Services.Portable;
@@ -31,6 +32,7 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
     private readonly IAutostartService _autostart;
     private readonly IWorkspaceActivationService _activation;
     private readonly IProfilePackageService _packageService;
+    private readonly IScreensaverProviderRegistry _screensaverRegistry;
 
     /// <summary>
     /// All discovered plugins — drives the Plugins settings page. Read live from the
@@ -123,7 +125,8 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
         IInterceptionService interceptionService,
         IAutostartService autostart,
         IWorkspaceActivationService activation,
-        IProfilePackageService packageService)
+        IProfilePackageService packageService,
+        IScreensaverProviderRegistry screensaverRegistry)
     {
         Config = config;
         IsVibrationSupported = config?.Geometry.HasVibration ?? true;
@@ -136,6 +139,7 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
         _autostart = autostart;
         _activation = activation;
         _packageService = packageService;
+        _screensaverRegistry = screensaverRegistry;
 
         // Commands are created lazily on first access by their `field ??= Relay.Create(...)`
         // getters, so there is nothing to wire up here.
@@ -876,12 +880,69 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
         private set
         {
             if (SetProperty(ref _ffmpegAvailable, value))
+            {
                 OnPropertyChanged(nameof(FfmpegMissing));
+                OnPropertyChanged(nameof(ShowFfmpegHint));
+            }
         }
     }
 
     /// <summary>Inverse of <see cref="FfmpegAvailable"/> for the settings hint visibility.</summary>
     public bool FfmpegMissing => !FfmpegAvailable;
+
+    /// <summary>The ffmpeg hint only matters for the video source — a plugin screensaver renders
+    /// its own frames and needs no external decoder (issue #124).</summary>
+    public bool ShowFfmpegHint => FfmpegMissing && IsVideoScreensaver;
+
+    /// <summary>The selectable screensaver sources, in display order.</summary>
+    public IReadOnlyList<ScreensaverSourceKind> ScreensaverSourceOptions { get; } =
+        [ScreensaverSourceKind.Video, ScreensaverSourceKind.Plugin];
+
+    /// <summary>Which source drives the screensaver. Writing it also re-evaluates the derived
+    /// visibility flags so the video and plugin rows swap immediately.</summary>
+    public ScreensaverSourceKind SelectedScreensaverSource
+    {
+        get => Config.ScreensaverSource;
+        set
+        {
+            if (Config.ScreensaverSource == value)
+                return;
+
+            Config.ScreensaverSource = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(IsVideoScreensaver));
+            OnPropertyChanged(nameof(IsPluginScreensaver));
+            OnPropertyChanged(nameof(ShowFfmpegHint));
+        }
+    }
+
+    public bool IsVideoScreensaver => Config.ScreensaverSource == ScreensaverSourceKind.Video;
+    public bool IsPluginScreensaver => Config.ScreensaverSource == ScreensaverSourceKind.Plugin;
+
+    /// <summary>Screensaver providers contributed by the currently loaded plugins. Read live from
+    /// the registry snapshot; <see cref="RefreshScreensaverProviders"/> re-raises it after the
+    /// Plugins page enables, disables, installs or removes something.</summary>
+    public IReadOnlyList<IScreensaverProvider> AvailableScreensaverProviders =>
+        _screensaverRegistry.Providers;
+
+    /// <summary>The selected provider, resolved from the persisted id. Only the id is stored, so a
+    /// config that names an uninstalled plugin simply shows no selection instead of breaking.</summary>
+    public IScreensaverProvider SelectedScreensaverProvider
+    {
+        get => _screensaverRegistry.Get(Config.ScreensaverPluginId);
+        set
+        {
+            Config.ScreensaverPluginId = value?.Id;
+            OnPropertyChanged();
+        }
+    }
+
+    /// <summary>Re-reads the provider snapshot after the plugin list changed.</summary>
+    public void RefreshScreensaverProviders()
+    {
+        OnPropertyChanged(nameof(AvailableScreensaverProviders));
+        OnPropertyChanged(nameof(SelectedScreensaverProvider));
+    }
 
     /// <summary>Display name of the selected screensaver clip, or a placeholder when none.
     /// Prefers the stored original file name; falls back to the (content-hash) asset file

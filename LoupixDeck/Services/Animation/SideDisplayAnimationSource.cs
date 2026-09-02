@@ -162,8 +162,12 @@ public sealed class SideDisplayAnimationSource : IAnimationSource, IDisposable
 
     /// <summary>
     /// One animated image layer on a side strip's FreeDraw canvas. Created by the manager. Kept as a
-    /// dedicated type (rather than reusing the button entry) so a future plugin-driven animated-strip
-    /// entry can slot in alongside it without reshaping the source.
+    /// dedicated type rather than reusing the button entry.
+    ///
+    /// Plugin-driven animated strips are NOT handled here: their sessions are owned by the
+    /// controller, so they are driven by <c>Controllers/PluginStripAnimator.cs</c> (issue #124),
+    /// which shares the controller's per-side gate, rate floor and push tail. This source stays the
+    /// animated *image layer* path for free-draw strips.
     /// </summary>
     public sealed class SideEntry
     {

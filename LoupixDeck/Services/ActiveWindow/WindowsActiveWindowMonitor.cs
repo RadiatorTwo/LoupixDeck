@@ -2,7 +2,6 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
-using System.Text;
 
 namespace LoupixDeck.Services.ActiveWindow;
 
@@ -15,7 +14,7 @@ namespace LoupixDeck.Services.ActiveWindow;
 /// delegate were collected the native side would call into freed memory and crash.
 /// </summary>
 [SupportedOSPlatform("windows")]
-public sealed class WindowsActiveWindowMonitor : IActiveWindowMonitor, IDisposable
+public sealed partial class WindowsActiveWindowMonitor : IActiveWindowMonitor, IDisposable
 {
     public event EventHandler<ActiveWindowInfo> ActiveWindowChanged;
 
@@ -31,21 +30,22 @@ public sealed class WindowsActiveWindowMonitor : IActiveWindowMonitor, IDisposab
     private bool _started;
     private (string Process, string Title) _last;
 
-    [DllImport("user32.dll")]
-    private static extern IntPtr SetWinEventHook(uint eventMin, uint eventMax, IntPtr hmodWinEventProc,
-        WinEventDelegate lpfnWinEventProc, uint idProcess, uint idThread, uint dwFlags);
+    [LibraryImport("user32.dll")]
+    private static partial IntPtr SetWinEventHook(uint eventMin, uint eventMax, IntPtr hmodWinEventProc,
+        IntPtr lpfnWinEventProc, uint idProcess, uint idThread, uint dwFlags);
 
-    [DllImport("user32.dll")]
-    private static extern bool UnhookWinEvent(IntPtr hWinEventHook);
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool UnhookWinEvent(IntPtr hWinEventHook);
 
-    [DllImport("user32.dll")]
-    private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
+    [LibraryImport("user32.dll")]
+    private static partial uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
 
-    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
-    private static extern int GetWindowText(IntPtr hWnd, StringBuilder lpString, int nMaxCount);
+    [LibraryImport("user32.dll", EntryPoint = "GetWindowTextW")]
+    private static unsafe partial int GetWindowText(IntPtr hWnd, char* lpString, int nMaxCount);
 
-    [DllImport("user32.dll")]
-    private static extern int GetWindowTextLength(IntPtr hWnd);
+    [LibraryImport("user32.dll", EntryPoint = "GetWindowTextLengthW")]
+    private static partial int GetWindowTextLength(IntPtr hWnd);
 
     public void StartMonitoring()
     {
@@ -54,7 +54,7 @@ public sealed class WindowsActiveWindowMonitor : IActiveWindowMonitor, IDisposab
 
         _proc = OnForegroundChanged;
         _hook = SetWinEventHook(EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_FOREGROUND, IntPtr.Zero,
-            _proc, 0, 0, WINEVENT_OUTOFCONTEXT);
+            Marshal.GetFunctionPointerForDelegate(_proc), 0, 0, WINEVENT_OUTOFCONTEXT);
     }
 
     private void OnForegroundChanged(IntPtr hWinEventHook, uint eventType, IntPtr hwnd,
@@ -104,9 +104,14 @@ public sealed class WindowsActiveWindowMonitor : IActiveWindowMonitor, IDisposab
     {
         var length = GetWindowTextLength(hwnd);
         if (length <= 0) return string.Empty;
-        var sb = new StringBuilder(length + 1);
-        GetWindowText(hwnd, sb, sb.Capacity);
-        return sb.ToString();
+        Span<char> buffer = length <= 256 ? stackalloc char[length + 1] : new char[length + 1];
+        int written;
+        unsafe
+        {
+            fixed (char* ptr = buffer)
+                written = GetWindowText(hwnd, ptr, buffer.Length);
+        }
+        return written > 0 ? new string(buffer.Slice(0, written)) : string.Empty;
     }
 
     public void Dispose()

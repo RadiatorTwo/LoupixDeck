@@ -161,14 +161,16 @@ internal sealed class SkiaRenderCanvas : IRenderCanvas
             var hasTint = tint.A > 0 && (tint.R != 255 || tint.G != 255 || tint.B != 255 || tint.A != 255);
             if (opacity == 255 && !hasTint)
             {
-                _canvas.DrawBitmap(decoded, new SKRect(left, top, left + dw, top + dh));
+                _canvas.DrawBitmap(decoded, new SKRect(left, top, left + dw, top + dh),
+                    SKSamplingOptions.Default, paint: null);
                 return;
             }
 
             using var paint = new SKPaint { Color = SKColors.White.WithAlpha(opacity), IsAntialias = true };
             if (hasTint)
                 paint.ColorFilter = SKColorFilter.CreateBlendMode(ToSk(tint), SKBlendMode.Modulate);
-            _canvas.DrawBitmap(decoded, new SKRect(left, top, left + dw, top + dh), paint);
+            _canvas.DrawBitmap(decoded, new SKRect(left, top, left + dw, top + dh),
+                SKSamplingOptions.Default, paint);
         });
     }
 

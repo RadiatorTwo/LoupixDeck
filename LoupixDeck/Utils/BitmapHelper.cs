@@ -158,8 +158,9 @@ public static class BitmapHelper
                 const float sweepAngle = 360f - gapAngle;
                 var coreWidth = 2.4f * ss;
 
-                using var ringPath = new SKPath();
-                ringPath.AddArc(oval, startAngle, sweepAngle);
+                using var ringBuilder = new SKPathBuilder();
+                ringBuilder.AddArc(oval, startAngle, sweepAngle);
+                using var ringPath = ringBuilder.Detach();
 
                 // Wide soft halo.
                 using (var halo = new SKPaint
@@ -581,7 +582,7 @@ public static class BitmapHelper
         using var canvas = new SKCanvas(dst);
         canvas.Translate(source.Width, 0);
         canvas.Scale(-1, 1);
-        canvas.DrawBitmap(source, 0, 0);
+        canvas.DrawBitmap(source, 0, 0, SKSamplingOptions.Default, paint: null);
         canvas.Flush();
         return dst;
     }
@@ -683,7 +684,7 @@ public static class BitmapHelper
                 var destRect = new SKRect(0, 0, width, height);
 
                 // Draw Wallpaper Cutout
-                canvas.DrawBitmap(wallpaperToUse, srcRect, destRect);
+                canvas.DrawBitmap(wallpaperToUse, srcRect, destRect, SKSamplingOptions.Default, paint: null);
 
                 // Semi-transparent background
                 using var paint = new SKPaint();
@@ -1000,7 +1001,8 @@ public static class BitmapHelper
         var drawX = ((deviceW - dstW) / 2f) + layer.PositionX;
         var drawY = ((deviceH - dstH) / 2f) + layer.PositionY;
 
-        canvas.DrawBitmap(bmp, srcRect, new SKRect(drawX, drawY, drawX + dstW, drawY + dstH));
+        canvas.DrawBitmap(bmp, srcRect, new SKRect(drawX, drawY, drawX + dstW, drawY + dstH),
+            SKSamplingOptions.Default, paint: null);
     }
 
     /// <summary>
@@ -1064,7 +1066,8 @@ public static class BitmapHelper
 
         canvas.Save();
         canvas.ClipRect(new SKRect(0, 0, width, height));
-        canvas.DrawBitmap(bmp, srcRect, new SKRect(drawX, drawY, drawX + dstW, drawY + dstH));
+        canvas.DrawBitmap(bmp, srcRect, new SKRect(drawX, drawY, drawX + dstW, drawY + dstH),
+            SKSamplingOptions.Default, paint: null);
         canvas.Restore();
     }
 
@@ -1090,7 +1093,8 @@ public static class BitmapHelper
             canvas.Save();
             canvas.ClipRect(new SKRect(0, 0, width, height));
             ApplyRotation(canvas, layer.Rotation, drawX + (dstW / 2f), drawY + (dstH / 2f));
-            canvas.DrawBitmap(bmp, new SKRect(drawX, drawY, drawX + dstW, drawY + dstH));
+            canvas.DrawBitmap(bmp, new SKRect(drawX, drawY, drawX + dstW, drawY + dstH),
+                SKSamplingOptions.Default, paint: null);
             canvas.Restore();
         }
     }
@@ -1122,7 +1126,8 @@ public static class BitmapHelper
 
             canvas.Save();
             ApplyRotation(canvas, layer.Rotation, drawX + (dstW / 2f), drawY + (dstH / 2f));
-            canvas.DrawBitmap(bmp, new SKRect(drawX, drawY, drawX + dstW, drawY + dstH));
+            canvas.DrawBitmap(bmp, new SKRect(drawX, drawY, drawX + dstW, drawY + dstH),
+                SKSamplingOptions.Default, paint: null);
             canvas.Restore();
         }
     }
@@ -1462,7 +1467,9 @@ public static class BitmapHelper
             var destRect = new SKRect(drawX, drawY, drawX + dstW, drawY + dstH);
             canvas.DrawBitmap(scaledBmp,
                 new SKRect(0, 0, dstW, dstH), // Quelle 1:1
-                destRect);
+                destRect,
+                sampling,
+                paint: null);
         }
 
         canvas.Flush();
@@ -1497,7 +1504,7 @@ public static class BitmapHelper
         {
             var destRect = new SKRect(0, 0, width, height);
             using var scaledImage = ScaleAndPositionBitmap(entry.Image, width, height);
-            canvas.DrawBitmap(scaledImage, destRect);
+            canvas.DrawBitmap(scaledImage, destRect, SKSamplingOptions.Default, paint: null);
         }
 
         if (!string.IsNullOrEmpty(entry.Text))
@@ -1548,10 +1555,11 @@ public static class BitmapHelper
         var cy = height / 2f;
         var size = Math.Min(width, height) * 0.30f;
 
-        using var path = new SKPath();
-        path.MoveTo(cx + (size * 0.5f), cy - size);
-        path.LineTo(cx - (size * 0.5f), cy);
-        path.LineTo(cx + (size * 0.5f), cy + size);
+        using var builder = new SKPathBuilder();
+        builder.MoveTo(cx + (size * 0.5f), cy - size);
+        builder.LineTo(cx - (size * 0.5f), cy);
+        builder.LineTo(cx + (size * 0.5f), cy + size);
+        using var path = builder.Detach();
 
         canvas.DrawPath(path, arrowPaint);
 
@@ -1679,11 +1687,11 @@ public static class BitmapHelper
         {
             using var canvas = new SKCanvas(bitmap);
             canvas.Clear(SKColors.Black);
-            canvas.DrawBitmap(current, 0, offsetY);
+            canvas.DrawBitmap(current, 0, offsetY, SKSamplingOptions.Default, paint: null);
             if (neighbor != null)
             {
                 var neighborY = offsetY < 0 ? offsetY + height : offsetY - height;
-                canvas.DrawBitmap(neighbor, 0, neighborY);
+                canvas.DrawBitmap(neighbor, 0, neighborY, SKSamplingOptions.Default, paint: null);
             }
             canvas.Flush();
         }
@@ -1711,11 +1719,11 @@ public static class BitmapHelper
         {
             using var canvas = new SKCanvas(bitmap);
             canvas.Clear(SKColors.Black);
-            canvas.DrawBitmap(current, offsetX, 0);
+            canvas.DrawBitmap(current, offsetX, 0, SKSamplingOptions.Default, paint: null);
             if (neighbor != null)
             {
                 var neighborX = offsetX < 0 ? offsetX + width : offsetX - width;
-                canvas.DrawBitmap(neighbor, neighborX, 0);
+                canvas.DrawBitmap(neighbor, neighborX, 0, SKSamplingOptions.Default, paint: null);
             }
             canvas.Flush();
         }
@@ -1747,7 +1755,7 @@ public static class BitmapHelper
                 if (slot == null) continue;
                 var x = (i % columns) * keySize;
                 var y = (i / columns) * keySize;
-                canvas.DrawBitmap(slot, x, y);
+                canvas.DrawBitmap(slot, x, y, SKSamplingOptions.Default, paint: null);
             }
             canvas.Flush();
         }
@@ -1808,7 +1816,7 @@ public static class BitmapHelper
         if (sideWallpaper != null)
         {
             var sideDest = new SKRect(0, 0, width, height);
-            canvas.DrawBitmap(sideWallpaper, sideDest);
+            canvas.DrawBitmap(sideWallpaper, sideDest, SKSamplingOptions.Default, paint: null);
             if (sideOpacity > 0)
             {
                 using var dim = new SKPaint { Color = new SKColor(0, 0, 0, (byte)(255 * sideOpacity)) };
@@ -1839,7 +1847,7 @@ public static class BitmapHelper
             height * scaleY);
         var destRect = new SKRect(0, 0, width, height);
 
-        canvas.DrawBitmap(wallpaper, srcRect, destRect);
+        canvas.DrawBitmap(wallpaper, srcRect, destRect, SKSamplingOptions.Default, paint: null);
 
         if (opacity > 0)
         {
@@ -1871,7 +1879,7 @@ public static class BitmapHelper
                 (row + 1) * height);
             var destRect = new SKRect(0, 0, width, height);
 
-            canvas.DrawBitmap(wallpaperToUse, srcRect, destRect);
+            canvas.DrawBitmap(wallpaperToUse, srcRect, destRect, SKSamplingOptions.Default, paint: null);
 
             using var paint = new SKPaint();
             paint.Color = new SKColor(0, 0, 0, (byte)(255 * opacityToUse));
@@ -2064,80 +2072,122 @@ public static class BitmapHelper
                 outlinePaint.StrokeJoin = SKStrokeJoin.Round;
                 outlinePaint.StrokeCap = SKStrokeCap.Round;
 
-                canvas.DrawText(line, drawX, drawY, font, outlinePaint);
+                canvas.DrawText(line, drawX, drawY, SKTextAlign.Left, font, outlinePaint);
             }
 
-            canvas.DrawText(line, drawX, drawY, font, textPaint);
+            canvas.DrawText(line, drawX, drawY, SKTextAlign.Left, font, textPaint);
         }
     }
 
     private static List<string> WrapText(string text, SKFont font, float maxWidth)
     {
-        var lines = new List<string>();
+        List<string> lines = [];
+        if (string.IsNullOrEmpty(text))
+            return lines;
 
-        // Honor explicit line breaks first — each segment is then width-wrapped
-        // independently. Without this, '\n' (and '\r') would fall into the
-        // space-split below and render as missing-glyph boxes.
-        var segments = text.Replace("\r\n", "\n").Split('\n');
-        if (segments.Length > 1)
+        ReadOnlySpan<char> span = text.AsSpan();
+        if (span.Contains('\n'))
         {
-            foreach (var segment in segments)
-                lines.AddRange(WrapText(segment, font, maxWidth));
+            foreach (Range range in span.Split('\n'))
+            {
+                ReadOnlySpan<char> segment = span[range];
+                if (segment is [.., '\r'])
+                    segment = segment[..^1];
+                WrapParagraph(segment, font, maxWidth, lines);
+            }
+
             return lines;
         }
 
-        var words = text.Split(' ');
-        var currentLine = new StringBuilder();
+        WrapParagraph(span, font, maxWidth, lines);
+        return lines;
+    }
 
-        foreach (var word in words)
+    private static void WrapParagraph(ReadOnlySpan<char> text, SKFont font, float maxWidth, List<string> lines)
+    {
+        StringBuilder currentLine = new();
+
+        foreach (Range wordRange in text.Split(' '))
         {
-            var testLine = currentLine.Length == 0 ? word : currentLine + " " + word;
-            var testWidth = font.MeasureText(testLine);
-
-            if (testWidth <= maxWidth)
+            ReadOnlySpan<char> word = text[wordRange];
+            if (MeasureJoined(font, currentLine, word) <= maxWidth)
             {
-                currentLine.Append(currentLine.Length == 0 ? word : " " + word);
+                if (currentLine.Length > 0)
+                    currentLine.Append(' ');
+                currentLine.Append(word);
+                continue;
+            }
+
+            if (currentLine.Length > 0)
+            {
+                lines.Add(currentLine.ToString());
+                currentLine.Clear();
+            }
+
+            if (font.MeasureText(word) > maxWidth)
+            {
+                foreach (char c in word)
+                {
+                    int mark = currentLine.Length;
+                    currentLine.Append(c);
+                    if (MeasureLine(font, currentLine) <= maxWidth)
+                        continue;
+
+                    currentLine.Length = mark;
+                    lines.Add(currentLine.ToString());
+                    currentLine.Clear();
+                    currentLine.Append(c);
+                }
             }
             else
             {
-                if (currentLine.Length > 0)
-                {
-                    lines.Add(currentLine.ToString());
-                    currentLine.Clear();
-                }
-
-                // If a single word is too long, break it down
-                if (font.MeasureText(word) > maxWidth)
-                {
-                    var chars = word.ToCharArray();
-                    currentLine.Clear();
-                    foreach (var c in chars)
-                    {
-                        var testChar = currentLine.ToString() + c;
-                        if (font.MeasureText(testChar) <= maxWidth)
-                        {
-                            currentLine.Append(c);
-                        }
-                        else
-                        {
-                            lines.Add(currentLine.ToString());
-                            currentLine.Clear();
-                            currentLine.Append(c);
-                        }
-                    }
-                }
-                else
-                {
-                    currentLine.Append(word);
-                }
+                currentLine.Append(word);
             }
         }
 
         if (currentLine.Length > 0)
-        {
             lines.Add(currentLine.ToString());
+    }
+
+    private static float MeasureJoined(SKFont font, StringBuilder current, ReadOnlySpan<char> word)
+    {
+        int extra = current.Length == 0 ? word.Length : 1 + word.Length;
+        int total = current.Length + extra;
+        if (total == 0)
+            return 0;
+
+        if (total <= 256)
+        {
+            Span<char> buffer = stackalloc char[total];
+            current.CopyTo(0, buffer, current.Length);
+            int written = current.Length;
+            if (written > 0)
+                buffer[written++] = ' ';
+            word.CopyTo(buffer[written..]);
+            return font.MeasureText(buffer);
         }
 
-        return lines;
+        int mark = current.Length;
+        if (mark > 0)
+            current.Append(' ');
+        current.Append(word);
+        float width = MeasureLine(font, current);
+        current.Length = mark;
+        return width;
+    }
+
+    private static float MeasureLine(SKFont font, StringBuilder line)
+    {
+        if (line.Length == 0)
+            return 0;
+
+        if (line.Length <= 256)
+        {
+            Span<char> buffer = stackalloc char[line.Length];
+            line.CopyTo(0, buffer, line.Length);
+            return font.MeasureText(buffer);
+        }
+
+        return font.MeasureText(line.ToString());
     }
 }

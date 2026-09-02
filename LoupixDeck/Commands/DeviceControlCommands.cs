@@ -521,7 +521,7 @@ public class PlayVideoCommand(IDeviceService deviceService, IExclusiveModeServic
             var row = s / cols;
             var src = new SKRect(col * keySize, row * keySize, (col * keySize) + keySize,
                 (row * keySize) + keySize);
-            canvas.DrawBitmap(full, src, dst); // opaque source fully overwrites the tile
+            canvas.DrawBitmap(full, src, dst, SKSamplingOptions.Default, paint: null); // opaque source fully overwrites the tile
             await device.DrawTouchSlot(s, tile, refresh: false);
         }
     }

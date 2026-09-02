@@ -16,6 +16,10 @@ public interface IPluginHost
     void RequestButtonRefresh(string commandName);
     void ExecuteCommand(string command);
     void OpenFolder(IFolderProvider provider);
+
+    IFullDisplayRenderSession? RequestFullDisplayRenderer(IFullDisplayRenderer renderer);
+    // display takeovers: see Exclusive Mode for RequestExclusiveMode /
+    // ReleaseExclusiveMode / IsInExclusiveMode
 }
 ```
 
@@ -27,6 +31,7 @@ public interface IPluginHost
 | `RequestButtonRefresh(commandName)` | Asks the host to re-render every touch button bound to `commandName`. Use after data backing an `IDisplayCommand` changes via push so the user sees the new value immediately instead of at the next poll tick. |
 | `ExecuteCommand(command)` | Runs a command string through the host's command pipeline (`Plugin.Command(arg1,arg2)` syntax). Enables chaining across plugin boundaries — e.g. an action that triggers another plugin's command. |
 | `OpenFolder(provider)` | Pushes a [folder navigation view](Advanced-Folders) onto the touch screen. The host calls `provider.OnEnter()` and starts rendering from `provider.BuildEntries()`. |
+| `RequestFullDisplayRenderer(renderer)` | Takes the **whole display** over and streams raw BGRA frames from your [`IFullDisplayRenderer`](Advanced-Full-Display-Renderer) on the host's animation scheduler. Returns the ownership session, or `null` when the display is already taken. Release it in `Shutdown()`. |
 
 Keep the `IPluginHost` you received in `Initialize` for the plugin's lifetime —
 do not try to access host services from a static field or before `Initialize`

@@ -1,4 +1,3 @@
-using System.Text.RegularExpressions;
 using LoupixDeck.PluginSdk;
 
 namespace LoupixDeck.Utils;
@@ -9,24 +8,30 @@ namespace LoupixDeck.Utils;
 /// touch-button command editor split and dissect commands identically — they must
 /// not drift apart, or a string the editor builds could be executed differently.
 /// </summary>
-public static partial class CommandStringParser
+public static class CommandStringParser
 {
-    // Splits on "&&" with any amount of surrounding whitespace, so both
-    // "a && b" and "a&&b" are treated the same.
-    [GeneratedRegex(@"\s*&&\s*", RegexOptions.CultureInvariant)]
-    private static partial Regex ChainSplitter { get; }
-
     /// <summary>Splits a chained command into its individual segments (already trimmed,
     /// empty segments removed).</summary>
     public static IEnumerable<string> SplitChain(string command)
     {
         if (string.IsNullOrWhiteSpace(command))
-            yield break;
+            return [];
 
-        foreach (var part in ChainSplitter.Split(command))
+        List<string> parts = [];
+        ReadOnlySpan<char> span = command.AsSpan();
+        int start = 0;
+        while (true)
         {
-            if (string.IsNullOrWhiteSpace(part)) continue;
-            yield return part.Trim();
+            int relative = span.Slice(start).IndexOf("&&");
+            ReadOnlySpan<char> part = relative < 0
+                ? span.Slice(start)
+                : span.Slice(start, relative);
+            part = part.Trim();
+            if (!part.IsEmpty)
+                parts.Add(part.ToString());
+            if (relative < 0)
+                return parts;
+            start += relative + 2;
         }
     }
 
@@ -37,8 +42,10 @@ public static partial class CommandStringParser
         if (string.IsNullOrWhiteSpace(segment))
             return string.Empty;
 
-        var open = segment.IndexOf('(');
-        return open == -1 ? segment.Trim() : segment[..open].Trim();
+        ReadOnlySpan<char> span = segment.AsSpan();
+        int open = span.IndexOf('(');
+        ReadOnlySpan<char> name = open < 0 ? span.Trim() : span.Slice(0, open).Trim();
+        return name.ToString();
     }
 
     /// <summary>Returns the parameter values inside the segment's parentheses, split on
@@ -48,13 +55,34 @@ public static partial class CommandStringParser
         if (string.IsNullOrWhiteSpace(segment))
             return [];
 
-        var start = segment.IndexOf('(');
-        var end = segment.IndexOf(')');
-        if (start == -1 || end == -1 || end <= start)
+        ReadOnlySpan<char> span = segment.AsSpan();
+        int start = span.IndexOf('(');
+        int end = span.IndexOf(')');
+        if (start < 0 || end < 0 || end <= start)
             return [];
 
-        var inner = segment.Substring(start + 1, end - start - 1);
-        return inner.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        ReadOnlySpan<char> inner = span.Slice(start + 1, end - start - 1);
+        int count = 0;
+        foreach (Range range in inner.Split(','))
+        {
+            if (!inner[range].Trim().IsEmpty)
+                count++;
+        }
+
+        if (count == 0)
+            return [];
+
+        string[] result = new string[count];
+        int i = 0;
+        foreach (Range range in inner.Split(','))
+        {
+            ReadOnlySpan<char> piece = inner[range].Trim();
+            if (piece.IsEmpty)
+                continue;
+            result[i++] = piece.ToString();
+        }
+
+        return result;
     }
 
     /// <summary>

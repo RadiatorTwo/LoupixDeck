@@ -1,3 +1,4 @@
+using System.Collections.Frozen;
 using LoupixDeck.Models;
 using LoupixDeck.Registry;
 using LoupixDeck.Utils;
@@ -99,7 +100,7 @@ public class LoupedeckCtDevice : LoupedeckDevice
             // VERIFY ON HARDWARE: firmware expects this buffer big-endian; the base
             // class's pixel converter is little-endian-only today (Phase 2 work).
             ["knob"] = new() { Id = "\0W"u8.ToArray(), Width = 240, Height = 240 }
-        };
+        }.ToFrozenDictionary();
     }
 
     /// <summary>
@@ -199,7 +200,7 @@ public class LoupedeckCtDevice : LoupedeckDevice
                 if (bmp == null) continue;
                 var x = (slot % Columns) * keySize;
                 var y = (slot / Columns) * keySize;
-                canvas.DrawBitmap(bmp, x, y);
+                canvas.DrawBitmap(bmp, x, y, SKSamplingOptions.Default, paint: null);
             }
         }
 

@@ -9,9 +9,9 @@ namespace LoupixDeck.Setup;
 /// Makes the setup a genuinely single distributable exe despite Avalonia's native renderer
 /// dependencies (Skia / HarfBuzz / ANGLE). Rather than embedding a second copy of those DLLs, we pull
 /// them out of the embedded <c>payload.zip</c> (which already ships them at its root next to
-/// <c>LoupixDeck.exe</c>) — the setup and the app are pinned to identical Avalonia/Skia versions. The
-/// libs are extracted to a per-version temp folder and pinned via a <see cref="NativeLibrary"/>
-/// resolver before Avalonia initializes, so the setup's own UI binds our exact copies.
+/// <c>LoupixDeck.exe</c>) — the setup and the app must resolve the same SkiaSharp/HarfBuzzSharp
+/// (direct CPM refs on both projects). The libs are extracted to a per-version temp folder and pinned
+/// via a <see cref="NativeLibrary"/> resolver before Avalonia initializes.
 /// </summary>
 [SupportedOSPlatform("windows")]
 internal static partial class NativeBootstrap
@@ -48,23 +48,9 @@ internal static partial class NativeBootstrap
             string dir = Path.Combine(Path.GetTempPath(), "LoupixDeck.Setup", "native-" + version);
             Directory.CreateDirectory(dir);
 
-            List<string> extracted = new();
-            using (ZipArchive archive = new(payload, ZipArchiveMode.Read))
-            {
-                foreach (ZipArchiveEntry entry in archive.Entries)
-                {
-                    // Only root-level native libs (skip anything nested, e.g. plugins/...).
-                    if (entry.FullName.Contains('/') || !IsNativeLib(entry.Name))
-                        continue;
-
-                    string target = Path.Combine(dir, entry.Name);
-                    // Only (re)write when missing or a different size, so warm starts are cheap.
-                    if (!(File.Exists(target) && new FileInfo(target).Length == entry.Length))
-                        entry.ExtractToFile(target, overwrite: true);
-
-                    extracted.Add(target);
-                }
-            }
+            List<string> extracted = ExtractPayloadNatives(payload, dir);
+            if (extracted.Count == 0)
+                return;
 
             _nativeDir = dir;
 
@@ -72,7 +58,16 @@ internal static partial class NativeBootstrap
             // loads itself)…
             SetDllDirectory(dir);
             foreach (string path in extracted)
-                LoadLibraryExW(path, IntPtr.Zero, LOAD_WITH_ALTERED_SEARCH_PATH);
+            {
+                IntPtr handle = LoadLibraryExW(path, IntPtr.Zero, LOAD_WITH_ALTERED_SEARCH_PATH);
+                if (handle == IntPtr.Zero &&
+                    string.Equals(Path.GetFileName(path), "libSkiaSharp.dll", StringComparison.OrdinalIgnoreCase))
+                {
+                    int err = Marshal.GetLastPInvokeError();
+                    throw new InvalidOperationException(
+                        $"Failed to load libSkiaSharp.dll from '{path}' (Win32 {err}).");
+                }
+            }
 
             // …and, crucially, force SkiaSharp/HarfBuzzSharp to bind OUR exact copies. A name-only
             // P/Invoke for "libSkiaSharp" can otherwise resolve to an unrelated build found earlier on
@@ -83,14 +78,37 @@ internal static partial class NativeBootstrap
         }
         catch (Exception ex)
         {
-            // Best-effort failure log; on success nothing is written.
             try
             {
                 File.AppendAllText(Path.Combine(Path.GetTempPath(), "loupix-setup-bootstrap.log"),
                     ex + Environment.NewLine);
             }
             catch { }
+
+            throw;
         }
+    }
+
+    /// <summary>Hoists root-level renderer libs out of the embedded payload zip.</summary>
+    private static List<string> ExtractPayloadNatives(Stream payload, string dir)
+    {
+        List<string> extracted = new();
+        using ZipArchive archive = new(payload, ZipArchiveMode.Read);
+        foreach (ZipArchiveEntry entry in archive.Entries)
+        {
+            string relative = entry.FullName.Replace('\\', '/');
+            // Only root-level native libs (skip anything nested, e.g. plugins/...).
+            if (relative.Contains('/') || !IsNativeLib(entry.Name))
+                continue;
+
+            string target = Path.Combine(dir, entry.Name);
+            if (!(File.Exists(target) && new FileInfo(target).Length == entry.Length))
+                entry.ExtractToFile(target, overwrite: true);
+
+            extracted.Add(target);
+        }
+
+        return extracted;
     }
 
     private static bool IsNativeLib(string fileName)

@@ -21,10 +21,10 @@ namespace LoupixDeck.ViewModels;
 public sealed class SymbolPickerRequest
 {
     /// <summary>Symbol id to pre-select when re-picking; null for a fresh pick.</summary>
-    public string? CurrentSymbolId { get; set; }
+    public string CurrentSymbolId { get; set; }
 
     /// <summary>Set by the picker on confirm; null if the dialog was cancelled.</summary>
-    public SymbolDefinition? SelectedSymbol { get; set; }
+    public SymbolDefinition SelectedSymbol { get; set; }
 }
 
 /// <summary>

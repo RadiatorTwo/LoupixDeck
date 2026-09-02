@@ -86,7 +86,8 @@ public sealed class FullDisplayFrameWriter : IDisposable
                 using (var canvas = new SKCanvas(slice))
                 {
                     canvas.DrawBitmap(frame, target.SrcRect,
-                        new SKRect(0, 0, target.DestWidth, target.DestHeight));
+                        new SKRect(0, 0, target.DestWidth, target.DestHeight),
+                        SKSamplingOptions.Default, paint: null);
                 }
                 draws.Add((target.DisplayId, slice, true));
             }

@@ -1,4 +1,7 @@
 using System.IO.Pipes;
+#if WINDOWS
+using System.Runtime.InteropServices;
+#endif
 #if !WINDOWS
 using System.Net.Sockets;
 #endif
@@ -10,7 +13,7 @@ using LoupixDeck.Utils;
 
 namespace LoupixDeck;
 
-sealed class Program
+sealed partial class Program
 {
 #if !WINDOWS
     private const string SocketPath = "/tmp/loupixdeck_app.sock";
@@ -213,13 +216,13 @@ sealed class Program
 #if WINDOWS
     private const int AttachParentProcess = -1;
 
-    [System.Runtime.InteropServices.DllImport("kernel32.dll", SetLastError = true)]
-    [return: System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)]
-    private static extern bool AttachConsole(int dwProcessId);
+    [LibraryImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool AttachConsole(int dwProcessId);
 
-    [System.Runtime.InteropServices.DllImport("kernel32.dll", SetLastError = true)]
-    [return: System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)]
-    private static extern bool AllocConsole();
+    [LibraryImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool AllocConsole();
 #endif
 
     /// <summary>

@@ -123,6 +123,11 @@ public partial class CommandPickerViewModel : ViewModelBase
 
     public void SelectCommand(CommandRowViewModel command)
     {
+        // Info rows carry no command — they stay unselectable so the footer's
+        // "+ Add" can never insert an empty assignment.
+        if (command is { IsSelectable: false })
+            return;
+
         if (SelectedCommand != null)
             SelectedCommand.IsSelected = false;
 

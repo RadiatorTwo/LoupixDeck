@@ -69,7 +69,7 @@ For most users, use the installer:
 5. Choose whether LoupixDeck should start with Windows by enabling `Start on system startup`.
 6. Choose whether to launch LoupixDeck when setup finishes.
 
-The installer is self-contained, so you do not need to install the .NET runtime separately.
+The installer is self-contained, so you do not need to install the .NET runtime separately. LoupixDeck v1.22.0 and later run on .NET 10 internally; only people building the app from source need the .NET 10 SDK.
 
 If you prefer the portable build:
 
@@ -81,7 +81,7 @@ If you prefer the portable build:
 
 If LoupixDeck is already installed, the Windows setup detects the existing installation and shows the installed and available versions. You can update in place while preserving your settings, or repair a damaged installation.
 
-The updater can install in place even when the installation folder was held open by a shell command. Shell commands now run from your home directory, so programs started by them should not lock the LoupixDeck installation folder. If an update still cannot proceed, the error identifies the program that must be closed.
+The updater can install in place even when the installation folder was held open by a shell command. Shell commands now run from your home directory, so programs started by them should not lock the LoupixDeck installation folder. If an update still cannot proceed, the error identifies the program that must be closed. The installer and app use matching SkiaSharp builds; if the app cannot start, Windows now shows the startup error instead of closing silently.
 
 The installer can register LoupixDeck to start with Windows using the `Start on system startup` checkbox. In v1.12.1 and later, you can also change this after installation from `Settings > General > Start with Windows` inside LoupixDeck.
 
@@ -100,6 +100,10 @@ The installer installs the app, creates udev rules, and adds a desktop entry. Af
 ```bash
 loupixdeck
 ```
+
+### Runtime and performance
+
+In v1.22.0 and later, display frames reuse pooled buffers, WebSocket payloads are masked in place, and incoming serial data is parsed through a fixed buffer. Command parsing, lookup tables, and native calls also use lower-allocation paths. These changes are automatic; there is no performance setting to enable, and existing layouts and plugins continue to work.
 
 ## First Launch
 
@@ -216,7 +220,7 @@ Changes are saved when you close the editor.
 
 The touch-button, rotary, and physical-button editors can be resized. Drag a window edge or corner if you need more room for the preview, command sequence, or settings. Each editor has a minimum size so its controls remain usable.
 
-The command picker is wider in these editors. In the Touch Button editor, the behavior area has its own scroll bar, so a long command sequence scrolls inside that panel without pushing the main preview out of view. The Rotary and physical-button editors use the same clean picker layout without the old gray outer frame.
+The command picker is wider in these editors. In the Touch Button editor, the behavior area has its own scroll bar, so a long command sequence scrolls inside that panel without pushing the main preview out of view. The color swatch remains visible beside its editor, even in tight layouts. Command rows and section headers keep a gutter beside the scroll bar, while the selected-row highlight still spans the full row. The Rotary and physical-button editors use the same clean picker layout without the old gray outer frame.
 
 ### Editing and Rearranging Buttons
 
@@ -338,7 +342,13 @@ Some plugins offer command groups that configure a whole rotary in one step. In 
 - Dragging the group onto the strips does the same. Dropping it anywhere applies the whole mapping, while a plain command drops into a single slot.
 - Slots that the group does not define are left untouched, and every command can still be reassigned individually afterwards.
 
-For devices with side strips, each knob can also have a strip label. On the Razer Stream Controller, side strips can show segmented knob labels or be edited as free-draw strip canvases depending on mode.
+For devices with side strips, each knob can also have a strip label. On the Razer Stream Controller, open a side strip and choose its mode for the current rotary page:
+
+- `Segmented` shows the adjacent knobs as separate labelled sections.
+- `FreeDraw` uses the normal layer canvas for static or animated image content.
+- `PluginOverride` lets you choose an installed plugin provider to draw the whole strip.
+
+A plugin override may be static or animated. Animated providers are paced by LoupixDeck's display scheduler per side, so the left and right strips update steadily without changing how FreeDraw animations work. If a selected provider is unavailable, choose an installed provider again or switch the strip back to `Segmented` or `FreeDraw`.
 
 Devices with separate side displays also offer left and right variants of the rotary page commands. Use the normal `Next Rotary Page`, `Previous Rotary Page`, or `Go to Rotary Page` commands when you want both rotary columns to move together. Use the left/right variants when you want to page only one side.
 
@@ -473,18 +483,30 @@ In current releases, haptics use LoupixDeck's software vibration pulse. Older co
 
 Open `Settings > Screensaver`.
 
-The screensaver can play a video or GIF across the whole device display after the device is idle. It stops when the device receives input.
+The screensaver fills the whole device display after the device is idle. It stops when the device receives input, and that first input only wakes the display — it does not also run the button or dial action.
+
+Choose the **Source** first:
+
+- **Video** plays a video or GIF file.
+- **Plugin** plays an animation provided by an installed plugin.
 
 Options include:
 
 - Enable animated screensaver.
-- Select video.
-- Clear selected video.
+- Source (Video or Plugin).
+- Select or clear the video (Video source).
+- Choose the plugin providing the animation (Plugin source).
 - Idle timeout in seconds.
 - FPS limit.
-- Loop continuously.
+- Loop continuously (Video source).
 
-The screensaver needs `ffmpeg` on your system `PATH`. If LoupixDeck cannot find it, the settings page shows a warning.
+A **video** screensaver needs `ffmpeg` on your system `PATH`. If LoupixDeck cannot find it, the settings page shows a warning.
+
+A **plugin** screensaver does not need `ffmpeg` — the plugin renders the frames itself. Notes:
+
+- The FPS limit only applies when the plugin does not declare a frame rate of its own.
+- If the selected plugin is disabled or uninstalled, no screensaver plays and the normal page stays on screen. Selecting an available plugin again restores it.
+- A plugin animation that reaches its end stops the screensaver and returns to the active page, just like a video that is not set to loop.
 
 ## Profile Rules
 
@@ -532,6 +554,14 @@ From this page you can:
 - Open the plugins folder.
 - Select a plugin and edit its settings if it provides a settings UI.
 - Enable or disable plugins live where supported.
+
+Bundled plugins are read-only, but you can install a zip with the same plugin id to update one. LoupixDeck compares the manifest versions found in the application and user plugin folders: the higher version loads, and a tie favours the user copy. This has three useful effects:
+
+- A same-version or newer user copy can override a built-in plugin without changing the application folder.
+- If an app update later includes a newer bundled copy, that version takes over automatically.
+- Removing the user override restores the bundled copy and keeps the plugin enabled. If its files are in use, the restore completes after the next restart.
+
+An older zip cannot replace a newer bundled copy; the Plugins page reports why it would not be loaded.
 
 The current binary installation includes these plugin manifests:
 
@@ -700,12 +730,15 @@ On Windows, `Start with Windows` controls whether LoupixDeck launches at login. 
 ### Screensaver
 
 - Enable animated screensaver.
-- Select video/GIF source.
-- Set idle timeout, FPS limit, and looping.
+- Choose `Video` or `Plugin` as the source.
+- Select a video/GIF or an installed plugin provider.
+- Set idle timeout and FPS limit; looping applies to video sources.
+- Install `ffmpeg` only when using a video source.
 
 ### Plugins
 
 - Install, remove, open folder, and configure plugins.
+- User copies can update bundled plugins; removing an override restores the bundled version.
 
 ### Macro Driver
 
@@ -772,10 +805,11 @@ Recording needs read access to `/dev/input/event*`. The installer attempts to ha
 
 ### Screensaver does not play
 
-- Install `ffmpeg`.
-- Make sure `ffmpeg` is on `PATH`.
+- Check the selected **Source** in `Settings > Screensaver`.
+- For a video source: install `ffmpeg` and make sure it is on `PATH`.
 - Try a lower FPS limit.
 - Test with a simple local video file.
+- For a plugin source: make sure the plugin is still installed and enabled in `Settings > Plugins`, and that it is selected in the screensaver picker.
 
 ### Profile Rules do not work on Linux
 
@@ -805,7 +839,7 @@ Sensor plugins changed from plain text output to tile rendering. If an old Argus
 
 ### Collecting crash logs
 
-If LoupixDeck closes unexpectedly, start it with a diagnostics flag to record what happened:
+If LoupixDeck cannot start, current Windows releases first show the startup error in a message box instead of closing silently. If LoupixDeck closes unexpectedly after startup, start it with a diagnostics flag to record what happened:
 
 ```bash
 ./LoupixDeck --crashlog

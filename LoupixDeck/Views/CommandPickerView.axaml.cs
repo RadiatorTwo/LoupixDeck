@@ -62,7 +62,7 @@ public partial class CommandPickerView : UserControl
 
     private void Row_PointerPressed(object sender, PointerPressedEventArgs e)
     {
-        if (sender is not Control { DataContext: CommandRowViewModel row })
+        if (sender is not Control { DataContext: CommandRowViewModel row } || !row.IsSelectable)
             return;
         if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
             return;
@@ -76,7 +76,7 @@ public partial class CommandPickerView : UserControl
 
     private void Row_DoubleTapped(object sender, TappedEventArgs e)
     {
-        if (sender is not Control { DataContext: CommandRowViewModel row })
+        if (sender is not Control { DataContext: CommandRowViewModel row } || !row.IsSelectable)
             return;
 
         CommandActivated?.Invoke(this, row.Entry);
@@ -98,7 +98,7 @@ public partial class CommandPickerView : UserControl
 
     private void Row_KeyDown(object sender, KeyEventArgs e)
     {
-        if (sender is not Control { DataContext: CommandRowViewModel row })
+        if (sender is not Control { DataContext: CommandRowViewModel row } || !row.IsSelectable)
             return;
 
         switch (e.Key)

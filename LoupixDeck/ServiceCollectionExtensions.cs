@@ -252,9 +252,10 @@ public static class ServiceCollectionExtensions
         // Sequential macro-step executor (uses this device's command service).
         collection.AddSingleton<MacroRunner>();
 
-        // Per-device plugin state: side-strip attachment (reads the shared root
-        // plugin list), install/enable, hot-reload.
+        // Per-device plugin state: side-strip attachment and screensaver sources (both read
+        // the shared root plugin list), install/enable, hot-reload.
         collection.AddSingleton<ISideStripProviderRegistry, SideStripProviderRegistry>();
+        collection.AddSingleton<IScreensaverProviderRegistry, ScreensaverProviderRegistry>();
         collection.AddSingleton<IPluginInstaller, PluginInstaller>();
         collection.AddSingleton<IPluginReloadService, PluginReloadService>();
 

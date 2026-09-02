@@ -162,6 +162,7 @@ public partial class App : Application
                 try
                 {
                     host.Provider.GetRequiredService<Services.Plugins.ISideStripProviderRegistry>().Rebuild();
+                    host.Provider.GetRequiredService<Services.Plugins.IScreensaverProviderRegistry>().Rebuild();
 
                     var vm = host.Provider.GetRequiredService<MainWindowViewModel>();
                     shell.Add(vm);
@@ -267,6 +268,7 @@ public partial class App : Application
         registry.Add(new DeviceHost(device, provider, controller, becomesPrimary));
 
         provider.GetRequiredService<Services.Plugins.ISideStripProviderRegistry>().Rebuild();
+        provider.GetRequiredService<Services.Plugins.IScreensaverProviderRegistry>().Rebuild();
         var vm = provider.GetRequiredService<MainWindowViewModel>();
         _shell.Add(vm);
 

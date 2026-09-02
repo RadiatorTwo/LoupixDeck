@@ -575,29 +575,52 @@
                             <CheckBox Content="Enable animated screensaver"
                                       IsChecked="{Binding Config.ScreensaverEnabled, Mode=TwoWay}" />
                             <TextBlock Classes="hint" Margin="0,4,0,0"
-                                       Text="Plays a video or GIF across the whole display after the device is idle. Stops on any input."/>
+                                       Text="Fills the whole display after the device is idle — either a video/GIF or a plugin-provided animation. Stops on any input."/>
 
                             <TextBlock Classes="hint" Margin="0,8,0,0"
                                        Foreground="#E6A23C"
-                                       IsVisible="{Binding FfmpegMissing}"
-                                       Text="ffmpeg was not found on PATH. Install ffmpeg to use the screensaver."/>
+                                       IsVisible="{Binding ShowFfmpegHint}"
+                                       Text="ffmpeg was not found on PATH. Install ffmpeg to use a video screensaver."/>
 
-                            <Grid ColumnDefinitions="120,*" RowDefinitions="Auto,Auto,Auto,Auto"
+                            <Grid ColumnDefinitions="120,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto"
                                   Margin="0,10,0,0" IsEnabled="{Binding Config.ScreensaverEnabled}">
-                                <!-- Source -->
+                                <!-- Source kind -->
                                 <TextBlock Grid.Row="0" Grid.Column="0" Classes="label" Text="Source"
                                            VerticalAlignment="Center" />
-                                <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                                <ComboBox Grid.Row="0" Grid.Column="1" Width="200" HorizontalAlignment="Left"
+                                          ItemsSource="{Binding ScreensaverSourceOptions}"
+                                          SelectedItem="{Binding SelectedScreensaverSource, Mode=TwoWay}" />
+
+                                <!-- Video clip -->
+                                <TextBlock Grid.Row="1" Grid.Column="0" Classes="label" Text="Video"
+                                           VerticalAlignment="Center" Margin="0,8,0,0"
+                                           IsVisible="{Binding IsVideoScreensaver}" />
+                                <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Spacing="8"
+                                            Margin="0,8,0,0" IsVisible="{Binding IsVideoScreensaver}">
                                     <Button Content="Select video…" Command="{Binding SelectScreensaverVideoCommand}" />
                                     <Button Content="Clear" Command="{Binding ClearScreensaverVideoCommand}" />
                                     <TextBlock Classes="value" VerticalAlignment="Center"
                                                Text="{Binding ScreensaverVideoDisplayName}" />
                                 </StackPanel>
 
+                                <!-- Plugin provider -->
+                                <TextBlock Grid.Row="2" Grid.Column="0" Classes="label" Text="Plugin"
+                                           VerticalAlignment="Center" Margin="0,8,0,0"
+                                           IsVisible="{Binding IsPluginScreensaver}" />
+                                <StackPanel Grid.Row="2" Grid.Column="1" Margin="0,8,0,0"
+                                            IsVisible="{Binding IsPluginScreensaver}">
+                                    <ComboBox Width="280" HorizontalAlignment="Left"
+                                              ItemsSource="{Binding AvailableScreensaverProviders}"
+                                              SelectedItem="{Binding SelectedScreensaverProvider, Mode=TwoWay}"
+                                              DisplayMemberBinding="{Binding Title}" />
+                                    <TextBlock Classes="hint" Margin="0,4,0,0"
+                                               Text="Provided by installed plugins. No ffmpeg needed."/>
+                                </StackPanel>
+
                                 <!-- Idle timeout -->
-                                <TextBlock Grid.Row="1" Grid.Column="0" Classes="label" Text="Idle timeout"
+                                <TextBlock Grid.Row="3" Grid.Column="0" Classes="label" Text="Idle timeout"
                                            VerticalAlignment="Center" Margin="0,8,0,0" />
-                                <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Spacing="8"
+                                <StackPanel Grid.Row="3" Grid.Column="1" Orientation="Horizontal" Spacing="8"
                                             Margin="0,8,0,0">
                                     <NumericUpDown Width="120" Minimum="5" Maximum="3600" Increment="5"
                                                    FormatString="0"
@@ -606,16 +629,22 @@
                                 </StackPanel>
 
                                 <!-- FPS -->
-                                <TextBlock Grid.Row="2" Grid.Column="0" Classes="label" Text="FPS limit"
+                                <TextBlock Grid.Row="4" Grid.Column="0" Classes="label" Text="FPS limit"
                                            VerticalAlignment="Center" Margin="0,8,0,0" />
-                                <NumericUpDown Grid.Row="2" Grid.Column="1" Width="120" Minimum="1" Maximum="60"
-                                               Increment="1" FormatString="0" HorizontalAlignment="Left"
-                                               Margin="0,8,0,0"
-                                               Value="{Binding Config.ScreensaverFps, Mode=TwoWay}" />
+                                <StackPanel Grid.Row="4" Grid.Column="1" Orientation="Horizontal" Spacing="8"
+                                            Margin="0,8,0,0">
+                                    <NumericUpDown Width="120" Minimum="1" Maximum="60"
+                                                   Increment="1" FormatString="0"
+                                                   Value="{Binding Config.ScreensaverFps, Mode=TwoWay}" />
+                                    <TextBlock Classes="hint" VerticalAlignment="Center"
+                                               IsVisible="{Binding IsPluginScreensaver}"
+                                               Text="used when the plugin declares no frame rate of its own" />
+                                </StackPanel>
 
                                 <!-- Loop -->
-                                <CheckBox Grid.Row="3" Grid.Column="1" Margin="0,8,0,0"
+                                <CheckBox Grid.Row="5" Grid.Column="1" Margin="0,8,0,0"
                                           Content="Loop continuously"
+                                          IsVisible="{Binding IsVideoScreensaver}"
                                           IsChecked="{Binding Config.ScreensaverLoop, Mode=TwoWay}" />
                             </Grid>
                         </StackPanel>
@@ -629,7 +658,7 @@
                         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8"
                                     VerticalAlignment="Center">
                             <Button Content="Install from Zip…" Click="OnInstallPluginClick" />
-                            <Button Content="Remove" Click="OnRemovePluginClick" />
+                            <Button x:Name="RemovePluginButton" Content="Remove" Click="OnRemovePluginClick" />
                             <Button Content="Open Plugins Folder"
                                     Command="{Binding OpenPluginsFolderCommand}" />
                         </StackPanel>

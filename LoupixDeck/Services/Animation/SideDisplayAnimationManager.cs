@@ -24,7 +24,7 @@ public sealed class SideDisplayAnimationManager : ISideDisplayAnimationManager, 
 
     private readonly SideDisplayAnimationSource _source;
 
-    private readonly object _gate = new();
+    private readonly Lock _gate = new();
     private bool _started;
     private bool _disposed;
     private volatile bool _screensaverActive;
