@@ -1071,41 +1071,66 @@ public class LoupedeckDevice
                 $"Bitmap is {bitmap.Width}x{bitmap.Height} but the region on display '{id}' at " +
                 $"({x},{y}) is {width}x{height}.", nameof(bitmap));
 
+        // Clip the region to the panel. A key grid does not have to tile its display: a
+        // device whose keys are spaced wider than they are large puts the outer ones partly
+        // past the glass, so the region legitimately hangs over an edge. The guard above has
+        // already done its job on the region as asked for, which is what keeps a wrong-sized
+        // tile an error rather than something silently trimmed to fit here.
+        //
+        // Clipping moves the read window instead of copying the bitmap — the converter takes
+        // the source rectangle, so an edge draw costs no allocation.
+        int clipLeft = Math.Max(0, -x);
+        int clipTop = Math.Max(0, -y);
+        int clipRight = Math.Max(0, (x + width) - displayInfo.Width);
+        int clipBottom = Math.Max(0, (y + height) - displayInfo.Height);
+
+        int drawX = x + clipLeft;
+        int drawY = y + clipTop;
+        int drawWidth = width - clipLeft - clipRight;
+        int drawHeight = height - clipTop - clipBottom;
+
+        // Entirely off the panel: nothing to send, and a zero-sized FRAMEBUFF would be a
+        // malformed packet rather than a no-op.
+        if (drawWidth <= 0 || drawHeight <= 0)
+            return;
+
         // A panel that caps its FRAMEBUFF payload takes the frame in horizontal bands. The
         // rows of a band are contiguous in the buffer, so each one is a normal region write
         // at the same x and its own y — no reassembly on the device side. Only the last band
         // refreshes, so the frame still appears in one go rather than banding into view.
-        int rowBytes = width * 2;
-        int bandRows = height;
+        int rowBytes = drawWidth * 2;
+        int bandRows = drawHeight;
         int maxPayload = MaxFramebufferPayloadBytes;
-        if (maxPayload > 0 && rowBytes > 0 && (long)rowBytes * height > maxPayload)
+        if (maxPayload > 0 && rowBytes > 0 && (long)rowBytes * drawHeight > maxPayload)
             bandRows = Math.Max(1, maxPayload / rowBytes);
 
-        for (int top = 0; top < height; top += bandRows)
+        for (int top = 0; top < drawHeight; top += bandRows)
         {
-            int rows = Math.Min(bandRows, height - top);
-            bool isLast = top + rows >= height;
-            await DrawCanvasBand(id, displayInfo, width, rows, bitmap, x, y + top, top,
+            int rows = Math.Min(bandRows, drawHeight - top);
+            bool isLast = top + rows >= drawHeight;
+            SKRectI src = SKRectI.Create(clipLeft, clipTop + top, drawWidth, rows);
+            await DrawCanvasBand(id, displayInfo, bitmap, src, drawX, drawY + top,
                 autoRefresh && isLast);
         }
     }
 
     /// <summary>
-    /// Sends one horizontal band of a canvas: builds the FRAMEBUFF packet for
-    /// <paramref name="rows"/> rows starting at bitmap row <paramref name="srcTop"/> and
-    /// addresses it at (<paramref name="x"/>, <paramref name="y"/>) on the display.
+    /// Sends one horizontal band of a canvas: builds the FRAMEBUFF packet for the
+    /// <paramref name="srcRect"/> window of the bitmap and addresses it at
+    /// (<paramref name="x"/>, <paramref name="y"/>) on the display.
     /// </summary>
     private async Task DrawCanvasBand(
         string id,
         DisplayInfo displayInfo,
-        int width,
-        int rows,
         SKBitmap bitmap,
+        SKRectI srcRect,
         int x,
         int y,
-        int srcTop,
         bool autoRefresh)
     {
+        int width = srcRect.Width;
+        int rows = srcRect.Height;
+
         // One rented buffer holds the WS prefix, command header, display id, x/y/w/h,
         // and RGB565 pixels. The send queue writes the command header and masks in place.
         byte[] displayId = displayInfo.Id;
@@ -1131,8 +1156,7 @@ public class LoupedeckDevice
                 rented.AsSpan(bodyOffset + displayId.Length + 8, pixelBytes),
                 x,
                 y,
-                srcTop,
-                rows);
+                srcRect);
 
             byte[] packet = rented;
             rented = null;
@@ -1169,14 +1193,14 @@ public class LoupedeckDevice
     /// <param name="bitmap">Source bitmap in BGRA8888.</param>
     /// <param name="output">Destination RGB565 bytes; must be at least width*height*2 long.
     /// A rented array may be larger than that — only the exact pixel count is written.</param>
-    /// <param name="originX">Absolute X of the bitmap on the target display.</param>
-    /// <param name="originY">Absolute Y of the converted rows on the target display. For a band
+    /// <param name="originX">Absolute X of the converted window on the target display.</param>
+    /// <param name="originY">Absolute Y of the converted window on the target display. For a band
     /// this is the band's own Y, not the bitmap's, so the dither pattern keeps anchoring to
     /// absolute display coordinates and bands do not seam.</param>
-    /// <param name="srcTop">First bitmap row to convert.</param>
-    /// <param name="rowCount">Rows to convert, or -1 for everything from <paramref name="srcTop"/>.</param>
-    private unsafe void ConvertSKBitmapToRaw16BppUnsafe(SKBitmap bitmap, Span<byte> output, int originX = 0,
-        int originY = 0, int srcTop = 0, int rowCount = -1)
+    /// <param name="srcRect">Window of the bitmap to convert. Reading a sub-rectangle is how
+    /// both banding and edge clipping avoid copying the bitmap: the read window moves instead.</param>
+    private unsafe void ConvertSKBitmapToRaw16BppUnsafe(SKBitmap bitmap, Span<byte> output, int originX,
+        int originY, SKRectI srcRect)
     {
         if (bitmap == null || bitmap.IsNull)
             throw new InvalidOperationException("Bitmap is null or empty.");
@@ -1184,16 +1208,15 @@ public class LoupedeckDevice
         if (bitmap.ColorType != SKColorType.Bgra8888)
             throw new InvalidOperationException("Bitmap must be BGRA8888.");
 
-        int width = bitmap.Width;
+        if (srcRect.Left < 0 || srcRect.Top < 0 || srcRect.Width < 0 || srcRect.Height < 0 ||
+            srcRect.Right > bitmap.Width || srcRect.Bottom > bitmap.Height)
+            throw new ArgumentOutOfRangeException(nameof(srcRect), srcRect,
+                $"Source window lies outside the {bitmap.Width}x{bitmap.Height} bitmap.");
 
-        if (srcTop < 0 || srcTop > bitmap.Height)
-            throw new ArgumentOutOfRangeException(nameof(srcTop), srcTop,
-                $"Band starts outside the {bitmap.Height}-row bitmap.");
-
-        int height = rowCount < 0 ? bitmap.Height - srcTop : rowCount;
-        if (height < 0 || srcTop + height > bitmap.Height)
-            throw new ArgumentOutOfRangeException(nameof(rowCount), rowCount,
-                $"Band of {height} rows from {srcTop} exceeds the {bitmap.Height}-row bitmap.");
+        int srcLeft = srcRect.Left;
+        int srcTop = srcRect.Top;
+        int width = srcRect.Width;
+        int height = srcRect.Height;
 
         int pixelCount = width * height;
         int pixelBytes = pixelCount * 2;
@@ -1235,7 +1258,7 @@ public class LoupedeckDevice
 
                 for (int row = 0; row < height; row++)
                 {
-                    byte* srcPtr = srcBase + ((long)(srcTop + row) * srcRowBytes);
+                    byte* srcPtr = srcBase + ((long)(srcTop + row) * srcRowBytes) + ((long)srcLeft * 4);
                     for (int col = 0; col < width; col++)
                     {
                         byte b = srcPtr[0];
