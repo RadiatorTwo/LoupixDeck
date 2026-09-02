@@ -45,7 +45,7 @@ if (opts is null) return 0; // --help printed
 
 string repoRoot = FindRepoRoot();
 string toolDir = Path.Combine(repoRoot, "tools", "BodyTextureBaker");
-string assetsDir = Path.Combine(repoRoot, "Assets");
+string assetsDir = Path.Combine(repoRoot, "LoupixDeck", "Assets");
 
 // --- Per-variant defaults. The lighting stops below are shared; each variant
 //     scales the vignette/sheen, sets its own base brightness + shadow fill, and
@@ -256,20 +256,28 @@ static void Spread(double[] buf, int w, int h, int x, int y, double v)
     if (x >= 0 && x < w && y >= 0 && y < h) buf[(y * w) + x] += v;
 }
 
+// Locates the repository root: the directory holding both `tools/` and the app project.
+// The marker is the app csproj at its known sub-path rather than a bare "LoupixDeck.csproj",
+// which no ancestor of either start directory carries — that search always missed and fell
+// through to a fixed relative guess, which resolved `tools/` correctly and `Assets/` not.
 static string FindRepoRoot()
 {
+    const string marker = "LoupixDeck/LoupixDeck.csproj";
+
     foreach (var start in new[] { Directory.GetCurrentDirectory(), AppContext.BaseDirectory })
     {
         var dir = new DirectoryInfo(start);
         while (dir is not null)
         {
-            if (File.Exists(Path.Combine(dir.FullName, "LoupixDeck.csproj")))
+            if (File.Exists(Path.Combine(dir.FullName, marker)))
                 return dir.FullName;
             dir = dir.Parent;
         }
     }
-    // Fallback: tool lives at <root>/tools/BodyTextureBaker, bin output a few levels down.
-    return Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
+
+    throw new DirectoryNotFoundException(
+        $"Repository root not found: no ancestor of '{Directory.GetCurrentDirectory()}' or " +
+        $"'{AppContext.BaseDirectory}' contains '{marker}'.");
 }
 
 static Options? ParseArgs(string[] args)
