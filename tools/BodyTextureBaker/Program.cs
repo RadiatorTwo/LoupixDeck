@@ -60,9 +60,16 @@ string assetsDir = Path.Combine(repoRoot, "LoupixDeck", "Assets");
 //                is symmetric about x=450; the 480x270 display is centred (x=210-690,
 //                y130-400), a knob column sits on each side (centres x130/x770,
 //                y154/265/376), and the row of 8 round LED buttons + RAZER wordmark
-//                live in the taller bottom margin (button centres y473). ---
+//                live in the taller bottom margin (button centres y473).
+//       Razer Stream Controller X — viewBox 720x520, body (46,42)-(674,478) = 628x436,
+//                r44. Laid out from the panel outwards, because the device is a screen
+//                and nothing else: the 480x288 key grid sits at (120,116), the bezel
+//                clears it by 22 on every side, and the body clears the bezel by 52 on
+//                every side. Margins are even all round — there is no dial column or
+//                LED row to make one edge deeper. ---
 var liveGeom = (VW: 900, VH: 540, BX: 75, BY: 75, BW: 750, BH: 420, BR: 60);
 var razerGeom = (VW: 900, VH: 600, BX: 80, BY: 50, BW: 740, BH: 505, BR: 42);
+var razerXGeom = (VW: 720, VH: 520, BX: 46, BY: 42, BW: 628, BH: 436, BR: 44);
 
 string texDark = Path.Combine(toolDir, "texture-no-light.png");
 string texLight = Path.Combine(toolDir, "texture-light.png");
@@ -91,6 +98,16 @@ var allVariants = new Dictionary<string, Variant>
         Output: Path.Combine(assetsDir, "razer-gehaeuse-light.svg"),
         Dark: 0.92, Grain: 0.5,
         BodyFill: "#d9d9d9", VignetteScale: 0.55, SheenScale: 0.5, Geom: razerGeom),
+    ["razer-x-dark"] = new(
+        Name: "razer-x-dark", Input: texDark,
+        Output: Path.Combine(assetsDir, "razer-x-gehaeuse.svg"),
+        Dark: 0.6, Grain: 0.5,
+        BodyFill: "#151414", VignetteScale: 1.0, SheenScale: 1.0, Geom: razerXGeom),
+    ["razer-x-light"] = new(
+        Name: "razer-x-light", Input: texLight,
+        Output: Path.Combine(assetsDir, "razer-x-gehaeuse-light.svg"),
+        Dark: 0.92, Grain: 0.5,
+        BodyFill: "#d9d9d9", VignetteScale: 0.55, SheenScale: 0.5, Geom: razerXGeom),
 };
 
 // Group selectors expand to one or more concrete variants; single names map 1:1.
@@ -98,7 +115,8 @@ string[] selected = opts.Variant switch
 {
     "both" => ["dark", "light"],
     "razer" => ["razer-dark", "razer-light"],
-    "all" => ["dark", "light", "razer-dark", "razer-light"],
+    "razer-x" => ["razer-x-dark", "razer-x-light"],
+    "all" => ["dark", "light", "razer-dark", "razer-light", "razer-x-dark", "razer-x-light"],
     _ => [opts.Variant],
 };
 var variants = selected.Select(n => allVariants[n]).ToList();
@@ -292,10 +310,12 @@ static Options? ParseArgs(string[] args)
             case "--variant":
                 o.Variant = Next().ToLowerInvariant();
                 if (o.Variant is not ("dark" or "light" or "both"
-                    or "razer-dark" or "razer-light" or "razer" or "all"))
+                    or "razer-dark" or "razer-light" or "razer"
+                    or "razer-x-dark" or "razer-x-light" or "razer-x" or "all"))
                 {
                     throw new ArgumentException(
-                        "--variant must be dark, light, both, razer-dark, razer-light, razer or all");
+                        "--variant must be dark, light, both, razer-dark, razer-light, razer, "
+                        + "razer-x-dark, razer-x-light, razer-x or all");
                 }
 
                 break;
@@ -306,7 +326,7 @@ static Options? ParseArgs(string[] args)
             case "--grain": o.Grain = double.Parse(Next(), CultureInfo.InvariantCulture); break;
             case "-h" or "--help":
                 Console.WriteLine("Regenerates the device body SVGs (Live S + Razer, Dark + Light) from matte textures.");
-                Console.WriteLine("Options: --variant <dark|light|both|razer-dark|razer-light|razer|all> --input <path> --output <path> --width <int> --dark <0..1> --grain <0..1>");
+                Console.WriteLine("Options: --variant <dark|light|both|razer-dark|razer-light|razer|razer-x-dark|razer-x-light|razer-x|all> --input <path> --output <path> --width <int> --dark <0..1> --grain <0..1>");
                 Console.WriteLine("Defaults reproduce the committed SVGs (width 1100; dark 0.6/grain 0.5 for dark, dark 0.92/grain 0.5 for light).");
                 return null;
             default:

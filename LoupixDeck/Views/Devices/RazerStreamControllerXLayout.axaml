@@ -52,38 +52,36 @@
          LED buttons, no side strips. So this layout is the key grid alone, with the touch
          pager below it.
 
-         TODO: the body artwork is the Loupedeck Live S housing, which shows dials and LED
-         buttons this device does not have. It is a deliberate placeholder until
-         tools/BodyTextureBaker is adapted to the X's dimensions and a proper
-         razer-x-gehaeuse.svg (dark + light) exists; changing the DynamicResource key below
-         is then the only edit needed here.
-
-         Coordinates are SVG-viewBox units (900x540), matching the body image so the
-         controls scale with it inside the shared Viewbox. The 480x288 grid (96px keys) is
-         centred on the body, with the bezel inset 25 left/right and 10 top/bottom. -->
+         Coordinates are SVG-viewBox units (720x520), matching the body image so the
+         controls scale with it inside the shared Viewbox. The body is laid out from the
+         panel outwards, since the device is a screen and nothing else: the 480x288 grid
+         sits at (120,116), the bezel clears it by 22 on every side, and the baked body
+         clears the bezel by 52 on every side (see tools/BodyTextureBaker, variant
+         razer-x). Margins are even all round — no dial column or LED row makes one edge
+         deeper. -->
     <StackPanel Orientation="Vertical" HorizontalAlignment="Center" Spacing="2"
                 Tapped="OnBackgroundTapped"
                 ContextRequested="OnButtonContextRequested">
 
         <!-- Device body (SVG) + control overlay, scaled together. -->
-        <Viewbox Width="760" Stretch="Uniform">
-            <Grid Width="900" Height="540">
+        <Viewbox Width="620" Stretch="Uniform">
+            <Grid Width="720" Height="520">
 
-                <!-- Gehaeuse / body artwork (placeholder — see TODO above). -->
-                <svg:Svg Path="{DynamicResource DeviceBodySvgPath}"
-                         Stretch="Fill" Width="900" Height="540" />
+                <!-- Gehaeuse / body artwork, baked per theme (see tools/BodyTextureBaker). -->
+                <svg:Svg Path="{DynamicResource RazerXBodySvgPath}"
+                         Stretch="Fill" Width="720" Height="520" />
 
                 <!-- Interactive controls in SVG-viewBox coordinates. -->
-                <Canvas Width="900" Height="540">
+                <Canvas Width="720" Height="520">
 
                     <!-- Screen bezel/recess behind the key grid. -->
-                    <Border Canvas.Left="185" Canvas.Top="116" Width="530" Height="308"
-                            CornerRadius="24" Background="{DynamicResource DeviceBezelBrush}" />
+                    <Border Canvas.Left="98" Canvas.Top="94" Width="524" Height="332"
+                            CornerRadius="20" Background="{DynamicResource DeviceBezelBrush}" />
 
                     <!-- ===== Key grid: 5x3 (480x288). The keys sit gapless so a
                          continuous wallpaper runs seamlessly across; the dark seam frame is
                          painted ON TOP as an overlay (IsHitTestVisible=False). ===== -->
-                    <Border Canvas.Left="210" Canvas.Top="126" Width="480" Height="288"
+                    <Border Canvas.Left="120" Canvas.Top="116" Width="480" Height="288"
                             CornerRadius="0" ClipToBounds="True"
                             Background="{DynamicResource DeviceBezelBrush}">
                         <Grid>
