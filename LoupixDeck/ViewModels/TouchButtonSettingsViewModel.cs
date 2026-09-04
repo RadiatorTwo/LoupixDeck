@@ -1099,9 +1099,10 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
 
     private void RemoveSelectedLayer()
     {
-        // Command-owned layers are owned by their bound command; they are removed by unbinding
-        // the command (the dynamic-text manager's orphan sweep), never via the editor.
-        if (_selectedLayer == null || _selectedLayer.IsCommandOwned) return;
+        // A layer owned by the command that is still bound belongs to that command: it is removed
+        // by unbinding it (the dynamic-text manager's orphan sweep), not by hand. One left behind
+        // by a command that is gone has no owner left, so the user may delete it.
+        if (_selectedLayer == null || IsOwnedByBoundCommand(_selectedLayer)) return;
         var idx = ButtonData.Layers.IndexOf(_selectedLayer);
         ButtonData.Layers.Remove(_selectedLayer);
         // Prefer the item that moved into the freed slot (the one below); fall back
@@ -1109,6 +1110,15 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         var next = (idx < ButtonData.Layers.Count) ? ButtonData.Layers[idx]
             : (ButtonData.Layers.Count > 0 ? ButtonData.Layers[^1] : null);
         ReselectAfterMove(next);
+    }
+
+    /// <summary>True when the layer belongs to the command currently bound to the button.</summary>
+    private bool IsOwnedByBoundCommand(LayerBase layer)
+    {
+        if (layer == null || !layer.IsCommandOwned) return false;
+
+        string boundKey = PluginLayerKey.For(ButtonData?.Command);
+        return boundKey != null && string.Equals(layer.OwnerKey, boundKey, StringComparison.Ordinal);
     }
 
     private void MoveSelectedLayerUp()

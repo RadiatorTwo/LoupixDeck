@@ -355,7 +355,17 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
             var ownerKey = entry.OwnerKey;
             var name = command.CommandName;
             Dispatcher.UIThread.Post(() =>
-                button.GetOrCreatePluginLayer(ownerKey, name).RenderedBitmap = bitmap); // setter retires the old bitmap under the gate
+            {
+                // The button may have been cleared or rebound between the render and this post —
+                // creating the layer now would leave one behind that no sweep comes back for.
+                if (!StillBound(button, ownerKey))
+                {
+                    bitmap.Dispose();
+                    return;
+                }
+
+                button.GetOrCreatePluginLayer(ownerKey, name).RenderedBitmap = bitmap; // setter retires the old bitmap under the gate
+            });
             return;
         }
 
@@ -375,8 +385,22 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
         // update lands on exactly that layer instead of "the first matching text layer".
         var key = entry.OwnerKey;
         var cmdName = command.CommandName;
-        Dispatcher.UIThread.Post(() => button.GetOrAdoptOwnedTextLayer(key, cmdName).Text = newText);
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (!StillBound(button, key))
+                return;
+
+            button.GetOrAdoptOwnedTextLayer(key, cmdName).Text = newText;
+        });
     }
+
+    /// <summary>
+    /// True while <paramref name="button"/> is still bound to the command that produced
+    /// <paramref name="ownerKey"/> — checked on the UI thread right before a command-owned layer
+    /// is created, since the render itself ran off it.
+    /// </summary>
+    private static bool StillBound(TouchButton button, string ownerKey) =>
+        string.Equals(PluginLayerKey.For(button?.Command), ownerKey, StringComparison.Ordinal);
 
     /// <summary>
     /// Removes/demotes command-owned layers on <paramref name="page"/> whose owning command
