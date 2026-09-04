@@ -654,10 +654,12 @@
                                                Text="{Binding ButtonNumber, StringFormat='Button {0}'}" />
                                     <Grid ColumnDefinitions="Auto,*,Auto">
                                         <TextBlock Grid.Column="0" Classes="label" Text="Background"
-                                                   VerticalAlignment="Center" Margin="0,0,10,0" />
+                                                   VerticalAlignment="Center" Margin="0,0,10,0"
+                                                   ToolTip.Tip="Background color of the selected state" />
                                         <ccp:ColorPicker Grid.Column="1"
                                                          Color="{Binding ButtonData.BackColor}"
-                                                         Width="110" HorizontalAlignment="Left" />
+                                                         Width="110" HorizontalAlignment="Left"
+                                                         ToolTip.Tip="Background color of the selected state — each state has its own, drawn below every layer" />
                                         <Button Grid.Column="2" Content="Reset…"
                                                 Click="ResetButton_Click"
                                                 Background="#A03030" Foreground="White"
