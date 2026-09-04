@@ -51,6 +51,20 @@ public abstract class StatefulButton : LoupedeckButton
 
     public ButtonStateMode Mode { get; set; } = ButtonStateMode.Local;
 
+    /// <summary>
+    /// Owner key (<see cref="Layers.PluginLayerKey.For"/>) of the command that generated this
+    /// button's states, or null when the user manages them. Set by the editor when a command
+    /// declaring its own states is assigned; while it is set, state management is locked and the
+    /// plugin drives the active state. Omitted from the config when null, so buttons written
+    /// before this existed load exactly as before.
+    /// </summary>
+    [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+    public string StateOwnerCommand { get; set; }
+
+    /// <summary>True while a command owns this button's states.</summary>
+    [JsonIgnore]
+    public bool HasCommandOwnedStates => !string.IsNullOrEmpty(StateOwnerCommand);
+
     /// <summary>Reset to the default state when the owning page becomes active again.</summary>
     public bool ResetOnPageChange { get; set; }
 
@@ -100,6 +114,13 @@ public abstract class StatefulButton : LoupedeckButton
     }
 
     /// <summary>
+    /// Raised after the active state changed and the button was refreshed. Lets the render
+    /// pipelines (dynamic text, button animations) re-point their command-owned layers, which
+    /// live in the state's own layer stack.
+    /// </summary>
+    public event EventHandler ActiveStateChanged;
+
+    /// <summary>
     /// Switches the active state, re-points the appearance projections, mirrors the new command
     /// and refreshes the button so the device repaints the new state in one pass.
     /// </summary>
@@ -114,6 +135,7 @@ public abstract class StatefulButton : LoupedeckButton
         SyncCommandFromActiveState();
         RaiseActiveStateProjections();
         Refresh();
+        ActiveStateChanged?.Invoke(this, EventArgs.Empty);
     }
 
     public void ResetToDefaultState()

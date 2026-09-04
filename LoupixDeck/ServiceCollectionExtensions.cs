@@ -273,6 +273,9 @@ public static class ServiceCollectionExtensions
         // Lets plugins query/set the active state of stateful touch buttons (issue #131).
         collection.AddSingleton<IButtonStateService, ButtonStateService>();
 
+        // Creates/releases the button states a command declares for itself.
+        collection.AddSingleton<Services.Commands.ICommandStateMaterializer, Services.Commands.CommandStateMaterializer>();
+
         // Per-button animations (issue #121): one source per device on the central scheduler,
         // driving animated image layers and animated plugin commands.
         collection.AddSingleton<Services.Animation.IButtonAnimationManager, Services.Animation.ButtonAnimationManager>();
