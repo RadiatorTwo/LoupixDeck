@@ -1503,9 +1503,18 @@ public class LoupedeckDevice
     {
         ArgumentNullException.ThrowIfNull(bitmap);
 
+        // This is the boundary at which bitmaps we did not render arrive — from plugins and
+        // from commands. They are built against whatever key size their author assumed, and
+        // the calibrated size is not something they can know. Scale rather than reject: a
+        // rejected tile used to leave the key black, which reads as a dead plugin.
+        //
+        // Only here. Our own render path stays strict, because a wrong size there is a bug
+        // worth surfacing rather than papering over.
+        SKBitmap scaled = FitToKey(bitmap);
+
         try
         {
-            await DrawKey(index, bitmap, refresh);
+            await DrawKey(index, scaled ?? bitmap, refresh);
         }
         catch (TimeoutException ex)
         {
@@ -1515,6 +1524,32 @@ public class LoupedeckDevice
         {
             Console.WriteLine($"Unexpected error: {ex.Message}");
         }
+        finally
+        {
+            scaled?.Dispose();
+        }
+    }
+
+    /// <summary>
+    /// A copy of <paramref name="bitmap"/> at the calibrated key size, or null when it
+    /// already is that size and can be used as it is. The caller owns anything returned.
+    /// </summary>
+    private SKBitmap FitToKey(SKBitmap bitmap)
+    {
+        int size = KeySize;
+        if (bitmap.Width == size && bitmap.Height == size) return null;
+
+        SKBitmap resized = new(new SKImageInfo(size, size, bitmap.ColorType, bitmap.AlphaType));
+
+        lock (SkiaRenderGate.Sync)
+        {
+            using SKCanvas canvas = new(resized);
+            canvas.Clear(SKColors.Black);
+            canvas.DrawBitmap(bitmap, SKRect.Create(0, 0, size, size),
+                new SKSamplingOptions(SKCubicResampler.Mitchell), paint: null);
+        }
+
+        return resized;
     }
 
     /// <summary>
@@ -1546,8 +1581,10 @@ public class LoupedeckDevice
             {
                 var bmp = slotBitmaps[slot];
                 if (bmp == null) continue;
+                // Into the key's rectangle rather than at its corner: a caller-supplied
+                // tile of the wrong size would otherwise spill over its neighbours.
                 SKRectI rect = GetKeyRect(slot);
-                canvas.DrawBitmap(bmp, rect.Left, rect.Top, SKSamplingOptions.Default, paint: null);
+                canvas.DrawBitmap(bmp, rect, new SKSamplingOptions(SKCubicResampler.Mitchell), paint: null);
             }
         }
 
