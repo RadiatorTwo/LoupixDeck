@@ -1421,6 +1421,46 @@ public class LoupedeckDevice
     }
 
     /// <summary>
+    /// True when repainting the grid one key at a time leaves pixels behind, because the
+    /// keys do not cover the whole grid area. Such a device has to repaint the page as one
+    /// region; see <see cref="DrawTouchGridRegion"/>.
+    /// </summary>
+    public bool KeyGridHasGaps => !KeyCalibration.TilesGaplessly;
+
+    /// <summary>
+    /// Repaints the whole key grid as a single region write, so the pixels between the keys
+    /// are written too. Only for a full-page repaint: single-key updates and animation stay
+    /// per key, which is a deliberate performance decision — one key changing must not cost
+    /// a whole-grid write.
+    ///
+    /// Goes through <see cref="DrawCenterGridRegion"/> rather than the whole "center"
+    /// buffer, so a device whose side strips share that buffer keeps them.
+    /// </summary>
+    public virtual async Task DrawTouchGridRegion(IReadOnlyList<TouchButton> buttons, LoupedeckConfig config)
+    {
+        if (buttons == null) return;
+
+        int slots = Columns * Rows;
+        SKBitmap[] tiles = new SKBitmap[slots];
+
+        foreach (TouchButton button in buttons)
+        {
+            // Indices beyond the grid are the side strips, which this region does not cover
+            // and whose own renderer owns them.
+            if (button == null || button.Index < 0 || button.Index >= slots) continue;
+
+            // The bitmap belongs to the button (RenderedImage owns its lifetime); compose
+            // from it, never dispose it here.
+            tiles[button.Index] =
+                BitmapHelper.RenderTouchButtonContent(button, config, KeySize, KeySize,
+                    GetWallpaperKeyRect(button.Index));
+        }
+
+        using SKBitmap region = BitmapHelper.ComposeTouchGrid(tiles, this);
+        await DrawCenterGridRegion(region);
+    }
+
+    /// <summary>
     /// Draws a touch button on the corresponding key, optionally with an image and text overlay.
     /// </summary>
     public virtual async Task DrawTouchButton(

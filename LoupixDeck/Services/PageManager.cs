@@ -260,10 +260,21 @@ public class PageManager : IPageManager
 
     private async Task DrawTouchButtons()
     {
+        LoupedeckDevice.Device.LoupedeckDevice device = _deviceService.Device;
+        if (device == null) return;
+
+        // A grid with gaps has to go out as one region: a per-key write never touches the
+        // pixels between the keys, so the previous page would stay standing there.
+        if (device.KeyGridHasGaps)
+        {
+            await device.DrawTouchGridRegion(CurrentTouchButtonPage.TouchButtons, _config);
+            return;
+        }
+
         foreach (var touchButton in CurrentTouchButtonPage.TouchButtons)
         {
             // Force refresh to ensure wallpaper changes are applied when switching pages
-            await _deviceService.Device.DrawTouchButton(touchButton, _config, true);
+            await device.DrawTouchButton(touchButton, _config, true);
         }
     }
 

@@ -56,6 +56,16 @@ public sealed record KeyGridCalibration
     };
 
     /// <summary>
+    /// True when the keys cover the whole grid area between them, which every
+    /// Loupedeck-family device does and the Stream Controller X does not. It decides
+    /// whether repainting key by key is enough: where there are gaps, no per-key write ever
+    /// touches the pixels between the keys, and whatever was drawn there last stays.
+    /// </summary>
+    public bool TilesGaplessly =>
+        SpacingX <= KeySize && SpacingY <= KeySize &&
+        FirstCenterX * 2 <= KeySize && FirstCenterY * 2 <= KeySize;
+
+    /// <summary>
     /// Top-left corner of the key at <paramref name="column"/>/<paramref name="row"/>,
     /// relative to the grid origin. The tile is <see cref="KeySize"/> square from there.
     /// </summary>

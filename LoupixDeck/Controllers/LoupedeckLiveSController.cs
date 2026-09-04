@@ -483,13 +483,23 @@ public partial class LoupedeckLiveSController(
         // of the page keeps rendering normally.
         if (!exclusiveMode.Owns(ExclusiveControlScope.TouchButtons))
         {
-            var stripsTaken = exclusiveMode.Owns(ExclusiveControlScope.SideDisplays);
-            foreach (var tb in config.CurrentTouchButtonPage.TouchButtons)
+            // A grid with gaps repaints as one region, otherwise whatever was drawn between
+            // the keys (a test pattern, the previous page) survives the repaint. The region
+            // stops at the grid, so a provider's side strips are untouched either way.
+            if (device.KeyGridHasGaps)
             {
-                // Slots 12/13 are the side strips; skip them only when the provider owns
-                // the side displays, so a grid repaint can't paint over its strips.
-                if (stripsTaken && IsSideStripSlot(tb.Index)) continue;
-                await device.DrawTouchButton(tb, config, true);
+                await device.DrawTouchGridRegion(config.CurrentTouchButtonPage.TouchButtons, config);
+            }
+            else
+            {
+                var stripsTaken = exclusiveMode.Owns(ExclusiveControlScope.SideDisplays);
+                foreach (var tb in config.CurrentTouchButtonPage.TouchButtons)
+                {
+                    // Slots 12/13 are the side strips; skip them only when the provider owns
+                    // the side displays, so a grid repaint can't paint over its strips.
+                    if (stripsTaken && IsSideStripSlot(tb.Index)) continue;
+                    await device.DrawTouchButton(tb, config, true);
+                }
             }
         }
 
