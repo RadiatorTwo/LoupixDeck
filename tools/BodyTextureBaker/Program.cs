@@ -69,7 +69,13 @@ string assetsDir = Path.Combine(repoRoot, "LoupixDeck", "Assets");
 //                LED row to make one edge deeper. ---
 var liveGeom = (VW: 900, VH: 540, BX: 75, BY: 75, BW: 750, BH: 420, BR: 60);
 var razerGeom = (VW: 900, VH: 600, BX: 80, BY: 50, BW: 740, BH: 505, BR: 42);
-var razerXGeom = (VW: 720, VH: 520, BX: 46, BY: 42, BW: 628, BH: 436, BR: 44);
+// Razer Stream Controller X, from the physical device: 111 x 82 mm, with the bezel 7 mm
+// below the top edge and 15 mm above the bottom one — so the body is centred horizontally
+// but NOT vertically, and the earlier concentric bake had both the proportion and the
+// vertical placement wrong. Drawn at 6 units per mm, which puts the 98 px key pitch
+// (19 mm) at 114 units. See RazerStreamControllerXLayout.axaml, which places the bezel and
+// the keys on the same scale.
+var razerXGeom = (VW: 720, VH: 520, BX: 27, BY: 14, BW: 666, BH: 492, BR: 46);
 
 string texDark = Path.Combine(toolDir, "texture-no-light.png");
 string texLight = Path.Combine(toolDir, "texture-light.png");
