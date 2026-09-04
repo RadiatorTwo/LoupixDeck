@@ -485,13 +485,16 @@ public class PluginManager : IPluginManager
 
         void RequestButtonRefresh(string commandName)
         {
-            try
+            foreach (IServiceProvider target in ButtonTargetDevices())
             {
-                Device.GetRequiredService<IDynamicTextManager>().RefreshCommand(commandName);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"PluginHost[{manifest.Id}]: RequestButtonRefresh failed: {ex.Message}");
+                try
+                {
+                    target.GetRequiredService<IDynamicTextManager>().RefreshCommand(commandName);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"PluginHost[{manifest.Id}]: RequestButtonRefresh failed: {ex.Message}");
+                }
             }
         }
 
@@ -613,34 +616,91 @@ public class PluginManager : IPluginManager
             }
         }
 
+        // A button-facing call arrives from the plugin's own thread (an OBS websocket event, a
+        // poll timer) with no ambient device, which would resolve to the primary alone — so the
+        // button on a secondary device would never be found. Address every device that enables
+        // this plugin instead, ambient first so a call made during a device's own flow keeps
+        // acting on that device.
+        IEnumerable<IServiceProvider> ButtonTargetDevices()
+        {
+            List<IServiceProvider> targets = [];
+
+            IServiceProvider ambient = _router.Current;
+            if (DeviceEnables(ambient, manifest.Id))
+                targets.Add(ambient);
+
+            foreach (DeviceHost host in _hostRegistry.Hosts)
+            {
+                if (host?.Provider == null || ReferenceEquals(host.Provider, ambient)) continue;
+                if (DeviceEnables(host.Provider, manifest.Id))
+                    targets.Add(host.Provider);
+            }
+
+            // Nothing claims the plugin (shouldn't happen while it is loaded): fall back to the
+            // ambient/primary so the call still resolves somewhere.
+            if (targets.Count == 0 && ambient != null)
+                targets.Add(ambient);
+
+            return targets;
+        }
+
         IReadOnlyList<string> GetButtonStates(string commandName)
         {
-            try { return Device.GetRequiredService<IButtonStateService>().GetStates(commandName); }
-            catch (Exception ex)
+            foreach (IServiceProvider target in ButtonTargetDevices())
             {
-                Console.WriteLine($"PluginHost[{manifest.Id}]: GetButtonStates failed: {ex.Message}");
-                return [];
+                try
+                {
+                    IReadOnlyList<string> states =
+                        target.GetRequiredService<IButtonStateService>().GetStates(commandName);
+                    if (states.Count > 0)
+                        return states;
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"PluginHost[{manifest.Id}]: GetButtonStates failed: {ex.Message}");
+                }
             }
+
+            return [];
         }
 
         string GetActiveButtonState(string commandName)
         {
-            try { return Device.GetRequiredService<IButtonStateService>().GetActiveState(commandName); }
-            catch (Exception ex)
+            foreach (IServiceProvider target in ButtonTargetDevices())
             {
-                Console.WriteLine($"PluginHost[{manifest.Id}]: GetActiveButtonState failed: {ex.Message}");
-                return null;
+                try
+                {
+                    string state = target.GetRequiredService<IButtonStateService>().GetActiveState(commandName);
+                    if (state != null)
+                        return state;
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"PluginHost[{manifest.Id}]: GetActiveButtonState failed: {ex.Message}");
+                }
             }
+
+            return null;
         }
 
         bool SetActiveButtonState(string commandName, string stateNameOrId)
         {
-            try { return Device.GetRequiredService<IButtonStateService>().SetActiveState(commandName, stateNameOrId); }
-            catch (Exception ex)
+            bool changed = false;
+
+            foreach (IServiceProvider target in ButtonTargetDevices())
             {
-                Console.WriteLine($"PluginHost[{manifest.Id}]: SetActiveButtonState failed: {ex.Message}");
-                return false;
+                try
+                {
+                    changed |= target.GetRequiredService<IButtonStateService>()
+                        .SetActiveState(commandName, stateNameOrId);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"PluginHost[{manifest.Id}]: SetActiveButtonState failed: {ex.Message}");
+                }
             }
+
+            return changed;
         }
 
         return new PluginHost(logger, settings, device, ExecuteCommand, RequestButtonRefresh,
