@@ -73,8 +73,8 @@ public partial class WallpaperSlot
 
     /// <summary>
     /// Surface size <see cref="Baked"/> was produced for. The cache must be keyed on this:
-    /// devices do not share one panel size, so a slot baked once for a 480x270 panel would
-    /// otherwise be handed straight back to a 480x288 one, losing the bottom rows and
+    /// devices do not share one panel size, so a slot baked once for one panel would
+    /// otherwise be handed straight back to a differently sized one, losing rows and
     /// sampling every key from the wrong place.
     /// </summary>
     [JsonIgnore]

@@ -6,7 +6,7 @@ namespace LoupixDeck.Registry;
 ///
 /// Before this record the touch-key tile was a literal 90 repeated across ~30 call sites
 /// and the panel a literal 480x270 duplicated in three places. Both are per-device: the
-/// Razer Stream Controller X draws 96px keys onto a 480x288 panel. Sizes must therefore
+/// Razer Stream Controller X draws its keys onto a 480x270 panel of its own. Sizes must therefore
 /// come from here rather than from a constant, so the framebuffer is pixel-exact and no
 /// scaling step is needed anywhere.
 /// </summary>
