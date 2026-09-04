@@ -653,11 +653,13 @@
                                     <TextBlock Classes="panel-title"
                                                Text="{Binding ButtonNumber, StringFormat='Button {0}'}" />
                                     <Grid ColumnDefinitions="Auto,*,Auto">
-                                        <TextBlock Grid.Column="0" Classes="label" Text="Background"
-                                                   VerticalAlignment="Center" Margin="0,0,10,0"
-                                                   ToolTip.Tip="Background color of the selected state" />
+                                        <CheckBox Grid.Column="0" Content="Background" Margin="0,0,10,0"
+                                                  VerticalAlignment="Center"
+                                                  IsChecked="{Binding BackgroundEnabled, Mode=TwoWay}"
+                                                  ToolTip.Tip="Draws the selected state's background color. Off leaves the button transparent behind its layers." />
                                         <ccp:ColorPicker Grid.Column="1"
                                                          Color="{Binding ButtonData.BackColor}"
+                                                         IsEnabled="{Binding BackgroundEnabled}"
                                                          Width="110" HorizontalAlignment="Left"
                                                          ToolTip.Tip="Background color of the selected state — each state has its own, drawn below every layer" />
                                         <Button Grid.Column="2" Content="Reset…"

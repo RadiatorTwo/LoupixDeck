@@ -685,10 +685,16 @@ public static class BitmapHelper
 
                 canvas.DrawRect(destRect, paint);
             }
-            else
+            else if (touchButton.BackgroundEnabled)
             {
                 // Draw Monochrome Background
                 canvas.Clear(touchButton.BackColor.ToSKColor());
+            }
+            else
+            {
+                // Background switched off for this state: leave the key bare so the layers
+                // (e.g. a plugin-rendered indicator) sit on nothing.
+                canvas.Clear(SKColors.Transparent);
             }
 
             DrawLayers(canvas, touchButton.Layers, width, height);
@@ -753,9 +759,11 @@ public static class BitmapHelper
         var frameRect = new SKRect(frameOffsetX, frameOffsetY,
             frameOffsetX + frameW, frameOffsetY + frameH);
 
-        // Fill the frame with the button's background color (the device-pixel area).
-        using (var bgPaint = new SKPaint { Color = touchButton.BackColor.ToSKColor() })
+        // Fill the frame with the button's background color (the device-pixel area), unless the
+        // state draws no background — then the frame stays transparent, like on the device.
+        if (touchButton.BackgroundEnabled)
         {
+            using var bgPaint = new SKPaint { Color = touchButton.BackColor.ToSKColor() };
             canvas.DrawRect(frameRect, bgPaint);
         }
 

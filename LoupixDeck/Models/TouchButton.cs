@@ -32,6 +32,7 @@ public class TouchButton : StatefulButton
     {
         OnPropertyChanged(nameof(Layers));
         OnPropertyChanged(nameof(BackColor));
+        OnPropertyChanged(nameof(BackgroundEnabled));
         OnPropertyChanged(nameof(VibrationEnabled));
         OnPropertyChanged(nameof(VibrationPattern));
     }
@@ -47,6 +48,18 @@ public class TouchButton : StatefulButton
             if (ActiveState == null || Equals(ActiveState.BackColor, value)) return;
             ActiveState.BackColor = value;
             OnPropertyChanged(nameof(BackColor));
+        }
+    }
+
+    [JsonIgnore]
+    public bool BackgroundEnabled
+    {
+        get => ActiveState?.BackgroundEnabled ?? true;
+        set
+        {
+            if (ActiveState == null || ActiveState.BackgroundEnabled == value) return;
+            ActiveState.BackgroundEnabled = value;
+            OnPropertyChanged(nameof(BackgroundEnabled));
         }
     }
 

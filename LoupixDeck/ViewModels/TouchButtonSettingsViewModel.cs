@@ -51,6 +51,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         BuildCommandSlots();
 
         OnPropertyChanged(nameof(States));
+        OnPropertyChanged(nameof(BackgroundEnabled));
         OnPropertyChanged(nameof(AreStatesLocked));
         OnPropertyChanged(nameof(CanEditStates));
         OnPropertyChanged(nameof(CanDeleteState));
@@ -635,6 +636,21 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     public bool ShowStatesSection => !IsStripCanvas;
 
     /// <summary>
+    /// Whether the edited state paints its background color. Off leaves the button transparent
+    /// behind its layers, which is what a plugin-rendered indicator usually wants.
+    /// </summary>
+    public bool BackgroundEnabled
+    {
+        get => ButtonData?.BackgroundEnabled ?? true;
+        set
+        {
+            if (ButtonData == null || ButtonData.BackgroundEnabled == value) return;
+            ButtonData.BackgroundEnabled = value;
+            OnPropertyChanged(nameof(BackgroundEnabled));
+        }
+    }
+
+    /// <summary>
     /// The state currently being edited. Selecting a state makes it the button's active state so
     /// the existing preview/layers/command machinery edits it in place (the device follows live).
     /// </summary>
@@ -659,6 +675,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
 
             SelectedLayer = null;
             OnPropertyChanged(nameof(SelectedState));
+            OnPropertyChanged(nameof(BackgroundEnabled));
             OnPropertyChanged(nameof(SelectedStateLabel));
             OnPropertyChanged(nameof(BehaviorTitle));
             OnPropertyChanged(nameof(CanDeleteState));
@@ -1261,6 +1278,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         OnPropertyChanged(nameof(AreStatesLocked));
         OnPropertyChanged(nameof(CanEditStates));
         OnPropertyChanged(nameof(CanDeleteState));
+        OnPropertyChanged(nameof(BackgroundEnabled));
         OnPropertyChanged(nameof(ResetOnPageChange));
         OnPropertyChanged(nameof(ResetOnRestart));
     }
