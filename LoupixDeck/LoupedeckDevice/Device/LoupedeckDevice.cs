@@ -209,6 +209,13 @@ public class LoupedeckDevice
     public string Type { get; set; }
     public string ProductId { get; set; }
 
+    /// <summary>
+    /// USB vendor id of this device kind, as a four-digit hex string. Set alongside
+    /// <see cref="ProductId"/> by each subclass; together they let a reconnect find the
+    /// unit again after the OS has moved it to a different port.
+    /// </summary>
+    public string VendorId { get; set; }
+
     /// <summary>Number of rotary encoders (knobs) the device exposes. Subclasses must set this.</summary>
     public int RotaryCount { get; protected init; }
 
@@ -346,6 +353,8 @@ public class LoupedeckDevice
     /// </summary>
     private void Connect()
     {
+        RefreshPathIfMissing();
+
         if (!string.IsNullOrEmpty(Path))
         {
             _connection = new SerialConnection(Path, Baudrate);
@@ -381,6 +390,60 @@ public class LoupedeckDevice
         _connection.Connect();
 
         StartQueueWorker();
+    }
+
+    /// <summary>
+    /// Re-resolves <see cref="Path"/> when the configured port is no longer there.
+    ///
+    /// <see cref="Path"/> is fixed for the lifetime of the instance, and the richer
+    /// serial-aware re-detection only runs once, in the controller's Initialize. A device
+    /// that re-enumerates while the app is up therefore keeps being reconnected to the port
+    /// it used to have — and if the OS hands it a different COM/ttyACM number, every later
+    /// attempt fails with "Could not find file 'COM4'" until the app is restarted.
+    ///
+    /// Deliberately narrow: it only acts when the configured port is absent AND exactly one
+    /// connected device matches this device kind's VID/PID, so two identical units cannot
+    /// steal each other's port. Anything else leaves <see cref="Path"/> alone and the
+    /// connect attempt proceeds — and fails — exactly as it did before.
+    /// </summary>
+    private void RefreshPathIfMissing()
+    {
+        if (string.IsNullOrEmpty(Path) || string.IsNullOrEmpty(VendorId) || string.IsNullOrEmpty(ProductId))
+            return;
+
+        try
+        {
+            // Platform-split on purpose: GetPortNames() is the right question on Windows,
+            // but on Linux it does not enumerate the /dev/ttyACM* nodes these devices use,
+            // so it would report every healthy port as missing and send us scanning (one
+            // udevadm process per candidate) on every single connect.
+            bool portPresent = OperatingSystem.IsWindows()
+                ? System.IO.Ports.SerialPort.GetPortNames().Contains(Path, StringComparer.OrdinalIgnoreCase)
+                : File.Exists(Path);
+
+            if (portPresent)
+                return;
+
+            List<SerialDeviceHelper.SerialDeviceInfo> candidates =
+                SerialDeviceHelper.ListSerialUsbDevices()
+                    .Where(d =>
+                        !string.IsNullOrEmpty(d.DevNode) &&
+                        string.Equals(d.Vid, VendorId, StringComparison.OrdinalIgnoreCase) &&
+                        string.Equals(d.Pid, ProductId, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+
+            if (candidates.Count != 1 ||
+                string.Equals(candidates[0].DevNode, Path, StringComparison.OrdinalIgnoreCase))
+                return;
+
+            Console.WriteLine($"[Serial] '{Path}' is gone; {VendorId}:{ProductId} is now on '{candidates[0].DevNode}'.");
+            Path = candidates[0].DevNode;
+        }
+        catch (Exception ex)
+        {
+            // Best effort — a failed scan must not stop the connect attempt itself.
+            Console.WriteLine($"[Serial] Port re-resolution failed: {ex.Message}");
+        }
     }
 
     /// <summary>

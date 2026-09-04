@@ -29,6 +29,7 @@ public class LoupedeckLiveSDevice : LoupedeckDevice
         VisibleY = [10, 269];
         Type = "Loupedeck Live S";
         ProductId = "0006";
+        VendorId = "2ec2";
         Displays = new Dictionary<string, DisplayInfo>
         {
             ["center"] = new() { Id = "\0M"u8.ToArray(), Width = 480, Height = 270 }

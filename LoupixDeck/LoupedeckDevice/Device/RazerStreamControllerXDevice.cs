@@ -88,6 +88,7 @@ public sealed class RazerStreamControllerXDevice : LoupedeckDevice
 
         Type = "Razer Stream Controller X";
         ProductId = "0d09";
+        VendorId = "1532";
 
         Displays = new Dictionary<string, DisplayInfo>
         {

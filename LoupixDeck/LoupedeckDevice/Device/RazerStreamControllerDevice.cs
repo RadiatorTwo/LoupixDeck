@@ -75,6 +75,7 @@ public class RazerStreamControllerDevice : LoupedeckDevice
         VisibleY = [0, 270];
         Type = "Razer Stream Controller";
         ProductId = "0d06";
+        VendorId = "1532";
 
         // Single unified display on the wire — the side regions are drawn at
         // offset X positions on the same "center" buffer (\0M).

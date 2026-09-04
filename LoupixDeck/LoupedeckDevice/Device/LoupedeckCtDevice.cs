@@ -90,6 +90,7 @@ public class LoupedeckCtDevice : LoupedeckDevice
         VisibleY = [0, 270];
         Type = "Loupedeck CT";
         ProductId = "0003";
+        VendorId = "2ec2";
 
         // Four independent framebuffers (unlike Live/Razer's single unified one).
         Displays = new Dictionary<string, DisplayInfo>
