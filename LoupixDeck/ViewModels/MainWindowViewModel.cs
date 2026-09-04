@@ -718,12 +718,16 @@ public partial class MainWindowViewModel : ViewModelBase
         ButtonState state = button.States[0];
         state.Layers.Clear();
         state.BackColor = Avalonia.Media.Colors.Black;
+        state.BackgroundEnabled = false;
         state.LedColor = Avalonia.Media.Colors.Black;
         state.Command = null;
         state.VibrationEnabled = false;
+        state.Transition.Kind = StateTransitionKind.Stay;
+        state.Transition.TargetStateId = null;
 
         button.DefaultStateId = state.Id;
         button.Command = null;
+        ReleaseStateOwnership(button);
         button.SetActiveState(state.Id);
     }
 
@@ -735,10 +739,25 @@ public partial class MainWindowViewModel : ViewModelBase
         ButtonState state = button.States[0];
         state.LedColor = Avalonia.Media.Colors.Black;
         state.Command = null;
+        state.Transition.Kind = StateTransitionKind.Stay;
+        state.Transition.TargetStateId = null;
 
         button.DefaultStateId = state.Id;
         button.Command = null;
+        ReleaseStateOwnership(button);
         button.SetActiveState(state.Id);
+    }
+
+    /// <summary>
+    /// Hands a cleared button's states back to the user. Without this the button would still
+    /// claim a command owns its states, and assigning one that declares states would ask whether
+    /// to keep states that are no longer there.
+    /// </summary>
+    private static void ReleaseStateOwnership(StatefulButton button)
+    {
+        button.StateOwnerCommand = null;
+        button.Mode = ButtonStateMode.Local;
+        button.ResetOnPageChange = false;
     }
 
     private static void ClearRotaryContent(RotaryButton button)
