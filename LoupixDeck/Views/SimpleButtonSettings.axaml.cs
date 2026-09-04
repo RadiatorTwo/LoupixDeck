@@ -4,6 +4,7 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.VisualTree;
 using LoupixDeck.Models;
+using LoupixDeck.Utils;
 using LoupixDeck.ViewModels;
 using LoupixDeck.ViewModels.Base;
 
@@ -38,6 +39,15 @@ public partial class SimpleButtonSettings : Window
         PickerControl.CommandDragMoved += Picker_CommandDragMoved;
         PickerControl.CommandDragReleased += Picker_CommandDragReleased;
 
+        DataContextChanged += (_, _) =>
+        {
+            if (DataContext is SimpleButtonSettingsViewModel vm)
+            {
+                vm.StateReleaseRequested -= OnStateReleaseRequested;
+                vm.StateReleaseRequested += OnStateReleaseRequested;
+            }
+        };
+
         Closing += (_, _) =>
         {
             if (DataContext is IDialogViewModel vm && !vm.DialogResult.Task.IsCompleted)
@@ -50,6 +60,25 @@ public partial class SimpleButtonSettings : Window
                 sbvm.Cleanup();
             }
         };
+    }
+
+    /// <summary>
+    /// The command that owned this button's states was removed or replaced — ask whether the
+    /// generated states stay as ordinary editable states or go away.
+    /// </summary>
+    private async void OnStateReleaseRequested(object sender, StateReleaseRequest e)
+    {
+        if (DataContext is not SimpleButtonSettingsViewModel vm) return;
+
+        bool keep = await ConfirmDialogHelper.AskKeepDiscardAsync(
+            this,
+            "Button States",
+            $"'{e.OwnerDisplayName}' managed this button's states. Keep the generated states as "
+            + "normal editable states, or discard them and go back to a single state?",
+            "Keep states",
+            "Discard states");
+
+        vm.CompleteStateRelease(keep);
     }
 
     // ───────── Command chain: remove / reorder / drag-insert ─────────

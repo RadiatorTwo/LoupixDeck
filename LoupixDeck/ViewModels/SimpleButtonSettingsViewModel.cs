@@ -390,13 +390,53 @@ public class SimpleButtonSettingsViewModel : DialogViewModelBase<SimpleButton, D
         if (ButtonData == null || _switchingState) return;
 
         Services.Commands.StateSyncResult result = _stateMaterializer.Reconcile(ButtonData);
-        if (result == Services.Commands.StateSyncResult.Unchanged) return;
+        switch (result)
+        {
+            case Services.Commands.StateSyncResult.Unchanged:
+                return;
 
-        if (result == Services.Commands.StateSyncResult.ReleaseRequested)
-            _stateMaterializer.Release(ButtonData, keepStates: true);
+            case Services.Commands.StateSyncResult.ReleaseRequested:
+                EventHandler<StateReleaseRequest> handler = StateReleaseRequested;
+                if (handler == null)
+                {
+                    // No view attached to ask: keep the states, the non-destructive choice.
+                    CompleteStateRelease(keepStates: true);
+                    return;
+                }
 
+                handler(this, new StateReleaseRequest(_stateMaterializer.GetOwnerDisplayName(ButtonData)));
+                return;
+
+            default:
+                RefreshAfterStateSync();
+                return;
+        }
+    }
+
+    /// <summary>
+    /// Raised when the command owning the button's states was removed or replaced. The view asks
+    /// the user and answers through <see cref="CompleteStateRelease"/>.
+    /// </summary>
+    public event EventHandler<StateReleaseRequest> StateReleaseRequested;
+
+    /// <summary>
+    /// Applies the user's answer to a <see cref="StateReleaseRequested"/> prompt, then lets a
+    /// replacement command that declares states create its own.
+    /// </summary>
+    public void CompleteStateRelease(bool keepStates)
+    {
+        if (ButtonData == null) return;
+
+        _stateMaterializer.Release(ButtonData, keepStates);
+        _stateMaterializer.Reconcile(ButtonData);
+        RefreshAfterStateSync();
+    }
+
+    /// <summary>Re-reads everything the state set feeds after it was created or released.</summary>
+    private void RefreshAfterStateSync()
+    {
         RefreshStateBadges();
-        _selectedState = ButtonData.States.Count > 0 ? ButtonData.States[0] : null;
+        _selectedState = ButtonData?.States.Count > 0 ? ButtonData.States[0] : null;
 
         OnPropertyChanged(nameof(SelectedState));
         OnPropertyChanged(nameof(AreStatesLocked));

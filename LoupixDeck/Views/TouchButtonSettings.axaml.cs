@@ -127,6 +127,15 @@ public partial class TouchButtonSettings : Window
         PickerControl.CommandDragMoved += Picker_CommandDragMoved;
         PickerControl.CommandDragReleased += Picker_CommandDragReleased;
 
+        DataContextChanged += (_, _) =>
+        {
+            if (DataContext is TouchButtonSettingsViewModel vm)
+            {
+                vm.StateReleaseRequested -= OnStateReleaseRequested;
+                vm.StateReleaseRequested += OnStateReleaseRequested;
+            }
+        };
+
         Closing += (_, _) =>
         {
             if (DataContext is IDialogViewModel vm && !vm.DialogResult.Task.IsCompleted)
@@ -139,6 +148,25 @@ public partial class TouchButtonSettings : Window
                 tbvm.Cleanup();
             }
         };
+    }
+
+    /// <summary>
+    /// The command that owned this button's states was removed or replaced — ask whether the
+    /// generated states stay as ordinary editable states or go away.
+    /// </summary>
+    private async void OnStateReleaseRequested(object sender, StateReleaseRequest e)
+    {
+        if (DataContext is not TouchButtonSettingsViewModel vm) return;
+
+        bool keep = await ConfirmDialogHelper.AskKeepDiscardAsync(
+            this,
+            "Button States",
+            $"'{e.OwnerDisplayName}' managed this button's states. Keep the generated states as "
+            + "normal editable states, or discard them and go back to a single state?",
+            "Keep states",
+            "Discard states");
+
+        vm.CompleteStateRelease(keep);
     }
 
     private async void ResetButton_Click(object sender, RoutedEventArgs e)
