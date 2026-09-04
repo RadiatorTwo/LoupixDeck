@@ -47,9 +47,12 @@ Current documented support:
 | Loupedeck Live | 4 x 3 touch grid, side touch strips, 6 rotary encoders, 8 round buttons |
 | Loupedeck Live S | 5 x 3 touch grid, 2 rotary encoders, 8 physical buttons |
 | Razer Stream Controller | 4 x 3 touch grid, side panels, 6 rotary encoders, 8 LED buttons |
+| Razer Stream Controller X | 5 x 3 physical-key panel; no dials, LED buttons, side strips, or haptic motor |
 | Loupedeck CT | Partial support; not all controls are feature-complete yet |
 
 Multiple devices can run at the same time. If more than one device is connected, the main window shows a device selector. Two identical devices are separated by USB serial number when possible, so each keeps its own layout.
+
+The Stream Controller X's physical keys act like touches at the centre of their matching keys. Touch-button actions, including press-and-hold, work normally. Settings and controls for hardware the device does not have are hidden.
 
 ## Install and Start
 
@@ -470,7 +473,7 @@ Wallpapers are separate from button layers. They are best for page-wide context,
 
 ## Feedback and Haptics
 
-Open `Settings > Feedback` to configure touch feedback and haptics. Touch buttons also have per-button vibration controls.
+Open `Settings > Feedback` to configure touch feedback and haptics. Touch buttons also have per-button vibration controls when the connected device supports vibration.
 
 The Feedback page has:
 
@@ -478,6 +481,8 @@ The Feedback page has:
 - Haptic: an enable toggle and one global effect picker.
 
 In current releases, haptics use LoupixDeck's software vibration pulse. Older config files still load, but the old delay, duration, second-step, and firmware haptic controls are no longer part of the settings page.
+
+Feedback controls are capability-aware. For example, the haptic card and per-button vibration options are not shown for a device without a vibration motor; colour controls are likewise available only where that hardware supports them.
 
 ## Screensaver
 
@@ -616,8 +621,15 @@ Device control commands can be assigned to buttons or run from automation:
 | Device Wakeup | Reconnect serial and restore display |
 | Toggle Main Window | Show or hide the LoupixDeck window |
 | Brightness Up / Brightness Down | Raise or lower display brightness by an editable step |
+| Display Test Pattern | Show a diagnostic pattern on the device display |
 
 These are useful for a sleep/wake button, a clean desk mode, or a button that brings the editor back when hidden.
+
+### Display test patterns
+
+Assign **Device Control > Display Test Pattern** to a button when you need to check a panel or its key alignment. Its submenu offers **Key grid**, **Pixel ruler**, **Colours**, and **Panel edges**. The unqualified command cycles through all four patterns: key grid shows frames, corner blocks and centring squares; pixel ruler counts inward from each key edge; colours shows red, green, blue and white quadrants with a grey ramp; and panel edges shows a full-panel frame, key boundaries and centring squares.
+
+The test temporarily owns the display, so normal pages are not drawn over it. Press any device control to end it. LoupixDeck blanks the panel while handing the test display over and back, then restores the current page.
 
 ## Automation and CLI
 
@@ -667,6 +679,7 @@ For multiple devices, target a specific device:
 | `off` / `on` / `toggle-device` | Blank, restore, or toggle the device display |
 | `wakeup` | Reconnect the serial link and restore the display |
 | `System.BrightnessUp(<Step>)` / `System.BrightnessDown(<Step>)` | Raise or lower display brightness by `Step`; if omitted or invalid, the command uses `5` |
+| `System.DisplayTest(<grid|ruler|color|edges>)` | Show a named diagnostic pattern; without an argument, cycle through the patterns |
 | `show` / `hide` / `toggle` | Show, hide, or toggle the LoupixDeck window |
 | `quit` | Quit the running instance |
 
@@ -696,6 +709,7 @@ Underscores in `text` are treated as spaces in the short CLI form.
 - Reconnect.
 - Brightness.
 - Dithering.
+- Key alignment: adjust key size, horizontal and vertical spacing, and the first key's X/Y centre. Changes update the device live; use **Show test pattern on device** to line up the crosshair and border, or **Reset to device default** to discard an adjustment.
 - Startup touch page.
 - Start with Windows (Windows only).
 - Close button behavior: minimize to tray or quit.
@@ -705,6 +719,8 @@ Underscores in `text` are treated as spaces in the short CLI form.
 On Windows, `Start with Windows` controls whether LoupixDeck launches at login. The installer can set the same behavior during setup with `Start on system startup`, but v1.12.1 and later let you turn it on or off from this settings page. Use it together with `Start minimized to tray` if you want LoupixDeck to launch quietly after login.
 
 `Dithering` is next to the brightness control. It is off by default. Turning it on smooths gradients and can reduce colour banding on the device displays, especially on the Razer Stream Controller. The setting repaints the current display immediately when changed.
+
+Key alignment normally needs no changes: LoupixDeck uses the measured layout for the selected model, and existing configurations retain their previous layout. It is available for panels whose image is visibly offset or the wrong size. The test preview ends when the settings window closes or you press a device key.
 
 ### Profiles
 
@@ -789,6 +805,7 @@ Per-device layout is scoped by serial number when possible. The per-device layou
 
 - Unplug and reconnect the device.
 - Try `Settings > General > Reconnect`.
+- If a device re-enumerates after a cable or power change, LoupixDeck re-resolves its serial port when exactly one device with the saved USB identity is present. Disconnect duplicate matching devices before retrying.
 - On Linux, check that udev rules were installed and reconnect the device.
 - Avoid unreliable USB hubs.
 
@@ -830,6 +847,7 @@ Recording needs read access to `/dev/input/event*`. The installer attempts to ha
 - Check whether the plugin is installed and enabled.
 - If you use more than one device, enable the plugin on the device where you want to use it.
 - Restart LoupixDeck if the plugin page says some changes need a restart.
+- A loaded plugin group with no currently available commands stays visible as a grey information row. For example, this can happen when an integration is enabled but no matching external device is connected.
 - Confirm that external services such as OBS, Spotify, or monitoring tools are running and configured.
 - For LibreHardwareMonitor, confirm that LibreHardwareMonitor is running in the background and that its HTTP web server is enabled. If the web server uses authentication, check the username and password in the plugin settings.
 
