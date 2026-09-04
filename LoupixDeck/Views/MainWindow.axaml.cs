@@ -212,6 +212,13 @@ public partial class MainWindow : Window
 
     private bool _isQuitting;
 
+    /// <summary>
+    /// Quits from outside the window — a system shutdown or a SIGTERM, where there is no
+    /// click to hang the teardown off. No-op before the window exists (start-up failures shut
+    /// the lifetime down on their own, with no device to hand back yet).
+    /// </summary>
+    internal static void RequestQuit() => Instance?.QuitApplication();
+
     internal void QuitApplication()
     {
         _isQuitting = true;

@@ -1718,6 +1718,48 @@ public class LoupedeckDevice
         => Displays != null && Displays.TryGetValue(id, out var d) ? (d.Width, d.Height) : (0, 0);
 
     /// <summary>
+    /// Paints every display black — the gaps between the keys and the panel margins the key
+    /// grid never reaches included. The panel keeps whatever was last written to it across an
+    /// app restart or a device power-cycle, and a page repaint only covers the key rectangles,
+    /// so on a gapped grid the remains of the previous picture (a screensaver frame, a test
+    /// pattern) stay visible between the keys. Sent before the first frame of a session and
+    /// again when the app hands the device back.
+    /// </summary>
+    public async Task ClearDisplays()
+    {
+        if (Displays == null) return;
+
+        foreach ((string id, DisplayInfo display) in Displays)
+        {
+            if (display == null || display.Width <= 0 || display.Height <= 0) continue;
+
+            try
+            {
+                using SKBitmap black = new(new SKImageInfo(display.Width, display.Height,
+                    SKColorType.Bgra8888, SKAlphaType.Premul));
+
+                lock (SkiaRenderGate.Sync)
+                {
+                    using SKCanvas canvas = new(black);
+                    canvas.Clear(SKColors.Black);
+                }
+
+                await DrawScreen(id, black);
+            }
+            catch (TimeoutException ex)
+            {
+                // Same tolerance as every other draw path: a device that does not answer
+                // must not abort bringing it up (or tearing it down).
+                Console.WriteLine($"Timeout occurred: {ex.Message}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"ClearDisplays failed for '{id}': {ex.Message}");
+            }
+        }
+    }
+
+    /// <summary>
     /// Draws the entire screen (display) identified by the given ID.
     /// </summary>
     public async Task DrawScreen(string id, SKBitmap bitmap, bool refresh = true)

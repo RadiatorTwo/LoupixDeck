@@ -231,13 +231,12 @@ public partial class LoupedeckLiveSController(
                 return true;
             }
 
-            if (config.CurrentTouchButtonPage?.TouchButtons != null)
-            {
-                foreach (var tb in config.CurrentTouchButtonPage.TouchButtons)
-                {
-                    await device.DrawTouchButton(tb, config, true);
-                }
-            }
+            // The device kept the picture it had before (its boot image after a power-cycle,
+            // the last screensaver frame after a restart), and the page below only covers the
+            // key rectangles — so wipe the panel first.
+            await device.ClearDisplays();
+
+            await DrawCurrentTouchPageButtons(device);
             await RedrawSideStrips();
             // Re-program firmware haptic from the persisted config.
             nativeHapticService.Apply();
@@ -388,6 +387,41 @@ public partial class LoupedeckLiveSController(
         await ResyncDeviceState();
     }
 
+    /// <summary>How long the shutdown blanking may take before the process carries on
+    /// regardless. A device that stopped answering must never hold up the exit — least of all
+    /// during a system shutdown, where the OS gives the process a limited window.</summary>
+    private static readonly TimeSpan ShutdownBlankTimeout = TimeSpan.FromSeconds(3);
+
+    /// <summary>
+    /// Blanks the display, the backlight and the LED buttons on the way out. Synchronous by
+    /// necessity — <see cref="Shutdown"/> is the last thing to run before the port is closed
+    /// and the process exits, so the writes have to be on the wire by the time it returns.
+    /// </summary>
+    private void BlankDeviceForShutdown(LoupedeckDevice.Device.LoupedeckDevice device)
+    {
+        try
+        {
+            var buttons = config.SimpleButtons?.Where(b => b != null).ToList();
+
+            var blanking = Task.Run(async () =>
+            {
+                await device.ClearDisplays();
+
+                foreach (var button in buttons ?? [])
+                    await device.SetButtonColor(button.Id, Avalonia.Media.Colors.Black);
+
+                await device.SetBrightness(0);
+            });
+
+            if (!blanking.Wait(ShutdownBlankTimeout))
+                Console.WriteLine("Shutdown blanking timed out — closing the port anyway.");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Shutdown blanking failed: {ex.Message}");
+        }
+    }
+
     public void Shutdown()
     {
         // Let go of every tracked press first — after this the release events stop arriving (#185).
@@ -430,6 +464,12 @@ public partial class LoupedeckLiveSController(
             device.OnRotate -= OnRotate;
             device.OnSwipe -= OnSwipe;
             device.OnConnect -= OnDeviceConnected;
+
+            // Hand the hardware back in a clean state: a black panel, no backlight and dark
+            // LEDs. Without it the device keeps showing this session's last page for as long
+            // as it stays powered, and the leftovers show through the next session's page.
+            BlankDeviceForShutdown(device);
+
             // Close() suppresses the device's auto-reconnect loop and releases the port.
             try { device.Close(); } catch (Exception ex) { Console.WriteLine($"Shutdown device close failed: {ex.Message}"); }
         }
@@ -465,6 +505,27 @@ public partial class LoupedeckLiveSController(
         foreach (TouchButton button in page?.TouchButtons ?? [])
             if (button != null)
                 button.RenderedImage = null;
+    }
+
+    /// <summary>
+    /// Paints the current page's touch buttons onto a device that is not being repainted by
+    /// anything else (start-up, reconnect, device-on). A gapped grid goes out as one region so
+    /// the pixels between the keys are written too — per key it would leave whatever sits in
+    /// the gaps untouched.
+    /// </summary>
+    private async Task DrawCurrentTouchPageButtons(LoupedeckDevice.Device.LoupedeckDevice device)
+    {
+        var buttons = config.CurrentTouchButtonPage?.TouchButtons;
+        if (device == null || buttons == null) return;
+
+        if (device.KeyGridHasGaps)
+        {
+            await device.DrawTouchGridRegion(buttons, config);
+            return;
+        }
+
+        foreach (var touchButton in buttons)
+            await device.DrawTouchButton(touchButton, config, true);
     }
 
     public async Task RedrawCurrentTouchPage()
@@ -655,6 +716,11 @@ public partial class LoupedeckLiveSController(
 
         InitializeRotaryPages();
 
+        // Whatever the panel showed when the app last let go of it is still on the glass —
+        // a screensaver frame covers the gaps between the keys, which no page repaint reaches.
+        // So the whole panel goes black before the first frame of this session.
+        await deviceService.Device.ClearDisplays();
+
         if (config.TouchButtonPages == null || config.TouchButtonPages.Count == 0)
         {
             await pageManager.AddTouchButtonPage(true);
@@ -672,10 +738,7 @@ public partial class LoupedeckLiveSController(
             // page/workspace switch detaches it cleanly).
             AttachTouchItemChanged(config.CurrentTouchButtonPage);
 
-            foreach (var touchButton in config.CurrentTouchButtonPage.TouchButtons)
-            {
-                await deviceService.Device.DrawTouchButton(touchButton, config, true);
-            }
+            await DrawCurrentTouchPageButtons(deviceService.Device);
         }
 
         // Rotary selection is already set by InitializeRotaryPages (per side on
