@@ -87,13 +87,13 @@ public partial class ButtonState : ObservableObject
         }
     }
 
-    private bool _backgroundEnabled = true;
+    private bool _backgroundEnabled;
 
     /// <summary>
-    /// Whether <see cref="BackColor"/> is painted at all. False leaves the button transparent
-    /// behind its layers — for a layer (a plugin-rendered one, an image with its own shape) that
-    /// should sit on the bare key instead of a colored plate. Defaults to true, so a state saved
-    /// before this existed keeps drawing its background.
+    /// Whether <see cref="BackColor"/> is painted. When on, the color covers everything below the
+    /// layers — including the page wallpaper, which used to win unconditionally. Off leaves the key
+    /// bare: the wallpaper shows through, or plain black when the page has none.
+    /// Defaults to off, which is how every button behaved before this existed.
     /// </summary>
     public bool BackgroundEnabled
     {

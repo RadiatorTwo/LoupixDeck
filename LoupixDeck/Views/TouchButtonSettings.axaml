@@ -656,7 +656,7 @@
                                         <CheckBox Grid.Column="0" Content="Background" Margin="0,0,10,0"
                                                   VerticalAlignment="Center"
                                                   IsChecked="{Binding BackgroundEnabled, Mode=TwoWay}"
-                                                  ToolTip.Tip="Draws the selected state's background color. Off leaves the button transparent behind its layers." />
+                                                  ToolTip.Tip="Draws the selected state's background color, covering the page wallpaper. Off leaves the key bare — the wallpaper shows through, or black when the page has none." />
                                         <ccp:ColorPicker Grid.Column="1"
                                                          Color="{Binding ButtonData.BackColor}"
                                                          IsEnabled="{Binding BackgroundEnabled}"
