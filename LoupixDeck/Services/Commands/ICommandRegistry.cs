@@ -18,7 +18,11 @@ public interface ICommandRegistry
     /// <summary>Returns the command, or null when it is not registered.</summary>
     RegisteredCommand Get(string commandName);
 
-    /// <summary>Returns all registered commands.</summary>
+    /// <summary>
+    /// Every registered command in registration order — provider order first, then the order each
+    /// provider yields them in. The menu is built from this, so a plugin's <c>GetCommands()</c>
+    /// order is what the user sees in the command picker.
+    /// </summary>
     IEnumerable<RegisteredCommand> GetAll();
 
     /// <summary>
