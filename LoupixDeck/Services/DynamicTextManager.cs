@@ -260,6 +260,10 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
         // reach THIS device (issue #116 phase 2).
         using var _routerScope = _router.Enter(_deviceProvider);
 
+        // Read the state at render time: the active state can change between two ticks, and the
+        // command's content (and the layer it lands on) follows the state, not the entry.
+        string stateName = command.DeclaresStates ? button.ActiveState?.Name : null;
+
         if (command.IsImageDisplayCommand && command.RenderImage != null)
         {
             // The plugin draws the button onto a host canvas at the device's key size; serialize
@@ -274,7 +278,7 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
                 {
                     using var canvas = new SKCanvas(bitmap);
                     var rc = new SkiaRenderCanvas(canvas, keySize, keySize);
-                    drew = command.RenderImage(entry.Parameters, entry.SequenceCommands, rc);
+                    drew = command.RenderImage(entry.Parameters, entry.SequenceCommands, stateName, rc);
                     if (drew) canvas.Flush();
                 }
             }
@@ -302,7 +306,7 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
         string newText;
         try
         {
-            newText = command.GetText(entry.Parameters, entry.SequenceCommands) ?? string.Empty;
+            newText = command.GetText(entry.Parameters, entry.SequenceCommands, stateName) ?? string.Empty;
         }
         catch (Exception ex)
         {
