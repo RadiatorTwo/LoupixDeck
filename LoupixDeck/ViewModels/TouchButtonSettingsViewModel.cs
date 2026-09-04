@@ -51,6 +51,10 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         BuildCommandSlots();
 
         OnPropertyChanged(nameof(States));
+        OnPropertyChanged(nameof(BackgroundEnabled));
+        OnPropertyChanged(nameof(AreStatesLocked));
+        OnPropertyChanged(nameof(CanEditStates));
+        OnPropertyChanged(nameof(CanDeleteState));
         OnPropertyChanged(nameof(ResetOnPageChange));
         OnPropertyChanged(nameof(ResetOnRestart));
         OnPropertyChanged(nameof(ButtonNumber));
@@ -60,6 +64,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     private readonly ICommandBuilder _commandBuilder;
     private readonly IMenuTreeBuilder _menuTreeBuilder;
     private readonly ICommandRegistry _commandRegistry;
+    private readonly Services.Commands.ICommandStateMaterializer _stateMaterializer;
     private readonly IAssetService _assetService;
     private readonly IDialogService _dialogService;
     private readonly ISideStripProviderRegistry _sideStripRegistry;
@@ -631,6 +636,21 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     public bool ShowStatesSection => !IsStripCanvas;
 
     /// <summary>
+    /// Whether the edited state paints its background color. Off leaves the button transparent
+    /// behind its layers, which is what a plugin-rendered indicator usually wants.
+    /// </summary>
+    public bool BackgroundEnabled
+    {
+        get => ButtonData?.BackgroundEnabled ?? false;
+        set
+        {
+            if (ButtonData == null || ButtonData.BackgroundEnabled == value) return;
+            ButtonData.BackgroundEnabled = value;
+            OnPropertyChanged(nameof(BackgroundEnabled));
+        }
+    }
+
+    /// <summary>
     /// The state currently being edited. Selecting a state makes it the button's active state so
     /// the existing preview/layers/command machinery edits it in place (the device follows live).
     /// </summary>
@@ -642,13 +662,20 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
             if (ReferenceEquals(field, value)) return;
             field = value;
             if (value != null && ButtonData != null)
-                ButtonData.SetActiveState(value.Id);
+            {
+                // Switching states mirrors that state's command into ButtonData.Command. That is
+                // a state change, not a command assignment, so it must not reconcile.
+                _switchingState = true;
+                try { ButtonData.SetActiveState(value.Id); }
+                finally { _switchingState = false; }
+            }
 
             // Layers projects the active state, so the new state's layers need stamping too.
             ApplyDeviceBaseToLayers();
 
             SelectedLayer = null;
             OnPropertyChanged(nameof(SelectedState));
+            OnPropertyChanged(nameof(BackgroundEnabled));
             OnPropertyChanged(nameof(SelectedStateLabel));
             OnPropertyChanged(nameof(BehaviorTitle));
             OnPropertyChanged(nameof(CanDeleteState));
@@ -671,8 +698,18 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     /// <summary>"Behavior for State: X" title above the bottom command/transition area.</summary>
     public string BehaviorTitle => $"Behavior for State: {SelectedState?.Name ?? "-"}";
 
+    /// <summary>
+    /// True while the assigned command owns the states: it created them, and the plugin drives
+    /// which one is active. Managing them by hand would fight that, so the editor locks it —
+    /// the layers inside each state stay editable.
+    /// </summary>
+    public bool AreStatesLocked => ButtonData?.HasCommandOwnedStates == true;
+
+    /// <summary>Inverse of <see cref="AreStatesLocked"/>, for the views' IsEnabled bindings.</summary>
+    public bool CanEditStates => !AreStatesLocked;
+
     /// <summary>At least two states are needed before one can be deleted.</summary>
-    public bool CanDeleteState => ButtonData?.States is { Count: > 1 };
+    public bool CanDeleteState => ButtonData?.States is { Count: > 1 } && CanEditStates;
 
     public IRelayCommand AddStateCommand => field ??= Relay.Create(AddState);
     public IRelayCommand DuplicateStateCommand => field ??= Relay.Create(DuplicateState);
@@ -696,7 +733,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
 
     private void AddState()
     {
-        if (ButtonData?.States == null) return;
+        if (ButtonData?.States == null || AreStatesLocked) return;
         var state = new ButtonState { Name = GetUniqueStateName("State") };
         ButtonData.States.Add(state);
         RefreshStateBadges();
@@ -717,7 +754,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
 
     private void DuplicateState()
     {
-        if (ButtonData?.States == null || SelectedState == null) return;
+        if (ButtonData?.States == null || SelectedState == null || AreStatesLocked) return;
 
         var json = Newtonsoft.Json.JsonConvert.SerializeObject(SelectedState, StateCloneSettings);
         var clone = Newtonsoft.Json.JsonConvert.DeserializeObject<ButtonState>(json, StateCloneSettings);
@@ -738,7 +775,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     private void DeleteState()
     {
         var states = ButtonData?.States;
-        if (states is not { Count: > 1 } || SelectedState == null) return;
+        if (states is not { Count: > 1 } || SelectedState == null || AreStatesLocked) return;
 
         var removed = SelectedState;
         var idx = states.IndexOf(removed);
@@ -762,7 +799,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     private void MoveStateUp()
     {
         var states = ButtonData?.States;
-        if (states == null || SelectedState == null) return;
+        if (states == null || SelectedState == null || AreStatesLocked) return;
         var idx = states.IndexOf(SelectedState);
         if (idx <= 0) return;
         states.Move(idx, idx - 1);
@@ -772,7 +809,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     private void MoveStateDown()
     {
         var states = ButtonData?.States;
-        if (states == null || SelectedState == null) return;
+        if (states == null || SelectedState == null || AreStatesLocked) return;
         var idx = states.IndexOf(SelectedState);
         if (idx < 0 || idx >= states.Count - 1) return;
         states.Move(idx, idx + 1);
@@ -781,7 +818,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
 
     private void SetDefaultStateSelected()
     {
-        if (ButtonData == null || SelectedState == null) return;
+        if (ButtonData == null || SelectedState == null || AreStatesLocked) return;
         ButtonData.DefaultStateId = SelectedState.Id;
         RefreshStateBadges();
     }
@@ -836,6 +873,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         ICommandBuilder commandBuilder,
         IMenuTreeBuilder menuTreeBuilder,
         ICommandRegistry commandRegistry,
+        Services.Commands.ICommandStateMaterializer stateMaterializer,
         IAssetService assetService,
         IDialogService dialogService,
         ISideStripProviderRegistry sideStripRegistry,
@@ -848,6 +886,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         _commandBuilder = commandBuilder;
         _menuTreeBuilder = menuTreeBuilder;
         _commandRegistry = commandRegistry;
+        _stateMaterializer = stateMaterializer;
         _assetService = assetService;
         _dialogService = dialogService;
         _sideStripRegistry = sideStripRegistry;
@@ -1060,9 +1099,10 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
 
     private void RemoveSelectedLayer()
     {
-        // Command-owned layers are owned by their bound command; they are removed by unbinding
-        // the command (the dynamic-text manager's orphan sweep), never via the editor.
-        if (_selectedLayer == null || _selectedLayer.IsCommandOwned) return;
+        // A layer owned by the command that is still bound belongs to that command: it is removed
+        // by unbinding it (the dynamic-text manager's orphan sweep), not by hand. One left behind
+        // by a command that is gone has no owner left, so the user may delete it.
+        if (_selectedLayer == null || IsOwnedByBoundCommand(_selectedLayer)) return;
         var idx = ButtonData.Layers.IndexOf(_selectedLayer);
         ButtonData.Layers.Remove(_selectedLayer);
         // Prefer the item that moved into the freed slot (the one below); fall back
@@ -1070,6 +1110,15 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         var next = (idx < ButtonData.Layers.Count) ? ButtonData.Layers[idx]
             : (ButtonData.Layers.Count > 0 ? ButtonData.Layers[^1] : null);
         ReselectAfterMove(next);
+    }
+
+    /// <summary>True when the layer belongs to the command currently bound to the button.</summary>
+    private bool IsOwnedByBoundCommand(LayerBase layer)
+    {
+        if (layer == null || !layer.IsCommandOwned) return false;
+
+        string boundKey = PluginLayerKey.For(ButtonData?.Command);
+        return boundKey != null && string.Equals(layer.OwnerKey, boundKey, StringComparison.Ordinal);
     }
 
     private void MoveSelectedLayerUp()
@@ -1135,6 +1184,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
             b.States.Clear();
             b.States.Add(fresh);
             b.DefaultStateId = fresh.Id;
+            b.StateOwnerCommand = null;
             b.Mode = ButtonStateMode.Local;
             b.ResetOnPageChange = false;
             b.ResetOnRestart = true;
@@ -1151,21 +1201,96 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         // Selecting the fresh state re-points the preview, layers and command slots.
         SelectedState = fresh;
 
+        OnPropertyChanged(nameof(AreStatesLocked));
+        OnPropertyChanged(nameof(CanEditStates));
         OnPropertyChanged(nameof(CanDeleteState));
         OnPropertyChanged(nameof(ResetOnPageChange));
         OnPropertyChanged(nameof(ResetOnRestart));
     }
 
+    /// <summary>True while the editor switches the edited state, see <see cref="SelectedState"/>.</summary>
+    private bool _switchingState;
+
     private void ButtonData_PropertyChanged(object sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
         if (e.PropertyName == nameof(TouchButton.Command))
         {
+            // Every insert/clear/parameter edit funnels through ButtonData.Command, so this is the
+            // one place a command that declares its own states needs to be reconciled.
+            ReconcileCommandStates();
+
             // Re-scan dynamic-text/-image commands so a display command's layer appears (or its
             // orphaned layer disappears) immediately while the editor is open, instead of only
             // after it closes. The strip-canvas surface is not a real page button, so skip it.
             if (!IsStripCanvas)
                 Avalonia.Threading.Dispatcher.UIThread.Post(() => _dynamicTextManager.Rescan());
         }
+    }
+
+    /// <summary>
+    /// Creates the states of a newly assigned command that declares its own, or releases them
+    /// again when that command was removed or replaced.
+    /// </summary>
+    private void ReconcileCommandStates()
+    {
+        if (ButtonData == null || IsStripCanvas || _switchingState) return;
+
+        Services.Commands.StateSyncResult result = _stateMaterializer.Reconcile(ButtonData);
+        switch (result)
+        {
+            case Services.Commands.StateSyncResult.Unchanged:
+                return;
+
+            case Services.Commands.StateSyncResult.ReleaseRequested:
+                EventHandler<StateReleaseRequest> handler = StateReleaseRequested;
+                if (handler == null)
+                {
+                    // No view attached to ask: keep the states, the non-destructive choice.
+                    CompleteStateRelease(keepStates: true);
+                    return;
+                }
+
+                handler(this, new StateReleaseRequest(_stateMaterializer.GetOwnerDisplayName(ButtonData)));
+                return;
+
+            default:
+                RefreshAfterStateSync();
+                return;
+        }
+    }
+
+    /// <summary>
+    /// Raised when the command owning the button's states was removed or replaced. The view asks
+    /// the user and answers through <see cref="CompleteStateRelease"/>.
+    /// </summary>
+    public event EventHandler<StateReleaseRequest> StateReleaseRequested;
+
+    /// <summary>
+    /// Applies the user's answer to a <see cref="StateReleaseRequested"/> prompt, then lets a
+    /// replacement command that declares states create its own.
+    /// </summary>
+    public void CompleteStateRelease(bool keepStates)
+    {
+        if (ButtonData == null) return;
+
+        _stateMaterializer.Release(ButtonData, keepStates);
+        _stateMaterializer.Reconcile(ButtonData);
+        RefreshAfterStateSync();
+    }
+
+    /// <summary>Re-reads everything the state set feeds after it was created or released.</summary>
+    private void RefreshAfterStateSync()
+    {
+        RefreshStateBadges();
+        SelectedLayer = null;
+        SelectedState = ButtonData?.States.Count > 0 ? ButtonData.States[0] : null;
+
+        OnPropertyChanged(nameof(AreStatesLocked));
+        OnPropertyChanged(nameof(CanEditStates));
+        OnPropertyChanged(nameof(CanDeleteState));
+        OnPropertyChanged(nameof(BackgroundEnabled));
+        OnPropertyChanged(nameof(ResetOnPageChange));
+        OnPropertyChanged(nameof(ResetOnRestart));
     }
 
     private void ButtonData_ItemChanged(object sender, EventArgs e)

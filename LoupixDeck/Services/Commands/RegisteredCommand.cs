@@ -57,6 +57,16 @@ public sealed class RegisteredCommand
     /// <summary>For animated image commands: the plugin's desired frame rate (clamped by the host).</summary>
     public int AnimatedTargetFps { get; init; }
 
+    /// <summary>
+    /// The button states this command declares, in order; empty when it declares none. A command
+    /// with states owns the state set of every button it is assigned to (see
+    /// <see cref="LoupixDeck.Services.Commands.ICommandStateMaterializer"/>).
+    /// </summary>
+    public IReadOnlyList<CommandStateInfo> States { get; init; } = [];
+
+    /// <summary>True when the command brings its own button states along.</summary>
+    public bool DeclaresStates => States.Count > 0;
+
     /// <summary>Poll interval for display commands; ignored otherwise.</summary>
     public TimeSpan UpdateInterval { get; init; }
 
@@ -72,22 +82,24 @@ public sealed class RegisteredCommand
     /// <summary>
     /// For display commands: produces the current text. Null otherwise. The second argument is the
     /// button's full command sequence (empty for single-command buttons) — forwarded to
-    /// <c>CommandContext.SequenceCommands</c> for plugin commands; core commands ignore it.
+    /// <c>CommandContext.SequenceCommands</c> for plugin commands; core commands ignore it. The
+    /// third is the name of the button state being rendered (null when the button has no
+    /// command-declared states) — forwarded to <c>CommandContext.StateName</c>.
     /// </summary>
-    public Func<string[], IReadOnlyList<SequenceCommand>, string> GetText { get; init; }
+    public Func<string[], IReadOnlyList<SequenceCommand>, string, string> GetText { get; init; }
 
     /// <summary>
     /// For image display commands: draws the current button content onto a host canvas, returning
     /// true when drawn (false → leave the button unchanged). Null for non-image commands. The second
     /// argument is the button's full command sequence (empty for single-command buttons).
     /// </summary>
-    public Func<string[], IReadOnlyList<SequenceCommand>, LoupixDeck.PluginSdk.IRenderCanvas, bool> RenderImage { get; init; }
+    public Func<string[], IReadOnlyList<SequenceCommand>, string, LoupixDeck.PluginSdk.IRenderCanvas, bool> RenderImage { get; init; }
 
     /// <summary>
     /// For animated image commands: draws one animation frame onto a host canvas for the given
     /// timing snapshot, returning whether it drew and whether the animation finished. Null otherwise.
     /// The second argument is the button's full command sequence (empty for single-command buttons).
     /// </summary>
-    public Func<string[], IReadOnlyList<SequenceCommand>, LoupixDeck.PluginSdk.IRenderCanvas, AnimationFrameContext, AnimationFrameInfo>
-        RenderAnimatedFrame { get; init; }
+    public Func<string[], IReadOnlyList<SequenceCommand>, string, LoupixDeck.PluginSdk.IRenderCanvas, AnimationFrameContext,
+        AnimationFrameInfo> RenderAnimatedFrame { get; init; }
 }

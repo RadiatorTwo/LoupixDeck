@@ -16,6 +16,11 @@ public class CommandRegistry : ICommandRegistry
     private volatile IReadOnlyDictionary<string, RegisteredCommand> _commands =
         FrozenDictionary<string, RegisteredCommand>.Empty;
 
+    // The same commands in registration order — provider order first, then the order each
+    // provider yields them in. The map's own order is a hash order, which would scatter a
+    // plugin's commands across the picker; this keeps a group listed the way its author wrote it.
+    private volatile IReadOnlyList<RegisteredCommand> _ordered = [];
+
     public CommandRegistry(IEnumerable<ICommandProvider> providers)
     {
         _providers = providers;
@@ -24,6 +29,8 @@ public class CommandRegistry : ICommandRegistry
     public void Initialize()
     {
         var next = new Dictionary<string, RegisteredCommand>(StringComparer.Ordinal);
+        var ordered = new List<RegisteredCommand>();
+        var positions = new Dictionary<string, int>(StringComparer.Ordinal);
 
         foreach (var provider in _providers)
         {
@@ -46,9 +53,21 @@ public class CommandRegistry : ICommandRegistry
                     continue;
 
                 next[command.CommandName] = command;
+
+                // A later provider overriding a command keeps the original's slot.
+                if (positions.TryGetValue(command.CommandName, out int position))
+                {
+                    ordered[position] = command;
+                }
+                else
+                {
+                    positions[command.CommandName] = ordered.Count;
+                    ordered.Add(command);
+                }
             }
         }
 
+        _ordered = ordered;
         _commands = next.ToFrozenDictionary(StringComparer.Ordinal);
     }
 
@@ -66,7 +85,7 @@ public class CommandRegistry : ICommandRegistry
         return null;
     }
 
-    public IEnumerable<RegisteredCommand> GetAll() => _commands.Values;
+    public IEnumerable<RegisteredCommand> GetAll() => _ordered;
 
     public async Task Execute(string commandName, string[] parameters, ButtonTargets target, int? sourceIndex = null)
     {

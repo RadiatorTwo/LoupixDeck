@@ -87,6 +87,26 @@ public partial class ButtonState : ObservableObject
         }
     }
 
+    private bool _backgroundEnabled;
+
+    /// <summary>
+    /// Whether <see cref="BackColor"/> is painted. When on, the color covers everything below the
+    /// layers — including the page wallpaper, which used to win unconditionally. Off leaves the key
+    /// bare: the wallpaper shows through, or plain black when the page has none.
+    /// Defaults to off, which is how every button behaved before this existed.
+    /// </summary>
+    public bool BackgroundEnabled
+    {
+        get => _backgroundEnabled;
+        set
+        {
+            if (_backgroundEnabled == value) return;
+            _backgroundEnabled = value;
+            OnPropertyChanged(nameof(BackgroundEnabled));
+            RaiseChanged();
+        }
+    }
+
     private ObservableCollection<LayerBase> _layers;
 
     public ObservableCollection<LayerBase> Layers

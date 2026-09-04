@@ -79,6 +79,9 @@ public class PluginCommandProvider : ICommandProvider
             ParameterTemplate = descriptor.ParameterTemplate,
             Parameters = descriptor.Parameters
                 .Select(p => new ParameterDescriptor(p.Name, p.ParameterType, p.DefaultValue))
+                .ToList(),
+            States = descriptor.States
+                .Select(state => new CommandStateInfo(state.Name, state.Description))
                 .ToList()
         };
 
@@ -108,16 +111,18 @@ public class PluginCommandProvider : ICommandProvider
         var isAnimatedImage = false;
         var animatedFps = 0;
         var interval = TimeSpan.Zero;
-        Func<string[], IReadOnlyList<SequenceCommand>, string> getText = null;
-        Func<string[], IReadOnlyList<SequenceCommand>, IRenderCanvas, bool> renderImage = null;
-        Func<string[], IReadOnlyList<SequenceCommand>, IRenderCanvas, AnimationFrameContext, AnimationFrameInfo> renderAnimatedFrame = null;
+        Func<string[], IReadOnlyList<SequenceCommand>, string, string> getText = null;
+        Func<string[], IReadOnlyList<SequenceCommand>, string, IRenderCanvas, bool> renderImage = null;
+        Func<string[], IReadOnlyList<SequenceCommand>, string, IRenderCanvas, AnimationFrameContext, AnimationFrameInfo>
+            renderAnimatedFrame = null;
 
-        CommandContext DisplayContext(string[] parameters, IReadOnlyList<SequenceCommand> sequence) => new()
+        CommandContext DisplayContext(string[] parameters, IReadOnlyList<SequenceCommand> sequence, string stateName) => new()
         {
             Parameters = parameters ?? Array.Empty<string>(),
             Target = ButtonTargets.TouchButton,
             Device = host?.ActiveDevice,
             Host = host,
+            StateName = stateName,
             SequenceCommands = sequence ?? []
         };
 
@@ -129,20 +134,22 @@ public class PluginCommandProvider : ICommandProvider
         {
             isAnimatedImage = true;
             animatedFps = animatedCommand.TargetFps;
-            renderAnimatedFrame = (parameters, sequence, canvas, frame) =>
-                animatedCommand.RenderAnimatedFrame(DisplayContext(parameters, sequence), canvas, frame);
+            renderAnimatedFrame = (parameters, sequence, stateName, canvas, frame) =>
+                animatedCommand.RenderAnimatedFrame(DisplayContext(parameters, sequence, stateName), canvas, frame);
         }
         else if (command is IDisplayImageCommand imageCommand)
         {
             isImageDisplay = true;
             interval = imageCommand.UpdateInterval;
-            renderImage = (parameters, sequence, canvas) => imageCommand.RenderImage(DisplayContext(parameters, sequence), canvas);
+            renderImage = (parameters, sequence, stateName, canvas) =>
+                imageCommand.RenderImage(DisplayContext(parameters, sequence, stateName), canvas);
         }
         else if (command is IDisplayCommand displayCommand)
         {
             isDisplay = true;
             interval = displayCommand.UpdateInterval;
-            getText = (parameters, sequence) => displayCommand.GetText(DisplayContext(parameters, sequence));
+            getText = (parameters, sequence, stateName) =>
+                displayCommand.GetText(DisplayContext(parameters, sequence, stateName));
         }
 
         return new RegisteredCommand
@@ -151,6 +158,7 @@ public class PluginCommandProvider : ICommandProvider
             Info = info,
             SupportedTargets = command.SupportedTargets,
             HiddenFromMenu = descriptor.HiddenFromMenu,
+            States = info.States,
             IsDisplayCommand = isDisplay,
             IsImageDisplayCommand = isImageDisplay,
             IsAnimatedImageCommand = isAnimatedImage,

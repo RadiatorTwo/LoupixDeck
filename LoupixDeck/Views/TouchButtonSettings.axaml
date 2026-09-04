@@ -266,7 +266,7 @@
                     <StackPanel Grid.Row="2" IsVisible="{Binding ShowStatesSection}">
                         <TextBlock Classes="panel-title" Text="States" />
 
-                        <UniformGrid Columns="2" Margin="0,0,0,8">
+                        <UniformGrid Columns="2" Margin="0,0,0,8" IsEnabled="{Binding CanEditStates}">
                             <Button Classes="toolbar" Content="+ Add" Margin="0,0,4,0"
                                     HorizontalAlignment="Stretch"
                                     Command="{Binding AddStateCommand}"
@@ -308,7 +308,7 @@
                             </ListBox.ItemTemplate>
                         </ListBox>
 
-                        <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                        <StackPanel Orientation="Horizontal" Margin="0,8,0,0" IsEnabled="{Binding CanEditStates}">
                             <Button Classes="row-action" Content="▲"
                                     Command="{Binding MoveStateUpCommand}"
                                     ToolTip.Tip="Move state up" />
@@ -331,12 +331,20 @@
                         <TextBlock Classes="label" Margin="0,8,0,0"
                                    Text="{Binding SelectedState.Name, StringFormat='Selected State: {0}'}" />
 
-                        <CheckBox Content="Reset to default on page change"
-                                  IsChecked="{Binding ResetOnPageChange, Mode=TwoWay}"
-                                  Margin="0,8,0,0" />
-                        <CheckBox Content="Reset to default on restart"
-                                  IsChecked="{Binding ResetOnRestart, Mode=TwoWay}"
-                                  Margin="0,2,0,0" />
+                        <!-- The assigned command owns these states: it created them and its plugin
+                             decides which one is active. Only the layers inside a state stay editable. -->
+                        <TextBlock Classes="label" Margin="0,8,0,0" TextWrapping="Wrap"
+                                   IsVisible="{Binding AreStatesLocked}"
+                                   Text="States are managed by the assigned command." />
+
+                        <StackPanel IsEnabled="{Binding CanEditStates}">
+                            <CheckBox Content="Reset to default on page change"
+                                      IsChecked="{Binding ResetOnPageChange, Mode=TwoWay}"
+                                      Margin="0,8,0,0" />
+                            <CheckBox Content="Reset to default on restart"
+                                      IsChecked="{Binding ResetOnRestart, Mode=TwoWay}"
+                                      Margin="0,2,0,0" />
+                        </StackPanel>
                     </StackPanel>
 
                     <Separator Grid.Row="3" Margin="0,12,0,12"
@@ -645,11 +653,15 @@
                                     <TextBlock Classes="panel-title"
                                                Text="{Binding ButtonNumber, StringFormat='Button {0}'}" />
                                     <Grid ColumnDefinitions="Auto,*,Auto">
-                                        <TextBlock Grid.Column="0" Classes="label" Text="Background"
-                                                   VerticalAlignment="Center" Margin="0,0,10,0" />
+                                        <CheckBox Grid.Column="0" Content="Background" Margin="0,0,10,0"
+                                                  VerticalAlignment="Center"
+                                                  IsChecked="{Binding BackgroundEnabled, Mode=TwoWay}"
+                                                  ToolTip.Tip="Draws the selected state's background color, covering the page wallpaper. Off leaves the key bare — the wallpaper shows through, or black when the page has none." />
                                         <ccp:ColorPicker Grid.Column="1"
                                                          Color="{Binding ButtonData.BackColor}"
-                                                         Width="110" HorizontalAlignment="Left" />
+                                                         IsEnabled="{Binding BackgroundEnabled}"
+                                                         Width="110" HorizontalAlignment="Left"
+                                                         ToolTip.Tip="Background color of the selected state — each state has its own, drawn below every layer" />
                                         <Button Grid.Column="2" Content="Reset…"
                                                 Click="ResetButton_Click"
                                                 Background="#A03030" Foreground="White"
@@ -665,6 +677,7 @@
                                     <TextBlock Classes="panel-title" Text="State" />
                                     <TextBlock Classes="label" Text="Name" />
                                     <TextBox Text="{Binding SelectedState.Name, Mode=TwoWay}"
+                                             IsEnabled="{Binding CanEditStates}"
                                              Margin="0,2,0,0" />
                                 </StackPanel>
                             </Border>
@@ -1088,7 +1101,8 @@
 
                     <!-- After-press transition — above the command sequence. Bound directly to the
                          selected state's transition so switching states never writes into the wrong one. -->
-                    <StackPanel IsVisible="{Binding ShowStatesSection}" Margin="0,0,0,12">
+                    <StackPanel IsVisible="{Binding ShowStatesSection}" IsEnabled="{Binding CanEditStates}"
+                                Margin="0,0,0,12">
                         <TextBlock Classes="label" Text="Transition after press" Margin="0,0,0,4" />
                         <StackPanel Orientation="Horizontal" Spacing="8">
                             <ComboBox MinWidth="220"

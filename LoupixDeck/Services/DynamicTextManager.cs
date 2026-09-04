@@ -149,6 +149,15 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
             entry.NextDueUtc = AlignedNext(nowAlign, entry.Interval);
         }
 
+        // A command that declares its own states renders per state, and its layer lives in the
+        // state's own layer stack — so a state switch needs an immediate re-render, not the next
+        // poll tick (which would leave the new state blank until then).
+        foreach (Entry entry in entries)
+        {
+            if (entry.Command.DeclaresStates)
+                Subscribe(entry.Button);
+        }
+
         lock (_gate)
         {
             _active = entries;
@@ -157,6 +166,54 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
             var token = _cts.Token;
             var timer = _timer;
             _loopTask = Task.Run(() => TickLoop(timer, token), token);
+        }
+    }
+
+    /// <summary>
+    /// Buttons whose active-state changes this manager follows. Guarded by its own lock: a rescan
+    /// may run off the UI thread while a state change (always dispatched to it) arrives.
+    /// </summary>
+    private readonly List<StatefulButton> _stateSubscriptions = [];
+    private readonly Lock _subscriptionGate = new();
+
+    private void Subscribe(StatefulButton button)
+    {
+        if (button == null)
+            return;
+
+        lock (_subscriptionGate)
+        {
+            if (_stateSubscriptions.Contains(button))
+                return;
+
+            button.ActiveStateChanged += OnActiveStateChanged;
+            _stateSubscriptions.Add(button);
+        }
+    }
+
+    private void UnsubscribeAll()
+    {
+        lock (_subscriptionGate)
+        {
+            foreach (StatefulButton button in _stateSubscriptions)
+                button.ActiveStateChanged -= OnActiveStateChanged;
+
+            _stateSubscriptions.Clear();
+        }
+    }
+
+    private void OnActiveStateChanged(object sender, EventArgs e)
+    {
+        List<Entry> snapshot;
+        lock (_gate)
+        {
+            snapshot = _active;
+        }
+
+        foreach (Entry entry in snapshot)
+        {
+            if (ReferenceEquals(entry.Button, sender))
+                RenderEntry(entry);
         }
     }
 
@@ -260,6 +317,10 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
         // reach THIS device (issue #116 phase 2).
         using var _routerScope = _router.Enter(_deviceProvider);
 
+        // Read the state at render time: the active state can change between two ticks, and the
+        // command's content (and the layer it lands on) follows the state, not the entry.
+        string stateName = command.DeclaresStates ? button.ActiveState?.Name : null;
+
         if (command.IsImageDisplayCommand && command.RenderImage != null)
         {
             // The plugin draws the button onto a host canvas at the device's key size; serialize
@@ -274,7 +335,7 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
                 {
                     using var canvas = new SKCanvas(bitmap);
                     var rc = new SkiaRenderCanvas(canvas, keySize, keySize);
-                    drew = command.RenderImage(entry.Parameters, entry.SequenceCommands, rc);
+                    drew = command.RenderImage(entry.Parameters, entry.SequenceCommands, stateName, rc);
                     if (drew) canvas.Flush();
                 }
             }
@@ -294,7 +355,17 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
             var ownerKey = entry.OwnerKey;
             var name = command.CommandName;
             Dispatcher.UIThread.Post(() =>
-                button.GetOrCreatePluginLayer(ownerKey, name).RenderedBitmap = bitmap); // setter retires the old bitmap under the gate
+            {
+                // The button may have been cleared or rebound between the render and this post —
+                // creating the layer now would leave one behind that no sweep comes back for.
+                if (!StillBound(button, ownerKey))
+                {
+                    bitmap.Dispose();
+                    return;
+                }
+
+                button.GetOrCreatePluginLayer(ownerKey, name).RenderedBitmap = bitmap; // setter retires the old bitmap under the gate
+            });
             return;
         }
 
@@ -302,7 +373,7 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
         string newText;
         try
         {
-            newText = command.GetText(entry.Parameters, entry.SequenceCommands) ?? string.Empty;
+            newText = command.GetText(entry.Parameters, entry.SequenceCommands, stateName) ?? string.Empty;
         }
         catch (Exception ex)
         {
@@ -314,8 +385,22 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
         // update lands on exactly that layer instead of "the first matching text layer".
         var key = entry.OwnerKey;
         var cmdName = command.CommandName;
-        Dispatcher.UIThread.Post(() => button.GetOrAdoptOwnedTextLayer(key, cmdName).Text = newText);
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (!StillBound(button, key))
+                return;
+
+            button.GetOrAdoptOwnedTextLayer(key, cmdName).Text = newText;
+        });
     }
+
+    /// <summary>
+    /// True while <paramref name="button"/> is still bound to the command that produced
+    /// <paramref name="ownerKey"/> — checked on the UI thread right before a command-owned layer
+    /// is created, since the render itself ran off it.
+    /// </summary>
+    private static bool StillBound(TouchButton button, string ownerKey) =>
+        string.Equals(PluginLayerKey.For(button?.Command), ownerKey, StringComparison.Ordinal);
 
     /// <summary>
     /// Removes/demotes command-owned layers on <paramref name="page"/> whose owning command
@@ -334,12 +419,15 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
         {
             foreach (var button in buttons)
             {
-                if (button?.Layers == null)
+                if (button?.States == null)
                     continue;
 
                 var validKey = ResolveDisplayKey(button);
 
-                foreach (var layer in button.Layers.ToArray())
+                // Layers live per state, and a command that declares states owns one layer in each
+                // of them — so sweep every state, not just the active one.
+                foreach (var state in button.States.ToArray())
+                foreach (var layer in state.Layers.ToArray())
                 {
                     if (!layer.IsCommandOwned)
                         continue;
@@ -349,14 +437,14 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
                     switch (layer)
                     {
                         case PluginLayer plugin:
-                            button.Layers.Remove(plugin);
+                            state.Layers.Remove(plugin);
                             plugin.DisposeBitmaps();
                             break;
                         // A layer the command created is removed with the command; a layer that
                         // was adopted from a pre-existing user layer is only demoted (owner cleared,
                         // text + styling kept) so the user's work is never destroyed.
                         case TextLayer text when text.OwnerCreated:
-                            button.Layers.Remove(text);
+                            state.Layers.Remove(text);
                             break;
                         case TextLayer text:
                             text.OwnerKey = null;
@@ -399,6 +487,8 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
 
     private void StopLoop()
     {
+        UnsubscribeAll();
+
         CancellationTokenSource cts;
         PeriodicTimer timer;
         lock (_gate)

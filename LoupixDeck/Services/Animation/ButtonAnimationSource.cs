@@ -185,6 +185,9 @@ public sealed class ButtonAnimationSource : IAnimationSource, IDisposable
         var render = entry.Command?.RenderAnimatedFrame;
         if (render == null) return false;
 
+        // Read at render time — the active state may have changed since the entry was built.
+        string stateName = entry.Command.DeclaresStates ? entry.Button?.ActiveState?.Name : null;
+
         var frameCtx = new AnimationFrameContext
         {
             FrameNumber = entry.FrameCounter,
@@ -203,7 +206,7 @@ public sealed class ButtonAnimationSource : IAnimationSource, IDisposable
             {
                 using var canvas = new SKCanvas(bitmap);
                 var rc = new SkiaRenderCanvas(canvas, keySize, keySize);
-                info = render(entry.Parameters, entry.SequenceCommands, rc, frameCtx);
+                info = render(entry.Parameters, entry.SequenceCommands, stateName, rc, frameCtx);
                 if (info.Drawn) canvas.Flush();
             }
         }

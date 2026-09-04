@@ -61,7 +61,7 @@
                     <Border Grid.Row="0" Classes="editor-panel" Margin="0,0,0,12">
                         <StackPanel>
                             <TextBlock Classes="panel-title" Text="States" />
-                            <UniformGrid Columns="2" Margin="0,0,0,8">
+                            <UniformGrid Columns="2" Margin="0,0,0,8" IsEnabled="{Binding CanEditStates}">
                                 <Button Classes="toolbar" Content="+ Add" Margin="0,0,4,0"
                                         HorizontalAlignment="Stretch"
                                         Command="{Binding AddStateCommand}"
@@ -102,7 +102,7 @@
                                 </ListBox.ItemTemplate>
                             </ListBox>
 
-                            <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                            <StackPanel Orientation="Horizontal" Margin="0,8,0,0" IsEnabled="{Binding CanEditStates}">
                                 <Button Classes="row-action" Content="▲"
                                         Command="{Binding MoveStateUpCommand}"
                                         ToolTip.Tip="Move state up" />
@@ -121,6 +121,12 @@
                                     <TextBlock Text="&#xF01B4;" FontFamily="{StaticResource MdiFont}" />
                                 </Button>
                             </StackPanel>
+
+                            <!-- The assigned command owns these states: it created them and its plugin
+                                 decides which one is active. -->
+                            <TextBlock Classes="label" Margin="0,8,0,0" TextWrapping="Wrap"
+                                       IsVisible="{Binding AreStatesLocked}"
+                                       Text="States are managed by the assigned command." />
                         </StackPanel>
                     </Border>
 
@@ -131,14 +137,16 @@
                                        Text="{Binding SelectedState.Name, StringFormat='Behavior for State: {0}'}" />
 
                             <TextBlock Classes="label" Text="Name" />
-                            <TextBox Text="{Binding SelectedState.Name, Mode=TwoWay}" Margin="0,2,0,8" />
+                            <TextBox Text="{Binding SelectedState.Name, Mode=TwoWay}" Margin="0,2,0,8"
+                                     IsEnabled="{Binding CanEditStates}" />
 
                             <TextBlock Classes="label" Text="LED color" />
                             <ccp:ColorPicker Width="120" HorizontalAlignment="Left" Margin="0,2,0,8"
                                              Color="{Binding ButtonData.ButtonColor}" />
 
                             <TextBlock Classes="label" Text="Transition after press" />
-                            <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,2,0,8">
+                            <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,2,0,8"
+                                        IsEnabled="{Binding CanEditStates}">
                                 <ComboBox MinWidth="200"
                                           ItemsSource="{Binding TransitionKinds}"
                                           SelectedItem="{Binding SelectedState.Transition.Kind, Mode=TwoWay}">
@@ -157,7 +165,8 @@
                             </StackPanel>
 
                             <CheckBox Content="Reset to default on restart"
-                                      IsChecked="{Binding ResetOnRestart, Mode=TwoWay}" />
+                                      IsChecked="{Binding ResetOnRestart, Mode=TwoWay}"
+                                      IsEnabled="{Binding CanEditStates}" />
                         </StackPanel>
                     </Border>
 

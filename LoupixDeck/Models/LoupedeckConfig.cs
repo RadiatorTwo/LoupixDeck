@@ -57,7 +57,7 @@ public partial class LoupedeckConfig : ObservableObject
     /// fixed 90x90 authoring tile, so nothing is scaled between the editor and the framebuffer.
     /// A no-op on every 90px device (the factor is 1); see <c>PerDeviceKeySizeMigrator</c>.
     /// </summary>
-    public const int CurrentVersion = 10;
+    public const int CurrentVersion = 11;
 
     public int Version { get; set; } = CurrentVersion;
 

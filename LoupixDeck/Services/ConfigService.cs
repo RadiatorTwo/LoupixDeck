@@ -29,7 +29,8 @@ public class ConfigService : IConfigService
         new ButtonStatesMigrator(),
         new ProfilesWorkspacesMigrator(),
         new PerDeviceKeySizeMigrator(),
-        new StreamControllerXKeySizeMigrator()
+        new StreamControllerXKeySizeMigrator(),
+        new ButtonBackgroundToggleMigrator()
     ];
 
     public ConfigService()

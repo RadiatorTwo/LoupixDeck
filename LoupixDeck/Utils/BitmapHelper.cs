@@ -665,7 +665,13 @@ public static class BitmapHelper
             bitmap = new SKBitmap(width, height);
             using var canvas = new SKCanvas(bitmap);
 
-            if (wallpaperToUse != null && wallpaperSource is { } source)
+            if (touchButton.BackgroundEnabled)
+            {
+                // An explicitly enabled background covers everything below the layers — the page
+                // wallpaper included. Off (the default) leaves the wallpaper visible.
+                canvas.Clear(touchButton.BackColor.ToSKColor());
+            }
+            else if (wallpaperToUse != null && wallpaperSource is { } source)
             {
                 // The caller says which part of the panel-wide wallpaper this key covers
                 // (device.GetWallpaperKeyRect). It has to come from there rather than from
@@ -687,8 +693,8 @@ public static class BitmapHelper
             }
             else
             {
-                // Draw Monochrome Background
-                canvas.Clear(touchButton.BackColor.ToSKColor());
+                // No background and no wallpaper: the bare key, which the panel shows as black.
+                canvas.Clear(SKColors.Transparent);
             }
 
             DrawLayers(canvas, touchButton.Layers, width, height);
@@ -753,8 +759,12 @@ public static class BitmapHelper
         var frameRect = new SKRect(frameOffsetX, frameOffsetY,
             frameOffsetX + frameW, frameOffsetY + frameH);
 
-        // Fill the frame with the button's background color (the device-pixel area).
-        using (var bgPaint = new SKPaint { Color = touchButton.BackColor.ToSKColor() })
+        // Fill the frame (the device-pixel area) with the state's background color when it draws
+        // one, otherwise with black — what the bare key looks like on a page without a wallpaper.
+        using (var bgPaint = new SKPaint
+               {
+                   Color = touchButton.BackgroundEnabled ? touchButton.BackColor.ToSKColor() : SKColors.Black
+               })
         {
             canvas.DrawRect(frameRect, bgPaint);
         }
