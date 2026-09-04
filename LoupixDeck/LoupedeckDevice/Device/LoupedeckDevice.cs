@@ -1457,7 +1457,22 @@ public class LoupedeckDevice
         }
 
         using SKBitmap region = BitmapHelper.ComposeTouchGrid(tiles, this);
-        await DrawCenterGridRegion(region);
+
+        // Same tolerance the per-key path has: a device that does not answer must not take
+        // the caller down with it. Page setup runs during device initialisation, so an
+        // unanswered write here used to abort bringing the device up at all.
+        try
+        {
+            await DrawCenterGridRegion(region);
+        }
+        catch (TimeoutException ex)
+        {
+            Console.WriteLine($"Timeout occurred: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"DrawTouchGridRegion failed: {ex.Message}");
+        }
     }
 
     /// <summary>
