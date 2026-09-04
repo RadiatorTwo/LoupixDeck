@@ -55,6 +55,19 @@ public partial class LoupedeckLiveSController(
     /// Lets the UI tell a side-strip touch button apart from a normal grid button.</summary>
     public bool HasSideStrips => deviceService.Device?.HasSideStrips == true;
 
+    /// <summary>
+    /// Edge length of one centre-grid key in device pixels — the calibrated size, so a tile
+    /// rendered here is the size <c>DrawKey</c> will accept. Read from the config rather
+    /// than from the live device so it is correct before the device has connected.
+    /// </summary>
+    private int KeySize => config?.EffectiveKeyCalibration.KeySize ?? DeviceGeometry.Default.KeySize;
+
+    /// <summary>Width of one side display strip in device pixels.</summary>
+    private int StripWidth => deviceInfo?.Geometry.StripWidth ?? DeviceGeometry.Default.StripWidth;
+
+    /// <summary>Height of a side strip — it spans the full panel height.</summary>
+    private int StripHeight => deviceInfo?.Geometry.PanelHeight ?? DeviceGeometry.Default.PanelHeight;
+
     private volatile bool _isDeviceOff;
     public bool IsDeviceOff => _isDeviceOff;
 
@@ -218,13 +231,12 @@ public partial class LoupedeckLiveSController(
                 return true;
             }
 
-            if (config.CurrentTouchButtonPage?.TouchButtons != null)
-            {
-                foreach (var tb in config.CurrentTouchButtonPage.TouchButtons)
-                {
-                    await device.DrawTouchButton(tb, config, true, device.Columns);
-                }
-            }
+            // The device kept the picture it had before (its boot image after a power-cycle,
+            // the last screensaver frame after a restart), and the page below only covers the
+            // key rectangles — so wipe the panel first.
+            await device.ClearDisplays();
+
+            await DrawCurrentTouchPageButtons(device);
             await RedrawSideStrips();
             // Re-program firmware haptic from the persisted config.
             nativeHapticService.Apply();
@@ -375,6 +387,41 @@ public partial class LoupedeckLiveSController(
         await ResyncDeviceState();
     }
 
+    /// <summary>How long the shutdown blanking may take before the process carries on
+    /// regardless. A device that stopped answering must never hold up the exit — least of all
+    /// during a system shutdown, where the OS gives the process a limited window.</summary>
+    private static readonly TimeSpan ShutdownBlankTimeout = TimeSpan.FromSeconds(3);
+
+    /// <summary>
+    /// Blanks the display, the backlight and the LED buttons on the way out. Synchronous by
+    /// necessity — <see cref="Shutdown"/> is the last thing to run before the port is closed
+    /// and the process exits, so the writes have to be on the wire by the time it returns.
+    /// </summary>
+    private void BlankDeviceForShutdown(LoupedeckDevice.Device.LoupedeckDevice device)
+    {
+        try
+        {
+            var buttons = config.SimpleButtons?.Where(b => b != null).ToList();
+
+            var blanking = Task.Run(async () =>
+            {
+                await device.ClearDisplays();
+
+                foreach (var button in buttons ?? [])
+                    await device.SetButtonColor(button.Id, Avalonia.Media.Colors.Black);
+
+                await device.SetBrightness(0);
+            });
+
+            if (!blanking.Wait(ShutdownBlankTimeout))
+                Console.WriteLine("Shutdown blanking timed out — closing the port anyway.");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Shutdown blanking failed: {ex.Message}");
+        }
+    }
+
     public void Shutdown()
     {
         // Let go of every tracked press first — after this the release events stop arriving (#185).
@@ -417,6 +464,12 @@ public partial class LoupedeckLiveSController(
             device.OnRotate -= OnRotate;
             device.OnSwipe -= OnSwipe;
             device.OnConnect -= OnDeviceConnected;
+
+            // Hand the hardware back in a clean state: a black panel, no backlight and dark
+            // LEDs. Without it the device keeps showing this session's last page for as long
+            // as it stays powered, and the leftovers show through the next session's page.
+            BlankDeviceForShutdown(device);
+
             // Close() suppresses the device's auto-reconnect loop and releases the port.
             try { device.Close(); } catch (Exception ex) { Console.WriteLine($"Shutdown device close failed: {ex.Message}"); }
         }
@@ -438,6 +491,43 @@ public partial class LoupedeckLiveSController(
         }
     }
 
+    /// <summary>
+    /// Drops every cached button bitmap in the config, on every page of every workspace —
+    /// not just the visible one. After a calibration change they are all the wrong size, and
+    /// a stale one would surface on the next page switch: the slide animation composes its
+    /// outgoing frame from these cached images rather than re-rendering them.
+    /// </summary>
+    private void InvalidateRenderedTouchButtons()
+    {
+        foreach (Profile profile in config.Profiles ?? [])
+        foreach (Workspace workspace in profile?.Workspaces ?? [])
+        foreach (TouchButtonPage page in workspace?.TouchButtonPages ?? [])
+        foreach (TouchButton button in page?.TouchButtons ?? [])
+            if (button != null)
+                button.RenderedImage = null;
+    }
+
+    /// <summary>
+    /// Paints the current page's touch buttons onto a device that is not being repainted by
+    /// anything else (start-up, reconnect, device-on). A gapped grid goes out as one region so
+    /// the pixels between the keys are written too — per key it would leave whatever sits in
+    /// the gaps untouched.
+    /// </summary>
+    private async Task DrawCurrentTouchPageButtons(LoupedeckDevice.Device.LoupedeckDevice device)
+    {
+        var buttons = config.CurrentTouchButtonPage?.TouchButtons;
+        if (device == null || buttons == null) return;
+
+        if (device.KeyGridHasGaps)
+        {
+            await device.DrawTouchGridRegion(buttons, config);
+            return;
+        }
+
+        foreach (var touchButton in buttons)
+            await device.DrawTouchButton(touchButton, config, true);
+    }
+
     public async Task RedrawCurrentTouchPage()
     {
         // No-op while something else owns the screen — the owner repaints when it
@@ -454,13 +544,23 @@ public partial class LoupedeckLiveSController(
         // of the page keeps rendering normally.
         if (!exclusiveMode.Owns(ExclusiveControlScope.TouchButtons))
         {
-            var stripsTaken = exclusiveMode.Owns(ExclusiveControlScope.SideDisplays);
-            foreach (var tb in config.CurrentTouchButtonPage.TouchButtons)
+            // A grid with gaps repaints as one region, otherwise whatever was drawn between
+            // the keys (a test pattern, the previous page) survives the repaint. The region
+            // stops at the grid, so a provider's side strips are untouched either way.
+            if (device.KeyGridHasGaps)
             {
-                // Slots 12/13 are the side strips; skip them only when the provider owns
-                // the side displays, so a grid repaint can't paint over its strips.
-                if (stripsTaken && IsSideStripSlot(tb.Index)) continue;
-                await device.DrawTouchButton(tb, config, true, device.Columns);
+                await device.DrawTouchGridRegion(config.CurrentTouchButtonPage.TouchButtons, config);
+            }
+            else
+            {
+                var stripsTaken = exclusiveMode.Owns(ExclusiveControlScope.SideDisplays);
+                foreach (var tb in config.CurrentTouchButtonPage.TouchButtons)
+                {
+                    // Slots 12/13 are the side strips; skip them only when the provider owns
+                    // the side displays, so a grid repaint can't paint over its strips.
+                    if (stripsTaken && IsSideStripSlot(tb.Index)) continue;
+                    await device.DrawTouchButton(tb, config, true);
+                }
             }
         }
 
@@ -542,11 +642,14 @@ public partial class LoupedeckLiveSController(
         if (baudrate > 0)
             Config.DeviceBaudrate = baudrate;
 
-        // Auto-detect path never sets baudrate, so the config would otherwise
-        // persist as 0 and Settings would show "0" even though the device runs
-        // on the 115200 fallback inside LoupedeckDevice.
+        // Auto-detect path never sets baudrate, so the config would otherwise persist as 0
+        // and Settings would show "0". Stamp the model's rate from the device registry, not
+        // a literal: this used to write 115200 for every model regardless of what the device
+        // actually runs at. A config that already holds a rate keeps it — an explicit value
+        // is indistinguishable from an earlier stamp, so old configs are left exactly as they
+        // are and can be re-stamped by clearing the field in Settings.
         if (Config.DeviceBaudrate <= 0)
-            Config.DeviceBaudrate = 115200;
+            Config.DeviceBaudrate = deviceInfo?.Baudrate ?? LoupedeckDevice.Constants.DefaultBaudrate;
 
         // Stamp the active device's VID/PID (and serial) into the config so
         // subsequent launches load the right per-device file via ActiveDeviceResolver.
@@ -613,6 +716,11 @@ public partial class LoupedeckLiveSController(
 
         InitializeRotaryPages();
 
+        // Whatever the panel showed when the app last let go of it is still on the glass —
+        // a screensaver frame covers the gaps between the keys, which no page repaint reaches.
+        // So the whole panel goes black before the first frame of this session.
+        await deviceService.Device.ClearDisplays();
+
         if (config.TouchButtonPages == null || config.TouchButtonPages.Count == 0)
         {
             await pageManager.AddTouchButtonPage(true);
@@ -630,10 +738,7 @@ public partial class LoupedeckLiveSController(
             // page/workspace switch detaches it cleanly).
             AttachTouchItemChanged(config.CurrentTouchButtonPage);
 
-            foreach (var touchButton in config.CurrentTouchButtonPage.TouchButtons)
-            {
-                await deviceService.Device.DrawTouchButton(touchButton, config, true, deviceService.Device.Columns);
-            }
+            await DrawCurrentTouchPageButtons(deviceService.Device);
         }
 
         // Rotary selection is already set by InitializeRotaryPages (per side on
@@ -888,12 +993,12 @@ public partial class LoupedeckLiveSController(
         {
             StripMode.PluginOverride => useSessions
                 ? RenderPluginStripOrFallback(page, side)
-                : BitmapHelper.RenderRotaryStrip(page, config, 60, 270, side),
-            StripMode.FreeDraw => BitmapHelper.RenderStripCanvas(page.StripCanvas, config, 60, 270, side),
+                : BitmapHelper.RenderRotaryStrip(page, config, StripWidth, StripHeight, side),
+            StripMode.FreeDraw => BitmapHelper.RenderStripCanvas(page.StripCanvas, config, StripWidth, StripHeight, side),
             _ => useSessions
-                ? BitmapHelper.RenderRotaryStrip(page, config, 60, 270, side,
+                ? BitmapHelper.RenderRotaryStrip(page, config, StripWidth, StripHeight, side,
                     (i, rc) => (_segmentSession[SideIndex(side)] as ISegmentStripSession)?.RenderSegment(i, rc) ?? false)
-                : BitmapHelper.RenderRotaryStrip(page, config, 60, 270, side)
+                : BitmapHelper.RenderRotaryStrip(page, config, StripWidth, StripHeight, side)
         };
     }
 
@@ -970,13 +1075,13 @@ public partial class LoupedeckLiveSController(
         {
             // The session draws with SkiaSharp via the canvas; serialize with all other Skia work
             // so a plugin frame can't race the host's render pipeline (caches aren't thread-safe).
-            var bitmap = new SkiaSharp.SKBitmap(60, 270);
+            var bitmap = new SkiaSharp.SKBitmap(StripWidth, StripHeight);
             try
             {
                 lock (SkiaRenderGate.Sync)
                 {
                     using var canvas = new SkiaSharp.SKCanvas(bitmap);
-                    var rc = new SkiaRenderCanvas(canvas, 60, 270);
+                    var rc = new SkiaRenderCanvas(canvas, StripWidth, StripHeight);
                     if (session.RenderStrip(rc))
                     {
                         canvas.Flush();
@@ -993,7 +1098,7 @@ public partial class LoupedeckLiveSController(
         }
 
         // Unbound / orphaned id / declined / failed → segmented labels.
-        return BitmapHelper.RenderRotaryStrip(page, config, 60, 270, side);
+        return BitmapHelper.RenderRotaryStrip(page, config, StripWidth, StripHeight, side);
     }
 
     /// <summary>
@@ -1027,8 +1132,8 @@ public partial class LoupedeckLiveSController(
         var context = new SideStripContext
         {
             Side = side == RotarySide.Right ? StripSide.Right : StripSide.Left,
-            Width = 60,
-            Height = 270,
+            Width = StripWidth,
+            Height = StripHeight,
             Rotaries = BuildStripRotaries(page),
             RequestNextPage = () => pageManager.NextRotaryPage(side),
             RequestPreviousPage = () => pageManager.PreviousRotaryPage(side)
@@ -1124,8 +1229,8 @@ public partial class LoupedeckLiveSController(
         var context = new SideStripContext
         {
             Side = side == RotarySide.Right ? StripSide.Right : StripSide.Left,
-            Width = 60,
-            Height = 270,
+            Width = StripWidth,
+            Height = StripHeight,
             Rotaries = BuildStripRotaries(page),
             RequestNextPage = () => pageManager.NextRotaryPage(side),
             RequestPreviousPage = () => pageManager.PreviousRotaryPage(side)
@@ -1616,9 +1721,9 @@ public partial class LoupedeckLiveSController(
 
             var original = button.RenderedImage;
             // Use the original bitmap's dimensions so we cover Razer side panels
-            // (60×270) and regular grid buttons (90×90) without special-casing.
-            var width = original?.Width ?? 90;
-            var height = original?.Height ?? 90;
+            // (60×270) and regular grid buttons (one key square) without special-casing.
+            var width = original?.Width ?? KeySize;
+            var height = original?.Height ?? KeySize;
 
             using var flash = new SkiaSharp.SKBitmap(width, height);
             using (var canvas = new SkiaSharp.SKCanvas(flash))
@@ -1642,7 +1747,7 @@ public partial class LoupedeckLiveSController(
             if (original != null)
                 await device.DrawTouchSlot(button.Index, original);
             else
-                await device.DrawTouchButton(button, config, true, device.Columns);
+                await device.DrawTouchButton(button, config, true);
         }
         catch (Exception ex)
         {
@@ -1858,6 +1963,13 @@ public partial class LoupedeckLiveSController(
                     await DrawExclusiveGrid(device, bySlot);
                     return;
 
+                case PluginSdk.ExclusiveRenderMode.None:
+                    // The provider writes its own frames to the device. Compositing the
+                    // touch entries here would paint over them (an empty entry list blanks
+                    // the whole panel), so push nothing and only keep the page suppressed.
+                    ResetDirtyTiles();
+                    return;
+
                 case PluginSdk.ExclusiveRenderMode.DirtyTiles:
                     await DrawExclusiveDirtyTiles(device, provider, bySlot);
                     return;
@@ -1918,7 +2030,7 @@ public partial class LoupedeckLiveSController(
     private async Task DrawExclusiveGridRegion(LoupedeckDevice.Device.LoupedeckDevice device,
         IReadOnlyDictionary<int, PluginSdk.FolderEntry> bySlot)
     {
-        const int keySize = 90;
+        int keySize = device.KeySize;
         var gridSlots = device.Columns * device.Rows;
 
         using var grid = new SkiaSharp.SKBitmap(new SkiaSharp.SKImageInfo(
@@ -1942,7 +2054,7 @@ public partial class LoupedeckLiveSController(
         await device.DrawCenterGridRegion(grid, refresh: true);
     }
 
-    // Grid: every slot as its own 90x90 framebuffer, no DRAW.
+    // Grid: every slot as its own key-sized framebuffer, no DRAW.
     private async Task DrawExclusiveGrid(LoupedeckDevice.Device.LoupedeckDevice device,
         IReadOnlyDictionary<int, PluginSdk.FolderEntry> bySlot)
     {
@@ -1954,7 +2066,7 @@ public partial class LoupedeckLiveSController(
         }
     }
 
-    // SingleTile: draw just one 90x90 slot, no DRAW.
+    // SingleTile: draw just one key-sized slot, no DRAW.
     private async Task DrawExclusiveSingleTile(LoupedeckDevice.Device.LoupedeckDevice device,
         IReadOnlyDictionary<int, PluginSdk.FolderEntry> bySlot, int slotIndex)
     {
@@ -1995,7 +2107,7 @@ public partial class LoupedeckLiveSController(
     private SkiaSharp.SKBitmap RenderSlot(IReadOnlyDictionary<int, PluginSdk.FolderEntry> bySlot, int slot)
         => bySlot.TryGetValue(slot, out var entry)
             ? RenderSdkEntry(entry, slot)
-            : BitmapHelper.RenderEmptyFolderSlot(config, slot, 90, 90, FolderConstants.Columns);
+            : BitmapHelper.RenderEmptyFolderSlot(config, slot, KeySize, KeySize, FolderConstants.Columns);
 
     // --- DirtyTiles bookkeeping -------------------------------------------------
     private PluginSdk.IExclusiveModeProvider _dirtyOwner;
@@ -2025,7 +2137,7 @@ public partial class LoupedeckLiveSController(
     }
 
     /// <summary>Adapts an SDK FolderEntry to the core FolderEntry renderer.</summary>
-    private static SkiaSharp.SKBitmap RenderSdkEntry(PluginSdk.FolderEntry e, int slot)
+    private SkiaSharp.SKBitmap RenderSdkEntry(PluginSdk.FolderEntry e, int slot)
     {
         var core = new Services.FolderNavigation.FolderEntry
         {
@@ -2036,7 +2148,7 @@ public partial class LoupedeckLiveSController(
             TextSize = e.TextSize,
             Bold = e.Bold
         };
-        return BitmapHelper.RenderFolderEntry(core, null, slot, 90, 90, FolderConstants.Columns);
+        return BitmapHelper.RenderFolderEntry(core, null, slot, KeySize, KeySize, FolderConstants.Columns);
     }
 
     private async void OnFolderStateChanged()
@@ -2061,15 +2173,15 @@ public partial class LoupedeckLiveSController(
                     SkiaSharp.SKBitmap bmp;
                     if (slot == FolderConstants.BackSlotIndex)
                     {
-                        bmp = BitmapHelper.RenderFolderBackButton(config, slot, 90, 90, FolderConstants.Columns);
+                        bmp = BitmapHelper.RenderFolderBackButton(config, slot, KeySize, KeySize, FolderConstants.Columns);
                     }
                     else if (folderNav.CurrentEntries.TryGetValue(slot, out var entry))
                     {
-                        bmp = BitmapHelper.RenderFolderEntry(entry, config, slot, 90, 90, FolderConstants.Columns);
+                        bmp = BitmapHelper.RenderFolderEntry(entry, config, slot, KeySize, KeySize, FolderConstants.Columns);
                     }
                     else
                     {
-                        bmp = BitmapHelper.RenderEmptyFolderSlot(config, slot, 90, 90, FolderConstants.Columns);
+                        bmp = BitmapHelper.RenderEmptyFolderSlot(config, slot, KeySize, KeySize, FolderConstants.Columns);
                     }
 
                     await device.DrawTouchSlot(slot, bmp);
@@ -2080,7 +2192,7 @@ public partial class LoupedeckLiveSController(
                 // Folder mode left — restore the configured page.
                 foreach (var touchButton in config.CurrentTouchButtonPage.TouchButtons)
                 {
-                    await device.DrawTouchButton(touchButton, config, true, device.Columns);
+                    await device.DrawTouchButton(touchButton, config, true);
                 }
 
                 await RedrawSideStrips();
@@ -2269,7 +2381,7 @@ public partial class LoupedeckLiveSController(
                     await Task.Delay(100, token); // Debounce
                     foreach (var touchButton in config.CurrentTouchButtonPage.TouchButtons)
                     {
-                        await deviceService.Device.DrawTouchButton(touchButton, config, true, deviceService.Device.Columns);
+                        await deviceService.Device.DrawTouchButton(touchButton, config, true);
                         await Task.Delay(0, token);
                     }
                     // The side strips share the wallpaper — repaint them too.
@@ -2297,7 +2409,7 @@ public partial class LoupedeckLiveSController(
 
         if (button == null) return;
 
-        await deviceService.Device.DrawTouchButton(button, config, true, deviceService.Device.Columns);
+        await deviceService.Device.DrawTouchButton(button, config, true);
     }
 
     /// <summary>
@@ -2595,6 +2707,15 @@ public partial class LoupedeckLiveSController(
                     // ApplyTouchPage cannot be used here: it early-returns when the requested
                     // page is already current, which is always the case for a settings toggle.
                     deviceService.Device.DitherFramebuffer = config.DitheringEnabled;
+                    await RedrawCurrentTouchPage();
+                    break;
+
+                case nameof(LoupedeckConfig.KeyCalibration):
+                    // Both the size and the position of every key can have changed, so the
+                    // cached per-button bitmaps are the wrong size and have to go before
+                    // anything repaints — DrawKey rejects a tile that does not match.
+                    deviceService.Device.KeyCalibration = config.EffectiveKeyCalibration;
+                    InvalidateRenderedTouchButtons();
                     await RedrawCurrentTouchPage();
                     break;
             }

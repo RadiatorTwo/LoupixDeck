@@ -25,13 +25,21 @@ public static class FakeDeviceOverride
     public static ResolvedDevice Apply(ResolvedDevice actual)
     {
         var slug = Environment.GetEnvironmentVariable(EnvVar);
-        if (string.IsNullOrWhiteSpace(slug)) return actual;
+        if (string.IsNullOrWhiteSpace(slug))
+        {
+            // Say so out loud. A silent return here is indistinguishable from an override that
+            // ran and did nothing, from a Release build where this method is never called at
+            // all, and from a debugger that did not pass the variable into the process.
+            Console.WriteLine($"[FakeDeviceOverride] {EnvVar} is not set in this process — no emulation.");
+            return actual;
+        }
 
         var match = DeviceRegistry.SupportedDevices
             .FirstOrDefault(d => string.Equals(d.Slug, slug.Trim(), StringComparison.OrdinalIgnoreCase));
         if (match == null)
         {
-            Console.WriteLine($"[FakeDeviceOverride] {EnvVar}='{slug}' did not match any registered device; ignoring.");
+            Console.WriteLine($"[FakeDeviceOverride] {EnvVar}='{slug}' did not match any registered device; ignoring. " +
+                              $"Known slugs: {string.Join(", ", DeviceRegistry.SupportedDevices.Select(d => d.Slug).Distinct())}");
             return actual;
         }
 

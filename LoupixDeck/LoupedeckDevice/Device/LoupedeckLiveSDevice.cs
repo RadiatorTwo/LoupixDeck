@@ -1,9 +1,22 @@
 using System.Collections.Frozen;
+using LoupixDeck.Registry;
 
 namespace LoupixDeck.LoupedeckDevice.Device;
 
 public class LoupedeckLiveSDevice : LoupedeckDevice
 {
+    /// <summary>90px keys on the 480x270 unified panel; no side strips.</summary>
+    public static readonly DeviceGeometry KnownGeometry = new()
+    {
+        KeySize = 90,
+        PanelWidth = 480,
+        PanelHeight = 270,
+        StripWidth = 0
+    };
+
+    /// <inheritdoc />
+    public override DeviceGeometry Geometry => KnownGeometry;
+
     public LoupedeckLiveSDevice(string host = null, string path = null, int baudrate = 0, bool autoConnect = true, int reconnectInterval = Constants.DefaultReconnectInterval)
         : base(host, path, baudrate, autoConnect, reconnectInterval)
     {
@@ -16,6 +29,7 @@ public class LoupedeckLiveSDevice : LoupedeckDevice
         VisibleY = [10, 269];
         Type = "Loupedeck Live S";
         ProductId = "0006";
+        VendorId = "2ec2";
         Displays = new Dictionary<string, DisplayInfo>
         {
             ["center"] = new() { Id = "\0M"u8.ToArray(), Width = 480, Height = 270 }
@@ -45,8 +59,8 @@ public class LoupedeckLiveSDevice : LoupedeckDevice
         y = Math.Min(y, VisibleY[1]);
         x -= VisibleX[0];
         y -= VisibleY[0];
-        var column = x / 90;
-        var row = y / 90;
+        int column = x / KeySize;
+        int row = y / KeySize;
         var key = (row * Columns) + column;
         return new TouchTarget { Screen = "center", Key = key };
     }

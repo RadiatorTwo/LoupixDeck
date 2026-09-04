@@ -123,9 +123,9 @@ public class ExclusiveStressTestCommand(IExclusiveModeService exclusiveMode) : I
 
         // Mode maps directly to the SDK render strategy the controller uses:
         //   full  → full-screen atomic blit + DRAW (default baseline)
-        //   grid  → every slot as its own 90x90 tile, no DRAW
+        //   grid  → every slot as its own key-sized tile, no DRAW
         //   dirty → only changed tiles re-sent, no DRAW
-        //   tile  → single 90x90 slot (14), no DRAW
+        //   tile  → single key-sized slot (14), no DRAW
         var modeStr = parameters is { Length: > 1 } ? parameters[1].Trim().ToLowerInvariant() : "full";
         var renderMode = modeStr switch
         {
@@ -171,11 +171,12 @@ public class DrawBenchmarkCommand(IDeviceService deviceService, LoupedeckConfig 
         }
 
         var slots = device.TouchButtonCount;
-        Console.WriteLine($"[Benchmark] start — {frames} frames, {slots} slots (90x90), key blit");
+        int keySize = device.KeySize;
+        Console.WriteLine($"[Benchmark] start — {frames} frames, {slots} slots ({keySize}x{keySize}), key blit");
 
         // Alternate two colours so the panel can't short-circuit identical frames.
-        using var keyA = MakeSolid(90, 90, new SKColor(255, 0, 0));
-        using var keyB = MakeSolid(90, 90, new SKColor(0, 0, 255));
+        using var keyA = MakeSolid(keySize, keySize, new SKColor(255, 0, 0));
+        using var keyB = MakeSolid(keySize, keySize, new SKColor(0, 0, 255));
 
         try
         {
@@ -183,19 +184,19 @@ public class DrawBenchmarkCommand(IDeviceService deviceService, LoupedeckConfig 
             // and WITHOUT it (FRAMEBUFF only) — so the cost of the per-frame DRAW is
             // directly visible. The official software streams frames without DRAW.
 
-            // 1) Single 90x90 slot, WITH DRAW (FRAMEBUFF + DRAW round-trip).
+            // 1) Single key-sized slot, WITH DRAW (FRAMEBUFF + DRAW round-trip).
             var sw = Stopwatch.StartNew();
             for (var i = 0; i < frames; i++)
                 await device.DrawTouchSlot(0, (i & 1) == 0 ? keyA : keyB, refresh: true);
             sw.Stop();
-            Report("single slot 90x90  [with DRAW]", frames, sw.Elapsed);
+            Report($"single slot {keySize}x{keySize}  [with DRAW]", frames, sw.Elapsed);
 
-            // 1b) Single 90x90 slot, NO DRAW (FRAMEBUFF only).
+            // 1b) Single key-sized slot, NO DRAW (FRAMEBUFF only).
             sw.Restart();
             for (var i = 0; i < frames; i++)
                 await device.DrawTouchSlot(0, (i & 1) == 0 ? keyA : keyB, refresh: false);
             sw.Stop();
-            Report("single slot 90x90  [no DRAW] ", frames, sw.Elapsed);
+            Report($"single slot {keySize}x{keySize}  [no DRAW] ", frames, sw.Elapsed);
 
             // 2) Full grid drawn as N individual slot blits — exactly what the
             //    exclusive-mode redraw does (slots × 2 serial round-trips/frame).
@@ -240,7 +241,7 @@ public class DrawBenchmarkCommand(IDeviceService deviceService, LoupedeckConfig 
             if (config.CurrentTouchButtonPage?.TouchButtons != null)
             {
                 foreach (var tb in config.CurrentTouchButtonPage.TouchButtons)
-                    await device.DrawTouchButton(tb, config, true, device.Columns);
+                    await device.DrawTouchButton(tb, config, true);
             }
         }
         catch (Exception ex)
@@ -282,9 +283,9 @@ public class PlayVideoCommand(IDeviceService deviceService, IExclusiveModeServic
 
     private enum VideoMode
     {
-        Full, // one full-screen 480x270 framebuffer per frame
-        Tile, // one single 90x90 slot
-        Grid  // full frame split across all 90x90 slots, drawn as individual tiles
+        Full, // one full-panel framebuffer per frame
+        Tile, // one single key-sized slot
+        Grid  // full frame split across all slots, drawn as individual key-sized tiles
     }
 
     public Task Execute(string[] parameters)
@@ -312,9 +313,9 @@ public class PlayVideoCommand(IDeviceService deviceService, IExclusiveModeServic
 
             // Mode (all draw WITHOUT the trailing DRAW 0x0f — FRAMEBUFF only, like the
             // official software streaming a GIF):
-            //   full → one full-screen 480x270 framebuffer per frame
-            //   tile → video squeezed into a single 90x90 touch slot
-            //   grid → full video spread across ALL touch slots as individual 90x90 tiles
+            //   full → one full-panel framebuffer per frame
+            //   tile → video squeezed into a single touch slot
+            //   grid → full video spread across ALL touch slots as individual key-sized tiles
             var modeStr = parameters.Length > 2 ? parameters[2].Trim().ToLowerInvariant() : "full";
             var mode = modeStr switch
             {
@@ -334,7 +335,7 @@ public class PlayVideoCommand(IDeviceService deviceService, IExclusiveModeServic
     }
 
     // Pipes raw BGRA frames from ffmpeg and pushes each as ONE FRAMEBUFF write with
-    // NO trailing DRAW (full-screen in "full" mode, a single 90x90 slot in "tile" mode).
+    // NO trailing DRAW (full-screen in "full" mode, a single key-sized slot in "tile" mode).
     // Timing: ffmpeg emits constant-rate frames (no -re, so the consumer's wall
     // clock is the sole pace authority — option 3); each frame has a target
     // presentation time of frameIndex/fps. Frames that are already more than one
@@ -360,22 +361,27 @@ public class PlayVideoCommand(IDeviceService deviceService, IExclusiveModeServic
             int w, h;
             var cols = device.Columns;
             var rows = device.Rows;
+            int keySize = device.KeySize;
             switch (mode)
             {
                 case VideoMode.Tile:
-                    // Single 90x90 touch slot.
-                    w = 90;
-                    h = 90;
+                    // Single touch slot.
+                    w = keySize;
+                    h = keySize;
                     break;
                 case VideoMode.Grid:
-                    // Scale to exactly the touch grid (cols*90 x rows*90) so each
-                    // slot gets one 90x90 chunk with no leftover margin.
-                    w = cols * 90;
-                    h = rows * 90;
+                    // Scale to exactly the touch grid (cols*keySize x rows*keySize) so each
+                    // slot gets one key-sized chunk with no leftover margin.
+                    w = cols * keySize;
+                    h = rows * keySize;
                     break;
                 default: // Full
                     (w, h) = device.GetDisplaySize();
-                    if (w <= 0 || h <= 0) { w = 480; h = 270; }
+                    if (w <= 0 || h <= 0)
+                    {
+                        w = device.Geometry.PanelWidth;
+                        h = device.Geometry.PanelHeight;
+                    }
                     break;
             }
 
@@ -496,23 +502,25 @@ public class PlayVideoCommand(IDeviceService deviceService, IExclusiveModeServic
         }
     }
 
-    // Splits one full-grid frame (cols*90 x rows*90) into individual 90x90 tiles and
-    // writes each as its own FRAMEBUFF (no DRAW). One reusable tile bitmap is filled
-    // per slot — the per-slot DrawTouchSlot is awaited before the next overwrite, so
-    // sharing the buffer is safe.
+    // Splits one full-grid frame (cols*keySize x rows*keySize) into individual key-sized
+    // tiles and writes each as its own FRAMEBUFF (no DRAW). One reusable tile bitmap is
+    // filled per slot — the per-slot DrawTouchSlot is awaited before the next overwrite,
+    // so sharing the buffer is safe.
     private static async Task DrawGridTiles(LoupixDeck.LoupedeckDevice.Device.LoupedeckDevice device,
         SKBitmap full, int cols, int rows, CancellationToken token)
     {
-        using var tile = new SKBitmap(new SKImageInfo(90, 90, SKColorType.Bgra8888, SKAlphaType.Opaque));
+        int keySize = device.KeySize;
+        using var tile = new SKBitmap(new SKImageInfo(keySize, keySize, SKColorType.Bgra8888, SKAlphaType.Opaque));
         using var canvas = new SKCanvas(tile);
-        var dst = new SKRect(0, 0, 90, 90);
+        var dst = new SKRect(0, 0, keySize, keySize);
 
         for (var s = 0; s < cols * rows; s++)
         {
             if (token.IsCancellationRequested) return;
             var col = s % cols;
             var row = s / cols;
-            var src = new SKRect(col * 90, row * 90, (col * 90) + 90, (row * 90) + 90);
+            var src = new SKRect(col * keySize, row * keySize, (col * keySize) + keySize,
+                (row * keySize) + keySize);
             canvas.DrawBitmap(full, src, dst, SKSamplingOptions.Default, paint: null); // opaque source fully overwrites the tile
             await device.DrawTouchSlot(s, tile, refresh: false);
         }

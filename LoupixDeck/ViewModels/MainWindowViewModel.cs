@@ -216,6 +216,8 @@ public partial class MainWindowViewModel : ViewModelBase
         });
     }
 
+    private readonly LoupixDeck.Registry.DeviceGeometry _geometry;
+
     public MainWindowViewModel(LoupedeckLiveSController loupedeck,
         IDialogService dialogService,
         IButtonClipboardService clipboard,
@@ -228,9 +230,11 @@ public partial class MainWindowViewModel : ViewModelBase
         IWorkspaceActivationService workspaceActivation,
         LoupedeckConfig config,
         LoupixDeck.Registry.DeviceRegistry.DeviceInfo deviceInfo,
-        LoupixDeck.Registry.ResolvedDevice resolved)
+        LoupixDeck.Registry.ResolvedDevice resolved,
+        LoupixDeck.Registry.DeviceGeometry geometry)
     {
         LoupedeckController = loupedeck;
+        _geometry = geometry ?? LoupixDeck.Registry.DeviceGeometry.Default;
         DeviceSlug = deviceInfo.Slug;
         DeviceName = string.IsNullOrEmpty(resolved?.Serial)
             ? deviceInfo.Name
@@ -915,7 +919,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
         await _dialogService.ShowDialogAsync<TouchButtonSettingsViewModel, DialogResult>(vm =>
         {
-            vm.SetCanvasSize(60, 270);
+            vm.SetCanvasSize(_geometry.StripWidth, _geometry.PanelHeight);
             vm.ConfigureStrip(page);
             vm.Initialize(page.StripCanvas);
         });

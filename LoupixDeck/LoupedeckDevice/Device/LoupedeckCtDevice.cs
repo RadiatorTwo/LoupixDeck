@@ -1,5 +1,6 @@
 using System.Collections.Frozen;
 using LoupixDeck.Models;
+using LoupixDeck.Registry;
 using LoupixDeck.Utils;
 using SkiaSharp;
 
@@ -41,6 +42,22 @@ public class LoupedeckCtDevice : LoupedeckDevice
     /// <inheritdoc />
     public override bool HasSideStrips => true;
 
+    /// <summary>
+    /// 90px keys on a 480x270 panel with 60px side strips. The panel stays 480 wide even
+    /// though the CT draws it through four separate framebuffers (60 left + 360 centre +
+    /// 60 right): touch coordinates and the page wallpaper are unified across all three.
+    /// </summary>
+    public static readonly DeviceGeometry KnownGeometry = new()
+    {
+        KeySize = 90,
+        PanelWidth = 480,
+        PanelHeight = 270,
+        StripWidth = 60
+    };
+
+    /// <inheritdoc />
+    public override DeviceGeometry Geometry => KnownGeometry;
+
     /// <inheritdoc />
     /// <remarks>
     /// This offset only affects which slice of a continuous wallpaper bitmap is
@@ -52,6 +69,11 @@ public class LoupedeckCtDevice : LoupedeckDevice
     /// once real hardware/wallpaper behaviour can be observed.
     /// </remarks>
     public override int WallpaperGridXOffset => 60;
+
+    /// <inheritdoc />
+    /// <remarks>The CT's "center" is its own dedicated 360-wide grid-only framebuffer, so the
+    /// grid starts at 0 there — unlike the unified 480-wide buffer of Live/Razer.</remarks>
+    public override int GridOriginX => 0;
 
     public LoupedeckCtDevice(string host = null, string path = null, int baudrate = 0,
         bool autoConnect = true, int reconnectInterval = Constants.DefaultReconnectInterval)
@@ -68,6 +90,7 @@ public class LoupedeckCtDevice : LoupedeckDevice
         VisibleY = [0, 270];
         Type = "Loupedeck CT";
         ProductId = "0003";
+        VendorId = "2ec2";
 
         // Four independent framebuffers (unlike Live/Razer's single unified one).
         Displays = new Dictionary<string, DisplayInfo>
@@ -99,8 +122,8 @@ public class LoupedeckCtDevice : LoupedeckDevice
 
         x = Math.Clamp(x, VisibleX[0], VisibleX[1]) - VisibleX[0];
         y = Math.Clamp(y, VisibleY[0], VisibleY[1]);
-        var column = x / 90;
-        var row = y / 90;
+        int column = x / KeySize;
+        int row = y / KeySize;
         var key = (row * Columns) + column;
         return new TouchTarget { Screen = "center", Key = key };
     }
@@ -132,7 +155,7 @@ public class LoupedeckCtDevice : LoupedeckDevice
 
     /// <inheritdoc />
     /// <remarks>Side panels (12/13) are owned by the rotary-label renderer, same as Razer.</remarks>
-    public override async Task DrawTouchButton(TouchButton touchButton, LoupedeckConfig config, bool refresh, int columns)
+    public override async Task DrawTouchButton(TouchButton touchButton, LoupedeckConfig config, bool refresh)
     {
         ArgumentNullException.ThrowIfNull(touchButton);
 
@@ -142,7 +165,8 @@ public class LoupedeckCtDevice : LoupedeckDevice
         if (refresh || touchButton.RenderedImage == null)
         {
             var renderedBitmap =
-                BitmapHelper.RenderTouchButtonContent(touchButton, config, 90, 90, columns, WallpaperGridXOffset);
+                BitmapHelper.RenderTouchButtonContent(touchButton, config, KeySize, KeySize,
+                    GetWallpaperKeyRect(touchButton.Index));
             if (renderedBitmap == null) return;
         }
 
@@ -162,7 +186,8 @@ public class LoupedeckCtDevice : LoupedeckDevice
         var (width, height) = GetDisplaySize("center");
         if (width == 0) return;
 
-        const int keySize = 90;
+        // Positions come from GetKeyRect; the CT's "center" is a grid-only buffer, which
+        // its VisibleX override already accounts for.
 
         using var full = new SKBitmap(new SKImageInfo(width, height,
             SKColorType.Bgra8888, SKAlphaType.Premul));
@@ -175,8 +200,9 @@ public class LoupedeckCtDevice : LoupedeckDevice
             {
                 var bmp = slotBitmaps[slot];
                 if (bmp == null) continue;
-                var x = (slot % Columns) * keySize;
-                var y = (slot / Columns) * keySize;
+                SKRectI rect = GetKeyRect(slot);
+                var x = rect.Left;
+                var y = rect.Top;
                 canvas.DrawBitmap(bmp, x, y, SKSamplingOptions.Default, paint: null);
             }
         }
@@ -201,19 +227,20 @@ public class LoupedeckCtDevice : LoupedeckDevice
     }
 
     /// <summary>
-    /// Writes a 90x90 bitmap to the "center" buffer at the grid position for
+    /// Writes a KeySize-square bitmap to the "center" buffer at the grid position for
     /// <paramref name="index"/>, using a 0-based origin (the CT's center buffer is
     /// its own dedicated 360-wide framebuffer — unlike Razer's unified 480-wide one,
     /// it does NOT start at VisibleX[0]).
     /// </summary>
     private async Task DrawTouchButtonAt(int index, SKBitmap bitmap, bool refresh)
     {
-        var x = (index % Columns) * 90;
-        var y = (index / Columns) * 90;
+        SKRectI rect = GetKeyRect(index);
+        int x = rect.Left;
+        int y = rect.Top;
 
         try
         {
-            await DrawCanvasRegion("center", 90, 90, bitmap, x, y, refresh);
+            await DrawCanvasRegion("center", KeySize, KeySize, bitmap, x, y, refresh);
         }
         catch (TimeoutException ex)
         {

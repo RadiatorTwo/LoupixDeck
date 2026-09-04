@@ -27,7 +27,9 @@ public class ConfigService : IConfigService
         new WallpaperAssetMigrator(),
         new WallpaperSlotMigrator(),
         new ButtonStatesMigrator(),
-        new ProfilesWorkspacesMigrator()
+        new ProfilesWorkspacesMigrator(),
+        new PerDeviceKeySizeMigrator(),
+        new StreamControllerXKeySizeMigrator()
     ];
 
     public ConfigService()

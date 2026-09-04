@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using LoupixDeck.Models.Extensions;
+using LoupixDeck.Registry;
 using LoupixDeck.Utils;
 using SkiaSharp;
 
@@ -173,11 +174,14 @@ public partial class LoupedeckLiveSController
     private SKBitmap ComposeCurrentTouchGrid(int columns, int rows)
     {
         var page = config.CurrentTouchButtonPage;
+        var device = deviceService.Device;
+        if (device == null) return null;
+
         var slots = new SKBitmap[columns * rows];
         if (page?.TouchButtons != null)
             for (var i = 0; i < slots.Length; i++)
                 slots[i] = page.TouchButtons.FindByIndex(i)?.RenderedImage;
-        return BitmapHelper.ComposeTouchGrid(slots, columns, rows);
+        return BitmapHelper.ComposeTouchGrid(slots, device);
     }
 
     /// <summary>Renders every grid button of the (now current) incoming page and composes them
@@ -185,16 +189,20 @@ public partial class LoupedeckLiveSController
     private SKBitmap RenderTouchGridForCurrentPage(int columns, int rows)
     {
         var page = config.CurrentTouchButtonPage;
-        var xOffset = deviceService.Device?.WallpaperGridXOffset ?? 0;
+        var device = deviceService.Device;
+        if (device == null) return null;
+
+        int keySize = device.KeySize;
         var slots = new SKBitmap[columns * rows];
         if (page?.TouchButtons != null)
             for (var i = 0; i < slots.Length; i++)
             {
                 var button = page.TouchButtons.FindByIndex(i);
                 if (button != null)
-                    slots[i] = BitmapHelper.RenderTouchButtonContent(button, config, 90, 90, columns, xOffset);
+                    slots[i] = BitmapHelper.RenderTouchButtonContent(button, config, keySize, keySize,
+                        device.GetWallpaperKeyRect(i));
             }
-        return BitmapHelper.ComposeTouchGrid(slots, columns, rows);
+        return BitmapHelper.ComposeTouchGrid(slots, device);
     }
 
     /// <summary>Arms a touch-page transition and wakes the scheduler. Supersedes any in-flight

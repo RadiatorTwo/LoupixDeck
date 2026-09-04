@@ -1,5 +1,6 @@
 using System.Buffers;
 using LoupixDeck.PluginSdk;
+using LoupixDeck.Registry;
 
 namespace LoupixDeck.Services.Animation;
 
@@ -16,6 +17,7 @@ public sealed class PluginFullDisplayAnimationSource : IAnimationSource, IDispos
     private readonly FullDisplaySurface _surface;
     private readonly Action _onEnded;
 
+    private readonly DeviceGeometry _geometry;
     private volatile bool _enabled;
     private volatile bool _paused;
     private bool _started;
@@ -32,13 +34,16 @@ public sealed class PluginFullDisplayAnimationSource : IAnimationSource, IDispos
         Action onEnded = null)
     {
         _renderer = renderer;
+        _geometry = device.Geometry;
         _onEnded = onEnded;
         _writer = new FullDisplayFrameWriter(device);
+        // The plugin sees the device's real panel through IRenderCanvas' runtime
+        // Width/Height, so a differently sized panel needs no SDK change.
         _surface = new FullDisplaySurface
         {
-            Width = FullDisplayFrameWriter.PanelWidth,
-            Height = FullDisplayFrameWriter.PanelHeight,
-            Stride = FullDisplayFrameWriter.PanelWidth * 4,
+            Width = _geometry.PanelWidth,
+            Height = _geometry.PanelHeight,
+            Stride = _geometry.PanelWidth * 4,
             PixelFormat = FullDisplayPixelFormat.Bgra8888
         };
     }
@@ -85,7 +90,7 @@ public sealed class PluginFullDisplayAnimationSource : IAnimationSource, IDispos
         if (!_enabled || _paused)
             return;
 
-        var buffer = ArrayPool<byte>.Shared.Rent(FullDisplayFrameWriter.FrameBytes);
+        var buffer = ArrayPool<byte>.Shared.Rent(_geometry.FrameBytes);
         try
         {
             FullDisplayFrameContext frame = new()

@@ -1,0 +1,348 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:LoupixDeck.ViewModels"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:models="clr-namespace:LoupixDeck.Models"
+             xmlns:svg="clr-namespace:Avalonia.Svg.Skia;assembly=Svg.Controls.Skia.Avalonia"
+             mc:Ignorable="d"
+             x:Class="LoupixDeck.Views.Devices.RazerStreamControllerXLayout"
+             x:DataType="vm:MainWindowViewModel"
+             x:Name="RootControl">
+    <UserControl.Styles>
+        <!-- Touch keys: chrome-free so only the rendered image shows, with the dark
+             bezel behind it filling the gaps and rounded corners. No grey button
+             background in any state (hover, press, focus, dialog). -->
+        <Style Selector="Button[Tag=Touch]">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Focusable" Value="False" />
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Grid>
+                        <ContentPresenter Content="{TemplateBinding Content}"
+                                          ContentTemplate="{TemplateBinding ContentTemplate}"
+                                          HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                          VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
+                        <!-- Hover / selection highlight, tracing the key's own edge. No inset:
+                             unlike the gapless devices there is no painted seam to clear here,
+                             the gaps between the keys are real, so an inset would only make the
+                             highlight smaller than the key it marks. The selected state follows
+                             the bound TouchButton's IsSelected (single click selects). -->
+                        <Border Name="HighlightBorder"
+                                Margin="0" CornerRadius="12"
+                                BorderThickness="3" BorderBrush="Transparent"
+                                IsHitTestVisible="False"
+                                Classes.selected="{Binding ((models:LoupedeckButton)CommandParameter).IsSelected, RelativeSource={RelativeSource TemplatedParent}, FallbackValue=False}" />
+                    </Grid>
+                </ControlTemplate>
+            </Setter>
+        </Style>
+        <!-- MouseOver: a subtle border. -->
+        <Style Selector="Button[Tag=Touch]:pointerover /template/ Border#HighlightBorder">
+            <Setter Property="BorderBrush" Value="#803D9BFF" />
+        </Style>
+        <!-- Selected (single click): solid accent border; declared last so it wins over hover. -->
+        <Style Selector="Button[Tag=Touch] /template/ Border#HighlightBorder.selected">
+            <Setter Property="BorderBrush" Value="{StaticResource PageActiveBorderBrush}" />
+        </Style>
+    </UserControl.Styles>
+
+    <!-- The Stream Controller X is fifteen physical keys and nothing else: no dials, no
+         LED buttons, no side strips. So this layout is the key grid alone, with the touch
+         pager below it.
+
+         Coordinates are SVG-viewBox units (720x520), matching the body image so the
+         controls scale with it inside the shared Viewbox. The body is laid out from the
+         panel outwards, since the device is a screen and nothing else: the 480x270 panel
+         sits at (120,125), centred in the bezel recess at (98,94), which the baked body
+         clears by 52 on every side (see tools/BodyTextureBaker, variant razer-x). The
+         recess stays 332 tall from the bake — it is the glass surround, and the visible
+         panel is shorter than it. Margins are even all round — no dial column or LED row
+         makes one edge deeper. -->
+    <StackPanel Orientation="Vertical" HorizontalAlignment="Center" Spacing="2"
+                Tapped="OnBackgroundTapped"
+                ContextRequested="OnButtonContextRequested">
+
+        <!-- Device body (SVG) + control overlay, scaled together. -->
+        <Viewbox Width="620" Stretch="Uniform">
+            <Grid Width="720" Height="520">
+
+                <!-- Gehaeuse / body artwork, baked per theme (see tools/BodyTextureBaker). -->
+                <svg:Svg Path="{DynamicResource RazerXBodySvgPath}"
+                         Stretch="Fill" Width="720" Height="520" />
+
+                <!-- Interactive controls in SVG-viewBox coordinates. -->
+                <Canvas Width="720" Height="520">
+
+                    <!-- ===== Bezel and keys, from the physical device rather than from the
+                         framebuffer. Measured: body 111x82 mm, bezel 98x60 mm, key caps
+                         16x16 mm, 3 mm of bezel around the grid and between the caps. Drawn
+                         at 6 units per mm, the same scale the baked body uses (see
+                         tools/BodyTextureBaker, variant razer-x), so bezel width
+                         3 + 5*16 + 4*3 + 3 = 98 mm and height 3 + 3*16 + 2*3 + 3 = 60 mm
+                         both come out exact.
+
+                         The bezel is 7 mm below the top edge and 15 mm above the bottom one,
+                         so it is centred horizontally but deliberately NOT vertically.
+
+                         Two key sizes are in play and they are not the same thing: the cap is
+                         16 mm, while the window it leaves open is 14.35 mm (74 of the 98 px
+                         pitch, measured on hardware). The button is cap-sized and the rendered
+                         image sits inside it — drawing the windows alone would show gaps three
+                         times wider than the device has. ===== -->
+                    <Border Canvas.Left="66" Canvas.Top="56" Width="588" Height="360"
+                            CornerRadius="12" Background="{DynamicResource DeviceBezelBrush}" />
+
+                    <Button Tag="Touch" Canvas.Left="84" Canvas.Top="74" Width="96" Height="96"
+                            Tapped="OnButtonTapped" DoubleTapped="OnButtonDoubleTapped"
+                            CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[0]}">
+                        <!-- The key cap. Outlined so the button's real extent is visible:
+                             without it the hover frame traces an edge nothing else shows. -->
+                        <Border CornerRadius="12" BorderThickness="1"
+                                BorderBrush="{DynamicResource DeviceButtonBorder}">
+                            <Border Width="86" Height="86" CornerRadius="8" ClipToBounds="True"
+                                    HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[0].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
+                            </Border>
+                        </Border>
+                    </Button>
+                    <Button Tag="Touch" Canvas.Left="198" Canvas.Top="74" Width="96" Height="96"
+                            Tapped="OnButtonTapped" DoubleTapped="OnButtonDoubleTapped"
+                            CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[1]}">
+                        <!-- The key cap. Outlined so the button's real extent is visible:
+                             without it the hover frame traces an edge nothing else shows. -->
+                        <Border CornerRadius="12" BorderThickness="1"
+                                BorderBrush="{DynamicResource DeviceButtonBorder}">
+                            <Border Width="86" Height="86" CornerRadius="8" ClipToBounds="True"
+                                    HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[1].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
+                            </Border>
+                        </Border>
+                    </Button>
+                    <Button Tag="Touch" Canvas.Left="312" Canvas.Top="74" Width="96" Height="96"
+                            Tapped="OnButtonTapped" DoubleTapped="OnButtonDoubleTapped"
+                            CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[2]}">
+                        <!-- The key cap. Outlined so the button's real extent is visible:
+                             without it the hover frame traces an edge nothing else shows. -->
+                        <Border CornerRadius="12" BorderThickness="1"
+                                BorderBrush="{DynamicResource DeviceButtonBorder}">
+                            <Border Width="86" Height="86" CornerRadius="8" ClipToBounds="True"
+                                    HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[2].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
+                            </Border>
+                        </Border>
+                    </Button>
+                    <Button Tag="Touch" Canvas.Left="426" Canvas.Top="74" Width="96" Height="96"
+                            Tapped="OnButtonTapped" DoubleTapped="OnButtonDoubleTapped"
+                            CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[3]}">
+                        <!-- The key cap. Outlined so the button's real extent is visible:
+                             without it the hover frame traces an edge nothing else shows. -->
+                        <Border CornerRadius="12" BorderThickness="1"
+                                BorderBrush="{DynamicResource DeviceButtonBorder}">
+                            <Border Width="86" Height="86" CornerRadius="8" ClipToBounds="True"
+                                    HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[3].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
+                            </Border>
+                        </Border>
+                    </Button>
+                    <Button Tag="Touch" Canvas.Left="540" Canvas.Top="74" Width="96" Height="96"
+                            Tapped="OnButtonTapped" DoubleTapped="OnButtonDoubleTapped"
+                            CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[4]}">
+                        <!-- The key cap. Outlined so the button's real extent is visible:
+                             without it the hover frame traces an edge nothing else shows. -->
+                        <Border CornerRadius="12" BorderThickness="1"
+                                BorderBrush="{DynamicResource DeviceButtonBorder}">
+                            <Border Width="86" Height="86" CornerRadius="8" ClipToBounds="True"
+                                    HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[4].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
+                            </Border>
+                        </Border>
+                    </Button>
+                    <Button Tag="Touch" Canvas.Left="84" Canvas.Top="188" Width="96" Height="96"
+                            Tapped="OnButtonTapped" DoubleTapped="OnButtonDoubleTapped"
+                            CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[5]}">
+                        <!-- The key cap. Outlined so the button's real extent is visible:
+                             without it the hover frame traces an edge nothing else shows. -->
+                        <Border CornerRadius="12" BorderThickness="1"
+                                BorderBrush="{DynamicResource DeviceButtonBorder}">
+                            <Border Width="86" Height="86" CornerRadius="8" ClipToBounds="True"
+                                    HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[5].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
+                            </Border>
+                        </Border>
+                    </Button>
+                    <Button Tag="Touch" Canvas.Left="198" Canvas.Top="188" Width="96" Height="96"
+                            Tapped="OnButtonTapped" DoubleTapped="OnButtonDoubleTapped"
+                            CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[6]}">
+                        <!-- The key cap. Outlined so the button's real extent is visible:
+                             without it the hover frame traces an edge nothing else shows. -->
+                        <Border CornerRadius="12" BorderThickness="1"
+                                BorderBrush="{DynamicResource DeviceButtonBorder}">
+                            <Border Width="86" Height="86" CornerRadius="8" ClipToBounds="True"
+                                    HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[6].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
+                            </Border>
+                        </Border>
+                    </Button>
+                    <Button Tag="Touch" Canvas.Left="312" Canvas.Top="188" Width="96" Height="96"
+                            Tapped="OnButtonTapped" DoubleTapped="OnButtonDoubleTapped"
+                            CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[7]}">
+                        <!-- The key cap. Outlined so the button's real extent is visible:
+                             without it the hover frame traces an edge nothing else shows. -->
+                        <Border CornerRadius="12" BorderThickness="1"
+                                BorderBrush="{DynamicResource DeviceButtonBorder}">
+                            <Border Width="86" Height="86" CornerRadius="8" ClipToBounds="True"
+                                    HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[7].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
+                            </Border>
+                        </Border>
+                    </Button>
+                    <Button Tag="Touch" Canvas.Left="426" Canvas.Top="188" Width="96" Height="96"
+                            Tapped="OnButtonTapped" DoubleTapped="OnButtonDoubleTapped"
+                            CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[8]}">
+                        <!-- The key cap. Outlined so the button's real extent is visible:
+                             without it the hover frame traces an edge nothing else shows. -->
+                        <Border CornerRadius="12" BorderThickness="1"
+                                BorderBrush="{DynamicResource DeviceButtonBorder}">
+                            <Border Width="86" Height="86" CornerRadius="8" ClipToBounds="True"
+                                    HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[8].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
+                            </Border>
+                        </Border>
+                    </Button>
+                    <Button Tag="Touch" Canvas.Left="540" Canvas.Top="188" Width="96" Height="96"
+                            Tapped="OnButtonTapped" DoubleTapped="OnButtonDoubleTapped"
+                            CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[9]}">
+                        <!-- The key cap. Outlined so the button's real extent is visible:
+                             without it the hover frame traces an edge nothing else shows. -->
+                        <Border CornerRadius="12" BorderThickness="1"
+                                BorderBrush="{DynamicResource DeviceButtonBorder}">
+                            <Border Width="86" Height="86" CornerRadius="8" ClipToBounds="True"
+                                    HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[9].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
+                            </Border>
+                        </Border>
+                    </Button>
+                    <Button Tag="Touch" Canvas.Left="84" Canvas.Top="302" Width="96" Height="96"
+                            Tapped="OnButtonTapped" DoubleTapped="OnButtonDoubleTapped"
+                            CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[10]}">
+                        <!-- The key cap. Outlined so the button's real extent is visible:
+                             without it the hover frame traces an edge nothing else shows. -->
+                        <Border CornerRadius="12" BorderThickness="1"
+                                BorderBrush="{DynamicResource DeviceButtonBorder}">
+                            <Border Width="86" Height="86" CornerRadius="8" ClipToBounds="True"
+                                    HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[10].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
+                            </Border>
+                        </Border>
+                    </Button>
+                    <Button Tag="Touch" Canvas.Left="198" Canvas.Top="302" Width="96" Height="96"
+                            Tapped="OnButtonTapped" DoubleTapped="OnButtonDoubleTapped"
+                            CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[11]}">
+                        <!-- The key cap. Outlined so the button's real extent is visible:
+                             without it the hover frame traces an edge nothing else shows. -->
+                        <Border CornerRadius="12" BorderThickness="1"
+                                BorderBrush="{DynamicResource DeviceButtonBorder}">
+                            <Border Width="86" Height="86" CornerRadius="8" ClipToBounds="True"
+                                    HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[11].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
+                            </Border>
+                        </Border>
+                    </Button>
+                    <Button Tag="Touch" Canvas.Left="312" Canvas.Top="302" Width="96" Height="96"
+                            Tapped="OnButtonTapped" DoubleTapped="OnButtonDoubleTapped"
+                            CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[12]}">
+                        <!-- The key cap. Outlined so the button's real extent is visible:
+                             without it the hover frame traces an edge nothing else shows. -->
+                        <Border CornerRadius="12" BorderThickness="1"
+                                BorderBrush="{DynamicResource DeviceButtonBorder}">
+                            <Border Width="86" Height="86" CornerRadius="8" ClipToBounds="True"
+                                    HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[12].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
+                            </Border>
+                        </Border>
+                    </Button>
+                    <Button Tag="Touch" Canvas.Left="426" Canvas.Top="302" Width="96" Height="96"
+                            Tapped="OnButtonTapped" DoubleTapped="OnButtonDoubleTapped"
+                            CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[13]}">
+                        <!-- The key cap. Outlined so the button's real extent is visible:
+                             without it the hover frame traces an edge nothing else shows. -->
+                        <Border CornerRadius="12" BorderThickness="1"
+                                BorderBrush="{DynamicResource DeviceButtonBorder}">
+                            <Border Width="86" Height="86" CornerRadius="8" ClipToBounds="True"
+                                    HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[13].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
+                            </Border>
+                        </Border>
+                    </Button>
+                    <Button Tag="Touch" Canvas.Left="540" Canvas.Top="302" Width="96" Height="96"
+                            Tapped="OnButtonTapped" DoubleTapped="OnButtonDoubleTapped"
+                            CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[14]}">
+                        <!-- The key cap. Outlined so the button's real extent is visible:
+                             without it the hover frame traces an edge nothing else shows. -->
+                        <Border CornerRadius="12" BorderThickness="1"
+                                BorderBrush="{DynamicResource DeviceButtonBorder}">
+                            <Border Width="86" Height="86" CornerRadius="8" ClipToBounds="True"
+                                    HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[14].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
+                            </Border>
+                        </Border>
+                    </Button>
+                </Canvas>
+
+                <!-- Exclusive-mode overlay: while a provider owns the device, none of the
+                     on-screen controls reflect or affect it, so cover the whole device and
+                     swallow all input with a notice. -->
+                <Border IsVisible="{Binding IsExclusiveModeActive}"
+                        Background="#E60F0F0F"
+                        BorderBrush="{StaticResource SelectedBrush}"
+                        BorderThickness="2"
+                        CornerRadius="6">
+                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8">
+                        <TextBlock Text="Exclusive Mode Active"
+                                   FontSize="22" FontWeight="Bold" Foreground="White"
+                                   HorizontalAlignment="Center" />
+                        <TextBlock Text="{Binding ExclusiveModeTitle}"
+                                   FontSize="16" Foreground="#CCCCCC"
+                                   HorizontalAlignment="Center"
+                                   IsVisible="{Binding ExclusiveModeTitle, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                        <TextBlock Text="The device is being controlled. Its buttons are inactive."
+                                   FontSize="12" Foreground="#999999"
+                                   TextWrapping="Wrap" MaxWidth="420" TextAlignment="Center"
+                                   HorizontalAlignment="Center" />
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </Viewbox>
+
+        <!-- Touch page pager, centred below the key grid it controls. There is no rotary
+             pager: the device has no dials. -->
+        <Border Classes="Pager" HorizontalAlignment="Center" Margin="0,-30,0,12">
+            <StackPanel Orientation="Horizontal" Spacing="3" VerticalAlignment="Center">
+                <Button Classes="PagerBtn PagerNav" Content="&#8249;"
+                        ToolTip.Tip="Previous touch page"
+                        Command="{Binding PreviousTouchPageCommand}" />
+                <TextBox Classes="PageName"
+                         Text="{Binding LoupedeckController.Config.CurrentTouchButtonPage.Name, Mode=TwoWay}"
+                         PlaceholderText="{Binding LoupedeckController.Config.CurrentTouchButtonPage.PageName}"
+                         KeyDown="OnPageNameKeyDown" LostFocus="OnPageNameCommit" />
+                <Button Classes="PagerBtn PagerNav" Content="&#8250;"
+                        ToolTip.Tip="Next touch page"
+                        Command="{Binding NextTouchPageCommand}" />
+                <TextBlock Classes="PageCount"
+                           Text="{Binding LoupedeckController.Config.TouchPageLabel}"
+                           ToolTip.Tip="Current / total touch pages" />
+                <Button Classes="PagerBtn" Content="+"
+                        ToolTip.Tip="Add touch page"
+                        Command="{Binding AddTouchPageCommand}" />
+                <Button Classes="PagerBtn delete" Content="&#10005;"
+                        ToolTip.Tip="Delete current touch page"
+                        Command="{Binding DeleteTouchPageCommand}" />
+            </StackPanel>
+        </Border>
+
+    </StackPanel>
+</UserControl>

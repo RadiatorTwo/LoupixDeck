@@ -14,12 +14,6 @@ public partial class SymbolLayer : LayerBase
 {
     public const string Kind = "symbol";
 
-    /// <summary>
-    /// Glyph base size in device-pixel space — matches <c>Math.Min(width,height)</c>
-    /// for a 90×90 button in <c>BitmapHelper.DrawSymbolLayer</c>.
-    /// </summary>
-    private const double BaseSize = 90.0;
-
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(Glyph))]
     public partial string SymbolId { get; set; } = string.Empty;
@@ -84,24 +78,24 @@ public partial class SymbolLayer : LayerBase
     [JsonIgnore]
     public override double DisplayWidth
     {
-        get => BaseSize * EffectiveScaleX;
+        get => DeviceBaseSize * EffectiveScaleX;
         set
         {
             if (value <= 0) return;
             // Lock the current height first so editing width keeps height fixed.
             if (ScaleY <= 0) ScaleY = EffectiveScaleY;
-            Scale = value / BaseSize;
+            Scale = value / DeviceBaseSize;
         }
     }
 
     [JsonIgnore]
     public override double DisplayHeight
     {
-        get => BaseSize * EffectiveScaleY;
+        get => DeviceBaseSize * EffectiveScaleY;
         set
         {
             if (value <= 0) return;
-            ScaleY = value / BaseSize;
+            ScaleY = value / DeviceBaseSize;
         }
     }
 

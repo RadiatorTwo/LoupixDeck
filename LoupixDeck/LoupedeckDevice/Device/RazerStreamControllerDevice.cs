@@ -1,5 +1,6 @@
 using System.Collections.Frozen;
 using LoupixDeck.Models;
+using LoupixDeck.Registry;
 using SkiaSharp;
 
 namespace LoupixDeck.LoupedeckDevice.Device;
@@ -47,6 +48,18 @@ public class RazerStreamControllerDevice : LoupedeckDevice
     /// <remarks>The left strip occupies panel x 0–60, so the centre grid starts at 60.</remarks>
     public override int WallpaperGridXOffset => 60;
 
+    /// <summary>90px keys on the 480x270 unified panel, with a 60px side strip either end.</summary>
+    public static readonly DeviceGeometry KnownGeometry = new()
+    {
+        KeySize = 90,
+        PanelWidth = 480,
+        PanelHeight = 270,
+        StripWidth = 60
+    };
+
+    /// <inheritdoc />
+    public override DeviceGeometry Geometry => KnownGeometry;
+
     public RazerStreamControllerDevice(string host = null, string path = null, int baudrate = 0,
         bool autoConnect = true, int reconnectInterval = Constants.DefaultReconnectInterval)
         : base(host, path, baudrate, autoConnect, reconnectInterval)
@@ -62,6 +75,7 @@ public class RazerStreamControllerDevice : LoupedeckDevice
         VisibleY = [0, 270];
         Type = "Razer Stream Controller";
         ProductId = "0d06";
+        VendorId = "1532";
 
         // Single unified display on the wire — the side regions are drawn at
         // offset X positions on the same "center" buffer (\0M).
@@ -87,8 +101,8 @@ public class RazerStreamControllerDevice : LoupedeckDevice
         // Centre 4×3 grid — clamp and translate into grid coords.
         x = Math.Clamp(x, VisibleX[0], VisibleX[1]) - VisibleX[0];
         y = Math.Clamp(y, VisibleY[0], VisibleY[1]);
-        var column = x / 90;
-        var row = y / 90;
+        int column = x / KeySize;
+        int row = y / KeySize;
         var key = (row * Columns) + column;
         return new TouchTarget { Screen = "center", Key = key };
     }
@@ -96,7 +110,7 @@ public class RazerStreamControllerDevice : LoupedeckDevice
     /// <summary>
     /// Draws an arbitrary bitmap to one touch slot — handles the 60×270 side
     /// panels (12/13) by routing to their unified-display X offsets; everything
-    /// else falls through to the base 90×90 grid path.
+    /// else falls through to the base KeySize grid path.
     /// </summary>
     public override async Task DrawTouchSlot(int index, SKBitmap bitmap, bool refresh = true)
     {
@@ -120,13 +134,13 @@ public class RazerStreamControllerDevice : LoupedeckDevice
     /// <see cref="DrawTouchSlot"/> on rotary-page changes. Skipping them here keeps
     /// touch-page redraws from overwriting the rotary labels.
     /// </summary>
-    public override async Task DrawTouchButton(TouchButton touchButton, LoupedeckConfig config, bool refresh, int columns)
+    public override async Task DrawTouchButton(TouchButton touchButton, LoupedeckConfig config, bool refresh)
     {
         ArgumentNullException.ThrowIfNull(touchButton);
 
         if (touchButton.Index < Columns * Rows)
         {
-            await base.DrawTouchButton(touchButton, config, refresh, columns);
+            await base.DrawTouchButton(touchButton, config, refresh);
             return;
         }
 

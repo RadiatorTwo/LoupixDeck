@@ -27,10 +27,6 @@ public partial class LoupedeckLiveSController
     // beyond what the scheduler will ever drive.
     private const int MaxPluginStripFps = 120;
 
-    // Strip geometry, matching the SideStripContext the session was created with
-    // (the height is the shared StripHeight from the swipe animator).
-    private const int StripWidth = 60;
-
     // Per side (0 = Left): the animated capability of the attached strip session, or null when the
     // session is plain event-driven (or there is none).
     private readonly IAnimatedSideStripSession[] _animatedStripSession = new IAnimatedSideStripSession[2];

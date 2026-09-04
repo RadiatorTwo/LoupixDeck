@@ -31,6 +31,20 @@ public partial class App : Application
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
+            WireGracefulShutdown(desktop);
+
+            // The device emulation is compiled out of Release builds, so a Release launch
+            // ignores LOUPIXDECK_FAKE_DEVICE without a word. State the build and the value
+            // once at startup — otherwise "the override does nothing" has three
+            // indistinguishable causes.
+#if DEBUG
+            Console.WriteLine("[Startup] DEBUG build — device emulation available. " +
+                              $"LOUPIXDECK_FAKE_DEVICE='{Environment.GetEnvironmentVariable("LOUPIXDECK_FAKE_DEVICE") ?? "<unset>"}'");
+#else
+            Console.WriteLine("[Startup] RELEASE build — device emulation is compiled out; " +
+                              "LOUPIXDECK_FAKE_DEVICE has no effect.");
+#endif
+
             // Bring up EVERY connected supported device in parallel (issue #116 phase 2).
             var connected = ActiveDeviceResolver.ResolveAll();
 
@@ -325,6 +339,38 @@ public partial class App : Application
     /// <summary>Build and prime a device's child provider: device services + command
     /// catalog. Plugins are loaded once at the root afterwards; side-strip lookup is
     /// rebuilt per device in pass 2.</summary>
+    /// <summary>Keeps the SIGTERM handler alive for the process lifetime.</summary>
+    private System.Runtime.InteropServices.PosixSignalRegistration _sigTerm;
+
+    /// <summary>
+    /// Routes every exit that is not the user clicking Quit through the same teardown, so the
+    /// devices are always handed back blank. Windows ends a session with WM_ENDSESSION, which
+    /// Avalonia surfaces as ShutdownRequested; Linux sends SIGTERM, which reaches no Avalonia
+    /// event at all and would otherwise kill the process with the last page still lit.
+    /// </summary>
+    private void WireGracefulShutdown(IClassicDesktopStyleApplicationLifetime desktop)
+    {
+        desktop.ShutdownRequested += (_, _) => MainWindow.RequestQuit();
+
+        try
+        {
+            _sigTerm = System.Runtime.InteropServices.PosixSignalRegistration.Create(
+                System.Runtime.InteropServices.PosixSignal.SIGTERM,
+                context =>
+                {
+                    // Own the exit: the default action would kill the process before the
+                    // devices are blanked. The teardown touches the tray icon and the view
+                    // models, so it runs on the UI thread; it ends the process itself.
+                    context.Cancel = true;
+                    Avalonia.Threading.Dispatcher.UIThread.Post(MainWindow.RequestQuit);
+                });
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Shutdown] SIGTERM handler unavailable: {ex.Message}");
+        }
+    }
+
     private static IServiceProvider BuildDeviceProvider(ResolvedDevice device, IServiceProvider root)
     {
         var collection = new ServiceCollection();

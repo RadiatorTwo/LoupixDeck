@@ -536,8 +536,9 @@ public static class BitmapHelper
 
     /// <summary>
     /// Returns the slot's baked bitmap at <paramref name="width"/>×<paramref name="height"/>
-    /// (480×270 for the main panel, 60×270 for a side display), computing and caching it
-    /// on first use. The original image is resolved from the asset folder via
+    /// (the device's panel for the main slot, a side strip for the others), computing and
+    /// caching it on first use. The cache is keyed on the requested size, so a slot baked
+    /// for one device's panel is re-baked rather than reused on a differently sized one. The original image is resolved from the asset folder via
     /// <see cref="AssetResolver"/>, scaled/positioned with the slot's parameters and
     /// optionally horizontally mirrored. Returns null when the slot has no image or the
     /// asset is missing.
@@ -545,7 +546,11 @@ public static class BitmapHelper
     public static SKBitmap GetOrBakeSlot(WallpaperSlot slot, int width, int height)
     {
         if (slot == null || !slot.HasImage) return null;
-        if (slot.Baked != null) return slot.Baked;
+        if (slot.Baked != null && slot.BakedSize == (width, height)) return slot.Baked;
+
+        // Drop the reference without disposing: the previous bake may still be bound to a
+        // UI image or held by an in-flight render, and Invalidate() releases it the same way.
+        slot.Baked = null;
 
         var original = AssetResolver?.Invoke(slot.AssetPath);
         if (original == null) return null;
@@ -566,6 +571,7 @@ public static class BitmapHelper
         }
 
         slot.Baked = baked;
+        slot.BakedSize = (width, height);
         return baked;
     }
 
@@ -612,7 +618,7 @@ public static class BitmapHelper
         var page = ResolveWallpaperSourcePage(config);
         if (page == null) return (null, 0);
 
-        var baked = GetOrBakeSlot(page.MainWallpaper, PanelWidth, PanelHeight);
+        var baked = GetOrBakeSlot(page.MainWallpaper, config.Geometry.PanelWidth, config.Geometry.PanelHeight);
         return baked != null ? (baked, page.MainWallpaper.Opacity) : (null, 0);
     }
 
@@ -640,8 +646,7 @@ public static class BitmapHelper
         LoupedeckConfig config,
         int width,
         int height,
-        int gridColumns = 0,
-        int wallpaperXOffset = 0)
+        SKRectI? wallpaperSource = null)
     {
         ArgumentNullException.ThrowIfNull(touchButton);
 
@@ -660,21 +665,14 @@ public static class BitmapHelper
             bitmap = new SKBitmap(width, height);
             using var canvas = new SKCanvas(bitmap);
 
-            if (wallpaperToUse != null && gridColumns > 0)
+            if (wallpaperToUse != null && wallpaperSource is { } source)
             {
-                // Determine the position of the button in the grid
-                var col = touchButton.Index % gridColumns;
-                var row = touchButton.Index / gridColumns;
-
-                // Calculate the section from the wallpaper. wallpaperXOffset shifts the
-                // sampled region to the grid's true panel position so the wallpaper stays
-                // continuous with the side strips across the bezel (Razer: +60).
-                var srcRect = new SKRect(
-                    wallpaperXOffset + (col * width),
-                    row * height,
-                    wallpaperXOffset + ((col + 1) * width),
-                    (row + 1) * height
-                );
+                // The caller says which part of the panel-wide wallpaper this key covers
+                // (device.GetWallpaperKeyRect). It has to come from there rather than from
+                // index * width: the grid is not always gapless, and it does not always
+                // start at the wallpaper's origin — the Razer and CT grids sit 60px in, so
+                // the wallpaper stays continuous with the side strips across the bezel.
+                var srcRect = new SKRect(source.Left, source.Top, source.Right, source.Bottom);
                 var destRect = new SKRect(0, 0, width, height);
 
                 // Draw Wallpaper Cutout
@@ -957,8 +955,8 @@ public static class BitmapHelper
     {
         var (boxLeft, boxTop) = TextBoxOrigin(layer, deviceW, deviceH);
         return new SKRect(boxLeft, boxTop,
-            boxLeft + layer.EffectiveBoxWidth,
-            boxTop + layer.EffectiveBoxHeight);
+            boxLeft + layer.ResolveBoxWidth(deviceW),
+            boxTop + layer.ResolveBoxHeight(deviceH));
     }
 
     /// <summary>
@@ -1130,8 +1128,8 @@ public static class BitmapHelper
     {
         if (string.IsNullOrEmpty(layer.Text)) return;
 
-        var boxW = layer.EffectiveBoxWidth;
-        var boxH = layer.EffectiveBoxHeight;
+        var boxW = layer.ResolveBoxWidth(width);
+        var boxH = layer.ResolveBoxHeight(height);
         var (boxLeft, boxTop) = TextBoxOrigin(layer, width, height);
 
         var saved = canvas.Save();
@@ -1157,8 +1155,8 @@ public static class BitmapHelper
 
     private static (float Left, float Top) TextBoxOrigin(TextLayer layer, int deviceW, int deviceH)
     {
-        var boxW = layer.EffectiveBoxWidth;
-        var boxH = layer.EffectiveBoxHeight;
+        var boxW = layer.ResolveBoxWidth(deviceW);
+        var boxH = layer.ResolveBoxHeight(deviceH);
         if (layer.Centered)
         {
             return (((deviceW - boxW) / 2f) + layer.PositionX,
@@ -1726,39 +1724,41 @@ public static class BitmapHelper
     }
 
     /// <summary>
-    /// Composes a page's 90×90 slot bitmaps into a single grid-region bitmap
-    /// (<paramref name="columns"/>*90 × <paramref name="rows"/>*90), laid out left-to-right,
-    /// top-to-bottom. Null slots stay black. Only the first <c>columns*rows</c> slots (the
-    /// touch grid) are used — trailing side-strip slots are ignored. Used to build the
-    /// outgoing/incoming frames for the touch-page slide.
+    /// Composes a page's slot bitmaps into a single grid-region bitmap
+    /// (<paramref name="columns"/>*<paramref name="keySize"/> × <paramref name="rows"/>*<paramref name="keySize"/>),
+    /// laid out left-to-right, top-to-bottom. Null slots stay black. Only the first
+    /// <c>columns*rows</c> slots (the touch grid) are used — trailing side-strip slots are
+    /// ignored. Used to build the outgoing/incoming frames for the touch-page slide.
     /// </summary>
-    public static SKBitmap ComposeTouchGrid(IReadOnlyList<SKBitmap> slots, int columns, int rows, int keySize = 90)
+    /// <param name="keySize">Edge length of one key, from the device's geometry. Required
+    /// rather than defaulted so a caller that still assumes 90 fails to compile.</param>
+    public static SKBitmap ComposeTouchGrid(IReadOnlyList<SKBitmap> slots, LoupedeckDevice.Device.LoupedeckDevice device)
     {
-        var bitmap = new SKBitmap(columns * keySize, rows * keySize);
+        ArgumentNullException.ThrowIfNull(device);
+
+        SKSizeI size = device.GetGridRegionSize();
+        var bitmap = new SKBitmap(size.Width, size.Height);
 
         lock (SkiaRenderGate.Sync)
         {
             using var canvas = new SKCanvas(bitmap);
             canvas.Clear(SKColors.Black);
-            var count = Math.Min(slots?.Count ?? 0, columns * rows);
+            var count = Math.Min(slots?.Count ?? 0, device.Columns * device.Rows);
             for (var i = 0; i < count; i++)
             {
                 var slot = slots[i];
                 if (slot == null) continue;
-                var x = (i % columns) * keySize;
-                var y = (i / columns) * keySize;
-                canvas.DrawBitmap(slot, x, y, SKSamplingOptions.Default, paint: null);
+
+                // Calibrated position, so a gapped grid keeps its gaps here too. The canvas
+                // clips an outer key that hangs over the edge, exactly as the panel does.
+                SKRectI rect = device.GetKeyRectInGridRegion(i);
+                canvas.DrawBitmap(slot, rect.Left, rect.Top, SKSamplingOptions.Default, paint: null);
             }
             canvas.Flush();
         }
 
         return bitmap;
     }
-
-    // The unified panel is 480px wide; the side strips occupy its outer 60px columns.
-    public const int PanelWidth = 480;
-    public const int PanelHeight = 270;
-    private const int StripWidth = 60;
 
     /// <summary>
     /// Renders a side strip in free-draw mode: the strip's wallpaper region as the
@@ -1830,15 +1830,17 @@ public static class BitmapHelper
             return;
         }
 
-        // Panel-space x where this strip starts: left at 0, right at 480-60=420.
-        var panelStartX = side == RotarySide.Right ? PanelWidth - StripWidth : 0;
-        var scaleX = wallpaper.Width / (float)PanelWidth;
-        var scaleY = wallpaper.Height / (float)height; // strip height == panel height (270)
+        // Panel-space x where this strip starts: left at 0, right at panel width - strip width.
+        int panelWidth = config.Geometry.PanelWidth;
+        int stripWidth = config.Geometry.StripWidth;
+        var panelStartX = side == RotarySide.Right ? panelWidth - stripWidth : 0;
+        var scaleX = wallpaper.Width / (float)panelWidth;
+        var scaleY = wallpaper.Height / (float)height; // strip height == panel height
 
         var srcRect = new SKRect(
             panelStartX * scaleX,
             0,
-            (panelStartX + StripWidth) * scaleX,
+            (panelStartX + stripWidth) * scaleX,
             height * scaleY);
         var destRect = new SKRect(0, 0, width, height);
 

@@ -6,6 +6,7 @@ using System.Threading.Channels;
 using Avalonia.Media;
 using LoupixDeck.LoupedeckDevice.Serial;
 using LoupixDeck.Models;
+using LoupixDeck.Registry;
 using LoupixDeck.Utils;
 using SkiaSharp;
 
@@ -17,6 +18,114 @@ namespace LoupixDeck.LoupedeckDevice.Device;
 /// </summary>
 public class LoupedeckDevice
 {
+    /// <summary>
+    /// Pixel geometry and capabilities of this device model. Every key- and panel-sized
+    /// drawing operation reads its dimensions from here instead of a constant, so a device
+    /// with a different tile or panel size renders pixel-exact without any scaling step.
+    /// Base is the Loupedeck family's 90px key on a 480x270 panel; subclasses override.
+    /// </summary>
+    public virtual DeviceGeometry Geometry => DeviceGeometry.Default;
+
+    /// <summary>
+    /// Where this device's keys sit on its panel. Defaults to the model's measured layout
+    /// and is replaced by the user's own measurement when their config carries one — the
+    /// controller pushes it here on load and whenever it changes, so this stays the one
+    /// place the draw path asks.
+    /// </summary>
+    public KeyGridCalibration KeyCalibration
+    {
+        get => field ?? Geometry.DefaultKeyCalibration;
+        set;
+    }
+
+    /// <summary>
+    /// Edge length of one centre-grid touch key in device pixels — the calibrated size, so
+    /// every renderer that sizes a tile from it produces pixels the panel takes unscaled.
+    /// </summary>
+    public int KeySize => KeyCalibration.KeySize;
+
+    /// <summary>
+    /// The rectangle key <paramref name="index"/> occupies in the "center" framebuffer.
+    /// The single source of truth for key positions: with a gapped grid the old
+    /// <c>index % Columns * KeySize</c> is simply wrong, and it was spelled out in half a
+    /// dozen places.
+    /// </summary>
+    /// <remarks>
+    /// The x origin is <see cref="GridOriginX"/> — <c>VisibleX[0]</c> on a unified panel
+    /// buffer, 0 on the CT whose "center" is a grid-only buffer. The y origin is 0 on every
+    /// device, including those whose <c>VisibleY[0]</c> is not (the Live S bezel inset is
+    /// horizontal only as far as the framebuffer is concerned).
+    /// </remarks>
+    public SKRectI GetKeyRect(int index) => KeyRectFrom(index, GridOriginX, 0);
+
+    /// <summary>
+    /// Centre of key <paramref name="index"/> in touch coordinates, which are panel-wide
+    /// and therefore measured from <c>VisibleX/VisibleY</c> rather than from the
+    /// framebuffer origin.
+    /// </summary>
+    public SKPointI GetKeyTouchCenter(int index)
+    {
+        int xBase = VisibleX is { Length: > 0 } ? VisibleX[0] : 0;
+        int yBase = VisibleY is { Length: > 0 } ? VisibleY[0] : 0;
+        SKRectI rect = KeyRectFrom(index, xBase, yBase);
+        return new SKPointI(rect.MidX, rect.MidY);
+    }
+
+    /// <summary>
+    /// The rectangle key <paramref name="index"/> samples from a panel-wide wallpaper. Same
+    /// grid, different origin: the wallpaper spans the whole panel, so the grid sits at
+    /// <see cref="WallpaperGridXOffset"/> in it rather than at the framebuffer's origin
+    /// (they differ on the CT, whose "center" is a grid-only buffer).
+    /// </summary>
+    public SKRectI GetWallpaperKeyRect(int index) => KeyRectFrom(index, WallpaperGridXOffset, 0);
+
+    /// <summary>
+    /// Size of the bitmap that covers the whole key grid, as
+    /// <see cref="DrawCenterGridRegion"/> expects it: the union of every key rectangle,
+    /// measured from the grid origin and clipped to the "center" buffer. On a gapless grid
+    /// this is the familiar <c>Columns * KeySize</c>; on a gapped one the outer keys can
+    /// hang over the edge of the glass, and the part that hangs over is not part of the
+    /// region — it is the same clip the per-key path applies.
+    /// </summary>
+    public SKSizeI GetGridRegionSize()
+    {
+        SKRectI last = GetKeyRect((Columns * Rows) - 1);
+        int originX = GridOriginX;
+
+        int width = last.Right - originX;
+        int height = last.Bottom;
+
+        if (Displays != null && Displays.TryGetValue("center", out DisplayInfo center))
+        {
+            width = Math.Min(width, center.Width - originX);
+            height = Math.Min(height, center.Height);
+        }
+
+        // A grid whose first key starts left of / above the origin is clipped there: the
+        // region begins at the origin rather than growing to include the overhang.
+        return new SKSizeI(Math.Max(0, width), Math.Max(0, height));
+    }
+
+    /// <summary>
+    /// Key <paramref name="index"/>'s rectangle within the grid-region bitmap
+    /// <see cref="GetGridRegionSize"/> describes — the same rectangle as
+    /// <see cref="GetKeyRect"/>, shifted to that bitmap's own origin.
+    /// </summary>
+    public SKRectI GetKeyRectInGridRegion(int index)
+    {
+        SKRectI rect = GetKeyRect(index);
+        rect.Offset(-GridOriginX, 0);
+        return rect;
+    }
+
+    private SKRectI KeyRectFrom(int index, int xBase, int yBase)
+    {
+        int columns = Columns > 0 ? Columns : 1;
+        KeyGridCalibration calibration = KeyCalibration;
+        (int x, int y) = calibration.GetKeyOrigin(index % columns, index / columns);
+        return SKRectI.Create(xBase + x, yBase + y, calibration.KeySize, calibration.KeySize);
+    }
+
     /// <summary>
     /// Bits per channel the panel actually resolves, which is not always what the RGB565
     /// wire format encodes. Drives the dither target grid in
@@ -100,6 +209,13 @@ public class LoupedeckDevice
     public string Type { get; set; }
     public string ProductId { get; set; }
 
+    /// <summary>
+    /// USB vendor id of this device kind, as a four-digit hex string. Set alongside
+    /// <see cref="ProductId"/> by each subclass; together they let a reconnect find the
+    /// unit again after the OS has moved it to a different port.
+    /// </summary>
+    public string VendorId { get; set; }
+
     /// <summary>Number of rotary encoders (knobs) the device exposes. Subclasses must set this.</summary>
     public int RotaryCount { get; protected init; }
 
@@ -112,12 +228,42 @@ public class LoupedeckDevice
     public virtual bool HasSideStrips => false;
 
     /// <summary>
+    /// Maps a raw BUTTON_PRESS byte to a centre-grid slot on devices whose grid is physical
+    /// keys instead of a touchscreen. Base never matches, so every other device resolves its
+    /// button bytes through <see cref="Constants.Buttons"/> exactly as before.
+    /// </summary>
+    protected virtual bool TryGetPhysicalKeySlot(byte raw, out int slot)
+    {
+        slot = -1;
+        return false;
+    }
+
+    /// <summary>
     /// X-offset (in panel/wallpaper pixels) at which the centre touch grid starts on
     /// the unified panel. Devices with side strips reserve the leftmost strip width
     /// (Razer: 60), so the page wallpaper maps to its true panel position and stays
     /// continuous with the strips across the bezel. 0 (default) for full-width grids.
     /// </summary>
     public virtual int WallpaperGridXOffset => 0;
+
+    /// <summary>
+    /// X-origin of the centre touch grid inside the "center" framebuffer. Devices with a
+    /// unified panel buffer place the grid at <c>VisibleX[0]</c> (Razer: 60, Live S: 15,
+    /// Stream Controller X: 0); the CT, whose "center" is a dedicated grid-only buffer,
+    /// overrides this to 0. Mirrors the origin <see cref="DrawTouchSlotsAtomic"/> and
+    /// <see cref="DrawCenterGridRegion"/> compute inline; named here so diagnostics can draw
+    /// against the same one. Framebuffer space only — touch coordinates use VisibleX directly.
+    /// </summary>
+    public virtual int GridOriginX => VisibleX is { Length: > 0 } ? VisibleX[0] : 0;
+
+    /// <summary>
+    /// Largest RGB565 payload the panel accepts in a single FRAMEBUFF write, or 0 for no
+    /// limit. A device that has one does not report the failure: it acknowledges the write
+    /// like any other and then shows nothing, so an oversized frame is indistinguishable
+    /// from a working one until someone looks at the glass. <see cref="DrawCanvas"/> splits
+    /// anything larger into horizontal bands and refreshes once at the end.
+    /// </summary>
+    public virtual int MaxFramebufferPayloadBytes => 0;
 
     /// <summary>
     /// Returns the touch slot that physically sits next to the rotary at
@@ -171,7 +317,10 @@ public class LoupedeckDevice
         Host = host;
         Path = path;
         ReconnectInterval = reconnectInterval;
-        Baudrate = baudrate > 0 ? baudrate : 115200;
+        // 0 means "not configured" — the caller normally passes the model's rate from the
+        // device registry, so this fallback only covers a device constructed outside that
+        // path. It used to be a literal 115200, which no entry in the registry states.
+        Baudrate = baudrate > 0 ? baudrate : Constants.DefaultBaudrate;
         if (autoConnect)
         {
             ConnectBlind();
@@ -204,6 +353,8 @@ public class LoupedeckDevice
     /// </summary>
     private void Connect()
     {
+        RefreshPathIfMissing();
+
         if (!string.IsNullOrEmpty(Path))
         {
             _connection = new SerialConnection(Path, Baudrate);
@@ -239,6 +390,60 @@ public class LoupedeckDevice
         _connection.Connect();
 
         StartQueueWorker();
+    }
+
+    /// <summary>
+    /// Re-resolves <see cref="Path"/> when the configured port is no longer there.
+    ///
+    /// <see cref="Path"/> is fixed for the lifetime of the instance, and the richer
+    /// serial-aware re-detection only runs once, in the controller's Initialize. A device
+    /// that re-enumerates while the app is up therefore keeps being reconnected to the port
+    /// it used to have — and if the OS hands it a different COM/ttyACM number, every later
+    /// attempt fails with "Could not find file 'COM4'" until the app is restarted.
+    ///
+    /// Deliberately narrow: it only acts when the configured port is absent AND exactly one
+    /// connected device matches this device kind's VID/PID, so two identical units cannot
+    /// steal each other's port. Anything else leaves <see cref="Path"/> alone and the
+    /// connect attempt proceeds — and fails — exactly as it did before.
+    /// </summary>
+    private void RefreshPathIfMissing()
+    {
+        if (string.IsNullOrEmpty(Path) || string.IsNullOrEmpty(VendorId) || string.IsNullOrEmpty(ProductId))
+            return;
+
+        try
+        {
+            // Platform-split on purpose: GetPortNames() is the right question on Windows,
+            // but on Linux it does not enumerate the /dev/ttyACM* nodes these devices use,
+            // so it would report every healthy port as missing and send us scanning (one
+            // udevadm process per candidate) on every single connect.
+            bool portPresent = OperatingSystem.IsWindows()
+                ? System.IO.Ports.SerialPort.GetPortNames().Contains(Path, StringComparer.OrdinalIgnoreCase)
+                : File.Exists(Path);
+
+            if (portPresent)
+                return;
+
+            List<SerialDeviceHelper.SerialDeviceInfo> candidates =
+                SerialDeviceHelper.ListSerialUsbDevices()
+                    .Where(d =>
+                        !string.IsNullOrEmpty(d.DevNode) &&
+                        string.Equals(d.Vid, VendorId, StringComparison.OrdinalIgnoreCase) &&
+                        string.Equals(d.Pid, ProductId, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+
+            if (candidates.Count != 1 ||
+                string.Equals(candidates[0].DevNode, Path, StringComparison.OrdinalIgnoreCase))
+                return;
+
+            Console.WriteLine($"[Serial] '{Path}' is gone; {VendorId}:{ProductId} is now on '{candidates[0].DevNode}'.");
+            Path = candidates[0].DevNode;
+        }
+        catch (Exception ex)
+        {
+            // Best effort — a failed scan must not stop the connect attempt itself.
+            Console.WriteLine($"[Serial] Port re-resolution failed: {ex.Message}");
+        }
     }
 
     /// <summary>
@@ -703,6 +908,18 @@ public class LoupedeckDevice
         var btn = buff[0];
         var evt = (buff[1] == 0x00) ? Constants.ButtonEventType.BUTTON_DOWN : Constants.ButtonEventType.BUTTON_UP;
 
+        // A physical-key grid reports its keys here rather than as TOUCH frames. Translate
+        // them into synthetic touches instead of emitting a simple-button event: such a
+        // device has no LED buttons, so a button event would have no config entry to match.
+        if (TryGetPhysicalKeySlot(btn, out var keySlot))
+        {
+            if (DebugProtocol)
+                Console.WriteLine($"[Protocol] BUTTON_PRESS byte 0x{btn:x2} -> physical key slot {keySlot} ({evt})");
+
+            EmitSyntheticKeyTouch(keySlot, evt);
+            return;
+        }
+
         if (!Constants.Buttons.TryGetValue(btn, out var id))
         {
             if (DebugProtocol)
@@ -736,6 +953,41 @@ public class LoupedeckDevice
             Console.WriteLine($"[Protocol] KNOB_ROTATE byte 0x{btn:x2} -> {id} delta={delta}");
 
         OnRotate?.Invoke(this, new RotateEventArgs { ButtonId = id, Delta = delta });
+    }
+
+    /// <summary>
+    /// Synthetic touch ids start above any contact id the firmware assigns, so an emulated
+    /// key press can never collide with a real finger on a device that has both.
+    /// </summary>
+    private const byte SyntheticTouchIdBase = 0x80;
+
+    /// <summary>
+    /// Feeds a physical key press into the normal touch path as a touch at the centre of that
+    /// key. Re-entering <see cref="OnTouchReceived"/> rather than raising OnTouch directly is
+    /// what keeps the live-contact bookkeeping (and therefore press-and-hold) correct and the
+    /// event shape identical to a real touch, so no consumer needs to know the difference.
+    /// </summary>
+    private void EmitSyntheticKeyTouch(int slot, Constants.ButtonEventType evt)
+    {
+        // The centre of the key's calibrated rectangle, so the synthetic touch lands on
+        // the same key the renderer drew there.
+        SKPointI centre = GetKeyTouchCenter(slot);
+        int x = centre.X;
+        int y = centre.Y;
+
+        byte[] buff =
+        [
+            0,
+            (byte)(x >> 8), (byte)(x & 0xff),
+            (byte)(y >> 8), (byte)(y & 0xff),
+            (byte)(SyntheticTouchIdBase + slot)
+        ];
+
+        OnTouchReceived(
+            evt == Constants.ButtonEventType.BUTTON_DOWN
+                ? Constants.TouchEventType.TOUCH_START
+                : Constants.TouchEventType.TOUCH_END,
+            buff);
     }
 
     /// <summary>
@@ -951,6 +1203,8 @@ public class LoupedeckDevice
         int y = 0,
         bool autoRefresh = true)
     {
+        ArgumentNullException.ThrowIfNull(bitmap);
+
         // Determine the display
         if (Displays == null || !Displays.TryGetValue(id, out var displayInfo))
             throw new Exception($"Display '{id}' is not available on this device!");
@@ -961,10 +1215,84 @@ public class LoupedeckDevice
         if (height == 0)
             height = displayInfo.Height;
 
+        // The bitmap must cover the declared region exactly: the conversion below sizes its
+        // source from the BITMAP while the FRAMEBUFF header describes the REGION, so any
+        // mismatch produces a buffer the device reads under the wrong geometry. The
+        // destination length check in ConvertSKBitmapToRaw16BppUnsafe catches the case where
+        // the total area differs, but a transposed region (a 90x96 bitmap into a 96x90 key)
+        // has the same byte count and passes that check, landing on the panel as a sheared
+        // image. Fail here instead, where the display, the position and both sizes are still
+        // known — a key-sized bitmap built for the wrong device geometry (90px tile on the
+        // 96px Stream Controller X) is then named outright.
+        if (bitmap.Width != width || bitmap.Height != height)
+            throw new ArgumentException(
+                $"Bitmap is {bitmap.Width}x{bitmap.Height} but the region on display '{id}' at " +
+                $"({x},{y}) is {width}x{height}.", nameof(bitmap));
+
+        // Clip the region to the panel. A key grid does not have to tile its display: a
+        // device whose keys are spaced wider than they are large puts the outer ones partly
+        // past the glass, so the region legitimately hangs over an edge. The guard above has
+        // already done its job on the region as asked for, which is what keeps a wrong-sized
+        // tile an error rather than something silently trimmed to fit here.
+        //
+        // Clipping moves the read window instead of copying the bitmap — the converter takes
+        // the source rectangle, so an edge draw costs no allocation.
+        int clipLeft = Math.Max(0, -x);
+        int clipTop = Math.Max(0, -y);
+        int clipRight = Math.Max(0, (x + width) - displayInfo.Width);
+        int clipBottom = Math.Max(0, (y + height) - displayInfo.Height);
+
+        int drawX = x + clipLeft;
+        int drawY = y + clipTop;
+        int drawWidth = width - clipLeft - clipRight;
+        int drawHeight = height - clipTop - clipBottom;
+
+        // Entirely off the panel: nothing to send, and a zero-sized FRAMEBUFF would be a
+        // malformed packet rather than a no-op.
+        if (drawWidth <= 0 || drawHeight <= 0)
+            return;
+
+        // A panel that caps its FRAMEBUFF payload takes the frame in horizontal bands. The
+        // rows of a band are contiguous in the buffer, so each one is a normal region write
+        // at the same x and its own y — no reassembly on the device side. Only the last band
+        // refreshes, so the frame still appears in one go rather than banding into view.
+        int rowBytes = drawWidth * 2;
+        int bandRows = drawHeight;
+        int maxPayload = MaxFramebufferPayloadBytes;
+        if (maxPayload > 0 && rowBytes > 0 && (long)rowBytes * drawHeight > maxPayload)
+            bandRows = Math.Max(1, maxPayload / rowBytes);
+
+        for (int top = 0; top < drawHeight; top += bandRows)
+        {
+            int rows = Math.Min(bandRows, drawHeight - top);
+            bool isLast = top + rows >= drawHeight;
+            SKRectI src = SKRectI.Create(clipLeft, clipTop + top, drawWidth, rows);
+            await DrawCanvasBand(id, displayInfo, bitmap, src, drawX, drawY + top,
+                autoRefresh && isLast);
+        }
+    }
+
+    /// <summary>
+    /// Sends one horizontal band of a canvas: builds the FRAMEBUFF packet for the
+    /// <paramref name="srcRect"/> window of the bitmap and addresses it at
+    /// (<paramref name="x"/>, <paramref name="y"/>) on the display.
+    /// </summary>
+    private async Task DrawCanvasBand(
+        string id,
+        DisplayInfo displayInfo,
+        SKBitmap bitmap,
+        SKRectI srcRect,
+        int x,
+        int y,
+        bool autoRefresh)
+    {
+        int width = srcRect.Width;
+        int rows = srcRect.Height;
+
         // One rented buffer holds the WS prefix, command header, display id, x/y/w/h,
         // and RGB565 pixels. The send queue writes the command header and masks in place.
         byte[] displayId = displayInfo.Id;
-        int pixelBytes = width * height * 2;
+        int pixelBytes = width * rows * 2;
         int commandPacketLength = 3 + displayId.Length + 8 + pixelBytes;
         int wsHeaderLength = SerialConnection.MaskedHeaderLength(commandPacketLength);
         int packetOffset = wsHeaderLength;
@@ -979,17 +1307,18 @@ public class LoupedeckDevice
             BinaryPrimitives.WriteUInt16BigEndian(header, (ushort)x);
             BinaryPrimitives.WriteUInt16BigEndian(header.Slice(2), (ushort)y);
             BinaryPrimitives.WriteUInt16BigEndian(header.Slice(4), (ushort)width);
-            BinaryPrimitives.WriteUInt16BigEndian(header.Slice(6), (ushort)height);
+            BinaryPrimitives.WriteUInt16BigEndian(header.Slice(6), (ushort)rows);
 
             ConvertSKBitmapToRaw16BppUnsafe(
                 bitmap,
                 rented.AsSpan(bodyOffset + displayId.Length + 8, pixelBytes),
                 x,
-                y);
+                y,
+                srcRect);
 
             byte[] packet = rented;
             rented = null;
-            await DrawBuffer(id, displayInfo, width, height, packet, packetOffset, commandPacketLength, autoRefresh);
+            await DrawBuffer(id, displayInfo, width, rows, packet, packetOffset, commandPacketLength, autoRefresh);
         }
         finally
         {
@@ -1022,9 +1351,14 @@ public class LoupedeckDevice
     /// <param name="bitmap">Source bitmap in BGRA8888.</param>
     /// <param name="output">Destination RGB565 bytes; must be at least width*height*2 long.
     /// A rented array may be larger than that — only the exact pixel count is written.</param>
-    /// <param name="originX">Absolute X of the bitmap on the target display.</param>
-    /// <param name="originY">Absolute Y of the bitmap on the target display.</param>
-    private unsafe void ConvertSKBitmapToRaw16BppUnsafe(SKBitmap bitmap, Span<byte> output, int originX = 0, int originY = 0)
+    /// <param name="originX">Absolute X of the converted window on the target display.</param>
+    /// <param name="originY">Absolute Y of the converted window on the target display. For a band
+    /// this is the band's own Y, not the bitmap's, so the dither pattern keeps anchoring to
+    /// absolute display coordinates and bands do not seam.</param>
+    /// <param name="srcRect">Window of the bitmap to convert. Reading a sub-rectangle is how
+    /// both banding and edge clipping avoid copying the bitmap: the read window moves instead.</param>
+    private unsafe void ConvertSKBitmapToRaw16BppUnsafe(SKBitmap bitmap, Span<byte> output, int originX,
+        int originY, SKRectI srcRect)
     {
         if (bitmap == null || bitmap.IsNull)
             throw new InvalidOperationException("Bitmap is null or empty.");
@@ -1032,8 +1366,16 @@ public class LoupedeckDevice
         if (bitmap.ColorType != SKColorType.Bgra8888)
             throw new InvalidOperationException("Bitmap must be BGRA8888.");
 
-        int width = bitmap.Width;
-        int height = bitmap.Height;
+        if (srcRect.Left < 0 || srcRect.Top < 0 || srcRect.Width < 0 || srcRect.Height < 0 ||
+            srcRect.Right > bitmap.Width || srcRect.Bottom > bitmap.Height)
+            throw new ArgumentOutOfRangeException(nameof(srcRect), srcRect,
+                $"Source window lies outside the {bitmap.Width}x{bitmap.Height} bitmap.");
+
+        int srcLeft = srcRect.Left;
+        int srcTop = srcRect.Top;
+        int width = srcRect.Width;
+        int height = srcRect.Height;
+
         int pixelCount = width * height;
         int pixelBytes = pixelCount * 2;
         if (output.Length < pixelBytes)
@@ -1074,7 +1416,7 @@ public class LoupedeckDevice
 
                 for (int row = 0; row < height; row++)
                 {
-                    byte* srcPtr = srcBase + ((long)row * srcRowBytes);
+                    byte* srcPtr = srcBase + ((long)(srcTop + row) * srcRowBytes) + ((long)srcLeft * 4);
                     for (int col = 0; col < width; col++)
                     {
                         byte b = srcPtr[0];
@@ -1126,19 +1468,74 @@ public class LoupedeckDevice
         if (index < 0 || index >= Columns * Rows)
             throw new Exception($"Key {index} is not a valid key");
 
-        // Example dimension values from the old code
-        const int keyWidth = 90;
-        const int keyHeight = 90;
-
         if (VisibleX == null || Columns == 0)
             throw new Exception("VisibleX or Columns is not set");
 
-        // Calculate position
-        var x = VisibleX[0] + ((index % Columns) * keyWidth);
-        var y = (index / Columns) * keyHeight;
+        SKRectI rect = GetKeyRect(index);
 
-        // Call the DrawCanvas method
-        await DrawCanvas("center", keyWidth, keyHeight, bitmap, x, y, autoRefresh);
+        // DrawCanvas rejects a mismatch too; repeating it here is what names the key, which
+        // is the part that identifies the caller that built the tile at the wrong size.
+        if (bitmap == null || bitmap.Width != rect.Width || bitmap.Height != rect.Height)
+            throw new ArgumentException(
+                $"Key {index} needs a {rect.Width}x{rect.Height} bitmap, got " +
+                $"{(bitmap == null ? "null" : $"{bitmap.Width}x{bitmap.Height}")}.", nameof(bitmap));
+
+        await DrawCanvas("center", rect.Width, rect.Height, bitmap, rect.Left, rect.Top, autoRefresh);
+    }
+
+    /// <summary>
+    /// True when repainting the grid one key at a time leaves pixels behind, because the
+    /// keys do not cover the whole grid area. Such a device has to repaint the page as one
+    /// region; see <see cref="DrawTouchGridRegion"/>.
+    /// </summary>
+    public bool KeyGridHasGaps => !KeyCalibration.TilesGaplessly;
+
+    /// <summary>
+    /// Repaints the whole key grid as a single region write, so the pixels between the keys
+    /// are written too. Only for a full-page repaint: single-key updates and animation stay
+    /// per key, which is a deliberate performance decision — one key changing must not cost
+    /// a whole-grid write.
+    ///
+    /// Goes through <see cref="DrawCenterGridRegion"/> rather than the whole "center"
+    /// buffer, so a device whose side strips share that buffer keeps them.
+    /// </summary>
+    public virtual async Task DrawTouchGridRegion(IReadOnlyList<TouchButton> buttons, LoupedeckConfig config)
+    {
+        if (buttons == null) return;
+
+        int slots = Columns * Rows;
+        SKBitmap[] tiles = new SKBitmap[slots];
+
+        foreach (TouchButton button in buttons)
+        {
+            // Indices beyond the grid are the side strips, which this region does not cover
+            // and whose own renderer owns them.
+            if (button == null || button.Index < 0 || button.Index >= slots) continue;
+
+            // The bitmap belongs to the button (RenderedImage owns its lifetime); compose
+            // from it, never dispose it here.
+            tiles[button.Index] =
+                BitmapHelper.RenderTouchButtonContent(button, config, KeySize, KeySize,
+                    GetWallpaperKeyRect(button.Index));
+        }
+
+        using SKBitmap region = BitmapHelper.ComposeTouchGrid(tiles, this);
+
+        // Same tolerance the per-key path has: a device that does not answer must not take
+        // the caller down with it. Page setup runs during device initialisation, so an
+        // unanswered write here used to abort bringing the device up at all.
+        try
+        {
+            await DrawCenterGridRegion(region);
+        }
+        catch (TimeoutException ex)
+        {
+            Console.WriteLine($"Timeout occurred: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"DrawTouchGridRegion failed: {ex.Message}");
+        }
     }
 
     /// <summary>
@@ -1147,15 +1544,15 @@ public class LoupedeckDevice
     public virtual async Task DrawTouchButton(
         TouchButton touchButton,
         LoupedeckConfig config,
-        bool refresh,
-        int columns)
+        bool refresh)
     {
         ArgumentNullException.ThrowIfNull(touchButton);
 
         if (refresh || touchButton.RenderedImage == null)
         {
             var renderedBitmap =
-                BitmapHelper.RenderTouchButtonContent(touchButton, config, 90, 90, columns, WallpaperGridXOffset);
+                BitmapHelper.RenderTouchButtonContent(touchButton, config, KeySize, KeySize,
+                    GetWallpaperKeyRect(touchButton.Index));
             if (renderedBitmap == null) return;
         }
 
@@ -1184,9 +1581,18 @@ public class LoupedeckDevice
     {
         ArgumentNullException.ThrowIfNull(bitmap);
 
+        // This is the boundary at which bitmaps we did not render arrive — from plugins and
+        // from commands. They are built against whatever key size their author assumed, and
+        // the calibrated size is not something they can know. Scale rather than reject: a
+        // rejected tile used to leave the key black, which reads as a dead plugin.
+        //
+        // Only here. Our own render path stays strict, because a wrong size there is a bug
+        // worth surfacing rather than papering over.
+        SKBitmap scaled = FitToKey(bitmap);
+
         try
         {
-            await DrawKey(index, bitmap, refresh);
+            await DrawKey(index, scaled ?? bitmap, refresh);
         }
         catch (TimeoutException ex)
         {
@@ -1196,6 +1602,32 @@ public class LoupedeckDevice
         {
             Console.WriteLine($"Unexpected error: {ex.Message}");
         }
+        finally
+        {
+            scaled?.Dispose();
+        }
+    }
+
+    /// <summary>
+    /// A copy of <paramref name="bitmap"/> at the calibrated key size, or null when it
+    /// already is that size and can be used as it is. The caller owns anything returned.
+    /// </summary>
+    private SKBitmap FitToKey(SKBitmap bitmap)
+    {
+        int size = KeySize;
+        if (bitmap.Width == size && bitmap.Height == size) return null;
+
+        SKBitmap resized = new(new SKImageInfo(size, size, bitmap.ColorType, bitmap.AlphaType));
+
+        lock (SkiaRenderGate.Sync)
+        {
+            using SKCanvas canvas = new(resized);
+            canvas.Clear(SKColors.Black);
+            canvas.DrawBitmap(bitmap, SKRect.Create(0, 0, size, size),
+                new SKSamplingOptions(SKCubicResampler.Mitchell), paint: null);
+        }
+
+        return resized;
     }
 
     /// <summary>
@@ -1210,9 +1642,6 @@ public class LoupedeckDevice
     {
         if (slotBitmaps == null || slotBitmaps.Count == 0) return;
         if (Displays == null || !Displays.TryGetValue("center", out var center)) return;
-
-        var xBase = VisibleX is { Length: > 0 } ? VisibleX[0] : 0;
-        const int keySize = 90;
 
         using var full = new SKBitmap(new SKImageInfo(center.Width, center.Height,
             SKColorType.Bgra8888, SKAlphaType.Premul));
@@ -1230,9 +1659,10 @@ public class LoupedeckDevice
             {
                 var bmp = slotBitmaps[slot];
                 if (bmp == null) continue;
-                var x = xBase + ((slot % Columns) * keySize);
-                var y = (slot / Columns) * keySize;
-                canvas.DrawBitmap(bmp, x, y, SKSamplingOptions.Default, paint: null);
+                // Into the key's rectangle rather than at its corner: a caller-supplied
+                // tile of the wrong size would otherwise spill over its neighbours.
+                SKRectI rect = GetKeyRect(slot);
+                canvas.DrawBitmap(bmp, rect, new SKSamplingOptions(SKCubicResampler.Mitchell), paint: null);
             }
         }
 
@@ -1259,7 +1689,7 @@ public class LoupedeckDevice
         if (string.IsNullOrEmpty(text))
             throw new ArgumentException("Text must not be null or empty.", nameof(text));
 
-        var renderedBitmap = BitmapHelper.RenderTextToBitmap(text, 90, 90);
+        var renderedBitmap = BitmapHelper.RenderTextToBitmap(text, KeySize, KeySize);
         if (renderedBitmap == null)
             throw new Exception("The rendering of the text has failed.");
 
@@ -1288,6 +1718,48 @@ public class LoupedeckDevice
         => Displays != null && Displays.TryGetValue(id, out var d) ? (d.Width, d.Height) : (0, 0);
 
     /// <summary>
+    /// Paints every display black — the gaps between the keys and the panel margins the key
+    /// grid never reaches included. The panel keeps whatever was last written to it across an
+    /// app restart or a device power-cycle, and a page repaint only covers the key rectangles,
+    /// so on a gapped grid the remains of the previous picture (a screensaver frame, a test
+    /// pattern) stay visible between the keys. Sent before the first frame of a session and
+    /// again when the app hands the device back.
+    /// </summary>
+    public async Task ClearDisplays()
+    {
+        if (Displays == null) return;
+
+        foreach ((string id, DisplayInfo display) in Displays)
+        {
+            if (display == null || display.Width <= 0 || display.Height <= 0) continue;
+
+            try
+            {
+                using SKBitmap black = new(new SKImageInfo(display.Width, display.Height,
+                    SKColorType.Bgra8888, SKAlphaType.Premul));
+
+                lock (SkiaRenderGate.Sync)
+                {
+                    using SKCanvas canvas = new(black);
+                    canvas.Clear(SKColors.Black);
+                }
+
+                await DrawScreen(id, black);
+            }
+            catch (TimeoutException ex)
+            {
+                // Same tolerance as every other draw path: a device that does not answer
+                // must not abort bringing it up (or tearing it down).
+                Console.WriteLine($"Timeout occurred: {ex.Message}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"ClearDisplays failed for '{id}': {ex.Message}");
+            }
+        }
+    }
+
+    /// <summary>
     /// Draws the entire screen (display) identified by the given ID.
     /// </summary>
     public async Task DrawScreen(string id, SKBitmap bitmap, bool refresh = true)
@@ -1298,7 +1770,7 @@ public class LoupedeckDevice
     }
 
     /// <summary>
-    /// Pushes a pre-composed grid-region bitmap (Columns*90 × Rows*90) to the "center"
+    /// Pushes a pre-composed grid-region bitmap (Columns*KeySize × Rows*KeySize) to the "center"
     /// display at the touch grid's x-origin, leaving any side-strip regions of a unified
     /// buffer untouched. Used by the touch-page slide transition so a Razer's two side
     /// strips aren't clobbered. One framebuffer write + one refresh. The grid x-origin is
@@ -1354,10 +1826,14 @@ public class LoupedeckDevice
     }
 
     /// <summary>
-    /// Sets the color of a button by its ID.
+    /// Sets the color of a button by its ID. A no-op on devices without addressable LED
+    /// buttons — the reference driver throws there, but the shared controller drives this
+    /// from the config's button list and a silent skip keeps every caller device-agnostic.
     /// </summary>
     public async Task SetButtonColor(Constants.ButtonType id, Color color)
     {
+        if (!Geometry.HasLedButtons) return;
+
         byte key = 0;
         var found = false;
 
@@ -1382,10 +1858,14 @@ public class LoupedeckDevice
     }
 
     /// <summary>
-    /// Triggers a haptic vibration.
+    /// Triggers a haptic vibration. A no-op on devices without a haptic motor: both call
+    /// sites sit in the shared controller's touch handler, so gating here rather than there
+    /// keeps a device with no motor from being sent SET_VIBRATION on every touch.
     /// </summary>
     public void Vibrate(byte pattern = Constants.VibrationPattern.Short)
     {
+        if (!Geometry.HasVibration) return;
+
         SendNoResponse(Constants.Command.SET_VIBRATION, [pattern]);
     }
 

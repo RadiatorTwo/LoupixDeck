@@ -25,11 +25,25 @@ public partial class TextLayer : LayerBase
     [ObservableProperty]
     public partial int BoxHeight { get; set; }
 
-    [JsonIgnore]
-    public int EffectiveBoxWidth => BoxWidth > 0 ? BoxWidth : 90;
+    /// <summary>
+    /// Layout box for a surface that is <paramref name="deviceWidth"/> pixels wide. The
+    /// renderer must use this rather than <see cref="EffectiveBoxWidth"/>: it is handed the
+    /// real surface size, whereas <see cref="LayerBase.DeviceBaseWidth"/> is a projection the
+    /// editor stamps and the render path never touches — so on a 96px key the fallback would
+    /// otherwise stay at the default 90 and wrap text three pixels early on every edge.
+    /// </summary>
+    public int ResolveBoxWidth(int deviceWidth) => BoxWidth > 0 ? BoxWidth : deviceWidth;
 
+    /// <inheritdoc cref="ResolveBoxWidth"/>
+    public int ResolveBoxHeight(int deviceHeight) => BoxHeight > 0 ? BoxHeight : deviceHeight;
+
+    /// <summary>Editor-facing box size, resolved against the surface the editor is showing.</summary>
     [JsonIgnore]
-    public int EffectiveBoxHeight => BoxHeight > 0 ? BoxHeight : 90;
+    public int EffectiveBoxWidth => ResolveBoxWidth(DeviceBaseWidth);
+
+    /// <inheritdoc cref="EffectiveBoxWidth"/>
+    [JsonIgnore]
+    public int EffectiveBoxHeight => ResolveBoxHeight(DeviceBaseHeight);
 
     [ObservableProperty]
     public partial string Text { get; set; } = string.Empty;

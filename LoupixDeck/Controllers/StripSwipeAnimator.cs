@@ -26,9 +26,8 @@ namespace LoupixDeck.Controllers;
 /// </summary>
 public partial class LoupedeckLiveSController
 {
-    private const int StripHeight = 270;
     // Commit when the swipe passed half the strip; below that it snaps back...
-    private const int StripCommitThreshold = StripHeight / 2;
+    private int StripCommitThreshold => StripHeight / 2;
     // ...unless it was a fast flick: a release moving at least this fast (px/ms) in the
     // travel direction commits even on a short swipe — the small panel makes a pure
     // distance threshold feel like it needs the whole screen.
@@ -634,7 +633,7 @@ public partial class LoupedeckLiveSController
     private void RouteNonAnimatedStripTap(RotarySide side, int idx, TouchInfo touch)
     {
         var localX = side == RotarySide.Right ? touch.X - 420 : touch.X;
-        var tapX = Math.Clamp(localX, 0, 60);
+        var tapX = Math.Clamp(localX, 0, StripWidth);
         var tapY = Math.Clamp(touch.Y, 0, StripHeight);
 
         if (IsPluginStripActive(side, out var stripSession))
@@ -663,7 +662,7 @@ public partial class LoupedeckLiveSController
 
         if (_segmentSession[idx] is not { } segmentSession) return;
         var localX = side == RotarySide.Right ? touch.X - 420 : touch.X;
-        var tapX = Math.Clamp(localX, 0, 60);
+        var tapX = Math.Clamp(localX, 0, StripWidth);
         try { segmentSession.OnStripTapped(tapX, tapY); }
         catch (Exception ex) { Console.WriteLine($"Segment-strip session tap failed: {ex.Message}"); }
     }

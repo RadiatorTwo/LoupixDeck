@@ -22,5 +22,6 @@ public class LoupedeckLiveDevice : RazerStreamControllerDevice
     {
         Type = "Loupedeck Live";
         ProductId = "0004";
+        VendorId = "2ec2";
     }
 }

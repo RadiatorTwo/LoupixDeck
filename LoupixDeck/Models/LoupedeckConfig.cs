@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
+using LoupixDeck.Registry;
 using Newtonsoft.Json;
 
 namespace LoupixDeck.Models;
@@ -52,10 +53,54 @@ public partial class LoupedeckConfig : ObservableObject
     /// inside a <c>Default</c> <see cref="Profile"/>; the root now holds <see cref="Profiles"/> plus the
     /// active/startup profile ids, and the former page properties forward to the active workspace.
     /// See <c>ProfilesWorkspacesMigrator</c>.
+    /// v9 stores touch-button layer geometry in the owning device's own key pixels instead of a
+    /// fixed 90x90 authoring tile, so nothing is scaled between the editor and the framebuffer.
+    /// A no-op on every 90px device (the factor is 1); see <c>PerDeviceKeySizeMigrator</c>.
     /// </summary>
-    public const int CurrentVersion = 8;
+    public const int CurrentVersion = 10;
 
     public int Version { get; set; } = CurrentVersion;
+
+    /// <summary>
+    /// Pixel geometry of the device this config belongs to. Runtime-only carrier so the
+    /// static renderers in <c>BitmapHelper</c> — which only ever receive a config — can size
+    /// panel-sized surfaces per device. Never persisted: the geometry belongs to the model,
+    /// not to the file, and is re-applied on every load via <see cref="ApplyDeviceGeometry"/>.
+    /// </summary>
+    [JsonIgnore]
+    public DeviceGeometry Geometry { get; private set; } = DeviceGeometry.Default;
+
+    /// <summary>
+    /// The user's own key-grid measurement, or null to use the device model's default.
+    /// Null is the normal state and what every existing file has: a config written before
+    /// calibration existed simply has no such field, reads back as null, and therefore
+    /// behaves exactly as it did.
+    /// </summary>
+    [ObservableProperty]
+    public partial KeyGridCalibration KeyCalibration { get; set; }
+
+    /// <summary>
+    /// The calibration actually in force — the user's if they have one, the device model's
+    /// otherwise. Never null, so callers never have to repeat the fallback.
+    /// </summary>
+    [JsonIgnore]
+    public KeyGridCalibration EffectiveKeyCalibration => KeyCalibration ?? Geometry.DefaultKeyCalibration;
+
+    /// <summary>
+    /// Applies the attached device's geometry to this config and to every touch page it
+    /// holds (across all profiles and workspaces, not just the active one), so wallpaper
+    /// baking uses the real panel size everywhere.
+    /// </summary>
+    public void ApplyDeviceGeometry(DeviceGeometry geometry)
+    {
+        Geometry = geometry ?? DeviceGeometry.Default;
+
+        foreach (Profile profile in Profiles ?? [])
+        foreach (Workspace workspace in profile?.Workspaces ?? [])
+        foreach (TouchButtonPage page in workspace?.TouchButtonPages ?? [])
+            if (page != null)
+                page.Geometry = Geometry;
+    }
 
     public string DevicePort { get; set; }
     public int DeviceBaudrate { get; set; }

@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using LoupixDeck.Registry;
 using LoupixDeck.Utils;
 using Newtonsoft.Json;
 using SkiaSharp;
@@ -65,8 +66,16 @@ public sealed partial class TouchButtonPage(int pageSize) : ButtonPageBase()
     /// computed on demand from <see cref="MainWallpaper"/>. Returns null when unset.
     /// </summary>
     [JsonIgnore]
-    public SKBitmap Wallpaper =>
-        BitmapHelper.GetOrBakeSlot(MainWallpaper, BitmapHelper.PanelWidth, BitmapHelper.PanelHeight);
+    public SKBitmap Wallpaper => BitmapHelper.GetOrBakeSlot(MainWallpaper, Geometry.PanelWidth, Geometry.PanelHeight);
+
+    /// <summary>
+    /// Panel geometry of the owning device, used to bake the preview above at the same size
+    /// the renderer uses (a mismatch would bake a second copy into the slot cache).
+    /// Runtime-only; assigned by <see cref="LoupedeckConfig.ApplyDeviceGeometry"/> on load and
+    /// by the page manager for pages added later.
+    /// </summary>
+    [JsonIgnore]
+    public DeviceGeometry Geometry { get; set; } = DeviceGeometry.Default;
 
     /// <summary>Change signal (no value) raised whenever any wallpaper slot's
     /// rendered result changes, so the controller repaints. JsonIgnore — purely a

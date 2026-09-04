@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.Input;
 using LoupixDeck.Models;
+using LoupixDeck.Registry;
 using LoupixDeck.Services;
 using LoupixDeck.Utils;
 using LoupixDeck.ViewModels.Base;
@@ -54,9 +55,13 @@ public class TouchPageWallpaperSettingsViewModel : DialogViewModelBase<TouchButt
         BitmapHelper.ScalingOption.Center,
     ];
 
-    public TouchPageWallpaperSettingsViewModel(IAssetService assetService, IDeviceService deviceService)
+    private readonly DeviceGeometry _geometry;
+
+    public TouchPageWallpaperSettingsViewModel(IAssetService assetService, IDeviceService deviceService,
+        DeviceGeometry geometry)
     {
         _assetService = assetService;
+        _geometry = geometry ?? DeviceGeometry.Default;
         HasSideStrips = deviceService?.Device?.HasSideStrips ?? false;
     }
 
@@ -118,8 +123,8 @@ public class TouchPageWallpaperSettingsViewModel : DialogViewModelBase<TouchButt
 
     public string ActiveTargetSizeInfo => SelectedTarget switch
     {
-        WallpaperTarget.Left => "Left Side Display: 60 × 270",
-        WallpaperTarget.Right => "Right Side Display: 60 × 270",
+        WallpaperTarget.Left => $"Left Side Display: {_geometry.StripWidth} × {_geometry.PanelHeight}",
+        WallpaperTarget.Right => $"Right Side Display: {_geometry.StripWidth} × {_geometry.PanelHeight}",
         _ => "Main Wallpaper",
     };
 
@@ -192,13 +197,13 @@ public class TouchPageWallpaperSettingsViewModel : DialogViewModelBase<TouchButt
     // ───────── Previews ─────────
 
     public SKBitmap MainPreview =>
-        BitmapHelper.GetOrBakeSlot(_targetPage?.MainWallpaper, BitmapHelper.PanelWidth, BitmapHelper.PanelHeight);
+        BitmapHelper.GetOrBakeSlot(_targetPage?.MainWallpaper, _geometry.PanelWidth, _geometry.PanelHeight);
 
     public SKBitmap LeftPreview =>
-        BitmapHelper.GetOrBakeSlot(_targetPage?.LeftWallpaper, 60, BitmapHelper.PanelHeight);
+        BitmapHelper.GetOrBakeSlot(_targetPage?.LeftWallpaper, _geometry.StripWidth, _geometry.PanelHeight);
 
     public SKBitmap RightPreview =>
-        BitmapHelper.GetOrBakeSlot(_targetPage?.RightWallpaper, 60, BitmapHelper.PanelHeight);
+        BitmapHelper.GetOrBakeSlot(_targetPage?.RightWallpaper, _geometry.StripWidth, _geometry.PanelHeight);
 
     public SKBitmap ActivePreview => SelectedTarget switch
     {

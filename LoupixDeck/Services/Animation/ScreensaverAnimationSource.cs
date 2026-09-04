@@ -1,6 +1,7 @@
 using System.Buffers;
 using System.Diagnostics;
 using System.Threading.Channels;
+using LoupixDeck.Registry;
 
 namespace LoupixDeck.Services.Animation;
 
@@ -27,17 +28,17 @@ namespace LoupixDeck.Services.Animation;
 /// </summary>
 public sealed class ScreensaverAnimationSource : IAnimationSource, IDisposable
 {
-    // Panel geometry / frame size come from the shared writer (the continuous 480×270 virtual
-    // panel the wallpaper system assumes).
-    private const int PanelWidth = FullDisplayFrameWriter.PanelWidth;
-    private const int PanelHeight = FullDisplayFrameWriter.PanelHeight;
-    private const int FrameBytes = FullDisplayFrameWriter.FrameBytes;
+    // Panel geometry / frame size come from the device (the continuous virtual panel the
+    // wallpaper system assumes). ffmpeg is told to scale to exactly this size and its stdout
+    // is read in fixed frame-sized chunks, so a stale panel size would not merely letterbox —
+    // it would desync the whole stream.
+    private readonly DeviceGeometry _geometry;
 
     // Read-ahead depth: how many realtime-paced frames may sit queued ahead of presentation.
     // The cushion (≈ FrameQueueDepth / fps seconds) lets the background reader ride out a
     // transient decode spike on a large/high-bitrate clip (e.g. a fat keyframe) without
     // starving the scheduler, and gives a lagging device a few frames to drop-skip back to
-    // realtime. The bound keeps memory flat (FrameQueueDepth × FrameBytes ≈ 3 MB at 6) and
+    // realtime. The bound keeps memory flat (FrameQueueDepth × one frame ≈ 3 MB at 6) and
     // caps how stale a dropped-to frame can be.
     private const int FrameQueueDepth = 6;
 
@@ -76,6 +77,7 @@ public sealed class ScreensaverAnimationSource : IAnimationSource, IDisposable
         string absoluteVideoPath, int fps, bool loop, Action onEnded)
     {
         _device = device;
+        _geometry = device.Geometry;
         _absoluteVideoPath = absoluteVideoPath;
         _fps = Math.Clamp(fps <= 0 ? 30 : fps, 1, 120);
         _loop = loop;
@@ -124,7 +126,7 @@ public sealed class ScreensaverAnimationSource : IAnimationSource, IDisposable
         // freshest one (see RenderFrameAsync) so playback stays at the right speed and instead
         // skips frames. Without -re a slow consumer would just decode slower → slow motion.
         //
-        // scale=…:flags=fast_bilinear — the panel is tiny (480×270), so the source is always
+        // scale=…:flags=fast_bilinear — the panel is tiny, so the source is always
         // downscaled hard; fast_bilinear is the cheapest scaler and measured ~15% more decode
         // headroom than the default bicubic on 1080p clips with no visible quality loss at this
         // size. Hardware decode (-hwaccel) was tried and is slower here (the GPU→system-memory
@@ -135,7 +137,7 @@ public sealed class ScreensaverAnimationSource : IAnimationSource, IDisposable
             $"-hide_banner -loglevel {logLevel} " +
             "-probesize 500000 -analyzeduration 0 -re " +
             $"{loopArg}-i \"{_absoluteVideoPath}\" " +
-            $"-an -f rawvideo -r {_fps} -pix_fmt bgra -vf scale={PanelWidth}:{PanelHeight}:flags=fast_bilinear -";
+            $"-an -f rawvideo -r {_fps} -pix_fmt bgra -vf scale={_geometry.PanelWidth}:{_geometry.PanelHeight}:flags=fast_bilinear -";
 
         if (_debug)
             Console.WriteLine($"[Screensaver] ffmpeg {args}");
@@ -220,17 +222,17 @@ public sealed class ScreensaverAnimationSource : IAnimationSource, IDisposable
         {
             while (!token.IsCancellationRequested)
             {
-                var buffer = ArrayPool<byte>.Shared.Rent(FrameBytes);
+                var buffer = ArrayPool<byte>.Shared.Rent(_geometry.FrameBytes);
 
                 // Read exactly one full panel frame.
                 var read = 0;
                 var ended = false;
-                while (read < FrameBytes)
+                while (read < _geometry.FrameBytes)
                 {
                     int r;
                     try
                     {
-                        r = await stream.ReadAsync(buffer.AsMemory(read, FrameBytes - read), token)
+                        r = await stream.ReadAsync(buffer.AsMemory(read, _geometry.FrameBytes - read), token)
                             .ConfigureAwait(false);
                     }
                     catch (OperationCanceledException)

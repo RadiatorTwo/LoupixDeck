@@ -127,6 +127,11 @@ public static class ServiceCollectionExtensions
         collection.AddSingleton(resolved);
         collection.AddSingleton(deviceInfo);
 
+        // Pixel geometry comes from the registry entry rather than from IDeviceService.Device:
+        // the device object is created on a background thread and stays null for seconds after
+        // start-up (forever without hardware), while services are resolved immediately.
+        collection.AddSingleton(deviceInfo.Geometry);
+
         // Re-expose the root singletons device-bound services depend on.
         collection.Forward<IConfigService>(root);
         collection.Forward<IAssetService>(root);
@@ -211,6 +216,10 @@ public static class ServiceCollectionExtensions
             // Default profile with a Home workspace; a migrated config already has one and is left
             // as is. Also binds the active-workspace facade so the page properties resolve.
             config.EnsureDefaultProfile();
+
+            // Panel geometry is not persisted — re-attach it on every load so the static
+            // renderers size wallpapers to this device's panel rather than a fixed 480x270.
+            config.ApplyDeviceGeometry(deviceInfo.Geometry);
             return config;
         });
 
@@ -236,6 +245,7 @@ public static class ServiceCollectionExtensions
         collection.AddSingleton<IMenuContributor, CommandGroupMenuContributor>();
         collection.AddSingleton<IMenuContributor, UserMacroMenuContributor>();
         collection.AddSingleton<IMenuContributor, ProfileMenuContributor>();
+        collection.AddSingleton<IMenuContributor, DisplayTestMenuContributor>();
         collection.AddSingleton<IPluginMenuSource, PluginMenuContributor>();
         collection.AddSingleton<IMenuTreeBuilder, MenuTreeBuilder>();
 

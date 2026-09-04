@@ -13,9 +13,6 @@ public partial class ImageLayer : LayerBase
 {
     public const string Kind = "image";
 
-    /// <summary>Device-pixel frame size the image is fitted into (90×90 button).</summary>
-    private const double DeviceBaseSize = 90.0;
-
     private SKBitmap _cachedImage;
 
     public string AssetRelativePath

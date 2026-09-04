@@ -45,7 +45,7 @@ if (opts is null) return 0; // --help printed
 
 string repoRoot = FindRepoRoot();
 string toolDir = Path.Combine(repoRoot, "tools", "BodyTextureBaker");
-string assetsDir = Path.Combine(repoRoot, "Assets");
+string assetsDir = Path.Combine(repoRoot, "LoupixDeck", "Assets");
 
 // --- Per-variant defaults. The lighting stops below are shared; each variant
 //     scales the vignette/sheen, sets its own base brightness + shadow fill, and
@@ -60,9 +60,22 @@ string assetsDir = Path.Combine(repoRoot, "Assets");
 //                is symmetric about x=450; the 480x270 display is centred (x=210-690,
 //                y130-400), a knob column sits on each side (centres x130/x770,
 //                y154/265/376), and the row of 8 round LED buttons + RAZER wordmark
-//                live in the taller bottom margin (button centres y473). ---
+//                live in the taller bottom margin (button centres y473).
+//       Razer Stream Controller X — viewBox 720x520, body (46,42)-(674,478) = 628x436,
+//                r44. Laid out from the panel outwards, because the device is a screen
+//                and nothing else: the 480x288 key grid sits at (120,116), the bezel
+//                clears it by 22 on every side, and the body clears the bezel by 52 on
+//                every side. Margins are even all round — there is no dial column or
+//                LED row to make one edge deeper. ---
 var liveGeom = (VW: 900, VH: 540, BX: 75, BY: 75, BW: 750, BH: 420, BR: 60);
 var razerGeom = (VW: 900, VH: 600, BX: 80, BY: 50, BW: 740, BH: 505, BR: 42);
+// Razer Stream Controller X, from the physical device: 111 x 82 mm, with the bezel 7 mm
+// below the top edge and 15 mm above the bottom one — so the body is centred horizontally
+// but NOT vertically, and the earlier concentric bake had both the proportion and the
+// vertical placement wrong. Drawn at 6 units per mm, which puts the 98 px key pitch
+// (19 mm) at 114 units. See RazerStreamControllerXLayout.axaml, which places the bezel and
+// the keys on the same scale.
+var razerXGeom = (VW: 720, VH: 520, BX: 27, BY: 14, BW: 666, BH: 492, BR: 46);
 
 string texDark = Path.Combine(toolDir, "texture-no-light.png");
 string texLight = Path.Combine(toolDir, "texture-light.png");
@@ -91,6 +104,16 @@ var allVariants = new Dictionary<string, Variant>
         Output: Path.Combine(assetsDir, "razer-gehaeuse-light.svg"),
         Dark: 0.92, Grain: 0.5,
         BodyFill: "#d9d9d9", VignetteScale: 0.55, SheenScale: 0.5, Geom: razerGeom),
+    ["razer-x-dark"] = new(
+        Name: "razer-x-dark", Input: texDark,
+        Output: Path.Combine(assetsDir, "razer-x-gehaeuse.svg"),
+        Dark: 0.6, Grain: 0.5,
+        BodyFill: "#151414", VignetteScale: 1.0, SheenScale: 1.0, Geom: razerXGeom),
+    ["razer-x-light"] = new(
+        Name: "razer-x-light", Input: texLight,
+        Output: Path.Combine(assetsDir, "razer-x-gehaeuse-light.svg"),
+        Dark: 0.92, Grain: 0.5,
+        BodyFill: "#d9d9d9", VignetteScale: 0.55, SheenScale: 0.5, Geom: razerXGeom),
 };
 
 // Group selectors expand to one or more concrete variants; single names map 1:1.
@@ -98,7 +121,8 @@ string[] selected = opts.Variant switch
 {
     "both" => ["dark", "light"],
     "razer" => ["razer-dark", "razer-light"],
-    "all" => ["dark", "light", "razer-dark", "razer-light"],
+    "razer-x" => ["razer-x-dark", "razer-x-light"],
+    "all" => ["dark", "light", "razer-dark", "razer-light", "razer-x-dark", "razer-x-light"],
     _ => [opts.Variant],
 };
 var variants = selected.Select(n => allVariants[n]).ToList();
@@ -256,20 +280,28 @@ static void Spread(double[] buf, int w, int h, int x, int y, double v)
     if (x >= 0 && x < w && y >= 0 && y < h) buf[(y * w) + x] += v;
 }
 
+// Locates the repository root: the directory holding both `tools/` and the app project.
+// The marker is the app csproj at its known sub-path rather than a bare "LoupixDeck.csproj",
+// which no ancestor of either start directory carries — that search always missed and fell
+// through to a fixed relative guess, which resolved `tools/` correctly and `Assets/` not.
 static string FindRepoRoot()
 {
+    const string marker = "LoupixDeck/LoupixDeck.csproj";
+
     foreach (var start in new[] { Directory.GetCurrentDirectory(), AppContext.BaseDirectory })
     {
         var dir = new DirectoryInfo(start);
         while (dir is not null)
         {
-            if (File.Exists(Path.Combine(dir.FullName, "LoupixDeck.csproj")))
+            if (File.Exists(Path.Combine(dir.FullName, marker)))
                 return dir.FullName;
             dir = dir.Parent;
         }
     }
-    // Fallback: tool lives at <root>/tools/BodyTextureBaker, bin output a few levels down.
-    return Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
+
+    throw new DirectoryNotFoundException(
+        $"Repository root not found: no ancestor of '{Directory.GetCurrentDirectory()}' or " +
+        $"'{AppContext.BaseDirectory}' contains '{marker}'.");
 }
 
 static Options? ParseArgs(string[] args)
@@ -284,10 +316,12 @@ static Options? ParseArgs(string[] args)
             case "--variant":
                 o.Variant = Next().ToLowerInvariant();
                 if (o.Variant is not ("dark" or "light" or "both"
-                    or "razer-dark" or "razer-light" or "razer" or "all"))
+                    or "razer-dark" or "razer-light" or "razer"
+                    or "razer-x-dark" or "razer-x-light" or "razer-x" or "all"))
                 {
                     throw new ArgumentException(
-                        "--variant must be dark, light, both, razer-dark, razer-light, razer or all");
+                        "--variant must be dark, light, both, razer-dark, razer-light, razer, "
+                        + "razer-x-dark, razer-x-light, razer-x or all");
                 }
 
                 break;
@@ -298,7 +332,7 @@ static Options? ParseArgs(string[] args)
             case "--grain": o.Grain = double.Parse(Next(), CultureInfo.InvariantCulture); break;
             case "-h" or "--help":
                 Console.WriteLine("Regenerates the device body SVGs (Live S + Razer, Dark + Light) from matte textures.");
-                Console.WriteLine("Options: --variant <dark|light|both|razer-dark|razer-light|razer|all> --input <path> --output <path> --width <int> --dark <0..1> --grain <0..1>");
+                Console.WriteLine("Options: --variant <dark|light|both|razer-dark|razer-light|razer|razer-x-dark|razer-x-light|razer-x|all> --input <path> --output <path> --width <int> --dark <0..1> --grain <0..1>");
                 Console.WriteLine("Defaults reproduce the committed SVGs (width 1100; dark 0.6/grain 0.5 for dark, dark 0.92/grain 0.5 for light).");
                 return null;
             default:

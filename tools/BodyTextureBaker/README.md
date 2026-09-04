@@ -11,6 +11,8 @@ geometry (viewBox + rounded-rect) differs per variant.
 | `light`       | `texture-light.png`     | `Assets/loupedeck-gehaeuse-light.svg` |
 | `razer-dark`  | `texture-no-light.png`  | `Assets/razer-gehaeuse.svg`           |
 | `razer-light` | `texture-light.png`     | `Assets/razer-gehaeuse-light.svg`     |
+| `razer-x-dark`  | `texture-no-light.png` | `Assets/razer-x-gehaeuse.svg`       |
+| `razer-x-light` | `texture-light.png`    | `Assets/razer-x-gehaeuse-light.svg` |
 
 Geometry per model (SVG viewBox units, matching the AXAML overlay):
 
@@ -18,13 +20,20 @@ Geometry per model (SVG viewBox units, matching the AXAML overlay):
 |-------|-----------|----------------------------------|----------|
 | Live S | 900×540  | (75,75)–(825,495) = 750×420      | 60       |
 | Razer  | 900×600  | (75,60)–(825,540) = 750×480      | 55       |
+| Razer X | 720x520  | (46,42)-(674,478) = 628x436      | 44       |
 
 The device layouts bind the body SVG to the theme-aware `DeviceBodySvgPath`
 resource (defined per `ThemeVariant` in `App.axaml`), so Light mode shows the
 light body and Dark mode the dark one.
 
 Group selectors: `--variant both` (Live S dark+light), `razer` (Razer dark+light),
-`all` (every variant).
+`razer-x` (Razer X dark+light), `all` (every variant).
+
+The Razer X body is laid out from the panel outwards, because the device is a
+screen and nothing else: the 480x288 key grid sits at (120,116), the bezel clears
+it by 22 on every side, and the body clears the bezel by 52 on every side. All
+three are concentric and the margins are even all round - there is no dial column
+or LED row to make one edge deeper.
 
 ## Why baking instead of SVG gradients
 

@@ -63,11 +63,22 @@ public partial class WallpaperSlot
     }
 
     /// <summary>
-    /// Cached baked bitmap (480×270 for main, 60×270 for sides). NOT serialized —
-    /// computed lazily via <see cref="BitmapHelper.GetOrBakeSlot"/>.
+    /// Cached baked bitmap, sized to the surface it was baked for (the device's panel for
+    /// the main slot, a side strip for the others). NOT serialized — computed lazily via
+    /// <see cref="BitmapHelper.GetOrBakeSlot"/>, which re-bakes when a different size is
+    /// asked for (see <see cref="BakedSize"/>).
     /// </summary>
     [JsonIgnore]
     public SKBitmap Baked { get; set; }
+
+    /// <summary>
+    /// Surface size <see cref="Baked"/> was produced for. The cache must be keyed on this:
+    /// devices do not share one panel size, so a slot baked once for one panel would
+    /// otherwise be handed straight back to a differently sized one, losing rows and
+    /// sampling every key from the wrong place.
+    /// </summary>
+    [JsonIgnore]
+    public (int Width, int Height) BakedSize { get; set; }
 
     [JsonIgnore]
     public bool HasImage => !string.IsNullOrWhiteSpace(AssetPath);
@@ -81,6 +92,7 @@ public partial class WallpaperSlot
     private void Invalidate()
     {
         Baked = null;
+        BakedSize = default;
         RaiseChanged();
     }
 
