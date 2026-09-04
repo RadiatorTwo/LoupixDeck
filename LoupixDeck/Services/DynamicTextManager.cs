@@ -56,20 +56,20 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
     private PeriodicTimer _timer;
     private Task _loopTask;
 
-    private readonly DeviceGeometry _geometry;
+    private readonly LoupedeckConfig _config;
 
     public DynamicTextManager(
         IPageManager pageManager,
         ICommandRegistry commandRegistry,
         IServiceProvider deviceProvider,
         IDeviceRouter router,
-        DeviceGeometry geometry)
+        LoupedeckConfig config)
     {
         _pageManager = pageManager;
         _commandRegistry = commandRegistry;
         _deviceProvider = deviceProvider;
         _router = router;
-        _geometry = geometry ?? DeviceGeometry.Default;
+        _config = config;
     }
 
     public void Start()
@@ -265,7 +265,7 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
             // The plugin draws the button onto a host canvas at the device's key size; serialize
             // with all other Skia work (font/glyph caches + the layer's gated bitmap swap) so it
             // can't race the pipeline.
-            int keySize = _geometry.KeySize;
+            int keySize = _config?.EffectiveKeyCalibration.KeySize ?? DeviceGeometry.Default.KeySize;
             var bitmap = new SKBitmap(keySize, keySize);
             bool drew;
             try

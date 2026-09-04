@@ -52,6 +52,10 @@ public class LoupedeckDeviceService : IDeviceService
                 deviceBaudrate,
                 true, // autoConnect
                 LoupedeckDevice.Constants.DefaultReconnectInterval);
+
+            // The user's own key-grid measurement, if their config carries one. Set before
+            // anything draws, so the first frame already lands on the calibrated grid.
+            Device.KeyCalibration = _config?.EffectiveKeyCalibration;
             _deviceCreatedEvent.Set();
         })
         {
@@ -102,11 +106,8 @@ public class LoupedeckDeviceService : IDeviceService
         // Only the last call executes this action
         if (callId == _currentCallId)
         {
-            await Device.DrawTouchButton(
-                _config.CurrentTouchButtonPage.TouchButtons[index],
-                _config,
-                true,
-                Device.Columns); // Reset the button with current page wallpaper
+            // Reset the button with current page wallpaper
+            await Device.DrawTouchButton(_config.CurrentTouchButtonPage.TouchButtons[index], _config, true);
         }
     }
 }

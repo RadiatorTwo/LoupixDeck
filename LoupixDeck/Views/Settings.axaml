@@ -198,6 +198,69 @@
                         </StackPanel>
                     </Border>
 
+                    <!-- Key alignment: the grid the app draws against the keys the panel
+                         actually has. Only the device knows the truth, so this is checked
+                         by eye against a test pattern on the hardware. -->
+                    <Border Classes="card">
+                        <StackPanel>
+                            <TextBlock Classes="card-title" Text="Key alignment" />
+                            <TextBlock Classes="hint" TextWrapping="Wrap"
+                                       Text="Where the app places the key tiles on the panel. Turn on the test pattern and adjust until each tile's crosshair sits in the middle of its key and its border runs along the key's edge. Only needed if the picture is offset or the wrong size on the device." />
+
+                            <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,10,0,0">
+                                <ToggleButton Content="Show test pattern on device"
+                                              IsChecked="{Binding IsAlignmentPreviewActive, Mode=OneWay}"
+                                              Command="{Binding ToggleAlignmentPreviewCommand}"
+                                              ToolTip.Tip="Draws a crosshair tile on every key. Ends when this window closes or you press a key on the device." />
+                                <Button Content="Reset to device default"
+                                        Command="{Binding ResetKeyCalibrationCommand}" />
+                            </StackPanel>
+
+                            <Grid ColumnDefinitions="150,Auto,60,Auto" RowDefinitions="Auto,Auto,Auto,Auto,Auto"
+                                  RowSpacing="6" Margin="0,12,0,0">
+                                <TextBlock Grid.Row="0" Grid.Column="0" Classes="label" Text="Key size" VerticalAlignment="Center" />
+                                <Button Grid.Row="0" Grid.Column="1" Classes="PagerBtn" Content="-"
+                                        Command="{Binding AdjustKeyCalibrationCommand}" CommandParameter="size:-1" />
+                                <TextBlock Grid.Row="0" Grid.Column="2" Classes="value" HorizontalAlignment="Center"
+                                           VerticalAlignment="Center" Text="{Binding KeyCalibrationSize}" />
+                                <Button Grid.Row="0" Grid.Column="3" Classes="PagerBtn" Content="+"
+                                        Command="{Binding AdjustKeyCalibrationCommand}" CommandParameter="size:1" />
+
+                                <TextBlock Grid.Row="1" Grid.Column="0" Classes="label" Text="Spacing across" VerticalAlignment="Center" />
+                                <Button Grid.Row="1" Grid.Column="1" Classes="PagerBtn" Content="-"
+                                        Command="{Binding AdjustKeyCalibrationCommand}" CommandParameter="spacingX:-1" />
+                                <TextBlock Grid.Row="1" Grid.Column="2" Classes="value" HorizontalAlignment="Center"
+                                           VerticalAlignment="Center" Text="{Binding KeyCalibrationSpacingX}" />
+                                <Button Grid.Row="1" Grid.Column="3" Classes="PagerBtn" Content="+"
+                                        Command="{Binding AdjustKeyCalibrationCommand}" CommandParameter="spacingX:1" />
+
+                                <TextBlock Grid.Row="2" Grid.Column="0" Classes="label" Text="Spacing down" VerticalAlignment="Center" />
+                                <Button Grid.Row="2" Grid.Column="1" Classes="PagerBtn" Content="-"
+                                        Command="{Binding AdjustKeyCalibrationCommand}" CommandParameter="spacingY:-1" />
+                                <TextBlock Grid.Row="2" Grid.Column="2" Classes="value" HorizontalAlignment="Center"
+                                           VerticalAlignment="Center" Text="{Binding KeyCalibrationSpacingY}" />
+                                <Button Grid.Row="2" Grid.Column="3" Classes="PagerBtn" Content="+"
+                                        Command="{Binding AdjustKeyCalibrationCommand}" CommandParameter="spacingY:1" />
+
+                                <TextBlock Grid.Row="3" Grid.Column="0" Classes="label" Text="First key centre X" VerticalAlignment="Center" />
+                                <Button Grid.Row="3" Grid.Column="1" Classes="PagerBtn" Content="-"
+                                        Command="{Binding AdjustKeyCalibrationCommand}" CommandParameter="centerX:-1" />
+                                <TextBlock Grid.Row="3" Grid.Column="2" Classes="value" HorizontalAlignment="Center"
+                                           VerticalAlignment="Center" Text="{Binding KeyCalibrationFirstCenterX}" />
+                                <Button Grid.Row="3" Grid.Column="3" Classes="PagerBtn" Content="+"
+                                        Command="{Binding AdjustKeyCalibrationCommand}" CommandParameter="centerX:1" />
+
+                                <TextBlock Grid.Row="4" Grid.Column="0" Classes="label" Text="First key centre Y" VerticalAlignment="Center" />
+                                <Button Grid.Row="4" Grid.Column="1" Classes="PagerBtn" Content="-"
+                                        Command="{Binding AdjustKeyCalibrationCommand}" CommandParameter="centerY:-1" />
+                                <TextBlock Grid.Row="4" Grid.Column="2" Classes="value" HorizontalAlignment="Center"
+                                           VerticalAlignment="Center" Text="{Binding KeyCalibrationFirstCenterY}" />
+                                <Button Grid.Row="4" Grid.Column="3" Classes="PagerBtn" Content="+"
+                                        Command="{Binding AdjustKeyCalibrationCommand}" CommandParameter="centerY:1" />
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
                     <!-- Startup card -->
                     <Border Classes="card">
                         <StackPanel>

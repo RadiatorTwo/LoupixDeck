@@ -241,7 +241,7 @@ public class DrawBenchmarkCommand(IDeviceService deviceService, LoupedeckConfig 
             if (config.CurrentTouchButtonPage?.TouchButtons != null)
             {
                 foreach (var tb in config.CurrentTouchButtonPage.TouchButtons)
-                    await device.DrawTouchButton(tb, config, true, device.Columns);
+                    await device.DrawTouchButton(tb, config, true);
             }
         }
         catch (Exception ex)

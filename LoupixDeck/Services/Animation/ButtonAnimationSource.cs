@@ -151,7 +151,7 @@ public sealed class ButtonAnimationSource : IAnimationSource, IDisposable
             foreach (var button in dirty)
             {
                 if (context.CancellationToken.IsCancellationRequested) return;
-                await device.DrawTouchButton(button, _config, refresh: true, columns).ConfigureAwait(false);
+                await device.DrawTouchButton(button, _config, refresh: true).ConfigureAwait(false);
             }
         }
         finally
@@ -193,7 +193,7 @@ public sealed class ButtonAnimationSource : IAnimationSource, IDisposable
             EffectiveFps = context.EffectiveFps
         };
 
-        int keySize = _config.Geometry.KeySize;
+        int keySize = _config.EffectiveKeyCalibration.KeySize;
         var bitmap = new SKBitmap(keySize, keySize);
         AnimationFrameInfo info;
         try

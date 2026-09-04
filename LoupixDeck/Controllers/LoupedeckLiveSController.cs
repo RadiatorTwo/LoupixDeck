@@ -56,10 +56,11 @@ public partial class LoupedeckLiveSController(
     public bool HasSideStrips => deviceService.Device?.HasSideStrips == true;
 
     /// <summary>
-    /// Edge length of one centre-grid key in device pixels. Read from the registry entry
-    /// rather than from the live device so it is correct before the device has connected.
+    /// Edge length of one centre-grid key in device pixels — the calibrated size, so a tile
+    /// rendered here is the size <c>DrawKey</c> will accept. Read from the config rather
+    /// than from the live device so it is correct before the device has connected.
     /// </summary>
-    private int KeySize => deviceInfo?.Geometry.KeySize ?? DeviceGeometry.Default.KeySize;
+    private int KeySize => config?.EffectiveKeyCalibration.KeySize ?? DeviceGeometry.Default.KeySize;
 
     /// <summary>Width of one side display strip in device pixels.</summary>
     private int StripWidth => deviceInfo?.Geometry.StripWidth ?? DeviceGeometry.Default.StripWidth;
@@ -234,7 +235,7 @@ public partial class LoupedeckLiveSController(
             {
                 foreach (var tb in config.CurrentTouchButtonPage.TouchButtons)
                 {
-                    await device.DrawTouchButton(tb, config, true, device.Columns);
+                    await device.DrawTouchButton(tb, config, true);
                 }
             }
             await RedrawSideStrips();
@@ -450,6 +451,22 @@ public partial class LoupedeckLiveSController(
         }
     }
 
+    /// <summary>
+    /// Drops every cached button bitmap in the config, on every page of every workspace —
+    /// not just the visible one. After a calibration change they are all the wrong size, and
+    /// a stale one would surface on the next page switch: the slide animation composes its
+    /// outgoing frame from these cached images rather than re-rendering them.
+    /// </summary>
+    private void InvalidateRenderedTouchButtons()
+    {
+        foreach (Profile profile in config.Profiles ?? [])
+        foreach (Workspace workspace in profile?.Workspaces ?? [])
+        foreach (TouchButtonPage page in workspace?.TouchButtonPages ?? [])
+        foreach (TouchButton button in page?.TouchButtons ?? [])
+            if (button != null)
+                button.RenderedImage = null;
+    }
+
     public async Task RedrawCurrentTouchPage()
     {
         // No-op while something else owns the screen — the owner repaints when it
@@ -472,7 +489,7 @@ public partial class LoupedeckLiveSController(
                 // Slots 12/13 are the side strips; skip them only when the provider owns
                 // the side displays, so a grid repaint can't paint over its strips.
                 if (stripsTaken && IsSideStripSlot(tb.Index)) continue;
-                await device.DrawTouchButton(tb, config, true, device.Columns);
+                await device.DrawTouchButton(tb, config, true);
             }
         }
 
@@ -647,7 +664,7 @@ public partial class LoupedeckLiveSController(
 
             foreach (var touchButton in config.CurrentTouchButtonPage.TouchButtons)
             {
-                await deviceService.Device.DrawTouchButton(touchButton, config, true, deviceService.Device.Columns);
+                await deviceService.Device.DrawTouchButton(touchButton, config, true);
             }
         }
 
@@ -1657,7 +1674,7 @@ public partial class LoupedeckLiveSController(
             if (original != null)
                 await device.DrawTouchSlot(button.Index, original);
             else
-                await device.DrawTouchButton(button, config, true, device.Columns);
+                await device.DrawTouchButton(button, config, true);
         }
         catch (Exception ex)
         {
@@ -2102,7 +2119,7 @@ public partial class LoupedeckLiveSController(
                 // Folder mode left — restore the configured page.
                 foreach (var touchButton in config.CurrentTouchButtonPage.TouchButtons)
                 {
-                    await device.DrawTouchButton(touchButton, config, true, device.Columns);
+                    await device.DrawTouchButton(touchButton, config, true);
                 }
 
                 await RedrawSideStrips();
@@ -2291,7 +2308,7 @@ public partial class LoupedeckLiveSController(
                     await Task.Delay(100, token); // Debounce
                     foreach (var touchButton in config.CurrentTouchButtonPage.TouchButtons)
                     {
-                        await deviceService.Device.DrawTouchButton(touchButton, config, true, deviceService.Device.Columns);
+                        await deviceService.Device.DrawTouchButton(touchButton, config, true);
                         await Task.Delay(0, token);
                     }
                     // The side strips share the wallpaper — repaint them too.
@@ -2319,7 +2336,7 @@ public partial class LoupedeckLiveSController(
 
         if (button == null) return;
 
-        await deviceService.Device.DrawTouchButton(button, config, true, deviceService.Device.Columns);
+        await deviceService.Device.DrawTouchButton(button, config, true);
     }
 
     /// <summary>
@@ -2617,6 +2634,15 @@ public partial class LoupedeckLiveSController(
                     // ApplyTouchPage cannot be used here: it early-returns when the requested
                     // page is already current, which is always the case for a settings toggle.
                     deviceService.Device.DitherFramebuffer = config.DitheringEnabled;
+                    await RedrawCurrentTouchPage();
+                    break;
+
+                case nameof(LoupedeckConfig.KeyCalibration):
+                    // Both the size and the position of every key can have changed, so the
+                    // cached per-button bitmaps are the wrong size and have to go before
+                    // anything repaints — DrawKey rejects a tile that does not match.
+                    deviceService.Device.KeyCalibration = config.EffectiveKeyCalibration;
+                    InvalidateRenderedTouchButtons();
                     await RedrawCurrentTouchPage();
                     break;
             }

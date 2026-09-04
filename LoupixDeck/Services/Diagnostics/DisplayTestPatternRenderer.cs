@@ -46,6 +46,50 @@ public static class DisplayTestPatternRenderer
     /// </summary>
     public static bool IsTilePattern(DisplayTestPattern pattern) => pattern != DisplayTestPattern.Edges;
 
+    /// <summary>
+    /// The tile the key-alignment settings show while the user nudges the grid. Built to be
+    /// adjusted against rather than decoded: a bright frame on the outermost pixels, a
+    /// crosshair through the exact centre, and the slot number.
+    ///
+    /// The frame is the whole instrument. An edge you cannot see is an edge that is not on
+    /// the visible part of the key, so the tile is either too big or sitting off-centre — and
+    /// which edges are missing says which. Missing on the outward side of the outer keys
+    /// only means the pitch is too wide; missing evenly on all keys means the tile is too
+    /// large. The caller owns the bitmap.
+    /// </summary>
+    public static SKBitmap RenderAlignmentTile(int keySize, int slot)
+    {
+        SKBitmap bitmap = new(new SKImageInfo(keySize, keySize, SKColorType.Bgra8888, SKAlphaType.Opaque));
+
+        lock (SkiaRenderGate.Sync)
+        {
+            using SKCanvas canvas = new(bitmap);
+            canvas.Clear(new SKColor(20, 24, 40));
+
+            int half = keySize / 2;
+
+            // 2px frame on the outermost pixels. Two rather than one so a single row lost to
+            // a rounded key rim does not read as "the whole edge is missing".
+            using SKPaint frame = new()
+                { Color = new SKColor(0, 230, 255), IsStroke = true, StrokeWidth = 2, IsAntialias = false };
+            canvas.DrawRect(new SKRect(1, 1, keySize - 1, keySize - 1), frame);
+
+            // Crosshair through the exact centre, reaching the frame, so "is it centred" and
+            // "is it the right size" are read from the same picture: the four arms are equal
+            // only when the tile sits centred on the key.
+            FillRect(canvas, 0, half, keySize, 1, SKColors.White);
+            FillRect(canvas, half, 0, 1, keySize, SKColors.White);
+
+            // A dot at the centre, so the centre stays findable when the arms run off the key.
+            FillRect(canvas, half - 2, half - 2, 5, 5, new SKColor(255, 220, 0));
+
+            DrawCentredText(canvas, slot.ToString(), half, half - (keySize / 6f),
+                Math.Max(9f, keySize / 6f), SKColors.White, bold: true);
+        }
+
+        return bitmap;
+    }
+
     /// <summary>One key-sized tile for <paramref name="slot"/>. The caller owns the bitmap.</summary>
     public static SKBitmap RenderTile(DisplayTestPattern pattern, int slot, int columns, int keySize)
     {

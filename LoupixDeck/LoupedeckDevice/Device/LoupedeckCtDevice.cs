@@ -154,7 +154,7 @@ public class LoupedeckCtDevice : LoupedeckDevice
 
     /// <inheritdoc />
     /// <remarks>Side panels (12/13) are owned by the rotary-label renderer, same as Razer.</remarks>
-    public override async Task DrawTouchButton(TouchButton touchButton, LoupedeckConfig config, bool refresh, int columns)
+    public override async Task DrawTouchButton(TouchButton touchButton, LoupedeckConfig config, bool refresh)
     {
         ArgumentNullException.ThrowIfNull(touchButton);
 
@@ -164,8 +164,8 @@ public class LoupedeckCtDevice : LoupedeckDevice
         if (refresh || touchButton.RenderedImage == null)
         {
             var renderedBitmap =
-                BitmapHelper.RenderTouchButtonContent(touchButton, config, KeySize, KeySize, columns,
-                    WallpaperGridXOffset);
+                BitmapHelper.RenderTouchButtonContent(touchButton, config, KeySize, KeySize,
+                    GetWallpaperKeyRect(touchButton.Index));
             if (renderedBitmap == null) return;
         }
 
@@ -185,7 +185,8 @@ public class LoupedeckCtDevice : LoupedeckDevice
         var (width, height) = GetDisplaySize("center");
         if (width == 0) return;
 
-        int keySize = KeySize;
+        // Positions come from GetKeyRect; the CT's "center" is a grid-only buffer, which
+        // its VisibleX override already accounts for.
 
         using var full = new SKBitmap(new SKImageInfo(width, height,
             SKColorType.Bgra8888, SKAlphaType.Premul));
@@ -198,8 +199,9 @@ public class LoupedeckCtDevice : LoupedeckDevice
             {
                 var bmp = slotBitmaps[slot];
                 if (bmp == null) continue;
-                var x = (slot % Columns) * keySize;
-                var y = (slot / Columns) * keySize;
+                SKRectI rect = GetKeyRect(slot);
+                var x = rect.Left;
+                var y = rect.Top;
                 canvas.DrawBitmap(bmp, x, y, SKSamplingOptions.Default, paint: null);
             }
         }
@@ -231,8 +233,9 @@ public class LoupedeckCtDevice : LoupedeckDevice
     /// </summary>
     private async Task DrawTouchButtonAt(int index, SKBitmap bitmap, bool refresh)
     {
-        int x = (index % Columns) * KeySize;
-        int y = (index / Columns) * KeySize;
+        SKRectI rect = GetKeyRect(index);
+        int x = rect.Left;
+        int y = rect.Top;
 
         try
         {

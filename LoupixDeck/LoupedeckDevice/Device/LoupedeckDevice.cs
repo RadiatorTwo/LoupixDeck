@@ -26,8 +26,105 @@ public class LoupedeckDevice
     /// </summary>
     public virtual DeviceGeometry Geometry => DeviceGeometry.Default;
 
-    /// <summary>Edge length of one centre-grid touch key in device pixels. Shorthand for <see cref="Geometry"/>.</summary>
-    public int KeySize => Geometry.KeySize;
+    /// <summary>
+    /// Where this device's keys sit on its panel. Defaults to the model's measured layout
+    /// and is replaced by the user's own measurement when their config carries one — the
+    /// controller pushes it here on load and whenever it changes, so this stays the one
+    /// place the draw path asks.
+    /// </summary>
+    public KeyGridCalibration KeyCalibration
+    {
+        get => field ?? Geometry.DefaultKeyCalibration;
+        set;
+    }
+
+    /// <summary>
+    /// Edge length of one centre-grid touch key in device pixels — the calibrated size, so
+    /// every renderer that sizes a tile from it produces pixels the panel takes unscaled.
+    /// </summary>
+    public int KeySize => KeyCalibration.KeySize;
+
+    /// <summary>
+    /// The rectangle key <paramref name="index"/> occupies in the "center" framebuffer.
+    /// The single source of truth for key positions: with a gapped grid the old
+    /// <c>index % Columns * KeySize</c> is simply wrong, and it was spelled out in half a
+    /// dozen places.
+    /// </summary>
+    /// <remarks>
+    /// The x origin is <see cref="GridOriginX"/> — <c>VisibleX[0]</c> on a unified panel
+    /// buffer, 0 on the CT whose "center" is a grid-only buffer. The y origin is 0 on every
+    /// device, including those whose <c>VisibleY[0]</c> is not (the Live S bezel inset is
+    /// horizontal only as far as the framebuffer is concerned).
+    /// </remarks>
+    public SKRectI GetKeyRect(int index) => KeyRectFrom(index, GridOriginX, 0);
+
+    /// <summary>
+    /// Centre of key <paramref name="index"/> in touch coordinates, which are panel-wide
+    /// and therefore measured from <c>VisibleX/VisibleY</c> rather than from the
+    /// framebuffer origin.
+    /// </summary>
+    public SKPointI GetKeyTouchCenter(int index)
+    {
+        int xBase = VisibleX is { Length: > 0 } ? VisibleX[0] : 0;
+        int yBase = VisibleY is { Length: > 0 } ? VisibleY[0] : 0;
+        SKRectI rect = KeyRectFrom(index, xBase, yBase);
+        return new SKPointI(rect.MidX, rect.MidY);
+    }
+
+    /// <summary>
+    /// The rectangle key <paramref name="index"/> samples from a panel-wide wallpaper. Same
+    /// grid, different origin: the wallpaper spans the whole panel, so the grid sits at
+    /// <see cref="WallpaperGridXOffset"/> in it rather than at the framebuffer's origin
+    /// (they differ on the CT, whose "center" is a grid-only buffer).
+    /// </summary>
+    public SKRectI GetWallpaperKeyRect(int index) => KeyRectFrom(index, WallpaperGridXOffset, 0);
+
+    /// <summary>
+    /// Size of the bitmap that covers the whole key grid, as
+    /// <see cref="DrawCenterGridRegion"/> expects it: the union of every key rectangle,
+    /// measured from the grid origin and clipped to the "center" buffer. On a gapless grid
+    /// this is the familiar <c>Columns * KeySize</c>; on a gapped one the outer keys can
+    /// hang over the edge of the glass, and the part that hangs over is not part of the
+    /// region — it is the same clip the per-key path applies.
+    /// </summary>
+    public SKSizeI GetGridRegionSize()
+    {
+        SKRectI last = GetKeyRect((Columns * Rows) - 1);
+        int originX = GridOriginX;
+
+        int width = last.Right - originX;
+        int height = last.Bottom;
+
+        if (Displays != null && Displays.TryGetValue("center", out DisplayInfo center))
+        {
+            width = Math.Min(width, center.Width - originX);
+            height = Math.Min(height, center.Height);
+        }
+
+        // A grid whose first key starts left of / above the origin is clipped there: the
+        // region begins at the origin rather than growing to include the overhang.
+        return new SKSizeI(Math.Max(0, width), Math.Max(0, height));
+    }
+
+    /// <summary>
+    /// Key <paramref name="index"/>'s rectangle within the grid-region bitmap
+    /// <see cref="GetGridRegionSize"/> describes — the same rectangle as
+    /// <see cref="GetKeyRect"/>, shifted to that bitmap's own origin.
+    /// </summary>
+    public SKRectI GetKeyRectInGridRegion(int index)
+    {
+        SKRectI rect = GetKeyRect(index);
+        rect.Offset(-GridOriginX, 0);
+        return rect;
+    }
+
+    private SKRectI KeyRectFrom(int index, int xBase, int yBase)
+    {
+        int columns = Columns > 0 ? Columns : 1;
+        KeyGridCalibration calibration = KeyCalibration;
+        (int x, int y) = calibration.GetKeyOrigin(index % columns, index / columns);
+        return SKRectI.Create(xBase + x, yBase + y, calibration.KeySize, calibration.KeySize);
+    }
 
     /// <summary>
     /// Bits per channel the panel actually resolves, which is not always what the RGB565
@@ -809,13 +906,11 @@ public class LoupedeckDevice
     /// </summary>
     private void EmitSyntheticKeyTouch(int slot, Constants.ButtonEventType evt)
     {
-        int keySize = KeySize;
-        int xBase = VisibleX is { Length: > 0 } ? VisibleX[0] : 0;
-        int yBase = VisibleY is { Length: > 0 } ? VisibleY[0] : 0;
-
-        // Half a key past the corner puts the point in the middle of the key.
-        int x = xBase + (int)(((slot % Columns) + 0.5) * keySize);
-        int y = yBase + (int)(((slot / Columns) + 0.5) * keySize);
+        // The centre of the key's calibrated rectangle, so the synthetic touch lands on
+        // the same key the renderer drew there.
+        SKPointI centre = GetKeyTouchCenter(slot);
+        int x = centre.X;
+        int y = centre.Y;
 
         byte[] buff =
         [
@@ -1310,25 +1405,19 @@ public class LoupedeckDevice
         if (index < 0 || index >= Columns * Rows)
             throw new Exception($"Key {index} is not a valid key");
 
-        int keyWidth = KeySize;
-        int keyHeight = KeySize;
-
         if (VisibleX == null || Columns == 0)
             throw new Exception("VisibleX or Columns is not set");
 
+        SKRectI rect = GetKeyRect(index);
+
         // DrawCanvas rejects a mismatch too; repeating it here is what names the key, which
         // is the part that identifies the caller that built the tile at the wrong size.
-        if (bitmap == null || bitmap.Width != keyWidth || bitmap.Height != keyHeight)
+        if (bitmap == null || bitmap.Width != rect.Width || bitmap.Height != rect.Height)
             throw new ArgumentException(
-                $"Key {index} needs a {keyWidth}x{keyHeight} bitmap, got " +
+                $"Key {index} needs a {rect.Width}x{rect.Height} bitmap, got " +
                 $"{(bitmap == null ? "null" : $"{bitmap.Width}x{bitmap.Height}")}.", nameof(bitmap));
 
-        // Calculate position
-        var x = VisibleX[0] + ((index % Columns) * keyWidth);
-        var y = (index / Columns) * keyHeight;
-
-        // Call the DrawCanvas method
-        await DrawCanvas("center", keyWidth, keyHeight, bitmap, x, y, autoRefresh);
+        await DrawCanvas("center", rect.Width, rect.Height, bitmap, rect.Left, rect.Top, autoRefresh);
     }
 
     /// <summary>
@@ -1337,16 +1426,15 @@ public class LoupedeckDevice
     public virtual async Task DrawTouchButton(
         TouchButton touchButton,
         LoupedeckConfig config,
-        bool refresh,
-        int columns)
+        bool refresh)
     {
         ArgumentNullException.ThrowIfNull(touchButton);
 
         if (refresh || touchButton.RenderedImage == null)
         {
             var renderedBitmap =
-                BitmapHelper.RenderTouchButtonContent(touchButton, config, KeySize, KeySize, columns,
-                    WallpaperGridXOffset);
+                BitmapHelper.RenderTouchButtonContent(touchButton, config, KeySize, KeySize,
+                    GetWallpaperKeyRect(touchButton.Index));
             if (renderedBitmap == null) return;
         }
 
@@ -1402,9 +1490,6 @@ public class LoupedeckDevice
         if (slotBitmaps == null || slotBitmaps.Count == 0) return;
         if (Displays == null || !Displays.TryGetValue("center", out var center)) return;
 
-        var xBase = VisibleX is { Length: > 0 } ? VisibleX[0] : 0;
-        int keySize = KeySize;
-
         using var full = new SKBitmap(new SKImageInfo(center.Width, center.Height,
             SKColorType.Bgra8888, SKAlphaType.Premul));
 
@@ -1421,9 +1506,8 @@ public class LoupedeckDevice
             {
                 var bmp = slotBitmaps[slot];
                 if (bmp == null) continue;
-                var x = xBase + ((slot % Columns) * keySize);
-                var y = (slot / Columns) * keySize;
-                canvas.DrawBitmap(bmp, x, y, SKSamplingOptions.Default, paint: null);
+                SKRectI rect = GetKeyRect(slot);
+                canvas.DrawBitmap(bmp, rect.Left, rect.Top, SKSamplingOptions.Default, paint: null);
             }
         }
 

@@ -71,6 +71,22 @@ public partial class LoupedeckConfig : ObservableObject
     public DeviceGeometry Geometry { get; private set; } = DeviceGeometry.Default;
 
     /// <summary>
+    /// The user's own key-grid measurement, or null to use the device model's default.
+    /// Null is the normal state and what every existing file has: a config written before
+    /// calibration existed simply has no such field, reads back as null, and therefore
+    /// behaves exactly as it did.
+    /// </summary>
+    [ObservableProperty]
+    public partial KeyGridCalibration KeyCalibration { get; set; }
+
+    /// <summary>
+    /// The calibration actually in force — the user's if they have one, the device model's
+    /// otherwise. Never null, so callers never have to repeat the fallback.
+    /// </summary>
+    [JsonIgnore]
+    public KeyGridCalibration EffectiveKeyCalibration => KeyCalibration ?? Geometry.DefaultKeyCalibration;
+
+    /// <summary>
     /// Applies the attached device's geometry to this config and to every touch page it
     /// holds (across all profiles and workspaces, not just the active one), so wallpaper
     /// baking uses the real panel size everywhere.

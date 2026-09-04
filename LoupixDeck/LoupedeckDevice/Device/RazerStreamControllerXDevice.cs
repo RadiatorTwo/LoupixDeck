@@ -31,16 +31,34 @@ public sealed class RazerStreamControllerXDevice : LoupedeckDevice
     /// </summary>
     private const byte FirstKeyByte = 0x1b;
 
-    /// <summary>A 480x270 panel; no strips, no motor, no LEDs.</summary>
+    /// <summary>A 480x270 panel with a gapped key grid; no strips, no motor, no LEDs.</summary>
     public static readonly DeviceGeometry KnownGeometry = new()
     {
-        KeySize = 96,
+        KeySize = 74,
         PanelWidth = 480,
         PanelHeight = 270,
         StripWidth = 0,
         PhysicalKeys = true,
         HasVibration = false,
-        HasLedButtons = false
+        HasLedButtons = false,
+
+        // Measured on hardware with the key-alignment pattern: a 98px pitch with the first
+        // key centred at 43/37, and only 74px of each key actually visible. A gapless 96px
+        // grid put the outer columns ~5px too far inwards (mirrored left and right) and
+        // every row 7-11px too low.
+        //
+        // The 74 is the window the key cap leaves open, not the cap itself: at 75 the
+        // pattern's outermost row already disappears, and at 90 (the size the pitch would
+        // suggest) 8px were swallowed on every side. Drawing larger than this does not fill
+        // more of the key, it just hides the edges of what is drawn.
+        DefaultKeyCalibration = new KeyGridCalibration
+        {
+            KeySize = 74,
+            SpacingX = 98,
+            SpacingY = 98,
+            FirstCenterX = 43,
+            FirstCenterY = 37
+        }
     };
 
     /// <inheritdoc />
@@ -99,8 +117,11 @@ public sealed class RazerStreamControllerXDevice : LoupedeckDevice
         x = Math.Clamp(x, VisibleX[0], VisibleX[1]) - VisibleX[0];
         y = Math.Clamp(y, VisibleY[0], VisibleY[1]) - VisibleY[0];
 
-        int column = Math.Min(x / KeySize, Columns - 1);
-        int row = Math.Min(y / KeySize, Rows - 1);
+        // Nearest key centre rather than a division by the key size: the grid has gaps, so
+        // there are coordinates inside no key at all, and this has to agree with the
+        // calibration the renderer draws from.
+        int column = KeyCalibration.NearestColumn(x, Columns);
+        int row = KeyCalibration.NearestRow(y, Rows);
 
         return new TouchTarget
         {

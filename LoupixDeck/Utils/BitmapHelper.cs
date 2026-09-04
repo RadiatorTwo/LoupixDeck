@@ -646,8 +646,7 @@ public static class BitmapHelper
         LoupedeckConfig config,
         int width,
         int height,
-        int gridColumns = 0,
-        int wallpaperXOffset = 0)
+        SKRectI? wallpaperSource = null)
     {
         ArgumentNullException.ThrowIfNull(touchButton);
 
@@ -666,21 +665,14 @@ public static class BitmapHelper
             bitmap = new SKBitmap(width, height);
             using var canvas = new SKCanvas(bitmap);
 
-            if (wallpaperToUse != null && gridColumns > 0)
+            if (wallpaperToUse != null && wallpaperSource is { } source)
             {
-                // Determine the position of the button in the grid
-                var col = touchButton.Index % gridColumns;
-                var row = touchButton.Index / gridColumns;
-
-                // Calculate the section from the wallpaper. wallpaperXOffset shifts the
-                // sampled region to the grid's true panel position so the wallpaper stays
-                // continuous with the side strips across the bezel (Razer: +60).
-                var srcRect = new SKRect(
-                    wallpaperXOffset + (col * width),
-                    row * height,
-                    wallpaperXOffset + ((col + 1) * width),
-                    (row + 1) * height
-                );
+                // The caller says which part of the panel-wide wallpaper this key covers
+                // (device.GetWallpaperKeyRect). It has to come from there rather than from
+                // index * width: the grid is not always gapless, and it does not always
+                // start at the wallpaper's origin — the Razer and CT grids sit 60px in, so
+                // the wallpaper stays continuous with the side strips across the bezel.
+                var srcRect = new SKRect(source.Left, source.Top, source.Right, source.Bottom);
                 var destRect = new SKRect(0, 0, width, height);
 
                 // Draw Wallpaper Cutout
@@ -1740,22 +1732,27 @@ public static class BitmapHelper
     /// </summary>
     /// <param name="keySize">Edge length of one key, from the device's geometry. Required
     /// rather than defaulted so a caller that still assumes 90 fails to compile.</param>
-    public static SKBitmap ComposeTouchGrid(IReadOnlyList<SKBitmap> slots, int columns, int rows, int keySize)
+    public static SKBitmap ComposeTouchGrid(IReadOnlyList<SKBitmap> slots, LoupedeckDevice.Device.LoupedeckDevice device)
     {
-        var bitmap = new SKBitmap(columns * keySize, rows * keySize);
+        ArgumentNullException.ThrowIfNull(device);
+
+        SKSizeI size = device.GetGridRegionSize();
+        var bitmap = new SKBitmap(size.Width, size.Height);
 
         lock (SkiaRenderGate.Sync)
         {
             using var canvas = new SKCanvas(bitmap);
             canvas.Clear(SKColors.Black);
-            var count = Math.Min(slots?.Count ?? 0, columns * rows);
+            var count = Math.Min(slots?.Count ?? 0, device.Columns * device.Rows);
             for (var i = 0; i < count; i++)
             {
                 var slot = slots[i];
                 if (slot == null) continue;
-                var x = (i % columns) * keySize;
-                var y = (i / columns) * keySize;
-                canvas.DrawBitmap(slot, x, y, SKSamplingOptions.Default, paint: null);
+
+                // Calibrated position, so a gapped grid keeps its gaps here too. The canvas
+                // clips an outer key that hangs over the edge, exactly as the panel does.
+                SKRectI rect = device.GetKeyRectInGridRegion(i);
+                canvas.DrawBitmap(slot, rect.Left, rect.Top, SKSamplingOptions.Default, paint: null);
             }
             canvas.Flush();
         }

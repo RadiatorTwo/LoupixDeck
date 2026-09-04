@@ -5,13 +5,16 @@ using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using LoupixDeck.Models;
+using LoupixDeck.Registry;
 using LoupixDeck.Models.Converter;
 using LoupixDeck.PluginSdk;
 using LoupixDeck.Services;
+using LoupixDeck.Services.Diagnostics;
 using LoupixDeck.Services.Plugins;
 using LoupixDeck.Services.Portable;
 using LoupixDeck.Utils;
 using LoupixDeck.ViewModels.Base;
+using SkiaSharp;
 
 namespace LoupixDeck.ViewModels;
 
@@ -33,6 +36,7 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
     private readonly IWorkspaceActivationService _activation;
     private readonly IProfilePackageService _packageService;
     private readonly IScreensaverProviderRegistry _screensaverRegistry;
+    private readonly IExclusiveModeService _exclusiveMode;
 
     /// <summary>
     /// All discovered plugins — drives the Plugins settings page. Read live from the
@@ -126,7 +130,8 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
         IAutostartService autostart,
         IWorkspaceActivationService activation,
         IProfilePackageService packageService,
-        IScreensaverProviderRegistry screensaverRegistry)
+        IScreensaverProviderRegistry screensaverRegistry,
+        IExclusiveModeService exclusiveMode)
     {
         Config = config;
         IsVibrationSupported = config?.Geometry.HasVibration ?? true;
@@ -140,6 +145,13 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
         _activation = activation;
         _packageService = packageService;
         _screensaverRegistry = screensaverRegistry;
+        _exclusiveMode = exclusiveMode;
+
+        // The alignment pattern lives on the device, not in this window, so closing the
+        // window has to take it down — including via the title-bar X, which completes the
+        // same DialogResult as the buttons do.
+        _ = DialogResult.Task.ContinueWith(_ => StopAlignmentPreview(),
+            TaskScheduler.Default);
 
         // Commands are created lazily on first access by their `field ??= Relay.Create(...)`
         // getters, so there is nothing to wire up here.
@@ -1059,4 +1071,169 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
     }
 
     private void Navigate(SettingsView settingsPage) => CurrentView = settingsPage;
+
+    // ───────── Key alignment ─────────
+
+    /// <summary>
+    /// The calibration the editing controls work on. Reads through to the device default
+    /// until the user changes something, so the fields show real numbers from the start
+    /// rather than zeros they would then have to guess their way out of.
+    /// </summary>
+    private KeyGridCalibration Calibration => Config?.EffectiveKeyCalibration ?? new KeyGridCalibration();
+
+    public int KeyCalibrationSize => Calibration.KeySize;
+    public int KeyCalibrationSpacingX => Calibration.SpacingX;
+    public int KeyCalibrationSpacingY => Calibration.SpacingY;
+    public int KeyCalibrationFirstCenterX => Calibration.FirstCenterX;
+    public int KeyCalibrationFirstCenterY => Calibration.FirstCenterY;
+
+    /// <summary>True once the user has their own calibration, i.e. Reset would do something.</summary>
+    public bool HasCustomKeyCalibration => Config?.KeyCalibration != null;
+
+    /// <summary>
+    /// Adjusts one field of the calibration by a signed step. The parameter is
+    /// "&lt;field&gt;:&lt;delta&gt;" so the five fields need one command rather than ten.
+    /// </summary>
+    public IRelayCommand AdjustKeyCalibrationCommand => field ??= Relay.Create<string>(AdjustKeyCalibration);
+
+    public IRelayCommand ResetKeyCalibrationCommand =>
+        field ??= Relay.Create(ResetKeyCalibration, () => HasCustomKeyCalibration);
+
+    public IRelayCommand ToggleAlignmentPreviewCommand => field ??= Relay.Create(ToggleAlignmentPreview);
+
+    public bool IsAlignmentPreviewActive
+    {
+        get;
+        private set => SetProperty(ref field, value);
+    }
+
+    private void AdjustKeyCalibration(string parameter)
+    {
+        string[] parts = parameter?.Split(':');
+        if (parts is not { Length: 2 } || !int.TryParse(parts[1], out int delta)) return;
+
+        KeyGridCalibration current = Calibration;
+        KeyGridCalibration updated = parts[0] switch
+        {
+            // A key can never be smaller than a pixel, and the pitch can never be smaller
+            // than the key or neighbours would overlap.
+            "size" => current with { KeySize = Math.Max(1, current.KeySize + delta) },
+            "spacingX" => current with { SpacingX = Math.Max(1, current.SpacingX + delta) },
+            "spacingY" => current with { SpacingY = Math.Max(1, current.SpacingY + delta) },
+            "centerX" => current with { FirstCenterX = current.FirstCenterX + delta },
+            "centerY" => current with { FirstCenterY = current.FirstCenterY + delta },
+            _ => current
+        };
+
+        if (updated == current) return;
+
+        ApplyKeyCalibration(updated);
+    }
+
+    private void ResetKeyCalibration() => ApplyKeyCalibration(null);
+
+    /// <summary>
+    /// Publishes a calibration to the config. Assigning the property is what reaches the
+    /// device: the controller listens for the change, pushes it and repaints.
+    /// </summary>
+    private void ApplyKeyCalibration(KeyGridCalibration calibration)
+    {
+        if (Config == null) return;
+
+        Config.KeyCalibration = calibration;
+
+        OnPropertyChanged(nameof(KeyCalibrationSize));
+        OnPropertyChanged(nameof(KeyCalibrationSpacingX));
+        OnPropertyChanged(nameof(KeyCalibrationSpacingY));
+        OnPropertyChanged(nameof(KeyCalibrationFirstCenterX));
+        OnPropertyChanged(nameof(KeyCalibrationFirstCenterY));
+        OnPropertyChanged(nameof(HasCustomKeyCalibration));
+        ResetKeyCalibrationCommand.NotifyCanExecuteChanged();
+
+        if (IsAlignmentPreviewActive) _ = PushAlignmentPattern();
+    }
+
+    private void ToggleAlignmentPreview()
+    {
+        if (IsAlignmentPreviewActive)
+        {
+            StopAlignmentPreview();
+            return;
+        }
+
+        if (_alignmentProvider != null) return;
+
+        AlignmentExclusiveProvider provider = new(StopAlignmentPreview);
+        if (!_exclusiveMode.TryEnter(provider)) return;
+
+        _alignmentProvider = provider;
+        IsAlignmentPreviewActive = true;
+        _ = PushAlignmentPattern();
+    }
+
+    /// <summary>
+    /// Ends the preview and hands the display back, which makes the controller repaint the
+    /// real page. Safe to call when nothing is running — the window's close handler calls it
+    /// unconditionally.
+    /// </summary>
+    private void StopAlignmentPreview()
+    {
+        AlignmentExclusiveProvider provider = Interlocked.Exchange(ref _alignmentProvider, null);
+        if (provider == null) return;
+
+        _exclusiveMode.Exit(provider);
+        Dispatcher.UIThread.Post(() => IsAlignmentPreviewActive = false);
+    }
+
+    private AlignmentExclusiveProvider _alignmentProvider;
+
+    private async Task PushAlignmentPattern()
+    {
+        LoupedeckDevice.Device.LoupedeckDevice device = _deviceService?.Device;
+        if (device == null) return;
+
+        int slots = device.Columns * device.Rows;
+        List<SKBitmap> tiles = new(slots);
+        try
+        {
+            for (int i = 0; i < slots; i++)
+                tiles.Add(DisplayTestPatternRenderer.RenderAlignmentTile(device.KeySize, i));
+
+            await device.DrawTouchSlotsAtomic(tiles);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[KeyAlignment] pushing the pattern failed: {ex.Message}");
+        }
+        finally
+        {
+            foreach (SKBitmap tile in tiles) tile.Dispose();
+        }
+    }
+
+    /// <summary>
+    /// Owns the display while the alignment pattern is shown. Declares no rendering of its
+    /// own so the host does not composite empty touch entries over the pattern, and any
+    /// press on the device ends the preview.
+    /// </summary>
+    private sealed class AlignmentExclusiveProvider(Action onStop) : IExclusiveModeProvider
+    {
+        public string Title => "Key Alignment";
+
+        public ExclusiveRenderMode RenderMode => ExclusiveRenderMode.None;
+
+        public event EventHandler EntriesChanged
+        {
+            add { }
+            remove { }
+        }
+
+        public void OnEnter() { }
+        public void OnExit() { }
+        public IReadOnlyList<FolderEntry> BuildTouchEntries() => [];
+        public void OnSimpleButtonPressed(int index) => onStop();
+        public void OnTouchPressed(int slotIndex) => onStop();
+        public void OnRotaryPressed(int index) => onStop();
+        public void OnRotated(int index, int delta) { }
+    }
 }

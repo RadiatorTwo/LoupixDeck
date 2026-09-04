@@ -49,6 +49,19 @@ public sealed record DeviceGeometry
     public int FrameBytes => PanelWidth * PanelHeight * 4;
 
     /// <summary>
+    /// Where this model's keys sit on its panel, as measured. Devices that tile their grid
+    /// gaplessly from the corner leave this unset and get exactly that from
+    /// <see cref="KeySize"/>; only a device whose keys are smaller than their pitch has to
+    /// state its own. This is the factory default — the user's own measurement, when they
+    /// have one, lives in <c>LoupedeckConfig.KeyCalibration</c>.
+    /// </summary>
+    public KeyGridCalibration DefaultKeyCalibration
+    {
+        get => field ?? KeyGridCalibration.Gapless(KeySize);
+        init;
+    }
+
+    /// <summary>
     /// Geometry of the Loupedeck family as it was hard-coded before this record existed.
     /// Used as the fallback wherever no device is resolved yet, so those paths keep
     /// behaving exactly as they did.
