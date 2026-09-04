@@ -169,24 +169,37 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
         }
     }
 
-    /// <summary>Buttons whose active-state changes this manager currently follows.</summary>
+    /// <summary>
+    /// Buttons whose active-state changes this manager follows. Guarded by its own lock: a rescan
+    /// may run off the UI thread while a state change (always dispatched to it) arrives.
+    /// </summary>
     private readonly List<StatefulButton> _stateSubscriptions = [];
+    private readonly Lock _subscriptionGate = new();
 
     private void Subscribe(StatefulButton button)
     {
-        if (button == null || _stateSubscriptions.Contains(button))
+        if (button == null)
             return;
 
-        button.ActiveStateChanged += OnActiveStateChanged;
-        _stateSubscriptions.Add(button);
+        lock (_subscriptionGate)
+        {
+            if (_stateSubscriptions.Contains(button))
+                return;
+
+            button.ActiveStateChanged += OnActiveStateChanged;
+            _stateSubscriptions.Add(button);
+        }
     }
 
     private void UnsubscribeAll()
     {
-        foreach (StatefulButton button in _stateSubscriptions)
-            button.ActiveStateChanged -= OnActiveStateChanged;
+        lock (_subscriptionGate)
+        {
+            foreach (StatefulButton button in _stateSubscriptions)
+                button.ActiveStateChanged -= OnActiveStateChanged;
 
-        _stateSubscriptions.Clear();
+            _stateSubscriptions.Clear();
+        }
     }
 
     private void OnActiveStateChanged(object sender, EventArgs e)
