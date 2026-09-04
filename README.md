@@ -20,7 +20,7 @@ Built with **Avalonia** and **.NET 10**.
 ## Highlights
 
 * **Linux and Windows support**
-* **Loupedeck Live**, **Live S**, **CT** *(partial)*, **Razer Stream Controller** and **Stream Controller X** *(untested)* support
+* **Loupedeck Live**, **Live S**, **CT** *(partial)*, **Razer Stream Controller** and **Stream Controller X** support
 * **Multi-device support** with serial-scoped profiles
 * **Layer-based touch button editor** with images, animated images, text, symbols and wallpapers
 * **Stateful buttons** with multiple states and per-state actions
@@ -102,14 +102,14 @@ bash install-loupixdeck.sh
 | **Loupedeck Live**          | Supported   | 4×3 touch grid, 2 side touch strips, 6 rotary encoders, 8 round buttons            | `2ec2:0004`       |
 | **Loupedeck Live S**        | Supported   | 5×3 touch grid, 2 rotary encoders, 8 physical buttons                             | `2ec2:0006`       |
 | **Razer Stream Controller** | Supported   | 4×3 touch grid, 2 side panels, 6 rotary encoders, 8 LED buttons                   | `1532:0d06`       |
-| **Razer Stream Controller X** | Untested  | 5×3 grid of physical keys, nothing else                                          | `1532:0d09`       |
+| **Razer Stream Controller X** | Supported | 5×3 grid of physical keys; no dials, LED buttons, side strips or haptic motor    | `1532:0d09`       |
 | **Loupedeck CT**            | Partial     | 4×3 touch grid, round wheel touchscreen, 6 dials, wheel, round and square buttons | `2ec2:0003/0007`  |
 
 > Loupedeck **CT** support is still a work in progress. Some controls and behaviours are not feature-complete yet and need further hardware verification.
 
-> The **Razer Stream Controller X** is implemented but has not been verified on hardware yet. It is the odd one out of the family: its fifteen keys are physical
-> buttons rather than a touchscreen, and it has no dials, LED buttons, side strips or haptic motor. The keys are 96px on a 480×288 panel instead of the 90px keys
-> on 480×270 every other device uses, so the app renders and stores its button layers natively at that size — nothing is scaled on the way to the display.
+> The **Razer Stream Controller X** has fifteen physical keys rather than a touchscreen. LoupixDeck treats each press as a touch at the centre of its matching key,
+> including press-and-hold actions. Controls the device does not have—dials, LED buttons, side strips and haptics—are not offered. Its measured key geometry is used
+> for rendering; use **Settings > General > Key alignment** and the built-in test pattern only if a particular device needs a small adjustment.
 
 Multiple devices can run in parallel in a single LoupixDeck instance. Even two identical units are separated by USB serial and keep their own configuration.
 
