@@ -641,7 +641,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     /// </summary>
     public bool BackgroundEnabled
     {
-        get => ButtonData?.BackgroundEnabled ?? true;
+        get => ButtonData?.BackgroundEnabled ?? false;
         set
         {
             if (ButtonData == null || ButtonData.BackgroundEnabled == value) return;

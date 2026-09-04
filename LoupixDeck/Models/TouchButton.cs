@@ -54,7 +54,7 @@ public class TouchButton : StatefulButton
     [JsonIgnore]
     public bool BackgroundEnabled
     {
-        get => ActiveState?.BackgroundEnabled ?? true;
+        get => ActiveState?.BackgroundEnabled ?? false;
         set
         {
             if (ActiveState == null || ActiveState.BackgroundEnabled == value) return;
