@@ -149,6 +149,15 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
             entry.NextDueUtc = AlignedNext(nowAlign, entry.Interval);
         }
 
+        // A command that declares its own states renders per state, and its layer lives in the
+        // state's own layer stack — so a state switch needs an immediate re-render, not the next
+        // poll tick (which would leave the new state blank until then).
+        foreach (Entry entry in entries)
+        {
+            if (entry.Command.DeclaresStates)
+                Subscribe(entry.Button);
+        }
+
         lock (_gate)
         {
             _active = entries;
@@ -157,6 +166,41 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
             var token = _cts.Token;
             var timer = _timer;
             _loopTask = Task.Run(() => TickLoop(timer, token), token);
+        }
+    }
+
+    /// <summary>Buttons whose active-state changes this manager currently follows.</summary>
+    private readonly List<StatefulButton> _stateSubscriptions = [];
+
+    private void Subscribe(StatefulButton button)
+    {
+        if (button == null || _stateSubscriptions.Contains(button))
+            return;
+
+        button.ActiveStateChanged += OnActiveStateChanged;
+        _stateSubscriptions.Add(button);
+    }
+
+    private void UnsubscribeAll()
+    {
+        foreach (StatefulButton button in _stateSubscriptions)
+            button.ActiveStateChanged -= OnActiveStateChanged;
+
+        _stateSubscriptions.Clear();
+    }
+
+    private void OnActiveStateChanged(object sender, EventArgs e)
+    {
+        List<Entry> snapshot;
+        lock (_gate)
+        {
+            snapshot = _active;
+        }
+
+        foreach (Entry entry in snapshot)
+        {
+            if (ReferenceEquals(entry.Button, sender))
+                RenderEntry(entry);
         }
     }
 
@@ -338,12 +382,15 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
         {
             foreach (var button in buttons)
             {
-                if (button?.Layers == null)
+                if (button?.States == null)
                     continue;
 
                 var validKey = ResolveDisplayKey(button);
 
-                foreach (var layer in button.Layers.ToArray())
+                // Layers live per state, and a command that declares states owns one layer in each
+                // of them — so sweep every state, not just the active one.
+                foreach (var state in button.States.ToArray())
+                foreach (var layer in state.Layers.ToArray())
                 {
                     if (!layer.IsCommandOwned)
                         continue;
@@ -353,14 +400,14 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
                     switch (layer)
                     {
                         case PluginLayer plugin:
-                            button.Layers.Remove(plugin);
+                            state.Layers.Remove(plugin);
                             plugin.DisposeBitmaps();
                             break;
                         // A layer the command created is removed with the command; a layer that
                         // was adopted from a pre-existing user layer is only demoted (owner cleared,
                         // text + styling kept) so the user's work is never destroyed.
                         case TextLayer text when text.OwnerCreated:
-                            button.Layers.Remove(text);
+                            state.Layers.Remove(text);
                             break;
                         case TextLayer text:
                             text.OwnerKey = null;
@@ -403,6 +450,8 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
 
     private void StopLoop()
     {
+        UnsubscribeAll();
+
         CancellationTokenSource cts;
         PeriodicTimer timer;
         lock (_gate)

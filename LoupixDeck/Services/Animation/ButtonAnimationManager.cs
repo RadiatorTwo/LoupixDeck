@@ -91,6 +91,10 @@ public sealed class ButtonAnimationManager : IButtonAnimationManager, IDisposabl
 
             var specs = BuildSpecs(page, out var referenced);
 
+            // Each spec pins the plugin layer of the state that was active when it was built, so a
+            // state switch invalidates it — follow the button and rebuild when that happens.
+            ResubscribeStateChanges(specs);
+
             _ = Task.Run(() =>
             {
                 try
@@ -109,6 +113,34 @@ public sealed class ButtonAnimationManager : IButtonAnimationManager, IDisposabl
             });
         });
     }
+
+    /// <summary>Buttons whose active-state changes force a rebuild of the animation entries.</summary>
+    private readonly List<StatefulButton> _stateSubscriptions = [];
+
+    /// <summary>Follows exactly the buttons that render an animated command with declared states.</summary>
+    private void ResubscribeStateChanges(List<Spec> specs)
+    {
+        UnsubscribeStateChanges();
+
+        foreach (Spec spec in specs)
+        {
+            if (spec.Command?.DeclaresStates != true || spec.Button == null) continue;
+            if (_stateSubscriptions.Contains(spec.Button)) continue;
+
+            spec.Button.ActiveStateChanged += OnActiveStateChanged;
+            _stateSubscriptions.Add(spec.Button);
+        }
+    }
+
+    private void UnsubscribeStateChanges()
+    {
+        foreach (StatefulButton button in _stateSubscriptions)
+            button.ActiveStateChanged -= OnActiveStateChanged;
+
+        _stateSubscriptions.Clear();
+    }
+
+    private void OnActiveStateChanged(object sender, EventArgs e) => Rescan();
 
     /// <summary>UI-thread pass: reads layers/bindings and creates owner-keyed plugin layers.</summary>
     private List<Spec> BuildSpecs(TouchButtonPage page, out HashSet<string> referenced)
@@ -247,6 +279,7 @@ public sealed class ButtonAnimationManager : IButtonAnimationManager, IDisposabl
         }
 
         _pageManager.OnTouchPageChanged -= OnTouchPageChanged;
+        UnsubscribeStateChanges();
         _screensaver.Started -= OnScreensaverStarted;
         _screensaver.Stopped -= OnScreensaverStopped;
         _exclusiveMode.StateChanged -= OnTakeoverStateChanged;
