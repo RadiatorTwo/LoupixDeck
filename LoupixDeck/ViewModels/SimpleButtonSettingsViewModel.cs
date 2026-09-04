@@ -27,6 +27,8 @@ public class SimpleButtonSettingsViewModel : DialogViewModelBase<SimpleButton, D
         OnPropertyChanged(nameof(States));
         OnPropertyChanged(nameof(SelectedState));
         OnPropertyChanged(nameof(CanDeleteState));
+        OnPropertyChanged(nameof(AreStatesLocked));
+        OnPropertyChanged(nameof(CanEditStates));
         OnPropertyChanged(nameof(ResetOnRestart));
         OnPropertyChanged(nameof(ButtonLabel));
         OnPropertyChanged(nameof(ButtonData));
@@ -36,6 +38,7 @@ public class SimpleButtonSettingsViewModel : DialogViewModelBase<SimpleButton, D
     private readonly ICommandBuilder _commandBuilder;
     private readonly IMenuTreeBuilder _menuTreeBuilder;
     private readonly ICommandRegistry _commandRegistry;
+    private readonly Services.Commands.ICommandStateMaterializer _stateMaterializer;
 
     public SimpleButton ButtonData { get; set; }
 
@@ -91,7 +94,13 @@ public class SimpleButtonSettingsViewModel : DialogViewModelBase<SimpleButton, D
             if (ReferenceEquals(_selectedState, value)) return;
             _selectedState = value;
             if (value != null)
-                ButtonData?.SetActiveState(value.Id);
+            {
+                // Switching states mirrors that state's command into ButtonData.Command — a state
+                // change, not a command assignment, so it must not reconcile.
+                _switchingState = true;
+                try { ButtonData?.SetActiveState(value.Id); }
+                finally { _switchingState = false; }
+            }
 
             OnPropertyChanged(nameof(SelectedState));
             OnPropertyChanged(nameof(CanDeleteState));
@@ -103,8 +112,17 @@ public class SimpleButtonSettingsViewModel : DialogViewModelBase<SimpleButton, D
         }
     }
 
+    /// <summary>
+    /// True while the assigned command owns the states: it created them, and the plugin drives
+    /// which one is active, so the editor locks state management.
+    /// </summary>
+    public bool AreStatesLocked => ButtonData?.HasCommandOwnedStates == true;
+
+    /// <summary>Inverse of <see cref="AreStatesLocked"/>, for the view's IsEnabled bindings.</summary>
+    public bool CanEditStates => !AreStatesLocked;
+
     /// <summary>At least two states are needed before one can be deleted.</summary>
-    public bool CanDeleteState => ButtonData?.States is { Count: > 1 };
+    public bool CanDeleteState => ButtonData?.States is { Count: > 1 } && CanEditStates;
 
     /// <summary>The transition kinds shown in the picker (label via TransitionKindLabelConverter).</summary>
     public IReadOnlyList<StateTransitionKind> TransitionKinds { get; } =
@@ -141,7 +159,7 @@ public class SimpleButtonSettingsViewModel : DialogViewModelBase<SimpleButton, D
 
     private void AddState()
     {
-        if (ButtonData?.States == null) return;
+        if (ButtonData?.States == null || AreStatesLocked) return;
         var state = new ButtonState { Name = GetUniqueStateName("State") };
         ButtonData.States.Add(state);
         RefreshStateBadges();
@@ -161,7 +179,7 @@ public class SimpleButtonSettingsViewModel : DialogViewModelBase<SimpleButton, D
 
     private void DuplicateState()
     {
-        if (ButtonData?.States == null || SelectedState == null) return;
+        if (ButtonData?.States == null || SelectedState == null || AreStatesLocked) return;
         var json = Newtonsoft.Json.JsonConvert.SerializeObject(SelectedState, StateCloneSettings);
         var clone = Newtonsoft.Json.JsonConvert.DeserializeObject<ButtonState>(json, StateCloneSettings);
         if (clone == null) return;
@@ -180,7 +198,7 @@ public class SimpleButtonSettingsViewModel : DialogViewModelBase<SimpleButton, D
     private void DeleteState()
     {
         var states = ButtonData?.States;
-        if (states is not { Count: > 1 } || SelectedState == null) return;
+        if (states is not { Count: > 1 } || SelectedState == null || AreStatesLocked) return;
 
         var removed = SelectedState;
         var idx = states.IndexOf(removed);
@@ -202,7 +220,7 @@ public class SimpleButtonSettingsViewModel : DialogViewModelBase<SimpleButton, D
     private void MoveStateUp()
     {
         var states = ButtonData?.States;
-        if (states == null || SelectedState == null) return;
+        if (states == null || SelectedState == null || AreStatesLocked) return;
         var idx = states.IndexOf(SelectedState);
         if (idx <= 0) return;
         states.Move(idx, idx - 1);
@@ -212,7 +230,7 @@ public class SimpleButtonSettingsViewModel : DialogViewModelBase<SimpleButton, D
     private void MoveStateDown()
     {
         var states = ButtonData?.States;
-        if (states == null || SelectedState == null) return;
+        if (states == null || SelectedState == null || AreStatesLocked) return;
         var idx = states.IndexOf(SelectedState);
         if (idx < 0 || idx >= states.Count - 1) return;
         states.Move(idx, idx + 1);
@@ -221,7 +239,7 @@ public class SimpleButtonSettingsViewModel : DialogViewModelBase<SimpleButton, D
 
     private void SetDefaultStateSelected()
     {
-        if (ButtonData == null || SelectedState == null) return;
+        if (ButtonData == null || SelectedState == null || AreStatesLocked) return;
         ButtonData.DefaultStateId = SelectedState.Id;
         RefreshStateBadges();
     }
@@ -240,11 +258,13 @@ public class SimpleButtonSettingsViewModel : DialogViewModelBase<SimpleButton, D
     public SimpleButtonSettingsViewModel(
         ICommandBuilder commandBuilder,
         IMenuTreeBuilder menuTreeBuilder,
-        ICommandRegistry commandRegistry)
+        ICommandRegistry commandRegistry,
+        Services.Commands.ICommandStateMaterializer stateMaterializer)
     {
         _commandBuilder = commandBuilder;
         _menuTreeBuilder = menuTreeBuilder;
         _commandRegistry = commandRegistry;
+        _stateMaterializer = stateMaterializer;
 
         // Keep the 1-based sequence numbers on the chips in sync with the
         // collection (insert, remove, move, clear, initial load).
@@ -305,6 +325,7 @@ public class SimpleButtonSettingsViewModel : DialogViewModelBase<SimpleButton, D
             Commands.Select(s => s.Raw).Where(r => !string.IsNullOrWhiteSpace(r)));
 
         ButtonData.Command = string.IsNullOrWhiteSpace(joined) ? null : joined;
+        ReconcileCommandStates();
         NotifyCommandChanged();
     }
 
@@ -348,12 +369,42 @@ public class SimpleButtonSettingsViewModel : DialogViewModelBase<SimpleButton, D
             segment.Changed -= OnSegmentChanged;
         Commands.Clear();
         ButtonData.Command = null;
+        ReconcileCommandStates();
         NotifyCommandChanged();
     }
 
     private void NotifyCommandChanged()
     {
         OnPropertyChanged(nameof(HasCommand));
+    }
+
+    /// <summary>True while the editor switches the edited state, see <see cref="SelectedState"/>.</summary>
+    private bool _switchingState;
+
+    /// <summary>
+    /// Creates the states of a newly assigned command that declares its own, or releases them
+    /// again when that command was removed or replaced.
+    /// </summary>
+    private void ReconcileCommandStates()
+    {
+        if (ButtonData == null || _switchingState) return;
+
+        Services.Commands.StateSyncResult result = _stateMaterializer.Reconcile(ButtonData);
+        if (result == Services.Commands.StateSyncResult.Unchanged) return;
+
+        if (result == Services.Commands.StateSyncResult.ReleaseRequested)
+            _stateMaterializer.Release(ButtonData, keepStates: true);
+
+        RefreshStateBadges();
+        _selectedState = ButtonData.States.Count > 0 ? ButtonData.States[0] : null;
+
+        OnPropertyChanged(nameof(SelectedState));
+        OnPropertyChanged(nameof(AreStatesLocked));
+        OnPropertyChanged(nameof(CanEditStates));
+        OnPropertyChanged(nameof(CanDeleteState));
+        OnPropertyChanged(nameof(ResetOnRestart));
+        OnPropertyChanged(nameof(ButtonData));
+        LoadSegments();
     }
 
     /// <summary>Detaches segment handlers — called by the View when the dialog closes.</summary>
