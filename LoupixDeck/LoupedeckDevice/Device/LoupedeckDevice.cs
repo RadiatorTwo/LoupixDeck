@@ -242,9 +242,17 @@ public class LoupedeckDevice
     /// X-offset (in panel/wallpaper pixels) at which the centre touch grid starts on
     /// the unified panel. Devices with side strips reserve the leftmost strip width
     /// (Razer: 60), so the page wallpaper maps to its true panel position and stays
-    /// continuous with the strips across the bezel. 0 (default) for full-width grids.
+    /// continuous with the strips across the bezel.
     /// </summary>
-    public virtual int WallpaperGridXOffset => 0;
+    /// <remarks>
+    /// This is the grid's position on the panel, and that is <c>VisibleX[0]</c> on every
+    /// model — including the ones whose inset is a bezel rather than a side strip
+    /// (Live S: 15). It is not the same number as <see cref="GridOriginX"/>, which is
+    /// framebuffer space and 0 on the CT, but it comes from the same measurement, so it must
+    /// not fall back to a literal 0: an inset grid would then have its wallpaper cutouts
+    /// sampled — and its keys composited onto a video wallpaper — off by that inset.
+    /// </remarks>
+    public virtual int WallpaperGridXOffset => VisibleX is { Length: > 0 } ? VisibleX[0] : 0;
 
     /// <summary>
     /// X-origin of the centre touch grid inside the "center" framebuffer. Devices with a
