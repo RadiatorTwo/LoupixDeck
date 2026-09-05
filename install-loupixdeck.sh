@@ -1,8 +1,12 @@
 #!/usr/bin/env bash
 # LoupixDeck Linux installer – distro-agnostic.
-# Downloads the latest GitHub release binary, installs it system-wide,
-# and sets up udev rules and a desktop entry. The release build is
-# self-contained, so no separate .NET runtime is required.
+# Downloads a GitHub release binary, installs it system-wide, and sets up
+# udev rules and a desktop entry. The release build is self-contained, so
+# no separate .NET runtime is required.
+#
+# Usage: install-loupixdeck.sh [version]
+#   version   Release tag to install (e.g. v1.22.0). Defaults to the latest
+#             release. A leading 'v' is optional.
 set -euo pipefail
 
 REPO="RadiatorTwo/LoupixDeck"
@@ -50,8 +54,36 @@ else
 fi
 
 # ---------- Resolve & download release ----------
-log "Querying latest release of $REPO ..."
-API_JSON="$(DL_STDOUT "https://api.github.com/repos/$REPO/releases/latest")"
+REQUESTED_VERSION="${1:-}"
+case "$REQUESTED_VERSION" in
+    -h|--help)
+        printf 'Usage: %s [version]\n\n' "$(basename "$0")"
+        printf '  version   Release tag to install (e.g. v1.22.0).\n'
+        printf '            Defaults to the latest release.\n'
+        exit 0
+        ;;
+    -*) die "Unknown option: $REQUESTED_VERSION (see --help)." ;;
+esac
+
+if [ -n "$REQUESTED_VERSION" ]; then
+    log "Querying release $REQUESTED_VERSION of $REPO ..."
+    API_JSON="$(DL_STDOUT "https://api.github.com/repos/$REPO/releases/tags/$REQUESTED_VERSION" || true)"
+    # Retry with a 'v' prefix so both '1.22.0' and 'v1.22.0' work.
+    case "$REQUESTED_VERSION" in
+        v*) ;;
+        *)
+            if [ -z "$API_JSON" ] || ! printf '%s' "$API_JSON" | grep -q '"tag_name"'; then
+                API_JSON="$(DL_STDOUT "https://api.github.com/repos/$REPO/releases/tags/v$REQUESTED_VERSION" || true)"
+            fi
+            ;;
+    esac
+    if [ -z "$API_JSON" ] || ! printf '%s' "$API_JSON" | grep -q '"tag_name"'; then
+        die "Release '$REQUESTED_VERSION' not found. List available tags with: curl -fsSL https://api.github.com/repos/$REPO/releases | grep tag_name"
+    fi
+else
+    log "Querying latest release of $REPO ..."
+    API_JSON="$(DL_STDOUT "https://api.github.com/repos/$REPO/releases/latest")"
+fi
 
 TAG="$(printf '%s' "$API_JSON" | grep -oE '"tag_name"[[:space:]]*:[[:space:]]*"[^"]+"' | head -n1 | sed -E 's/.*"([^"]+)"$/\1/')"
 DOWNLOAD_URL="$(printf '%s' "$API_JSON" \
