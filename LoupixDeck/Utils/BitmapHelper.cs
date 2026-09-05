@@ -724,8 +724,12 @@ public static class BitmapHelper
         }
         else
         {
-            // No background and no wallpaper: the bare key, which the panel shows as black.
-            canvas.Clear(SKColors.Transparent);
+            // No background and no wallpaper: a bare black key. Black rather than transparent
+            // because this bitmap is also the UI mirror — DrawTouchButton hands it to the device
+            // and keeps it on TouchButton.RenderedImage, which the on-screen device layouts bind.
+            // The panel renders transparent as black, so the two agreed on hardware and disagreed
+            // on screen, where a bare key vanished into the window instead of looking like a key.
+            canvas.Clear(SKColors.Black);
         }
     }
 
