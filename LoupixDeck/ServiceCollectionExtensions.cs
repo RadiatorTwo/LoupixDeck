@@ -284,6 +284,10 @@ public static class ServiceCollectionExtensions
         // driving animated image layers on the FreeDraw side-strip canvases.
         collection.AddSingleton<Services.Animation.ISideDisplayAnimationManager, Services.Animation.SideDisplayAnimationManager>();
 
+        // Video page wallpaper: one source per device on the central scheduler, playing the active
+        // page's clip behind the keys. Idle unless a page's main wallpaper slot references one.
+        collection.AddSingleton<Services.Animation.IWallpaperAnimationManager, Services.Animation.WallpaperAnimationManager>();
+
         collection.AddSingleton<IFolderNavigationService, FolderNavigationService>();
         collection.AddSingleton<IExclusiveModeService, ExclusiveModeService>();
 

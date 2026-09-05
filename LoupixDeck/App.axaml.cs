@@ -195,6 +195,7 @@ public partial class App : Application
                     host.Provider.GetRequiredService<IDynamicTextManager>().Start();
                     host.Provider.GetRequiredService<Services.Animation.IButtonAnimationManager>().Start();
                     host.Provider.GetRequiredService<Services.Animation.ISideDisplayAnimationManager>().Start();
+                    host.Provider.GetRequiredService<Services.Animation.IWallpaperAnimationManager>().Start();
                     broughtUp++;
                 }
                 catch (Exception ex)
@@ -286,6 +287,7 @@ public partial class App : Application
         provider.GetRequiredService<IDynamicTextManager>().Start();
         provider.GetRequiredService<Services.Animation.IButtonAnimationManager>().Start();
         provider.GetRequiredService<Services.Animation.ISideDisplayAnimationManager>().Start();
+        provider.GetRequiredService<Services.Animation.IWallpaperAnimationManager>().Start();
     }
 
     /// <summary>Tear a hot-unplugged device down: close its controller, stop its dynamic
@@ -305,6 +307,7 @@ public partial class App : Application
         (host.Provider.GetService(typeof(IDynamicTextManager)) as IDisposable)?.Dispose();
         (host.Provider.GetService(typeof(Services.Animation.IButtonAnimationManager)) as IDisposable)?.Dispose();
         (host.Provider.GetService(typeof(Services.Animation.ISideDisplayAnimationManager)) as IDisposable)?.Dispose();
+        (host.Provider.GetService(typeof(Services.Animation.IWallpaperAnimationManager)) as IDisposable)?.Dispose();
         (host.Provider.GetService(typeof(Services.Screensaver.IScreensaverManager)) as IDisposable)?.Dispose();
         (host.Provider.GetService(typeof(Services.Animation.IAnimationScheduler)) as IDisposable)?.Dispose();
 
