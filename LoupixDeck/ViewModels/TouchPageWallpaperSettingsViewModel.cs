@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.Input;
 using LoupixDeck.Models;
 using LoupixDeck.Registry;
@@ -38,6 +39,8 @@ public class TouchPageWallpaperSettingsViewModel : DialogViewModelBase<TouchButt
     public IRelayCommand SelectRightCommand => field ??= Relay.Create(() => SelectedTarget = WallpaperTarget.Right);
     public IAsyncRelayCommand SelectImageCommand => field ??= Relay.Create(SelectImage);
     public IRelayCommand RemoveCommand => field ??= Relay.Create(RemoveImage);
+    public IAsyncRelayCommand SelectVideoCommand => field ??= Relay.Create(SelectVideo);
+    public IRelayCommand ClearVideoCommand => field ??= Relay.Create(ClearVideo);
     public IRelayCommand ResetCommand => field ??= Relay.Create(ResetAll);
     public IRelayCommand MirrorToOtherSideCommand => field ??= Relay.Create(MirrorToOtherSide);
     public IRelayCommand ConfirmCommand => field ??= Relay.Create(ConfirmDialog);
@@ -63,6 +66,18 @@ public class TouchPageWallpaperSettingsViewModel : DialogViewModelBase<TouchButt
         _assetService = assetService;
         _geometry = geometry ?? DeviceGeometry.Default;
         HasSideStrips = deviceService?.Device?.HasSideStrips ?? false;
+
+        // Probe off the UI thread — the first probe can block briefly. Drives the "ffmpeg missing"
+        // hint, exactly as the screensaver settings do.
+        Task.Run(() =>
+        {
+            var available = FfmpegDetector.IsAvailable();
+            Dispatcher.UIThread.Post(() =>
+            {
+                _ffmpegAvailable = available;
+                OnPropertyChanged(nameof(ShowFfmpegHint));
+            });
+        });
     }
 
     public override void Initialize(TouchButtonPage parameter)
@@ -139,6 +154,8 @@ public class TouchPageWallpaperSettingsViewModel : DialogViewModelBase<TouchButt
         OnPropertyChanged(nameof(ActiveTargetTitle));
         OnPropertyChanged(nameof(ActiveTargetSizeInfo));
         OnPropertyChanged(nameof(HasActiveImage));
+        OnPropertyChanged(nameof(SupportsVideo));
+        OnPropertyChanged(nameof(ShowFfmpegHint));
         NotifyActiveSettingsChanged();
         OnPropertyChanged(nameof(ActivePreview));
     }
@@ -152,6 +169,9 @@ public class TouchPageWallpaperSettingsViewModel : DialogViewModelBase<TouchButt
         OnPropertyChanged(nameof(WallpaperPositionX));
         OnPropertyChanged(nameof(WallpaperPositionY));
         OnPropertyChanged(nameof(WallpaperMirror));
+        OnPropertyChanged(nameof(HasActiveVideo));
+        OnPropertyChanged(nameof(VideoDisplayName));
+        OnPropertyChanged(nameof(VideoFps));
     }
 
     // ───────── Active-slot setting proxies ─────────
@@ -192,6 +212,43 @@ public class TouchPageWallpaperSettingsViewModel : DialogViewModelBase<TouchButt
     {
         get => ActiveSlot?.Mirror ?? false;
         set { if (ActiveSlot != null) { ActiveSlot.Mirror = value; OnPropertyChanged(); RefreshPreviews(); } }
+    }
+
+    // ───────── Video clip (main target only) ─────────
+
+    /// <summary>
+    /// Only the main slot plays a clip: it covers the whole panel, side strips included, so a
+    /// per-side clip has nothing left to play on. A side slot's still image still wins over the
+    /// video for its own column.
+    /// </summary>
+    public bool SupportsVideo => IsMainSelected;
+
+    public bool HasActiveVideo => ActiveSlot?.HasVideo ?? false;
+
+    /// <summary>Whether ffmpeg was found on PATH. Assumed present until the probe answers, so the
+    /// hint never flashes on a machine that has it.</summary>
+    private bool _ffmpegAvailable = true;
+
+    /// <summary>Shown only where a clip can actually be selected.</summary>
+    public bool ShowFfmpegHint => !_ffmpegAvailable && SupportsVideo;
+
+    public string VideoDisplayName
+    {
+        get
+        {
+            var slot = ActiveSlot;
+            if (slot == null) return "No video selected";
+            if (!string.IsNullOrWhiteSpace(slot.VideoName)) return slot.VideoName;
+            return string.IsNullOrWhiteSpace(slot.VideoPath)
+                ? "No video selected"
+                : Path.GetFileName(slot.VideoPath);
+        }
+    }
+
+    public int VideoFps
+    {
+        get => ActiveSlot?.VideoFps ?? 30;
+        set { if (ActiveSlot != null) { ActiveSlot.VideoFps = value; OnPropertyChanged(); } }
     }
 
     // ───────── Previews ─────────
@@ -246,6 +303,33 @@ public class TouchPageWallpaperSettingsViewModel : DialogViewModelBase<TouchButt
         // Only drop the image — keep the slot's other settings.
         ActiveSlot.AssetPath = null;
         RefreshPreviews();
+    }
+
+    private async Task SelectVideo()
+    {
+        if (ActiveSlot == null) return;
+
+        var path = await FileDialogHelper.OpenVideoDialog();
+        if (string.IsNullOrEmpty(path) || !File.Exists(path)) return;
+
+        // Referenced in place, never imported: a clip may be arbitrarily large and is played by an
+        // external ffmpeg straight from disk, so a copy into the asset store only wastes space.
+        // Same rule as the screensaver clip.
+        ActiveSlot.VideoPath = path;
+        ActiveSlot.VideoName = Path.GetFileName(path);
+        OnPropertyChanged(nameof(HasActiveVideo));
+        OnPropertyChanged(nameof(VideoDisplayName));
+    }
+
+    private void ClearVideo()
+    {
+        if (ActiveSlot == null) return;
+
+        // Only the clip goes — the still image is untouched and takes over again.
+        ActiveSlot.VideoPath = null;
+        ActiveSlot.VideoName = null;
+        OnPropertyChanged(nameof(HasActiveVideo));
+        OnPropertyChanged(nameof(VideoDisplayName));
     }
 
     private void ResetAll()

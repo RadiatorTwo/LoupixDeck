@@ -110,6 +110,35 @@
                         </StackPanel>
                     </StackPanel>
 
+                    <!-- ░░░ Video clip — main slot only ░░░ -->
+                    <StackPanel Spacing="6" IsVisible="{Binding SupportsVideo}">
+                        <Separator Margin="0,4" />
+                        <TextBlock Classes="label" Text="Video clip" />
+
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Button Content="Select video…" Command="{Binding SelectVideoCommand}" />
+                            <Button Content="Clear" Command="{Binding ClearVideoCommand}"
+                                    IsEnabled="{Binding HasActiveVideo}" />
+                            <TextBlock Classes="value" VerticalAlignment="Center"
+                                       Text="{Binding VideoDisplayName}" />
+                        </StackPanel>
+
+                        <StackPanel Orientation="Horizontal" Spacing="8" IsEnabled="{Binding HasActiveVideo}">
+                            <TextBlock Classes="label" Text="FPS" VerticalAlignment="Center" Width="80" />
+                            <NumericUpDown Width="120" Minimum="1" Maximum="60" Increment="1"
+                                           FormatString="0"
+                                           Value="{Binding VideoFps, Mode=TwoWay}" />
+                        </StackPanel>
+
+                        <TextBlock Classes="hint" TextWrapping="Wrap"
+                                   IsVisible="{Binding HasActiveVideo}"
+                                   Text="The clip plays behind the keys and covers the side displays too. It takes precedence over the image above, which is kept and returns when the clip is cleared. A side display keeps its own image where it has one." />
+
+                        <TextBlock Classes="hint" TextWrapping="Wrap"
+                                   IsVisible="{Binding ShowFfmpegHint}"
+                                   Text="ffmpeg was not found on PATH. Install ffmpeg to play a video wallpaper — until then a slot with a clip falls back to its image." />
+                    </StackPanel>
+
                     <Grid ColumnDefinitions="80,*,40" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="6">
 
                         <TextBlock Grid.Row="0" Grid.Column="0" Classes="label" Text="Opacity"    VerticalAlignment="Center" />

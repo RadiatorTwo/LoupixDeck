@@ -172,7 +172,7 @@ its still image, or to no wallpaper — logged once, never an error dialog.
 | 4 — Split `RenderTouchButtonContent` | done | `f15b9b3` |
 | 5 — Playback (model, cache, source, manager, DI) | done | `43e5f42`, `609cbac` |
 | 6 — Button animations into the foreground cache | done | this commit |
-| 7 — Settings UI | open | — |
+| 7 — Settings UI | done | this commit |
 
 Nothing is pushed. Branch `feature/animated-wallpaper`, based on `origin/master` @ `721d0c5`.
 
@@ -281,13 +281,24 @@ overlay avg 0.0–0.1 ms, and one redirect per GIF frame (240 redirects in ~25 s
 animated-button push went through the overlay, none to the panel). With the clip removed from the
 slot: zero redirects, no wallpaper source, no errors — the old path unchanged.
 
-### Phase 7 — Settings UI — open
+### Phase 7 — Settings UI — done
 
-Video selection for the main slot, an fps control, and a clear disabled state explaining a missing
-ffmpeg. English UI text throughout.
+A "Video clip" section in the Edit Wallpaper dialog (`TouchPageWallpaperSettings`), below the image
+picker and visible only while the **main** target is selected — a side display never plays its own
+clip, so offering the control there would be a lie. It holds *Select video… / Clear*, the clip's
+display name, an FPS spinner (1–60, disabled until a clip is chosen) and two hints: what the clip
+does to the image and to the side displays, and — when the probe finds no ffmpeg on `PATH` — that a
+slot with a clip falls back to its image until ffmpeg is installed. The probe runs off the UI thread
+and assumes ffmpeg is present until it answers, so the hint never flashes on a machine that has it.
 
-*Verify:* load a `config.json` saved before this branch, confirm identical behaviour, save, reload,
-confirm no data loss.
+The clip is referenced in place and never imported into the asset store, matching the screensaver
+rule: a clip may be arbitrarily large and ffmpeg reads it straight from disk. *Clear* drops only the
+clip, so the still image behind it takes over again. Cancel already restored from a `Clone()`
+snapshot via `CopyFrom`, both of which carry the video fields, so it reverts a clip too.
+
+*Verified:* a `config.json` with every `VideoPath`/`VideoName`/`VideoFps` key removed — a genuine
+pre-branch file — loaded with no error or warning, and the file it saved back differs only by those
+nine keys reappearing at their defaults (`null`/`null`/`30`). No key lost, no value changed.
 
 ## Open risks
 
