@@ -18,6 +18,10 @@ namespace LoupixDeck.Services.Animation;
 /// full-screen blit + DRAW per frame (the no-tearing path), the Skia gate composite, and an idle
 /// gate so <see cref="Dispose"/> never cuts a serial framebuffer write mid-stream (which would
 /// desync the device protocol until a power-cycle).
+///
+/// A caller may also composite on top of the frame before it is sliced (the <c>overlay</c>
+/// argument of <see cref="PushAsync"/>) — that is how content can sit above a full-display
+/// animation without a second, tearing write.
 /// </summary>
 public sealed class FullDisplayFrameWriter : IDisposable
 {
@@ -58,8 +62,16 @@ public sealed class FullDisplayFrameWriter : IDisposable
     /// display outside the gate (the device's pixel conversion takes the gate itself, and it can't
     /// be held across the awaited device I/O). <paramref name="bgra"/> is exactly one panel frame
     /// (the geometry's FrameBytes are read; the buffer may be larger when pooled).
+    ///
+    /// <paramref name="overlay"/> optionally draws on the assembled panel frame BEFORE it is
+    /// sliced, which is what lets a caller put content on top of the frame — the animated
+    /// wallpaper draws its dim, its side-slot images and the touch keys there — while keeping a
+    /// single atomic blit + DRAW per display. It runs on the calling thread inside the shared Skia
+    /// gate, so it must only draw: no blocking, no other locks, and no device I/O. It is also on
+    /// the per-frame budget, which at 30 fps is what remains of ~33 ms after the ~27 ms the serial
+    /// panel write costs — so blit prepared bitmaps here, never render layers or lay out text.
     /// </summary>
-    public async Task PushAsync(byte[] bgra, CancellationToken token)
+    public async Task PushAsync(byte[] bgra, CancellationToken token, Action<SKCanvas> overlay = null)
     {
         SKBitmap frame = null;
         var draws = new List<(string Id, SKBitmap Bitmap, bool Owned)>(_targets.Count);
@@ -71,6 +83,26 @@ public sealed class FullDisplayFrameWriter : IDisposable
             // Copy exactly one frame: the buffer may be pooled (ArrayPool) so it can be larger
             // than one frame — never use bgra.Length here.
             Marshal.Copy(bgra, 0, frame.GetPixels(), _geometry.FrameBytes);
+
+            if (overlay != null)
+            {
+                // Draw on the whole panel before slicing, so a unified device and the CT's three
+                // separate buffers see exactly the same composed image. Disposing the canvas
+                // commits the pixels before anything below samples them.
+                //
+                // Contained on purpose: an exception escaping here would unwind past the disposal
+                // in the finally below, leaking this frame's native pixels every time it threw.
+                // A failed overlay costs its content for one frame, nothing else.
+                try
+                {
+                    using var overlayCanvas = new SKCanvas(frame);
+                    overlay(overlayCanvas);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"{_logPrefix} overlay threw: {ex.Message}");
+                }
+            }
 
             foreach (var target in _targets)
             {
