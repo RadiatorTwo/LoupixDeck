@@ -10,9 +10,9 @@ namespace LoupixDeck.Services.Animation;
 ///
 /// It is driven by the central <see cref="IAnimationScheduler"/> — the scheduler ticks
 /// <see cref="RenderFrameAsync"/> at the configured rate, which takes the freshest decoded frame
-/// from the stream's read-ahead queue and pushes it. The decode discipline itself (ffmpeg's
-/// realtime pacing, the bounded queue, drop-to-freshest when a device can't keep up) lives in
-/// <see cref="VideoFrameStream"/>; this source only presents.
+/// from the stream and pushes it. The decode discipline itself (ffmpeg's realtime pacing, the
+/// bounded queue, drop-to-freshest when a device can't keep up, and the seamless RAM ring a short
+/// looping clip gets instead) lives in <see cref="VideoFrameStream"/>; this source only presents.
 ///
 /// The decode geometry mirrors the wallpaper system's continuous 480×270 panel: the frame
 /// is decoded at panel size and sliced per display. Unified devices (Live S / Razer) take
@@ -139,8 +139,8 @@ public sealed class ScreensaverAnimationSource : IAnimationSource, IDisposable
         }
         finally
         {
-            // Return the pooled buffer the producer rented.
-            _stream.Release(frame.Buffer);
+            // Hand the frame back: pooled buffers return to the pool, ring frames are kept.
+            _stream.Release(frame);
         }
     }
 
