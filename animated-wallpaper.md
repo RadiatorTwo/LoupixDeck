@@ -312,8 +312,12 @@ nine keys reappearing at their defaults (`null`/`null`/`30`). No key lost, no va
 - **Screensaver semantics.** An idle timeout is odd when the panel is never static. Product
   decision, little code: the screensaver still takes over (it is a different clip), or it is
   suppressed while a video wallpaper runs.
-- **No visual confirmation.** Every result here is from instrumentation and logs; the displays were
-  never seen during this work.
+- **Visual confirmation, partial.** For most of this work every result came from instrumentation and
+  logs only. That changed during the Phase 6 test: the Razer Stream Controller was watched while the
+  clip played and showed the text layers "K1", "K2", "K3" standing legibly over the moving ffmpeg
+  test pattern — so the overlay really does composite the keys onto the video frame, not merely
+  report that it did. Still unseen: the animated GIF key beside them, whether any tearing or flicker
+  survives over a longer run, and the settings dialog of Phase 7.
 
 ## Follow-ups (separate commits / issues)
 
