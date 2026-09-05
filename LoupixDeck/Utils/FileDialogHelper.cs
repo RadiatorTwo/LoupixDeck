@@ -34,6 +34,50 @@ public abstract class FileDialogHelper
     }
 
     /// <summary>
+    /// Picks a page wallpaper — a still image or a video clip, in one dialog, because a slot holds
+    /// one or the other and never both. The caller tells them apart by extension. Returns the
+    /// absolute path, an empty string if cancelled, or null when there's no window.
+    /// </summary>
+    public static async Task<string> OpenWallpaperMediaDialog()
+    {
+        var parent = WindowHelper.GetMainWindow();
+        if (parent == null) return null;
+
+        var files = await parent.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = "Select Wallpaper Image or Video",
+            AllowMultiple = false,
+            FileTypeFilter = new List<FilePickerFileType>
+            {
+                new("Images and video")
+                {
+                    Patterns =
+                    [
+                        "*.png", "*.jpg", "*.jpeg", "*.bmp", "*.tif", "*.tiff",
+                        "*.mp4", "*.webm", "*.mov", "*.mkv", "*.m4v", "*.avi"
+                    ]
+                },
+                new("Pictures")
+                {
+                    Patterns = ["*.png", "*.jpg", "*.jpeg", "*.bmp", "*.tif", "*.tiff"]
+                },
+                new("Videos")
+                {
+                    Patterns = ["*.mp4", "*.webm", "*.mov", "*.mkv", "*.m4v", "*.avi"]
+                },
+                new("All files")
+                {
+                    Patterns = ["*"]
+                }
+            }
+        });
+
+        if (files.Count == 0) return string.Empty;
+
+        return Uri.UnescapeDataString(files[0].Path.AbsolutePath);
+    }
+
+    /// <summary>
     /// Picks an animated source for a button (issue #121): an animated image (GIF/WebP) or a video
     /// (transcoded once on import). Returns the absolute path, an empty string if cancelled, or null
     /// when there's no window.

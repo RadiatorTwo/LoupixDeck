@@ -16,6 +16,7 @@ both valid inputs.
 | Decode | Runtime ffmpeg stream, not a pre-decoded frame budget |
 | Loop | Hybrid — short clip decodes into a RAM frame ring (seamless), long clip streams |
 | Side displays | Covered by the panel-wide clip; a side slot holding a still image wins over the video |
+| Clip fit | The slot's `ScalingOption` drives ffmpeg's scaler — Fit letterboxes, Fill crops, Stretch distorts |
 | Per-side video | Not supported. A side display never plays its own clip |
 | Button animations | Composite into the panel frame; no more per-button partial pushes while a video wallpaper runs |
 | Playback position | Not persisted. Restart begins at 0 |
@@ -156,8 +157,12 @@ Absent from an old file → `null`/default → `HasVideo` false → today's stat
 migration needed. `AssetPath` keeps its meaning and its JSON name unchanged. Generated JSON
 property names must match these hand-written names exactly.
 
-`HasVideo` takes precedence over `HasImage` on the same slot; the still image stays stored so
-removing the video restores it.
+`HasVideo` takes precedence over `HasImage` on the same slot. The model still resolves that case,
+because an old file or a plugin could produce it, but the settings dialog no longer creates it: it
+offers **one** picker for both kinds and clears the other field on selection, so a slot the user
+edited holds an image or a clip and never both. (An earlier draft kept the image alongside the clip
+and restored it on clear — dropped as needlessly clever once the picker was unified: two stored
+values with an invisible precedence rule is exactly the ambiguity a single picker removes.)
 
 Without ffmpeg on `PATH` (`FfmpegDetector.IsAvailable()`), a slot with a video falls back to
 its still image, or to no wallpaper — logged once, never an error dialog.
@@ -282,6 +287,26 @@ animated-button push went through the overlay, none to the panel). With the clip
 slot: zero redirects, no wallpaper source, no errors — the old path unchanged.
 
 ### Phase 7 — Settings UI — done
+
+**One picker, not two.** The Edit Wallpaper dialog keeps its single *Select… / Remove* pair and its
+file dialog now offers images and video together; the choice is classified by extension and lands in
+the matching fields, clearing the other. Under the buttons the dialog says what the slot holds
+(`Image` / `Video clip` / `Empty`) and the file name. The preview shows a poster frame for a clip —
+`VideoPosterFrame` pulls one frame through a one-shot ffmpeg call, cached per path — because a picker
+whose preview goes blank for half of what it can hold is not much of a picker.
+
+**Only settings that do something are shown.** With a clip selected, Scaling/Scale/Position X/Y and
+Mirror disappear: the overlay reads nothing but `Opacity` from the slot, so those controls would
+promise an effect that never happens. In their place come the two that do apply — the clip's fit
+(Fit / Fill / Stretch, the only three `ScalingOption` values with an ffmpeg meaning) and its frame
+rate. This also settles the dialog's height, which is fixed and cannot be resized: with a clip the
+card is shorter than it ever was, so nothing is cut off.
+
+*What this replaced:* a separate "Video clip" section below the image picker. It made the card
+overflow its fixed-height window — Position Y and everything under it were unreachable — and it
+implied a slot could hold both kinds at once.
+
+
 
 A "Video clip" section in the Edit Wallpaper dialog (`TouchPageWallpaperSettings`), below the image
 picker and visible only while the **main** target is selected — a side display never plays its own
