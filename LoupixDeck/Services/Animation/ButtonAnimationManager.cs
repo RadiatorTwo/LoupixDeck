@@ -44,7 +44,8 @@ public sealed class ButtonAnimationManager : IButtonAnimationManager, IDisposabl
         IDeviceService deviceService,
         LoupedeckConfig config,
         IDeviceRouter router,
-        IServiceProvider deviceProvider)
+        IServiceProvider deviceProvider,
+        IWallpaperAnimationManager wallpaper)
     {
         _pageManager = pageManager;
         _commandRegistry = commandRegistry;
@@ -54,7 +55,7 @@ public sealed class ButtonAnimationManager : IButtonAnimationManager, IDisposabl
         _folderNav = folderNav;
         _screensaver = screensaver;
 
-        _source = new ButtonAnimationSource(deviceService, config, router, deviceProvider);
+        _source = new ButtonAnimationSource(deviceService, config, router, deviceProvider, wallpaper);
     }
 
     public void Start()

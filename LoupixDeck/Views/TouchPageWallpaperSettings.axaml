@@ -104,47 +104,89 @@
                                    Source="{Binding ActivePreview, Converter={StaticResource SkiaToBitmapConverter}}" />
                         </Border>
                         <StackPanel Spacing="6" VerticalAlignment="Center">
-                            <Button Content="Select…" Command="{Binding SelectImageCommand}" Width="110" />
+                            <Button Content="Select…" Command="{Binding SelectMediaCommand}" Width="110" />
                             <Button Content="Remove"  Command="{Binding RemoveCommand}" Width="110"
-                                    IsEnabled="{Binding HasActiveImage}" />
+                                    IsEnabled="{Binding HasActiveContent}" />
+                            <TextBlock Classes="label" Text="{Binding ActiveContentKind}" />
                         </StackPanel>
                     </StackPanel>
 
-                    <Grid ColumnDefinitions="80,*,40" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="6">
+                    <!-- Selected file, and the one control that is video-only. -->
+                    <TextBlock Classes="value" TextTrimming="CharacterEllipsis"
+                               Text="{Binding SelectedMediaName}" />
 
+                    <!-- Video-only settings. Fit/Fill/Stretch map onto ffmpeg's scaler; the
+                         remaining ScalingOption values have no video meaning. -->
+                    <Grid ColumnDefinitions="80,*" RowDefinitions="Auto,Auto" RowSpacing="6"
+                          IsVisible="{Binding HasActiveVideo}">
+
+                        <TextBlock Grid.Row="0" Grid.Column="0" Classes="label" Text="Scaling"
+                                   VerticalAlignment="Center" />
+                        <ComboBox  Grid.Row="0" Grid.Column="1" HorizontalAlignment="Stretch"
+                                   ItemsSource="{Binding VideoScalingOptions}"
+                                   SelectedItem="{Binding SelectedWallpaperScalingOption, Mode=TwoWay}" />
+
+                        <TextBlock Grid.Row="1" Grid.Column="0" Classes="label" Text="Frame rate"
+                                   VerticalAlignment="Center" />
+                        <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                            <NumericUpDown Width="150" Minimum="1" Maximum="60" Increment="1"
+                                           FormatString="0"
+                                           Value="{Binding VideoFps, Mode=TwoWay}" />
+                            <TextBlock Classes="label" Text="fps" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Grid>
+
+                    <TextBlock Classes="hint" TextWrapping="Wrap"
+                               IsVisible="{Binding HasActiveVideo}"
+                               Text="Fit keeps the aspect ratio and letterboxes, Fill keeps it and crops, Stretch distorts to fill. The clip covers the side displays too; one with its own image keeps it." />
+
+                    <TextBlock Classes="hint" TextWrapping="Wrap"
+                               IsVisible="{Binding ShowFfmpegHint}"
+                               Text="ffmpeg was not found on PATH — a clip cannot play until it is installed." />
+
+                    <!-- Opacity is the one slot setting a clip honours: the overlay dims the video
+                         frame with it. -->
+                    <Grid ColumnDefinitions="80,*,40" RowDefinitions="Auto">
                         <TextBlock Grid.Row="0" Grid.Column="0" Classes="label" Text="Opacity"    VerticalAlignment="Center" />
                         <Slider    Grid.Row="0" Grid.Column="1" Minimum="0"  Maximum="1"
                                    TickFrequency="0.1" IsSnapToTickEnabled="True"
                                    Value="{Binding WallpaperOpacity, Mode=TwoWay}" />
+                    </Grid>
 
-                        <TextBlock Grid.Row="1" Grid.Column="0" Classes="label" Text="Scaling"    VerticalAlignment="Center" />
-                        <ComboBox  Grid.Row="1" Grid.Column="1" HorizontalAlignment="Stretch"
+                    <!-- Hidden while a clip plays: ffmpeg scales it to the panel, so none of these
+                         are read for a video and showing them would promise an effect that never
+                         happens. They stay stored, and return with the still image. -->
+                    <Grid ColumnDefinitions="80,*,40" RowDefinitions="Auto,Auto,Auto,Auto,Auto" RowSpacing="6"
+                          IsVisible="{Binding ShowImageAdjustments}">
+
+                        <TextBlock Grid.Row="0" Grid.Column="0" Classes="label" Text="Scaling"    VerticalAlignment="Center" />
+                        <ComboBox  Grid.Row="0" Grid.Column="1" HorizontalAlignment="Stretch"
                                    ItemsSource="{Binding WallpaperScalingOptions}"
                                    SelectedItem="{Binding SelectedWallpaperScalingOption, Mode=TwoWay}" />
 
-                        <TextBlock Grid.Row="2" Grid.Column="0" Classes="label" Text="Scale"      VerticalAlignment="Center" />
-                        <Slider    Grid.Row="2" Grid.Column="1" Minimum="1"  Maximum="400"
+                        <TextBlock Grid.Row="1" Grid.Column="0" Classes="label" Text="Scale"      VerticalAlignment="Center" />
+                        <Slider    Grid.Row="1" Grid.Column="1" Minimum="1"  Maximum="400"
                                    TickFrequency="1" IsSnapToTickEnabled="True"
                                    Value="{Binding WallpaperScaling, Mode=TwoWay}" />
-                        <TextBlock Grid.Row="2" Grid.Column="2" Classes="value" Text="{Binding WallpaperScaling}"
+                        <TextBlock Grid.Row="1" Grid.Column="2" Classes="value" Text="{Binding WallpaperScaling}"
                                    VerticalAlignment="Center" HorizontalAlignment="Right" />
 
-                        <TextBlock Grid.Row="3" Grid.Column="0" Classes="label" Text="Position X" VerticalAlignment="Center" />
-                        <Slider    Grid.Row="3" Grid.Column="1" Minimum="-480" Maximum="480"
+                        <TextBlock Grid.Row="2" Grid.Column="0" Classes="label" Text="Position X" VerticalAlignment="Center" />
+                        <Slider    Grid.Row="2" Grid.Column="1" Minimum="-480" Maximum="480"
                                    TickFrequency="1" IsSnapToTickEnabled="True"
                                    Value="{Binding WallpaperPositionX, Mode=TwoWay}" />
-                        <TextBlock Grid.Row="3" Grid.Column="2" Classes="value" Text="{Binding WallpaperPositionX}"
+                        <TextBlock Grid.Row="2" Grid.Column="2" Classes="value" Text="{Binding WallpaperPositionX}"
                                    VerticalAlignment="Center" HorizontalAlignment="Right" />
 
-                        <TextBlock Grid.Row="4" Grid.Column="0" Classes="label" Text="Position Y" VerticalAlignment="Center" />
-                        <Slider    Grid.Row="4" Grid.Column="1" Minimum="-270" Maximum="270"
+                        <TextBlock Grid.Row="3" Grid.Column="0" Classes="label" Text="Position Y" VerticalAlignment="Center" />
+                        <Slider    Grid.Row="3" Grid.Column="1" Minimum="-270" Maximum="270"
                                    TickFrequency="1" IsSnapToTickEnabled="True"
                                    Value="{Binding WallpaperPositionY, Mode=TwoWay}" />
-                        <TextBlock Grid.Row="4" Grid.Column="2" Classes="value" Text="{Binding WallpaperPositionY}"
+                        <TextBlock Grid.Row="3" Grid.Column="2" Classes="value" Text="{Binding WallpaperPositionY}"
                                    VerticalAlignment="Center" HorizontalAlignment="Right" />
 
-                        <TextBlock Grid.Row="5" Grid.Column="0" Classes="label" Text="Mirror"     VerticalAlignment="Center" />
-                        <CheckBox  Grid.Row="5" Grid.Column="1" Content="Flip horizontally"
+                        <TextBlock Grid.Row="4" Grid.Column="0" Classes="label" Text="Mirror"     VerticalAlignment="Center" />
+                        <CheckBox  Grid.Row="4" Grid.Column="1" Content="Flip horizontally"
                                    IsChecked="{Binding WallpaperMirror, Mode=TwoWay}" />
                     </Grid>
 

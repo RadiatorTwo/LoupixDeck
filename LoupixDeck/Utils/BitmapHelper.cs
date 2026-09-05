@@ -665,37 +665,8 @@ public static class BitmapHelper
             bitmap = new SKBitmap(width, height);
             using var canvas = new SKCanvas(bitmap);
 
-            if (touchButton.BackgroundEnabled)
-            {
-                // An explicitly enabled background covers everything below the layers — the page
-                // wallpaper included. Off (the default) leaves the wallpaper visible.
-                canvas.Clear(touchButton.BackColor.ToSKColor());
-            }
-            else if (wallpaperToUse != null && wallpaperSource is { } source)
-            {
-                // The caller says which part of the panel-wide wallpaper this key covers
-                // (device.GetWallpaperKeyRect). It has to come from there rather than from
-                // index * width: the grid is not always gapless, and it does not always
-                // start at the wallpaper's origin — the Razer and CT grids sit 60px in, so
-                // the wallpaper stays continuous with the side strips across the bezel.
-                var srcRect = new SKRect(source.Left, source.Top, source.Right, source.Bottom);
-                var destRect = new SKRect(0, 0, width, height);
-
-                // Draw Wallpaper Cutout
-                canvas.DrawBitmap(wallpaperToUse, srcRect, destRect, SKSamplingOptions.Default, paint: null);
-
-                // Semi-transparent background
-                using var paint = new SKPaint();
-
-                paint.Color = new SKColor(0, 0, 0, (byte)(255 * opacityToUse));
-
-                canvas.DrawRect(destRect, paint);
-            }
-            else
-            {
-                // No background and no wallpaper: the bare key, which the panel shows as black.
-                canvas.Clear(SKColors.Transparent);
-            }
+            DrawTouchButtonBackground(canvas, touchButton, wallpaperToUse, opacityToUse,
+                wallpaperSource, width, height);
 
             DrawLayers(canvas, touchButton.Layers, width, height);
         }
@@ -705,6 +676,95 @@ public static class BitmapHelper
         touchButton.RenderedImage = bitmap;
 
         return bitmap;
+    }
+
+    /// <summary>
+    /// Paints what sits BEHIND a key's layers: the explicit background colour, or the key's cutout
+    /// of the page wallpaper plus its dim, or nothing. Split out of
+    /// <see cref="RenderTouchButtonContent"/> so a caller that already has a background on screen —
+    /// an animated wallpaper pushing whole panel frames — can draw the layers over it without
+    /// re-deciding this, and without a second write to the display.
+    ///
+    /// Must be called under <see cref="SkiaRenderGate"/>.Sync, like everything else that draws.
+    /// </summary>
+    private static void DrawTouchButtonBackground(
+        SKCanvas canvas,
+        TouchButton touchButton,
+        SKBitmap wallpaper,
+        double opacity,
+        SKRectI? wallpaperSource,
+        int width,
+        int height)
+    {
+        if (touchButton.BackgroundEnabled)
+        {
+            // An explicitly enabled background covers everything below the layers — the page
+            // wallpaper included. Off (the default) leaves the wallpaper visible.
+            canvas.Clear(touchButton.BackColor.ToSKColor());
+        }
+        else if (wallpaper != null && wallpaperSource is { } source)
+        {
+            // The caller says which part of the panel-wide wallpaper this key covers
+            // (device.GetWallpaperKeyRect). It has to come from there rather than from
+            // index * width: the grid is not always gapless, and it does not always
+            // start at the wallpaper's origin — the Razer and CT grids sit 60px in, so
+            // the wallpaper stays continuous with the side strips across the bezel.
+            var srcRect = new SKRect(source.Left, source.Top, source.Right, source.Bottom);
+            var destRect = new SKRect(0, 0, width, height);
+
+            // Draw Wallpaper Cutout
+            canvas.DrawBitmap(wallpaper, srcRect, destRect, SKSamplingOptions.Default, paint: null);
+
+            // Semi-transparent background
+            using var paint = new SKPaint();
+
+            paint.Color = new SKColor(0, 0, 0, (byte)(255 * opacity));
+
+            canvas.DrawRect(destRect, paint);
+        }
+        else
+        {
+            // No background and no wallpaper: a bare black key. Black rather than transparent
+            // because this bitmap is also the UI mirror — DrawTouchButton hands it to the device
+            // and keeps it on TouchButton.RenderedImage, which the on-screen device layouts bind.
+            // The panel renders transparent as black, so the two agreed on hardware and disagreed
+            // on screen, where a bare key vanished into the window instead of looking like a key.
+            canvas.Clear(SKColors.Black);
+        }
+    }
+
+    /// <summary>
+    /// Renders only a key's layers, on a fully transparent background, so the result can be
+    /// composited over a background that already exists — a video wallpaper frame, in practice.
+    ///
+    /// Compositing this over that background matches drawing the layers straight onto it, because
+    /// every layer draws with plain source-over and nothing in the layer path clears, blends or
+    /// saves a layer. Keep it that way: introduce a blend mode below and the equivalence quietly
+    /// stops holding.
+    ///
+    /// It is equal, not bit-equal. Going through a premultiplied intermediate rounds twice, which
+    /// was measured to differ by at most 1/255 on a handful of antialiased edge pixels — only where
+    /// antialiased strokes overlap, e.g. outlined text (17 of 32400 bytes on a 90×90 key, all
+    /// delta 1; flat and semi-transparent content came out bit-identical).
+    ///
+    /// The bitmap is premultiplied (the default), which the image layer depends on — an opaque
+    /// alpha type would turn the untouched area into solid black instead of transparency.
+    /// Callers own the returned bitmap; unlike <see cref="RenderTouchButtonContent"/> this does
+    /// not publish to <see cref="TouchButton.RenderedImage"/>, since it is not what the key looks
+    /// like on its own.
+    /// </summary>
+    public static SKBitmap RenderTouchButtonForeground(TouchButton touchButton, int width, int height)
+    {
+        ArgumentNullException.ThrowIfNull(touchButton);
+
+        lock (SkiaRenderGate.Sync)
+        {
+            var bitmap = new SKBitmap(width, height);
+            using var canvas = new SKCanvas(bitmap);
+            canvas.Clear(SKColors.Transparent);
+            DrawLayers(canvas, touchButton.Layers, width, height);
+            return bitmap;
+        }
     }
 
     /// <summary>Largest editor-frame extent (canvas px). The frame's longer side maps

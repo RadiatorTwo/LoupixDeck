@@ -27,6 +27,12 @@ namespace LoupixDeck.Services.Animation;
 /// <see cref="LoupedeckDevice.Device.LoupedeckDevice.DrawTouchButton"/> — a single-button partial
 /// update, never a full-display redraw. The scheduler's per-source in-flight guard means a slow tick
 /// just lowers the rate instead of piling up.
+///
+/// While a video wallpaper is playing, that partial push would tear against the full-panel writes
+/// driving the clip, so the changed key is handed to
+/// <see cref="IWallpaperAnimationManager.TryRedirectButtonRedraw"/> instead and appears in the next
+/// video frame's overlay. Animated buttons and an animated wallpaper therefore run together; the
+/// keys just take the panel's frame rate.
 /// </summary>
 public sealed class ButtonAnimationSource : IAnimationSource, IDisposable
 {
@@ -39,6 +45,7 @@ public sealed class ButtonAnimationSource : IAnimationSource, IDisposable
     private readonly LoupedeckConfig _config;
     private readonly IDeviceRouter _router;
     private readonly IServiceProvider _deviceProvider;
+    private readonly IWallpaperAnimationManager _wallpaper;
 
     // Signaled while no frame is being pushed. Dispose()/teardown waits on it so the serial port
     // is never closed mid framebuffer write (mirrors the screensaver source).
@@ -51,12 +58,14 @@ public sealed class ButtonAnimationSource : IAnimationSource, IDisposable
         IDeviceService deviceService,
         LoupedeckConfig config,
         IDeviceRouter router,
-        IServiceProvider deviceProvider)
+        IServiceProvider deviceProvider,
+        IWallpaperAnimationManager wallpaper)
     {
         _deviceService = deviceService;
         _config = config;
         _router = router;
         _deviceProvider = deviceProvider;
+        _wallpaper = wallpaper;
     }
 
     public int TargetFps
@@ -151,6 +160,12 @@ public sealed class ButtonAnimationSource : IAnimationSource, IDisposable
             foreach (var button in dirty)
             {
                 if (context.CancellationToken.IsCancellationRequested) return;
+
+                // A video wallpaper owns the whole panel, so the key goes into its overlay
+                // instead: a partial write racing a full-panel push tears. With no clip
+                // playing this is false and the partial push below runs exactly as before.
+                if (_wallpaper.TryRedirectButtonRedraw(button.Index)) continue;
+
                 await device.DrawTouchButton(button, _config, refresh: true).ConfigureAwait(false);
             }
         }

@@ -12,6 +12,10 @@ namespace LoupixDeck.Models;
 /// scaled bitmap actually drawn is baked on demand from these and cached in
 /// <see cref="Baked"/> (not serialized). Mirrors the per-page wallpaper model that
 /// previously lived flat on <see cref="TouchButtonPage"/>.
+///
+/// A slot may instead reference a video clip (<see cref="VideoPath"/>), which the main slot plays
+/// behind the keys. The still image and its parameters stay untouched while a clip is set, so
+/// clearing the clip restores exactly the previous wallpaper.
 /// </summary>
 [ObservableObject]
 public partial class WallpaperSlot
@@ -25,6 +29,33 @@ public partial class WallpaperSlot
     [NotifyPropertyChangedFor(nameof(HasImage))]
     public partial string AssetPath { get; set; }
     partial void OnAssetPathChanged(string value) => Invalidate();
+
+    /// <summary>
+    /// Absolute path of a video clip to play in this slot instead of the still image, or null.
+    /// Deliberately a path reference rather than an imported asset (mirroring
+    /// <c>LoupedeckConfig.ScreensaverVideoPath</c>): a clip may be arbitrarily large, and copying
+    /// it into the content-addressed asset store would duplicate it per slot.
+    ///
+    /// Absent from a config saved before this existed, so an old file loads as a still-image slot
+    /// and behaves exactly as it did.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasVideo))]
+    public partial string VideoPath { get; set; }
+    partial void OnVideoPathChanged(string value) => RaiseChanged();
+
+    /// <summary>Display name of the chosen clip, for the settings UI.</summary>
+    [ObservableProperty]
+    public partial string VideoName { get; set; }
+
+    /// <summary>
+    /// Frame rate to play the clip at. The scheduler clamps this to its global limit, and the real
+    /// ceiling is the serial panel write (~27 ms per frame on a 480×270 panel), so values far above
+    /// 30 buy nothing.
+    /// </summary>
+    [ObservableProperty]
+    public partial int VideoFps { get; set; } = 30;
+    partial void OnVideoFpsChanged(int value) => RaiseChanged();
 
     [ObservableProperty]
     public partial int Scaling { get; set; } = 100;
@@ -84,6 +115,14 @@ public partial class WallpaperSlot
     public bool HasImage => !string.IsNullOrWhiteSpace(AssetPath);
 
     /// <summary>
+    /// Whether this slot plays a clip. It wins over <see cref="HasImage"/> when both are set; the
+    /// still image is kept rather than cleared, so removing the clip restores it — and it is what
+    /// the slot falls back to when ffmpeg is unavailable.
+    /// </summary>
+    [JsonIgnore]
+    public bool HasVideo => !string.IsNullOrWhiteSpace(VideoPath);
+
+    /// <summary>
     /// Raised whenever a property that affects the rendered result changes, so the
     /// owning <see cref="TouchButtonPage"/> can ask the controller to repaint.
     /// </summary>
@@ -102,6 +141,9 @@ public partial class WallpaperSlot
     public WallpaperSlot Clone() => new()
     {
         AssetPath = AssetPath,
+        VideoPath = VideoPath,
+        VideoName = VideoName,
+        VideoFps = VideoFps,
         Scaling = Scaling,
         PositionX = PositionX,
         PositionY = PositionY,
@@ -115,6 +157,9 @@ public partial class WallpaperSlot
     {
         if (other == null) return;
         AssetPath = other.AssetPath;
+        VideoPath = other.VideoPath;
+        VideoName = other.VideoName;
+        VideoFps = other.VideoFps;
         Scaling = other.Scaling;
         PositionX = other.PositionX;
         PositionY = other.PositionY;
@@ -127,6 +172,9 @@ public partial class WallpaperSlot
     public void Clear()
     {
         AssetPath = null;
+        VideoPath = null;
+        VideoName = null;
+        VideoFps = 30;
         Scaling = 100;
         PositionX = 0;
         PositionY = 0;
