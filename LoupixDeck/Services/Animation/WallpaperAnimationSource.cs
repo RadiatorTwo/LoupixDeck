@@ -54,7 +54,8 @@ public sealed class WallpaperAnimationSource : IAnimationSource, IDisposable
         LoupedeckDevice.Device.LoupedeckDevice device,
         LoupedeckConfig config,
         string absoluteVideoPath,
-        int fps)
+        int fps,
+        BitmapHelper.ScalingOption scaling)
     {
         _device = device;
         _config = config;
@@ -62,7 +63,7 @@ public sealed class WallpaperAnimationSource : IAnimationSource, IDisposable
         _fps = Math.Clamp(fps <= 0 ? 30 : fps, 1, 120);
 
         _stream = new VideoFrameStream(absoluteVideoPath, _geometry.PanelWidth, _geometry.PanelHeight,
-            _fps, loop: true, _debug, "[Wallpaper]");
+            _fps, loop: true, _debug, "[Wallpaper]", scaling);
         _writer = new FullDisplayFrameWriter(device, _debug, "[Wallpaper]");
 
         var keySize = device.KeyCalibration.KeySize;

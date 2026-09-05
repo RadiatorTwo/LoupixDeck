@@ -2,6 +2,8 @@ using System.Buffers;
 using System.Diagnostics;
 using System.Threading.Channels;
 
+using LoupixDeck.Utils;
+
 namespace LoupixDeck.Services.Animation;
 
 /// <summary>
@@ -115,7 +117,8 @@ public sealed class VideoFrameStream : IDisposable
         int fps,
         bool loop,
         bool debug = false,
-        string logPrefix = "[Video]")
+        string logPrefix = "[Video]",
+        BitmapHelper.ScalingOption scaling = BitmapHelper.ScalingOption.Stretch)
     {
         _absoluteVideoPath = absoluteVideoPath;
         _frameWidth = frameWidth;
@@ -124,6 +127,44 @@ public sealed class VideoFrameStream : IDisposable
         _loop = loop;
         _debug = debug;
         _logPrefix = logPrefix;
+        _scaling = scaling;
+    }
+
+    /// <summary>
+    /// How the clip is fitted to the frame. Only three of the options mean anything for video and
+    /// the rest are treated as <see cref="BitmapHelper.ScalingOption.Stretch"/>:
+    /// <list type="bullet">
+    ///   <item><b>Fit</b> — whole clip visible, aspect ratio kept, letterboxed with black.</item>
+    ///   <item><b>Fill</b> — panel filled, aspect ratio kept, overflow cropped.</item>
+    ///   <item><b>Stretch</b> — distorted to fill the panel exactly (the default, and what every
+    ///         caller got before this parameter existed).</item>
+    /// </list>
+    /// Fitting happens in ffmpeg rather than in the compositor on purpose: the scaler runs in the
+    /// decode process, off the frame budget, and the consumer keeps receiving exactly
+    /// <see cref="FrameBytes"/> per frame whatever the source aspect ratio is.
+    /// </summary>
+    private readonly BitmapHelper.ScalingOption _scaling;
+
+    /// <summary>
+    /// The <c>-vf</c> chain. <c>force_original_aspect_ratio</c> alone leaves the frame the wrong
+    /// size, so Fit pads and Fill crops back to the exact panel size — the reader depends on a
+    /// fixed frame length.
+    /// </summary>
+    private string BuildScaleFilter()
+    {
+        var w = _frameWidth;
+        var h = _frameHeight;
+
+        return _scaling switch
+        {
+            BitmapHelper.ScalingOption.Fit =>
+                $"scale={w}:{h}:force_original_aspect_ratio=decrease:flags=fast_bilinear," +
+                $"pad={w}:{h}:(ow-iw)/2:(oh-ih)/2:black",
+            BitmapHelper.ScalingOption.Fill =>
+                $"scale={w}:{h}:force_original_aspect_ratio=increase:flags=fast_bilinear," +
+                $"crop={w}:{h}",
+            _ => $"scale={w}:{h}:flags=fast_bilinear",
+        };
     }
 
     /// <summary>Size of exactly one decoded frame. Frame buffers may be larger (pooled).</summary>
@@ -189,7 +230,7 @@ public sealed class VideoFrameStream : IDisposable
             $"-hide_banner -loglevel {logLevel} " +
             $"-probesize 500000 -analyzeduration 0 {paceArg}" +
             $"{loopArg}-i \"{_absoluteVideoPath}\" " +
-            $"-an -f rawvideo -r {_fps} -pix_fmt bgra -vf scale={_frameWidth}:{_frameHeight}:flags=fast_bilinear -";
+            $"-an -f rawvideo -r {_fps} -pix_fmt bgra -vf {BuildScaleFilter()} -";
 
         if (_debug)
             Console.WriteLine($"{_logPrefix} ffmpeg {args}");

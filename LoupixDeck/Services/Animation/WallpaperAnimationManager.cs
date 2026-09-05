@@ -44,6 +44,7 @@ public sealed class WallpaperAnimationManager : IWallpaperAnimationManager, IDis
     private WallpaperSlot _watchedSlot;
     private string _playingPath;
     private int _playingFps;
+    private BitmapHelper.ScalingOption _playingScaling;
 
     // So a missing file or a missing ffmpeg is reported once per clip rather than per page change.
     private string _lastReportedProblemPath;
@@ -140,8 +141,12 @@ public sealed class WallpaperAnimationManager : IWallpaperAnimationManager, IDis
         if (slot == null) return;
 
         var path = slot.HasVideo ? slot.VideoPath : null;
-        if (path == _playingPath && slot.VideoFps == _playingFps) return;
+        if (path == _playingPath &&
+            slot.VideoFps == _playingFps &&
+            slot.ScalingOption == _playingScaling) return;
 
+        // The fps and the fit are baked into ffmpeg's arguments at spawn, so either one changing
+        // means a restart. Opacity is not: the overlay reads it live per frame.
         Rebuild();
     }
 
@@ -177,7 +182,8 @@ public sealed class WallpaperAnimationManager : IWallpaperAnimationManager, IDis
             return;
         }
 
-        var source = new WallpaperAnimationSource(device, _config, slot.VideoPath, slot.VideoFps);
+        var source = new WallpaperAnimationSource(device, _config, slot.VideoPath, slot.VideoFps,
+            slot.ScalingOption);
         if (!source.Start())
         {
             source.Dispose();
@@ -187,6 +193,7 @@ public sealed class WallpaperAnimationManager : IWallpaperAnimationManager, IDis
         _source = source;
         _playingPath = slot.VideoPath;
         _playingFps = slot.VideoFps;
+        _playingScaling = slot.ScalingOption;
         _lastReportedProblemPath = null;
 
         UpdateEnabled();
