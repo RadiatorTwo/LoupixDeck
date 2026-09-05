@@ -36,6 +36,7 @@ public partial class LoupedeckLiveSController(
     IAssetService assetService,
     INativeHapticService nativeHapticService,
     Services.Animation.IAnimationScheduler animationScheduler,
+    Services.Animation.IWallpaperAnimationManager wallpaperAnimation,
     Services.Screensaver.IScreensaverManager screensaver,
     LoupedeckConfig config,
     DeviceRegistry.DeviceInfo deviceInfo,
@@ -518,6 +519,10 @@ public partial class LoupedeckLiveSController(
         var buttons = config.CurrentTouchButtonPage?.TouchButtons;
         if (device == null || buttons == null) return;
 
+        // A video wallpaper repaints the whole panel itself; pushing the keys separately would
+        // only tear against it.
+        if (wallpaperAnimation.TryRedirectPageRedraw()) return;
+
         if (device.KeyGridHasGaps)
         {
             await device.DrawTouchGridRegion(buttons, config);
@@ -547,7 +552,11 @@ public partial class LoupedeckLiveSController(
             // A grid with gaps repaints as one region, otherwise whatever was drawn between
             // the keys (a test pattern, the previous page) survives the repaint. The region
             // stops at the grid, so a provider's side strips are untouched either way.
-            if (device.KeyGridHasGaps)
+            if (wallpaperAnimation.TryRedirectPageRedraw())
+            {
+                // The clip's next frame carries the repainted keys.
+            }
+            else if (device.KeyGridHasGaps)
             {
                 await device.DrawTouchGridRegion(config.CurrentTouchButtonPage.TouchButtons, config);
             }
@@ -2190,9 +2199,12 @@ public partial class LoupedeckLiveSController(
             else
             {
                 // Folder mode left — restore the configured page.
-                foreach (var touchButton in config.CurrentTouchButtonPage.TouchButtons)
+                if (!wallpaperAnimation.TryRedirectPageRedraw())
                 {
-                    await device.DrawTouchButton(touchButton, config, true);
+                    foreach (var touchButton in config.CurrentTouchButtonPage.TouchButtons)
+                    {
+                        await device.DrawTouchButton(touchButton, config, true);
+                    }
                 }
 
                 await RedrawSideStrips();
@@ -2379,10 +2391,13 @@ public partial class LoupedeckLiveSController(
             {
                 case nameof(TouchButtonPage.WallpaperInvalidated):
                     await Task.Delay(100, token); // Debounce
-                    foreach (var touchButton in config.CurrentTouchButtonPage.TouchButtons)
+                    if (!wallpaperAnimation.TryRedirectPageRedraw())
                     {
-                        await deviceService.Device.DrawTouchButton(touchButton, config, true);
-                        await Task.Delay(0, token);
+                        foreach (var touchButton in config.CurrentTouchButtonPage.TouchButtons)
+                        {
+                            await deviceService.Device.DrawTouchButton(touchButton, config, true);
+                            await Task.Delay(0, token);
+                        }
                     }
                     // The side strips share the wallpaper — repaint them too.
                     await RedrawSideStrips();
@@ -2408,6 +2423,10 @@ public partial class LoupedeckLiveSController(
         var button = config.CurrentTouchButtonPage.TouchButtons.FirstOrDefault(b => b.Index == item.Index);
 
         if (button == null) return;
+
+        // While a clip plays behind the keys, the key is re-rendered into the next video frame's
+        // overlay rather than pushed on its own — a partial write racing a full-panel push tears.
+        if (wallpaperAnimation.TryRedirectButtonRedraw(button.Index)) return;
 
         await deviceService.Device.DrawTouchButton(button, config, true);
     }

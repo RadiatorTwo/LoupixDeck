@@ -89,9 +89,25 @@ public sealed class WallpaperAnimationManager : IWallpaperAnimationManager, IDis
         Rebuild();
     }
 
-    public void InvalidateButton(int index) => _source?.InvalidateButton(index);
+    public bool TryRedirectButtonRedraw(int index)
+    {
+        var source = _source;
+        if (source is not { IsActive: true }) return false;
 
-    public void InvalidateAllButtons() => _source?.InvalidateAllButtons();
+        source.InvalidateButton(index);
+        _scheduler.RequestFrame(source);
+        return true;
+    }
+
+    public bool TryRedirectPageRedraw()
+    {
+        var source = _source;
+        if (source is not { IsActive: true }) return false;
+
+        source.InvalidateAllButtons();
+        _scheduler.RequestFrame(source);
+        return true;
+    }
 
     private void OnTouchPageChanged(int previous, int current) => Rebuild();
 

@@ -171,7 +171,7 @@ its still image, or to no wallpaper — logged once, never an error dialog.
 | 3 — Overlay hook in `FullDisplayFrameWriter` | done | `85eaf17` |
 | 4 — Split `RenderTouchButtonContent` | done | `f15b9b3` |
 | 5 — Playback (model, cache, source, manager, DI) | done | `43e5f42`, `609cbac` |
-| 6 — Button animations into the foreground cache | open | — |
+| 6 — Button animations into the foreground cache | done | this commit |
 | 7 — Settings UI | open | — |
 
 Nothing is pushed. Branch `feature/animated-wallpaper`, based on `origin/master` @ `721d0c5`.
@@ -251,16 +251,35 @@ over the video on its column; and the dim covers the whole panel rather than eac
 because a video fills the panel edge to edge and per-key dimming would leave bright seams in a
 gapped grid.
 
-### Phase 6 — Button animations into the foreground cache — open
+### Phase 6 — Button animations into the foreground cache — done
 
-**This is also where the currently known gap gets closed.** Per-button pushes are not yet
-redirected, so while a clip plays, a key whose content changes still writes itself directly via
-`DrawTouchButton` and is then overwritten by the next video frame — visible as a flicker. And only
-page changes invalidate cached foregrounds so far; `IWallpaperAnimationManager.InvalidateButton`
-exists for this phase to call from wherever a key is re-rendered.
+`IWallpaperAnimationManager` exposes two guards rather than the bare invalidation hooks it had
+before: `TryRedirectButtonRedraw(index)` and `TryRedirectPageRedraw()`. Each returns false when no
+clip is playing — or while playback is paused for a screensaver, a takeover or folder navigation —
+and the caller then does exactly the partial push it always did. When a clip *is* playing they drop
+the key's (or every key's) cached foreground, request a frame, and return true, so the key is
+re-rendered into the next video frame's overlay instead of racing it.
 
-*Verify:* an animated button layer and a video wallpaper run together with no tearing; with the
-video off, the old partial-push path is unchanged.
+Redirected callers:
+
+- `ButtonAnimationSource` — the animated image layers and animated plugin commands. Their layer
+  mutation (`SetAnimationFrame` / `SetAnimationBitmap`) is unchanged; only the push is redirected,
+  so animated buttons and an animated wallpaper now run together at the panel's rate.
+- `LoupedeckLiveSController.TouchItemChanged` — the per-button path every content change funnels
+  through (dynamic text, plugin state).
+- The controller's three recurring whole-page repaints: `DrawCurrentTouchPageButtons`,
+  the folder-mode-left restore, and the debounced `WallpaperInvalidated` handler.
+
+One-shot restores that a video frame overwrites anyway are deliberately left alone — the touch
+flash, `DeviceService.ShowTemporaryTextButton`, the benchmark repaint, and `PageManager`'s
+page-change draw (the manager tears playback down and rebuilds on that event regardless). Guarding
+`PageManager` or `DeviceService` would also introduce a DI cycle, since the manager depends on both.
+
+*Verified* on the Razer Stream Controller with a 3 s clip and a 10 fps animated GIF layer on key 0
+plus text layers on keys 1–3: 30.0 fps sustained across every measurement window, 0 dropped frames,
+overlay avg 0.0–0.1 ms, and one redirect per GIF frame (240 redirects in ~25 s — i.e. every
+animated-button push went through the overlay, none to the panel). With the clip removed from the
+slot: zero redirects, no wallpaper source, no errors — the old path unchanged.
 
 ### Phase 7 — Settings UI — open
 

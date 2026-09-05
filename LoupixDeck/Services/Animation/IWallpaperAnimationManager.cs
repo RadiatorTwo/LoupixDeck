@@ -13,9 +13,14 @@ public interface IWallpaperAnimationManager
     /// <summary>Whether a clip is currently being played behind the keys.</summary>
     bool IsPlaying { get; }
 
-    /// <summary>Re-renders one key on the next frame, after its content changed.</summary>
-    void InvalidateButton(int index);
+    /// <summary>
+    /// Takes one key's redraw over while a clip is playing: the key is re-rendered into the
+    /// overlay of the next video frame instead of being pushed on its own, because a partial
+    /// write racing a full-panel push tears. Returns false when no clip is playing, and the
+    /// caller then does its normal partial push.
+    /// </summary>
+    bool TryRedirectButtonRedraw(int index);
 
-    /// <summary>Re-renders every key on the next frame.</summary>
-    void InvalidateAllButtons();
+    /// <summary>The whole-page equivalent, for a repaint that would push every key.</summary>
+    bool TryRedirectPageRedraw();
 }
