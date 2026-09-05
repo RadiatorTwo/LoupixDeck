@@ -1,4 +1,5 @@
 using LoupixDeck.Models;
+using LoupixDeck.Models.Extensions;
 using LoupixDeck.PluginSdk;
 using LoupixDeck.Services.FolderNavigation;
 using LoupixDeck.Services.Plugins;
@@ -97,6 +98,7 @@ public sealed class WallpaperAnimationManager : IWallpaperAnimationManager, IDis
 
         source.InvalidateButton(index);
         _scheduler.RequestFrame(source);
+        RefreshUiMirror(_config?.CurrentTouchButtonPage?.TouchButtons?.FindByIndex(index));
         return true;
     }
 
@@ -107,7 +109,31 @@ public sealed class WallpaperAnimationManager : IWallpaperAnimationManager, IDis
 
         source.InvalidateAllButtons();
         _scheduler.RequestFrame(source);
+
+        var buttons = _config?.CurrentTouchButtonPage?.TouchButtons;
+        if (buttons != null)
+        {
+            foreach (var button in buttons) RefreshUiMirror(button);
+        }
+
         return true;
+    }
+
+    /// <summary>
+    /// Re-renders one key's UI mirror (<see cref="TouchButton.RenderedImage"/>).
+    ///
+    /// The redirect above hands the key to the video overlay, which reaches the device but never
+    /// touches that bitmap — only <c>DrawTouchButton</c> publishes it, and the redirect is what
+    /// replaces that call. Without this the window keeps showing the key as it looked before the
+    /// edit for as long as the clip plays, while the device already shows the new layers.
+    /// </summary>
+    private void RefreshUiMirror(TouchButton button)
+    {
+        var device = _deviceService?.Device;
+        if (button == null || device == null || _config == null) return;
+
+        BitmapHelper.RenderTouchButtonContent(button, _config, device.KeySize, device.KeySize,
+            device.GetWallpaperKeyRect(button.Index));
     }
 
     private void OnTouchPageChanged(int previous, int current) => Rebuild();
