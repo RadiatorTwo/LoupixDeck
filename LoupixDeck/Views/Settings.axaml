@@ -409,10 +409,14 @@
                                         <DataTemplate DataType="m:TouchButtonPage">
                                             <Border Background="{DynamicResource AppSurfaceAlt}" CornerRadius="4" Padding="8" Margin="0,0,0,6">
                                                 <Grid ColumnDefinitions="80,*,Auto,Auto,Auto,Auto,Auto,Auto">
-                                                    <Border Grid.Column="0" BorderBrush="{DynamicResource AppBorderSubtle}" BorderThickness="1" CornerRadius="3" Height="40">
+                                                    <Border Grid.Column="0" BorderBrush="{DynamicResource AppBorderSubtle}" BorderThickness="1" CornerRadius="3" Height="40"
+                                                            ToolTip.Tip="{Binding PageName}">
                                                         <Image Source="{Binding Wallpaper, Converter={StaticResource SkiaToBitmapConverter}}" Stretch="UniformToFill" />
                                                     </Border>
-                                                    <TextBlock Grid.Column="1" Text="{Binding PageName}" VerticalAlignment="Center" Margin="10,0,0,0" />
+                                                    <!-- No page name here: the row carries seven action
+                                                         buttons and the name only ever showed a clipped
+                                                         fragment. The thumbnail identifies the row; the
+                                                         name is on its tooltip. -->
                                                     <Button Grid.Column="2" Classes="row-action" ToolTip.Tip="Edit wallpaper"
                                                             Command="{Binding $parent[Window].DataContext.EditWallpaperCommand}"
                                                             CommandParameter="{Binding}">
