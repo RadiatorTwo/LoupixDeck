@@ -79,7 +79,22 @@ public sealed class PluginReloadService : IPluginReloadService
     public Task<PluginActionResult> EnableAsync(string pluginId) => RunAsync(async () =>
     {
         EnsureEnabled(pluginId); // gate in LoadOne reads EnabledPlugins live
-        var loaded = _pluginManager.LoadPlugin(pluginId);
+
+        // Plugins are process-wide (loaded once, shared by every device), while the enabled
+        // set is per device. When another device already had this plugin enabled it is
+        // running right now, and reloading it would shut that live instance down — every
+        // other device's buttons would keep calling into the dead one until something
+        // rebuilt their registries. Nothing has to load here; only this device's view of
+        // the command list changes.
+        var loaded = Find(pluginId);
+        if (loaded is { Status: PluginLoadStatus.Loaded })
+        {
+            await RefreshAsync();
+            return PluginActionResult.Ok($"Enabled '{Name(loaded, pluginId)}'.", requiresRestart: false,
+                pluginId: pluginId);
+        }
+
+        loaded = _pluginManager.LoadPlugin(pluginId);
         await RefreshAsync();
 
         if (loaded == null)
@@ -103,7 +118,14 @@ public sealed class PluginReloadService : IPluginReloadService
         // the list and remains re-enableable, instead of vanishing.
         TearDownOwnership(plugin);
         RemoveEnabled(pluginId);
-        _pluginManager.LoadPlugin(pluginId);
+
+        // Another device may still enable it. The plugin then has to stay loaded and
+        // running for that device — unloading it here would leave its buttons dead until
+        // a restart. This device's registry rebuild alone drops the commands, because
+        // PluginCommandProvider filters by the per-device enabled set.
+        if (!_pluginManager.IsEnabledOnAnyDevice(pluginId))
+            _pluginManager.LoadPlugin(pluginId);
+
         await RefreshAsync();
 
         return PluginActionResult.Ok($"Disabled '{name}'.", requiresRestart: false, pluginId: pluginId);
