@@ -213,6 +213,7 @@ Common button options:
 - `Run while device is off`: lets the button still run while the device display is blanked by LoupixDeck.
 - `Vibration enabled`: enables feedback for that button.
 - `Pattern`: chooses the haptic/vibration pattern.
+- `Background`: draws the selected state's background color below its layers. Turn it off to leave the key bare, so the page wallpaper shows through.
 - Layers: controls what the button looks like.
 - States: lets a button change between multiple visual/action states.
 - Command sequence: controls what the button does when pressed.
@@ -265,9 +266,11 @@ An image layer can also show an animation. This is a property of a normal image 
 
 Text and symbol layers can still sit on top of an animated image layer.
 
+Plugin-rendered layers normally belong to the command that created them and are removed by unbinding that command. If an old render leaves behind a plugin layer whose command is no longer bound to the button, you can select and delete that leftover layer in the editor.
+
 ## Button States
 
-Touch buttons can have multiple states. This is useful for toggles, mode buttons, and buttons that should visually change after being pressed.
+Touch buttons can have multiple states. State-capable physical/LED buttons use the same model, with a per-state LED color instead of touch layers. This is useful for toggles, mode buttons, and buttons that should visually change after being pressed.
 
 In the touch button editor you can:
 
@@ -278,6 +281,8 @@ In the touch button editor you can:
 - Delete a state.
 - Give each state its own layers and command sequence.
 
+Each state also has its own background color and `Background` checkbox. When enabled, the color covers the page wallpaper on that key. When disabled, the wallpaper shows through; if the page has no wallpaper, the key is shown as black in both the app and on the device. Existing configurations are migrated automatically: a deliberately chosen color stays enabled, while an untouched default background stays visually unchanged.
+
 The `Transition after press` setting controls what happens when you press the button:
 
 - Stay in the current state.
@@ -286,6 +291,10 @@ The `Transition after press` setting controls what happens when you press the bu
 - Return to the default state.
 
 The transition is applied immediately at press time, using the state that was active for that press. The command sequence then continues running separately. This means a long macro, a macro with a delay, or an endless repeat loop does not keep the old visual state on screen until the command finishes. It also prevents a late transition from undoing a newer press. For example, a start/stop macro pair now changes state and works in two presses, even when one macro keeps running.
+
+Some plugin commands declare the states they need. Assigning one of these commands creates exactly those states, selects the first one, and switches the button to externally controlled state changes. Existing states are reused in order where possible, so layers you already built on them are preserved.
+
+While the command manages the states, the state list, names, order, default, transitions, and reset rules are locked and the editor shows `States are managed by the assigned command`. You can still select each state and edit, move, hide, or arrange its layers. Removing or replacing the owning command asks whether to keep the generated states as normal editable states or discard them and return to a single state. Closing that prompt keeps the states.
 
 ## Commands and Command Sequences
 
@@ -304,6 +313,8 @@ To assign commands:
 9. Use remove or clear to delete commands.
 
 The picker shows the selected group's commands at full panel height. Rows use a compact two-line layout with an accent bar and separators. The footer identifies the selected command; `+ Add` stays disabled until a command is selected. Search with `Ctrl+K` still filters across all groups, including nested plugin commands, and shows each result's group path.
+
+Plugin commands appear in the order in which the plugin registers them, so related toggle and one-way actions can stay together instead of being sorted arbitrarily.
 
 Built-in command groups include:
 
@@ -471,6 +482,18 @@ Touch pages can have wallpapers. Go to `Settings > Pages`, then use the wallpape
 
 Wallpapers are separate from button layers. They are best for page-wide context, such as a color theme, app logo, or background image. Button layers still sit on top.
 
+The main wallpaper can be a still image or a video clip. Select the main panel in `Edit Wallpaper`, press `Select`, and choose an image or a supported video such as MP4, WebM, MOV, MKV, M4V, or AVI. Video wallpaper options include frame rate, opacity, and three fitting modes:
+
+- `Fit` preserves the aspect ratio and letterboxes the clip.
+- `Fill` preserves the aspect ratio and crops the overflow.
+- `Stretch` distorts the clip to fill the panel.
+
+On devices with side displays, the main clip also covers those columns. A still wallpaper assigned directly to a side display remains on top of the video for that side. Side-display wallpaper slots accept still images, not separate video clips.
+
+Video wallpapers need `ffmpeg` on your system `PATH`. If `ffmpeg` or the selected clip is unavailable, LoupixDeck keeps using the slot's still image and logs the problem once. Short looping clips that are at most 15 seconds long and fit within the 96 MB decoded-frame cache are decoded once for a seamless loop; longer or larger clips stream through `ffmpeg` instead.
+
+Buttons keep updating over the playing clip, including animated button layers. Playback pauses while a screensaver, plugin full-display takeover, folder, or exclusive touch-grid renderer owns the display. It is stopped when you change to another page, so pages without video render and use resources exactly as before.
+
 ## Feedback and Haptics
 
 Open `Settings > Feedback` to configure touch feedback and haptics. Touch buttons also have per-button vibration controls when the connected device supports vibration.
@@ -584,6 +607,20 @@ The current binary installation includes these plugin manifests:
 Plugins can add commands, dynamic text, settings pages, folders, side-strip providers, or special integration behavior. The exact command names depend on the installed plugin version and what external app or service is configured.
 
 Plugins can also provide default values for command settings. In current bundled plugins, some Audio, Elgato, and Spotify commands use this for editable step sizes, so a rotary can move volume, light brightness, or a Spotify value faster or slower without special syntax.
+
+On a multi-device setup, plugin button-state reads, state changes, and refresh requests apply across every device on which that plugin is enabled. A stateful plugin button on a secondary device therefore stays synchronized just like one on the primary device.
+
+### OBS Studio
+
+The bundled OBS plugin reports recording, replay-buffer, virtual-camera, streaming, and studio-mode status live through obs-websocket. Buttons using the corresponding toggle commands follow changes made inside OBS and resynchronize after either OBS or LoupixDeck restarts.
+
+`Toggle Recording`, `Toggle Replay Buffer`, `Toggle Streaming`, `Toggle Virtual Camera`, and `Toggle Studio Mode` are stateful commands. Assigning one creates its button states automatically and draws the current-state indicator over your own background and layers. The matching one-way actions, such as `Start Recording` or `Stop Recording`, remain ordinary commands because they do not represent both sides of a toggle. `Pause Recording` resumes a paused recording when used again.
+
+OBS commands are grouped by recording, replay buffer, streaming, virtual camera, and studio mode, with each toggle followed by its one-way actions. New actions include stream start/stop, studio-mode toggle, and `Trigger Transition`. The command picker also provides dynamic folders for:
+
+- `Scenes` and `Preview Scenes`, including `Set Preview Scene` in the latter.
+- `Audio`, with mute, unmute, and toggle-mute commands for each input.
+- `Sources`, grouped first by scene and then by source, with show, hide, and toggle commands.
 
 ### Monitoring Plugins
 
@@ -827,6 +864,14 @@ Recording needs read access to `/dev/input/event*`. The installer attempts to ha
 - Try a lower FPS limit.
 - Test with a simple local video file.
 - For a plugin source: make sure the plugin is still installed and enabled in `Settings > Plugins`, and that it is selected in the screensaver picker.
+
+### Video wallpaper does not play
+
+- Make sure the clip is assigned to the page's main wallpaper rather than a left or right side slot.
+- Install `ffmpeg` and make sure it is on `PATH`.
+- Check that the selected video file still exists at its saved path.
+- If one side remains static, check whether that side has its own still wallpaper, which intentionally appears over the main clip.
+- Leave a screensaver, plugin display takeover, folder, or other exclusive touch-grid view; wallpaper playback pauses while one of them owns the display.
 
 ### Profile Rules do not work on Linux
 
