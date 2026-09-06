@@ -68,6 +68,12 @@ jobs:
           repository: RadiatorTwo/LoupixDeck.Plugin.SpotifyPremium
           path: src/LoupixDeck.Plugin.SpotifyPremium
 
+      - name: Checkout LinuxHwInfo plugin
+        uses: actions/checkout@v5
+        with:
+          repository: RadiatorTwo/LoupixDeck.Plugin.LinuxHWInfo
+          path: src/LoupixDeck.Plugin.LinuxHwInfo
+
       - name: Setup .NET SDK
         uses: actions/setup-dotnet@v5
         with:
@@ -99,7 +105,8 @@ jobs:
             LoupixDeck.Plugin.LibreHardwareMonitor \
             LoupixDeck.Plugin.Audio \
             LoupixDeck.Plugin.Argus \
-            LoupixDeck.Plugin.SpotifyPremium
+            LoupixDeck.Plugin.SpotifyPremium \
+            LoupixDeck.Plugin.LinuxHwInfo
           do
             echo "::group::Building $repo"
             manifest="src/$repo/plugin.json"
