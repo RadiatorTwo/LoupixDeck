@@ -1,5 +1,6 @@
 using System.Runtime.Loader;
 using Avalonia.Threading;
+using Microsoft.Extensions.DependencyInjection;
 using LoupixDeck.Controllers;
 using LoupixDeck.Services.Commands;
 using LoupixDeck.Services.FolderNavigation;
@@ -44,6 +45,10 @@ public sealed class PluginReloadService : IPluginReloadService
     private readonly IPluginInstaller _installer;
     private readonly Models.LoupedeckConfig _config;
 
+    // Plugins are process-wide while every service this class refreshes is per device, so a
+    // real load/unload has to reach the other running devices too — not just this one.
+    private readonly IDeviceHostRegistry _hostRegistry;
+
     private readonly SemaphoreSlim _gate = new(1, 1);
 
     public PluginReloadService(
@@ -59,7 +64,8 @@ public sealed class PluginReloadService : IPluginReloadService
         IDeviceController deviceController,
         Screensaver.IScreensaverManager screensaver,
         IPluginInstaller installer,
-        Models.LoupedeckConfig config)
+        Models.LoupedeckConfig config,
+        IDeviceHostRegistry hostRegistry)
     {
         _pluginManager = pluginManager;
         _commandRegistry = commandRegistry;
@@ -74,6 +80,7 @@ public sealed class PluginReloadService : IPluginReloadService
         _screensaver = screensaver;
         _installer = installer;
         _config = config;
+        _hostRegistry = hostRegistry;
     }
 
     public Task<PluginActionResult> EnableAsync(string pluginId) => RunAsync(async () =>
@@ -95,7 +102,7 @@ public sealed class PluginReloadService : IPluginReloadService
         }
 
         loaded = _pluginManager.LoadPlugin(pluginId);
-        await RefreshAsync();
+        await RefreshAllAsync();
 
         if (loaded == null)
             return PluginActionResult.Fail($"Could not find plugin '{pluginId}'.");
@@ -116,17 +123,25 @@ public sealed class PluginReloadService : IPluginReloadService
         // then re-resolve: with the flag off, LoadPlugin re-adds a Disabled entry
         // (no context) after unloading the live one — so the plugin stays visible in
         // the list and remains re-enableable, instead of vanishing.
-        TearDownOwnership(plugin);
         RemoveEnabled(pluginId);
 
         // Another device may still enable it. The plugin then has to stay loaded and
         // running for that device — unloading it here would leave its buttons dead until
         // a restart. This device's registry rebuild alone drops the commands, because
         // PluginCommandProvider filters by the per-device enabled set.
-        if (!_pluginManager.IsEnabledOnAnyDevice(pluginId))
-            _pluginManager.LoadPlugin(pluginId);
+        bool unloads = !_pluginManager.IsEnabledOnAnyDevice(pluginId);
 
-        await RefreshAsync();
+        if (unloads)
+        {
+            TearDownOwnershipEverywhere(plugin);
+            _pluginManager.LoadPlugin(pluginId);
+            await RefreshAllAsync();
+        }
+        else
+        {
+            TearDownOwnership(plugin);
+            await RefreshAsync();
+        }
 
         return PluginActionResult.Ok($"Disabled '{name}'.", requiresRestart: false, pluginId: pluginId);
     });
@@ -145,19 +160,19 @@ public sealed class PluginReloadService : IPluginReloadService
         var existing = Find(id);
         if (existing is { Status: PluginLoadStatus.Loaded })
         {
-            TearDownOwnership(existing);
+            TearDownOwnershipEverywhere(existing);
             _pluginManager.UnloadPlugin(id);
         }
 
         if (result.RequiresRestart)
         {
             // Staged update — old is unloaded (commands gone), new files swap on restart.
-            await RefreshAsync();
+            await RefreshAllAsync();
             return result;
         }
 
         var loaded = _pluginManager.LoadPlugin(id);
-        await RefreshAsync();
+        await RefreshAllAsync();
 
         var name = loaded != null ? Name(loaded, id) : id;
         if (loaded?.Status == PluginLoadStatus.Loaded)
@@ -173,13 +188,22 @@ public sealed class PluginReloadService : IPluginReloadService
         var id = plugin?.Manifest?.Id;
 
         // Tear down + unload live so commands stop now.
-        TearDownOwnership(plugin);
+        TearDownOwnershipEverywhere(plugin);
         if (!string.IsNullOrWhiteSpace(id))
             _pluginManager.UnloadPlugin(id);
 
-        // Drop every remaining reference into the old context — the registry's
-        // RegisteredCommands and the dynamic-text entries — BEFORE nudging the GC,
-        // otherwise the assembly stays rooted and the folder can't be deleted live.
+        // Drop every remaining reference into the old context — the registries'
+        // RegisteredCommands and the dynamic-text entries, on EVERY device — BEFORE
+        // nudging the GC, otherwise the assembly stays rooted and the folder can't be
+        // deleted live.
+        foreach (var host in OtherHosts())
+        {
+            host.Provider.GetRequiredService<ICommandRegistry>().Initialize();
+            host.Provider.GetRequiredService<IDynamicTextManager>().Rescan();
+            host.Provider.GetRequiredService<Animation.IButtonAnimationManager>().Rescan();
+            host.Provider.GetRequiredService<Animation.ISideDisplayAnimationManager>().Rescan();
+        }
+
         _commandRegistry.Initialize();
         _dynamicText.Rescan();
         _buttonAnimation.Rescan();
@@ -199,7 +223,7 @@ public sealed class PluginReloadService : IPluginReloadService
             _pluginManager.LoadPlugin(id);
         }
 
-        await RefreshAsync();
+        await RefreshAllAsync();
         return result;
     });
 
@@ -221,31 +245,87 @@ public sealed class PluginReloadService : IPluginReloadService
     }
 
     /// <summary>
+    /// The same refresh on every running device. A plugin that actually loads or unloads
+    /// changes the command objects behind EVERY device's registry, not just this one's:
+    /// without this the other devices keep calling into the old instance until a restart.
+    /// </summary>
+    private async Task RefreshAllAsync()
+    {
+        await RefreshAsync();
+
+        foreach (var host in OtherHosts())
+        {
+            host.Provider.GetRequiredService<ICommandRegistry>().Initialize();
+            host.Provider.GetRequiredService<ISideStripProviderRegistry>().Rebuild();
+            host.Provider.GetRequiredService<IScreensaverProviderRegistry>().Rebuild();
+            host.Provider.GetRequiredService<IDynamicTextManager>().Rescan();
+            host.Provider.GetRequiredService<Animation.IButtonAnimationManager>().Rescan();
+            host.Provider.GetRequiredService<Animation.ISideDisplayAnimationManager>().Rescan();
+            await host.Controller.RedrawCurrentTouchPage();
+            await host.Controller.RefreshSideStrips();
+        }
+    }
+
+    /// <summary>Every running device except the one this service belongs to.</summary>
+    private IEnumerable<DeviceHost> OtherHosts()
+    {
+        foreach (var host in _hostRegistry?.Hosts ?? [])
+        {
+            if (!ReferenceEquals(host.Controller, _deviceController))
+                yield return host;
+        }
+    }
+
+    /// <summary>
     /// Releases references into the plugin's load context so it can actually unload:
     /// exclusive mode if this plugin owns it, and folder navigation entirely if any
     /// folder is open (a plugin adapter chain may be on the stack).
     /// </summary>
-    private void TearDownOwnership(LoadedPlugin plugin)
+    private void TearDownOwnership(LoadedPlugin plugin) =>
+        TearDownOwnership(plugin, _exclusiveMode, _deviceController, _screensaver, _folderNav);
+
+    /// <summary>
+    /// The same teardown on every running device. Each of these services is per device, so
+    /// a strip provider, screensaver or open folder on ANOTHER device roots the load context
+    /// just as well and would keep a real unload from ever completing.
+    /// </summary>
+    private void TearDownOwnershipEverywhere(LoadedPlugin plugin)
+    {
+        TearDownOwnership(plugin);
+
+        foreach (var host in OtherHosts())
+        {
+            TearDownOwnership(plugin,
+                host.Provider.GetRequiredService<IExclusiveModeService>(),
+                host.Controller,
+                host.Provider.GetRequiredService<Screensaver.IScreensaverManager>(),
+                host.Provider.GetRequiredService<IFolderNavigationService>());
+        }
+    }
+
+    private static void TearDownOwnership(LoadedPlugin plugin, IExclusiveModeService exclusiveMode,
+        IDeviceController deviceController, Screensaver.IScreensaverManager screensaver,
+        IFolderNavigationService folderNav)
     {
         if (plugin == null)
             return;
 
-        var current = _exclusiveMode.Current;
+        var current = exclusiveMode.Current;
         if (current != null && Owns(plugin, current))
-            _exclusiveMode.Exit(current);
+            exclusiveMode.Exit(current);
 
         // A live side-strip provider attached to a strip roots this plugin's load
-        // context. Detach all (cheap; RefreshAsync re-attaches the still-loaded ones).
-        _deviceController.DetachAllSideStripProviders();
+        // context. Detach all (cheap; the refresh re-attaches the still-loaded ones).
+        deviceController.DetachAllSideStripProviders();
 
         // A running plugin screensaver holds a live IFullDisplayRenderer, which roots the load
         // context exactly like a strip session does (issue #124). Stop it synchronously — the
         // fire-and-forget stop on the input path would race the unload. StopRunning keeps the
         // idle countdown armed, so the screensaver returns once the provider is back.
-        _screensaver.StopRunning();
+        screensaver.StopRunning();
 
-        if (_folderNav.IsActive)
-            _folderNav.ExitAll().GetAwaiter().GetResult(); // completes synchronously
+        if (folderNav.IsActive)
+            folderNav.ExitAll().GetAwaiter().GetResult(); // completes synchronously
     }
 
     /// <summary>
