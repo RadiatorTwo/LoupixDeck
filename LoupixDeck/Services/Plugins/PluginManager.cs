@@ -40,6 +40,13 @@ public interface IPluginManager
     /// </summary>
     bool UnloadPlugin(string pluginId);
 
+    /// <summary>
+    /// True when ANY running device enables <paramref name="pluginId"/>. Plugins are loaded
+    /// once for the whole process, so this — not one device's config — decides whether the
+    /// plugin has to be loaded at all.
+    /// </summary>
+    bool IsEnabledOnAnyDevice(string pluginId);
+
     /// <summary>Shuts down every loaded plugin and unloads its context.</summary>
     void ShutdownAll();
 }
@@ -777,6 +784,8 @@ public class PluginManager : IPluginManager
             }
         }
     }
+
+    public bool IsEnabledOnAnyDevice(string pluginId) => IsEnabled(pluginId);
 
     private bool IsEnabled(string pluginId)
     {
