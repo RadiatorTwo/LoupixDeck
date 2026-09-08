@@ -104,6 +104,12 @@ public partial class App : Application
 
         try
         {
+            // Free the serial port before we touch the device: the official Loupedeck app and the
+            // Logi plugin service (Logitech now owns Loupedeck) hold the COM port open, and only one
+            // program can own it at a time — while they run, LoupixDeck can't detect the device.
+            // Close them up front. Windows-only, best-effort, never throws.
+            Utils.CompetingSoftware.CloseAll();
+
             // Root container: device-agnostic singletons (OS-level IO, macro store,
             // config/asset IO, shared plugins, the running-device registry). Built once.
             var rootCollection = new ServiceCollection();
