@@ -19,6 +19,20 @@ public interface IDeviceController
     /// </summary>
     bool IsDeviceOff { get; }
 
+    /// <summary>
+    /// True while the device's serial link is open and usable. A device can be present on the
+    /// USB bus yet not connected — e.g. another program held its port at startup — in which case
+    /// the hot-plug reconciler uses this to know a reconnect is needed.
+    /// </summary>
+    bool IsDeviceConnected { get; }
+
+    /// <summary>
+    /// Requests a single background reconnect for a device that is present but whose serial link
+    /// is down (its port was momentarily busy). Non-blocking and self-throttling: a call is
+    /// dropped while another reconnect is already in flight. Safe to call repeatedly.
+    /// </summary>
+    void RequestReconnect();
+
     Task Initialize(string port = null, int baudrate = 0);
     void SaveConfig();
 

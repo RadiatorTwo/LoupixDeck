@@ -14,6 +14,12 @@ public sealed class HotPlugManager : IHotPlugManager
     // watcher won't keep firing on its own).
     private const int ReArmMs = 600;
 
+    // A present-but-disconnected device (its port is held by another program) produces no USB
+    // event when the port finally frees, so keep re-running reconcile on this slower cadence to
+    // retry the reconnect until it succeeds. Slower than ReArmMs because a device scan is not
+    // free and this can run for as long as the other program keeps the port.
+    private const int ReviveMs = 3000;
+
     // A device must be missing from this many consecutive scans before we detach
     // it. Guards against a single failed/raced USB scan tearing a live device down
     // (and smooths a quick unplug→replug, which the device's own auto-reconnect
@@ -131,10 +137,29 @@ public sealed class HotPlugManager : IHotPlugManager
                 Raise(DeviceAttached, device);
             }
 
-            // Self-re-arm while a removal is still being confirmed or a detach is
-            // pending host removal, so we don't depend on another external event.
+            // ── Revive: a present device whose serial link is down. ──
+            // The device is on the bus but its port was taken (e.g. the vendor's own Loupedeck
+            // app grabbed it), so its host stays up with a dead connection. Presence alone never
+            // triggers a reconnect — the attach loop skips it (a host already exists) and freeing
+            // the port raises no USB event. Kick a reconnect from here so that the moment the port
+            // frees we take it over, without a restart and without killing anything. RequestReconnect
+            // is non-blocking and self-throttling (it complements the device's own reconnect loop).
+            var reviving = false;
+            foreach (var host in hosts)
+            {
+                if (!scanKeys.Contains(host.Device.ScopeKey)) continue; // gone — handled by detach
+                if (host.Controller.IsDeviceConnected) continue;        // already live
+                reviving = true;
+                host.Controller.RequestReconnect();
+            }
+
+            // Self-re-arm: while a removal is still being confirmed or a detach is pending host
+            // removal (ReArmMs), or while a present device is still being revived (the slower
+            // ReviveMs), so recovery never depends on another external event.
             if (_missCounts.Count > 0 || _detaching.Count > 0)
                 ScheduleReconcile(ReArmMs);
+            else if (reviving)
+                ScheduleReconcile(ReviveMs);
         }
         finally
         {
