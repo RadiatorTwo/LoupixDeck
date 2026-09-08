@@ -727,6 +727,18 @@ public class LoupedeckDevice
         bool returnDataToPool,
         bool hasReservedWsPrefix)
     {
+        // When the device isn't connected — e.g. another process is momentarily holding the serial
+        // port at startup — skip physical I/O instead of enqueuing a command that can never be acked
+        // and would time out. Making the write a no-op lets Initialize finish building the in-memory
+        // model so the window can open; a later reconnect redraws the device. Without this the
+        // startup timeout aborted device bring-up and shut the whole app down.
+        if (_connection is not { IsReady: true })
+        {
+            if (returnDataToPool)
+                ArrayPool<byte>.Shared.Return(data);
+            return [];
+        }
+
         TaskCompletionSource<byte[]> tcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
         CancellationTokenSource timeoutCts = expectResponse
             ? RentTimeoutCts(timeout!.Value)
