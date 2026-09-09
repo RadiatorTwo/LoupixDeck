@@ -216,14 +216,33 @@ public partial class LoupedeckLiveSController(
         }
     }
 
+    /// <summary>
+    /// Switches the device back on: brightness, LED colours, the current touch page and the
+    /// side strips. The off state is cleared before the push because the draw paths below read
+    /// it, and put back when nothing reached the hardware — a push that dies partway, or one
+    /// onto a link that is down, must not leave the controller convinced the device is on and
+    /// painted. That belief is what makes every later repaint a no-op (issue #195), and here it
+    /// would also make the on/off toggle a dead button: the device stays dark while the
+    /// controller thinks it is on, so pressing again only turns it "off" again.
+    /// </summary>
     public async Task RestoreDeviceState()
     {
         if (!_isDeviceOff) return;
+
+        var wasBlankedForSuspend = _blankedForSuspend;
         _isDeviceOff = false;
         _blankedForSuspend = false;
         // Anything still tracked from before the device went off is stale by definition (#185).
         ReleaseAllPresses();
-        await PushFullState();
+
+        if (await PushFullState()) return;
+
+        // Back to exactly the state we came from. A device blanked by a suspend keeps that mark,
+        // so the next connect still takes it online by itself; a device the user turned off stays
+        // off, and the user can press on again once it is reachable.
+        Console.WriteLine("Switching the device on failed — nothing reached the hardware, staying off.");
+        _isDeviceOff = true;
+        _blankedForSuspend = wasBlankedForSuspend;
     }
 
     /// <summary>
