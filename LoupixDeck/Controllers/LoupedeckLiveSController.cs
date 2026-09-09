@@ -75,6 +75,9 @@ public partial class LoupedeckLiveSController(
     /// <inheritdoc />
     public bool IsDeviceConnected => deviceService.Device?.IsConnected == true;
 
+    /// <inheritdoc />
+    public event EventHandler DeviceConnected;
+
     // 0 = idle, 1 = a reconnect is running. Guards RequestReconnect so overlapping hot-plug
     // ticks (and the device's own auto-reconnect loop) can't pile up port tear-downs.
     private int _reconnectInFlight;
@@ -372,6 +375,10 @@ public partial class LoupedeckLiveSController(
         // that thread and let the link settle before drawing.
         Avalonia.Threading.Dispatcher.UIThread.Post(async () =>
         {
+            // Announced before the settle delay, not after the re-push: a device the shell is
+            // still holding back should appear as soon as it is reachable, and it must appear
+            // even if the re-push then fails.
+            DeviceConnected?.Invoke(this, EventArgs.Empty);
             await Task.Delay(ReconnectSettleMs);
             await ResyncDeviceState();
         });
