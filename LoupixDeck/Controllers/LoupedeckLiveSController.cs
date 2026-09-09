@@ -186,7 +186,9 @@ public partial class LoupedeckLiveSController(
         try
         {
             var device = deviceService.Device;
-            if (device == null) return false;
+            // A device that is not connected discards every write silently (PR #219), so
+            // without this the method would report a blanked device having sent nothing.
+            if (device is not { IsConnected: true }) return false;
             await device.SetBrightness(0);
             if (config.SimpleButtons != null)
             {
@@ -200,7 +202,9 @@ public partial class LoupedeckLiveSController(
             // the software Vibrate() pulse, which only fires on an actual touch, so a dark
             // display never buzzes. The 0x2e disable is intentionally not sent: it wedges
             // the firmware haptic engine / can freeze the display (see docs/NATIVE_HAPTIC.md).
-            return true;
+            // The link can also drop mid-push, which costs no exception now that a write onto a
+            // dead connection is a no-op — so the state of the link decides, not reaching the end.
+            return device.IsConnected;
         }
         catch (Exception ex)
         {
@@ -233,7 +237,13 @@ public partial class LoupedeckLiveSController(
         try
         {
             var device = deviceService.Device;
-            if (device == null) return false;
+            // A device that is not connected discards every write silently (PR #219). Without
+            // this the whole push would run through without a byte going out and still report
+            // success — clearing _blankedForSuspend and _isDeviceOff on a device nothing was
+            // painted on, which is exactly the state issue #195 could only leave by a manual
+            // off/on toggle. It matters most on the resume path, where HandleSystemResume pushes
+            // in a retry loop while the link is still being rebuilt.
+            if (device is not { IsConnected: true }) return false;
             await device.SetBrightness(config.Brightness / 100.0);
             if (config.SimpleButtons != null)
             {
@@ -250,7 +260,7 @@ public partial class LoupedeckLiveSController(
             {
                 try { fullDisplay.SetPaused(false); } catch { /* best effort */ }
                 nativeHapticService.Apply();
-                return true;
+                return device.IsConnected;
             }
 
             // The device kept the picture it had before (its boot image after a power-cycle,
@@ -264,7 +274,9 @@ public partial class LoupedeckLiveSController(
             nativeHapticService.Apply();
             // Device is back on — resume screensaver idle monitoring.
             try { screensaver.Arm(); } catch { /* best effort */ }
-            return true;
+            // The link can also drop mid-push, which costs no exception now that a write onto a
+            // dead connection is a no-op — so the state of the link decides, not reaching the end.
+            return device.IsConnected;
         }
         catch (Exception ex)
         {
