@@ -6,10 +6,16 @@ namespace LoupixDeck.Utils;
 
 public static class WindowHelper
 {
+    /// <summary>
+    /// The application's main window. Falls back to the window itself when the lifetime does not
+    /// hold it yet: a launch straight into the tray deliberately leaves
+    /// <see cref="IClassicDesktopStyleApplicationLifetime.MainWindow"/> unset for a moment
+    /// (see <c>App.ShowMainWindow</c>), and a dialog opened in that gap still needs an owner.
+    /// </summary>
     public static Window GetMainWindow()
     {
         return Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop
-            ? desktop.MainWindow
+            ? desktop.MainWindow ?? Views.MainWindow.Instance
             : null;
     }
 
@@ -23,6 +29,6 @@ public static class WindowHelper
         if (Application.Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime desktop)
             return null;
 
-        return desktop.Windows.FirstOrDefault(w => w.IsActive) ?? desktop.MainWindow;
+        return desktop.Windows.FirstOrDefault(w => w.IsActive) ?? desktop.MainWindow ?? Views.MainWindow.Instance;
     }
 }

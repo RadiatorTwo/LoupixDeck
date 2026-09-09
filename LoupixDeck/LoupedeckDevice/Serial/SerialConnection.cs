@@ -152,7 +152,7 @@ public class SerialConnection : ISerialConnection
                     " (permission denied — check the udev rule / 'dialout' group membership, or the port is already in use)",
                 _ => string.Empty
             };
-            Console.WriteLine($"[Serial] Failed to open '{_portName}' @ {_baudRate}: {ex.Message}{hint}");
+            LogFailure(_portName, $"[Serial] Failed to open '{_portName}' @ {_baudRate}: {ex.Message}{hint}");
 
             // If something fails, close the port immediately.
             if (_serialPort != null && _serialPort.IsOpen)
@@ -193,16 +193,102 @@ public class SerialConnection : ISerialConnection
             try
             {
                 _serialPort!.Open();
+                NoteOpened(_portName);
                 return;
             }
-            catch (Exception ex) when (ex is UnauthorizedAccessException or IOException && attempt < maxAttempts)
+            catch (Exception ex) when (IsWorthRetrying(ex) && attempt < maxAttempts)
             {
-                Console.WriteLine(
-                    $"[Serial] '{_portName}' is in use (attempt {attempt}/{maxAttempts}); retrying in {backoffMs} ms.");
+                // Quiet while this port's failures are already being collapsed — otherwise a
+                // permanently busy port writes these four lines on every reconnect cycle.
+                if (!IsRepeatFailure(_portName))
+                {
+                    var reason = ex is UnauthorizedAccessException ? "is in use" : "could not be opened";
+                    Console.WriteLine(
+                        $"[Serial] '{_portName}' {reason} (attempt {attempt}/{maxAttempts}); retrying in {backoffMs} ms.");
+                }
+
                 Thread.Sleep(backoffMs);
                 backoffMs *= 2;
             }
         }
+    }
+
+    /// <summary>
+    /// Whether an open failure can plausibly clear within the backoff window. A port that is
+    /// simply not there cannot: the device is unplugged or has re-enumerated under a different
+    /// name, and waiting three seconds changes nothing. <see cref="FileNotFoundException"/> is
+    /// what <see cref="SerialPort.Open"/> raises for that, and it derives from
+    /// <see cref="IOException"/> — so it used to be retried four times and, worse, reported as
+    /// "is in use".
+    /// </summary>
+    private static bool IsWorthRetrying(Exception ex) =>
+        ex is UnauthorizedAccessException || (ex is IOException and not FileNotFoundException);
+
+    // ───────── Failure-log collapsing ─────────
+    //
+    // A port that stays unreachable — unplugged, or held by another program for as long as that
+    // program runs — fails once per auto-reconnect interval, for as long as the app is up. Every
+    // cycle used to write the same lines again, which buries everything else in the log and makes
+    // an old log useless for anything but that one message. The first failure is reported in full;
+    // an identical one on the same port is counted instead, with a tally line at most once every
+    // FailureRepeatWindow so a long outage still leaves a trace. A different error reports
+    // immediately, and a successful open closes the run with what was suppressed.
+    //
+    // Keyed by port name and static because a SerialConnection is built fresh for every attempt,
+    // so nothing on the instance survives to compare against.
+
+    private static readonly TimeSpan FailureRepeatWindow = TimeSpan.FromMinutes(5);
+
+    private sealed class PortFailureLog
+    {
+        public string Message;
+        public int Suppressed;
+        public long LastLoggedTicks;
+    }
+
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, PortFailureLog> FailureLogs =
+        new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>True when the previous attempt on this port already failed and was reported.</summary>
+    private static bool IsRepeatFailure(string port) => port != null && FailureLogs.ContainsKey(port);
+
+    /// <summary>Reports an open failure, collapsing identical repeats on the same port.</summary>
+    private static void LogFailure(string port, string message)
+    {
+        if (port == null)
+        {
+            Console.WriteLine(message);
+            return;
+        }
+
+        var log = FailureLogs.GetOrAdd(port, _ => new PortFailureLog());
+        lock (log)
+        {
+            var now = DateTime.UtcNow.Ticks;
+            if (log.Message == message)
+            {
+                log.Suppressed++;
+                if (now - log.LastLoggedTicks < FailureRepeatWindow.Ticks) return;
+
+                Console.WriteLine($"{message} (still failing, {log.Suppressed} more since the last message)");
+                log.Suppressed = 0;
+                log.LastLoggedTicks = now;
+                return;
+            }
+
+            Console.WriteLine(message);
+            log.Message = message;
+            log.Suppressed = 0;
+            log.LastLoggedTicks = now;
+        }
+    }
+
+    /// <summary>Closes a run of collapsed failures after the port opened again.</summary>
+    private static void NoteOpened(string port)
+    {
+        if (port == null || !FailureLogs.TryRemove(port, out var log)) return;
+        if (log.Suppressed > 0)
+            Console.WriteLine($"[Serial] '{port}' opened again ({log.Suppressed} suppressed failures).");
     }
 
     /// <summary>
@@ -451,7 +537,13 @@ public class SerialConnection : ISerialConnection
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Handshake attempt {attempt} failed: {ex.Message}");
+                // The first attempt is expected to time out: the header write is what wakes the
+                // device, and it only answers the second one (see the ReadTimeout note above).
+                // Reporting that as a failure on every single startup trains the reader to
+                // ignore the line. Every other error, and any failure of a later attempt, is
+                // still reported.
+                if (attempt > 1 || ex is not TimeoutException)
+                    Console.WriteLine($"[Serial] Handshake attempt {attempt} failed: {ex.Message}");
 
                 // Last attempt failed
                 if (attempt == maxRetries)

@@ -648,8 +648,11 @@ public class LoupedeckDevice
     /// </summary>
     /// <param name="command">The command to send to the device.</param>
     /// <param name="data">Optional payload data for the command.</param>
+    /// <param name="requireConnection">True when the caller parses the response payload, so a
+    /// down link has to surface as a <see cref="DeviceNotConnectedException"/> rather than as an
+    /// empty result that is indistinguishable from a real answer.</param>
     /// <returns>A task that completes with the device's response payload.</returns>
-    private Task<byte[]> SendAsync(Constants.Command command, byte[] data = null)
+    private Task<byte[]> SendAsync(Constants.Command command, byte[] data = null, bool requireConnection = false)
     {
         data ??= [];
         return EnqueueAsync(
@@ -661,7 +664,8 @@ public class LoupedeckDevice
             tolerateMissingAck: false,
             timeout: TimeSpan.FromSeconds(3),
             returnDataToPool: false,
-            hasReservedWsPrefix: false);
+            hasReservedWsPrefix: false,
+            requireConnection: requireConnection);
     }
 
     /// <summary>
@@ -725,17 +729,24 @@ public class LoupedeckDevice
         bool tolerateMissingAck,
         TimeSpan? timeout,
         bool returnDataToPool,
-        bool hasReservedWsPrefix)
+        bool hasReservedWsPrefix,
+        bool requireConnection = false)
     {
         // When the device isn't connected — e.g. another process is momentarily holding the serial
         // port at startup — skip physical I/O instead of enqueuing a command that can never be acked
         // and would time out. Making the write a no-op lets Initialize finish building the in-memory
         // model so the window can open; a later reconnect redraws the device. Without this the
         // startup timeout aborted device bring-up and shut the whole app down.
+        //
+        // The skip is only safe for commands nobody reads an answer out of. A caller that parses
+        // the reply payload asks for requireConnection and gets an exception instead: an empty
+        // result would look exactly like a successful answer of length zero and be indexed into.
         if (_connection is not { IsReady: true })
         {
             if (returnDataToPool)
                 ArrayPool<byte>.Shared.Return(data);
+            if (requireConnection)
+                throw new DeviceNotConnectedException($"Cannot send command {command}: the device is not connected.");
             return [];
         }
 
@@ -837,10 +848,12 @@ public class LoupedeckDevice
     /// <summary>
     /// Sends a command with the given data and waits synchronously for the response.
     /// Frame format: [length (1 byte), command (1 byte), transactionID (1 byte), data]
+    /// This is the payload-reading path (SERIAL / VERSION), so it insists on a live link
+    /// instead of accepting the empty result a skipped write returns.
     /// </summary>
     private byte[] Send(Constants.Command command, byte[] data = null)
     {
-        return SendAsync(command, data).GetAwaiter().GetResult();
+        return SendAsync(command, data, requireConnection: true).GetAwaiter().GetResult();
     }
 
     /// <summary>
@@ -1822,10 +1835,15 @@ public class LoupedeckDevice
     public (byte[] serial, string version) GetInfo()
     {
         if (_connection == null || !_connection.IsReady)
-            throw new Exception("Not connected!");
+            throw new DeviceNotConnectedException("Not connected!");
 
         var serialResponse = Send(Constants.Command.SERIAL);
         var versionResponse = Send(Constants.Command.VERSION);
+        // The check above is a snapshot: the link can still drop before the answer arrives,
+        // and a truncated reply must not be indexed into.
+        if (versionResponse is not { Length: >= 3 })
+            throw new DeviceNotConnectedException("The device did not report its firmware version.");
+
         var version = $"{versionResponse[0]}.{versionResponse[1]}.{versionResponse[2]}";
 
         return (serialResponse, version);

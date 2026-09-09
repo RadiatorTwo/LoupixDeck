@@ -375,9 +375,9 @@
             <Button.Flyout>
                 <Flyout Placement="Left">
                     <StackPanel>
-                        <!-- Everything but Quit acts on the selected device, so those entries
-                             go inactive while no device is connected. Quit lives on the shell
-                             and stays usable. -->
+                        <!-- Settings and Macros act on the selected device, so they go inactive
+                             while no device is connected. About and Quit live on the shell,
+                             reach no hardware and stay usable. -->
                         <Button Width="100" Height="40" VerticalContentAlignment="Center"
                                 HorizontalContentAlignment="Center"
                                 FontSize="18"
@@ -395,8 +395,7 @@
                                 HorizontalContentAlignment="Center"
                                 FontSize="18"
                                 Content="About"
-                                IsEnabled="{Binding HasDevice}"
-                                Command="{Binding SelectedDevice.AboutMenuCommand}" />
+                                Command="{Binding AboutMenuCommand}" />
                         <Button Width="100" Height="40" VerticalContentAlignment="Center" Margin="0,5,0,0"
                                 HorizontalContentAlignment="Center"
                                 FontSize="18"
@@ -440,7 +439,12 @@
                                HorizontalAlignment="Center"
                                FontSize="17" FontWeight="SemiBold"
                                Foreground="{DynamicResource AppTextPrimary}" />
-                    <TextBlock Text="Plug in your deck over USB — it is picked up automatically and this view comes back."
+                    <!-- Covers both ways to land here: nothing plugged in, and a deck that is
+                         plugged in but whose serial port another program still holds. The
+                         second case is invisible to the user otherwise — the device is right
+                         there and the app looks broken. Either way the app keeps trying and
+                         takes the device over on its own, so the text asks for nothing else. -->
+                    <TextBlock Text="Connect your deck over USB. It is detected automatically. If it is already plugged in, another program may still be holding its port."
                                MaxWidth="360" TextWrapping="Wrap" TextAlignment="Center"
                                HorizontalAlignment="Center"
                                FontSize="13"

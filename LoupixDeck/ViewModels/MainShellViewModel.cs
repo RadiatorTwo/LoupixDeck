@@ -15,6 +15,17 @@ namespace LoupixDeck.ViewModels;
 /// </summary>
 public sealed class MainShellViewModel : ViewModelBase
 {
+    private readonly LoupixDeck.Services.IDialogService _dialogService;
+
+    /// <param name="dialogService">Taken from the primary device's container, which exists as
+    /// soon as a device is configured — whether or not it is currently reachable. Only the
+    /// About dialog is opened through it here, and that one needs no device.</param>
+    public MainShellViewModel(LoupixDeck.Services.IDialogService dialogService = null)
+    {
+        _dialogService = dialogService;
+        AboutMenuCommand = new AsyncRelayCommand(ShowAbout);
+    }
+
     public ObservableCollection<MainWindowViewModel> Devices { get; } = [];
 
     private MainWindowViewModel _selectedDevice;
@@ -37,8 +48,18 @@ public sealed class MainShellViewModel : ViewModelBase
     /// puts an explicit "no device connected" state in the device area instead.</summary>
     public bool HasDevice => _selectedDevice != null;
 
-    /// <summary>Quit is the one menu entry that has to work with no device connected,
-    /// so the shell owns it rather than delegating to a device's view model.</summary>
+    /// <summary>About shows the app version and a link and reaches no hardware, so it lives on
+    /// the shell next to Quit and stays usable while no device is connected.</summary>
+    public IAsyncRelayCommand AboutMenuCommand { get; }
+
+    private async Task ShowAbout()
+    {
+        if (_dialogService == null) return;
+        await _dialogService.ShowDialogAsync<AboutViewModel, LoupixDeck.Models.DialogResult>();
+    }
+
+    /// <summary>Quit has to work with no device connected too, so the shell owns it rather
+    /// than delegating to a device's view model.</summary>
     public IRelayCommand QuitApplicationCommand { get; } = new RelayCommand(() =>
     {
         if (Utils.WindowHelper.GetMainWindow() is Views.MainWindow window)

@@ -98,10 +98,6 @@ public partial class App : Application
     private async Task InitializeDevices(IReadOnlyList<ResolvedDevice> devices, ResolvedDevice primary,
         string port, int baudRate, IClassicDesktopStyleApplicationLifetime desktop)
     {
-        var splashScreen = new SplashScreen();
-        desktop.MainWindow = splashScreen;
-        splashScreen.Show();
-
         try
         {
             // Root container: device-agnostic singletons (OS-level IO, macro store,
@@ -138,7 +134,6 @@ public partial class App : Application
             if (registry.Hosts.Count == 0)
             {
                 Console.WriteLine("[Init] No device could be brought up — shutting down.");
-                splashScreen.Close();
                 desktop.Shutdown();
                 return;
             }
@@ -147,6 +142,36 @@ public partial class App : Application
             // (plugin timers/events with no active device flow). Set before loading.
             router.Default = primaryProvider ?? (registry.Hosts.Count is > 0 ? registry.Hosts[0]?.Provider : null);
 
+            var primaryHost = registry.Primary;
+            // The shell owns the two menu entries that reach no hardware, About and Quit, so it
+            // needs the dialog service. It comes from the primary device's container, which
+            // exists as soon as a device is configured — connected or not.
+            var shell = new MainShellViewModel(primaryHost?.Provider.GetService<IDialogService>());
+            _shell = shell;
+
+            // The window goes up here, before the plugins load and before a single device is
+            // brought up, and it opens on the empty state it already has for a full unplug
+            // (issue #191). Devices fill in as they connect. This is what a splash screen used
+            // to cover: it existed because the window could not be built until a device had
+            // finished initialising, so a slow plugin set or a device taking its time left the
+            // screen blank. Neither is true any more — a device joins the shell whenever its
+            // link comes up (see ShowWhenConnected), including seconds after the window opened.
+            var primaryConfig = primaryHost?.Provider.GetService<LoupedeckConfig>();
+            // Expose the primary's container so the CLI command channel resolves its
+            // ICommandService (phase 2: CLI targets the primary device). Hoisted out of the
+            // bring-up loop so quitting during bring-up still reaches the running devices.
+            if (primaryHost != null)
+                Program.AppServices = primaryHost.Provider;
+            // Read before the window is built, otherwise it paints in the default theme and
+            // then switches.
+            RequestedThemeVariant = primaryConfig?.ThemeVariant switch
+            {
+                "Light" => ThemeVariant.Light,
+                "Dark" => ThemeVariant.Dark,
+                _ => ThemeVariant.Default
+            };
+            ShowMainWindow(shell, primaryConfig, desktop);
+
             // Load the shared plugin set ONCE (root) now that the fallback device is set.
             root.GetRequiredService<Services.Plugins.IPluginManager>().LoadPlugins();
 
@@ -154,8 +179,6 @@ public partial class App : Application
             // view model per device into the shell, and bring every device up. The VM ctor
             // wires the command registry / power / app-switching (StartMonitoring is idempotent),
             // so a secondary device needs no special headless path — only its own window tab.
-            var shell = new MainShellViewModel();
-            _shell = shell;
             int broughtUp = 0;
             foreach (var host in registry.Hosts.ToList())
             {
@@ -167,23 +190,9 @@ public partial class App : Application
                     host.Provider.GetRequiredService<Services.Plugins.IScreensaverProviderRegistry>().Rebuild();
 
                     var vm = host.Provider.GetRequiredService<MainWindowViewModel>();
-                    shell.Add(vm);
 
                     if (host.IsPrimary)
                     {
-                        // Expose the primary's container so the CLI command channel resolves
-                        // its ICommandService (phase 2: CLI targets the primary device).
-                        Program.AppServices = host.Provider;
-                        shell.SelectedDevice = vm;
-
-                        var cfg = host.Provider.GetRequiredService<LoupedeckConfig>();
-                        RequestedThemeVariant = cfg.ThemeVariant switch
-                        {
-                            "Light" => ThemeVariant.Light,
-                            "Dark" => ThemeVariant.Dark,
-                            _ => ThemeVariant.Default
-                        };
-
                         await vm.LoupedeckController.Initialize(port, baudRate);
                         ActiveDeviceResolver.RememberActive(host.Device);
                     }
@@ -191,6 +200,8 @@ public partial class App : Application
                     {
                         await vm.LoupedeckController.Initialize(null, 0);
                     }
+
+                    ShowWhenConnected(shell, host, vm);
 
                     host.Provider.GetRequiredService<IDynamicTextManager>().Start();
                     host.Provider.GetRequiredService<Services.Animation.IButtonAnimationManager>().Start();
@@ -207,13 +218,12 @@ public partial class App : Application
 
             if (broughtUp == 0)
             {
+                // Every device threw a non-transport failure — a config or model bug, since a
+                // dead link no longer aborts a bring-up. Nothing left to drive the window with.
                 Console.WriteLine("[Init] No device finished initialisation — shutting down.");
-                splashScreen.Close();
                 desktop.Shutdown();
                 return;
             }
-
-            OnViewModelCreated(shell, splashScreen, desktop);
 
             // Arm runtime hot-plug now that the initial device set is up.
             StartHotPlug();
@@ -222,6 +232,50 @@ public partial class App : Application
         {
             Console.WriteLine($"InitializeDevices failed: {ex}");
             desktop.Shutdown();
+        }
+    }
+
+    /// <summary>
+    /// Puts a device's view model into the shell once its serial link is actually up, and holds
+    /// it back until then.
+    ///
+    /// Bringing a device up no longer proves it ever connected: a device whose port is briefly
+    /// held by another process now finishes its in-memory bring-up so the window can open at all
+    /// (PR #219). Its tab would otherwise sit in the device switcher backed by nothing — a layout
+    /// that never lights up and a Profile/Workspace selector that reaches no hardware. The host
+    /// stays registered either way, which is what lets the hot-plug reconciler keep taking the
+    /// port over the moment it frees; that reconnect is what brings the tab in.
+    /// </summary>
+    private static void ShowWhenConnected(MainShellViewModel shell, DeviceHost host, MainWindowViewModel vm)
+    {
+        // Subscribed before the state is read, so a connect landing in between still shows up.
+        host.Controller.DeviceConnected += (_, _) => Show();
+        if (host.Controller.IsDeviceConnected)
+            Show();
+        else
+            Console.WriteLine($"[Init] '{host.Device.ScopeKey}' is not connected — hidden until its port frees.");
+
+        void Show()
+        {
+            // Invoke, not Post: on the bring-up path this already runs on the UI thread, and a
+            // queued callback would land after the window has been built from the shell — which
+            // reads the shell as empty and used to end the app.
+            if (Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
+                AddToShell();
+            else
+                Avalonia.Threading.Dispatcher.UIThread.Post(AddToShell);
+        }
+
+        void AddToShell()
+        {
+            // Every connect raises the event, not just the first — a reconnect must not add
+            // the device a second time.
+            if (shell.Devices.Contains(vm)) return;
+            shell.Add(vm);
+            // Add() selects the first device by itself; the primary takes the selection back
+            // when it arrives after a secondary.
+            if (host.IsPrimary)
+                shell.SelectedDevice = vm;
         }
     }
 
@@ -268,22 +322,24 @@ public partial class App : Application
         // First device after a full unplug → it owns the window again.
         var becomesPrimary = registry.Hosts.Count == 0;
         // Add synchronously (before any await) so a second reconcile can't double-attach.
-        registry.Add(new DeviceHost(device, provider, controller, becomesPrimary));
+        var host = new DeviceHost(device, provider, controller, becomesPrimary);
+        registry.Add(host);
 
         provider.GetRequiredService<Services.Plugins.ISideStripProviderRegistry>().Rebuild();
         provider.GetRequiredService<Services.Plugins.IScreensaverProviderRegistry>().Rebuild();
         var vm = provider.GetRequiredService<MainWindowViewModel>();
-        _shell.Add(vm);
 
         if (becomesPrimary)
         {
             Program.AppServices = provider;
             _root.GetRequiredService<IDeviceRouter>().Default = provider;
-            _shell.SelectedDevice = vm;
             ActiveDeviceResolver.RememberActive(device);
         }
 
         await controller.Initialize(null, 0);
+        // A device can appear on the bus with its port still held by another process, so the
+        // tab waits for the link exactly as it does at startup.
+        ShowWhenConnected(_shell, host, vm);
         provider.GetRequiredService<IDynamicTextManager>().Start();
         provider.GetRequiredService<Services.Animation.IButtonAnimationManager>().Start();
         provider.GetRequiredService<Services.Animation.ISideDisplayAnimationManager>().Start();
@@ -383,42 +439,48 @@ public partial class App : Application
         return provider;
     }
 
-    private void OnViewModelCreated(MainShellViewModel shell, SplashScreen splashScreen,
+    /// <summary>
+    /// Builds and shows the one window, on an empty shell that devices join as they connect.
+    /// <paramref name="startupConfig"/> is the primary device's config, read before any device
+    /// has been brought up — the only setting needed this early is StartMinimizedToTray.
+    /// </summary>
+    private static void ShowMainWindow(MainShellViewModel shell, LoupedeckConfig startupConfig,
         IClassicDesktopStyleApplicationLifetime desktop)
     {
-        if (shell?.SelectedDevice == null)
-        {
-            // No primary device resolved (shouldn't happen for a non-empty device set).
-            splashScreen.Close();
-            desktop.Shutdown();
-            return;
-        }
-
-        // Use the UI thread to make changes to the UI
-        Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+        // Invoke, not InvokeAsync: the caller is already on the UI thread, and a queued
+        // operation would not run until the bring-up loop's first await — which is the wait
+        // this window exists to cover.
+        Avalonia.Threading.Dispatcher.UIThread.Invoke(() =>
         {
             var mainWindow = new MainWindow
             {
                 DataContext = shell
             };
 
-            desktop.MainWindow = mainWindow;
-
-            // Skip Show() entirely when starting minimized to tray, otherwise the
-            // window briefly flashes onscreen before OnDataContextChanged hides it.
-            // We also switch to OnExplicitShutdown so the lifetime doesn't end the
-            // moment the splash closes with no visible window — the tray-icon is
-            // the only entry point and Environment.Exit(0) is the only exit path.
-            if (shell.SelectedDevice.LoupedeckController?.Config?.StartMinimizedToTray == true)
+            // Skip Show() entirely when starting minimized to tray, otherwise the window
+            // briefly flashes onscreen before it is hidden again. We also switch to
+            // OnExplicitShutdown so the lifetime doesn't end with no visible window — the
+            // tray icon is the only entry point and Environment.Exit(0) the only exit path.
+            if (startupConfig?.StartMinimizedToTray == true)
             {
                 desktop.ShutdownMode = Avalonia.Controls.ShutdownMode.OnExplicitShutdown;
                 mainWindow.MarkStartedMinimized();
+                // The lifetime shows MainWindow itself once OnFrameworkInitializationCompleted
+                // has returned — which is the first await of the device bring-up, i.e. after
+                // this runs. Assigning the property now would therefore put the window on
+                // screen against the user's setting. Posting the assignment lands it after
+                // that implicit Show, which then finds no window and does nothing. This used
+                // to be masked by the splash screen: it was the MainWindow at that moment and
+                // was already visible, so the implicit Show was a no-op.
+                Avalonia.Threading.Dispatcher.UIThread.Post(() => desktop.MainWindow = mainWindow);
             }
             else
             {
+                // Assigned before Show() so the lifetime's own Show finds a visible window
+                // and does nothing.
+                desktop.MainWindow = mainWindow;
                 mainWindow.Show();
             }
-            splashScreen.Close();
         });
     }
 }

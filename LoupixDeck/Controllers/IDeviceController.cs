@@ -27,6 +27,14 @@ public interface IDeviceController
     bool IsDeviceConnected { get; }
 
     /// <summary>
+    /// Raised on the UI thread every time the device's serial link comes up, including a
+    /// reconnect after the port was taken at startup. Lets the shell hold a device back until
+    /// it is actually reachable: bringing one up no longer proves it ever connected, so without
+    /// this a device whose port was busy would sit in the switcher with nothing behind it.
+    /// </summary>
+    event EventHandler DeviceConnected;
+
+    /// <summary>
     /// Requests a single background reconnect for a device that is present but whose serial link
     /// is down (its port was momentarily busy). Non-blocking and self-throttling: a call is
     /// dropped while another reconnect is already in flight. Safe to call repeatedly.

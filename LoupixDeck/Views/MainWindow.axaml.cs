@@ -23,7 +23,7 @@ public partial class MainWindow : Window
             Avalonia.Threading.Dispatcher.UIThread.Post(() =>
                 Instance?.ViewModel?.SelectedDevice?.ToggleDeviceStateCommand?.Execute(null)));
 
-    private static MainWindow Instance { get; set; }
+    internal static MainWindow Instance { get; private set; }
 
     public MainShellViewModel ViewModel => DataContext as MainShellViewModel;
 
