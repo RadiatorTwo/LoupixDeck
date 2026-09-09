@@ -454,20 +454,28 @@ public partial class App : Application
                 DataContext = shell
             };
 
-            desktop.MainWindow = mainWindow;
-
-            // Skip Show() entirely when starting minimized to tray, otherwise the
-            // window briefly flashes onscreen before OnDataContextChanged hides it.
-            // We also switch to OnExplicitShutdown so the lifetime doesn't end with no
-            // visible window — the tray-icon is the only entry point and
-            // Environment.Exit(0) is the only exit path.
+            // Skip Show() entirely when starting minimized to tray, otherwise the window
+            // briefly flashes onscreen before it is hidden again. We also switch to
+            // OnExplicitShutdown so the lifetime doesn't end with no visible window — the
+            // tray icon is the only entry point and Environment.Exit(0) the only exit path.
             if (startupConfig?.StartMinimizedToTray == true)
             {
                 desktop.ShutdownMode = Avalonia.Controls.ShutdownMode.OnExplicitShutdown;
                 mainWindow.MarkStartedMinimized();
+                // The lifetime shows MainWindow itself once OnFrameworkInitializationCompleted
+                // has returned — which is the first await of the device bring-up, i.e. after
+                // this runs. Assigning the property now would therefore put the window on
+                // screen against the user's setting. Posting the assignment lands it after
+                // that implicit Show, which then finds no window and does nothing. This used
+                // to be masked by the splash screen: it was the MainWindow at that moment and
+                // was already visible, so the implicit Show was a no-op.
+                Avalonia.Threading.Dispatcher.UIThread.Post(() => desktop.MainWindow = mainWindow);
             }
             else
             {
+                // Assigned before Show() so the lifetime's own Show finds a visible window
+                // and does nothing.
+                desktop.MainWindow = mainWindow;
                 mainWindow.Show();
             }
         });
