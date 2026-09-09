@@ -15,6 +15,11 @@ public static class FakeDeviceOverride
 {
     private const string EnvVar = "LOUPIXDECK_FAKE_DEVICE";
 
+    // Apply runs per resolved device and again on every hot-plug reconcile, so the
+    // "not set" notice below was landing in the log a dozen times a minute. It answers a
+    // question that is asked once — is emulation on in this process — so it is said once.
+    private static int _notSetReported;
+
     /// <summary>
     /// Returns the resolved device with its type swapped when the env var is set to
     /// a known slug, otherwise returns <paramref name="actual"/> unchanged. Only the
@@ -27,10 +32,11 @@ public static class FakeDeviceOverride
         var slug = Environment.GetEnvironmentVariable(EnvVar);
         if (string.IsNullOrWhiteSpace(slug))
         {
-            // Say so out loud. A silent return here is indistinguishable from an override that
-            // ran and did nothing, from a Release build where this method is never called at
-            // all, and from a debugger that did not pass the variable into the process.
-            Console.WriteLine($"[FakeDeviceOverride] {EnvVar} is not set in this process — no emulation.");
+            // Say so out loud, once. A silent return here is indistinguishable from an override
+            // that ran and did nothing, from a Release build where this method is never called
+            // at all, and from a debugger that did not pass the variable into the process.
+            if (Interlocked.Exchange(ref _notSetReported, 1) == 0)
+                Console.WriteLine($"[FakeDeviceOverride] {EnvVar} is not set in this process — no emulation.");
             return actual;
         }
 
