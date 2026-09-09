@@ -120,7 +120,7 @@ public class SerialConnection : ISerialConnection
                 Encoding = Encoding.UTF8
             };
 
-            _serialPort.Open();
+            OpenWithBackoff();
 
             // Perform the handshake to get the device into Websocket mode on the Serial Port
             if (!PerformHandshake())
@@ -166,6 +166,42 @@ public class SerialConnection : ISerialConnection
 
             // Rethrow the exception if needed.
             throw;
+        }
+    }
+
+    /// <summary>
+    /// Opens the port, retrying with exponential backoff when it is momentarily unavailable.
+    ///
+    /// At boot another program (the vendor's own Loupedeck app / Logi service) frequently holds
+    /// the port for a fraction of a second, so the first <see cref="SerialPort.Open"/> loses the
+    /// race and throws <see cref="UnauthorizedAccessException"/> (or <see cref="IOException"/>).
+    /// Instead of giving up, wait 200/400/800/1600 ms and try again — the port is almost always
+    /// free within a second or two. Costs nothing on success and removes the startup race without
+    /// touching any external process.
+    ///
+    /// This runs on <c>DeviceService</c>'s dedicated device thread (see <c>StartDevice</c>), never
+    /// the UI thread, so the waits do not block the UI. A non-transient failure (final attempt, or
+    /// any other exception) propagates to <see cref="Connect"/>'s handler as before.
+    /// </summary>
+    private void OpenWithBackoff()
+    {
+        const int maxAttempts = 5;
+        var backoffMs = 200;
+
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                _serialPort!.Open();
+                return;
+            }
+            catch (Exception ex) when (ex is UnauthorizedAccessException or IOException && attempt < maxAttempts)
+            {
+                Console.WriteLine(
+                    $"[Serial] '{_portName}' is in use (attempt {attempt}/{maxAttempts}); retrying in {backoffMs} ms.");
+                Thread.Sleep(backoffMs);
+                backoffMs *= 2;
+            }
         }
     }
 

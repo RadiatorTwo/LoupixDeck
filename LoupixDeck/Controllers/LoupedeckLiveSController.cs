@@ -72,6 +72,27 @@ public partial class LoupedeckLiveSController(
     private volatile bool _isDeviceOff;
     public bool IsDeviceOff => _isDeviceOff;
 
+    /// <inheritdoc />
+    public bool IsDeviceConnected => deviceService.Device?.IsConnected == true;
+
+    // 0 = idle, 1 = a reconnect is running. Guards RequestReconnect so overlapping hot-plug
+    // ticks (and the device's own auto-reconnect loop) can't pile up port tear-downs.
+    private int _reconnectInFlight;
+
+    /// <inheritdoc />
+    public void RequestReconnect()
+    {
+        if (System.Threading.Interlocked.CompareExchange(ref _reconnectInFlight, 1, 0) != 0)
+            return;
+
+        _ = Task.Run(() =>
+        {
+            try { deviceService.ReconnectDevice(); }
+            catch (Exception ex) { Console.WriteLine($"[HotPlug] reconnect failed: {ex.Message}"); }
+            finally { System.Threading.Interlocked.Exchange(ref _reconnectInFlight, 0); }
+        });
+    }
+
     /// <summary>
     /// True while the off state was entered by the host suspending, not by the user. The
     /// hardware power-cycles across a suspend, so the next connect is proof the device is
