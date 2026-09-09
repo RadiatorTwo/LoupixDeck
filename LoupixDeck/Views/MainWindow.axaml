@@ -375,9 +375,9 @@
             <Button.Flyout>
                 <Flyout Placement="Left">
                     <StackPanel>
-                        <!-- Everything but Quit acts on the selected device, so those entries
-                             go inactive while no device is connected. Quit lives on the shell
-                             and stays usable. -->
+                        <!-- Settings and Macros act on the selected device, so they go inactive
+                             while no device is connected. About and Quit live on the shell,
+                             reach no hardware and stay usable. -->
                         <Button Width="100" Height="40" VerticalContentAlignment="Center"
                                 HorizontalContentAlignment="Center"
                                 FontSize="18"
@@ -395,8 +395,7 @@
                                 HorizontalContentAlignment="Center"
                                 FontSize="18"
                                 Content="About"
-                                IsEnabled="{Binding HasDevice}"
-                                Command="{Binding SelectedDevice.AboutMenuCommand}" />
+                                Command="{Binding AboutMenuCommand}" />
                         <Button Width="100" Height="40" VerticalContentAlignment="Center" Margin="0,5,0,0"
                                 HorizontalContentAlignment="Center"
                                 FontSize="18"

@@ -142,7 +142,11 @@ public partial class App : Application
             // (plugin timers/events with no active device flow). Set before loading.
             router.Default = primaryProvider ?? (registry.Hosts.Count is > 0 ? registry.Hosts[0]?.Provider : null);
 
-            var shell = new MainShellViewModel();
+            var primaryHost = registry.Primary;
+            // The shell owns the two menu entries that reach no hardware, About and Quit, so it
+            // needs the dialog service. It comes from the primary device's container, which
+            // exists as soon as a device is configured — connected or not.
+            var shell = new MainShellViewModel(primaryHost?.Provider.GetService<IDialogService>());
             _shell = shell;
 
             // The window goes up here, before the plugins load and before a single device is
@@ -152,7 +156,6 @@ public partial class App : Application
             // finished initialising, so a slow plugin set or a device taking its time left the
             // screen blank. Neither is true any more — a device joins the shell whenever its
             // link comes up (see ShowWhenConnected), including seconds after the window opened.
-            var primaryHost = registry.Primary;
             var primaryConfig = primaryHost?.Provider.GetService<LoupedeckConfig>();
             // Expose the primary's container so the CLI command channel resolves its
             // ICommandService (phase 2: CLI targets the primary device). Hoisted out of the
