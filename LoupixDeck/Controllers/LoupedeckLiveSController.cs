@@ -664,6 +664,45 @@ public partial class LoupedeckLiveSController(
         catch (Exception ex) { Console.WriteLine($"StopDisplayTakeovers (full-display) failed: {ex.Message}"); }
     }
 
+    /// <summary>
+    /// True for the failure modes of a serial link that is gone or going: the port was taken by
+    /// another process, the device was unplugged, the handle is open but stops answering. The
+    /// <c>InvalidOperationException</c> is what SerialPort raises for a write onto a closed port,
+    /// and <c>DeviceNotConnectedException</c> the device layer's own signal.
+    /// </summary>
+    private static bool IsTransportFailure(Exception ex) =>
+        ex is TimeoutException
+            or IOException
+            or UnauthorizedAccessException
+            or OperationCanceledException
+            or InvalidOperationException
+            or LoupixDeck.LoupedeckDevice.Device.DeviceNotConnectedException;
+
+    /// <summary>
+    /// Runs one write to the device so a dead link cannot take the caller down with it.
+    /// Skipping the write when the link is known to be down (PR #219) only closed the obvious
+    /// case: the readiness check is a snapshot, and a port that disappears between it and the
+    /// queue worker's write — exactly the "another process holds the port for a moment" scenario,
+    /// and equally an unplug or a device that stays silent — still runs the command into its
+    /// timeout. From <see cref="Initialize"/> that exception travelled all the way out, where App
+    /// drops the device from the registry and shuts the app down if it was the only one
+    /// (issue #146); from an <c>async void</c> config/button handler it took the process with it.
+    /// A lost frame is survivable, and the next connect re-pushes the whole picture through
+    /// <see cref="ResyncDeviceState"/>. Only transport failures are swallowed — a config or
+    /// model bug still surfaces.
+    /// </summary>
+    private static async Task TryDeviceIo(string what, Func<Task> io)
+    {
+        try
+        {
+            await io();
+        }
+        catch (Exception ex) when (IsTransportFailure(ex))
+        {
+            Console.WriteLine($"[Device] {what} skipped — the device is not reachable: {ex.Message}");
+        }
+    }
+
     public async Task Initialize(string port = null, int baudrate = 0)
     {
         if (port != null)
@@ -749,11 +788,11 @@ public partial class LoupedeckLiveSController(
         // Whatever the panel showed when the app last let go of it is still on the glass —
         // a screensaver frame covers the gaps between the keys, which no page repaint reaches.
         // So the whole panel goes black before the first frame of this session.
-        await deviceService.Device.ClearDisplays();
+        await TryDeviceIo("clearing the panel", () => deviceService.Device.ClearDisplays());
 
         if (config.TouchButtonPages == null || config.TouchButtonPages.Count == 0)
         {
-            await pageManager.AddTouchButtonPage(true);
+            await TryDeviceIo("adding the first touch page", () => pageManager.AddTouchButtonPage(true));
         }
         else
         {
@@ -761,14 +800,16 @@ public partial class LoupedeckLiveSController(
             if (startupIndex < 0 || startupIndex >= config.TouchButtonPages.Count)
                 startupIndex = 0;
             config.CurrentTouchPageIndex = startupIndex;
-            await pageManager.ApplyTouchPage(config.CurrentTouchPageIndex, true);
+            await TryDeviceIo("applying the startup touch page",
+                () => pageManager.ApplyTouchPage(config.CurrentTouchPageIndex, true));
 
             // ApplyTouchPage early-returns here (the index was pre-set), so OnTouchPageChanged
             // does not fire — wire the current page's ItemChanged explicitly (tracked so a later
             // page/workspace switch detaches it cleanly).
             AttachTouchItemChanged(config.CurrentTouchButtonPage);
 
-            await DrawCurrentTouchPageButtons(deviceService.Device);
+            await TryDeviceIo("drawing the startup touch page",
+                () => DrawCurrentTouchPageButtons(deviceService.Device));
         }
 
         // Rotary selection is already set by InitializeRotaryPages (per side on
@@ -779,7 +820,8 @@ public partial class LoupedeckLiveSController(
         config.PropertyChanged += ConfigOnPropertyChanged;
 
         deviceService.Device.DitherFramebuffer = config.DitheringEnabled;
-        await deviceService.Device.SetBrightness(config.Brightness / 100.0);
+        await TryDeviceIo("setting the brightness",
+            () => deviceService.Device.SetBrightness(config.Brightness / 100.0));
 
         // Re-apply the simple-button LED colours now that the device is fully initialised.
         // BUTTON0 is the device's boot status LED: the firmware holds it green during
@@ -787,10 +829,10 @@ public partial class LoupedeckLiveSController(
         // the colour set early in BuildSimpleButtons gets clobbered. Re-sending here (after
         // the firmware has released it) makes BUTTON0 honour its configured colour like the
         // others. See the bottom-left-button-always-green investigation.
-        await ReapplySimpleButtonColors();
+        await TryDeviceIo("re-applying the LED colours", ReapplySimpleButtonColors);
 
         // Paint the initial segmented rotary labels onto the side strips (Razer).
-        await RedrawSideStrips();
+        await TryDeviceIo("drawing the side strips", RedrawSideStrips);
 
         InitButtonEvents();
 
@@ -2584,7 +2626,10 @@ public partial class LoupedeckLiveSController(
 
         button.ItemChanged += SimpleButtonChanged;
 
-        await deviceService.Device.SetButtonColor(id, button.ButtonColor);
+        // Part of the bring-up: the button model must exist even when the colour can't reach a
+        // device whose link is down (see TryDeviceIo).
+        await TryDeviceIo($"setting the colour of button {id}",
+            () => deviceService.Device.SetButtonColor(id, button.ButtonColor));
 
         return button;
     }
@@ -2594,7 +2639,9 @@ public partial class LoupedeckLiveSController(
         if (sender is not SimpleButton button) return;
 
         button.RenderedImage = BitmapHelper.RenderSimpleButtonImage(button, 90, 90);
-        await deviceService.Device.SetButtonColor(button.Id, button.ButtonColor);
+        // async void: an unhandled transport failure here would tear the process down.
+        await TryDeviceIo($"setting the colour of button {button.Id}",
+            () => deviceService.Device.SetButtonColor(button.Id, button.ButtonColor));
     }
 
     /// <summary>
@@ -2735,7 +2782,9 @@ public partial class LoupedeckLiveSController(
             {
                 case nameof(LoupedeckConfig.Brightness):
                     await Task.Delay(100, token); // Debounce
-                    await deviceService.Device.SetBrightness(config.Brightness / 100.0);
+                    // async void: an unhandled transport failure here would tear the process down.
+                    await TryDeviceIo("setting the brightness",
+                        () => deviceService.Device.SetBrightness(config.Brightness / 100.0));
                     break;
 
                 case nameof(LoupedeckConfig.DitheringEnabled):
