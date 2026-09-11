@@ -100,9 +100,12 @@ public class RazerStreamControllerDevice : LoupedeckDevice
 
         // Centre 4×3 grid — clamp and translate into grid coords.
         x = Math.Clamp(x, VisibleX[0], VisibleX[1]) - VisibleX[0];
-        y = Math.Clamp(y, VisibleY[0], VisibleY[1]);
-        int column = x / KeySize;
-        int row = y / KeySize;
+        y = Math.Clamp(y, VisibleY[0], VisibleY[1]) - VisibleY[0];
+        // Nearest key centre rather than a division by the key size: a calibrated grid
+        // can have a pitch that differs from the key size, and a plain division then
+        // reports a column past the last one for touches on the right-hand keys.
+        int column = KeyCalibration.NearestColumn(x, Columns);
+        int row = KeyCalibration.NearestRow(y, Rows);
         var key = (row * Columns) + column;
         return new TouchTarget { Screen = "center", Key = key };
     }

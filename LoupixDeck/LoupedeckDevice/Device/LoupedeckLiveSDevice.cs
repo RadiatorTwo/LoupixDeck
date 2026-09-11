@@ -59,8 +59,11 @@ public class LoupedeckLiveSDevice : LoupedeckDevice
         y = Math.Min(y, VisibleY[1]);
         x -= VisibleX[0];
         y -= VisibleY[0];
-        int column = x / KeySize;
-        int row = y / KeySize;
+        // Nearest key centre rather than a division by the key size: a calibrated grid
+        // can have a pitch that differs from the key size, and a plain division then
+        // reports a column past the last one for touches on the right-hand keys.
+        int column = KeyCalibration.NearestColumn(x, Columns);
+        int row = KeyCalibration.NearestRow(y, Rows);
         var key = (row * Columns) + column;
         return new TouchTarget { Screen = "center", Key = key };
     }
