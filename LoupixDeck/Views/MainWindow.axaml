@@ -153,6 +153,27 @@
             <Setter Property="BorderBrush" Value="{DynamicResource AppBorderSubtle}" />
         </Style>
 
+        <!-- The panel toggle wears the same chrome as the hamburger. ToggleButton needs its own
+             selectors: an Avalonia type selector matches the exact type, so the Button rules
+             above do not reach it. -->
+        <Style Selector="ToggleButton.HeaderAction">
+            <Setter Property="Width" Value="34" />
+            <Setter Property="Height" Value="34" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Background" Value="{DynamicResource AppSurfaceBar}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AppBorderFaint}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="6" />
+        </Style>
+        <Style Selector="ToggleButton.HeaderAction:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource AppControlBackgroundHover}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AppBorderSubtle}" />
+        </Style>
+        <Style Selector="ToggleButton.HeaderAction:checked /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource AppControlBackgroundActive}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AppBorderSubtle}" />
+        </Style>
+
         <!-- ───────── Device / Profile / Workspace switcher header (issue #132) ─────────
              A single top bar that hosts the three cascading selectors (Device → Profile →
              Workspace), styled to sit above the device layout like the original software.
@@ -361,6 +382,21 @@
                     </Border>
                 </StackPanel>
             </Border>
+
+            <!-- Apps and actions panel. Lives in the spacer column that already balances the
+                 hamburger, so adding it leaves the selector group centred. -->
+            <ToggleButton Grid.Column="0" Classes="HeaderAction"
+                VerticalAlignment="Center" HorizontalAlignment="Left"
+                VerticalContentAlignment="Center" HorizontalContentAlignment="Center"
+                IsVisible="{Binding HasDevice}"
+                IsChecked="{Binding SelectedDevice.ActionPanel.IsOpen, Mode=TwoWay}"
+                ToolTip.Tip="Apps and commands">
+                <!-- mdi-view-grid-plus-outline -->
+                <TextBlock FontFamily="{DynamicResource MdiFont}" FontSize="18"
+                           Foreground="{DynamicResource AppTextPrimary}"
+                           VerticalAlignment="Center" HorizontalAlignment="Center"
+                           Text="&#xF11D2;" />
+            </ToggleButton>
 
             <Button Grid.Column="2" Classes="HeaderAction"
                 VerticalAlignment="Center" HorizontalAlignment="Right"
