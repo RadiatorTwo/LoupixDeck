@@ -28,12 +28,30 @@ public static class PortablePayloadNormalizer
         foreach (Workspace workspace in profile.Workspaces ?? [])
             Normalize(workspace, touchButtonCount, rotaryButtonCount, sideRotaryButtonCount);
 
+        NormalizeSimpleButtons(profile);
+
         // A home workspace that no longer resolves would leave the profile without an entry point.
         if (profile.Workspaces is { Count: > 0 } &&
             profile.Workspaces.All(w => w.Id != profile.HomeWorkspaceId))
         {
             profile.HomeWorkspaceId = profile.Workspaces[0].Id;
         }
+    }
+
+    /// <summary>
+    /// Runs the post-load wiring on an imported profile's round LED buttons (config v12), the way
+    /// <c>DevicePostInit</c> does for the config's own. Without it a state-carrying LED button
+    /// arrives on <c>Guid.Empty</c> and mirrors no command.
+    /// <para>A package created before v12 carries no buttons at all: the array stays null and the
+    /// controller builds the device defaults when the profile is first activated. Buttons the
+    /// attached device does not have are left in place rather than truncated (as with touch pages,
+    /// so a re-export arrives intact); the controller's rebuild sizes the set to the device and
+    /// matches by button id, so a foreign entry is simply never used.</para>
+    /// </summary>
+    private static void NormalizeSimpleButtons(Profile profile)
+    {
+        foreach (SimpleButton button in profile.SimpleButtons ?? [])
+            button?.RewireAfterLoad();
     }
 
     /// <summary>Normalizes every page of a workspace and its page numbering.</summary>
