@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Security.Cryptography;
 using System.Text;
 using Avalonia.Media.Imaging;
@@ -27,6 +28,14 @@ public sealed class AppIconExtractor : IAppIconExtractor
     private readonly LinkedList<string> _recent = new();
 
     private readonly string _cacheDirectory = FileDialogHelper.GetConfigPath("appicons");
+
+    /// <summary>
+    /// One gate per executable. Several panels stream their icons in at the same time, so without
+    /// this two extractions of the same application race for the same cache file — the loser writes
+    /// into a file the winner still holds open, which GDI+ reports as "a generic error". Serialised,
+    /// the second caller simply finds the finished file in the cache.
+    /// </summary>
+    private readonly ConcurrentDictionary<string, object> _gates = new(StringComparer.OrdinalIgnoreCase);
 
     public async Task<Bitmap> GetThumbnailAsync(InstalledApp app, int width,
         CancellationToken cancellationToken = default)
@@ -91,6 +100,15 @@ public sealed class AppIconExtractor : IAppIconExtractor
 
         cancellationToken.ThrowIfCancellationRequested();
 
+        lock (_gates.GetOrAdd(source, _ => new object()))
+        {
+            return ExtractCore(source);
+        }
+    }
+
+    /// <summary>Extracts <paramref name="source"/> into the disk cache. Callers hold its gate.</summary>
+    private string ExtractCore(string source)
+    {
         try
         {
             // Keying on the write time as well as the path means an updated or reinstalled
