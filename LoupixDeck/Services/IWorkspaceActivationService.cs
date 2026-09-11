@@ -71,6 +71,10 @@ public sealed class WorkspaceActivationService(LoupedeckConfig config, IDeviceCo
         config.ActiveProfileId = profile.Id;
         config.ActiveWorkspaceId = profile.HomeWorkspace?.Id ?? Guid.Empty;
 
+        // The round LED buttons belong to the profile (config v12), so they are rebuilt here and
+        // not in ApplyActiveWorkspace — a workspace switch keeps the same set.
+        await controller.ApplyActiveProfileButtons();
+
         await controller.ApplyActiveWorkspace();
 
         ActiveProfileChanged?.Invoke(profile);

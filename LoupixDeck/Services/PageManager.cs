@@ -403,9 +403,11 @@ public class PageManager : IPageManager
 
     public void RefreshSimpleButtons()
     {
-        foreach (var simpleButton in SimpleButtons)
+        // Null while the active profile's LED buttons have not been built yet (config v12 — each
+        // profile owns its own set, and a freshly created one starts without any).
+        foreach (var simpleButton in SimpleButtons ?? [])
         {
-            simpleButton.Refresh();
+            simpleButton?.Refresh();
         }
     }
 

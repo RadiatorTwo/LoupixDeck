@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using LoupixDeck.Registry;
 using Newtonsoft.Json;
@@ -56,8 +56,11 @@ public partial class LoupedeckConfig : ObservableObject
     /// v9 stores touch-button layer geometry in the owning device's own key pixels instead of a
     /// fixed 90x90 authoring tile, so nothing is scaled between the editor and the framebuffer.
     /// A no-op on every 90px device (the factor is 1); see <c>PerDeviceKeySizeMigrator</c>.
+    /// v12 moved the round LED buttons off the config root into each <see cref="Profile"/>, so a
+    /// colour or command set in one profile no longer bleeds into the others; the shared set is
+    /// cloned into every existing profile. See <c>SimpleButtonsPerProfileMigrator</c>.
     /// </summary>
-    public const int CurrentVersion = 11;
+    public const int CurrentVersion = 12;
 
     public int Version { get; set; } = CurrentVersion;
 
@@ -192,7 +195,32 @@ public partial class LoupedeckConfig : ObservableObject
     [ObservableProperty]
     public partial string ScreensaverPluginId { get; set; }
 
-    public SimpleButton[] SimpleButtons { get; set; }
+    /// <summary>
+    /// The round LED buttons of the active profile. Since v12 they live inside
+    /// <see cref="Profile.SimpleButtons"/>, one set per profile, so a colour or command changed in
+    /// one profile no longer bleeds into the others; the root property stays as a forwarding
+    /// facade. They hang off the profile rather than the workspace on purpose: a workspace is a
+    /// page set inside one usage scenario, and the physical LED row should not change under the
+    /// user on every workspace switch.
+    /// </summary>
+    [JsonIgnore]
+    public SimpleButton[] SimpleButtons
+    {
+        get => ActiveProfile?.SimpleButtons;
+        set
+        {
+            if (ActiveProfile is not { } profile)
+            {
+                // Without a profile there is nowhere to put them and the assignment would be lost.
+                // EnsureDefaultProfile runs at load, so reaching this means a caller ran too early.
+                Console.WriteLine("SimpleButtons were assigned before any profile existed; the assignment was dropped.");
+                return;
+            }
+
+            profile.SimpleButtons = value;
+            OnPropertyChanged(nameof(SimpleButtons));
+        }
+    }
 
     // ───────── Profiles / Workspaces (issue #132) ─────────
     // The touch/rotary page collections and their active-page projections used to live
@@ -298,6 +326,9 @@ public partial class LoupedeckConfig : ObservableObject
     {
         OnPropertyChanged(nameof(ActiveProfile));
         OnPropertyChanged(nameof(ActiveWorkspace));
+        // Per-profile since v12; the device layouts bind Config.SimpleButtons[i] and have to
+        // re-read the indexer when the active profile changes.
+        OnPropertyChanged(nameof(SimpleButtons));
         OnPropertyChanged(nameof(TouchButtonPages));
         OnPropertyChanged(nameof(RotaryButtonPages));
         OnPropertyChanged(nameof(LeftRotaryButtonPages));

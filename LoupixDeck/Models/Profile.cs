@@ -37,6 +37,14 @@ public partial class Profile : ObservableObject
     public Guid HomeWorkspaceId { get; set; }
 
     /// <summary>
+    /// The profile's own round LED buttons (since config v12). Null until the controller builds the
+    /// device defaults on the profile's first activation — a profile created in the settings UI
+    /// starts out without them, and a profile imported from another device model may not match the
+    /// attached device's button set.
+    /// </summary>
+    public SimpleButton[] SimpleButtons { get; set; }
+
+    /// <summary>
     /// Relative priority used to break ties when several profiles' context rules match the same
     /// foreground window. Higher wins. Default 0. (Consumed by the rule engine in a later phase.)
     /// </summary>

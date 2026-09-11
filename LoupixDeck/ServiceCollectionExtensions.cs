@@ -487,9 +487,11 @@ public static class ServiceCollectionExtensions
         }
 
         // Normalize each LED button's active state + command mirror after load (no layers).
-        if (config.SimpleButtons != null)
+        // Every profile, not just the active one: since v12 each profile owns its own set, and a
+        // button first touched after a profile switch would otherwise run unnormalized.
+        foreach (Profile profile in config.Profiles ?? [])
         {
-            foreach (var button in config.SimpleButtons)
+            foreach (SimpleButton button in profile?.SimpleButtons ?? [])
                 button?.RewireAfterLoad();
         }
     }

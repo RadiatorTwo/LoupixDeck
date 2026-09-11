@@ -80,9 +80,13 @@ public sealed class ButtonStateService(LoupedeckConfig config) : IButtonStateSer
             }
         }
 
-        if (config.SimpleButtons != null)
+        // The LED buttons of every profile, not only the active one: a plugin state change has to
+        // reach a button sitting in an inactive profile too, so that profile shows the right state
+        // when it is next activated. The touch pages above stay scoped to the active workspace by
+        // design — they are repainted from the workspace on every switch anyway.
+        foreach (Profile profile in config.Profiles ?? [])
         {
-            foreach (var button in config.SimpleButtons)
+            foreach (SimpleButton button in profile?.SimpleButtons ?? [])
             {
                 if (button?.States == null) continue;
                 if (button.States.Any(s => StateBindsTo(s, commandName)))

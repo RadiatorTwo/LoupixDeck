@@ -1,4 +1,4 @@
-using System.ComponentModel;
+﻿using System.ComponentModel;
 using System.IO.Hashing;
 using LoupixDeck.LoupedeckDevice;
 using LoupixDeck.Models;
@@ -819,7 +819,7 @@ public partial class LoupedeckLiveSController(
         // workspace's pages (issue #132).
         BindActiveWorkspaceTouchPages();
 
-        config.SimpleButtons = await BuildSimpleButtons();
+        await ApplyActiveProfileButtons();
 
         InitializeRotaryPages();
 
@@ -1533,7 +1533,9 @@ public partial class LoupedeckLiveSController(
             return;
         }
 
-        var button = config.SimpleButtons.FirstOrDefault(b => b.Id == e.ButtonId);
+        // Null until the active profile's buttons are built (bring-up, or a profile activated
+        // before its set exists), and hardware presses can arrive in that window.
+        var button = config.SimpleButtons?.FirstOrDefault(b => b != null && b.Id == e.ButtonId);
         if (button != null)
         {
             if (_isDeviceOff && !button.EnableWhenOff) return;
@@ -2567,6 +2569,30 @@ public partial class LoupedeckLiveSController(
     /// created blank for the user to assign — preserves saved bindings via
     /// SimpleButtonExtensions.FindById.
     /// </summary>
+    // The LED button set the ItemChanged handler is currently attached to. Kept separately from
+    // config.SimpleButtons because a profile switch moves that facade onto the new profile before
+    // the controller runs — without this the outgoing profile's buttons could never be unhooked.
+    private SimpleButton[] _wiredSimpleButtons;
+
+    /// <summary>
+    /// Builds, wires and paints the active profile's round LED buttons: unhooks the previously
+    /// wired set, builds this profile's (saved bindings are kept, missing ones get the device
+    /// defaults), and pushes the colours to the hardware. Runs at bring-up and on every profile
+    /// switch; a workspace switch does not change the set and must not call it.
+    /// </summary>
+    public async Task ApplyActiveProfileButtons()
+    {
+        foreach (SimpleButton button in _wiredSimpleButtons ?? [])
+        {
+            if (button != null)
+                button.ItemChanged -= SimpleButtonChanged;
+        }
+
+        SimpleButton[] buttons = await BuildSimpleButtons();
+        config.SimpleButtons = buttons;
+        _wiredSimpleButtons = buttons;
+    }
+
     private async Task<SimpleButton[]> BuildSimpleButtons()
     {
         var device = deviceService.Device;
@@ -2606,7 +2632,8 @@ public partial class LoupedeckLiveSController(
             var ctResult = new SimpleButton[ctCount];
             for (var i = 0; i < ctCount && i < ctDefaults.Length; i++)
             {
-                ctResult[i] = await CreateSimpleButton(ctDefaults[i].Id, Avalonia.Media.Colors.Blue, ctDefaults[i].Cmd ?? string.Empty);
+                ctResult[i] = await CreateSimpleButton(ctDefaults[i].Id, DefaultLedColor(ctDefaults[i].Cmd),
+                    ctDefaults[i].Cmd ?? string.Empty);
             }
             return ctResult;
         }
@@ -2642,10 +2669,25 @@ public partial class LoupedeckLiveSController(
         var result = new SimpleButton[count];
         for (var i = 0; i < count && i < defaults.Length; i++)
         {
-            result[i] = await CreateSimpleButton(defaults[i].Id, Avalonia.Media.Colors.Blue, defaults[i].Cmd ?? string.Empty);
+            result[i] = await CreateSimpleButton(defaults[i].Id, DefaultLedColor(defaults[i].Cmd),
+                defaults[i].Cmd ?? string.Empty);
         }
         return result;
     }
+
+    /// <summary>
+    /// Colour a newly created LED button starts at: blue for one that comes with a default command,
+    /// dark for one that does nothing yet (the Live S BUTTON4-7 and the CT's named keys), so an
+    /// untouched device does not light up buttons that are not wired to anything. This only reaches
+    /// buttons <see cref="CreateSimpleButton"/> creates from scratch — a button restored from the
+    /// config always keeps its saved colour, so an existing file looks exactly as it did.
+    ///
+    /// The fork additionally darkened buttons whose command points at a page that does not exist.
+    /// That is deliberately not ported: page counts differ per workspace, so the same button would
+    /// be lit in one workspace and dark in another.
+    /// </summary>
+    private static Avalonia.Media.Color DefaultLedColor(string command) =>
+        string.IsNullOrWhiteSpace(command) ? Avalonia.Media.Colors.Black : Avalonia.Media.Colors.Blue;
 
     private async Task<SimpleButton> CreateSimpleButton(Constants.ButtonType id, Avalonia.Media.Color color,
         string command)
@@ -2665,9 +2707,13 @@ public partial class LoupedeckLiveSController(
         button.ItemChanged += SimpleButtonChanged;
 
         // Part of the bring-up: the button model must exist even when the colour can't reach a
-        // device whose link is down (see TryDeviceIo).
-        await TryDeviceIo($"setting the colour of button {id}",
-            () => deviceService.Device.SetButtonColor(id, button.ButtonColor));
+        // device whose link is down (see TryDeviceIo). A device switched off keeps its LEDs dark —
+        // the restore path repaints them from the then-active profile.
+        if (!_isDeviceOff)
+        {
+            await TryDeviceIo($"setting the colour of button {id}",
+                () => deviceService.Device.SetButtonColor(id, button.ButtonColor));
+        }
 
         return button;
     }
@@ -2676,7 +2722,14 @@ public partial class LoupedeckLiveSController(
     {
         if (sender is not SimpleButton button) return;
 
-        button.RenderedImage = BitmapHelper.RenderSimpleButtonImage(button, 90, 90);
+        // ItemChanged is raised by whoever changed the button — a plugin thread driving a button
+        // state, the serial read loop, a timer. RenderedImage is bound by the UI, so the assignment
+        // has to be marshalled. Post rather than Invoke: the raising thread must not wait on the
+        // dispatcher (a device write is still pending below).
+        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        {
+            button.RenderedImage = BitmapHelper.RenderSimpleButtonImage(button, 90, 90);
+        });
         // async void: an unhandled transport failure here would tear the process down.
         await TryDeviceIo($"setting the colour of button {button.Id}",
             () => deviceService.Device.SetButtonColor(button.Id, button.ButtonColor));

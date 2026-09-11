@@ -1,4 +1,4 @@
-using Newtonsoft.Json;
+﻿using Newtonsoft.Json;
 using LoupixDeck.Models;
 using LoupixDeck.Models.Converter;
 using LoupixDeck.Models.Layers;
@@ -30,7 +30,8 @@ public class ConfigService : IConfigService
         new ProfilesWorkspacesMigrator(),
         new PerDeviceKeySizeMigrator(),
         new StreamControllerXKeySizeMigrator(),
-        new ButtonBackgroundToggleMigrator()
+        new ButtonBackgroundToggleMigrator(),
+        new SimpleButtonsPerProfileMigrator()
     ];
 
     public ConfigService()

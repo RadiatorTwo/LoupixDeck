@@ -579,6 +579,9 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
 
     private void AddProfile()
     {
+        // SimpleButtons is deliberately left null: the controller builds the device defaults when
+        // the profile is first activated (ApplyActiveProfileButtons). Copying the current profile's
+        // LED buttons here would make "add profile" quietly duplicate someone else's LED state.
         var workspace = new Workspace { Name = "Home" };
         var profile = new Profile { Name = "New Profile", HomeWorkspaceId = workspace.Id };
         profile.Workspaces.Add(workspace);
