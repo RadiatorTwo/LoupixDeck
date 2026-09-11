@@ -1,4 +1,4 @@
-using System.Buffers.Binary;
+﻿using System.Buffers.Binary;
 using System.Runtime.InteropServices;
 using System.Text;
 using LoupixDeck.Models.Macros;
@@ -34,6 +34,8 @@ public partial class UInputMouse : IVirtualMouse
     private const int BTN_LEFT = 0x110;
     private const int BTN_RIGHT = 0x111;
     private const int BTN_MIDDLE = 0x112;
+    private const int BTN_SIDE = 0x113;  // X1 / back
+    private const int BTN_EXTRA = 0x114; // X2 / forward
 
     private const int REL_X = 0x00;
     private const int REL_Y = 0x01;
@@ -88,6 +90,8 @@ public partial class UInputMouse : IVirtualMouse
         ioctl(_fileDescriptor, UI_SET_KEYBIT, BTN_LEFT);
         ioctl(_fileDescriptor, UI_SET_KEYBIT, BTN_RIGHT);
         ioctl(_fileDescriptor, UI_SET_KEYBIT, BTN_MIDDLE);
+        ioctl(_fileDescriptor, UI_SET_KEYBIT, BTN_SIDE);
+        ioctl(_fileDescriptor, UI_SET_KEYBIT, BTN_EXTRA);
 
         // Relative axes + wheel
         ioctl(_fileDescriptor, UI_SET_EVBIT, EV_REL);
@@ -164,6 +168,8 @@ public partial class UInputMouse : IVirtualMouse
     {
         MouseButton.Right => BTN_RIGHT,
         MouseButton.Middle => BTN_MIDDLE,
+        MouseButton.X1 => BTN_SIDE,
+        MouseButton.X2 => BTN_EXTRA,
         _ => BTN_LEFT
     };
 

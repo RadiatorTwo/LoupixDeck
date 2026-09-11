@@ -1,4 +1,4 @@
-using System.Runtime.InteropServices;
+﻿using System.Runtime.InteropServices;
 using LoupixDeck.Models.Macros;
 
 namespace LoupixDeck.Services.Mouse;
@@ -21,9 +21,15 @@ public partial class WindowsVirtualMouse : IVirtualMouse
     private const uint MOUSEEVENTF_RIGHTUP = 0x0010;
     private const uint MOUSEEVENTF_MIDDLEDOWN = 0x0020;
     private const uint MOUSEEVENTF_MIDDLEUP = 0x0040;
+    private const uint MOUSEEVENTF_XDOWN = 0x0080;
+    private const uint MOUSEEVENTF_XUP = 0x0100;
     private const uint MOUSEEVENTF_WHEEL = 0x0800;
     private const uint MOUSEEVENTF_VIRTUALDESK = 0x4000;
     private const uint MOUSEEVENTF_ABSOLUTE = 0x8000;
+
+    // X events share one flag pair; mouseData selects which extra button is meant.
+    private const uint XBUTTON1 = 0x0001;
+    private const uint XBUTTON2 = 0x0002;
 
     private const int WHEEL_DELTA = 120;
 
@@ -83,20 +89,20 @@ public partial class WindowsVirtualMouse : IVirtualMouse
 
     public void Click(MouseButton button)
     {
-        var (down, up) = ButtonFlags(button);
-        Send([MouseInput(0, 0, 0, down), MouseInput(0, 0, 0, up)]);
+        (uint down, uint up, uint data) = ButtonFlags(button);
+        Send([MouseInput(0, 0, data, down), MouseInput(0, 0, data, up)]);
     }
 
     public void ButtonDown(MouseButton button)
     {
-        var (down, _) = ButtonFlags(button);
-        Send([MouseInput(0, 0, 0, down)]);
+        (uint down, _, uint data) = ButtonFlags(button);
+        Send([MouseInput(0, 0, data, down)]);
     }
 
     public void ButtonUp(MouseButton button)
     {
-        var (_, up) = ButtonFlags(button);
-        Send([MouseInput(0, 0, 0, up)]);
+        (_, uint up, uint data) = ButtonFlags(button);
+        Send([MouseInput(0, 0, data, up)]);
     }
 
     public void MoveRelative(int dx, int dy)
@@ -131,11 +137,14 @@ public partial class WindowsVirtualMouse : IVirtualMouse
         // Nothing to dispose — SendInput holds no resources.
     }
 
-    private static (uint down, uint up) ButtonFlags(MouseButton button) => button switch
+    // Down/up flags plus the mouseData selector — only the X buttons need it, the rest pass 0.
+    private static (uint down, uint up, uint data) ButtonFlags(MouseButton button) => button switch
     {
-        MouseButton.Right => (MOUSEEVENTF_RIGHTDOWN, MOUSEEVENTF_RIGHTUP),
-        MouseButton.Middle => (MOUSEEVENTF_MIDDLEDOWN, MOUSEEVENTF_MIDDLEUP),
-        _ => (MOUSEEVENTF_LEFTDOWN, MOUSEEVENTF_LEFTUP)
+        MouseButton.Right => (MOUSEEVENTF_RIGHTDOWN, MOUSEEVENTF_RIGHTUP, 0u),
+        MouseButton.Middle => (MOUSEEVENTF_MIDDLEDOWN, MOUSEEVENTF_MIDDLEUP, 0u),
+        MouseButton.X1 => (MOUSEEVENTF_XDOWN, MOUSEEVENTF_XUP, XBUTTON1),
+        MouseButton.X2 => (MOUSEEVENTF_XDOWN, MOUSEEVENTF_XUP, XBUTTON2),
+        _ => (MOUSEEVENTF_LEFTDOWN, MOUSEEVENTF_LEFTUP, 0u)
     };
 
     private static INPUT MouseInput(int dx, int dy, uint mouseData, uint flags)
