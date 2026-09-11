@@ -6,6 +6,7 @@ using LoupixDeck.Services.ActiveWindow;
 using LoupixDeck.Services.AppLauncher;
 using LoupixDeck.Services.AppSwitching;
 using LoupixDeck.Services.Commands;
+using LoupixDeck.Services.DialPresets;
 using LoupixDeck.Services.FolderNavigation;
 using LoupixDeck.Services.Macros;
 using LoupixDeck.Services.Mouse;
@@ -107,6 +108,11 @@ public static class ServiceCollectionExtensions
         // User-defined macros: in-memory store (macros.json), shared across devices.
         collection.AddSingleton<IMacroManager, MacroManager>();
 
+        // User-created dial presets: in-memory store (dial-presets.json), shared across devices so
+        // a preset saved on one deck can be applied on another. The built-in presets are not here —
+        // which of them an installation can run depends on the per-device command registry.
+        collection.AddSingleton<IDialPresetStore, DialPresetStore>();
+
         // App-global macro cancellation: per-device runners register here so the global
         // stop hotkey (a single process-wide listener) can cancel macros on every device.
         collection.AddSingleton<IMacroStopCoordinator, MacroStopCoordinator>();
@@ -164,6 +170,7 @@ public static class ServiceCollectionExtensions
         collection.Forward<IMacroExecutionRegistry>(root);
         collection.Forward<IMacroPromptService>(root);
         collection.Forward<IMacroManager>(root);
+        collection.Forward<IDialPresetStore>(root);
         collection.Forward<IMacroStopCoordinator>(root);
         collection.Forward<IButtonClipboardService>(root);
         collection.Forward<IDeviceHostRegistry>(root);
@@ -265,8 +272,12 @@ public static class ServiceCollectionExtensions
         collection.AddSingleton<IMenuContributor, UserMacroMenuContributor>();
         collection.AddSingleton<IMenuContributor, ProfileMenuContributor>();
         collection.AddSingleton<IMenuContributor, DisplayTestMenuContributor>();
+        collection.AddSingleton<IMenuContributor, DialPresetMenuContributor>();
         collection.AddSingleton<IPluginMenuSource, PluginMenuContributor>();
         collection.AddSingleton<IMenuTreeBuilder, MenuTreeBuilder>();
+
+        // Built-in dial presets this device can run, plus the user's own from the shared store.
+        collection.AddSingleton<IDialPresetCatalog, DialPresetCatalog>();
 
         // Sequential macro-step executor (uses this device's command service).
         collection.AddSingleton<MacroRunner>();
@@ -327,6 +338,7 @@ public static class ServiceCollectionExtensions
         // The apps/actions side panel. One per device because it holds that device's command
         // catalogue and its own open state, while the scan behind it is a shared root singleton.
         collection.AddSingleton<ViewModels.ActionPanel.ActionPanelViewModel>();
+        collection.AddSingleton<ViewModels.DialQuickMenuViewModel>();
         collection.AddSingleton<Services.Actions.IPanelAssignmentService, Services.Actions.PanelAssignmentService>();
 
         collection.AddTransient<MainWindowViewModel>();
@@ -409,6 +421,9 @@ public static class ServiceCollectionExtensions
         collection.AddTransient<About>();
         collection.AddTransient<AboutViewModel>();
 
+        collection.AddTransient<DialPresetEditor>();
+        collection.AddTransient<DialPresetEditorViewModel>();
+
         collection.AddTransient<ConfirmDialog>();
         collection.AddTransient<ConfirmDialogViewModel>();
 
@@ -424,6 +439,9 @@ public static class ServiceCollectionExtensions
     {
         // Load user macros once — execution and menus read from memory afterwards.
         root.GetRequiredService<IMacroManager>().Load();
+
+        // Same for the user's dial presets.
+        root.GetRequiredService<IDialPresetStore>().Load();
 
         // Begin listening for the global stop hotkey (no-op until one is configured).
         root.GetRequiredService<IMacroStopHotkeyService>().Start();
@@ -453,6 +471,7 @@ public static class ServiceCollectionExtensions
         dialogService.Register<PageCommandsSettingsViewModel, PageCommandsSettings>();
         dialogService.Register<SettingsViewModel, Settings>();
         dialogService.Register<MacroEditorViewModel, MacroEditor>();
+        dialogService.Register<DialPresetEditorViewModel, DialPresetEditor>();
         dialogService.Register<AboutViewModel, About>();
         dialogService.Register<ConfirmDialogViewModel, ConfirmDialog>();
         dialogService.Register<ProfileImportViewModel, ProfileImport>();

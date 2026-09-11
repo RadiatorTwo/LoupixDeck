@@ -1,9 +1,11 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using System.Windows.Input;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using LoupixDeck.Controllers;
 using LoupixDeck.Models;
+using LoupixDeck.Models.Extensions;
+using LoupixDeck.PluginSdk;
 using LoupixDeck.Services;
 using LoupixDeck.Services.AppSwitching;
 using LoupixDeck.Services.Commands;
@@ -29,6 +31,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly IWorkspaceActivationService _workspaceActivation;
     private readonly Services.Actions.IPanelAssignmentService _panelAssignment;
     private readonly LoupedeckConfig _config;
+    private readonly Services.DialPresets.IDialPresetStore _dialPresetStore;
 
     // Guards the profile/workspace ComboBox selection against feedback loops: set while we
     // push an external activation (context rules, commands, buttons) back into the bound
@@ -230,6 +233,8 @@ public partial class MainWindowViewModel : ViewModelBase
         IWorkspaceActivationService workspaceActivation,
         LoupedeckConfig config,
         ViewModels.ActionPanel.ActionPanelViewModel actionPanel,
+        DialQuickMenuViewModel dialMenu,
+        Services.DialPresets.IDialPresetStore dialPresetStore,
         Services.Actions.IPanelAssignmentService panelAssignment,
         LoupixDeck.Registry.DeviceRegistry.DeviceInfo deviceInfo,
         LoupixDeck.Registry.ResolvedDevice resolved,
@@ -247,6 +252,12 @@ public partial class MainWindowViewModel : ViewModelBase
         _exclusiveMode = exclusiveMode;
         _workspaceActivation = workspaceActivation;
         ActionPanel = actionPanel;
+        DialMenu = dialMenu;
+        _dialPresetStore = dialPresetStore;
+
+        // The panel lists the presets; the dialogs they need live here, where the dialog service is.
+        ActionPanel.RenamePreset = RenameDialPresetAsync;
+        ActionPanel.DeletePreset = DeleteDialPresetAsync;
         _panelAssignment = panelAssignment;
         _config = config;
 
@@ -255,6 +266,12 @@ public partial class MainWindowViewModel : ViewModelBase
         // higher priority it lands in the middle of the deck coming up and stalls the window.
         Avalonia.Threading.Dispatcher.UIThread.Post(
             () => _ = ActionPanel.EnsureLoadedAsync(),
+            Avalonia.Threading.DispatcherPriority.ApplicationIdle);
+
+        // Same for the dial context menu's command list, which is built for rotary encoders and so
+        // is a different tree from the panel's.
+        Avalonia.Threading.Dispatcher.UIThread.Post(
+            () => _ = DialMenu.EnsureLoadedAsync(),
             Avalonia.Threading.DispatcherPriority.ApplicationIdle);
 
         // Seed the header dropdowns from the current active profile/workspace, and keep them in
@@ -828,6 +845,111 @@ public partial class MainWindowViewModel : ViewModelBase
     /// selected, which is what a click on a panel row means before a button is picked.</summary>
     public Task AssignPanelItemToSelectionAsync(ViewModels.ActionPanel.PanelItemViewModel item)
         => _selectedButton == null ? Task.CompletedTask : AssignPanelItemAsync(item, _selectedButton);
+
+    // ─────────────────────────── Dial context menu ───────────────────────────
+
+    /// <summary>Backs the dial section of the device button context menu: the command catalogue a
+    /// dial can run, and the presets it can be loaded from.</summary>
+    public DialQuickMenuViewModel DialMenu { get; }
+
+    /// <summary>Binds a catalogue entry to one gesture of a dial, then saves and repaints.</summary>
+    public async Task AssignDialGestureAsync(RotaryButton dial, RotaryAction gesture, MenuEntry entry)
+    {
+        if (!DialMenu.AssignGesture(dial, gesture, entry))
+            return;
+
+        await AfterDialChange(dial);
+    }
+
+    /// <summary>Loads all three gestures of a dial from a preset, then saves and repaints.</summary>
+    public async Task ApplyDialPresetAsync(RotaryButton dial, DialPreset preset)
+    {
+        if (!DialMenu.ApplyPreset(dial, preset))
+            return;
+
+        await AfterDialChange(dial);
+    }
+
+    /// <summary>Clears one gesture of a dial, then saves and repaints.</summary>
+    public async Task ClearDialGestureAsync(RotaryButton dial, RotaryAction gesture)
+    {
+        if (dial == null || string.IsNullOrWhiteSpace(dial.GetCommand(gesture)))
+            return;
+
+        DialMenu.ClearGesture(dial, gesture);
+        await AfterDialChange(dial);
+    }
+
+    /// <summary>
+    /// Saves a dial's current three gestures as a new preset, after asking for a name. A dial with
+    /// nothing on it has nothing to save.
+    /// </summary>
+    public async Task SaveDialAsPresetAsync(RotaryButton dial)
+    {
+        if (dial == null || dial.IsEmpty())
+            return;
+
+        DialPreset preset = new()
+        {
+            Name = dial.DisplayText ?? string.Empty,
+            Left = dial.GetCommand(RotaryAction.CounterClockwise),
+            Right = dial.GetCommand(RotaryAction.Clockwise),
+            Press = dial.GetCommand(RotaryAction.Press)
+        };
+
+        // The dial's label is only a starting point for the name; it is often the last action that
+        // was put on the dial, and it may well already be taken.
+        if (!_dialPresetStore.IsNameValid(preset.Name))
+            preset.Name = string.Empty;
+
+        DialogResult result = await _dialogService.ShowDialogAsync<DialPresetEditorViewModel, DialogResult>(
+            vm => vm.Initialize(preset));
+
+        if (result.IsConfirmed)
+            _dialPresetStore.Add(preset);
+    }
+
+    /// <summary>Renames a user preset. Built-in ones are not editable.</summary>
+    public async Task RenameDialPresetAsync(DialPreset preset)
+    {
+        if (preset == null || preset.IsBuiltIn)
+            return;
+
+        DialPreset working = preset.Clone();
+
+        DialogResult result = await _dialogService.ShowDialogAsync<DialPresetEditorViewModel, DialogResult>(
+            vm => vm.Initialize(working));
+
+        if (result.IsConfirmed)
+            _dialPresetStore.Update(working);
+    }
+
+    /// <summary>
+    /// Deletes a user preset, after confirming. Dials that were configured from it keep working:
+    /// applying a preset copies three commands onto the dial and leaves no reference behind.
+    /// </summary>
+    public async Task DeleteDialPresetAsync(DialPreset preset)
+    {
+        if (preset == null || preset.IsBuiltIn)
+            return;
+
+        DialogResult result = await _dialogService.ShowDialogAsync<ConfirmDialogViewModel, DialogResult>(vm =>
+            vm.Configure(
+                $"Delete the preset '{preset.Name}'? Dials you already configured from it are not affected.",
+                title: "Delete preset?",
+                confirmText: "Delete",
+                cancelText: "Cancel"));
+
+        if (result.IsConfirmed)
+            _dialPresetStore.Remove(preset.Id);
+    }
+
+    private async Task AfterDialChange(RotaryButton dial)
+    {
+        LoupedeckController.SaveConfig();
+        await RefreshRotarySide(dial);
+        SelectButton(dial);
+    }
 
     // ─────────────────────────── Drag & drop (issue #166) ───────────────────────────
 

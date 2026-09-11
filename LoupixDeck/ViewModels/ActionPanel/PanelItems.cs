@@ -42,6 +42,11 @@ public abstract partial class PanelItemViewModel : ViewModelBase
     /// <summary>True for a row the user put there themselves and can take away again. A scanned
     /// application would only come back on the next scan, so removing one is not offered.</summary>
     public bool CanRemove { get; init; }
+
+    /// <summary>True for a preset the user created, which can be renamed and deleted. Separate from
+    /// <see cref="CanRemove"/>: the two offer different menu entries, and a row must never show one
+    /// that does nothing to it.</summary>
+    public bool CanEdit { get; init; }
 }
 
 /// <summary>An installed application: assigning it puts its launch command and its icon on the button.</summary>
@@ -83,4 +88,24 @@ public sealed class ActionPanelItemViewModel : PanelItemViewModel
     public override string Title => Entry.Name;
 
     public override string Subtitle => Entry.Description;
+}
+
+/// <summary>
+/// A dial preset: assigning it fills all three gestures of a dial at once. Rejected on every other
+/// button type, which has no gestures to fill.
+/// </summary>
+public sealed class DialPresetPanelItemViewModel : PanelItemViewModel
+{
+    public DialPreset Preset { get; }
+
+    public DialPresetPanelItemViewModel(DialPreset preset)
+    {
+        Preset = preset;
+        Glyph = string.IsNullOrEmpty(preset.Glyph) ? DialPreset.DefaultGlyph : preset.Glyph;
+        CanEdit = !preset.IsBuiltIn;
+    }
+
+    public override string Title => Preset.Name;
+
+    public override string Subtitle => Preset.IsBuiltIn ? "Built-in" : "Your preset";
 }

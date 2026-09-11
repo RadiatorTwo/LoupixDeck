@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using Avalonia.Threading;
 using LoupixDeck.Models;
 using LoupixDeck.PluginSdk;
@@ -11,10 +11,12 @@ public class MenuTreeBuilder : IMenuTreeBuilder
     /// <summary>
     /// Core groups in their fixed display order. Any group not listed here
     /// (i.e. a plugin group) is appended afterwards, sorted alphabetically.
+    /// "Dial Presets" is contributed for rotary encoders only, so it leads the list
+    /// where it exists and is simply absent everywhere else.
     /// </summary>
     private static readonly string[] CoreGroupOrder =
     {
-        "Pages", "Device Control", "Macros", "User Macros", "Dynamic Text", "Audio"
+        "Dial Presets", "Pages", "Device Control", "Macros", "User Macros", "Dynamic Text", "Audio"
     };
 
     /// <summary>How long a single plugin may take before its menu is skipped.</summary>

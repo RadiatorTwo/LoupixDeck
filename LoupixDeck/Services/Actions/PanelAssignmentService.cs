@@ -53,6 +53,8 @@ public sealed class PanelAssignmentService(
             AppPanelItemViewModel => true,
             // A rotary group fills a dial's three actions at once and means nothing anywhere else.
             ActionPanelItemViewModel { Entry.IsCommandGroup: true } => kind == ButtonTargets.RotaryEncoder,
+            // Same for a preset, which is a rotary group the user named and saved.
+            DialPresetPanelItemViewModel => kind == ButtonTargets.RotaryEncoder,
             ActionPanelItemViewModel action => Supports(action, kind.Value),
             _ => false
         };
@@ -67,6 +69,8 @@ public sealed class PanelAssignmentService(
         {
             AppPanelItemViewModel app => await AssignAppAsync(app, target),
             ActionPanelItemViewModel action => AssignAction(action, target),
+            DialPresetPanelItemViewModel preset =>
+                ApplyRotaryGroup(preset.Preset.ToRotaryGroup(), (RotaryButton)target, preset.Title),
             _ => false
         };
     }
