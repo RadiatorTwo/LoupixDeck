@@ -149,8 +149,31 @@
         <Setter Property="Height" Value="28" />
         <Setter Property="Padding" Value="8,0" />
         <Setter Property="FontSize" Value="12" />
+        <!-- Explicit rather than relying on the Fluent default, so a stretched toolbar button
+             centres its label like the fixed-width ones next to it instead of hugging the left
+             edge. Toolbar buttons sit in rows and must line up with each other. -->
+        <Setter Property="HorizontalContentAlignment" Value="Center" />
         <Setter Property="VerticalContentAlignment" Value="Center" />
         <Setter Property="CornerRadius" Value="4" />
+    </Style>
+
+    <!-- Accent variant: for the one action in a panel that opens something rather than
+         tweaking a value, so it does not disappear into a row of neutral buttons. Styles the
+         ContentPresenter (not the Button) so the :pointerover state still wins, mirroring
+         ToggleButton.toolbar:checked below. -->
+    <Style Selector="Button.toolbar.accent /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource AppAccentSubtle}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource PageActiveBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+    </Style>
+    <Style Selector="Button.toolbar.accent:pointerover /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource PageActiveBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource PageActiveBorderBrush}" />
+        <Setter Property="Foreground" Value="White" />
+    </Style>
+    <Style Selector="Button.toolbar.accent:pressed /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource AppControlBackgroundActive}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource PageActiveBorderBrush}" />
     </Style>
 
     <!-- Toggle variant for the preview toolbar (Grid / Snap). Mirrors the button

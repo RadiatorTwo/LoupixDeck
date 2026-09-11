@@ -3,6 +3,7 @@ using LoupixDeck.Models;
 using LoupixDeck.Registry;
 using LoupixDeck.Services;
 using LoupixDeck.Services.ActiveWindow;
+using LoupixDeck.Services.AppLauncher;
 using LoupixDeck.Services.AppSwitching;
 using LoupixDeck.Services.Commands;
 using LoupixDeck.Services.FolderNavigation;
@@ -57,6 +58,20 @@ public static class ServiceCollectionExtensions
 
         // "Start with Windows" toggle (settings). Registry-backed on Windows, no-op elsewhere.
         collection.AddSingleton<IAutostartService, AutostartService>();
+
+        // Installed-application discovery and icons, for putting an app on a button. Device-
+        // agnostic — the machine's applications are the same for every deck — so the scan and both
+        // caches are shared at the root and forwarded into each device provider.
+        if (OperatingSystem.IsLinux())
+            collection.AddSingleton<IAppDiscoveryService, LinuxAppDiscoveryService>();
+#if WINDOWS
+        else if (OperatingSystem.IsWindows())
+            collection.AddSingleton<IAppDiscoveryService, WindowsAppDiscoveryService>();
+#endif
+        else
+            collection.AddSingleton<IAppDiscoveryService, NoOpAppDiscoveryService>();
+
+        collection.AddSingleton<IAppIconExtractor, AppIconExtractor>();
 
         // Animated-button assets (issue #121): decode-once frame cache and the import/transcode
         // pipeline are device-agnostic, so they live as shared root singletons (one decode shared
@@ -136,6 +151,8 @@ public static class ServiceCollectionExtensions
         collection.Forward<IConfigService>(root);
         collection.Forward<IAssetService>(root);
         collection.Forward<IAutostartService>(root);
+        collection.Forward<IAppDiscoveryService>(root);
+        collection.Forward<IAppIconExtractor>(root);
         collection.Forward<IDBusController>(root);
         collection.Forward<ICommandRunner>(root);
         collection.Forward<ISystemPowerService>(root);
@@ -364,6 +381,9 @@ public static class ServiceCollectionExtensions
         collection.AddTransient<SymbolPicker>();
         collection.AddTransient<SymbolPickerViewModel>();
 
+        collection.AddTransient<AppPicker>();
+        collection.AddTransient<AppPickerViewModel>();
+
         collection.AddTransient<TouchPageWallpaperSettings>();
         collection.AddTransient<TouchPageWallpaperSettingsViewModel>();
 
@@ -417,6 +437,7 @@ public static class ServiceCollectionExtensions
         dialogService.Register<RotaryButtonSettingsViewModel, RotaryButtonSettings>();
         dialogService.Register<TouchButtonSettingsViewModel, TouchButtonSettings>();
         dialogService.Register<SymbolPickerViewModel, SymbolPicker>();
+        dialogService.Register<AppPickerViewModel, AppPicker>();
         dialogService.Register<TouchPageWallpaperSettingsViewModel, TouchPageWallpaperSettings>();
         dialogService.Register<PageCommandsSettingsViewModel, PageCommandsSettings>();
         dialogService.Register<SettingsViewModel, Settings>();
