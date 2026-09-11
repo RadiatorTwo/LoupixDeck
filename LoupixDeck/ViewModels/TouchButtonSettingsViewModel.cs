@@ -71,6 +71,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     private readonly IDynamicTextManager _dynamicTextManager;
     private readonly Services.Animation.IAnimatedImageImporter _animatedImageImporter;
     private readonly Services.Animation.IAnimatedImageCache _animatedImageCache;
+    private readonly Services.AppLauncher.IAppIconExtractor _appIcons;
     private readonly LoupedeckConfig _config;
 
     /// <summary>
@@ -453,6 +454,8 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     public IAsyncRelayCommand AddAnimatedImageLayerCommand => field ??= Relay.Create(AddAnimatedImageLayer);
     public IRelayCommand AddTextLayerCommand => field ??= Relay.Create(AddTextLayer);
     public IAsyncRelayCommand AddSymbolLayerCommand => field ??= Relay.Create(AddSymbolLayer);
+
+    public IAsyncRelayCommand AssignApplicationCommand => field ??= Relay.Create(AssignApplication);
     public IRelayCommand RemoveLayerCommand => field ??= Relay.Create(RemoveSelectedLayer);
     public IRelayCommand MoveLayerUpCommand => field ??= Relay.Create(MoveSelectedLayerUp);
     public IRelayCommand MoveLayerDownCommand => field ??= Relay.Create(MoveSelectedLayerDown);
@@ -880,6 +883,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         IDynamicTextManager dynamicTextManager,
         Services.Animation.IAnimatedImageImporter animatedImageImporter,
         Services.Animation.IAnimatedImageCache animatedImageCache,
+        Services.AppLauncher.IAppIconExtractor appIcons,
         LoupedeckConfig config,
         DeviceGeometry geometry)
     {
@@ -893,6 +897,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         _dynamicTextManager = dynamicTextManager;
         _animatedImageImporter = animatedImageImporter;
         _animatedImageCache = animatedImageCache;
+        _appIcons = appIcons;
         _config = config;
 
         // A grid touch button is edited at the device's own key size — natively, with no
@@ -1095,6 +1100,63 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         var def = request.SelectedSymbol;
         symbol.SymbolId = def.Id;
         symbol.Name = def.DisplayName;
+    }
+
+    /// <summary>
+    /// Picks an installed application and assigns it to this button: its launch command plus its
+    /// icon as the button image.
+    /// </summary>
+    /// <remarks>
+    /// The icon is resolved <em>before</em> anything on the button is written, so a failed
+    /// extraction cannot leave the button half-applied. Replacing existing layers is confirmed
+    /// first — the user may have built the artwork by hand.
+    /// </remarks>
+    private async Task AssignApplication()
+    {
+        if (ButtonData == null) return;
+
+        AppPickerRequest request = new();
+        DialogResult result = await _dialogService.ShowDialogAsync<AppPickerViewModel, DialogResult>(
+            vm => vm.Initialize(request));
+
+        if (result is not { IsConfirmed: true } || request.SelectedApp == null) return;
+
+        Services.AppLauncher.InstalledApp app = request.SelectedApp;
+
+        // Resolve and import the icon up front: extraction is file IO and P/Invoke, and must not
+        // run while the button is being mutated.
+        string relative = null;
+        string iconFile = await _appIcons.GetIconFileAsync(app);
+        if (!string.IsNullOrEmpty(iconFile) && File.Exists(iconFile))
+            relative = _assetService.Import(iconFile);
+
+        bool replaceLayers = false;
+        if (ButtonData.Layers.Count > 0 && !string.IsNullOrEmpty(relative))
+        {
+            replaceLayers = !await ConfirmDialogHelper.AskKeepDiscardAsync(
+                WindowHelper.GetMainWindow(),
+                "Assign application",
+                $"\"{app.Name}\" brings its own icon. Keep the layers already on this button, or replace them with the application icon?",
+                "Keep",
+                "Replace");
+        }
+
+        // Resolved before the layer exists: GetUniqueLayerName searches the collection, so asking
+        // after the layer is in it would always collide with the layer itself. Replacing clears the
+        // collection first, so there is nothing left to collide with.
+        string layerName = replaceLayers ? app.Name : GetUniqueLayerName(app.Name);
+
+        ImageLayer layer = Services.AppLauncher.AppAssignment.ApplyToTouchButton(
+            ButtonData, app, relative, replaceLayers, layerName);
+
+        if (layer != null)
+        {
+            layer.CachedImage = _assetService.Load(relative);
+            SelectedLayer = layer;
+        }
+
+        BuildCommandSlots();
+        UpdateEditorPreview();
     }
 
     private void RemoveSelectedLayer()

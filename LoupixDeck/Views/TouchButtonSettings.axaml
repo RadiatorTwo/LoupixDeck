@@ -242,6 +242,13 @@
                         </StackPanel>
 
                         <TextBlock Classes="panel-title" Text="Button" />
+                        <!-- Sets the launch command and the icon in one step; it configures the
+                             whole button, not a single layer, so it sits here rather than in the
+                             Layers toolbar. -->
+                        <Button Classes="toolbar" Content="Assign application…"
+                                HorizontalAlignment="Stretch"
+                                Margin="0,0,0,8"
+                                Command="{Binding AssignApplicationCommand}" />
                         <CheckBox Content="Run while device is off"
                                   IsChecked="{Binding ButtonData.EnableWhenOff}"
                                   Margin="0,0,0,4" />
