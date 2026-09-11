@@ -1146,8 +1146,12 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         // collection first, so there is nothing left to collide with.
         string layerName = replaceLayers ? app.Name : GetUniqueLayerName(app.Name);
 
+        // The short edge of the surface being edited, mirroring what the renderer resolves a
+        // fitted layer against — a grid key here, or the strip canvas when editing one.
+        int keySize = Math.Min(DeviceWidth, DeviceHeight);
+
         ImageLayer layer = Services.AppLauncher.AppAssignment.ApplyToTouchButton(
-            ButtonData, app, relative, replaceLayers, layerName);
+            ButtonData, app, relative, replaceLayers, layerName, keySize);
 
         if (layer != null)
         {
