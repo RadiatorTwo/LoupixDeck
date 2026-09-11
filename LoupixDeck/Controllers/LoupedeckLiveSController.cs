@@ -1,4 +1,4 @@
-using System.ComponentModel;
+﻿using System.ComponentModel;
 using System.IO.Hashing;
 using LoupixDeck.LoupedeckDevice;
 using LoupixDeck.Models;
@@ -1533,7 +1533,9 @@ public partial class LoupedeckLiveSController(
             return;
         }
 
-        var button = config.SimpleButtons.FirstOrDefault(b => b.Id == e.ButtonId);
+        // Null until the active profile's buttons are built (bring-up, or a profile activated
+        // before its set exists), and hardware presses can arrive in that window.
+        var button = config.SimpleButtons?.FirstOrDefault(b => b != null && b.Id == e.ButtonId);
         if (button != null)
         {
             if (_isDeviceOff && !button.EnableWhenOff) return;
