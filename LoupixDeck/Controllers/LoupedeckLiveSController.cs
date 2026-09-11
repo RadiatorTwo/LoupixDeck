@@ -2632,7 +2632,8 @@ public partial class LoupedeckLiveSController(
             var ctResult = new SimpleButton[ctCount];
             for (var i = 0; i < ctCount && i < ctDefaults.Length; i++)
             {
-                ctResult[i] = await CreateSimpleButton(ctDefaults[i].Id, Avalonia.Media.Colors.Blue, ctDefaults[i].Cmd ?? string.Empty);
+                ctResult[i] = await CreateSimpleButton(ctDefaults[i].Id, DefaultLedColor(ctDefaults[i].Cmd),
+                    ctDefaults[i].Cmd ?? string.Empty);
             }
             return ctResult;
         }
@@ -2668,10 +2669,25 @@ public partial class LoupedeckLiveSController(
         var result = new SimpleButton[count];
         for (var i = 0; i < count && i < defaults.Length; i++)
         {
-            result[i] = await CreateSimpleButton(defaults[i].Id, Avalonia.Media.Colors.Blue, defaults[i].Cmd ?? string.Empty);
+            result[i] = await CreateSimpleButton(defaults[i].Id, DefaultLedColor(defaults[i].Cmd),
+                defaults[i].Cmd ?? string.Empty);
         }
         return result;
     }
+
+    /// <summary>
+    /// Colour a newly created LED button starts at: blue for one that comes with a default command,
+    /// dark for one that does nothing yet (the Live S BUTTON4-7 and the CT's named keys), so an
+    /// untouched device does not light up buttons that are not wired to anything. This only reaches
+    /// buttons <see cref="CreateSimpleButton"/> creates from scratch — a button restored from the
+    /// config always keeps its saved colour, so an existing file looks exactly as it did.
+    ///
+    /// The fork additionally darkened buttons whose command points at a page that does not exist.
+    /// That is deliberately not ported: page counts differ per workspace, so the same button would
+    /// be lit in one workspace and dark in another.
+    /// </summary>
+    private static Avalonia.Media.Color DefaultLedColor(string command) =>
+        string.IsNullOrWhiteSpace(command) ? Avalonia.Media.Colors.Black : Avalonia.Media.Colors.Blue;
 
     private async Task<SimpleButton> CreateSimpleButton(Constants.ButtonType id, Avalonia.Media.Color color,
         string command)
