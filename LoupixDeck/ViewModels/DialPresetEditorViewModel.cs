@@ -78,6 +78,10 @@ public sealed partial class DialPresetEditorViewModel(IDialPresetStore store)
     private static string Describe(string command) =>
         string.Join(" → ", CommandStringParser.SplitChain(command).Select(CommandStringParser.GetName));
 
+    /// <summary>Raised when the dialog should close, after the result is set. Setting the result
+    /// alone leaves the window on screen — the dialog service waits for the window to close.</summary>
+    public event Action CloseWindow;
+
     public IRelayCommand SaveCommand => field ??= Relay.Create(Save, CanSave);
 
     private bool CanSave() => !string.IsNullOrWhiteSpace(Name) && !HasNameError;
@@ -89,7 +93,12 @@ public sealed partial class DialPresetEditorViewModel(IDialPresetStore store)
 
         Preset.Name = Name.Trim();
         Confirm(Models.DialogResult.Ok());
+        CloseWindow?.Invoke();
     }
 
-    public IRelayCommand CancelCommand => field ??= Relay.Create(() => Cancel());
+    public IRelayCommand CancelCommand => field ??= Relay.Create(() =>
+    {
+        Cancel();
+        CloseWindow?.Invoke();
+    });
 }

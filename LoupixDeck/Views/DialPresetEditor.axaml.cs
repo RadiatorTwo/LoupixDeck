@@ -1,5 +1,7 @@
 using Avalonia.Controls;
+using LoupixDeck.Models;
 using LoupixDeck.ViewModels;
+using LoupixDeck.ViewModels.Base;
 
 namespace LoupixDeck.Views;
 
@@ -9,11 +11,20 @@ public partial class DialPresetEditor : Window
     public DialPresetEditor()
     {
         InitializeComponent();
+
+        // Closing via the window chrome (X) without a button counts as "not saved".
+        Closing += (_, _) =>
+        {
+            if (DataContext is IDialogViewModel vm && !vm.DialogResult.Task.IsCompleted)
+                vm.DialogResult.TrySetResult(new DialogResult(false));
+        };
     }
 
-    public DialPresetEditor(DialPresetEditorViewModel viewModel)
+    // Preferred ctor (see DialogService): set DataContext before the XAML pass and wire the view
+    // model's close request to the window, which is what actually ends the dialog.
+    public DialPresetEditor(DialPresetEditorViewModel viewModel) : this()
     {
         DataContext = viewModel;
-        InitializeComponent();
+        viewModel.CloseWindow += Close;
     }
 }
