@@ -185,6 +185,7 @@ public static class DialQuickMenu
         if (presets.Count == 0)
         {
             item.Items.Add(new MenuItem { Header = "No presets", IsEnabled = false });
+            AddSaveEntry(item, dial, vm);
             return item;
         }
 
@@ -199,7 +200,21 @@ public static class DialQuickMenu
             });
         }
 
+        AddSaveEntry(item, dial, vm);
         return item;
+    }
+
+    /// <summary>Turns the dial's current configuration into a preset of its own. Offered on a dial
+    /// that has something on it — there is nothing to save off an empty one.</summary>
+    private static void AddSaveEntry(MenuItem parent, RotaryButton dial, MainWindowViewModel vm)
+    {
+        parent.Items.Add(new Separator());
+        parent.Items.Add(new MenuItem
+        {
+            Header = "Save this dial as a preset…",
+            IsEnabled = !dial.IsEmpty(),
+            Command = Relay.Create(() => vm.SaveDialAsPresetAsync(dial))
+        });
     }
 
     /// <summary>A Material Design glyph as a menu item icon, or null when there is none — Avalonia

@@ -421,6 +421,9 @@ public static class ServiceCollectionExtensions
         collection.AddTransient<About>();
         collection.AddTransient<AboutViewModel>();
 
+        collection.AddTransient<DialPresetEditor>();
+        collection.AddTransient<DialPresetEditorViewModel>();
+
         collection.AddTransient<ConfirmDialog>();
         collection.AddTransient<ConfirmDialogViewModel>();
 
@@ -468,6 +471,7 @@ public static class ServiceCollectionExtensions
         dialogService.Register<PageCommandsSettingsViewModel, PageCommandsSettings>();
         dialogService.Register<SettingsViewModel, Settings>();
         dialogService.Register<MacroEditorViewModel, MacroEditor>();
+        dialogService.Register<DialPresetEditorViewModel, DialPresetEditor>();
         dialogService.Register<AboutViewModel, About>();
         dialogService.Register<ConfirmDialogViewModel, ConfirmDialog>();
         dialogService.Register<ProfileImportViewModel, ProfileImport>();

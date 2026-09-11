@@ -80,6 +80,16 @@
                                   IsVisible="{Binding CanRemove}"
                                   Command="{Binding $parent[ListBox].((panel:ActionPanelViewModel)DataContext).RemoveApplicationCommand}"
                                   CommandParameter="{Binding}" />
+                        <!-- Preset rows only; a built-in preset is neither renamable nor removable,
+                             which is what CanRemove says on those rows. -->
+                        <MenuItem Header="Rename…"
+                                  IsVisible="{Binding CanEdit}"
+                                  Command="{Binding $parent[ListBox].((panel:ActionPanelViewModel)DataContext).RenamePresetCommand}"
+                                  CommandParameter="{Binding}" />
+                        <MenuItem Header="Delete"
+                                  IsVisible="{Binding CanEdit}"
+                                  Command="{Binding $parent[ListBox].((panel:ActionPanelViewModel)DataContext).DeletePresetCommand}"
+                                  CommandParameter="{Binding}" />
                     </MenuFlyout>
                 </Border.ContextFlyout>
                 <Grid ColumnDefinitions="34,*">

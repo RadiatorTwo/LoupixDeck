@@ -1,0 +1,49 @@
+<Window
+    x:Class="LoupixDeck.Views.DialPresetEditor"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:vm="using:LoupixDeck.ViewModels"
+    x:DataType="vm:DialPresetEditorViewModel"
+    Title="{Binding Title}"
+    Width="460"
+    SizeToContent="Height"
+    CanResize="False"
+    mc:Ignorable="d">
+
+    <Window.Styles>
+        <StyleInclude Source="avares://LoupixDeck/Views/Styles/SettingsStyles.axaml" />
+    </Window.Styles>
+
+    <StackPanel Margin="20,16,20,16" Spacing="10">
+        <TextBlock Classes="hint" TextWrapping="Wrap"
+                   Text="A preset loads all three gestures onto a dial at once. Dials you configured from it earlier are not affected by renaming or deleting it." />
+
+        <StackPanel Spacing="4">
+            <TextBlock Text="Name" />
+            <TextBox Text="{Binding Name, Mode=TwoWay}" PlaceholderText="Preset name" />
+            <!-- The same red the drag machine uses for an invalid drop target. -->
+            <TextBlock Classes="hint"
+                       Foreground="#FFE5484D"
+                       Text="{Binding NameError}"
+                       IsVisible="{Binding HasNameError}" />
+        </StackPanel>
+
+        <StackPanel Spacing="4">
+            <TextBlock Text="Gestures" />
+            <ItemsControl ItemsSource="{Binding Gestures}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="x:String">
+                        <TextBlock Classes="hint" Text="{Binding}" TextWrapping="Wrap" Margin="0,1" />
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </StackPanel>
+
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10" Margin="0,6,0,0">
+            <Button Content="Save" MinWidth="90" IsDefault="True" Command="{Binding SaveCommand}" />
+            <Button Content="Cancel" MinWidth="90" IsCancel="True" Command="{Binding CancelCommand}" />
+        </StackPanel>
+    </StackPanel>
+</Window>

@@ -127,6 +127,30 @@ public partial class ActionPanelViewModel : ViewModelBase
     /// </summary>
     public ObservableCollection<PanelItemViewModel> DialPresets { get; } = [];
 
+    /// <summary>
+    /// Opens the rename and delete dialogs. Set by the device view model, which owns the dialog
+    /// service; the panel itself is a list and has no business showing modal windows.
+    /// </summary>
+    public Func<DialPreset, Task> RenamePreset { get; set; }
+
+    public Func<DialPreset, Task> DeletePreset { get; set; }
+
+    /// <summary>Renames a user preset. Offered on the row's context menu.</summary>
+    public IRelayCommand<PanelItemViewModel> RenamePresetCommand
+        => field ??= Relay.Create<PanelItemViewModel>(row => Invoke(RenamePreset, row));
+
+    /// <summary>Deletes a user preset, after the device view model confirms.</summary>
+    public IRelayCommand<PanelItemViewModel> DeletePresetCommand
+        => field ??= Relay.Create<PanelItemViewModel>(row => Invoke(DeletePreset, row));
+
+    private static void Invoke(Func<DialPreset, Task> action, PanelItemViewModel row)
+    {
+        if (action == null || row is not DialPresetPanelItemViewModel { Preset.IsBuiltIn: false } preset)
+            return;
+
+        _ = action(preset.Preset);
+    }
+
     private void OnDialPresetsChanged(object sender, EventArgs e) =>
         Dispatcher.UIThread.Post(RebuildDialPresets);
 
