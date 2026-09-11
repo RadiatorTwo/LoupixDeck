@@ -819,7 +819,7 @@ public partial class LoupedeckLiveSController(
         // workspace's pages (issue #132).
         BindActiveWorkspaceTouchPages();
 
-        config.SimpleButtons = await BuildSimpleButtons();
+        await ApplyActiveProfileButtons();
 
         InitializeRotaryPages();
 
@@ -2567,6 +2567,30 @@ public partial class LoupedeckLiveSController(
     /// created blank for the user to assign — preserves saved bindings via
     /// SimpleButtonExtensions.FindById.
     /// </summary>
+    // The LED button set the ItemChanged handler is currently attached to. Kept separately from
+    // config.SimpleButtons because a profile switch moves that facade onto the new profile before
+    // the controller runs — without this the outgoing profile's buttons could never be unhooked.
+    private SimpleButton[] _wiredSimpleButtons;
+
+    /// <summary>
+    /// Builds, wires and paints the active profile's round LED buttons: unhooks the previously
+    /// wired set, builds this profile's (saved bindings are kept, missing ones get the device
+    /// defaults), and pushes the colours to the hardware. Runs at bring-up and on every profile
+    /// switch; a workspace switch does not change the set and must not call it.
+    /// </summary>
+    public async Task ApplyActiveProfileButtons()
+    {
+        foreach (SimpleButton button in _wiredSimpleButtons ?? [])
+        {
+            if (button != null)
+                button.ItemChanged -= SimpleButtonChanged;
+        }
+
+        SimpleButton[] buttons = await BuildSimpleButtons();
+        config.SimpleButtons = buttons;
+        _wiredSimpleButtons = buttons;
+    }
+
     private async Task<SimpleButton[]> BuildSimpleButtons()
     {
         var device = deviceService.Device;
@@ -2665,9 +2689,13 @@ public partial class LoupedeckLiveSController(
         button.ItemChanged += SimpleButtonChanged;
 
         // Part of the bring-up: the button model must exist even when the colour can't reach a
-        // device whose link is down (see TryDeviceIo).
-        await TryDeviceIo($"setting the colour of button {id}",
-            () => deviceService.Device.SetButtonColor(id, button.ButtonColor));
+        // device whose link is down (see TryDeviceIo). A device switched off keeps its LEDs dark —
+        // the restore path repaints them from the then-active profile.
+        if (!_isDeviceOff)
+        {
+            await TryDeviceIo($"setting the colour of button {id}",
+                () => deviceService.Device.SetButtonColor(id, button.ButtonColor));
+        }
 
         return button;
     }

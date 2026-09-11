@@ -161,4 +161,9 @@ public interface IDeviceController
     /// rebinds handlers, re-seeds rotary pages, selects the workspace's startup touch page and
     /// repaints the touch display and side strips (issue #132). UI thread.</summary>
     Task ApplyActiveWorkspace();
+
+    /// <summary>Rebuilds, rewires and repaints the round LED buttons for the newly active profile
+    /// (config v12 — each profile owns its own set). Called on a profile switch only; a workspace
+    /// switch keeps the same buttons.</summary>
+    Task ApplyActiveProfileButtons();
 }
