@@ -10,10 +10,13 @@ namespace LoupixDeck.Views;
 
 /// <summary>Payload for the picker's command drag lifecycle: the leaf being dragged
 /// plus the live pointer args (so the host can position its ghost / drop marker).</summary>
-public sealed class CommandDragEventArgs(MenuEntry entry, PointerEventArgs pointer) : EventArgs
+public sealed class CommandDragEventArgs(MenuEntry entry, PointerEventArgs pointer, Control row) : EventArgs
 {
     public MenuEntry Entry { get; } = entry;
     public PointerEventArgs Pointer { get; } = pointer;
+
+    /// <summary>The row being dragged, for a host that wants to picture it in a drag ghost.</summary>
+    public Control Row { get; } = row;
 }
 
 /// <summary>
@@ -28,6 +31,7 @@ public partial class CommandPickerView : UserControl
     // A command row armed for a possible drag-to-insert; promoted to a real drag once
     // the pointer moves past the threshold (so a click / double-click is not swallowed).
     private CommandRowViewModel _dragCandidate;
+    private Control _dragRow;
     private Point _dragStart;
     private bool _dragging;
 
@@ -70,6 +74,7 @@ public partial class CommandPickerView : UserControl
         // Single click selects (highlights); a drag or double-click adds the command.
         ViewModel?.SelectCommand(row);
         _dragCandidate = row;
+        _dragRow = sender as Control;
         _dragStart = e.GetPosition(this);
         _dragging = false;
     }
@@ -137,10 +142,10 @@ public partial class CommandPickerView : UserControl
 
             _dragging = true;
             e.Pointer.Capture(this);
-            CommandDragStarted?.Invoke(this, new CommandDragEventArgs(_dragCandidate.Entry, e));
+            CommandDragStarted?.Invoke(this, new CommandDragEventArgs(_dragCandidate.Entry, e, _dragRow));
         }
 
-        CommandDragMoved?.Invoke(this, new CommandDragEventArgs(_dragCandidate.Entry, e));
+        CommandDragMoved?.Invoke(this, new CommandDragEventArgs(_dragCandidate.Entry, e, _dragRow));
     }
 
     protected override void OnPointerReleased(PointerReleasedEventArgs e)
@@ -148,7 +153,7 @@ public partial class CommandPickerView : UserControl
         base.OnPointerReleased(e);
 
         if (_dragging && _dragCandidate != null)
-            CommandDragReleased?.Invoke(this, new CommandDragEventArgs(_dragCandidate.Entry, e));
+            CommandDragReleased?.Invoke(this, new CommandDragEventArgs(_dragCandidate.Entry, e, _dragRow));
 
         ResetDrag(e.Pointer);
     }
@@ -162,6 +167,7 @@ public partial class CommandPickerView : UserControl
     private void ResetDrag(IPointer pointer)
     {
         _dragCandidate = null;
+        _dragRow = null;
         _dragging = false;
         pointer?.Capture(null);
     }
