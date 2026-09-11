@@ -14,3 +14,4 @@ using LoupixDeck.PluginSdk;
 [assembly: CommandGroup("Dynamic Text", "Live text on your buttons", "\U000F0954", CommandGroupSection.Core)]         // mdi-clock
 [assembly: CommandGroup("Macros", "Prebuilt macros ready to use", "\U000F0570", CommandGroupSection.Macros)]          // mdi-view-grid
 [assembly: CommandGroup("User Macros", "Your custom macros", "\U000F0004", CommandGroupSection.Macros)]               // mdi-account
+[assembly: CommandGroup("Dial Presets", "Set all three dial gestures at once", "\U000F0493", CommandGroupSection.Core)] // mdi-cog
