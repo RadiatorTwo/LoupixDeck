@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using LoupixDeck.Registry;
 using Newtonsoft.Json;
@@ -56,8 +56,11 @@ public partial class LoupedeckConfig : ObservableObject
     /// v9 stores touch-button layer geometry in the owning device's own key pixels instead of a
     /// fixed 90x90 authoring tile, so nothing is scaled between the editor and the framebuffer.
     /// A no-op on every 90px device (the factor is 1); see <c>PerDeviceKeySizeMigrator</c>.
+    /// v12 moved the round LED buttons off the config root into each <see cref="Profile"/>, so a
+    /// colour or command set in one profile no longer bleeds into the others; the shared set is
+    /// cloned into every existing profile. See <c>SimpleButtonsPerProfileMigrator</c>.
     /// </summary>
-    public const int CurrentVersion = 11;
+    public const int CurrentVersion = 12;
 
     public int Version { get; set; } = CurrentVersion;
 
