@@ -338,6 +338,7 @@ public static class ServiceCollectionExtensions
         // The apps/actions side panel. One per device because it holds that device's command
         // catalogue and its own open state, while the scan behind it is a shared root singleton.
         collection.AddSingleton<ViewModels.ActionPanel.ActionPanelViewModel>();
+        collection.AddSingleton<ViewModels.DialQuickMenuViewModel>();
         collection.AddSingleton<Services.Actions.IPanelAssignmentService, Services.Actions.PanelAssignmentService>();
 
         collection.AddTransient<MainWindowViewModel>();
