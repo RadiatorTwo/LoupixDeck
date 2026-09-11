@@ -176,6 +176,12 @@ public static class SymbolLibrary
     private static readonly FrozenDictionary<string, SymbolDefinition> ById =
         All.ToFrozenDictionary(static s => s.Id, StringComparer.OrdinalIgnoreCase);
 
+    // Several ids can share a code point (the same glyph offered under two names); the first
+    // one listed wins, so the mapping is stable against later additions to the catalogue.
+    private static readonly FrozenDictionary<string, SymbolDefinition> ByGlyph =
+        All.GroupBy(static s => s.Glyph, StringComparer.Ordinal)
+            .ToFrozenDictionary(static g => g.Key, static g => g.First(), StringComparer.Ordinal);
+
     /// <summary>Distinct category names, in first-seen order.</summary>
     public static ImmutableArray<string> Categories { get; } =
         All.Select(static s => s.Category).Distinct().ToImmutableArray();
@@ -187,6 +193,21 @@ public static class SymbolLibrary
     {
         if (!string.IsNullOrEmpty(id))
             return ById.TryGetValue(id, out definition);
+
+        definition = null;
+        return false;
+    }
+
+    /// <summary>
+    /// Looks up a symbol by the glyph string itself, for callers that only have the rendered
+    /// character — commands declare their picker icon that way (<c>CommandAttribute.Icon</c>), and
+    /// putting one on a button needs the id a <c>SymbolLayer</c> stores. A glyph outside the curated
+    /// subset simply has no id, which callers treat as "no symbol" rather than as an error.
+    /// </summary>
+    public static bool TryGetByGlyph(string glyph, out SymbolDefinition definition)
+    {
+        if (!string.IsNullOrEmpty(glyph))
+            return ByGlyph.TryGetValue(glyph, out definition);
 
         definition = null;
         return false;
