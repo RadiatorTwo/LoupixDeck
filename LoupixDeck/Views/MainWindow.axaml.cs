@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
@@ -29,6 +30,7 @@ public partial class MainWindow : Window
 
     private MainShellViewModel _shell;
     private DeviceDragDrop _dragDrop;
+    private ActionPanelWindow _panelWindow;
 
     public MainWindow()
     {
@@ -82,13 +84,93 @@ public partial class MainWindow : Window
         _shell = DataContext as MainShellViewModel;
         _shell?.PropertyChanged += OnShellPropertyChanged;
 
+        // The deck first, then the panel beside it: the other order puts an empty panel on screen
+        // before there is anything for it to sit next to.
         UpdateDeviceLayout();
+        TrackActionPanel();
     }
 
     private void OnShellPropertyChanged(object sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(MainShellViewModel.SelectedDevice))
-            UpdateDeviceLayout();
+        if (e.PropertyName != nameof(MainShellViewModel.SelectedDevice)) return;
+
+        UpdateDeviceLayout();
+        TrackActionPanel();
+    }
+
+    // The apps/actions panel whose open state we currently follow, so it can be unhooked on a
+    // device switch.
+    private ViewModels.ActionPanel.ActionPanelViewModel _panel;
+
+    private void TrackActionPanel()
+    {
+        ViewModels.ActionPanel.ActionPanelViewModel panel = _shell?.SelectedDevice?.ActionPanel;
+
+        // Devices come and go during start-up and on hot-plug, and the selection is briefly empty
+        // in between. Holding on to the last panel through that keeps it from collapsing and
+        // reopening every time, which was the worst of the start-up flicker.
+        if (panel == null || ReferenceEquals(panel, _panel)) return;
+
+        if (_panel != null)
+            _panel.PropertyChanged -= OnActionPanelPropertyChanged;
+
+        _panel = panel;
+        _panel.PropertyChanged += OnActionPanelPropertyChanged;
+
+        ApplyActionPanelState();
+    }
+
+    private void OnActionPanelPropertyChanged(object sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(ViewModels.ActionPanel.ActionPanelViewModel.IsOpen))
+            ApplyActionPanelState();
+    }
+
+    /// <summary>
+    /// Shows or hides the apps and actions panel, which is its own window flanged to this one's
+    /// left edge.
+    /// </summary>
+    /// <remarks>
+    /// A separate window rather than a column in this one, so that opening the panel never changes
+    /// this window's size or position: Avalonia applies a window's size and its content in separate
+    /// passes, so any variant that widened this window rendered it resized before it rendered its
+    /// new content, which read as the whole window flickering.
+    /// </remarks>
+    private void ApplyActionPanelState()
+    {
+        bool open = _panel?.IsOpen == true;
+
+        if (!open)
+        {
+            _panelWindow?.Hide();
+            return;
+        }
+
+        if (_panelWindow == null)
+        {
+            _panelWindow = new ActionPanelWindow();
+            _panelWindow.Attach(this, _dragDrop);
+        }
+
+        _panelWindow.DataContext = _panel;
+        _panelWindow.Show(this);
+        _panelWindow.FollowOwner();
+    }
+
+    /// <summary>Hides the panel with its owner, for the tray, and brings it back with it.</summary>
+    private void SyncPanelVisibility()
+    {
+        if (_panelWindow == null) return;
+
+        if (IsVisible && _panel?.IsOpen == true)
+        {
+            _panelWindow.Show(this);
+            _panelWindow.FollowOwner();
+        }
+        else
+        {
+            _panelWindow.Hide();
+        }
     }
 
     /// <summary>Swap the DeviceLayoutHost to the selected device's layout, with that
@@ -185,6 +267,7 @@ public partial class MainWindow : Window
             if (_isMinimizedToTray) return;
             _isMinimizedToTray = true;
             Hide();
+            SyncPanelVisibility();
         });
     }
 
@@ -196,6 +279,7 @@ public partial class MainWindow : Window
             Show();
             WindowState = WindowState.Normal;
             Activate();
+            SyncPanelVisibility();
         });
     }
 

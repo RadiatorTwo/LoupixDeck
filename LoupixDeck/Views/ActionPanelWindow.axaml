@@ -1,0 +1,35 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:views="using:LoupixDeck.Views"
+        xmlns:panel="using:LoupixDeck.ViewModels.ActionPanel"
+        mc:Ignorable="d"
+        x:Class="LoupixDeck.Views.ActionPanelWindow"
+        x:DataType="panel:ActionPanelViewModel"
+        Title="Apps and commands"
+        WindowDecorations="None"
+        ShowInTaskbar="False"
+        CanResize="False"
+        SizeToContent="Manual"
+        Width="620"
+        Focusable="True"
+        Background="{DynamicResource AppWindowBackground}">
+    <Panel>
+        <views:ActionPanelView Name="PanelView" />
+
+        <!-- The drag ghost while the pointer is still over the panel. The main window draws the
+             same ghost in its own overlay once the pointer crosses into it; one visual cannot span
+             two windows, so each side draws its half of the journey. -->
+        <Canvas Name="DragOverlay" IsHitTestVisible="False" IsVisible="False">
+            <Border Name="DragGhost"
+                    IsVisible="False"
+                    Opacity="0.7"
+                    CornerRadius="6" ClipToBounds="True"
+                    BorderThickness="3" BorderBrush="#FF3D9BFF"
+                    Background="#FF202020">
+                <Image Name="DragGhostImage" Stretch="Uniform" />
+            </Border>
+        </Canvas>
+    </Panel>
+</Window>

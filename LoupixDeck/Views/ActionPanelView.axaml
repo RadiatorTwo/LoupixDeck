@@ -1,0 +1,173 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:panel="using:LoupixDeck.ViewModels.ActionPanel"
+             xmlns:views="using:LoupixDeck.Views"
+             mc:Ignorable="d"
+             x:Class="LoupixDeck.Views.ActionPanelView"
+             x:DataType="panel:ActionPanelViewModel"
+             Width="620">
+    <UserControl.Styles>
+        <StyleInclude Source="avares://LoupixDeck/Views/Styles/SettingsStyles.axaml" />
+
+        <!-- One row of the panel. Deliberately not a Button: the window-level drag machine
+             decides whether a press became a drag onto a key or a click that assigns to the
+             selected one, and a Button's own Click would fire on both. -->
+        <Style Selector="Border.panel-row">
+            <Setter Property="Padding" Value="8,5" />
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style Selector="Border.panel-row:pointerover">
+            <Setter Property="Background" Value="{DynamicResource AppControlBackgroundHover}" />
+        </Style>
+        <Style Selector="TextBlock.panel-glyph">
+            <Setter Property="FontFamily" Value="{DynamicResource MdiFont}" />
+            <Setter Property="FontSize" Value="20" />
+            <Setter Property="Foreground" Value="{DynamicResource AppTextSecondary}" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="HorizontalAlignment" Value="Center" />
+        </Style>
+        <Style Selector="TextBlock.panel-title">
+            <Setter Property="FontSize" Value="12.5" />
+            <Setter Property="Foreground" Value="{DynamicResource AppTextPrimary}" />
+            <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+        </Style>
+        <Style Selector="TextBlock.panel-subtitle">
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="Foreground" Value="{DynamicResource AppTextMuted}" />
+            <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+        </Style>
+        <!-- Rescan button next to each search box. Square and quiet, so it reads as part of the
+             search row rather than as a second action. -->
+        <Style Selector="Button.panel-refresh">
+            <Setter Property="Width" Value="30" />
+            <Setter Property="Height" Value="30" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Margin" Value="4,0,0,0" />
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="Background" Value="{DynamicResource AppControlBackground}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AppBorderFaint}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="FontFamily" Value="{DynamicResource MdiFont}" />
+            <Setter Property="FontSize" Value="15" />
+            <Setter Property="Foreground" Value="{DynamicResource AppTextSecondary}" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="ToolTip.Tip" Value="Scan again for applications and commands" />
+        </Style>
+
+        <Style Selector="TextBlock.panel-section">
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{DynamicResource AppTextSecondary}" />
+            <Setter Property="Margin" Value="8,10,8,4" />
+        </Style>
+    </UserControl.Styles>
+
+    <UserControl.Resources>
+        <!-- Shared by both tabs: an application row shows its extracted icon, a command row the
+             Material Design glyph the command declares. -->
+        <DataTemplate x:Key="PanelRowTemplate" x:DataType="panel:PanelItemViewModel">
+            <Border Classes="panel-row">
+                <!-- Only on a hand-added row: a scanned application would come back on the next
+                     scan, so removing one would be a button that undoes itself. -->
+                <Border.ContextFlyout>
+                    <MenuFlyout>
+                        <MenuItem Header="Remove"
+                                  IsVisible="{Binding CanRemove}"
+                                  Command="{Binding $parent[ListBox].((panel:ActionPanelViewModel)DataContext).RemoveApplicationCommand}"
+                                  CommandParameter="{Binding}" />
+                    </MenuFlyout>
+                </Border.ContextFlyout>
+                <Grid ColumnDefinitions="34,*">
+                    <!-- The drag machine carries this tile alone as the drag ghost, so that a row
+                         headed for a square key does not fly across the window as a wide list row. -->
+                    <Border Grid.Column="0" Classes="panel-row-icon"
+                            Width="26" Height="26" Margin="0,0,8,0"
+                            VerticalAlignment="Center">
+                        <Panel>
+                            <Image Source="{Binding Icon}" Stretch="Uniform"
+                                   IsVisible="{Binding HasIcon}" />
+                            <TextBlock Classes="panel-glyph" Text="{Binding Glyph}"
+                                       IsVisible="{Binding HasGlyph}" />
+                        </Panel>
+                    </Border>
+
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                        <TextBlock Classes="panel-title" Text="{Binding Title}" />
+                        <TextBlock Classes="panel-subtitle" Text="{Binding Subtitle}"
+                                   IsVisible="{Binding HasSubtitle}" />
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </DataTemplate>
+    </UserControl.Resources>
+
+    <Border Background="{DynamicResource AppSurfaceLow}"
+            BorderBrush="{DynamicResource AppBorderSubtle}"
+            BorderThickness="0,0,1,0">
+        <TabControl Margin="6,4,6,6" Padding="0">
+            <TabItem Header="Apps">
+                <Grid RowDefinitions="Auto,Auto,*">
+                    <Grid Grid.Row="0" Margin="0,6,0,4" ColumnDefinitions="*,Auto">
+                        <TextBox Grid.Column="0"
+                                 Text="{Binding AppSearchText, Mode=TwoWay}"
+                                 PlaceholderText="Search applications" />
+                        <StackPanel Grid.Column="1" Orientation="Horizontal">
+                            <!-- mdi-plus: anything the scan does not find, picked by hand. -->
+                            <Button Classes="panel-refresh"
+                                    ToolTip.Tip="Add an application the scan did not find"
+                                    Command="{Binding AddApplicationCommand}" Content="&#xF0415;" />
+                            <!-- mdi-refresh -->
+                            <Button Classes="panel-refresh"
+                                    Command="{Binding RefreshCommand}" Content="&#xF0450;" />
+                        </StackPanel>
+                    </Grid>
+
+                    <TextBlock Grid.Row="1" Classes="hint" Margin="2,0,2,6"
+                               Text="{Binding AppCountLabel}"
+                               IsVisible="{Binding ShowApps}" />
+
+                    <TextBlock Grid.Row="2" Classes="hint" Margin="2,8"
+                               TextWrapping="Wrap" VerticalAlignment="Top"
+                               Text="Looking for installed applications…"
+                               IsVisible="{Binding IsLoadingApps}" />
+
+                    <TextBlock Grid.Row="2" Classes="hint" Margin="2,8"
+                               TextWrapping="Wrap" VerticalAlignment="Top"
+                               Text="{Binding AppsBlockReason}"
+                               IsVisible="{Binding HasAppsBlockReason}" />
+
+                    <!-- A ListBox for its virtualization: a populated Start Menu is hundreds of
+                         rows, and an ItemsControl would realize every one of them. -->
+                    <ListBox Grid.Row="2" Name="AppList"
+                             ItemsSource="{Binding Apps}"
+                             ItemTemplate="{StaticResource PanelRowTemplate}"
+                             IsVisible="{Binding ShowApps}"
+                             Background="Transparent"
+                             BorderThickness="0"
+                             SelectionMode="Single" />
+                </Grid>
+            </TabItem>
+
+            <TabItem Header="Commands">
+                <Grid RowDefinitions="Auto,*">
+                    <!-- mdi-refresh. The picker brings its own search, so only the rescan sits
+                         above it. -->
+                    <Button Grid.Row="0" Classes="panel-refresh"
+                            HorizontalAlignment="Right" Margin="0,6,0,4"
+                            Command="{Binding RefreshCommand}" Content="&#xF0450;" />
+
+                    <!-- The same control the button editors use, over the same catalogue: one
+                         command list to learn, and plugins and macros appear in both without a
+                         second projection to keep in step. -->
+                    <views:CommandPickerView Grid.Row="1" Name="CommandPickerControl"
+                                             DataContext="{Binding CommandPicker}" />
+                </Grid>
+            </TabItem>
+        </TabControl>
+    </Border>
+</UserControl>
