@@ -27,6 +27,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly IDialogService _dialogService;
     private readonly IButtonClipboardService _clipboard;
     private readonly IWorkspaceActivationService _workspaceActivation;
+    private readonly Services.Actions.IPanelAssignmentService _panelAssignment;
     private readonly LoupedeckConfig _config;
 
     // Guards the profile/workspace ComboBox selection against feedback loops: set while we
@@ -228,6 +229,8 @@ public partial class MainWindowViewModel : ViewModelBase
         IAppSwitchingService appSwitching,
         IWorkspaceActivationService workspaceActivation,
         LoupedeckConfig config,
+        ViewModels.ActionPanel.ActionPanelViewModel actionPanel,
+        Services.Actions.IPanelAssignmentService panelAssignment,
         LoupixDeck.Registry.DeviceRegistry.DeviceInfo deviceInfo,
         LoupixDeck.Registry.ResolvedDevice resolved,
         LoupixDeck.Registry.DeviceGeometry geometry)
@@ -243,7 +246,16 @@ public partial class MainWindowViewModel : ViewModelBase
         _buttonAnimationManager = buttonAnimationManager;
         _exclusiveMode = exclusiveMode;
         _workspaceActivation = workspaceActivation;
+        ActionPanel = actionPanel;
+        _panelAssignment = panelAssignment;
         _config = config;
+
+        // Warm the panel's lists so it is populated the first time it is opened. Queued until the
+        // UI has nothing else to do: building the command catalogue runs on this thread, and at any
+        // higher priority it lands in the middle of the deck coming up and stalls the window.
+        Avalonia.Threading.Dispatcher.UIThread.Post(
+            () => _ = ActionPanel.EnsureLoadedAsync(),
+            Avalonia.Threading.DispatcherPriority.ApplicationIdle);
 
         // Seed the header dropdowns from the current active profile/workspace, and keep them in
         // sync with activations that originate elsewhere (context rules, commands, device buttons).
@@ -766,6 +778,56 @@ public partial class MainWindowViewModel : ViewModelBase
         button.DisplayText = string.Empty;
         button.Refresh();
     }
+
+    // ─────────────────────────── Apps and actions panel ───────────────────────────
+
+    /// <summary>The side panel listing the installed applications and the command catalogue.</summary>
+    public ViewModels.ActionPanel.ActionPanelViewModel ActionPanel { get; }
+
+    /// <summary>True when a panel row can be dropped on this button, previewing the drop chrome
+    /// before the pointer is released.</summary>
+    public bool CanAssignPanelItem(ViewModels.ActionPanel.PanelItemViewModel item, LoupedeckButton target)
+        => (Classify(target) != ButtonKind.SideDisplay) && _panelAssignment.CanAssign(item, target);
+
+    /// <summary>
+    /// Puts a panel row on <paramref name="target"/>, whether it got there by a drag or by a click
+    /// with the button already selected. A target that already holds a configuration is confirmed
+    /// first, like a paste — the row replaces everything on the button, so there is nothing to merge.
+    /// </summary>
+    public async Task AssignPanelItemAsync(ViewModels.ActionPanel.PanelItemViewModel item, LoupedeckButton target)
+    {
+        if (!CanAssignPanelItem(item, target))
+            return;
+
+        if (!_clipboard.IsEmpty(target) && !await ConfirmOverwrite())
+            return;
+
+        if (!await _panelAssignment.AssignAsync(item, target))
+            return;
+
+        switch (Classify(target))
+        {
+            case ButtonKind.Touch:
+                PostTouchChange();
+                break;
+
+            case ButtonKind.Simple:
+                LoupedeckController.SaveConfig();
+                break;
+
+            case ButtonKind.Rotary:
+                LoupedeckController.SaveConfig();
+                await RefreshRotarySide((RotaryButton)target);
+                break;
+        }
+
+        SelectButton(target);
+    }
+
+    /// <summary>Assigns a panel row to whatever button is currently selected. No-op with nothing
+    /// selected, which is what a click on a panel row means before a button is picked.</summary>
+    public Task AssignPanelItemToSelectionAsync(ViewModels.ActionPanel.PanelItemViewModel item)
+        => _selectedButton == null ? Task.CompletedTask : AssignPanelItemAsync(item, _selectedButton);
 
     // ─────────────────────────── Drag & drop (issue #166) ───────────────────────────
 

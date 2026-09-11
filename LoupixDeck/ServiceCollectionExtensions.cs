@@ -72,6 +72,7 @@ public static class ServiceCollectionExtensions
             collection.AddSingleton<IAppDiscoveryService, NoOpAppDiscoveryService>();
 
         collection.AddSingleton<IAppIconExtractor, AppIconExtractor>();
+        collection.AddSingleton<ICustomAppStore, CustomAppStore>();
 
         // Animated-button assets (issue #121): decode-once frame cache and the import/transcode
         // pipeline are device-agnostic, so they live as shared root singletons (one decode shared
@@ -153,6 +154,7 @@ public static class ServiceCollectionExtensions
         collection.Forward<IAutostartService>(root);
         collection.Forward<IAppDiscoveryService>(root);
         collection.Forward<IAppIconExtractor>(root);
+        collection.Forward<ICustomAppStore>(root);
         collection.Forward<IDBusController>(root);
         collection.Forward<ICommandRunner>(root);
         collection.Forward<ISystemPowerService>(root);
@@ -321,6 +323,11 @@ public static class ServiceCollectionExtensions
 
         collection.AddSingleton<LoupedeckLiveSController>();
         collection.AddSingleton<IDeviceController>(sp => sp.GetRequiredService<LoupedeckLiveSController>());
+
+        // The apps/actions side panel. One per device because it holds that device's command
+        // catalogue and its own open state, while the scan behind it is a shared root singleton.
+        collection.AddSingleton<ViewModels.ActionPanel.ActionPanelViewModel>();
+        collection.AddSingleton<Services.Actions.IPanelAssignmentService, Services.Actions.PanelAssignmentService>();
 
         collection.AddTransient<MainWindowViewModel>();
 
