@@ -82,6 +82,7 @@ public class MouseClickCommand(IVirtualMouse mouse) : IExecutableCommand
     ["Keys", "Action"],
     [typeof(string), typeof(MouseComboAction)],
     ["Ctrl", nameof(MouseComboAction.Left)],
+    ParameterPickers = [ParameterPicker.Modifiers],
     Platform = CommandPlatform.All,
     Icon = "\U000F037D", // mdi-mouse
     Description = "Hold keyboard keys while clicking or scrolling the mouse")]

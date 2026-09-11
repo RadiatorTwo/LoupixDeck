@@ -1,4 +1,4 @@
-namespace LoupixDeck.Commands.Base;
+﻿namespace LoupixDeck.Commands.Base;
 
 public enum CommandPlatform
 {
@@ -46,6 +46,14 @@ public class CommandAttribute(
     /// "no command-defined default" for the missing entries — fully backward compatible.
     /// </summary>
     public string[] ParameterDefaults { get; } = parameterDefaults;
+
+    /// <summary>
+    /// Optional per-parameter picker ids (aligned by index with <see cref="ParameterNames"/>),
+    /// naming a dialog that records the value instead of the user typing it — see
+    /// <see cref="ParameterPicker"/>. Absent or shorter than the parameter list simply means
+    /// "no picker" for the missing entries.
+    /// </summary>
+    public string[] ParameterPickers { get; set; }
 
     public CommandPlatform Platform { get; set; } = CommandPlatform.All;
 

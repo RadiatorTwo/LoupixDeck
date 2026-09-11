@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.Input;
 using LoupixDeck.Models;
 using LoupixDeck.PluginSdk;
@@ -38,6 +38,7 @@ public class SimpleButtonSettingsViewModel : DialogViewModelBase<SimpleButton, D
     private readonly ICommandBuilder _commandBuilder;
     private readonly IMenuTreeBuilder _menuTreeBuilder;
     private readonly ICommandRegistry _commandRegistry;
+    private readonly IDialogService _dialogService;
     private readonly Services.Commands.ICommandStateMaterializer _stateMaterializer;
 
     public SimpleButton ButtonData { get; set; }
@@ -259,12 +260,14 @@ public class SimpleButtonSettingsViewModel : DialogViewModelBase<SimpleButton, D
         ICommandBuilder commandBuilder,
         IMenuTreeBuilder menuTreeBuilder,
         ICommandRegistry commandRegistry,
-        Services.Commands.ICommandStateMaterializer stateMaterializer)
+        Services.Commands.ICommandStateMaterializer stateMaterializer,
+        IDialogService dialogService)
     {
         _commandBuilder = commandBuilder;
         _menuTreeBuilder = menuTreeBuilder;
         _commandRegistry = commandRegistry;
         _stateMaterializer = stateMaterializer;
+        _dialogService = dialogService;
 
         // Keep the 1-based sequence numbers on the chips in sync with the
         // collection (insert, remove, move, clear, initial load).
@@ -300,7 +303,7 @@ public class SimpleButtonSettingsViewModel : DialogViewModelBase<SimpleButton, D
     {
         var name = CommandStringParser.GetName(raw);
         var info = _commandRegistry.Get(name)?.Info;
-        var segment = CommandSegment.Create(_commandBuilder, info, raw);
+        var segment = CommandSegment.Create(_commandBuilder, _dialogService, info, raw);
         segment.Changed += OnSegmentChanged;
         return segment;
     }

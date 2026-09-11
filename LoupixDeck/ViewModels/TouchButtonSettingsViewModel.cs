@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.Input;
 using LoupixDeck.Models;
 using LoupixDeck.Models.Converter;
@@ -371,7 +371,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
             {
                 var index = i;
                 CommandSlots.Add(new CommandSequenceSlot(
-                    SegmentTitles[index], _commandBuilder, _commandRegistry,
+                    SegmentTitles[index], _commandBuilder, _commandRegistry, _dialogService,
                     () => _stripPage.GetStripSegmentCommand(index),
                     v => _stripPage.SetStripSegmentCommand(index, string.IsNullOrWhiteSpace(v) ? null : v)));
             }
@@ -379,7 +379,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         else
         {
             CommandSlots.Add(new CommandSequenceSlot(
-                "Command sequence", _commandBuilder, _commandRegistry,
+                "Command sequence", _commandBuilder, _commandRegistry, _dialogService,
                 () => ButtonData.Command,
                 v => ButtonData.Command = string.IsNullOrWhiteSpace(v) ? null : v));
         }

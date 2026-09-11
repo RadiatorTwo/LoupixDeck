@@ -36,6 +36,7 @@ public class SimpleMacroCommand(IUInputKeyboard uInputKeyboard) : IExecutableCom
     "({Keys})",
     ["Keys"],
     [typeof(string)],
+    ParameterPickers = [ParameterPicker.KeyCombination],
     Platform = CommandPlatform.All,
     Icon = "\U000F030C", // mdi-keyboard
     Description = "Execute key sequences")]
@@ -68,8 +69,9 @@ public class KeyCombinationCommand(IUInputKeyboard uInputKeyboard) : IExecutable
     "({Steps})",
     ["Steps"],
     [typeof(string)],
+    ParameterPickers = [ParameterPicker.KeySequence],
     Platform = CommandPlatform.All,
-    Icon = "󰌌", // mdi-keyboard
+    Icon = "\U000F030C", // mdi-keyboard
     Description = "Play several key presses one after another")]
 public class KeySequenceCommand(IUInputKeyboard uInputKeyboard) : IExecutableCommand
 {

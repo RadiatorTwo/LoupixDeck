@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using LoupixDeck.Models;
 using LoupixDeck.PluginSdk;
 using LoupixDeck.Services;
@@ -14,11 +14,11 @@ public class RotaryButtonSettingsViewModel : DialogViewModelBase<RotaryButton, D
     {
         ButtonData = parameter;
 
-        RotaryLeftSlot = new CommandSequenceSlot("Rotate Left", _commandBuilder, _commandRegistry,
+        RotaryLeftSlot = new CommandSequenceSlot("Rotate Left", _commandBuilder, _commandRegistry, _dialogService,
             () => ButtonData.RotaryLeftCommand, v => ButtonData.RotaryLeftCommand = v);
-        RotaryRightSlot = new CommandSequenceSlot("Rotate Right", _commandBuilder, _commandRegistry,
+        RotaryRightSlot = new CommandSequenceSlot("Rotate Right", _commandBuilder, _commandRegistry, _dialogService,
             () => ButtonData.RotaryRightCommand, v => ButtonData.RotaryRightCommand = v);
-        ButtonPressSlot = new CommandSequenceSlot("Button Press", _commandBuilder, _commandRegistry,
+        ButtonPressSlot = new CommandSequenceSlot("Button Press", _commandBuilder, _commandRegistry, _dialogService,
             () => ButtonData.Command, v => ButtonData.Command = v);
 
         Slots = [RotaryLeftSlot, RotaryRightSlot, ButtonPressSlot];
@@ -41,6 +41,7 @@ public class RotaryButtonSettingsViewModel : DialogViewModelBase<RotaryButton, D
     private readonly ICommandBuilder _commandBuilder;
     private readonly IMenuTreeBuilder _menuTreeBuilder;
     private readonly ICommandRegistry _commandRegistry;
+    private readonly IDialogService _dialogService;
 
     public RotaryButton ButtonData { get; set; }
 
@@ -65,11 +66,13 @@ public class RotaryButtonSettingsViewModel : DialogViewModelBase<RotaryButton, D
     public RotaryButtonSettingsViewModel(
         ICommandBuilder commandBuilder,
         IMenuTreeBuilder menuTreeBuilder,
-        ICommandRegistry commandRegistry)
+        ICommandRegistry commandRegistry,
+        IDialogService dialogService)
     {
         _commandBuilder = commandBuilder;
         _menuTreeBuilder = menuTreeBuilder;
         _commandRegistry = commandRegistry;
+        _dialogService = dialogService;
 
         SystemCommandMenus = new ObservableCollection<MenuEntry>();
         CommandPicker = new CommandPickerViewModel(SystemCommandMenus);
