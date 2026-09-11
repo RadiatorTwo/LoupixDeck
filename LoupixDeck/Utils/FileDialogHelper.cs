@@ -185,6 +185,36 @@ public abstract class FileDialogHelper
     }
 
     /// <summary>
+    /// Picks a program to add to the apps panel by hand, for anything the scan does not find.
+    /// Returns the absolute path, an empty string if cancelled, or null when there is no window.
+    /// </summary>
+    /// <remarks>
+    /// The filter is per-platform because "a program" is a different thing on each: an executable
+    /// or a shortcut on Windows, a desktop entry or a plain executable file on Linux. Both offer
+    /// "All files" as well, since a launcher can be any file the system knows how to open.
+    /// </remarks>
+    public static async Task<string> OpenApplicationDialog(Window owner = null)
+    {
+        owner ??= WindowHelper.GetMainWindow();
+        if (owner == null) return null;
+
+        FilePickerFileType programs = OperatingSystem.IsWindows()
+            ? new FilePickerFileType("Programs") { Patterns = ["*.exe", "*.lnk", "*.url", "*.bat", "*.cmd"] }
+            : new FilePickerFileType("Programs") { Patterns = ["*.desktop", "*.sh", "*"] };
+
+        IReadOnlyList<IStorageFile> files = await owner.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = "Select Application",
+            AllowMultiple = false,
+            FileTypeFilter = [programs, new FilePickerFileType("All files") { Patterns = ["*"] }]
+        });
+
+        if (files.Count == 0) return string.Empty;
+
+        return ResolveLocalPath(files[0]);
+    }
+
+    /// <summary>
     /// Picks a <c>.loupixprofile</c> package to import. Parented to <paramref name="owner"/> when
     /// given (the open settings dialog), falling back to the main window. Returns the absolute
     /// path, an empty string if cancelled, or null when there's no window.
