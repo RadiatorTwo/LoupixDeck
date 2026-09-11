@@ -1,4 +1,4 @@
-using System.Buffers.Binary;
+﻿using System.Buffers.Binary;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -470,6 +470,9 @@ public partial class WindowsUInputKeyboard : IUInputKeyboard
         Send(inputs);
     }
 
+    /// <summary>How long a key combination stays held before it is released.</summary>
+    private const int HotkeyHoldMs = 25;
+
     public void SendKeyCombination(IReadOnlyList<string> keyNames)
     {
         if (!Connected || keyNames == null || keyNames.Count == 0)
@@ -482,16 +485,24 @@ public partial class WindowsUInputKeyboard : IUInputKeyboard
         if (keys.Count == 0)
             return;
 
-        // Press all keys in order, then release them in reverse order.
-        var inputs = new INPUT[keys.Count * 2];
-        var i = 0;
-        foreach (var (virtualKey, extended) in keys)
-            inputs[i++] = KeyInput(virtualKey, extended, false);
+        // Press all keys, hold them briefly, then release in reverse order. Sending down and up
+        // as one batch is sometimes too fast for a SYSTEM hotkey to register — Win+Ctrl+Left for
+        // the previous virtual desktop is the common case — especially while another application
+        // has focus. The short hold makes those reliable.
+        INPUT[] down = new INPUT[keys.Count];
+        for (int d = 0; d < keys.Count; d++)
+            down[d] = KeyInput(keys[d].virtualKey, keys[d].extended, false);
+        Send(down);
 
-        for (var k = keys.Count - 1; k >= 0; k--)
-            inputs[i++] = KeyInput(keys[k].virtualKey, keys[k].extended, true);
+        Thread.Sleep(HotkeyHoldMs);
 
-        Send(inputs);
+        INPUT[] up = new INPUT[keys.Count];
+        for (int u = 0; u < keys.Count; u++)
+        {
+            (int virtualKey, bool extended) = keys[keys.Count - 1 - u];
+            up[u] = KeyInput(virtualKey, extended, true);
+        }
+        Send(up);
     }
 
     public void KeyDown(string keyName)
