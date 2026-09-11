@@ -192,7 +192,32 @@ public partial class LoupedeckConfig : ObservableObject
     [ObservableProperty]
     public partial string ScreensaverPluginId { get; set; }
 
-    public SimpleButton[] SimpleButtons { get; set; }
+    /// <summary>
+    /// The round LED buttons of the active profile. Since v12 they live inside
+    /// <see cref="Profile.SimpleButtons"/>, one set per profile, so a colour or command changed in
+    /// one profile no longer bleeds into the others; the root property stays as a forwarding
+    /// facade. They hang off the profile rather than the workspace on purpose: a workspace is a
+    /// page set inside one usage scenario, and the physical LED row should not change under the
+    /// user on every workspace switch.
+    /// </summary>
+    [JsonIgnore]
+    public SimpleButton[] SimpleButtons
+    {
+        get => ActiveProfile?.SimpleButtons;
+        set
+        {
+            if (ActiveProfile is not { } profile)
+            {
+                // Without a profile there is nowhere to put them and the assignment would be lost.
+                // EnsureDefaultProfile runs at load, so reaching this means a caller ran too early.
+                Console.WriteLine("SimpleButtons were assigned before any profile existed; the assignment was dropped.");
+                return;
+            }
+
+            profile.SimpleButtons = value;
+            OnPropertyChanged(nameof(SimpleButtons));
+        }
+    }
 
     // ───────── Profiles / Workspaces (issue #132) ─────────
     // The touch/rotary page collections and their active-page projections used to live
@@ -298,6 +323,9 @@ public partial class LoupedeckConfig : ObservableObject
     {
         OnPropertyChanged(nameof(ActiveProfile));
         OnPropertyChanged(nameof(ActiveWorkspace));
+        // Per-profile since v12; the device layouts bind Config.SimpleButtons[i] and have to
+        // re-read the indexer when the active profile changes.
+        OnPropertyChanged(nameof(SimpleButtons));
         OnPropertyChanged(nameof(TouchButtonPages));
         OnPropertyChanged(nameof(RotaryButtonPages));
         OnPropertyChanged(nameof(LeftRotaryButtonPages));
