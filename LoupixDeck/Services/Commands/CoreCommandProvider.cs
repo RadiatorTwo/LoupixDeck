@@ -1,4 +1,4 @@
-using LoupixDeck.Commands.Base;
+﻿using LoupixDeck.Commands.Base;
 using LoupixDeck.PluginSdk;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -98,7 +98,11 @@ public class CoreCommandProvider : ICommandProvider
             "Device Control" => ButtonTargets.All,
             // Arbitrary shell command — assignable to every button type.
             "Shell" => ButtonTargets.All,
-            "Macros" => ButtonTargets.TouchButton,
+            // Mouse, key-combination and virtual-desktop actions are generic input
+            // automation with no artwork of their own, so they are assignable to every
+            // button type — a dial scrolling the wheel or an LED button sending a
+            // shortcut is as valid as a touch button doing it.
+            "Macros" => ButtonTargets.All,
             // User-defined macros (System.Macro) are generic input automation —
             // assignable to every button type.
             "User Macros" => ButtonTargets.All,
