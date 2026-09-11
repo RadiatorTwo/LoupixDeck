@@ -7,6 +7,7 @@ using LoupixDeck.Models;
 using LoupixDeck.PluginSdk;
 using LoupixDeck.Services.AppLauncher;
 using LoupixDeck.Services.Commands;
+using LoupixDeck.Services.DialPresets;
 using LoupixDeck.Utils;
 using LoupixDeck.ViewModels.Base;
 using LoupixDeck.ViewModels.CommandPicker;
@@ -37,6 +38,7 @@ public partial class ActionPanelViewModel : ViewModelBase
     private readonly ICustomAppStore _customApps;
     private readonly IAppIconExtractor _icons;
     private readonly IMenuTreeBuilder _menuTreeBuilder;
+    private readonly IDialPresetCatalog _dialPresets;
     private readonly CancellationTokenSource _cancellation = new();
 
     // The live catalogue. Owned here rather than borrowed, because the panel outlives any one
@@ -48,12 +50,16 @@ public partial class ActionPanelViewModel : ViewModelBase
     private bool _loadStarted;
 
     public ActionPanelViewModel(IAppDiscoveryService discovery, ICustomAppStore customApps,
-        IAppIconExtractor icons, IMenuTreeBuilder menuTreeBuilder)
+        IAppIconExtractor icons, IMenuTreeBuilder menuTreeBuilder, IDialPresetCatalog dialPresets)
     {
         _discovery = discovery;
         _customApps = customApps;
         _icons = icons;
         _menuTreeBuilder = menuTreeBuilder;
+        _dialPresets = dialPresets;
+
+        _dialPresets.PresetsChanged += OnDialPresetsChanged;
+        RebuildDialPresets();
     }
 
     // ── Panel state ────────────────────────────────────────────────────────
@@ -111,6 +117,25 @@ public partial class ActionPanelViewModel : ViewModelBase
     /// panel owns.
     /// </summary>
     public CommandPickerViewModel CommandPicker => field ??= new CommandPickerViewModel(_catalogue);
+
+    // ── Dial presets ───────────────────────────────────────────────────────
+
+    /// <summary>
+    /// The dial presets, as rows that can be dragged onto a dial or assigned to a selected one.
+    /// Their own section rather than part of the command list above, because a preset is offered on
+    /// rotary encoders alone and that list is built for touch buttons.
+    /// </summary>
+    public ObservableCollection<PanelItemViewModel> DialPresets { get; } = [];
+
+    private void OnDialPresetsChanged(object sender, EventArgs e) =>
+        Dispatcher.UIThread.Post(RebuildDialPresets);
+
+    private void RebuildDialPresets()
+    {
+        DialPresets.Clear();
+        foreach (DialPreset preset in _dialPresets.Presets)
+            DialPresets.Add(new DialPresetPanelItemViewModel(preset));
+    }
 
     // ── Loading ────────────────────────────────────────────────────────────
 
@@ -355,6 +380,8 @@ public partial class ActionPanelViewModel : ViewModelBase
     {
         if (!_cancellation.IsCancellationRequested)
             _cancellation.Cancel();
+
+        _dialPresets.PresetsChanged -= OnDialPresetsChanged;
 
         CommandPicker.Cleanup();
     }

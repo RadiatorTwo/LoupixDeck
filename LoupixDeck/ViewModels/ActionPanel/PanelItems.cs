@@ -84,3 +84,22 @@ public sealed class ActionPanelItemViewModel : PanelItemViewModel
 
     public override string Subtitle => Entry.Description;
 }
+
+/// <summary>
+/// A dial preset: assigning it fills all three gestures of a dial at once. Rejected on every other
+/// button type, which has no gestures to fill.
+/// </summary>
+public sealed class DialPresetPanelItemViewModel : PanelItemViewModel
+{
+    public DialPreset Preset { get; }
+
+    public DialPresetPanelItemViewModel(DialPreset preset)
+    {
+        Preset = preset;
+        Glyph = string.IsNullOrEmpty(preset.Glyph) ? DialPreset.DefaultGlyph : preset.Glyph;
+    }
+
+    public override string Title => Preset.Name;
+
+    public override string Subtitle => Preset.IsBuiltIn ? "Built-in" : "Your preset";
+}

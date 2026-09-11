@@ -168,6 +168,20 @@
                                              DataContext="{Binding CommandPicker}" />
                 </Grid>
             </TabItem>
+
+            <TabItem Header="Dial presets">
+                <Grid RowDefinitions="Auto,*">
+                    <TextBlock Grid.Row="0" Classes="hint" Margin="2,8,2,6" TextWrapping="Wrap"
+                               Text="Drop one on a dial to set all three of its gestures at once. Only dials accept them." />
+
+                    <ListBox Grid.Row="1" Name="DialPresetList"
+                             ItemsSource="{Binding DialPresets}"
+                             ItemTemplate="{StaticResource PanelRowTemplate}"
+                             Background="Transparent"
+                             BorderThickness="0"
+                             SelectionMode="Single" />
+                </Grid>
+            </TabItem>
         </TabControl>
     </Border>
 </UserControl>
