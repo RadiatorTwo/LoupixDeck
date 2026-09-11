@@ -1,4 +1,4 @@
-<Window xmlns="https://github.com/avaloniaui"
+﻿<Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
@@ -78,7 +78,18 @@
                                                                        Margin="0,0,10,0" />
                                                             <TextBox Grid.Column="1"
                                                                      Text="{Binding Value, Mode=TwoWay}"
-                                                                     IsVisible="{Binding IsText}" />
+                                                                     IsVisible="{Binding IsText}">
+                                                                <TextBox.InnerRightContent>
+                                                                    <!-- Record the value by pressing the keys instead of typing their names. -->
+                                                                    <Button Classes="chip-action"
+                                                                            Margin="0,0,4,0"
+                                                                            FontFamily="{StaticResource MdiFont}"
+                                                                            Content="&#xF030C;"
+                                                                            IsVisible="{Binding HasPicker}"
+                                                                            Command="{Binding PickCommand}"
+                                                                            ToolTip.Tip="{Binding PickerHint}" />
+                                                                </TextBox.InnerRightContent>
+                                                            </TextBox>
                                                             <ComboBox Grid.Column="1"
                                                                       HorizontalAlignment="Stretch"
                                                                       ItemsSource="{Binding Options}"

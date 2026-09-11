@@ -1,4 +1,4 @@
-using System.Collections.Frozen;
+﻿using System.Collections.Frozen;
 using System.Reflection;
 using LoupixDeck.Commands.Base;
 using Microsoft.Extensions.DependencyInjection;
@@ -201,15 +201,18 @@ public class SysCommandService : ISysCommandService
             return list;
 
         var defaults = attribute.ParameterDefaults;
+        var pickers = attribute.ParameterPickers;
 
         for (var i = 0; i < attribute.ParameterNames.Length; i++)
         {
             var defaultValue = defaults != null && i < defaults.Length ? defaults[i] : null;
+            var picker = pickers != null && i < pickers.Length ? pickers[i] : null;
 
             list.Add(new ParameterDescriptor(
                 attribute.ParameterNames[i],
                 attribute.ParameterTypes[i],
-                defaultValue
+                defaultValue,
+                picker
             ));
         }
 

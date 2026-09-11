@@ -1,4 +1,4 @@
-using LoupixDeck.Controllers;
+﻿using LoupixDeck.Controllers;
 using LoupixDeck.Models;
 using LoupixDeck.Registry;
 using LoupixDeck.Services;
@@ -388,6 +388,9 @@ public static class ServiceCollectionExtensions
         collection.AddTransient<SymbolPicker>();
         collection.AddTransient<SymbolPickerViewModel>();
 
+        collection.AddTransient<KeyCapture>();
+        collection.AddTransient<KeyCaptureViewModel>();
+
         collection.AddTransient<AppPicker>();
         collection.AddTransient<AppPickerViewModel>();
 
@@ -444,6 +447,7 @@ public static class ServiceCollectionExtensions
         dialogService.Register<RotaryButtonSettingsViewModel, RotaryButtonSettings>();
         dialogService.Register<TouchButtonSettingsViewModel, TouchButtonSettings>();
         dialogService.Register<SymbolPickerViewModel, SymbolPicker>();
+        dialogService.Register<KeyCaptureViewModel, KeyCapture>();
         dialogService.Register<AppPickerViewModel, AppPicker>();
         dialogService.Register<TouchPageWallpaperSettingsViewModel, TouchPageWallpaperSettings>();
         dialogService.Register<PageCommandsSettingsViewModel, PageCommandsSettings>();

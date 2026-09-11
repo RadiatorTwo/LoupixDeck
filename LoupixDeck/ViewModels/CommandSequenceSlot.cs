@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.Input;
 using LoupixDeck.Models;
 using LoupixDeck.Services;
@@ -21,6 +21,7 @@ public class CommandSequenceSlot : ViewModelBase
 {
     private readonly ICommandBuilder _commandBuilder;
     private readonly ICommandRegistry _commandRegistry;
+    private readonly IDialogService _dialogService;
     private readonly Func<string> _read;
     private readonly Action<string> _write;
 
@@ -36,12 +37,14 @@ public class CommandSequenceSlot : ViewModelBase
         string title,
         ICommandBuilder commandBuilder,
         ICommandRegistry commandRegistry,
+        IDialogService dialogService,
         Func<string> read,
         Action<string> write)
     {
         Title = title;
         _commandBuilder = commandBuilder;
         _commandRegistry = commandRegistry;
+        _dialogService = dialogService;
         _read = read;
         _write = write;
 
@@ -80,7 +83,7 @@ public class CommandSequenceSlot : ViewModelBase
     {
         var name = CommandStringParser.GetName(raw);
         var info = _commandRegistry.Get(name)?.Info;
-        var segment = CommandSegment.Create(_commandBuilder, info, raw);
+        var segment = CommandSegment.Create(_commandBuilder, _dialogService, info, raw);
         segment.Changed += OnSegmentChanged;
         return segment;
     }

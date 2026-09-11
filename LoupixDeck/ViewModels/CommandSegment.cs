@@ -1,8 +1,11 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Windows.Input;
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using LoupixDeck.Commands;
 using LoupixDeck.Commands.Base;
+using LoupixDeck.Models;
 using LoupixDeck.Services;
 using LoupixDeck.Utils;
 
@@ -27,7 +30,23 @@ public partial class CommandParameter
     /// <summary>Enum value names for the combo box; null for non-enum parameters.</summary>
     public IReadOnlyList<string> Options { get; }
 
-    public CommandParameter(string name, Type parameterType, string value)
+    private readonly IDialogService _dialogService;
+    private readonly string _picker;
+
+    /// <summary>
+    /// True when this parameter can be filled by a dialog instead of typing — the editor then
+    /// shows a record button next to the text box.
+    /// </summary>
+    public bool HasPicker { get; }
+
+    /// <summary>Tooltip of the record button; null when the parameter has no picker.</summary>
+    public string PickerHint { get; }
+
+    /// <summary>Opens the parameter's picker dialog and stores what it returns.</summary>
+    public ICommand PickCommand => field ??= new AsyncRelayCommand(PickValueAsync);
+
+    public CommandParameter(string name, Type parameterType, string value,
+        string picker = null, IDialogService dialogService = null)
     {
         Name = name;
         ParameterType = parameterType ?? typeof(string);
@@ -36,6 +55,38 @@ public partial class CommandParameter
         if (IsEnum)
             Options = Enum.GetNames(ParameterType);
         _value = value ?? string.Empty;
+
+        _dialogService = dialogService;
+        _picker = picker;
+
+        // Without a dialog service there is nothing to open, so the button stays hidden rather
+        // than failing when it is pressed.
+        HasPicker = dialogService != null && picker != null && IsText;
+        PickerHint = HasPicker ? "Record by pressing the keys" : null;
+    }
+
+    private async Task PickValueAsync()
+    {
+        if (!HasPicker)
+            return;
+
+        KeyCaptureRequest request = new()
+        {
+            Mode = _picker switch
+            {
+                ParameterPicker.KeySequence => KeyCaptureMode.Sequence,
+                ParameterPicker.Modifiers => KeyCaptureMode.Modifiers,
+                _ => KeyCaptureMode.Combination
+            }
+        };
+
+        DialogResult result = await _dialogService.ShowDialogAsync<KeyCaptureViewModel, DialogResult>(
+            vm => vm.Initialize(request));
+
+        if (result is not { IsConfirmed: true } || string.IsNullOrEmpty(request.CapturedKeys))
+            return;
+
+        Value = request.CapturedKeys;
     }
 
     private string _value;
@@ -113,7 +164,8 @@ public partial class CommandSegment
     /// resolved <see cref="CommandInfo"/> when the command name is a known system
     /// command, or null for a shell command.
     /// </summary>
-    public static CommandSegment Create(ICommandBuilder commandBuilder, CommandInfo info, string raw)
+    public static CommandSegment Create(ICommandBuilder commandBuilder, IDialogService dialogService,
+        CommandInfo info, string raw)
     {
         raw = (raw ?? string.Empty).Trim();
         var name = CommandStringParser.GetName(raw);
@@ -147,7 +199,8 @@ public partial class CommandSegment
         {
             var descriptor = info.Parameters[i];
             var value = i < values.Length ? values[i] : string.Empty;
-            var parameter = new CommandParameter(descriptor.Name, descriptor.ParameterType, value);
+            var parameter = new CommandParameter(descriptor.Name, descriptor.ParameterType, value,
+                descriptor.Picker, dialogService);
             parameter.PropertyChanged += segment.OnParameterChanged;
             segment.Parameters.Add(parameter);
         }

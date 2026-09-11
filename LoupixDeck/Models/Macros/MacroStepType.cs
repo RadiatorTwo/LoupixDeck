@@ -1,4 +1,4 @@
-namespace LoupixDeck.Models.Macros;
+﻿namespace LoupixDeck.Models.Macros;
 
 /// <summary>
 /// Discriminator for the persisted macro step types. The enum NAME (not the
@@ -100,10 +100,20 @@ public enum MouseStepAction
     Scroll
 }
 
-/// <summary>Mouse button used by click/down/up mouse steps.</summary>
+/// <summary>
+/// Mouse button used by click/down/up mouse steps. The enum NAME is written to macros.json
+/// (see <see cref="Models.Converter.MacroStepJsonConverter"/>), so renaming a member is a
+/// breaking change while appending new members is always safe.
+/// </summary>
 public enum MouseButton
 {
     Left,
     Right,
-    Middle
+    Middle,
+
+    /// <summary>First extra side button (usually "back").</summary>
+    X1,
+
+    /// <summary>Second extra side button (usually "forward").</summary>
+    X2
 }

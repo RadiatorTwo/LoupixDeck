@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using LoupixDeck.Models.Macros;
@@ -29,6 +29,12 @@ public partial class InterceptionMouse : IVirtualMouse
     private const ushort StateRightUp = 0x008;
     private const ushort StateMiddleDown = 0x010;
     private const ushort StateMiddleUp = 0x020;
+
+    // Extra side buttons: driver button 4 = X1 (back), button 5 = X2 (forward).
+    private const ushort StateX1Down = 0x040;
+    private const ushort StateX1Up = 0x080;
+    private const ushort StateX2Down = 0x100;
+    private const ushort StateX2Up = 0x200;
     private const ushort StateWheel = 0x400;
 
     // InterceptionMouseFlag values.
@@ -58,6 +64,8 @@ public partial class InterceptionMouse : IVirtualMouse
     private const int VkLButton = 0x01;
     private const int VkRButton = 0x02;
     private const int VkMButton = 0x04;
+    private const int VkXButton1 = 0x05;
+    private const int VkXButton2 = 0x06;
 
     // Virtual screen metrics (multi-monitor desktop bounding box) for absolute moves.
     private const int SM_XVIRTUALSCREEN = 76;
@@ -345,6 +353,8 @@ public partial class InterceptionMouse : IVirtualMouse
     {
         MouseButton.Right => (StateRightDown, StateRightUp, VkRButton),
         MouseButton.Middle => (StateMiddleDown, StateMiddleUp, VkMButton),
+        MouseButton.X1 => (StateX1Down, StateX1Up, VkXButton1),
+        MouseButton.X2 => (StateX2Down, StateX2Up, VkXButton2),
         _ => (StateLeftDown, StateLeftUp, VkLButton)
     };
 }

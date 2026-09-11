@@ -1,6 +1,10 @@
-namespace LoupixDeck.Commands.Base;
+﻿namespace LoupixDeck.Commands.Base;
 
-public class ParameterDescriptor(string name, Type parameterType, string defaultValue = null)
+public class ParameterDescriptor(
+    string name,
+    Type parameterType,
+    string defaultValue = null,
+    string picker = null)
 {
     public string Name { get; } = name;
     public Type ParameterType { get; } = parameterType;
@@ -12,4 +16,11 @@ public class ParameterDescriptor(string name, Type parameterType, string default
     /// first parameter, or a type default for the rest).
     /// </summary>
     public string DefaultValue { get; } = defaultValue;
+
+    /// <summary>
+    /// Optional id of a dialog that fills this parameter instead of the user typing it (see
+    /// <see cref="ParameterPicker"/>). Null — the normal case, and what every plugin command
+    /// gets — means the editor shows a plain text box.
+    /// </summary>
+    public string Picker { get; } = picker;
 }
