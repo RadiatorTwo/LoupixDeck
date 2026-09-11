@@ -2676,7 +2676,14 @@ public partial class LoupedeckLiveSController(
     {
         if (sender is not SimpleButton button) return;
 
-        button.RenderedImage = BitmapHelper.RenderSimpleButtonImage(button, 90, 90);
+        // ItemChanged is raised by whoever changed the button — a plugin thread driving a button
+        // state, the serial read loop, a timer. RenderedImage is bound by the UI, so the assignment
+        // has to be marshalled. Post rather than Invoke: the raising thread must not wait on the
+        // dispatcher (a device write is still pending below).
+        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        {
+            button.RenderedImage = BitmapHelper.RenderSimpleButtonImage(button, 90, 90);
+        });
         // async void: an unhandled transport failure here would tear the process down.
         await TryDeviceIo($"setting the colour of button {button.Id}",
             () => deviceService.Device.SetButtonColor(button.Id, button.ButtonColor));
