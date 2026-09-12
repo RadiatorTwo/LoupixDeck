@@ -51,6 +51,12 @@ public partial class Settings : Window
         PluginList.Items.Clear();
         foreach (var plugin in vm.Plugins)
         {
+            // A plugin whose manifest targets the other OS can never load here, so it
+            // is hidden instead of shown as a dead "Disabled" row with a toggle that
+            // does nothing.
+            if (!PluginManager.SupportsCurrentPlatform(plugin.Manifest))
+                continue;
+
             PluginList.Items.Add(new ListBoxItem
             {
                 Content = BuildPluginListEntry(vm, plugin),

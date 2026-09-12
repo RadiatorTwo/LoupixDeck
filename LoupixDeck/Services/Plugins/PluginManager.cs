@@ -835,6 +835,14 @@ public class PluginManager : IPluginManager
                && enabled.Any(id => string.Equals(id, pluginId, StringComparison.OrdinalIgnoreCase));
     }
 
+    /// <summary>
+    /// True when the manifest's <c>platform</c> field allows this OS. Public so the
+    /// settings UI can hide plugins that can never run on the current platform
+    /// instead of listing them as a dead "Disabled" row.
+    /// </summary>
+    public static bool SupportsCurrentPlatform(PluginManifest manifest) =>
+        PlatformMatches(manifest?.Platform);
+
     private static bool PlatformMatches(string platform)
     {
         if (string.IsNullOrWhiteSpace(platform) ||
