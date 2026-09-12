@@ -1,12 +1,14 @@
 #!/usr/bin/env bash
 # LoupixDeck Linux installer – distro-agnostic.
-# Downloads a GitHub release binary, installs it system-wide, and sets up
-# udev rules and a desktop entry. The release build is self-contained, so
-# no separate .NET runtime is required.
+# Downloads a GitHub release binary (or builds master from source), installs
+# it system-wide, and sets up udev rules and a desktop entry. The build is
+# self-contained, so no separate .NET runtime is required to run it.
 #
-# Usage: install-loupixdeck.sh [version]
-#   version   Release tag to install (e.g. v1.22.0). Defaults to the latest
-#             release. A leading 'v' is optional.
+# Usage: install-loupixdeck.sh [version | --from-source]
+#   version        Release tag to install (e.g. v1.22.0). Defaults to the
+#                  latest release. A leading 'v' is optional.
+#   --from-source  Clone and build master of LoupixDeck, the Plugin SDK and
+#                  all bundled plugins instead. Needs git and the .NET SDK.
 set -euo pipefail
 
 REPO="RadiatorTwo/LoupixDeck"
@@ -53,63 +55,187 @@ else
     die "Neither curl nor wget found."
 fi
 
-# ---------- Resolve & download release ----------
-REQUESTED_VERSION="${1:-}"
-case "$REQUESTED_VERSION" in
-    -h|--help)
-        printf 'Usage: %s [version]\n\n' "$(basename "$0")"
-        printf '  version   Release tag to install (e.g. v1.22.0).\n'
-        printf '            Defaults to the latest release.\n'
-        exit 0
-        ;;
-    -*) die "Unknown option: $REQUESTED_VERSION (see --help)." ;;
-esac
-
-if [ -n "$REQUESTED_VERSION" ]; then
-    log "Querying release $REQUESTED_VERSION of $REPO ..."
-    API_JSON="$(DL_STDOUT "https://api.github.com/repos/$REPO/releases/tags/$REQUESTED_VERSION" || true)"
-    # Retry with a 'v' prefix so both '1.22.0' and 'v1.22.0' work.
-    case "$REQUESTED_VERSION" in
-        v*) ;;
+# ---------- Arguments ----------
+REQUESTED_VERSION=""
+FROM_SOURCE=0
+for arg in "$@"; do
+    case "$arg" in
+        -h|--help)
+            printf 'Usage: %s [version | --from-source]\n\n' "$(basename "$0")"
+            printf '  version        Release tag to install (e.g. v1.22.0).\n'
+            printf '                 Defaults to the latest release.\n'
+            printf '  --from-source  Clone master of LoupixDeck, the Plugin SDK and all\n'
+            printf '                 bundled plugins, build them locally and install the\n'
+            printf '                 result. Requires git and the .NET SDK.\n'
+            exit 0
+            ;;
+        --from-source) FROM_SOURCE=1 ;;
+        -*) die "Unknown option: $arg (see --help)." ;;
         *)
-            if [ -z "$API_JSON" ] || ! printf '%s' "$API_JSON" | grep -q '"tag_name"'; then
-                API_JSON="$(DL_STDOUT "https://api.github.com/repos/$REPO/releases/tags/v$REQUESTED_VERSION" || true)"
-            fi
+            [ -z "$REQUESTED_VERSION" ] || die "Only one version may be given (see --help)."
+            REQUESTED_VERSION="$arg"
             ;;
     esac
-    if [ -z "$API_JSON" ] || ! printf '%s' "$API_JSON" | grep -q '"tag_name"'; then
-        die "Release '$REQUESTED_VERSION' not found. List available tags with: curl -fsSL https://api.github.com/repos/$REPO/releases | grep tag_name"
+done
+if [ "$FROM_SOURCE" -eq 1 ] && [ -n "$REQUESTED_VERSION" ]; then
+    die "--from-source builds master; a version cannot be combined with it."
+fi
+
+# ---------- Build from source ----------
+# Mirrors .github/workflows/release.yml: the SDK package is built first, the
+# plugins restore it from a local feed, and each plugin is assembled into
+# plugins/<id>/ next to the self-contained app. Keep PLUGIN_REPOS in sync with
+# the plugin list of the 'build-plugins' job there.
+# Entry format: <GitHub repository name>:<directory / project name>
+PLUGIN_REPOS=(
+    LoupixDeck.Plugin.Obs:LoupixDeck.Plugin.Obs
+    LoupixDeck.Plugin.Elgato:LoupixDeck.Plugin.Elgato
+    LoupixDeck.Plugin.HwInfo:LoupixDeck.Plugin.HwInfo
+    LoupixDeck.Plugin.CoolerControl:LoupixDeck.Plugin.CoolerControl
+    LoupixDeck.Plugin.LibreHardwareMonitor:LoupixDeck.Plugin.LibreHardwareMonitor
+    LoupixDeck.Plugin.Audio:LoupixDeck.Plugin.Audio
+    LoupixDeck.Plugin.Argus:LoupixDeck.Plugin.Argus
+    LoupixDeck.Plugin.SpotifyPremium:LoupixDeck.Plugin.SpotifyPremium
+    LoupixDeck.Plugin.LinuxHWInfo:LoupixDeck.Plugin.LinuxHwInfo
+    LoupixDeck.Plugin.SteelseriesSonar:LoupixDeck.Plugin.SteelseriesSonar
+)
+
+plugin_id() {
+    if command -v jq >/dev/null 2>&1; then
+        jq -r '.id // empty' "$1"
+    else
+        grep -oE '"id"[[:space:]]*:[[:space:]]*"[^"]+"' "$1" | head -n1 | sed -E 's/.*"([^"]+)"$/\1/'
     fi
+}
+
+build_from_source() {
+    require git
+    require dotnet
+    dotnet --list-sdks 2>/dev/null | grep -q . \
+        || die "No .NET SDK found ('dotnet --list-sdks' is empty). Install the .NET SDK, not only the runtime."
+
+    local src="$TMP_DIR/src"
+    local out="$TMP_DIR/publish"
+    mkdir -p "$src"
+    export DOTNET_CLI_TELEMETRY_OPTOUT=1 DOTNET_NOLOGO=1
+
+    log "Cloning $REPO (master) ..."
+    git clone --quiet --depth 1 --recurse-submodules --shallow-submodules \
+        "https://github.com/$REPO.git" "$src/LoupixDeck"
+    TAG="master ($(git -C "$src/LoupixDeck" rev-parse --short HEAD))"
+
+    log "Cloning RadiatorTwo/LoupixDeck.PluginSdk (master) ..."
+    git clone --quiet --depth 1 "https://github.com/RadiatorTwo/LoupixDeck.PluginSdk.git" "$src/LoupixDeck.PluginSdk"
+
+    log "Building Plugin SDK package ..."
+    dotnet build "$src/LoupixDeck.PluginSdk/LoupixDeck.PluginSdk.csproj" -c Release
+
+    # Plugin nuget.config files point at the SDK feed either as a sibling repo
+    # (../LoupixDeck.PluginSdk/nupkg) or nested in the core repo
+    # (../LoupixDeck/LoupixDeck.PluginSdk/nupkg); provide both, as CI does.
+    mkdir -p "$src/LoupixDeck/LoupixDeck.PluginSdk/nupkg"
+    cp -r "$src/LoupixDeck.PluginSdk/nupkg/." "$src/LoupixDeck/LoupixDeck.PluginSdk/nupkg/"
+
+    log "Publishing LoupixDeck for linux-x64 ..."
+    dotnet publish "$src/LoupixDeck/LoupixDeck/LoupixDeck.csproj" -c Release -r linux-x64 --self-contained true \
+        -p:PublishSingleFile=true \
+        -p:PublishTrimmed=false \
+        -p:EnableCompressionInSingleFile=true \
+        -p:ReadyToRun=true \
+        -o "$out"
+
+    local entry repo dir manifest id built=() failed=()
+    mkdir -p "$out/plugins"
+    for entry in "${PLUGIN_REPOS[@]}"; do
+        repo="${entry%%:*}"
+        dir="${entry#*:}"
+        log "Building plugin $dir ..."
+        if ! git clone --quiet --depth 1 "https://github.com/RadiatorTwo/$repo.git" "$src/$dir"; then
+            warn "Could not clone $repo – skipping."
+            failed+=("$dir")
+            continue
+        fi
+        manifest="$src/$dir/plugin.json"
+        id="$( [ -f "$manifest" ] && plugin_id "$manifest" || true )"
+        if [ -z "$id" ] || [ "$id" = "null" ]; then
+            warn "$dir has no 'id' in plugin.json – skipping."
+            failed+=("$dir")
+            continue
+        fi
+        if ! dotnet build "$src/$dir/$dir.csproj" -c Release -o "$TMP_DIR/build/$dir" -p:DebugSymbols=false -p:DebugType=none; then
+            warn "Build of $dir failed – skipping."
+            failed+=("$dir")
+            continue
+        fi
+        mkdir -p "$out/plugins/$id"
+        find "$TMP_DIR/build/$dir" -mindepth 1 -maxdepth 1 ! -name '*.pdb' ! -name '*.runtimeconfig.json' \
+            -exec cp -r {} "$out/plugins/$id/" \;
+        cp "$manifest" "$out/plugins/$id/plugin.json"
+        built+=("$id")
+    done
+
+    find "$out" -name '*.pdb' -delete
+    log "Plugins built: ${built[*]:-none}"
+    [ "${#failed[@]}" -eq 0 ] || warn "Plugins skipped: ${failed[*]}"
+
+    SRC="$out"
+    [ -f "$SRC/LoupixDeck" ] || die "Binary 'LoupixDeck' not found in publish output ($SRC)."
+}
+
+# ---------- Resolve & download release ----------
+download_release() {
+    if [ -n "$REQUESTED_VERSION" ]; then
+        log "Querying release $REQUESTED_VERSION of $REPO ..."
+        API_JSON="$(DL_STDOUT "https://api.github.com/repos/$REPO/releases/tags/$REQUESTED_VERSION" || true)"
+        # Retry with a 'v' prefix so both '1.22.0' and 'v1.22.0' work.
+        case "$REQUESTED_VERSION" in
+            v*) ;;
+            *)
+                if [ -z "$API_JSON" ] || ! printf '%s' "$API_JSON" | grep -q '"tag_name"'; then
+                    API_JSON="$(DL_STDOUT "https://api.github.com/repos/$REPO/releases/tags/v$REQUESTED_VERSION" || true)"
+                fi
+                ;;
+        esac
+        if [ -z "$API_JSON" ] || ! printf '%s' "$API_JSON" | grep -q '"tag_name"'; then
+            die "Release '$REQUESTED_VERSION' not found. List available tags with: curl -fsSL https://api.github.com/repos/$REPO/releases | grep tag_name"
+        fi
+    else
+        log "Querying latest release of $REPO ..."
+        API_JSON="$(DL_STDOUT "https://api.github.com/repos/$REPO/releases/latest")"
+    fi
+
+    TAG="$(printf '%s' "$API_JSON" | grep -oE '"tag_name"[[:space:]]*:[[:space:]]*"[^"]+"' | head -n1 | sed -E 's/.*"([^"]+)"$/\1/')"
+    DOWNLOAD_URL="$(printf '%s' "$API_JSON" \
+        | grep -oE '"browser_download_url"[[:space:]]*:[[:space:]]*"[^"]+"' \
+        | sed -E 's/.*"([^"]+)"$/\1/' \
+        | grep -F "$ASSET_NAME" \
+        | head -n1)"
+
+    [ -n "$TAG" ]          || die "Could not determine release tag."
+    [ -n "$DOWNLOAD_URL" ] || die "Asset '$ASSET_NAME' not found in release $TAG."
+    log "Release $TAG → $DOWNLOAD_URL"
+
+    log "Downloading archive ..."
+    DL "$DOWNLOAD_URL" "$TMP_DIR/loupixdeck.tar.gz"
+
+    log "Extracting ..."
+    mkdir -p "$TMP_DIR/extract"
+    tar -xzf "$TMP_DIR/loupixdeck.tar.gz" -C "$TMP_DIR/extract"
+
+    # Resolve source: extracted directly or a single subdirectory
+    SRC="$TMP_DIR/extract"
+    mapfile -t TOP < <(find "$SRC" -mindepth 1 -maxdepth 1)
+    if [ "${#TOP[@]}" -eq 1 ] && [ -d "${TOP[0]}" ]; then
+        SRC="${TOP[0]}"
+    fi
+    [ -f "$SRC/LoupixDeck" ] || die "Binary 'LoupixDeck' not found in archive ($SRC)."
+}
+
+if [ "$FROM_SOURCE" -eq 1 ]; then
+    build_from_source
 else
-    log "Querying latest release of $REPO ..."
-    API_JSON="$(DL_STDOUT "https://api.github.com/repos/$REPO/releases/latest")"
+    download_release
 fi
-
-TAG="$(printf '%s' "$API_JSON" | grep -oE '"tag_name"[[:space:]]*:[[:space:]]*"[^"]+"' | head -n1 | sed -E 's/.*"([^"]+)"$/\1/')"
-DOWNLOAD_URL="$(printf '%s' "$API_JSON" \
-    | grep -oE '"browser_download_url"[[:space:]]*:[[:space:]]*"[^"]+"' \
-    | sed -E 's/.*"([^"]+)"$/\1/' \
-    | grep -F "$ASSET_NAME" \
-    | head -n1)"
-
-[ -n "$TAG" ]          || die "Could not determine release tag."
-[ -n "$DOWNLOAD_URL" ] || die "Asset '$ASSET_NAME' not found in release $TAG."
-log "Release $TAG → $DOWNLOAD_URL"
-
-log "Downloading archive ..."
-DL "$DOWNLOAD_URL" "$TMP_DIR/loupixdeck.tar.gz"
-
-log "Extracting ..."
-mkdir -p "$TMP_DIR/extract"
-tar -xzf "$TMP_DIR/loupixdeck.tar.gz" -C "$TMP_DIR/extract"
-
-# Resolve source: extracted directly or a single subdirectory
-SRC="$TMP_DIR/extract"
-mapfile -t TOP < <(find "$SRC" -mindepth 1 -maxdepth 1)
-if [ "${#TOP[@]}" -eq 1 ] && [ -d "${TOP[0]}" ]; then
-    SRC="${TOP[0]}"
-fi
-[ -f "$SRC/LoupixDeck" ] || die "Binary 'LoupixDeck' not found in archive ($SRC)."
 
 # ---------- Install ----------
 if [ -d "$INSTALL_DIR" ]; then
