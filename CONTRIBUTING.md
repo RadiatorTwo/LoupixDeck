@@ -49,8 +49,13 @@ Each is fine on its own. Combined, they produce a diff no reviewer can reason ab
   any prose description; if a rule isn't in it, it isn't enforced.
 - Run the formatter before committing and keep the diff clean. If a file needs reformatting, do it
   in a **separate, formatting-only commit** — never fold whitespace churn into a logic change.
-- All developer-facing text is **English**: code, comments, identifiers, log strings, and UI.
-  This holds regardless of the language of the conversation or issue.
+- All developer-facing text is **English**: code, comments, identifiers and log strings. This holds
+  regardless of the language of the conversation or issue.
+- The **UI is translated**, with English as its source language. A new visible string is authored in
+  English, added to `LoupixDeck/Localization/Strings/en.json` under a stable key, and looked up with
+  `{loc:Tr Key}` in XAML or `Loc.Tr("Key")` in C# — never left as a literal in a view. Mirror the key
+  in `de.json` and `es.json` in the same change; a missing key silently falls back to English.
+  Names, sample values and key-combination hints stay literal.
 
 ---
 
