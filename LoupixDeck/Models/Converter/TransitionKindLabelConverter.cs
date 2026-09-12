@@ -1,3 +1,4 @@
+using LoupixDeck.Localization;
 using System.Globalization;
 using Avalonia.Data.Converters;
 using LoupixDeck.Models;
@@ -17,11 +18,11 @@ public class TransitionKindLabelConverter : IValueConverter
 
     public static string Label(StateTransitionKind kind) => kind switch
     {
-        StateTransitionKind.Stay => "Stay in current state",
-        StateTransitionKind.Next => "Go to next state",
-        StateTransitionKind.Previous => "Go to previous state",
-        StateTransitionKind.Specific => "Go to specific state",
-        StateTransitionKind.ResetToDefault => "Reset to default state",
+        StateTransitionKind.Stay => Loc.Tr("Transition_Stay"),
+        StateTransitionKind.Next => Loc.Tr("Transition_Next"),
+        StateTransitionKind.Previous => Loc.Tr("Transition_Previous"),
+        StateTransitionKind.Specific => Loc.Tr("Transition_Specific"),
+        StateTransitionKind.ResetToDefault => Loc.Tr("Transition_ResetToDefault"),
         _ => kind.ToString()
     };
 }

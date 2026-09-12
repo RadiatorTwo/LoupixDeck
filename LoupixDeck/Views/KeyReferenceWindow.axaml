@@ -1,5 +1,6 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:loc="using:LoupixDeck.Localization"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="using:LoupixDeck.ViewModels"
@@ -10,7 +11,7 @@
         x:Class="LoupixDeck.Views.KeyReferenceWindow"
         x:DataType="vm:KeyReferenceViewModel"
         WindowStartupLocation="CenterOwner"
-        Title="Usable key names">
+        Title="{loc:Tr KeyReference_UsableKeyNames}">
 
     <Window.Styles>
         <Style Selector="SelectableTextBlock.intro">
@@ -52,7 +53,7 @@
 
         <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right"
                     Margin="16,8,16,16" Spacing="8">
-            <Button Content="Close" Click="Close_Click" />
+            <Button Content="{loc:Tr KeyReference_Close}" Click="Close_Click" />
         </StackPanel>
     </Grid>
 </Window>

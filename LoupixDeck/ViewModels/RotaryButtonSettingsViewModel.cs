@@ -1,4 +1,5 @@
-﻿using System.Collections.ObjectModel;
+﻿using LoupixDeck.Localization;
+using System.Collections.ObjectModel;
 using LoupixDeck.Models;
 using LoupixDeck.PluginSdk;
 using LoupixDeck.Services;
@@ -14,11 +15,11 @@ public class RotaryButtonSettingsViewModel : DialogViewModelBase<RotaryButton, D
     {
         ButtonData = parameter;
 
-        RotaryLeftSlot = new CommandSequenceSlot("Rotate Left", _commandBuilder, _commandRegistry, _dialogService,
+        RotaryLeftSlot = new CommandSequenceSlot(Loc.Tr("Gesture_RotateLeft"), _commandBuilder, _commandRegistry, _dialogService,
             () => ButtonData.RotaryLeftCommand, v => ButtonData.RotaryLeftCommand = v);
-        RotaryRightSlot = new CommandSequenceSlot("Rotate Right", _commandBuilder, _commandRegistry, _dialogService,
+        RotaryRightSlot = new CommandSequenceSlot(Loc.Tr("Gesture_RotateRight"), _commandBuilder, _commandRegistry, _dialogService,
             () => ButtonData.RotaryRightCommand, v => ButtonData.RotaryRightCommand = v);
-        ButtonPressSlot = new CommandSequenceSlot("Button Press", _commandBuilder, _commandRegistry, _dialogService,
+        ButtonPressSlot = new CommandSequenceSlot(Loc.Tr("Slot_ButtonPress"), _commandBuilder, _commandRegistry, _dialogService,
             () => ButtonData.Command, v => ButtonData.Command = v);
 
         Slots = [RotaryLeftSlot, RotaryRightSlot, ButtonPressSlot];

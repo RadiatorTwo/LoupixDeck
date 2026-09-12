@@ -2,6 +2,7 @@
     x:Class="LoupixDeck.Views.SimpleButtonSettings"
     xmlns="https://github.com/avaloniaui"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:loc="using:LoupixDeck.Localization"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:ccp="clr-namespace:Avalonia.Controls;assembly=Avalonia.Controls.ColorPicker"
@@ -40,7 +41,7 @@
 
             <!-- OFF toggle sits directly under the title, above the editor area. -->
             <CheckBox Grid.Row="1"
-                      Content="Run also when device is OFF"
+                      Content="{loc:Tr SimpleButton_RunAlsoWhenDeviceIs}"
                       IsChecked="{Binding ButtonData.EnableWhenOff}"
                       Margin="0,0,0,8" />
 
@@ -60,16 +61,16 @@
                     <!-- States: compact state management (fixed-height list). -->
                     <Border Grid.Row="0" Classes="editor-panel" Margin="0,0,0,12">
                         <StackPanel>
-                            <TextBlock Classes="panel-title" Text="States" />
+                            <TextBlock Classes="panel-title" Text="{loc:Tr SimpleButton_States}" />
                             <UniformGrid Columns="2" Margin="0,0,0,8" IsEnabled="{Binding CanEditStates}">
-                                <Button Classes="toolbar" Content="+ Add" Margin="0,0,4,0"
+                                <Button Classes="toolbar" Content="{loc:Tr SimpleButton_Add}" Margin="0,0,4,0"
                                         HorizontalAlignment="Stretch"
                                         Command="{Binding AddStateCommand}"
-                                        ToolTip.Tip="Add a new state" />
-                                <Button Classes="toolbar" Content="Duplicate"
+                                        ToolTip.Tip="{loc:Tr SimpleButton_AddANewState}" />
+                                <Button Classes="toolbar" Content="{loc:Tr SimpleButton_Duplicate}"
                                         HorizontalAlignment="Stretch"
                                         Command="{Binding DuplicateStateCommand}"
-                                        ToolTip.Tip="Duplicate the selected state" />
+                                        ToolTip.Tip="{loc:Tr SimpleButton_DuplicateTheSelectedState}" />
                             </UniformGrid>
 
                             <ListBox Height="108"
@@ -94,8 +95,8 @@
                                                        ToolTip.Tip="{Binding Name}" />
                                             <Border Grid.Column="2" Classes="layer-badge"
                                                     IsVisible="{Binding IsDefault}"
-                                                    ToolTip.Tip="Default state">
-                                                <TextBlock Text="Default" />
+                                                    ToolTip.Tip="{loc:Tr SimpleButton_DefaultState}">
+                                                <TextBlock Text="{loc:Tr SimpleButton_Default}" />
                                             </Border>
                                         </Grid>
                                     </DataTemplate>
@@ -105,19 +106,19 @@
                             <StackPanel Orientation="Horizontal" Margin="0,8,0,0" IsEnabled="{Binding CanEditStates}">
                                 <Button Classes="row-action" Content="▲"
                                         Command="{Binding MoveStateUpCommand}"
-                                        ToolTip.Tip="Move state up" />
+                                        ToolTip.Tip="{loc:Tr SimpleButton_MoveStateUp}" />
                                 <Button Classes="row-action" Content="▼"
                                         Command="{Binding MoveStateDownCommand}"
-                                        ToolTip.Tip="Move state down" />
+                                        ToolTip.Tip="{loc:Tr SimpleButton_MoveStateDown}" />
                                 <Button Classes="row-action"
                                         Command="{Binding SetDefaultStateCommand}"
-                                        ToolTip.Tip="Set as default state">
+                                        ToolTip.Tip="{loc:Tr SimpleButton_SetAsDefaultState}">
                                     <TextBlock Text="&#xF04CE;" FontFamily="{StaticResource MdiFont}" />
                                 </Button>
                                 <Button Classes="row-action danger"
                                         Command="{Binding DeleteStateCommand}"
                                         IsEnabled="{Binding CanDeleteState}"
-                                        ToolTip.Tip="Delete the selected state">
+                                        ToolTip.Tip="{loc:Tr SimpleButton_DeleteTheSelectedState}">
                                     <TextBlock Text="&#xF01B4;" FontFamily="{StaticResource MdiFont}" />
                                 </Button>
                             </StackPanel>
@@ -126,7 +127,7 @@
                                  decides which one is active. -->
                             <TextBlock Classes="label" Margin="0,8,0,0" TextWrapping="Wrap"
                                        IsVisible="{Binding AreStatesLocked}"
-                                       Text="States are managed by the assigned command." />
+                                       Text="{loc:Tr SimpleButton_StatesAreManagedByThe}" />
                         </StackPanel>
                     </Border>
 
@@ -134,17 +135,17 @@
                     <Border Grid.Row="1" Classes="editor-panel" Margin="0,0,0,12">
                         <StackPanel>
                             <TextBlock Classes="panel-title"
-                                       Text="{Binding SelectedState.Name, StringFormat='Behavior for State: {0}'}" />
+                                       Text="{loc:TrFormat Common_BehaviorForStateFmt, SelectedState.Name}" />
 
-                            <TextBlock Classes="label" Text="Name" />
+                            <TextBlock Classes="label" Text="{loc:Tr SimpleButton_Name}" />
                             <TextBox Text="{Binding SelectedState.Name, Mode=TwoWay}" Margin="0,2,0,8"
                                      IsEnabled="{Binding CanEditStates}" />
 
-                            <TextBlock Classes="label" Text="LED color" />
+                            <TextBlock Classes="label" Text="{loc:Tr SimpleButton_LEDColor}" />
                             <ccp:ColorPicker Width="120" HorizontalAlignment="Left" Margin="0,2,0,8"
                                              Color="{Binding ButtonData.ButtonColor}" />
 
-                            <TextBlock Classes="label" Text="Transition after press" />
+                            <TextBlock Classes="label" Text="{loc:Tr SimpleButton_TransitionAfterPress}" />
                             <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,2,0,8"
                                         IsEnabled="{Binding CanEditStates}">
                                 <ComboBox MinWidth="200"
@@ -164,7 +165,7 @@
                                           DisplayMemberBinding="{Binding Name}" />
                             </StackPanel>
 
-                            <CheckBox Content="Reset to default on restart"
+                            <CheckBox Content="{loc:Tr SimpleButton_ResetToDefaultOnRestart}"
                                       IsChecked="{Binding ResetOnRestart, Mode=TwoWay}"
                                       IsEnabled="{Binding CanEditStates}" />
                         </StackPanel>
@@ -181,17 +182,17 @@
 
                             <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,8">
                                 <StackPanel Grid.Column="0" VerticalAlignment="Center">
-                                    <TextBlock Text="Sequence" FontWeight="SemiBold" />
+                                    <TextBlock Text="{loc:Tr SimpleButton_Sequence}" FontWeight="SemiBold" />
                                     <TextBlock Classes="hint"
-                                               Text="{Binding Commands.Count, StringFormat='{}{0} command(s)'}" />
+                                               Text="{loc:TrFormat Common_CommandCountFmt, Commands.Count}" />
                                 </StackPanel>
-                                <Button Grid.Column="1" Content="Clear"
+                                <Button Grid.Column="1" Content="{loc:Tr SimpleButton_Clear}"
                                         Command="{Binding ClearCommandCommand}"
                                         IsEnabled="{Binding HasCommand}"
                                         VerticalAlignment="Center"
                                         MinWidth="80"
                                         HorizontalContentAlignment="Center"
-                                        ToolTip.Tip="Remove all assigned commands (keeps the button color)" />
+                                        ToolTip.Tip="{loc:Tr SimpleButton_RemoveAllAssignedCommandsKeeps}" />
                             </Grid>
 
                             <Panel Grid.Row="1" MinHeight="40">
@@ -232,7 +233,7 @@
                                                         <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto">
                                                             <Border Grid.Column="0" Classes="drag-handle chip-grip"
                                                                     VerticalAlignment="Center"
-                                                                    ToolTip.Tip="Drag to reorder"
+                                                                    ToolTip.Tip="{loc:Tr SimpleButton_DragToReorder}"
                                                                     PointerPressed="CommandDragHandle_PointerPressed">
                                                                 <TextBlock Text="&#xF01DB;" />
                                                             </Border>
@@ -250,7 +251,7 @@
                                                                     VerticalAlignment="Center"
                                                                     FontFamily="{StaticResource MdiFont}"
                                                                     Content="&#xF0140;"
-                                                                    ToolTip.Tip="Edit parameters">
+                                                                    ToolTip.Tip="{loc:Tr SimpleButton_EditParameters}">
                                                                 <Button.Flyout>
                                                                     <Flyout Placement="Top">
                                                                         <Panel Width="300">
@@ -294,7 +295,7 @@
                                                                                     </ItemsControl.ItemTemplate>
                                                                                 </ItemsControl>
                                                                                 <TextBlock Classes="hint"
-                                                                                           Text="This command has no parameters."
+                                                                                           Text="{loc:Tr SimpleButton_ThisCommandHasNoParameters}"
                                                                                            IsVisible="{Binding !Parameters.Count}" />
                                                                             </StackPanel>
 
@@ -303,7 +304,7 @@
                                                                                   IsVisible="{Binding !IsKnown}">
                                                                                 <TextBlock Grid.Column="0"
                                                                                            Classes="editor-label"
-                                                                                           Text="Command"
+                                                                                           Text="{loc:Tr SimpleButton_Command}"
                                                                                            VerticalAlignment="Center"
                                                                                            Margin="0,0,10,0" />
                                                                                 <TextBox Grid.Column="1"
@@ -318,7 +319,7 @@
                                                                     VerticalAlignment="Center"
                                                                     FontFamily="{StaticResource MdiFont}"
                                                                     Content="&#xF01B4;"
-                                                                    ToolTip.Tip="Remove command"
+                                                                    ToolTip.Tip="{loc:Tr SimpleButton_RemoveCommand}"
                                                                     Click="RemoveCommand_Click" />
                                                         </Grid>
                                                     </Border>
@@ -329,7 +330,7 @@
                                 </ScrollViewer>
 
                                 <TextBlock Classes="hint" VerticalAlignment="Center"
-                                           Text="No commands yet — double-click an entry in the command list to add one, or drag it over here."
+                                           Text="{loc:Tr SimpleButton_NoCommandsYetDoubleClick}"
                                            IsVisible="{Binding !Commands.Count}" />
                             </Panel>
                         </Grid>

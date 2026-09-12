@@ -1,3 +1,4 @@
+using LoupixDeck.Localization;
 using System.Globalization;
 using Avalonia.Data.Converters;
 using LoupixDeck.Models.Macros;
@@ -18,11 +19,11 @@ public class ConditionTypeLabelConverter : IValueConverter
 
     public static string Label(ConditionType type) => type switch
     {
-        ConditionType.ProcessRunning => "Process running",
-        ConditionType.ActiveWindowProcessIs => "Active window process is",
-        ConditionType.ActiveWindowTitleContains => "Active window title contains",
-        ConditionType.Variable => "Variable",
-        ConditionType.TriggerButtonReleased => "Trigger button released",
+        ConditionType.ProcessRunning => Loc.Tr("Condition_ProcessRunning"),
+        ConditionType.ActiveWindowProcessIs => Loc.Tr("Condition_ActiveWindowProcessIs"),
+        ConditionType.ActiveWindowTitleContains => Loc.Tr("Condition_ActiveWindowTitleContains"),
+        ConditionType.Variable => Loc.Tr("Condition_Variable"),
+        ConditionType.TriggerButtonReleased => Loc.Tr("Condition_TriggerButtonReleased"),
         _ => type.ToString()
     };
 }

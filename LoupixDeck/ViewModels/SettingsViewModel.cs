@@ -4,6 +4,7 @@ using Avalonia.Styling;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using LoupixDeck.Localization;
 using LoupixDeck.Models;
 using LoupixDeck.Registry;
 using LoupixDeck.Models.Converter;
@@ -204,6 +205,32 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
         });
 
         Version = $"v{System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "?"}";
+
+        SelectedLanguage = LocalizationManager.AvailableLanguages
+            .FirstOrDefault(language => language.Code == LocalizationManager.Instance.CurrentLanguage);
+    }
+
+    // ───────── General / Language ─────────
+
+    /// <summary>The UI languages the app ships, in menu order.</summary>
+    public IReadOnlyList<LanguageOption> Languages => LocalizationManager.AvailableLanguages;
+
+    /// <summary>
+    /// The selected UI language. This is a global preference, not a per-device setting, so it is
+    /// applied and persisted by the localization manager rather than stored in the device config.
+    /// </summary>
+    [ObservableProperty]
+    public partial LanguageOption SelectedLanguage { get; set; }
+
+    partial void OnSelectedLanguageChanged(LanguageOption value)
+    {
+        if (value == null || value.Code == LocalizationManager.Instance.CurrentLanguage)
+        {
+            return;
+        }
+
+        LocalizationManager.Instance.SetLanguage(value.Code);
+        LocalizationManager.Instance.Persist();
     }
 
     // ───────── General / Device ─────────
@@ -218,7 +245,7 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
     [NotifyPropertyChangedFor(nameof(DeviceStatusText))]
     public partial bool DeviceConnected { get; private set; }
 
-    public string DeviceStatusText => DeviceConnected ? "Connected" : "Disconnected";
+    public string DeviceStatusText => Loc.Tr(DeviceConnected ? "Settings_Connected" : "Settings_Disconnected");
 
     private async Task RefreshDeviceInfoAsync()
     {
@@ -278,7 +305,7 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
     [NotifyPropertyChangedFor(nameof(InterceptionStatusText))]
     public partial bool InterceptionDriverInstalled { get; private set; }
 
-    public string InterceptionStatusText => InterceptionDriverInstalled ? "Installed" : "Not installed";
+    public string InterceptionStatusText => Loc.Tr(InterceptionDriverInstalled ? "Settings_Installed" : "Settings_NotInstalled");
 
     [ObservableProperty]
     public partial bool InterceptionBusy { get; private set; }
@@ -759,9 +786,9 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
     /// <summary>The three no-match behaviours, in the order they are offered.</summary>
     public IReadOnlyList<NoMatchBehaviorOption> NoMatchBehaviorOptions { get; } =
     [
-        new(NoMatchProfileBehavior.KeepCurrent, "Keep the current profile"),
-        new(NoMatchProfileBehavior.RestorePrevious, "Return to the profile active before the rule"),
-        new(NoMatchProfileBehavior.FixedProfile, "Switch to a fixed fallback profile")
+        new(NoMatchProfileBehavior.KeepCurrent, "Rule_KeepCurrentProfile"),
+        new(NoMatchProfileBehavior.RestorePrevious, "Rule_RestorePreviousProfile"),
+        new(NoMatchProfileBehavior.FixedProfile, "Rule_FixedFallbackProfile")
     ];
 
     /// <summary>What happens to the active profile when no rule matches any more.</summary>

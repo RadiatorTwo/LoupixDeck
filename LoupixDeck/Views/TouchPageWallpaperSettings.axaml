@@ -1,12 +1,13 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:loc="using:LoupixDeck.Localization"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="using:LoupixDeck.ViewModels"
         x:Class="LoupixDeck.Views.TouchPageWallpaperSettings"
         x:DataType="vm:TouchPageWallpaperSettingsViewModel"
         mc:Ignorable="d"
-        Title="Edit Wallpaper"
+        Title="{loc:Tr Wallpaper_EditWallpaper}"
         Width="940"
         Height="700"
         WindowStartupLocation="CenterOwner"
@@ -46,7 +47,7 @@
                     Padding="16"
                     VerticalAlignment="Top">
                 <StackPanel Spacing="10">
-                    <TextBlock Classes="label" Text="Device preview" HorizontalAlignment="Center" />
+                    <TextBlock Classes="label" Text="{loc:Tr Wallpaper_DevicePreview}" HorizontalAlignment="Center" />
                     <StackPanel Orientation="Horizontal" Spacing="6"
                                 HorizontalAlignment="Center" VerticalAlignment="Center">
 
@@ -58,7 +59,7 @@
                                 <Image Source="{Binding LeftPreview, Converter={StaticResource SkiaToBitmapConverter}}"
                                        Stretch="Fill" />
                             </Button>
-                            <TextBlock Classes="label" Text="Left" FontSize="11" HorizontalAlignment="Center" />
+                            <TextBlock Classes="label" Text="{loc:Tr Wallpaper_Left}" FontSize="11" HorizontalAlignment="Center" />
                         </StackPanel>
 
                         <!-- Main wallpaper -->
@@ -69,7 +70,7 @@
                                 <Image Source="{Binding MainPreview, Converter={StaticResource SkiaToBitmapConverter}}"
                                        Stretch="Uniform" />
                             </Button>
-                            <TextBlock Classes="label" Text="Main" FontSize="11" HorizontalAlignment="Center" />
+                            <TextBlock Classes="label" Text="{loc:Tr Wallpaper_Main}" FontSize="11" HorizontalAlignment="Center" />
                         </StackPanel>
 
                         <!-- Right side display -->
@@ -80,7 +81,7 @@
                                 <Image Source="{Binding RightPreview, Converter={StaticResource SkiaToBitmapConverter}}"
                                        Stretch="Fill" />
                             </Button>
-                            <TextBlock Classes="label" Text="Right" FontSize="11" HorizontalAlignment="Center" />
+                            <TextBlock Classes="label" Text="{loc:Tr Wallpaper_Right}" FontSize="11" HorizontalAlignment="Center" />
                         </StackPanel>
                     </StackPanel>
                 </StackPanel>
@@ -104,8 +105,8 @@
                                    Source="{Binding ActivePreview, Converter={StaticResource SkiaToBitmapConverter}}" />
                         </Border>
                         <StackPanel Spacing="6" VerticalAlignment="Center">
-                            <Button Content="Select…" Command="{Binding SelectMediaCommand}" Width="110" />
-                            <Button Content="Remove"  Command="{Binding RemoveCommand}" Width="110"
+                            <Button Content="{loc:Tr Wallpaper_Select}" Command="{Binding SelectMediaCommand}" MinWidth="110" />
+                            <Button Content="{loc:Tr Wallpaper_Remove}"  Command="{Binding RemoveCommand}" MinWidth="110"
                                     IsEnabled="{Binding HasActiveContent}" />
                             <TextBlock Classes="label" Text="{Binding ActiveContentKind}" />
                         </StackPanel>
@@ -120,34 +121,34 @@
                     <Grid ColumnDefinitions="80,*" RowDefinitions="Auto,Auto" RowSpacing="6"
                           IsVisible="{Binding HasActiveVideo}">
 
-                        <TextBlock Grid.Row="0" Grid.Column="0" Classes="label" Text="Scaling"
+                        <TextBlock Grid.Row="0" Grid.Column="0" Classes="label" Text="{loc:Tr Wallpaper_Scaling}"
                                    VerticalAlignment="Center" />
                         <ComboBox  Grid.Row="0" Grid.Column="1" HorizontalAlignment="Stretch"
                                    ItemsSource="{Binding VideoScalingOptions}"
                                    SelectedItem="{Binding SelectedWallpaperScalingOption, Mode=TwoWay}" />
 
-                        <TextBlock Grid.Row="1" Grid.Column="0" Classes="label" Text="Frame rate"
+                        <TextBlock Grid.Row="1" Grid.Column="0" Classes="label" Text="{loc:Tr Wallpaper_FrameRate}"
                                    VerticalAlignment="Center" />
                         <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Spacing="8">
                             <NumericUpDown Width="150" Minimum="1" Maximum="60" Increment="1"
                                            FormatString="0"
                                            Value="{Binding VideoFps, Mode=TwoWay}" />
-                            <TextBlock Classes="label" Text="fps" VerticalAlignment="Center" />
+                            <TextBlock Classes="label" Text="{loc:Tr Wallpaper_Fps}" VerticalAlignment="Center" />
                         </StackPanel>
                     </Grid>
 
                     <TextBlock Classes="hint" TextWrapping="Wrap"
                                IsVisible="{Binding HasActiveVideo}"
-                               Text="Fit keeps the aspect ratio and letterboxes, Fill keeps it and crops, Stretch distorts to fill. The clip covers the side displays too; one with its own image keeps it." />
+                               Text="{loc:Tr Wallpaper_FitKeepsTheAspectRatio}" />
 
                     <TextBlock Classes="hint" TextWrapping="Wrap"
                                IsVisible="{Binding ShowFfmpegHint}"
-                               Text="ffmpeg was not found on PATH — a clip cannot play until it is installed." />
+                               Text="{loc:Tr Wallpaper_FfmpegWasNotFoundOn}" />
 
                     <!-- Opacity is the one slot setting a clip honours: the overlay dims the video
                          frame with it. -->
                     <Grid ColumnDefinitions="80,*,40" RowDefinitions="Auto">
-                        <TextBlock Grid.Row="0" Grid.Column="0" Classes="label" Text="Opacity"    VerticalAlignment="Center" />
+                        <TextBlock Grid.Row="0" Grid.Column="0" Classes="label" Text="{loc:Tr Wallpaper_Opacity}"    VerticalAlignment="Center" />
                         <Slider    Grid.Row="0" Grid.Column="1" Minimum="0"  Maximum="1"
                                    TickFrequency="0.1" IsSnapToTickEnabled="True"
                                    Value="{Binding WallpaperOpacity, Mode=TwoWay}" />
@@ -159,40 +160,40 @@
                     <Grid ColumnDefinitions="80,*,40" RowDefinitions="Auto,Auto,Auto,Auto,Auto" RowSpacing="6"
                           IsVisible="{Binding ShowImageAdjustments}">
 
-                        <TextBlock Grid.Row="0" Grid.Column="0" Classes="label" Text="Scaling"    VerticalAlignment="Center" />
+                        <TextBlock Grid.Row="0" Grid.Column="0" Classes="label" Text="{loc:Tr Wallpaper_Scaling}"    VerticalAlignment="Center" />
                         <ComboBox  Grid.Row="0" Grid.Column="1" HorizontalAlignment="Stretch"
                                    ItemsSource="{Binding WallpaperScalingOptions}"
                                    SelectedItem="{Binding SelectedWallpaperScalingOption, Mode=TwoWay}" />
 
-                        <TextBlock Grid.Row="1" Grid.Column="0" Classes="label" Text="Scale"      VerticalAlignment="Center" />
+                        <TextBlock Grid.Row="1" Grid.Column="0" Classes="label" Text="{loc:Tr Wallpaper_Scale}"      VerticalAlignment="Center" />
                         <Slider    Grid.Row="1" Grid.Column="1" Minimum="1"  Maximum="400"
                                    TickFrequency="1" IsSnapToTickEnabled="True"
                                    Value="{Binding WallpaperScaling, Mode=TwoWay}" />
                         <TextBlock Grid.Row="1" Grid.Column="2" Classes="value" Text="{Binding WallpaperScaling}"
                                    VerticalAlignment="Center" HorizontalAlignment="Right" />
 
-                        <TextBlock Grid.Row="2" Grid.Column="0" Classes="label" Text="Position X" VerticalAlignment="Center" />
+                        <TextBlock Grid.Row="2" Grid.Column="0" Classes="label" Text="{loc:Tr Wallpaper_PositionX}" VerticalAlignment="Center" />
                         <Slider    Grid.Row="2" Grid.Column="1" Minimum="-480" Maximum="480"
                                    TickFrequency="1" IsSnapToTickEnabled="True"
                                    Value="{Binding WallpaperPositionX, Mode=TwoWay}" />
                         <TextBlock Grid.Row="2" Grid.Column="2" Classes="value" Text="{Binding WallpaperPositionX}"
                                    VerticalAlignment="Center" HorizontalAlignment="Right" />
 
-                        <TextBlock Grid.Row="3" Grid.Column="0" Classes="label" Text="Position Y" VerticalAlignment="Center" />
+                        <TextBlock Grid.Row="3" Grid.Column="0" Classes="label" Text="{loc:Tr Wallpaper_PositionY}" VerticalAlignment="Center" />
                         <Slider    Grid.Row="3" Grid.Column="1" Minimum="-270" Maximum="270"
                                    TickFrequency="1" IsSnapToTickEnabled="True"
                                    Value="{Binding WallpaperPositionY, Mode=TwoWay}" />
                         <TextBlock Grid.Row="3" Grid.Column="2" Classes="value" Text="{Binding WallpaperPositionY}"
                                    VerticalAlignment="Center" HorizontalAlignment="Right" />
 
-                        <TextBlock Grid.Row="4" Grid.Column="0" Classes="label" Text="Mirror"     VerticalAlignment="Center" />
-                        <CheckBox  Grid.Row="4" Grid.Column="1" Content="Flip horizontally"
+                        <TextBlock Grid.Row="4" Grid.Column="0" Classes="label" Text="{loc:Tr Wallpaper_Mirror}"     VerticalAlignment="Center" />
+                        <CheckBox  Grid.Row="4" Grid.Column="1" Content="{loc:Tr Wallpaper_FlipHorizontally}"
                                    IsChecked="{Binding WallpaperMirror, Mode=TwoWay}" />
                     </Grid>
 
                     <StackPanel Orientation="Horizontal" Spacing="8">
-                        <Button Content="Reset" Command="{Binding ResetCommand}" />
-                        <Button Content="Mirror to other side"
+                        <Button Content="{loc:Tr Wallpaper_Reset}" Command="{Binding ResetCommand}" />
+                        <Button Content="{loc:Tr Wallpaper_MirrorToOtherSide}"
                                 Command="{Binding MirrorToOtherSideCommand}"
                                 IsEnabled="{Binding IsSideSelected}" />
                     </StackPanel>
@@ -201,8 +202,8 @@
         </Grid>
 
         <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
-            <Button Content="Cancel" Width="100" Command="{Binding CancelCommand}" />
-            <Button Content="OK"     Width="100" IsDefault="True" Command="{Binding ConfirmCommand}" />
+            <Button Content="{loc:Tr Wallpaper_Cancel}" MinWidth="100" Command="{Binding CancelCommand}" />
+            <Button Content="{loc:Tr Wallpaper_OK}"     MinWidth="100" IsDefault="True" Command="{Binding ConfirmCommand}" />
         </StackPanel>
     </Grid>
 </Window>

@@ -4,6 +4,7 @@ using Avalonia.Controls.Shapes;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.VisualTree;
+using LoupixDeck.Localization;
 using LoupixDeck.Models;
 using LoupixDeck.Models.Layers;
 using LoupixDeck.Utils;
@@ -160,11 +161,10 @@ public partial class TouchButtonSettings : Window
 
         bool keep = await ConfirmDialogHelper.AskKeepDiscardAsync(
             this,
-            "Button States",
-            $"'{e.OwnerDisplayName}' managed this button's states. Keep the generated states as "
-            + "normal editable states, or discard them and go back to a single state?",
-            "Keep states",
-            "Discard states");
+            Loc.Tr("Confirm_ButtonStatesTitle"),
+            Loc.Tr("Confirm_ButtonStatesMessage", e.OwnerDisplayName),
+            Loc.Tr("Confirm_KeepStates"),
+            Loc.Tr("Confirm_DiscardStates"));
 
         vm.CompleteStateRelease(keep);
     }
@@ -175,8 +175,8 @@ public partial class TouchButtonSettings : Window
 
         var confirmed = await ConfirmDialogHelper.AskYesNoAsync(
             this,
-            "Reset Button",
-            "Do you really want to reset this button? All settings, texts, images and the command will be lost.");
+            Loc.Tr("Confirm_ResetButtonTitle"),
+            Loc.Tr("Confirm_ResetButtonMessage"));
 
         if (!confirmed) return;
 

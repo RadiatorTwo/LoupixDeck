@@ -1,4 +1,5 @@
-﻿using System.Collections.ObjectModel;
+﻿using LoupixDeck.Localization;
+using System.Collections.ObjectModel;
 using System.Windows.Input;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -728,10 +729,10 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         DialogResult result = await _dialogService.ShowDialogAsync<ConfirmDialogViewModel, DialogResult>(vm =>
             vm.Configure(
-                "This button already contains a configuration. Do you want to overwrite it?",
-                title: "Overwrite?",
-                confirmText: "Overwrite",
-                cancelText: "Cancel"));
+                Loc.Tr("Confirm_OverwriteButtonMessage"),
+                title: Loc.Tr("Confirm_OverwriteButtonTitle"),
+                confirmText: Loc.Tr("Confirm_Overwrite"),
+                cancelText: Loc.Tr("Confirm_Cancel")));
         return result.IsConfirmed;
     }
 
@@ -935,10 +936,10 @@ public partial class MainWindowViewModel : ViewModelBase
 
         DialogResult result = await _dialogService.ShowDialogAsync<ConfirmDialogViewModel, DialogResult>(vm =>
             vm.Configure(
-                $"Delete the preset '{preset.Name}'? Dials you already configured from it are not affected.",
-                title: "Delete preset?",
-                confirmText: "Delete",
-                cancelText: "Cancel"));
+                Loc.Tr("Confirm_DeletePresetMessage", preset.Name),
+                title: Loc.Tr("Confirm_DeletePresetTitle"),
+                confirmText: Loc.Tr("Confirm_Delete"),
+                cancelText: Loc.Tr("Confirm_Cancel")));
 
         if (result.IsConfirmed)
             _dialPresetStore.Remove(preset.Id);

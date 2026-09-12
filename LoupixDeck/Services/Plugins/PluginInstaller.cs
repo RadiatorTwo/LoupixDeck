@@ -1,3 +1,4 @@
+using LoupixDeck.Localization;
 using System.IO.Compression;
 using LoupixDeck.PluginSdk;
 using Newtonsoft.Json;
@@ -126,7 +127,7 @@ public sealed class PluginInstaller : IPluginInstaller
     public async Task<PluginActionResult> InstallFromZipAsync(string zipPath)
     {
         if (string.IsNullOrWhiteSpace(zipPath) || !File.Exists(zipPath))
-            return PluginActionResult.Fail("No file selected.");
+            return PluginActionResult.Fail(Loc.Tr("Plugin_NoFileSelected"));
 
         var tempDir = Path.Combine(Path.GetTempPath(), "loupixdeck_plugin_" + Guid.NewGuid().ToString("N"));
         try
@@ -135,7 +136,7 @@ public sealed class PluginInstaller : IPluginInstaller
         }
         catch (Exception ex)
         {
-            return PluginActionResult.Fail($"Install failed: {ex.Message}");
+            return PluginActionResult.Fail(Loc.Tr("Plugin_InstallFailed", ex.Message));
         }
         finally
         {
@@ -152,15 +153,14 @@ public sealed class PluginInstaller : IPluginInstaller
         }
         catch (Exception ex)
         {
-            return PluginActionResult.Fail($"Could not read the zip archive: {ex.Message}");
+            return PluginActionResult.Fail(Loc.Tr("Plugin_CouldNotReadZip", ex.Message));
         }
 
         // The manifest sits either at the zip root or inside a single top-level folder.
         var contentRoot = FindContentRoot(tempDir);
         if (contentRoot == null)
         {
-            return PluginActionResult.Fail(
-                "The zip has no plugin.json (expected at its root or in a single top-level folder).");
+            return PluginActionResult.Fail(Loc.Tr("Plugin_ZipHasNoManifest"));
         }
 
         PluginManifest manifest;
@@ -171,32 +171,30 @@ public sealed class PluginInstaller : IPluginInstaller
         }
         catch (Exception ex)
         {
-            return PluginActionResult.Fail($"Invalid plugin.json: {ex.Message}");
+            return PluginActionResult.Fail(Loc.Tr("Plugin_InvalidManifest", ex.Message));
         }
 
         // Same validation the loader applies in PluginManager.LoadOne.
         if (manifest == null || string.IsNullOrWhiteSpace(manifest.Id) ||
             string.IsNullOrWhiteSpace(manifest.EntryAssembly))
         {
-            return PluginActionResult.Fail("plugin.json is missing 'id' or 'entryAssembly'.");
+            return PluginActionResult.Fail(Loc.Tr("Plugin_ManifestMissingFields"));
         }
 
         if (!IsSafeFolderName(manifest.Id))
-            return PluginActionResult.Fail($"Plugin id '{manifest.Id}' is not a valid folder name.");
+            return PluginActionResult.Fail(Loc.Tr("Plugin_IdNotAValidFolderName", manifest.Id));
 
         if (!Version.TryParse(manifest.SdkVersion, out var pluginSdk))
-            return PluginActionResult.Fail($"Unparseable sdkVersion '{manifest.SdkVersion}'.");
+            return PluginActionResult.Fail(Loc.Tr("Plugin_UnparseableSdkVersion", manifest.SdkVersion));
 
         if (pluginSdk.Major != SdkInfo.Version.Major)
         {
-            return PluginActionResult.Fail(
-                $"Plugin SDK {pluginSdk} is incompatible with this app's SDK {SdkInfo.Version}.");
+            return PluginActionResult.Fail(Loc.Tr("Plugin_IncompatibleSdk", pluginSdk, SdkInfo.Version));
         }
 
         if (!File.Exists(Path.Combine(contentRoot, manifest.EntryAssembly)))
         {
-            return PluginActionResult.Fail(
-                $"Entry assembly '{manifest.EntryAssembly}' is missing from the zip.");
+            return PluginActionResult.Fail(Loc.Tr("Plugin_EntryAssemblyMissing", manifest.EntryAssembly));
         }
 
         Directory.CreateDirectory(_userRoot);
@@ -209,9 +207,7 @@ public sealed class PluginInstaller : IPluginInstaller
         var bundled = FindBundled(manifest.Id);
         if (bundled != null && ParseVersion(manifest.Version) < bundled.Value.Version)
         {
-            return PluginActionResult.Fail(
-                $"'{name}' is built-in at v{bundled.Value.VersionText}; this zip is v{manifest.Version} " +
-                "and would not be loaded.");
+            return PluginActionResult.Fail(Loc.Tr("Plugin_OlderThanBundled", name, bundled.Value.VersionText, manifest.Version));
         }
 
         // Enable it right away so the reload coordinator loads it (and a restart
@@ -228,17 +224,17 @@ public sealed class PluginInstaller : IPluginInstaller
             }
             catch (Exception ex)
             {
-                return PluginActionResult.Fail($"Could not copy the plugin into place: {ex.Message}");
+                return PluginActionResult.Fail(Loc.Tr("Plugin_CouldNotCopy", ex.Message));
             }
 
             return PluginActionResult.Ok(
-                $"Installed '{name}' v{manifest.Version}.", requiresRestart: false, pluginId: manifest.Id);
+                Loc.Tr("Plugin_Installed", name, manifest.Version), requiresRestart: false, pluginId: manifest.Id);
         }
 
         // Update/replace — capture the old version for the message.
         var previousVersion = TryReadInstalledVersion(targetDir);
         var arrow = string.Equals(previousVersion, manifest.Version, StringComparison.OrdinalIgnoreCase)
-            ? $"v{manifest.Version}, reinstalled"
+            ? Loc.Tr("Plugin_VersionReinstalled", manifest.Version)
             : $"{previousVersion} → {manifest.Version}";
 
         try
@@ -254,11 +250,11 @@ public sealed class PluginInstaller : IPluginInstaller
             if (StageForInstall(manifest.Id, contentRoot))
             {
                 return PluginActionResult.Ok(
-                    $"Updated '{name}' ({arrow}). Restart to load the new version.",
+                    Loc.Tr("Plugin_UpdatedNeedsRestart", name, arrow),
                     requiresRestart: true, pluginId: manifest.Id);
             }
 
-            return PluginActionResult.Fail($"Could not stage the update for '{name}': {ex.Message}");
+            return PluginActionResult.Fail(Loc.Tr("Plugin_CouldNotStageUpdate", name, ex.Message));
         }
 
         try
@@ -271,17 +267,17 @@ public sealed class PluginInstaller : IPluginInstaller
         }
 
         return PluginActionResult.Ok(
-            $"Updated '{name}' ({arrow}).", requiresRestart: false, pluginId: manifest.Id);
+            Loc.Tr("Plugin_Updated", name, arrow), requiresRestart: false, pluginId: manifest.Id);
     }
 
     public PluginActionResult Remove(LoadedPlugin plugin)
     {
         if (plugin?.Manifest == null || string.IsNullOrWhiteSpace(plugin.Directory))
-            return PluginActionResult.Fail("This plugin cannot be removed.");
+            return PluginActionResult.Fail(Loc.Tr("Plugin_CannotBeRemoved"));
 
         // Only user-installed copies are deletable; a bundled folder is read-only.
         if (!IsUnderUserRoot(plugin.Directory))
-            return PluginActionResult.Fail("Built-in plugins cannot be removed.");
+            return PluginActionResult.Fail(Loc.Tr("Plugin_BuiltInCannotBeRemoved"));
 
         var id = plugin.Manifest.Id;
         var name = string.IsNullOrWhiteSpace(plugin.Manifest.Name) ? id : plugin.Manifest.Name;
@@ -302,9 +298,9 @@ public sealed class PluginInstaller : IPluginInstaller
 
             return bundled != null
                 ? PluginActionResult.Ok(
-                    $"Reverted '{name}' to the built-in v{bundled.Value.VersionText}.",
+                    Loc.Tr("Plugin_RevertedToBuiltIn", name, bundled.Value.VersionText),
                     requiresRestart: false, pluginId: id)
-                : PluginActionResult.Ok($"Removed '{name}'. Restart to fully unload it.");
+                : PluginActionResult.Ok(Loc.Tr("Plugin_RemovedNeedsRestart", name));
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
@@ -313,11 +309,11 @@ public sealed class PluginInstaller : IPluginInstaller
             if (MarkForRemoval(plugin.Directory))
             {
                 return PluginActionResult.Ok(bundled != null
-                    ? $"'{name}' is in use; the built-in v{bundled.Value.VersionText} is restored on the next restart."
-                    : $"'{name}' is in use; it will be deleted on the next restart.");
+                    ? Loc.Tr("Plugin_InUseBuiltInRestored", name, bundled.Value.VersionText)
+                    : Loc.Tr("Plugin_InUseDeletedOnRestart", name));
             }
 
-            return PluginActionResult.Fail($"Could not remove '{name}': {ex.Message}");
+            return PluginActionResult.Fail(Loc.Tr("Plugin_CouldNotRemove", name, ex.Message));
         }
     }
 

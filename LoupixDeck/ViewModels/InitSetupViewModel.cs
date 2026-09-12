@@ -1,3 +1,4 @@
+using LoupixDeck.Localization;
 using System.Collections.ObjectModel;
 using System.IO.Ports;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -96,7 +97,7 @@ public partial class InitSetupViewModel : ViewModelBase
         // ???
         if (string.IsNullOrWhiteSpace(SelectedDevice.Path))
         {
-            ConnectionTestResult = "No device selected.";
+            ConnectionTestResult = Loc.Tr("InitSetup_NoDeviceSelected");
             ConnectionWorking = false;
             return;
         }
@@ -112,12 +113,12 @@ public partial class InitSetupViewModel : ViewModelBase
 
             if (port.IsOpen)
             {
-                ConnectionTestResult = "Connection successful!";
+                ConnectionTestResult = Loc.Tr("InitSetup_ConnectionSuccessful");
                 ConnectionWorking = true;
             }
             else
             {
-                ConnectionTestResult = "Connection could not be opened.";
+                ConnectionTestResult = Loc.Tr("InitSetup_ConnectionCouldNotBeOpened");
                 ConnectionWorking = false;
             }
 
@@ -125,7 +126,7 @@ public partial class InitSetupViewModel : ViewModelBase
         }
         catch (Exception ex)
         {
-            ConnectionTestResult = $"Error: {ex.Message}";
+            ConnectionTestResult = Loc.Tr("InitSetup_Error", ex.Message);
             ConnectionWorking = false;
         }
     }

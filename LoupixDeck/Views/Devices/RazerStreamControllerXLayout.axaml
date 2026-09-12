@@ -1,5 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:loc="using:LoupixDeck.Localization"
              xmlns:vm="using:LoupixDeck.ViewModels"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
@@ -302,14 +303,14 @@
                         BorderThickness="2"
                         CornerRadius="6">
                     <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8">
-                        <TextBlock Text="Exclusive Mode Active"
+                        <TextBlock Text="{loc:Tr Device_ExclusiveModeActive}"
                                    FontSize="22" FontWeight="Bold" Foreground="White"
                                    HorizontalAlignment="Center" />
                         <TextBlock Text="{Binding ExclusiveModeTitle}"
                                    FontSize="16" Foreground="#CCCCCC"
                                    HorizontalAlignment="Center"
                                    IsVisible="{Binding ExclusiveModeTitle, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
-                        <TextBlock Text="The device is being controlled. Its buttons are inactive."
+                        <TextBlock Text="{loc:Tr Device_TheDeviceIsBeingControlled}"
                                    FontSize="12" Foreground="#999999"
                                    TextWrapping="Wrap" MaxWidth="420" TextAlignment="Center"
                                    HorizontalAlignment="Center" />
@@ -323,23 +324,23 @@
         <Border Classes="Pager" HorizontalAlignment="Center" Margin="0,-30,0,12">
             <StackPanel Orientation="Horizontal" Spacing="3" VerticalAlignment="Center">
                 <Button Classes="PagerBtn PagerNav" Content="&#8249;"
-                        ToolTip.Tip="Previous touch page"
+                        ToolTip.Tip="{loc:Tr Device_PreviousTouchPage}"
                         Command="{Binding PreviousTouchPageCommand}" />
                 <TextBox Classes="PageName"
                          Text="{Binding LoupedeckController.Config.CurrentTouchButtonPage.Name, Mode=TwoWay}"
                          PlaceholderText="{Binding LoupedeckController.Config.CurrentTouchButtonPage.PageName}"
                          KeyDown="OnPageNameKeyDown" LostFocus="OnPageNameCommit" />
                 <Button Classes="PagerBtn PagerNav" Content="&#8250;"
-                        ToolTip.Tip="Next touch page"
+                        ToolTip.Tip="{loc:Tr Device_NextTouchPage}"
                         Command="{Binding NextTouchPageCommand}" />
                 <TextBlock Classes="PageCount"
                            Text="{Binding LoupedeckController.Config.TouchPageLabel}"
-                           ToolTip.Tip="Current / total touch pages" />
+                           ToolTip.Tip="{loc:Tr Device_CurrentTotalTouchPages}" />
                 <Button Classes="PagerBtn" Content="+"
-                        ToolTip.Tip="Add touch page"
+                        ToolTip.Tip="{loc:Tr Device_AddTouchPage}"
                         Command="{Binding AddTouchPageCommand}" />
                 <Button Classes="PagerBtn delete" Content="&#10005;"
-                        ToolTip.Tip="Delete current touch page"
+                        ToolTip.Tip="{loc:Tr Device_DeleteCurrentTouchPage}"
                         Command="{Binding DeleteTouchPageCommand}" />
             </StackPanel>
         </Border>
