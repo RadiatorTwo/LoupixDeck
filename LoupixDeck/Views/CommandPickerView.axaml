@@ -1,5 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:loc="using:LoupixDeck.Localization"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="using:LoupixDeck.ViewModels.CommandPicker"
@@ -32,8 +33,8 @@
                         <TextBlock Classes="picker-row-title" Text="{Binding Title}" />
                         <!-- Badge for a rotary command group (fills several slots at once). -->
                         <Border Classes="picker-group-badge" IsVisible="{Binding IsCommandGroup}"
-                                ToolTip.Tip="Fills all rotary actions (turn left / right / press) at once">
-                            <TextBlock Text="Group" />
+                                ToolTip.Tip="{loc:Tr CommandPicker_FillsAllRotaryActionsTurn}">
+                            <TextBlock Text="{loc:Tr CommandPicker_Group}" />
                         </Border>
                     </StackPanel>
                     <TextBlock Classes="picker-row-desc" Text="{Binding Description}"
@@ -48,7 +49,7 @@
             <StackPanel>
                 <ToggleButton Classes="picker-group"
                               IsChecked="{Binding IsExpanded, Mode=TwoWay}"
-                              ToolTip.Tip="Expand / collapse group">
+                              ToolTip.Tip="{loc:Tr CommandPicker_ExpandCollapseGroup}">
                     <!-- Inset on the grid (presenter padding is 0 for full-bleed
                          hover). Right 20px is the overlay-scrollbar gutter. -->
                     <Grid ColumnDefinitions="Auto,Auto,*,Auto" Margin="10,4,20,4">
@@ -125,7 +126,7 @@
                                    VerticalAlignment="Center" Margin="0,0,8,0" />
                         <TextBox Grid.Column="1" Name="SearchBox"
                                  Text="{Binding SearchText, Mode=TwoWay}"
-                                 PlaceholderText="Search commands..."
+                                 PlaceholderText="{loc:Tr CommandPicker_SearchCommands}"
                                  FontSize="12"
                                  Padding="0" MinHeight="0"
                                  BorderThickness="0" Background="Transparent"
@@ -203,7 +204,7 @@
                             Content="+ Add  &#x23CE;"
                             IsEnabled="{Binding HasSelectedCommand}"
                             Click="Add_Click"
-                            ToolTip.Tip="Add the selected command to the selected action" />
+                            ToolTip.Tip="{loc:Tr CommandPicker_AddTheSelectedCommandTo}" />
                 </Grid>
             </Border>
         </Grid>

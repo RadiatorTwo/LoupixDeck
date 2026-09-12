@@ -1,5 +1,6 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:loc="using:LoupixDeck.Localization"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="using:LoupixDeck.ViewModels"
@@ -9,7 +10,7 @@
         x:Class="LoupixDeck.Views.InitSetup"
         x:DataType="vm:InitSetupViewModel"
         Icon="avares://LoupixDeck/Assets/logo.ico"
-        Title="Setup Connection"
+        Title="{loc:Tr InitSetup_SetupConnection}"
         WindowStartupLocation="CenterScreen"
         Background="{DynamicResource ThemeBackground}"
         CanResize="False"
@@ -20,19 +21,19 @@
 
     <Grid ColumnDefinitions="*,180" RowDefinitions="*,30,30">
         <StackPanel Grid.Column="0" Grid.Row="0" Grid.ColumnSpan="2" Margin="20" Spacing="10">
-            <TextBlock Text="Serial Device:" FontWeight="Bold" />
+            <TextBlock Text="{loc:Tr InitSetup_SerialDevice}" FontWeight="Bold" />
             <ComboBox ItemsSource="{Binding SerialDevices}" SelectedItem="{Binding SelectedDevice}" />
-            <TextBlock Text="Baudrate:" FontWeight="Bold" />
+            <TextBlock Text="{loc:Tr InitSetup_Baudrate}" FontWeight="Bold" />
             <ComboBox ItemsSource="{Binding BaudRates}" SelectedItem="{Binding SelectedBaudRate}" />
         </StackPanel>
         <TextBlock Grid.Column="0" Grid.Row="1" Text="{Binding ConnectionTestResult}" Foreground="LightGray" />
-        <Button Grid.Column="0" Grid.Row="2" Margin="10" Height="30" Content="Test Connection"
+        <Button Grid.Column="0" Grid.Row="2" Margin="10" Height="30" Content="{loc:Tr InitSetup_TestConnection}"
                 Command="{Binding TestConnectionCommand}" />
         <StackPanel Grid.Column="1" Grid.Row="2" Orientation="Horizontal" Spacing="10">
             <Button Height="30" Width="80" HorizontalContentAlignment="Center"
-                    Content="OK" Command="{Binding ConfirmCommand}" HorizontalAlignment="Right" />
+                    Content="{loc:Tr InitSetup_OK}" Command="{Binding ConfirmCommand}" HorizontalAlignment="Right" />
             <Button Height="30" Width="80" HorizontalContentAlignment="Center"
-                    Content="Cancel" Command="{Binding AbortCommand}" />
+                    Content="{loc:Tr InitSetup_Cancel}" Command="{Binding AbortCommand}" />
         </StackPanel>
     </Grid>
 </Window>

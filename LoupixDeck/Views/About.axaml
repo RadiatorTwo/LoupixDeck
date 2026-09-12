@@ -1,5 +1,6 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:loc="using:LoupixDeck.Localization"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="using:LoupixDeck.ViewModels"
@@ -9,7 +10,7 @@
         x:Class="LoupixDeck.Views.About"
         x:DataType="vm:AboutViewModel"
         WindowStartupLocation="CenterScreen"
-        Title="About"
+        Title="{loc:Tr About_About}"
         CanResize="False"
         WindowDecorations="None"
         TransparencyLevelHint="Transparent"
@@ -57,10 +58,10 @@
                            FontSize="13"
                            Foreground="{DynamicResource AppTextSecondary}"
                            HorizontalAlignment="Center" />
-                <Button Content="Project Website" Width="160" HorizontalAlignment="Center"
+                <Button Content="{loc:Tr About_ProjectWebsite}" Width="160" HorizontalAlignment="Center"
                         HorizontalContentAlignment="Center"
                         Command="{Binding OpenWebsiteCommand}" />
-                <Button Content="Close" Width="160" HorizontalAlignment="Center"
+                <Button Content="{loc:Tr About_Close}" Width="160" HorizontalAlignment="Center"
                         HorizontalContentAlignment="Center"
                         Command="{Binding CloseCommand}" />
             </StackPanel>

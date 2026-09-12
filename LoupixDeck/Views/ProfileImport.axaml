@@ -1,5 +1,6 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:loc="using:LoupixDeck.Localization"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="using:LoupixDeck.ViewModels"
@@ -9,7 +10,7 @@
         x:Class="LoupixDeck.Views.ProfileImport"
         x:DataType="vm:ProfileImportViewModel"
         WindowStartupLocation="CenterOwner"
-        Title="Import Profile Package"
+        Title="{loc:Tr ProfileImport_ImportProfilePackage}"
         ShowInTaskbar="False">
 
     <Window.Styles>
@@ -99,7 +100,7 @@
 
         <!-- Busy / blocked states replace the whole body; only one is ever visible. -->
         <TextBlock Grid.Row="0"
-                   Text="Reading package…"
+                   Text="{loc:Tr ProfileImport_ReadingPackage}"
                    IsVisible="{Binding IsLoading}"
                    HorizontalAlignment="Center" VerticalAlignment="Center"
                    FontSize="13"
@@ -128,7 +129,7 @@
                         <TextBlock Text="{Binding ProvenanceText}" Classes="hint" VerticalAlignment="Center" />
                     </StackPanel>
 
-                    <TextBox Text="{Binding NewName}" PlaceholderText="Name" FontSize="15" />
+                    <TextBox Text="{Binding NewName}" PlaceholderText="{loc:Tr ProfileImport_Name}" FontSize="15" />
 
                     <TextBlock Text="{Binding Description}" Classes="hint"
                                IsVisible="{Binding HasDescription}" />
@@ -137,7 +138,7 @@
                 <!-- Device capability difference: informative, never blocking. -->
                 <Border Classes="banner" IsVisible="{Binding HasDeviceMismatch}">
                     <StackPanel Spacing="4">
-                        <TextBlock Text="Different device" FontSize="12" FontWeight="SemiBold"
+                        <TextBlock Text="{loc:Tr ProfileImport_DifferentDevice}" FontSize="12" FontWeight="SemiBold"
                                    Foreground="{DynamicResource AppTextPrimary}" />
                         <TextBlock Text="{Binding DeviceMismatchMessage}" Classes="hint" />
                     </StackPanel>
@@ -145,7 +146,7 @@
 
                 <!-- Required plugins -->
                 <StackPanel Spacing="6" IsVisible="{Binding HasPlugins}">
-                    <TextBlock Text="Required plugins" Classes="sectionHeader" />
+                    <TextBlock Text="{loc:Tr ProfileImport_RequiredPlugins}" Classes="sectionHeader" />
                     <ItemsControl ItemsSource="{Binding Plugins}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate DataType="vm:PackagePluginRow">
@@ -166,11 +167,11 @@
 
                                         <StackPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2"
                                                     Orientation="Horizontal" Spacing="12" Margin="0,6,0,0">
-                                            <CheckBox Content="Enable for this device on import"
+                                            <CheckBox Content="{loc:Tr ProfileImport_EnableForThisDeviceOn}"
                                                       IsChecked="{Binding EnableOnImport}"
                                                       IsVisible="{Binding IsDisabled}"
                                                       FontSize="12" />
-                                            <Button Content="Open project page"
+                                            <Button Content="{loc:Tr ProfileImport_OpenProjectPage}"
                                                     Command="{Binding OpenProjectCommand}"
                                                     IsVisible="{Binding HasProjectUrl}"
                                                     FontSize="12" Padding="8,2" />
@@ -184,9 +185,9 @@
 
                 <!-- Commands that resolve to nothing here -->
                 <StackPanel Spacing="6" IsVisible="{Binding HasUnknownCommands}">
-                    <TextBlock Text="Unknown commands" Classes="sectionHeader" />
+                    <TextBlock Text="{loc:Tr ProfileImport_UnknownCommands}" Classes="sectionHeader" />
                     <TextBlock Classes="hint"
-                               Text="These assignments are kept exactly as they are. They appear as free text in the command editor and are passed to the shell at runtime, so they start working again as soon as whatever provides them is installed." />
+                               Text="{loc:Tr ProfileImport_TheseAssignmentsAreKeptExactly}" />
                     <Border Classes="card">
                         <ItemsControl ItemsSource="{Binding UnknownCommands}">
                             <ItemsControl.ItemTemplate>
@@ -202,9 +203,9 @@
 
                 <!-- Macro name conflicts -->
                 <StackPanel Spacing="6" IsVisible="{Binding HasMacros}">
-                    <TextBlock Text="Macro name conflicts" Classes="sectionHeader" />
+                    <TextBlock Text="{loc:Tr ProfileImport_MacroNameConflicts}" Classes="sectionHeader" />
                     <TextBlock Classes="hint"
-                               Text="A macro of the same name already exists here with different steps. Skipping keeps your macro and leaves the imported buttons pointing at an unresolved reference." />
+                               Text="{loc:Tr ProfileImport_AMacroOfTheSame}" />
                     <ItemsControl ItemsSource="{Binding Macros}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate DataType="vm:MacroConflictRow">
@@ -221,7 +222,7 @@
 
                                         <TextBox Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2"
                                                  Text="{Binding NewName}"
-                                                 PlaceholderText="New macro name"
+                                                 PlaceholderText="{loc:Tr ProfileImport_NewMacroName}"
                                                  IsVisible="{Binding IsRename}"
                                                  FontSize="12" Margin="0,6,0,0" />
                                     </Grid>
@@ -233,7 +234,7 @@
 
                 <!-- Where it goes -->
                 <StackPanel Spacing="8">
-                    <TextBlock Text="Import mode" Classes="sectionHeader" />
+                    <TextBlock Text="{loc:Tr ProfileImport_ImportMode}" Classes="sectionHeader" />
 
                     <StackPanel Spacing="6" IsVisible="{Binding HasImportTargets}">
                         <TextBlock Text="{Binding ImportTargetLabel}" Classes="hint" />
@@ -248,7 +249,7 @@
                         </ComboBox>
                     </StackPanel>
 
-                    <CheckBox Content="Replace an existing item instead of adding a copy"
+                    <CheckBox Content="{loc:Tr ProfileImport_ReplaceAnExistingItemInstead}"
                               IsChecked="{Binding ReplaceExisting}" FontSize="12" />
 
                     <StackPanel Spacing="6" IsVisible="{Binding IsReplace}" Margin="20,0,0,0">
@@ -261,14 +262,14 @@
                                 </DataTemplate>
                             </ComboBox.ItemTemplate>
                         </ComboBox>
-                        <CheckBox Content="Back the replaced item up first"
+                        <CheckBox Content="{loc:Tr ProfileImport_BackTheReplacedItemUp}"
                                   IsChecked="{Binding BackupReplacedItem}" FontSize="12" />
                     </StackPanel>
                 </StackPanel>
 
                 <!-- Notes -->
                 <StackPanel Spacing="6" IsVisible="{Binding HasWarnings}">
-                    <TextBlock Text="Notes" Classes="sectionHeader" />
+                    <TextBlock Text="{loc:Tr ProfileImport_Notes}" Classes="sectionHeader" />
                     <Border Classes="card">
                         <ItemsControl ItemsSource="{Binding Warnings}">
                             <ItemsControl.ItemTemplate>
@@ -288,9 +289,9 @@
                 BorderThickness="0,1,0,0"
                 Padding="16,12">
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">
-                <Button Classes="dialogBtn cancel" Content="Cancel"
+                <Button Classes="dialogBtn cancel" Content="{loc:Tr ProfileImport_Cancel}"
                         Command="{Binding CancelCommand}" />
-                <Button Classes="dialogBtn confirm" Content="Import"
+                <Button Classes="dialogBtn confirm" Content="{loc:Tr ProfileImport_Import}"
                         IsDefault="True"
                         Command="{Binding ImportCommand}" />
             </StackPanel>

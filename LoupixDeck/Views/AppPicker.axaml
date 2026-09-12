@@ -2,12 +2,13 @@
     x:Class="LoupixDeck.Views.AppPicker"
     xmlns="https://github.com/avaloniaui"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:loc="using:LoupixDeck.Localization"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:vm="using:LoupixDeck.ViewModels"
     x:DataType="vm:AppPickerViewModel"
     mc:Ignorable="d"
-    Title="Choose Application"
+    Title="{loc:Tr AppPicker_ChooseApplication}"
     Width="560"
     Height="640"
     WindowStartupLocation="CenterOwner"
@@ -23,7 +24,7 @@
 
             <!-- Search -->
             <TextBox Grid.Row="1"
-                     PlaceholderText="Search applications…"
+                     PlaceholderText="{loc:Tr AppPicker_SearchApplications}"
                      Text="{Binding SearchText, Mode=TwoWay}"
                      IsEnabled="{Binding ShowContent}"
                      Margin="0,0,0,8" />
@@ -74,7 +75,7 @@
                                             CornerRadius="4"
                                             Padding="6,2"
                                             Background="{DynamicResource AppSurfaceLow}">
-                                        <TextBlock Text="Game"
+                                        <TextBlock Text="{loc:Tr AppPicker_Game}"
                                                    FontSize="10"
                                                    Foreground="{DynamicResource AppTextSecondary}" />
                                     </Border>
@@ -83,7 +84,7 @@
                         </ListBox.ItemTemplate>
                     </ListBox>
 
-                    <TextBlock Text="Searching for installed applications…"
+                    <TextBlock Text="{loc:Tr AppPicker_SearchingForInstalledApplications}"
                                IsVisible="{Binding IsLoading}"
                                HorizontalAlignment="Center"
                                VerticalAlignment="Center"
@@ -108,12 +109,12 @@
                            Foreground="{DynamicResource AppTextSecondary}"
                            Text="{Binding SelectedApp.Name}" />
                 <Button Grid.Column="1"
-                        Content="Cancel"
+                        Content="{loc:Tr AppPicker_Cancel}"
                         Width="110"
                         Margin="0,0,8,0"
                         Command="{Binding CancelCommand}" />
                 <Button Grid.Column="2"
-                        Content="Assign"
+                        Content="{loc:Tr AppPicker_Assign}"
                         Width="110"
                         IsDefault="True"
                         Command="{Binding ConfirmCommand}" />

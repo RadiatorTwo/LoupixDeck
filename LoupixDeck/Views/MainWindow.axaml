@@ -1,5 +1,6 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:loc="using:LoupixDeck.Localization"
         xmlns:vm="using:LoupixDeck.ViewModels"
         xmlns:models="using:LoupixDeck.Models"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -332,7 +333,7 @@
                     <!-- Device -->
                     <Border Classes="SwitcherSegment" IsVisible="{Binding HasMultipleDevices}">
                         <StackPanel>
-                            <TextBlock Classes="SwitcherCaption" Text="DEVICE" />
+                            <TextBlock Classes="SwitcherCaption" Text="{loc:Tr MainWindow_DEVICE}" />
                             <ComboBox Classes="Switcher"
                                       ItemsSource="{Binding Devices}"
                                       SelectedItem="{Binding SelectedDevice}">
@@ -350,7 +351,7 @@
                     <!-- Profile -->
                     <Border Classes="SwitcherSegment">
                         <StackPanel>
-                            <TextBlock Classes="SwitcherCaption" Text="PROFILE" />
+                            <TextBlock Classes="SwitcherCaption" Text="{loc:Tr MainWindow_PROFILE}" />
                             <ComboBox Classes="Switcher"
                                       ItemsSource="{Binding SelectedDevice.Profiles}"
                                       SelectedItem="{Binding SelectedDevice.SelectedProfile}">
@@ -368,7 +369,7 @@
                     <!-- Workspace -->
                     <Border Classes="SwitcherSegment">
                         <StackPanel>
-                            <TextBlock Classes="SwitcherCaption" Text="WORKSPACE" />
+                            <TextBlock Classes="SwitcherCaption" Text="{loc:Tr MainWindow_WORKSPACE}" />
                             <ComboBox Classes="Switcher"
                                       ItemsSource="{Binding SelectedDevice.Workspaces}"
                                       SelectedItem="{Binding SelectedDevice.SelectedWorkspace}">
@@ -390,7 +391,7 @@
                 VerticalContentAlignment="Center" HorizontalContentAlignment="Center"
                 IsVisible="{Binding HasDevice}"
                 IsChecked="{Binding SelectedDevice.ActionPanel.IsOpen, Mode=TwoWay}"
-                ToolTip.Tip="Apps and commands">
+                ToolTip.Tip="{loc:Tr MainWindow_AppsAndCommands}">
                 <!-- mdi-view-grid-plus-outline -->
                 <TextBlock FontFamily="{DynamicResource MdiFont}" FontSize="18"
                            Foreground="{DynamicResource AppTextPrimary}"
@@ -417,25 +418,25 @@
                         <Button Width="100" Height="40" VerticalContentAlignment="Center"
                                 HorizontalContentAlignment="Center"
                                 FontSize="18"
-                                Content="Settings"
+                                Content="{loc:Tr MainWindow_Settings}"
                                 IsEnabled="{Binding HasDevice}"
                                 Command="{Binding SelectedDevice.SettingsMenuCommand}" />
                         <Button Width="100" Height="40" VerticalContentAlignment="Center" Margin="0,5,0,0"
                                 HorizontalContentAlignment="Center"
                                 FontSize="18"
-                                Content="Macros"
+                                Content="{loc:Tr MainWindow_Macros}"
                                 IsEnabled="{Binding HasDevice}"
                                 Command="{Binding SelectedDevice.MacroEditorMenuCommand}" />
                         <Separator />
                         <Button Width="100" Height="40" VerticalContentAlignment="Center"
                                 HorizontalContentAlignment="Center"
                                 FontSize="18"
-                                Content="About"
+                                Content="{loc:Tr MainWindow_About}"
                                 Command="{Binding AboutMenuCommand}" />
                         <Button Width="100" Height="40" VerticalContentAlignment="Center" Margin="0,5,0,0"
                                 HorizontalContentAlignment="Center"
                                 FontSize="18"
-                                Content="Quit"
+                                Content="{loc:Tr MainWindow_Quit}"
                                 Command="{Binding QuitApplicationCommand}" />
                     </StackPanel>
                 </Flyout>
@@ -471,7 +472,7 @@
                         </UniformGrid>
                     </Border>
 
-                    <TextBlock Text="No device connected"
+                    <TextBlock Text="{loc:Tr MainWindow_NoDeviceConnected}"
                                HorizontalAlignment="Center"
                                FontSize="17" FontWeight="SemiBold"
                                Foreground="{DynamicResource AppTextPrimary}" />
@@ -480,7 +481,7 @@
                          second case is invisible to the user otherwise — the device is right
                          there and the app looks broken. Either way the app keeps trying and
                          takes the device over on its own, so the text asks for nothing else. -->
-                    <TextBlock Text="Connect your deck over USB. It is detected automatically. If it is already plugged in, another program may still be holding its port."
+                    <TextBlock Text="{loc:Tr MainWindow_ConnectYourDeckOverUSB}"
                                MaxWidth="360" TextWrapping="Wrap" TextAlignment="Center"
                                HorizontalAlignment="Center"
                                FontSize="13"

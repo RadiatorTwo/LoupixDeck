@@ -1,5 +1,6 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:loc="using:LoupixDeck.Localization"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="using:LoupixDeck.ViewModels"
@@ -8,7 +9,7 @@
         x:Class="LoupixDeck.Views.PageCommandsSettings"
         x:DataType="vm:PageCommandsSettingsViewModel"
         mc:Ignorable="d"
-        Title="Page Commands"
+        Title="{loc:Tr PageCommands_PageCommands}"
         Width="1040"
         Height="660"
         WindowStartupLocation="CenterOwner"
@@ -34,14 +35,14 @@
                                 <StackPanel Spacing="6">
                                     <TextBlock Classes="card-title" Text="{Binding Label}" Margin="0,0,0,6" />
 
-                                    <CheckBox Content="Run Pre Execution Commands"
+                                    <CheckBox Content="{loc:Tr PageCommands_RunPreExecutionCommands}"
                                               IsChecked="{Binding Wrap.PreEnabled, Mode=TwoWay}" />
                                     <TextBox Tag="pre" GotFocus="OnCommandBoxFocused"
                                              PlaceholderText="cmd1 &amp;&amp; cmd2 &amp;&amp; …"
                                              Text="{Binding Wrap.PreCommands, Mode=TwoWay}"
                                              IsEnabled="{Binding Wrap.PreEnabled}" />
 
-                                    <CheckBox Content="Run Post Execution Commands" Margin="0,6,0,0"
+                                    <CheckBox Content="{loc:Tr PageCommands_RunPostExecutionCommands}" Margin="0,6,0,0"
                                               IsChecked="{Binding Wrap.PostEnabled, Mode=TwoWay}" />
                                     <TextBox Tag="post" GotFocus="OnCommandBoxFocused"
                                              PlaceholderText="cmd1 &amp;&amp; cmd2 &amp;&amp; …"
@@ -65,8 +66,8 @@
         </Grid>
 
         <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
-            <Button Content="Cancel" Width="100" Command="{Binding CancelCommand}" />
-            <Button Content="OK"     Width="100" IsDefault="True" Command="{Binding ConfirmCommand}" />
+            <Button Content="{loc:Tr PageCommands_Cancel}" Width="100" Command="{Binding CancelCommand}" />
+            <Button Content="{loc:Tr PageCommands_OK}"     Width="100" IsDefault="True" Command="{Binding ConfirmCommand}" />
         </StackPanel>
     </Grid>
 </Window>

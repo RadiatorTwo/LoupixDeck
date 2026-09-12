@@ -2,13 +2,14 @@
     x:Class="LoupixDeck.Views.SymbolPicker"
     xmlns="https://github.com/avaloniaui"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:loc="using:LoupixDeck.Localization"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:vm="using:LoupixDeck.ViewModels"
     xmlns:utils="using:LoupixDeck.Utils"
     x:DataType="vm:SymbolPickerViewModel"
     mc:Ignorable="d"
-    Title="Choose Symbol"
+    Title="{loc:Tr SymbolPicker_ChooseSymbol}"
     Width="660"
     Height="600"
     WindowStartupLocation="CenterOwner"
@@ -19,7 +20,7 @@
             <!-- Search + category filter -->
             <Grid Grid.Row="0" ColumnDefinitions="*,180" Margin="0,0,0,8">
                 <TextBox Grid.Column="0"
-                         PlaceholderText="Search symbols…"
+                         PlaceholderText="{loc:Tr SymbolPicker_SearchSymbols}"
                          Text="{Binding SearchText, Mode=TwoWay}"
                          Margin="0,0,8,0" />
                 <ComboBox Grid.Column="1"
@@ -76,12 +77,12 @@
                            Foreground="{DynamicResource AppTextSecondary}"
                            Text="{Binding SelectedSymbol.DisplayName}" />
                 <Button Grid.Column="1"
-                        Content="Cancel"
+                        Content="{loc:Tr SymbolPicker_Cancel}"
                         Width="110"
                         Margin="0,0,8,0"
                         Command="{Binding CancelCommand}" />
                 <Button Grid.Column="2"
-                        Content="OK"
+                        Content="{loc:Tr SymbolPicker_OK}"
                         Width="110"
                         IsDefault="True"
                         Command="{Binding ConfirmCommand}" />

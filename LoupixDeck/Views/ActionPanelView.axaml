@@ -1,5 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:loc="using:LoupixDeck.Localization"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:panel="using:LoupixDeck.ViewModels.ActionPanel"
@@ -76,17 +77,17 @@
                      scan, so removing one would be a button that undoes itself. -->
                 <Border.ContextFlyout>
                     <MenuFlyout>
-                        <MenuItem Header="Remove"
+                        <MenuItem Header="{loc:Tr ActionPanel_Remove}"
                                   IsVisible="{Binding CanRemove}"
                                   Command="{Binding $parent[ListBox].((panel:ActionPanelViewModel)DataContext).RemoveApplicationCommand}"
                                   CommandParameter="{Binding}" />
                         <!-- Preset rows only; a built-in preset is neither renamable nor removable,
                              which is what CanRemove says on those rows. -->
-                        <MenuItem Header="Rename…"
+                        <MenuItem Header="{loc:Tr ActionPanel_Rename}"
                                   IsVisible="{Binding CanEdit}"
                                   Command="{Binding $parent[ListBox].((panel:ActionPanelViewModel)DataContext).RenamePresetCommand}"
                                   CommandParameter="{Binding}" />
-                        <MenuItem Header="Delete"
+                        <MenuItem Header="{loc:Tr ActionPanel_Delete}"
                                   IsVisible="{Binding CanEdit}"
                                   Command="{Binding $parent[ListBox].((panel:ActionPanelViewModel)DataContext).DeletePresetCommand}"
                                   CommandParameter="{Binding}" />
@@ -120,16 +121,16 @@
             BorderBrush="{DynamicResource AppBorderSubtle}"
             BorderThickness="0,0,1,0">
         <TabControl Margin="6,4,6,6" Padding="0">
-            <TabItem Header="Apps">
+            <TabItem Header="{loc:Tr ActionPanel_Apps}">
                 <Grid RowDefinitions="Auto,Auto,*">
                     <Grid Grid.Row="0" Margin="0,6,0,4" ColumnDefinitions="*,Auto">
                         <TextBox Grid.Column="0"
                                  Text="{Binding AppSearchText, Mode=TwoWay}"
-                                 PlaceholderText="Search applications" />
+                                 PlaceholderText="{loc:Tr ActionPanel_SearchApplications}" />
                         <StackPanel Grid.Column="1" Orientation="Horizontal">
                             <!-- mdi-plus: anything the scan does not find, picked by hand. -->
                             <Button Classes="panel-refresh"
-                                    ToolTip.Tip="Add an application the scan did not find"
+                                    ToolTip.Tip="{loc:Tr ActionPanel_AddAnApplicationTheScan}"
                                     Command="{Binding AddApplicationCommand}" Content="&#xF0415;" />
                             <!-- mdi-refresh -->
                             <Button Classes="panel-refresh"
@@ -143,7 +144,7 @@
 
                     <TextBlock Grid.Row="2" Classes="hint" Margin="2,8"
                                TextWrapping="Wrap" VerticalAlignment="Top"
-                               Text="Looking for installed applications…"
+                               Text="{loc:Tr ActionPanel_LookingForInstalledApplications}"
                                IsVisible="{Binding IsLoadingApps}" />
 
                     <TextBlock Grid.Row="2" Classes="hint" Margin="2,8"
@@ -163,7 +164,7 @@
                 </Grid>
             </TabItem>
 
-            <TabItem Header="Commands">
+            <TabItem Header="{loc:Tr ActionPanel_Commands}">
                 <Grid RowDefinitions="Auto,*">
                     <!-- mdi-refresh. The picker brings its own search, so only the rescan sits
                          above it. -->
@@ -179,10 +180,10 @@
                 </Grid>
             </TabItem>
 
-            <TabItem Header="Dial presets">
+            <TabItem Header="{loc:Tr ActionPanel_DialPresets}">
                 <Grid RowDefinitions="Auto,*">
                     <TextBlock Grid.Row="0" Classes="hint" Margin="2,8,2,6" TextWrapping="Wrap"
-                               Text="Drop one on a dial to set all three of its gestures at once. Only dials accept them." />
+                               Text="{loc:Tr ActionPanel_DropOneOnADial}" />
 
                     <ListBox Grid.Row="1" Name="DialPresetList"
                              ItemsSource="{Binding DialPresets}"
