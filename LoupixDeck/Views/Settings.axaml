@@ -1,5 +1,6 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:loc="using:LoupixDeck.Localization"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="using:LoupixDeck.ViewModels"
@@ -10,7 +11,7 @@
         x:DataType="vm:SettingsViewModel"
         x:Name="SettingsWindow"
         mc:Ignorable="d"
-        Title="Settings"
+        Title="{loc:Tr Settings_Settings}"
         Width="980"
         Height="840">
 
@@ -30,13 +31,13 @@
             <ScrollViewer HorizontalScrollBarVisibility="Disabled">
                 <StackPanel Margin="8,12,8,12">
 
-                    <TextBlock Classes="section-header" Text="DEVICE" />
+                    <TextBlock Classes="section-header" Text="{loc:Tr Settings_DEVICE}" />
                     <Button Classes="nav" Classes.active="{Binding CurrentView, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=General}"
                             Command="{Binding NavigateCommand}" CommandParameter="{x:Static bs:SettingsView.General}">
                         <Grid ColumnDefinitions="6,Auto,*">
                             <Border Grid.Column="0" Classes="nav-accent" />
                             <TextBlock Grid.Column="1" Classes="nav-icon" Text="&#xF0493;" Margin="6,0,0,0"/>
-                            <TextBlock Grid.Column="2" Classes="nav-label" Text="General" />
+                            <TextBlock Grid.Column="2" Classes="nav-label" Text="{loc:Tr Settings_General}" />
                         </Grid>
                     </Button>
                     <Button Classes="nav" Classes.active="{Binding CurrentView, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Profiles}"
@@ -44,7 +45,7 @@
                         <Grid ColumnDefinitions="6,Auto,*">
                             <Border Grid.Column="0" Classes="nav-accent" />
                             <TextBlock Grid.Column="1" Classes="nav-icon" Text="&#xF00D6;" Margin="6,0,0,0"/>
-                            <TextBlock Grid.Column="2" Classes="nav-label" Text="Profiles" />
+                            <TextBlock Grid.Column="2" Classes="nav-label" Text="{loc:Tr Settings_Profiles}" />
                         </Grid>
                     </Button>
                     <Button Classes="nav" IsVisible="{Binding IsAppSwitchingSupported}"
@@ -53,7 +54,7 @@
                         <Grid ColumnDefinitions="6,Auto,*">
                             <Border Grid.Column="0" Classes="nav-accent" />
                             <TextBlock Grid.Column="1" Classes="nav-icon" Text="&#xF05DF;" Margin="6,0,0,0"/>
-                            <TextBlock Grid.Column="2" Classes="nav-label" Text="Profile Rules" />
+                            <TextBlock Grid.Column="2" Classes="nav-label" Text="{loc:Tr Settings_ProfileRules}" />
                         </Grid>
                     </Button>
                     <Button Classes="nav" Classes.active="{Binding CurrentView, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Pages}"
@@ -61,7 +62,7 @@
                         <Grid ColumnDefinitions="6,Auto,*">
                             <Border Grid.Column="0" Classes="nav-accent" />
                             <TextBlock Grid.Column="1" Classes="nav-icon" Text="&#xF0570;" Margin="6,0,0,0"/>
-                            <TextBlock Grid.Column="2" Classes="nav-label" Text="Pages" />
+                            <TextBlock Grid.Column="2" Classes="nav-label" Text="{loc:Tr Settings_Pages}" />
                         </Grid>
                     </Button>
                     <Button Classes="nav" Classes.active="{Binding CurrentView, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Haptic}"
@@ -69,7 +70,7 @@
                         <Grid ColumnDefinitions="6,Auto,*">
                             <Border Grid.Column="0" Classes="nav-accent" />
                             <TextBlock Grid.Column="1" Classes="nav-icon" Text="&#xF0566;" Margin="6,0,0,0"/>
-                            <TextBlock Grid.Column="2" Classes="nav-label" Text="Feedback" />
+                            <TextBlock Grid.Column="2" Classes="nav-label" Text="{loc:Tr Settings_Feedback}" />
                         </Grid>
                     </Button>
                     <Button Classes="nav" Classes.active="{Binding CurrentView, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Screensaver}"
@@ -77,48 +78,48 @@
                         <Grid ColumnDefinitions="6,Auto,*">
                             <Border Grid.Column="0" Classes="nav-accent" />
                             <TextBlock Grid.Column="1" Classes="nav-icon" Text="&#xF06A0;" Margin="6,0,0,0"/>
-                            <TextBlock Grid.Column="2" Classes="nav-label" Text="Screensaver" />
+                            <TextBlock Grid.Column="2" Classes="nav-label" Text="{loc:Tr Settings_Screensaver}" />
                         </Grid>
                     </Button>
 
-                    <TextBlock Classes="section-header" Text="INTEGRATIONS" />
+                    <TextBlock Classes="section-header" Text="{loc:Tr Settings_INTEGRATIONS}" />
                     <Button Classes="nav" Classes.active="{Binding CurrentView, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Plugins}"
                             Command="{Binding NavigateCommand}" CommandParameter="{x:Static bs:SettingsView.Plugins}">
                         <Grid ColumnDefinitions="6,Auto,*">
                             <Border Grid.Column="0" Classes="nav-accent" />
                             <TextBlock Grid.Column="1" Classes="nav-icon" Text="&#xF0431;" Margin="6,0,0,0"/>
-                            <TextBlock Grid.Column="2" Classes="nav-label" Text="Plugins" />
+                            <TextBlock Grid.Column="2" Classes="nav-label" Text="{loc:Tr Settings_Plugins}" />
                         </Grid>
                     </Button>
                     <StackPanel IsVisible="{Binding IsWindows}">
-                        <TextBlock Classes="section-header" Text="INPUT" />
+                        <TextBlock Classes="section-header" Text="{loc:Tr Settings_INPUT}" />
                         <Button Classes="nav" Classes.active="{Binding CurrentView, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Interception}"
                                 Command="{Binding NavigateCommand}" CommandParameter="{x:Static bs:SettingsView.Interception}">
                             <Grid ColumnDefinitions="6,Auto,*">
                                 <Border Grid.Column="0" Classes="nav-accent" />
                                 <TextBlock Grid.Column="1" Classes="nav-icon" Text="&#xF030C;" Margin="6,0,0,0"/>
-                                <TextBlock Grid.Column="2" Classes="nav-label" Text="Macro Driver" />
+                                <TextBlock Grid.Column="2" Classes="nav-label" Text="{loc:Tr Settings_MacroDriver}" />
                             </Grid>
                         </Button>
                     </StackPanel>
 
-                    <TextBlock Classes="section-header" Text="APPEARANCE" />
+                    <TextBlock Classes="section-header" Text="{loc:Tr Settings_APPEARANCE}" />
                     <Button Classes="nav" Classes.active="{Binding CurrentView, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Theme}"
                             Command="{Binding NavigateCommand}" CommandParameter="{x:Static bs:SettingsView.Theme}">
                         <Grid ColumnDefinitions="6,Auto,*">
                             <Border Grid.Column="0" Classes="nav-accent" />
                             <TextBlock Grid.Column="1" Classes="nav-icon" Text="&#xF03D8;" Margin="6,0,0,0"/>
-                            <TextBlock Grid.Column="2" Classes="nav-label" Text="Theme" />
+                            <TextBlock Grid.Column="2" Classes="nav-label" Text="{loc:Tr Settings_Theme}" />
                         </Grid>
                     </Button>
 
-                    <TextBlock Classes="section-header" Text="APP" />
+                    <TextBlock Classes="section-header" Text="{loc:Tr Settings_APP}" />
                     <Button Classes="nav" Classes.active="{Binding CurrentView, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=About}"
                             Command="{Binding NavigateCommand}" CommandParameter="{x:Static bs:SettingsView.About}">
                         <Grid ColumnDefinitions="6,Auto,*">
                             <Border Grid.Column="0" Classes="nav-accent" />
                             <TextBlock Grid.Column="1" Classes="nav-icon" Text="&#xF02FC;" Margin="6,0,0,0"/>
-                            <TextBlock Grid.Column="2" Classes="nav-label" Text="About" />
+                            <TextBlock Grid.Column="2" Classes="nav-label" Text="{loc:Tr Settings_About}" />
                         </Grid>
                     </Button>
 
@@ -145,17 +146,17 @@
 
                 <!-- ====== General ====== -->
                 <StackPanel IsVisible="{Binding CurrentView, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=General}">
-                    <TextBlock Classes="page-title" Text="General" />
+                    <TextBlock Classes="page-title" Text="{loc:Tr Settings_General}" />
 
                     <!-- Language card -->
                     <Border Classes="card">
                         <StackPanel>
-                            <TextBlock Classes="card-title" Text="Language" />
+                            <TextBlock Classes="card-title" Text="{loc:Tr Settings_Language}" />
                             <ComboBox Width="200" Margin="0,6,0,0"
                                       ItemsSource="{Binding Languages}"
                                       SelectedItem="{Binding SelectedLanguage, Mode=TwoWay}" />
                             <TextBlock Classes="hint" Margin="0,8,0,0"
-                                       Text="The language applies immediately and is shared by all devices." />
+                                       Text="{loc:Tr Settings_TheLanguageAppliesImmediatelyAnd}" />
                         </StackPanel>
                     </Border>
 
@@ -173,19 +174,19 @@
                             </Border>
 
                             <Grid Grid.Row="1" Grid.ColumnSpan="2" ColumnDefinitions="140,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto" Margin="0,10,0,0">
-                                <TextBlock Grid.Row="0" Grid.Column="0" Classes="label" Text="Port" />
+                                <TextBlock Grid.Row="0" Grid.Column="0" Classes="label" Text="{loc:Tr Settings_Port}" />
                                 <TextBlock Grid.Row="0" Grid.Column="1" Classes="value" Text="{Binding Config.DevicePort}" />
 
-                                <TextBlock Grid.Row="1" Grid.Column="0" Classes="label" Text="Baudrate" Margin="0,8,0,0"/>
+                                <TextBlock Grid.Row="1" Grid.Column="0" Classes="label" Text="{loc:Tr Settings_Baudrate}" Margin="0,8,0,0"/>
                                 <TextBlock Grid.Row="1" Grid.Column="1" Classes="value" Text="{Binding Config.DeviceBaudrate}" Margin="0,8,0,0"/>
 
-                                <TextBlock Grid.Row="2" Grid.Column="0" Classes="label" Text="Firmware" Margin="0,8,0,0"/>
+                                <TextBlock Grid.Row="2" Grid.Column="0" Classes="label" Text="{loc:Tr Settings_Firmware}" Margin="0,8,0,0"/>
                                 <TextBlock Grid.Row="2" Grid.Column="1" Classes="value" Text="{Binding DeviceVersion}" Margin="0,8,0,0"/>
 
-                                <TextBlock Grid.Row="3" Grid.Column="0" Classes="label" Text="Serial" Margin="0,8,0,0"/>
+                                <TextBlock Grid.Row="3" Grid.Column="0" Classes="label" Text="{loc:Tr Settings_Serial}" Margin="0,8,0,0"/>
                                 <TextBlock Grid.Row="3" Grid.Column="1" Classes="value" Text="{Binding DeviceSerial}" Margin="0,8,0,0"/>
 
-                                <Button Grid.Row="4" Grid.ColumnSpan="2" Content="Reconnect"
+                                <Button Grid.Row="4" Grid.ColumnSpan="2" Content="{loc:Tr Settings_Reconnect}"
                                         Command="{Binding ReconnectDeviceCommand}"
                                         HorizontalAlignment="Left" Margin="0,12,0,0"/>
                             </Grid>
@@ -195,17 +196,17 @@
                     <!-- Display card -->
                     <Border Classes="card">
                         <StackPanel>
-                            <TextBlock Classes="card-title" Text="Display" />
-                            <TextBlock Classes="label" Text="Brightness" />
+                            <TextBlock Classes="card-title" Text="{loc:Tr Settings_Display}" />
+                            <TextBlock Classes="label" Text="{loc:Tr Settings_Brightness}" />
                             <StackPanel Orientation="Horizontal" Spacing="12" Margin="0,6,0,0">
                                 <TextBlock FontFamily="{StaticResource MdiFont}" Text="&#xF00DE;" FontSize="16" VerticalAlignment="Center" Foreground="{DynamicResource AppTextSecondary}"/>
                                 <Slider Minimum="0" Maximum="100" Width="320" TickFrequency="1" IsSnapToTickEnabled="True"
                                         Value="{Binding Config.Brightness, Mode=TwoWay}" />
                                 <TextBlock FontFamily="{StaticResource MdiFont}" Text="&#xF00E0;" FontSize="20" VerticalAlignment="Center"/>
                                 <TextBlock Classes="value" Text="{Binding Config.Brightness}" VerticalAlignment="Center" Width="36" TextAlignment="Right"/>
-                                <CheckBox Content="Dithering" VerticalAlignment="Center" Margin="12,0,0,0"
+                                <CheckBox Content="{loc:Tr Settings_Dithering}" VerticalAlignment="Center" Margin="12,0,0,0"
                                           IsChecked="{Binding Config.DitheringEnabled, Mode=TwoWay}"
-                                          ToolTip.Tip="Smooths colour gradients by mixing adjacent shades. Most noticeable on the Razer Stream Controller, whose panel shows only 16 levels of red." />
+                                          ToolTip.Tip="{loc:Tr Settings_SmoothsColourGradientsByMixing}" />
                             </StackPanel>
                         </StackPanel>
                     </Border>
@@ -215,22 +216,22 @@
                          by eye against a test pattern on the hardware. -->
                     <Border Classes="card">
                         <StackPanel>
-                            <TextBlock Classes="card-title" Text="Key alignment" />
+                            <TextBlock Classes="card-title" Text="{loc:Tr Settings_KeyAlignment}" />
                             <TextBlock Classes="hint" TextWrapping="Wrap"
-                                       Text="Where the app places the key tiles on the panel. Turn on the test pattern and adjust until each tile's crosshair sits in the middle of its key and its border runs along the key's edge. Only needed if the picture is offset or the wrong size on the device." />
+                                       Text="{loc:Tr Settings_WhereTheAppPlacesThe}" />
 
                             <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,10,0,0">
-                                <ToggleButton Content="Show test pattern on device"
+                                <ToggleButton Content="{loc:Tr Settings_ShowTestPatternOnDevice}"
                                               IsChecked="{Binding IsAlignmentPreviewActive, Mode=OneWay}"
                                               Command="{Binding ToggleAlignmentPreviewCommand}"
-                                              ToolTip.Tip="Draws a crosshair tile on every key. Ends when this window closes or you press a key on the device." />
-                                <Button Content="Reset to device default"
+                                              ToolTip.Tip="{loc:Tr Settings_DrawsACrosshairTileOn}" />
+                                <Button Content="{loc:Tr Settings_ResetToDeviceDefault}"
                                         Command="{Binding ResetKeyCalibrationCommand}" />
                             </StackPanel>
 
                             <Grid ColumnDefinitions="150,Auto,60,Auto" RowDefinitions="Auto,Auto,Auto,Auto,Auto"
                                   RowSpacing="6" Margin="0,12,0,0">
-                                <TextBlock Grid.Row="0" Grid.Column="0" Classes="label" Text="Key size" VerticalAlignment="Center" />
+                                <TextBlock Grid.Row="0" Grid.Column="0" Classes="label" Text="{loc:Tr Settings_KeySize}" VerticalAlignment="Center" />
                                 <Button Grid.Row="0" Grid.Column="1" Classes="PagerBtn" Content="-"
                                         Command="{Binding AdjustKeyCalibrationCommand}" CommandParameter="size:-1" />
                                 <TextBlock Grid.Row="0" Grid.Column="2" Classes="value" HorizontalAlignment="Center"
@@ -238,7 +239,7 @@
                                 <Button Grid.Row="0" Grid.Column="3" Classes="PagerBtn" Content="+"
                                         Command="{Binding AdjustKeyCalibrationCommand}" CommandParameter="size:1" />
 
-                                <TextBlock Grid.Row="1" Grid.Column="0" Classes="label" Text="Spacing across" VerticalAlignment="Center" />
+                                <TextBlock Grid.Row="1" Grid.Column="0" Classes="label" Text="{loc:Tr Settings_SpacingAcross}" VerticalAlignment="Center" />
                                 <Button Grid.Row="1" Grid.Column="1" Classes="PagerBtn" Content="-"
                                         Command="{Binding AdjustKeyCalibrationCommand}" CommandParameter="spacingX:-1" />
                                 <TextBlock Grid.Row="1" Grid.Column="2" Classes="value" HorizontalAlignment="Center"
@@ -246,7 +247,7 @@
                                 <Button Grid.Row="1" Grid.Column="3" Classes="PagerBtn" Content="+"
                                         Command="{Binding AdjustKeyCalibrationCommand}" CommandParameter="spacingX:1" />
 
-                                <TextBlock Grid.Row="2" Grid.Column="0" Classes="label" Text="Spacing down" VerticalAlignment="Center" />
+                                <TextBlock Grid.Row="2" Grid.Column="0" Classes="label" Text="{loc:Tr Settings_SpacingDown}" VerticalAlignment="Center" />
                                 <Button Grid.Row="2" Grid.Column="1" Classes="PagerBtn" Content="-"
                                         Command="{Binding AdjustKeyCalibrationCommand}" CommandParameter="spacingY:-1" />
                                 <TextBlock Grid.Row="2" Grid.Column="2" Classes="value" HorizontalAlignment="Center"
@@ -254,7 +255,7 @@
                                 <Button Grid.Row="2" Grid.Column="3" Classes="PagerBtn" Content="+"
                                         Command="{Binding AdjustKeyCalibrationCommand}" CommandParameter="spacingY:1" />
 
-                                <TextBlock Grid.Row="3" Grid.Column="0" Classes="label" Text="First key centre X" VerticalAlignment="Center" />
+                                <TextBlock Grid.Row="3" Grid.Column="0" Classes="label" Text="{loc:Tr Settings_FirstKeyCentreX}" VerticalAlignment="Center" />
                                 <Button Grid.Row="3" Grid.Column="1" Classes="PagerBtn" Content="-"
                                         Command="{Binding AdjustKeyCalibrationCommand}" CommandParameter="centerX:-1" />
                                 <TextBlock Grid.Row="3" Grid.Column="2" Classes="value" HorizontalAlignment="Center"
@@ -262,7 +263,7 @@
                                 <Button Grid.Row="3" Grid.Column="3" Classes="PagerBtn" Content="+"
                                         Command="{Binding AdjustKeyCalibrationCommand}" CommandParameter="centerX:1" />
 
-                                <TextBlock Grid.Row="4" Grid.Column="0" Classes="label" Text="First key centre Y" VerticalAlignment="Center" />
+                                <TextBlock Grid.Row="4" Grid.Column="0" Classes="label" Text="{loc:Tr Settings_FirstKeyCentreY}" VerticalAlignment="Center" />
                                 <Button Grid.Row="4" Grid.Column="1" Classes="PagerBtn" Content="-"
                                         Command="{Binding AdjustKeyCalibrationCommand}" CommandParameter="centerY:-1" />
                                 <TextBlock Grid.Row="4" Grid.Column="2" Classes="value" HorizontalAlignment="Center"
@@ -276,12 +277,12 @@
                     <!-- Startup card -->
                     <Border Classes="card">
                         <StackPanel>
-                            <TextBlock Classes="card-title" Text="Startup" />
-                            <CheckBox Content="Start with Windows"
+                            <TextBlock Classes="card-title" Text="{loc:Tr Settings_Startup}" />
+                            <CheckBox Content="{loc:Tr Settings_StartWithWindows}"
                                       IsVisible="{Binding IsWindows}"
                                       HorizontalAlignment="Left" Margin="0,0,0,10"
                                       IsChecked="{Binding StartWithWindows, Mode=TwoWay}" />
-                            <TextBlock Classes="label" Text="Startup touch page" />
+                            <TextBlock Classes="label" Text="{loc:Tr Settings_StartupTouchPage}" />
                             <ComboBox Width="200" Margin="0,6,0,0"
                                       ItemsSource="{Binding TouchPages}"
                                       SelectedIndex="{Binding Config.StartupTouchPageIndex, Mode=TwoWay}">
@@ -297,21 +298,21 @@
                     <!-- Window card -->
                     <Border Classes="card">
                         <StackPanel>
-                            <TextBlock Classes="card-title" Text="Window" />
-                            <TextBlock Classes="label" Text="Close button behavior" />
-                            <RadioButton GroupName="closeBehavior" Content="Minimize to tray"
+                            <TextBlock Classes="card-title" Text="{loc:Tr Settings_Window}" />
+                            <TextBlock Classes="label" Text="{loc:Tr Settings_CloseButtonBehavior}" />
+                            <RadioButton GroupName="closeBehavior" Content="{loc:Tr Settings_MinimizeToTray}"
                                          HorizontalAlignment="Left" Margin="0,6,0,0"
                                          IsChecked="{Binding Config.CloseButtonBehavior, Mode=TwoWay,
                                                      Converter={StaticResource EnumToBooleanConverter},
                                                      ConverterParameter={x:Static m:CloseButtonBehavior.MinimizeToTray}}" />
-                            <RadioButton GroupName="closeBehavior" Content="Quit application"
+                            <RadioButton GroupName="closeBehavior" Content="{loc:Tr Settings_QuitApplication}"
                                          HorizontalAlignment="Left" Margin="0,4,0,0"
                                          IsChecked="{Binding Config.CloseButtonBehavior, Mode=TwoWay,
                                                      Converter={StaticResource EnumToBooleanConverter},
                                                      ConverterParameter={x:Static m:CloseButtonBehavior.Quit}}" />
                             <TextBlock Classes="hint" Margin="0,6,0,0"
-                                       Text="Choose 'Quit' on desktops without a system tray." />
-                            <CheckBox Content="Start minimized to tray"
+                                       Text="{loc:Tr Settings_ChooseQuitOnDesktopsWithout}" />
+                            <CheckBox Content="{loc:Tr Settings_StartMinimizedToTray}"
                                       HorizontalAlignment="Left" Margin="0,10,0,0"
                                       IsChecked="{Binding Config.StartMinimizedToTray, Mode=TwoWay}" />
                         </StackPanel>
@@ -321,12 +322,12 @@
                 <!-- ====== Pages ====== -->
                 <!-- ====== Profiles ====== -->
                 <StackPanel IsVisible="{Binding CurrentView, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Profiles}">
-                    <TextBlock Classes="page-title" Text="Profiles" />
+                    <TextBlock Classes="page-title" Text="{loc:Tr Settings_Profiles}" />
                     <TextBlock Classes="hint"
-                               Text="Profiles group workspaces for an app or scenario. Each profile opens on its Home workspace. Activating a workspace switches what the device shows and edits its pages under Pages." />
+                               Text="{loc:Tr Settings_ProfilesGroupWorkspacesForAn}" />
                     <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Left" Margin="0,12,0,0">
-                        <Button Content="+ Add Profile" Command="{Binding AddProfileCommand}" />
-                        <Button Content="Import Package…" ToolTip.Tip="Import a .loupixprofile package"
+                        <Button Content="{loc:Tr Settings_AddProfile}" Command="{Binding AddProfileCommand}" />
+                        <Button Content="{loc:Tr Settings_ImportPackage}" ToolTip.Tip="{loc:Tr Settings_ImportALoupixprofilePackage}"
                                 Command="{Binding ImportPackageCommand}" />
                     </StackPanel>
 
@@ -342,22 +343,22 @@
                                     <StackPanel>
                                         <!-- Profile header: name + actions on one stable row -->
                                         <Grid ColumnDefinitions="*,Auto">
-                                            <TextBox Grid.Column="0" Text="{Binding Name, Mode=TwoWay}" PlaceholderText="Profile name" VerticalAlignment="Center" />
+                                            <TextBox Grid.Column="0" Text="{Binding Name, Mode=TwoWay}" PlaceholderText="{loc:Tr Settings_ProfileName}" VerticalAlignment="Center" />
                                             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" Margin="12,0,0,0" VerticalAlignment="Center">
-                                                <Button Content="Activate" ToolTip.Tip="Activate this profile (opens its Home workspace)"
+                                                <Button Content="{loc:Tr Settings_Activate}" ToolTip.Tip="{loc:Tr Settings_ActivateThisProfileOpensIts}"
                                                         Command="{Binding $parent[Window].DataContext.ActivateProfileCommand}" CommandParameter="{Binding}" />
-                                                <Button Content="Set Default" ToolTip.Tip="Open this profile at launch"
+                                                <Button Content="{loc:Tr Settings_SetDefault}" ToolTip.Tip="{loc:Tr Settings_OpenThisProfileAtLaunch}"
                                                         Command="{Binding $parent[Window].DataContext.SetStartupProfileCommand}" CommandParameter="{Binding}" />
-                                                <Button Content="Export" ToolTip.Tip="Export this profile as a .loupixprofile package"
+                                                <Button Content="{loc:Tr Settings_Export}" ToolTip.Tip="{loc:Tr Settings_ExportThisProfileAsA}"
                                                         Command="{Binding $parent[Window].DataContext.ExportProfileCommand}" CommandParameter="{Binding}" />
-                                                <Button Classes="row-action danger" Content="✕" ToolTip.Tip="Delete profile"
+                                                <Button Classes="row-action danger" Content="✕" ToolTip.Tip="{loc:Tr Settings_DeleteProfile}"
                                                         Command="{Binding $parent[Window].DataContext.RemoveProfileCommand}" CommandParameter="{Binding}" />
                                             </StackPanel>
                                         </Grid>
                                         <!-- Badges on their own line so they never resize the name field -->
                                         <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,8,0,0">
-                                            <Border Classes="pill ok" IsVisible="{Binding IsActiveProfile}"><TextBlock Text="Active" /></Border>
-                                            <Border Classes="pill neutral" IsVisible="{Binding IsStartupProfile}"><TextBlock Text="Default" /></Border>
+                                            <Border Classes="pill ok" IsVisible="{Binding IsActiveProfile}"><TextBlock Text="{loc:Tr Settings_Active}" /></Border>
+                                            <Border Classes="pill neutral" IsVisible="{Binding IsStartupProfile}"><TextBlock Text="{loc:Tr Settings_Default}" /></Border>
                                         </StackPanel>
 
                                         <!-- Workspaces: indented and divided from the profile header -->
@@ -365,8 +366,8 @@
                                                 BorderBrush="{DynamicResource AppBorderSubtle}" BorderThickness="2,0,0,0">
                                             <StackPanel>
                                                 <Grid ColumnDefinitions="*,Auto">
-                                                    <TextBlock Grid.Column="0" Classes="card-title" Text="Workspaces" VerticalAlignment="Center" />
-                                                    <Button Grid.Column="1" Content="+ Add Workspace"
+                                                    <TextBlock Grid.Column="0" Classes="card-title" Text="{loc:Tr Settings_Workspaces}" VerticalAlignment="Center" />
+                                                    <Button Grid.Column="1" Content="{loc:Tr Settings_AddWorkspace}"
                                                             Command="{Binding $parent[Window].DataContext.AddWorkspaceCommand}" CommandParameter="{Binding}" />
                                                 </Grid>
                                                 <ItemsControl ItemsSource="{Binding Workspaces}" Margin="0,8,0,0">
@@ -375,21 +376,21 @@
                                                             <Border Background="{DynamicResource AppSurfaceAlt}" CornerRadius="4" Padding="8" Margin="0,0,0,6">
                                                                 <StackPanel>
                                                                     <Grid ColumnDefinitions="*,Auto">
-                                                                        <TextBox Grid.Column="0" Text="{Binding Name, Mode=TwoWay}" PlaceholderText="Workspace name" VerticalAlignment="Center" />
+                                                                        <TextBox Grid.Column="0" Text="{Binding Name, Mode=TwoWay}" PlaceholderText="{loc:Tr Settings_WorkspaceName}" VerticalAlignment="Center" />
                                                                         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" Margin="12,0,0,0" VerticalAlignment="Center">
-                                                                            <Button Content="Open" ToolTip.Tip="Activate this workspace and edit its pages"
+                                                                            <Button Content="{loc:Tr Settings_Open}" ToolTip.Tip="{loc:Tr Settings_ActivateThisWorkspaceAndEdit}"
                                                                                     Command="{Binding $parent[Window].DataContext.ActivateWorkspaceCommand}" CommandParameter="{Binding}" />
-                                                                            <Button Content="Set Home" ToolTip.Tip="Make this the profile's Home workspace"
+                                                                            <Button Content="{loc:Tr Settings_SetHome}" ToolTip.Tip="{loc:Tr Settings_MakeThisTheProfileS}"
                                                                                     Command="{Binding $parent[Window].DataContext.SetHomeWorkspaceCommand}" CommandParameter="{Binding}" />
-                                                                            <Button Content="Export" ToolTip.Tip="Export this workspace as a .loupixprofile package"
+                                                                            <Button Content="{loc:Tr Settings_Export}" ToolTip.Tip="{loc:Tr Settings_ExportThisWorkspaceAsA}"
                                                                                     Command="{Binding $parent[Window].DataContext.ExportWorkspaceCommand}" CommandParameter="{Binding}" />
-                                                                            <Button Classes="row-action danger" Content="✕" ToolTip.Tip="Delete workspace"
+                                                                            <Button Classes="row-action danger" Content="✕" ToolTip.Tip="{loc:Tr Settings_DeleteWorkspace}"
                                                                                     Command="{Binding $parent[Window].DataContext.RemoveWorkspaceCommand}" CommandParameter="{Binding}" />
                                                                         </StackPanel>
                                                                     </Grid>
                                                                     <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,8,0,0">
-                                                                        <Border Classes="pill ok" IsVisible="{Binding IsActiveWorkspace}"><TextBlock Text="Active" /></Border>
-                                                                        <Border Classes="pill neutral" IsVisible="{Binding IsHome}"><TextBlock Text="Home" /></Border>
+                                                                        <Border Classes="pill ok" IsVisible="{Binding IsActiveWorkspace}"><TextBlock Text="{loc:Tr Settings_Active}" /></Border>
+                                                                        <Border Classes="pill neutral" IsVisible="{Binding IsHome}"><TextBlock Text="{loc:Tr Settings_Home}" /></Border>
                                                                     </StackPanel>
                                                                 </StackPanel>
                                                             </Border>
@@ -407,14 +408,14 @@
 
                 <!-- ====== Pages ====== -->
                 <StackPanel IsVisible="{Binding CurrentView, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Pages}">
-                    <TextBlock Classes="page-title" Text="Pages" />
+                    <TextBlock Classes="page-title" Text="{loc:Tr Settings_Pages}" />
 
                     <Grid ColumnDefinitions="*,12,*">
                         <Border Grid.Column="0" Classes="card" Margin="0,0,0,12">
                             <StackPanel>
                                 <Grid ColumnDefinitions="*,Auto">
-                                    <TextBlock Grid.Column="0" Classes="card-title" Text="Touch pages" />
-                                    <Button Grid.Column="1" Content="+ Add" Command="{Binding AddTouchPageCommand}" />
+                                    <TextBlock Grid.Column="0" Classes="card-title" Text="{loc:Tr Settings_TouchPages}" />
+                                    <Button Grid.Column="1" Content="{loc:Tr Settings_Add}" Command="{Binding AddTouchPageCommand}" />
                                 </Grid>
                                 <ItemsControl ItemsSource="{Binding TouchPages}" Margin="0,8,0,0">
                                     <ItemsControl.ItemTemplate>
@@ -429,28 +430,28 @@
                                                          buttons and the name only ever showed a clipped
                                                          fragment. The thumbnail identifies the row; the
                                                          name is on its tooltip. -->
-                                                    <Button Grid.Column="2" Classes="row-action" ToolTip.Tip="Edit wallpaper"
+                                                    <Button Grid.Column="2" Classes="row-action" ToolTip.Tip="{loc:Tr Settings_EditWallpaper}"
                                                             Command="{Binding $parent[Window].DataContext.EditWallpaperCommand}"
                                                             CommandParameter="{Binding}">
                                                         <TextBlock FontFamily="{StaticResource MdiFont}" Text="&#xF02E9;" FontSize="16" VerticalAlignment="Center" HorizontalAlignment="Center" />
                                                     </Button>
-                                                    <Button Grid.Column="3" Classes="row-action" ToolTip.Tip="Edit page commands"
+                                                    <Button Grid.Column="3" Classes="row-action" ToolTip.Tip="{loc:Tr Settings_EditPageCommands}"
                                                             Command="{Binding $parent[Window].DataContext.EditPageCommandsCommand}"
                                                             CommandParameter="{Binding}">
                                                         <TextBlock FontFamily="{StaticResource MdiFont}" Text="&#xF18D8;" FontSize="16" VerticalAlignment="Center" HorizontalAlignment="Center" />
                                                     </Button>
-                                                    <Button Grid.Column="4" Classes="row-action" Content="↑" ToolTip.Tip="Move up"
+                                                    <Button Grid.Column="4" Classes="row-action" Content="↑" ToolTip.Tip="{loc:Tr Settings_MoveUp}"
                                                             Command="{Binding $parent[Window].DataContext.MoveTouchPageUpCommand}"
                                                             CommandParameter="{Binding}" />
-                                                    <Button Grid.Column="5" Classes="row-action" Content="↓" ToolTip.Tip="Move down"
+                                                    <Button Grid.Column="5" Classes="row-action" Content="↓" ToolTip.Tip="{loc:Tr Settings_MoveDown}"
                                                             Command="{Binding $parent[Window].DataContext.MoveTouchPageDownCommand}"
                                                             CommandParameter="{Binding}" />
-                                                    <Button Grid.Column="6" Classes="row-action" ToolTip.Tip="Export this page as a .loupixprofile package"
+                                                    <Button Grid.Column="6" Classes="row-action" ToolTip.Tip="{loc:Tr Settings_ExportThisPageAsA}"
                                                             Command="{Binding $parent[Window].DataContext.ExportTouchPageCommand}"
                                                             CommandParameter="{Binding}">
                                                         <TextBlock FontFamily="{StaticResource MdiFont}" Text="&#xF0207;" FontSize="16" VerticalAlignment="Center" HorizontalAlignment="Center" />
                                                     </Button>
-                                                    <Button Grid.Column="7" Classes="row-action danger" Content="✕" ToolTip.Tip="Remove page"
+                                                    <Button Grid.Column="7" Classes="row-action danger" Content="✕" ToolTip.Tip="{loc:Tr Settings_RemovePage}"
                                                             Command="{Binding $parent[Window].DataContext.RemoveTouchPageCommand}"
                                                             CommandParameter="{Binding}" />
                                                 </Grid>
@@ -466,8 +467,8 @@
                                 <!-- Single shared list — devices without side strips (Live S). -->
                                 <StackPanel IsVisible="{Binding !HasIndependentRotarySides}">
                                     <Grid ColumnDefinitions="*,Auto">
-                                        <TextBlock Grid.Column="0" Classes="card-title" Text="Rotary pages" />
-                                        <Button Grid.Column="1" Content="+ Add" Command="{Binding AddRotaryPageCommand}" />
+                                        <TextBlock Grid.Column="0" Classes="card-title" Text="{loc:Tr Settings_RotaryPages}" />
+                                        <Button Grid.Column="1" Content="{loc:Tr Settings_Add}" Command="{Binding AddRotaryPageCommand}" />
                                     </Grid>
                                     <ItemsControl ItemsSource="{Binding RotaryPages}" Margin="0,8,0,0">
                                         <ItemsControl.ItemTemplate>
@@ -475,23 +476,23 @@
                                                 <Border Background="{DynamicResource AppSurfaceAlt}" CornerRadius="4" Padding="8" Margin="0,0,0,6">
                                                     <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto,Auto">
                                                         <TextBlock Grid.Column="0" Text="{Binding PageName}" VerticalAlignment="Center" />
-                                                        <Button Grid.Column="1" Classes="row-action" ToolTip.Tip="Edit page commands"
+                                                        <Button Grid.Column="1" Classes="row-action" ToolTip.Tip="{loc:Tr Settings_EditPageCommands}"
                                                                 Command="{Binding $parent[Window].DataContext.EditPageCommandsCommand}"
                                                                 CommandParameter="{Binding}">
                                                             <TextBlock FontFamily="{StaticResource MdiFont}" Text="&#xF18D8;" FontSize="16" VerticalAlignment="Center" HorizontalAlignment="Center" />
                                                         </Button>
-                                                        <Button Grid.Column="2" Classes="row-action" Content="↑" ToolTip.Tip="Move up"
+                                                        <Button Grid.Column="2" Classes="row-action" Content="↑" ToolTip.Tip="{loc:Tr Settings_MoveUp}"
                                                                 Command="{Binding $parent[Window].DataContext.MoveRotaryPageUpCommand}"
                                                                 CommandParameter="{Binding}" />
-                                                        <Button Grid.Column="3" Classes="row-action" Content="↓" ToolTip.Tip="Move down"
+                                                        <Button Grid.Column="3" Classes="row-action" Content="↓" ToolTip.Tip="{loc:Tr Settings_MoveDown}"
                                                                 Command="{Binding $parent[Window].DataContext.MoveRotaryPageDownCommand}"
                                                                 CommandParameter="{Binding}" />
-                                                        <Button Grid.Column="4" Classes="row-action" ToolTip.Tip="Export this page as a .loupixprofile package"
+                                                        <Button Grid.Column="4" Classes="row-action" ToolTip.Tip="{loc:Tr Settings_ExportThisPageAsA}"
                                                                 Command="{Binding $parent[Window].DataContext.ExportRotaryPageCommand}"
                                                                 CommandParameter="{Binding}">
                                                             <TextBlock FontFamily="{StaticResource MdiFont}" Text="&#xF0207;" FontSize="16" VerticalAlignment="Center" HorizontalAlignment="Center" />
                                                         </Button>
-                                                        <Button Grid.Column="5" Classes="row-action danger" Content="✕" ToolTip.Tip="Remove rotary page"
+                                                        <Button Grid.Column="5" Classes="row-action danger" Content="✕" ToolTip.Tip="{loc:Tr Settings_RemoveRotaryPage}"
                                                                 Command="{Binding $parent[Window].DataContext.RemoveRotaryPageCommand}"
                                                                 CommandParameter="{Binding}" />
                                                     </Grid>
@@ -504,8 +505,8 @@
                                 <!-- Independent left/right lists — devices with side strips (Razer). -->
                                 <StackPanel IsVisible="{Binding HasIndependentRotarySides}">
                                     <Grid ColumnDefinitions="*,Auto">
-                                        <TextBlock Grid.Column="0" Classes="card-title" Text="Left rotary pages" />
-                                        <Button Grid.Column="1" Content="+ Add" Command="{Binding AddLeftRotaryPageCommand}" />
+                                        <TextBlock Grid.Column="0" Classes="card-title" Text="{loc:Tr Settings_LeftRotaryPages}" />
+                                        <Button Grid.Column="1" Content="{loc:Tr Settings_Add}" Command="{Binding AddLeftRotaryPageCommand}" />
                                     </Grid>
                                     <ItemsControl ItemsSource="{Binding LeftRotaryPages}" Margin="0,8,0,0">
                                         <ItemsControl.ItemTemplate>
@@ -513,17 +514,17 @@
                                                 <Border Background="{DynamicResource AppSurfaceAlt}" CornerRadius="4" Padding="8" Margin="0,0,0,6">
                                                     <Grid ColumnDefinitions="*,Auto,Auto,Auto">
                                                         <TextBlock Grid.Column="0" Text="{Binding PageName}" VerticalAlignment="Center" />
-                                                        <Button Grid.Column="1" Classes="row-action" ToolTip.Tip="Edit page commands"
+                                                        <Button Grid.Column="1" Classes="row-action" ToolTip.Tip="{loc:Tr Settings_EditPageCommands}"
                                                                 Command="{Binding $parent[Window].DataContext.EditPageCommandsCommand}"
                                                                 CommandParameter="{Binding}">
                                                             <TextBlock FontFamily="{StaticResource MdiFont}" Text="&#xF18D8;" FontSize="16" VerticalAlignment="Center" HorizontalAlignment="Center" />
                                                         </Button>
-                                                        <Button Grid.Column="2" Classes="row-action" ToolTip.Tip="Export this page as a .loupixprofile package"
+                                                        <Button Grid.Column="2" Classes="row-action" ToolTip.Tip="{loc:Tr Settings_ExportThisPageAsA}"
                                                                 Command="{Binding $parent[Window].DataContext.ExportRotaryPageCommand}"
                                                                 CommandParameter="{Binding}">
                                                             <TextBlock FontFamily="{StaticResource MdiFont}" Text="&#xF0207;" FontSize="16" VerticalAlignment="Center" HorizontalAlignment="Center" />
                                                         </Button>
-                                                        <Button Grid.Column="3" Classes="row-action danger" Content="✕" ToolTip.Tip="Remove rotary page"
+                                                        <Button Grid.Column="3" Classes="row-action danger" Content="✕" ToolTip.Tip="{loc:Tr Settings_RemoveRotaryPage}"
                                                                 Command="{Binding $parent[Window].DataContext.RemoveLeftRotaryPageCommand}"
                                                                 CommandParameter="{Binding}" />
                                                     </Grid>
@@ -533,8 +534,8 @@
                                     </ItemsControl>
 
                                     <Grid ColumnDefinitions="*,Auto" Margin="0,12,0,0">
-                                        <TextBlock Grid.Column="0" Classes="card-title" Text="Right rotary pages" />
-                                        <Button Grid.Column="1" Content="+ Add" Command="{Binding AddRightRotaryPageCommand}" />
+                                        <TextBlock Grid.Column="0" Classes="card-title" Text="{loc:Tr Settings_RightRotaryPages}" />
+                                        <Button Grid.Column="1" Content="{loc:Tr Settings_Add}" Command="{Binding AddRightRotaryPageCommand}" />
                                     </Grid>
                                     <ItemsControl ItemsSource="{Binding RightRotaryPages}" Margin="0,8,0,0">
                                         <ItemsControl.ItemTemplate>
@@ -542,17 +543,17 @@
                                                 <Border Background="{DynamicResource AppSurfaceAlt}" CornerRadius="4" Padding="8" Margin="0,0,0,6">
                                                     <Grid ColumnDefinitions="*,Auto,Auto,Auto">
                                                         <TextBlock Grid.Column="0" Text="{Binding PageName}" VerticalAlignment="Center" />
-                                                        <Button Grid.Column="1" Classes="row-action" ToolTip.Tip="Edit page commands"
+                                                        <Button Grid.Column="1" Classes="row-action" ToolTip.Tip="{loc:Tr Settings_EditPageCommands}"
                                                                 Command="{Binding $parent[Window].DataContext.EditPageCommandsCommand}"
                                                                 CommandParameter="{Binding}">
                                                             <TextBlock FontFamily="{StaticResource MdiFont}" Text="&#xF18D8;" FontSize="16" VerticalAlignment="Center" HorizontalAlignment="Center" />
                                                         </Button>
-                                                        <Button Grid.Column="2" Classes="row-action" ToolTip.Tip="Export this page as a .loupixprofile package"
+                                                        <Button Grid.Column="2" Classes="row-action" ToolTip.Tip="{loc:Tr Settings_ExportThisPageAsA}"
                                                                 Command="{Binding $parent[Window].DataContext.ExportRotaryPageCommand}"
                                                                 CommandParameter="{Binding}">
                                                             <TextBlock FontFamily="{StaticResource MdiFont}" Text="&#xF0207;" FontSize="16" VerticalAlignment="Center" HorizontalAlignment="Center" />
                                                         </Button>
-                                                        <Button Grid.Column="3" Classes="row-action danger" Content="✕" ToolTip.Tip="Remove rotary page"
+                                                        <Button Grid.Column="3" Classes="row-action danger" Content="✕" ToolTip.Tip="{loc:Tr Settings_RemoveRotaryPage}"
                                                                 Command="{Binding $parent[Window].DataContext.RemoveRightRotaryPageCommand}"
                                                                 CommandParameter="{Binding}" />
                                                     </Grid>
@@ -567,37 +568,37 @@
 
                     <Border Classes="card">
                         <StackPanel>
-                            <TextBlock Classes="card-title" Text="Page switching" />
-                            <CheckBox Content="Show page name overlay when switching pages"
+                            <TextBlock Classes="card-title" Text="{loc:Tr Settings_PageSwitching}" />
+                            <CheckBox Content="{loc:Tr Settings_ShowPageNameOverlayWhen}"
                                       IsChecked="{Binding Config.ShowPageNameOverlayEnabled, Mode=TwoWay}"
-                                      ToolTip.Tip="Briefly displays the new page name on the first touch button (~2s) after switching touch or rotary pages." />
-                            <CheckBox Content="Animate rotary page transitions"
+                                      ToolTip.Tip="{loc:Tr Settings_BrieflyDisplaysTheNewPage}" />
+                            <CheckBox Content="{loc:Tr Settings_AnimateRotaryPageTransitions}"
                                       IsChecked="{Binding Config.RotaryPageTransitionAnimationEnabled, Mode=TwoWay}"
-                                      ToolTip.Tip="Slide the side displays when a rotary page is changed by a command or button. Swipe gestures always animate. Turn off for instant command paging." />
-                            <CheckBox Content="Animate touch page transitions"
+                                      ToolTip.Tip="{loc:Tr Settings_SlideTheSideDisplaysWhen}" />
+                            <CheckBox Content="{loc:Tr Settings_AnimateTouchPageTransitions}"
                                       IsChecked="{Binding Config.TouchPageTransitionAnimationEnabled, Mode=TwoWay}"
-                                      ToolTip.Tip="Slide the touch display when a touch page changes. Turn off for instant paging." />
+                                      ToolTip.Tip="{loc:Tr Settings_SlideTheTouchDisplayWhen}" />
                         </StackPanel>
                     </Border>
                 </StackPanel>
 
                 <!-- ====== Feedback (touch flash + haptic) ====== -->
                 <StackPanel IsVisible="{Binding CurrentView, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Haptic}">
-                    <TextBlock Classes="page-title" Text="Feedback" />
+                    <TextBlock Classes="page-title" Text="{loc:Tr Settings_Feedback}" />
 
                     <!-- Touch flash overlay (top) -->
                     <Border Classes="card">
                         <StackPanel>
-                            <TextBlock Classes="card-title" Text="Touch flash" />
-                            <CheckBox Content="Flash touch buttons on press"
+                            <TextBlock Classes="card-title" Text="{loc:Tr Settings_TouchFlash}" />
+                            <CheckBox Content="{loc:Tr Settings_FlashTouchButtonsOnPress}"
                                       IsChecked="{Binding Config.TouchFeedbackEnabled, Mode=TwoWay}" />
                             <Grid ColumnDefinitions="80,Auto,*,40" RowDefinitions="Auto,Auto" RowSpacing="8" Margin="0,8,0,0"
                                   IsEnabled="{Binding Config.TouchFeedbackEnabled}">
-                                <TextBlock Grid.Row="0" Grid.Column="0" Classes="label" Text="Color" VerticalAlignment="Center" />
+                                <TextBlock Grid.Row="0" Grid.Column="0" Classes="label" Text="{loc:Tr Settings_Color}" VerticalAlignment="Center" />
                                 <ColorPicker Grid.Row="0" Grid.Column="1" Width="120" HorizontalAlignment="Left"
                                              Color="{Binding Config.TouchFeedbackColor, Mode=TwoWay}" />
 
-                                <TextBlock Grid.Row="1" Grid.Column="0" Classes="label" Text="Opacity" VerticalAlignment="Center" />
+                                <TextBlock Grid.Row="1" Grid.Column="0" Classes="label" Text="{loc:Tr Settings_Opacity}" VerticalAlignment="Center" />
                                 <Slider Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Minimum="0" Maximum="1"
                                         TickFrequency="0.05" IsSnapToTickEnabled="True"
                                         Value="{Binding Config.TouchFeedbackOpacity, Mode=TwoWay}" />
@@ -611,24 +612,24 @@
                     <!-- Touch sliding prevention + diagnostic logging -->
                     <Border Classes="card">
                         <StackPanel>
-                            <TextBlock Classes="card-title" Text="Touch input" />
-                            <CheckBox Content="Prevent multi-trigger while finger is down"
+                            <TextBlock Classes="card-title" Text="{loc:Tr Settings_TouchInput}" />
+                            <CheckBox Content="{loc:Tr Settings_PreventMultiTriggerWhileFinger}"
                                       IsChecked="{Binding Config.TouchSlidingPreventionEnabled, Mode=TwoWay}"
-                                      ToolTip.Tip="Ignores additional TOUCH_START events until the finger is lifted. Defends against duplicate triggers when sliding across buttons or tapping near a button boundary." />
+                                      ToolTip.Tip="{loc:Tr Settings_IgnoresAdditionalTOUCHSTARTEvents}" />
                         </StackPanel>
                     </Border>
 
                     <!-- Haptic (enable + global effect) — hidden on devices with no motor -->
                     <Border Classes="card" IsVisible="{Binding IsVibrationSupported}">
                         <StackPanel>
-                            <TextBlock Classes="card-title" Text="Haptic" />
-                            <CheckBox Content="Enable haptic feedback"
+                            <TextBlock Classes="card-title" Text="{loc:Tr Settings_Haptic}" />
+                            <CheckBox Content="{loc:Tr Settings_EnableHapticFeedback}"
                                       IsChecked="{Binding Config.HapticEnabled, Mode=TwoWay}" />
 
                             <StackPanel IsEnabled="{Binding Config.HapticEnabled}">
                                 <Grid DataContext="{Binding FirstHapticStep}"
                                       ColumnDefinitions="100,*" RowDefinitions="Auto" Margin="0,12,0,0">
-                                    <TextBlock Grid.Row="0" Grid.Column="0" Classes="label" Text="Effect" VerticalAlignment="Center" />
+                                    <TextBlock Grid.Row="0" Grid.Column="0" Classes="label" Text="{loc:Tr Settings_Effect}" VerticalAlignment="Center" />
                                     <ComboBox Grid.Row="0" Grid.Column="1" Width="260" HorizontalAlignment="Left"
                                               ItemsSource="{Binding $parent[Window].DataContext.VibrationPatterns}"
                                               SelectedItem="{Binding SelectedEffectItem, Mode=TwoWay}">
@@ -646,44 +647,44 @@
 
                 <!-- ====== Screensaver ====== -->
                 <StackPanel IsVisible="{Binding CurrentView, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Screensaver}">
-                    <TextBlock Classes="page-title" Text="Screensaver" />
+                    <TextBlock Classes="page-title" Text="{loc:Tr Settings_Screensaver}" />
 
                     <Border Classes="card">
                         <StackPanel>
-                            <TextBlock Classes="card-title" Text="Screensaver" />
-                            <CheckBox Content="Enable animated screensaver"
+                            <TextBlock Classes="card-title" Text="{loc:Tr Settings_Screensaver}" />
+                            <CheckBox Content="{loc:Tr Settings_EnableAnimatedScreensaver}"
                                       IsChecked="{Binding Config.ScreensaverEnabled, Mode=TwoWay}" />
                             <TextBlock Classes="hint" Margin="0,4,0,0"
-                                       Text="Fills the whole display after the device is idle — either a video/GIF or a plugin-provided animation. Stops on any input."/>
+                                       Text="{loc:Tr Settings_FillsTheWholeDisplayAfter}"/>
 
                             <TextBlock Classes="hint" Margin="0,8,0,0"
                                        Foreground="#E6A23C"
                                        IsVisible="{Binding ShowFfmpegHint}"
-                                       Text="ffmpeg was not found on PATH. Install ffmpeg to use a video screensaver."/>
+                                       Text="{loc:Tr Settings_FfmpegWasNotFoundOn}"/>
 
                             <Grid ColumnDefinitions="120,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto"
                                   Margin="0,10,0,0" IsEnabled="{Binding Config.ScreensaverEnabled}">
                                 <!-- Source kind -->
-                                <TextBlock Grid.Row="0" Grid.Column="0" Classes="label" Text="Source"
+                                <TextBlock Grid.Row="0" Grid.Column="0" Classes="label" Text="{loc:Tr Settings_Source}"
                                            VerticalAlignment="Center" />
                                 <ComboBox Grid.Row="0" Grid.Column="1" Width="200" HorizontalAlignment="Left"
                                           ItemsSource="{Binding ScreensaverSourceOptions}"
                                           SelectedItem="{Binding SelectedScreensaverSource, Mode=TwoWay}" />
 
                                 <!-- Video clip -->
-                                <TextBlock Grid.Row="1" Grid.Column="0" Classes="label" Text="Video"
+                                <TextBlock Grid.Row="1" Grid.Column="0" Classes="label" Text="{loc:Tr Settings_Video}"
                                            VerticalAlignment="Center" Margin="0,8,0,0"
                                            IsVisible="{Binding IsVideoScreensaver}" />
                                 <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Spacing="8"
                                             Margin="0,8,0,0" IsVisible="{Binding IsVideoScreensaver}">
-                                    <Button Content="Select video…" Command="{Binding SelectScreensaverVideoCommand}" />
-                                    <Button Content="Clear" Command="{Binding ClearScreensaverVideoCommand}" />
+                                    <Button Content="{loc:Tr Settings_SelectVideo}" Command="{Binding SelectScreensaverVideoCommand}" />
+                                    <Button Content="{loc:Tr Settings_Clear}" Command="{Binding ClearScreensaverVideoCommand}" />
                                     <TextBlock Classes="value" VerticalAlignment="Center"
                                                Text="{Binding ScreensaverVideoDisplayName}" />
                                 </StackPanel>
 
                                 <!-- Plugin provider -->
-                                <TextBlock Grid.Row="2" Grid.Column="0" Classes="label" Text="Plugin"
+                                <TextBlock Grid.Row="2" Grid.Column="0" Classes="label" Text="{loc:Tr Settings_Plugin}"
                                            VerticalAlignment="Center" Margin="0,8,0,0"
                                            IsVisible="{Binding IsPluginScreensaver}" />
                                 <StackPanel Grid.Row="2" Grid.Column="1" Margin="0,8,0,0"
@@ -693,22 +694,22 @@
                                               SelectedItem="{Binding SelectedScreensaverProvider, Mode=TwoWay}"
                                               DisplayMemberBinding="{Binding Title}" />
                                     <TextBlock Classes="hint" Margin="0,4,0,0"
-                                               Text="Provided by installed plugins. No ffmpeg needed."/>
+                                               Text="{loc:Tr Settings_ProvidedByInstalledPluginsNo}"/>
                                 </StackPanel>
 
                                 <!-- Idle timeout -->
-                                <TextBlock Grid.Row="3" Grid.Column="0" Classes="label" Text="Idle timeout"
+                                <TextBlock Grid.Row="3" Grid.Column="0" Classes="label" Text="{loc:Tr Settings_IdleTimeout}"
                                            VerticalAlignment="Center" Margin="0,8,0,0" />
                                 <StackPanel Grid.Row="3" Grid.Column="1" Orientation="Horizontal" Spacing="8"
                                             Margin="0,8,0,0">
                                     <NumericUpDown Width="120" Minimum="5" Maximum="3600" Increment="5"
                                                    FormatString="0"
                                                    Value="{Binding Config.ScreensaverIdleTimeoutSeconds, Mode=TwoWay}" />
-                                    <TextBlock Classes="hint" Text="seconds" VerticalAlignment="Center" />
+                                    <TextBlock Classes="hint" Text="{loc:Tr Settings_Seconds}" VerticalAlignment="Center" />
                                 </StackPanel>
 
                                 <!-- FPS -->
-                                <TextBlock Grid.Row="4" Grid.Column="0" Classes="label" Text="FPS limit"
+                                <TextBlock Grid.Row="4" Grid.Column="0" Classes="label" Text="{loc:Tr Settings_FPSLimit}"
                                            VerticalAlignment="Center" Margin="0,8,0,0" />
                                 <StackPanel Grid.Row="4" Grid.Column="1" Orientation="Horizontal" Spacing="8"
                                             Margin="0,8,0,0">
@@ -717,12 +718,12 @@
                                                    Value="{Binding Config.ScreensaverFps, Mode=TwoWay}" />
                                     <TextBlock Classes="hint" VerticalAlignment="Center"
                                                IsVisible="{Binding IsPluginScreensaver}"
-                                               Text="used when the plugin declares no frame rate of its own" />
+                                               Text="{loc:Tr Settings_UsedWhenThePluginDeclares}" />
                                 </StackPanel>
 
                                 <!-- Loop -->
                                 <CheckBox Grid.Row="5" Grid.Column="1" Margin="0,8,0,0"
-                                          Content="Loop continuously"
+                                          Content="{loc:Tr Settings_LoopContinuously}"
                                           IsVisible="{Binding IsVideoScreensaver}"
                                           IsChecked="{Binding Config.ScreensaverLoop, Mode=TwoWay}" />
                             </Grid>
@@ -733,12 +734,12 @@
                 <!-- ====== Plugins ====== -->
                 <StackPanel IsVisible="{Binding CurrentView, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Plugins}">
                     <Grid ColumnDefinitions="*,Auto">
-                        <TextBlock Grid.Column="0" Classes="page-title" Text="Plugins" />
+                        <TextBlock Grid.Column="0" Classes="page-title" Text="{loc:Tr Settings_Plugins}" />
                         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8"
                                     VerticalAlignment="Center">
-                            <Button Content="Install from Zip…" Click="OnInstallPluginClick" />
-                            <Button x:Name="RemovePluginButton" Content="Remove" Click="OnRemovePluginClick" />
-                            <Button Content="Open Plugins Folder"
+                            <Button Content="{loc:Tr Settings_InstallFromZip}" Click="OnInstallPluginClick" />
+                            <Button x:Name="RemovePluginButton" Content="{loc:Tr Settings_Remove}" Click="OnRemovePluginClick" />
+                            <Button Content="{loc:Tr Settings_OpenPluginsFolder}"
                                     Command="{Binding OpenPluginsFolderCommand}" />
                         </StackPanel>
                     </Grid>
@@ -758,19 +759,19 @@
 
                     <TextBlock x:Name="PluginRestartHint" Classes="hint" Margin="0,8,0,0"
                                IsVisible="False"
-                               Text="Some changes finish applying after the app is restarted." />
+                               Text="{loc:Tr Settings_SomeChangesFinishApplyingAfter}" />
                 </StackPanel>
 
                 <!-- ====== Interception ====== -->
                 <StackPanel IsVisible="{Binding CurrentView, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Interception}">
-                    <TextBlock Classes="page-title" Text="Macro Driver" />
+                    <TextBlock Classes="page-title" Text="{loc:Tr Settings_MacroDriver}" />
 
                     <!-- Status card -->
                     <Border Classes="card">
                         <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="*,Auto">
                             <StackPanel Grid.Row="0" Grid.Column="0" Orientation="Horizontal" Spacing="10">
                                 <TextBlock FontFamily="{StaticResource MdiFont}" Text="&#xF030C;" FontSize="24" VerticalAlignment="Center"/>
-                                <TextBlock Classes="card-title" Text="Interception Driver" Margin="0" VerticalAlignment="Center"/>
+                                <TextBlock Classes="card-title" Text="{loc:Tr Settings_InterceptionDriver}" Margin="0" VerticalAlignment="Center"/>
                             </StackPanel>
                             <Border Grid.Row="0" Grid.Column="1" Classes="pill"
                                     Classes.ok="{Binding InterceptionDriverInstalled}"
@@ -779,36 +780,36 @@
                             </Border>
 
                             <TextBlock Grid.Row="1" Grid.ColumnSpan="2" Classes="hint" Margin="0,12,0,0"
-                                       Text="The Interception kernel driver lets keyboard and mouse macros reach apps that read raw input (games / anti-cheat), which the default SendInput method cannot. The driver is downloaded from the official GitHub release and is not bundled. Installing or removing it requires a reboot." />
+                                       Text="{loc:Tr Settings_TheInterceptionKernelDriverLets}" />
                         </Grid>
                     </Border>
 
                     <!-- Toggle card -->
                     <Border Classes="card">
                         <StackPanel>
-                            <TextBlock Classes="card-title" Text="Usage" />
-                            <CheckBox Content="Use Interception for keyboard and mouse macros"
+                            <TextBlock Classes="card-title" Text="{loc:Tr Settings_Usage}" />
+                            <CheckBox Content="{loc:Tr Settings_UseInterceptionForKeyboardAnd}"
                                       IsEnabled="{Binding InterceptionDriverInstalled}"
                                       IsChecked="{Binding InterceptionEnabled, Mode=TwoWay}" />
                             <TextBlock Classes="hint" Margin="0,6,0,0"
-                                       Text="When off (or when the driver is not installed), macros fall back to SendInput. Takes effect immediately." />
+                                       Text="{loc:Tr Settings_WhenOffOrWhenThe}" />
                         </StackPanel>
                     </Border>
 
                     <!-- Install / Uninstall card -->
                     <Border Classes="card">
                         <StackPanel>
-                            <TextBlock Classes="card-title" Text="Driver" />
+                            <TextBlock Classes="card-title" Text="{loc:Tr Settings_Driver}" />
                             <StackPanel Orientation="Horizontal" Spacing="12">
-                                <Button Content="Download &amp; Install"
+                                <Button Content="{loc:Tr Settings_DownloadInstall}"
                                         Command="{Binding InstallInterceptionCommand}"
                                         IsEnabled="{Binding !InterceptionBusy}" />
-                                <Button Content="Uninstall" Classes="danger"
+                                <Button Content="{loc:Tr Settings_Uninstall}" Classes="danger"
                                         Command="{Binding UninstallInterceptionCommand}"
                                         IsEnabled="{Binding !InterceptionBusy}" />
                             </StackPanel>
                             <TextBlock Classes="hint" Margin="0,10,0,0"
-                                       Text="The Interception driver is third-party software by Francisco Lopes (github.com/oblitum/Interception). It is free for non-commercial use only — commercial use requires a separate license from its author." />
+                                       Text="{loc:Tr Settings_TheInterceptionDriverIsThird}" />
                             <TextBlock Classes="hint" Margin="0,10,0,0"
                                        Text="{Binding InterceptionStatusMessage}" />
                         </StackPanel>
@@ -817,30 +818,30 @@
 
                 <!-- ====== Theme ====== -->
                 <StackPanel IsVisible="{Binding CurrentView, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Theme}">
-                    <TextBlock Classes="page-title" Text="Theme" />
+                    <TextBlock Classes="page-title" Text="{loc:Tr Settings_Theme}" />
                     <Border Classes="card">
                         <StackPanel>
-                            <TextBlock Classes="card-title" Text="Appearance" />
-                            <RadioButton Content="Dark"   GroupName="theme" IsChecked="{Binding ThemeIsDark, Mode=TwoWay}" Margin="0,4,0,0"/>
-                            <RadioButton Content="Light"  GroupName="theme" IsChecked="{Binding ThemeIsLight, Mode=TwoWay}" Margin="0,4,0,0"/>
-                            <RadioButton Content="System" GroupName="theme" IsChecked="{Binding ThemeIsSystem, Mode=TwoWay}" Margin="0,4,0,0"/>
+                            <TextBlock Classes="card-title" Text="{loc:Tr Settings_Appearance}" />
+                            <RadioButton Content="{loc:Tr Settings_Dark}"   GroupName="theme" IsChecked="{Binding ThemeIsDark, Mode=TwoWay}" Margin="0,4,0,0"/>
+                            <RadioButton Content="{loc:Tr Settings_Light}"  GroupName="theme" IsChecked="{Binding ThemeIsLight, Mode=TwoWay}" Margin="0,4,0,0"/>
+                            <RadioButton Content="{loc:Tr Settings_System}" GroupName="theme" IsChecked="{Binding ThemeIsSystem, Mode=TwoWay}" Margin="0,4,0,0"/>
                             <TextBlock Classes="hint" Margin="0,8,0,0"
-                                       Text="Applies immediately. Some controls keep the previous palette until next app launch." />
+                                       Text="{loc:Tr Settings_AppliesImmediatelySomeControlsKeep}" />
                         </StackPanel>
                     </Border>
                 </StackPanel>
 
                 <!-- ====== About ====== -->
                 <StackPanel IsVisible="{Binding CurrentView, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=About}">
-                    <TextBlock Classes="page-title" Text="About" />
+                    <TextBlock Classes="page-title" Text="{loc:Tr Settings_About}" />
                     <Border Classes="card">
                         <StackPanel>
-                            <TextBlock Text="LoupixDeck" FontSize="20" FontWeight="Bold" />
+                            <TextBlock Text="{loc:Tr Settings_LoupixDeck}" FontSize="20" FontWeight="Bold" />
                             <TextBlock Classes="label" Text="{Binding Version}" Margin="0,4,0,0"/>
                             <TextBlock Classes="hint" Margin="0,12,0,0"
-                                       Text="Open-source Avalonia desktop app controlling the Loupedeck Live S on Linux and Windows." />
+                                       Text="{loc:Tr Settings_OpenSourceAvaloniaDesktopApp}" />
                             <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,16,0,0">
-                                <Button Content="Project Website" Command="{Binding OpenWebsiteCommand}" />
+                                <Button Content="{loc:Tr Settings_ProjectWebsite}" Command="{Binding OpenWebsiteCommand}" />
                             </StackPanel>
                         </StackPanel>
                     </Border>
@@ -848,18 +849,18 @@
 
                 <!-- ====== Profile Rules ====== -->
                 <StackPanel IsVisible="{Binding CurrentView, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=AppSwitching}">
-                    <TextBlock Classes="page-title" Text="Profile Rules" />
+                    <TextBlock Classes="page-title" Text="{loc:Tr Settings_ProfileRules}" />
 
                     <!-- ===== Automatic switching ===== -->
                     <Border Classes="card">
                         <StackPanel Spacing="10">
                             <StackPanel Spacing="4">
-                                <TextBlock Classes="card-title" Text="Automatic switching" Margin="0" />
-                                <CheckBox Content="Switch profiles and workspaces based on the active application"
+                                <TextBlock Classes="card-title" Text="{loc:Tr Settings_AutomaticSwitching}" Margin="0" />
+                                <CheckBox Content="{loc:Tr Settings_SwitchProfilesAndWorkspacesBased}"
                                           FontWeight="SemiBold"
                                           IsChecked="{Binding Config.AppSwitchingEnabled, Mode=TwoWay}" />
                                 <TextBlock Classes="hint" FontSize="12"
-                                           Text="The highest-priority matching rule activates its profile and workspace. Process names match case-insensitively; a trailing &quot;.exe&quot; is ignored. On Linux this needs an X11 / XWayland session and 'xprop'." />
+                                           Text="{loc:Tr Settings_TheHighestPriorityMatchingRule}" />
                             </StackPanel>
 
                             <!-- Fallback option + its profile, grouped as one unit. -->
@@ -869,7 +870,7 @@
                                          two ComboBoxes line up on the same left edge and width. -->
                                     <Grid ColumnDefinitions="Auto,320" RowDefinitions="Auto,Auto" RowSpacing="8"
                                           HorizontalAlignment="Left">
-                                        <TextBlock Grid.Row="0" Grid.Column="0" Classes="label" Text="When leaving matched apps"
+                                        <TextBlock Grid.Row="0" Grid.Column="0" Classes="label" Text="{loc:Tr Settings_WhenLeavingMatchedApps}"
                                                    VerticalAlignment="Center" Margin="0,0,10,0" />
                                         <ComboBox Grid.Row="0" Grid.Column="1" HorizontalAlignment="Stretch"
                                                   ItemsSource="{Binding NoMatchBehaviorOptions}"
@@ -881,7 +882,7 @@
                                             </ComboBox.ItemTemplate>
                                         </ComboBox>
 
-                                        <TextBlock Grid.Row="1" Grid.Column="0" Classes="label" Text="Fallback profile"
+                                        <TextBlock Grid.Row="1" Grid.Column="0" Classes="label" Text="{loc:Tr Settings_FallbackProfile}"
                                                    VerticalAlignment="Center" Margin="0,0,10,0"
                                                    IsEnabled="{Binding UseFixedFallbackProfile}" />
                                         <ComboBox Grid.Row="1" Grid.Column="1" HorizontalAlignment="Stretch"
@@ -896,7 +897,7 @@
                                         </ComboBox>
                                     </Grid>
                                     <TextBlock Classes="hint" FontSize="12"
-                                               Text="Keep the current profile: the profile the last rule activated stays active until another rule matches. Return to the profile active before the rule: undo the switch a rule made. Switch to a fixed fallback profile: always activate the profile chosen above." />
+                                               Text="{loc:Tr Settings_KeepTheCurrentProfileThe}" />
                                 </StackPanel>
                             </Border>
                         </StackPanel>
@@ -906,9 +907,9 @@
                     <Border Classes="card">
                         <StackPanel Spacing="10">
                             <Grid ColumnDefinitions="*,Auto" VerticalAlignment="Center">
-                                <TextBlock Grid.Column="0" Classes="card-title" Text="Rules"
+                                <TextBlock Grid.Column="0" Classes="card-title" Text="{loc:Tr Settings_Rules}"
                                            Margin="0" VerticalAlignment="Center" />
-                                <Button Grid.Column="1" Classes="accent" Content="+ Add rule"
+                                <Button Grid.Column="1" Classes="accent" Content="{loc:Tr Settings_AddRule}"
                                         Command="{Binding AddContextRuleCommand}" />
                             </Grid>
 
@@ -921,14 +922,14 @@
 
                                                     <!-- Match -->
                                                     <StackPanel Spacing="5">
-                                                        <TextBlock Classes="group-label" Text="Match" />
+                                                        <TextBlock Classes="group-label" Text="{loc:Tr Settings_Match}" />
                                                         <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" RowSpacing="3">
-                                                            <TextBlock Grid.Row="0" Grid.Column="0" Classes="label" Text="Process" />
+                                                            <TextBlock Grid.Row="0" Grid.Column="0" Classes="label" Text="{loc:Tr Settings_Process}" />
                                                             <TextBlock Grid.Row="0" Grid.Column="1" Classes="label"
-                                                                       Text="Window title filter" Margin="12,0,0,0" />
+                                                                       Text="{loc:Tr Settings_WindowTitleFilter}" Margin="12,0,0,0" />
                                                             <TextBox Grid.Row="1" Grid.Column="0" PlaceholderText="obs64"
                                                                      Text="{Binding Rule.ProcessName, Mode=TwoWay}" />
-                                                            <TextBox Grid.Row="1" Grid.Column="1" PlaceholderText="Optional"
+                                                            <TextBox Grid.Row="1" Grid.Column="1" PlaceholderText="{loc:Tr Settings_Optional}"
                                                                      Margin="12,0,0,0"
                                                                      Text="{Binding Rule.TitleContains, Mode=TwoWay}" />
                                                         </Grid>
@@ -936,10 +937,10 @@
 
                                                     <!-- Target -->
                                                     <StackPanel Spacing="5">
-                                                        <TextBlock Classes="group-label" Text="Target" />
+                                                        <TextBlock Classes="group-label" Text="{loc:Tr Settings_Target}" />
                                                         <Grid ColumnDefinitions="*,Auto,*" RowDefinitions="Auto,Auto" RowSpacing="3">
-                                                            <TextBlock Grid.Row="0" Grid.Column="0" Classes="label" Text="Profile" />
-                                                            <TextBlock Grid.Row="0" Grid.Column="2" Classes="label" Text="Workspace" />
+                                                            <TextBlock Grid.Row="0" Grid.Column="0" Classes="label" Text="{loc:Tr Settings_Profile}" />
+                                                            <TextBlock Grid.Row="0" Grid.Column="2" Classes="label" Text="{loc:Tr Settings_Workspace}" />
                                                             <ComboBox Grid.Row="1" Grid.Column="0" HorizontalAlignment="Stretch"
                                                                       ItemsSource="{Binding Profiles}"
                                                                       SelectedItem="{Binding SelectedProfile, Mode=TwoWay}">
@@ -965,22 +966,22 @@
 
                                                     <!-- Additional options -->
                                                     <StackPanel Spacing="5">
-                                                        <TextBlock Classes="group-label" Text="Additional options" />
+                                                        <TextBlock Classes="group-label" Text="{loc:Tr Settings_AdditionalOptions}" />
                                                         <StackPanel Orientation="Horizontal" Spacing="20" VerticalAlignment="Center">
                                                             <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                                                                <TextBlock Classes="label" Text="Priority" VerticalAlignment="Center" />
+                                                                <TextBlock Classes="label" Text="{loc:Tr Settings_Priority}" VerticalAlignment="Center" />
                                                                 <TextBox Width="64" Text="{Binding PriorityText, Mode=TwoWay}" />
                                                             </StackPanel>
-                                                            <CheckBox Content="Trigger when process starts" VerticalAlignment="Center"
+                                                            <CheckBox Content="{loc:Tr Settings_TriggerWhenProcessStarts}" VerticalAlignment="Center"
                                                                       IsChecked="{Binding Rule.ActivateOnProcessStart, Mode=TwoWay}"
-                                                                      ToolTip.Tip="Also apply this rule when the process starts, not only on focus" />
+                                                                      ToolTip.Tip="{loc:Tr Settings_AlsoApplyThisRuleWhen}" />
                                                         </StackPanel>
                                                     </StackPanel>
                                                 </StackPanel>
 
                                                 <Button Grid.Column="1" Classes="rule-delete" Content="✕"
                                                         VerticalAlignment="Top" Margin="8,0,0,0"
-                                                        ToolTip.Tip="Remove rule"
+                                                        ToolTip.Tip="{loc:Tr Settings_RemoveRule}"
                                                         Command="{Binding $parent[Window].DataContext.RemoveContextRuleCommand}"
                                                         CommandParameter="{Binding}" />
                                             </Grid>
@@ -990,7 +991,7 @@
                             </ItemsControl>
 
                             <TextBlock Classes="hint" FontSize="12"
-                                       Text="The highest-priority matching rule wins; ties are broken by list order. Leave 'Profile' empty to keep the current profile, and 'Workspace' empty to open the profile's Home workspace. A manual profile/workspace switch pauses automatic switching until you change apps." />
+                                       Text="{loc:Tr Settings_TheHighestPriorityMatchingRule2}" />
                         </StackPanel>
                     </Border>
                 </StackPanel>
