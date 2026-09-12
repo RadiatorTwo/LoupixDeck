@@ -836,7 +836,7 @@
                     <TextBlock Classes="page-title" Text="{loc:Tr Settings_About}" />
                     <Border Classes="card">
                         <StackPanel>
-                            <TextBlock Text="{loc:Tr Settings_LoupixDeck}" FontSize="20" FontWeight="Bold" />
+                            <TextBlock Text="LoupixDeck" FontSize="20" FontWeight="Bold" />
                             <TextBlock Classes="label" Text="{Binding Version}" Margin="0,4,0,0"/>
                             <TextBlock Classes="hint" Margin="0,12,0,0"
                                        Text="{loc:Tr Settings_OpenSourceAvaloniaDesktopApp}" />
