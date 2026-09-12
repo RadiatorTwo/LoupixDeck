@@ -322,6 +322,8 @@
   "Settings_CloseButtonBehavior": "Close button behavior",
   "Settings_Color": "Color",
   "Settings_Connected": "Connected",
+  "Settings_CyclePages": "Cycle pages",
+  "Settings_CyclePagesHint": "When on, next/previous page wraps from the last page back to the first. Turn it off to stop on the first and last page.",
   "Settings_DEVICE": "DEVICE",
   "Settings_Dark": "Dark",
   "Settings_Default": "Default",

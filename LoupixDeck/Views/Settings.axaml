@@ -578,6 +578,9 @@
                             <CheckBox Content="{loc:Tr Settings_AnimateTouchPageTransitions}"
                                       IsChecked="{Binding Config.TouchPageTransitionAnimationEnabled, Mode=TwoWay}"
                                       ToolTip.Tip="{loc:Tr Settings_SlideTheTouchDisplayWhen}" />
+                            <CheckBox Content="{loc:Tr Settings_CyclePages}"
+                                      IsChecked="{Binding Config.PageWrapEnabled, Mode=TwoWay}"
+                                      ToolTip.Tip="{loc:Tr Settings_CyclePagesHint}" />
                         </StackPanel>
                     </Border>
                 </StackPanel>

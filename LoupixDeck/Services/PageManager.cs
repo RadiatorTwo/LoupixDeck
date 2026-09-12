@@ -130,8 +130,11 @@ public class PageManager : IPageManager
         var n = pages.Count;
         if (n <= 1) return null;
         var idx = GetCurrentRotaryPageIndex(side);
-        var target = (((idx + direction) % n) + n) % n;
-        return pages[target];
+        var target = idx + direction;
+        // Without page wrap the first and last page have no neighbour on the outward side, so a
+        // swipe there finds nothing to slide in and snaps back.
+        if (!_config.PageWrapEnabled && (target < 0 || target >= n)) return null;
+        return pages[(((target % n) + n) % n)];
     }
 
     private void SetCurrentRotaryPageIndex(RotarySide side, int value)
@@ -182,14 +185,20 @@ public class PageManager : IPageManager
     {
         var pages = GetRotaryPages(side);
         if (pages.Count == 0) return;
-        ApplyRotaryPage(side, (GetCurrentRotaryPageIndex(side) + 1) % pages.Count);
+        var current = GetCurrentRotaryPageIndex(side);
+        // Wrap (last -> first) unless the user turned page wrap off, which stops on the last page.
+        if (!_config.PageWrapEnabled && current + 1 >= pages.Count) return;
+        ApplyRotaryPage(side, (current + 1) % pages.Count);
     }
 
     public void PreviousRotaryPage(RotarySide side)
     {
         var pages = GetRotaryPages(side);
         if (pages.Count == 0) return;
-        ApplyRotaryPage(side, (GetCurrentRotaryPageIndex(side) - 1 + pages.Count) % pages.Count);
+        var current = GetCurrentRotaryPageIndex(side);
+        // Wrap (first -> last) unless the user turned page wrap off, which stops on the first page.
+        if (!_config.PageWrapEnabled && current - 1 < 0) return;
+        ApplyRotaryPage(side, (current - 1 + pages.Count) % pages.Count);
     }
 
     public void ApplyRotaryPage(RotarySide side, int pageIndex, bool init = false)
@@ -218,12 +227,20 @@ public class PageManager : IPageManager
 
     public async Task NextTouchPage()
     {
-        await ApplyTouchPage((CurrentTouchPageIndex + 1) % TouchButtonPages.Count);
+        var count = TouchButtonPages.Count;
+        if (count == 0) return;
+        // Wrap (last -> first) unless the user turned page wrap off, which stops on the last page.
+        if (!_config.PageWrapEnabled && CurrentTouchPageIndex + 1 >= count) return;
+        await ApplyTouchPage((CurrentTouchPageIndex + 1) % count);
     }
 
     public async Task PreviousTouchPage()
     {
-        await ApplyTouchPage((CurrentTouchPageIndex - 1 + TouchButtonPages.Count) % TouchButtonPages.Count);
+        var count = TouchButtonPages.Count;
+        if (count == 0) return;
+        // Wrap (first -> last) unless the user turned page wrap off, which stops on the first page.
+        if (!_config.PageWrapEnabled && CurrentTouchPageIndex - 1 < 0) return;
+        await ApplyTouchPage((CurrentTouchPageIndex - 1 + count) % count);
     }
 
     public async Task ApplyTouchPage(int pageIndex, bool init = false, bool draw = true)

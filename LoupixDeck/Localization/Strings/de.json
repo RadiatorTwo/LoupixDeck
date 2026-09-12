@@ -322,6 +322,8 @@
   "Settings_CloseButtonBehavior": "Verhalten der Schließen-Schaltfläche",
   "Settings_Color": "Farbe",
   "Settings_Connected": "Verbunden",
+  "Settings_CyclePages": "Seiten zyklisch wechseln",
+  "Settings_CyclePagesHint": "Wenn aktiv, springt die nächste/vorherige Seite von der letzten zurück zur ersten. Ausgeschaltet wird auf der ersten bzw. letzten Seite angehalten.",
   "Settings_DEVICE": "GERÄT",
   "Settings_Dark": "Dunkel",
   "Settings_Default": "Standard",

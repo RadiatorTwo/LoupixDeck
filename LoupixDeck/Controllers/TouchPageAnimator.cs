@@ -84,7 +84,10 @@ public partial class LoupedeckLiveSController
     {
         var count = pageManager.TouchButtonPages.Count;
         if (count <= 0) return;
-        var target = (pageManager.CurrentTouchPageIndex + 1) % count;
+        var current = pageManager.CurrentTouchPageIndex;
+        // Wrap (last -> first) unless the user turned page wrap off, which stops on the last page.
+        if (!config.PageWrapEnabled && current + 1 >= count) return;
+        var target = (current + 1) % count;
         AnimateTouchPage(target, direction: -1);
     }
 
@@ -93,7 +96,10 @@ public partial class LoupedeckLiveSController
     {
         var count = pageManager.TouchButtonPages.Count;
         if (count <= 0) return;
-        var target = (pageManager.CurrentTouchPageIndex - 1 + count) % count;
+        var current = pageManager.CurrentTouchPageIndex;
+        // Wrap (first -> last) unless the user turned page wrap off, which stops on the first page.
+        if (!config.PageWrapEnabled && current - 1 < 0) return;
+        var target = (current - 1 + count) % count;
         AnimateTouchPage(target, direction: +1);
     }
 

@@ -449,6 +449,12 @@ public partial class LoupedeckConfig : ObservableObject
     [ObservableProperty]
     public partial bool TouchPageTransitionAnimationEnabled { get; set; } = true;
 
+    // Whether "next page" / "previous page" wraps around (last -> first and back). On by default,
+    // which is the behaviour before this flag existed; with it off, next stops on the last page and
+    // previous on the first. Additive optional field - absent from an old config it defaults to true.
+    [ObservableProperty]
+    public partial bool PageWrapEnabled { get; set; } = true;
+
     [ObservableProperty]
     public partial bool HapticEnabled { get; set; }
 

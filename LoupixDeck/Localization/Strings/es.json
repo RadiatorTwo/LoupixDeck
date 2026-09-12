@@ -322,6 +322,8 @@
   "Settings_CloseButtonBehavior": "Comportamiento del botón cerrar",
   "Settings_Color": "Color",
   "Settings_Connected": "Conectado",
+  "Settings_CyclePages": "Páginas en ciclo",
+  "Settings_CyclePagesHint": "Cuando está activo, página siguiente/anterior da la vuelta de la última a la primera. Desactívalo para detenerse en la primera y la última página.",
   "Settings_DEVICE": "DISPOSITIVO",
   "Settings_Dark": "Oscuro",
   "Settings_Default": "Predeterminado",

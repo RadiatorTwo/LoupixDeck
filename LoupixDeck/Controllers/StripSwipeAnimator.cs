@@ -458,6 +458,11 @@ public partial class LoupedeckLiveSController
     {
         var idx = SideIndex(side);
 
+        // With page wrap off there is nothing past the first/last page, so neither the slide nor
+        // the instant fallback has a page to move to.
+        if (!config.PageWrapEnabled && pageManager.PeekRotaryPage(side, direction < 0 ? +1 : -1) == null)
+            return;
+
         // Setting off, device strips not driven here, not animatable, or a live finger drag
         // owns the strip → change instantly. (The setting only affects this command/GUI path;
         // the swipe finger-follow always animates.)
