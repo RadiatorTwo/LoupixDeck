@@ -4,6 +4,7 @@ using Avalonia.Styling;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using LoupixDeck.Localization;
 using LoupixDeck.Models;
 using LoupixDeck.Registry;
 using LoupixDeck.Models.Converter;
@@ -204,6 +205,32 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
         });
 
         Version = $"v{System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "?"}";
+
+        SelectedLanguage = LocalizationManager.AvailableLanguages
+            .FirstOrDefault(language => language.Code == LocalizationManager.Instance.CurrentLanguage);
+    }
+
+    // ───────── General / Language ─────────
+
+    /// <summary>The UI languages the app ships, in menu order.</summary>
+    public IReadOnlyList<LanguageOption> Languages => LocalizationManager.AvailableLanguages;
+
+    /// <summary>
+    /// The selected UI language. This is a global preference, not a per-device setting, so it is
+    /// applied and persisted by the localization manager rather than stored in the device config.
+    /// </summary>
+    [ObservableProperty]
+    public partial LanguageOption SelectedLanguage { get; set; }
+
+    partial void OnSelectedLanguageChanged(LanguageOption value)
+    {
+        if (value == null || value.Code == LocalizationManager.Instance.CurrentLanguage)
+        {
+            return;
+        }
+
+        LocalizationManager.Instance.SetLanguage(value.Code);
+        LocalizationManager.Instance.Persist();
     }
 
     // ───────── General / Device ─────────

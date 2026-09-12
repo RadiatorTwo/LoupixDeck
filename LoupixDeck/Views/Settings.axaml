@@ -147,6 +147,18 @@
                 <StackPanel IsVisible="{Binding CurrentView, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=General}">
                     <TextBlock Classes="page-title" Text="General" />
 
+                    <!-- Language card -->
+                    <Border Classes="card">
+                        <StackPanel>
+                            <TextBlock Classes="card-title" Text="Language" />
+                            <ComboBox Width="200" Margin="0,6,0,0"
+                                      ItemsSource="{Binding Languages}"
+                                      SelectedItem="{Binding SelectedLanguage, Mode=TwoWay}" />
+                            <TextBlock Classes="hint" Margin="0,8,0,0"
+                                       Text="The language applies immediately and is shared by all devices." />
+                        </StackPanel>
+                    </Border>
+
                     <!-- Device card -->
                     <Border Classes="card">
                         <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="*,Auto">
