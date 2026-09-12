@@ -3,6 +3,7 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Avalonia.Styling;
 using LoupixDeck.Controllers;
+using LoupixDeck.Localization;
 using LoupixDeck.Models;
 using LoupixDeck.Registry;
 using LoupixDeck.Services;
@@ -24,6 +25,12 @@ public partial class App : Application
     public override void Initialize()
     {
         Console.WriteLine($"App.Initialize {DateTime.Now:HH:mm:ss}");
+
+        // The UI language is a global preference read straight from disk, before dependency
+        // injection and before any device config is resolved, so the splash and the initial-setup
+        // window are already translated on the very first frame.
+        LocalizationManager.Instance.InitializeFromSettings();
+
         AvaloniaXamlLoader.Load(this);
     }
 

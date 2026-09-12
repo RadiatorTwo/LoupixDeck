@@ -137,6 +137,7 @@
 
             <converter:SKBitmapToAvaloniaBitmapConverter x:Key="SkiaToBitmapConverter" />
             <converter:BoolToBrushConverter x:Key="BoolToBrushConverter" />
+            <converter:LocFormatConverter x:Key="LocFmt" />
             <FontFamily x:Key="MdiFont">avares://LoupixDeck/Assets/Fonts/materialdesignicons-webfont.ttf#Material Design Icons</FontFamily>
 
             <!-- Device-chrome accents (theme-invariant): mark selected/unselected
