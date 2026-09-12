@@ -31,7 +31,8 @@ public sealed class LocalizationManager : INotifyPropertyChanged
     public static readonly IReadOnlyList<LanguageOption> AvailableLanguages =
     [
         new LanguageOption("en", "English"),
-        new LanguageOption("de", "Deutsch")
+        new LanguageOption("de", "Deutsch"),
+        new LanguageOption("es", "Español")
     ];
 
     private const string BaseLanguage = "en";
