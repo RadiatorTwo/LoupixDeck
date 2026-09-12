@@ -245,7 +245,7 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
     [NotifyPropertyChangedFor(nameof(DeviceStatusText))]
     public partial bool DeviceConnected { get; private set; }
 
-    public string DeviceStatusText => DeviceConnected ? "Connected" : "Disconnected";
+    public string DeviceStatusText => Loc.Tr(DeviceConnected ? "Settings_Connected" : "Settings_Disconnected");
 
     private async Task RefreshDeviceInfoAsync()
     {
@@ -305,7 +305,7 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
     [NotifyPropertyChangedFor(nameof(InterceptionStatusText))]
     public partial bool InterceptionDriverInstalled { get; private set; }
 
-    public string InterceptionStatusText => InterceptionDriverInstalled ? "Installed" : "Not installed";
+    public string InterceptionStatusText => Loc.Tr(InterceptionDriverInstalled ? "Settings_Installed" : "Settings_NotInstalled");
 
     [ObservableProperty]
     public partial bool InterceptionBusy { get; private set; }

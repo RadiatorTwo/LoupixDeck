@@ -1,4 +1,5 @@
 using CommunityToolkit.Mvvm.Input;
+using LoupixDeck.Localization;
 using LoupixDeck.Models;
 using LoupixDeck.Utils;
 using LoupixDeck.ViewModels.Base;
@@ -33,12 +34,12 @@ public sealed class ConfirmDialogViewModel : DialogViewModelBase<DialogResult>
     /// <summary>Raised when the dialog should close (after the result is set).</summary>
     public event Action CloseWindow;
 
-    public void Configure(string message, string title = "Confirm",
-        string confirmText = "Yes", string cancelText = "No")
+    public void Configure(string message, string title = null,
+        string confirmText = null, string cancelText = null)
     {
         Message = message ?? string.Empty;
-        DialogTitle = title ?? "Confirm";
-        ConfirmText = confirmText ?? "Yes";
-        CancelText = cancelText ?? "No";
+        DialogTitle = title ?? Loc.Tr("Confirm_Title");
+        ConfirmText = confirmText ?? Loc.Tr("Confirm_Yes");
+        CancelText = cancelText ?? Loc.Tr("Confirm_No");
     }
 }

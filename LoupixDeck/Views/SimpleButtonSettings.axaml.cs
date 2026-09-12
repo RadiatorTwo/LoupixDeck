@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.VisualTree;
+using LoupixDeck.Localization;
 using LoupixDeck.Models;
 using LoupixDeck.Utils;
 using LoupixDeck.ViewModels;
@@ -72,11 +73,10 @@ public partial class SimpleButtonSettings : Window
 
         bool keep = await ConfirmDialogHelper.AskKeepDiscardAsync(
             this,
-            "Button States",
-            $"'{e.OwnerDisplayName}' managed this button's states. Keep the generated states as "
-            + "normal editable states, or discard them and go back to a single state?",
-            "Keep states",
-            "Discard states");
+            Loc.Tr("Confirm_ButtonStatesTitle"),
+            Loc.Tr("Confirm_ButtonStatesMessage", e.OwnerDisplayName),
+            Loc.Tr("Confirm_KeepStates"),
+            Loc.Tr("Confirm_DiscardStates"));
 
         vm.CompleteStateRelease(keep);
     }

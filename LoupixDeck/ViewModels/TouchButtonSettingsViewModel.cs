@@ -1,4 +1,5 @@
-﻿using System.Collections.ObjectModel;
+﻿using LoupixDeck.Localization;
+using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.Input;
 using LoupixDeck.Models;
 using LoupixDeck.Models.Converter;
@@ -1135,10 +1136,10 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         {
             replaceLayers = !await ConfirmDialogHelper.AskKeepDiscardAsync(
                 WindowHelper.GetMainWindow(),
-                "Assign application",
-                $"\"{app.Name}\" brings its own icon. Keep the layers already on this button, or replace them with the application icon?",
-                "Keep",
-                "Replace");
+                Loc.Tr("Confirm_AssignApplicationTitle"),
+                Loc.Tr("Confirm_AssignApplicationMessage", app.Name),
+                Loc.Tr("Confirm_Keep"),
+                Loc.Tr("Confirm_Replace"));
         }
 
         // Resolved before the layer exists: GetUniqueLayerName searches the collection, so asking

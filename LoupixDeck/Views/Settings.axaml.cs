@@ -3,6 +3,7 @@ using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Markup.Xaml.MarkupExtensions;
 using Avalonia.Media;
+using LoupixDeck.Localization;
 using LoupixDeck.Models;
 using LoupixDeck.PluginSdk;
 using LoupixDeck.Services.Plugins;
@@ -142,18 +143,17 @@ public partial class Settings : Window
 
         if (PluginList?.SelectedItem is not ListBoxItem { Tag: LoadedPlugin plugin })
         {
-            ShowPluginActionStatus("Select a plugin in the list to remove.");
+            ShowPluginActionStatus(Loc.Tr("Settings_SelectAPluginToRemove"));
             return;
         }
 
         var name = plugin.Manifest?.Name ?? plugin.Directory;
         var isOverride = plugin.BundledFallbackVersion != null;
         var confirmed = isOverride
-            ? await ConfirmDialogHelper.AskYesNoAsync(this, "Reset to built-in",
-                $"Reset '{name}' to the built-in v{plugin.BundledFallbackVersion}? " +
-                "This deletes the installed copy and cannot be undone.")
-            : await ConfirmDialogHelper.AskYesNoAsync(this, "Remove plugin",
-                $"Remove '{name}'? This deletes the plugin's folder and cannot be undone.");
+            ? await ConfirmDialogHelper.AskYesNoAsync(this, Loc.Tr("Confirm_ResetPluginTitle"),
+                Loc.Tr("Confirm_ResetPluginMessage", name, plugin.BundledFallbackVersion))
+            : await ConfirmDialogHelper.AskYesNoAsync(this, Loc.Tr("Confirm_RemovePluginTitle"),
+                Loc.Tr("Confirm_RemovePluginMessage", name));
         if (!confirmed)
             return;
 
