@@ -1,3 +1,4 @@
+using LoupixDeck.Localization;
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using LoupixDeck.Models;
@@ -78,8 +79,8 @@ public partial class CommandRowViewModel : ViewModelBase
     /// <summary>The underlying menu leaf — the insertion payload handed to the host.</summary>
     public MenuEntry Entry { get; }
 
-    public string Title => Entry.Name;
-    public string Description => Entry.Description;
+    public string Title => LocalizationManager.Instance.TrText(Entry.Name);
+    public string Description => LocalizationManager.Instance.TrText(Entry.Description);
     public bool HasDescription => !string.IsNullOrWhiteSpace(Entry.Description);
 
     /// <summary>True when this row inserts a rotary command group (fills several
@@ -117,8 +118,8 @@ public partial class CommandGroupNodeViewModel : ViewModelBase
     /// <summary>The underlying group menu entry.</summary>
     public MenuEntry Group { get; }
 
-    public string Title => Group.Name;
-    public string Description => Group.Description;
+    public string Title => LocalizationManager.Instance.TrText(Group.Name);
+    public string Description => LocalizationManager.Instance.TrText(Group.Description);
     public bool HasDescription => !string.IsNullOrWhiteSpace(Group.Description);
     public string Icon { get; }
 
@@ -153,8 +154,8 @@ public partial class CommandCategoryViewModel : ViewModelBase
     /// <summary>The underlying top-level group menu entry.</summary>
     public MenuEntry Group { get; }
 
-    public string Title => Group.Name;
-    public string Description => Group.Description;
+    public string Title => LocalizationManager.Instance.TrText(Group.Name);
+    public string Description => LocalizationManager.Instance.TrText(Group.Description);
     public bool HasDescription => !string.IsNullOrWhiteSpace(Group.Description);
     public string Icon { get; }
 
@@ -200,7 +201,7 @@ public partial class CommandSectionViewModel : ViewModelBase
     public CommandSectionViewModel(CommandGroupSection section, string title, string icon)
     {
         Section = section;
-        Title = title;
+        Title = LocalizationManager.Instance.TrText(title);
         Icon = icon;
     }
 }

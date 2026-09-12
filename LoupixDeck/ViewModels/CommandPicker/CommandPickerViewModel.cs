@@ -1,3 +1,4 @@
+using LoupixDeck.Localization;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
@@ -184,7 +185,7 @@ public partial class CommandPickerViewModel : ViewModelBase
             sectionVm.Categories.Add(categoryVm);
 
             // Flatten every leaf in the category subtree for search.
-            CollectLeaves(group, group.Name, icon, _searchLeaves);
+            CollectLeaves(group, LocalizationManager.Instance.TrText(group.Name), icon, _searchLeaves);
 
             SubscribeGroup(group);
         }
@@ -231,7 +232,7 @@ public partial class CommandPickerViewModel : ViewModelBase
             if (child.IsGroup())
             {
                 var childIcon = string.IsNullOrEmpty(child.Icon) ? icon : child.Icon;
-                CollectLeaves(child, $"{path} / {child.Name}", childIcon, output);
+                CollectLeaves(child, $"{path} / {LocalizationManager.Instance.TrText(child.Name)}", childIcon, output);
             }
             else if (child.IsCommand())
             {

@@ -1,4 +1,5 @@
-﻿using System.Collections.ObjectModel;
+﻿using LoupixDeck.Localization;
+using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Windows.Input;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -180,7 +181,8 @@ public partial class CommandSegment
             var fromMenu = info != null;
             var shellRaw = fromMenu ? string.Empty : raw;
             // Only used while the free-text is empty — otherwise the chip shows the typed text.
-            var shellDisplay = fromMenu ? info.DisplayName : ShellCommand.DisplayName;
+            var shellDisplay = LocalizationManager.Instance.TrText(
+                fromMenu ? info.DisplayName : ShellCommand.DisplayName);
             var shell = new CommandSegment(commandBuilder, null,
                 CommandStringParser.GetName(shellRaw), shellDisplay, shellRaw)
             {
@@ -189,7 +191,9 @@ public partial class CommandSegment
             return shell;
         }
 
-        var display = string.IsNullOrWhiteSpace(info.DisplayName) ? name : info.DisplayName;
+        var display = string.IsNullOrWhiteSpace(info.DisplayName)
+            ? name
+            : LocalizationManager.Instance.TrText(info.DisplayName);
         var segment = new CommandSegment(commandBuilder, info, name, display, raw);
 
         // Map the positional values parsed from the raw string onto the declared
