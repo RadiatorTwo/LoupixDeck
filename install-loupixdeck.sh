@@ -238,6 +238,24 @@ else
 fi
 
 # ---------- Install ----------
+# A bundled plugin keeps its settings next to its own binary
+# ($INSTALL_DIR/plugins/<id>/settings.json), so wiping the install directory would take
+# every plugin configuration with it. Rescue those files first and put them back once
+# the new build is in place.
+PRESERVED_SETTINGS="$TMP_DIR/preserved-settings"
+if [ -d "$INSTALL_DIR/plugins" ]; then
+    for plugin_dir in "$INSTALL_DIR"/plugins/*/; do
+        [ -f "${plugin_dir}settings.json" ] || continue
+        plugin_id="$(basename "$plugin_dir")"
+        mkdir -p "$PRESERVED_SETTINGS/$plugin_id"
+        cp -a "${plugin_dir}settings.json" "$PRESERVED_SETTINGS/$plugin_id/settings.json"
+    done
+    if [ -d "$PRESERVED_SETTINGS" ]; then
+        log "Preserving plugin settings: $(ls "$PRESERVED_SETTINGS" | tr '
+' ' ')"
+    fi
+fi
+
 if [ -d "$INSTALL_DIR" ]; then
     log "Removing previous installation at $INSTALL_DIR ..."
     $SUDO rm -rf "$INSTALL_DIR"
@@ -246,6 +264,21 @@ log "Installing into $INSTALL_DIR ..."
 $SUDO mkdir -p "$INSTALL_DIR"
 $SUDO cp -a "$SRC"/. "$INSTALL_DIR/"
 $SUDO chmod +x "$INSTALL_DIR/LoupixDeck"
+
+# ---------- Restore plugin settings ----------
+if [ -d "$PRESERVED_SETTINGS" ]; then
+    for saved in "$PRESERVED_SETTINGS"/*/; do
+        plugin_id="$(basename "$saved")"
+        if [ -d "$INSTALL_DIR/plugins/$plugin_id" ]; then
+            $SUDO cp -a "${saved}settings.json" "$INSTALL_DIR/plugins/$plugin_id/settings.json"
+        else
+            # The plugin is not part of this build; its folder would end up without a
+            # plugin.json, which the app skips anyway.
+            warn "Plugin '$plugin_id' is not part of this build - its settings were dropped."
+        fi
+    done
+    log "Plugin settings restored."
+fi
 
 log "Creating symlink $SYMLINK -> $INSTALL_DIR/LoupixDeck ..."
 $SUDO mkdir -p "$(dirname "$SYMLINK")"
@@ -316,6 +349,27 @@ if [ -n "$TARGET_USER" ] && [ "$TARGET_USER" != "root" ]; then
     fi
 else
     warn "Could not determine the target user – add yourself to the 'input' group manually: sudo usermod -aG input <user>"
+fi
+
+# ---------- Plugin settings ownership ----------
+# The app writes a bundled plugin's settings next to that plugin, inside the
+# root-owned install directory. Without a writable file there, saving fails silently
+# (the app only logs it) and every plugin setting is lost on restart. Handing the
+# settings file - and only that file - to the user keeps the binaries root-owned.
+if [ -n "$TARGET_USER" ] && [ "$TARGET_USER" != "root" ] && [ -d "$INSTALL_DIR/plugins" ]; then
+    log "Making plugin settings writable for '$TARGET_USER' ..."
+    for plugin_dir in "$INSTALL_DIR"/plugins/*/; do
+        [ -f "${plugin_dir}plugin.json" ] || continue
+        settings_file="${plugin_dir}settings.json"
+        # Created empty when absent, because writing a new file would need write access
+        # to the root-owned plugin directory itself.
+        [ -f "$settings_file" ] || printf '{}
+' | $SUDO tee "$settings_file" >/dev/null
+        $SUDO chown "$TARGET_USER" "$settings_file"             || warn "Could not hand $settings_file to '$TARGET_USER'."
+        $SUDO chmod 0644 "$settings_file"
+    done
+elif [ -d "$INSTALL_DIR/plugins" ]; then
+    warn "Target user unknown - plugin settings stay root-owned and the app cannot save them."
 fi
 
 # ---------- Desktop entry ----------
