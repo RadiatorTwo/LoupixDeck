@@ -66,8 +66,8 @@
         </Grid>
 
         <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
-            <Button Content="{loc:Tr PageCommands_Cancel}" Width="100" Command="{Binding CancelCommand}" />
-            <Button Content="{loc:Tr PageCommands_OK}"     Width="100" IsDefault="True" Command="{Binding ConfirmCommand}" />
+            <Button Content="{loc:Tr PageCommands_Cancel}" MinWidth="100" Command="{Binding CancelCommand}" />
+            <Button Content="{loc:Tr PageCommands_OK}"     MinWidth="100" IsDefault="True" Command="{Binding ConfirmCommand}" />
         </StackPanel>
     </Grid>
 </Window>

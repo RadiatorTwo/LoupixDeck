@@ -415,25 +415,25 @@
                         <!-- Settings and Macros act on the selected device, so they go inactive
                              while no device is connected. About and Quit live on the shell,
                              reach no hardware and stay usable. -->
-                        <Button Width="100" Height="40" VerticalContentAlignment="Center"
+                        <Button MinWidth="100" Height="40" VerticalContentAlignment="Center"
                                 HorizontalContentAlignment="Center"
                                 FontSize="18"
                                 Content="{loc:Tr MainWindow_Settings}"
                                 IsEnabled="{Binding HasDevice}"
                                 Command="{Binding SelectedDevice.SettingsMenuCommand}" />
-                        <Button Width="100" Height="40" VerticalContentAlignment="Center" Margin="0,5,0,0"
+                        <Button MinWidth="100" Height="40" VerticalContentAlignment="Center" Margin="0,5,0,0"
                                 HorizontalContentAlignment="Center"
                                 FontSize="18"
                                 Content="{loc:Tr MainWindow_Macros}"
                                 IsEnabled="{Binding HasDevice}"
                                 Command="{Binding SelectedDevice.MacroEditorMenuCommand}" />
                         <Separator />
-                        <Button Width="100" Height="40" VerticalContentAlignment="Center"
+                        <Button MinWidth="100" Height="40" VerticalContentAlignment="Center"
                                 HorizontalContentAlignment="Center"
                                 FontSize="18"
                                 Content="{loc:Tr MainWindow_About}"
                                 Command="{Binding AboutMenuCommand}" />
-                        <Button Width="100" Height="40" VerticalContentAlignment="Center" Margin="0,5,0,0"
+                        <Button MinWidth="100" Height="40" VerticalContentAlignment="Center" Margin="0,5,0,0"
                                 HorizontalContentAlignment="Center"
                                 FontSize="18"
                                 Content="{loc:Tr MainWindow_Quit}"

@@ -500,14 +500,19 @@
 
                     <!-- Preview header + (placeholder) view toolbar -->
                     <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="4,0,4,8">
-                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10"
-                                    VerticalAlignment="Center">
-                            <TextBlock Classes="panel-title" Text="{loc:Tr TouchButton_Preview}"
+                        <!-- A Grid, not a StackPanel: a horizontal StackPanel measures its
+                             children unconstrained, so a longer translation ran under the
+                             toolbar instead of shortening. The star column bounds the state
+                             text, which then trims. -->
+                        <Grid Grid.Column="0" ColumnDefinitions="Auto,*" VerticalAlignment="Center">
+                            <TextBlock Grid.Column="0" Classes="panel-title" Text="{loc:Tr TouchButton_Preview}"
                                        Margin="0" VerticalAlignment="Center" />
-                            <TextBlock Classes="label" VerticalAlignment="Center"
+                            <TextBlock Grid.Column="1" Classes="label" VerticalAlignment="Center"
+                                       Margin="10,0,8,0" TextTrimming="CharacterEllipsis"
                                        IsVisible="{Binding ShowStatesSection}"
+                                       ToolTip.Tip="{loc:TrFormat TouchButton_EditingStateFmt, SelectedState.Name}"
                                        Text="{loc:TrFormat TouchButton_EditingStateFmt, SelectedState.Name}" />
-                        </StackPanel>
+                        </Grid>
                         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4">
                             <Button Classes="toolbar" Content="&#x2212;"
                                     Command="{Binding ZoomOutCommand}"

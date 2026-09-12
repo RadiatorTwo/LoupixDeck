@@ -105,8 +105,8 @@
                                    Source="{Binding ActivePreview, Converter={StaticResource SkiaToBitmapConverter}}" />
                         </Border>
                         <StackPanel Spacing="6" VerticalAlignment="Center">
-                            <Button Content="{loc:Tr Wallpaper_Select}" Command="{Binding SelectMediaCommand}" Width="110" />
-                            <Button Content="{loc:Tr Wallpaper_Remove}"  Command="{Binding RemoveCommand}" Width="110"
+                            <Button Content="{loc:Tr Wallpaper_Select}" Command="{Binding SelectMediaCommand}" MinWidth="110" />
+                            <Button Content="{loc:Tr Wallpaper_Remove}"  Command="{Binding RemoveCommand}" MinWidth="110"
                                     IsEnabled="{Binding HasActiveContent}" />
                             <TextBlock Classes="label" Text="{Binding ActiveContentKind}" />
                         </StackPanel>
@@ -202,8 +202,8 @@
         </Grid>
 
         <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
-            <Button Content="{loc:Tr Wallpaper_Cancel}" Width="100" Command="{Binding CancelCommand}" />
-            <Button Content="{loc:Tr Wallpaper_OK}"     Width="100" IsDefault="True" Command="{Binding ConfirmCommand}" />
+            <Button Content="{loc:Tr Wallpaper_Cancel}" MinWidth="100" Command="{Binding CancelCommand}" />
+            <Button Content="{loc:Tr Wallpaper_OK}"     MinWidth="100" IsDefault="True" Command="{Binding ConfirmCommand}" />
         </StackPanel>
     </Grid>
 </Window>

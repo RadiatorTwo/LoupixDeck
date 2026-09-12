@@ -78,12 +78,12 @@
                            Text="{Binding SelectedSymbol.DisplayName}" />
                 <Button Grid.Column="1"
                         Content="{loc:Tr SymbolPicker_Cancel}"
-                        Width="110"
+                        MinWidth="110"
                         Margin="0,0,8,0"
                         Command="{Binding CancelCommand}" />
                 <Button Grid.Column="2"
                         Content="{loc:Tr SymbolPicker_OK}"
-                        Width="110"
+                        MinWidth="110"
                         IsDefault="True"
                         Command="{Binding ConfirmCommand}" />
             </Grid>

@@ -58,10 +58,10 @@
                            FontSize="13"
                            Foreground="{DynamicResource AppTextSecondary}"
                            HorizontalAlignment="Center" />
-                <Button Content="{loc:Tr About_ProjectWebsite}" Width="160" HorizontalAlignment="Center"
+                <Button Content="{loc:Tr About_ProjectWebsite}" MinWidth="160" HorizontalAlignment="Center"
                         HorizontalContentAlignment="Center"
                         Command="{Binding OpenWebsiteCommand}" />
-                <Button Content="{loc:Tr About_Close}" Width="160" HorizontalAlignment="Center"
+                <Button Content="{loc:Tr About_Close}" MinWidth="160" HorizontalAlignment="Center"
                         HorizontalContentAlignment="Center"
                         Command="{Binding CloseCommand}" />
             </StackPanel>
