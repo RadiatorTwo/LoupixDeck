@@ -25,6 +25,8 @@ Built with **Avalonia** and **.NET 10**.
 * **Layer-based touch button editor** with images, animated images, text, symbols and wallpapers
 * **Stateful buttons** with multiple states and per-state actions
 * **Rotary encoder pages** with rotation, click and press actions
+* **Apps and commands panel** for drag-and-drop app launchers, commands and dial presets
+* **Direct keyboard and mouse actions** with recordable combinations and sequences
 * **Visual macro editor** with variables, conditions, loops, waits and prompts
 * **OBS Studio**, **Elgato Key Lights**, **Cooler Control**, **Argus Monitor** and **Windows Audio** integrations
 * **Portable profiles** — export a profile, workspace or page as a `.loupixprofile` file and import it anywhere
@@ -117,6 +119,17 @@ Multiple devices can run in parallel in a single LoupixDeck instance. Even two i
 
 ## Features
 
+### Apps and Commands Panel
+
+Open the left-side panel from the main-window header to assign common actions without opening a button editor.
+
+* **Apps** finds Start Menu, Steam and Epic applications on Windows, and XDG desktop entries—including Flatpak and Snap exports—on Linux
+* Add portable programs, scripts or shortcuts manually when discovery does not find them
+* **Commands** uses the same searchable catalogue as the button editors
+* **Dial presets** apply all three rotary gestures in one step
+* Drag an item onto a compatible control, or select a control and click the item
+* Touch keys receive ready-to-use artwork and a command; dials receive a strip label
+
 ### Touch Button Editor
 
 Create custom touch buttons from multiple visual layers.
@@ -145,12 +158,16 @@ Rotary controls can use separate pages and separate actions for each input type.
 * Press
 * Multi-command sequences per action
 * Plugin command groups for assigning related rotary actions together
+* Right-click quick menu for assigning or removing each gesture
+* Built-in and reusable user-created dial presets
 
 ### Macros
 
 LoupixDeck includes a visual macro editor for reusable automation sequences.
 
 Supported macro actions include keyboard input, mouse input, delays, command execution, variables, conditions, loops, wait conditions and prompts.
+
+Buttons and dials can also run input directly, without first creating a macro: mouse click and scroll, keyboard-plus-mouse chords, a single key combination, or a multi-step key sequence. Mouse buttons X1 and X2 are supported. Windows also provides previous/next virtual-desktop commands.
 
 Input injection backends:
 
@@ -168,6 +185,7 @@ Built-in commands and dynamic values are available for:
 * **Elgato Key Lights** via Zeroconf discovery
 * **Cooler Control**
 * **Argus Monitor** on Windows
+* **LinuxHwInfo** on Linux
 * **Windows Audio** via WASAPI
 * Shell commands
 * Page navigation
@@ -216,6 +234,7 @@ LoupixDeck can drive multiple connected devices at the same time.
 * Devices can be connected or disconnected while LoupixDeck is running
 * A device switcher appears when more than one device is connected
 * CLI commands can target a specific device
+* The main window opens before device initialisation finishes, and busy serial ports are retried in the background
 
 ### Portable Profiles
 
@@ -252,6 +271,8 @@ first.
 
 Not included by design, because they are device-wide rather than part of a profile: the enabled
 plugin list, context rules, app bindings and the screensaver clip.
+
+Round LED-button commands and colours belong to the profile and are included when a whole profile is exported. Switching workspaces does not change that LED row.
 
 ---
 
@@ -346,6 +367,8 @@ Typical files:
 | `obs.json`             | OBS integration settings              |
 | `elgato.json`          | Elgato integration settings           |
 | `macros.json`          | Shared macro definitions              |
+| `custom-apps.json`     | Applications added manually to the Apps panel |
+| `dial-presets.json`    | User-created dial presets             |
 | `backups/`             | Automatic backups written before a profile package replaces an item |
 
 Per-device configuration is scoped by USB serial whenever possible, so two identical devices do not overwrite each other's layouts.

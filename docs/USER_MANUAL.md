@@ -110,9 +110,9 @@ In v1.22.0 and later, display frames reuse pooled buffers, WebSocket payloads ar
 
 ## First Launch
 
-On start, LoupixDeck auto-detects supported USB devices. If a device is connected, the main window opens with a visual layout matching the device.
+On start, LoupixDeck opens the main window first and brings supported USB devices online in the background. There is no separate splash screen. A connected device joins the window as soon as its link is ready; only devices whose links are ready appear in the device selector.
 
-If no device is connected, the device area shows `No device connected` instead of empty profile and workspace selectors. Plug a supported deck in over USB and LoupixDeck picks it up automatically; after a re-plug, the layout and the device-bound parts of the window are restored. Until a device is available, actions that need a device are disabled, but `Quit` remains available from the hamburger menu.
+If no device is ready, the device area shows `No device connected` instead of empty profile and workspace selectors. Plug a supported deck in over USB and LoupixDeck picks it up automatically. If the deck is already plugged in, the vendor software or another program may still be holding its serial port. LoupixDeck retries a busy port with backoff and adds the device when the port becomes available, without requiring an app restart. Device actions stay disabled in the meantime, while `About` and `Quit` remain available from the hamburger menu. Starting minimized also works when no device is ready yet.
 
 When the computer wakes from sleep or standby, LoupixDeck rebuilds the device connection and sends the current state again. Brightness, LED colours, the active touch page, and side-strip content are restored. The same state refresh happens after automatic reconnect or after you press `Reconnect` in `Settings > General`, so the display should not remain black after the link returns.
 
@@ -138,6 +138,22 @@ The main window is a live editor for your connected device.
 The top header shows your current context. It contains `DEVICE`, `PROFILE`, and `WORKSPACE` selectors. If only one device is connected, the device selector is hidden and you will usually just see the profile and workspace selectors. The hamburger menu sits at the right end of this header.
 
 Changing profile or workspace from the header changes what the device shows and what the editor is editing. The selectors also update when a rule, command, or device button switches context for you.
+
+### Apps and commands panel
+
+When a device is connected, the button at the left of the header opens a side panel with three tabs:
+
+| Tab | What it contains |
+| --- | --- |
+| Apps | Applications discovered on the computer, plus applications added manually |
+| Commands | The same searchable command catalogue used by the button editors |
+| Dial presets | Built-in and user-created mappings for all three gestures of a rotary control |
+
+To assign an item, first select a compatible touch key, physical LED button, or dial and click the item, or drag the item directly onto the control. An invalid target is outlined in red and is not changed. If the target already has content, LoupixDeck asks before replacing it.
+
+An application assigned to a touch key receives its launch command and, when available, an extracted app icon sized to leave room for a caption. App icons are cached at full resolution and refreshed when their source changes. A catalogue command receives its glyph and name. Physical LED buttons receive the command, while a dial receives the command and a side-strip label. Side displays themselves are not drop targets. Some catalogue entries are dial-only because they configure all three rotary gestures together.
+
+On Windows, the Apps tab scans Start Menu shortcuts, Steam libraries—including libraries on other drives—and Epic Games installations. Steam and Epic entries launch through their own launcher. On Linux, it scans XDG desktop entries, including Flatpak and Snap exports. Use the `+` button beside the app search field to add a portable program, script, or shortcut that discovery missed; hand-added entries remain after rescans and restarts. Use the refresh button to scan again.
 
 ## Profiles and Workspaces
 
@@ -170,7 +186,7 @@ Profiles and workspaces can also be changed from commands. The command picker ha
 
 ## Portable Profiles
 
-You can move layouts between machines or devices with a `.loupixprofile` package. Open `Settings > Profiles` and use the `Export` button beside a profile, workspace, or individual touch/rotary page. The package includes the selected layout, its images, and the macros referenced by its buttons, so the receiving machine does not need those assets prepared in advance.
+You can move layouts between machines or devices with a `.loupixprofile` package. Open `Settings > Profiles` and use the `Export` button beside a profile, workspace, or individual touch/rotary page. The package includes the selected layout, its images, and the macros referenced by its buttons, so the receiving machine does not need those assets prepared in advance. A whole-profile export also includes that profile's round LED-button commands and colours.
 
 To use a package on another machine, choose `Import Package…` in `Settings > Profiles` and select the `.loupixprofile` file. LoupixDeck shows a preview before changing anything. Review:
 
@@ -182,6 +198,8 @@ To use a package on another machine, choose `Import Package…` in `Settings > P
 You can import as a copy, which adds a new profile or inserts a workspace/page into a chosen destination, or choose replace to overwrite an existing matching item. Replace creates an automatic backup first; that backup can be restored through the same import dialog. An installed plugin is never enabled silently, but the preview can offer to enable an installed, disabled plugin for the current device.
 
 The package is deliberately layout-focused. Enabled plugins, Profile Rules, app bindings, and the screensaver clip are device-wide settings and do not travel with the package. Check those settings separately on the receiving machine.
+
+Profiles exported by v1.25.0 and later carry their LED-button row. When an older package has no such row, LoupixDeck creates the device's normal default LED buttons during import.
 
 ## Pages
 
@@ -322,7 +340,7 @@ Built-in command groups include:
 | --- | --- |
 | Pages | Next/previous touch page, next/previous rotary page, go to page number, left/right rotary page commands on devices with side displays |
 | Profiles | Activate profile, go to workspace, next/previous workspace, go to Home workspace |
-| Macros | Type text, key combination, run a named macro, stop macros |
+| Macros | Type text, key combination or sequence, mouse click or scroll, keyboard-plus-mouse, Windows virtual desktops, run a named macro, stop macros |
 | Shell | Run a shell command |
 | Button Control | Update a touch button at runtime, remove a named layer |
 | Device Control | Device off/on/toggle/wakeup, toggle main window |
@@ -337,6 +355,21 @@ For the `Shell Command` chip, the chip label follows the command text while you 
 Shell commands start in your home directory, not in the LoupixDeck installation folder. Use absolute paths when a command refers to a program or file in a particular location; relative paths are resolved from your home directory.
 
 In v1.17.0 and later, commands can provide their own default settings. When you add such a command, its settings popup is already filled with sensible values. You can still change those values for that one button, knob direction, physical button, or page command. Existing assignments are left as they were.
+
+### Direct keyboard and mouse commands
+
+The `Macros` group contains input commands that can run directly from any compatible touch key, physical button, dial gesture, or page command. You do not have to create a named macro first.
+
+| Command | Use |
+| --- | --- |
+| Mouse Click | Click `Left`, `Right`, `Middle`, `X1`, or `X2` at the current pointer position |
+| Mouse Scroll | Scroll the wheel; positive values scroll up and negative values scroll down |
+| Keyboard + Mouse | Hold one or more keys while clicking a mouse button or scrolling |
+| Key Combination | Press one chord, such as `Ctrl+Shift+S` |
+| Key Sequence | Play several chords in order, such as `X, Alt, Ctrl+C` |
+| Previous Desktop / Next Desktop | Switch Windows virtual desktops; these two commands are Windows-only |
+
+Use the record button beside the relevant parameter to capture a key combination, a sequence of combinations, or the modifier keys for `Keyboard + Mouse`. In sequence recording, press the chords one after another; `Undo Last` removes the most recent chord before you save. Key sequences insert a short gap between steps, and ordinary combinations are held briefly so applications can recognise them reliably. Mouse buttons X1 and X2 work with the normal Windows and Linux input backends and with the optional Windows Interception backend.
 
 ## Rotary Controls
 
@@ -356,6 +389,14 @@ Some plugins offer command groups that configure a whole rotary in one step. In 
 - Dragging the group onto the strips does the same. Dropping it anywhere applies the whole mapping, while a plain command drops into a single slot.
 - Slots that the group does not define are left untouched, and every command can still be reassigned individually afterwards.
 
+### Quick menu and dial presets
+
+Right-click a dial in the main window to configure it without opening the full editor. The menu has separate submenus for `Turn left`, `Turn right`, and `Press`, each backed by the full compatible command catalogue. Use `Remove` to clear one gesture, or `Advanced settings…` to open the complete rotary editor. Clearing the final assigned gesture also clears the dial's side-strip label.
+
+The `Presets` submenu applies a related set of rotary gestures in one step. Built-in presets cover touch-page navigation, rotary-page navigation, workspaces, display brightness, the mouse wheel, and—on Windows—virtual desktops. A preset can leave one of the three gestures empty.
+
+Use `Save this dial as a preset…` to store the current dial under a name. User presets are shared across devices and profiles, appear in the main window's `Dial presets` panel, and can be renamed or deleted there. Built-in presets cannot be edited or removed. Applying a preset copies its commands to the dial; renaming or deleting that preset later does not change dials that already use it. Presets can be applied only to dials.
+
 For devices with side strips, each knob can also have a strip label. On the Razer Stream Controller, open a side strip and choose its mode for the current rotary page:
 
 - `Segmented` shows the adjacent knobs as separate labelled sections.
@@ -373,6 +414,8 @@ For device brightness, use `Brightness Up` and `Brightness Down` from the `Devic
 ## Physical Buttons
 
 Physical buttons are edited similarly to touch buttons, but without the touch-screen layer editor. Double-click a physical button in the main window, then assign one or more commands.
+
+On devices with round LED buttons, their commands, states, and colours belong to the active profile. Switching profiles repaints that profile's LED row; switching workspaces within the same profile leaves it unchanged. Existing configurations are migrated by copying the former shared LED row into every existing profile. A newly created profile starts with dark LED buttons until you assign them.
 
 Good uses include:
 
@@ -603,12 +646,15 @@ The current binary installation includes these plugin manifests:
 | Argus Monitor | Windows |
 | HWiNFO | Windows |
 | LibreHardwareMonitor | Windows |
+| LinuxHwInfo | Linux |
 
 Plugins can add commands, dynamic text, settings pages, folders, side-strip providers, or special integration behavior. The exact command names depend on the installed plugin version and what external app or service is configured.
 
 Plugins can also provide default values for command settings. In current bundled plugins, some Audio, Elgato, and Spotify commands use this for editable step sizes, so a rotary can move volume, light brightness, or a Spotify value faster or slower without special syntax.
 
 On a multi-device setup, plugin button-state reads, state changes, and refresh requests apply across every device on which that plugin is enabled. A stateful plugin button on a secondary device therefore stays synchronized just like one on the primary device.
+
+Installing, removing, or switching the active version of a plugin refreshes the command catalogue and side-strip providers for every connected device. You do not need to reconnect secondary devices for the refreshed plugin state to appear.
 
 ### OBS Studio
 
@@ -624,7 +670,7 @@ OBS commands are grouped by recording, replay buffer, streaming, virtual camera,
 
 ### Monitoring Plugins
 
-Argus Monitor, HWiNFO, and LibreHardwareMonitor can show sensor readings on touch buttons when the matching plugin is installed and enabled. LibreHardwareMonitor is bundled with LoupixDeck starting in v1.13.1.
+Argus Monitor, HWiNFO, LibreHardwareMonitor, and LinuxHwInfo can show sensor readings on touch buttons when the matching plugin is installed and enabled. LibreHardwareMonitor is bundled with LoupixDeck starting in v1.13.1; LinuxHwInfo is bundled in Linux releases starting in v1.25.0.
 
 In current releases, sensor commands render as monitoring tiles instead of plain text. A tile can show:
 
@@ -832,6 +878,8 @@ LoupixDeck stores configuration as JSON in the user config directory. Typical fi
 | `config.json` | Global settings |
 | `config_<device>.json` | Per-device layout and device settings |
 | `macros.json` | Shared macro definitions |
+| `custom-apps.json` | Applications added manually to the Apps panel |
+| `dial-presets.json` | User-created dial presets shared across devices and profiles |
 | Plugin config files | Integration-specific settings |
 
 Per-device layout is scoped by serial number when possible. The per-device layout file contains that device's profiles, workspaces, pages, and device-specific settings. If a config file is corrupted, LoupixDeck creates a backup before writing a fresh file.
@@ -840,6 +888,8 @@ Per-device layout is scoped by serial number when possible. The per-device layou
 
 ### Device is not detected
 
+- If the deck is plugged in but the empty state remains, another program may be holding its serial port. LoupixDeck keeps retrying in the background; close the vendor application or service if you want to release the port immediately.
+- A busy device does not appear in the selector until its serial link succeeds. You do not need to restart LoupixDeck after the port is released.
 - Unplug and reconnect the device.
 - Try `Settings > General > Reconnect`.
 - If a device re-enumerates after a cable or power change, LoupixDeck re-resolves its serial port when exactly one device with the saved USB identity is present. Disconnect duplicate matching devices before retrying.
