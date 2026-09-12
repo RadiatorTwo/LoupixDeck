@@ -786,9 +786,9 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
     /// <summary>The three no-match behaviours, in the order they are offered.</summary>
     public IReadOnlyList<NoMatchBehaviorOption> NoMatchBehaviorOptions { get; } =
     [
-        new(NoMatchProfileBehavior.KeepCurrent, "Keep the current profile"),
-        new(NoMatchProfileBehavior.RestorePrevious, "Return to the profile active before the rule"),
-        new(NoMatchProfileBehavior.FixedProfile, "Switch to a fixed fallback profile")
+        new(NoMatchProfileBehavior.KeepCurrent, "Rule_KeepCurrentProfile"),
+        new(NoMatchProfileBehavior.RestorePrevious, "Rule_RestorePreviousProfile"),
+        new(NoMatchProfileBehavior.FixedProfile, "Rule_FixedFallbackProfile")
     ];
 
     /// <summary>What happens to the active profile when no rule matches any more.</summary>

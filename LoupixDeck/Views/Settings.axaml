@@ -877,7 +877,7 @@
                                                   SelectedItem="{Binding SelectedNoMatchBehavior, Mode=TwoWay}">
                                             <ComboBox.ItemTemplate>
                                                 <DataTemplate DataType="vm:NoMatchBehaviorOption">
-                                                    <TextBlock Text="{Binding Label}" />
+                                                    <TextBlock Text="{Binding Label.Value}" />
                                                 </DataTemplate>
                                             </ComboBox.ItemTemplate>
                                         </ComboBox>
