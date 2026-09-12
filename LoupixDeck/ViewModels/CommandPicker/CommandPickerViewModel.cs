@@ -64,7 +64,7 @@ public partial class CommandPickerViewModel : ViewModelBase
     public bool HasSelectedCommand => SelectedCommand != null;
 
     /// <summary>Footer caption naming the row the "Add" button acts on.</summary>
-    public string SelectedCommandLabel => SelectedCommand?.Title ?? "Select a command";
+    public string SelectedCommandLabel => SelectedCommand?.Title ?? Loc.Tr("CommandPicker_SelectACommand");
 
     public string SearchText
     {

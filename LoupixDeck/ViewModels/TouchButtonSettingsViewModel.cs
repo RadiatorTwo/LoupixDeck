@@ -333,7 +333,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     /// sequences (top/middle/bottom) instead of the single <see cref="TouchButton.Command"/>.</summary>
     public bool IsSegmentCommandMode => IsStripCanvas && StripMode == StripMode.FreeDraw;
 
-    private static readonly string[] SegmentTitles = ["Top segment", "Middle segment", "Bottom segment"];
+    private static readonly string[] SegmentTitleKeys = ["Slot_TopSegment", "Slot_MiddleSegment", "Slot_BottomSegment"];
 
     /// <summary>The editable command sequence strips: one (<see cref="TouchButton.Command"/>)
     /// for a normal button / non-FreeDraw strip, or three (the FreeDraw segments) bound to the
@@ -372,7 +372,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
             {
                 var index = i;
                 CommandSlots.Add(new CommandSequenceSlot(
-                    SegmentTitles[index], _commandBuilder, _commandRegistry, _dialogService,
+                    Loc.Tr(SegmentTitleKeys[index]), _commandBuilder, _commandRegistry, _dialogService,
                     () => _stripPage.GetStripSegmentCommand(index),
                     v => _stripPage.SetStripSegmentCommand(index, string.IsNullOrWhiteSpace(v) ? null : v)));
             }
@@ -380,7 +380,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         else
         {
             CommandSlots.Add(new CommandSequenceSlot(
-                "Command sequence", _commandBuilder, _commandRegistry, _dialogService,
+                Loc.Tr("Slot_CommandSequence"), _commandBuilder, _commandRegistry, _dialogService,
                 () => ButtonData.Command,
                 v => ButtonData.Command = string.IsNullOrWhiteSpace(v) ? null : v));
         }
@@ -697,10 +697,10 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     }
 
     /// <summary>"Selected State: X" label under the States list.</summary>
-    public string SelectedStateLabel => $"Selected State: {SelectedState?.Name ?? "-"}";
+    public string SelectedStateLabel => Loc.Tr("TouchButton_SelectedStateFmt", SelectedState?.Name ?? "-");
 
     /// <summary>"Behavior for State: X" title above the bottom command/transition area.</summary>
-    public string BehaviorTitle => $"Behavior for State: {SelectedState?.Name ?? "-"}";
+    public string BehaviorTitle => Loc.Tr("Common_BehaviorForStateFmt", SelectedState?.Name ?? "-");
 
     /// <summary>
     /// True while the assigned command owns the states: it created them, and the plugin drives

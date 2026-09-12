@@ -155,7 +155,7 @@
                                         <TextBlock Grid.Column="0" Classes="picker-detail-title"
                                                    Text="{Binding Title}" />
                                         <TextBlock Grid.Column="1" Classes="picker-detail-count"
-                                                   Text="{Binding Count, StringFormat='{}{0} commands'}" />
+                                                   Text="{loc:TrFormat CommandPicker_CommandsCountFmt, Count}" />
                                     </Grid>
                                 </Border>
                                 <ScrollViewer Grid.Row="1"
@@ -201,7 +201,7 @@
                     <TextBlock Grid.Column="0" Classes="picker-footer-text"
                                Text="{Binding SelectedCommandLabel}" />
                     <Button Grid.Column="1" Classes="picker-footer-add"
-                            Content="+ Add  &#x23CE;"
+                            Content="{loc:Tr CommandPicker_Add}"
                             IsEnabled="{Binding HasSelectedCommand}"
                             Click="Add_Click"
                             ToolTip.Tip="{loc:Tr CommandPicker_AddTheSelectedCommandTo}" />

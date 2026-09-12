@@ -21,7 +21,7 @@
     <Grid Margin="16" RowDefinitions="Auto,*,Auto" RowSpacing="12">
 
         <TextBlock Grid.Row="0" Classes="card-title" Margin="0"
-                   Text="{Binding PageName, StringFormat='Page Commands — {0}'}" />
+                   Text="{loc:TrFormat PageCommands_TitleFmt, PageName}" />
 
         <Grid Grid.Row="1" ColumnDefinitions="*,12,400">
 

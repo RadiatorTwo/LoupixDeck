@@ -297,7 +297,7 @@
                                     IsEnabled="{Binding HasSelectedSteps}" Command="{Binding ClearSelectionCommand}" />
                             <TextBlock Classes="editor-label" VerticalAlignment="Center" Margin="6,0,0,4"
                                        IsVisible="{Binding HasSelectedSteps}"
-                                       Text="{Binding SelectedStepCount, StringFormat='{}{0} selected'}" />
+                                       Text="{loc:TrFormat MacroEditor_SelectedCountFmt, SelectedStepCount}" />
                         </WrapPanel>
 
                         <!-- Bulk actions (only when actionable) -->

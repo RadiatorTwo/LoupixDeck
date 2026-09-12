@@ -199,7 +199,7 @@
                                 <StackPanel Grid.Column="0" VerticalAlignment="Center">
                                     <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
                                     <TextBlock Classes="hint"
-                                               Text="{Binding Commands.Count, StringFormat='{}{0} command(s)'}" />
+                                               Text="{loc:TrFormat Common_CommandCountFmt, Commands.Count}" />
                                 </StackPanel>
                                 <Button Grid.Column="1" Content="{loc:Tr RotaryButton_Clear}"
                                         Command="{Binding ClearCommandCommand}"
@@ -245,7 +245,7 @@
                                 <StackPanel Grid.Column="0" VerticalAlignment="Center">
                                     <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
                                     <TextBlock Classes="hint"
-                                               Text="{Binding Commands.Count, StringFormat='{}{0} command(s)'}" />
+                                               Text="{loc:TrFormat Common_CommandCountFmt, Commands.Count}" />
                                 </StackPanel>
                                 <Button Grid.Column="1" Content="{loc:Tr RotaryButton_Clear}"
                                         Command="{Binding ClearCommandCommand}"
@@ -290,7 +290,7 @@
                                 <StackPanel Grid.Column="0" VerticalAlignment="Center">
                                     <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
                                     <TextBlock Classes="hint"
-                                               Text="{Binding Commands.Count, StringFormat='{}{0} command(s)'}" />
+                                               Text="{loc:TrFormat Common_CommandCountFmt, Commands.Count}" />
                                 </StackPanel>
                                 <Button Grid.Column="1" Content="{loc:Tr RotaryButton_Clear}"
                                         Command="{Binding ClearCommandCommand}"

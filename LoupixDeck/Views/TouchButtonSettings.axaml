@@ -145,7 +145,7 @@
                     <StackPanel Grid.Column="0" VerticalAlignment="Top" Margin="0,0,16,0">
                         <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
                         <TextBlock Classes="hint"
-                                   Text="{Binding Commands.Count, StringFormat='{}{0} command(s)'}" />
+                                   Text="{loc:TrFormat Common_CommandCountFmt, Commands.Count}" />
                     </StackPanel>
 
                     <Panel Grid.Column="1" MinHeight="40">
@@ -349,7 +349,7 @@
                         </StackPanel>
 
                         <TextBlock Classes="label" Margin="0,8,0,0"
-                                   Text="{Binding SelectedState.Name, StringFormat='Selected State: {0}'}" />
+                                   Text="{loc:TrFormat TouchButton_SelectedStateFmt, SelectedState.Name}" />
 
                         <!-- The assigned command owns these states: it created them and its plugin
                              decides which one is active. Only the layers inside a state stay editable. -->
@@ -420,7 +420,7 @@
                                                FontFamily="{StaticResource MdiFont}"
                                                VerticalAlignment="Center" Margin="6,0,0,0"
                                                IsVisible="{Binding IsCommandOwned}"
-                                               ToolTip.Tip="{Binding CommandName, StringFormat='Text supplied by {0}'}" />
+                                               ToolTip.Tip="{loc:TrFormat TouchButton_TextSuppliedByFmt, CommandName}" />
                                 </Grid>
                             </DataTemplate>
                             <DataTemplate DataType="layers:ImageLayer">
@@ -506,7 +506,7 @@
                                        Margin="0" VerticalAlignment="Center" />
                             <TextBlock Classes="label" VerticalAlignment="Center"
                                        IsVisible="{Binding ShowStatesSection}"
-                                       Text="{Binding SelectedState.Name, StringFormat='Editing State: {0}'}" />
+                                       Text="{loc:TrFormat TouchButton_EditingStateFmt, SelectedState.Name}" />
                         </StackPanel>
                         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4">
                             <Button Classes="toolbar" Content="&#x2212;"
@@ -671,7 +671,7 @@
                             <Border Classes="editor-panel" IsEnabled="{Binding CanEditCanvas}">
                                 <StackPanel>
                                     <TextBlock Classes="panel-title"
-                                               Text="{Binding ButtonNumber, StringFormat='Button {0}'}" />
+                                               Text="{loc:TrFormat TouchButton_ButtonNumberFmt, ButtonNumber}" />
                                     <Grid ColumnDefinitions="Auto,*,Auto">
                                         <CheckBox Grid.Column="0" Content="{loc:Tr TouchButton_Background}" Margin="0,0,10,0"
                                                   VerticalAlignment="Center"
@@ -790,7 +790,7 @@
                                                      IsReadOnly="{Binding IsCommandOwned}" />
                                             <TextBlock Classes="hint" Margin="0,0,0,8"
                                                        IsVisible="{Binding IsCommandOwned}"
-                                                       Text="{Binding CommandName, StringFormat='Text supplied by {0}'}" />
+                                                       Text="{loc:TrFormat TouchButton_TextSuppliedByFmt, CommandName}" />
 
                                             <Grid ColumnDefinitions="*,12,*"
                                                   RowDefinitions="Auto,Auto"
@@ -1117,7 +1117,7 @@
                 <StackPanel>
                     <TextBlock Classes="panel-title" Margin="0,0,0,8"
                                IsVisible="{Binding ShowStatesSection}"
-                               Text="{Binding SelectedState.Name, StringFormat='Behavior for State: {0}'}" />
+                               Text="{loc:TrFormat Common_BehaviorForStateFmt, SelectedState.Name}" />
 
                     <!-- After-press transition — above the command sequence. Bound directly to the
                          selected state's transition so switching states never writes into the wrong one. -->

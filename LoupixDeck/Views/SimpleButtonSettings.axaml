@@ -135,7 +135,7 @@
                     <Border Grid.Row="1" Classes="editor-panel" Margin="0,0,0,12">
                         <StackPanel>
                             <TextBlock Classes="panel-title"
-                                       Text="{Binding SelectedState.Name, StringFormat='Behavior for State: {0}'}" />
+                                       Text="{loc:TrFormat Common_BehaviorForStateFmt, SelectedState.Name}" />
 
                             <TextBlock Classes="label" Text="{loc:Tr SimpleButton_Name}" />
                             <TextBox Text="{Binding SelectedState.Name, Mode=TwoWay}" Margin="0,2,0,8"
@@ -184,7 +184,7 @@
                                 <StackPanel Grid.Column="0" VerticalAlignment="Center">
                                     <TextBlock Text="{loc:Tr SimpleButton_Sequence}" FontWeight="SemiBold" />
                                     <TextBlock Classes="hint"
-                                               Text="{Binding Commands.Count, StringFormat='{}{0} command(s)'}" />
+                                               Text="{loc:TrFormat Common_CommandCountFmt, Commands.Count}" />
                                 </StackPanel>
                                 <Button Grid.Column="1" Content="{loc:Tr SimpleButton_Clear}"
                                         Command="{Binding ClearCommandCommand}"

@@ -1,3 +1,4 @@
+using LoupixDeck.Localization;
 using LoupixDeck.PluginSdk;
 
 namespace LoupixDeck.Models.Extensions;
@@ -55,9 +56,9 @@ public static class RotaryButtonExtensions
     /// <summary>The user-facing name of a gesture.</summary>
     public static string DisplayName(this RotaryAction action) => action switch
     {
-        RotaryAction.CounterClockwise => "Rotate Left",
-        RotaryAction.Clockwise => "Rotate Right",
-        RotaryAction.Press => "Press",
+        RotaryAction.CounterClockwise => Loc.Tr("Gesture_RotateLeft"),
+        RotaryAction.Clockwise => Loc.Tr("Gesture_RotateRight"),
+        RotaryAction.Press => Loc.Tr("Gesture_Press"),
         _ => action.ToString()
     };
 }
