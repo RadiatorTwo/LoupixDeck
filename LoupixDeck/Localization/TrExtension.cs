@@ -5,8 +5,12 @@ namespace LoupixDeck.Localization;
 
 /// <summary>
 /// XAML markup extension that yields the translated string for a key and keeps it live:
-/// <c>Text="{loc:Tr About_Close}"</c>. It binds one-way to the <see cref="LocalizationManager"/>
-/// indexer, so when the language changes the bound text updates in place, with no window reload.
+/// <c>Text="{loc:Tr About_Close}"</c>. It binds one-way to the key's <see cref="TranslatedString"/>
+/// entry, so when the language changes the bound text updates in place, with no window reload.
+///
+/// The binding deliberately targets a plain property rather than an indexer on the manager:
+/// Avalonia only refreshes an indexer path when the notification names the indexer property, so an
+/// indexer binding stayed on the language it was first resolved with.
 ///
 /// Keys are stable identifiers (letters, digits and underscores). The human-readable source text
 /// lives in the JSON dictionaries, not in the XAML, which keeps the markup free of the commas and
@@ -26,8 +30,8 @@ public sealed class TrExtension : MarkupExtension
     {
         return new Binding
         {
-            Source = LocalizationManager.Instance,
-            Path = $"[{Key}]",
+            Source = LocalizationManager.Instance.Entry(Key),
+            Path = nameof(TranslatedString.Value),
             Mode = BindingMode.OneWay
         };
     }

@@ -39,10 +39,17 @@ public sealed class LocalizationManager : INotifyPropertyChanged
     private const string SettingsFileName = "ui-settings.json";
 
     private static readonly PropertyChangedEventArgs AllChanged = new(string.Empty);
-    private static readonly PropertyChangedEventArgs IndexerChanged = new("Item[]");
 
     /// <summary>Keys already reported as missing, so a lookup in a binding logs once, not per frame.</summary>
     private readonly HashSet<string> _reportedMissingKeys = new(StringComparer.Ordinal);
+
+    /// <summary>
+    /// One live entry per key bound from XAML. Bindings target a plain property on these objects
+    /// rather than this class's indexer: Avalonia's binding engine only refreshes an indexer path
+    /// when the change notification names the indexer property itself, so an indexer binding never
+    /// updated on a language change. Created on the UI thread while XAML loads.
+    /// </summary>
+    private readonly Dictionary<string, TranslatedString> _entries = new(StringComparer.Ordinal);
 
     private Dictionary<string, string> _base;
     private Dictionary<string, string> _active;
@@ -96,6 +103,22 @@ public sealed class LocalizationManager : INotifyPropertyChanged
     }
 
     /// <summary>
+    /// The live entry for <paramref name="key"/>, which <see cref="TrExtension"/> binds to. The same
+    /// instance is returned for the same key, so every bound control shares one notification source.
+    /// </summary>
+    public TranslatedString Entry(string key)
+    {
+        if (_entries.TryGetValue(key, out TranslatedString entry))
+        {
+            return entry;
+        }
+
+        entry = new TranslatedString(key);
+        _entries[key] = entry;
+        return entry;
+    }
+
+    /// <summary>
     /// Translate free-form English text (command display names, groups and descriptions) at display
     /// time. Falls back to the English text, so untranslated entries and plugin-provided commands
     /// simply show their original wording.
@@ -135,10 +158,14 @@ public sealed class LocalizationManager : INotifyPropertyChanged
         ApplyCulture(normalized);
         ReportMissingTranslations();
 
-        // An empty property name means "all properties changed" and refreshes every binding;
-        // the indexer notification covers the bindings TrExtension creates.
+        // Every {loc:Tr} binding hangs off its own entry, so they are what has to be refreshed.
+        foreach (TranslatedString entry in _entries.Values)
+        {
+            entry.Refresh();
+        }
+
+        // An empty property name means "all properties changed", for anything bound to this class.
         PropertyChanged?.Invoke(this, AllChanged);
-        PropertyChanged?.Invoke(this, IndexerChanged);
     }
 
     /// <summary>
@@ -284,6 +311,26 @@ public sealed class LocalizationManager : INotifyPropertyChanged
     {
         public string Language { get; set; }
     }
+}
+
+/// <summary>
+/// The translated text for one key, as a bindable property. <see cref="TrExtension"/> binds
+/// <see cref="Value"/>, and the manager raises a change on every entry when the language changes,
+/// which is what re-translates the open UI in place.
+/// </summary>
+public sealed class TranslatedString : INotifyPropertyChanged
+{
+    private static readonly PropertyChangedEventArgs ValueChanged = new(nameof(Value));
+
+    private readonly string _key;
+
+    internal TranslatedString(string key) => _key = key;
+
+    public event PropertyChangedEventHandler PropertyChanged;
+
+    public string Value => LocalizationManager.Instance[_key];
+
+    internal void Refresh() => PropertyChanged?.Invoke(this, ValueChanged);
 }
 
 /// <summary>A selectable UI language (code plus display name) for the settings dropdown.</summary>
