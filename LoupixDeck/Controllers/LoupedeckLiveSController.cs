@@ -2316,6 +2316,13 @@ public partial class LoupedeckLiveSController(
         try
         {
             var device = deviceService.Device;
+
+            // The folder can close while the device is gone or exclusive mode owns the
+            // display; the early returns below skip the branch further down that resets
+            // this flag, so reset it here too — otherwise the next real folder entry sees
+            // a stale "already open" and skips blanking the side strips.
+            if (!folderNav.IsActive) _folderModeWasActive = false;
+
             if (device == null) return;
 
             // Exclusive mode owns the display — skip folder repaints, they'd
