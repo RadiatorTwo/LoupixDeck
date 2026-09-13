@@ -264,6 +264,23 @@
         <Style Selector="ComboBox.Switcher /template/ ContentControl#ContentPresenter">
             <Setter Property="Foreground" Value="{DynamicResource AppTextPrimary}" />
         </Style>
+        <!-- The "⋮" menu button sitting flush behind a Profile/Workspace selector: no chrome of
+             its own, just a hover lift so it reads as part of the same segment. -->
+        <Style Selector="Button.SwitcherMenu">
+            <Setter Property="Width" Value="22" />
+            <Setter Property="Height" Value="24" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="FontSize" Value="16" />
+            <Setter Property="Foreground" Value="{DynamicResource AppTextSecondary}" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+        </Style>
+        <Style Selector="Button.SwitcherMenu:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource AppControlBackgroundHover}" />
+        </Style>
         <!-- Small, clean, uniform dropdown chevron in a muted colour, held off the right edge. -->
         <Style Selector="ComboBox.Switcher /template/ PathIcon#DropDownGlyph">
             <Setter Property="Width" Value="8" />
@@ -352,15 +369,33 @@
                     <Border Classes="SwitcherSegment">
                         <StackPanel>
                             <TextBlock Classes="SwitcherCaption" Text="{loc:Tr MainWindow_PROFILE}" />
-                            <ComboBox Classes="Switcher"
-                                      ItemsSource="{Binding SelectedDevice.Profiles}"
-                                      SelectedItem="{Binding SelectedDevice.SelectedProfile}">
-                                <ComboBox.ItemTemplate>
-                                    <DataTemplate x:DataType="models:Profile">
-                                        <TextBlock Text="{Binding Name}" VerticalAlignment="Center" />
-                                    </DataTemplate>
-                                </ComboBox.ItemTemplate>
-                            </ComboBox>
+                            <StackPanel Orientation="Horizontal" Spacing="2">
+                                <ComboBox Classes="Switcher"
+                                          ItemsSource="{Binding SelectedDevice.Profiles}"
+                                          SelectedItem="{Binding SelectedDevice.SelectedProfile}">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate x:DataType="models:Profile">
+                                            <TextBlock Text="{Binding Name}" VerticalAlignment="Center" />
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
+                                <Button Classes="SwitcherMenu"
+                                        ToolTip.Tip="{loc:Tr MainWindow_ProfileActions}">
+                                    <!-- mdi-dots-vertical -->
+                                    <TextBlock FontFamily="{DynamicResource MdiFont}" Text="&#xF01D9;" />
+                                    <Button.Flyout>
+                                        <MenuFlyout Placement="BottomEdgeAlignedRight">
+                                            <MenuItem Header="{loc:Tr MainWindow_NewProfile}"
+                                                      Command="{Binding SelectedDevice.ProfileMenu.NewProfileCommand}" />
+                                            <MenuItem Header="{loc:Tr MainWindow_RenameProfile}"
+                                                      Command="{Binding SelectedDevice.ProfileMenu.RenameProfileCommand}" />
+                                            <Separator />
+                                            <MenuItem Header="{loc:Tr MainWindow_DeleteProfile}"
+                                                      Command="{Binding SelectedDevice.ProfileMenu.DeleteProfileCommand}" />
+                                        </MenuFlyout>
+                                    </Button.Flyout>
+                                </Button>
+                            </StackPanel>
                         </StackPanel>
                     </Border>
 
@@ -370,15 +405,33 @@
                     <Border Classes="SwitcherSegment">
                         <StackPanel>
                             <TextBlock Classes="SwitcherCaption" Text="{loc:Tr MainWindow_WORKSPACE}" />
-                            <ComboBox Classes="Switcher"
-                                      ItemsSource="{Binding SelectedDevice.Workspaces}"
-                                      SelectedItem="{Binding SelectedDevice.SelectedWorkspace}">
-                                <ComboBox.ItemTemplate>
-                                    <DataTemplate x:DataType="models:Workspace">
-                                        <TextBlock Text="{Binding Name}" VerticalAlignment="Center" />
-                                    </DataTemplate>
-                                </ComboBox.ItemTemplate>
-                            </ComboBox>
+                            <StackPanel Orientation="Horizontal" Spacing="2">
+                                <ComboBox Classes="Switcher"
+                                          ItemsSource="{Binding SelectedDevice.Workspaces}"
+                                          SelectedItem="{Binding SelectedDevice.SelectedWorkspace}">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate x:DataType="models:Workspace">
+                                            <TextBlock Text="{Binding Name}" VerticalAlignment="Center" />
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
+                                <Button Classes="SwitcherMenu"
+                                        ToolTip.Tip="{loc:Tr MainWindow_WorkspaceActions}">
+                                    <!-- mdi-dots-vertical -->
+                                    <TextBlock FontFamily="{DynamicResource MdiFont}" Text="&#xF01D9;" />
+                                    <Button.Flyout>
+                                        <MenuFlyout Placement="BottomEdgeAlignedRight">
+                                            <MenuItem Header="{loc:Tr MainWindow_NewWorkspace}"
+                                                      Command="{Binding SelectedDevice.ProfileMenu.NewWorkspaceCommand}" />
+                                            <MenuItem Header="{loc:Tr MainWindow_RenameWorkspace}"
+                                                      Command="{Binding SelectedDevice.ProfileMenu.RenameWorkspaceCommand}" />
+                                            <Separator />
+                                            <MenuItem Header="{loc:Tr MainWindow_DeleteWorkspace}"
+                                                      Command="{Binding SelectedDevice.ProfileMenu.DeleteWorkspaceCommand}" />
+                                        </MenuFlyout>
+                                    </Button.Flyout>
+                                </Button>
+                            </StackPanel>
                         </StackPanel>
                     </Border>
                 </StackPanel>

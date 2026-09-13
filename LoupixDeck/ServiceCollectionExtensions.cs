@@ -340,6 +340,7 @@ public static class ServiceCollectionExtensions
         // catalogue and its own open state, while the scan behind it is a shared root singleton.
         collection.AddSingleton<ViewModels.ActionPanel.ActionPanelViewModel>();
         collection.AddSingleton<ViewModels.DialQuickMenuViewModel>();
+        collection.AddSingleton<ViewModels.ProfileHeaderMenuViewModel>();
         collection.AddSingleton<Services.Actions.IPanelAssignmentService, Services.Actions.PanelAssignmentService>();
 
         collection.AddTransient<MainWindowViewModel>();
