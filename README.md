@@ -20,6 +20,7 @@ Built with **Avalonia** and **.NET 10**.
 ## Highlights
 
 * **Linux and Windows support**
+* **English, German and Spanish interface**, switchable immediately from Settings
 * **Loupedeck Live**, **Live S**, **CT** *(partial)*, **Razer Stream Controller** and **Stream Controller X** support
 * **Multi-device support** with serial-scoped profiles
 * **Layer-based touch button editor** with images, animated images, text, symbols and wallpapers
@@ -77,7 +78,7 @@ Or with `wget`:
 wget -qO- https://raw.githubusercontent.com/RadiatorTwo/LoupixDeck/master/install-loupixdeck.sh | bash
 ```
 
-The installer downloads the latest release, installs LoupixDeck system-wide, adds udev rules and creates a desktop entry.
+The installer downloads the latest release, installs LoupixDeck system-wide, adds udev rules and creates a desktop entry. Updating with the script preserves bundled-plugin settings and keeps their settings files writable by the user while the installed binaries remain root-owned.
 
 After installation, start it with:
 
@@ -94,6 +95,14 @@ curl -fsSLO https://raw.githubusercontent.com/RadiatorTwo/LoupixDeck/master/inst
 less install-loupixdeck.sh
 bash install-loupixdeck.sh
 ```
+
+To build and install the current `master` branch together with the Plugin SDK and all bundled plugins, use:
+
+```bash
+bash install-loupixdeck.sh --from-source
+```
+
+This source-build mode requires Git and the .NET 10 SDK. A plugin that cannot be built is skipped with a warning; the normal installer behavior is unchanged when the option is omitted.
 
 ---
 
@@ -186,7 +195,8 @@ Built-in commands and dynamic values are available for:
 * **Cooler Control**
 * **Argus Monitor** on Windows
 * **LinuxHwInfo** on Linux
-* **Windows Audio** via WASAPI
+* **Audio** device control, per-application mixing and sound playback on Windows and Linux
+* **SteelSeries Sonar** mixer control on Windows
 * Shell commands
 * Page navigation
 * Device power control
@@ -301,7 +311,7 @@ Plugins can provide:
 * static or animated side-strip renderers
 * integration-specific functionality
 
-Plugins installed from a zip live in the user plugin folder. When a user plugin and a bundled plugin have the same id, LoupixDeck loads the higher manifest version; a version tie favours the user copy. This lets a newer zip update a built-in plugin without modifying the application folder. If a later LoupixDeck release bundles a newer version, that bundled copy takes over automatically. Removing a user override restores the bundled copy instead of uninstalling the plugin.
+Plugins installed from a zip live in the user plugin folder. When a user plugin and a bundled plugin have the same id, LoupixDeck loads the higher manifest version; a version tie favours the user copy. This lets a newer zip update a built-in plugin without modifying the application folder. If a later LoupixDeck release bundles a newer version, that bundled copy takes over automatically. Removing a user override restores the bundled copy instead of uninstalling the plugin. The Plugins settings page hides plugins built only for the other operating system instead of showing unusable disabled rows.
 
 The Plugin SDK is maintained in a separate repository:
 

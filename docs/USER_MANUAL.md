@@ -104,6 +104,17 @@ The installer installs the app, creates udev rules, and adds a desktop entry. Af
 loupixdeck
 ```
 
+Updating with the Linux installer preserves each bundled plugin's `settings.json` while replacing the application files. After installation, each settings file is owned by the user who invoked the installer, so plugins can save configuration even though their binaries and directories remain root-owned. If a previously installed plugin is no longer included in the new build, the installer reports it instead of silently leaving an obsolete plugin folder behind.
+
+To compile and install the current `master` branch instead of downloading a release, first download the script and pass `--from-source`:
+
+```bash
+curl -fsSLO https://raw.githubusercontent.com/RadiatorTwo/LoupixDeck/master/install-loupixdeck.sh
+bash install-loupixdeck.sh --from-source
+```
+
+This mode requires Git and the .NET 10 SDK. It builds LoupixDeck, the Plugin SDK, and every plugin included by the release workflow. A plugin that fails to clone or build is skipped with a warning and the rest of the installation continues. Without `--from-source`, the script retains its normal release-download behavior.
+
 ### Runtime and performance
 
 In v1.22.0 and later, display frames reuse pooled buffers, WebSocket payloads are masked in place, and incoming serial data is parsed through a fixed buffer. Command parsing, lookup tables, and native calls also use lower-allocation paths. These changes are automatic; there is no performance setting to enable, and existing layouts and plugins continue to work.
@@ -221,6 +232,8 @@ From the main window you can quickly move between pages in the current workspace
 `Settings > General` also lets you choose the startup touch page used when the current workspace opens.
 
 Page changes normally slide horizontally when triggered from the on-screen page buttons or page commands. In `Settings > General > Page switching`, turn off `Animate touch page transitions` or `Animate rotary page transitions` if you prefer instant page changes. LoupixDeck also falls back to an instant change when an animation is not possible, such as when the device is off, inside folders, on single-page sets, or on hardware without side displays.
+
+`Cycle pages` is enabled by default in the same settings card. When enabled, next from the last page wraps to the first and previous from the first wraps to the last. Turn it off to make both touch-page and rotary-page navigation stop at their respective ends. This applies to page commands as well as the controls in the main window.
 
 ## Touch Buttons
 
@@ -647,14 +660,33 @@ The current binary installation includes these plugin manifests:
 | HWiNFO | Windows |
 | LibreHardwareMonitor | Windows |
 | LinuxHwInfo | Linux |
+| SteelSeries Sonar | Windows |
 
 Plugins can add commands, dynamic text, settings pages, folders, side-strip providers, or special integration behavior. The exact command names depend on the installed plugin version and what external app or service is configured.
+
+The Plugins page only shows plugins that can run on the current operating system. For example, Windows-only plugins are hidden on Linux instead of appearing as disabled rows with controls that cannot work.
 
 Plugins can also provide default values for command settings. In current bundled plugins, some Audio, Elgato, and Spotify commands use this for editable step sizes, so a rotary can move volume, light brightness, or a Spotify value faster or slower without special syntax.
 
 On a multi-device setup, plugin button-state reads, state changes, and refresh requests apply across every device on which that plugin is enabled. A stateful plugin button on a secondary device therefore stays synchronized just like one on the primary device.
 
 Installing, removing, or switching the active version of a plugin refreshes the command catalogue and side-strip providers for every connected device. You do not need to reconnect secondary devices for the refreshed plugin state to appear.
+
+### Audio
+
+The bundled Audio plugin controls output and input devices on Windows and Linux and can also work with the separate audio streams of running applications. Assign `Audio: Mixer` to a touch or physical button to open a live folder with one tile per application currently playing on any output device. Tap a tile to select that application; the first dial then changes its volume, and pressing the dial toggles mute. The selected tile is blue and muted tiles are red.
+
+The mixer updates when applications start or stop playing. If the selected application disappears, another available tile becomes selected so the dial does not keep pointing at a missing stream. The display is only repainted when its content changes.
+
+The Audio command group also offers per-application volume up/down, mute toggle, and exact-volume commands. A saved application binding uses its process identity so it can work again after the application restarts. Device commands can set an exact volume and, where supported, make a selected output device the system default.
+
+Choose a sound folder in the Audio plugin settings to expose its files under `Audio > Play Sound`. Normally, pressing a sound button repeatedly starts overlapping copies. Enable `Stop on second press` in the plugin settings if a second press should stop that sound instead; this option is off by default. `Audio: Stop Sounds` stops every sound started by the plugin at once without affecting audio from other applications.
+
+On Linux, MP3 and M4A playback uses an external player when a particular playback device is selected. Current releases only use players that accept that device explicitly; when no suitable player is installed, the plugin writes an explanation to the log instead of silently using the default output.
+
+### SteelSeries Sonar
+
+The Windows release bundles the SteelSeries Sonar plugin. It exposes controls for the Sonar mixer, including the separate streaming and monitoring volumes used by stream mode. Enable it for the current device under `Settings > Plugins`; it is not shown on Linux.
 
 ### OBS Studio
 
@@ -786,6 +818,7 @@ Underscores in `text` are treated as spaces in the short CLI form.
 
 ### General
 
+- Language: English, German, or Spanish. The selection applies immediately and is shared by all connected devices.
 - Device name and connection state.
 - Port and baudrate.
 - Firmware and serial.
@@ -797,7 +830,9 @@ Underscores in `text` are treated as spaces in the short CLI form.
 - Start with Windows (Windows only).
 - Close button behavior: minimize to tray or quit.
 - Start minimized to tray.
-- Page switching: show the page name overlay, animate rotary page transitions, and animate touch page transitions.
+- Page switching: show the page name overlay, animate rotary page transitions, animate touch page transitions, and choose whether next/previous navigation cycles at the ends.
+
+English is the source language. If a translated string is unavailable, LoupixDeck falls back to its English text instead of showing a blank label. Built-in command names, group headings, category cards, and command chips are translated at display time, and command search matches the translated wording. Assignments, macros, and dial presets continue to store stable internal command ids, so changing the language does not rewrite them. Names supplied directly by plugins remain in the language provided by the plugin.
 
 On Windows, `Start with Windows` controls whether LoupixDeck launches at login. The installer can set the same behavior during setup with `Start on system startup`, but v1.12.1 and later let you turn it on or off from this settings page. Use it together with `Start minimized to tray` if you want LoupixDeck to launch quietly after login.
 
@@ -880,6 +915,7 @@ LoupixDeck stores configuration as JSON in the user config directory. Typical fi
 | `macros.json` | Shared macro definitions |
 | `custom-apps.json` | Applications added manually to the Apps panel |
 | `dial-presets.json` | User-created dial presets shared across devices and profiles |
+| `ui-settings.json` | Interface language shared by all devices |
 | Plugin config files | Integration-specific settings |
 
 Per-device layout is scoped by serial number when possible. The per-device layout file contains that device's profiles, workspaces, pages, and device-specific settings. If a config file is corrupted, LoupixDeck creates a backup before writing a fresh file.
