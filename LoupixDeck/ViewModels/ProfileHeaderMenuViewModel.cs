@@ -4,6 +4,7 @@ using LoupixDeck.Localization;
 using LoupixDeck.Models;
 using LoupixDeck.Services;
 using LoupixDeck.Services.AppLauncher;
+using LoupixDeck.Services.AppSwitching;
 using LoupixDeck.Services.Profiles;
 using LoupixDeck.Utils;
 using LoupixDeck.ViewModels.Base;
@@ -62,6 +63,10 @@ public sealed class ProfileHeaderMenuViewModel : ViewModelBase
         () => _activation.ActiveProfile is { } profile
               && ProfileAppLink.FindLinkedProcessName(_config.ContextRules, profile.Id).Length > 0);
 
+    /// <summary>Raised after an application link was added or removed, or the active profile was
+    /// renamed — everything that other views naming the active profile's link have to redraw for.</summary>
+    public event Action LinkChanged;
+
     /// <summary>Re-evaluates which menu entries are enabled. Call after the tree was edited
     /// elsewhere (the Settings pane).</summary>
     public void Refresh()
@@ -96,6 +101,7 @@ public sealed class ProfileHeaderMenuViewModel : ViewModelBase
 
         profile.Name = name;
         _controller.SaveConfig();
+        LinkChanged?.Invoke();
     }
 
     private async Task DeleteProfile()
@@ -209,6 +215,7 @@ public sealed class ProfileHeaderMenuViewModel : ViewModelBase
         }
 
         Refresh();
+        LinkChanged?.Invoke();
     }
 
     private async Task UnlinkApplication()
@@ -226,6 +233,24 @@ public sealed class ProfileHeaderMenuViewModel : ViewModelBase
         ProfileAppLink.Unlink(_config.ContextRules, profile.Id);
         _controller.SaveConfig();
         Refresh();
+        LinkChanged?.Invoke();
+    }
+
+    /// <summary>
+    /// Removes the active profile's plain link, but only when it is <paramref name="app"/>'s process.
+    /// A menu opened before the link changed elsewhere must not remove another application's link.
+    /// </summary>
+    public async Task UnlinkApplicationAsync(InstalledApp app)
+    {
+        Profile profile = _activation.ActiveProfile;
+        if (profile == null || app == null) return;
+
+        string linked = ProfileAppLink.FindLinkedProcessName(_config.ContextRules, profile.Id);
+        if (linked.Length == 0
+            || !string.Equals(linked, ContextRuleMatcher.Normalize(app.ProcessName), StringComparison.OrdinalIgnoreCase))
+            return;
+
+        await UnlinkApplication();
     }
 
     /// <summary>Shows the name prompt. Returns the trimmed name, or null when cancelled.</summary>
