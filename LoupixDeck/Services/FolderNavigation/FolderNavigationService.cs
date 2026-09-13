@@ -1,10 +1,13 @@
 using System.Collections.Immutable;
+using LoupixDeck.Registry;
 
 namespace LoupixDeck.Services.FolderNavigation;
 
-public sealed class FolderNavigationService : IFolderNavigationService
+public sealed class FolderNavigationService(DeviceGeometry geometry) : IFolderNavigationService
 {
     private readonly Stack<IFolderProvider> _stack = new();
+
+    public FolderGrid Grid { get; } = FolderGrid.From(geometry);
 
     public bool IsActive => _stack.Count > 0;
 
@@ -86,14 +89,20 @@ public sealed class FolderNavigationService : IFolderNavigationService
         var dict = ImmutableDictionary.CreateBuilder<int, FolderEntry>();
         foreach (var entry in entries)
         {
-            // Skip the back-button slot — it's reserved.
-            if (entry.SlotIndex == FolderConstants.BackSlotIndex) continue;
+            // Reserved, and out-of-grid entries would land on a side strip or throw.
+            if (entry.SlotIndex == Grid.BackSlotIndex) continue;
+            if (!Grid.IsGridSlot(entry.SlotIndex)) continue;
             dict[entry.SlotIndex] = entry;
         }
         CurrentEntries = dict.ToImmutable();
     }
 }
 
+/// <summary>
+/// Legacy 5x3 folder constants. Superseded by <see cref="FolderGrid"/>, which is derived from
+/// the active device. Kept only for the built-in stress-test provider, which targets a 5x3
+/// device on purpose. Do not use in new code.
+/// </summary>
 public static class FolderConstants
 {
     /// <summary>5x3 grid: bottom-left = row 2, col 0 = index 10.</summary>
