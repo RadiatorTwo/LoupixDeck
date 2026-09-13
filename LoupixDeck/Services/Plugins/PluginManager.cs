@@ -518,6 +518,21 @@ public class PluginManager : IPluginManager
             }
         }
 
+        FolderGridInfo GetFolderGrid()
+        {
+            try
+            {
+                var nav = Device.GetRequiredService<FolderNavigation.IFolderNavigationService>();
+                return new FolderGridInfo(nav.Grid.Columns, nav.Grid.Rows, nav.Grid.BackSlotIndex);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"PluginHost[{manifest.Id}]: GetFolderGrid failed: {ex.Message}");
+                var fallback = FolderNavigation.FolderGrid.Default;
+                return new FolderGridInfo(fallback.Columns, fallback.Rows, fallback.BackSlotIndex);
+            }
+        }
+
         void OverlayTouchText(int slot, string text, TimeSpan duration)
         {
             try
@@ -714,7 +729,8 @@ public class PluginManager : IPluginManager
             OpenFolder, OverlayTouchText, GetTouchSlotForRotary,
             RequestExclusiveMode, ReleaseExclusiveMode, IsInExclusiveMode,
             RequestFullDisplayRenderer,
-            GetButtonStates, GetActiveButtonState, SetActiveButtonState);
+            GetButtonStates, GetActiveButtonState, SetActiveButtonState,
+            GetFolderGrid);
     }
 
     /// <summary>Remembers a full-display session handed to a plugin, pruning released ones.</summary>
