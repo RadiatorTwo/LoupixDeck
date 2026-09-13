@@ -35,6 +35,7 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
     private readonly IPluginManager _pluginManager;
     private readonly IAutostartService _autostart;
     private readonly IWorkspaceActivationService _activation;
+    private readonly IProfileEditingService _profileEditing;
     private readonly IProfilePackageService _packageService;
     private readonly IScreensaverProviderRegistry _screensaverRegistry;
     private readonly IExclusiveModeService _exclusiveMode;
@@ -132,7 +133,8 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
         IWorkspaceActivationService activation,
         IProfilePackageService packageService,
         IScreensaverProviderRegistry screensaverRegistry,
-        IExclusiveModeService exclusiveMode)
+        IExclusiveModeService exclusiveMode,
+        IProfileEditingService profileEditing)
     {
         Config = config;
         IsVibrationSupported = config?.Geometry.HasVibration ?? true;
@@ -147,6 +149,7 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
         _packageService = packageService;
         _screensaverRegistry = screensaverRegistry;
         _exclusiveMode = exclusiveMode;
+        _profileEditing = profileEditing;
 
         // The alignment pattern lives on the device, not in this window, so closing the
         // window has to take it down — including via the title-bar X, which completes the
@@ -606,35 +609,26 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
 
     private void AddProfile()
     {
-        // SimpleButtons is deliberately left null: the controller builds the device defaults when
-        // the profile is first activated (ApplyActiveProfileButtons). Copying the current profile's
-        // LED buttons here would make "add profile" quietly duplicate someone else's LED state.
-        var workspace = new Workspace { Name = "Home" };
-        var profile = new Profile { Name = "New Profile", HomeWorkspaceId = workspace.Id };
-        profile.Workspaces.Add(workspace);
-        Config.Profiles.Add(profile);
+        Profile profile = _profileEditing.AddProfile("New Profile");
         ProfileRows.Add(new ProfileRow(profile, this));
         RemoveProfileCommand.NotifyCanExecuteChanged();
     }
 
     private async Task RemoveProfile(ProfileRow row)
     {
-        if (row == null || Config.Profiles.Count <= 1) return;
+        if (row == null) return;
 
-        var wasActive = Config.ActiveProfileId == row.Profile.Id;
-        var wasStartup = Config.StartupProfileId == row.Profile.Id;
+        bool wasActive = Config.ActiveProfileId == row.Profile.Id;
 
-        Config.Profiles.Remove(row.Profile);
+        // The row goes before the activation event is handled: that handler is posted to the UI
+        // thread and walks ProfileRows, so it must not see the removed row.
+        if (!_profileEditing.CanRemoveProfile(row.Profile)) return;
         ProfileRows.Remove(row);
+        await _profileEditing.RemoveProfile(row.Profile);
 
-        if (wasStartup)
-            Config.StartupProfileId = Config.Profiles[0].Id;
-
-        // Activating a surviving profile also re-targets the editor and refreshes the badges.
-        if (wasActive)
-            await _activation.ActivateProfile(Config.Profiles[0].Id);
-        else
-            foreach (var r in ProfileRows) r.RefreshFlags();
+        // Activating a surviving profile re-targets the editor and refreshes the badges itself.
+        if (!wasActive)
+            foreach (ProfileRow r in ProfileRows) r.RefreshFlags();
 
         RemoveProfileCommand.NotifyCanExecuteChanged();
     }
@@ -649,8 +643,7 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
     private void AddWorkspace(ProfileRow row)
     {
         if (row == null) return;
-        var workspace = new Workspace { Name = "New Workspace" };
-        row.Profile.Workspaces.Add(workspace);
+        Workspace workspace = _profileEditing.AddWorkspace(row.Profile, "New Workspace");
         row.Workspaces.Add(new WorkspaceRow(workspace, row));
         RemoveWorkspaceCommand.NotifyCanExecuteChanged();
     }
@@ -658,20 +651,10 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
     private async Task RemoveWorkspace(WorkspaceRow row)
     {
         if (row == null) return;
-        var profile = row.Parent.Profile;
-        if (profile.Workspaces.Count <= 1) return;
+        if (!_profileEditing.CanRemoveWorkspace(row.Parent.Profile, row.Workspace)) return;
 
-        var wasHome = profile.HomeWorkspaceId == row.Workspace.Id;
-        var wasActive = Config.ActiveProfileId == profile.Id && Config.ActiveWorkspaceId == row.Workspace.Id;
-
-        profile.Workspaces.Remove(row.Workspace);
         row.Parent.Workspaces.Remove(row);
-
-        if (wasHome)
-            profile.HomeWorkspaceId = profile.Workspaces[0].Id;
-
-        if (wasActive)
-            await _activation.GoToHomeWorkspace();
+        await _profileEditing.RemoveWorkspace(row.Parent.Profile, row.Workspace);
 
         row.Parent.RefreshFlags();
         RemoveWorkspaceCommand.NotifyCanExecuteChanged();
