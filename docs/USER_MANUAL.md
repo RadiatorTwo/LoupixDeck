@@ -121,11 +121,11 @@ LoupixDeck checks GitHub for a newer stable release shortly after it starts. The
 
 When a new version exists, a short hint appears below the profile and workspace bar. If the window is minimized or in the tray, the operating system shows a notification instead. **Details** opens the update dialog with the release notes of every version between the installed and the latest one:
 
-- **Update now** downloads the installer, checks it against the `SHA256SUMS` file published with the release and only then starts it. On Windows the setup wizard opens; it closes LoupixDeck, installs the update and can start it again. On Linux, installs made with `install-loupixdeck.sh` run the script for the new version in a terminal window, where it asks for your password, closes LoupixDeck, installs and restarts it.
+- **Update now** downloads the installer, checks it against the SHA-256 checksum GitHub publishes for the release file and only then starts it. On Windows the setup wizard opens; it closes LoupixDeck, installs the update and can start it again. On Linux, installs made with `install-loupixdeck.sh` run the script for the new version in a terminal window, where it asks for your password, closes LoupixDeck, installs and restarts it.
 - **Later** closes the dialog and keeps the hint.
 - **Skip this version** hides the hint until the next release comes out.
 
-Installations that cannot update themselves (the portable Windows zip, package-manager or source builds) and releases without a matching installer or checksum get **Open release page** instead. An update never touches your configuration, macros, dial presets or asset store.
+Installations that cannot update themselves (the portable Windows zip, package-manager or source builds) and releases without a matching installer get **Open release page** instead. An update never touches your configuration, macros, dial presets or asset store.
 
 Turn the automatic check off under `Settings > General > Check for updates automatically`. **Check for updates** in the About dialog always works, even with the automatic check off, and also reports a version you skipped.
 

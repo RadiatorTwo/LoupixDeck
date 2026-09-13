@@ -34,8 +34,8 @@ public interface IUpdateInstaller
     UpdateInstallMode Mode { get; }
 
     /// <summary>
-    /// Downloads the installer of <paramref name="release"/>, verifies it against the release's
-    /// SHA256SUMS and starts it detached. Never touches config, macros or the asset store. Never throws.
+    /// Downloads the installer of <paramref name="release"/>, verifies it against the SHA-256 digest
+    /// GitHub publishes for the asset and starts it detached. Never touches config, macros or the asset store. Never throws.
     /// </summary>
     Task<UpdateInstallResult> InstallAsync(ReleaseInfo release, IProgress<double> progress,
         CancellationToken cancellationToken);
@@ -45,7 +45,6 @@ public sealed class UpdateInstaller : IUpdateInstaller
 {
     public const string WindowsSetupAsset = "LoupixDeck-Setup-win-x64.exe";
     public const string LinuxScriptAsset = "install-loupixdeck.sh";
-    public const string ChecksumAsset = "SHA256SUMS";
 
     /// <summary>Written next to LoupixDeck.exe by LoupixDeck-Setup (LoupixDeck.Setup/Services/AppPaths.cs).</summary>
     private const string SetupManifestName = "install-manifest.json";
@@ -69,8 +68,7 @@ public sealed class UpdateInstaller : IUpdateInstaller
         };
 
         ReleaseAsset installer = assetName is null ? null : release.FindAsset(assetName);
-        ReleaseAsset checksums = release.FindAsset(ChecksumAsset);
-        if (installer is null || checksums is null)
+        if (installer?.Sha256 is null)
         {
             // Nothing that can be installed and verified for this platform: let the user download it.
             Console.WriteLine($"[Update] No verifiable installer for {Mode} in {release.Tag} - opening the release page.");
@@ -83,13 +81,7 @@ public sealed class UpdateInstaller : IUpdateInstaller
             string directory = Path.Combine(Path.GetTempPath(), "LoupixDeck-update", release.Version.ToString());
             Directory.CreateDirectory(directory);
 
-            string sums = await Http.GetStringAsync(checksums.DownloadUrl, cancellationToken);
-            string expected = FindChecksum(sums, installer.Name);
-            if (expected is null)
-            {
-                return Fail($"{ChecksumAsset} of {release.Tag} has no entry for {installer.Name}.");
-            }
-
+            string expected = installer.Sha256;
             string path = Path.Combine(directory, installer.Name);
             await DownloadAsync(installer.DownloadUrl, path, progress, cancellationToken);
 
@@ -148,21 +140,6 @@ public sealed class UpdateInstaller : IUpdateInstaller
         }
 
         return UpdateInstallMode.ReleasePage;
-    }
-
-    /// <summary>Reads a <c>sha256sum</c> listing: <c>&lt;hash&gt;  &lt;name&gt;</c> or <c>&lt;hash&gt; *&lt;name&gt;</c> per line.</summary>
-    private static string FindChecksum(string listing, string fileName)
-    {
-        foreach (string line in listing.Split('\n'))
-        {
-            string[] parts = line.Trim().Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
-            if (parts.Length == 2 && parts[1].Trim().TrimStart('*') == fileName)
-            {
-                return parts[0];
-            }
-        }
-
-        return null;
     }
 
     private static async Task DownloadAsync(string url, string path, IProgress<double> progress,

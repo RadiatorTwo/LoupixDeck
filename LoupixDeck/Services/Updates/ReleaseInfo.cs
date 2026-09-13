@@ -1,7 +1,8 @@
 namespace LoupixDeck.Services.Updates;
 
 /// <summary>A file attached to a GitHub release.</summary>
-public sealed record ReleaseAsset(string Name, string DownloadUrl);
+/// <param name="Sha256">Hex SHA-256 GitHub computed for the upload (the asset's <c>digest</c>), or null.</param>
+public sealed record ReleaseAsset(string Name, string DownloadUrl, string Sha256);
 
 /// <summary>One stable GitHub release of LoupixDeck.</summary>
 public sealed record ReleaseInfo(

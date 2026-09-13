@@ -51,7 +51,8 @@ public sealed class GitHubReleaseClient
             {
                 foreach (JsonElement asset in assetArray.EnumerateArray())
                 {
-                    assets.Add(new ReleaseAsset(GetString(asset, "name"), GetString(asset, "browser_download_url")));
+                    assets.Add(new ReleaseAsset(GetString(asset, "name"), GetString(asset, "browser_download_url"),
+                        ParseSha256(GetString(asset, "digest"))));
                 }
             }
 
@@ -81,6 +82,15 @@ public sealed class GitHubReleaseClient
     {
         return element.TryGetProperty(name, out JsonElement value) && value.ValueKind == JsonValueKind.String
             ? value.GetString()
+            : null;
+    }
+
+    /// <summary>GitHub reports an asset digest as <c>sha256:&lt;hex&gt;</c>.</summary>
+    private static string ParseSha256(string digest)
+    {
+        const string prefix = "sha256:";
+        return digest != null && digest.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)
+            ? digest[prefix.Length..]
             : null;
     }
 
