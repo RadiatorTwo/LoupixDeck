@@ -52,6 +52,10 @@ public sealed class UpdateInstaller : IUpdateInstaller
     /// <summary>Install directory of install-loupixdeck.sh.</summary>
     private const string LinuxScriptInstallDir = "/usr/local/lib/loupixdeck";
 
+    /// <summary>The install script a fresh Linux install is made with (see README).</summary>
+    private const string MasterScriptUrl =
+        $"https://raw.githubusercontent.com/{GitHubReleaseClient.Repository}/master/{LinuxScriptAsset}";
+
     /// <summary>No overall timeout: the setup is large and a slow line is not an error.</summary>
     private static readonly HttpClient Http = CreateClient();
 
@@ -68,7 +72,16 @@ public sealed class UpdateInstaller : IUpdateInstaller
         };
 
         ReleaseAsset installer = assetName is null ? null : release.FindAsset(assetName);
-        if (installer?.Sha256 is null)
+        if (Mode == UpdateInstallMode.LinuxScript && installer?.Sha256 is null)
+        {
+            // Releases published before the script became a release asset: run the same script a
+            // fresh install uses (the README's curl | bash from master). It downloads the release
+            // archive itself, so there is no release file of ours to verify here.
+            Console.WriteLine($"[Update] {release.Tag} has no {LinuxScriptAsset} asset - using the script from master.");
+            installer = new ReleaseAsset(LinuxScriptAsset, MasterScriptUrl, null);
+        }
+
+        if (installer is null || (installer.Sha256 is null && Mode != UpdateInstallMode.LinuxScript))
         {
             // Nothing that can be installed and verified for this platform: let the user download it.
             Console.WriteLine($"[Update] No verifiable installer for {Mode} in {release.Tag} - opening the release page.");
@@ -85,14 +98,17 @@ public sealed class UpdateInstaller : IUpdateInstaller
             string path = Path.Combine(directory, installer.Name);
             await DownloadAsync(installer.DownloadUrl, path, progress, cancellationToken);
 
-            string actual = await ComputeSha256Async(path, cancellationToken);
-            if (!string.Equals(actual, expected, StringComparison.OrdinalIgnoreCase))
+            if (expected is not null)
             {
-                File.Delete(path);
-                return Fail($"Checksum mismatch for {installer.Name} (expected {expected}, got {actual}).");
-            }
+                string actual = await ComputeSha256Async(path, cancellationToken);
+                if (!string.Equals(actual, expected, StringComparison.OrdinalIgnoreCase))
+                {
+                    File.Delete(path);
+                    return Fail($"Checksum mismatch for {installer.Name} (expected {expected}, got {actual}).");
+                }
 
-            Console.WriteLine($"[Update] {installer.Name} verified ({actual}).");
+                Console.WriteLine($"[Update] {installer.Name} verified ({actual}).");
+            }
 
             if (Mode == UpdateInstallMode.WindowsSetup)
             {
