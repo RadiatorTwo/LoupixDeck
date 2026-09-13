@@ -37,8 +37,8 @@ public sealed partial class UpdateService : ObservableObject, IUpdateService
     private const string AutoCheckKey = "CheckForUpdates";
     private const string SkippedVersionKey = "SkippedUpdateVersion";
 
-    /// <summary>Gives startup, devices and plugins time to settle before the network is touched.</summary>
-    private static readonly TimeSpan StartupDelay = TimeSpan.FromSeconds(10);
+    /// <summary>Lets the window finish its first layout before the network is touched.</summary>
+    private static readonly TimeSpan StartupDelay = TimeSpan.FromSeconds(2);
 
     private readonly GitHubReleaseClient _client = new();
 

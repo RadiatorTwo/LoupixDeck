@@ -181,6 +181,11 @@ public partial class App : Application
             };
             ShowMainWindow(shell, primaryConfig, desktop);
 
+            // Look for a new release in the background (issue #233) as soon as the window exists to
+            // show the hint. Not after the device bring-up: a slow or absent device would hold it
+            // back. Never blocks and never shows an error; the result goes to the log and the hint.
+            root.GetRequiredService<Services.Updates.IUpdateService>().StartAutomaticCheck();
+
             // Load the shared plugin set ONCE (root) now that the fallback device is set.
             root.GetRequiredService<Services.Plugins.IPluginManager>().LoadPlugins();
 
@@ -236,10 +241,6 @@ public partial class App : Application
 
             // Arm runtime hot-plug now that the initial device set is up.
             StartHotPlug();
-
-            // Look for a new release in the background (issue #233). Never blocks and never shows
-            // an error; the result goes to the log and, if there is an update, to the window hint.
-            root.GetRequiredService<Services.Updates.IUpdateService>().StartAutomaticCheck();
         }
         catch (Exception ex)
         {
