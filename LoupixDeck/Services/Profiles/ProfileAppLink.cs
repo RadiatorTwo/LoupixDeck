@@ -124,7 +124,7 @@ public static class ProfileAppLink
     /// never silently discards a rule a person built by hand in Settings.</summary>
     private static bool IsPlainAppRuleFor(ContextRule rule, Guid profileId) =>
         IsAppRuleFor(rule, profileId)
-        && rule.TitleContains.Length == 0
+        && string.IsNullOrEmpty(rule.TitleContains)
         && rule.ActivateWorkspaceId == null
         && rule.TouchPageIndex == null
         && rule.RotaryPageIndex == null
