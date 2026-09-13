@@ -4,9 +4,10 @@
 # it system-wide, and sets up udev rules and a desktop entry. The build is
 # self-contained, so no separate .NET runtime is required to run it.
 #
-# Usage: install-loupixdeck.sh [version | --from-source] [--restart]
+# Usage: install-loupixdeck.sh [version] [--from-source] [--restart]
 #   version        Release tag to install (e.g. v1.22.0). Defaults to the
-#                  latest release. A leading 'v' is optional.
+#                  latest release. A leading 'v' is optional. With
+#                  --from-source it is the version stamped into the build.
 #   --from-source  Clone and build master of LoupixDeck, the Plugin SDK and
 #                  all bundled plugins instead. Needs git and the .NET SDK.
 #   --restart      Close a running LoupixDeck before installing and start it
@@ -64,9 +65,10 @@ RESTART=0
 for arg in "$@"; do
     case "$arg" in
         -h|--help)
-            printf 'Usage: %s [version | --from-source] [--restart]\n\n' "$(basename "$0")"
+            printf 'Usage: %s [version] [--from-source] [--restart]\n\n' "$(basename "$0")"
             printf '  version        Release tag to install (e.g. v1.22.0).\n'
-            printf '                 Defaults to the latest release.\n'
+            printf '                 Defaults to the latest release. With --from-source\n'
+            printf '                 it is the version stamped into the build.\n'
             printf '  --from-source  Clone master of LoupixDeck, the Plugin SDK and all\n'
             printf '                 bundled plugins, build them locally and install the\n'
             printf '                 result. Requires git and the .NET SDK.\n'
@@ -88,8 +90,13 @@ done
 if [ "$RESTART" -eq 1 ]; then
     trap 'rc=$?; rm -rf "$TMP_DIR"; if [ "$rc" -ne 0 ] && [ -t 0 ]; then read -rp "Installation failed. Press Enter to close this window." _ || true; fi' EXIT
 fi
+# With --from-source the version is not a release to download but the version the master build
+# reports, e.g. an older number to try the in-app updater against a published release.
+BUILD_VERSION=""
 if [ "$FROM_SOURCE" -eq 1 ] && [ -n "$REQUESTED_VERSION" ]; then
-    die "--from-source builds master; a version cannot be combined with it."
+    BUILD_VERSION="${REQUESTED_VERSION#v}"
+    printf '%s' "$BUILD_VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$' \
+        || die "Version '$REQUESTED_VERSION' must look like 1.25.0 (or v1.25.0)."
 fi
 
 # ---------- Build from source ----------
@@ -134,6 +141,7 @@ build_from_source() {
     git clone --quiet --depth 1 --recurse-submodules --shallow-submodules \
         "https://github.com/$REPO.git" "$src/LoupixDeck"
     TAG="master ($(git -C "$src/LoupixDeck" rev-parse --short HEAD))"
+    [ -z "$BUILD_VERSION" ] || TAG="$TAG as v$BUILD_VERSION"
 
     log "Cloning RadiatorTwo/LoupixDeck.PluginSdk (master) ..."
     git clone --quiet --depth 1 "https://github.com/RadiatorTwo/LoupixDeck.PluginSdk.git" "$src/LoupixDeck.PluginSdk"
@@ -153,6 +161,7 @@ build_from_source() {
         -p:PublishTrimmed=false \
         -p:EnableCompressionInSingleFile=true \
         -p:ReadyToRun=true \
+        ${BUILD_VERSION:+-p:Version=$BUILD_VERSION} \
         -o "$out"
 
     local entry repo dir manifest id built=() failed=()
