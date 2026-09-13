@@ -53,7 +53,7 @@
   "Confirm_EnableAppSwitchingTitle": "Turn on automatic switching?",
   "Confirm_Keep": "Keep",
   "Confirm_KeepStates": "Keep states",
-  "Confirm_LinkAppConflictMessage": "'{0}' is already used by another profile rule. Link it to '{1}' instead? That rule is removed.",
+  "Confirm_LinkAppConflictMessage": "'{0}' is already used by a profile rule for another profile. Link it to '{1}' instead? Those rules are removed.",
   "Confirm_LinkAppConflictTitle": "Application already in use",
   "Confirm_LinkHere": "Link here",
   "Confirm_No": "No",

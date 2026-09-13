@@ -53,7 +53,7 @@
   "Confirm_EnableAppSwitchingTitle": "¿Activar el cambio automático?",
   "Confirm_Keep": "Conservar",
   "Confirm_KeepStates": "Conservar estados",
-  "Confirm_LinkAppConflictMessage": "'{0}' ya se usa en otra regla de perfil. ¿Vincularla a '{1}' en su lugar? Esa regla se elimina.",
+  "Confirm_LinkAppConflictMessage": "'{0}' ya se usa en una regla de perfil de otro perfil. ¿Vincularla a '{1}' en su lugar? Esas reglas se eliminan.",
   "Confirm_LinkAppConflictTitle": "Aplicación ya en uso",
   "Confirm_LinkHere": "Vincular aquí",
   "Confirm_No": "No",

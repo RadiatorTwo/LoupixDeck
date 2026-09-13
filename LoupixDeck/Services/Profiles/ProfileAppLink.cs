@@ -37,8 +37,10 @@ public static class ProfileAppLink
     }
 
     /// <summary>
-    /// Rules that match the same process but do not activate <paramref name="profileId"/>. Only one
-    /// rule is applied per window, so any of these would shadow a link to this profile.
+    /// Rules that match the same process but do not activate <paramref name="profileId"/>, excluding
+    /// rules that also filter by <see cref="ContextRule.TitleContains"/>: those only win when the
+    /// title matches too, so they do not unconditionally shadow a plain link to this profile and must
+    /// not be deleted as if they did. Only a plain (process-only) rule is guaranteed to shadow.
     /// </summary>
     public static IReadOnlyList<ContextRule> FindConflictingRules(IEnumerable<ContextRule> rules, Guid profileId,
         string processName)
@@ -49,6 +51,7 @@ public static class ProfileAppLink
 
         return rules
             .Where(rule => rule.ActivateProfileId != profileId
+                           && string.IsNullOrEmpty(rule.TitleContains)
                            && string.Equals(ContextRuleMatcher.Normalize(rule.ProcessName), process,
                                StringComparison.OrdinalIgnoreCase))
             .ToList();
@@ -79,15 +82,23 @@ public static class ProfileAppLink
         return best == null ? string.Empty : ContextRuleMatcher.Normalize(best.ProcessName);
     }
 
-    /// <summary>Process names that never match a real foreground window: sandbox launchers report
-    /// their own process instead of the contained application's, so a rule for them would either
-    /// never fire or collide with every other sandboxed app.</summary>
+    /// <summary>Process names that are never the application's own foreground process, so a rule for
+    /// them would either never fire or collide with every other app sharing the same wrapper:
+    /// <c>flatpak</c>/<c>snap</c> are sandbox launchers that report their own process instead of the
+    /// contained application's; <c>env</c>/<c>sh</c>/<c>bash</c> are shell wrappers a desktop entry's
+    /// <c>Exec=</c> line runs through on Linux; <c>update</c> is Squirrel's <c>Update.exe</c>, which
+    /// several Windows apps (e.g. Discord, Slack) resolve to instead of their real executable.</summary>
+    private static readonly HashSet<string> UnlinkableProcessNames = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "flatpak", "snap", "env", "sh", "bash", "update"
+    };
+
+    /// <summary>True when <paramref name="processName"/> names a real, distinguishable foreground
+    /// process a rule can target — see <see cref="UnlinkableProcessNames"/> for what is excluded.</summary>
     public static bool CanLinkProcess(string processName)
     {
         string process = ContextRuleMatcher.Normalize(processName);
-        return process.Length > 0
-               && !string.Equals(process, "flatpak", StringComparison.OrdinalIgnoreCase)
-               && !string.Equals(process, "snap", StringComparison.OrdinalIgnoreCase);
+        return process.Length > 0 && !UnlinkableProcessNames.Contains(process);
     }
 
     /// <summary>Replaces the profile's plain app rules (see <see cref="IsPlainAppRuleFor"/>) with a

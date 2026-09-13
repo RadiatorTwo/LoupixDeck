@@ -188,15 +188,16 @@ public sealed class ProfileHeaderMenuViewModel : ViewModelBase
         }
 
         ProfileAppLink.Link(_config.ContextRules, profile.Id, app.ProcessName);
+        _controller.SaveConfig();
 
         if (!_config.AppSwitchingEnabled
             && await Ask("Confirm_EnableAppSwitchingTitle",
                 Loc.Tr("Confirm_EnableAppSwitchingMessage", app.Name), "Confirm_TurnOn", "Confirm_NotNow"))
         {
             _config.AppSwitchingEnabled = true;
+            _controller.SaveConfig();
         }
 
-        _controller.SaveConfig();
         Refresh();
     }
 

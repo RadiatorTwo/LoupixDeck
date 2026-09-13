@@ -53,7 +53,7 @@
   "Confirm_EnableAppSwitchingTitle": "Automatischen Wechsel einschalten?",
   "Confirm_Keep": "Behalten",
   "Confirm_KeepStates": "Zustände behalten",
-  "Confirm_LinkAppConflictMessage": "'{0}' wird bereits von einer anderen Profilregel verwendet. Stattdessen '{1}' zuordnen? Diese Regel wird entfernt.",
+  "Confirm_LinkAppConflictMessage": "'{0}' wird bereits von einer Profilregel für ein anderes Profil verwendet. Stattdessen '{1}' zuordnen? Diese Regeln werden entfernt.",
   "Confirm_LinkAppConflictTitle": "Anwendung bereits verwendet",
   "Confirm_LinkHere": "Hier zuordnen",
   "Confirm_No": "Nein",
