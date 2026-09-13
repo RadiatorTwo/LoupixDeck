@@ -4,6 +4,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="using:LoupixDeck.ViewModels"
+        xmlns:controls="using:LoupixDeck.Views.Controls"
         mc:Ignorable="d"
         Width="560" Height="520" MinWidth="420" MinHeight="320"
         x:Class="LoupixDeck.Views.UpdateDialog"
@@ -82,9 +83,9 @@
                                 <TextBlock Text="{Binding Heading}"
                                            FontSize="14" FontWeight="SemiBold"
                                            Foreground="{DynamicResource AppTextPrimary}" />
-                                <SelectableTextBlock Text="{Binding Notes}"
-                                                     FontSize="13" TextWrapping="Wrap"
-                                                     Foreground="{DynamicResource AppTextSecondary}" />
+                                <controls:MarkdownText Markdown="{Binding Notes}"
+                                                       TextElement.FontSize="13"
+                                                       TextElement.Foreground="{DynamicResource AppTextSecondary}" />
                             </StackPanel>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
