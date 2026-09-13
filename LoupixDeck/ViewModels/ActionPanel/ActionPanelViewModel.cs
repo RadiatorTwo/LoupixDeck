@@ -151,6 +151,20 @@ public partial class ActionPanelViewModel : ViewModelBase
         _ = action(preset.Preset);
     }
 
+    /// <summary>
+    /// Links an application to the active profile. Set by the device view model, which owns the
+    /// dialogs the link flow needs.
+    /// </summary>
+    public Func<InstalledApp, Task> LinkAppToProfile { get; set; }
+
+    /// <summary>Links an application row to the active profile. Offered on the row's context menu.</summary>
+    public IRelayCommand<PanelItemViewModel> LinkAppToProfileCommand
+        => field ??= Relay.Create<PanelItemViewModel>(row =>
+        {
+            if (LinkAppToProfile != null && row is AppPanelItemViewModel app)
+                _ = LinkAppToProfile(app.App);
+        });
+
     private void OnDialPresetsChanged(object sender, EventArgs e) =>
         Dispatcher.UIThread.Post(RebuildDialPresets);
 

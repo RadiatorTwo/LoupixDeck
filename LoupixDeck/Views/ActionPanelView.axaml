@@ -73,10 +73,16 @@
              Material Design glyph the command declares. -->
         <DataTemplate x:Key="PanelRowTemplate" x:DataType="panel:PanelItemViewModel">
             <Border Classes="panel-row">
-                <!-- Only on a hand-added row: a scanned application would come back on the next
-                     scan, so removing one would be a button that undoes itself. -->
                 <Border.ContextFlyout>
                     <MenuFlyout>
+                        <!-- Application rows only, where foreground-app detection exists: runs the
+                             header's "Link application…" flow for the active profile. -->
+                        <MenuItem Header="{loc:Tr ActionPanel_LinkToActiveProfile}"
+                                  IsVisible="{Binding CanLinkToProfile}"
+                                  Command="{Binding $parent[ListBox].((panel:ActionPanelViewModel)DataContext).LinkAppToProfileCommand}"
+                                  CommandParameter="{Binding}" />
+                        <!-- Only on a hand-added row: a scanned application would come back on the next
+                             scan, so removing one would be a button that undoes itself. -->
                         <MenuItem Header="{loc:Tr ActionPanel_Remove}"
                                   IsVisible="{Binding CanRemove}"
                                   Command="{Binding $parent[ListBox].((panel:ActionPanelViewModel)DataContext).RemoveApplicationCommand}"

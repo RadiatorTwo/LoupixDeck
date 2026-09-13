@@ -9,6 +9,7 @@
   "ActionPanel_Delete": "Löschen",
   "ActionPanel_DialPresets": "Drehregler-Vorlagen",
   "ActionPanel_DropOneOnADial": "Auf einen Drehregler ziehen, um alle drei Gesten auf einmal zu belegen. Nur Drehregler nehmen sie an.",
+  "ActionPanel_LinkToActiveProfile": "Dem aktiven Profil zuordnen",
   "ActionPanel_LookingForInstalledApplications": "Suche nach installierten Anwendungen…",
   "ActionPanel_Remove": "Entfernen",
   "ActionPanel_Rename": "Umbenennen…",

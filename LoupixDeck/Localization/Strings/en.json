@@ -9,6 +9,7 @@
   "ActionPanel_Delete": "Delete",
   "ActionPanel_DialPresets": "Dial presets",
   "ActionPanel_DropOneOnADial": "Drop one on a dial to set all three of its gestures at once. Only dials accept them.",
+  "ActionPanel_LinkToActiveProfile": "Link to active profile",
   "ActionPanel_LookingForInstalledApplications": "Looking for installed applications…",
   "ActionPanel_Remove": "Remove",
   "ActionPanel_Rename": "Rename…",

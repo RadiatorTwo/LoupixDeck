@@ -261,6 +261,8 @@ public partial class MainWindowViewModel : ViewModelBase
         // The panel lists the presets; the dialogs they need live here, where the dialog service is.
         ActionPanel.RenamePreset = RenameDialPresetAsync;
         ActionPanel.DeletePreset = DeleteDialPresetAsync;
+        // Linking an application from a panel row runs the header's flow, questions included.
+        ActionPanel.LinkAppToProfile = ProfileMenu.LinkApplicationAsync;
         _panelAssignment = panelAssignment;
         _config = config;
 

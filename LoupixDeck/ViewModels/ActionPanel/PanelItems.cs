@@ -47,12 +47,22 @@ public abstract partial class PanelItemViewModel : ViewModelBase
     /// <see cref="CanRemove"/>: the two offer different menu entries, and a row must never show one
     /// that does nothing to it.</summary>
     public bool CanEdit { get; init; }
+
+    /// <summary>True on application rows where foreground-app detection exists (Windows, Linux):
+    /// the row can be linked to the active profile.</summary>
+    public bool CanLinkToProfile { get; init; }
 }
 
 /// <summary>An installed application: assigning it puts its launch command and its icon on the button.</summary>
-public sealed class AppPanelItemViewModel(InstalledApp app) : PanelItemViewModel
+public sealed class AppPanelItemViewModel : PanelItemViewModel
 {
-    public InstalledApp App { get; } = app;
+    public AppPanelItemViewModel(InstalledApp app)
+    {
+        App = app;
+        CanLinkToProfile = OperatingSystem.IsWindows() || OperatingSystem.IsLinux();
+    }
+
+    public InstalledApp App { get; }
 
     public override string Title => App.Name;
 
