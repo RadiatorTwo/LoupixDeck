@@ -1,5 +1,6 @@
 ﻿using System.ComponentModel;
 using System.IO.Hashing;
+using System.Threading;
 using LoupixDeck.LoupedeckDevice;
 using LoupixDeck.Models;
 using LoupixDeck.Models.Extensions;
@@ -130,9 +131,10 @@ public partial class LoupedeckLiveSController(
     // full repaint on the UI thread. A depth counter rather than a bool: a rapid profile-then-
     // workspace switch can start a second ApplyActiveWorkspace call before the first's finally
     // runs, and a bool would let the inner call's finally clear the flag while the outer call
-    // is still inside StopDisplayTakeoversAsync, reopening the race. Only ever touched on the
-    // UI thread (both callers await straight through from UI-thread event handlers, same as
-    // ApplyActiveWorkspace's own "must run on the UI thread" contract), so a plain int suffices.
+    // is still inside StopDisplayTakeoversAsync, reopening the race. ApplyActiveWorkspace is also
+    // reachable synchronously from the device input thread (CommandService.ExecuteCommand does not
+    // marshal a folder entry's OnPress to the UI thread), so the increment/decrement and the read
+    // in OnFolderStateChanged all go through Interlocked/Volatile rather than a plain int.
     private int _workspaceApplyDepth;
 
     // Tracks the slot index of the currently active touch contact. Set on the
@@ -2365,7 +2367,7 @@ public partial class LoupedeckLiveSController(
                 // null (a never-visited workspace), or simply about to be overwritten.
                 // ApplyActiveWorkspace's own repaint (page + side strips) covers what this
                 // branch would otherwise do; painting here too would race it.
-                if (_workspaceApplyDepth > 0) return;
+                if (Volatile.Read(ref _workspaceApplyDepth) > 0) return;
 
                 // Folder mode left — restore the configured page.
                 if (!wallpaperAnimation.TryRedirectPageRedraw())
@@ -2503,7 +2505,7 @@ public partial class LoupedeckLiveSController(
         // The workspace being left may own a macro that is waiting for its trigger to come up (#185).
         ReleaseAllPresses();
 
-        _workspaceApplyDepth++;
+        Interlocked.Increment(ref _workspaceApplyDepth);
         try
         {
             // A profile/workspace switch ends any full-display takeover (issue #124) and
@@ -2539,7 +2541,7 @@ public partial class LoupedeckLiveSController(
         }
         finally
         {
-            _workspaceApplyDepth--;
+            Interlocked.Decrement(ref _workspaceApplyDepth);
         }
     }
 
