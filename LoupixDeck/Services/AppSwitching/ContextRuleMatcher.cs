@@ -8,6 +8,11 @@ namespace LoupixDeck.Services.AppSwitching;
 /// </summary>
 public static class ContextRuleMatcher
 {
+    /// <summary>Linux's TASK_COMM_LEN: the kernel truncates <c>/proc/&lt;pid&gt;/comm</c> (what
+    /// <c>LinuxActiveWindowMonitor</c> reports the foreground process name from) to 15 characters, so
+    /// a longer rule name like "telegram-desktop" never equals the reported "telegram-deskto".</summary>
+    private const int LinuxCommMaxLength = 15;
+
     /// <summary>
     /// Returns the best rule for the given foreground process/title: the highest
     /// <see cref="ContextRule.Priority"/> among all matches, breaking ties by list order (the
@@ -47,8 +52,7 @@ public static class ContextRuleMatcher
 
         if (string.IsNullOrEmpty(ruleProcess) && !hasTitleFilter) return false;
 
-        if (!string.IsNullOrEmpty(ruleProcess) &&
-            !string.Equals(ruleProcess, process, StringComparison.OrdinalIgnoreCase))
+        if (!string.IsNullOrEmpty(ruleProcess) && !ProcessNameMatches(ruleProcess, process))
         {
             return false;
         }
@@ -60,6 +64,28 @@ public static class ContextRuleMatcher
         }
 
         return true;
+    }
+
+    /// <summary>True when the rule's (already normalized) process name matches the reported
+    /// (already normalized) foreground process name. Ordinarily an exact, case-insensitive compare;
+    /// on Linux, when <paramref name="reportedProcess"/> is exactly <see cref="LinuxCommMaxLength"/>
+    /// characters long and <paramref name="ruleProcess"/> is longer, the kernel may have truncated the
+    /// real name, so only the rule name's first <see cref="LinuxCommMaxLength"/> characters are
+    /// compared. Windows behaviour is unaffected: it never takes this branch.</summary>
+    private static bool ProcessNameMatches(string ruleProcess, string reportedProcess)
+    {
+        if (string.Equals(ruleProcess, reportedProcess, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (OperatingSystem.IsLinux()
+            && reportedProcess.Length == LinuxCommMaxLength
+            && ruleProcess.Length > LinuxCommMaxLength)
+        {
+            return string.Equals(ruleProcess[..LinuxCommMaxLength], reportedProcess,
+                StringComparison.OrdinalIgnoreCase);
+        }
+
+        return false;
     }
 
     /// <summary>Strips a trailing ".exe" so Windows and Linux rules are portable.</summary>

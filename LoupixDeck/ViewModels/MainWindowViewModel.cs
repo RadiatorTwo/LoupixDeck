@@ -235,6 +235,7 @@ public partial class MainWindowViewModel : ViewModelBase
         LoupedeckConfig config,
         ViewModels.ActionPanel.ActionPanelViewModel actionPanel,
         DialQuickMenuViewModel dialMenu,
+        ProfileHeaderMenuViewModel profileMenu,
         Services.DialPresets.IDialPresetStore dialPresetStore,
         Services.Actions.IPanelAssignmentService panelAssignment,
         LoupixDeck.Registry.DeviceRegistry.DeviceInfo deviceInfo,
@@ -254,6 +255,7 @@ public partial class MainWindowViewModel : ViewModelBase
         _workspaceActivation = workspaceActivation;
         ActionPanel = actionPanel;
         DialMenu = dialMenu;
+        ProfileMenu = profileMenu;
         _dialPresetStore = dialPresetStore;
 
         // The panel lists the presets; the dialogs they need live here, where the dialog service is.
@@ -853,6 +855,9 @@ public partial class MainWindowViewModel : ViewModelBase
     /// dial can run, and the presets it can be loaded from.</summary>
     public DialQuickMenuViewModel DialMenu { get; }
 
+    /// <summary>Commands of the "⋮" menus beside the header's Profile and Workspace selectors.</summary>
+    public ProfileHeaderMenuViewModel ProfileMenu { get; }
+
     /// <summary>Binds a catalogue entry to one gesture of a dial, then saves and repaints.</summary>
     public async Task AssignDialGestureAsync(RotaryButton dial, RotaryAction gesture, MenuEntry entry)
     {
@@ -1134,6 +1139,7 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         await _dialogService.ShowDialogAsync<SettingsViewModel, DialogResult>();
         LoupedeckController.SaveConfig();
+        ProfileMenu.Refresh();
     }
 
     private async Task MacroEditorMenuButton_Click()

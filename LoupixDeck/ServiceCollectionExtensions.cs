@@ -252,6 +252,7 @@ public static class ServiceCollectionExtensions
         collection.AddSingleton<IDeviceService, LoupedeckDeviceService>();
         collection.AddSingleton<IPageManager, PageManager>();
         collection.AddSingleton<IWorkspaceActivationService, WorkspaceActivationService>();
+        collection.AddSingleton<IProfileEditingService, ProfileEditingService>();
 
         // Command catalog — device-scoped so command activation
         // (SysCommandService → ActivatorUtilities.CreateInstance(this provider))
@@ -339,6 +340,7 @@ public static class ServiceCollectionExtensions
         // catalogue and its own open state, while the scan behind it is a shared root singleton.
         collection.AddSingleton<ViewModels.ActionPanel.ActionPanelViewModel>();
         collection.AddSingleton<ViewModels.DialQuickMenuViewModel>();
+        collection.AddSingleton<ViewModels.ProfileHeaderMenuViewModel>();
         collection.AddSingleton<Services.Actions.IPanelAssignmentService, Services.Actions.PanelAssignmentService>();
 
         collection.AddTransient<MainWindowViewModel>();
@@ -427,6 +429,9 @@ public static class ServiceCollectionExtensions
         collection.AddTransient<ConfirmDialog>();
         collection.AddTransient<ConfirmDialogViewModel>();
 
+        collection.AddTransient<TextInputDialog>();
+        collection.AddTransient<TextInputDialogViewModel>();
+
         collection.AddTransient<ProfileImport>();
         collection.AddTransient<ProfileImportViewModel>();
 
@@ -474,6 +479,7 @@ public static class ServiceCollectionExtensions
         dialogService.Register<DialPresetEditorViewModel, DialPresetEditor>();
         dialogService.Register<AboutViewModel, About>();
         dialogService.Register<ConfirmDialogViewModel, ConfirmDialog>();
+        dialogService.Register<TextInputDialogViewModel, TextInputDialog>();
         dialogService.Register<ProfileImportViewModel, ProfileImport>();
 
         // Heal configs that were saved before HapticSteps had ObjectCreationHandling.Replace —
