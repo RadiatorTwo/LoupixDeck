@@ -97,6 +97,7 @@ public static class SymbolLibrary
         new("folder-open", "Folder Open", "System", 0xF0770),
         new("file", "File", "System", 0xF0214),
         new("home", "Home", "System", 0xF02DC),
+        new("web", "Web", "System", 0xF059F),
         new("magnify", "Search", "System", 0xF0349),
         new("delete", "Delete", "System", 0xF01B4),
         new("refresh", "Refresh", "System", 0xF0450),
