@@ -2132,8 +2132,9 @@ public partial class LoupedeckLiveSController(
             return;
         }
 
-        var slotBitmaps = new SkiaSharp.SKBitmap[FolderConstants.TotalSlots];
-        for (var slot = 0; slot < FolderConstants.TotalSlots; slot++)
+        int totalSlots = device.TouchButtonCount;
+        var slotBitmaps = new SkiaSharp.SKBitmap[totalSlots];
+        for (var slot = 0; slot < totalSlots; slot++)
             slotBitmaps[slot] = RenderSlot(bySlot, slot);
 
         await device.DrawTouchSlotsAtomic(slotBitmaps, refresh: true);
@@ -2175,7 +2176,8 @@ public partial class LoupedeckLiveSController(
     private async Task DrawExclusiveGrid(LoupedeckDevice.Device.LoupedeckDevice device,
         IReadOnlyDictionary<int, PluginSdk.FolderEntry> bySlot)
     {
-        for (var slot = 0; slot < FolderConstants.TotalSlots; slot++)
+        int totalSlots = device.TouchButtonCount;
+        for (var slot = 0; slot < totalSlots; slot++)
         {
             if (!ExclusiveOwnsSlot(slot)) continue;
             using var bmp = RenderSlot(bySlot, slot);
@@ -2187,7 +2189,7 @@ public partial class LoupedeckLiveSController(
     private async Task DrawExclusiveSingleTile(LoupedeckDevice.Device.LoupedeckDevice device,
         IReadOnlyDictionary<int, PluginSdk.FolderEntry> bySlot, int slotIndex)
     {
-        if (slotIndex < 0 || slotIndex >= FolderConstants.TotalSlots) slotIndex = 0;
+        if (slotIndex < 0 || slotIndex >= device.TouchButtonCount) slotIndex = 0;
         if (!ExclusiveOwnsSlot(slotIndex)) return;
         using var bmp = RenderSlot(bySlot, slotIndex);
         await device.DrawTouchSlot(slotIndex, bmp, refresh: false);
@@ -2199,13 +2201,14 @@ public partial class LoupedeckLiveSController(
         PluginSdk.IExclusiveModeProvider provider,
         IReadOnlyDictionary<int, PluginSdk.FolderEntry> bySlot)
     {
+        int totalSlots = device.TouchButtonCount;
         if (!ReferenceEquals(_dirtyOwner, provider) || _dirtyKeys == null)
         {
             _dirtyOwner = provider;
-            _dirtyKeys = new TileSig?[FolderConstants.TotalSlots]; // all null → redraw all
+            _dirtyKeys = new TileSig?[totalSlots]; // all null → redraw all
         }
 
-        for (var slot = 0; slot < FolderConstants.TotalSlots; slot++)
+        for (var slot = 0; slot < totalSlots; slot++)
         {
             if (!ExclusiveOwnsSlot(slot)) continue;
 
@@ -2224,7 +2227,7 @@ public partial class LoupedeckLiveSController(
     private SkiaSharp.SKBitmap RenderSlot(IReadOnlyDictionary<int, PluginSdk.FolderEntry> bySlot, int slot)
         => bySlot.TryGetValue(slot, out var entry)
             ? RenderSdkEntry(entry, slot)
-            : BitmapHelper.RenderEmptyFolderSlot(config, slot, KeySize, KeySize, FolderConstants.Columns);
+            : BitmapHelper.RenderEmptyFolderSlot(config, slot, KeySize, KeySize, folderNav.Grid.Columns);
 
     // --- DirtyTiles bookkeeping -------------------------------------------------
     private PluginSdk.IExclusiveModeProvider _dirtyOwner;
@@ -2265,7 +2268,7 @@ public partial class LoupedeckLiveSController(
             TextSize = e.TextSize,
             Bold = e.Bold
         };
-        return BitmapHelper.RenderFolderEntry(core, null, slot, KeySize, KeySize, FolderConstants.Columns);
+        return BitmapHelper.RenderFolderEntry(core, null, slot, KeySize, KeySize, folderNav.Grid.Columns);
     }
 
     private async void OnFolderStateChanged()
