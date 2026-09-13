@@ -170,7 +170,7 @@ An application assigned to a touch key receives its launch command and, when ava
 
 Assigning **Shell Command** or **Open Website** from the panel first asks for the command line or the web address; cancelling leaves the control unchanged. A touch key is labelled with the program name or the site, for example `notepad` or `youtube.com`. Open Website only opens `http://` and `https://` addresses; an address without a scheme is opened as `https://`.
 
-Right-click an application in the panel and choose **Link to active profile** to open that profile whenever the application is in front. It works like **Link application…** in the profile menu.
+Right-click an application in the panel to open the active profile whenever that application is in front, or to stop doing so. This is the same link as **Link application…** in the profile menu. An application whose process cannot be detected, such as a Flatpak or a program started through `Update.exe`, shows a disabled entry instead.
 
 On Windows, the Apps tab scans Start Menu shortcuts, Steam libraries—including libraries on other drives—and Epic Games installations. Steam and Epic entries launch through their own launcher. On Linux, it scans XDG desktop entries, including Flatpak and Snap exports. Use the `+` button beside the app search field to add a portable program, script, or shortcut that discovery missed; hand-added entries remain after rescans and restarts. Use the refresh button to scan again.
 
