@@ -311,3 +311,43 @@ jobs:
           files: LoupixDeck-linux-x64.tar.gz
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # The in-app updater (LoupixDeck/Services/Updates) finds its download by the fixed asset names
+  # LoupixDeck-Setup-win-x64.exe, LoupixDeck-linux-x64.tar.gz and install-loupixdeck.sh, and
+  # refuses to start anything whose SHA-256 is not listed in SHA256SUMS. Keep all of them stable.
+  checksums:
+    name: Publish checksums
+    runs-on: ubuntu-latest
+    needs: [build-windows, build-linux]
+    if: github.event_name == 'release'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Download release assets
+        run: |
+          mkdir -p assets
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --dir assets \
+            --pattern 'LoupixDeck-win-x64.zip' \
+            --pattern 'LoupixDeck-Setup-win-x64.exe' \
+            --pattern 'LoupixDeck-linux-x64.tar.gz'
+          cp install-loupixdeck.sh assets/
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Compute SHA256SUMS
+        run: |
+          cd assets
+          sha256sum LoupixDeck-win-x64.zip LoupixDeck-Setup-win-x64.exe LoupixDeck-linux-x64.tar.gz install-loupixdeck.sh > SHA256SUMS
+          cat SHA256SUMS
+
+      - name: Upload checksums and install script to release
+        uses: softprops/action-gh-release@v3
+        with:
+          files: |
+            assets/SHA256SUMS
+            assets/install-loupixdeck.sh
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
