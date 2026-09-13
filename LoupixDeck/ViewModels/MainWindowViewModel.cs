@@ -822,7 +822,21 @@ public partial class MainWindowViewModel : ViewModelBase
         if (!_clipboard.IsEmpty(target) && !await ConfirmOverwrite())
             return;
 
-        if (!await _panelAssignment.AssignAsync(item, target))
+        bool assigned;
+        if (_panelAssignment.NeedsParameter(item, out Services.Actions.PanelParameterPrompt prompt))
+        {
+            string value = await AskPanelParameterAsync(item, prompt);
+            if (value == null)
+                return;
+
+            assigned = await _panelAssignment.AssignAsync(item, target, value);
+        }
+        else
+        {
+            assigned = await _panelAssignment.AssignAsync(item, target);
+        }
+
+        if (!assigned)
             return;
 
         switch (Classify(target))
@@ -842,6 +856,37 @@ public partial class MainWindowViewModel : ViewModelBase
         }
 
         SelectButton(target);
+    }
+
+    /// <summary>
+    /// Asks for the value a prompting panel action needs. Returns the typed value, or null when the
+    /// user cancels. An unusable value (a non-http address) is asked again with the text kept.
+    /// </summary>
+    private async Task<string> AskPanelParameterAsync(ViewModels.ActionPanel.PanelItemViewModel item,
+        Services.Actions.PanelParameterPrompt prompt)
+    {
+        string command = ((ViewModels.ActionPanel.ActionPanelItemViewModel)item).Entry.Command;
+        string text = null;
+        string titleKey = prompt.TitleKey;
+
+        while (true)
+        {
+            TextInputDialogViewModel dialog = null;
+            DialogResult result = await _dialogService.ShowDialogAsync<TextInputDialogViewModel, DialogResult>(vm =>
+            {
+                dialog = vm;
+                vm.Configure(Loc.Tr(titleKey), Loc.Tr(prompt.PlaceholderKey), Loc.Tr("Prompt_Assign"), text);
+            });
+
+            if (result?.IsConfirmed != true || dialog == null)
+                return null;
+
+            text = dialog.Result;
+            if (Services.Actions.PanelParameterPrompts.TryBuild(command, text, out _, out _))
+                return text;
+
+            titleKey = prompt.InvalidTitleKey;
+        }
     }
 
     /// <summary>Assigns a panel row to whatever button is currently selected. No-op with nothing

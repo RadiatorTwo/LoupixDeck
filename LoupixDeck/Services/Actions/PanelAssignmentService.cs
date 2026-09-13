@@ -27,6 +27,19 @@ public interface IPanelAssignmentService
     /// launch command could not be built. The caller owns saving and repainting.
     /// </summary>
     Task<bool> AssignAsync(PanelItemViewModel item, LoupedeckButton target);
+
+    /// <summary>
+    /// True when assigning <paramref name="item"/> needs a value typed by the user first (a shell
+    /// command line, a web address). <paramref name="prompt"/> then names the question to ask.
+    /// </summary>
+    bool NeedsParameter(PanelItemViewModel item, out PanelParameterPrompt prompt);
+
+    /// <summary>
+    /// Like <see cref="AssignAsync(PanelItemViewModel, LoupedeckButton)"/>, for an item that
+    /// <see cref="NeedsParameter"/> reported. Returns false and writes nothing when the value is not
+    /// usable.
+    /// </summary>
+    Task<bool> AssignAsync(PanelItemViewModel item, LoupedeckButton target, string parameterValue);
 }
 
 /// <inheritdoc cref="IPanelAssignmentService"/>
@@ -62,7 +75,8 @@ public sealed class PanelAssignmentService(
 
     public async Task<bool> AssignAsync(PanelItemViewModel item, LoupedeckButton target)
     {
-        if (!CanAssign(item, target))
+        // A prompting command without its value would write the menu entry's name as the parameter.
+        if (!CanAssign(item, target) || NeedsParameter(item, out _))
             return false;
 
         return item switch
@@ -73,6 +87,24 @@ public sealed class PanelAssignmentService(
                 ApplyRotaryGroup(preset.Preset.ToRotaryGroup(), (RotaryButton)target, preset.Title),
             _ => false
         };
+    }
+
+    public bool NeedsParameter(PanelItemViewModel item, out PanelParameterPrompt prompt)
+    {
+        prompt = item is ActionPanelItemViewModel { Entry.IsCommandGroup: false } action
+            ? PanelParameterPrompts.For(action.Entry.Command)
+            : null;
+        return prompt != null;
+    }
+
+    public Task<bool> AssignAsync(PanelItemViewModel item, LoupedeckButton target, string parameterValue)
+    {
+        if (!CanAssign(item, target) || !NeedsParameter(item, out _)
+            || item is not ActionPanelItemViewModel action
+            || !PanelParameterPrompts.TryBuild(action.Entry.Command, parameterValue, out string command, out string label))
+            return Task.FromResult(false);
+
+        return Task.FromResult(ApplyCommand(command, label, action.SymbolId, target));
     }
 
     // ── Applications ───────────────────────────────────────────────────────
@@ -123,10 +155,16 @@ public sealed class PanelAssignmentService(
         if (string.IsNullOrEmpty(command))
             return false;
 
-        if (target is not TouchButton touch)
-            return AssignCommandOnly(command, item.Title, target);
+        return ApplyCommand(command, item.Title, item.SymbolId, target);
+    }
 
-        ActionAssignment.ApplyToTouchButton(touch, command, item.Title, item.SymbolId,
+    /// <summary>Writes a finished command: glyph and caption on a touch key, command only elsewhere.</summary>
+    private bool ApplyCommand(string command, string label, string symbolId, LoupedeckButton target)
+    {
+        if (target is not TouchButton touch)
+            return AssignCommandOnly(command, label, target);
+
+        ActionAssignment.ApplyToTouchButton(touch, command, label, symbolId,
             _geometry.KeySize, _geometry.KeySize);
 
         ReconcileStates(touch);
