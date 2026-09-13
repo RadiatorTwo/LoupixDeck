@@ -23,6 +23,7 @@ interfaces, and a few value types. Everything lives in the
 | `IPluginHost` | [Host Services](API-Host-Services#ipluginhost) | Bridge handed to the plugin in `Initialize`. |
 | `IPluginLogger` | [Host Services](API-Host-Services#ipluginlogger) | Scoped log sink. |
 | `IPluginSettings` | [Host Services](API-Host-Services#ipluginsettings) | Per-plugin JSON-backed key/value store. |
+| `FolderGridInfo` | [Host Services](API-Host-Services#foldergridinfo) | Rows, columns and reserved Back slot of the active device's folder grid. |
 | `DeviceInfo` | [Host Services](API-Host-Services#deviceinfo) | Read-only description of the active device. |
 
 ## Optional capabilities
@@ -35,7 +36,7 @@ interfaces, and a few value types. Everything lives in the
 | `IFolderProvider` | [Folder Navigation](Advanced-Folders#ifolderprovider) | Supplies a folder view on the touch screen. |
 | `FolderProviderBase` | [Folder Navigation](Advanced-Folders#folderproviderbase) | Convenience base class. |
 | `FolderEntry` | [Folder Navigation](Advanced-Folders#folderentry) | A single grid slot in a folder. |
-| `FolderLayout` | [Folder Navigation](Advanced-Folders#folderlayout) | Grid geometry constants. |
+| `FolderLayout` | [Folder Navigation](Advanced-Folders#foldergridinfo-and-folderlayout) | Legacy 5×3 constants; new providers should use `FolderGridInfo`. |
 | `RotaryOverride` | [Folder Navigation](Advanced-Folders#rotaryoverride) | Per-encoder behavior while a folder is open. |
 | `IExclusiveModeProvider` | [Exclusive Mode](Advanced-Exclusive-Mode#iexclusivemodeprovider) | Full-device takeover (HUD, screensaver, video). |
 | `ExclusiveRenderMode` | [Exclusive Mode](Advanced-Exclusive-Mode#exclusiverendermode) | How the host pushes a provider's frames, including `None` for provider-owned output. |
@@ -48,7 +49,7 @@ interfaces, and a few value types. Everything lives in the
 | `ISideStripProvider` | [Plugin Rendering](Advanced-Screensavers-and-Side-Strips#side-strip-providers) | Renderer factory that can own one side strip for a rotary page. |
 | `ISideStripSession` | [Plugin Rendering](Advanced-Screensavers-and-Side-Strips#side-strip-providers) | One live, disposable strip attachment. |
 | `IAnimatedSideStripSession` | [Plugin Rendering](Advanced-Screensavers-and-Side-Strips#animated-side-strip-sessions) | Optional scheduler-driven animation capability for a strip session. |
-| `AnimationFrameInfo` | [Plugin Rendering](Advanced-Screensavers-and-Side-Strips#frame-results-and-timing) | Dirty key and skip/frame/final result for an animated strip frame. |
+| `AnimationFrameInfo` | [Plugin Rendering](Advanced-Screensavers-and-Side-Strips#animated-side-strip-sessions) | Dirty key and skip/frame/final result for an animated strip frame. |
 | `IPluginSettingsPage` | [Settings Page](Advanced-Settings-Page#ipluginsettingspage) | Exposes user-editable settings. |
 | `PluginSettingDescriptor` | [Settings Page](Advanced-Settings-Page#pluginsettingdescriptor) | One editable setting. |
 | `PluginSettingKind` | [Settings Page](Advanced-Settings-Page#pluginsettingkind) | Editor kind enum. |
@@ -60,7 +61,7 @@ interfaces, and a few value types. Everything lives in the
 ```csharp
 public static class SdkInfo
 {
-    public static readonly Version Version = new(1, 20, 0);
+    public static readonly Version Version = new(1, 22, 0);
 }
 ```
 
@@ -68,7 +69,9 @@ Always set `PluginMetadata.SdkVersion = SdkInfo.Version`. The host loads a
 plugin only when `SdkVersion.Major` matches its own — within a major version,
 the contracts are guaranteed source- and binary-compatible.
 
-SDK 1.20.0 adds optional screensaver and animated-side-strip contracts plus
+SDK 1.22.0 adds `IPluginHost.FolderGrid` and `FolderGridInfo` for device-aware
+plugin folders. Earlier 1.x additions include command-declared button states,
+optional screensaver and animated-side-strip contracts, and
 `ExclusiveRenderMode.None`. These changes are additive: existing 1.x plugins
 continue to load without a rebuild. The package targets both `net9.0` and
 `net10.0` so plugins on either target can reference the same contract version.

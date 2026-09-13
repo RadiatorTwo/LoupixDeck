@@ -98,7 +98,7 @@ Use the installer from the README:
 curl -fsSL https://raw.githubusercontent.com/RadiatorTwo/LoupixDeck/master/install-loupixdeck.sh | bash
 ```
 
-The installer installs the app, creates udev rules, and adds a desktop entry. After install, launch it from your app menu or run:
+The installer installs the app, creates udev rules for every supported device—including the Razer Stream Controller X—and adds a desktop entry. When it runs in a terminal, release downloads show a progress bar. After install, launch it from your app menu or run:
 
 ```bash
 loupixdeck
@@ -115,13 +115,21 @@ bash install-loupixdeck.sh --from-source
 
 This mode requires Git and the .NET 10 SDK. It builds LoupixDeck, the Plugin SDK, and every plugin included by the release workflow. A plugin that fails to clone or build is skipped with a warning and the rest of the installation continues. Without `--from-source`, the script retains its normal release-download behavior.
 
+Add `--restart` to close a running LoupixDeck cleanly before replacing its files and start it again afterwards:
+
+```bash
+bash install-loupixdeck.sh --restart
+```
+
+The in-app Linux updater uses this option automatically. If the update is cancelled or fails while the previous installation is still available, the script starts that version again so LoupixDeck is not left closed.
+
 ### Update notifications
 
 LoupixDeck checks GitHub for a newer stable release shortly after it starts. The check runs in the background: no network connection, a timeout or a GitHub rate limit never delays startup or opens an error dialog; the result only goes to the log. Pre-releases and drafts are never offered.
 
 When a new version exists, a short hint appears below the profile and workspace bar. If the window is minimized or in the tray, the operating system shows a notification instead. **Details** opens the update dialog with the release notes of every version between the installed and the latest one:
 
-- **Update now** downloads the installer, checks it against the SHA-256 checksum GitHub publishes for the release file and only then starts it. On Windows the setup wizard opens; it closes LoupixDeck, installs the update and can start it again. On Linux, installs made with `install-loupixdeck.sh` run the script for the new version in a terminal window, where it asks for your password, closes LoupixDeck, installs and restarts it.
+- **Update now** downloads the installer, checks it against the SHA-256 checksum GitHub publishes for the release file and only then starts it. On Windows the setup wizard opens; it closes LoupixDeck, installs the update and can start it again. On Linux, installs made with `install-loupixdeck.sh` run the script for the new version in a terminal window, where it asks for your password, closes LoupixDeck, installs and restarts it. If the update is cancelled or fails before replacement completes, the previous installation is started again when it is still available.
 - **Later** closes the dialog and keeps the hint.
 - **Skip this version** hides the hint until the next release comes out.
 
@@ -257,6 +265,12 @@ Page changes normally slide horizontally when triggered from the on-screen page 
 
 `Cycle pages` is enabled by default in the same settings card. When enabled, next from the last page wraps to the first and previous from the first wraps to the last. Turn it off to make both touch-page and rotary-page navigation stop at their respective ends. This applies to page commands as well as the controls in the main window.
 
+### Dynamic folders
+
+Some plugin commands open a temporary folder directly on the device, for example an audio mixer, an OBS scene picker, or a monitoring dashboard. The folder uses the active device's real key layout rather than assuming a 5×3 grid. The bottom-left key is reserved for Back; on 4×3 devices, entries stay within the twelve centre keys and do not overwrite the side strips.
+
+Opening a different profile or workspace closes the current folder, including nested folders, and draws the selected layout. Leaving through the Back key instead returns to the previous folder level or the normal page.
+
 ## Touch Buttons
 
 Single-click a touch button to select it. Double-click it to open the touch button editor.
@@ -376,7 +390,7 @@ Built-in command groups include:
 | Pages | Next/previous touch page, next/previous rotary page, go to page number, left/right rotary page commands on devices with side displays |
 | Profiles | Activate profile, go to workspace, next/previous workspace, go to Home workspace |
 | Macros | Type text, key combination or sequence, mouse click or scroll, keyboard-plus-mouse, Windows virtual desktops, run a named macro, stop macros |
-| Shell | Run a shell command |
+| Shell | Run a shell command; open an HTTP or HTTPS website in the default browser |
 | Button Control | Update a touch button at runtime, remove a named layer |
 | Device Control | Device off/on/toggle/wakeup, toggle main window |
 | Dynamic Text | Clock |
@@ -386,6 +400,8 @@ Built-in command groups include:
 Some commands have parameters, such as a page number, key combination, date/time format, shell command, or target button index. Parameter fields appear in the command chip editor, opened with the pencil icon on the command chip.
 
 For the `Shell Command` chip, the chip label follows the command text while you edit it. If the field is empty, it returns to the `Shell Command` placeholder.
+
+`Open Website` accepts only `http://` and `https://` addresses and uses the system's default browser. If you omit the scheme, LoupixDeck adds `https://`. Other schemes are refused so the command cannot act as a general application launcher.
 
 Shell commands start in your home directory, not in the LoupixDeck installation folder. Use absolute paths when a command refers to a program or file in a particular location; relative paths are resolved from your home directory.
 
@@ -647,7 +663,7 @@ The workspace and page are not restored separately; they follow the profile that
 
 When you switch profile or workspace by hand, LoupixDeck pauses automatic switching until the foreground app changes. This prevents a rule from immediately pulling you back while you are deliberately working somewhere else.
 
-Process matching is case-insensitive, and a trailing `.exe` is ignored. On Linux, Profile Rules require X11 or XWayland plus `xprop`; pure Wayland is not supported by the current README.
+Process matching is case-insensitive, and a trailing `.exe` is ignored. On Linux, foreground process names reported by the kernel can be truncated after 15 characters; current releases also match a longer configured name when its first 15 characters equal that reported value. Profile Rules require X11 or XWayland plus `xprop`; pure Wayland is not supported by the current README.
 
 ## Plugins and Integrations
 
@@ -686,6 +702,8 @@ The current binary installation includes these plugin manifests:
 
 Plugins can add commands, dynamic text, settings pages, folders, side-strip providers, or special integration behavior. The exact command names depend on the installed plugin version and what external app or service is configured.
 
+LoupixDeck v1.27.0 ships Plugin SDK 1.22.0. It lets folder providers read the active device's real key grid; this is an additive API change, so existing 1.x plugins continue to load without being rebuilt.
+
 The Plugins page only shows plugins that can run on the current operating system. For example, Windows-only plugins are hidden on Linux instead of appearing as disabled rows with controls that cannot work.
 
 Plugins can also provide default values for command settings. In current bundled plugins, some Audio, Elgato, and Spotify commands use this for editable step sizes, so a rotary can move volume, light brightness, or a Spotify value faster or slower without special syntax.
@@ -713,6 +731,8 @@ The Windows release bundles the SteelSeries Sonar plugin. It exposes controls fo
 ### OBS Studio
 
 The bundled OBS plugin reports recording, replay-buffer, virtual-camera, streaming, and studio-mode status live through obs-websocket. Buttons using the corresponding toggle commands follow changes made inside OBS and resynchronize after either OBS or LoupixDeck restarts.
+
+OBS plugin 1.3.0 fixes authenticated connections that could previously fail with `Authentication failed` even when the password was correct. `Test Connection` now reuses an existing connection while the saved host, port, and password are unchanged, so repeated tests no longer fail with `already Identified`; changing connection settings still starts a fresh session.
 
 `Toggle Recording`, `Toggle Replay Buffer`, `Toggle Streaming`, `Toggle Virtual Camera`, and `Toggle Studio Mode` are stateful commands. Assigning one creates its button states automatically and draws the current-state indicator over your own background and layers. The matching one-way actions, such as `Start Recording` or `Stop Recording`, remain ordinary commands because they do not represent both sides of a toggle. `Pause Recording` resumes a paused recording when used again.
 

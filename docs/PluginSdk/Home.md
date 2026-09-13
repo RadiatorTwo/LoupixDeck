@@ -7,7 +7,7 @@ value types the host and the plugin share. A plugin is a single .NET class
 library that references this SDK, ships as a folder under the host's plugin
 directory, and is loaded dynamically at startup.
 
-- **Current SDK version:** 1.20.0
+- **Current SDK version:** 1.22.0
 - **Target frameworks:** `net9.0` and `net10.0`
 - **Package:** `LoupixDeck.PluginSdk` (NuGet)
 - **License:** MIT
@@ -18,10 +18,10 @@ directory, and is loaded dynamically at startup.
 - [API Reference](API-Reference) — index of every public type
   - [LoupixPlugin](API-LoupixPlugin) — the plugin entry point
   - [Commands](API-Commands) — `IPluginCommand`, `IDisplayCommand`, descriptors, context
-  - [Host Services](API-Host-Services) — `IPluginHost`, logging, settings, device info
+  - [Host Services](API-Host-Services) — `IPluginHost`, logging, settings, device and folder-grid info
 - Advanced
   - [Dynamic Menus](Advanced-Menus) — `IMenuContributor`, `MenuNode`
-  - [Folder Navigation](Advanced-Folders) — `IFolderProvider`, `FolderEntry`, rotary overrides
+  - [Folder Navigation](Advanced-Folders) — `IFolderProvider`, `FolderEntry`, active-device grid, rotary overrides
   - [Exclusive Mode](Advanced-Exclusive-Mode) — `IExclusiveModeProvider`, `ExclusiveRenderMode`, HUD/screensaver takeovers
   - [Full-Display Renderer](Advanced-Full-Display-Renderer) — raw BGRA video and visualizer frames
   - [Plugin Screensavers and Animated Side Strips](Advanced-Screensavers-and-Side-Strips) — host-owned idle animations and per-side strip sessions

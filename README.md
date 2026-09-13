@@ -29,7 +29,8 @@ Built with **Avalonia** and **.NET 10**.
 * **Apps and commands panel** for drag-and-drop app launchers, commands and dial presets
 * **Direct keyboard and mouse actions** with recordable combinations and sequences
 * **Visual macro editor** with variables, conditions, loops, waits and prompts
-* **OBS Studio**, **Elgato Key Lights**, **Cooler Control**, **Argus Monitor** and **Windows Audio** integrations
+* **Background update notifications** with verified installer downloads
+* **OBS Studio**, **Elgato Key Lights**, **Cooler Control**, **Audio** and **SteelSeries Sonar** integrations
 * **Portable profiles** — export a profile, workspace or page as a `.loupixprofile` file and import it anywhere
 * **Local CLI / IPC automation** for scripts and external tools
 * **Plugin SDK** for custom commands, dynamic text, settings UI, plugin screensavers and animated side strips
@@ -78,7 +79,7 @@ Or with `wget`:
 wget -qO- https://raw.githubusercontent.com/RadiatorTwo/LoupixDeck/master/install-loupixdeck.sh | bash
 ```
 
-The installer downloads the latest release, installs LoupixDeck system-wide, adds udev rules and creates a desktop entry. Updating with the script preserves bundled-plugin settings and keeps their settings files writable by the user while the installed binaries remain root-owned.
+The installer downloads the latest release, shows download progress in a terminal, installs LoupixDeck system-wide, adds udev rules—including the Razer Stream Controller X—and creates a desktop entry. Updating with the script preserves bundled-plugin settings and keeps their settings files writable by the user while the installed binaries remain root-owned.
 
 After installation, start it with:
 
@@ -103,6 +104,8 @@ bash install-loupixdeck.sh --from-source
 ```
 
 This source-build mode requires Git and the .NET 10 SDK. A plugin that cannot be built is skipped with a warning; the normal installer behavior is unchanged when the option is omitted.
+
+Pass `--restart` to close a running LoupixDeck cleanly before installation and launch it again afterwards. This is also the mode used by the in-app Linux updater.
 
 ---
 
@@ -136,6 +139,8 @@ Open the left-side panel from the main-window header to assign common actions wi
 * Add portable programs, scripts or shortcuts manually when discovery does not find them
 * **Commands** uses the same searchable catalogue as the button editors
 * **Dial presets** apply all three rotary gestures in one step
+* **Shell Command** and **Open Website** ask for their command line or HTTP(S) address when assigned
+* Right-click an application to link or unlink it from the active profile
 * Drag an item onto a compatible control, or select a control and click the item
 * Touch keys receive ready-to-use artwork and a command; dials receive a strip label
 
@@ -202,6 +207,10 @@ Built-in commands and dynamic values are available for:
 * Device power control
 * Runtime button updates
 
+### Dynamic Folders
+
+Plugin commands such as audio mixers and scene pickers can open a temporary folder on the device. Folders use the connected device's actual key grid, reserve its bottom-left key for Back, and leave side strips untouched. Changing profile or workspace closes the folder and restores the selected layout.
+
 ### Screensaver
 
 Play a full-display animated screensaver after a configurable idle time.
@@ -220,6 +229,8 @@ The display pipeline reuses pooled frame buffers, masks WebSocket payloads in pl
 Automatically switch pages when the foreground application changes.
 
 Rules can match a process name, an optional window title substring and a fallback page.
+
+Create a simple application link directly from the profile menu or by right-clicking an application in the Apps panel. Linux matching also handles process names longer than the kernel's 15-character foreground-process field.
 
 | Platform                 | Status                                  |
 | ------------------------ | --------------------------------------- |
@@ -318,6 +329,8 @@ The Plugin SDK is maintained in a separate repository:
 [**LoupixDeck.PluginSdk**](https://github.com/RadiatorTwo/LoupixDeck.PluginSdk)
 
 It is also available as the `LoupixDeck.PluginSdk` NuGet package.
+
+SDK 1.22.0 adds the active device's folder grid to `IPluginHost`, allowing plugin folders to place entries correctly on both 4×3 and 5×3 devices. The addition is compatible with existing 1.x plugins and does not require them to be rebuilt.
 
 ---
 
