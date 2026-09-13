@@ -168,6 +168,8 @@ To assign an item, first select a compatible touch key, physical LED button, or 
 
 An application assigned to a touch key receives its launch command and, when available, an extracted app icon sized to leave room for a caption. App icons are cached at full resolution and refreshed when their source changes. A catalogue command receives its glyph and name. Physical LED buttons receive the command, while a dial receives the command and a side-strip label. Side displays themselves are not drop targets. Some catalogue entries are dial-only because they configure all three rotary gestures together.
 
+Assigning **Shell Command** or **Open Website** from the panel first asks for the command line or the web address; cancelling leaves the control unchanged. A touch key is labelled with the program name or the site, for example `notepad` or `youtube.com`. Open Website only opens `http://` and `https://` addresses; an address without a scheme is opened as `https://`.
+
 On Windows, the Apps tab scans Start Menu shortcuts, Steam libraries—including libraries on other drives—and Epic Games installations. Steam and Epic entries launch through their own launcher. On Linux, it scans XDG desktop entries, including Flatpak and Snap exports. Use the `+` button beside the app search field to add a portable program, script, or shortcut that discovery missed; hand-added entries remain after rescans and restarts. Use the refresh button to scan again.
 
 ## Profiles and Workspaces
