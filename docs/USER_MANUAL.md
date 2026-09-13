@@ -115,6 +115,20 @@ bash install-loupixdeck.sh --from-source
 
 This mode requires Git and the .NET 10 SDK. It builds LoupixDeck, the Plugin SDK, and every plugin included by the release workflow. A plugin that fails to clone or build is skipped with a warning and the rest of the installation continues. Without `--from-source`, the script retains its normal release-download behavior.
 
+### Update notifications
+
+LoupixDeck checks GitHub for a newer stable release shortly after it starts. The check runs in the background: no network connection, a timeout or a GitHub rate limit never delays startup or opens an error dialog; the result only goes to the log. Pre-releases and drafts are never offered.
+
+When a new version exists, a short hint appears below the profile and workspace bar. If the window is minimized or in the tray, the operating system shows a notification instead. **Details** opens the update dialog with the release notes of every version between the installed and the latest one:
+
+- **Update now** downloads the installer, checks it against the `SHA256SUMS` file published with the release and only then starts it. On Windows the setup wizard opens; it closes LoupixDeck, installs the update and can start it again. On Linux, installs made with `install-loupixdeck.sh` run the script for the new version in a terminal window, where it asks for your password, closes LoupixDeck, installs and restarts it.
+- **Later** closes the dialog and keeps the hint.
+- **Skip this version** hides the hint until the next release comes out.
+
+Installations that cannot update themselves (the portable Windows zip, package-manager or source builds) and releases without a matching installer or checksum get **Open release page** instead. An update never touches your configuration, macros, dial presets or asset store.
+
+Turn the automatic check off under `Settings > General > Check for updates automatically`. **Check for updates** in the About dialog always works, even with the automatic check off, and also reports a version you skipped.
+
 ### Runtime and performance
 
 In v1.22.0 and later, display frames reuse pooled buffers, WebSocket payloads are masked in place, and incoming serial data is parsed through a fixed buffer. Command parsing, lookup tables, and native calls also use lower-allocation paths. These changes are automatic; there is no performance setting to enable, and existing layouts and plugins continue to work.
@@ -827,6 +841,7 @@ Underscores in `text` are treated as spaces in the short CLI form.
 ### General
 
 - Language: English, German, or Spanish. The selection applies immediately and is shared by all connected devices.
+- Check for updates automatically: look for a new release after startup (on by default). See [Update notifications](#update-notifications).
 - Device name and connection state.
 - Port and baudrate.
 - Firmware and serial.
@@ -909,6 +924,7 @@ Some controls may keep the old palette until the next app launch.
 
 - Version.
 - Project website link.
+- Check for updates: asks GitHub for the latest release, even when the automatic check is off.
 
 You can close the About window from its title-bar close button as well as from its dialog controls. Other dialogs can also be closed from the title bar without leaving the app stuck or keeping their menu entry disabled.
 
@@ -923,7 +939,7 @@ LoupixDeck stores configuration as JSON in the user config directory. Typical fi
 | `macros.json` | Shared macro definitions |
 | `custom-apps.json` | Applications added manually to the Apps panel |
 | `dial-presets.json` | User-created dial presets shared across devices and profiles |
-| `ui-settings.json` | Interface language shared by all devices |
+| `ui-settings.json` | Interface language and update-check preferences shared by all devices |
 | Plugin config files | Integration-specific settings |
 
 Per-device layout is scoped by serial number when possible. The per-device layout file contains that device's profiles, workspaces, pages, and device-specific settings. If a config file is corrupted, LoupixDeck creates a backup before writing a fresh file.
