@@ -3,6 +3,7 @@ using Avalonia.Media.Imaging;
 using CommunityToolkit.Mvvm.ComponentModel;
 using LoupixDeck.Models;
 using LoupixDeck.Services.AppLauncher;
+using LoupixDeck.Services.Profiles;
 using LoupixDeck.Utils;
 using LoupixDeck.ViewModels.Base;
 
@@ -48,21 +49,44 @@ public abstract partial class PanelItemViewModel : ViewModelBase
     /// that does nothing to it.</summary>
     public bool CanEdit { get; init; }
 
-    /// <summary>True on application rows where foreground-app detection exists (Windows, Linux):
-    /// the row can be linked to the active profile.</summary>
-    public bool CanLinkToProfile { get; init; }
+    /// <summary>Menu entry that links the row's application to the active profile. Declared here so
+    /// the shared row template binds without casting; only application rows ever show it.</summary>
+    public virtual bool ShowLinkEntry => false;
+
+    /// <summary>Menu entry that removes the active profile's link to the row's application.</summary>
+    public virtual bool ShowUnlinkEntry => false;
+
+    /// <summary>Disabled menu entry explaining that the row's application cannot be linked.</summary>
+    public virtual bool ShowCannotLinkEntry => false;
 }
 
 /// <summary>An installed application: assigning it puts its launch command and its icon on the button.</summary>
-public sealed class AppPanelItemViewModel : PanelItemViewModel
+public sealed partial class AppPanelItemViewModel(InstalledApp app) : PanelItemViewModel
 {
-    public AppPanelItemViewModel(InstalledApp app)
-    {
-        App = app;
-        CanLinkToProfile = OperatingSystem.IsWindows() || OperatingSystem.IsLinux();
-    }
+    public InstalledApp App { get; } = app;
 
-    public InstalledApp App { get; }
+    /// <summary>True when this application's process is the active profile's plain link, so the
+    /// row menu offers removing it instead of creating it.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowLinkEntry))]
+    [NotifyPropertyChangedFor(nameof(ShowUnlinkEntry))]
+    public partial bool IsLinkedToActiveProfile { get; set; }
+
+    /// <summary>False on platforms without foreground-app detection. Set with the link flag.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowLinkEntry))]
+    [NotifyPropertyChangedFor(nameof(ShowUnlinkEntry))]
+    [NotifyPropertyChangedFor(nameof(ShowCannotLinkEntry))]
+    public partial bool IsLinkingSupported { get; set; }
+
+    /// <summary>Whether a rule can target this application's process at all.</summary>
+    public bool CanLinkToProfile => ProfileAppLink.CanLinkProcess(App.ProcessName);
+
+    public override bool ShowLinkEntry => IsLinkingSupported && CanLinkToProfile && !IsLinkedToActiveProfile;
+
+    public override bool ShowUnlinkEntry => IsLinkingSupported && CanLinkToProfile && IsLinkedToActiveProfile;
+
+    public override bool ShowCannotLinkEntry => IsLinkingSupported && !CanLinkToProfile;
 
     public override string Title => App.Name;
 

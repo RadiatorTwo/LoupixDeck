@@ -75,12 +75,20 @@
             <Border Classes="panel-row">
                 <Border.ContextFlyout>
                     <MenuFlyout>
-                        <!-- Application rows only, where foreground-app detection exists: runs the
-                             header's "Link application…" flow for the active profile. -->
-                        <MenuItem Header="{loc:Tr ActionPanel_LinkToActiveProfile}"
-                                  IsVisible="{Binding CanLinkToProfile}"
-                                  Command="{Binding $parent[ListBox].((panel:ActionPanelViewModel)DataContext).LinkAppToProfileCommand}"
+                        <!-- Application rows only, where foreground-app detection exists: open the
+                             active profile whenever this application is in front, or stop doing so.
+                             Same flow as the header's link entries. -->
+                        <MenuItem Header="{Binding $parent[ListBox].((panel:ActionPanelViewModel)DataContext).LinkToProfileHeader}"
+                                  IsVisible="{Binding ShowLinkEntry}"
+                                  Command="{Binding $parent[ListBox].((panel:ActionPanelViewModel)DataContext).LinkToProfileCommand}"
                                   CommandParameter="{Binding}" />
+                        <MenuItem Header="{Binding $parent[ListBox].((panel:ActionPanelViewModel)DataContext).UnlinkFromProfileHeader}"
+                                  IsVisible="{Binding ShowUnlinkEntry}"
+                                  Command="{Binding $parent[ListBox].((panel:ActionPanelViewModel)DataContext).UnlinkFromProfileCommand}"
+                                  CommandParameter="{Binding}" />
+                        <MenuItem Header="{loc:Tr ActionPanel_CannotLinkToProfile}"
+                                  IsVisible="{Binding ShowCannotLinkEntry}"
+                                  IsEnabled="False" />
                         <!-- Only on a hand-added row: a scanned application would come back on the next
                              scan, so removing one would be a button that undoes itself. -->
                         <MenuItem Header="{loc:Tr ActionPanel_Remove}"

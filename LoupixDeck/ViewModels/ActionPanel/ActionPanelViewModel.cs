@@ -1,11 +1,14 @@
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using LoupixDeck.Localization;
 using LoupixDeck.Models;
 using LoupixDeck.PluginSdk;
 using LoupixDeck.Services.AppLauncher;
+using LoupixDeck.Services.AppSwitching;
 using LoupixDeck.Services.Commands;
 using LoupixDeck.Services.DialPresets;
 using LoupixDeck.Utils;
@@ -60,6 +63,8 @@ public partial class ActionPanelViewModel : ViewModelBase
 
         _dialPresets.PresetsChanged += OnDialPresetsChanged;
         RebuildDialPresets();
+
+        LocalizationManager.Instance.PropertyChanged += OnLanguageChanged;
     }
 
     // ── Panel state ────────────────────────────────────────────────────────
@@ -151,19 +156,76 @@ public partial class ActionPanelViewModel : ViewModelBase
         _ = action(preset.Preset);
     }
 
+    // ── Profile links ──────────────────────────────────────────────────────
+
     /// <summary>
-    /// Links an application to the active profile. Set by the device view model, which owns the
-    /// dialogs the link flow needs.
+    /// Link and unlink an application to the active profile. Set by the device view model, which
+    /// owns the profile menu and its dialogs; the panel only knows the row that was right-clicked.
     /// </summary>
-    public Func<InstalledApp, Task> LinkAppToProfile { get; set; }
+    public Func<InstalledApp, Task> LinkToProfile { get; set; }
+
+    public Func<InstalledApp, Task> UnlinkFromProfile { get; set; }
 
     /// <summary>Links an application row to the active profile. Offered on the row's context menu.</summary>
-    public IRelayCommand<PanelItemViewModel> LinkAppToProfileCommand
-        => field ??= Relay.Create<PanelItemViewModel>(row =>
-        {
-            if (LinkAppToProfile != null && row is AppPanelItemViewModel app)
-                _ = LinkAppToProfile(app.App);
-        });
+    public IRelayCommand<PanelItemViewModel> LinkToProfileCommand
+        => field ??= Relay.Create<PanelItemViewModel>(row => InvokeApp(LinkToProfile, row));
+
+    /// <summary>Removes the active profile's link to an application row, after the flow confirms.</summary>
+    public IRelayCommand<PanelItemViewModel> UnlinkFromProfileCommand
+        => field ??= Relay.Create<PanelItemViewModel>(row => InvokeApp(UnlinkFromProfile, row));
+
+    /// <summary>Menu header naming the active profile, e.g. "Open 'Gaming' with this application".</summary>
+    [ObservableProperty]
+    public partial string LinkToProfileHeader { get; set; } = string.Empty;
+
+    [ObservableProperty]
+    public partial string UnlinkFromProfileHeader { get; set; } = string.Empty;
+
+    // Last state passed to RefreshProfileLinks, applied to rows created after it.
+    private string _profileName = string.Empty;
+    private string _linkedProcessName = string.Empty;
+    private bool _linkingSupported;
+
+    private static void InvokeApp(Func<InstalledApp, Task> action, PanelItemViewModel row)
+    {
+        if (action == null || row is not AppPanelItemViewModel app)
+            return;
+
+        _ = action(app.App);
+    }
+
+    /// <summary>
+    /// Re-evaluates every application row against the active profile's link and rebuilds the menu
+    /// headers. Called when the active profile, its link or its name changes.
+    /// </summary>
+    public void RefreshProfileLinks(string profileName, string linkedProcessName, bool linkingSupported)
+    {
+        _profileName = profileName ?? string.Empty;
+        _linkedProcessName = linkedProcessName ?? string.Empty;
+        _linkingSupported = linkingSupported;
+
+        UpdateProfileLinkHeaders();
+
+        foreach (AppPanelItemViewModel row in _allApps)
+            ApplyProfileLink(row);
+    }
+
+    private void UpdateProfileLinkHeaders()
+    {
+        LinkToProfileHeader = Loc.Tr("ActionPanel_LinkToProfile", _profileName);
+        UnlinkFromProfileHeader = Loc.Tr("ActionPanel_UnlinkFromProfile", _profileName);
+    }
+
+    private void ApplyProfileLink(AppPanelItemViewModel row)
+    {
+        row.IsLinkingSupported = _linkingSupported;
+        row.IsLinkedToActiveProfile = _linkedProcessName.Length > 0
+            && string.Equals(ContextRuleMatcher.Normalize(row.App.ProcessName), _linkedProcessName,
+                StringComparison.OrdinalIgnoreCase);
+    }
+
+    private void OnLanguageChanged(object sender, PropertyChangedEventArgs e) =>
+        Dispatcher.UIThread.Post(UpdateProfileLinkHeaders);
 
     private void OnDialPresetsChanged(object sender, EventArgs e) =>
         Dispatcher.UIThread.Post(RebuildDialPresets);
@@ -247,6 +309,7 @@ public partial class ActionPanelViewModel : ViewModelBase
             return;
 
         AppPanelItemViewModel row = new(added) { CanRemove = true };
+        ApplyProfileLink(row);
         _allApps.Insert(0, row);
         AppsBlockReason = null;
         ApplyAppFilter();
@@ -344,6 +407,9 @@ public partial class ActionPanelViewModel : ViewModelBase
         foreach (InstalledApp app in scanned)
             _allApps.Add(new AppPanelItemViewModel(app));
 
+        foreach (AppPanelItemViewModel row in _allApps)
+            ApplyProfileLink(row);
+
         ApplyAppFilter();
 
         int games = _allApps.Count(row => row.App.IsGame);
@@ -420,6 +486,7 @@ public partial class ActionPanelViewModel : ViewModelBase
             _cancellation.Cancel();
 
         _dialPresets.PresetsChanged -= OnDialPresetsChanged;
+        LocalizationManager.Instance.PropertyChanged -= OnLanguageChanged;
 
         CommandPicker.Cleanup();
     }

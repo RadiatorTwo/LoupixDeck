@@ -11,6 +11,7 @@ using LoupixDeck.Services;
 using LoupixDeck.Services.AppSwitching;
 using LoupixDeck.Services.Commands;
 using LoupixDeck.Services.Plugins;
+using LoupixDeck.Services.Profiles;
 using LoupixDeck.Services.SystemPower;
 using LoupixDeck.ViewModels.Base;
 
@@ -207,7 +208,19 @@ public partial class MainWindowViewModel : ViewModelBase
             _suppressActivationSync = true;
             SelectedProfile = profile;
             _suppressActivationSync = false;
+            RefreshPanelProfileLinks();
         });
+    }
+
+    /// <summary>Tells the panel's rows which application the active profile is linked to.</summary>
+    private void RefreshPanelProfileLinks()
+    {
+        Profile profile = _workspaceActivation.ActiveProfile;
+        string linked = profile == null
+            ? string.Empty
+            : ProfileAppLink.FindLinkedProcessName(_config.ContextRules, profile.Id);
+
+        ActionPanel.RefreshProfileLinks(profile?.Name, linked, ProfileMenu.IsAppLinkingSupported);
     }
 
     private void OnActiveWorkspaceChanged(Workspace workspace)
@@ -262,7 +275,9 @@ public partial class MainWindowViewModel : ViewModelBase
         ActionPanel.RenamePreset = RenameDialPresetAsync;
         ActionPanel.DeletePreset = DeleteDialPresetAsync;
         // Linking an application from a panel row runs the header's flow, questions included.
-        ActionPanel.LinkAppToProfile = ProfileMenu.LinkApplicationAsync;
+        ActionPanel.LinkToProfile = ProfileMenu.LinkApplicationAsync;
+        ActionPanel.UnlinkFromProfile = ProfileMenu.UnlinkApplicationAsync;
+        ProfileMenu.LinkChanged += RefreshPanelProfileLinks;
         _panelAssignment = panelAssignment;
         _config = config;
 
@@ -286,6 +301,7 @@ public partial class MainWindowViewModel : ViewModelBase
         SelectedProfile = _workspaceActivation.ActiveProfile;
         SelectedWorkspace = _workspaceActivation.ActiveWorkspace;
         _suppressActivationSync = false;
+        RefreshPanelProfileLinks();
         _workspaceActivation.ActiveProfileChanged += OnActiveProfileChanged;
         _workspaceActivation.ActiveWorkspaceChanged += OnActiveWorkspaceChanged;
 
@@ -374,6 +390,7 @@ public partial class MainWindowViewModel : ViewModelBase
         _exclusiveMode.StateChanged -= OnExclusiveModeStateChanged;
         _workspaceActivation.ActiveProfileChanged -= OnActiveProfileChanged;
         _workspaceActivation.ActiveWorkspaceChanged -= OnActiveWorkspaceChanged;
+        ProfileMenu.LinkChanged -= RefreshPanelProfileLinks;
     }
 
     private void OnThemeVariantChanged(object sender, EventArgs e)
@@ -1187,6 +1204,8 @@ public partial class MainWindowViewModel : ViewModelBase
         await _dialogService.ShowDialogAsync<SettingsViewModel, DialogResult>();
         LoupedeckController.SaveConfig();
         ProfileMenu.Refresh();
+        // A rename or a rule edit in Settings changes what the panel's link entries say.
+        RefreshPanelProfileLinks();
     }
 
     private async Task MacroEditorMenuButton_Click()
