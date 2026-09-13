@@ -152,6 +152,8 @@ Changing profile or workspace from the header changes what the device shows and 
 
 Next to the `PROFILE` and `WORKSPACE` selectors there is a `⋮` button. It creates a new profile or workspace, renames the one currently selected, or deletes it after asking. A new profile or workspace is opened right away. The last profile of a device and the last workspace of a profile cannot be deleted.
 
+The profile menu can also link an application to the active profile: pick it from the list, and the profile opens whenever that application is in front. This creates a profile rule, which you can refine under `Settings > Profile Rules`. Remove the link from the same menu.
+
 ### Apps and commands panel
 
 When a device is connected, the button at the left of the header opens a side panel with three tabs:
