@@ -428,6 +428,9 @@ public static class ServiceCollectionExtensions
         collection.AddTransient<ConfirmDialog>();
         collection.AddTransient<ConfirmDialogViewModel>();
 
+        collection.AddTransient<TextInputDialog>();
+        collection.AddTransient<TextInputDialogViewModel>();
+
         collection.AddTransient<ProfileImport>();
         collection.AddTransient<ProfileImportViewModel>();
 
@@ -475,6 +478,7 @@ public static class ServiceCollectionExtensions
         dialogService.Register<DialPresetEditorViewModel, DialPresetEditor>();
         dialogService.Register<AboutViewModel, About>();
         dialogService.Register<ConfirmDialogViewModel, ConfirmDialog>();
+        dialogService.Register<TextInputDialogViewModel, TextInputDialog>();
         dialogService.Register<ProfileImportViewModel, ProfileImport>();
 
         // Heal configs that were saved before HapticSteps had ObjectCreationHandling.Replace —
