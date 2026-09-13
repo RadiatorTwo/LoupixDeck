@@ -329,7 +329,7 @@
 
     <!-- Focusable so a drag can grab keyboard focus and receive Esc / live Ctrl during the
          gesture (issue #166 phase 3). IsTabStop=False keeps it out of the tab order. -->
-    <Grid Name="RootGrid" RowDefinitions="Auto,*" Focusable="True" IsTabStop="False">
+    <Grid Name="RootGrid" RowDefinitions="Auto,Auto,*" Focusable="True" IsTabStop="False">
         <!-- Device → Profile → Workspace switcher (issue #132). One modern top bar,
              centred, mirroring the original software. The Device selector only appears
              when more than one device is connected (single-device users see just their
@@ -509,7 +509,29 @@
           </Grid>
         </Border>
 
-        <Grid Grid.Row="1">
+        <!-- Update hint (issue #233): a quiet strip under the switcher instead of a popup. Its
+             text stays short so it never widens the window, which sizes to the deck. -->
+        <Border Grid.Row="1" IsVisible="{Binding HasUpdate}"
+                Background="{DynamicResource AppSurfaceBar}"
+                BorderBrush="{DynamicResource AppBorderFaint}"
+                BorderThickness="0,0,0,1"
+                Padding="16,6">
+            <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center">
+                <!-- mdi-update -->
+                <TextBlock FontFamily="{DynamicResource MdiFont}" FontSize="16"
+                           VerticalAlignment="Center"
+                           Foreground="{StaticResource PageActiveBrush}"
+                           Text="&#xF06B0;" />
+                <TextBlock Text="{Binding UpdateHintText}"
+                           VerticalAlignment="Center" FontSize="13"
+                           Foreground="{DynamicResource AppTextPrimary}" />
+                <Button Content="{loc:Tr Update_Details}"
+                        Padding="10,3" FontSize="12" VerticalAlignment="Center"
+                        Command="{Binding ShowUpdateCommand}" />
+            </StackPanel>
+        </Border>
+
+        <Grid Grid.Row="2">
             <ContentControl Name="DeviceLayoutHost" Padding="0" />
 
             <!-- Empty state (issue #191): with every device unplugged the layout host is
@@ -558,7 +580,7 @@
              operation (green move / amber swap / blue copy, red invalid) and a slightly
              translucent ghost of the dragged button in its current state with a rounded frame like
              the touch tiles. Non-hit-testable so it never intercepts pointer input. -->
-        <Canvas Name="DragOverlay" Grid.Row="0" Grid.RowSpan="2"
+        <Canvas Name="DragOverlay" Grid.Row="0" Grid.RowSpan="3"
                 IsHitTestVisible="False" IsVisible="False">
             <Border Name="DropHighlight"
                     IsVisible="False"

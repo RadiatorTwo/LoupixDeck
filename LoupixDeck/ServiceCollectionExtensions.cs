@@ -82,6 +82,18 @@ public static class ServiceCollectionExtensions
         collection.AddSingleton<Services.Animation.IAnimatedImageImporter, Services.Animation.AnimatedImageImporter>();
 
         collection.AddSingleton<IDBusController, DBusController>();
+
+        // Update check against GitHub Releases (issue #233). App-wide: one check, one hint, one
+        // installer run, whatever the number of devices.
+        collection.AddSingleton<Services.Updates.IUpdateService, Services.Updates.UpdateService>();
+        collection.AddSingleton<Services.Updates.IUpdateInstaller, Services.Updates.UpdateInstaller>();
+#if WINDOWS
+        if (OperatingSystem.IsWindows())
+            collection.AddSingleton<Services.Updates.IUpdateNotifier, Services.Updates.WindowsUpdateNotifier>();
+        else
+#endif
+            collection.AddSingleton<Services.Updates.IUpdateNotifier, Services.Updates.DBusUpdateNotifier>();
+
         collection.AddSingleton<ICommandRunner, CommandRunner>();
 
         // The platform service is wrapped in the wall-clock resume detector: its notification
@@ -162,6 +174,8 @@ public static class ServiceCollectionExtensions
         collection.Forward<IAppIconExtractor>(root);
         collection.Forward<ICustomAppStore>(root);
         collection.Forward<IDBusController>(root);
+        collection.Forward<Services.Updates.IUpdateService>(root);
+        collection.Forward<Services.Updates.IUpdateInstaller>(root);
         collection.Forward<ICommandRunner>(root);
         collection.Forward<ISystemPowerService>(root);
         collection.Forward<IActiveWindowMonitor>(root);
@@ -423,6 +437,9 @@ public static class ServiceCollectionExtensions
         collection.AddTransient<About>();
         collection.AddTransient<AboutViewModel>();
 
+        collection.AddTransient<UpdateDialog>();
+        collection.AddTransient<UpdateDialogViewModel>();
+
         collection.AddTransient<DialPresetEditor>();
         collection.AddTransient<DialPresetEditorViewModel>();
 
@@ -478,6 +495,7 @@ public static class ServiceCollectionExtensions
         dialogService.Register<MacroEditorViewModel, MacroEditor>();
         dialogService.Register<DialPresetEditorViewModel, DialPresetEditor>();
         dialogService.Register<AboutViewModel, About>();
+        dialogService.Register<UpdateDialogViewModel, UpdateDialog>();
         dialogService.Register<ConfirmDialogViewModel, ConfirmDialog>();
         dialogService.Register<TextInputDialogViewModel, TextInputDialog>();
         dialogService.Register<ProfileImportViewModel, ProfileImport>();

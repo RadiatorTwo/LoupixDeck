@@ -1,0 +1,125 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:loc="using:LoupixDeck.Localization"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="using:LoupixDeck.ViewModels"
+        mc:Ignorable="d"
+        Width="560" Height="520" MinWidth="420" MinHeight="320"
+        x:Class="LoupixDeck.Views.UpdateDialog"
+        x:DataType="vm:UpdateDialogViewModel"
+        WindowStartupLocation="CenterOwner"
+        Title="{loc:Tr Update_Title}"
+        ShowInTaskbar="False">
+
+    <Window.Styles>
+        <!-- Same flat action buttons as TextInputDialog. -->
+        <Style Selector="Button.dialogBtn">
+            <Setter Property="MinWidth" Value="100" />
+            <Setter Property="Height" Value="34" />
+            <Setter Property="Padding" Value="14,0" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Border Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="{TemplateBinding CornerRadius}">
+                        <ContentPresenter Content="{TemplateBinding Content}"
+                                          Padding="{TemplateBinding Padding}"
+                                          HorizontalAlignment="Center"
+                                          VerticalAlignment="Center" />
+                    </Border>
+                </ControlTemplate>
+            </Setter>
+        </Style>
+
+        <Style Selector="Button.dialogBtn.cancel">
+            <Setter Property="Background" Value="{DynamicResource AppControlBackground}" />
+            <Setter Property="Foreground" Value="{DynamicResource AppTextPrimary}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AppBorderSubtle}" />
+        </Style>
+        <Style Selector="Button.dialogBtn.cancel:pointerover">
+            <Setter Property="Background" Value="{DynamicResource AppControlBackgroundHover}" />
+        </Style>
+
+        <Style Selector="Button.dialogBtn.confirm">
+            <Setter Property="Background" Value="{StaticResource PageActiveBrush}" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="BorderBrush" Value="{StaticResource PageActiveBorderBrush}" />
+        </Style>
+        <Style Selector="Button.dialogBtn.confirm:pointerover">
+            <Setter Property="Background" Value="{StaticResource PageActiveBorderBrush}" />
+        </Style>
+        <Style Selector="Button.dialogBtn:disabled">
+            <Setter Property="Opacity" Value="0.5" />
+        </Style>
+    </Window.Styles>
+
+    <Grid RowDefinitions="Auto,*,Auto,Auto">
+        <StackPanel Grid.Row="0" Spacing="4" Margin="24,20,24,12">
+            <TextBlock Text="{Binding Headline}"
+                       FontSize="16" FontWeight="SemiBold" TextWrapping="Wrap"
+                       Foreground="{DynamicResource AppTextPrimary}" />
+            <TextBlock Text="{loc:Tr Update_WhatsNew}"
+                       FontSize="13"
+                       Foreground="{DynamicResource AppTextSecondary}" />
+        </StackPanel>
+
+        <!-- No Padding on the ScrollViewer: the inset lives on the content margin so the last
+             release stays reachable and the scrollbar gets its own gutter. -->
+        <Border Grid.Row="1" Margin="24,0,24,0"
+                BorderBrush="{DynamicResource AppBorderSubtle}" BorderThickness="1" CornerRadius="6">
+            <ScrollViewer>
+                <ItemsControl ItemsSource="{Binding Releases}" Margin="14,10,14,10">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:ReleaseNotesItem">
+                            <StackPanel Spacing="6" Margin="0,4,0,14">
+                                <TextBlock Text="{Binding Heading}"
+                                           FontSize="14" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource AppTextPrimary}" />
+                                <SelectableTextBlock Text="{Binding Notes}"
+                                                     FontSize="13" TextWrapping="Wrap"
+                                                     Foreground="{DynamicResource AppTextSecondary}" />
+                            </StackPanel>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+        </Border>
+
+        <StackPanel Grid.Row="2" Spacing="6" Margin="24,12,24,12">
+            <ProgressBar Minimum="0" Maximum="100" Value="{Binding Progress}"
+                         IsVisible="{Binding ShowProgress}" />
+            <TextBlock Text="{Binding StatusText}" IsVisible="{Binding HasStatus}"
+                       FontSize="13" TextWrapping="Wrap"
+                       Foreground="{DynamicResource AppTextPrimary}" />
+        </StackPanel>
+
+        <Border Grid.Row="3"
+                Background="{DynamicResource AppSurfaceLow}"
+                BorderBrush="{DynamicResource AppBorderSubtle}"
+                BorderThickness="0,1,0,0"
+                Padding="16,12">
+            <Grid ColumnDefinitions="Auto,*,Auto">
+                <Button Grid.Column="0" Classes="dialogBtn cancel"
+                        Content="{loc:Tr Update_SkipThisVersion}"
+                        Command="{Binding SkipCommand}" />
+                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="10">
+                    <Button Classes="dialogBtn cancel"
+                            Content="{loc:Tr Update_Later}"
+                            IsCancel="True"
+                            Command="{Binding LaterCommand}" />
+                    <Button Classes="dialogBtn confirm"
+                            Content="{Binding UpdateNowText}"
+                            IsDefault="True"
+                            Command="{Binding UpdateNowCommand}" />
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

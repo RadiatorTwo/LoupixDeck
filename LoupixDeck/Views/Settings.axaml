@@ -160,6 +160,18 @@
                         </StackPanel>
                     </Border>
 
+                    <!-- Updates card (issue #233) -->
+                    <Border Classes="card">
+                        <StackPanel>
+                            <TextBlock Classes="card-title" Text="{loc:Tr Settings_Updates}" />
+                            <CheckBox Margin="0,6,0,0"
+                                      Content="{loc:Tr Settings_CheckForUpdatesAutomatically}"
+                                      IsChecked="{Binding CheckForUpdates, Mode=TwoWay}" />
+                            <TextBlock Classes="hint" Margin="0,8,0,0" TextWrapping="Wrap"
+                                       Text="{loc:Tr Settings_CheckForUpdatesHint}" />
+                        </StackPanel>
+                    </Border>
+
                     <!-- Device card -->
                     <Border Classes="card">
                         <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="*,Auto">

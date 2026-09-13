@@ -36,7 +36,7 @@ public sealed class LocalizationManager : INotifyPropertyChanged
     ];
 
     private const string BaseLanguage = "en";
-    private const string SettingsFileName = "ui-settings.json";
+    private const string LanguageSettingKey = "Language";
 
     private static readonly PropertyChangedEventArgs AllChanged = new(string.Empty);
 
@@ -191,19 +191,7 @@ public sealed class LocalizationManager : INotifyPropertyChanged
     /// <summary>Persist the chosen language to the global settings file.</summary>
     public void Persist()
     {
-        string path = SettingsPath();
-
-        try
-        {
-            string json = JsonSerializer.Serialize(
-                new UiSettings { Language = _currentLanguage },
-                new JsonSerializerOptions { WriteIndented = true });
-            File.WriteAllText(path, json);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"[Localization] Failed to write '{path}': {ex.Message}");
-        }
+        UiSettingsStore.Set(LanguageSettingKey, _currentLanguage);
     }
 
     private static void ApplyCulture(string code)
@@ -281,35 +269,9 @@ public sealed class LocalizationManager : INotifyPropertyChanged
 #endif
     }
 
-    private static string SettingsPath()
-    {
-        return Path.Combine(FileDialogHelper.GetConfigDir(), SettingsFileName);
-    }
-
     private static string ReadPersistedLanguage()
     {
-        string path = SettingsPath();
-
-        try
-        {
-            if (!File.Exists(path))
-            {
-                return null;
-            }
-
-            UiSettings settings = JsonSerializer.Deserialize<UiSettings>(File.ReadAllText(path));
-            return settings?.Language;
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"[Localization] Failed to read '{path}': {ex.Message}");
-            return null;
-        }
-    }
-
-    private sealed class UiSettings
-    {
-        public string Language { get; set; }
+        return UiSettingsStore.GetString(LanguageSettingKey);
     }
 }
 

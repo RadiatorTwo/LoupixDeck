@@ -13,6 +13,7 @@ using LoupixDeck.Services;
 using LoupixDeck.Services.Diagnostics;
 using LoupixDeck.Services.Plugins;
 using LoupixDeck.Services.Portable;
+using LoupixDeck.Services.Updates;
 using LoupixDeck.Utils;
 using LoupixDeck.ViewModels.Base;
 using SkiaSharp;
@@ -39,6 +40,7 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
     private readonly IProfilePackageService _packageService;
     private readonly IScreensaverProviderRegistry _screensaverRegistry;
     private readonly IExclusiveModeService _exclusiveMode;
+    private readonly IUpdateService _updateService;
 
     /// <summary>
     /// All discovered plugins — drives the Plugins settings page. Read live from the
@@ -134,7 +136,8 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
         IProfilePackageService packageService,
         IScreensaverProviderRegistry screensaverRegistry,
         IExclusiveModeService exclusiveMode,
-        IProfileEditingService profileEditing)
+        IProfileEditingService profileEditing,
+        IUpdateService updateService)
     {
         Config = config;
         IsVibrationSupported = config?.Geometry.HasVibration ?? true;
@@ -150,6 +153,7 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
         _screensaverRegistry = screensaverRegistry;
         _exclusiveMode = exclusiveMode;
         _profileEditing = profileEditing;
+        _updateService = updateService;
 
         // The alignment pattern lives on the device, not in this window, so closing the
         // window has to take it down — including via the title-bar X, which completes the
@@ -234,6 +238,27 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
 
         LocalizationManager.Instance.SetLanguage(value.Code);
         LocalizationManager.Instance.Persist();
+    }
+
+    // ───────── General / Updates ─────────
+
+    /// <summary>
+    /// Whether the app looks for a new release after startup. Global like the language, so it is kept
+    /// by the update service in ui-settings.json rather than in the device config.
+    /// </summary>
+    public bool CheckForUpdates
+    {
+        get => _updateService?.AutoCheckEnabled ?? true;
+        set
+        {
+            if (_updateService == null || value == _updateService.AutoCheckEnabled)
+            {
+                return;
+            }
+
+            _updateService.AutoCheckEnabled = value;
+            OnPropertyChanged();
+        }
     }
 
     // ───────── General / Device ─────────

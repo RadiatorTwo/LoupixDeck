@@ -1,5 +1,8 @@
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using LoupixDeck.Localization;
+using LoupixDeck.Services.Updates;
 using LoupixDeck.ViewModels.Base;
 
 namespace LoupixDeck.ViewModels;
@@ -16,14 +19,67 @@ namespace LoupixDeck.ViewModels;
 public sealed class MainShellViewModel : ViewModelBase
 {
     private readonly LoupixDeck.Services.IDialogService _dialogService;
+    private readonly IUpdateService _updateService;
+    private readonly IUpdateNotifier _updateNotifier;
 
     /// <param name="dialogService">Taken from the primary device's container, which exists as
     /// soon as a device is configured — whether or not it is currently reachable. Only the
-    /// About dialog is opened through it here, and that one needs no device.</param>
-    public MainShellViewModel(LoupixDeck.Services.IDialogService dialogService = null)
+    /// About and update dialogs are opened through it here, and those need no device.</param>
+    /// <param name="updateService">The app-wide update check (root container); drives the update hint.</param>
+    /// <param name="updateNotifier">OS notification used while the window sits in the tray.</param>
+    public MainShellViewModel(LoupixDeck.Services.IDialogService dialogService = null,
+        IUpdateService updateService = null, IUpdateNotifier updateNotifier = null)
     {
         _dialogService = dialogService;
+        _updateService = updateService;
+        _updateNotifier = updateNotifier;
         AboutMenuCommand = new AsyncRelayCommand(ShowAbout);
+        ShowUpdateCommand = new AsyncRelayCommand(ShowUpdate);
+
+        if (_updateService != null)
+        {
+            _updateService.PropertyChanged += OnUpdateServicePropertyChanged;
+            _updateService.UpdateFound += update => UpdateFound?.Invoke(update);
+        }
+    }
+
+    // ───────── Update hint (issue #233) ─────────
+
+    /// <summary>Raised on the UI thread when a new, not skipped release is found; the window turns it
+    /// into an OS notification while it sits in the tray.</summary>
+    public event Action<UpdateInfo> UpdateFound;
+
+    public bool HasUpdate => _updateService?.AvailableUpdate != null;
+
+    public string UpdateHintText => _updateService?.AvailableUpdate is { } update
+        ? Loc.Tr("Update_Available", update.Latest.Tag, $"v{update.InstalledVersion}")
+        : string.Empty;
+
+    public IAsyncRelayCommand ShowUpdateCommand { get; }
+
+    /// <summary>Announces <paramref name="update"/> as an OS notification.</summary>
+    /// <param name="windowHandle">Native handle of the main window (used on Windows).</param>
+    public void NotifyUpdate(UpdateInfo update, IntPtr windowHandle)
+    {
+        _updateNotifier?.Show(Loc.Tr("Update_NotificationTitle"),
+            Loc.Tr("Update_Available", update.Latest.Tag, $"v{update.InstalledVersion}"), windowHandle);
+    }
+
+    private void OnUpdateServicePropertyChanged(object sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName != nameof(IUpdateService.AvailableUpdate)) return;
+
+        OnPropertyChanged(nameof(HasUpdate));
+        OnPropertyChanged(nameof(UpdateHintText));
+    }
+
+    private async Task ShowUpdate()
+    {
+        UpdateInfo update = _updateService?.AvailableUpdate;
+        if (_dialogService == null || update == null) return;
+
+        await _dialogService.ShowDialogAsync<UpdateDialogViewModel, LoupixDeck.Models.DialogResult>(
+            vm => vm.Initialize(update));
     }
 
     public ObservableCollection<MainWindowViewModel> Devices { get; } = [];
