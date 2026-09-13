@@ -1,7 +1,8 @@
 # Folder Navigation
 
 A *folder* is a temporary, plugin-supplied view that takes over the touch
-screen — a 5×3 grid of slots whose content and behavior the plugin defines.
+screen. Its slots follow the active device's key grid, whose content and
+behavior the plugin defines.
 Typical uses: a list of OBS scene collections, a CoolerControl profile picker,
 a CPU/GPU sensor dashboard.
 
@@ -74,7 +75,38 @@ A single grid slot. Each entry either:
 
 `Image` is optional PNG-encoded bytes; when `null` the slot is text-only.
 
-## FolderLayout
+## FolderGridInfo and FolderLayout
+
+SDK 1.22.0 exposes the active device's folder geometry through
+`IPluginHost.FolderGrid`:
+
+```csharp
+public sealed record FolderGridInfo(int Columns, int Rows, int BackSlotIndex)
+{
+    public int TotalSlots => Columns * Rows;
+    public int SlotForIndex(int entryIndex)
+    {
+        int slot = 0;
+        for (int i = 0; i <= entryIndex; i++)
+        {
+            if (slot == BackSlotIndex) slot++;
+            if (slot >= TotalSlots) return -1;
+            if (i == entryIndex) return slot;
+            slot++;
+        }
+        return -1;
+    }
+}
+```
+
+Use `host.FolderGrid` whenever a provider computes slot indices. The host
+reserves `BackSlotIndex` for its Back button and drops entries outside
+`0..TotalSlots-1`. `SlotForIndex(n)` maps the nth content entry to the next
+usable slot in reading order, skips the Back slot, and returns `-1` when the
+grid is full.
+
+`FolderLayout` remains available for source compatibility, but its constants
+describe only the legacy 5×3 layout:
 
 ```csharp
 public static class FolderLayout
@@ -85,9 +117,9 @@ public static class FolderLayout
 }
 ```
 
-The grid is 5 columns × 3 rows = 15 slots. Slot 10 is reserved for the
-host-drawn back button — do not put a `FolderEntry` there; it will be
-overdrawn. Slots 0–9 and 11–14 are yours.
+Do not use those constants for a folder that can run on different models.
+Several supported devices have a 4×3 centre grid; treating their slots as 5×3
+can address a side strip or a key that does not exist.
 
 ## RotaryOverride
 
@@ -145,13 +177,15 @@ internal sealed class ScenePickerFolder(Func<IPluginHost> hostAccessor) : Folder
     public override IReadOnlyList<FolderEntry> BuildEntries()
     {
         var entries = new List<FolderEntry>();
-        for (int i = 0; i < _scenes.Count && i < FolderLayout.TotalSlots; i++)
+        FolderGridInfo grid = hostAccessor().FolderGrid;
+        for (int i = 0; i < _scenes.Count; i++)
         {
-            if (i == FolderLayout.BackSlotIndex) continue;
+            int slot = grid.SlotForIndex(i);
+            if (slot < 0) break;
             var scene = _scenes[i];
             entries.Add(new FolderEntry
             {
-                SlotIndex = i,
+                SlotIndex = slot,
                 Text      = scene,
                 BackColor = PluginColor.FromRgb(40, 40, 80),
                 OnPress   = () => ObsClient.SwitchSceneAsync(scene)

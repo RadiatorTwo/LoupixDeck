@@ -11,6 +11,7 @@ public interface IPluginHost
 {
     IPluginLogger   Logger        { get; }
     IPluginSettings Settings      { get; }
+    FolderGridInfo  FolderGrid    { get; }
     DeviceInfo?     ActiveDevice  { get; }
 
     void RequestButtonRefresh(string commandName);
@@ -27,6 +28,7 @@ public interface IPluginHost
 |---|---|
 | `Logger` | Log sink scoped to this plugin — output is tagged with the plugin's `Id`. See [IPluginLogger](#ipluginlogger). |
 | `Settings` | Per-plugin JSON-backed key/value store under `plugins/<plugin-id>/settings.json`. See [IPluginSettings](#ipluginsettings). |
+| `FolderGrid` | Key grid of the active device for plugin folder layout. Use it instead of the legacy 5×3 `FolderLayout` constants. See [FolderGridInfo](#foldergridinfo). |
 | `ActiveDevice` | Currently driven device, or `null` if none. Mirrored on `CommandContext.Device`. |
 | `RequestButtonRefresh(commandName)` | Asks the host to re-render every touch button bound to `commandName`. Use after data backing an `IDisplayCommand` changes via push so the user sees the new value immediately instead of at the next poll tick. |
 | `ExecuteCommand(command)` | Runs a command string through the host's command pipeline (`Plugin.Command(arg1,arg2)` syntax). Enables chaining across plugin boundaries — e.g. an action that triggers another plugin's command. |
@@ -36,6 +38,33 @@ public interface IPluginHost
 Keep the `IPluginHost` you received in `Initialize` for the plugin's lifetime —
 do not try to access host services from a static field or before `Initialize`
 runs.
+
+## FolderGridInfo
+
+```csharp
+public sealed record FolderGridInfo(int Columns, int Rows, int BackSlotIndex)
+{
+    public int TotalSlots => Columns * Rows;
+    public int SlotForIndex(int entryIndex)
+    {
+        int slot = 0;
+        for (int i = 0; i <= entryIndex; i++)
+        {
+            if (slot == BackSlotIndex) slot++;
+            if (slot >= TotalSlots) return -1;
+            if (i == entryIndex) return slot;
+            slot++;
+        }
+        return -1;
+    }
+}
+```
+
+Read `FolderGrid` when building entries for a plugin folder. `BackSlotIndex` is
+reserved by the host, and `SlotForIndex` converts a zero-based content index to
+the next usable device slot while skipping it. The method returns `-1` when no
+more entries fit. This API was added in SDK 1.22.0; existing plugins can keep
+using the older contracts without a rebuild.
 
 ## IPluginLogger
 
