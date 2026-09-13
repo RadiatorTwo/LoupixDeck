@@ -116,6 +116,11 @@ public partial class LoupedeckLiveSController(
     // _screensaverActive so dynamic text / side-strip frames don't paint over the plugin's frames.
     private volatile bool _fullDisplayActive;
 
+    // True while folder navigation was already active on the previous OnFolderStateChanged
+    // call. Distinguishes "just entered folder mode" (blank the strips once) from "moved
+    // between entries within an already-open folder" (repaint the grid only).
+    private volatile bool _folderModeWasActive;
+
     // Tracks the slot index of the currently active touch contact. Set on the
     // first TOUCH_START of a finger-down sequence, cleared on TOUCH_END.
     private int? _activeTouchSlot;
@@ -1871,7 +1876,7 @@ public partial class LoupedeckLiveSController(
     {
         if (slotIndex < 0) return;
 
-        if (slotIndex == FolderConstants.BackSlotIndex)
+        if (slotIndex == folderNav.Grid.BackSlotIndex)
         {
             folderNav.NavigateBack().GetAwaiter().GetResult();
             return;
@@ -2276,24 +2281,34 @@ public partial class LoupedeckLiveSController(
 
             if (folderNav.IsActive)
             {
-                // Folder navigation paints the whole screen including the strips, so
-                // stop any plugin-strip providers; they re-attach on folder exit.
-                DetachAllSideStripProviders();
+                FolderGrid grid = folderNav.Grid;
 
-                for (var slot = 0; slot < FolderConstants.TotalSlots; slot++)
+                // Folder mode owns the grid. The strips are not part of the folder — a
+                // key-sized tile does not fit a 60x270 strip region — so on entry (not on
+                // every entry change within an already-open folder) the providers are
+                // stopped and the strips are blanked once, rather than painted per slot.
+                if (!_folderModeWasActive && device.HasSideStrips)
+                {
+                    DetachAllSideStripProviders();
+                    await BlankSideStrips(device, grid);
+                }
+
+                _folderModeWasActive = true;
+
+                for (int slot = 0; slot < grid.GridSlots; slot++)
                 {
                     SkiaSharp.SKBitmap bmp;
-                    if (slot == FolderConstants.BackSlotIndex)
+                    if (slot == grid.BackSlotIndex)
                     {
-                        bmp = BitmapHelper.RenderFolderBackButton(config, slot, KeySize, KeySize, FolderConstants.Columns);
+                        bmp = BitmapHelper.RenderFolderBackButton(config, slot, KeySize, KeySize, grid.Columns);
                     }
                     else if (folderNav.CurrentEntries.TryGetValue(slot, out var entry))
                     {
-                        bmp = BitmapHelper.RenderFolderEntry(entry, config, slot, KeySize, KeySize, FolderConstants.Columns);
+                        bmp = BitmapHelper.RenderFolderEntry(entry, config, slot, KeySize, KeySize, grid.Columns);
                     }
                     else
                     {
-                        bmp = BitmapHelper.RenderEmptyFolderSlot(config, slot, KeySize, KeySize, FolderConstants.Columns);
+                        bmp = BitmapHelper.RenderEmptyFolderSlot(config, slot, KeySize, KeySize, grid.Columns);
                     }
 
                     await device.DrawTouchSlot(slot, bmp);
@@ -2301,6 +2316,8 @@ public partial class LoupedeckLiveSController(
             }
             else
             {
+                _folderModeWasActive = false;
+
                 // Folder mode left — restore the configured page.
                 if (!wallpaperAnimation.TryRedirectPageRedraw())
                 {
@@ -2317,6 +2334,24 @@ public partial class LoupedeckLiveSController(
         {
             Console.WriteLine($"Folder redraw failed: {ex.Message}");
         }
+    }
+
+    /// <summary>
+    /// Draws one black frame to each side strip when folder mode is entered. The strips are
+    /// not part of the folder grid, so instead of leaving stale plugin/segment content on
+    /// screen the panel is blanked once; <see cref="RedrawSideStrips"/> repaints it (and
+    /// re-attaches the providers stopped above) when folder mode is left.
+    /// </summary>
+    private async Task BlankSideStrips(LoupedeckDevice.Device.LoupedeckDevice device, FolderGrid grid)
+    {
+        using SkiaSharp.SKBitmap blank = new(StripWidth, StripHeight);
+        using (SkiaSharp.SKCanvas canvas = new(blank))
+        {
+            canvas.Clear(SkiaSharp.SKColors.Black);
+        }
+
+        await device.DrawTouchSlot(grid.LeftStripSlot, blank);
+        await device.DrawTouchSlot(grid.RightStripSlot, blank);
     }
 
     private void OnTouchPageChanged(int oldIndex, int newIndex)
