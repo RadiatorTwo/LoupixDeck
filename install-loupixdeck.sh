@@ -85,10 +85,43 @@ for arg in "$@"; do
             ;;
     esac
 done
-# Started by the in-app updater in its own terminal window: keep that window open on failure,
-# otherwise the error vanishes together with the window.
+# Matched by the executable a process runs, not by its name: started through the
+# lowercase symlink (the desktop entry does that), the process is named 'loupixdeck',
+# so 'pgrep -x LoupixDeck' never saw it. /proc/<pid>/exe resolves to the real binary.
+app_running() {
+    local exe
+    for exe in /proc/[0-9]*/exe; do
+        [ "$(readlink "$exe" 2>/dev/null)" = "$INSTALL_DIR/LoupixDeck" ] && return 0
+    done
+    return 1
+}
+
+# Started by the in-app updater in its own terminal window. The app has already quit, so a
+# failed or cancelled update (no password, no network, ...) starts the previous version again
+# instead of leaving the user without it, and the window stays open so the error can be read.
+on_restart_exit() {
+    local rc=$1
+    rm -rf "$TMP_DIR"
+    [ "$rc" -ne 0 ] || return 0
+    if [ "$(id -u)" -ne 0 ] && [ -x "$INSTALL_DIR/LoupixDeck" ] && ! app_running; then
+        warn "Installation failed - starting the installed LoupixDeck again."
+        setsid nohup "$SYMLINK" >/dev/null 2>&1 < /dev/null &
+    fi
+    if [ -t 0 ]; then
+        read -rp "Installation failed. Press Enter to close this window." _ || true
+    fi
+}
 if [ "$RESTART" -eq 1 ]; then
-    trap 'rc=$?; rm -rf "$TMP_DIR"; if [ "$rc" -ne 0 ] && [ -t 0 ]; then read -rp "Installation failed. Press Enter to close this window." _ || true; fi' EXIT
+    trap 'on_restart_exit $?' EXIT
+fi
+
+# Ask for the password before anything is downloaded, built or removed: declining it then
+# ends the script with the installation untouched, not halfway through replacing it.
+if [ -n "$SUDO" ]; then
+    log "Administrator rights are needed to install into $INSTALL_DIR."
+    sudo -v || die "No administrator rights - nothing was changed."
+    # Keep the credentials fresh for long source builds; ends together with this script.
+    ( while kill -0 "$$" 2>/dev/null; do sudo -n true 2>/dev/null; sleep 50; done ) &
 fi
 # With --from-source the version is not a release to download but the version the master build
 # reports, e.g. an older number to try the in-app updater against a published release.
@@ -258,17 +291,6 @@ else
 fi
 
 # ---------- Close running app (--restart) ----------
-# Matched by the executable a process runs, not by its name: started through the
-# lowercase symlink (the desktop entry does that), the process is named 'loupixdeck',
-# so 'pgrep -x LoupixDeck' never saw it. /proc/<pid>/exe resolves to the real binary.
-app_running() {
-    local exe
-    for exe in /proc/[0-9]*/exe; do
-        [ "$(readlink "$exe" 2>/dev/null)" = "$INSTALL_DIR/LoupixDeck" ] && return 0
-    done
-    return 1
-}
-
 # The running app is asked to quit through its own IPC channel (a second instance forwards
 # 'quit'), so it shuts its devices down cleanly before its files are replaced. The in-app
 # updater quits on its own right after starting this script; then there is nothing to do.
