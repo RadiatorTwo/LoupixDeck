@@ -11,7 +11,9 @@ public class LoupedeckLiveSDevice : LoupedeckDevice
         KeySize = 90,
         PanelWidth = 480,
         PanelHeight = 270,
-        StripWidth = 0
+        StripWidth = 0,
+        Columns = 5,
+        Rows = 3
     };
 
     /// <inheritdoc />

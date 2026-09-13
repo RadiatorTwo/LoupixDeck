@@ -12,6 +12,9 @@ public interface IFolderNavigationService
     /// <summary>Cached entries of the current provider, keyed by SlotIndex for fast touch dispatch.</summary>
     ImmutableDictionary<int, FolderEntry> CurrentEntries { get; }
 
+    /// <summary>Key grid of the active device — slot count, back slot and strip slots.</summary>
+    FolderGrid Grid { get; }
+
     /// <summary>Pushes a new folder onto the stack.</summary>
     Task OpenFolder(IFolderProvider provider);
 

@@ -22,6 +22,7 @@ public sealed class PluginHost : IPluginHost
     private readonly Func<string, IReadOnlyList<string>> _getButtonStates;
     private readonly Func<string, string> _getActiveButtonState;
     private readonly Func<string, string, bool> _setActiveButtonState;
+    private readonly Func<FolderGridInfo> _getFolderGrid;
 
     public PluginHost(
         IPluginLogger logger,
@@ -38,7 +39,8 @@ public sealed class PluginHost : IPluginHost
         Func<IFullDisplayRenderer, IFullDisplayRenderSession> requestFullDisplayRenderer,
         Func<string, IReadOnlyList<string>> getButtonStates,
         Func<string, string> getActiveButtonState,
-        Func<string, string, bool> setActiveButtonState)
+        Func<string, string, bool> setActiveButtonState,
+        Func<FolderGridInfo> getFolderGrid)
     {
         Logger = logger;
         Settings = settings;
@@ -55,6 +57,7 @@ public sealed class PluginHost : IPluginHost
         _getButtonStates = getButtonStates;
         _getActiveButtonState = getActiveButtonState;
         _setActiveButtonState = setActiveButtonState;
+        _getFolderGrid = getFolderGrid;
     }
 
     public IPluginLogger Logger { get; }
@@ -62,6 +65,13 @@ public sealed class PluginHost : IPluginHost
     public IPluginSettings Settings { get; }
 
     public DeviceInfo ActiveDevice { get; }
+
+    /// <summary>
+    /// Falls back to the SDK's 5x3 default when no device/navigation service can be resolved
+    /// (e.g. during plugin initialization before a device is attached).
+    /// </summary>
+    public FolderGridInfo FolderGrid =>
+        _getFolderGrid?.Invoke() ?? new FolderGridInfo(FolderLayout.Columns, 3, FolderLayout.BackSlotIndex);
 
     public void RequestButtonRefresh(string commandName) => _requestButtonRefresh?.Invoke(commandName);
 

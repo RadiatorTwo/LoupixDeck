@@ -52,7 +52,9 @@ public class LoupedeckCtDevice : LoupedeckDevice
         KeySize = 90,
         PanelWidth = 480,
         PanelHeight = 270,
-        StripWidth = 60
+        StripWidth = 60,
+        Columns = 4,
+        Rows = 3
     };
 
     /// <inheritdoc />

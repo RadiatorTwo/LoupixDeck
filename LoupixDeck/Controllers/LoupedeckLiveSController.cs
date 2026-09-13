@@ -1,5 +1,6 @@
 ﻿using System.ComponentModel;
 using System.IO.Hashing;
+using System.Threading;
 using LoupixDeck.LoupedeckDevice;
 using LoupixDeck.Models;
 using LoupixDeck.Models.Extensions;
@@ -115,6 +116,26 @@ public partial class LoupedeckLiveSController(
     // #124, e.g. video streaming). Gates the controller's own redraw paths exactly like
     // _screensaverActive so dynamic text / side-strip frames don't paint over the plugin's frames.
     private volatile bool _fullDisplayActive;
+
+    // True while folder navigation was already active on the previous OnFolderStateChanged
+    // call. Distinguishes "just entered folder mode" (blank the strips once) from "moved
+    // between entries within an already-open folder" (repaint the grid only).
+    private volatile bool _folderModeWasActive;
+
+    // Depth counter, >0 for the duration of any in-flight ApplyActiveWorkspace call(s).
+    // StopDisplayTakeoversAsync (called from inside it) closes an open folder via ExitAll,
+    // which fires OnFolderStateChanged synchronously before BindActiveWorkspaceTouchPages has
+    // rebound the new workspace's pages — its "folder left" repaint would then run against the
+    // *new* workspace's half-applied state (wrong keys on KeyGridHasGaps devices, or a null
+    // CurrentTouchButtonPage on a never-visited workspace) and race ApplyActiveWorkspace's own
+    // full repaint on the UI thread. A depth counter rather than a bool: a rapid profile-then-
+    // workspace switch can start a second ApplyActiveWorkspace call before the first's finally
+    // runs, and a bool would let the inner call's finally clear the flag while the outer call
+    // is still inside StopDisplayTakeoversAsync, reopening the race. ApplyActiveWorkspace is also
+    // reachable synchronously from the device input thread (CommandService.ExecuteCommand does not
+    // marshal a folder entry's OnPress to the UI thread), so the increment/decrement and the read
+    // in OnFolderStateChanged all go through Interlocked/Volatile rather than a plain int.
+    private int _workspaceApplyDepth;
 
     // Tracks the slot index of the currently active touch contact. Set on the
     // first TOUCH_START of a finger-down sequence, cleared on TOUCH_END.
@@ -686,10 +707,11 @@ public partial class LoupedeckLiveSController(
         return true;
     }
 
-    /// <summary>Ends any active full-display or exclusive-mode takeover. Called on a profile/workspace
-    /// switch — the takeover belonged to the workspace being left, and neither mode auto-restarts
-    /// (the owning plugin re-enters via its own command). Safe to call when nothing is active.</summary>
-    private void StopDisplayTakeovers()
+    /// <summary>Ends any active full-display or exclusive-mode takeover, and closes an open folder.
+    /// Called on a profile/workspace switch — the takeover (or folder) belonged to the workspace
+    /// being left, and none of them auto-restarts (the owning plugin re-enters via its own command;
+    /// a folder has no owner to re-enter). Safe to call when nothing is active.</summary>
+    private async Task StopDisplayTakeoversAsync()
     {
         try
         {
@@ -700,6 +722,15 @@ public partial class LoupedeckLiveSController(
 
         try { fullDisplay.StopActive(); }
         catch (Exception ex) { Console.WriteLine($"StopDisplayTakeovers (full-display) failed: {ex.Message}"); }
+
+        try
+        {
+            // A folder belonged to the workspace being left. The stack is separate from the
+            // workspace on purpose, so nothing else pops it — GoHomeWorkspace does this too.
+            if (folderNav.IsActive)
+                await folderNav.ExitAll();
+        }
+        catch (Exception ex) { Console.WriteLine($"StopDisplayTakeovers (folder) failed: {ex.Message}"); }
     }
 
     /// <summary>
@@ -806,6 +837,20 @@ public partial class LoupedeckLiveSController(
 
         // Start the device using the configuration
         deviceService.StartDevice(config.DevicePort, config.DeviceBaudrate);
+
+        // The registry's folder grid (FolderGrid.From(DeviceGeometry)) and the live device
+        // class are two declarations of the same fact. A future device added to the registry
+        // with the wrong Columns/Rows would silently misplace the back button, so check them
+        // against each other once, right here where the controller first sees the live device,
+        // rather than on every folder repaint.
+        LoupedeckDevice.Device.LoupedeckDevice liveDevice = deviceService.Device;
+        if (liveDevice != null && !folderNav.Grid.Matches(liveDevice.Columns, liveDevice.Rows))
+        {
+            Console.WriteLine(
+                $"[FolderGrid] {deviceInfo?.Name ?? liveDevice.GetType().Name}: registry grid " +
+                $"{folderNav.Grid.Columns}x{folderNav.Grid.Rows} does not match the device's own grid " +
+                $"{liveDevice.Columns}x{liveDevice.Rows}.");
+        }
 
         // (The legacy root-level → page-0 wallpaper migration now lives in
         //  WallpaperAssetMigrator, which also moves wallpapers into the asset folder.)
@@ -1871,7 +1916,7 @@ public partial class LoupedeckLiveSController(
     {
         if (slotIndex < 0) return;
 
-        if (slotIndex == FolderConstants.BackSlotIndex)
+        if (slotIndex == folderNav.Grid.BackSlotIndex)
         {
             folderNav.NavigateBack().GetAwaiter().GetResult();
             return;
@@ -2127,8 +2172,9 @@ public partial class LoupedeckLiveSController(
             return;
         }
 
-        var slotBitmaps = new SkiaSharp.SKBitmap[FolderConstants.TotalSlots];
-        for (var slot = 0; slot < FolderConstants.TotalSlots; slot++)
+        int totalSlots = device.TouchButtonCount;
+        var slotBitmaps = new SkiaSharp.SKBitmap[totalSlots];
+        for (var slot = 0; slot < totalSlots; slot++)
             slotBitmaps[slot] = RenderSlot(bySlot, slot);
 
         await device.DrawTouchSlotsAtomic(slotBitmaps, refresh: true);
@@ -2170,7 +2216,8 @@ public partial class LoupedeckLiveSController(
     private async Task DrawExclusiveGrid(LoupedeckDevice.Device.LoupedeckDevice device,
         IReadOnlyDictionary<int, PluginSdk.FolderEntry> bySlot)
     {
-        for (var slot = 0; slot < FolderConstants.TotalSlots; slot++)
+        int totalSlots = device.TouchButtonCount;
+        for (var slot = 0; slot < totalSlots; slot++)
         {
             if (!ExclusiveOwnsSlot(slot)) continue;
             using var bmp = RenderSlot(bySlot, slot);
@@ -2182,7 +2229,7 @@ public partial class LoupedeckLiveSController(
     private async Task DrawExclusiveSingleTile(LoupedeckDevice.Device.LoupedeckDevice device,
         IReadOnlyDictionary<int, PluginSdk.FolderEntry> bySlot, int slotIndex)
     {
-        if (slotIndex < 0 || slotIndex >= FolderConstants.TotalSlots) slotIndex = 0;
+        if (slotIndex < 0 || slotIndex >= device.TouchButtonCount) slotIndex = 0;
         if (!ExclusiveOwnsSlot(slotIndex)) return;
         using var bmp = RenderSlot(bySlot, slotIndex);
         await device.DrawTouchSlot(slotIndex, bmp, refresh: false);
@@ -2194,13 +2241,14 @@ public partial class LoupedeckLiveSController(
         PluginSdk.IExclusiveModeProvider provider,
         IReadOnlyDictionary<int, PluginSdk.FolderEntry> bySlot)
     {
+        int totalSlots = device.TouchButtonCount;
         if (!ReferenceEquals(_dirtyOwner, provider) || _dirtyKeys == null)
         {
             _dirtyOwner = provider;
-            _dirtyKeys = new TileSig?[FolderConstants.TotalSlots]; // all null → redraw all
+            _dirtyKeys = new TileSig?[totalSlots]; // all null → redraw all
         }
 
-        for (var slot = 0; slot < FolderConstants.TotalSlots; slot++)
+        for (var slot = 0; slot < totalSlots; slot++)
         {
             if (!ExclusiveOwnsSlot(slot)) continue;
 
@@ -2219,7 +2267,7 @@ public partial class LoupedeckLiveSController(
     private SkiaSharp.SKBitmap RenderSlot(IReadOnlyDictionary<int, PluginSdk.FolderEntry> bySlot, int slot)
         => bySlot.TryGetValue(slot, out var entry)
             ? RenderSdkEntry(entry, slot)
-            : BitmapHelper.RenderEmptyFolderSlot(config, slot, KeySize, KeySize, FolderConstants.Columns);
+            : BitmapHelper.RenderEmptyFolderSlot(config, slot, KeySize, KeySize, folderNav.Grid.Columns);
 
     // --- DirtyTiles bookkeeping -------------------------------------------------
     private PluginSdk.IExclusiveModeProvider _dirtyOwner;
@@ -2260,7 +2308,7 @@ public partial class LoupedeckLiveSController(
             TextSize = e.TextSize,
             Bold = e.Bold
         };
-        return BitmapHelper.RenderFolderEntry(core, null, slot, KeySize, KeySize, FolderConstants.Columns);
+        return BitmapHelper.RenderFolderEntry(core, null, slot, KeySize, KeySize, folderNav.Grid.Columns);
     }
 
     private async void OnFolderStateChanged()
@@ -2268,6 +2316,13 @@ public partial class LoupedeckLiveSController(
         try
         {
             var device = deviceService.Device;
+
+            // The folder can close while the device is gone or exclusive mode owns the
+            // display; the early returns below skip the branch further down that resets
+            // this flag, so reset it here too — otherwise the next real folder entry sees
+            // a stale "already open" and skips blanking the side strips.
+            if (!folderNav.IsActive) _folderModeWasActive = false;
+
             if (device == null) return;
 
             // Exclusive mode owns the display — skip folder repaints, they'd
@@ -2276,24 +2331,34 @@ public partial class LoupedeckLiveSController(
 
             if (folderNav.IsActive)
             {
-                // Folder navigation paints the whole screen including the strips, so
-                // stop any plugin-strip providers; they re-attach on folder exit.
-                DetachAllSideStripProviders();
+                FolderGrid grid = folderNav.Grid;
 
-                for (var slot = 0; slot < FolderConstants.TotalSlots; slot++)
+                // Folder mode owns the grid. The strips are not part of the folder — a
+                // key-sized tile does not fit a 60x270 strip region — so on entry (not on
+                // every entry change within an already-open folder) the providers are
+                // stopped and the strips are blanked once, rather than painted per slot.
+                if (!_folderModeWasActive && device.HasSideStrips)
+                {
+                    DetachAllSideStripProviders();
+                    await BlankSideStrips(device, grid);
+                }
+
+                _folderModeWasActive = true;
+
+                for (int slot = 0; slot < grid.GridSlots; slot++)
                 {
                     SkiaSharp.SKBitmap bmp;
-                    if (slot == FolderConstants.BackSlotIndex)
+                    if (slot == grid.BackSlotIndex)
                     {
-                        bmp = BitmapHelper.RenderFolderBackButton(config, slot, KeySize, KeySize, FolderConstants.Columns);
+                        bmp = BitmapHelper.RenderFolderBackButton(config, slot, KeySize, KeySize, grid.Columns);
                     }
                     else if (folderNav.CurrentEntries.TryGetValue(slot, out var entry))
                     {
-                        bmp = BitmapHelper.RenderFolderEntry(entry, config, slot, KeySize, KeySize, FolderConstants.Columns);
+                        bmp = BitmapHelper.RenderFolderEntry(entry, config, slot, KeySize, KeySize, grid.Columns);
                     }
                     else
                     {
-                        bmp = BitmapHelper.RenderEmptyFolderSlot(config, slot, KeySize, KeySize, FolderConstants.Columns);
+                        bmp = BitmapHelper.RenderEmptyFolderSlot(config, slot, KeySize, KeySize, grid.Columns);
                     }
 
                     await device.DrawTouchSlot(slot, bmp);
@@ -2301,6 +2366,16 @@ public partial class LoupedeckLiveSController(
             }
             else
             {
+                _folderModeWasActive = false;
+
+                // A workspace switch is in progress: it closed the folder itself (via
+                // StopDisplayTakeoversAsync -> ExitAll) before rebinding the new workspace's
+                // pages, so CurrentTouchButtonPage here can still be the old workspace's page,
+                // null (a never-visited workspace), or simply about to be overwritten.
+                // ApplyActiveWorkspace's own repaint (page + side strips) covers what this
+                // branch would otherwise do; painting here too would race it.
+                if (Volatile.Read(ref _workspaceApplyDepth) > 0) return;
+
                 // Folder mode left — restore the configured page.
                 if (!wallpaperAnimation.TryRedirectPageRedraw())
                 {
@@ -2317,6 +2392,24 @@ public partial class LoupedeckLiveSController(
         {
             Console.WriteLine($"Folder redraw failed: {ex.Message}");
         }
+    }
+
+    /// <summary>
+    /// Draws one black frame to each side strip when folder mode is entered. The strips are
+    /// not part of the folder grid, so instead of leaving stale plugin/segment content on
+    /// screen the panel is blanked once; <see cref="RedrawSideStrips"/> repaints it (and
+    /// re-attaches the providers stopped above) when folder mode is left.
+    /// </summary>
+    private async Task BlankSideStrips(LoupedeckDevice.Device.LoupedeckDevice device, FolderGrid grid)
+    {
+        using SkiaSharp.SKBitmap blank = new(StripWidth, StripHeight);
+        using (SkiaSharp.SKCanvas canvas = new(blank))
+        {
+            canvas.Clear(SkiaSharp.SKColors.Black);
+        }
+
+        await device.DrawTouchSlot(grid.LeftStripSlot, blank);
+        await device.DrawTouchSlot(grid.RightStripSlot, blank);
     }
 
     private void OnTouchPageChanged(int oldIndex, int newIndex)
@@ -2419,35 +2512,44 @@ public partial class LoupedeckLiveSController(
         // The workspace being left may own a macro that is waiting for its trigger to come up (#185).
         ReleaseAllPresses();
 
-        // A profile/workspace switch ends any full-display takeover (issue #124) and exclusive mode:
-        // the takeover belonged to the workspace we are leaving. Neither auto-restarts — the owning
-        // plugin re-enters explicitly via its own command.
-        StopDisplayTakeovers();
-
-        BindActiveWorkspaceTouchPages();
-        InitializeRotaryPages();
-
-        if (config.TouchButtonPages == null || config.TouchButtonPages.Count == 0)
+        Interlocked.Increment(ref _workspaceApplyDepth);
+        try
         {
-            await pageManager.AddTouchButtonPage(true);
+            // A profile/workspace switch ends any full-display takeover (issue #124) and
+            // exclusive mode, and closes an open folder: all three belonged to the workspace
+            // we are leaving. None auto-restarts — the owning plugin re-enters explicitly via
+            // its own command, and a folder has no owner to re-enter.
+            await StopDisplayTakeoversAsync();
+
+            BindActiveWorkspaceTouchPages();
+            InitializeRotaryPages();
+
+            if (config.TouchButtonPages == null || config.TouchButtonPages.Count == 0)
+            {
+                await pageManager.AddTouchButtonPage(true);
+            }
+            else
+            {
+                var startupIndex = config.StartupTouchPageIndex;
+                if (startupIndex < 0 || startupIndex >= config.TouchButtonPages.Count)
+                    startupIndex = 0;
+
+                // The freshly activated workspace remembers its own current index; reset it so
+                // ApplyTouchPage (which early-returns when the index is unchanged) always repaints.
+                pageManager.CurrentTouchPageIndex = -1;
+                await pageManager.ApplyTouchPage(startupIndex, true);
+            }
+
+            config.CurrentRotaryButtonPage?.Selected = true;
+            config.CurrentTouchButtonPage?.Selected = true;
+
+            if (!_isDeviceOff && !folderNav.IsActive && !exclusiveMode.Owns(ExclusiveControlScope.SideDisplays))
+                await RedrawSideStrips();
         }
-        else
+        finally
         {
-            var startupIndex = config.StartupTouchPageIndex;
-            if (startupIndex < 0 || startupIndex >= config.TouchButtonPages.Count)
-                startupIndex = 0;
-
-            // The freshly activated workspace remembers its own current index; reset it so
-            // ApplyTouchPage (which early-returns when the index is unchanged) always repaints.
-            pageManager.CurrentTouchPageIndex = -1;
-            await pageManager.ApplyTouchPage(startupIndex, true);
+            Interlocked.Decrement(ref _workspaceApplyDepth);
         }
-
-        config.CurrentRotaryButtonPage?.Selected = true;
-        config.CurrentTouchButtonPage?.Selected = true;
-
-        if (!_isDeviceOff && !folderNav.IsActive && !exclusiveMode.Owns(ExclusiveControlScope.SideDisplays))
-            await RedrawSideStrips();
     }
 
     private void TouchButtonPagesOnCollectionChanged(object sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)

@@ -16,6 +16,19 @@ public sealed record DeviceGeometry
     public required int KeySize { get; init; }
 
     /// <summary>
+    /// Columns of the centre key grid. On the registry entry rather than only on the device
+    /// class, because services are built before the device object exists — the same reason
+    /// the pixel sizes live here.
+    /// </summary>
+    public required int Columns { get; init; }
+
+    /// <summary>Rows of the centre key grid.</summary>
+    public required int Rows { get; init; }
+
+    /// <summary>Addressable keys in the centre grid.</summary>
+    public int GridSlots => Columns * Rows;
+
+    /// <summary>
     /// Width of the unified panel the touch coordinates and the wallpaper live on.
     /// This is the whole surface including any side strips — on the Loupedeck CT it stays
     /// 480 even though the device draws it through four separate framebuffers
@@ -71,6 +84,8 @@ public sealed record DeviceGeometry
         KeySize = 90,
         PanelWidth = 480,
         PanelHeight = 270,
-        StripWidth = 60
+        StripWidth = 60,
+        Columns = 4,
+        Rows = 3
     };
 }
