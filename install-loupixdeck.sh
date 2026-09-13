@@ -48,11 +48,17 @@ esac
 # ---------- Base tools ----------
 require uname
 require tar
+# DL fetches the release archive and shows a progress bar when a terminal is attached; piped
+# or logged runs stay quiet. DL_STDOUT (API queries) is always silent.
 if command -v curl >/dev/null 2>&1; then
-    DL() { curl -fsSL "$1" -o "$2"; }
+    DL() {
+        if [ -t 2 ]; then curl -fL --progress-bar "$1" -o "$2"; else curl -fsSL "$1" -o "$2"; fi
+    }
     DL_STDOUT() { curl -fsSL "$1"; }
 elif command -v wget >/dev/null 2>&1; then
-    DL() { wget -qO "$2" "$1"; }
+    DL() {
+        if [ -t 2 ]; then wget -q --show-progress -O "$2" "$1"; else wget -qO "$2" "$1"; fi
+    }
     DL_STDOUT() { wget -qO- "$1"; }
 else
     die "Neither curl nor wget found."
