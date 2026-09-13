@@ -257,26 +257,38 @@ else
     download_release
 fi
 
-# ---------- Install ----------
-# A bundled plugin keeps its settings next to its own binary
-# ($INSTALL_DIR/plugins/<id>/settings.json), so wiping the install directory would take
-# every plugin configuration with it. Rescue those files first and put them back once
-# the new build is in place.
 # ---------- Close running app (--restart) ----------
+# Matched by the executable a process runs, not by its name: started through the
+# lowercase symlink (the desktop entry does that), the process is named 'loupixdeck',
+# so 'pgrep -x LoupixDeck' never saw it. /proc/<pid>/exe resolves to the real binary.
+app_running() {
+    local exe
+    for exe in /proc/[0-9]*/exe; do
+        [ "$(readlink "$exe" 2>/dev/null)" = "$INSTALL_DIR/LoupixDeck" ] && return 0
+    done
+    return 1
+}
+
 # The running app is asked to quit through its own IPC channel (a second instance forwards
-# 'quit'), so it shuts its devices down cleanly before its files are replaced.
-if [ "$RESTART" -eq 1 ] && command -v pgrep >/dev/null 2>&1 && pgrep -x LoupixDeck >/dev/null 2>&1; then
+# 'quit'), so it shuts its devices down cleanly before its files are replaced. The in-app
+# updater quits on its own right after starting this script; then there is nothing to do.
+if [ "$RESTART" -eq 1 ] && app_running; then
     log "Closing running LoupixDeck ..."
     if [ -x "$SYMLINK" ]; then
         "$SYMLINK" quit >/dev/null 2>&1 || true
     fi
     for _ in $(seq 1 40); do
-        pgrep -x LoupixDeck >/dev/null 2>&1 || break
+        app_running || break
         sleep 0.5
     done
-    pgrep -x LoupixDeck >/dev/null 2>&1 && die "LoupixDeck is still running. Close it and run the installer again."
+    app_running && die "LoupixDeck is still running. Close it and run the installer again."
 fi
 
+# ---------- Install ----------
+# A bundled plugin keeps its settings next to its own binary
+# ($INSTALL_DIR/plugins/<id>/settings.json), so wiping the install directory would take
+# every plugin configuration with it. Rescue those files first and put them back once
+# the new build is in place.
 PRESERVED_SETTINGS="$TMP_DIR/preserved-settings"
 if [ -d "$INSTALL_DIR/plugins" ]; then
     for plugin_dir in "$INSTALL_DIR"/plugins/*/; do
