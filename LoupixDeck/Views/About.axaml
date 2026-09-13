@@ -5,8 +5,8 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="using:LoupixDeck.ViewModels"
         mc:Ignorable="d"
-        d:DesignWidth="400" d:DesignHeight="320"
-        Width="400" Height="320"
+        d:DesignWidth="400" d:DesignHeight="400"
+        Width="400" Height="400"
         x:Class="LoupixDeck.Views.About"
         x:DataType="vm:AboutViewModel"
         WindowStartupLocation="CenterScreen"
@@ -61,6 +61,13 @@
                 <Button Content="{loc:Tr About_ProjectWebsite}" MinWidth="160" HorizontalAlignment="Center"
                         HorizontalContentAlignment="Center"
                         Command="{Binding OpenWebsiteCommand}" />
+                <Button Content="{loc:Tr About_CheckForUpdates}" MinWidth="160" HorizontalAlignment="Center"
+                        HorizontalContentAlignment="Center"
+                        Command="{Binding CheckForUpdatesCommand}" />
+                <TextBlock Text="{Binding UpdateStatus}" IsVisible="{Binding HasUpdateStatus}"
+                           FontSize="12" MaxWidth="340" TextWrapping="Wrap" TextAlignment="Center"
+                           Foreground="{DynamicResource AppTextSecondary}"
+                           HorizontalAlignment="Center" />
                 <Button Content="{loc:Tr About_Close}" MinWidth="160" HorizontalAlignment="Center"
                         HorizontalContentAlignment="Center"
                         Command="{Binding CloseCommand}" />

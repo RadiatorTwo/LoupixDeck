@@ -81,13 +81,26 @@ public partial class MainWindow : Window
     private void OnDataContextChanged(object sender, System.EventArgs e)
     {
         _shell?.PropertyChanged -= OnShellPropertyChanged;
+        _shell?.UpdateFound -= OnUpdateFound;
         _shell = DataContext as MainShellViewModel;
         _shell?.PropertyChanged += OnShellPropertyChanged;
+        _shell?.UpdateFound += OnUpdateFound;
 
         // The deck first, then the panel beside it: the other order puts an empty panel on screen
         // before there is anything for it to sit next to.
         UpdateDeviceLayout();
         TrackActionPanel();
+    }
+
+    /// <summary>
+    /// A visible window already shows the update hint; a window in the tray or on the taskbar gets
+    /// an OS notification instead, since nobody would see the hint there.
+    /// </summary>
+    private void OnUpdateFound(Services.Updates.UpdateInfo update)
+    {
+        if (!_isMinimizedToTray && WindowState != WindowState.Minimized) return;
+
+        _shell?.NotifyUpdate(update, TryGetPlatformHandle()?.Handle ?? IntPtr.Zero);
     }
 
     private void OnShellPropertyChanged(object sender, PropertyChangedEventArgs e)

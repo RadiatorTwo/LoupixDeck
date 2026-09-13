@@ -93,6 +93,7 @@ public static class ServiceCollectionExtensions
         else
 #endif
             collection.AddSingleton<Services.Updates.IUpdateNotifier, Services.Updates.DBusUpdateNotifier>();
+
         collection.AddSingleton<ICommandRunner, CommandRunner>();
 
         // The platform service is wrapped in the wall-clock resume detector: its notification
@@ -436,6 +437,9 @@ public static class ServiceCollectionExtensions
         collection.AddTransient<About>();
         collection.AddTransient<AboutViewModel>();
 
+        collection.AddTransient<UpdateDialog>();
+        collection.AddTransient<UpdateDialogViewModel>();
+
         collection.AddTransient<DialPresetEditor>();
         collection.AddTransient<DialPresetEditorViewModel>();
 
@@ -491,6 +495,7 @@ public static class ServiceCollectionExtensions
         dialogService.Register<MacroEditorViewModel, MacroEditor>();
         dialogService.Register<DialPresetEditorViewModel, DialPresetEditor>();
         dialogService.Register<AboutViewModel, About>();
+        dialogService.Register<UpdateDialogViewModel, UpdateDialog>();
         dialogService.Register<ConfirmDialogViewModel, ConfirmDialog>();
         dialogService.Register<TextInputDialogViewModel, TextInputDialog>();
         dialogService.Register<ProfileImportViewModel, ProfileImport>();

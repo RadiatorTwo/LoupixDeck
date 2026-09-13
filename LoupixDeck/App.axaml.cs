@@ -153,7 +153,9 @@ public partial class App : Application
             // The shell owns the two menu entries that reach no hardware, About and Quit, so it
             // needs the dialog service. It comes from the primary device's container, which
             // exists as soon as a device is configured — connected or not.
-            var shell = new MainShellViewModel(primaryHost?.Provider.GetService<IDialogService>());
+            var shell = new MainShellViewModel(primaryHost?.Provider.GetService<IDialogService>(),
+                root.GetRequiredService<Services.Updates.IUpdateService>(),
+                root.GetRequiredService<Services.Updates.IUpdateNotifier>());
             _shell = shell;
 
             // The window goes up here, before the plugins load and before a single device is
@@ -234,6 +236,10 @@ public partial class App : Application
 
             // Arm runtime hot-plug now that the initial device set is up.
             StartHotPlug();
+
+            // Look for a new release in the background (issue #233). Never blocks and never shows
+            // an error; the result goes to the log and, if there is an update, to the window hint.
+            root.GetRequiredService<Services.Updates.IUpdateService>().StartAutomaticCheck();
         }
         catch (Exception ex)
         {
