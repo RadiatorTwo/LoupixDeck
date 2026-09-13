@@ -157,8 +157,7 @@ public sealed class ProfileHeaderMenuViewModel : ViewModelBase
 
     private async Task LinkApplication()
     {
-        Profile profile = _activation.ActiveProfile;
-        if (profile == null) return;
+        if (_activation.ActiveProfile == null) return;
 
         AppPickerRequest request = new();
         DialogResult picked = await _dialogService.ShowDialogAsync<AppPickerViewModel, DialogResult>(
@@ -166,7 +165,18 @@ public sealed class ProfileHeaderMenuViewModel : ViewModelBase
 
         if (picked is not { IsConfirmed: true } || request.SelectedApp == null) return;
 
-        InstalledApp app = request.SelectedApp;
+        await LinkApplicationAsync(request.SelectedApp);
+    }
+
+    /// <summary>
+    /// Links <paramref name="app"/> to the active profile: rejects apps without a usable process name,
+    /// resolves conflicting rules after asking, writes the plain rule, offers to turn on automatic
+    /// switching, and saves. Shared by the header's picker entry and the panel's context menu.
+    /// </summary>
+    public async Task LinkApplicationAsync(InstalledApp app)
+    {
+        Profile profile = _activation.ActiveProfile;
+        if (profile == null || app == null) return;
 
         if (!ProfileAppLink.CanLinkProcess(app.ProcessName))
         {
