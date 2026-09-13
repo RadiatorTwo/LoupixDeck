@@ -4,11 +4,13 @@
 # it system-wide, and sets up udev rules and a desktop entry. The build is
 # self-contained, so no separate .NET runtime is required to run it.
 #
-# Usage: install-loupixdeck.sh [version | --from-source]
+# Usage: install-loupixdeck.sh [version | --from-source] [--restart]
 #   version        Release tag to install (e.g. v1.22.0). Defaults to the
 #                  latest release. A leading 'v' is optional.
 #   --from-source  Clone and build master of LoupixDeck, the Plugin SDK and
 #                  all bundled plugins instead. Needs git and the .NET SDK.
+#   --restart      Close a running LoupixDeck before installing and start it
+#                  again afterwards. Used by the in-app updater.
 set -euo pipefail
 
 REPO="RadiatorTwo/LoupixDeck"
@@ -58,18 +60,22 @@ fi
 # ---------- Arguments ----------
 REQUESTED_VERSION=""
 FROM_SOURCE=0
+RESTART=0
 for arg in "$@"; do
     case "$arg" in
         -h|--help)
-            printf 'Usage: %s [version | --from-source]\n\n' "$(basename "$0")"
+            printf 'Usage: %s [version | --from-source] [--restart]\n\n' "$(basename "$0")"
             printf '  version        Release tag to install (e.g. v1.22.0).\n'
             printf '                 Defaults to the latest release.\n'
             printf '  --from-source  Clone master of LoupixDeck, the Plugin SDK and all\n'
             printf '                 bundled plugins, build them locally and install the\n'
             printf '                 result. Requires git and the .NET SDK.\n'
+            printf '  --restart      Close a running LoupixDeck before installing and\n'
+            printf '                 start it again afterwards.\n'
             exit 0
             ;;
         --from-source) FROM_SOURCE=1 ;;
+        --restart) RESTART=1 ;;
         -*) die "Unknown option: $arg (see --help)." ;;
         *)
             [ -z "$REQUESTED_VERSION" ] || die "Only one version may be given (see --help)."
@@ -77,6 +83,11 @@ for arg in "$@"; do
             ;;
     esac
 done
+# Started by the in-app updater in its own terminal window: keep that window open on failure,
+# otherwise the error vanishes together with the window.
+if [ "$RESTART" -eq 1 ]; then
+    trap 'rc=$?; rm -rf "$TMP_DIR"; if [ "$rc" -ne 0 ] && [ -t 0 ]; then read -rp "Installation failed. Press Enter to close this window." _ || true; fi' EXIT
+fi
 if [ "$FROM_SOURCE" -eq 1 ] && [ -n "$REQUESTED_VERSION" ]; then
     die "--from-source builds master; a version cannot be combined with it."
 fi
@@ -242,6 +253,21 @@ fi
 # ($INSTALL_DIR/plugins/<id>/settings.json), so wiping the install directory would take
 # every plugin configuration with it. Rescue those files first and put them back once
 # the new build is in place.
+# ---------- Close running app (--restart) ----------
+# The running app is asked to quit through its own IPC channel (a second instance forwards
+# 'quit'), so it shuts its devices down cleanly before its files are replaced.
+if [ "$RESTART" -eq 1 ] && command -v pgrep >/dev/null 2>&1 && pgrep -x LoupixDeck >/dev/null 2>&1; then
+    log "Closing running LoupixDeck ..."
+    if [ -x "$SYMLINK" ]; then
+        "$SYMLINK" quit >/dev/null 2>&1 || true
+    fi
+    for _ in $(seq 1 40); do
+        pgrep -x LoupixDeck >/dev/null 2>&1 || break
+        sleep 0.5
+    done
+    pgrep -x LoupixDeck >/dev/null 2>&1 && die "LoupixDeck is still running. Close it and run the installer again."
+fi
+
 PRESERVED_SETTINGS="$TMP_DIR/preserved-settings"
 if [ -d "$INSTALL_DIR/plugins" ]; then
     for plugin_dir in "$INSTALL_DIR"/plugins/*/; do
@@ -400,3 +426,16 @@ fi
 echo
 log "Done. LoupixDeck $TAG installed."
 log "Launch with: loupixdeck   (or from your application menu)"
+
+# ---------- Restart app (--restart) ----------
+if [ "$RESTART" -eq 1 ]; then
+    if [ "$(id -u)" -ne 0 ]; then
+        log "Starting LoupixDeck ..."
+        setsid nohup "$SYMLINK" >/dev/null 2>&1 < /dev/null &
+    else
+        warn "Running as root - start LoupixDeck from your application menu."
+    fi
+    if [ -t 0 ]; then
+        read -rp "Press Enter to close this window." _ || true
+    fi
+fi
