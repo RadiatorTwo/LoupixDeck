@@ -822,6 +822,20 @@ public partial class LoupedeckLiveSController(
         // Start the device using the configuration
         deviceService.StartDevice(config.DevicePort, config.DeviceBaudrate);
 
+        // The registry's folder grid (FolderGrid.From(DeviceGeometry)) and the live device
+        // class are two declarations of the same fact. A future device added to the registry
+        // with the wrong Columns/Rows would silently misplace the back button, so check them
+        // against each other once, right here where the controller first sees the live device,
+        // rather than on every folder repaint.
+        LoupedeckDevice.Device.LoupedeckDevice liveDevice = deviceService.Device;
+        if (liveDevice != null && !folderNav.Grid.Matches(liveDevice.Columns, liveDevice.Rows))
+        {
+            Console.WriteLine(
+                $"[FolderGrid] {deviceInfo?.Name ?? liveDevice.GetType().Name}: registry grid " +
+                $"{folderNav.Grid.Columns}x{folderNav.Grid.Rows} does not match the device's own grid " +
+                $"{liveDevice.Columns}x{liveDevice.Rows}.");
+        }
+
         // (The legacy root-level → page-0 wallpaper migration now lives in
         //  WallpaperAssetMigrator, which also moves wallpapers into the asset folder.)
 
