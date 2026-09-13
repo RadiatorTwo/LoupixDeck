@@ -691,10 +691,11 @@ public partial class LoupedeckLiveSController(
         return true;
     }
 
-    /// <summary>Ends any active full-display or exclusive-mode takeover. Called on a profile/workspace
-    /// switch — the takeover belonged to the workspace being left, and neither mode auto-restarts
-    /// (the owning plugin re-enters via its own command). Safe to call when nothing is active.</summary>
-    private void StopDisplayTakeovers()
+    /// <summary>Ends any active full-display or exclusive-mode takeover, and closes an open folder.
+    /// Called on a profile/workspace switch — the takeover (or folder) belonged to the workspace
+    /// being left, and none of them auto-restarts (the owning plugin re-enters via its own command;
+    /// a folder has no owner to re-enter). Safe to call when nothing is active.</summary>
+    private async Task StopDisplayTakeoversAsync()
     {
         try
         {
@@ -705,6 +706,15 @@ public partial class LoupedeckLiveSController(
 
         try { fullDisplay.StopActive(); }
         catch (Exception ex) { Console.WriteLine($"StopDisplayTakeovers (full-display) failed: {ex.Message}"); }
+
+        try
+        {
+            // A folder belonged to the workspace being left. The stack is separate from the
+            // workspace on purpose, so nothing else pops it — GoHomeWorkspace does this too.
+            if (folderNav.IsActive)
+                await folderNav.ExitAll();
+        }
+        catch (Exception ex) { Console.WriteLine($"StopDisplayTakeovers (folder) failed: {ex.Message}"); }
     }
 
     /// <summary>
@@ -2460,7 +2470,7 @@ public partial class LoupedeckLiveSController(
         // A profile/workspace switch ends any full-display takeover (issue #124) and exclusive mode:
         // the takeover belonged to the workspace we are leaving. Neither auto-restarts — the owning
         // plugin re-enters explicitly via its own command.
-        StopDisplayTakeovers();
+        await StopDisplayTakeoversAsync();
 
         BindActiveWorkspaceTouchPages();
         InitializeRotaryPages();
