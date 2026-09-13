@@ -104,9 +104,23 @@ public sealed partial class UpdateDialogViewModel(IUpdateService updateService, 
                 case UpdateInstallOutcome.InstallerStarted:
                     // The installer closes the app; starting it a second time would only race it.
                     _installerStarted = true;
-                    StatusText = installer.Mode == UpdateInstallMode.LinuxScript
-                        ? Loc.Tr("Update_ContinuesInTerminal")
-                        : Loc.Tr("Update_InstallerStarted");
+                    if (installer.Mode == UpdateInstallMode.LinuxScript)
+                    {
+                        // The Windows setup closes the app itself; the script runs in a terminal of
+                        // its own and starts the new version when it is done (--restart), so the old
+                        // one steps aside now instead of lingering behind the terminal.
+                        StatusText = Loc.Tr("Update_ContinuesInTerminal");
+                        await Task.Delay(TimeSpan.FromSeconds(1.5));
+                        if (WindowHelper.GetMainWindow() is Views.MainWindow window)
+                        {
+                            window.QuitApplication();
+                        }
+                    }
+                    else
+                    {
+                        StatusText = Loc.Tr("Update_InstallerStarted");
+                    }
+
                     break;
                 case UpdateInstallOutcome.ReleasePageOpened:
                     Confirm(new DialogResult(true));

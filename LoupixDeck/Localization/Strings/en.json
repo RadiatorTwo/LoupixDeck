@@ -656,7 +656,7 @@
   "Transition_Specific": "Go to specific state",
   "Transition_Stay": "Stay in current state",
   "Update_Available": "LoupixDeck {0} is available (installed: {1})",
-  "Update_ContinuesInTerminal": "The update continues in a terminal window. It closes and restarts LoupixDeck.",
+  "Update_ContinuesInTerminal": "LoupixDeck closes now. The update continues in a terminal window and starts LoupixDeck again when it is done.",
   "Update_Details": "Details",
   "Update_Downloading": "Downloading the update...",
   "Update_Failed": "The update failed: {0}",
