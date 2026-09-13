@@ -3,6 +3,8 @@ using LoupixDeck.Controllers;
 using LoupixDeck.Localization;
 using LoupixDeck.Models;
 using LoupixDeck.Services;
+using LoupixDeck.Services.AppLauncher;
+using LoupixDeck.Services.Profiles;
 using LoupixDeck.Utils;
 using LoupixDeck.ViewModels.Base;
 
@@ -14,16 +16,19 @@ namespace LoupixDeck.ViewModels;
 /// </summary>
 public sealed class ProfileHeaderMenuViewModel : ViewModelBase
 {
+    private readonly LoupedeckConfig _config;
     private readonly IProfileEditingService _editing;
     private readonly IWorkspaceActivationService _activation;
     private readonly IDialogService _dialogService;
     private readonly LoupedeckLiveSController _controller;
 
-    public ProfileHeaderMenuViewModel(IProfileEditingService editing,
+    public ProfileHeaderMenuViewModel(LoupedeckConfig config,
+        IProfileEditingService editing,
         IWorkspaceActivationService activation,
         IDialogService dialogService,
         LoupedeckLiveSController controller)
     {
+        _config = config;
         _editing = editing;
         _activation = activation;
         _dialogService = dialogService;
@@ -48,6 +53,15 @@ public sealed class ProfileHeaderMenuViewModel : ViewModelBase
     public IAsyncRelayCommand DeleteWorkspaceCommand => field ??= Relay.Create(DeleteWorkspace,
         () => _editing.CanRemoveWorkspace(_activation.ActiveProfile, _activation.ActiveWorkspace));
 
+    /// <summary>Linking needs foreground-app detection, which exists only on Windows and Linux.</summary>
+    public bool IsAppLinkingSupported => OperatingSystem.IsWindows() || OperatingSystem.IsLinux();
+
+    public IAsyncRelayCommand LinkApplicationCommand => field ??= Relay.Create(LinkApplication,
+        () => _activation.ActiveProfile != null);
+    public IAsyncRelayCommand UnlinkApplicationCommand => field ??= Relay.Create(UnlinkApplication,
+        () => _activation.ActiveProfile is { } profile
+              && ProfileAppLink.FindProcessName(_config.ContextRules, profile.Id).Length > 0);
+
     /// <summary>Re-evaluates which menu entries are enabled. Call after the tree was edited
     /// elsewhere (the Settings pane).</summary>
     public void Refresh()
@@ -57,6 +71,8 @@ public sealed class ProfileHeaderMenuViewModel : ViewModelBase
         NewWorkspaceCommand.NotifyCanExecuteChanged();
         RenameWorkspaceCommand.NotifyCanExecuteChanged();
         DeleteWorkspaceCommand.NotifyCanExecuteChanged();
+        LinkApplicationCommand.NotifyCanExecuteChanged();
+        UnlinkApplicationCommand.NotifyCanExecuteChanged();
     }
 
     private async Task NewProfile()
@@ -87,7 +103,8 @@ public sealed class ProfileHeaderMenuViewModel : ViewModelBase
         Profile profile = _activation.ActiveProfile;
         if (!_editing.CanRemoveProfile(profile)) return;
 
-        if (!await ConfirmDelete("Confirm_DeleteProfileTitle", "Confirm_DeleteProfileMessage", profile.Name))
+        if (!await Ask("Confirm_DeleteProfileTitle", Loc.Tr("Confirm_DeleteProfileMessage", profile.Name),
+                "Confirm_Delete"))
             return;
 
         if (await _editing.RemoveProfile(profile))
@@ -128,12 +145,75 @@ public sealed class ProfileHeaderMenuViewModel : ViewModelBase
         Workspace workspace = _activation.ActiveWorkspace;
         if (!_editing.CanRemoveWorkspace(profile, workspace)) return;
 
-        if (!await ConfirmDelete("Confirm_DeleteWorkspaceTitle", "Confirm_DeleteWorkspaceMessage", workspace.Name))
+        if (!await Ask("Confirm_DeleteWorkspaceTitle", Loc.Tr("Confirm_DeleteWorkspaceMessage", workspace.Name),
+                "Confirm_Delete"))
             return;
 
         if (await _editing.RemoveWorkspace(profile, workspace))
             _controller.SaveConfig();
 
+        Refresh();
+    }
+
+    private async Task LinkApplication()
+    {
+        Profile profile = _activation.ActiveProfile;
+        if (profile == null) return;
+
+        AppPickerRequest request = new();
+        DialogResult picked = await _dialogService.ShowDialogAsync<AppPickerViewModel, DialogResult>(
+            vm => vm.Initialize(request));
+
+        if (picked is not { IsConfirmed: true } || request.SelectedApp == null) return;
+
+        InstalledApp app = request.SelectedApp;
+
+        if (string.IsNullOrEmpty(app.ProcessName))
+        {
+            await Ask("AppLink_NoProcessTitle", Loc.Tr("AppLink_NoProcessMessage", app.Name), "Confirm_Ok");
+            return;
+        }
+
+        IReadOnlyList<ContextRule> conflicts =
+            ProfileAppLink.FindConflictingRules(_config.ContextRules, profile.Id, app.ProcessName);
+
+        if (conflicts.Count > 0)
+        {
+            if (!await Ask("Confirm_LinkAppConflictTitle",
+                    Loc.Tr("Confirm_LinkAppConflictMessage", app.Name, profile.Name), "Confirm_LinkHere"))
+                return;
+
+            foreach (ContextRule conflict in conflicts)
+                _config.ContextRules.Remove(conflict);
+        }
+
+        ProfileAppLink.Link(_config.ContextRules, profile.Id, app.ProcessName);
+
+        if (!_config.AppSwitchingEnabled
+            && await Ask("Confirm_EnableAppSwitchingTitle",
+                Loc.Tr("Confirm_EnableAppSwitchingMessage", app.Name), "Confirm_TurnOn", "Confirm_NotNow"))
+        {
+            _config.AppSwitchingEnabled = true;
+        }
+
+        _controller.SaveConfig();
+        Refresh();
+    }
+
+    private async Task UnlinkApplication()
+    {
+        Profile profile = _activation.ActiveProfile;
+        if (profile == null) return;
+
+        string process = ProfileAppLink.FindProcessName(_config.ContextRules, profile.Id);
+        if (process.Length == 0) return;
+
+        if (!await Ask("Confirm_UnlinkAppTitle",
+                Loc.Tr("Confirm_UnlinkAppMessage", profile.Name, process), "Confirm_Remove"))
+            return;
+
+        ProfileAppLink.Unlink(_config.ContextRules, profile.Id);
+        _controller.SaveConfig();
         Refresh();
     }
 
@@ -151,14 +231,15 @@ public sealed class ProfileHeaderMenuViewModel : ViewModelBase
         return result?.IsConfirmed == true && prompt != null ? prompt.Result : null;
     }
 
-    private async Task<bool> ConfirmDelete(string titleKey, string messageKey, string itemName)
+    /// <summary>Shows the confirm dialog. True only when the confirm button was used.</summary>
+    private async Task<bool> Ask(string titleKey, string message, string confirmKey, string cancelKey = "Confirm_Cancel")
     {
         DialogResult result = await _dialogService.ShowDialogAsync<ConfirmDialogViewModel, DialogResult>(vm =>
             vm.Configure(
-                Loc.Tr(messageKey, itemName),
+                message,
                 title: Loc.Tr(titleKey),
-                confirmText: Loc.Tr("Confirm_Delete"),
-                cancelText: Loc.Tr("Confirm_Cancel")));
+                confirmText: Loc.Tr(confirmKey),
+                cancelText: Loc.Tr(cancelKey)));
 
         return result?.IsConfirmed == true;
     }

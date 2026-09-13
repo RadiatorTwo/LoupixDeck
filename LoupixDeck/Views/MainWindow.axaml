@@ -389,6 +389,13 @@
                                                       Command="{Binding SelectedDevice.ProfileMenu.NewProfileCommand}" />
                                             <MenuItem Header="{loc:Tr MainWindow_RenameProfile}"
                                                       Command="{Binding SelectedDevice.ProfileMenu.RenameProfileCommand}" />
+                                            <Separator IsVisible="{Binding SelectedDevice.ProfileMenu.IsAppLinkingSupported}" />
+                                            <MenuItem Header="{loc:Tr MainWindow_LinkApplication}"
+                                                      IsVisible="{Binding SelectedDevice.ProfileMenu.IsAppLinkingSupported}"
+                                                      Command="{Binding SelectedDevice.ProfileMenu.LinkApplicationCommand}" />
+                                            <MenuItem Header="{loc:Tr MainWindow_UnlinkApplication}"
+                                                      IsVisible="{Binding SelectedDevice.ProfileMenu.IsAppLinkingSupported}"
+                                                      Command="{Binding SelectedDevice.ProfileMenu.UnlinkApplicationCommand}" />
                                             <Separator />
                                             <MenuItem Header="{loc:Tr MainWindow_DeleteProfile}"
                                                       Command="{Binding SelectedDevice.ProfileMenu.DeleteProfileCommand}" />
