@@ -1,0 +1,91 @@
+using System.Net;
+using System.Net.Http;
+using System.Text.Json;
+
+namespace LoupixDeck.Services.Updates;
+
+/// <summary>
+/// Reads LoupixDeck's releases from the GitHub API. Drafts, pre-releases and tags that are not a
+/// plain <c>vX.Y.Z</c> are dropped, so only stable releases are ever offered.
+/// </summary>
+public sealed class GitHubReleaseClient
+{
+    public const string Repository = "RadiatorTwo/LoupixDeck";
+
+    private static readonly HttpClient Http = CreateClient();
+
+    /// <summary>Stable releases, newest version first.</summary>
+    /// <exception cref="HttpRequestException">Network failure, rate limit or a non-success status.</exception>
+    public async Task<IReadOnlyList<ReleaseInfo>> GetStableReleasesAsync(CancellationToken cancellationToken)
+    {
+        using HttpResponseMessage response = await Http.GetAsync(
+            $"https://api.github.com/repos/{Repository}/releases?per_page=50", cancellationToken);
+
+        if (response.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.TooManyRequests)
+        {
+            throw new HttpRequestException("GitHub API rate limit reached.", null, response.StatusCode);
+        }
+
+        response.EnsureSuccessStatusCode();
+
+        await using Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+        using JsonDocument document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
+
+        List<ReleaseInfo> releases = [];
+        foreach (JsonElement item in document.RootElement.EnumerateArray())
+        {
+            if (GetBool(item, "draft") || GetBool(item, "prerelease"))
+            {
+                continue;
+            }
+
+            string tag = GetString(item, "tag_name");
+            Version version = AppVersion.TryParse(tag);
+            if (version is null)
+            {
+                continue;
+            }
+
+            List<ReleaseAsset> assets = [];
+            if (item.TryGetProperty("assets", out JsonElement assetArray) && assetArray.ValueKind == JsonValueKind.Array)
+            {
+                foreach (JsonElement asset in assetArray.EnumerateArray())
+                {
+                    assets.Add(new ReleaseAsset(GetString(asset, "name"), GetString(asset, "browser_download_url")));
+                }
+            }
+
+            releases.Add(new ReleaseInfo(
+                tag,
+                version,
+                GetString(item, "name"),
+                GetString(item, "body"),
+                GetString(item, "html_url"),
+                assets));
+        }
+
+        releases.Sort((a, b) => b.Version.CompareTo(a.Version));
+        return releases;
+    }
+
+    private static HttpClient CreateClient()
+    {
+        HttpClient client = new() { Timeout = TimeSpan.FromSeconds(15) };
+        // GitHub rejects API requests without a User-Agent.
+        client.DefaultRequestHeaders.UserAgent.ParseAdd("LoupixDeck");
+        client.DefaultRequestHeaders.Accept.ParseAdd("application/vnd.github+json");
+        return client;
+    }
+
+    private static string GetString(JsonElement element, string name)
+    {
+        return element.TryGetProperty(name, out JsonElement value) && value.ValueKind == JsonValueKind.String
+            ? value.GetString()
+            : null;
+    }
+
+    private static bool GetBool(JsonElement element, string name)
+    {
+        return element.TryGetProperty(name, out JsonElement value) && value.ValueKind == JsonValueKind.True;
+    }
+}
