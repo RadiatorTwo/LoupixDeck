@@ -150,6 +150,8 @@ The top header shows your current context. It contains `DEVICE`, `PROFILE`, and 
 
 Changing profile or workspace from the header changes what the device shows and what the editor is editing. The selectors also update when a rule, command, or device button switches context for you.
 
+Next to the `PROFILE` and `WORKSPACE` selectors there is a `⋮` button. It creates a new profile or workspace, renames the one currently selected, or deletes it after asking. A new profile or workspace is opened right away. The last profile of a device and the last workspace of a profile cannot be deleted.
+
 ### Apps and commands panel
 
 When a device is connected, the button at the left of the header opens a side panel with three tabs:
@@ -182,7 +184,7 @@ For example, you might create:
 | Editing | Timeline, Color, Export |
 | General | Home, Audio, System |
 
-Open `Settings > Profiles` to manage this structure. From there you can:
+Open `Settings > Profiles` to manage this structure, or use the `⋮` menus in the header for the quick cases (new, rename, delete). From Settings you can:
 
 - Add, rename, and delete profiles.
 - Add, rename, and delete workspaces inside each profile.
