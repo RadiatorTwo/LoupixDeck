@@ -38,6 +38,8 @@ public sealed class RazerStreamControllerXDevice : LoupedeckDevice
         PanelWidth = 480,
         PanelHeight = 270,
         StripWidth = 0,
+        Columns = 5,
+        Rows = 3,
         PhysicalKeys = true,
         HasVibration = false,
         HasLedButtons = false,
