@@ -121,6 +121,16 @@ public partial class LoupedeckLiveSController(
     // between entries within an already-open folder" (repaint the grid only).
     private volatile bool _folderModeWasActive;
 
+    // True for the duration of ApplyActiveWorkspace. StopDisplayTakeoversAsync (called from
+    // inside it) closes an open folder via ExitAll, which fires OnFolderStateChanged
+    // synchronously before BindActiveWorkspaceTouchPages has rebound the new workspace's
+    // pages — its "folder left" repaint would then run against the *new* workspace's
+    // half-applied state (wrong keys on KeyGridHasGaps devices, or a null
+    // CurrentTouchButtonPage on a never-visited workspace) and race ApplyActiveWorkspace's
+    // own full repaint on the UI thread. Lets OnFolderStateChanged skip its repaint and defer
+    // entirely to ApplyActiveWorkspace's.
+    private volatile bool _applyingWorkspace;
+
     // Tracks the slot index of the currently active touch contact. Set on the
     // first TOUCH_START of a finger-down sequence, cleared on TOUCH_END.
     private int? _activeTouchSlot;
@@ -2345,6 +2355,14 @@ public partial class LoupedeckLiveSController(
             {
                 _folderModeWasActive = false;
 
+                // A workspace switch is in progress: it closed the folder itself (via
+                // StopDisplayTakeoversAsync -> ExitAll) before rebinding the new workspace's
+                // pages, so CurrentTouchButtonPage here can still be the old workspace's page,
+                // null (a never-visited workspace), or simply about to be overwritten.
+                // ApplyActiveWorkspace's own repaint (page + side strips) covers what this
+                // branch would otherwise do; painting here too would race it.
+                if (_applyingWorkspace) return;
+
                 // Folder mode left — restore the configured page.
                 if (!wallpaperAnimation.TryRedirectPageRedraw())
                 {
@@ -2481,35 +2499,44 @@ public partial class LoupedeckLiveSController(
         // The workspace being left may own a macro that is waiting for its trigger to come up (#185).
         ReleaseAllPresses();
 
-        // A profile/workspace switch ends any full-display takeover (issue #124) and exclusive mode:
-        // the takeover belonged to the workspace we are leaving. Neither auto-restarts — the owning
-        // plugin re-enters explicitly via its own command.
-        await StopDisplayTakeoversAsync();
-
-        BindActiveWorkspaceTouchPages();
-        InitializeRotaryPages();
-
-        if (config.TouchButtonPages == null || config.TouchButtonPages.Count == 0)
+        _applyingWorkspace = true;
+        try
         {
-            await pageManager.AddTouchButtonPage(true);
+            // A profile/workspace switch ends any full-display takeover (issue #124) and
+            // exclusive mode, and closes an open folder: all three belonged to the workspace
+            // we are leaving. None auto-restarts — the owning plugin re-enters explicitly via
+            // its own command, and a folder has no owner to re-enter.
+            await StopDisplayTakeoversAsync();
+
+            BindActiveWorkspaceTouchPages();
+            InitializeRotaryPages();
+
+            if (config.TouchButtonPages == null || config.TouchButtonPages.Count == 0)
+            {
+                await pageManager.AddTouchButtonPage(true);
+            }
+            else
+            {
+                var startupIndex = config.StartupTouchPageIndex;
+                if (startupIndex < 0 || startupIndex >= config.TouchButtonPages.Count)
+                    startupIndex = 0;
+
+                // The freshly activated workspace remembers its own current index; reset it so
+                // ApplyTouchPage (which early-returns when the index is unchanged) always repaints.
+                pageManager.CurrentTouchPageIndex = -1;
+                await pageManager.ApplyTouchPage(startupIndex, true);
+            }
+
+            config.CurrentRotaryButtonPage?.Selected = true;
+            config.CurrentTouchButtonPage?.Selected = true;
+
+            if (!_isDeviceOff && !folderNav.IsActive && !exclusiveMode.Owns(ExclusiveControlScope.SideDisplays))
+                await RedrawSideStrips();
         }
-        else
+        finally
         {
-            var startupIndex = config.StartupTouchPageIndex;
-            if (startupIndex < 0 || startupIndex >= config.TouchButtonPages.Count)
-                startupIndex = 0;
-
-            // The freshly activated workspace remembers its own current index; reset it so
-            // ApplyTouchPage (which early-returns when the index is unchanged) always repaints.
-            pageManager.CurrentTouchPageIndex = -1;
-            await pageManager.ApplyTouchPage(startupIndex, true);
+            _applyingWorkspace = false;
         }
-
-        config.CurrentRotaryButtonPage?.Selected = true;
-        config.CurrentTouchButtonPage?.Selected = true;
-
-        if (!_isDeviceOff && !folderNav.IsActive && !exclusiveMode.Owns(ExclusiveControlScope.SideDisplays))
-            await RedrawSideStrips();
     }
 
     private void TouchButtonPagesOnCollectionChanged(object sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
