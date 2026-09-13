@@ -13,7 +13,11 @@ public static class ProfileAppLink
     /// <summary>
     /// Normalized process name of the highest-priority rule that activates <paramref name="profileId"/>,
     /// breaking ties by list order as <see cref="ContextRuleMatcher"/> does. Empty when no rule
-    /// activates the profile or when the matching rules name no process.
+    /// activates the profile or when the matching rules name no process. This is the broad sense of
+    /// "linked" used by callers such as plan 19's profile picker; it includes detailed rules (title
+    /// match, a specific workspace/page, "on process start"). The header menu instead uses
+    /// <see cref="FindLinkedProcessName"/>, which only recognizes the plain rule shape it itself
+    /// creates, so it never claims ownership of — or silently deletes — a rule built by hand.
     /// </summary>
     public static string FindProcessName(IEnumerable<ContextRule> rules, Guid profileId)
     {
@@ -50,8 +54,45 @@ public static class ProfileAppLink
             .ToList();
     }
 
-    /// <summary>Replaces the profile's app rules with a single rule for <paramref name="processName"/>.
-    /// Rules that match only by window title are kept.</summary>
+    /// <summary>
+    /// Normalized process name of the highest-priority "plain" rule that activates
+    /// <paramref name="profileId"/> — the shape the header link creates and edits (see
+    /// <see cref="IsPlainAppRuleFor"/>) — breaking ties by list order as <see cref="ContextRuleMatcher"/>
+    /// does. Empty when no plain rule activates the profile. Unlike <see cref="FindProcessName"/>, a
+    /// detailed rule (title match, a specific workspace/page, or "on process start") is not reported
+    /// as a link, so the header never claims to own, and never silently deletes, a rule it didn't create.
+    /// </summary>
+    public static string FindLinkedProcessName(IEnumerable<ContextRule> rules, Guid profileId)
+    {
+        ContextRule best = null;
+
+        foreach (ContextRule rule in rules)
+        {
+            if (!IsPlainAppRuleFor(rule, profileId))
+                continue;
+
+            // Strict '>' keeps the earlier rule on a priority tie.
+            if (best == null || rule.Priority > best.Priority)
+                best = rule;
+        }
+
+        return best == null ? string.Empty : ContextRuleMatcher.Normalize(best.ProcessName);
+    }
+
+    /// <summary>Process names that never match a real foreground window: sandbox launchers report
+    /// their own process instead of the contained application's, so a rule for them would either
+    /// never fire or collide with every other sandboxed app.</summary>
+    public static bool CanLinkProcess(string processName)
+    {
+        string process = ContextRuleMatcher.Normalize(processName);
+        return process.Length > 0
+               && !string.Equals(process, "flatpak", StringComparison.OrdinalIgnoreCase)
+               && !string.Equals(process, "snap", StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>Replaces the profile's plain app rules (see <see cref="IsPlainAppRuleFor"/>) with a
+    /// single rule for <paramref name="processName"/>. Detailed rules for the profile — a title match,
+    /// a specific workspace/page, or "on process start" — are left alone; only Settings edits those.</summary>
     public static void Link(IList<ContextRule> rules, Guid profileId, string processName)
     {
         Unlink(rules, profileId);
@@ -62,12 +103,13 @@ public static class ProfileAppLink
         });
     }
 
-    /// <summary>Removes every rule that activates the profile by process name.</summary>
+    /// <summary>Removes the profile's plain app rules (see <see cref="IsPlainAppRuleFor"/>). Detailed
+    /// rules for the profile are left alone.</summary>
     public static void Unlink(IList<ContextRule> rules, Guid profileId)
     {
         for (int i = rules.Count - 1; i >= 0; i--)
         {
-            if (IsAppRuleFor(rules[i], profileId))
+            if (IsPlainAppRuleFor(rules[i], profileId))
                 rules.RemoveAt(i);
         }
     }
@@ -75,4 +117,16 @@ public static class ProfileAppLink
     private static bool IsAppRuleFor(ContextRule rule, Guid profileId) =>
         rule.ActivateProfileId == profileId
         && ContextRuleMatcher.Normalize(rule.ProcessName).Length > 0;
+
+    /// <summary>A rule the header link itself could have created: activates only the profile (no
+    /// specific workspace or page, no "on process start"), matches only by process name (no title).
+    /// This is the subset <see cref="Link"/> and <see cref="Unlink"/> touch, so linking from the header
+    /// never silently discards a rule a person built by hand in Settings.</summary>
+    private static bool IsPlainAppRuleFor(ContextRule rule, Guid profileId) =>
+        IsAppRuleFor(rule, profileId)
+        && rule.TitleContains.Length == 0
+        && rule.ActivateWorkspaceId == null
+        && rule.TouchPageIndex == null
+        && rule.RotaryPageIndex == null
+        && !rule.ActivateOnProcessStart;
 }

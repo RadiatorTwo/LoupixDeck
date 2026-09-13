@@ -60,7 +60,7 @@ public sealed class ProfileHeaderMenuViewModel : ViewModelBase
         () => _activation.ActiveProfile != null);
     public IAsyncRelayCommand UnlinkApplicationCommand => field ??= Relay.Create(UnlinkApplication,
         () => _activation.ActiveProfile is { } profile
-              && ProfileAppLink.FindProcessName(_config.ContextRules, profile.Id).Length > 0);
+              && ProfileAppLink.FindLinkedProcessName(_config.ContextRules, profile.Id).Length > 0);
 
     /// <summary>Re-evaluates which menu entries are enabled. Call after the tree was edited
     /// elsewhere (the Settings pane).</summary>
@@ -168,7 +168,7 @@ public sealed class ProfileHeaderMenuViewModel : ViewModelBase
 
         InstalledApp app = request.SelectedApp;
 
-        if (string.IsNullOrEmpty(app.ProcessName))
+        if (!ProfileAppLink.CanLinkProcess(app.ProcessName))
         {
             await Ask("AppLink_NoProcessTitle", Loc.Tr("AppLink_NoProcessMessage", app.Name), "Confirm_Ok");
             return;
@@ -205,7 +205,7 @@ public sealed class ProfileHeaderMenuViewModel : ViewModelBase
         Profile profile = _activation.ActiveProfile;
         if (profile == null) return;
 
-        string process = ProfileAppLink.FindProcessName(_config.ContextRules, profile.Id);
+        string process = ProfileAppLink.FindLinkedProcessName(_config.ContextRules, profile.Id);
         if (process.Length == 0) return;
 
         if (!await Ask("Confirm_UnlinkAppTitle",
