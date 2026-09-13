@@ -92,14 +92,19 @@ public class GoHomeWorkspaceCommand(IWorkspaceActivationService activation, IFol
             return;
         }
 
-        // Dismiss any open folder view first. Folder navigation is a separate stack from the
-        // active workspace (see IFolderNavigationService) — switching the workspace underneath
-        // never touched it, so a plugin folder (e.g. a game/device picker) calling this command
-        // after acting on a selection saw the folder stay stuck open on top of the new workspace
-        // instead of the "return to base" a plugin author would reasonably expect from this command.
+        // Folder navigation is a separate stack from the active workspace (see
+        // IFolderNavigationService) — switching the workspace underneath never touched it, so a
+        // plugin folder (e.g. a game/device picker) calling this command after acting on a
+        // selection saw the folder stay stuck open on top of the new workspace instead of the
+        // "return to base" a plugin author would reasonably expect from this command.
+        //
+        // Activate the home workspace first: when it actually switches, ApplyActiveWorkspace
+        // closes an open folder itself with its exit repaint suppressed, avoiding a race with
+        // the workspace's own repaint. ActivateWorkspace early-returns when home is already
+        // active, so a folder left open in that case still needs an explicit ExitAll here.
+        await activation.GoToHomeWorkspace();
+
         if (folderNav.IsActive)
             await folderNav.ExitAll();
-
-        await activation.GoToHomeWorkspace();
     }
 }
