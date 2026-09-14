@@ -80,6 +80,9 @@ public sealed partial class PluginStoreService : ObservableObject, IPluginStoreS
 
     private static readonly TimeSpan CacheLifetime = TimeSpan.FromMinutes(10);
 
+    /// <summary>How old a repository's release list must be before the Refresh button reads it again.</summary>
+    private static readonly TimeSpan MinRefreshInterval = TimeSpan.FromSeconds(60);
+
     /// <summary>The plugin update check waits for the app update check and the first plugin load.</summary>
     private static readonly TimeSpan StartupDelay = TimeSpan.FromSeconds(10);
 
@@ -229,6 +232,9 @@ public sealed partial class PluginStoreService : ObservableObject, IPluginStoreS
         await _gate.WaitAsync(cancellationToken);
         try
         {
+            // A limit without a known reset time is only assumed for the run that hit it.
+            _rateLimitWithoutReset = false;
+
             PluginCatalog catalog;
             string catalogError = null;
             try
@@ -257,7 +263,10 @@ public sealed partial class PluginStoreService : ObservableObject, IPluginStoreS
             List<PluginStoreItem> updates = items.Where(i => i.Status == PluginStoreStatus.UpdateAvailable).ToList();
             await Dispatcher.UIThread.InvokeAsync(() => AvailableUpdates = updates);
 
-            return (items, catalogError);
+            string error = RateLimitResetAt is not null || _rateLimitWithoutReset
+                ? RateLimitMessage()
+                : catalogError;
+            return (items, error);
         }
         finally
         {
@@ -413,6 +422,23 @@ public sealed partial class PluginStoreService : ObservableObject, IPluginStoreS
         {
             releases = await ResolveReleasesAsync(entry, force, cancellationToken);
         }
+        catch (GitHubRateLimitException ex)
+        {
+            RememberRateLimit(ex.ResetAt);
+            Console.WriteLine($"[PluginStore] Could not read the releases of {entry.Repository}: {ex.Message}");
+
+            // The last known releases are better than nothing; the page says the limit was reached.
+            if (_releaseCache.TryGetValue(entry.Repository, out (DateTime ReadAt, ResolvedReleases Releases) stale))
+            {
+                releases = stale.Releases;
+            }
+            else
+            {
+                // No per-row error: the page shows the limit and its reset time once, above the list.
+                PluginStoreStatus limitedStatus = installed is null ? PluginStoreStatus.Unavailable : PluginStoreStatus.Installed;
+                return new PluginStoreItem(entry, limitedStatus, installed, installedVersion, null, null);
+            }
+        }
         catch (Exception ex) when (IsExpectedFailure(ex))
         {
             Console.WriteLine($"[PluginStore] Could not read the releases of {entry.Repository}: {ex.Message}");
@@ -442,13 +468,42 @@ public sealed partial class PluginStoreService : ObservableObject, IPluginStoreS
     private async Task<ResolvedReleases> ResolveReleasesAsync(PluginCatalogEntry entry, bool force,
         CancellationToken cancellationToken)
     {
-        if (!force && _releaseCache.TryGetValue(entry.Repository, out (DateTime ReadAt, ResolvedReleases Releases) cached)
-                   && DateTime.UtcNow - cached.ReadAt < CacheLifetime)
+        // Every API request counts against GitHub's hourly limit for unauthenticated clients, even a 304.
+        // A forced refresh therefore still reuses a list that was read moments ago.
+        TimeSpan maxAge = force ? MinRefreshInterval : CacheLifetime;
+        if (_releaseCache.TryGetValue(entry.Repository, out (DateTime ReadAt, ResolvedReleases Releases) cached)
+            && DateTime.UtcNow - cached.ReadAt < maxAge)
         {
             return cached.Releases;
         }
 
-        IReadOnlyList<ReleaseInfo> releases = await _releaseClient.GetStableReleasesAsync(entry.Repository, cancellationToken);
+        IReadOnlyList<ReleaseInfo> releases;
+        bool fromDiskCache = false;
+        try
+        {
+            // Once GitHub reported the limit, every further request until the reset would be refused too.
+            if (RateLimitResetAt is { } resetAt)
+            {
+                throw new GitHubRateLimitException(resetAt, System.Net.HttpStatusCode.Forbidden);
+            }
+
+            releases = await _releaseClient.GetStableReleasesAsync(entry.Repository, cancellationToken);
+        }
+        catch (GitHubRateLimitException ex)
+        {
+            // The list as last read from GitHub, also from before a restart. Only the list comes from the API:
+            // plugin.json, SHA256SUMS and the package are plain downloads the limit does not apply to, so a
+            // known update can still be installed.
+            releases = GitHubReleaseClient.GetCachedStableReleases(entry.Repository);
+            if (releases is null)
+            {
+                throw;
+            }
+
+            RememberRateLimit(ex.ResetAt);
+            fromDiskCache = true;
+            Console.WriteLine($"[PluginStore] {entry.Repository}: rate limit reached, using the last known releases.");
+        }
 
         PluginReleaseCandidate newest = null;
         PluginReleaseCandidate compatible = null;
@@ -469,7 +524,13 @@ public sealed partial class PluginStoreService : ObservableObject, IPluginStoreS
         }
 
         ResolvedReleases resolved = new(compatible, newest);
-        _releaseCache[entry.Repository] = (DateTime.UtcNow, resolved);
+
+        // A list from the disk cache is not fresh; the first refresh after the reset reads GitHub again.
+        if (!fromDiskCache)
+        {
+            _releaseCache[entry.Repository] = (DateTime.UtcNow, resolved);
+        }
+
         return resolved;
     }
 
@@ -621,6 +682,31 @@ public sealed partial class PluginStoreService : ObservableObject, IPluginStoreS
         {
             // Temp cleanup is best-effort.
         }
+    }
+
+    /// <summary>When GitHub accepts API requests again; null when no limit is known to be in effect.</summary>
+    private DateTimeOffset? RateLimitResetAt => _rateLimitResetAt > DateTimeOffset.UtcNow ? _rateLimitResetAt : null;
+
+    private DateTimeOffset? _rateLimitResetAt;
+    private bool _rateLimitWithoutReset;
+
+    private void RememberRateLimit(DateTimeOffset? resetAt)
+    {
+        if (resetAt is null)
+        {
+            _rateLimitWithoutReset = true;
+        }
+        else if (_rateLimitResetAt is null || resetAt > _rateLimitResetAt)
+        {
+            _rateLimitResetAt = resetAt;
+        }
+    }
+
+    private string RateLimitMessage()
+    {
+        return RateLimitResetAt is { } resetAt
+            ? Loc.Tr("PluginStore_RateLimited", resetAt.ToLocalTime().ToString("t"))
+            : Loc.Tr("PluginStore_RateLimitedNoTime");
     }
 
     private sealed record ResolvedReleases(PluginReleaseCandidate Compatible, PluginReleaseCandidate Newest);

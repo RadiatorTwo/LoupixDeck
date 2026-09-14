@@ -37,6 +37,13 @@ public sealed partial class PluginStoreViewModel(
 
     public bool HasStatus => !string.IsNullOrEmpty(StatusText);
 
+    /// <summary>Why the list could not be fully loaded (offline, GitHub's request limit); shown above the list.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasNotice))]
+    public partial string NoticeText { get; set; }
+
+    public bool HasNotice => !string.IsNullOrEmpty(NoticeText);
+
     [ObservableProperty]
     public partial bool ShowRestartHint { get; set; }
 
@@ -95,7 +102,8 @@ public sealed partial class PluginStoreViewModel(
                 _ = row.LoadIconAsync();
             }
 
-            StatusText = error ?? (Items.Count == 0 ? Loc.Tr("PluginStore_Empty") : null);
+            NoticeText = error;
+            StatusText = Items.Count == 0 && error is null ? Loc.Tr("PluginStore_Empty") : null;
         }
         finally
         {

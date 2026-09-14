@@ -285,6 +285,8 @@
   "PluginStore_MissingMessage": "Your buttons use commands of plugins that are not installed: {0}. The assignments are kept. Open the Plugin Store to install them?",
   "PluginStore_MissingTitle": "Plugins missing",
   "PluginStore_NewerNeedsApp": "Version {0} is available but needs a newer LoupixDeck.",
+  "PluginStore_RateLimited": "GitHub's request limit is reached, so updates cannot be checked right now. Try again after {0}.",
+  "PluginStore_RateLimitedNoTime": "GitHub's request limit is reached, so updates cannot be checked right now. Try again later.",
   "PluginStore_Refresh": "Refresh",
   "PluginStore_ReleasesUnavailable": "Releases could not be loaded: {0}",
   "PluginStore_StatusInstalled": "Installed",
