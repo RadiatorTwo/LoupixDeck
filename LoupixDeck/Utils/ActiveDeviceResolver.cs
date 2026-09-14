@@ -70,7 +70,7 @@ public static class ActiveDeviceResolver
 #else
             var dev = d;
 #endif
-            result.Add(Scope(dev));
+            result.Add(dev);
         }
         return result;
     }
@@ -112,7 +112,7 @@ public static class ActiveDeviceResolver
         if (connected.Count == 1)
         {
             Console.WriteLine($"[ActiveDeviceResolver] Single connected device: {connected[0].Info.Name} (serial: {connected[0].Serial ?? "<none>"})");
-            return Scope(connected[0]);
+            return connected[0];
         }
 
         // 2a. Multiple connected → prefer marker if it matches one of them.
@@ -122,7 +122,7 @@ public static class ActiveDeviceResolver
             if (preferred != null)
             {
                 Console.WriteLine($"[ActiveDeviceResolver] Multiple connected ({connected.Count}); marker picked {preferred.Info.Name}");
-                return Scope(preferred);
+                return preferred;
             }
             Console.WriteLine($"[ActiveDeviceResolver] Multiple connected ({connected.Count}) and no marker match — InitSetup");
             return null;
@@ -150,16 +150,6 @@ public static class ActiveDeviceResolver
         // 4. Multiple configs, no marker → ask the user.
         Console.WriteLine($"[ActiveDeviceResolver] Ambiguous ({configs.Count} configs, no marker) — InitSetup");
         return null;
-    }
-
-    /// <summary>
-    /// Run the one-time slug-only → slug+serial file rename for a connected device
-    /// (the serial is only known for plugged-in hardware) and return it unchanged.
-    /// </summary>
-    private static ResolvedDevice Scope(ResolvedDevice device)
-    {
-        PerDeviceConfigMigrator.Migrate(device.Info, device.Serial);
-        return device;
     }
 
     private static bool MarkerMatches(ResolvedDevice d, string marker)
@@ -213,7 +203,9 @@ public static class ActiveDeviceResolver
                 {
                     if (string.Equals(remainder, info.Slug, StringComparison.OrdinalIgnoreCase))
                     {
-                        result.Add(new ResolvedDevice(info, null));
+                        // A single device's file carries no serial in its name; the serial it was
+                        // stamped with keeps its identity the same as when the device is plugged in.
+                        result.Add(new ResolvedDevice(info, DeviceConfigPath.ReadStampedSerial(path)));
                         break;
                     }
                     // slug + '_' + serial-tail (slugs never contain '_').

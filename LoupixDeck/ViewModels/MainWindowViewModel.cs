@@ -90,9 +90,21 @@ public partial class MainWindowViewModel : ViewModelBase
     /// <summary>Slug of the active device — drives MainWindow's device-layout selector.</summary>
     public string DeviceSlug { get; }
 
-    /// <summary>Human label for this device's tab in the shell's device switcher.
-    /// Two identical units are disambiguated by a trimmed serial suffix.</summary>
-    public string DeviceName { get; }
+    /// <summary>Human label for this device's tab in the shell's device switcher. A trimmed serial
+    /// suffix is added only while another unit of the same model is running, to tell the two apart.</summary>
+    public string DeviceName =>
+        !string.IsNullOrEmpty(_serial) &&
+        _hostRegistry.Hosts.Any(h => h.Device.Slug == DeviceSlug &&
+                                     !string.Equals(h.Device.ScopeKey, ScopeKey, StringComparison.OrdinalIgnoreCase))
+            ? $"{_modelName} · {ShortSerial(_serial)}"
+            : _modelName;
+
+    private readonly string _modelName;
+    private readonly string _serial;
+    private readonly IDeviceHostRegistry _hostRegistry;
+
+    private void OnHostsChanged(DeviceHost _) =>
+        Avalonia.Threading.Dispatcher.UIThread.Post(() => OnPropertyChanged(nameof(DeviceName)));
 
     /// <summary>Scope key (slug + serial) of this VM's device — lets App match a
     /// <see cref="LoupixDeck.Services.DeviceHost"/> back to its VM on hot-unplug.</summary>
@@ -253,14 +265,17 @@ public partial class MainWindowViewModel : ViewModelBase
         Services.Actions.IPanelAssignmentService panelAssignment,
         LoupixDeck.Registry.DeviceRegistry.DeviceInfo deviceInfo,
         LoupixDeck.Registry.ResolvedDevice resolved,
-        LoupixDeck.Registry.DeviceGeometry geometry)
+        LoupixDeck.Registry.DeviceGeometry geometry,
+        IDeviceHostRegistry hostRegistry)
     {
         LoupedeckController = loupedeck;
+        _hostRegistry = hostRegistry;
+        _hostRegistry.HostAdded += OnHostsChanged;
+        _hostRegistry.HostRemoved += OnHostsChanged;
         _geometry = geometry ?? LoupixDeck.Registry.DeviceGeometry.Default;
         DeviceSlug = deviceInfo.Slug;
-        DeviceName = string.IsNullOrEmpty(resolved?.Serial)
-            ? deviceInfo.Name
-            : $"{deviceInfo.Name} · {ShortSerial(resolved.Serial)}";
+        _modelName = deviceInfo.Name;
+        _serial = resolved?.Serial;
         ScopeKey = resolved?.ScopeKey ?? deviceInfo.Slug;
         _dynamicTextManager = dynamicTextManager;
         _buttonAnimationManager = buttonAnimationManager;
@@ -391,6 +406,8 @@ public partial class MainWindowViewModel : ViewModelBase
         _workspaceActivation.ActiveProfileChanged -= OnActiveProfileChanged;
         _workspaceActivation.ActiveWorkspaceChanged -= OnActiveWorkspaceChanged;
         ProfileMenu.LinkChanged -= RefreshPanelProfileLinks;
+        _hostRegistry.HostAdded -= OnHostsChanged;
+        _hostRegistry.HostRemoved -= OnHostsChanged;
     }
 
     private void OnThemeVariantChanged(object sender, EventArgs e)

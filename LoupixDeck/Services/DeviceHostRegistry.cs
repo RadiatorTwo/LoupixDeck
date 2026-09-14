@@ -30,6 +30,12 @@ public interface IDeviceHostRegistry
     /// <summary>Drop a host (hot-unplug). No-op if it isn't registered.</summary>
     void Remove(DeviceHost host);
 
+    /// <summary>Raised after a host was added. Fires on the caller's thread.</summary>
+    event Action<DeviceHost> HostAdded;
+
+    /// <summary>Raised after a host was removed. Fires on the caller's thread.</summary>
+    event Action<DeviceHost> HostRemoved;
+
     /// <summary>
     /// Resolve a host from a CLI/user selector matched case-insensitively against
     /// its scope key (slug+serial), bare serial, or slug. Returns null when nothing
@@ -53,16 +59,23 @@ public sealed class DeviceHostRegistry : IDeviceHostRegistry
         get { lock (_gate) return _hosts.FirstOrDefault(h => h.IsPrimary) ?? _hosts.FirstOrDefault(); }
     }
 
+    public event Action<DeviceHost> HostAdded;
+    public event Action<DeviceHost> HostRemoved;
+
     public void Add(DeviceHost host)
     {
         if (host == null) return;
         lock (_gate) _hosts.Add(host);
+        HostAdded?.Invoke(host);
     }
 
     public void Remove(DeviceHost host)
     {
         if (host == null) return;
-        lock (_gate) _hosts.Remove(host);
+        bool removed;
+        lock (_gate) removed = _hosts.Remove(host);
+        if (removed)
+            HostRemoved?.Invoke(host);
     }
 
     public DeviceHost Find(string selector)
