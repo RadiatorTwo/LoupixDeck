@@ -52,6 +52,9 @@ public sealed partial class PluginStoreService : ObservableObject, IPluginStoreS
     /// <summary><c>ui-settings.json</c> key overriding the catalog location (a URL or a local file) for testing.</summary>
     private const string CatalogUrlKey = "PluginStoreCatalogUrl";
 
+    /// <summary><c>ui-settings.json</c> flag: the plugins present before the store existed were adopted.</summary>
+    private const string AdoptedKey = "PluginStoreAdopted";
+
     private const string CatalogCacheFileName = "plugin-store-cache.json";
     private const string ManifestAssetName = "plugin.json";
     private const string ChecksumAssetName = "SHA256SUMS";
@@ -136,6 +139,8 @@ public sealed partial class PluginStoreService : ObservableObject, IPluginStoreS
                     return ([], catalogError);
                 }
             }
+
+            AdoptExistingPlugins(catalog);
 
             List<PluginStoreItem> items = [];
             foreach (PluginCatalogEntry entry in catalog.Plugins.Where(IsUsableEntry))
@@ -236,6 +241,37 @@ public sealed partial class PluginStoreService : ObservableObject, IPluginStoreS
     public static bool IsStoreManaged(LoadedPlugin plugin)
     {
         return plugin is not null && (plugin.IsBundled || PluginStoreMarker.Read(plugin.Directory) is not null);
+    }
+
+    /// <summary>
+    /// Once per installation, the first time a catalog is available: plugins that were bundled with an older
+    /// LoupixDeck (and moved into the user plugin folder by its installer) become store-managed, so they get
+    /// updates from now on. Plugins installed by hand after that stay manual.
+    /// </summary>
+    private void AdoptExistingPlugins(PluginCatalog catalog)
+    {
+        if (UiSettingsStore.GetBool(AdoptedKey, false))
+        {
+            return;
+        }
+
+        foreach (LoadedPlugin plugin in _pluginManager.Plugins.Where(p => !p.IsBundled))
+        {
+            PluginCatalogEntry entry = catalog.Plugins.FirstOrDefault(e =>
+                IsUsableEntry(e) && string.Equals(e.Id, plugin.Manifest?.Id, StringComparison.OrdinalIgnoreCase));
+            if (entry is null || PluginStoreMarker.Read(plugin.Directory) is not null)
+            {
+                continue;
+            }
+
+            PluginStoreMarker marker = new() { Repository = entry.Repository, InstalledAt = DateTime.UtcNow };
+            if (marker.Write(plugin.Directory))
+            {
+                Console.WriteLine($"[PluginStore] Adopted {entry.Id} {plugin.Manifest.Version} as store-managed.");
+            }
+        }
+
+        UiSettingsStore.Set(AdoptedKey, true);
     }
 
     private static bool IsUsableEntry(PluginCatalogEntry entry)
