@@ -70,13 +70,13 @@ LoupixDeck.exe
 Recommended installer script:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/RadiatorTwo/LoupixDeck/master/install-loupixdeck.sh | bash
+curl -fsSL https://github.com/RadiatorTwo/LoupixDeck/releases/latest/download/install-loupixdeck.sh | bash
 ```
 
 Or with `wget`:
 
 ```bash
-wget -qO- https://raw.githubusercontent.com/RadiatorTwo/LoupixDeck/master/install-loupixdeck.sh | bash
+wget -qO- https://github.com/RadiatorTwo/LoupixDeck/releases/latest/download/install-loupixdeck.sh | bash
 ```
 
 The installer downloads the latest release, shows download progress in a terminal, installs LoupixDeck system-wide, adds udev rules—including the Razer Stream Controller X—and creates a desktop entry. Plugins are not part of the release; install them from the Plugin Store inside the app. Updating an older installation with the script moves the plugins it used to bundle, with their settings, into the user plugin folder, so they keep working and receive updates from the store.
@@ -92,7 +92,7 @@ Or launch it from your application menu.
 Prefer to inspect the installer first?
 
 ```bash
-curl -fsSLO https://raw.githubusercontent.com/RadiatorTwo/LoupixDeck/master/install-loupixdeck.sh
+curl -fsSLO https://github.com/RadiatorTwo/LoupixDeck/releases/latest/download/install-loupixdeck.sh
 less install-loupixdeck.sh
 bash install-loupixdeck.sh
 ```
