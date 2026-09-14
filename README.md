@@ -107,6 +107,12 @@ This source-build mode requires Git and the .NET 10 SDK; the normal installer be
 
 Pass `--restart` to close a running LoupixDeck cleanly before installation and launch it again afterwards. This is also the mode used by the in-app Linux updater.
 
+#### SteamOS
+
+Run the same installer in Konsole in Desktop Mode, as your normal user and without `sudo`. SteamOS replaces its read-only system image on every update, so the installer detects SteamOS and puts LoupixDeck into your home folder (`~/.local/lib/loupixdeck`) instead. Only the device permissions need administrator rights: the udev rule is written to `/etc/udev/rules.d/99-loupixdeck.rules` and listed in `/etc/atomic-update.conf.d/loupixdeck.conf`, so it survives SteamOS updates. `sudo` needs a password; if you have never set one, run `passwd` first.
+
+A Flatpak is not offered: its sandbox blocks device access, input simulation, app launching and many plugins.
+
 ---
 
 ## Supported Devices

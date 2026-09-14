@@ -20,6 +20,9 @@ INSTALL_DIR="/usr/local/lib/loupixdeck"
 SYMLINK="/usr/local/bin/loupixdeck"
 DESKTOP_FILE="/usr/share/applications/loupixdeck.desktop"
 UDEV_RULES_FILE="/etc/udev/rules.d/99-loupixdeck.rules"
+# SteamOS 3.6+ only carries files under /etc over to a new OS image when they are listed here.
+ATOMIC_KEEP_DIR="/etc/atomic-update.conf.d"
+ATOMIC_KEEP_FILE="$ATOMIC_KEEP_DIR/loupixdeck.conf"
 
 TMP_DIR="$(mktemp -d)"
 trap 'rm -rf "$TMP_DIR"' EXIT
@@ -37,6 +40,39 @@ if [ "$(id -u)" -ne 0 ]; then
 else
     SUDO=""
 fi
+
+# ---------- Target user ----------
+# The user the app runs as: the one who gets the 'input' group and owns the plugin folder.
+TARGET_USER="${SUDO_USER:-}"
+if [ -z "$TARGET_USER" ] && command -v logname >/dev/null 2>&1; then
+    TARGET_USER="$(logname 2>/dev/null || true)"
+fi
+if [ -z "$TARGET_USER" ] && [ "$(id -u)" -ne 0 ]; then
+    TARGET_USER="$(id -un)"
+fi
+TARGET_HOME=""
+if [ -n "$TARGET_USER" ] && [ "$TARGET_USER" != "root" ]; then
+    TARGET_HOME="$({ getent passwd "$TARGET_USER" || true; } | cut -d: -f6)"
+fi
+
+# ---------- SteamOS ----------
+# SteamOS ships a read-only OS image that every system update replaces, so nothing may be
+# installed below /usr. The app goes into the user's home instead; only the udev rule needs
+# root, and it is added to the atomic-update keep list so it survives the next update.
+STEAMOS=0
+if [ -r /etc/os-release ] && grep -qx 'ID=steamos' /etc/os-release; then
+    STEAMOS=1
+    # Run as root, every file in the home would belong to root and the app could not update it.
+    [ "$(id -u)" -ne 0 ] || die "On SteamOS, run the installer as your normal user (without sudo)."
+    TARGET_HOME="${TARGET_HOME:-$HOME}"
+    INSTALL_DIR="$TARGET_HOME/.local/lib/loupixdeck"
+    SYMLINK="$TARGET_HOME/.local/bin/loupixdeck"
+    DESKTOP_FILE="$TARGET_HOME/.local/share/applications/loupixdeck.desktop"
+fi
+
+# The prefix for app files: sudo for the system-wide install, nothing for the home install.
+HOME_SUDO="$SUDO"
+[ "$STEAMOS" -eq 0 ] || HOME_SUDO=""
 
 # ---------- Architecture check ----------
 ARCH="$(uname -m)"
@@ -124,8 +160,14 @@ fi
 # Ask for the password before anything is downloaded, built or removed: declining it then
 # ends the script with the installation untouched, not halfway through replacing it.
 if [ -n "$SUDO" ]; then
-    log "Administrator rights are needed to install into $INSTALL_DIR."
-    sudo -v || die "No administrator rights - nothing was changed."
+    if [ "$STEAMOS" -eq 1 ]; then
+        log "Administrator rights are needed to set up the device permissions (udev rule)."
+        # The 'deck' user has no password until one is set, so sudo cannot succeed before that.
+        sudo -v || die "No administrator rights - nothing was changed. If your user has no password yet, set one with 'passwd' and run the installer again."
+    else
+        log "Administrator rights are needed to install into $INSTALL_DIR."
+        sudo -v || die "No administrator rights - nothing was changed."
+    fi
     # Keep the credentials fresh for long source builds; ends together with this script.
     ( while kill -0 "$$" 2>/dev/null; do sudo -n true 2>/dev/null; sleep 50; done ) &
 fi
@@ -244,16 +286,6 @@ if [ "$RESTART" -eq 1 ] && app_running; then
     app_running && die "LoupixDeck is still running. Close it and run the installer again."
 fi
 
-# ---------- Target user ----------
-# The user the app runs as: the one who gets the 'input' group and owns the plugin folder.
-TARGET_USER="${SUDO_USER:-}"
-if [ -z "$TARGET_USER" ] && command -v logname >/dev/null 2>&1; then
-    TARGET_USER="$(logname 2>/dev/null || true)"
-fi
-if [ -z "$TARGET_USER" ] && [ "$(id -u)" -ne 0 ]; then
-    TARGET_USER="$(id -un)"
-fi
-
 # ---------- Move bundled plugins to the user plugin folder ----------
 # Releases before the Plugin Store shipped every plugin in $INSTALL_DIR/plugins. The new build
 # has none, so wiping the install directory would take them (and their settings) away. They
@@ -273,11 +305,6 @@ version_lt() {
 }
 
 if [ -d "$INSTALL_DIR/plugins" ]; then
-    TARGET_HOME=""
-    if [ -n "$TARGET_USER" ] && [ "$TARGET_USER" != "root" ]; then
-        TARGET_HOME="$({ getent passwd "$TARGET_USER" || true; } | cut -d: -f6)"
-    fi
-
     if [ -z "$TARGET_HOME" ] || [ ! -d "$TARGET_HOME" ]; then
         warn "Target user unknown - bundled plugins in $INSTALL_DIR/plugins are removed with the old version. Install them again from the Plugin Store."
     else
@@ -319,16 +346,16 @@ fi
 
 if [ -d "$INSTALL_DIR" ]; then
     log "Removing previous installation at $INSTALL_DIR ..."
-    $SUDO rm -rf "$INSTALL_DIR"
+    $HOME_SUDO rm -rf "$INSTALL_DIR"
 fi
 log "Installing into $INSTALL_DIR ..."
-$SUDO mkdir -p "$INSTALL_DIR"
-$SUDO cp -a "$SRC"/. "$INSTALL_DIR/"
-$SUDO chmod +x "$INSTALL_DIR/LoupixDeck"
+$HOME_SUDO mkdir -p "$INSTALL_DIR"
+$HOME_SUDO cp -a "$SRC"/. "$INSTALL_DIR/"
+$HOME_SUDO chmod +x "$INSTALL_DIR/LoupixDeck"
 
 log "Creating symlink $SYMLINK -> $INSTALL_DIR/LoupixDeck ..."
-$SUDO mkdir -p "$(dirname "$SYMLINK")"
-$SUDO ln -sf "$INSTALL_DIR/LoupixDeck" "$SYMLINK"
+$HOME_SUDO mkdir -p "$(dirname "$SYMLINK")"
+$HOME_SUDO ln -sf "$INSTALL_DIR/LoupixDeck" "$SYMLINK"
 
 # ---------- udev rules ----------
 if [ -d /etc/udev/rules.d ]; then
@@ -361,6 +388,13 @@ SUBSYSTEM=="tty", ATTRS{idVendor}=="1532", ATTRS{idProduct}=="0d09", MODE="0666"
 # uinput – virtual keyboard/mouse for macro execution (granted to the 'input' group)
 KERNEL=="uinput", SUBSYSTEM=="misc", GROUP="input", MODE="0660", OPTIONS+="static_node=uinput"
 EOF
+    # Without the keep-list entry SteamOS drops the rule on the next A/B system update and the
+    # deck stops working until the installer runs again.
+    if [ "$STEAMOS" -eq 1 ] || [ -d "$ATOMIC_KEEP_DIR" ]; then
+        log "Keeping the udev rule across system updates ($ATOMIC_KEEP_FILE) ..."
+        $SUDO mkdir -p "$ATOMIC_KEEP_DIR"
+        printf '%s\n' "$UDEV_RULES_FILE" | $SUDO tee "$ATOMIC_KEEP_FILE" >/dev/null
+    fi
     if command -v udevadm >/dev/null 2>&1; then
         $SUDO udevadm control --reload-rules || true
         $SUDO udevadm trigger || true
@@ -402,9 +436,11 @@ for cand in LoupixDeck.png LoupixDeck.svg LoupixDeck.ico icon.png; do
 done
 [ -n "$ICON_PATH" ] || ICON_PATH="loupixdeck"
 
-if [ -d /usr/share/applications ]; then
+APPLICATIONS_DIR="$(dirname "$DESKTOP_FILE")"
+[ "$STEAMOS" -eq 0 ] || mkdir -p "$APPLICATIONS_DIR"
+if [ -d "$APPLICATIONS_DIR" ]; then
     log "Writing desktop entry $DESKTOP_FILE ..."
-    $SUDO tee "$DESKTOP_FILE" >/dev/null <<EOF
+    $HOME_SUDO tee "$DESKTOP_FILE" >/dev/null <<EOF
 [Desktop Entry]
 Name=LoupixDeck
 Comment=Razer Stream Controller & Loupedeck Live S Control
@@ -416,13 +452,17 @@ Categories=Utility;AudioVideo;
 StartupNotify=true
 EOF
     command -v update-desktop-database >/dev/null 2>&1 \
-        && $SUDO update-desktop-database /usr/share/applications || true
+        && $HOME_SUDO update-desktop-database "$APPLICATIONS_DIR" || true
 fi
 
 # ---------- Done ----------
 echo
 log "Done. LoupixDeck $TAG installed."
-log "Launch with: loupixdeck   (or from your application menu)"
+if [ "$STEAMOS" -eq 1 ]; then
+    log "Launch LoupixDeck from the application menu in Desktop Mode, or run: $SYMLINK"
+else
+    log "Launch with: loupixdeck   (or from your application menu)"
+fi
 
 # ---------- Restart app (--restart) ----------
 if [ "$RESTART" -eq 1 ]; then
