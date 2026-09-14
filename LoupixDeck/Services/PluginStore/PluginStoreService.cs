@@ -477,13 +477,33 @@ public sealed partial class PluginStoreService : ObservableObject, IPluginStoreS
             return cached.Releases;
         }
 
-        // Once GitHub reported the limit, every further request until the reset would be refused too.
-        if (RateLimitResetAt is { } resetAt)
+        IReadOnlyList<ReleaseInfo> releases;
+        bool fromDiskCache = false;
+        try
         {
-            throw new GitHubRateLimitException(resetAt, System.Net.HttpStatusCode.Forbidden);
-        }
+            // Once GitHub reported the limit, every further request until the reset would be refused too.
+            if (RateLimitResetAt is { } resetAt)
+            {
+                throw new GitHubRateLimitException(resetAt, System.Net.HttpStatusCode.Forbidden);
+            }
 
-        IReadOnlyList<ReleaseInfo> releases = await _releaseClient.GetStableReleasesAsync(entry.Repository, cancellationToken);
+            releases = await _releaseClient.GetStableReleasesAsync(entry.Repository, cancellationToken);
+        }
+        catch (GitHubRateLimitException ex)
+        {
+            // The list as last read from GitHub, also from before a restart. Only the list comes from the API:
+            // plugin.json, SHA256SUMS and the package are plain downloads the limit does not apply to, so a
+            // known update can still be installed.
+            releases = GitHubReleaseClient.GetCachedStableReleases(entry.Repository);
+            if (releases is null)
+            {
+                throw;
+            }
+
+            RememberRateLimit(ex.ResetAt);
+            fromDiskCache = true;
+            Console.WriteLine($"[PluginStore] {entry.Repository}: rate limit reached, using the last known releases.");
+        }
 
         PluginReleaseCandidate newest = null;
         PluginReleaseCandidate compatible = null;
@@ -504,7 +524,13 @@ public sealed partial class PluginStoreService : ObservableObject, IPluginStoreS
         }
 
         ResolvedReleases resolved = new(compatible, newest);
-        _releaseCache[entry.Repository] = (DateTime.UtcNow, resolved);
+
+        // A list from the disk cache is not fresh; the first refresh after the reset reads GitHub again.
+        if (!fromDiskCache)
+        {
+            _releaseCache[entry.Repository] = (DateTime.UtcNow, resolved);
+        }
+
         return resolved;
     }
 
