@@ -356,7 +356,16 @@
                                       SelectedItem="{Binding SelectedDevice}">
                                 <ComboBox.ItemTemplate>
                                     <DataTemplate x:DataType="vm:MainWindowViewModel">
-                                        <TextBlock Text="{Binding DeviceName}" VerticalAlignment="Center" />
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <TextBlock Text="{Binding DeviceName}" VerticalAlignment="Center" />
+                                            <!-- Companion role badge -->
+                                            <Border IsVisible="{Binding HasCompanionRole}" CornerRadius="3" Padding="5,0"
+                                                    VerticalAlignment="Center"
+                                                    Background="{DynamicResource AppSurfaceAlt}">
+                                                <TextBlock Text="{Binding CompanionRoleText}" FontSize="10" Opacity="0.8"
+                                                           VerticalAlignment="Center" />
+                                            </Border>
+                                        </StackPanel>
                                     </DataTemplate>
                                 </ComboBox.ItemTemplate>
                             </ComboBox>

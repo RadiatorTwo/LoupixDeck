@@ -183,10 +183,11 @@ public static class ActiveDeviceResolver
 
     /// <summary>
     /// Enumerate existing per-device config files (slug-only and slug+serial) and
-    /// map each back to a <see cref="ResolvedDevice"/>. Used only when no hardware
-    /// is connected, so the serial tail comes from the filename.
+    /// map each back to a <see cref="ResolvedDevice"/>. Used when no hardware is
+    /// connected (the serial tail comes from the filename) and by the companion editor,
+    /// which has to list devices that are configured but currently unplugged.
     /// </summary>
-    private static List<ResolvedDevice> EnumerateConfigDevices()
+    public static List<ResolvedDevice> EnumerateConfigDevices()
     {
         var result = new List<ResolvedDevice>();
         try

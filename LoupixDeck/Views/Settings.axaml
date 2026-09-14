@@ -57,6 +57,15 @@
                             <TextBlock Grid.Column="2" Classes="nav-label" Text="{loc:Tr Settings_ProfileRules}" />
                         </Grid>
                     </Button>
+                    <Button Classes="nav" Classes.active="{Binding CurrentView, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Companions}"
+                            Command="{Binding NavigateCommand}" CommandParameter="{x:Static bs:SettingsView.Companions}">
+                        <Grid ColumnDefinitions="6,Auto,*">
+                            <Border Grid.Column="0" Classes="nav-accent" />
+                            <!-- mdi-link-variant -->
+                            <TextBlock Grid.Column="1" Classes="nav-icon" Text="&#xF0339;" Margin="6,0,0,0"/>
+                            <TextBlock Grid.Column="2" Classes="nav-label" Text="{loc:Tr Companions_Title}" />
+                        </Grid>
+                    </Button>
                     <Button Classes="nav" Classes.active="{Binding CurrentView, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Pages}"
                             Command="{Binding NavigateCommand}" CommandParameter="{x:Static bs:SettingsView.Pages}">
                         <Grid ColumnDefinitions="6,Auto,*">
@@ -425,6 +434,121 @@
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
+                </StackPanel>
+
+                <!-- ====== Companions ====== -->
+                <StackPanel IsVisible="{Binding CurrentView, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Companions}">
+                    <TextBlock Classes="page-title" Text="{loc:Tr Companions_Title}" />
+
+                    <StackPanel DataContext="{Binding CompanionGroups}">
+                        <Border Classes="card" Margin="0,0,0,12">
+                            <StackPanel Spacing="8">
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <TextBlock Grid.Column="0" Classes="card-title" Text="{loc:Tr Companions_Groups}" Margin="0"
+                                               VerticalAlignment="Center" />
+                                    <Button Grid.Column="1" Classes="accent" Content="{loc:Tr Companions_NewGroup}"
+                                            Command="{Binding AddGroupCommand}" />
+                                </Grid>
+                                <TextBlock Classes="hint" FontSize="12" TextWrapping="Wrap" Text="{loc:Tr Companions_Hint}" />
+                                <TextBlock Classes="hint" FontSize="12" IsVisible="{Binding !HasGroups}"
+                                           Text="{loc:Tr Companions_NoGroups}" />
+                            </StackPanel>
+                        </Border>
+
+                        <ItemsControl ItemsSource="{Binding Groups}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate DataType="vm:CompanionGroupRow">
+                                    <Border Classes="card" Margin="0,0,0,12">
+                                        <StackPanel Spacing="10">
+                                            <Grid ColumnDefinitions="*,Auto">
+                                                <TextBox Grid.Column="0" PlaceholderText="{loc:Tr Companions_GroupName}"
+                                                         Text="{Binding Name, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" />
+                                                <Button Grid.Column="1" Classes="rule-delete" Content="✕" Margin="8,0,0,0"
+                                                        VerticalAlignment="Center"
+                                                        ToolTip.Tip="{loc:Tr Companions_RemoveGroup}"
+                                                        Command="{Binding RemoveGroupCommand}" />
+                                            </Grid>
+
+                                            <TextBlock Classes="hint" FontSize="12" IsVisible="{Binding IsIncomplete}"
+                                                       TextWrapping="Wrap" Text="{loc:Tr Companions_Incomplete}" />
+
+                                            <!-- Master -->
+                                            <StackPanel Spacing="4">
+                                                <TextBlock Classes="group-label" Text="{loc:Tr Companions_Master}" />
+                                                <Grid ColumnDefinitions="*,Auto">
+                                                    <ComboBox Grid.Column="0" HorizontalAlignment="Stretch"
+                                                              PlaceholderText="{loc:Tr Companions_ChooseMaster}"
+                                                              ItemsSource="{Binding MasterOptions}"
+                                                              SelectedItem="{Binding SelectedMaster, Mode=TwoWay}">
+                                                        <ComboBox.ItemTemplate>
+                                                            <DataTemplate DataType="vm:CompanionDeviceOption">
+                                                                <TextBlock Text="{Binding DisplayName}" />
+                                                            </DataTemplate>
+                                                        </ComboBox.ItemTemplate>
+                                                    </ComboBox>
+                                                    <TextBlock Grid.Column="1" Classes="hint" Margin="12,0,0,0" VerticalAlignment="Center"
+                                                               Text="{Binding Master.StatusText, FallbackValue=''}" />
+                                                </Grid>
+                                            </StackPanel>
+
+                                            <!-- Companions -->
+                                            <StackPanel Spacing="4">
+                                                <TextBlock Classes="group-label" Text="{loc:Tr Companions_Companions}" />
+                                                <ItemsControl ItemsSource="{Binding Companions}">
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate DataType="vm:CompanionDeviceOption">
+                                                            <Border Background="{DynamicResource AppSurfaceAlt}" CornerRadius="4" Padding="8" Margin="0,0,0,4">
+                                                                <Grid ColumnDefinitions="*,Auto,Auto">
+                                                                    <TextBlock Grid.Column="0" Text="{Binding DisplayName}" VerticalAlignment="Center" />
+                                                                    <TextBlock Grid.Column="1" Classes="hint" Margin="12,0" VerticalAlignment="Center"
+                                                                               Text="{Binding StatusText}" />
+                                                                    <Button Grid.Column="2" Classes="row-action danger" Content="✕"
+                                                                            ToolTip.Tip="{loc:Tr Companions_RemoveCompanion}"
+                                                                            Command="{Binding $parent[ItemsControl].((vm:CompanionGroupRow)DataContext).RemoveCompanionCommand}"
+                                                                            CommandParameter="{Binding}" />
+                                                                </Grid>
+                                                            </Border>
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+                                                <Grid ColumnDefinitions="*,Auto">
+                                                    <ComboBox Grid.Column="0" HorizontalAlignment="Stretch"
+                                                              PlaceholderText="{loc:Tr Companions_ChooseCompanion}"
+                                                              ItemsSource="{Binding CompanionCandidates}"
+                                                              SelectedItem="{Binding SelectedCandidate, Mode=TwoWay}">
+                                                        <ComboBox.ItemTemplate>
+                                                            <DataTemplate DataType="vm:CompanionDeviceOption">
+                                                                <TextBlock Text="{Binding DisplayName}" />
+                                                            </DataTemplate>
+                                                        </ComboBox.ItemTemplate>
+                                                    </ComboBox>
+                                                    <Button Grid.Column="1" Margin="8,0,0,0" Content="{loc:Tr Companions_AddCompanion}"
+                                                            Command="{Binding AddCompanionCommand}" />
+                                                </Grid>
+                                            </StackPanel>
+
+                                            <TextBlock IsVisible="{Binding HasError}" Text="{Binding Error}" TextWrapping="Wrap"
+                                                       Foreground="#E07A7A" />
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <Border Classes="card" IsVisible="{Binding HasDevicesWithoutSerial}">
+                            <StackPanel Spacing="6">
+                                <TextBlock Classes="card-title" Text="{loc:Tr Companions_NoSerialTitle}" />
+                                <TextBlock Classes="hint" FontSize="12" TextWrapping="Wrap" Text="{loc:Tr Companions_NoSerialHint}" />
+                                <ItemsControl ItemsSource="{Binding DevicesWithoutSerial}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate DataType="x:String">
+                                            <TextBlock Text="{Binding}" />
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
                 </StackPanel>
 
                 <!-- ====== Pages ====== -->

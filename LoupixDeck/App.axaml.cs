@@ -220,6 +220,8 @@ public partial class App : Application
                         await vm.LoupedeckController.Initialize(null, 0);
                     }
 
+                    root.GetRequiredService<Services.Companion.ICompanionCoordinator>().DeviceInitialized(host);
+
                     ShowWhenConnected(shell, host, vm);
 
                     host.Provider.GetRequiredService<IDynamicTextManager>().Start();
@@ -360,6 +362,7 @@ public partial class App : Application
         }
 
         await controller.Initialize(null, 0);
+        _root.GetRequiredService<Services.Companion.ICompanionCoordinator>().DeviceInitialized(host);
         // A device can appear on the bus with its port still held by another process, so the
         // tab waits for the link exactly as it does at startup.
         ShowWhenConnected(_shell, host, vm);

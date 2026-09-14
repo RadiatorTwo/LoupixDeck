@@ -246,6 +246,7 @@ public partial class MainWindowViewModel : ViewModelBase
     }
 
     private readonly LoupixDeck.Registry.DeviceGeometry _geometry;
+    private readonly Services.Companion.ICompanionCoordinator _companions;
 
     public MainWindowViewModel(LoupedeckLiveSController loupedeck,
         IDialogService dialogService,
@@ -266,9 +267,12 @@ public partial class MainWindowViewModel : ViewModelBase
         LoupixDeck.Registry.DeviceRegistry.DeviceInfo deviceInfo,
         LoupixDeck.Registry.ResolvedDevice resolved,
         LoupixDeck.Registry.DeviceGeometry geometry,
+        Services.Companion.ICompanionCoordinator companions,
         IDeviceHostRegistry hostRegistry)
     {
         LoupedeckController = loupedeck;
+        _companions = companions;
+        _companions.GroupsChanged += OnCompanionGroupsChanged;
         _hostRegistry = hostRegistry;
         _hostRegistry.HostAdded += OnHostsChanged;
         _hostRegistry.HostRemoved += OnHostsChanged;
@@ -406,9 +410,27 @@ public partial class MainWindowViewModel : ViewModelBase
         _workspaceActivation.ActiveProfileChanged -= OnActiveProfileChanged;
         _workspaceActivation.ActiveWorkspaceChanged -= OnActiveWorkspaceChanged;
         ProfileMenu.LinkChanged -= RefreshPanelProfileLinks;
+        _companions.GroupsChanged -= OnCompanionGroupsChanged;
         _hostRegistry.HostAdded -= OnHostsChanged;
         _hostRegistry.HostRemoved -= OnHostsChanged;
     }
+
+    /// <summary>Badge text for the device switcher: "Master", "Companion", or empty outside a group.</summary>
+    public string CompanionRoleText => _companions.GetRole(ScopeKey) switch
+    {
+        Models.Companion.CompanionRole.Master => Loc.Tr("Companion_RoleMaster"),
+        Models.Companion.CompanionRole.Companion => Loc.Tr("Companion_RoleCompanion"),
+        _ => string.Empty
+    };
+
+    public bool HasCompanionRole => CompanionRoleText.Length > 0;
+
+    private void OnCompanionGroupsChanged() =>
+        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        {
+            OnPropertyChanged(nameof(CompanionRoleText));
+            OnPropertyChanged(nameof(HasCompanionRole));
+        });
 
     private void OnThemeVariantChanged(object sender, EventArgs e)
     {

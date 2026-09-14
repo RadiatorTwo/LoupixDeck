@@ -10,6 +10,7 @@ using LoupixDeck.Registry;
 using LoupixDeck.Models.Converter;
 using LoupixDeck.PluginSdk;
 using LoupixDeck.Services;
+using LoupixDeck.Services.Companion;
 using LoupixDeck.Services.Diagnostics;
 using LoupixDeck.Services.Plugins;
 using LoupixDeck.Services.Portable;
@@ -41,6 +42,7 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
     private readonly IScreensaverProviderRegistry _screensaverRegistry;
     private readonly IExclusiveModeService _exclusiveMode;
     private readonly IUpdateService _updateService;
+    private readonly ICompanionCoordinator _companions;
 
     /// <summary>
     /// All discovered plugins — drives the Plugins settings page. Read live from the
@@ -141,8 +143,10 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
         IExclusiveModeService exclusiveMode,
         IProfileEditingService profileEditing,
         IUpdateService updateService,
-        PluginStoreViewModel pluginStore)
+        PluginStoreViewModel pluginStore,
+        ICompanionCoordinator companions)
     {
+        _companions = companions;
         Config = config;
         PluginStore = pluginStore;
         IsVibrationSupported = config?.Geometry.HasVibration ?? true;
@@ -164,6 +168,10 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
         // window has to take it down — including via the title-bar X, which completes the
         // same DialogResult as the buttons do.
         _ = DialogResult.Task.ContinueWith(_ => StopAlignmentPreview(),
+            TaskScheduler.Default);
+
+        // The companion editor listens to the root-level coordinator; unhook it with the window.
+        _ = DialogResult.Task.ContinueWith(_ => _companionGroups?.Dispose(),
             TaskScheduler.Default);
 
         // Commands are created lazily on first access by their `field ??= Relay.Create(...)`
@@ -440,6 +448,12 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
     // ───────── Pages ─────────
 
     public ObservableCollection<TouchButtonPage> TouchPages => _pageManager.TouchButtonPages;
+
+    /// <summary>Companion group editor (global groups, same from every device).</summary>
+    public CompanionGroupsViewModel CompanionGroups => _companionGroups ??= new CompanionGroupsViewModel(_companions);
+
+    private CompanionGroupsViewModel _companionGroups;
+
     public ObservableCollection<RotaryButtonPage> RotaryPages => _pageManager.RotaryButtonPages;
 
     /// <summary>True for devices that page their two dial columns independently (Razer):

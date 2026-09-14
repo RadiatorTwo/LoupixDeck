@@ -152,6 +152,12 @@ public static class ServiceCollectionExtensions
         // raises attach/detach events App turns into provider/VM bring-up + teardown.
         collection.AddSingleton<Services.HotPlug.IDeviceWatcher>(_ => Services.HotPlug.DeviceWatcher.Create());
         collection.AddSingleton<Services.HotPlug.IHotPlugManager, Services.HotPlug.HotPlugManager>();
+
+        // Companion system: the master/companion relationships between devices live in one
+        // companions.json (they span devices, so they are not part of any device config), and
+        // the coordinator that derives roles and permissions from them is process-wide.
+        collection.AddSingleton<Services.Companion.ICompanionStore, Services.Companion.CompanionStore>();
+        collection.AddSingleton<Services.Companion.ICompanionCoordinator, Services.Companion.CompanionCoordinator>();
     }
 
     // ───────────────────────── Device (per-device child) ─────────────────────────
@@ -196,6 +202,7 @@ public static class ServiceCollectionExtensions
         collection.Forward<IDeviceHostRegistry>(root);
         collection.Forward<IDeviceRouter>(root);
         collection.Forward<IPluginManager>(root);
+        collection.Forward<Services.Companion.ICompanionCoordinator>(root);
         collection.Forward<Services.Animation.IAnimatedImageCache>(root);
         collection.Forward<Services.Animation.IAnimatedImageImporter>(root);
 
@@ -481,6 +488,10 @@ public static class ServiceCollectionExtensions
         // Eagerly create the active-window cache so it subscribes to (and starts) the monitor
         // from launch — otherwise it would miss every focus change before the first macro runs.
         root.GetRequiredService<IActiveWindowState>();
+
+        // Eagerly create the companion coordinator so it observes every device host from the
+        // first registration on (it hooks each host's connect event to report readiness).
+        root.GetRequiredService<Services.Companion.ICompanionCoordinator>();
 
         // Let the (static) bitmap renderer resolve image-layer assets via DI.
         var assetService = root.GetRequiredService<IAssetService>();
