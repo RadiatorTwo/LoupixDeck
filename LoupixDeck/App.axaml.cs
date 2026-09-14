@@ -246,6 +246,10 @@ public partial class App : Application
 
             // Arm runtime hot-plug now that the initial device set is up.
             StartHotPlug();
+
+            // Configs that use commands of plugins that are not installed (issue #234): point to the store.
+            // Not awaited, so a slow catalog download never holds up the rest of startup.
+            _ = shell.PromptForMissingPluginsAsync();
         }
         catch (Exception ex)
         {

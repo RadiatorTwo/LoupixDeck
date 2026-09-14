@@ -74,6 +74,49 @@ public sealed class MainShellViewModel : ViewModelBase
         OnPropertyChanged(nameof(PluginUpdateHintText));
     }
 
+    /// <summary><c>ui-settings.json</c> key: ids of missing plugins the user declined to install, comma-separated.</summary>
+    private const string DeclinedMissingPluginsKey = "PluginStoreDeclinedMissing";
+
+    /// <summary>
+    /// After startup: when the configs use commands of plugins that are not installed, offers to open the
+    /// store for them. Asked once per plugin; declining is remembered. Never throws.
+    /// </summary>
+    public async Task PromptForMissingPluginsAsync()
+    {
+        if (_pluginStore == null) return;
+
+        try
+        {
+            IReadOnlyList<PluginCommandOwner> missing = await _pluginStore.FindMissingPluginsAsync();
+            HashSet<string> declined = new(
+                (Utils.UiSettingsStore.GetString(DeclinedMissingPluginsKey) ?? string.Empty)
+                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries),
+                StringComparer.OrdinalIgnoreCase);
+            List<PluginCommandOwner> toAsk = missing.Where(m => !declined.Contains(m.PluginId)).ToList();
+            if (toAsk.Count == 0 || SelectedDevice == null) return;
+
+            Console.WriteLine($"[PluginStore] Configs use missing plugins: {string.Join(", ", toAsk.Select(m => m.PluginId))}.");
+
+            string names = string.Join(", ", toAsk.Select(m => m.DisplayName));
+            bool open = await Utils.ConfirmDialogHelper.AskYesNoAsync(Utils.WindowHelper.GetMainWindow(),
+                Loc.Tr("PluginStore_MissingTitle"), Loc.Tr("PluginStore_MissingMessage", names));
+
+            if (open)
+            {
+                if (SelectedDevice != null)
+                    await SelectedDevice.OpenPluginStoreAsync(toAsk[0].PluginId);
+                return;
+            }
+
+            declined.UnionWith(toAsk.Select(m => m.PluginId));
+            Utils.UiSettingsStore.Set(DeclinedMissingPluginsKey, string.Join(",", declined));
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[PluginStore] Missing plugin check failed: {ex.Message}");
+        }
+    }
+
     private Task ShowPluginUpdates()
     {
         IReadOnlyList<PluginStoreItem> updates = _pluginStore?.AvailableUpdates;

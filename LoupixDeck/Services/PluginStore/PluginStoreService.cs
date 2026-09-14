@@ -49,6 +49,12 @@ public interface IPluginStoreService : INotifyPropertyChanged
     /// the network.
     /// </summary>
     PluginCommandOwner FindCommandOwner(string commandName);
+
+    /// <summary>
+    /// Plugins the device configs or macros use commands of, but which are not installed. Reads the files on
+    /// disk; loads the catalog once when there is no cached copy yet. Never throws.
+    /// </summary>
+    Task<IReadOnlyList<PluginCommandOwner>> FindMissingPluginsAsync(CancellationToken cancellationToken = default);
 }
 
 /// <summary>A plugin that owns a command name.</summary>
@@ -96,6 +102,67 @@ public sealed partial class PluginStoreService : ObservableObject, IPluginStoreS
         _pluginManager = pluginManager;
         _updateService = updateService;
         _commandIndex = commandIndex;
+    }
+
+    public async Task<IReadOnlyList<PluginCommandOwner>> FindMissingPluginsAsync(
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            if (CachedCatalog is null)
+            {
+                await LoadCatalogAsync(cancellationToken);
+            }
+        }
+        catch (Exception ex) when (IsExpectedFailure(ex))
+        {
+            // Without a catalog only commands this machine has seen before are recognised.
+            Console.WriteLine($"[PluginStore] Could not load the plugin catalog: {ex.Message}");
+        }
+
+        try
+        {
+            HashSet<string> names = await Task.Run(CollectConfiguredCommandNames, cancellationToken);
+            HashSet<string> installed = new(
+                _pluginManager.Plugins.Select(p => p.Manifest?.Id).Where(id => id is not null),
+                StringComparer.OrdinalIgnoreCase);
+
+            return names
+                .Select(FindCommandOwner)
+                .Where(owner => owner is not null && !installed.Contains(owner.PluginId))
+                .DistinctBy(owner => owner.PluginId, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+        }
+        catch (Exception ex) when (IsExpectedFailure(ex))
+        {
+            Console.WriteLine($"[PluginStore] Could not check the configs for missing plugins: {ex.Message}");
+            return [];
+        }
+    }
+
+    /// <summary>Command names used by every device config (<c>config_*.json</c>) and by the macros.</summary>
+    private static HashSet<string> CollectConfiguredCommandNames()
+    {
+        string configDir = FileDialogHelper.GetConfigDir();
+        IEnumerable<string> files = Directory.GetFiles(configDir, "config*.json")
+            .Append(Path.Combine(configDir, "macros.json"))
+            .Where(File.Exists);
+
+        HashSet<string> names = new(StringComparer.Ordinal);
+        foreach (string file in files)
+        {
+            try
+            {
+                names.UnionWith(Portable.PortableCommandScanner.CollectCommandNames(
+                    Newtonsoft.Json.Linq.JToken.Parse(File.ReadAllText(file))));
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
+            {
+                Console.WriteLine($"[PluginStore] Could not scan '{file}' for plugin commands: {ex.Message}");
+            }
+        }
+
+        return names;
     }
 
     public PluginCommandOwner FindCommandOwner(string commandName)
