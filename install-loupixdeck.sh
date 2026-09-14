@@ -385,6 +385,9 @@ SUBSYSTEM=="tty", ATTRS{idVendor}=="1532", ATTRS{idProduct}=="0d06", MODE="0666"
 # Razer Stream Controller X (1532:0d09)
 SUBSYSTEM=="usb", ATTRS{idVendor}=="1532", ATTRS{idProduct}=="0d09", MODE="0666"
 SUBSYSTEM=="tty", ATTRS{idVendor}=="1532", ATTRS{idProduct}=="0d09", MODE="0666"
+# The X also needs its HID interface readable: its firmware stalls the serial key frames
+# until the HID reports are drained, and on Linux only LoupixDeck does that.
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="1532", ATTRS{idProduct}=="0d09", MODE="0666"
 # uinput – virtual keyboard/mouse for macro execution (granted to the 'input' group)
 KERNEL=="uinput", SUBSYSTEM=="misc", GROUP="input", MODE="0660", OPTIONS+="static_node=uinput"
 EOF
