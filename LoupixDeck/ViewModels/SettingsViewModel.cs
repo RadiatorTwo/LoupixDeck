@@ -43,6 +43,8 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
     private readonly IExclusiveModeService _exclusiveMode;
     private readonly IUpdateService _updateService;
     private readonly ICompanionCoordinator _companions;
+    private readonly ICompanionContextSync _contextSync;
+    private readonly ResolvedDevice _device;
 
     /// <summary>
     /// All discovered plugins — drives the Plugins settings page. Read live from the
@@ -144,9 +146,13 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
         IProfileEditingService profileEditing,
         IUpdateService updateService,
         PluginStoreViewModel pluginStore,
-        ICompanionCoordinator companions)
+        ICompanionCoordinator companions,
+        ICompanionContextSync contextSync,
+        ResolvedDevice device)
     {
         _companions = companions;
+        _contextSync = contextSync;
+        _device = device;
         Config = config;
         PluginStore = pluginStore;
         IsVibrationSupported = config?.Geometry.HasVibration ?? true;
@@ -173,6 +179,16 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
         // The companion editor listens to the root-level coordinator; unhook it with the window.
         _ = DialogResult.Task.ContinueWith(_ => _companionGroups?.Dispose(),
             TaskScheduler.Default);
+
+        // A companion's profiles follow its master and are read-only here. Joining or leaving a group,
+        // or the master changing its profiles, rewrites them while the window is open.
+        _companions.GroupsChanged += OnCompanionGroupsChanged;
+        _contextSync.LinkedStructureChanged += OnLinkedStructureChanged;
+        _ = DialogResult.Task.ContinueWith(_ =>
+        {
+            _companions.GroupsChanged -= OnCompanionGroupsChanged;
+            _contextSync.LinkedStructureChanged -= OnLinkedStructureChanged;
+        }, TaskScheduler.Default);
 
         // Commands are created lazily on first access by their `field ??= Relay.Create(...)`
         // getters, so there is nothing to wire up here.
@@ -564,18 +580,58 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
             ProfileRows.Add(new ProfileRow(profile, this));
     }
 
-    public IRelayCommand AddProfileCommand => field ??= Relay.Create(AddProfile);
+    public IRelayCommand AddProfileCommand => field ??= Relay.Create(AddProfile, () => CanEditProfiles);
     public IAsyncRelayCommand RemoveProfileCommand => field ??= Relay.Create<ProfileRow>(
-        RemoveProfile, p => p != null && Config.Profiles.Count > 1);
-    public IRelayCommand SetStartupProfileCommand => field ??= Relay.Create<ProfileRow>(SetStartupProfile, p => p != null);
+        RemoveProfile, p => p != null && CanEditProfiles && Config.Profiles.Count > 1);
+    public IRelayCommand SetStartupProfileCommand => field ??= Relay.Create<ProfileRow>(SetStartupProfile, p => p != null && CanEditProfiles);
     public IAsyncRelayCommand ActivateProfileCommand => field ??= Relay.Create<ProfileRow>(
-        p => _activation.ActivateProfile(p.Profile.Id), p => p != null);
+        p => _activation.ActivateProfile(p.Profile.Id), p => p != null && CanEditProfiles);
 
-    public IRelayCommand AddWorkspaceCommand => field ??= Relay.Create<ProfileRow>(AddWorkspace, p => p != null);
+    public IRelayCommand AddWorkspaceCommand => field ??= Relay.Create<ProfileRow>(AddWorkspace, p => p != null && CanEditProfiles);
     public IAsyncRelayCommand RemoveWorkspaceCommand => field ??= Relay.Create<WorkspaceRow>(
-        RemoveWorkspace, p => p != null && p.Parent.Profile.Workspaces.Count > 1);
-    public IRelayCommand SetHomeWorkspaceCommand => field ??= Relay.Create<WorkspaceRow>(SetHomeWorkspace, p => p != null);
-    public IAsyncRelayCommand ActivateWorkspaceCommand => field ??= Relay.Create<WorkspaceRow>(ActivateWorkspace, p => p != null);
+        RemoveWorkspace, p => p != null && CanEditProfiles && p.Parent.Profile.Workspaces.Count > 1);
+    public IRelayCommand SetHomeWorkspaceCommand => field ??= Relay.Create<WorkspaceRow>(SetHomeWorkspace, p => p != null && CanEditProfiles);
+    public IAsyncRelayCommand ActivateWorkspaceCommand => field ??= Relay.Create<WorkspaceRow>(ActivateWorkspace, p => p != null && CanEditProfiles);
+
+    // ───────── Companion (profiles follow the master) ─────────
+
+    /// <summary>True while this device is a companion: its profiles and workspaces mirror its
+    /// master's, so they cannot be added, removed, renamed or switched here. Pages stay editable.</summary>
+    public bool IsCompanion => _companions.IsCompanion(_device.ScopeKey);
+
+    public bool CanEditProfiles => !IsCompanion;
+
+    /// <summary>Explains on a companion who owns its profiles, workspaces and profile rules.</summary>
+    public string CompanionProfilesHint => IsCompanion
+        ? Loc.Tr("Settings_ProfilesFollowMasterFmt", _companions.GetDisplayName(_companions.GetMasterKey(_device.ScopeKey)))
+        : string.Empty;
+
+    private void OnCompanionGroupsChanged() => Dispatcher.UIThread.Post(RefreshCompanionState);
+
+    private void OnLinkedStructureChanged(string deviceKey)
+    {
+        if (string.Equals(deviceKey, _device.ScopeKey, StringComparison.OrdinalIgnoreCase))
+            Dispatcher.UIThread.Post(RefreshCompanionState);
+    }
+
+    private void RefreshCompanionState()
+    {
+        OnPropertyChanged(nameof(IsCompanion));
+        OnPropertyChanged(nameof(CanEditProfiles));
+        OnPropertyChanged(nameof(CompanionProfilesHint));
+
+        BuildProfileRows();
+
+        AddProfileCommand.NotifyCanExecuteChanged();
+        RemoveProfileCommand.NotifyCanExecuteChanged();
+        SetStartupProfileCommand.NotifyCanExecuteChanged();
+        ActivateProfileCommand.NotifyCanExecuteChanged();
+        AddWorkspaceCommand.NotifyCanExecuteChanged();
+        RemoveWorkspaceCommand.NotifyCanExecuteChanged();
+        SetHomeWorkspaceCommand.NotifyCanExecuteChanged();
+        ActivateWorkspaceCommand.NotifyCanExecuteChanged();
+        ImportPackageCommand.NotifyCanExecuteChanged();
+    }
 
     // ───────── Portable profile packages (issue #133) ─────────
 
@@ -604,7 +660,7 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
         page => ExportPackage(page.PageName, path => _packageService.ExportRotaryPageAsync(page, path)),
         static page => page != null);
 
-    public IAsyncRelayCommand ImportPackageCommand => field ??= Relay.Create(ImportPackage);
+    public IAsyncRelayCommand ImportPackageCommand => field ??= Relay.Create(ImportPackage, () => CanEditProfiles);
 
     private async Task ExportPackage(string itemName, Func<string, Task<ProfilePackageResult>> export)
     {

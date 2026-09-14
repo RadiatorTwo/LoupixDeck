@@ -355,6 +355,9 @@
                     <TextBlock Classes="page-title" Text="{loc:Tr Settings_Profiles}" />
                     <TextBlock Classes="hint"
                                Text="{loc:Tr Settings_ProfilesGroupWorkspacesForAn}" />
+                    <Border Classes="card" Margin="0,12,0,0" IsVisible="{Binding IsCompanion}">
+                        <TextBlock Text="{Binding CompanionProfilesHint}" TextWrapping="Wrap" />
+                    </Border>
                     <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Left" Margin="0,12,0,0">
                         <Button Content="{loc:Tr Settings_AddProfile}" Command="{Binding AddProfileCommand}" />
                         <Button Content="{loc:Tr Settings_ImportPackage}" ToolTip.Tip="{loc:Tr Settings_ImportALoupixprofilePackage}"
@@ -373,7 +376,8 @@
                                     <StackPanel>
                                         <!-- Profile header: name + actions on one stable row -->
                                         <Grid ColumnDefinitions="*,Auto">
-                                            <TextBox Grid.Column="0" Text="{Binding Name, Mode=TwoWay}" PlaceholderText="{loc:Tr Settings_ProfileName}" VerticalAlignment="Center" />
+                                            <TextBox Grid.Column="0" Text="{Binding Name, Mode=TwoWay}" PlaceholderText="{loc:Tr Settings_ProfileName}" VerticalAlignment="Center"
+                                                     IsReadOnly="{Binding !Owner.CanEditProfiles}" />
                                             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" Margin="12,0,0,0" VerticalAlignment="Center">
                                                 <Button Content="{loc:Tr Settings_Activate}" ToolTip.Tip="{loc:Tr Settings_ActivateThisProfileOpensIts}"
                                                         Command="{Binding $parent[Window].DataContext.ActivateProfileCommand}" CommandParameter="{Binding}" />
@@ -406,7 +410,8 @@
                                                             <Border Background="{DynamicResource AppSurfaceAlt}" CornerRadius="4" Padding="8" Margin="0,0,0,6">
                                                                 <StackPanel>
                                                                     <Grid ColumnDefinitions="*,Auto">
-                                                                        <TextBox Grid.Column="0" Text="{Binding Name, Mode=TwoWay}" PlaceholderText="{loc:Tr Settings_WorkspaceName}" VerticalAlignment="Center" />
+                                                                        <TextBox Grid.Column="0" Text="{Binding Name, Mode=TwoWay}" PlaceholderText="{loc:Tr Settings_WorkspaceName}" VerticalAlignment="Center"
+                                                                                 IsReadOnly="{Binding !Parent.Owner.CanEditProfiles}" />
                                                                         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" Margin="12,0,0,0" VerticalAlignment="Center">
                                                                             <Button Content="{loc:Tr Settings_Open}" ToolTip.Tip="{loc:Tr Settings_ActivateThisWorkspaceAndEdit}"
                                                                                     Command="{Binding $parent[Window].DataContext.ActivateWorkspaceCommand}" CommandParameter="{Binding}" />
@@ -1096,9 +1101,12 @@
                 <!-- ====== Profile Rules ====== -->
                 <StackPanel IsVisible="{Binding CurrentView, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=AppSwitching}">
                     <TextBlock Classes="page-title" Text="{loc:Tr Settings_ProfileRules}" />
+                    <Border Classes="card" IsVisible="{Binding IsCompanion}">
+                        <TextBlock Text="{Binding CompanionProfilesHint}" TextWrapping="Wrap" />
+                    </Border>
 
                     <!-- ===== Automatic switching ===== -->
-                    <Border Classes="card">
+                    <Border Classes="card" IsEnabled="{Binding CanEditProfiles}">
                         <StackPanel Spacing="10">
                             <StackPanel Spacing="4">
                                 <TextBlock Classes="card-title" Text="{loc:Tr Settings_AutomaticSwitching}" Margin="0" />
@@ -1150,7 +1158,7 @@
                     </Border>
 
                     <!-- ===== Rules ===== -->
-                    <Border Classes="card">
+                    <Border Classes="card" IsEnabled="{Binding CanEditProfiles}">
                         <StackPanel Spacing="10">
                             <Grid ColumnDefinitions="*,Auto" VerticalAlignment="Center">
                                 <TextBlock Grid.Column="0" Classes="card-title" Text="{loc:Tr Settings_Rules}"

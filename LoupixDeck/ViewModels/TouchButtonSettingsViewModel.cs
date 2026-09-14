@@ -65,6 +65,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     private readonly ICommandBuilder _commandBuilder;
     private readonly IMenuTreeBuilder _menuTreeBuilder;
     private readonly ICommandRegistry _commandRegistry;
+    private readonly Services.Companion.ICommandLockService _commandLock;
     private readonly Services.Commands.ICommandStateMaterializer _stateMaterializer;
     private readonly IAssetService _assetService;
     private readonly IDialogService _dialogService;
@@ -372,7 +373,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
             {
                 var index = i;
                 CommandSlots.Add(new CommandSequenceSlot(
-                    Loc.Tr(SegmentTitleKeys[index]), _commandBuilder, _commandRegistry, _dialogService,
+                    Loc.Tr(SegmentTitleKeys[index]), _commandBuilder, _commandRegistry, _commandLock, _dialogService,
                     () => _stripPage.GetStripSegmentCommand(index),
                     v => _stripPage.SetStripSegmentCommand(index, string.IsNullOrWhiteSpace(v) ? null : v)));
             }
@@ -380,7 +381,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         else
         {
             CommandSlots.Add(new CommandSequenceSlot(
-                Loc.Tr("Slot_CommandSequence"), _commandBuilder, _commandRegistry, _dialogService,
+                Loc.Tr("Slot_CommandSequence"), _commandBuilder, _commandRegistry, _commandLock, _dialogService,
                 () => ButtonData.Command,
                 v => ButtonData.Command = string.IsNullOrWhiteSpace(v) ? null : v));
         }
@@ -886,8 +887,10 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         Services.Animation.IAnimatedImageCache animatedImageCache,
         Services.AppLauncher.IAppIconExtractor appIcons,
         LoupedeckConfig config,
-        DeviceGeometry geometry)
+        DeviceGeometry geometry,
+        Services.Companion.ICommandLockService commandLock)
     {
+        _commandLock = commandLock;
         _commandBuilder = commandBuilder;
         _menuTreeBuilder = menuTreeBuilder;
         _commandRegistry = commandRegistry;

@@ -2,7 +2,9 @@ using System.Diagnostics;
 using Avalonia.Threading;
 using LoupixDeck.Controllers;
 using LoupixDeck.Models;
+using LoupixDeck.Registry;
 using LoupixDeck.Services.ActiveWindow;
+using LoupixDeck.Services.Companion;
 using LoupixDeck.Services.FolderNavigation;
 using LoupixDeck.Services.Plugins;
 
@@ -53,6 +55,9 @@ public sealed class AppSwitchingService : IAppSwitchingService
     // Process-start detection: the set of rule-relevant process names seen running at the last poll.
     private HashSet<string> _runningProcesses = new(StringComparer.OrdinalIgnoreCase);
 
+    private readonly ICompanionCoordinator _companions;
+    private readonly string _deviceKey;
+
     public AppSwitchingService(
         IActiveWindowMonitor monitor,
         LoupedeckConfig config,
@@ -60,7 +65,9 @@ public sealed class AppSwitchingService : IAppSwitchingService
         IExclusiveModeService exclusiveMode,
         IFolderNavigationService folderNav,
         IDeviceController deviceController,
-        IWorkspaceActivationService activation)
+        IWorkspaceActivationService activation,
+        ICompanionCoordinator companions,
+        ResolvedDevice device)
     {
         _monitor = monitor;
         _config = config;
@@ -69,6 +76,8 @@ public sealed class AppSwitchingService : IAppSwitchingService
         _folderNav = folderNav;
         _deviceController = deviceController;
         _activation = activation;
+        _companions = companions;
+        _deviceKey = device.ScopeKey;
     }
 
     public void Start()
@@ -155,6 +164,9 @@ public sealed class AppSwitchingService : IAppSwitchingService
         try
         {
             if (!_config.AppSwitchingEnabled) return;
+
+            // On a companion the master owns the context: local context switching is off.
+            if (_companions.IsCompanion(_deviceKey)) return;
 
             // Skip while something else owns the screen (device off / folder / exclusive mode).
             if (_exclusiveMode.IsActive || _folderNav.IsActive || _deviceController.IsDeviceOff)
@@ -267,6 +279,7 @@ public sealed class AppSwitchingService : IAppSwitchingService
         try
         {
             if (!_config.AppSwitchingEnabled || _manualOverride) return;
+            if (_companions.IsCompanion(_deviceKey)) return;
             if (_exclusiveMode.IsActive || _folderNav.IsActive || _deviceController.IsDeviceOff) return;
 
             var nowRunning = new HashSet<string>(StringComparer.OrdinalIgnoreCase);

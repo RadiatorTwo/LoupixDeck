@@ -1,5 +1,7 @@
 using LoupixDeck.Controllers;
 using LoupixDeck.Models;
+using LoupixDeck.Registry;
+using LoupixDeck.Services.Companion;
 
 namespace LoupixDeck.Services;
 
@@ -8,6 +10,8 @@ namespace LoupixDeck.Services;
 /// profile opens its home workspace; activating a workspace switches the active page set within
 /// the current profile. Each switch updates the config's active ids, rebinds the active-workspace
 /// facade, and repaints the device (via <see cref="IDeviceController.ApplyActiveWorkspace"/>).
+/// On a companion the master owns the profile and workspace: every switch is refused except
+/// <see cref="FollowMaster"/>.
 /// </summary>
 public interface IWorkspaceActivationService
 {
@@ -44,10 +48,20 @@ public interface IWorkspaceActivationService
 
     /// <summary>Activates the previous workspace in the active profile (wraps).</summary>
     Task PreviousWorkspace(bool manual = true);
+
+    /// <summary>
+    /// Moves a companion to the profile and workspace its master shows, in one repaint. Ids that do
+    /// not resolve fall back to the first profile and the profile's home workspace. No-op when both
+    /// are already active. The only switch allowed on a companion; never counts as manual.
+    /// </summary>
+    Task FollowMaster(Guid profileId, Guid workspaceId);
 }
 
-public sealed class WorkspaceActivationService(LoupedeckConfig config, IDeviceController controller)
-    : IWorkspaceActivationService
+public sealed class WorkspaceActivationService(
+    LoupedeckConfig config,
+    IDeviceController controller,
+    ICompanionCoordinator companions,
+    ResolvedDevice device) : IWorkspaceActivationService
 {
     public Profile ActiveProfile => config.ActiveProfile;
     public Workspace ActiveWorkspace => config.ActiveWorkspace;
@@ -58,6 +72,8 @@ public sealed class WorkspaceActivationService(LoupedeckConfig config, IDeviceCo
 
     public async Task ActivateProfile(Guid profileId, bool manual = true)
     {
+        if (IsFollowingMaster(nameof(ActivateProfile))) return;
+
         var profile = config.Profiles?.FirstOrDefault(p => p.Id == profileId);
         if (profile == null)
         {
@@ -83,6 +99,8 @@ public sealed class WorkspaceActivationService(LoupedeckConfig config, IDeviceCo
 
     public async Task ActivateWorkspace(Guid workspaceId, bool manual = true)
     {
+        if (IsFollowingMaster(nameof(ActivateWorkspace))) return;
+
         var profile = config.ActiveProfile;
         var workspace = profile?.Workspaces?.FirstOrDefault(w => w.Id == workspaceId);
         if (workspace == null)
@@ -107,6 +125,38 @@ public sealed class WorkspaceActivationService(LoupedeckConfig config, IDeviceCo
     {
         var home = config.ActiveProfile?.HomeWorkspace;
         return home == null ? Task.CompletedTask : ActivateWorkspace(home.Id, manual);
+    }
+
+    public async Task FollowMaster(Guid profileId, Guid workspaceId)
+    {
+        var profile = config.Profiles?.FirstOrDefault(p => p.Id == profileId) ?? config.Profiles?.FirstOrDefault();
+        if (profile == null) return;
+        var workspace = profile.Workspaces?.FirstOrDefault(w => w.Id == workspaceId) ?? profile.HomeWorkspace;
+
+        var targetWorkspaceId = workspace?.Id ?? Guid.Empty;
+        var profileChanged = config.ActiveProfileId != profile.Id;
+        if (!profileChanged && config.ActiveWorkspaceId == targetWorkspaceId)
+            return;
+
+        config.ActiveProfileId = profile.Id;
+        config.ActiveWorkspaceId = targetWorkspaceId;
+
+        if (profileChanged)
+            await controller.ApplyActiveProfileButtons();
+
+        await controller.ApplyActiveWorkspace();
+
+        if (profileChanged)
+            ActiveProfileChanged?.Invoke(profile);
+        ActiveWorkspaceChanged?.Invoke(ActiveWorkspace);
+    }
+
+    /// <summary>True (and logged) when this device is a companion, whose master owns the switch.</summary>
+    private bool IsFollowingMaster(string operation)
+    {
+        if (!companions.IsCompanion(device.ScopeKey)) return false;
+        Console.WriteLine($"{operation} skipped: '{device.ScopeKey}' is a companion and follows its master.");
+        return true;
     }
 
     public Task NextWorkspace(bool manual = true) => StepWorkspace(+1, manual);

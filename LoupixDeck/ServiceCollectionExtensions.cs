@@ -158,6 +158,9 @@ public static class ServiceCollectionExtensions
         // the coordinator that derives roles and permissions from them is process-wide.
         collection.AddSingleton<Services.Companion.ICompanionStore, Services.Companion.CompanionStore>();
         collection.AddSingleton<Services.Companion.ICompanionCoordinator, Services.Companion.CompanionCoordinator>();
+
+        // Mirrors each master's profiles and workspaces onto its companions, unplugged ones included.
+        collection.AddSingleton<Services.Companion.ICompanionContextSync, Services.Companion.CompanionContextSyncService>();
     }
 
     // ───────────────────────── Device (per-device child) ─────────────────────────
@@ -203,6 +206,7 @@ public static class ServiceCollectionExtensions
         collection.Forward<IDeviceRouter>(root);
         collection.Forward<IPluginManager>(root);
         collection.Forward<Services.Companion.ICompanionCoordinator>(root);
+        collection.Forward<Services.Companion.ICompanionContextSync>(root);
         collection.Forward<Services.Animation.IAnimatedImageCache>(root);
         collection.Forward<Services.Animation.IAnimatedImageImporter>(root);
 
@@ -265,6 +269,16 @@ public static class ServiceCollectionExtensions
                 SeedSerialPortFromSibling(config, configService, deviceInfo);
             }
 
+            // A companion mirrors its master's profiles and workspaces; a device that left its group
+            // gets its own back. Done before the defaults below so the launch starts on the right set.
+            var companions = provider.GetRequiredService<Services.Companion.ICompanionCoordinator>();
+            var masterKey = companions.GetMasterKey(resolved.ScopeKey);
+            if (masterKey != null || config.CompanionLink != null)
+            {
+                Services.Companion.CompanionStructureSync.Apply(config, masterKey,
+                    masterKey == null ? null : companions.GetDeviceConfig(masterKey));
+            }
+
             // Guarantee a resolvable active profile/workspace (issue #132): a fresh config gets a
             // Default profile with a Home workspace; a migrated config already has one and is left
             // as is. Also binds the active-workspace facade so the page properties resolve.
@@ -280,6 +294,7 @@ public static class ServiceCollectionExtensions
         collection.AddSingleton<IPageManager, PageManager>();
         collection.AddSingleton<IWorkspaceActivationService, WorkspaceActivationService>();
         collection.AddSingleton<IProfileEditingService, ProfileEditingService>();
+        collection.AddSingleton<Services.Companion.ICommandLockService, Services.Companion.CommandLockService>();
 
         // Command catalog — device-scoped so command activation
         // (SysCommandService → ActivatorUtilities.CreateInstance(this provider))
@@ -492,6 +507,9 @@ public static class ServiceCollectionExtensions
         // Eagerly create the companion coordinator so it observes every device host from the
         // first registration on (it hooks each host's connect event to report readiness).
         root.GetRequiredService<Services.Companion.ICompanionCoordinator>();
+
+        // Same for the context sync, which listens to group changes and master saves from then on.
+        root.GetRequiredService<Services.Companion.ICompanionContextSync>();
 
         // Let the (static) bitmap renderer resolve image-layer assets via DI.
         var assetService = root.GetRequiredService<IAssetService>();

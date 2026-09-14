@@ -248,6 +248,21 @@ public partial class LoupedeckConfig : ObservableObject
     [JsonIgnore]
     public partial Guid ActiveWorkspaceId { get; set; }
 
+    /// <summary>
+    /// Set while this device is a companion: its own profiles are kept aside here and
+    /// <see cref="Profiles"/> mirrors the master's. Null otherwise, and absent from every config
+    /// written by a device that never joined a group.
+    /// </summary>
+    [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+    public Companion.CompanionLinkState CompanionLink { get; set; }
+
+    /// <summary>
+    /// The mirrored profiles this device had when it last left a group, restored if it joins the
+    /// same master again. Null when there are none.
+    /// </summary>
+    [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+    public Companion.ParkedCompanionProfiles ParkedCompanionProfiles { get; set; }
+
     /// <summary>The active profile resolved from <see cref="ActiveProfileId"/>, falling back to the
     /// first profile. Null only before <see cref="EnsureDefaultProfile"/> has run.</summary>
     [JsonIgnore]

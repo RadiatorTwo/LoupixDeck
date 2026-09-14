@@ -175,8 +175,11 @@ public partial class CommandSegment
     /// </summary>
     /// <param name="missingOwner">The plugin an unresolved command belongs to, when it belongs to one that is not
     /// available (removed, not installed, not enabled). The segment then stays free text, as before, but says so.</param>
+    /// <param name="lockHint">Why a known command will not run on this device (a profile or workspace switch on a
+    /// companion). The segment stays fully editable but says so.</param>
     public static CommandSegment Create(ICommandBuilder commandBuilder, IDialogService dialogService,
-        CommandInfo info, string raw, Services.PluginStore.PluginCommandOwner missingOwner = null)
+        CommandInfo info, string raw, Services.PluginStore.PluginCommandOwner missingOwner = null,
+        string lockHint = null)
     {
         raw = (raw ?? string.Empty).Trim();
         var name = CommandStringParser.GetName(raw);
@@ -207,7 +210,7 @@ public partial class CommandSegment
         var display = string.IsNullOrWhiteSpace(info.DisplayName)
             ? name
             : LocalizationManager.Instance.TrText(info.DisplayName);
-        var segment = new CommandSegment(commandBuilder, info, name, display, raw);
+        var segment = new CommandSegment(commandBuilder, info, name, display, raw) { UnavailableHint = lockHint };
 
         // Map the positional values parsed from the raw string onto the declared
         // parameters; missing trailing values default to empty.

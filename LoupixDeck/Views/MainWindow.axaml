@@ -380,6 +380,7 @@
                             <TextBlock Classes="SwitcherCaption" Text="{loc:Tr MainWindow_PROFILE}" />
                             <StackPanel Orientation="Horizontal" Spacing="2">
                                 <ComboBox Classes="Switcher"
+                                          IsEnabled="{Binding SelectedDevice.ProfileMenu.CanSwitchContext}"
                                           ItemsSource="{Binding SelectedDevice.Profiles}"
                                           SelectedItem="{Binding SelectedDevice.SelectedProfile}">
                                     <ComboBox.ItemTemplate>
@@ -423,6 +424,7 @@
                             <TextBlock Classes="SwitcherCaption" Text="{loc:Tr MainWindow_WORKSPACE}" />
                             <StackPanel Orientation="Horizontal" Spacing="2">
                                 <ComboBox Classes="Switcher"
+                                          IsEnabled="{Binding SelectedDevice.ProfileMenu.CanSwitchContext}"
                                           ItemsSource="{Binding SelectedDevice.Workspaces}"
                                           SelectedItem="{Binding SelectedDevice.SelectedWorkspace}">
                                     <ComboBox.ItemTemplate>

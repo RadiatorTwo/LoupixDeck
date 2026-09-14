@@ -38,6 +38,7 @@ public class SimpleButtonSettingsViewModel : DialogViewModelBase<SimpleButton, D
     private readonly ICommandBuilder _commandBuilder;
     private readonly IMenuTreeBuilder _menuTreeBuilder;
     private readonly ICommandRegistry _commandRegistry;
+    private readonly Services.Companion.ICommandLockService _commandLock;
     private readonly IDialogService _dialogService;
     private readonly Services.Commands.ICommandStateMaterializer _stateMaterializer;
 
@@ -261,11 +262,13 @@ public class SimpleButtonSettingsViewModel : DialogViewModelBase<SimpleButton, D
         IMenuTreeBuilder menuTreeBuilder,
         ICommandRegistry commandRegistry,
         Services.Commands.ICommandStateMaterializer stateMaterializer,
-        IDialogService dialogService)
+        IDialogService dialogService,
+        Services.Companion.ICommandLockService commandLock)
     {
         _commandBuilder = commandBuilder;
         _menuTreeBuilder = menuTreeBuilder;
         _commandRegistry = commandRegistry;
+        _commandLock = commandLock;
         _stateMaterializer = stateMaterializer;
         _dialogService = dialogService;
 
@@ -304,7 +307,8 @@ public class SimpleButtonSettingsViewModel : DialogViewModelBase<SimpleButton, D
         var name = CommandStringParser.GetName(raw);
         var info = _commandRegistry.Get(name)?.Info;
         var owner = info == null ? _commandRegistry.GetMissingPluginOwner(name) : null;
-        var segment = CommandSegment.Create(_commandBuilder, _dialogService, info, raw, owner);
+        var segment = CommandSegment.Create(_commandBuilder, _dialogService, info, raw, owner,
+            info != null ? _commandLock.GetLockHint(name) : null);
         segment.Changed += OnSegmentChanged;
         return segment;
     }

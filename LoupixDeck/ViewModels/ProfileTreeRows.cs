@@ -19,7 +19,7 @@ public partial class WorkspaceRow(Workspace workspace, ProfileRow parent) : Obse
         get => Workspace.Name;
         set
         {
-            if (Workspace.Name == value) return;
+            if (Workspace.Name == value || !Parent.Owner.CanEditProfiles) return;
             Workspace.Name = value;
             OnPropertyChanged();
             OnPropertyChanged(nameof(DisplayName));
@@ -68,7 +68,7 @@ public partial class ProfileRow : ObservableObject
         get => Profile.Name;
         set
         {
-            if (Profile.Name == value) return;
+            if (Profile.Name == value || !Owner.CanEditProfiles) return;
             Profile.Name = value;
             OnPropertyChanged();
             OnPropertyChanged(nameof(DisplayName));

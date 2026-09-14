@@ -2,9 +2,11 @@ using CommunityToolkit.Mvvm.Input;
 using LoupixDeck.Controllers;
 using LoupixDeck.Localization;
 using LoupixDeck.Models;
+using LoupixDeck.Registry;
 using LoupixDeck.Services;
 using LoupixDeck.Services.AppLauncher;
 using LoupixDeck.Services.AppSwitching;
+using LoupixDeck.Services.Companion;
 using LoupixDeck.Services.Profiles;
 using LoupixDeck.Utils;
 using LoupixDeck.ViewModels.Base;
@@ -13,7 +15,8 @@ namespace LoupixDeck.ViewModels;
 
 /// <summary>
 /// Commands behind the "⋮" menus next to the Profile and Workspace selectors in the main window
-/// header. They act on the active profile / workspace, which is what the selectors show.
+/// header. They act on the active profile / workspace, which is what the selectors show. On a
+/// companion the master owns both, so the selectors and every entry here are disabled.
 /// </summary>
 public sealed class ProfileHeaderMenuViewModel : ViewModelBase
 {
@@ -22,45 +25,58 @@ public sealed class ProfileHeaderMenuViewModel : ViewModelBase
     private readonly IWorkspaceActivationService _activation;
     private readonly IDialogService _dialogService;
     private readonly LoupedeckLiveSController _controller;
+    private readonly ICompanionCoordinator _companions;
+    private readonly ResolvedDevice _device;
 
     public ProfileHeaderMenuViewModel(LoupedeckConfig config,
         IProfileEditingService editing,
         IWorkspaceActivationService activation,
         IDialogService dialogService,
-        LoupedeckLiveSController controller)
+        LoupedeckLiveSController controller,
+        ICompanionCoordinator companions,
+        ResolvedDevice device)
     {
         _config = config;
         _editing = editing;
         _activation = activation;
         _dialogService = dialogService;
         _controller = controller;
+        _companions = companions;
+        _device = device;
 
         // Whether delete is allowed depends on the active profile's workspace count, so re-evaluate
         // whenever the context changes. The events can arrive off the UI thread.
         _activation.ActiveProfileChanged += _ => Avalonia.Threading.Dispatcher.UIThread.Post(Refresh);
         _activation.ActiveWorkspaceChanged += _ => Avalonia.Threading.Dispatcher.UIThread.Post(Refresh);
+
+        // Joining or leaving a group locks or unlocks the whole menu. The coordinator is a root
+        // singleton that outlives this view model, as the device provider does.
+        _companions.GroupsChanged += () => Avalonia.Threading.Dispatcher.UIThread.Post(Refresh);
     }
 
-    public IAsyncRelayCommand NewProfileCommand => field ??= Relay.Create(NewProfile);
+    /// <summary>False on a companion, whose profile and workspace follow its master.</summary>
+    public bool CanSwitchContext => !_companions.IsCompanion(_device.ScopeKey);
+
+    public IAsyncRelayCommand NewProfileCommand => field ??= Relay.Create(NewProfile, () => CanSwitchContext);
     public IAsyncRelayCommand RenameProfileCommand => field ??= Relay.Create(RenameProfile,
-        () => _activation.ActiveProfile != null);
+        () => CanSwitchContext && _activation.ActiveProfile != null);
     public IAsyncRelayCommand DeleteProfileCommand => field ??= Relay.Create(DeleteProfile,
-        () => _editing.CanRemoveProfile(_activation.ActiveProfile));
+        () => CanSwitchContext && _editing.CanRemoveProfile(_activation.ActiveProfile));
 
     public IAsyncRelayCommand NewWorkspaceCommand => field ??= Relay.Create(NewWorkspace,
-        () => _activation.ActiveProfile != null);
+        () => CanSwitchContext && _activation.ActiveProfile != null);
     public IAsyncRelayCommand RenameWorkspaceCommand => field ??= Relay.Create(RenameWorkspace,
-        () => _activation.ActiveWorkspace != null);
+        () => CanSwitchContext && _activation.ActiveWorkspace != null);
     public IAsyncRelayCommand DeleteWorkspaceCommand => field ??= Relay.Create(DeleteWorkspace,
-        () => _editing.CanRemoveWorkspace(_activation.ActiveProfile, _activation.ActiveWorkspace));
+        () => CanSwitchContext && _editing.CanRemoveWorkspace(_activation.ActiveProfile, _activation.ActiveWorkspace));
 
     /// <summary>Linking needs foreground-app detection, which exists only on Windows and Linux.</summary>
     public bool IsAppLinkingSupported => OperatingSystem.IsWindows() || OperatingSystem.IsLinux();
 
     public IAsyncRelayCommand LinkApplicationCommand => field ??= Relay.Create(LinkApplication,
-        () => _activation.ActiveProfile != null);
+        () => CanSwitchContext && _activation.ActiveProfile != null);
     public IAsyncRelayCommand UnlinkApplicationCommand => field ??= Relay.Create(UnlinkApplication,
-        () => _activation.ActiveProfile is { } profile
+        () => CanSwitchContext && _activation.ActiveProfile is { } profile
               && ProfileAppLink.FindLinkedProcessName(_config.ContextRules, profile.Id).Length > 0);
 
     /// <summary>Raised after an application link was added or removed, or the active profile was
@@ -71,6 +87,8 @@ public sealed class ProfileHeaderMenuViewModel : ViewModelBase
     /// elsewhere (the Settings pane).</summary>
     public void Refresh()
     {
+        OnPropertyChanged(nameof(CanSwitchContext));
+        NewProfileCommand.NotifyCanExecuteChanged();
         RenameProfileCommand.NotifyCanExecuteChanged();
         DeleteProfileCommand.NotifyCanExecuteChanged();
         NewWorkspaceCommand.NotifyCanExecuteChanged();
