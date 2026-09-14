@@ -49,6 +49,9 @@ public sealed class UpdateInstaller : IUpdateInstaller
     /// <summary>Install directory of install-loupixdeck.sh.</summary>
     private const string LinuxScriptInstallDir = "/usr/local/lib/loupixdeck";
 
+    /// <summary>Install directory of install-loupixdeck.sh on SteamOS, relative to the user's home.</summary>
+    private const string LinuxScriptHomeInstallDir = ".local/lib/loupixdeck";
+
     /// <summary>The install script a fresh Linux install is made with (see README).</summary>
     private const string MasterScriptUrl =
         $"https://raw.githubusercontent.com/{GitHubReleaseClient.Repository}/master/{LinuxScriptAsset}";
@@ -144,12 +147,25 @@ public sealed class UpdateInstaller : IUpdateInstaller
         // Package-manager installs live elsewhere and only get the notification.
         string processPath = Environment.ProcessPath;
         if (OperatingSystem.IsLinux() && processPath is not null
-                                      && processPath.StartsWith(LinuxScriptInstallDir + "/", StringComparison.Ordinal))
+                                      && (processPath.StartsWith(LinuxScriptInstallDir + "/", StringComparison.Ordinal)
+                                          || IsInHomeInstallDir(processPath)))
         {
             return UpdateInstallMode.LinuxScript;
         }
 
         return UpdateInstallMode.ReleasePage;
+    }
+
+    /// <summary>True for the SteamOS install, which the script places in the user's home.</summary>
+    private static bool IsInHomeInstallDir(string processPath)
+    {
+        string home = Environment.GetEnvironmentVariable("HOME")
+                      ?? Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        if (string.IsNullOrEmpty(home))
+            return false;
+
+        string installDir = Path.Combine(home, LinuxScriptHomeInstallDir);
+        return processPath.StartsWith(installDir + "/", StringComparison.Ordinal);
     }
 
 }
