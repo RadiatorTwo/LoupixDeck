@@ -80,6 +80,9 @@ public sealed partial class PluginStoreService : ObservableObject, IPluginStoreS
 
     private static readonly TimeSpan CacheLifetime = TimeSpan.FromMinutes(10);
 
+    /// <summary>How old a repository's release list must be before the Refresh button reads it again.</summary>
+    private static readonly TimeSpan MinRefreshInterval = TimeSpan.FromSeconds(60);
+
     /// <summary>The plugin update check waits for the app update check and the first plugin load.</summary>
     private static readonly TimeSpan StartupDelay = TimeSpan.FromSeconds(10);
 
@@ -465,8 +468,11 @@ public sealed partial class PluginStoreService : ObservableObject, IPluginStoreS
     private async Task<ResolvedReleases> ResolveReleasesAsync(PluginCatalogEntry entry, bool force,
         CancellationToken cancellationToken)
     {
-        if (!force && _releaseCache.TryGetValue(entry.Repository, out (DateTime ReadAt, ResolvedReleases Releases) cached)
-                   && DateTime.UtcNow - cached.ReadAt < CacheLifetime)
+        // Every API request counts against GitHub's hourly limit for unauthenticated clients, even a 304.
+        // A forced refresh therefore still reuses a list that was read moments ago.
+        TimeSpan maxAge = force ? MinRefreshInterval : CacheLifetime;
+        if (_releaseCache.TryGetValue(entry.Repository, out (DateTime ReadAt, ResolvedReleases Releases) cached)
+            && DateTime.UtcNow - cached.ReadAt < maxAge)
         {
             return cached.Releases;
         }
