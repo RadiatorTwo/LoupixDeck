@@ -5,9 +5,10 @@ namespace LoupixDeck.Services.Updates;
 
 /// <summary>
 /// The last GitHub API response per URL with its <c>ETag</c> (<c>github-cache.json</c> next to the device
-/// configs). A request that sends the ETag back and gets <c>304 Not Modified</c> does not count against
-/// GitHub's hourly limit for unauthenticated clients, so repeated update checks and store refreshes stay
-/// free as long as nothing was released. Kept on disk so app restarts benefit too.
+/// configs). A request that sends the ETag back gets an empty <c>304 Not Modified</c> while nothing was
+/// released, so the release list is not transferred again. For unauthenticated clients like this app a 304
+/// still counts against GitHub's hourly limit; saving requests is up to the callers. Kept on disk so app
+/// restarts benefit too.
 /// </summary>
 public static class GitHubResponseCache
 {

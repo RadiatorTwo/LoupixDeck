@@ -25,7 +25,8 @@ public sealed class GitHubReleaseClient
     /// <summary>Stable releases of <paramref name="repository"/> (<c>owner/name</c>), newest version first.</summary>
     /// <remarks>
     /// Sends the ETag of the last response for the same URL; an unchanged list comes back as
-    /// <c>304 Not Modified</c>, which GitHub does not count against the hourly limit, and is read from the cache.
+    /// an empty <c>304 Not Modified</c> and is read from the cache. The request itself still counts against the
+    /// hourly limit, because it is unauthenticated.
     /// </remarks>
     /// <exception cref="GitHubRateLimitException">The hourly API limit is used up.</exception>
     /// <exception cref="HttpRequestException">Network failure or another non-success status.</exception>
