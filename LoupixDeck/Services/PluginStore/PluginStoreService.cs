@@ -42,7 +42,17 @@ public interface IPluginStoreService : INotifyPropertyChanged
 
     /// <summary>Checks for plugin updates once in the background, if the automatic update check is on.</summary>
     void StartAutomaticCheck();
+
+    /// <summary>
+    /// The plugin a command name belongs to — from the commands plugins provided on this machine, else from
+    /// the catalog's command prefixes. Null when the name is not known to belong to any plugin. Never touches
+    /// the network.
+    /// </summary>
+    PluginCommandOwner FindCommandOwner(string commandName);
 }
+
+/// <summary>A plugin that owns a command name.</summary>
+public sealed record PluginCommandOwner(string PluginId, string DisplayName);
 
 public sealed partial class PluginStoreService : ObservableObject, IPluginStoreService
 {
@@ -79,10 +89,39 @@ public sealed partial class PluginStoreService : ObservableObject, IPluginStoreS
 
     private PluginCatalog _cachedCatalog;
 
-    public PluginStoreService(IPluginManager pluginManager, IUpdateService updateService)
+    private readonly IPluginCommandIndex _commandIndex;
+
+    public PluginStoreService(IPluginManager pluginManager, IUpdateService updateService, IPluginCommandIndex commandIndex)
     {
         _pluginManager = pluginManager;
         _updateService = updateService;
+        _commandIndex = commandIndex;
+    }
+
+    public PluginCommandOwner FindCommandOwner(string commandName)
+    {
+        if (string.IsNullOrWhiteSpace(commandName))
+        {
+            return null;
+        }
+
+        PluginCatalog catalog = CachedCatalog;
+        string pluginId = _commandIndex.FindPluginId(commandName);
+        PluginCatalogEntry entry = pluginId is null
+            ? catalog?.Plugins.FirstOrDefault(e => IsUsableEntry(e) && e.OwnsCommand(commandName))
+            : catalog?.Plugins.FirstOrDefault(e => string.Equals(e?.Id, pluginId, StringComparison.OrdinalIgnoreCase));
+
+        pluginId ??= entry?.Id;
+        if (pluginId is null)
+        {
+            return null;
+        }
+
+        string name = entry?.DisplayName
+                      ?? _pluginManager.Plugins.FirstOrDefault(p =>
+                          string.Equals(p.Manifest?.Id, pluginId, StringComparison.OrdinalIgnoreCase))?.Manifest?.Name
+                      ?? pluginId;
+        return new PluginCommandOwner(pluginId, name);
     }
 
     [ObservableProperty]

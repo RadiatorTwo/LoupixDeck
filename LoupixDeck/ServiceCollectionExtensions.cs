@@ -52,6 +52,7 @@ public static class ServiceCollectionExtensions
         // Plugins are loaded once (shared instances); per-call device targeting is via
         // the router. Loading natively-interop deps (e.g. NAudio/COM) per device would
         // clash across collectible load contexts, so a single shared load is required.
+        collection.AddSingleton<Services.PluginStore.IPluginCommandIndex, Services.PluginStore.PluginCommandIndex>();
         collection.AddSingleton<IPluginManager, PluginManager>();
 
         collection.AddSingleton<IConfigService, ConfigService>();
