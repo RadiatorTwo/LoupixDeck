@@ -285,6 +285,8 @@
   "PluginStore_MissingMessage": "Deine Tasten nutzen Befehle von Plugins, die nicht installiert sind: {0}. Die Belegungen bleiben erhalten. Den Plugin Store öffnen, um sie zu installieren?",
   "PluginStore_MissingTitle": "Plugins fehlen",
   "PluginStore_NewerNeedsApp": "Version {0} ist verfügbar, braucht aber ein neueres LoupixDeck.",
+  "PluginStore_RateLimited": "Das Anfragelimit von GitHub ist erreicht, Updates können gerade nicht geprüft werden. Wieder möglich ab {0}.",
+  "PluginStore_RateLimitedNoTime": "Das Anfragelimit von GitHub ist erreicht, Updates können gerade nicht geprüft werden. Versuche es später erneut.",
   "PluginStore_Refresh": "Aktualisieren",
   "PluginStore_ReleasesUnavailable": "Releases konnten nicht geladen werden: {0}",
   "PluginStore_StatusInstalled": "Installiert",

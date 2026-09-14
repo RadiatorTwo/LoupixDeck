@@ -804,6 +804,12 @@
                     <TextBlock Classes="hint" Margin="0,0,0,12" TextWrapping="Wrap"
                                Text="{loc:Tr PluginStore_Intro}" />
 
+                    <Border Classes="pill warn" HorizontalAlignment="Stretch" CornerRadius="6" Padding="12,8"
+                            Margin="0,0,20,12" IsVisible="{Binding PluginStore.HasNotice}">
+                        <TextBlock TextWrapping="Wrap" FontSize="13" FontWeight="Normal"
+                                   Text="{Binding PluginStore.NoticeText}" />
+                    </Border>
+
                     <ProgressBar IsIndeterminate="True" Margin="0,0,0,12"
                                  IsVisible="{Binding PluginStore.IsLoading}" />
 

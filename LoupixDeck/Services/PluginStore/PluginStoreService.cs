@@ -229,6 +229,9 @@ public sealed partial class PluginStoreService : ObservableObject, IPluginStoreS
         await _gate.WaitAsync(cancellationToken);
         try
         {
+            // A limit without a known reset time is only assumed for the run that hit it.
+            _rateLimitWithoutReset = false;
+
             PluginCatalog catalog;
             string catalogError = null;
             try
@@ -257,7 +260,10 @@ public sealed partial class PluginStoreService : ObservableObject, IPluginStoreS
             List<PluginStoreItem> updates = items.Where(i => i.Status == PluginStoreStatus.UpdateAvailable).ToList();
             await Dispatcher.UIThread.InvokeAsync(() => AvailableUpdates = updates);
 
-            return (items, catalogError);
+            string error = RateLimitResetAt is not null || _rateLimitWithoutReset
+                ? RateLimitMessage()
+                : catalogError;
+            return (items, error);
         }
         finally
         {
@@ -413,6 +419,23 @@ public sealed partial class PluginStoreService : ObservableObject, IPluginStoreS
         {
             releases = await ResolveReleasesAsync(entry, force, cancellationToken);
         }
+        catch (GitHubRateLimitException ex)
+        {
+            RememberRateLimit(ex.ResetAt);
+            Console.WriteLine($"[PluginStore] Could not read the releases of {entry.Repository}: {ex.Message}");
+
+            // The last known releases are better than nothing; the page says the limit was reached.
+            if (_releaseCache.TryGetValue(entry.Repository, out (DateTime ReadAt, ResolvedReleases Releases) stale))
+            {
+                releases = stale.Releases;
+            }
+            else
+            {
+                // No per-row error: the page shows the limit and its reset time once, above the list.
+                PluginStoreStatus limitedStatus = installed is null ? PluginStoreStatus.Unavailable : PluginStoreStatus.Installed;
+                return new PluginStoreItem(entry, limitedStatus, installed, installedVersion, null, null);
+            }
+        }
         catch (Exception ex) when (IsExpectedFailure(ex))
         {
             Console.WriteLine($"[PluginStore] Could not read the releases of {entry.Repository}: {ex.Message}");
@@ -446,6 +469,12 @@ public sealed partial class PluginStoreService : ObservableObject, IPluginStoreS
                    && DateTime.UtcNow - cached.ReadAt < CacheLifetime)
         {
             return cached.Releases;
+        }
+
+        // Once GitHub reported the limit, every further request until the reset would be refused too.
+        if (RateLimitResetAt is { } resetAt)
+        {
+            throw new GitHubRateLimitException(resetAt, System.Net.HttpStatusCode.Forbidden);
         }
 
         IReadOnlyList<ReleaseInfo> releases = await _releaseClient.GetStableReleasesAsync(entry.Repository, cancellationToken);
@@ -621,6 +650,31 @@ public sealed partial class PluginStoreService : ObservableObject, IPluginStoreS
         {
             // Temp cleanup is best-effort.
         }
+    }
+
+    /// <summary>When GitHub accepts API requests again; null when no limit is known to be in effect.</summary>
+    private DateTimeOffset? RateLimitResetAt => _rateLimitResetAt > DateTimeOffset.UtcNow ? _rateLimitResetAt : null;
+
+    private DateTimeOffset? _rateLimitResetAt;
+    private bool _rateLimitWithoutReset;
+
+    private void RememberRateLimit(DateTimeOffset? resetAt)
+    {
+        if (resetAt is null)
+        {
+            _rateLimitWithoutReset = true;
+        }
+        else if (_rateLimitResetAt is null || resetAt > _rateLimitResetAt)
+        {
+            _rateLimitResetAt = resetAt;
+        }
+    }
+
+    private string RateLimitMessage()
+    {
+        return RateLimitResetAt is { } resetAt
+            ? Loc.Tr("PluginStore_RateLimited", resetAt.ToLocalTime().ToString("t"))
+            : Loc.Tr("PluginStore_RateLimitedNoTime");
     }
 
     private sealed record ResolvedReleases(PluginReleaseCandidate Compatible, PluginReleaseCandidate Newest);
