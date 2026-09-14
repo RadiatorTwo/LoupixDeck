@@ -109,7 +109,9 @@ Pass `--restart` to close a running LoupixDeck cleanly before installation and l
 
 #### SteamOS
 
-Run the same installer in Konsole in Desktop Mode, as your normal user and without `sudo`. SteamOS replaces its read-only system image on every update, so the installer detects SteamOS and puts LoupixDeck into your home folder (`~/.local/lib/loupixdeck`) instead. Only the device permissions need administrator rights: the udev rule is written to `/etc/udev/rules.d/99-loupixdeck.rules` and listed in `/etc/atomic-update.conf.d/loupixdeck.conf`, so it survives SteamOS updates. `sudo` needs a password; if you have never set one, run `passwd` first.
+Run the same installer in Konsole in Desktop Mode, as your normal user and without `sudo`. SteamOS replaces its read-only system image on every update, so the installer detects SteamOS and puts LoupixDeck into your home folder (`~/.local/lib/loupixdeck`), with the launcher under `~/.local/bin` and the application-menu entry under `~/.local/share/applications`.
+
+Only the device permissions need administrator rights. The udev rule is written to `/etc/udev/rules.d/99-loupixdeck.rules` and listed in `/etc/atomic-update.conf.d/loupixdeck.conf`, so it survives SteamOS updates. The installer also uses this keep list on other systems that provide it. `sudo` needs a password; if you have never set one, run `passwd` first. The SteamOS home install supports the same in-app updates as a normal script installation.
 
 A Flatpak is not offered: its sandbox blocks device access, input simulation, app launching and many plugins.
 

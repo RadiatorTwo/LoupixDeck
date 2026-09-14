@@ -106,6 +106,18 @@ loupixdeck
 
 When upgrading from a pre-v1.28 release, the Linux installer moves previously bundled plugins and their `settings.json` files from the root-owned application directory into `~/.config/LoupixDeck/plugins`. The invoking user owns the migrated copies, so they can be managed by the Plugin Store. If a same-version or newer user copy already exists, it is kept instead.
 
+#### SteamOS
+
+In Desktop Mode, open Konsole and run the same installer command shown above as your normal user, without `sudo`. SteamOS replaces its read-only system image during system updates, so LoupixDeck is installed inside your home folder instead of under `/usr/local`:
+
+- Application: `~/.local/lib/loupixdeck`
+- Command-line launcher: `~/.local/bin/loupixdeck`
+- Application-menu entry: `~/.local/share/applications/loupixdeck.desktop`
+
+The app files stay owned by your user. Only the device-permission rule requires administrator rights. The installer writes `/etc/udev/rules.d/99-loupixdeck.rules` and adds it to the SteamOS keep list at `/etc/atomic-update.conf.d/loupixdeck.conf`, so a SteamOS update does not remove the device permissions. Other systems that provide the same keep-list directory receive this protection as well. If your SteamOS user does not have a password yet, run `passwd` before the installer so `sudo` can create the rule.
+
+The home-folder installation is recognized by LoupixDeck's in-app updater and updates in the same way as the normal Linux script installation. A Flatpak is not provided because its sandbox would block device access, input simulation, application launching, and many plugins.
+
 To compile and install the current `master` branch instead of downloading a release, first download the script and pass `--from-source`:
 
 ```bash
@@ -129,7 +141,7 @@ LoupixDeck checks GitHub for a newer stable release shortly after it starts. The
 
 When a new version exists, a short hint appears below the profile and workspace bar. If the window is minimized or in the tray, the operating system shows a notification instead. **Details** opens the update dialog with the release notes of every version between the installed and the latest one:
 
-- **Update now** downloads the installer, checks it against the SHA-256 checksum GitHub publishes for the release file and only then starts it. On Windows the setup wizard opens; it closes LoupixDeck, installs the update and can start it again. On Linux, installs made with `install-loupixdeck.sh` run the script for the new version in a terminal window, where it asks for your password, closes LoupixDeck, installs and restarts it. If the update is cancelled or fails before replacement completes, the previous installation is started again when it is still available.
+- **Update now** downloads the installer, checks it against the SHA-256 checksum GitHub publishes for the release file and only then starts it. On Windows the setup wizard opens; it closes LoupixDeck, installs the update and can start it again. On Linux, installs made with `install-loupixdeck.sh`—including the SteamOS home-folder install—run the script for the new version in a terminal window, where it asks for your password, closes LoupixDeck, installs and restarts it. If the update is cancelled or fails before replacement completes, the previous installation is started again when it is still available.
 - **Later** closes the dialog and keeps the hint.
 - **Skip this version** hides the hint until the next release comes out.
 
