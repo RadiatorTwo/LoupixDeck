@@ -33,7 +33,7 @@ public sealed class GitHubReleaseClient
     public async Task<IReadOnlyList<ReleaseInfo>> GetStableReleasesAsync(string repository,
         CancellationToken cancellationToken)
     {
-        string url = $"https://api.github.com/repos/{repository}/releases?per_page=50";
+        string url = ReleasesUrl(repository);
         GitHubResponseCache.Entry cached = GitHubResponseCache.Get(url);
 
         using HttpRequestMessage request = new(HttpMethod.Get, url);
@@ -58,6 +58,38 @@ public sealed class GitHubReleaseClient
             GitHubResponseCache.Set(url, response.Headers.ETag?.ToString(), json);
         }
 
+        return ParseReleases(json);
+    }
+
+    /// <summary>
+    /// The stable releases of <paramref name="repository"/> as last read from GitHub, from the on-disk cache;
+    /// null when there is none. Never touches the network.
+    /// </summary>
+    public static IReadOnlyList<ReleaseInfo> GetCachedStableReleases(string repository)
+    {
+        string body = GitHubResponseCache.Get(ReleasesUrl(repository))?.Body;
+        if (body is null)
+        {
+            return null;
+        }
+
+        try
+        {
+            return ParseReleases(body);
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
+    private static string ReleasesUrl(string repository)
+    {
+        return $"https://api.github.com/repos/{repository}/releases?per_page=50";
+    }
+
+    private static IReadOnlyList<ReleaseInfo> ParseReleases(string json)
+    {
         using JsonDocument document = JsonDocument.Parse(json);
 
         List<ReleaseInfo> releases = [];
