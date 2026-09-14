@@ -485,6 +485,12 @@ SUBSYSTEM=="tty", ATTRS{idVendor}=="2ec2", ATTRS{idProduct}=="0006", MODE="0666"
 
 For the Razer Stream Controller, replace `2ec2:0006` with `1532:0d06`; for the Stream Controller X, with `1532:0d09`.
 
+The Stream Controller X additionally needs its HID interface to be readable, otherwise its keys do nothing:
+
+```text
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="1532", ATTRS{idProduct}=="0d09", MODE="0666"
+```
+
 Reload rules and reconnect the device:
 
 ```bash
