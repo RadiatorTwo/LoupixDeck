@@ -294,6 +294,8 @@
   "PluginStore_Title": "Plugin Store",
   "PluginStore_Update": "Update",
   "PluginStore_UpdateHeadline": "Update {0} from {1} to {2}",
+  "PluginStore_UpdateHintMany": "Updates for {0} plugins are available",
+  "PluginStore_UpdateHintOne": "Plugin {0} {1} is available",
   "Plugin_BuiltInCannotBeRemoved":"Built-in plugins cannot be removed.",
   "Plugin_CannotBeRemoved": "This plugin cannot be removed.",
   "Plugin_CouldNotCopy": "Could not copy the plugin into place: {0}",

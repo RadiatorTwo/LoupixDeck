@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using LoupixDeck.Localization;
+using LoupixDeck.Services.PluginStore;
 using LoupixDeck.Services.Updates;
 using LoupixDeck.ViewModels.Base;
 
@@ -27,20 +28,57 @@ public sealed class MainShellViewModel : ViewModelBase
     /// About and update dialogs are opened through it here, and those need no device.</param>
     /// <param name="updateService">The app-wide update check (root container); drives the update hint.</param>
     /// <param name="updateNotifier">OS notification used while the window sits in the tray.</param>
+    /// <param name="pluginStore">The app-wide plugin store (root container); drives the plugin update hint.</param>
     public MainShellViewModel(LoupixDeck.Services.IDialogService dialogService = null,
-        IUpdateService updateService = null, IUpdateNotifier updateNotifier = null)
+        IUpdateService updateService = null, IUpdateNotifier updateNotifier = null,
+        IPluginStoreService pluginStore = null)
     {
         _dialogService = dialogService;
         _updateService = updateService;
         _updateNotifier = updateNotifier;
+        _pluginStore = pluginStore;
         AboutMenuCommand = new AsyncRelayCommand(ShowAbout);
         ShowUpdateCommand = new AsyncRelayCommand(ShowUpdate);
+        ShowPluginUpdatesCommand = new AsyncRelayCommand(ShowPluginUpdates);
 
         if (_updateService != null)
         {
             _updateService.PropertyChanged += OnUpdateServicePropertyChanged;
             _updateService.UpdateFound += update => UpdateFound?.Invoke(update);
         }
+
+        if (_pluginStore != null)
+            _pluginStore.PropertyChanged += OnPluginStorePropertyChanged;
+    }
+
+    // ───────── Plugin update hint (issue #234) ─────────
+
+    private readonly IPluginStoreService _pluginStore;
+
+    /// <summary>The app update strip takes the row while both are pending; plugins follow once it is gone.</summary>
+    public bool HasPluginUpdates => !HasUpdate && _pluginStore?.AvailableUpdates.Count > 0;
+
+    public string PluginUpdateHintText => _pluginStore?.AvailableUpdates is { Count: > 0 } updates
+        ? updates.Count == 1
+            ? Loc.Tr("PluginStore_UpdateHintOne", updates[0].Entry.DisplayName, updates[0].Available.Version)
+            : Loc.Tr("PluginStore_UpdateHintMany", updates.Count)
+        : string.Empty;
+
+    public IAsyncRelayCommand ShowPluginUpdatesCommand { get; }
+
+    private void OnPluginStorePropertyChanged(object sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName != nameof(IPluginStoreService.AvailableUpdates)) return;
+
+        OnPropertyChanged(nameof(HasPluginUpdates));
+        OnPropertyChanged(nameof(PluginUpdateHintText));
+    }
+
+    private Task ShowPluginUpdates()
+    {
+        IReadOnlyList<PluginStoreItem> updates = _pluginStore?.AvailableUpdates;
+        string highlighted = updates is { Count: 1 } ? updates[0].Entry.Id : null;
+        return SelectedDevice?.OpenPluginStoreAsync(highlighted) ?? Task.CompletedTask;
     }
 
     // ───────── Update hint (issue #233) ─────────
@@ -71,6 +109,7 @@ public sealed class MainShellViewModel : ViewModelBase
 
         OnPropertyChanged(nameof(HasUpdate));
         OnPropertyChanged(nameof(UpdateHintText));
+        OnPropertyChanged(nameof(HasPluginUpdates));
     }
 
     private async Task ShowUpdate()

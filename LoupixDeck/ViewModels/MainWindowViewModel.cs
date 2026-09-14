@@ -1199,9 +1199,15 @@ public partial class MainWindowViewModel : ViewModelBase
         await LoupedeckController.RefreshSideStrip(side);
     }
 
-    private async Task SettingsMenuButton_Click()
+    private Task SettingsMenuButton_Click() => ShowSettingsAsync(null);
+
+    /// <summary>Opens Settings on the Plugin Store page (issue #234), optionally with one plugin brought to the top.</summary>
+    public Task OpenPluginStoreAsync(string highlightedPluginId = null) =>
+        ShowSettingsAsync(vm => vm.OpenPluginStore(highlightedPluginId));
+
+    private async Task ShowSettingsAsync(Action<SettingsViewModel> initializer)
     {
-        await _dialogService.ShowDialogAsync<SettingsViewModel, DialogResult>();
+        await _dialogService.ShowDialogAsync<SettingsViewModel, DialogResult>(initializer);
         LoupedeckController.SaveConfig();
         ProfileMenu.Refresh();
         // A rename or a rule edit in Settings changes what the panel's link entries say.
