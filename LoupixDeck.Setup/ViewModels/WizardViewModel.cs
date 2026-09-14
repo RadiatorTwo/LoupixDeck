@@ -91,7 +91,9 @@ public sealed partial class WizardViewModel : ObservableObject
 
     // Repair options
     [ObservableProperty] public partial bool RepairProgramFiles { get; set; } = true;
-    [ObservableProperty] public partial bool RepairPlugins { get; set; } = true;
+    // The payload carries no plugins any more (they come from the in-app Plugin Store), so there is
+    // nothing to repair; the option is off and no longer offered.
+    [ObservableProperty] public partial bool RepairPlugins { get; set; }
     [ObservableProperty] public partial bool RepairShortcuts { get; set; } = true;
     [ObservableProperty] public partial bool RepairAutostart { get; set; }
     [ObservableProperty] public partial bool RepairDeleteConfig { get; set; }
@@ -330,7 +332,7 @@ public sealed partial class WizardViewModel : ObservableObject
             s.Add((SetupSteps.Config, "Back up & reset configuration"));
         if (RepairProgramFiles)
             s.Add((SetupSteps.Files, "Repair program files"));
-        if (RepairPlugins || RepairDeleteConfig)
+        if (RepairPlugins)
             s.Add((SetupSteps.Plugins, "Repair plugins"));
         if (RepairShortcuts)
             s.Add((SetupSteps.Shortcuts, "Repair shortcuts"));

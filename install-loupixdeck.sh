@@ -8,8 +8,8 @@
 #   version        Release tag to install (e.g. v1.22.0). Defaults to the
 #                  latest release. A leading 'v' is optional. With
 #                  --from-source it is the version stamped into the build.
-#   --from-source  Clone and build master of LoupixDeck, the Plugin SDK and
-#                  all bundled plugins instead. Needs git and the .NET SDK.
+#   --from-source  Clone and build master of LoupixDeck instead. Needs git
+#                  and the .NET SDK. Plugins come from the in-app Plugin Store.
 #   --restart      Close a running LoupixDeck before installing and start it
 #                  again afterwards. Used by the in-app updater.
 set -euo pipefail
@@ -75,9 +75,9 @@ for arg in "$@"; do
             printf '  version        Release tag to install (e.g. v1.22.0).\n'
             printf '                 Defaults to the latest release. With --from-source\n'
             printf '                 it is the version stamped into the build.\n'
-            printf '  --from-source  Clone master of LoupixDeck, the Plugin SDK and all\n'
-            printf '                 bundled plugins, build them locally and install the\n'
-            printf '                 result. Requires git and the .NET SDK.\n'
+            printf '  --from-source  Clone master of LoupixDeck, build it locally and\n'
+            printf '                 install the result. Requires git and the .NET SDK.\n'
+            printf '                 Plugins come from the in-app Plugin Store.\n'
             printf '  --restart      Close a running LoupixDeck before installing and\n'
             printf '                 start it again afterwards.\n'
             exit 0
@@ -139,32 +139,8 @@ if [ "$FROM_SOURCE" -eq 1 ] && [ -n "$REQUESTED_VERSION" ]; then
 fi
 
 # ---------- Build from source ----------
-# Mirrors .github/workflows/release.yml: the SDK package is built first, the
-# plugins restore it from a local feed, and each plugin is assembled into
-# plugins/<id>/ next to the self-contained app. Keep PLUGIN_REPOS in sync with
-# the plugin list of the 'build-plugins' job there.
-# Entry format: <GitHub repository name>:<directory / project name>
-PLUGIN_REPOS=(
-    LoupixDeck.Plugin.Obs:LoupixDeck.Plugin.Obs
-    LoupixDeck.Plugin.Elgato:LoupixDeck.Plugin.Elgato
-    LoupixDeck.Plugin.HwInfo:LoupixDeck.Plugin.HwInfo
-    LoupixDeck.Plugin.CoolerControl:LoupixDeck.Plugin.CoolerControl
-    LoupixDeck.Plugin.LibreHardwareMonitor:LoupixDeck.Plugin.LibreHardwareMonitor
-    LoupixDeck.Plugin.Audio:LoupixDeck.Plugin.Audio
-    LoupixDeck.Plugin.Argus:LoupixDeck.Plugin.Argus
-    LoupixDeck.Plugin.SpotifyPremium:LoupixDeck.Plugin.SpotifyPremium
-    LoupixDeck.Plugin.LinuxHWInfo:LoupixDeck.Plugin.LinuxHwInfo
-    LoupixDeck.Plugin.SteelseriesSonar:LoupixDeck.Plugin.SteelseriesSonar
-)
-
-plugin_id() {
-    if command -v jq >/dev/null 2>&1; then
-        jq -r '.id // empty' "$1"
-    else
-        grep -oE '"id"[[:space:]]*:[[:space:]]*"[^"]+"' "$1" | head -n1 | sed -E 's/.*"([^"]+)"$/\1/'
-    fi
-}
-
+# Mirrors the app part of .github/workflows/release.yml. Plugins are not built: they are
+# installed from the Plugin Store inside the app.
 build_from_source() {
     require git
     require dotnet
@@ -182,18 +158,6 @@ build_from_source() {
     TAG="master ($(git -C "$src/LoupixDeck" rev-parse --short HEAD))"
     [ -z "$BUILD_VERSION" ] || TAG="$TAG as v$BUILD_VERSION"
 
-    log "Cloning RadiatorTwo/LoupixDeck.PluginSdk (master) ..."
-    git clone --quiet --depth 1 "https://github.com/RadiatorTwo/LoupixDeck.PluginSdk.git" "$src/LoupixDeck.PluginSdk"
-
-    log "Building Plugin SDK package ..."
-    dotnet build "$src/LoupixDeck.PluginSdk/LoupixDeck.PluginSdk.csproj" -c Release
-
-    # Plugin nuget.config files point at the SDK feed either as a sibling repo
-    # (../LoupixDeck.PluginSdk/nupkg) or nested in the core repo
-    # (../LoupixDeck/LoupixDeck.PluginSdk/nupkg); provide both, as CI does.
-    mkdir -p "$src/LoupixDeck/LoupixDeck.PluginSdk/nupkg"
-    cp -r "$src/LoupixDeck.PluginSdk/nupkg/." "$src/LoupixDeck/LoupixDeck.PluginSdk/nupkg/"
-
     log "Publishing LoupixDeck for linux-x64 ..."
     dotnet publish "$src/LoupixDeck/LoupixDeck/LoupixDeck.csproj" -c Release -r linux-x64 --self-contained true \
         -p:PublishSingleFile=true \
@@ -203,39 +167,7 @@ build_from_source() {
         ${BUILD_VERSION:+-p:Version=$BUILD_VERSION} \
         -o "$out"
 
-    local entry repo dir manifest id built=() failed=()
-    mkdir -p "$out/plugins"
-    for entry in "${PLUGIN_REPOS[@]}"; do
-        repo="${entry%%:*}"
-        dir="${entry#*:}"
-        log "Building plugin $dir ..."
-        if ! git clone --quiet --depth 1 "https://github.com/RadiatorTwo/$repo.git" "$src/$dir"; then
-            warn "Could not clone $repo – skipping."
-            failed+=("$dir")
-            continue
-        fi
-        manifest="$src/$dir/plugin.json"
-        id="$( [ -f "$manifest" ] && plugin_id "$manifest" || true )"
-        if [ -z "$id" ] || [ "$id" = "null" ]; then
-            warn "$dir has no 'id' in plugin.json – skipping."
-            failed+=("$dir")
-            continue
-        fi
-        if ! dotnet build "$src/$dir/$dir.csproj" -c Release -o "$TMP_DIR/build/$dir" -p:DebugSymbols=false -p:DebugType=none; then
-            warn "Build of $dir failed – skipping."
-            failed+=("$dir")
-            continue
-        fi
-        mkdir -p "$out/plugins/$id"
-        find "$TMP_DIR/build/$dir" -mindepth 1 -maxdepth 1 ! -name '*.pdb' ! -name '*.runtimeconfig.json' \
-            -exec cp -r {} "$out/plugins/$id/" \;
-        cp "$manifest" "$out/plugins/$id/plugin.json"
-        built+=("$id")
-    done
-
     find "$out" -name '*.pdb' -delete
-    log "Plugins built: ${built[*]:-none}"
-    [ "${#failed[@]}" -eq 0 ] || warn "Plugins skipped: ${failed[*]}"
 
     SRC="$out"
     [ -f "$SRC/LoupixDeck" ] || die "Binary 'LoupixDeck' not found in publish output ($SRC)."
@@ -312,22 +244,76 @@ if [ "$RESTART" -eq 1 ] && app_running; then
     app_running && die "LoupixDeck is still running. Close it and run the installer again."
 fi
 
-# ---------- Install ----------
-# A bundled plugin keeps its settings next to its own binary
-# ($INSTALL_DIR/plugins/<id>/settings.json), so wiping the install directory would take
-# every plugin configuration with it. Rescue those files first and put them back once
-# the new build is in place.
-PRESERVED_SETTINGS="$TMP_DIR/preserved-settings"
+# ---------- Target user ----------
+# The user the app runs as: the one who gets the 'input' group and owns the plugin folder.
+TARGET_USER="${SUDO_USER:-}"
+if [ -z "$TARGET_USER" ] && command -v logname >/dev/null 2>&1; then
+    TARGET_USER="$(logname 2>/dev/null || true)"
+fi
+if [ -z "$TARGET_USER" ] && [ "$(id -u)" -ne 0 ]; then
+    TARGET_USER="$(id -un)"
+fi
+
+# ---------- Move bundled plugins to the user plugin folder ----------
+# Releases before the Plugin Store shipped every plugin in $INSTALL_DIR/plugins. The new build
+# has none, so wiping the install directory would take them (and their settings) away. They
+# move into the user plugin folder instead, where the app loads them and the store updates
+# them. A copy already there with the same or a newer version wins; its settings are kept.
+manifest_field() {
+    if command -v jq >/dev/null 2>&1; then
+        jq -r --arg f "$2" '.[$f] // empty' "$1"
+    else
+        { grep -oE "\"$2\"[[:space:]]*:[[:space:]]*\"[^\"]+\"" "$1" || true; } | head -n1 | sed -E 's/.*"([^"]+)"$/\1/'
+    fi
+}
+
+# True when version $1 is lower than version $2.
+version_lt() {
+    [ "$1" != "$2" ] && [ "$(printf '%s\n%s\n' "$1" "$2" | sort -V | head -n1)" = "$1" ]
+}
+
 if [ -d "$INSTALL_DIR/plugins" ]; then
-    for plugin_dir in "$INSTALL_DIR"/plugins/*/; do
-        [ -f "${plugin_dir}settings.json" ] || continue
-        plugin_id="$(basename "$plugin_dir")"
-        mkdir -p "$PRESERVED_SETTINGS/$plugin_id"
-        cp -a "${plugin_dir}settings.json" "$PRESERVED_SETTINGS/$plugin_id/settings.json"
-    done
-    if [ -d "$PRESERVED_SETTINGS" ]; then
-        log "Preserving plugin settings: $(ls "$PRESERVED_SETTINGS" | tr '
-' ' ')"
+    TARGET_HOME=""
+    if [ -n "$TARGET_USER" ] && [ "$TARGET_USER" != "root" ]; then
+        TARGET_HOME="$({ getent passwd "$TARGET_USER" || true; } | cut -d: -f6)"
+    fi
+
+    if [ -z "$TARGET_HOME" ] || [ ! -d "$TARGET_HOME" ]; then
+        warn "Target user unknown - bundled plugins in $INSTALL_DIR/plugins are removed with the old version. Install them again from the Plugin Store."
+    else
+        USER_PLUGINS="$TARGET_HOME/.config/LoupixDeck/plugins"
+        moved=()
+        for plugin_dir in "$INSTALL_DIR"/plugins/*/; do
+            manifest="${plugin_dir}plugin.json"
+            [ -f "$manifest" ] || continue
+            id="$(manifest_field "$manifest" id)"
+            [ -n "$id" ] || continue
+            case "$id" in */*|.|..) continue ;; esac
+
+            target="$USER_PLUGINS/$id"
+            if [ -f "$target/plugin.json" ]; then
+                bundled_version="$(manifest_field "$manifest" version)"
+                user_version="$(manifest_field "$target/plugin.json" version)"
+                version_lt "$user_version" "$bundled_version" || continue
+            fi
+
+            staged="$TMP_DIR/migrate/$id"
+            mkdir -p "$staged"
+            cp -a "$plugin_dir". "$staged/"
+            # The user copy's settings are newer than anything next to the old binary.
+            [ -f "$target/settings.json" ] && cp -a "$target/settings.json" "$staged/settings.json"
+
+            $SUDO mkdir -p "$USER_PLUGINS"
+            $SUDO rm -rf "$target"
+            $SUDO cp -a "$staged" "$target"
+            $SUDO chown -R "$TARGET_USER": "$target"
+            moved+=("$id")
+        done
+        # The folders above the plugins may have been created by root just now.
+        if [ "${#moved[@]}" -gt 0 ]; then
+            $SUDO chown "$TARGET_USER": "$TARGET_HOME/.config/LoupixDeck" "$USER_PLUGINS" 2>/dev/null || true
+            log "Moved bundled plugins to $USER_PLUGINS: ${moved[*]}"
+        fi
     fi
 fi
 
@@ -339,21 +325,6 @@ log "Installing into $INSTALL_DIR ..."
 $SUDO mkdir -p "$INSTALL_DIR"
 $SUDO cp -a "$SRC"/. "$INSTALL_DIR/"
 $SUDO chmod +x "$INSTALL_DIR/LoupixDeck"
-
-# ---------- Restore plugin settings ----------
-if [ -d "$PRESERVED_SETTINGS" ]; then
-    for saved in "$PRESERVED_SETTINGS"/*/; do
-        plugin_id="$(basename "$saved")"
-        if [ -d "$INSTALL_DIR/plugins/$plugin_id" ]; then
-            $SUDO cp -a "${saved}settings.json" "$INSTALL_DIR/plugins/$plugin_id/settings.json"
-        else
-            # The plugin is not part of this build; its folder would end up without a
-            # plugin.json, which the app skips anyway.
-            warn "Plugin '$plugin_id' is not part of this build - its settings were dropped."
-        fi
-    done
-    log "Plugin settings restored."
-fi
 
 log "Creating symlink $SYMLINK -> $INSTALL_DIR/LoupixDeck ..."
 $SUDO mkdir -p "$(dirname "$SYMLINK")"
@@ -404,11 +375,6 @@ fi
 # Both macro execution (/dev/uinput, via the rule above) and macro recording
 # (reading /dev/input/event*) are gated behind the 'input' group. Add the invoking
 # user so neither needs root or world-writable nodes.
-TARGET_USER="${SUDO_USER:-}"
-if [ -z "$TARGET_USER" ] && command -v logname >/dev/null 2>&1; then
-    TARGET_USER="$(logname 2>/dev/null || true)"
-fi
-
 if [ -n "$TARGET_USER" ] && [ "$TARGET_USER" != "root" ]; then
     if ! getent group input >/dev/null 2>&1; then
         log "Creating 'input' group ..."
@@ -427,27 +393,6 @@ if [ -n "$TARGET_USER" ] && [ "$TARGET_USER" != "root" ]; then
     fi
 else
     warn "Could not determine the target user – add yourself to the 'input' group manually: sudo usermod -aG input <user>"
-fi
-
-# ---------- Plugin settings ownership ----------
-# The app writes a bundled plugin's settings next to that plugin, inside the
-# root-owned install directory. Without a writable file there, saving fails silently
-# (the app only logs it) and every plugin setting is lost on restart. Handing the
-# settings file - and only that file - to the user keeps the binaries root-owned.
-if [ -n "$TARGET_USER" ] && [ "$TARGET_USER" != "root" ] && [ -d "$INSTALL_DIR/plugins" ]; then
-    log "Making plugin settings writable for '$TARGET_USER' ..."
-    for plugin_dir in "$INSTALL_DIR"/plugins/*/; do
-        [ -f "${plugin_dir}plugin.json" ] || continue
-        settings_file="${plugin_dir}settings.json"
-        # Created empty when absent, because writing a new file would need write access
-        # to the root-owned plugin directory itself.
-        [ -f "$settings_file" ] || printf '{}
-' | $SUDO tee "$settings_file" >/dev/null
-        $SUDO chown "$TARGET_USER" "$settings_file"             || warn "Could not hand $settings_file to '$TARGET_USER'."
-        $SUDO chmod 0644 "$settings_file"
-    done
-elif [ -d "$INSTALL_DIR/plugins" ]; then
-    warn "Target user unknown - plugin settings stay root-owned and the app cannot save them."
 fi
 
 # ---------- Desktop entry ----------

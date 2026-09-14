@@ -121,13 +121,12 @@
                     <Border Classes="card">
                         <StackPanel Spacing="12">
                             <CheckBox IsChecked="{Binding RepairProgramFiles}" Content="Program files" />
-                            <CheckBox IsChecked="{Binding RepairPlugins}" Content="Plugins" />
                             <CheckBox IsChecked="{Binding RepairShortcuts}" Content="Start menu and desktop shortcuts" />
                             <CheckBox IsChecked="{Binding RepairAutostart}" Content="Autostart entry" />
                             <StackPanel Spacing="2">
                                 <CheckBox IsChecked="{Binding RepairDeleteConfig}" Content="Reset configuration (with backup)" />
                                 <TextBlock Classes="subtitle" Margin="28,0,0,0" TextWrapping="Wrap"
-                                           Text="Backs up your current configuration and starts fresh. Plugins are reinstalled." />
+                                           Text="Backs up your current configuration and starts fresh. Plugins are part of the backup; install them again from the Plugin Store." />
                             </StackPanel>
                         </StackPanel>
                     </Border>
