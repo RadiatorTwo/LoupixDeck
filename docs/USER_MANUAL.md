@@ -1,6 +1,6 @@
 # LoupixDeck User Manual
 
-This manual is for people who want to use LoupixDeck, not develop plugins for it. It is based on the current GitHub README, the existing docs, the application source, and the bundled plugin manifests. Because LoupixDeck is moving quickly, small names and details may change between releases.
+This manual is for people who want to use LoupixDeck, not develop plugins for it. It is based on the current GitHub README, the existing docs, the application source, and the Plugin Store catalogue and manifests. Because LoupixDeck is moving quickly, small names and details may change between releases.
 
 ## Index
 
@@ -95,7 +95,7 @@ LoupixDeck also registers an uninstaller in Windows `Installed apps`. Uninstalli
 Use the installer from the README:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/RadiatorTwo/LoupixDeck/master/install-loupixdeck.sh | bash
+curl -fsSL https://github.com/RadiatorTwo/LoupixDeck/releases/latest/download/install-loupixdeck.sh | bash
 ```
 
 The installer installs the app, creates udev rules for every supported device—including the Razer Stream Controller X—and adds a desktop entry. When it runs in a terminal, release downloads show a progress bar. After install, launch it from your app menu or run:
@@ -104,7 +104,7 @@ The installer installs the app, creates udev rules for every supported device—
 loupixdeck
 ```
 
-Updating with the Linux installer preserves each bundled plugin's `settings.json` while replacing the application files. After installation, each settings file is owned by the user who invoked the installer, so plugins can save configuration even though their binaries and directories remain root-owned. If a previously installed plugin is no longer included in the new build, the installer reports it instead of silently leaving an obsolete plugin folder behind.
+When upgrading from a pre-v1.28 release, the Linux installer moves previously bundled plugins and their `settings.json` files from the root-owned application directory into `~/.config/LoupixDeck/plugins`. The invoking user owns the migrated copies, so they can be managed by the Plugin Store. If a same-version or newer user copy already exists, it is kept instead.
 
 To compile and install the current `master` branch instead of downloading a release, first download the script and pass `--from-source`:
 
@@ -113,7 +113,7 @@ curl -fsSLO https://raw.githubusercontent.com/RadiatorTwo/LoupixDeck/master/inst
 bash install-loupixdeck.sh --from-source
 ```
 
-This mode requires Git and the .NET 10 SDK. It builds LoupixDeck, the Plugin SDK, and every plugin included by the release workflow. A plugin that fails to clone or build is skipped with a warning and the rest of the installation continues. Without `--from-source`, the script retains its normal release-download behavior.
+This mode requires Git and the .NET 10 SDK. It builds LoupixDeck and the Plugin SDK; plugins are installed separately from the in-app Plugin Store. Without `--from-source`, the script retains its normal release-download behavior.
 
 Add `--restart` to close a running LoupixDeck cleanly before replacing its files and start it again afterwards:
 
@@ -667,6 +667,34 @@ Process matching is case-insensitive, and a trailing `.exe` is ignored. On Linux
 
 ## Plugins and Integrations
 
+LoupixDeck v1.28.0 and later install integrations separately from the app. Open `Settings > Plugin Store` to browse the curated catalogue. Each row shows the plugin's description, author, version, compatibility, and whether it is installed or has an update.
+
+### Plugin Store
+
+Use `Install`, `Update`, or `Remove` on a plugin's row. Before an install or update starts, LoupixDeck shows that GitHub release's notes and waits for confirmation. It then downloads the package and verifies its SHA-256 checksum before opening the archive. A missing or mismatched checksum prevents installation.
+
+The store selects only releases whose `plugin.json` supports the current operating system and an SDK version provided by this LoupixDeck release. A plugin without a compatible release is labelled accordingly instead of being installed. Plugin releases are independent from LoupixDeck releases, so fixes can be delivered without updating the main app.
+
+Installing a new plugin normally loads it immediately. Updating or removing a plugin also takes effect immediately when its files can be replaced safely. If the operating system has a loaded file locked, LoupixDeck stages the change, shows `Restart required`, and completes it before plugins load on the next start. Updates preserve the plugin's `settings.json`.
+
+The background plugin-update check follows the main app's automatic update-check setting. When compatible plugin updates are available, a hint appears in the main window; open it to go to the Plugin Store. `Refresh` checks the catalogue again, although recently fetched GitHub release lists may be reused briefly to avoid exhausting GitHub's unauthenticated request limit. When the limit is reached, the store uses cached release information where possible and displays when a fresh check can be made.
+
+Plugins installed from a zip or copied into the user plugin folder still load. They are labelled `Manually installed`, and the store does not replace them automatically. Use `Settings > Plugins` for these manual installations and for plugin-specific configuration.
+
+### Upgrading from an older LoupixDeck release
+
+Plugins that came with a pre-v1.28 installation are retained, including their settings, and become manageable by the store. The Windows installer already keeps plugins in the per-user configuration directory. On Linux, `install-loupixdeck.sh` moves previously bundled copies from the application directory to `~/.config/LoupixDeck/plugins`; an existing user copy of the same or a newer version wins, and its settings are kept.
+
+New v1.28 installations contain no bundled plugins. Install only the integrations you need from the store.
+
+### Missing or removed plugins
+
+Removing a plugin does not erase its button, dial, physical-button, page-command, or macro assignments. Editors show the unresolved command as unavailable, and it starts working again after the owning plugin is installed and enabled. An unresolved command known to belong to a plugin is not treated as free-form shell text and is never executed as a shell command.
+
+After startup, LoupixDeck checks saved configuration for commands owned by catalogue plugins that are not installed. It offers to open the Plugin Store with the first missing plugin highlighted. Declining the offer is remembered for that plugin; the assignments themselves remain unchanged.
+
+### Manual plugin management
+
 Open `Settings > Plugins`.
 
 From this page you can:
@@ -677,15 +705,7 @@ From this page you can:
 - Select a plugin and edit its settings if it provides a settings UI.
 - Enable or disable plugins live where supported.
 
-Bundled plugins are read-only, but you can install a zip with the same plugin id to update one. LoupixDeck compares the manifest versions found in the application and user plugin folders: the higher version loads, and a tie favours the user copy. This has three useful effects:
-
-- A same-version or newer user copy can override a built-in plugin without changing the application folder.
-- If an app update later includes a newer bundled copy, that version takes over automatically.
-- Removing the user override restores the bundled copy and keeps the plugin enabled. If its files are in use, the restore completes after the next restart.
-
-An older zip cannot replace a newer bundled copy; the Plugins page reports why it would not be loaded.
-
-The current binary installation includes these plugin manifests:
+The v1.28.0 Plugin Store catalogue includes these integrations:
 
 | Plugin | Platform |
 | --- | --- |
@@ -702,11 +722,11 @@ The current binary installation includes these plugin manifests:
 
 Plugins can add commands, dynamic text, settings pages, folders, side-strip providers, or special integration behavior. The exact command names depend on the installed plugin version and what external app or service is configured.
 
-LoupixDeck v1.27.0 ships Plugin SDK 1.22.0. It lets folder providers read the active device's real key grid; this is an additive API change, so existing 1.x plugins continue to load without being rebuilt.
+LoupixDeck v1.28.0 uses Plugin SDK 1.22.0 and makes no SDK API changes. Existing plugins do not need to be rebuilt. SDK 1.22.0 lets folder providers read the active device's real key grid; this is an additive API change, so older 1.x plugins continue to load too.
 
 The Plugins page only shows plugins that can run on the current operating system. For example, Windows-only plugins are hidden on Linux instead of appearing as disabled rows with controls that cannot work.
 
-Plugins can also provide default values for command settings. In current bundled plugins, some Audio, Elgato, and Spotify commands use this for editable step sizes, so a rotary can move volume, light brightness, or a Spotify value faster or slower without special syntax.
+Plugins can also provide default values for command settings. In current store versions, some Audio, Elgato, and Spotify commands use this for editable step sizes, so a rotary can move volume, light brightness, or a Spotify value faster or slower without special syntax.
 
 On a multi-device setup, plugin button-state reads, state changes, and refresh requests apply across every device on which that plugin is enabled. A stateful plugin button on a secondary device therefore stays synchronized just like one on the primary device.
 
@@ -714,7 +734,7 @@ Installing, removing, or switching the active version of a plugin refreshes the 
 
 ### Audio
 
-The bundled Audio plugin controls output and input devices on Windows and Linux and can also work with the separate audio streams of running applications. Assign `Audio: Mixer` to a touch or physical button to open a live folder with one tile per application currently playing on any output device. Tap a tile to select that application; the first dial then changes its volume, and pressing the dial toggles mute. The selected tile is blue and muted tiles are red.
+The Audio plugin from the Plugin Store controls output and input devices on Windows and Linux and can also work with the separate audio streams of running applications. Assign `Audio: Mixer` to a touch or physical button to open a live folder with one tile per application currently playing on any output device. Tap a tile to select that application; the first dial then changes its volume, and pressing the dial toggles mute. The selected tile is blue and muted tiles are red.
 
 The mixer updates when applications start or stop playing. If the selected application disappears, another available tile becomes selected so the dial does not keep pointing at a missing stream. The display is only repainted when its content changes.
 
@@ -726,11 +746,11 @@ On Linux, MP3 and M4A playback uses an external player when a particular playbac
 
 ### SteelSeries Sonar
 
-The Windows release bundles the SteelSeries Sonar plugin. It exposes controls for the Sonar mixer, including the separate streaming and monitoring volumes used by stream mode. Enable it for the current device under `Settings > Plugins`; it is not shown on Linux.
+Install the Windows-only SteelSeries Sonar plugin from the Plugin Store. It exposes controls for the Sonar mixer, including the separate streaming and monitoring volumes used by stream mode. Enable it for the current device under `Settings > Plugins`; it is not offered on Linux.
 
 ### OBS Studio
 
-The bundled OBS plugin reports recording, replay-buffer, virtual-camera, streaming, and studio-mode status live through obs-websocket. Buttons using the corresponding toggle commands follow changes made inside OBS and resynchronize after either OBS or LoupixDeck restarts.
+The OBS plugin from the Plugin Store reports recording, replay-buffer, virtual-camera, streaming, and studio-mode status live through obs-websocket. Buttons using the corresponding toggle commands follow changes made inside OBS and resynchronize after either OBS or LoupixDeck restarts.
 
 OBS plugin 1.3.0 fixes authenticated connections that could previously fail with `Authentication failed` even when the password was correct. `Test Connection` now reuses an existing connection while the saved host, port, and password are unchanged, so repeated tests no longer fail with `already Identified`; changing connection settings still starts a fresh session.
 
@@ -744,7 +764,7 @@ OBS commands are grouped by recording, replay buffer, streaming, virtual camera,
 
 ### Monitoring Plugins
 
-Argus Monitor, HWiNFO, LibreHardwareMonitor, and LinuxHwInfo can show sensor readings on touch buttons when the matching plugin is installed and enabled. LibreHardwareMonitor is bundled with LoupixDeck starting in v1.13.1; LinuxHwInfo is bundled in Linux releases starting in v1.25.0.
+Argus Monitor, HWiNFO, LibreHardwareMonitor, and LinuxHwInfo can show sensor readings on touch buttons when the matching Plugin Store integration is installed and enabled. LibreHardwareMonitor was bundled with LoupixDeck from v1.13.1 through v1.27.1; LinuxHwInfo was bundled in Linux releases from v1.25.0 through v1.27.1. From v1.28.0 onward, install either one from the store when needed.
 
 In current releases, sensor commands render as monitoring tiles instead of plain text. A tile can show:
 
@@ -912,10 +932,19 @@ Key alignment normally needs no changes: LoupixDeck uses the measured layout for
 - Set idle timeout and FPS limit; looping applies to video sources.
 - Install `ffmpeg` only when using a video source.
 
+### Plugin Store
+
+- Browse the curated plugin catalogue.
+- Install, update, or remove compatible plugins.
+- Review a plugin release's notes before installing or updating it.
+- Refresh plugin and release availability.
+- See incompatible, manually installed, and restart-required states.
+
 ### Plugins
 
-- Install, remove, open folder, and configure plugins.
-- User copies can update bundled plugins; removing an override restores the bundled version.
+- Install a plugin manually from a zip file.
+- Remove, enable, disable, and configure installed plugins.
+- Open the per-user plugin folder.
 
 ### Macro Driver
 
@@ -1018,10 +1047,11 @@ Recording needs read access to `/dev/input/event*`. The installer attempts to ha
 
 ### Plugin commands are missing
 
-- Open `Settings > Plugins`.
-- Check whether the plugin is installed and enabled.
+- Open `Settings > Plugin Store` and install a missing catalogue plugin, or update it if a compatible release is available.
+- Open `Settings > Plugins` and check whether the installed plugin is enabled for the current device.
 - If you use more than one device, enable the plugin on the device where you want to use it.
 - Restart LoupixDeck if the plugin page says some changes need a restart.
+- An unavailable plugin command remains assigned and is not executed as shell text. Reinstalling and enabling its plugin restores it.
 - A loaded plugin group with no currently available commands stays visible as a grey information row. For example, this can happen when an integration is enabled but no matching external device is connected.
 - Confirm that external services such as OBS, Spotify, or monitoring tools are running and configured.
 - For LibreHardwareMonitor, confirm that LibreHardwareMonitor is running in the background and that its HTTP web server is enabled. If the web server uses authentication, check the username and password in the plugin settings.

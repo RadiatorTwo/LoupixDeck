@@ -26,6 +26,7 @@ Each plugin lives in its own subfolder named after `PluginMetadata.Id`:
 ```
 %AppData%\LoupixDeck\plugins\
 └── myplugin\
+    ├── plugin.json
     ├── MyPlugin.dll
     ├── (runtime deps)
     └── settings.json          ← created by the host on first save
@@ -65,6 +66,9 @@ folder. Adjust the path to your OS / install.
   </ItemGroup>
   <Copy SourceFiles="@(PluginFiles)"
         DestinationFolder="$(PluginInstallDir)\%(RecursiveDir)"
+        SkipUnchangedFiles="true" />
+  <Copy SourceFiles="$(MSBuildProjectDirectory)\plugin.json"
+        DestinationFolder="$(PluginInstallDir)"
         SkipUnchangedFiles="true" />
 </Target>
 ```
@@ -131,6 +135,8 @@ overwrite your changes on the next `Save()`.
 - **The plugin doesn't show up.**
   Check the host log for a load error from your plugin's folder. The usual
   causes are:
+  - **Missing or invalid `plugin.json`.** The manifest must sit next to the
+    entry assembly and name it in `entryAssembly`.
   - **SDK major-version mismatch.** `PluginMetadata.SdkVersion.Major` must
     equal the host's SDK major version. Set it to `SdkInfo.Version` and
     rebuild against the matching SDK.
