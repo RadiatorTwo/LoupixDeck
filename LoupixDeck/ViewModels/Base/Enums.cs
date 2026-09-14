@@ -11,5 +11,6 @@ public enum SettingsView
     Interception,
     Theme,
     About,
-    AppSwitching
+    AppSwitching,
+    PluginStore
 }

@@ -445,6 +445,10 @@ public static class ServiceCollectionExtensions
         collection.AddTransient<UpdateDialog>();
         collection.AddTransient<UpdateDialogViewModel>();
 
+        collection.AddTransient<PluginStoreViewModel>();
+        collection.AddTransient<PluginReleaseNotesDialog>();
+        collection.AddTransient<PluginReleaseNotesViewModel>();
+
         collection.AddTransient<DialPresetEditor>();
         collection.AddTransient<DialPresetEditorViewModel>();
 
@@ -501,6 +505,7 @@ public static class ServiceCollectionExtensions
         dialogService.Register<DialPresetEditorViewModel, DialPresetEditor>();
         dialogService.Register<AboutViewModel, About>();
         dialogService.Register<UpdateDialogViewModel, UpdateDialog>();
+        dialogService.Register<PluginReleaseNotesViewModel, PluginReleaseNotesDialog>();
         dialogService.Register<ConfirmDialogViewModel, ConfirmDialog>();
         dialogService.Register<TextInputDialogViewModel, TextInputDialog>();
         dialogService.Register<ProfileImportViewModel, ProfileImport>();

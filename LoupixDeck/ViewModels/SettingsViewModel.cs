@@ -49,6 +49,9 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
     /// </summary>
     public IReadOnlyList<LoadedPlugin> Plugins => _pluginManager.Plugins;
 
+    /// <summary>The Plugin Store page (issue #234).</summary>
+    public PluginStoreViewModel PluginStore { get; }
+
     public IRelayCommand NavigateCommand => field ??= Relay.Create<SettingsView>(Navigate);
 
     public IRelayCommand AddAppBindingCommand => field ??= Relay.Create(AddAppBinding);
@@ -137,9 +140,11 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
         IScreensaverProviderRegistry screensaverRegistry,
         IExclusiveModeService exclusiveMode,
         IProfileEditingService profileEditing,
-        IUpdateService updateService)
+        IUpdateService updateService,
+        PluginStoreViewModel pluginStore)
     {
         Config = config;
+        PluginStore = pluginStore;
         IsVibrationSupported = config?.Geometry.HasVibration ?? true;
         _deviceService = deviceService;
         _pageManager = pageManager;
@@ -1091,7 +1096,19 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
     public SettingsView CurrentView
     {
         get => _currentView;
-        set => SetProperty(ref _currentView, value);
+        set
+        {
+            // The store reaches the network, so it only loads once its page is opened.
+            if (SetProperty(ref _currentView, value) && value == SettingsView.PluginStore)
+                _ = PluginStore.EnsureLoadedAsync();
+        }
+    }
+
+    /// <summary>Opens the window on the Plugin Store page, optionally with one plugin brought to the top.</summary>
+    public void OpenPluginStore(string highlightedPluginId = null)
+    {
+        PluginStore.HighlightedPluginId = highlightedPluginId;
+        CurrentView = SettingsView.PluginStore;
     }
 
     private async Task EditWallpaper(TouchButtonPage page)

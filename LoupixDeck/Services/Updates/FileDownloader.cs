@@ -42,6 +42,14 @@ public static class FileDownloader
         return await Http.GetStringAsync(url, timeout.Token);
     }
 
+    /// <summary>Downloads a small binary file (an icon) into memory.</summary>
+    public static async Task<byte[]> DownloadBytesAsync(string url, CancellationToken cancellationToken)
+    {
+        using CancellationTokenSource timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeout.CancelAfter(TimeSpan.FromSeconds(15));
+        return await Http.GetByteArrayAsync(url, timeout.Token);
+    }
+
     /// <summary>Upper-case hex SHA-256 of a file.</summary>
     public static async Task<string> ComputeSha256Async(string path, CancellationToken cancellationToken)
     {
