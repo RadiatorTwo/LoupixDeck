@@ -52,6 +52,7 @@ public static class ServiceCollectionExtensions
         // Plugins are loaded once (shared instances); per-call device targeting is via
         // the router. Loading natively-interop deps (e.g. NAudio/COM) per device would
         // clash across collectible load contexts, so a single shared load is required.
+        collection.AddSingleton<Services.PluginStore.IPluginCommandIndex, Services.PluginStore.PluginCommandIndex>();
         collection.AddSingleton<IPluginManager, PluginManager>();
 
         collection.AddSingleton<IConfigService, ConfigService>();
@@ -87,6 +88,10 @@ public static class ServiceCollectionExtensions
         // installer run, whatever the number of devices.
         collection.AddSingleton<Services.Updates.IUpdateService, Services.Updates.UpdateService>();
         collection.AddSingleton<Services.Updates.IUpdateInstaller, Services.Updates.UpdateInstaller>();
+
+        // Plugin store (issue #234): one catalog, one release cache and one plugin update check for the
+        // app, like the plugins themselves.
+        collection.AddSingleton<Services.PluginStore.IPluginStoreService, Services.PluginStore.PluginStoreService>();
 #if WINDOWS
         if (OperatingSystem.IsWindows())
             collection.AddSingleton<Services.Updates.IUpdateNotifier, Services.Updates.WindowsUpdateNotifier>();
@@ -176,6 +181,7 @@ public static class ServiceCollectionExtensions
         collection.Forward<IDBusController>(root);
         collection.Forward<Services.Updates.IUpdateService>(root);
         collection.Forward<Services.Updates.IUpdateInstaller>(root);
+        collection.Forward<Services.PluginStore.IPluginStoreService>(root);
         collection.Forward<ICommandRunner>(root);
         collection.Forward<ISystemPowerService>(root);
         collection.Forward<IActiveWindowMonitor>(root);
@@ -440,6 +446,10 @@ public static class ServiceCollectionExtensions
         collection.AddTransient<UpdateDialog>();
         collection.AddTransient<UpdateDialogViewModel>();
 
+        collection.AddTransient<PluginStoreViewModel>();
+        collection.AddTransient<PluginReleaseNotesDialog>();
+        collection.AddTransient<PluginReleaseNotesViewModel>();
+
         collection.AddTransient<DialPresetEditor>();
         collection.AddTransient<DialPresetEditorViewModel>();
 
@@ -496,6 +506,7 @@ public static class ServiceCollectionExtensions
         dialogService.Register<DialPresetEditorViewModel, DialPresetEditor>();
         dialogService.Register<AboutViewModel, About>();
         dialogService.Register<UpdateDialogViewModel, UpdateDialog>();
+        dialogService.Register<PluginReleaseNotesViewModel, PluginReleaseNotesDialog>();
         dialogService.Register<ConfirmDialogViewModel, ConfirmDialog>();
         dialogService.Register<TextInputDialogViewModel, TextInputDialog>();
         dialogService.Register<ProfileImportViewModel, ProfileImport>();

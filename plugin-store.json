@@ -1,0 +1,115 @@
+{
+  "schemaVersion": 1,
+  "plugins": [
+    {
+      "id": "argus",
+      "name": "Argus Monitor",
+      "description": "Display Argus Monitor sensor readings on touch buttons via its shared-memory data API.",
+      "author": "RadiatorTwo",
+      "repository": "RadiatorTwo/LoupixDeck.Plugin.Argus",
+      "icon": "",
+      "platforms": [ "Windows" ],
+      "minSdkVersion": "1.14.0",
+      "commandPrefixes": [ "Argus." ]
+    },
+    {
+      "id": "audio",
+      "name": "Audio",
+      "description": "Control output and input devices, per-app volume and sound playback.",
+      "author": "RadiatorTwo",
+      "repository": "RadiatorTwo/LoupixDeck.Plugin.Audio",
+      "icon": "",
+      "platforms": [ "Windows", "Linux" ],
+      "minSdkVersion": "1.17.0",
+      "commandPrefixes": [ "Audio." ]
+    },
+    {
+      "id": "coolercontrol",
+      "name": "CoolerControl",
+      "description": "Switch CoolerControl modes from the deck.",
+      "author": "RadiatorTwo",
+      "repository": "RadiatorTwo/LoupixDeck.Plugin.CoolerControl",
+      "icon": "",
+      "platforms": [ "Windows", "Linux" ],
+      "minSdkVersion": "1.1.0",
+      "commandPrefixes": [ "System.CoolerControl" ]
+    },
+    {
+      "id": "elgato",
+      "name": "Elgato Key Lights",
+      "description": "Toggle Elgato Key Lights and adjust brightness, temperature, hue and saturation.",
+      "author": "RadiatorTwo",
+      "repository": "RadiatorTwo/LoupixDeck.Plugin.Elgato",
+      "icon": "",
+      "platforms": [ "Windows", "Linux" ],
+      "minSdkVersion": "1.17.0",
+      "commandPrefixes": [ "System.ElgKl" ]
+    },
+    {
+      "id": "hwinfo",
+      "name": "HWiNFO",
+      "description": "Display HWiNFO sensor readings on touch buttons.",
+      "author": "RadiatorTwo",
+      "repository": "RadiatorTwo/LoupixDeck.Plugin.HwInfo",
+      "icon": "",
+      "platforms": [ "Windows" ],
+      "minSdkVersion": "1.15.0",
+      "commandPrefixes": [ "HwInfo." ]
+    },
+    {
+      "id": "librehardwaremonitor",
+      "name": "LibreHardwareMonitor",
+      "description": "Display LibreHardwareMonitor sensor readings on touch buttons and Razer side displays via its WMI data provider.",
+      "author": "RadiatorTwo",
+      "repository": "RadiatorTwo/LoupixDeck.Plugin.LibreHardwareMonitor",
+      "icon": "",
+      "platforms": [ "Windows" ],
+      "minSdkVersion": "1.15.0",
+      "commandPrefixes": [ "LibreHardwareMonitor." ]
+    },
+    {
+      "id": "linuxhwinfo",
+      "name": "LinuxHwInfo",
+      "description": "Display live Linux hardware sensor readings (hwmon, /proc, NVIDIA NVML) on touch buttons.",
+      "author": "RadiatorTwo",
+      "repository": "RadiatorTwo/LoupixDeck.Plugin.LinuxHWInfo",
+      "icon": "",
+      "platforms": [ "Linux" ],
+      "minSdkVersion": "1.21.0",
+      "commandPrefixes": [ "LinuxHwInfo." ]
+    },
+    {
+      "id": "obs",
+      "name": "OBS Studio",
+      "description": "Control recording, streaming, replay buffer, scenes and sources in OBS Studio.",
+      "author": "RadiatorTwo",
+      "repository": "RadiatorTwo/LoupixDeck.Plugin.Obs",
+      "icon": "",
+      "platforms": [ "Windows", "Linux" ],
+      "minSdkVersion": "1.21.0",
+      "commandPrefixes": [ "System.Obs" ]
+    },
+    {
+      "id": "spotifypremium",
+      "name": "SpotifyPremium",
+      "description": "Control Spotify playback, volume, playlists and devices (requires Spotify Premium).",
+      "author": "RadiatorTwo",
+      "repository": "RadiatorTwo/LoupixDeck.Plugin.SpotifyPremium",
+      "icon": "",
+      "platforms": [ "Windows", "Linux" ],
+      "minSdkVersion": "1.17.0",
+      "commandPrefixes": [ "SpotifyPremium." ]
+    },
+    {
+      "id": "steelseriessonar",
+      "name": "SteelSeries Sonar",
+      "description": "Control the SteelSeries Sonar mixer, including the separate streaming and monitoring volumes of stream mode.",
+      "author": "RadiatorTwo",
+      "repository": "RadiatorTwo/LoupixDeck.Plugin.SteelseriesSonar",
+      "icon": "",
+      "platforms": [ "Windows" ],
+      "minSdkVersion": "1.21.0",
+      "commandPrefixes": [ "SteelseriesSonar." ]
+    }
+  ]
+}

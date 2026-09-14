@@ -76,10 +76,27 @@ public class PluginManager : IPluginManager
     private readonly ConcurrentDictionary<string, List<IFullDisplayRenderSession>> _fullDisplaySessions =
         new(StringComparer.OrdinalIgnoreCase);
 
-    public PluginManager(IDeviceRouter router, IDeviceHostRegistry hostRegistry)
+    private readonly PluginStore.IPluginCommandIndex _commandIndex;
+
+    public PluginManager(IDeviceRouter router, IDeviceHostRegistry hostRegistry,
+        PluginStore.IPluginCommandIndex commandIndex)
     {
         _router = router;
         _hostRegistry = hostRegistry;
+        _commandIndex = commandIndex;
+    }
+
+    private void RecordCommands(string pluginId, IEnumerable<IPluginCommand> commands)
+    {
+        try
+        {
+            _commandIndex.Record(pluginId, commands.Select(c => c.Descriptor?.CommandName).ToList());
+        }
+        catch (Exception ex)
+        {
+            // A plugin's own descriptor getter may throw; the index is a convenience, never a load blocker.
+            Console.WriteLine($"PluginManager: could not index the commands of '{pluginId}': {ex.Message}");
+        }
     }
 
     /// <summary>The provider of the device this host call should act on.</summary>
@@ -443,6 +460,10 @@ public class PluginManager : IPluginManager
 
             var screensaverProviders = instance.GetScreensaverProviders()?.Where(p => p != null).ToList()
                                        ?? new List<IScreensaverProvider>();
+
+            // Remember which commands this plugin provides, so buttons that use them are still
+            // recognised as plugin commands after the plugin is removed.
+            RecordCommands(manifest.Id, commands);
 
             return new LoadedPlugin
             {

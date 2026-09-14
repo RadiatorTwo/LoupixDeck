@@ -65,6 +65,15 @@ public sealed class PluginInstaller : IPluginInstaller
     /// </summary>
     public const string PendingInstallsDirName = ".pending-installs";
 
+    /// <summary>Marker the plugin store writes into the folders of the plugins it manages.</summary>
+    public const string StoreMarkerFileName = "store.json";
+
+    /// <summary>
+    /// Files inside a plugin folder that belong to the user rather than to the package: the
+    /// plugin's settings and the store marker. An update keeps them.
+    /// </summary>
+    private static readonly string[] PreservedFileNames = ["settings.json", StoreMarkerFileName];
+
     private readonly Models.LoupedeckConfig _config;
     private readonly string _userRoot;
     private readonly string _bundledRoot;
@@ -237,6 +246,9 @@ public sealed class PluginInstaller : IPluginInstaller
             ? Loc.Tr("Plugin_VersionReinstalled", manifest.Version)
             : $"{previousVersion} → {manifest.Version}";
 
+        // Files the host or the plugin writes at runtime survive the update.
+        Dictionary<string, byte[]> preserved = ReadPreservedFiles(targetDir);
+
         try
         {
             Directory.Delete(targetDir, recursive: true);
@@ -246,7 +258,8 @@ public sealed class PluginInstaller : IPluginInstaller
             // The old version is loaded (Windows locks its assemblies). Stage the new
             // files; PluginManager swaps them into place at the next startup, before
             // anything is loaded. The coordinator unloads the old version live so its
-            // commands stop now — only the on-disk swap waits for the restart.
+            // commands stop now — only the on-disk swap waits for the restart. The
+            // preserved files are carried over from the old folder during that swap.
             if (StageForInstall(manifest.Id, contentRoot))
             {
                 return PluginActionResult.Ok(
@@ -260,6 +273,7 @@ public sealed class PluginInstaller : IPluginInstaller
         try
         {
             CopyDirectory(contentRoot, targetDir);
+            WritePreservedFiles(targetDir, preserved);
         }
         catch (Exception ex)
         {
@@ -397,9 +411,11 @@ public sealed class PluginInstaller : IPluginInstaller
                 var target = Path.Combine(userRoot, id);
                 try
                 {
+                    Dictionary<string, byte[]> preserved = ReadPreservedFiles(target);
                     if (Directory.Exists(target))
                         Directory.Delete(target, recursive: true);
                     Directory.Move(staged, target);
+                    WritePreservedFiles(target, preserved);
                 }
                 catch (Exception ex)
                 {
@@ -504,6 +520,45 @@ public sealed class PluginInstaller : IPluginInstaller
         if (name.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
             return false;
         return name.IndexOf('/') < 0 && name.IndexOf('\\') < 0;
+    }
+
+    /// <summary>
+    /// Reads the files in a plugin folder that are written at runtime rather than shipped in a
+    /// package, so an update can put them back. Missing files are simply left out.
+    /// </summary>
+    private static Dictionary<string, byte[]> ReadPreservedFiles(string pluginDir)
+    {
+        Dictionary<string, byte[]> preserved = new(StringComparer.OrdinalIgnoreCase);
+        foreach (string fileName in PreservedFileNames)
+        {
+            string path = Path.Combine(pluginDir, fileName);
+            try
+            {
+                if (File.Exists(path))
+                    preserved[fileName] = File.ReadAllBytes(path);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                Console.WriteLine($"PluginInstaller: could not keep '{path}': {ex.Message}");
+            }
+        }
+
+        return preserved;
+    }
+
+    private static void WritePreservedFiles(string pluginDir, Dictionary<string, byte[]> preserved)
+    {
+        foreach ((string fileName, byte[] content) in preserved)
+        {
+            string path = Path.Combine(pluginDir, fileName);
+
+            // The store writes a fresh marker into a staged update; the old folder's marker must not
+            // replace it when the staged folder is swapped in.
+            if (fileName == StoreMarkerFileName && File.Exists(path))
+                continue;
+
+            File.WriteAllBytes(path, content);
+        }
     }
 
     private static void CopyDirectory(string sourceDir, string targetDir)

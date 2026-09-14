@@ -67,6 +67,14 @@ public class CommandService : ICommandService
             string[] parameters = CommandStringParser.GetParameters(command);
             await registered.Execute(parameters ?? [], target, sourceIndex);
         }
+        else if (_commandRegistry.GetMissingPluginOwner(cleanCommand) is { } owner)
+        {
+            // A command of a plugin that is not available here is not a shell command: running it
+            // through the shell would only fail (or worse, match a program). The binding stays in
+            // the config and works again once the plugin is installed and enabled.
+            Console.WriteLine(
+                $"[Commands] '{cleanCommand}' belongs to plugin '{owner.PluginId}', which is not available - skipped.");
+        }
         else
         {
             _commandRunner.EnqueueCommand(command);

@@ -237,9 +237,9 @@ public sealed class InstallService
             Report(progress, 0.02, "Closing running LoupixDeck…", SetupSteps.StopApp);
             RunningAppControl.StopRunningApp(installDir, TimeSpan.FromSeconds(20));
 
-            // Resetting the config removes the plugins dir with it, so a plugins re-extract is forced
-            // afterwards to leave a working set behind.
-            bool extractPlugins = plan.Plugins || plan.DeleteConfig;
+            // Plugins are no longer part of the payload; they are installed from the in-app Plugin Store.
+            // A plugins pass only runs when explicitly asked for and finds nothing to extract.
+            bool extractPlugins = plan.Plugins;
 
             if (plan.DeleteConfig)
             {

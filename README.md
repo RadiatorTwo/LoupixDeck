@@ -79,7 +79,7 @@ Or with `wget`:
 wget -qO- https://raw.githubusercontent.com/RadiatorTwo/LoupixDeck/master/install-loupixdeck.sh | bash
 ```
 
-The installer downloads the latest release, shows download progress in a terminal, installs LoupixDeck system-wide, adds udev rules—including the Razer Stream Controller X—and creates a desktop entry. Updating with the script preserves bundled-plugin settings and keeps their settings files writable by the user while the installed binaries remain root-owned.
+The installer downloads the latest release, shows download progress in a terminal, installs LoupixDeck system-wide, adds udev rules—including the Razer Stream Controller X—and creates a desktop entry. Plugins are not part of the release; install them from the Plugin Store inside the app. Updating an older installation with the script moves the plugins it used to bundle, with their settings, into the user plugin folder, so they keep working and receive updates from the store.
 
 After installation, start it with:
 
@@ -97,13 +97,13 @@ less install-loupixdeck.sh
 bash install-loupixdeck.sh
 ```
 
-To build and install the current `master` branch together with the Plugin SDK and all bundled plugins, use:
+To build and install the current `master` branch, use:
 
 ```bash
 bash install-loupixdeck.sh --from-source
 ```
 
-This source-build mode requires Git and the .NET 10 SDK. A plugin that cannot be built is skipped with a warning; the normal installer behavior is unchanged when the option is omitted.
+This source-build mode requires Git and the .NET 10 SDK; the normal installer behavior is unchanged when the option is omitted.
 
 Pass `--restart` to close a running LoupixDeck cleanly before installation and launch it again afterwards. This is also the mode used by the in-app Linux updater.
 
@@ -322,7 +322,11 @@ Plugins can provide:
 * static or animated side-strip renderers
 * integration-specific functionality
 
-Plugins installed from a zip live in the user plugin folder. When a user plugin and a bundled plugin have the same id, LoupixDeck loads the higher manifest version; a version tie favours the user copy. This lets a newer zip update a built-in plugin without modifying the application folder. If a later LoupixDeck release bundles a newer version, that bundled copy takes over automatically. Removing a user override restores the bundled copy instead of uninstalling the plugin. The Plugins settings page hides plugins built only for the other operating system instead of showing unusable disabled rows.
+Plugins are installed from the **Plugin Store** (Settings → Plugin Store) and are no longer bundled with LoupixDeck. The store lists the plugins of the curated `plugin-store.json`, shows the release notes before installing or updating, verifies every download against its published checksum, and only offers versions this LoupixDeck and operating system can load. Updates are checked in the background, like the app update check, and a hint appears when one is available. Plugin settings are kept on update. A plugin that is loaded while it is updated or removed finishes the change on the next start.
+
+Buttons that use commands of a removed or missing plugin keep their assignment: the editor marks them unavailable and they work again once the plugin is installed. When a config needs a plugin that is not installed, LoupixDeck offers to open the store.
+
+Plugins installed from a zip or copied into the user plugin folder by hand still load and are shown as manually installed; the store does not update them. When a user plugin and a plugin in the application's `plugins` folder have the same id, LoupixDeck loads the higher manifest version; a version tie favours the user copy. The Plugins settings page hides plugins built only for the other operating system instead of showing unusable disabled rows.
 
 The Plugin SDK is maintained in a separate repository:
 

@@ -110,7 +110,7 @@
                                                        IsVisible="{Binding !Parameters.Count}" />
                                         </StackPanel>
 
-                                        <Grid ColumnDefinitions="120,*" IsVisible="{Binding !IsKnown}">
+                                        <Grid ColumnDefinitions="120,*" RowDefinitions="Auto,Auto" IsVisible="{Binding !IsKnown}">
                                             <TextBlock Grid.Column="0"
                                                        Classes="editor-label"
                                                        Text="{loc:Tr TouchButton_Command}"
@@ -118,6 +118,11 @@
                                                        Margin="0,0,10,0" />
                                             <TextBox Grid.Column="1"
                                                      Text="{Binding ShellText, Mode=TwoWay}" />
+                                            <TextBlock Grid.Row="1" Grid.Column="1" Margin="0,6,0,0"
+                                                       TextWrapping="Wrap" MaxWidth="360" HorizontalAlignment="Left"
+                                                       Classes="editor-label"
+                                                       Text="{Binding UnavailableHint}"
+                                                       IsVisible="{Binding IsUnavailable}" />
                                         </Grid>
                                     </Panel>
                                 </Flyout>

@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using LoupixDeck.Localization;
+using LoupixDeck.Services.PluginStore;
 using LoupixDeck.Services.Updates;
 using LoupixDeck.ViewModels.Base;
 
@@ -27,20 +28,100 @@ public sealed class MainShellViewModel : ViewModelBase
     /// About and update dialogs are opened through it here, and those need no device.</param>
     /// <param name="updateService">The app-wide update check (root container); drives the update hint.</param>
     /// <param name="updateNotifier">OS notification used while the window sits in the tray.</param>
+    /// <param name="pluginStore">The app-wide plugin store (root container); drives the plugin update hint.</param>
     public MainShellViewModel(LoupixDeck.Services.IDialogService dialogService = null,
-        IUpdateService updateService = null, IUpdateNotifier updateNotifier = null)
+        IUpdateService updateService = null, IUpdateNotifier updateNotifier = null,
+        IPluginStoreService pluginStore = null)
     {
         _dialogService = dialogService;
         _updateService = updateService;
         _updateNotifier = updateNotifier;
+        _pluginStore = pluginStore;
         AboutMenuCommand = new AsyncRelayCommand(ShowAbout);
         ShowUpdateCommand = new AsyncRelayCommand(ShowUpdate);
+        ShowPluginUpdatesCommand = new AsyncRelayCommand(ShowPluginUpdates);
 
         if (_updateService != null)
         {
             _updateService.PropertyChanged += OnUpdateServicePropertyChanged;
             _updateService.UpdateFound += update => UpdateFound?.Invoke(update);
         }
+
+        if (_pluginStore != null)
+            _pluginStore.PropertyChanged += OnPluginStorePropertyChanged;
+    }
+
+    // ───────── Plugin update hint (issue #234) ─────────
+
+    private readonly IPluginStoreService _pluginStore;
+
+    /// <summary>The app update strip takes the row while both are pending; plugins follow once it is gone.</summary>
+    public bool HasPluginUpdates => !HasUpdate && _pluginStore?.AvailableUpdates.Count > 0;
+
+    public string PluginUpdateHintText => _pluginStore?.AvailableUpdates is { Count: > 0 } updates
+        ? updates.Count == 1
+            ? Loc.Tr("PluginStore_UpdateHintOne", updates[0].Entry.DisplayName, updates[0].Available.Version)
+            : Loc.Tr("PluginStore_UpdateHintMany", updates.Count)
+        : string.Empty;
+
+    public IAsyncRelayCommand ShowPluginUpdatesCommand { get; }
+
+    private void OnPluginStorePropertyChanged(object sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName != nameof(IPluginStoreService.AvailableUpdates)) return;
+
+        OnPropertyChanged(nameof(HasPluginUpdates));
+        OnPropertyChanged(nameof(PluginUpdateHintText));
+    }
+
+    /// <summary><c>ui-settings.json</c> key: ids of missing plugins the user declined to install, comma-separated.</summary>
+    private const string DeclinedMissingPluginsKey = "PluginStoreDeclinedMissing";
+
+    /// <summary>
+    /// After startup: when the configs use commands of plugins that are not installed, offers to open the
+    /// store for them. Asked once per plugin; declining is remembered. Never throws.
+    /// </summary>
+    public async Task PromptForMissingPluginsAsync()
+    {
+        if (_pluginStore == null) return;
+
+        try
+        {
+            IReadOnlyList<PluginCommandOwner> missing = await _pluginStore.FindMissingPluginsAsync();
+            HashSet<string> declined = new(
+                (Utils.UiSettingsStore.GetString(DeclinedMissingPluginsKey) ?? string.Empty)
+                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries),
+                StringComparer.OrdinalIgnoreCase);
+            List<PluginCommandOwner> toAsk = missing.Where(m => !declined.Contains(m.PluginId)).ToList();
+            if (toAsk.Count == 0 || SelectedDevice == null) return;
+
+            Console.WriteLine($"[PluginStore] Configs use missing plugins: {string.Join(", ", toAsk.Select(m => m.PluginId))}.");
+
+            string names = string.Join(", ", toAsk.Select(m => m.DisplayName));
+            bool open = await Utils.ConfirmDialogHelper.AskYesNoAsync(Utils.WindowHelper.GetMainWindow(),
+                Loc.Tr("PluginStore_MissingTitle"), Loc.Tr("PluginStore_MissingMessage", names));
+
+            if (open)
+            {
+                if (SelectedDevice != null)
+                    await SelectedDevice.OpenPluginStoreAsync(toAsk[0].PluginId);
+                return;
+            }
+
+            declined.UnionWith(toAsk.Select(m => m.PluginId));
+            Utils.UiSettingsStore.Set(DeclinedMissingPluginsKey, string.Join(",", declined));
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[PluginStore] Missing plugin check failed: {ex.Message}");
+        }
+    }
+
+    private Task ShowPluginUpdates()
+    {
+        IReadOnlyList<PluginStoreItem> updates = _pluginStore?.AvailableUpdates;
+        string highlighted = updates is { Count: 1 } ? updates[0].Entry.Id : null;
+        return SelectedDevice?.OpenPluginStoreAsync(highlighted) ?? Task.CompletedTask;
     }
 
     // ───────── Update hint (issue #233) ─────────
@@ -71,6 +152,7 @@ public sealed class MainShellViewModel : ViewModelBase
 
         OnPropertyChanged(nameof(HasUpdate));
         OnPropertyChanged(nameof(UpdateHintText));
+        OnPropertyChanged(nameof(HasPluginUpdates));
     }
 
     private async Task ShowUpdate()

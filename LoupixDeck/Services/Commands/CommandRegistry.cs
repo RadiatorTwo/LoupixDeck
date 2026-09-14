@@ -21,9 +21,19 @@ public class CommandRegistry : ICommandRegistry
     // plugin's commands across the picker; this keeps a group listed the way its author wrote it.
     private volatile IReadOnlyList<RegisteredCommand> _ordered = [];
 
-    public CommandRegistry(IEnumerable<ICommandProvider> providers)
+    private readonly PluginStore.IPluginStoreService _pluginStore;
+
+    public CommandRegistry(IEnumerable<ICommandProvider> providers, PluginStore.IPluginStoreService pluginStore)
     {
         _providers = providers;
+        _pluginStore = pluginStore;
+    }
+
+    public PluginStore.PluginCommandOwner GetMissingPluginOwner(string commandName)
+    {
+        return string.IsNullOrWhiteSpace(commandName) || Contains(commandName)
+            ? null
+            : _pluginStore.FindCommandOwner(commandName);
     }
 
     public void Initialize()

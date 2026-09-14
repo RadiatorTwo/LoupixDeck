@@ -19,6 +19,12 @@ public interface ICommandRegistry
     RegisteredCommand Get(string commandName);
 
     /// <summary>
+    /// For a command name that is not registered but belongs to a plugin (removed, not installed or not
+    /// enabled on this device): that plugin. Null when the command is registered or belongs to no plugin.
+    /// </summary>
+    PluginStore.PluginCommandOwner GetMissingPluginOwner(string commandName);
+
+    /// <summary>
     /// Every registered command in registration order — provider order first, then the order each
     /// provider yields them in. The menu is built from this, so a plugin's <c>GetCommands()</c>
     /// order is what the user sees in the command picker.

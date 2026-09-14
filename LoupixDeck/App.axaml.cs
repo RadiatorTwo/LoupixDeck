@@ -155,7 +155,8 @@ public partial class App : Application
             // exists as soon as a device is configured — connected or not.
             var shell = new MainShellViewModel(primaryHost?.Provider.GetService<IDialogService>(),
                 root.GetRequiredService<Services.Updates.IUpdateService>(),
-                root.GetRequiredService<Services.Updates.IUpdateNotifier>());
+                root.GetRequiredService<Services.Updates.IUpdateNotifier>(),
+                root.GetRequiredService<Services.PluginStore.IPluginStoreService>());
             _shell = shell;
 
             // The window goes up here, before the plugins load and before a single device is
@@ -188,6 +189,10 @@ public partial class App : Application
 
             // Load the shared plugin set ONCE (root) now that the fallback device is set.
             root.GetRequiredService<Services.Plugins.IPluginManager>().LoadPlugins();
+
+            // Plugin updates (issue #234): same rules as the app update check, started once the
+            // installed plugins are known. Background only; the result goes to the log and the hint.
+            root.GetRequiredService<Services.PluginStore.IPluginStoreService>().StartAutomaticCheck();
 
             // Pass 2: build each device's side-strip lookup from the loaded plugins, build a
             // view model per device into the shell, and bring every device up. The VM ctor
@@ -241,6 +246,10 @@ public partial class App : Application
 
             // Arm runtime hot-plug now that the initial device set is up.
             StartHotPlug();
+
+            // Configs that use commands of plugins that are not installed (issue #234): point to the store.
+            // Not awaited, so a slow catalog download never holds up the rest of startup.
+            _ = shell.PromptForMissingPluginsAsync();
         }
         catch (Exception ex)
         {

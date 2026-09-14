@@ -28,6 +28,10 @@ public partial class Settings : Window
 
         PopulatePluginList();
 
+        // The store installs and removes through the same coordinator; keep the Plugins list current.
+        if (vm != null)
+            vm.PluginStore.PluginsChanged += PopulatePluginList;
+
         Closing += (_, _) =>
         {
             if (DataContext is IDialogViewModel dlg && !dlg.DialogResult.Task.IsCompleted)
@@ -197,6 +201,10 @@ public partial class Settings : Window
             return;
 
         ShowPluginActionStatus(result.Message);
+
+        // Something changed on the Plugins page; the store shows it on its next visit.
+        if (DataContext is SettingsViewModel vm)
+            vm.PluginStore.Invalidate();
 
         if (result is { Success: true, RequiresRestart: true } && PluginRestartHint != null)
             PluginRestartHint.IsVisible = true;

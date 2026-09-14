@@ -531,6 +531,27 @@
             </StackPanel>
         </Border>
 
+        <!-- Plugin update hint (issue #234): same strip, shown once no app update is pending. -->
+        <Border Grid.Row="1" IsVisible="{Binding HasPluginUpdates}"
+                Background="{DynamicResource AppSurfaceBar}"
+                BorderBrush="{DynamicResource AppBorderFaint}"
+                BorderThickness="0,0,0,1"
+                Padding="16,6">
+            <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center">
+                <!-- mdi-puzzle -->
+                <TextBlock FontFamily="{DynamicResource MdiFont}" FontSize="16"
+                           VerticalAlignment="Center"
+                           Foreground="{StaticResource PageActiveBrush}"
+                           Text="&#xF0431;" />
+                <TextBlock Text="{Binding PluginUpdateHintText}"
+                           VerticalAlignment="Center" FontSize="13"
+                           Foreground="{DynamicResource AppTextPrimary}" />
+                <Button Content="{loc:Tr Update_Details}"
+                        Padding="10,3" FontSize="12" VerticalAlignment="Center"
+                        Command="{Binding ShowPluginUpdatesCommand}" />
+            </StackPanel>
+        </Border>
+
         <Grid Grid.Row="2">
             <ContentControl Name="DeviceLayoutHost" Padding="0" />
 

@@ -8,139 +8,12 @@ on:
 permissions:
   contents: write
 
+# Plugins are not bundled: each plugin ships from its own repository through the in-app Plugin
+# Store (issue #234, plugin-store.json). The app release contains the app only.
 jobs:
-  build-plugins:
-    name: Build Plugins
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout Plugin SDK
-        uses: actions/checkout@v5
-        with:
-          repository: RadiatorTwo/LoupixDeck.PluginSdk
-          path: src/LoupixDeck.PluginSdk
-
-      - name: Checkout OBS plugin
-        uses: actions/checkout@v5
-        with:
-          repository: RadiatorTwo/LoupixDeck.Plugin.Obs
-          path: src/LoupixDeck.Plugin.Obs
-
-      - name: Checkout Elgato plugin
-        uses: actions/checkout@v5
-        with:
-          repository: RadiatorTwo/LoupixDeck.Plugin.Elgato
-          path: src/LoupixDeck.Plugin.Elgato
-
-      - name: Checkout HWiNFO plugin
-        uses: actions/checkout@v5
-        with:
-          repository: RadiatorTwo/LoupixDeck.Plugin.HwInfo
-          path: src/LoupixDeck.Plugin.HwInfo
-
-      - name: Checkout CoolerControl plugin
-        uses: actions/checkout@v5
-        with:
-          repository: RadiatorTwo/LoupixDeck.Plugin.CoolerControl
-          path: src/LoupixDeck.Plugin.CoolerControl
-
-      - name: Checkout LibreHardwareMonitor plugin
-        uses: actions/checkout@v5
-        with:
-          repository: RadiatorTwo/LoupixDeck.Plugin.LibreHardwareMonitor
-          path: src/LoupixDeck.Plugin.LibreHardwareMonitor
-
-      - name: Checkout Audio plugin
-        uses: actions/checkout@v5
-        with:
-          repository: RadiatorTwo/LoupixDeck.Plugin.Audio
-          path: src/LoupixDeck.Plugin.Audio
-
-      - name: Checkout Argus plugin
-        uses: actions/checkout@v5
-        with:
-          repository: RadiatorTwo/LoupixDeck.Plugin.Argus
-          path: src/LoupixDeck.Plugin.Argus
-
-      - name: Checkout SpotifyPremium plugin
-        uses: actions/checkout@v5
-        with:
-          repository: RadiatorTwo/LoupixDeck.Plugin.SpotifyPremium
-          path: src/LoupixDeck.Plugin.SpotifyPremium
-
-      - name: Checkout LinuxHwInfo plugin
-        uses: actions/checkout@v5
-        with:
-          repository: RadiatorTwo/LoupixDeck.Plugin.LinuxHWInfo
-          path: src/LoupixDeck.Plugin.LinuxHwInfo
-
-      - name: Checkout SteelSeries Sonar plugin
-        uses: actions/checkout@v5
-        with:
-          repository: RadiatorTwo/LoupixDeck.Plugin.SteelseriesSonar
-          path: src/LoupixDeck.Plugin.SteelseriesSonar
-
-      - name: Setup .NET SDK
-        uses: actions/setup-dotnet@v5
-        with:
-          dotnet-version: 10.0.x
-
-      - name: Build Plugin SDK package
-        run: dotnet build src/LoupixDeck.PluginSdk -c Release
-
-      # Plugin nuget.config files reference the SDK local feed via one of two relative
-      # paths, depending on when each plugin was last updated for the submodule layout:
-      #   ..\LoupixDeck.PluginSdk\nupkg          (SDK as a standalone sibling repo)
-      #   ..\LoupixDeck\LoupixDeck.PluginSdk\nupkg (SDK nested inside the core repo)
-      # A missing local source is a hard NU1301 error, so mirror the freshly built feed
-      # to the nested path as well and every plugin resolves regardless of convention.
-      - name: Mirror SDK feed for nested-path plugins
-        run: |
-          mkdir -p src/LoupixDeck/LoupixDeck.PluginSdk
-          cp -r src/LoupixDeck.PluginSdk/nupkg src/LoupixDeck/LoupixDeck.PluginSdk/nupkg
-
-      - name: Build and assemble plugins
-        run: |
-          set -euo pipefail
-          mkdir -p plugins
-          for repo in \
-            LoupixDeck.Plugin.Obs \
-            LoupixDeck.Plugin.Elgato \
-            LoupixDeck.Plugin.HwInfo \
-            LoupixDeck.Plugin.CoolerControl \
-            LoupixDeck.Plugin.LibreHardwareMonitor \
-            LoupixDeck.Plugin.Audio \
-            LoupixDeck.Plugin.Argus \
-            LoupixDeck.Plugin.SpotifyPremium \
-            LoupixDeck.Plugin.LinuxHwInfo \
-            LoupixDeck.Plugin.SteelseriesSonar
-          do
-            echo "::group::Building $repo"
-            manifest="src/$repo/plugin.json"
-            id=$(jq -r '.id' "$manifest")
-            if [ -z "$id" ] || [ "$id" = "null" ]; then
-              echo "Plugin $repo has no 'id' in plugin.json" >&2
-              exit 1
-            fi
-            dotnet build "src/$repo/$repo.csproj" -c Release -o "build/$repo" /p:DebugSymbols=false /p:DebugType=none
-            mkdir -p "plugins/$id"
-            find "build/$repo" -mindepth 1 -maxdepth 1 ! -name '*.pdb' ! -name '*.runtimeconfig.json' -exec cp -r {} "plugins/$id/" \;
-            cp "$manifest" "plugins/$id/plugin.json"
-            echo "::endgroup::"
-          done
-          echo "Assembled plugins:"
-          ls -R plugins
-
-      - name: Upload plugins artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: plugins
-          path: plugins
-
   build-windows:
     name: Build Windows
     runs-on: windows-latest
-    needs: build-plugins
 
     env:
       PROJECT_PATH: ./LoupixDeck/LoupixDeck.csproj
@@ -206,17 +79,6 @@ jobs:
           Remove-Item publish/win-x64-natives -Recurse -Force
           Write-Host "Placed $copied native lib(s) in the payload root."
 
-      - name: Download plugins artifact
-        uses: actions/download-artifact@v8
-        with:
-          name: plugins
-          path: plugins-artifact
-
-      - name: Bundle plugins into publish output
-        run: |
-          New-Item -ItemType Directory -Force -Path publish/win-x64/plugins | Out-Null
-          Copy-Item -Path plugins-artifact/* -Destination publish/win-x64/plugins -Recurse -Force
-
       - name: Zip Windows build
         run: |
           Get-ChildItem -Path publish/win-x64 -Filter *.pdb -Recurse | Remove-Item -Force
@@ -230,7 +92,7 @@ jobs:
             -o publish/uninstall
 
       # Native single-exe installer (NativeAOT). The just-built zip IS the payload: its entries
-      # (LoupixDeck.exe, plugins/<id>/...) sit at the archive root, exactly what the installer's
+      # (LoupixDeck.exe, ...) sit at the archive root, exactly what the installer's
       # PayloadExtractor expects. windows-latest ships the MSVC toolchain ILC needs for AOT linking.
       - name: Build installer
         run: |
@@ -255,7 +117,6 @@ jobs:
   build-linux:
     name: Build Linux
     runs-on: ubuntu-latest
-    needs: build-plugins
 
     env:
       PROJECT_PATH: ./LoupixDeck/LoupixDeck.csproj
@@ -287,17 +148,6 @@ jobs:
             /p:ReadyToRun=true \
             /p:Version=${{ env.VERSION }} \
             -o publish/linux-x64
-
-      - name: Download plugins artifact
-        uses: actions/download-artifact@v8
-        with:
-          name: plugins
-          path: plugins-artifact
-
-      - name: Bundle plugins into publish output
-        run: |
-          mkdir -p publish/linux-x64/plugins
-          cp -r plugins-artifact/. publish/linux-x64/plugins/
 
       - name: Tar Linux build
         run: |

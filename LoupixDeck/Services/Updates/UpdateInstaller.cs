@@ -1,6 +1,3 @@
-using System.Net.Http;
-using System.Security.Cryptography;
-
 namespace LoupixDeck.Services.Updates;
 
 /// <summary>How this installation can be updated.</summary>
@@ -56,9 +53,6 @@ public sealed class UpdateInstaller : IUpdateInstaller
     private const string MasterScriptUrl =
         $"https://raw.githubusercontent.com/{GitHubReleaseClient.Repository}/master/{LinuxScriptAsset}";
 
-    /// <summary>No overall timeout: the setup is large and a slow line is not an error.</summary>
-    private static readonly HttpClient Http = CreateClient();
-
     public UpdateInstallMode Mode { get; } = DetectMode();
 
     public async Task<UpdateInstallResult> InstallAsync(ReleaseInfo release, IProgress<double> progress,
@@ -96,11 +90,11 @@ public sealed class UpdateInstaller : IUpdateInstaller
 
             string expected = installer.Sha256;
             string path = Path.Combine(directory, installer.Name);
-            await DownloadAsync(installer.DownloadUrl, path, progress, cancellationToken);
+            await FileDownloader.DownloadAsync(installer.DownloadUrl, path, progress, cancellationToken);
 
             if (expected is not null)
             {
-                string actual = await ComputeSha256Async(path, cancellationToken);
+                string actual = await FileDownloader.ComputeSha256Async(path, cancellationToken);
                 if (!string.Equals(actual, expected, StringComparison.OrdinalIgnoreCase))
                 {
                     File.Delete(path);
@@ -158,42 +152,4 @@ public sealed class UpdateInstaller : IUpdateInstaller
         return UpdateInstallMode.ReleasePage;
     }
 
-    private static async Task DownloadAsync(string url, string path, IProgress<double> progress,
-        CancellationToken cancellationToken)
-    {
-        using HttpResponseMessage response =
-            await Http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
-        response.EnsureSuccessStatusCode();
-
-        long? total = response.Content.Headers.ContentLength;
-        await using Stream source = await response.Content.ReadAsStreamAsync(cancellationToken);
-        await using FileStream target = File.Create(path);
-
-        byte[] buffer = new byte[81920];
-        long received = 0;
-        int read;
-        while ((read = await source.ReadAsync(buffer, cancellationToken)) > 0)
-        {
-            await target.WriteAsync(buffer.AsMemory(0, read), cancellationToken);
-            received += read;
-            if (total > 0)
-            {
-                progress?.Report((double)received / total.Value);
-            }
-        }
-    }
-
-    private static async Task<string> ComputeSha256Async(string path, CancellationToken cancellationToken)
-    {
-        await using FileStream stream = File.OpenRead(path);
-        byte[] hash = await SHA256.HashDataAsync(stream, cancellationToken);
-        return Convert.ToHexString(hash);
-    }
-
-    private static HttpClient CreateClient()
-    {
-        HttpClient client = new() { Timeout = Timeout.InfiniteTimeSpan };
-        client.DefaultRequestHeaders.UserAgent.ParseAdd("LoupixDeck");
-        return client;
-    }
 }
