@@ -238,6 +238,14 @@ public class LoupedeckDevice
         return false;
     }
 
+    /// <summary>The serial port this device is driven over; it can change on re-enumeration.</summary>
+    protected string SerialPath => Path;
+
+    /// <summary>Called from <see cref="Close"/> so a device can release what it opened beside the serial port.</summary>
+    protected virtual void OnClosed()
+    {
+    }
+
     /// <summary>
     /// X-offset (in panel/wallpaper pixels) at which the centre touch grid starts on
     /// the unified panel. Devices with side strips reserve the leftmost strip width
@@ -577,6 +585,7 @@ public class LoupedeckDevice
         _suppressAutoReconnect = true;
         _sendChannel.Writer.TryComplete();
         _connection?.Close();
+        OnClosed();
     }
 
     /// <summary>

@@ -31,6 +31,9 @@ public sealed class RazerStreamControllerXDevice : LoupedeckDevice
     /// </summary>
     private const byte FirstKeyByte = 0x1b;
 
+    /// <summary>Linux only; null elsewhere. See <see cref="HidrawDrain"/>.</summary>
+    private readonly HidrawDrain _hidrawDrain;
+
     /// <summary>A 480x270 panel with a gapped key grid; no strips, no motor, no LEDs.</summary>
     public static readonly DeviceGeometry KnownGeometry = new()
     {
@@ -96,7 +99,15 @@ public sealed class RazerStreamControllerXDevice : LoupedeckDevice
         {
             ["center"] = new() { Id = "\0M"u8.ToArray(), Width = 480, Height = 270 }
         }.ToFrozenDictionary();
+
+        // Without this the firmware stalls on its first unread HID report and no key ever
+        // reaches the serial port on Linux (see HidrawDrain).
+        if (OperatingSystem.IsLinux() && !string.IsNullOrEmpty(path))
+            _hidrawDrain = new HidrawDrain(() => SerialPath);
     }
+
+    /// <inheritdoc />
+    protected override void OnClosed() => _hidrawDrain?.Dispose();
 
     /// <inheritdoc />
     protected override bool TryGetPhysicalKeySlot(byte raw, out int slot)
