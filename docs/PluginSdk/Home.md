@@ -27,7 +27,7 @@ directory, and is loaded dynamically at startup.
   - [Plugin Screensavers and Animated Side Strips](Advanced-Screensavers-and-Side-Strips) — host-owned idle animations and per-side strip sessions
   - [Settings Page](Advanced-Settings-Page) — `IPluginSettingsPage`, schema, actions
 - Operations
-  - [Packaging & Distribution](Packaging-and-Distribution)
+  - [Packaging & Distribution](Packaging-and-Distribution) — manifest, reusable release workflow, and Plugin Store catalogue entry
   - [Debugging](Debugging)
 
 ## Plugin lifecycle at a glance

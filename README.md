@@ -324,7 +324,7 @@ Plugins can provide:
 
 Plugins are installed from the **Plugin Store** (Settings → Plugin Store) and are no longer bundled with LoupixDeck. The store lists the plugins of the curated `plugin-store.json`, shows the release notes before installing or updating, verifies every download against its published checksum, and only offers versions this LoupixDeck and operating system can load. Updates are checked in the background, like the app update check, and a hint appears when one is available. Plugin settings are kept on update. A plugin that is loaded while it is updated or removed finishes the change on the next start.
 
-Buttons that use commands of a removed or missing plugin keep their assignment: the editor marks them unavailable and they work again once the plugin is installed. When a config needs a plugin that is not installed, LoupixDeck offers to open the store.
+Buttons that use commands of a removed or missing plugin keep their assignment: the editor marks them unavailable and they work again once the plugin is installed. A known plugin command is never run as a shell command just because its plugin is absent. When a config needs a plugin that is not installed, LoupixDeck offers to open the store.
 
 Plugins installed from a zip or copied into the user plugin folder by hand still load and are shown as manually installed; the store does not update them. When a user plugin and a plugin in the application's `plugins` folder have the same id, LoupixDeck loads the higher manifest version; a version tie favours the user copy. The Plugins settings page hides plugins built only for the other operating system instead of showing unusable disabled rows.
 
@@ -334,7 +334,7 @@ The Plugin SDK is maintained in a separate repository:
 
 It is also available as the `LoupixDeck.PluginSdk` NuGet package.
 
-SDK 1.22.0 adds the active device's folder grid to `IPluginHost`, allowing plugin folders to place entries correctly on both 4×3 and 5×3 devices. The addition is compatible with existing 1.x plugins and does not require them to be rebuilt.
+LoupixDeck v1.28.0 keeps SDK 1.22.0 with no API changes, so existing plugins need no rebuild. SDK 1.22.0 adds the active device's folder grid to `IPluginHost`, allowing plugin folders to place entries correctly on both 4×3 and 5×3 devices.
 
 ---
 

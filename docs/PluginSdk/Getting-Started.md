@@ -38,7 +38,7 @@ next to the `.csproj`:
 Then reference the package:
 
 ```powershell
-dotnet add package LoupixDeck.PluginSdk --version 1.2.*
+dotnet add package LoupixDeck.PluginSdk --version 1.22.*
 ```
 
 > **Important:** Do **not** copy the SDK DLL into your plugin's output folder.
@@ -109,7 +109,26 @@ A few rules baked into this sample:
   user button configurations. Treat it as a public API — renaming it later
   breaks every config that referenced it.
 
-## 4. Build
+## 4. Add the manifest
+
+Create `plugin.json` next to the `.csproj`. The loader and Plugin Store read
+this before loading the assembly, so its identity and versions must match the
+plugin's `Metadata`:
+
+```json
+{
+  "id": "hello",
+  "name": "Hello Plugin",
+  "version": "1.0.0",
+  "sdkVersion": "1.22.0",
+  "entryAssembly": "MyPlugin.dll",
+  "platform": "All",
+  "author": "you",
+  "description": "Minimal example plugin."
+}
+```
+
+## 5. Build
 
 ```powershell
 dotnet build -c Release
@@ -117,14 +136,16 @@ dotnet build -c Release
 
 The output lands in `bin/Release/net10.0/MyPlugin.dll`.
 
-## 5. Install into LoupixDeck
+## 6. Install into LoupixDeck
 
 Create a folder named after `Metadata.Id` inside the host's plugin directory
-(see [Debugging](Debugging) for the exact path on each OS) and copy your DLL
-into it:
+(see [Debugging](Debugging) for the exact path on each OS) and copy the DLL and
+manifest into it:
 
 ```
-%AppData%\LoupixDeck\plugins\hello\MyPlugin.dll
+%AppData%\LoupixDeck\plugins\hello\
+├── plugin.json
+└── MyPlugin.dll
 ```
 
 Start LoupixDeck. Open the command-selection menu on any button — the
@@ -139,4 +160,6 @@ host log shows the line.
   [Settings Page](Advanced-Settings-Page).
 - For dynamic menus listing remote state (OBS scenes, sensors) → see
   [Dynamic Menus](Advanced-Menus).
+- To publish through the Plugin Store → see
+  [Packaging & Distribution](Packaging-and-Distribution).
 - To attach a debugger and iterate quickly → see [Debugging](Debugging).

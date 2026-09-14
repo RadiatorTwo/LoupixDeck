@@ -1,36 +1,59 @@
 # Packaging & Distribution
 
-A LoupixDeck plugin is a regular .NET class library shipped as a folder
-containing the plugin DLL plus any of its runtime dependencies. There is no
-manifest file format — the plugin's identity, versioning and SDK compatibility
-all come from `PluginMetadata` returned by your `LoupixPlugin` subclass.
+A LoupixDeck plugin is a .NET class library distributed with a `plugin.json`
+manifest and any runtime dependencies. LoupixDeck v1.28.0 and later can install
+plugins from its curated Plugin Store. Store plugins publish releases from their
+own GitHub repository; they are not bundled with the main application.
 
-## Versioning rules
+LoupixDeck v1.28.0 makes no SDK API changes and continues to provide SDK 1.22.0,
+so existing plugins need no rebuild merely to use the store.
 
-Two versions matter, and they are different things:
+## Manifest and versioning
+
+Every package needs `plugin.json` at its root. Its identity and versions must
+match the `PluginMetadata` returned by the plugin:
+
+```json
+{
+  "id": "myplugin",
+  "name": "My Plugin",
+  "version": "1.0.0",
+  "sdkVersion": "1.22.0",
+  "entryAssembly": "MyPlugin.dll",
+  "platform": "All",
+  "author": "Example Author",
+  "description": "Does one useful thing from the deck.",
+  "projectUrl": "https://github.com/example/LoupixDeck.Plugin.MyPlugin",
+  "iconFile": "icon.png"
+}
+```
+
+Required Store-release fields are `id`, `version`, `sdkVersion`, and
+`entryAssembly`. `platform` is `All`, `Windows`, or `Linux` and defaults to
+`All`. The release workflow requires `version` in plain `major.minor.patch`
+form, and a GitHub Release tag must be exactly `v<version>`.
+
+Two versions matter:
 
 | Field | What it is | Bump when |
 |---|---|---|
-| `PluginMetadata.Version` | Your plugin's own version | You ship new behavior or bug fixes. |
-| `PluginMetadata.SdkVersion` | The SDK contract version you compiled against | Always `SdkInfo.Version` — the SDK package handles it for you. |
+| `version` / `PluginMetadata.Version` | Your plugin's own version | You ship new behavior or bug fixes. |
+| `sdkVersion` / `PluginMetadata.SdkVersion` | The SDK contract version you compiled against | You build against a newer SDK contract. |
 
-The host enforces a **major-version match** on `SdkVersion`. Building against
-SDK 1.x runs on any host shipped with SDK 1.x — across the entire 1.x line the
-contracts are source- and binary-compatible. A host on SDK 2.x will refuse to
-load a plugin built against 1.x (and vice versa).
+In code, use the SDK's value instead of hard-coding the contract version:
 
 ```csharp
-SdkVersion = SdkInfo.Version,   // always this — never hard-code
+SdkVersion = SdkInfo.Version,
 ```
 
-The SDK's `AssemblyVersion` is intentionally pinned at `1.0.0.0` across the
-entire 1.x package range so the plugin load context resolves one shared SDK
-assembly regardless of which 1.x package the plugin was built against.
+The host requires the same SDK major version. The Plugin Store is stricter: it
+offers a release only when its SDK version is not newer than the SDK in the
+running LoupixDeck and its platform matches the current operating system. Older
+compatible releases can therefore remain available to users on an older app.
 
-SDK 1.20.0 targets both `net9.0` and `net10.0`. Existing 1.x plugins built for
-.NET 9 continue to load in LoupixDeck v1.22.0 without a rebuild; new plugins can
-target .NET 10. The new screensaver, animated-side-strip and provider-owned
-exclusive-rendering contracts are optional and additive.
+The SDK's `AssemblyVersion` remains pinned at `1.0.0.0` across the 1.x line so
+the plugin load context resolves one shared SDK assembly. The package targets
+both `net9.0` and `net10.0`.
 
 ## Build output
 
@@ -38,46 +61,37 @@ exclusive-rendering contracts are optional and additive.
 dotnet build -c Release
 ```
 
-Ship the contents of `bin/Release/net10.0/` **minus** `LoupixDeck.PluginSdk.dll`:
+Package the following at the archive root:
 
-- `MyPlugin.dll` — your plugin
-- Any third-party runtime dependencies (HttpClient libs, JSON serializers your
-  plugin uses beyond the BCL, etc.)
-- Optional `MyPlugin.pdb` if you want symbols available for end-user crash
-  reports (the SDK ships embedded PDBs already)
+- `plugin.json`
+- `MyPlugin.dll`, matching `entryAssembly`
+- any third-party runtime dependencies
+- optional icons or other files the plugin reads at runtime
 
-> **Do not redistribute `LoupixDeck.PluginSdk.dll`.** The host provides it.
-> Bundling it causes assembly-load conflicts. The NuGet package reference
-> already does the right thing — don't manually set `<Private>true</Private>`
-> or copy the file by hand.
+Do not redistribute `LoupixDeck.PluginSdk.dll`; the host provides it. Bundling
+the SDK causes assembly-load conflicts. PDB and `.runtimeconfig.json` files are
+not needed by the Store package.
 
-## Folder layout for distribution
-
-One folder per plugin, named after `Metadata.Id`, placed inside the host's
-plugin root:
+After installation the directory looks like this:
 
 ```
 <plugin root>/
-└── myplugin/                      ← matches PluginMetadata.Id
+└── myplugin/
+    ├── plugin.json
     ├── MyPlugin.dll
     ├── ThirdParty.Dep.dll
-    └── (your plugin's other runtime deps)
+    ├── store.json          ← written by the Plugin Store
+    └── settings.json       ← written by IPluginSettings
 ```
 
-Per-plugin data the host creates at runtime sits next to your DLLs:
-
-```
-└── myplugin/
-    └── settings.json              ← managed by the host (IPluginSettings)
-```
-
-See [Debugging](Debugging) for the exact plugin-root path on each OS.
+The Store preserves `settings.json` during an update. See [Debugging](Debugging)
+for the plugin-root path on each operating system.
 
 ## Plugin icon
 
 `PluginMetadata.Icon` is optional raw bytes (PNG recommended, SVG accepted).
-Read the bytes from an embedded resource so you don't depend on the install
-layout:
+Read the bytes from an embedded resource so runtime display does not depend on
+the install path:
 
 ```csharp
 public override PluginMetadata Metadata { get; } = new()
@@ -105,12 +119,89 @@ In the `.csproj`:
 </ItemGroup>
 ```
 
-## Releasing
+If `plugin.json` also names `iconFile`, include that file separately in the
+package for surfaces that read display metadata from the manifest.
 
-There is no central plugin registry yet. Typical release flow:
+## Reusable GitHub release workflow
 
-1. Bump `PluginMetadata.Version` and the `<Version>` in the `.csproj`.
-2. `dotnet build -c Release`.
-3. Zip the `bin/Release/net10.0/` folder (without the SDK DLL).
-4. Publish the zip as a GitHub Release on the plugin's own repo and tell users
-   to extract it into `<plugin root>/<id>/`.
+The Plugin SDK repository provides a reusable workflow that builds and packages
+a plugin. Add this caller as `.github/workflows/release.yml` in the plugin's own
+repository:
+
+```yaml
+name: Plugin Store Release
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    uses: RadiatorTwo/LoupixDeck.PluginSdk/.github/workflows/plugin-release.yml@master
+```
+
+By default, the workflow builds `<repository-name>.csproj`. If the project is
+elsewhere, pass its repository-relative path:
+
+```yaml
+    with:
+      project: src/MyPlugin.csproj
+```
+
+A published GitHub Release produces and attaches:
+
+| Asset | Purpose |
+|---|---|
+| `<id>-<version>-any.zip` | Package for `platform: All` |
+| `<id>-<version>-windows.zip` | Package for `platform: Windows` |
+| `<id>-<version>-linux.zip` | Package for `platform: Linux` |
+| `plugin.json` | Lets the Store check identity and compatibility before downloading the package |
+| `SHA256SUMS` | SHA-256 entries for the package and manifest |
+
+Only the package matching the manifest platform is generated. A manual
+`workflow_dispatch` uploads the same files as a workflow artifact but does not
+attach them to a GitHub Release. Release notes shown by the Store come from the
+GitHub Release description.
+
+## Add the plugin to the Store
+
+Only repositories listed in `plugin-store.json` in the
+[LoupixDeck repository](https://github.com/RadiatorTwo/LoupixDeck/blob/master/plugin-store.json)
+appear in the Store. After publishing a valid release, open a pull request that
+adds an entry such as:
+
+```json
+{
+  "id": "myplugin",
+  "name": "My Plugin",
+  "description": "Does one useful thing from the deck.",
+  "author": "Example Author",
+  "repository": "example/LoupixDeck.Plugin.MyPlugin",
+  "icon": "https://example.com/myplugin.png",
+  "platforms": ["Windows", "Linux"],
+  "minSdkVersion": "1.22.0",
+  "commandPrefixes": ["MyPlugin."]
+}
+```
+
+The catalogue `id` must match the release manifest. `repository` is the GitHub
+`owner/name`; `platforms` controls which operating systems see the entry;
+`minSdkVersion` is catalogue information while each release's `sdkVersion`
+decides actual compatibility. List every stable command prefix in
+`commandPrefixes` so LoupixDeck can recognise assignments when the plugin is
+not installed and avoid treating them as shell commands.
+
+Before opening the catalogue pull request, verify that the latest stable GitHub
+Release contains `plugin.json`, the correctly named ZIP, `SHA256SUMS`, and useful
+release notes. Drafts and pre-releases are not offered.
+
+## Manual distribution
+
+Users can still install a compatible ZIP from `Settings > Plugins` or copy its
+contents into the user plugin folder. Such a copy is shown as manually installed
+and is not updated by the Store. This is useful for development and private
+plugins; public Store distribution should use the release workflow above.
