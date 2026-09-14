@@ -549,7 +549,16 @@ public sealed class PluginInstaller : IPluginInstaller
     private static void WritePreservedFiles(string pluginDir, Dictionary<string, byte[]> preserved)
     {
         foreach ((string fileName, byte[] content) in preserved)
-            File.WriteAllBytes(Path.Combine(pluginDir, fileName), content);
+        {
+            string path = Path.Combine(pluginDir, fileName);
+
+            // The store writes a fresh marker into a staged update; the old folder's marker must not
+            // replace it when the staged folder is swapped in.
+            if (fileName == StoreMarkerFileName && File.Exists(path))
+                continue;
+
+            File.WriteAllBytes(path, content);
+        }
     }
 
     private static void CopyDirectory(string sourceDir, string targetDir)
