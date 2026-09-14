@@ -5,8 +5,9 @@ using System.Text.Json;
 namespace LoupixDeck.Services.Updates;
 
 /// <summary>
-/// Reads LoupixDeck's releases from the GitHub API. Drafts, pre-releases and tags that are not a
-/// plain <c>vX.Y.Z</c> are dropped, so only stable releases are ever offered.
+/// Reads releases from the GitHub API — LoupixDeck's own, or those of a plugin repository. Drafts,
+/// pre-releases and tags that are not a plain <c>vX.Y.Z</c> are dropped, so only stable releases
+/// are ever offered.
 /// </summary>
 public sealed class GitHubReleaseClient
 {
@@ -14,12 +15,20 @@ public sealed class GitHubReleaseClient
 
     private static readonly HttpClient Http = CreateClient();
 
-    /// <summary>Stable releases, newest version first.</summary>
+    /// <summary>Stable releases of LoupixDeck, newest version first.</summary>
     /// <exception cref="HttpRequestException">Network failure, rate limit or a non-success status.</exception>
-    public async Task<IReadOnlyList<ReleaseInfo>> GetStableReleasesAsync(CancellationToken cancellationToken)
+    public Task<IReadOnlyList<ReleaseInfo>> GetStableReleasesAsync(CancellationToken cancellationToken)
+    {
+        return GetStableReleasesAsync(Repository, cancellationToken);
+    }
+
+    /// <summary>Stable releases of <paramref name="repository"/> (<c>owner/name</c>), newest version first.</summary>
+    /// <exception cref="HttpRequestException">Network failure, rate limit or a non-success status.</exception>
+    public async Task<IReadOnlyList<ReleaseInfo>> GetStableReleasesAsync(string repository,
+        CancellationToken cancellationToken)
     {
         using HttpResponseMessage response = await Http.GetAsync(
-            $"https://api.github.com/repos/{Repository}/releases?per_page=50", cancellationToken);
+            $"https://api.github.com/repos/{repository}/releases?per_page=50", cancellationToken);
 
         if (response.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.TooManyRequests)
         {
