@@ -31,7 +31,8 @@ public class ConfigService : IConfigService
         new PerDeviceKeySizeMigrator(),
         new StreamControllerXKeySizeMigrator(),
         new ButtonBackgroundToggleMigrator(),
-        new SimpleButtonsPerProfileMigrator()
+        new SimpleButtonsPerProfileMigrator(),
+        new PageIdsMigrator()
     ];
 
     public ConfigService()

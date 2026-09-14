@@ -59,8 +59,10 @@ public partial class LoupedeckConfig : ObservableObject
     /// v12 moved the round LED buttons off the config root into each <see cref="Profile"/>, so a
     /// colour or command set in one profile no longer bleeds into the others; the shared set is
     /// cloned into every existing profile. See <c>SimpleButtonsPerProfileMigrator</c>.
+    /// v13 gave every button page a stable <c>Id</c> and resolved context-rule page indices to those
+    /// ids where the target workspace is known. See <c>PageIdsMigrator</c>.
     /// </summary>
-    public const int CurrentVersion = 12;
+    public const int CurrentVersion = 13;
 
     public int Version { get; set; } = CurrentVersion;
 

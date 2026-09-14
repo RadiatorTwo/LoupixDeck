@@ -38,6 +38,24 @@ public sealed partial class ContextRule
     [ObservableProperty]
     public partial int? RotaryPageIndex { get; set; }
 
+    /// <summary>Touch page to jump to, by stable id (since config v13). Wins over
+    /// <see cref="TouchPageIndex"/> when it resolves inside the resulting workspace.</summary>
+    [ObservableProperty]
+    public partial Guid? TouchPageId { get; set; }
+
+    /// <summary>Rotary page to jump to, by stable id (since config v13). Wins over
+    /// <see cref="RotaryPageIndex"/> when it resolves inside the resulting workspace.</summary>
+    [ObservableProperty]
+    public partial Guid? RotaryPageId { get; set; }
+
+    /// <summary>Left dial-column rotary page to jump to on a side-strip device, by stable id.</summary>
+    [ObservableProperty]
+    public partial Guid? LeftRotaryPageId { get; set; }
+
+    /// <summary>Right dial-column rotary page to jump to on a side-strip device, by stable id.</summary>
+    [ObservableProperty]
+    public partial Guid? RightRotaryPageId { get; set; }
+
     // ── Selection ───────────────────────────────────────────────────────────
     /// <summary>When several rules match the same window, the highest priority wins; ties are
     /// broken by list order (earlier wins), preserving the old first-match-wins behaviour.</summary>

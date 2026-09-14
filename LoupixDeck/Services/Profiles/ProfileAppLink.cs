@@ -139,5 +139,9 @@ public static class ProfileAppLink
         && rule.ActivateWorkspaceId == null
         && rule.TouchPageIndex == null
         && rule.RotaryPageIndex == null
+        && rule.TouchPageId == null
+        && rule.RotaryPageId == null
+        && rule.LeftRotaryPageId == null
+        && rule.RightRotaryPageId == null
         && !rule.ActivateOnProcessStart;
 }
