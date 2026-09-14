@@ -143,9 +143,17 @@ public partial class CommandSegment
     /// so the chip stays in sync with the free-text editor.</summary>
     public string DisplayName => (IsKnown || string.IsNullOrWhiteSpace(ShellText))
         ? _displayName
-        : ShellText;
+        : IsUnavailable ? Loc.Tr("Command_UnavailableChip", ShellText) : ShellText;
 
     public ObservableCollection<CommandParameter> Parameters { get; } = [];
+
+    /// <summary>
+    /// Set when the command belongs to a plugin that is not available: the editor says so instead of
+    /// presenting it as a plain shell command. The command text itself is kept unchanged.
+    /// </summary>
+    public string UnavailableHint { get; private init; }
+
+    public bool IsUnavailable => UnavailableHint != null;
 
     /// <summary>The current raw text of this single segment (e.g. <c>"OBS.SetScene(Scene 1)"</c>).</summary>
     public string Raw { get; private set; }
@@ -165,8 +173,10 @@ public partial class CommandSegment
     /// resolved <see cref="CommandInfo"/> when the command name is a known system
     /// command, or null for a shell command.
     /// </summary>
+    /// <param name="missingOwner">The plugin an unresolved command belongs to, when it belongs to one that is not
+    /// available (removed, not installed, not enabled). The segment then stays free text, as before, but says so.</param>
     public static CommandSegment Create(ICommandBuilder commandBuilder, IDialogService dialogService,
-        CommandInfo info, string raw)
+        CommandInfo info, string raw, Services.PluginStore.PluginCommandOwner missingOwner = null)
     {
         raw = (raw ?? string.Empty).Trim();
         var name = CommandStringParser.GetName(raw);
@@ -186,7 +196,10 @@ public partial class CommandSegment
             var shell = new CommandSegment(commandBuilder, null,
                 CommandStringParser.GetName(shellRaw), shellDisplay, shellRaw)
             {
-                ShellText = shellRaw
+                ShellText = shellRaw,
+                UnavailableHint = fromMenu || missingOwner == null
+                    ? null
+                    : Loc.Tr("Command_PluginUnavailable", missingOwner.DisplayName)
             };
             return shell;
         }
