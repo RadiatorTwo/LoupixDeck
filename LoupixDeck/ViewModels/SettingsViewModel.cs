@@ -603,9 +603,12 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
 
     public bool CanEditProfiles => !IsCompanion;
 
-    /// <summary>Explains on a companion who owns its profiles, workspaces and profile rules.</summary>
-    public string CompanionProfilesHint => IsCompanion
-        ? Loc.Tr("Settings_ProfilesFollowMasterFmt", _companions.GetDisplayName(_companions.GetMasterKey(_device.ScopeKey)))
+    /// <summary>Explains on a companion who owns its profiles, workspaces and profile rules, and that it
+    /// stays where it is while that master is offline.</summary>
+    public string CompanionProfilesHint => CompanionStatusText.MasterName(_companions, _device.ScopeKey) is { } master
+        ? Loc.Tr(CompanionStatusText.IsMasterOffline(_companions, _device.ScopeKey)
+            ? "Settings_ProfilesFollowOfflineMasterFmt"
+            : "Settings_ProfilesFollowMasterFmt", master)
         : string.Empty;
 
     private void OnCompanionGroupsChanged() => Dispatcher.UIThread.Post(RefreshCompanionState);
@@ -623,6 +626,8 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
     {
         if (_companions.IsCompanionOf(_device.ScopeKey, deviceKey))
             Dispatcher.UIThread.Post(RefreshRuleCompanionTargets);
+        else if (string.Equals(_companions.GetMasterKey(_device.ScopeKey), deviceKey, StringComparison.OrdinalIgnoreCase))
+            Dispatcher.UIThread.Post(() => OnPropertyChanged(nameof(CompanionProfilesHint)));
     }
 
     private void RefreshRuleCompanionTargets()

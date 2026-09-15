@@ -52,10 +52,25 @@ public sealed class ProfileHeaderMenuViewModel : ViewModelBase
         // Joining or leaving a group locks or unlocks the whole menu. The coordinator is a root
         // singleton that outlives this view model, as the device provider does.
         _companions.GroupsChanged += () => Avalonia.Threading.Dispatcher.UIThread.Post(Refresh);
+
+        // The lock hint says whether the master is connected.
+        _companions.DeviceOnlineStateChanged += _ => Avalonia.Threading.Dispatcher.UIThread.Post(RefreshCompanionHint);
     }
 
     /// <summary>False on a companion, whose profile and workspace follow its master.</summary>
     public bool CanSwitchContext => !_companions.IsCompanion(_device.ScopeKey);
+
+    /// <summary>True on a companion: the header then shows whom it follows.</summary>
+    public bool IsCompanionLocked => !CanSwitchContext;
+
+    /// <summary>Scope key of the master this companion follows, or null.</summary>
+    public string MasterKey => _companions.GetMasterKey(_device.ScopeKey);
+
+    /// <summary>"Follows Loupedeck Live S", or null when this device is not a companion.</summary>
+    public string FollowsMasterText => CompanionStatusText.FollowsMaster(_companions, _device.ScopeKey);
+
+    /// <summary>Tooltip of the locked selectors and the header hint; null (no tooltip) when not locked.</summary>
+    public string CompanionLockExplanation => CompanionStatusText.LockExplanation(_companions, _device.ScopeKey);
 
     public IAsyncRelayCommand NewProfileCommand => field ??= Relay.Create(NewProfile, () => CanSwitchContext);
     public IAsyncRelayCommand RenameProfileCommand => field ??= Relay.Create(RenameProfile,
@@ -88,6 +103,9 @@ public sealed class ProfileHeaderMenuViewModel : ViewModelBase
     public void Refresh()
     {
         OnPropertyChanged(nameof(CanSwitchContext));
+        OnPropertyChanged(nameof(IsCompanionLocked));
+        OnPropertyChanged(nameof(MasterKey));
+        RefreshCompanionHint();
         NewProfileCommand.NotifyCanExecuteChanged();
         RenameProfileCommand.NotifyCanExecuteChanged();
         DeleteProfileCommand.NotifyCanExecuteChanged();
@@ -96,6 +114,12 @@ public sealed class ProfileHeaderMenuViewModel : ViewModelBase
         DeleteWorkspaceCommand.NotifyCanExecuteChanged();
         LinkApplicationCommand.NotifyCanExecuteChanged();
         UnlinkApplicationCommand.NotifyCanExecuteChanged();
+    }
+
+    private void RefreshCompanionHint()
+    {
+        OnPropertyChanged(nameof(FollowsMasterText));
+        OnPropertyChanged(nameof(CompanionLockExplanation));
     }
 
     private async Task NewProfile()

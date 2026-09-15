@@ -281,6 +281,30 @@
         <Style Selector="Button.SwitcherMenu:pointerover /template/ ContentPresenter#PART_ContentPresenter">
             <Setter Property="Background" Value="{DynamicResource AppControlBackgroundHover}" />
         </Style>
+        <!-- The "Follows <master>" hint of a companion: a small text line under the device selector,
+             so the bar only grows in height. Clicking it selects the master. -->
+        <Style Selector="Button.CompanionHint">
+            <!-- Left inset matches ComboBox.Switcher, so the icon lines up with the device name. -->
+            <Setter Property="Padding" Value="8,1,4,0" />
+            <Setter Property="MinHeight" Value="0" />
+            <Setter Property="HorizontalAlignment" Value="Left" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="Foreground" Value="{DynamicResource CompanionHintForeground}" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style Selector="Button.CompanionHint:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="{DynamicResource AppTextPrimary}" />
+        </Style>
+        <Style Selector="Button.CompanionHint:pressed /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+        <Style Selector="Button.CompanionHint:disabled /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="{DynamicResource CompanionHintForeground}" />
+        </Style>
         <!-- Small, clean, uniform dropdown chevron in a muted colour, held off the right edge. -->
         <Style Selector="ComboBox.Switcher /template/ PathIcon#DropDownGlyph">
             <Setter Property="Width" Value="8" />
@@ -369,6 +393,20 @@
                                     </DataTemplate>
                                 </ComboBox.ItemTemplate>
                             </ComboBox>
+                            <!-- Companion: whom the locked profile and workspace follow. Click selects the master. -->
+                            <Button Classes="CompanionHint"
+                                    IsVisible="{Binding SelectedDevice.ProfileMenu.IsCompanionLocked, FallbackValue=False}"
+                                    Command="{Binding SelectDeviceCommand}"
+                                    CommandParameter="{Binding SelectedDevice.ProfileMenu.MasterKey}"
+                                    ToolTip.Tip="{Binding SelectedDevice.ProfileMenu.CompanionLockExplanation}"
+                                    ToolTip.ShowOnDisabled="True">
+                                <StackPanel Orientation="Horizontal" Spacing="4">
+                                    <!-- mdi-link-variant -->
+                                    <TextBlock FontFamily="{DynamicResource MdiFont}" Text="&#xF0339;" VerticalAlignment="Center" />
+                                    <TextBlock Text="{Binding SelectedDevice.ProfileMenu.FollowsMasterText}" VerticalAlignment="Center"
+                                               TextTrimming="CharacterEllipsis" MaxWidth="240" />
+                                </StackPanel>
+                            </Button>
                         </StackPanel>
                     </Border>
 
@@ -381,6 +419,8 @@
                             <StackPanel Orientation="Horizontal" Spacing="2">
                                 <ComboBox Classes="Switcher"
                                           IsEnabled="{Binding SelectedDevice.ProfileMenu.CanSwitchContext}"
+                                          ToolTip.Tip="{Binding SelectedDevice.ProfileMenu.CompanionLockExplanation}"
+                                          ToolTip.ShowOnDisabled="True"
                                           ItemsSource="{Binding SelectedDevice.Profiles}"
                                           SelectedItem="{Binding SelectedDevice.SelectedProfile}">
                                     <ComboBox.ItemTemplate>
@@ -425,6 +465,8 @@
                             <StackPanel Orientation="Horizontal" Spacing="2">
                                 <ComboBox Classes="Switcher"
                                           IsEnabled="{Binding SelectedDevice.ProfileMenu.CanSwitchContext}"
+                                          ToolTip.Tip="{Binding SelectedDevice.ProfileMenu.CompanionLockExplanation}"
+                                          ToolTip.ShowOnDisabled="True"
                                           ItemsSource="{Binding SelectedDevice.Workspaces}"
                                           SelectedItem="{Binding SelectedDevice.SelectedWorkspace}">
                                     <ComboBox.ItemTemplate>

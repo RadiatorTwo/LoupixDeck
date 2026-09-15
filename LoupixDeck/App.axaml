@@ -76,6 +76,8 @@
                     <SolidColorBrush x:Key="AppTextPrimary" Color="#E4E4E4" />
                     <SolidColorBrush x:Key="AppTextSecondary" Color="#9A9A9A" />
                     <SolidColorBrush x:Key="AppTextMuted" Color="#707070" />
+                    <!-- Companion hint under the device selector ("Follows <master>"). -->
+                    <SolidColorBrush x:Key="CompanionHintForeground" Color="#D9A05B" />
                     <!-- Simulated-device chrome (the dark hardware in Dark mode). -->
                     <SolidColorBrush x:Key="DeviceScreenBackground" Color="#0F0F0F" />
                     <SolidColorBrush x:Key="DeviceButtonBorder" Color="#5A5A5A" />
@@ -118,6 +120,8 @@
                     <SolidColorBrush x:Key="AppTextPrimary" Color="#1C1C1C" />
                     <SolidColorBrush x:Key="AppTextSecondary" Color="#5C5C5C" />
                     <SolidColorBrush x:Key="AppTextMuted" Color="#8A8A8A" />
+                    <!-- Companion hint under the device selector ("Follows <master>"). -->
+                    <SolidColorBrush x:Key="CompanionHintForeground" Color="#A8641F" />
                     <!-- Simulated-device chrome rendered as light hardware in Light mode. -->
                     <SolidColorBrush x:Key="DeviceScreenBackground" Color="#C8C8C8" />
                     <SolidColorBrush x:Key="DeviceButtonBorder" Color="#A8A8A8" />

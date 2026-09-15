@@ -23,7 +23,7 @@ public sealed class CommandLockService(ICompanionCoordinator coordinator, Resolv
         string name = CommandStringParser.GetName(command);
 
         if (CompanionCommandPolicy.IsContextSwitch(name) && coordinator.IsCompanion(device.ScopeKey))
-            return Loc.Tr("Command_LockedOnCompanion");
+            return Loc.Tr("Command_LockedOnCompanionFmt", CompanionStatusText.MasterName(coordinator, device.ScopeKey));
 
         if (!CompanionCommandPolicy.IsCompanionCommand(name))
             return null;
