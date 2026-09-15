@@ -100,6 +100,7 @@ public sealed class ProfileHeaderMenuViewModel : ViewModelBase
 
     // A companion's profiles and workspaces mirror its master's, so it cannot import them.
     public IAsyncRelayCommand ImportPackageCommand => field ??= Relay.Create(ImportPackage, () => CanEditStructure);
+    public IAsyncRelayCommand ImportLoupedeckCommand => field ??= Relay.Create(ImportLoupedeck, () => CanEditStructure);
 
     /// <summary>Linking needs foreground-app detection, which exists only on Windows and Linux.</summary>
     public bool IsAppLinkingSupported => OperatingSystem.IsWindows() || OperatingSystem.IsLinux();
@@ -134,6 +135,7 @@ public sealed class ProfileHeaderMenuViewModel : ViewModelBase
         ExportProfileCommand.NotifyCanExecuteChanged();
         ExportWorkspaceCommand.NotifyCanExecuteChanged();
         ImportPackageCommand.NotifyCanExecuteChanged();
+        ImportLoupedeckCommand.NotifyCanExecuteChanged();
     }
 
     /// <summary>
@@ -154,6 +156,20 @@ public sealed class ProfileHeaderMenuViewModel : ViewModelBase
         string message = string.Join(Environment.NewLine, [result.Message, .. result.Warnings]);
         await _dialogService.ShowDialogAsync<ConfirmDialogViewModel, DialogResult>(vm =>
             vm.Configure(message, title: Loc.Tr("MainWindow_ImportPackageResultTitle"),
+                confirmText: Loc.Tr("Confirm_Ok"), showCancel: false));
+    }
+
+    /// <summary>Opens the Loupedeck import preview and reports the outcome in a notice.</summary>
+    private async Task ImportLoupedeck()
+    {
+        string message = await LoupedeckImportViewModel.ShowAsync(_dialogService);
+        if (message == null)
+            return;
+
+        Refresh();
+
+        await _dialogService.ShowDialogAsync<ConfirmDialogViewModel, DialogResult>(vm =>
+            vm.Configure(message, title: Loc.Tr("LoupedeckImport_ResultTitle"),
                 confirmText: Loc.Tr("Confirm_Ok"), showCancel: false));
     }
 

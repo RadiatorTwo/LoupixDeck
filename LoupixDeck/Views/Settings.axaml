@@ -362,6 +362,8 @@
                         <Button Content="{loc:Tr Settings_AddProfile}" Command="{Binding AddProfileCommand}" />
                         <Button Content="{loc:Tr Settings_ImportPackage}" ToolTip.Tip="{loc:Tr Settings_ImportALoupixprofilePackage}"
                                 Command="{Binding ImportPackageCommand}" />
+                        <Button Content="{loc:Tr Settings_ImportLoupedeck}" ToolTip.Tip="{loc:Tr Settings_ImportLoupedeckHint}"
+                                Command="{Binding ImportLoupedeckCommand}" />
                     </StackPanel>
 
                     <!-- Result of the last export/import, including any non-fatal notes. -->
