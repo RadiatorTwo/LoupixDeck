@@ -43,6 +43,18 @@ public interface ICompanionNavigation
     /// <summary>Called by the context sync after a companion followed its master. Applies a pending
     /// arrival target for the workspace it now shows.</summary>
     Task EndFollow(DeviceHost companionHost);
+
+    /// <summary>
+    /// Page follow: shows the master's page number <paramref name="index"/> (0-based) on a companion
+    /// that already shows the master's workspace <paramref name="workspaceId"/>, with the usual page
+    /// transition. Skipped while the companion still follows a workspace switch; the context sync
+    /// aligns it once it arrived. A number the companion does not have leaves it where it is.
+    /// </summary>
+    Task<bool> FollowPageIndex(string masterKey, string companionKey, Guid workspaceId, CompanionPageKind kind, int index);
+
+    /// <summary>Page follow after a workspace switch: shows the master's current page numbers on a
+    /// companion that just arrived, without a transition. UI thread.</summary>
+    Task AlignPagesWithMaster(DeviceHost masterHost, DeviceHost companionHost, CompanionPageFollowMode mode);
 }
 
 public sealed class CompanionNavigationService : ICompanionNavigation
@@ -133,6 +145,97 @@ public sealed class CompanionNavigationService : ICompanionNavigation
     }
 
     private bool IsFollowing(string companionKey) => _following.GetValueOrDefault(companionKey) > 0;
+
+    // ── Page follow ─────────────────────────────────────────────────────────
+
+    public Task<bool> FollowPageIndex(string masterKey, string companionKey, Guid workspaceId, CompanionPageKind kind, int index) =>
+        OnUiThread(async () =>
+        {
+            if (!_coordinator.IsCompanionOf(masterKey, companionKey) || IsFollowing(companionKey)) return false;
+
+            DeviceHost host = _coordinator.ResolveHost(companionKey);
+            if (!CanDrive(host) || host.Controller.Config.ActiveWorkspaceId != workspaceId) return false;
+
+            return await ApplyIndex(host.Controller, kind, index, animate: true);
+        });
+
+    public async Task AlignPagesWithMaster(DeviceHost masterHost, DeviceHost companionHost, CompanionPageFollowMode mode)
+    {
+        if (mode == CompanionPageFollowMode.Off || masterHost == null || !CanDrive(companionHost)) return;
+
+        IPageManager master = masterHost.Controller.PageManager;
+        if (companionHost.Controller.Config.ActiveWorkspaceId != masterHost.Controller.Config.ActiveWorkspaceId) return;
+
+        await OnUiThread(async () =>
+        {
+            IDeviceController companion = companionHost.Controller;
+            bool applied = await ApplyIndex(companion, CompanionPageKind.Touch, master.CurrentTouchPageIndex, animate: false);
+            if (mode != CompanionPageFollowMode.TouchAndRotaryPages) return applied;
+
+            if (master.HasIndependentRotarySides)
+            {
+                applied |= await ApplyIndex(companion, CompanionPageKind.RotaryLeft, master.GetCurrentRotaryPageIndex(RotarySide.Left), animate: false);
+                applied |= await ApplyIndex(companion, CompanionPageKind.RotaryRight, master.GetCurrentRotaryPageIndex(RotarySide.Right), animate: false);
+            }
+            else
+            {
+                applied |= await ApplyIndex(companion, CompanionPageKind.Rotary, master.CurrentRotaryPageIndex, animate: false);
+            }
+            return applied;
+        });
+    }
+
+    /// <summary>
+    /// Shows page number <paramref name="index"/> of one page list on the companion. Rotary lists are
+    /// mapped across device types: a single-column page drives both columns of a side-strip companion,
+    /// and a left column page drives the single column of a companion without side strips (the right
+    /// column has no counterpart there).
+    /// </summary>
+    private static async Task<bool> ApplyIndex(IDeviceController controller, CompanionPageKind kind, int index, bool animate)
+    {
+        IPageManager pages = controller.PageManager;
+        bool sides = pages.HasIndependentRotarySides;
+
+        switch (kind)
+        {
+            case CompanionPageKind.Touch:
+                if (index < 0 || index >= pages.TouchButtonPages.Count) return false;
+                if (index != pages.CurrentTouchPageIndex)
+                {
+                    if (animate) controller.AnimateGotoTouchPage(index);
+                    else await pages.ApplyTouchPage(index);
+                }
+                return true;
+
+            case CompanionPageKind.Rotary when sides:
+                return ApplyRotaryIndex(controller, RotarySide.Left, index, animate) |
+                       ApplyRotaryIndex(controller, RotarySide.Right, index, animate);
+
+            case CompanionPageKind.Rotary or CompanionPageKind.RotaryLeft when !sides:
+                return ApplyRotaryIndex(controller, RotarySide.Both, index, animate);
+
+            case CompanionPageKind.RotaryLeft:
+                return ApplyRotaryIndex(controller, RotarySide.Left, index, animate);
+
+            case CompanionPageKind.RotaryRight when sides:
+                return ApplyRotaryIndex(controller, RotarySide.Right, index, animate);
+
+            default:
+                return false;
+        }
+    }
+
+    private static bool ApplyRotaryIndex(IDeviceController controller, RotarySide side, int index, bool animate)
+    {
+        IPageManager pages = controller.PageManager;
+        if (index < 0 || index >= pages.GetRotaryPages(side).Count) return false;
+        if (index == pages.GetCurrentRotaryPageIndex(side)) return true;
+
+        if (!animate) pages.ApplyRotaryPage(side, index);
+        else if (side == RotarySide.Both) controller.AnimateGotoRotaryPage(index);
+        else controller.AnimateGotoRotaryPageForSide(side, index);
+        return true;
+    }
 
     // ── Helpers ─────────────────────────────────────────────────────────────
 

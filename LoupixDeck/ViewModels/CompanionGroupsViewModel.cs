@@ -82,6 +82,13 @@ public sealed record CompanionDeviceOption(string Key, string DisplayName, bool 
     public string StatusText => Loc.Tr(IsOnline ? "Companion_Connected" : "Companion_Offline");
 }
 
+/// <summary>One entry of a group's page follow dropdown. Carries the translation key and exposes the live
+/// <see cref="TranslatedString"/>, so the open dropdown follows a language change.</summary>
+public sealed record CompanionPageFollowOption(CompanionPageFollowMode Value, string LabelKey)
+{
+    public TranslatedString Label => LocalizationManager.Instance.Entry(LabelKey);
+}
+
 /// <summary>One companion group in the editor.</summary>
 public sealed partial class CompanionGroupRow : ObservableObject
 {
@@ -150,6 +157,25 @@ public sealed partial class CompanionGroupRow : ObservableObject
     }
 
     public ObservableCollection<CompanionDeviceOption> Companions { get; } = new();
+
+    /// <summary>The page follow modes, in the order they are offered.</summary>
+    public IReadOnlyList<CompanionPageFollowOption> PageFollowOptions { get; } =
+    [
+        new(CompanionPageFollowMode.Off, "Companions_PageFollowOff"),
+        new(CompanionPageFollowMode.TouchPages, "Companions_PageFollowTouch"),
+        new(CompanionPageFollowMode.TouchAndRotaryPages, "Companions_PageFollowTouchAndRotary")
+    ];
+
+    public CompanionPageFollowOption SelectedPageFollow
+    {
+        get => PageFollowOptions.FirstOrDefault(o => o.Value == Group.PageFollow) ?? PageFollowOptions[0];
+        set
+        {
+            if (value == null || value.Value == Group.PageFollow) return;
+            _owner.Coordinator.SetPageFollow(Group.Id, value.Value);
+            OnPropertyChanged();
+        }
+    }
 
     public ObservableCollection<CompanionDeviceOption> CompanionCandidates { get; } = new();
 

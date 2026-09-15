@@ -237,6 +237,25 @@ public sealed class CompanionCoordinator : ICompanionCoordinator
         Persist();
     }
 
+    public void SetPageFollow(Guid groupId, CompanionPageFollowMode mode)
+    {
+        lock (_gate)
+        {
+            CompanionGroup group = _config.Groups.FirstOrDefault(g => g.Id == groupId);
+            if (group == null || group.PageFollow == mode) return;
+            group.PageFollow = mode;
+        }
+        Persist();
+    }
+
+    public CompanionPageFollowMode GetPageFollow(string masterKey)
+    {
+        if (!IsMaster(masterKey)) return CompanionPageFollowMode.Off;
+
+        CompanionPageFollowMode mode = FindGroup(masterKey)?.PageFollow ?? CompanionPageFollowMode.Off;
+        return Enum.IsDefined(mode) ? mode : CompanionPageFollowMode.Off;
+    }
+
     public bool TrySetMaster(Guid groupId, string deviceKey, out string error)
     {
         error = null;

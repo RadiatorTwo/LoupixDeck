@@ -100,6 +100,13 @@ public interface ICompanionCoordinator
     void RemoveGroup(Guid groupId);
     void RenameGroup(Guid groupId, string name);
 
+    /// <summary>Sets whether the group's companions page along with its master.</summary>
+    void SetPageFollow(Guid groupId, CompanionPageFollowMode mode);
+
+    /// <summary>The page follow mode of the active group the master leads; <see cref="CompanionPageFollowMode.Off"/>
+    /// for a device that is not an active master or an unknown stored value.</summary>
+    CompanionPageFollowMode GetPageFollow(string masterKey);
+
     /// <summary>Makes the device the group's master. Refused (false + reason) when the device
     /// already belongs to another group or is a companion of this one.</summary>
     bool TrySetMaster(Guid groupId, string deviceKey, out string error);

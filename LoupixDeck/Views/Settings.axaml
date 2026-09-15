@@ -532,6 +532,22 @@
                                                 </Grid>
                                             </StackPanel>
 
+                                            <!-- Page follow -->
+                                            <StackPanel Spacing="4">
+                                                <TextBlock Classes="group-label" Text="{loc:Tr Companions_PageFollow}" />
+                                                <ComboBox HorizontalAlignment="Stretch"
+                                                          ItemsSource="{Binding PageFollowOptions}"
+                                                          SelectedItem="{Binding SelectedPageFollow, Mode=TwoWay}">
+                                                    <ComboBox.ItemTemplate>
+                                                        <DataTemplate DataType="vm:CompanionPageFollowOption">
+                                                            <TextBlock Text="{Binding Label.Value}" />
+                                                        </DataTemplate>
+                                                    </ComboBox.ItemTemplate>
+                                                </ComboBox>
+                                                <TextBlock Classes="hint" FontSize="12" TextWrapping="Wrap"
+                                                           Text="{loc:Tr Companions_PageFollowHint}" />
+                                            </StackPanel>
+
                                             <TextBlock IsVisible="{Binding HasError}" Text="{Binding Error}" TextWrapping="Wrap"
                                                        Foreground="#E07A7A" />
                                         </StackPanel>

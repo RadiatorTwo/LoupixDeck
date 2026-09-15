@@ -1,5 +1,6 @@
 using Avalonia.Threading;
 using LoupixDeck.Models;
+using LoupixDeck.Models.Companion;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace LoupixDeck.Services.Companion;
@@ -27,8 +28,8 @@ public sealed class CompanionContextSyncService : ICompanionContextSync
     private readonly IConfigService _configService;
     private readonly ICompanionNavigation _navigation;
 
-    // Each running host's ActiveWorkspaceChanged handler, so a removed host is unhooked exactly once.
-    private readonly Dictionary<DeviceHost, (IWorkspaceActivationService Activation, Action<Workspace> Handler)> _activationHandlers = new();
+    // Each running host's event handlers, so a removed host is unhooked exactly once.
+    private readonly Dictionary<DeviceHost, HostHooks> _hostHooks = new();
 
     // Masters whose config was saved since the last debounced sync.
     private readonly HashSet<string> _savedMasters = new(StringComparer.OrdinalIgnoreCase);
@@ -61,29 +62,54 @@ public sealed class CompanionContextSyncService : ICompanionContextSync
 
     // ── Triggers ────────────────────────────────────────────────────────────
 
-    private void OnGroupsChanged() => OnUiThread(SyncAllDevices);
+    private void OnGroupsChanged() => OnUiThread(() =>
+    {
+        SyncAllDevices();
+
+        // Page follow may just have been turned on: bring the companions to their master's pages.
+        foreach (DeviceHost host in _registry.Hosts)
+        {
+            string key = host.Device.ScopeKey;
+            if (_coordinator.IsReady(host) && _coordinator.GetPageFollow(key) != CompanionPageFollowMode.Off)
+                FollowCompanionsOf(host);
+        }
+    });
 
     private void OnHostAdded(DeviceHost host)
     {
-        IWorkspaceActivationService activation = host.Provider.GetRequiredService<IWorkspaceActivationService>();
-        Action<Workspace> handler = _ => OnActiveWorkspaceChanged(host);
-        lock (_activationHandlers)
+        HostHooks hooks = new(
+            host.Provider.GetRequiredService<IWorkspaceActivationService>(),
+            _ => OnActiveWorkspaceChanged(host),
+            host.Controller.PageManager,
+            (_, index) => OnMasterPageChanged(host, CompanionPageKind.Touch, index),
+            (side, _, index) => OnMasterPageChanged(host, KindOf(side), index));
+        lock (_hostHooks)
         {
-            if (_activationHandlers.ContainsKey(host)) return;
-            _activationHandlers[host] = (activation, handler);
+            if (!_hostHooks.TryAdd(host, hooks)) return;
         }
-        activation.ActiveWorkspaceChanged += handler;
+        hooks.Activation.ActiveWorkspaceChanged += hooks.WorkspaceChanged;
+        hooks.Pages.OnTouchPageChanged += hooks.TouchPageChanged;
+        hooks.Pages.OnRotaryPageChanged += hooks.RotaryPageChanged;
     }
 
     private void OnHostRemoved(DeviceHost host)
     {
-        (IWorkspaceActivationService Activation, Action<Workspace> Handler) entry;
-        lock (_activationHandlers)
+        HostHooks hooks;
+        lock (_hostHooks)
         {
-            if (!_activationHandlers.Remove(host, out entry)) return;
+            if (!_hostHooks.Remove(host, out hooks)) return;
         }
-        entry.Activation.ActiveWorkspaceChanged -= entry.Handler;
+        hooks.Activation.ActiveWorkspaceChanged -= hooks.WorkspaceChanged;
+        hooks.Pages.OnTouchPageChanged -= hooks.TouchPageChanged;
+        hooks.Pages.OnRotaryPageChanged -= hooks.RotaryPageChanged;
     }
+
+    private sealed record HostHooks(
+        IWorkspaceActivationService Activation,
+        Action<Workspace> WorkspaceChanged,
+        IPageManager Pages,
+        Action<int, int> TouchPageChanged,
+        Action<RotarySide, int, int> RotaryPageChanged);
 
     /// <summary>A master switched profile or workspace (a profile switch raises this too): its
     /// running companions follow. On a companion this is the echo of its own follow and is ignored.</summary>
@@ -92,6 +118,31 @@ public sealed class CompanionContextSyncService : ICompanionContextSync
         if (_coordinator.IsMaster(host.Device.ScopeKey))
             FollowCompanionsOf(host);
     });
+
+    /// <summary>
+    /// A master showed another page: with page follow on, its running companions that already show
+    /// the same workspace show the same page number. During a workspace switch they are still
+    /// following and are aligned once they arrived (see <see cref="FollowAsync"/>).
+    /// </summary>
+    private void OnMasterPageChanged(DeviceHost host, CompanionPageKind kind, int index) => OnUiThread(() =>
+    {
+        string masterKey = host.Device.ScopeKey;
+        CompanionPageFollowMode mode = _coordinator.GetPageFollow(masterKey);
+        if (mode == CompanionPageFollowMode.Off ||
+            (kind != CompanionPageKind.Touch && mode != CompanionPageFollowMode.TouchAndRotaryPages))
+            return;
+
+        Guid workspaceId = host.Controller.Config.ActiveWorkspaceId;
+        foreach (string companionKey in _coordinator.GetCompanionKeys(masterKey))
+            _ = _navigation.FollowPageIndex(masterKey, companionKey, workspaceId, kind, index);
+    });
+
+    private static CompanionPageKind KindOf(RotarySide side) => side switch
+    {
+        RotarySide.Left => CompanionPageKind.RotaryLeft,
+        RotarySide.Right => CompanionPageKind.RotaryRight,
+        _ => CompanionPageKind.Rotary
+    };
 
     /// <summary>A device finished starting or reconnected: a companion takes its master's state, a
     /// master hands its state to its companions.</summary>
@@ -172,7 +223,8 @@ public sealed class CompanionContextSyncService : ICompanionContextSync
 
     /// <summary>Moves a running companion to its master's active profile and workspace. While the
     /// master is not running the companion stays where it is, as long as that still exists.
-    /// A page target queued for the workspace it arrives in opens afterwards.</summary>
+    /// With page follow on it then shows the master's page numbers, and a page target queued for the
+    /// workspace it arrives in opens afterwards, so an explicit target wins.</summary>
     private async Task FollowAsync(DeviceHost companionHost, string masterKey)
     {
         // Runs synchronously up to the first await, so a target queued right after the master's
@@ -187,6 +239,7 @@ public sealed class CompanionContextSyncService : ICompanionContextSync
             {
                 LoupedeckConfig master = masterHost.Provider.GetRequiredService<LoupedeckConfig>();
                 await activation.FollowMaster(master.ActiveProfileId, master.ActiveWorkspaceId);
+                await _navigation.AlignPagesWithMaster(masterHost, companionHost, _coordinator.GetPageFollow(masterKey));
             }
             else
             {

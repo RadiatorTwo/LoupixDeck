@@ -1,3 +1,5 @@
+using Newtonsoft.Json;
+
 namespace LoupixDeck.Models.Companion;
 
 /// <summary>
@@ -17,4 +19,9 @@ public sealed class CompanionGroup
 
     /// <summary>Scope keys of the companion devices, in display order.</summary>
     public List<string> CompanionDeviceKeys { get; set; } = [];
+
+    /// <summary>Whether the companions page along with the master. Omitted while off, so files
+    /// written before it load and save unchanged.</summary>
+    [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
+    public CompanionPageFollowMode PageFollow { get; set; }
 }
