@@ -296,11 +296,9 @@ public partial class App : Application
             // Every connect raises the event, not just the first — a reconnect must not add
             // the device a second time.
             if (shell.Devices.Contains(vm)) return;
+            // Add() selects the first device to appear and nothing else: a device that connects
+            // later, the primary included, joins the switcher without taking the view over.
             shell.Add(vm);
-            // Add() selects the first device by itself; the primary takes the selection back
-            // when it arrives after a secondary.
-            if (host.IsPrimary)
-                shell.SelectedDevice = vm;
         }
     }
 
