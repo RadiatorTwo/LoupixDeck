@@ -163,6 +163,14 @@ public partial class CommandPickerViewModel : ViewModelBase
     private void Rebuild()
     {
         var previousCategory = SelectedCategory?.Title;
+        MenuEntry previousCommand = SelectedCommand?.Entry;
+
+        // Plugin groups fill in asynchronously after the picker opens, and each of them lands here.
+        // The menu entries survive that (groups are merged, not replaced), so the expand state is
+        // keyed by entry and put back — otherwise a group the user just opened snaps shut.
+        Dictionary<MenuEntry, bool> expansion = new(ReferenceEqualityComparer.Instance);
+        foreach (var category in Sections.SelectMany(s => s.Categories))
+            CollectExpansion(category.DetailNodes, expansion);
 
         UnsubscribeGroups();
         Sections.Clear();
@@ -197,10 +205,61 @@ public partial class CommandPickerViewModel : ViewModelBase
                 Sections.Add(sectionVm);
         }
 
+        foreach (var category in Sections.SelectMany(s => s.Categories))
+            ApplyExpansion(category.DetailNodes, expansion);
+
         RestoreSelection(previousCategory);
+        RestoreCommand(previousCommand);
 
         if (IsSearching)
             ApplyFilter();
+    }
+
+    private static void CollectExpansion(IEnumerable<object> nodes, Dictionary<MenuEntry, bool> into)
+    {
+        foreach (var node in nodes.OfType<CommandGroupNodeViewModel>())
+        {
+            into[node.Group] = node.IsExpanded;
+            CollectExpansion(node.Children, into);
+        }
+    }
+
+    private static void ApplyExpansion(IEnumerable<object> nodes, Dictionary<MenuEntry, bool> expansion)
+    {
+        foreach (var node in nodes.OfType<CommandGroupNodeViewModel>())
+        {
+            if (expansion.TryGetValue(node.Group, out bool expanded))
+                node.IsExpanded = expanded;
+            ApplyExpansion(node.Children, expansion);
+        }
+    }
+
+    /// <summary>Re-highlights the command that was selected before a rebuild, if it is still in the
+    /// selected category.</summary>
+    private void RestoreCommand(MenuEntry entry)
+    {
+        if (entry == null || SelectedCategory == null)
+            return;
+
+        CommandRowViewModel row = FindRow(SelectedCategory.DetailNodes, entry);
+        if (row != null)
+            SelectCommand(row);
+    }
+
+    private static CommandRowViewModel FindRow(IEnumerable<object> nodes, MenuEntry entry)
+    {
+        foreach (object node in nodes)
+        {
+            switch (node)
+            {
+                case CommandRowViewModel row when ReferenceEquals(row.Entry, entry):
+                    return row;
+                case CommandGroupNodeViewModel group when FindRow(group.Children, entry) is { } nested:
+                    return nested;
+            }
+        }
+
+        return null;
     }
 
     private void RestoreSelection(string categoryTitle)
