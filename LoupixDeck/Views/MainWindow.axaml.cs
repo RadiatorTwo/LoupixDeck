@@ -31,6 +31,7 @@ public partial class MainWindow : Window
     private MainShellViewModel _shell;
     private DeviceDragDrop _dragDrop;
     private ActionPanelWindow _panelWindow;
+    private FolderPanelWindow _folderPanelWindow;
 
     public MainWindow()
     {
@@ -90,6 +91,7 @@ public partial class MainWindow : Window
         // before there is anything for it to sit next to.
         UpdateDeviceLayout();
         TrackActionPanel();
+        TrackFolderPanel();
     }
 
     /// <summary>
@@ -109,6 +111,7 @@ public partial class MainWindow : Window
 
         UpdateDeviceLayout();
         TrackActionPanel();
+        TrackFolderPanel();
     }
 
     // The apps/actions panel whose open state we currently follow, so it can be unhooked on a
@@ -180,20 +183,82 @@ public partial class MainWindow : Window
         _panelWindow.FollowOwner();
     }
 
-    /// <summary>Hides the panel with its owner, for the tray, and brings it back with it.</summary>
+    /// <summary>Hides the panels with their owner, for the tray, and brings them back with it.</summary>
     private void SyncPanelVisibility()
     {
-        if (_panelWindow == null) return;
+        if (_panelWindow != null)
+        {
+            if (IsVisible && _panel?.IsOpen == true)
+            {
+                _panelWindow.Show(this);
+                _panelWindow.FollowOwner();
+            }
+            else
+            {
+                _panelWindow.Hide();
+            }
+        }
 
-        if (IsVisible && _panel?.IsOpen == true)
+        if (_folderPanelWindow != null)
         {
-            _panelWindow.Show(this);
-            _panelWindow.FollowOwner();
+            if (IsVisible && _folderPanel?.IsOpen == true)
+            {
+                _folderPanelWindow.Show(this);
+                _folderPanelWindow.FollowOwner();
+            }
+            else
+            {
+                _folderPanelWindow.Hide();
+            }
         }
-        else
+    }
+
+    // The custom folder panel (issue #249) whose open state we follow; same rules as the apps panel.
+    private ViewModels.FolderPanel.FolderPanelViewModel _folderPanel;
+
+    private void TrackFolderPanel()
+    {
+        ViewModels.FolderPanel.FolderPanelViewModel panel = _shell?.SelectedDevice?.FolderPanel;
+        if (panel == null || ReferenceEquals(panel, _folderPanel)) return;
+
+        if (_folderPanel != null)
         {
-            _panelWindow.Hide();
+            _folderPanel.PropertyChanged -= OnFolderPanelPropertyChanged;
+
+            // Whether the panel is showing is a window-level choice, carried across a device switch.
+            panel.IsOpen = _folderPanel.IsOpen;
         }
+
+        _folderPanel = panel;
+        _folderPanel.PropertyChanged += OnFolderPanelPropertyChanged;
+
+        ApplyFolderPanelState();
+    }
+
+    private void OnFolderPanelPropertyChanged(object sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(ViewModels.FolderPanel.FolderPanelViewModel.IsOpen))
+            ApplyFolderPanelState();
+    }
+
+    /// <summary>Shows or hides the folder panel, its own window flanged to this one's right edge.</summary>
+    private void ApplyFolderPanelState()
+    {
+        if (_folderPanel?.IsOpen != true)
+        {
+            _folderPanelWindow?.Hide();
+            return;
+        }
+
+        if (_folderPanelWindow == null)
+        {
+            _folderPanelWindow = new FolderPanelWindow();
+            _folderPanelWindow.Attach(this, _dragDrop);
+        }
+
+        _folderPanelWindow.DataContext = _folderPanel;
+        _folderPanelWindow.Show(this);
+        _folderPanelWindow.FollowOwner();
     }
 
     /// <summary>Swap the DeviceLayoutHost to the selected device's layout, with that

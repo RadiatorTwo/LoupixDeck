@@ -270,8 +270,10 @@ public partial class MainWindowViewModel : ViewModelBase
         LoupixDeck.Registry.DeviceGeometry geometry,
         Services.Companion.ICompanionCoordinator companions,
         IDeviceHostRegistry hostRegistry,
-        Services.Folders.ICustomFolderService folders)
+        Services.Folders.ICustomFolderService folders,
+        ViewModels.FolderPanel.FolderPanelViewModel folderPanel)
     {
+        FolderPanel = folderPanel;
         LoupedeckController = loupedeck;
         _folders = folders;
         _companions = companions;
@@ -864,6 +866,9 @@ public partial class MainWindowViewModel : ViewModelBase
 
     /// <summary>The side panel listing the installed applications and the command catalogue.</summary>
     public ViewModels.ActionPanel.ActionPanelViewModel ActionPanel { get; }
+
+    /// <summary>The panel on the right managing the active workspace's custom folders (issue #249).</summary>
+    public ViewModels.FolderPanel.FolderPanelViewModel FolderPanel { get; }
 
     /// <summary>True when a panel row can be dropped on this button, previewing the drop chrome
     /// before the pointer is released.</summary>

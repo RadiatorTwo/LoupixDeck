@@ -1,0 +1,177 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:loc="using:LoupixDeck.Localization"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:fp="using:LoupixDeck.ViewModels.FolderPanel"
+        mc:Ignorable="d"
+        x:Class="LoupixDeck.Views.FolderPanelWindow"
+        x:DataType="fp:FolderPanelViewModel"
+        Title="{loc:Tr FolderPanel_Title}"
+        WindowDecorations="None"
+        ShowInTaskbar="False"
+        CanResize="False"
+        SizeToContent="Manual"
+        Width="300"
+        Focusable="True"
+        Background="{DynamicResource AppWindowBackground}">
+    <Window.Styles>
+        <StyleInclude Source="avares://LoupixDeck/Views/Styles/SettingsStyles.axaml" />
+
+        <!-- A folder row. Deliberately not a Button, like the rows of the apps and commands panel:
+             the window decides on release whether the press was a click (open) or a drag. -->
+        <Style Selector="Border.panel-row">
+            <Setter Property="Padding" Value="6,4" />
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style Selector="Border.panel-row:pointerover">
+            <Setter Property="Background" Value="{DynamicResource AppControlBackgroundHover}" />
+        </Style>
+        <Style Selector="Border.panel-row.current">
+            <Setter Property="Background" Value="{DynamicResource AppControlBackgroundHover}" />
+        </Style>
+        <Style Selector="Border.panel-row.current TextBlock.panel-title">
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
+        <Style Selector="Border.panel-row.inpath TextBlock.panel-glyph">
+            <Setter Property="Foreground" Value="{DynamicResource AppTextPrimary}" />
+        </Style>
+        <Style Selector="TextBlock.panel-glyph">
+            <Setter Property="FontFamily" Value="{DynamicResource MdiFont}" />
+            <Setter Property="FontSize" Value="18" />
+            <Setter Property="Foreground" Value="{DynamicResource AppTextSecondary}" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="HorizontalAlignment" Value="Center" />
+        </Style>
+        <Style Selector="Border.panel-row.current TextBlock.panel-glyph">
+            <Setter Property="Foreground" Value="#FFFFC107" />
+        </Style>
+        <Style Selector="TextBlock.panel-title">
+            <Setter Property="FontSize" Value="12.5" />
+            <Setter Property="Foreground" Value="{DynamicResource AppTextPrimary}" />
+            <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+        <Style Selector="TextBlock.panel-section">
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{DynamicResource AppTextSecondary}" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+        <Style Selector="Button.panel-action">
+            <Setter Property="Width" Value="30" />
+            <Setter Property="Height" Value="30" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="Background" Value="{DynamicResource AppControlBackground}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AppBorderFaint}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="FontFamily" Value="{DynamicResource MdiFont}" />
+            <Setter Property="FontSize" Value="15" />
+            <Setter Property="Foreground" Value="{DynamicResource AppTextSecondary}" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+        </Style>
+        <!-- The row shows the current folder itself; the tree's own selection would be a second,
+             unrelated highlight. -->
+        <Style Selector="TreeViewItem:selected /template/ Border#PART_LayoutRoot">
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+        <Style Selector="TreeViewItem:selected:pointerover /template/ Border#PART_LayoutRoot">
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+        <Style Selector="TreeViewItem:pointerover /template/ Border#PART_LayoutRoot">
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+        <Style Selector="TreeViewItem" x:DataType="fp:FolderNodeViewModel">
+            <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}" />
+            <Setter Property="MinHeight" Value="30" />
+        </Style>
+    </Window.Styles>
+
+    <Panel>
+        <Border Background="{DynamicResource AppSurfaceLow}"
+                BorderBrush="{DynamicResource AppBorderSubtle}"
+                BorderThickness="1,0,0,0">
+            <Grid RowDefinitions="Auto,Auto,Auto,*" Margin="8,6,8,8">
+                <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="2,2,0,6">
+                    <TextBlock Grid.Column="0" Classes="panel-section" Text="{loc:Tr FolderPanel_Title}" />
+                    <!-- mdi-folder-plus -->
+                    <Button Grid.Column="1" Classes="panel-action"
+                            ToolTip.Tip="{loc:Tr FolderPanel_NewFolder}"
+                            Command="{Binding NewFolderCommand}" Content="&#xF0257;" />
+                </Grid>
+
+                <!-- The workspace itself: clicking it closes every folder, dropping a folder on it
+                     moves that folder to the top level. -->
+                <Border Grid.Row="1" Name="RootRow" Classes="panel-row workspace-row"
+                        Classes.current="{Binding IsRootCurrent}"
+                        ToolTip.Tip="{loc:Tr FolderPanel_ShowPage}"
+                        Tapped="OnRootTapped">
+                    <Grid ColumnDefinitions="28,*">
+                        <!-- mdi-home -->
+                        <TextBlock Grid.Column="0" Classes="panel-glyph" Text="&#xF02DC;" />
+                        <TextBlock Grid.Column="1" Classes="panel-title" Text="{Binding WorkspaceName}" />
+                    </Grid>
+                </Border>
+
+                <TextBlock Grid.Row="2" Classes="hint" Margin="4,8" TextWrapping="Wrap"
+                           Text="{loc:Tr FolderPanel_Empty}"
+                           IsVisible="{Binding !HasFolders}" />
+
+                <TreeView Grid.Row="3" Name="FolderTree"
+                          ItemsSource="{Binding RootNodes}"
+                          Background="Transparent"
+                          Margin="8,2,0,0">
+                    <TreeView.ItemTemplate>
+                        <TreeDataTemplate x:DataType="fp:FolderNodeViewModel" ItemsSource="{Binding Children}">
+                            <Border Classes="panel-row folder-row"
+                                    Classes.current="{Binding IsCurrent}"
+                                    Classes.inpath="{Binding IsInPath}">
+                                <Border.ContextFlyout>
+                                    <MenuFlyout>
+                                        <MenuItem Header="{loc:Tr FolderPanel_NewSubfolder}"
+                                                  Command="{Binding $parent[TreeView].((fp:FolderPanelViewModel)DataContext).NewSubfolderCommand}"
+                                                  CommandParameter="{Binding}" />
+                                        <MenuItem Header="{loc:Tr FolderPanel_Rename}"
+                                                  Command="{Binding $parent[TreeView].((fp:FolderPanelViewModel)DataContext).RenameCommand}"
+                                                  CommandParameter="{Binding}" />
+                                        <Separator />
+                                        <MenuItem Header="{loc:Tr FolderPanel_Delete}"
+                                                  Command="{Binding $parent[TreeView].((fp:FolderPanelViewModel)DataContext).DeleteCommand}"
+                                                  CommandParameter="{Binding}" />
+                                    </MenuFlyout>
+                                </Border.ContextFlyout>
+                                <Grid ColumnDefinitions="28,*">
+                                    <!-- The drag machine carries this tile as the ghost. -->
+                                    <Border Grid.Column="0" Classes="panel-row-icon"
+                                            Width="22" Height="22" VerticalAlignment="Center">
+                                        <TextBlock Classes="panel-glyph" Text="{Binding Glyph}" />
+                                    </Border>
+                                    <TextBlock Grid.Column="1" Classes="panel-title" Text="{Binding Title}"
+                                               Margin="4,0,0,0" />
+                                </Grid>
+                            </Border>
+                        </TreeDataTemplate>
+                    </TreeView.ItemTemplate>
+                </TreeView>
+            </Grid>
+        </Border>
+
+        <!-- Drag feedback while the pointer is over this window: the ghost of the dragged folder and
+             where a drop would put it in the tree. -->
+        <Canvas Name="DragOverlay" IsHitTestVisible="False" IsVisible="False">
+            <Border Name="DropIndicator" IsVisible="False" CornerRadius="4" />
+            <Border Name="DragGhost"
+                    IsVisible="False"
+                    Opacity="0.7"
+                    CornerRadius="6" ClipToBounds="True"
+                    BorderThickness="3" BorderBrush="#FF3D9BFF"
+                    Background="#FF202020">
+                <Image Name="DragGhostImage" Stretch="Uniform" />
+            </Border>
+        </Canvas>
+    </Panel>
+</Window>

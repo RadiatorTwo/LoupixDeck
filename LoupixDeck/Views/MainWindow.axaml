@@ -359,10 +359,10 @@
              when more than one device is connected (single-device users see just their
              Profile and Workspace). -->
         <Border Grid.Row="0" Classes="SwitcherBar">
-          <!-- The hamburger gets its own column at the right end of this zone, mirrored by
-               an equally wide spacer on the left, so the selector group stays centred in the
-               window AND the button never overlaps it on a narrow window. -->
-          <Grid ColumnDefinitions="44,*,44">
+          <!-- The folder toggle and the hamburger share a column at the right end of this zone,
+               mirrored by an equally wide column on the left, so the selector group stays
+               centred in the window AND the buttons never overlap it on a narrow window. -->
+          <Grid ColumnDefinitions="84,*,84">
             <!-- One framed bar fusing the three selectors into a single context path. Fine
                  vertical hairlines separate the cells; each cell keeps its own label and
                  dropdown. The Device cell (and its trailing divider) only appears when more
@@ -518,6 +518,21 @@
                            Foreground="{DynamicResource AppTextPrimary}"
                            VerticalAlignment="Center" HorizontalAlignment="Center"
                            Text="&#xF11D2;" />
+            </ToggleButton>
+
+            <!-- Custom folder panel (issue #249), opening on the right the way the apps and
+                 commands panel opens on the left. Sits directly left of the hamburger. -->
+            <ToggleButton Grid.Column="2" Classes="HeaderAction"
+                VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,0,40,0"
+                VerticalContentAlignment="Center" HorizontalContentAlignment="Center"
+                IsVisible="{Binding HasDevice}"
+                IsChecked="{Binding SelectedDevice.FolderPanel.IsOpen, Mode=TwoWay}"
+                ToolTip.Tip="{loc:Tr MainWindow_Folders}">
+                <!-- mdi-folder -->
+                <TextBlock FontFamily="{DynamicResource MdiFont}" FontSize="18"
+                           Foreground="{DynamicResource AppTextPrimary}"
+                           VerticalAlignment="Center" HorizontalAlignment="Center"
+                           Text="&#xF024B;" />
             </ToggleButton>
 
             <Button Grid.Column="2" Classes="HeaderAction"
