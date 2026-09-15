@@ -161,9 +161,11 @@ public partial class ActionPanelWindow : Window
         _dragArmed = _dragDrop.PanelPointerPressed(e.Source as Visual, ToOwner(e));
 
         // Capture here for the whole gesture: without it the events stop the moment the pointer
-        // leaves this window, which is exactly where the drag is going.
+        // leaves this window, which is exactly where the drag is going. The row's list item takes
+        // the capture rather than the window, so the release still reaches it and clears its
+        // pressed state; captured to the window, the item kept looking pressed after the click.
         if (_dragArmed)
-            e.Pointer.Capture(this);
+            e.Pointer.Capture((e.Source as Visual)?.FindAncestorOfType<ListBoxItem>(includeSelf: true) ?? (IInputElement)this);
     }
 
     private static PanelItemViewModel PanelRowItem(Visual source)
