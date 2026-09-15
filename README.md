@@ -149,7 +149,7 @@ Open the left-side panel from the main-window header to assign common actions wi
 * **Dial presets** apply all three rotary gestures in one step
 * **Shell Command** and **Open Website** ask for their command line or HTTP(S) address when assigned
 * Right-click an application to link or unlink it from the active profile
-* Drag an item onto a compatible control, or select a control and click the item
+* Single-click a panel row to select it, double-click to assign it to the selected control, or drag it directly onto a compatible control
 * Touch keys receive ready-to-use artwork and a command; dials receive a strip label
 
 ### Touch Button Editor
@@ -215,7 +215,13 @@ Built-in commands and dynamic values are available for:
 * Device power control
 * Runtime button updates
 
-### Dynamic Folders
+### Custom Folders
+
+Open the right-side **Folders** panel to build reusable touch layouts inside the active workspace. Folders can contain subfolders without a fixed depth limit. Click a folder to open and edit its layout, double-click it to rename it, drag it within the tree to reorder or nest it, or drag it onto a touch key to create a ready-made folder button. The device shows breadcrumbs while a folder is open and reserves an automatic Back tile. **Folder Back**, **Close All Folders**, and **Go to Home Workspace** provide command-driven ways out.
+
+On a companion device, the master owns the shared folder tree while each companion keeps its own layout inside every folder. **Follow into folders** optionally mirrors the master's folder navigation.
+
+### Plugin Folders
 
 Plugin commands such as audio mixers and scene pickers can open a temporary folder on the device. Folders use the connected device's actual key grid, reserve its bottom-left key for Back, and leave side strips untouched. Changing profile or workspace closes the folder and restores the selected layout.
 
@@ -259,11 +265,21 @@ Huge thanks to [@Athorus](https://github.com/Athorus) for the reverse-engineerin
 LoupixDeck can drive multiple connected devices at the same time.
 
 * Each device gets its own profile
-* Identical devices are separated by USB serial
+* Identical devices are separated reliably by USB serial, including composite USB devices on Windows
 * Devices can be connected or disconnected while LoupixDeck is running
 * A device switcher appears when more than one device is connected
 * CLI commands can target a specific device
 * The main window opens before device initialisation finishes, and busy serial ports are retried in the background
+* The first connected device stays selected while the rest start, and switching devices resizes the window for the new layout without closing the apps and commands panel
+* Existing configuration files are never renamed; a second identical unit simply receives its own file
+
+### Companion Devices
+
+Create a group under **Settings → Companions** to make one connected device the master of one or more companions. The companions mirror the master's profiles, workspaces, and custom-folder structure, but keep their own touch and rotary pages, folder layouts, and round LED buttons. Their original profiles are put aside and restored when they leave the group.
+
+**Follow pages** can mirror touch pages or touch and rotary pages by position. **Follow into folders** mirrors custom-folder navigation. The master's Profile Rules can choose pages on individual companions, and its **Companions** command group can page them, show their start pages, pause or resume the group, change page following, and resync the shared structure. A paused group lets companions switch context independently until it is resumed or the app restarts.
+
+Profiles, workspaces, rules, and folder structure are read-only on companions; their page and folder layouts remain editable. Before a master deletes or replaces shared structure, the confirmation lists companion pages that would be removed.
 
 ### Portable Profiles
 
@@ -280,8 +296,7 @@ macros.json       only the macros the exported item actually references
 assets/           only the images the exported item actually uses
 ```
 
-Export lives on the profile and workspace rows under **Settings → Profiles** and on each page row
-under **Settings → Pages**; **Import Package…** sits next to **+ Add Profile**.
+Every export opens a dialog for an optional description and output file. It suggests a name and remembers the last successful export folder. Export lives on the profile and workspace rows under **Settings → Profiles** and on each page row under **Settings → Pages**; profile and workspace exports plus **Import Package…** are also available directly from the main-window header menus.
 
 Before anything is written, the import preview shows what the package would mean on this machine:
 
@@ -297,6 +312,8 @@ Two import modes: **Add as Copy** gives the imported item fresh identities so it
 original, and **Replace** swaps an existing item in place, keeping its identity — and, unless you
 turn it off, writing a backup package of the previous version to `backups/` in the config directory
 first.
+
+Profile and workspace packages include their custom folders. A master can optionally include each companion's own pages and folder layouts; during import, those parts can be assigned to companions of the receiving master. Replacing a profile preserves the stable profile and workspace identities, so existing rules, macros, and companion pages remain linked wherever the corresponding workspace still exists.
 
 Not included by design, because they are device-wide rather than part of a profile: the enabled
 plugin list, context rules, app bindings and the screensaver clip.
@@ -404,9 +421,12 @@ Typical files:
 | `macros.json`          | Shared macro definitions              |
 | `custom-apps.json`     | Applications added manually to the Apps panel |
 | `dial-presets.json`    | User-created dial presets             |
+| `companions.json`      | Global master and companion groups    |
 | `backups/`             | Automatic backups written before a profile package replaces an item |
 
-Per-device configuration is scoped by USB serial whenever possible, so two identical devices do not overwrite each other's layouts.
+Per-device configuration is scoped by USB serial whenever possible, so two identical devices do not overwrite each other's layouts. LoupixDeck keeps existing file names stable: the first unit can keep `config_<device>.json`, while another unit gets its own serial-scoped file rather than causing the first file to be renamed.
+
+Pages carry stable internal ids so rules and companion references remain attached after reordering. Existing configuration files are migrated automatically when first loaded.
 
 If a configuration file becomes corrupted, LoupixDeck creates a backup before writing a fresh file.
 

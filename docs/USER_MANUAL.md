@@ -10,27 +10,28 @@ This manual is for people who want to use LoupixDeck, not develop plugins for it
 4. [First Launch](#first-launch)
 5. [The Main Window](#the-main-window)
 6. [Profiles and Workspaces](#profiles-and-workspaces)
-7. [Portable Profiles](#portable-profiles)
-8. [Pages](#pages)
-9. [Touch Buttons](#touch-buttons)
-10. [Button Layers](#button-layers)
-11. [Button States](#button-states)
-12. [Commands and Command Sequences](#commands-and-command-sequences)
-13. [Rotary Controls](#rotary-controls)
-14. [Physical Buttons](#physical-buttons)
-15. [Macros](#macros)
-16. [Dynamic Text](#dynamic-text)
-17. [Wallpapers](#wallpapers)
-18. [Feedback and Haptics](#feedback-and-haptics)
-19. [Screensaver](#screensaver)
-20. [Profile Rules](#profile-rules)
-21. [Plugins and Integrations](#plugins-and-integrations)
-22. [Device Power and Window Commands](#device-power-and-window-commands)
-23. [Automation and CLI](#automation-and-cli)
-24. [Settings Reference](#settings-reference)
-25. [Files and Backup](#files-and-backup)
-26. [Troubleshooting](#troubleshooting)
-27. [Notes and Limitations](#notes-and-limitations)
+7. [Companion Devices](#companion-devices)
+8. [Portable Profiles](#portable-profiles)
+9. [Pages](#pages)
+10. [Touch Buttons](#touch-buttons)
+11. [Button Layers](#button-layers)
+12. [Button States](#button-states)
+13. [Commands and Command Sequences](#commands-and-command-sequences)
+14. [Rotary Controls](#rotary-controls)
+15. [Physical Buttons](#physical-buttons)
+16. [Macros](#macros)
+17. [Dynamic Text](#dynamic-text)
+18. [Wallpapers](#wallpapers)
+19. [Feedback and Haptics](#feedback-and-haptics)
+20. [Screensaver](#screensaver)
+21. [Profile Rules](#profile-rules)
+22. [Plugins and Integrations](#plugins-and-integrations)
+23. [Device Power and Window Commands](#device-power-and-window-commands)
+24. [Automation and CLI](#automation-and-cli)
+25. [Settings Reference](#settings-reference)
+26. [Files and Backup](#files-and-backup)
+27. [Troubleshooting](#troubleshooting)
+28. [Notes and Limitations](#notes-and-limitations)
 
 ## What LoupixDeck Is
 
@@ -50,7 +51,7 @@ Current documented support:
 | Razer Stream Controller X | 5 x 3 physical-key panel; no dials, LED buttons, side strips, or haptic motor |
 | Loupedeck CT | Partial support; not all controls are feature-complete yet |
 
-Multiple devices can run at the same time. If more than one device is connected, the main window shows a device selector. Two identical devices are separated by USB serial number when possible, so each keeps its own layout.
+Multiple devices can run at the same time. If more than one device is connected, the main window shows a device selector. Two identical devices are separated reliably by USB serial number—including composite USB devices on Windows—so each keeps its own layout. Existing configuration files keep their names; connecting a second unit gives it a separate file instead of renaming the first unit's file.
 
 The Stream Controller X's physical keys act like touches at the centre of their matching keys. Touch-button actions, including press-and-hold, work normally. Settings and controls for hardware the device does not have are hidden.
 
@@ -157,6 +158,8 @@ In v1.22.0 and later, display frames reuse pooled buffers, WebSocket payloads ar
 
 On start, LoupixDeck opens the main window first and brings supported USB devices online in the background. There is no separate splash screen. A connected device joins the window as soon as its link is ready; only devices whose links are ready appear in the device selector.
 
+When several devices connect during startup, the first one that becomes available stays selected while the others join the selector. A later connection no longer takes the editor away from the device you are using.
+
 If no device is ready, the device area shows `No device connected` instead of empty profile and workspace selectors. Plug a supported deck in over USB and LoupixDeck picks it up automatically. If the deck is already plugged in, the vendor software or another program may still be holding its serial port. LoupixDeck retries a busy port with backoff and adds the device when the port becomes available, without requiring an app restart. Device actions stay disabled in the meantime, while `About` and `Quit` remain available from the hamburger menu. Starting minimized also works when no device is ready yet.
 
 When the computer wakes from sleep or standby, LoupixDeck rebuilds the device connection and sends the current state again. Brightness, LED colours, the active touch page, and side-strip content are restored. The same state refresh happens after automatic reconnect or after you press `Reconnect` in `Settings > General`, so the display should not remain black after the link returns.
@@ -178,6 +181,7 @@ The main window is a live editor for your connected device.
 - Use page arrows near the device controls to move between pages.
 - Use `+` and delete controls to add or remove pages.
 - Edit the page name directly in the page name field.
+- Open the left apps and commands panel or the right Folders panel from the header.
 - Use the hamburger menu for `Settings`, `Macros`, `About`, and `Quit`.
 
 The top header shows your current context. It contains `DEVICE`, `PROFILE`, and `WORKSPACE` selectors. If only one device is connected, the device selector is hidden and you will usually just see the profile and workspace selectors. The hamburger menu sits at the right end of this header.
@@ -187,6 +191,8 @@ Changing profile or workspace from the header changes what the device shows and 
 Next to the `PROFILE` and `WORKSPACE` selectors there is a `⋮` button. It creates a new profile or workspace, renames the one currently selected, or deletes it after asking. A new profile or workspace is opened right away. The last profile of a device and the last workspace of a profile cannot be deleted.
 
 The profile menu can also link an application to the active profile: pick it from the list, and the profile opens whenever that application is in front, as long as automatic switching is turned on. This creates a profile rule, which you can refine under `Settings > Profile Rules`. Remove the link from the same menu.
+
+Switching to a device with a different physical layout resizes the main window to fit it. A maximized window stays maximized. The apps and commands panel keeps its open or closed state across device switches instead of unexpectedly disappearing or reopening.
 
 ### Apps and commands panel
 
@@ -198,7 +204,7 @@ When a device is connected, the button at the left of the header opens a side pa
 | Commands | The same searchable command catalogue used by the button editors |
 | Dial presets | Built-in and user-created mappings for all three gestures of a rotary control |
 
-To assign an item, first select a compatible touch key, physical LED button, or dial and click the item, or drag the item directly onto the control. An invalid target is outlined in red and is not changed. If the target already has content, LoupixDeck asks before replacing it.
+Single-click a panel row to select it. To assign it, first select a compatible touch key, physical LED button, or dial and then double-click the row, or drag the row directly onto the control. An invalid target is outlined in red and is not changed. If the target already has content, LoupixDeck asks before replacing it. Command-picker groups stay expanded when a plugin finishes loading its menu.
 
 An application assigned to a touch key receives its launch command and, when available, an extracted app icon sized to leave room for a caption. App icons are cached at full resolution and refreshed when their source changes. A catalogue command receives its glyph and name. Physical LED buttons receive the command, while a dial receives the command and a side-strip label. Side displays themselves are not drop targets. Some catalogue entries are dial-only because they configure all three rotary gestures together.
 
@@ -237,22 +243,46 @@ Old layouts are migrated automatically. If you had pages before profiles and wor
 
 Profiles and workspaces can also be changed from commands. The command picker has a `Profiles` group with commands such as `Activate Profile`, `Go to Workspace`, `Next Workspace`, `Previous Workspace`, and `Go to Home Workspace`. In the picker, profile and workspace choices are shown by their real names.
 
+## Companion Devices
+
+A companion group lets several connected decks share context without forcing them to show the same layout. Open `Settings > Companions`, create a group, choose one master, and add one or more companions. A device can belong to only one group. The page also shows which members are connected; identical devices that cannot report a usable serial number cannot be placed in a group when LoupixDeck cannot tell them apart.
+
+The master owns the group's profiles, workspaces, and custom-folder tree. A companion follows the master's profile and workspace changes—whether they come from the header, commands, or Profile Rules—but keeps its own touch pages, rotary pages, folder layouts, and round LED-button assignments inside that shared structure. Its original profiles are put aside while it belongs to the group and return when it leaves.
+
+On a companion, profile and workspace selectors are locked while it follows the master. Profiles, workspaces, Profile Rules, and the folder tree are read-only, while pages and the layouts inside folders remain editable. If the master is offline, the companion stays on its current context until the master returns.
+
+Each group offers two optional navigation controls:
+
+- **Follow pages**: `Off` lets every companion page independently; `Touch pages` follows the master's touch-page number when that position exists; `Touch and rotary pages` follows both touch and rotary positions. A companion can still page on its own between master page changes.
+- **Follow into folders**: when the master opens or closes a custom folder, companions in the same workspace open or close the corresponding folder using their own layouts.
+
+The `Companions` command group is available on a master. It can move a particular companion to its next, previous, or named touch/rotary page; show every companion's start pages; change page-follow mode; pause or resume the group; and resync it. A pause lets companions switch profile and workspace independently until the group is resumed or LoupixDeck restarts. Resync rebuilds their shared structure from the master and applies its current context again.
+
+A master's Profile Rules can also select touch and rotary pages for individual companions inside the rule's target workspace. See [Profile Rules](#profile-rules).
+
+Deleting a profile, workspace, or folder on the master also removes the matching companion content below it. When that would discard configured companion pages, LED buttons, or folder layouts, the confirmation lists the affected companions and content before anything is removed.
+
 ## Portable Profiles
 
-You can move layouts between machines or devices with a `.loupixprofile` package. Open `Settings > Profiles` and use the `Export` button beside a profile, workspace, or individual touch/rotary page. The package includes the selected layout, its images, and the macros referenced by its buttons, so the receiving machine does not need those assets prepared in advance. A whole-profile export also includes that profile's round LED-button commands and colours.
+You can move layouts between machines or devices with a `.loupixprofile` package. Open `Settings > Profiles` and use the `Export` button beside a profile or workspace, or export an individual touch/rotary page from `Settings > Pages`. The profile and workspace menus in the main-window header provide export actions too.
 
-To use a package on another machine, choose `Import Package…` in `Settings > Profiles` and select the `.loupixprofile` file. LoupixDeck shows a preview before changing anything. Review:
+Every export opens a dialog where you can add a description and edit or browse for the output file. The dialog suggests a file name and remembers the folder used by the last successful export. The package includes the selected layout, its custom folders, images, and referenced macros, so the receiving machine does not need those assets prepared in advance. A whole-profile export also includes that profile's round LED-button commands and colours.
+
+To use a package on another machine, choose `Import Package…` in `Settings > Profiles` or in either main-window header menu, then select the `.loupixprofile` file. LoupixDeck shows the package description and a preview before changing anything. Review:
 
 - Whether the package came from a different device type or model.
 - Which plugins the layout needs and whether they are installed or enabled for this device.
 - Commands that cannot currently be resolved because their plugin is missing. These assignments are kept and can start working after the plugin is installed.
 - Macro name conflicts. For each conflict, keep the local macro (`Skip`), import the incoming macro under a new name (`Rename`), or replace the local macro (`Replace`).
+- Companion pages included by a master. When this device leads a group, choose which local companion receives each part; otherwise only the package's main-device content is imported.
 
-You can import as a copy, which adds a new profile or inserts a workspace/page into a chosen destination, or choose replace to overwrite an existing matching item. Replace creates an automatic backup first; that backup can be restored through the same import dialog. An installed plugin is never enabled silently, but the preview can offer to enable an installed, disabled plugin for the current device.
+You can import as a copy, which adds a new profile or inserts a workspace/page into a chosen destination, or choose replace to overwrite an existing matching item. Replace creates an automatic backup first; that backup can be restored through the same import dialog. Replacing a profile keeps the target profile and matching workspace identities, so existing Profile Rules, macros, and companion pages remain linked wherever the imported profile still has the corresponding workspace. A warning appears if unmatched workspaces would remove companion content. An installed plugin is never enabled silently, but the preview can offer to enable an installed, disabled plugin for the current device.
 
 The package is deliberately layout-focused. Enabled plugins, Profile Rules, app bindings, and the screensaver clip are device-wide settings and do not travel with the package. Check those settings separately on the receiving machine.
 
 Profiles exported by v1.25.0 and later carry their LED-button row. When an older package has no such row, LoupixDeck creates the device's normal default LED buttons during import.
+
+When a master exports a whole profile or workspace, the export dialog offers **Include the companions' own pages** if its companions have content there. This adds their touch/rotary pages, folder layouts, and—for a profile—their LED buttons. Folder structure is already part of the master's profile or workspace and is always included.
 
 ## Pages
 
@@ -277,7 +307,25 @@ Page changes normally slide horizontally when triggered from the on-screen page 
 
 `Cycle pages` is enabled by default in the same settings card. When enabled, next from the last page wraps to the first and previous from the first wraps to the last. Turn it off to make both touch-page and rotary-page navigation stop at their respective ends. This applies to page commands as well as the controls in the main window.
 
-### Dynamic folders
+Pages have stable internal ids. Existing configuration files are migrated automatically when they are first loaded, including Profile Rule page targets that can be resolved. The visible layout behaves as before, while later page reordering no longer changes which page a saved reference means.
+
+### Custom folders
+
+Custom folders belong to the active workspace and can be nested without a fixed depth limit. Open the right-side **Folders** panel in the main window to manage them:
+
+- Create a folder or a subfolder from the panel.
+- Click a folder to open and edit it; double-click its name to rename it.
+- Drag folders within the tree to reorder them or place them inside another folder.
+- Use the search box to filter the tree.
+- Drag a folder onto a touch key to assign a ready-made button that opens it.
+
+Every folder owns a touch layout that uses the current device's real key grid. Its bottom-left tile is an automatic Back button and cannot be edited. Breadcrumbs above the device show the open path and let you return to an earlier folder. The panel can also show the normal page again without deleting or unassigning the folder.
+
+Deleting a folder warns about nested folders, buttons that link to it, and affected companion layouts before clearing those links. On a companion, the master owns the folder tree, so its structure is read-only; the companion's own layout inside each folder remains editable.
+
+Use the built-in commands `Folder Back` to move up one level and `Close All Folders` to return directly to the normal page. `Go to Home Workspace` closes open folders too.
+
+### Plugin folders
 
 Some plugin commands open a temporary folder directly on the device, for example an audio mixer, an OBS scene picker, or a monitoring dashboard. The folder uses the active device's real key layout rather than assuming a 5×3 grid. The bottom-left key is reserved for Back; on 4×3 devices, entries stay within the twelve centre keys and do not overwrite the side strips.
 
@@ -657,6 +705,7 @@ You can:
 - Choose a profile.
 - Choose a workspace.
 - Optionally choose a page.
+- On a group master, optionally choose touch and rotary pages for individual companions.
 - Give each rule a priority.
 - Trigger a rule when its process starts, not only when its window comes to the front.
 - Choose what happens to the profile when you leave matched apps.
@@ -674,6 +723,8 @@ If a rule leaves `Profile` empty, it keeps the current profile. If it leaves `Wo
 The workspace and page are not restored separately; they follow the profile that gets activated.
 
 When you switch profile or workspace by hand, LoupixDeck pauses automatic switching until the foreground app changes. This prevents a rule from immediately pulling you back while you are deliberately working somewhere else.
+
+Companion page targets belong to the selected workspace and are applied after the master changes context. A companion does not evaluate a separate copy of the master's rules. If a saved target no longer exists, the rule editor marks it so you can choose another page or remove the target.
 
 Process matching is case-insensitive, and a trailing `.exe` is ignored. On Linux, foreground process names reported by the kernel can be truncated after 15 characters; current releases also match a longer configured name when its first 15 characters equal that reported value. Profile Rules require X11 or XWayland plus `xprop`; pure Wayland is not supported by the current README.
 
@@ -923,6 +974,15 @@ Key alignment normally needs no changes: LoupixDeck uses the measured layout for
 - Set a profile's Home workspace.
 - Set the Default profile used at startup.
 
+### Companions
+
+- Create, rename, and delete companion groups.
+- Choose one master and one or more companions from connected devices.
+- Choose whether companions follow touch pages, touch and rotary pages, or neither.
+- Choose whether companions follow the master into custom folders.
+- See whether each group member is currently connected.
+- Pause, resume, or resync a group from the master's commands while LoupixDeck is running.
+
 ### Pages
 
 - Manage touch pages for the active workspace.
@@ -930,6 +990,8 @@ Key alignment normally needs no changes: LoupixDeck uses the measured layout for
 - Reorder pages.
 - Edit wallpapers.
 - Edit page commands.
+
+Custom folders are created and arranged from the right-side **Folders** panel in the main window rather than this settings page.
 
 ### Feedback
 
@@ -969,6 +1031,7 @@ Important: Interception is third-party software. It is not bundled with LoupixDe
 - Enable automatic profile and workspace switching.
 - Add rules based on process name and optional title text.
 - Choose profile, workspace, and optional page behavior.
+- On a companion-group master, choose optional page targets for individual companions.
 - Set rule priority.
 - Trigger rules when a process starts.
 - Choose what happens to the profile when you leave matched apps.
@@ -1001,9 +1064,10 @@ LoupixDeck stores configuration as JSON in the user config directory. Typical fi
 | `custom-apps.json` | Applications added manually to the Apps panel |
 | `dial-presets.json` | User-created dial presets shared across devices and profiles |
 | `ui-settings.json` | Interface language and update-check preferences shared by all devices |
+| `companions.json` | Global master and companion group definitions |
 | Plugin config files | Integration-specific settings |
 
-Per-device layout is scoped by serial number when possible. The per-device layout file contains that device's profiles, workspaces, pages, and device-specific settings. If a config file is corrupted, LoupixDeck creates a backup before writing a fresh file.
+Per-device layout is scoped by serial number when possible. Existing file names stay stable: adding a second identical device creates a separate serial-scoped file rather than renaming the first device's file. The per-device layout contains that device's profiles, workspaces, stable page ids, custom folders, and device-specific settings. If a config file is corrupted, LoupixDeck creates a backup before writing a fresh file.
 
 ## Troubleshooting
 
@@ -1015,6 +1079,12 @@ Per-device layout is scoped by serial number when possible. The per-device layou
 - Try `Settings > General > Reconnect`.
 - If a device re-enumerates after a cable or power change, LoupixDeck re-resolves its serial port when exactly one device with the saved USB identity is present. Disconnect duplicate matching devices before retrying.
 - On Linux, check that udev rules were installed and reconnect the device.
+- If a Razer Stream Controller X is detected on Linux but its keys do nothing, rerun the current Linux installer and reconnect the device. A manual udev setup also needs this additional HID-raw rule:
+
+  ```udev
+  SUBSYSTEM=="hidraw", ATTRS{idVendor}=="1532", ATTRS{idProduct}=="0d09", MODE="0666"
+  ```
+
 - Avoid unreliable USB hubs.
 
 ### Macros do not affect the target app
