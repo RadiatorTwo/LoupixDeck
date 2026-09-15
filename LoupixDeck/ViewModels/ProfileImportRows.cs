@@ -107,3 +107,29 @@ public sealed class ImportTargetRow(string label, Guid? profileId = null, Guid? 
     public Guid? WorkspaceId { get; } = workspaceId;
     public int? PageIndex { get; } = pageIndex;
 }
+
+/// <summary>A companion of this master a companion part can be imported onto; a null key skips the part.</summary>
+public sealed record CompanionTargetOption(string Key, string Label);
+
+/// <summary>One companion's pages in the package, and the companion of this master that receives them.</summary>
+public sealed partial class CompanionPartRow : ObservableObject
+{
+    public CompanionPartRow(string packageKey, string deviceName, IReadOnlyList<CompanionTargetOption> options,
+        CompanionTargetOption selected)
+    {
+        PackageKey = packageKey;
+        DeviceName = deviceName;
+        Options = options;
+        SelectedTarget = selected;
+    }
+
+    /// <summary>The companion's key on the exporting machine.</summary>
+    public string PackageKey { get; }
+
+    public string DeviceName { get; }
+
+    public IReadOnlyList<CompanionTargetOption> Options { get; }
+
+    [ObservableProperty]
+    public partial CompanionTargetOption SelectedTarget { get; set; }
+}

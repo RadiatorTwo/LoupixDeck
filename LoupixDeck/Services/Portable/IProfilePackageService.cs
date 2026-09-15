@@ -13,11 +13,16 @@ namespace LoupixDeck.Services.Portable;
 /// </remarks>
 public interface IProfilePackageService
 {
-    /// <summary>Writes <paramref name="profile"/> and all of its workspaces to <paramref name="targetPath"/>.</summary>
-    Task<ProfilePackageResult> ExportProfileAsync(Profile profile, string targetPath, string description = null);
+    /// <summary>Writes <paramref name="profile"/> and all of its workspaces to <paramref name="targetPath"/>.
+    /// On a master, <paramref name="includeCompanionPages"/> adds its companions' own pages and LED buttons
+    /// in that profile.</summary>
+    Task<ProfilePackageResult> ExportProfileAsync(Profile profile, string targetPath, string description = null,
+        bool includeCompanionPages = false);
 
-    /// <summary>Writes <paramref name="workspace"/> and all of its pages to <paramref name="targetPath"/>.</summary>
-    Task<ProfilePackageResult> ExportWorkspaceAsync(Workspace workspace, string targetPath, string description = null);
+    /// <summary>Writes <paramref name="workspace"/> and all of its pages to <paramref name="targetPath"/>.
+    /// On a master, <paramref name="includeCompanionPages"/> adds its companions' own pages in that workspace.</summary>
+    Task<ProfilePackageResult> ExportWorkspaceAsync(Workspace workspace, string targetPath, string description = null,
+        bool includeCompanionPages = false);
 
     /// <summary>Writes a single touch page to <paramref name="targetPath"/>.</summary>
     Task<ProfilePackageResult> ExportTouchPageAsync(TouchButtonPage page, string targetPath, string description = null);

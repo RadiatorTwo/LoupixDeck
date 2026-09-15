@@ -48,6 +48,7 @@ public sealed partial class ProfileImportViewModel : DialogViewModelBase<DialogR
         Warnings = new();
         ImportTargets = new();
         ReplaceTargets = new();
+        CompanionParts = new();
     }
 
     /// <summary>
@@ -195,7 +196,10 @@ public sealed partial class ProfileImportViewModel : DialogViewModelBase<DialogR
                 [.. _analysis.Payload?.Profile?.Workspaces ?? []]);
             List<Guid> unmatched = (replaced.Workspaces ?? []).Select(w => w.Id).Where(id => !matched.ContainsKey(id)).ToList();
 
-            IReadOnlyList<CompanionLossEntry> losses = CompanionImpact.ForWorkspaces(_companions, _device.ScopeKey, unmatched);
+            // A companion that receives its pages from the package gets them back with it.
+            List<string> receiving = [.. CompanionParts.Select(row => row.SelectedTarget?.Key).Where(key => key != null)];
+
+            IReadOnlyList<CompanionLossEntry> losses = CompanionImpact.ForWorkspaces(_companions, _device.ScopeKey, unmatched, receiving);
             return losses.Count == 0
                 ? null
                 : Loc.Tr("ProfileImport_ReplaceLosesCompanionPages") + Environment.NewLine + CompanionImpact.Describe(losses);
@@ -203,6 +207,18 @@ public sealed partial class ProfileImportViewModel : DialogViewModelBase<DialogR
     }
 
     public bool HasCompanionReplaceWarning => CompanionReplaceWarning != null;
+
+    // ───────── Companion pages ─────────
+
+    /// <summary>The companions whose own pages the package carries, each with the companion of this
+    /// master that receives them. Empty unless this device is a master and the package has parts.</summary>
+    public ObservableCollection<CompanionPartRow> CompanionParts { get; }
+
+    public bool HasCompanionParts => CompanionParts.Count > 0;
+
+    /// <summary>True when the package carries companion pages this device cannot take (it leads no group).</summary>
+    [ObservableProperty]
+    public partial bool CompanionPartsIgnored { get; set; }
 
     /// <summary>Label of the container list, e.g. "Import into profile".</summary>
     [ObservableProperty]
@@ -295,6 +311,7 @@ public sealed partial class ProfileImportViewModel : DialogViewModelBase<DialogR
             Warnings.Add(warning);
 
         BuildTargets(manifest.Kind);
+        BuildCompanionParts(manifest.Kind);
 
         OnPropertyChanged(nameof(HasPlugins));
         OnPropertyChanged(nameof(HasMacros));
@@ -302,7 +319,65 @@ public sealed partial class ProfileImportViewModel : DialogViewModelBase<DialogR
         OnPropertyChanged(nameof(HasWarnings));
         OnPropertyChanged(nameof(HasDisabledPlugins));
         OnPropertyChanged(nameof(HasImportTargets));
+        OnPropertyChanged(nameof(HasCompanionParts));
+        OnPropertyChanged(nameof(CompanionReplaceWarning));
+        OnPropertyChanged(nameof(HasCompanionReplaceWarning));
         OnPropertyChanged(nameof(CanImport));
+    }
+
+    /// <summary>
+    /// One row per companion part of a profile or workspace package. Each offers this master's
+    /// companions; the same companion (same key, i.e. the same machine) is preselected, else the only
+    /// companion of the same model not taken yet, else nothing is imported for the part.
+    /// </summary>
+    private void BuildCompanionParts(PackageKind kind)
+    {
+        List<CompanionPackagePart> parts = [.. (_analysis.Payload?.Companions ?? []).Where(p => p?.DeviceKey != null)];
+        if (parts.Count == 0 || kind is not (PackageKind.Profile or PackageKind.Workspace))
+            return;
+
+        if (!_companions.IsMaster(_device.ScopeKey))
+        {
+            CompanionPartsIgnored = true;
+            return;
+        }
+
+        IReadOnlyList<string> companionKeys = _companions.GetCompanionKeys(_device.ScopeKey);
+        CompanionTargetOption skip = new(null, Loc.Tr("ProfileImport_DoNotImport"));
+        List<CompanionTargetOption> options =
+        [
+            skip,
+            .. companionKeys.Select(key => new CompanionTargetOption(key, _companions.GetDisplayName(key)))
+        ];
+
+        HashSet<string> taken = new(StringComparer.OrdinalIgnoreCase);
+        foreach (CompanionPackagePart part in parts)
+        {
+            CompanionTargetOption preselected =
+                options.FirstOrDefault(o => o.Key != null && string.Equals(o.Key, part.DeviceKey, StringComparison.OrdinalIgnoreCase));
+
+            if (preselected == null && !string.IsNullOrEmpty(part.DeviceSlug))
+            {
+                List<CompanionTargetOption> sameModel = options
+                    .Where(o => o.Key != null && !taken.Contains(o.Key) &&
+                                string.Equals(CompanionDeviceTraits.FindDevice(_companions, o.Key)?.Slug, part.DeviceSlug,
+                                    StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+                if (sameModel.Count == 1)
+                    preselected = sameModel[0];
+            }
+
+            if (preselected?.Key != null)
+                taken.Add(preselected.Key);
+
+            CompanionPartRow row = new(part.DeviceKey, part.DeviceName ?? part.DeviceKey, options, preselected ?? skip);
+            row.PropertyChanged += (_, _) =>
+            {
+                OnPropertyChanged(nameof(CompanionReplaceWarning));
+                OnPropertyChanged(nameof(HasCompanionReplaceWarning));
+            };
+            CompanionParts.Add(row);
+        }
     }
 
     /// <summary>
@@ -481,7 +556,11 @@ public sealed partial class ProfileImportViewModel : DialogViewModelBase<DialogR
             MacroResolutions = resolutions,
             MacroRenames = renames,
             PluginIdsToEnable = Plugins.Where(p => p.IsDisabled && p.EnableOnImport).Select(p => p.Id).ToList(),
-            BackupReplacedItem = BackupReplacedItem
+            BackupReplacedItem = BackupReplacedItem,
+            CompanionTargets = CompanionParts
+                .Where(row => row.SelectedTarget?.Key != null)
+                .GroupBy(row => row.PackageKey, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(group => group.Key, group => group.First().SelectedTarget.Key, StringComparer.OrdinalIgnoreCase)
         };
     }
 }

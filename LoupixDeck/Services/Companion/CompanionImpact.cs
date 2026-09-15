@@ -28,14 +28,16 @@ public static class CompanionImpact
     public static IReadOnlyList<CompanionLossEntry> ForWorkspace(ICompanionCoordinator coordinator, string masterKey, Guid workspaceId) =>
         ForWorkspaces(coordinator, masterKey, [workspaceId]);
 
-    /// <summary>The companions of <paramref name="masterKey"/> that have content in any of the workspaces.
-    /// Empty without asking any companion when <paramref name="workspaceIds"/> is empty.</summary>
+    /// <summary>The companions of <paramref name="masterKey"/> that have content in any of the workspaces,
+    /// leaving out <paramref name="exceptCompanionKeys"/>. Empty without asking any companion when
+    /// <paramref name="workspaceIds"/> is empty.</summary>
     public static IReadOnlyList<CompanionLossEntry> ForWorkspaces(ICompanionCoordinator coordinator, string masterKey,
-        IReadOnlyCollection<Guid> workspaceIds) =>
+        IReadOnlyCollection<Guid> workspaceIds, IReadOnlyCollection<string> exceptCompanionKeys = null) =>
         workspaceIds.Count == 0
             ? []
             : Collect(coordinator, masterKey, config =>
-                (workspaceIds.Select(id => CompanionDeviceTraits.FindWorkspace(config, id)).Where(w => w != null), null));
+                (workspaceIds.Select(id => CompanionDeviceTraits.FindWorkspace(config, id)).Where(w => w != null), null),
+                exceptCompanionKeys);
 
     /// <summary>One line per companion ("• Razer Stream Controller: 4 page(s), 2 LED button(s)"), or empty.</summary>
     public static string Describe(IReadOnlyList<CompanionLossEntry> losses) =>
@@ -52,7 +54,8 @@ public static class CompanionImpact
     }
 
     private static IReadOnlyList<CompanionLossEntry> Collect(ICompanionCoordinator coordinator, string masterKey,
-        Func<LoupedeckConfig, (IEnumerable<Workspace> Workspaces, SimpleButton[] LedButtons)> contentOf)
+        Func<LoupedeckConfig, (IEnumerable<Workspace> Workspaces, SimpleButton[] LedButtons)> contentOf,
+        IReadOnlyCollection<string> exceptCompanionKeys = null)
     {
         if (string.IsNullOrEmpty(masterKey) || !coordinator.IsMaster(masterKey))
             return [];
@@ -60,6 +63,8 @@ public static class CompanionImpact
         List<CompanionLossEntry> losses = [];
         foreach (string companionKey in coordinator.GetCompanionKeys(masterKey))
         {
+            if (exceptCompanionKeys?.Contains(companionKey, StringComparer.OrdinalIgnoreCase) == true) continue;
+
             LoupedeckConfig config = coordinator.GetDeviceConfig(companionKey);
             if (config == null) continue;
 

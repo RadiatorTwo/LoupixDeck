@@ -62,4 +62,12 @@ public sealed class ProfilePackageImportOptions
 
     /// <summary>Export the item being replaced to a package under the config dir first.</summary>
     public bool BackupReplacedItem { get; set; } = true;
+
+    /// <summary>
+    /// The companion each companion part of the package goes to: the part's device key (as exported)
+    /// → the scope key of a companion of this master. A part without an entry is skipped. Ignored on a
+    /// device that leads no companion group.
+    /// </summary>
+    public IReadOnlyDictionary<string, string> CompanionTargets { get; set; } =
+        new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 }

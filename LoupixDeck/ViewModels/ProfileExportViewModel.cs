@@ -3,7 +3,9 @@ using CommunityToolkit.Mvvm.Input;
 using LoupixDeck.Localization;
 using LoupixDeck.Models;
 using LoupixDeck.Models.Portable;
+using LoupixDeck.Registry;
 using LoupixDeck.Services;
+using LoupixDeck.Services.Companion;
 using LoupixDeck.Services.Portable;
 using LoupixDeck.Utils;
 using LoupixDeck.ViewModels.Base;
@@ -13,10 +15,12 @@ namespace LoupixDeck.ViewModels;
 /// <summary>What an export dialog writes: one profile, workspace or page, and its display name.</summary>
 public sealed class ProfileExportRequest
 {
-    private ProfileExportRequest(PackageKind kind, string name, Func<IProfilePackageService, string, string, Task<ProfilePackageResult>> export)
+    private ProfileExportRequest(PackageKind kind, string name, Guid? itemId,
+        Func<IProfilePackageService, string, string, bool, Task<ProfilePackageResult>> export)
     {
         Kind = kind;
         Name = name;
+        ItemId = itemId;
         Export = export;
     }
 
@@ -24,20 +28,27 @@ public sealed class ProfileExportRequest
 
     public string Name { get; }
 
-    /// <summary>Writes the item: (service, target path, description) → result.</summary>
-    internal Func<IProfilePackageService, string, string, Task<ProfilePackageResult>> Export { get; }
+    /// <summary>Id of the exported profile or workspace; null for a page.</summary>
+    public Guid? ItemId { get; }
+
+    /// <summary>Writes the item: (service, target path, description, include companion pages) → result.</summary>
+    internal Func<IProfilePackageService, string, string, bool, Task<ProfilePackageResult>> Export { get; }
 
     public static ProfileExportRequest ForProfile(Profile profile) =>
-        new(PackageKind.Profile, profile.Name, (service, path, description) => service.ExportProfileAsync(profile, path, description));
+        new(PackageKind.Profile, profile.Name, profile.Id,
+            (service, path, description, companions) => service.ExportProfileAsync(profile, path, description, companions));
 
     public static ProfileExportRequest ForWorkspace(Workspace workspace) =>
-        new(PackageKind.Workspace, workspace.Name, (service, path, description) => service.ExportWorkspaceAsync(workspace, path, description));
+        new(PackageKind.Workspace, workspace.Name, workspace.Id,
+            (service, path, description, companions) => service.ExportWorkspaceAsync(workspace, path, description, companions));
 
     public static ProfileExportRequest ForTouchPage(TouchButtonPage page) =>
-        new(PackageKind.TouchPage, page.PageName, (service, path, description) => service.ExportTouchPageAsync(page, path, description));
+        new(PackageKind.TouchPage, page.PageName, null,
+            (service, path, description, _) => service.ExportTouchPageAsync(page, path, description));
 
     public static ProfileExportRequest ForRotaryPage(RotaryButtonPage page) =>
-        new(PackageKind.RotaryPage, page.PageName, (service, path, description) => service.ExportRotaryPageAsync(page, path, description));
+        new(PackageKind.RotaryPage, page.PageName, null,
+            (service, path, description, _) => service.ExportRotaryPageAsync(page, path, description));
 }
 
 /// <summary>
@@ -51,11 +62,15 @@ public sealed partial class ProfileExportViewModel : DialogViewModelBase<DialogR
     private const string LastExportFolderKey = "LastExportFolder";
 
     private readonly IProfilePackageService _packageService;
+    private readonly ICompanionCoordinator _companions;
+    private readonly ResolvedDevice _device;
     private ProfileExportRequest _request;
 
-    public ProfileExportViewModel(IProfilePackageService packageService)
+    public ProfileExportViewModel(IProfilePackageService packageService, ICompanionCoordinator companions, ResolvedDevice device)
     {
         _packageService = packageService;
+        _companions = companions;
+        _device = device;
     }
 
     /// <summary>
@@ -87,6 +102,17 @@ public sealed partial class ProfileExportViewModel : DialogViewModelBase<DialogR
             _ => request.Kind.ToString()
         };
         OutputPath = Path.Combine(DefaultFolder(), FileDialogHelper.SuggestPackageFileName(request.Name));
+
+        // Only a master's profile or workspace can carry companion pages, and the option is only
+        // offered when a companion has something of its own in it. A companion exports its own pages.
+        IReadOnlyList<CompanionLossEntry> content = request switch
+        {
+            { Kind: PackageKind.Profile, ItemId: { } profileId } => CompanionImpact.ForProfile(_companions, _device.ScopeKey, profileId),
+            { Kind: PackageKind.Workspace, ItemId: { } workspaceId } => CompanionImpact.ForWorkspace(_companions, _device.ScopeKey, workspaceId),
+            _ => []
+        };
+        CompanionContent = content.Count > 0 ? CompanionImpact.Describe(content) : null;
+        IncludeCompanionPages = content.Count > 0;
     }
 
     /// <summary>Raised when the dialog should close (after the result is set).</summary>
@@ -126,6 +152,16 @@ public sealed partial class ProfileExportViewModel : DialogViewModelBase<DialogR
     public partial string ErrorMessage { get; set; }
 
     public bool HasErrorMessage => !string.IsNullOrWhiteSpace(ErrorMessage);
+
+    /// <summary>One line per companion with content of its own in the item; null hides the option.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasCompanionContent))]
+    public partial string CompanionContent { get; set; }
+
+    public bool HasCompanionContent => CompanionContent != null;
+
+    [ObservableProperty]
+    public partial bool IncludeCompanionPages { get; set; }
 
     /// <summary>The result message and its notes after an export that succeeded with warnings.</summary>
     [ObservableProperty]
@@ -220,7 +256,8 @@ public sealed partial class ProfileExportViewModel : DialogViewModelBase<DialogR
         try
         {
             string description = string.IsNullOrWhiteSpace(Description) ? null : Description.Trim();
-            ProfilePackageResult result = await _request.Export(_packageService, target, description);
+            ProfilePackageResult result = await _request.Export(_packageService, target, description,
+                HasCompanionContent && IncludeCompanionPages);
             if (!result.Success)
             {
                 ErrorMessage = result.Message;

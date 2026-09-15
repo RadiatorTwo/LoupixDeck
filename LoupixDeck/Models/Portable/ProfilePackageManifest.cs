@@ -82,6 +82,11 @@ public sealed class ProfilePackageManifest
     /// <summary>Names of the macros included in the package's <c>macros.json</c>.</summary>
     public List<string> Macros { get; set; } = [];
 
+    /// <summary>Names of the companions whose own pages the payload carries (see
+    /// <see cref="ProfilePackagePayload.Companions"/>); null when it carries none.</summary>
+    [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+    public List<string> CompanionDevices { get; set; }
+
     /// <summary>Name of the payload file inside the package. Indirection for future formats.</summary>
     public string PayloadFile { get; set; } = ProfilePackageFiles.Payload;
 }

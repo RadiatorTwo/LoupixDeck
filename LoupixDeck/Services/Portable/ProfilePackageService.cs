@@ -30,6 +30,7 @@ public sealed class ProfilePackageService(
     LoupedeckConfig config,
     DeviceRegistry.DeviceInfo deviceInfo,
     ICompanionCoordinator companions,
+    ICompanionContextSync companionSync,
     ResolvedDevice device) : IProfilePackageService
 {
     /// <summary>
@@ -37,22 +38,72 @@ public sealed class ProfilePackageService(
     /// </summary>
     private readonly List<IPackageMigration> _migrations = [];
 
-    public Task<ProfilePackageResult> ExportProfileAsync(Profile profile, string targetPath, string description = null)
+    public Task<ProfilePackageResult> ExportProfileAsync(Profile profile, string targetPath, string description = null,
+        bool includeCompanionPages = false)
     {
         if (profile == null)
             return Task.FromResult(ProfilePackageResult.Fail("No profile selected."));
 
         return ExportCoreAsync(PackageKind.Profile, new ProfilePackagePayload { Profile = profile },
-            profile.Name, targetPath, description);
+            profile.Name, targetPath, description,
+            includeCompanionPages
+                ? () => BuildCompanionParts(config => (config.Profiles?.FirstOrDefault(p => p.Id == profile.Id), null))
+                : null);
     }
 
-    public Task<ProfilePackageResult> ExportWorkspaceAsync(Workspace workspace, string targetPath, string description = null)
+    public Task<ProfilePackageResult> ExportWorkspaceAsync(Workspace workspace, string targetPath, string description = null,
+        bool includeCompanionPages = false)
     {
         if (workspace == null)
             return Task.FromResult(ProfilePackageResult.Fail("No workspace selected."));
 
         return ExportCoreAsync(PackageKind.Workspace, new ProfilePackagePayload { Workspace = workspace },
-            workspace.Name, targetPath, description);
+            workspace.Name, targetPath, description,
+            includeCompanionPages
+                ? () => BuildCompanionParts(config => (null, CompanionDeviceTraits.FindWorkspace(config, workspace.Id)))
+                : null);
+    }
+
+    /// <summary>
+    /// The own content of this master's companions in the exported item: each companion's mirror of
+    /// it (same ids, the companion's pages and LED buttons). Companions whose mirror holds nothing are
+    /// left out. Null when this device is not a master or no companion has content. UI thread: a
+    /// running companion's mirror is its live config.
+    /// </summary>
+    private List<CompanionPackagePart> BuildCompanionParts(Func<LoupedeckConfig, (Profile Profile, Workspace Workspace)> mirrorOf)
+    {
+        string masterKey = device?.ScopeKey;
+        if (string.IsNullOrEmpty(masterKey) || !companions.IsMaster(masterKey))
+            return null;
+
+        List<CompanionPackagePart> parts = [];
+        foreach (string companionKey in companions.GetCompanionKeys(masterKey))
+        {
+            LoupedeckConfig companion = companions.GetDeviceConfig(companionKey);
+            if (companion == null) continue;
+
+            (Profile profile, Workspace workspace) = mirrorOf(companion);
+            int content = profile != null
+                ? CompanionImpact.CountLedButtonsWithContent(profile.SimpleButtons) +
+                  (profile.Workspaces ?? []).Sum(CompanionImpact.CountPagesWithContent)
+                : workspace != null ? CompanionImpact.CountPagesWithContent(workspace) : 0;
+            if (content == 0) continue;
+
+            CompanionButtonLayout layout = CompanionDeviceTraits.Layout(companions, companionKey, companion);
+            parts.Add(new CompanionPackagePart
+            {
+                DeviceKey = companionKey,
+                DeviceSlug = CompanionDeviceTraits.FindDevice(companions, companionKey)?.Slug,
+                DeviceName = companions.GetDisplayName(companionKey),
+                TouchButtonCount = layout.TouchButtonCount,
+                RotaryButtonCount = layout.RotaryButtonCount,
+                HasSideStrips = layout.HasSideStrips,
+                Profile = profile,
+                Workspace = workspace
+            });
+        }
+
+        return parts.Count > 0 ? parts : null;
     }
 
     public Task<ProfilePackageResult> ExportTouchPageAsync(TouchButtonPage page, string targetPath, string description = null)
@@ -74,7 +125,7 @@ public sealed class ProfilePackageService(
     }
 
     private async Task<ProfilePackageResult> ExportCoreAsync(PackageKind kind, ProfilePackagePayload payload,
-        string name, string targetPath, string description)
+        string name, string targetPath, string description, Func<List<CompanionPackagePart>> companionParts = null)
     {
         if (string.IsNullOrWhiteSpace(targetPath))
             return ProfilePackageResult.Fail("No target file selected.");
@@ -92,7 +143,11 @@ public sealed class ProfilePackageService(
             // ObservableCollections the editor may mutate at any moment, and iterating them
             // off-thread races and throws "Collection was modified". The controller's own
             // SaveConfigAsync marshals for exactly the same reason.
-            await Dispatcher.UIThread.InvokeAsync(() => configService.SaveConfig(payload, payloadPath));
+            await Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                payload.Companions = companionParts?.Invoke();
+                configService.SaveConfig(payload, payloadPath);
+            });
 
             // Read the payload back as JSON. Every scan below then runs against the exact bytes
             // that ship, not against a live object graph that could still change under us.
@@ -111,7 +166,8 @@ public sealed class ProfilePackageService(
                 SourceRotaryButtonCount = deviceService.RotaryButtonCount,
                 SourceHasSideStrips = pageManager.HasIndependentRotarySides,
                 AppVersion = ResolveAppVersion(),
-                ExportedUtc = DateTimeOffset.UtcNow
+                ExportedUtc = DateTimeOffset.UtcNow,
+                CompanionDevices = payload.Companions?.Select(part => part.DeviceName).ToList()
             };
 
             manifest.Assets = CopyAssets(payloadToken, stage, warnings);
@@ -557,7 +613,8 @@ public sealed class ProfilePackageService(
                 Profile profile = FindProfile(options.ReplaceTargetProfileId);
                 return profile == null
                     ? Task.FromResult<ProfilePackageResult>(null)
-                    : ExportProfileAsync(profile, Target(profile.Name), "Automatic backup before import.");
+                    : ExportProfileAsync(profile, Target(profile.Name), "Automatic backup before import.",
+                        includeCompanionPages: true);
             }
 
             case PackageKind.Workspace:
@@ -565,7 +622,8 @@ public sealed class ProfilePackageService(
                 Workspace workspace = FindWorkspace(options.ReplaceTargetWorkspaceId);
                 return workspace == null
                     ? Task.FromResult<ProfilePackageResult>(null)
-                    : ExportWorkspaceAsync(workspace, Target(workspace.Name), "Automatic backup before import.");
+                    : ExportWorkspaceAsync(workspace, Target(workspace.Name), "Automatic backup before import.",
+                        includeCompanionPages: true);
             }
 
             case PackageKind.TouchPage:
@@ -768,6 +826,7 @@ public sealed class ProfilePackageService(
 
         PortableIdRemapper.Remap(payloadJson, seed);
         PortablePayloadRewriter.RenameMacroReferences(payloadJson, macroRenames);
+        PortablePayloadRewriter.RemapCompanionKeys(payloadJson, AssignedCompanionKeys(options));
         PortablePayloadRewriter.RemapAssetPaths(payloadJson, assetMap);
 
         File.WriteAllText(payloadPath, payloadJson.ToString());
@@ -927,7 +986,196 @@ public sealed class ProfilePackageService(
 
         controller.SaveConfig();
 
+        ApplyCompanionParts(analysis, options, payload, warnings);
+
         return ProfilePackageResult.Ok($"Imported {what}.", warnings, importedProfileId: importedProfileId);
+    }
+
+    /// <summary>
+    /// The companion keys of the package mapped to the companions of this master they were assigned
+    /// to. Empty when this device is not a master; assignments to devices outside its group are dropped.
+    /// </summary>
+    private Dictionary<string, string> AssignedCompanionKeys(ProfilePackageImportOptions options)
+    {
+        Dictionary<string, string> keys = new(StringComparer.OrdinalIgnoreCase);
+        string masterKey = device?.ScopeKey;
+        if (string.IsNullOrEmpty(masterKey) || !companions.IsMaster(masterKey))
+            return keys;
+
+        foreach ((string packageKey, string targetKey) in options.CompanionTargets)
+        {
+            if (!string.IsNullOrEmpty(packageKey) && !string.IsNullOrEmpty(targetKey) &&
+                companions.IsCompanionOf(masterKey, targetKey))
+                keys[packageKey] = targetKey;
+        }
+
+        return keys;
+    }
+
+    /// <summary>
+    /// Puts the companion parts of a profile or workspace package into the mirrors of the companions
+    /// they were assigned to: each mirrored workspace that has a part gets the part's pages, a mirrored
+    /// profile its LED buttons. Runs right after the master's part was attached and saved. UI thread.
+    /// </summary>
+    /// <remarks>
+    /// The mirrors of what was just attached do not exist yet (the structure sync after a save is
+    /// debounced), so the sync is forced first. The companion configs are saved in this same pass,
+    /// for the asset-cleanup reason given on <see cref="AttachPayload"/>.
+    /// </remarks>
+    private void ApplyCompanionParts(ProfilePackageAnalysis analysis, ProfilePackageImportOptions options,
+        ProfilePackagePayload payload, List<string> warnings)
+    {
+        PackageKind kind = analysis.Manifest.Kind;
+        if (payload.Companions is not { Count: > 0 } || kind is not (PackageKind.Profile or PackageKind.Workspace))
+            return;
+
+        string masterKey = device?.ScopeKey;
+        if (string.IsNullOrEmpty(masterKey) || !companions.IsMaster(masterKey))
+        {
+            warnings.Add("The package carries pages of companion devices; this device leads no companion group, " +
+                         "so they were not imported.");
+            return;
+        }
+
+        Dictionary<string, string> assigned = AssignedCompanionKeys(options);
+        List<(CompanionPackagePart Part, string Target)> placements = [];
+        foreach (CompanionPackagePart part in payload.Companions)
+        {
+            if (part?.DeviceKey == null || !assigned.TryGetValue(part.DeviceKey, out string target))
+                continue;
+
+            if (placements.Any(p => string.Equals(p.Target, target, StringComparison.OrdinalIgnoreCase)))
+            {
+                warnings.Add($"The pages of {part.DeviceName ?? part.DeviceKey} were skipped: " +
+                             $"{companions.GetDisplayName(target)} already receives another companion's pages.");
+                continue;
+            }
+
+            placements.Add((part, target));
+        }
+
+        if (placements.Count == 0)
+            return;
+
+        companionSync.Resync(masterKey);
+
+        foreach ((CompanionPackagePart part, string target) in placements)
+        {
+            try
+            {
+                ApplyCompanionPart(kind, payload, part, target, warnings);
+            }
+            catch (Exception ex)
+            {
+                warnings.Add($"The pages for {companions.GetDisplayName(target)} could not be imported: {ex.Message}");
+            }
+        }
+    }
+
+    private void ApplyCompanionPart(PackageKind kind, ProfilePackagePayload payload, CompanionPackagePart part,
+        string target, List<string> warnings)
+    {
+        string targetName = companions.GetDisplayName(target);
+        LoupedeckConfig companion = companions.GetDeviceConfig(target);
+        if (companion == null)
+        {
+            warnings.Add($"The configuration of {targetName} could not be read; its pages were not imported.");
+            return;
+        }
+
+        CompanionButtonLayout layout = CompanionDeviceTraits.Layout(companions, target, companion);
+        bool activeWorkspaceChanged = false;
+        bool activeProfileButtonsChanged = false;
+
+        if (kind == PackageKind.Profile)
+        {
+            Profile mirror = companion.Profiles?.FirstOrDefault(p => p.Id == payload.Profile?.Id);
+            if (mirror == null || part.Profile == null)
+            {
+                warnings.Add($"{targetName} has no mirror of the imported profile yet; its pages were not imported.");
+                return;
+            }
+
+            PortablePayloadNormalizer.Normalize(part.Profile, layout.TouchButtonCount, layout.RotaryButtonCount,
+                layout.SideRotaryButtonCount);
+
+            foreach (Workspace source in part.Profile.Workspaces ?? [])
+            {
+                Workspace workspace = mirror.Workspaces?.FirstOrDefault(w => w.Id == source.Id);
+                if (workspace == null) continue;
+
+                ReplacePages(workspace, source);
+                activeWorkspaceChanged |= companion.ActiveProfileId == mirror.Id && companion.ActiveWorkspaceId == workspace.Id;
+            }
+
+            if (part.Profile.SimpleButtons != null)
+            {
+                mirror.SimpleButtons = part.Profile.SimpleButtons;
+                activeProfileButtonsChanged = companion.ActiveProfileId == mirror.Id;
+            }
+        }
+        else
+        {
+            Workspace workspace = CompanionDeviceTraits.FindWorkspace(companion, payload.Workspace?.Id ?? Guid.Empty);
+            if (workspace == null || part.Workspace == null)
+            {
+                warnings.Add($"{targetName} has no mirror of the imported workspace yet; its pages were not imported.");
+                return;
+            }
+
+            PortablePayloadNormalizer.Normalize(part.Workspace, layout.TouchButtonCount, layout.RotaryButtonCount,
+                layout.SideRotaryButtonCount);
+            ReplacePages(workspace, part.Workspace);
+            activeWorkspaceChanged = companion.ActiveWorkspaceId == workspace.Id;
+        }
+
+        if (part.HasSideStrips && !layout.HasSideStrips)
+        {
+            warnings.Add($"The pages for {targetName} page their dial columns independently (side strips); " +
+                         "this device does not, so those dial pages are kept but not shown.");
+        }
+
+        if (companions.ResolveHost(target) is { } host)
+        {
+            companion.ApplyDeviceGeometry(companion.Geometry);
+            companion.RebindActiveWorkspace();
+            host.Controller.SaveConfig();
+            _ = RepaintCompanionAsync(host.Controller, activeProfileButtonsChanged, activeWorkspaceChanged, targetName);
+        }
+        else if (companions.GetConfigPath(target) is { } path)
+        {
+            configService.SaveConfig(companion, path);
+        }
+    }
+
+    /// <summary>Gives a workspace the pages of another one, as a new workspace starts: on its startup page.</summary>
+    private static void ReplacePages(Workspace target, Workspace source)
+    {
+        target.TouchButtonPages = source.TouchButtonPages ?? [];
+        target.RotaryButtonPages = source.RotaryButtonPages ?? [];
+        target.LeftRotaryButtonPages = source.LeftRotaryButtonPages ?? [];
+        target.RightRotaryButtonPages = source.RightRotaryButtonPages ?? [];
+        target.StartupTouchPageIndex = source.StartupTouchPageIndex;
+        target.CurrentTouchPageIndex = -1;
+        target.CurrentRotaryPageIndex = -1;
+        target.CurrentLeftRotaryPageIndex = -1;
+        target.CurrentRightRotaryPageIndex = -1;
+    }
+
+    private static async Task RepaintCompanionAsync(IDeviceController companionController, bool profileButtons,
+        bool workspace, string name)
+    {
+        try
+        {
+            if (profileButtons)
+                await companionController.ApplyActiveProfileButtons();
+            if (workspace)
+                await companionController.ApplyActiveWorkspace();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[ProfilePackage] Could not repaint {name} after importing its pages: {ex.Message}");
+        }
     }
 
     /// <summary>
