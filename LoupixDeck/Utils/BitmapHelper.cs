@@ -1604,7 +1604,18 @@ public static class BitmapHelper
         DrawWallpaperOrColor(canvas, config, slotIndex, width, height, gridColumns,
             Color.FromArgb(160, 0, 0, 0));
 
-        // Draw a chevron-left arrow centered in the slot.
+        DrawBackChevron(canvas, width, height);
+
+        canvas.Flush();
+        return bitmap;
+    }
+
+    /// <summary>
+    /// Draws the white chevron-left arrow of a folder Back tile centered on the canvas. Shared by
+    /// plugin menus and custom folders so both Back tiles look the same.
+    /// </summary>
+    private static void DrawBackChevron(SKCanvas canvas, int width, int height)
+    {
         using var arrowPaint = new SKPaint();
         arrowPaint.Color = SKColors.White;
         arrowPaint.Style = SKPaintStyle.Stroke;
@@ -1624,9 +1635,6 @@ public static class BitmapHelper
         using var path = builder.Detach();
 
         canvas.DrawPath(path, arrowPaint);
-
-        canvas.Flush();
-        return bitmap;
     }
 
     /// <summary>
