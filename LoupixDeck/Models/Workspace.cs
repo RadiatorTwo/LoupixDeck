@@ -25,6 +25,7 @@ public partial class Workspace : ObservableObject
         LeftRotaryButtonPages = new();
         RightRotaryButtonPages = new();
         TouchButtonPages = new();
+        Folders = new();
     }
 
     /// <summary>Stable identity used by commands and context rules to target this workspace.</summary>
@@ -171,8 +172,18 @@ public partial class Workspace : ObservableObject
     [NotifyPropertyChangedFor(nameof(TouchPageLabel))]
     public partial int CurrentTouchPageIndex { get; set; } = -1;
 
+    /// <summary>
+    /// The touch layout currently shown: the open folder's layout while a folder is open,
+    /// otherwise the current page. Every renderer and editor binding reads this, so opening a
+    /// folder swaps the grid everywhere without them knowing about folders.
+    /// </summary>
     [JsonIgnore]
     public TouchButtonPage CurrentTouchButtonPage =>
+        OpenFolder?.Layout ?? CurrentPageLayout;
+
+    /// <summary>The current page, ignoring any open folder.</summary>
+    [JsonIgnore]
+    public TouchButtonPage CurrentPageLayout =>
         (TouchButtonPages != null &&
          CurrentTouchPageIndex >= 0 &&
          CurrentTouchPageIndex < TouchButtonPages.Count)
@@ -185,4 +196,57 @@ public partial class Workspace : ObservableObject
         TouchButtonPages is { Count: > 0 }
             ? $"{Math.Clamp(CurrentTouchPageIndex + 1, 1, TouchButtonPages.Count)} / {TouchButtonPages.Count}"
             : "0 / 0";
+
+    // --- Custom folders (issue #249) -----------------------------------------
+
+    /// <summary>Top-level user folders of this workspace. Omitted from the file while empty.</summary>
+    [ObservableProperty]
+    [JsonProperty(ObjectCreationHandling = ObjectCreationHandling.Replace)]
+    public partial ObservableCollection<CustomFolder> Folders { get; set; }
+
+    public bool ShouldSerializeFolders() => Folders is { Count: > 0 };
+
+    /// <summary>
+    /// The folders opened from the current page, outermost first. Runtime only: a launch or a
+    /// workspace switch always starts on a page. Replaced as a whole, never mutated, so the
+    /// device read thread can read it without a lock.
+    /// </summary>
+    [JsonIgnore]
+    public IReadOnlyList<CustomFolder> FolderPath { get; private set; } = [];
+
+    /// <summary>The innermost open folder, or null when a page is shown.</summary>
+    [JsonIgnore]
+    public CustomFolder OpenFolder => FolderPath.Count > 0 ? FolderPath[^1] : null;
+
+    [JsonIgnore]
+    public bool IsFolderOpen => FolderPath.Count > 0;
+
+    /// <summary>Replaces the open-folder path and refreshes every projection that depends on it.</summary>
+    public void SetFolderPath(IReadOnlyList<CustomFolder> path)
+    {
+        IReadOnlyList<CustomFolder> next = path is { Count: > 0 } ? path.ToArray() : [];
+        if (FolderPath.Count == 0 && next.Count == 0) return;
+
+        FolderPath = next;
+        OnPropertyChanged(nameof(FolderPath));
+        OnPropertyChanged(nameof(OpenFolder));
+        OnPropertyChanged(nameof(IsFolderOpen));
+        OnPropertyChanged(nameof(CurrentTouchButtonPage));
+    }
+
+    /// <summary>Every folder of this workspace, depth first.</summary>
+    public IEnumerable<CustomFolder> EnumerateFolders()
+        => (Folders ?? []).Where(static f => f != null).SelectMany(static f => f.SelfAndDescendants());
+
+    /// <summary>Every touch layout of this workspace: its pages, then every folder layout that exists.</summary>
+    public IEnumerable<TouchButtonPage> EnumerateTouchLayouts()
+    {
+        foreach (TouchButtonPage page in TouchButtonPages ?? [])
+            if (page != null)
+                yield return page;
+
+        foreach (CustomFolder folder in EnumerateFolders())
+            if (folder.Layout != null)
+                yield return folder.Layout;
+    }
 }
