@@ -224,6 +224,29 @@ public partial class MainWindow : Window
             "loupedeck-ct" => new LoupedeckCtLayout { DataContext = vm },
             _ => new LoupedeckLiveSLayout { DataContext = vm }
         };
+
+        FitWindowToDeviceLayout();
+    }
+
+    /// <summary>
+    /// Sizes the window to the layout just swapped in, larger or smaller.
+    /// </summary>
+    /// <remarks>
+    /// Sizing to content only lasts until the user resizes the window by hand: Avalonia then drops
+    /// the dragged dimension from <see cref="Window.SizeToContent"/>, and a later device switch
+    /// would keep the old size — clipping a larger layout, leaving empty space around a smaller
+    /// one. A manual size belongs to the layout it was made for, so a switch hands sizing back to
+    /// the content. A maximized window stays maximized.
+    /// </remarks>
+    private void FitWindowToDeviceLayout()
+    {
+        if (WindowState != WindowState.Normal || SizeToContent == SizeToContent.WidthAndHeight) return;
+
+        // A resize by hand also pins Width and Height, which would otherwise keep constraining the
+        // measure the content sizing relies on.
+        ClearValue(WidthProperty);
+        ClearValue(HeightProperty);
+        SizeToContent = SizeToContent.WidthAndHeight;
     }
 
     /// <summary>
