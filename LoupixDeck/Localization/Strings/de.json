@@ -99,6 +99,8 @@
   "Companions_Resume": "Fortsetzen",
   "Companions_Title": "Companions",
   "Companions_UnnamedGroup": "(unbenannte Gruppe)",
+  "Companions_FolderFollow": "In Ordner folgen",
+  "Companions_FolderFollowHint": "Öffnet oder schließt der Master einen eigenen Ordner, öffnen oder schließen die Companions im selben Arbeitsbereich denselben Ordner mit ihrem eigenen Layout.",
   "Condition_ActiveWindowProcessIs": "Prozess des aktiven Fensters ist",
   "Condition_ActiveWindowTitleContains": "Titel des aktiven Fensters enthält",
   "Condition_ProcessRunning": "Prozess läuft",

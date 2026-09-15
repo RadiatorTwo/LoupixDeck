@@ -564,6 +564,14 @@
                                                            Text="{loc:Tr Companions_PageFollowHint}" />
                                             </StackPanel>
 
+                                            <!-- Folder follow (issue #249) -->
+                                            <StackPanel Spacing="4">
+                                                <CheckBox Content="{loc:Tr Companions_FolderFollow}"
+                                                          IsChecked="{Binding FolderFollow, Mode=TwoWay}" />
+                                                <TextBlock Classes="hint" FontSize="12" TextWrapping="Wrap"
+                                                           Text="{loc:Tr Companions_FolderFollowHint}" />
+                                            </StackPanel>
+
                                             <TextBlock IsVisible="{Binding HasError}" Text="{Binding Error}" TextWrapping="Wrap"
                                                        Foreground="#E07A7A" />
                                         </StackPanel>

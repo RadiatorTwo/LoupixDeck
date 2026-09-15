@@ -24,4 +24,9 @@ public sealed class CompanionGroup
     /// written before it load and save unchanged.</summary>
     [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
     public CompanionPageFollowMode PageFollow { get; set; }
+
+    /// <summary>Whether the companions open and close custom folders along with the master (issue #249).
+    /// Off by default and omitted while off, so existing files load and save unchanged.</summary>
+    [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
+    public bool FolderFollow { get; set; }
 }

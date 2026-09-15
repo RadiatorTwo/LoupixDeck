@@ -99,6 +99,8 @@
   "Companions_Resume": "Resume",
   "Companions_Title": "Companions",
   "Companions_UnnamedGroup": "(unnamed group)",
+  "Companions_FolderFollow": "Follow into folders",
+  "Companions_FolderFollowHint": "When the master opens or closes a custom folder, companions showing the same workspace open or close the same folder with their own layout.",
   "Condition_ActiveWindowProcessIs": "Active window process is",
   "Condition_ActiveWindowTitleContains": "Active window title contains",
   "Condition_ProcessRunning": "Process running",

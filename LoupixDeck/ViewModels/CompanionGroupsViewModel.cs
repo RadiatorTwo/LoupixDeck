@@ -177,6 +177,18 @@ public sealed partial class CompanionGroupRow : ObservableObject
         }
     }
 
+    /// <summary>Whether the companions open and close custom folders along with the master (issue #249).</summary>
+    public bool FolderFollow
+    {
+        get => Group.FolderFollow;
+        set
+        {
+            if (value == Group.FolderFollow) return;
+            _owner.Coordinator.SetFolderFollow(Group.Id, value);
+            OnPropertyChanged();
+        }
+    }
+
     public ObservableCollection<CompanionDeviceOption> CompanionCandidates { get; } = new();
 
     [ObservableProperty]

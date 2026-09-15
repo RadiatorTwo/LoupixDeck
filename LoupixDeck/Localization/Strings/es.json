@@ -99,6 +99,8 @@
   "Companions_Resume": "Reanudar",
   "Companions_Title": "Acompañantes",
   "Companions_UnnamedGroup": "(grupo sin nombre)",
+  "Companions_FolderFollow": "Seguir dentro de las carpetas",
+  "Companions_FolderFollowHint": "Cuando el maestro abre o cierra una carpeta propia, los acompañantes que muestran el mismo espacio de trabajo abren o cierran la misma carpeta con su propio diseño.",
   "Condition_ActiveWindowProcessIs": "El proceso de la ventana activa es",
   "Condition_ActiveWindowTitleContains": "El título de la ventana activa contiene",
   "Condition_ProcessRunning": "Proceso en ejecución",
