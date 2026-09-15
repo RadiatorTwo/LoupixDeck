@@ -95,6 +95,43 @@ public partial class FolderPanelWindow : Window
     private void OnRootTapped(object sender, TappedEventArgs e)
         => _ = ViewModel?.CloseFoldersCommand.ExecuteAsync(null);
 
+    // ── In-place rename ────────────────────────────────────────────────────
+
+    private void OnRenameBoxAttached(object sender, VisualTreeAttachmentEventArgs e)
+    {
+        if (sender is not TextBox box) return;
+
+        // The box is created per rename session, so focusing it on attach starts each edit fresh.
+        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        {
+            box.Focus();
+            box.SelectAll();
+        });
+    }
+
+    private void OnRenameBoxKeyDown(object sender, KeyEventArgs e)
+    {
+        if (sender is not TextBox { DataContext: FolderRenameSession session } box) return;
+
+        switch (e.Key)
+        {
+            case Key.Enter:
+                ViewModel?.CommitRename(session, box.Text);
+                e.Handled = true;
+                break;
+            case Key.Escape:
+                ViewModel?.CancelRename(session);
+                e.Handled = true;
+                break;
+        }
+    }
+
+    private void OnRenameBoxLostFocus(object sender, FocusChangedEventArgs e)
+    {
+        if (sender is TextBox { DataContext: FolderRenameSession session } box)
+            ViewModel?.CommitRename(session, box.Text);
+    }
+
     // ── Press, drag, release ───────────────────────────────────────────────
 
     private Point ToOwner(PointerEventArgs e)
@@ -108,11 +145,25 @@ public partial class FolderPanelWindow : Window
 
     private void OnPreviewPointerPressed(object sender, PointerPressedEventArgs e)
     {
+        // A press outside the text fields takes the focus away from them, which commits an open rename.
+        if ((e.Source as Visual)?.GetSelfAndVisualAncestors().Any(static v => v is TextBox) != true)
+            Focus();
+
         if (_owner == null || _dragDrop == null) return;
         if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed) return;
 
         FolderNodeViewModel node = FolderRowNode(e.Source as Visual);
         if (node == null) return;
+
+        // The caret, the pencil and the rename box handle their own presses.
+        if ((e.Source as Visual)?.GetSelfAndVisualAncestors().Any(static v => v is Button or TextBox) == true) return;
+
+        if (e.ClickCount == 2)
+        {
+            ViewModel?.StartRename(node);
+            e.Handled = true;
+            return;
+        }
 
         _dragArmed = _dragDrop.PanelPointerPressed(e.Source as Visual, ToOwner(e));
         if (!_dragArmed) return;

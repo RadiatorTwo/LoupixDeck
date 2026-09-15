@@ -14,6 +14,9 @@ public sealed partial class FolderNodeViewModel : PanelItemViewModel
     /// <summary>mdi-folder.</summary>
     public const string FolderGlyph = "\U000F024B";
 
+    /// <summary>Width one tree level indents a row by.</summary>
+    public const double IndentStep = 14;
+
     public FolderNodeViewModel(CustomFolder folder, FolderNodeViewModel parent)
     {
         Folder = folder;
@@ -29,6 +32,8 @@ public sealed partial class FolderNodeViewModel : PanelItemViewModel
 
     public ObservableCollection<FolderNodeViewModel> Children { get; } = [];
 
+    public bool HasChildren => Children.Count > 0;
+
     [ObservableProperty]
     public partial bool IsExpanded { get; set; }
 
@@ -40,6 +45,24 @@ public sealed partial class FolderNodeViewModel : PanelItemViewModel
     [ObservableProperty]
     public partial bool IsInPath { get; set; }
 
+    /// <summary>Level below the workspace root; top-level folders are 1.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IndentWidth))]
+    public partial int Depth { get; set; }
+
+    public double IndentWidth => Depth * IndentStep;
+
+    /// <summary>Number of configured keys in the folder's layout; empty when there are none.</summary>
+    [ObservableProperty]
+    public partial string ActionCount { get; set; } = string.Empty;
+
+    /// <summary>The active in-place rename, or null. A new session per edit remounts the text box.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsEditing))]
+    public partial FolderRenameSession RenameSession { get; set; }
+
+    public bool IsEditing => RenameSession != null;
+
     /// <summary>This node and every node below it, depth first.</summary>
     public IEnumerable<FolderNodeViewModel> SelfAndDescendants()
     {
@@ -48,4 +71,13 @@ public sealed partial class FolderNodeViewModel : PanelItemViewModel
             foreach (FolderNodeViewModel nested in child.SelfAndDescendants())
                 yield return nested;
     }
+}
+
+/// <summary>The edit buffer of one in-place folder rename.</summary>
+public sealed partial class FolderRenameSession(FolderNodeViewModel node, string text) : ObservableObject
+{
+    public FolderNodeViewModel Node { get; } = node;
+
+    [ObservableProperty]
+    public partial string Text { get; set; } = text;
 }

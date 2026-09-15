@@ -1,5 +1,7 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Globalization;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using LoupixDeck.Controllers;
@@ -13,9 +15,13 @@ namespace LoupixDeck.ViewModels.FolderPanel;
 
 /// <summary>
 /// The folder panel on the right of the main window (issue #249): the custom folder tree of the
-/// active workspace, with create, rename, delete, move and open. One per device, like the apps and
-/// commands panel.
+/// active workspace, with create, rename, delete, move, search and open. One per device, like the
+/// apps and commands panel.
 /// </summary>
+/// <remarks>
+/// The tree is shown as a flat row list (<see cref="VisibleRows"/>): expansion and the search
+/// filter decide which nodes are in it, and the rows carry their depth.
+/// </remarks>
 public sealed partial class FolderPanelViewModel : ViewModelBase
 {
     private readonly LoupedeckConfig _config;
@@ -24,6 +30,9 @@ public sealed partial class FolderPanelViewModel : ViewModelBase
     private readonly LoupedeckLiveSController _controller;
     private readonly Services.Companion.ICompanionCoordinator _companions;
     private readonly string _scopeKey;
+
+    // Folders are expanded unless the user collapsed them, so new folders show their children.
+    private readonly HashSet<Guid> _collapsed = [];
 
     public FolderPanelViewModel(LoupedeckConfig config, ICustomFolderService folders, IDialogService dialogService,
         LoupedeckLiveSController controller, Services.Companion.ICompanionCoordinator companions,
@@ -44,7 +53,7 @@ public sealed partial class FolderPanelViewModel : ViewModelBase
         companionSync.LinkedStructureChanged += key =>
         {
             if (string.Equals(key, _scopeKey, StringComparison.OrdinalIgnoreCase))
-                Avalonia.Threading.Dispatcher.UIThread.Post(Rebuild);
+                Dispatcher.UIThread.Post(Rebuild);
         };
         Rebuild();
     }
@@ -54,6 +63,7 @@ public sealed partial class FolderPanelViewModel : ViewModelBase
     /// layouts stay its own, so opening folders and linking them to keys still works.
     /// </summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanDeleteCurrent))]
     public partial bool CanEditStructure { get; private set; } = true;
 
     /// <summary>Whether the panel is showing.</summary>
@@ -66,13 +76,38 @@ public sealed partial class FolderPanelViewModel : ViewModelBase
 
     /// <summary>True while no folder is open, so the workspace root is what the device shows.</summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanDeleteCurrent))]
     public partial bool IsRootCurrent { get; private set; } = true;
+
+    /// <summary>True when the open folder may be deleted from the header.</summary>
+    public bool CanDeleteCurrent => CanEditStructure && !IsRootCurrent;
 
     /// <summary>True when there is no folder yet and this device may create one.</summary>
     [ObservableProperty]
     public partial bool ShowEmptyHint { get; private set; }
 
+    /// <summary>True when a search is active and nothing matches it.</summary>
+    [ObservableProperty]
+    public partial bool ShowNoMatches { get; private set; }
+
+    /// <summary>Live filter on the folder names.</summary>
+    [ObservableProperty]
+    public partial string SearchQuery { get; set; } = string.Empty;
+
+    /// <summary>Number of folders in the workspace, shown in the header.</summary>
+    [ObservableProperty]
+    public partial string Counter { get; private set; } = string.Empty;
+
+    /// <summary>Footer path of the open folder, starting at the workspace, e.g. "Home / Media".</summary>
+    [ObservableProperty]
+    public partial string PathLabel { get; private set; } = string.Empty;
+
     public ObservableCollection<FolderNodeViewModel> RootNodes { get; } = [];
+
+    /// <summary>The folder rows currently shown, in tree order.</summary>
+    public ObservableCollection<FolderNodeViewModel> VisibleRows { get; } = [];
+
+    partial void OnSearchQueryChanged(string value) => RefreshRows();
 
     // ── Tree state ─────────────────────────────────────────────────────────
 
@@ -81,27 +116,28 @@ public sealed partial class FolderPanelViewModel : ViewModelBase
         switch (e.PropertyName)
         {
             case nameof(LoupedeckConfig.ActiveWorkspace):
-                Avalonia.Threading.Dispatcher.UIThread.Post(Rebuild);
+                Dispatcher.UIThread.Post(Rebuild);
                 break;
             case nameof(LoupedeckConfig.FolderPath):
-                Avalonia.Threading.Dispatcher.UIThread.Post(RefreshCurrent);
+                Dispatcher.UIThread.Post(RefreshCurrent);
                 break;
             case nameof(Workspace.Name):
-                Avalonia.Threading.Dispatcher.UIThread.Post(() => WorkspaceName = _config.ActiveWorkspace?.Name ?? string.Empty);
+                Dispatcher.UIThread.Post(() =>
+                {
+                    WorkspaceName = _config.ActiveWorkspace?.Name ?? string.Empty;
+                    RefreshPath();
+                });
                 break;
         }
     }
 
-    /// <summary>Rebuilds the node tree from the model, keeping which folders were expanded.</summary>
+    /// <summary>Rebuilds the node tree from the model, keeping which folders were collapsed.</summary>
     private void Rebuild()
     {
-        HashSet<Guid> expanded = [.. RootNodes.SelectMany(static n => n.SelfAndDescendants())
-            .Where(static n => n.IsExpanded).Select(static n => n.Folder.Id)];
-
         RootNodes.Clear();
         foreach (CustomFolder folder in _config.ActiveWorkspace?.Folders ?? [])
             if (folder != null)
-                RootNodes.Add(BuildNode(folder, null, expanded));
+                RootNodes.Add(BuildNode(folder, null));
 
         WorkspaceName = _config.ActiveWorkspace?.Name ?? string.Empty;
         CanEditStructure = _config.CompanionLink == null;
@@ -109,14 +145,16 @@ public sealed partial class FolderPanelViewModel : ViewModelBase
         RefreshCurrent();
     }
 
-    private static FolderNodeViewModel BuildNode(CustomFolder folder, FolderNodeViewModel parent, HashSet<Guid> expanded)
+    private FolderNodeViewModel BuildNode(CustomFolder folder, FolderNodeViewModel parent)
     {
-        FolderNodeViewModel node = new(folder, parent) { IsExpanded = expanded.Contains(folder.Id) };
+        FolderNodeViewModel node = new(folder, parent) { IsExpanded = !_collapsed.Contains(folder.Id) };
         foreach (CustomFolder child in folder.Children ?? [])
             if (child != null)
-                node.Children.Add(BuildNode(child, node, expanded));
+                node.Children.Add(BuildNode(child, node));
         return node;
     }
+
+    private IEnumerable<FolderNodeViewModel> AllNodes => RootNodes.SelectMany(static n => n.SelfAndDescendants());
 
     /// <summary>Marks the open folder and the folders it was opened through, and expands down to it.</summary>
     private void RefreshCurrent()
@@ -125,21 +163,113 @@ public sealed partial class FolderPanelViewModel : ViewModelBase
         HashSet<Guid> inPath = [.. path.Select(static f => f.Id)];
         Guid? current = path.Count > 0 ? path[^1].Id : null;
 
-        foreach (FolderNodeViewModel node in RootNodes.SelectMany(static n => n.SelfAndDescendants()))
+        foreach (FolderNodeViewModel node in AllNodes)
         {
             node.IsCurrent = node.Folder.Id == current;
             node.IsInPath = !node.IsCurrent && inPath.Contains(node.Folder.Id);
 
             if (node.IsCurrent)
                 for (FolderNodeViewModel parent = node.Parent; parent != null; parent = parent.Parent)
-                    parent.IsExpanded = true;
+                    SetExpanded(parent, true);
         }
 
         IsRootCurrent = path.Count == 0;
+        RefreshCounts();
+        RefreshPath();
+        RefreshRows();
+    }
+
+    /// <summary>Recounts the configured keys of every folder; a folder's keys change while it is open.</summary>
+    private void RefreshCounts()
+    {
+        int folders = 0;
+        foreach (FolderNodeViewModel node in AllNodes)
+        {
+            int count = node.Folder.Layout?.TouchButtons
+                .Count(static b => b != null && !b.IsFolderBackSlot && !ButtonSnapshot.IsEmpty(b)) ?? 0;
+            node.ActionCount = count > 0 ? count.ToString(CultureInfo.CurrentCulture) : string.Empty;
+            folders++;
+        }
+
+        Counter = folders > 0 ? folders.ToString(CultureInfo.CurrentCulture) : string.Empty;
+    }
+
+    private void RefreshPath()
+    {
+        IEnumerable<string> names = [WorkspaceName, .. _config.FolderPath.Select(static f => f.Name)];
+        PathLabel = string.Join(" / ", names);
+    }
+
+    /// <summary>
+    /// Brings <see cref="VisibleRows"/> in line with expansion and search. While a search is active,
+    /// every branch leading to a match is shown expanded. Rows that stay are not re-created, so an
+    /// open rename box survives a refresh.
+    /// </summary>
+    private void RefreshRows()
+    {
+        string query = SearchQuery?.Trim() ?? string.Empty;
+        bool searching = query.Length > 0;
+        List<FolderNodeViewModel> rows = [];
+
+        void Walk(FolderNodeViewModel node, int depth)
+        {
+            if (searching && !node.SelfAndDescendants().Any(n =>
+                    (n.Folder.Name ?? string.Empty).Contains(query, StringComparison.CurrentCultureIgnoreCase)))
+                return;
+
+            node.Depth = depth;
+            rows.Add(node);
+
+            if (searching || node.IsExpanded)
+                foreach (FolderNodeViewModel child in node.Children)
+                    Walk(child, depth + 1);
+        }
+
+        foreach (FolderNodeViewModel root in RootNodes)
+            Walk(root, 1);
+
+        ShowNoMatches = searching && rows.Count == 0 && RootNodes.Count > 0;
+
+        if (rows.SequenceEqual(VisibleRows)) return;
+
+        // Keep the rows in place that are still there, so their containers survive.
+        for (int i = VisibleRows.Count - 1; i >= 0; i--)
+            if (!rows.Contains(VisibleRows[i]))
+                VisibleRows.RemoveAt(i);
+
+        for (int i = 0; i < rows.Count; i++)
+        {
+            int existing = VisibleRows.IndexOf(rows[i]);
+            if (existing == i) continue;
+            if (existing >= 0)
+                VisibleRows.Move(existing, i);
+            else
+                VisibleRows.Insert(i, rows[i]);
+        }
+    }
+
+    private void SetExpanded(FolderNodeViewModel node, bool expanded)
+    {
+        node.IsExpanded = expanded;
+        if (expanded)
+            _collapsed.Remove(node.Folder.Id);
+        else
+            _collapsed.Add(node.Folder.Id);
     }
 
     private FolderNodeViewModel FindNode(CustomFolder folder)
-        => RootNodes.SelectMany(static n => n.SelfAndDescendants()).FirstOrDefault(n => ReferenceEquals(n.Folder, folder));
+        => AllNodes.FirstOrDefault(n => ReferenceEquals(n.Folder, folder));
+
+    private FolderNodeViewModel CurrentNode => AllNodes.FirstOrDefault(static n => n.IsCurrent);
+
+    [RelayCommand]
+    private void ToggleExpanded(FolderNodeViewModel node)
+    {
+        if (node == null || !node.HasChildren) return;
+
+        SetExpanded(node, !node.IsExpanded);
+        RefreshRows();
+    }
 
     // ── Navigation ─────────────────────────────────────────────────────────
 
@@ -152,8 +282,9 @@ public sealed partial class FolderPanelViewModel : ViewModelBase
 
     // ── Editing ────────────────────────────────────────────────────────────
 
+    /// <summary>Creates a folder inside the open one (or at the top level), opens it and starts renaming it.</summary>
     [RelayCommand]
-    private Task NewFolder() => CreateFolderAsync(null);
+    private Task NewFolder() => CreateFolderAsync(CurrentNode);
 
     [RelayCommand]
     private Task NewSubfolder(FolderNodeViewModel parent) => CreateFolderAsync(parent);
@@ -162,29 +293,74 @@ public sealed partial class FolderPanelViewModel : ViewModelBase
     {
         if (!CanEditStructure) return;
 
-        string name = await AskName("Prompt_NewFolderTitle", "Prompt_Create", Loc.Tr("FolderPanel_DefaultName"));
-        if (string.IsNullOrWhiteSpace(name)) return;
+        if (parent != null)
+            _collapsed.Remove(parent.Folder.Id);
 
-        CustomFolder folder = _folders.Create(parent?.Folder, name);
+        SearchQuery = string.Empty;
+
+        CustomFolder folder = _folders.Create(parent?.Folder, UniqueDefaultName(parent?.Folder));
         if (folder == null) return;
 
         _controller.SaveConfig();
+        await _controller.PageManager.OpenFolder(folder.Id, FolderOpenMode.Tree);
 
-        if (parent != null)
-            FindNode(parent.Folder)?.IsExpanded = true;
+        // After the posted refreshes of the navigation, so the new row is in the list.
+        Dispatcher.UIThread.Post(() => StartRename(FindNode(folder)), DispatcherPriority.Background);
+    }
+
+    private string UniqueDefaultName(CustomFolder parent)
+    {
+        string baseName = Loc.Tr("FolderPanel_DefaultName");
+        IEnumerable<CustomFolder> siblings = parent?.Children ?? _config.ActiveWorkspace?.Folders ?? [];
+        HashSet<string> taken = new(siblings.Where(static f => f != null).Select(static f => f.Name),
+            StringComparer.CurrentCultureIgnoreCase);
+
+        if (!taken.Contains(baseName)) return baseName;
+
+        int n = 2;
+        while (taken.Contains($"{baseName} {n}")) n++;
+        return $"{baseName} {n}";
     }
 
     [RelayCommand]
-    private async Task Rename(FolderNodeViewModel node)
+    private void Rename(FolderNodeViewModel node) => StartRename(node);
+
+    /// <summary>Opens the in-place rename box on the row.</summary>
+    public void StartRename(FolderNodeViewModel node)
     {
         if (node == null || !CanEditStructure) return;
 
-        string name = await AskName("Prompt_RenameFolderTitle", "Prompt_Rename", node.Folder.Name);
-        if (string.IsNullOrWhiteSpace(name) || name == node.Folder.Name) return;
+        foreach (FolderNodeViewModel other in AllNodes.Where(static n => n.IsEditing))
+            if (!ReferenceEquals(other, node))
+                other.RenameSession = null;
+
+        node.RenameSession = new FolderRenameSession(node, node.Folder.Name);
+    }
+
+    /// <summary>Ends <paramref name="session"/> and applies <paramref name="text"/> unless it is blank or unchanged.</summary>
+    public void CommitRename(FolderRenameSession session, string text)
+    {
+        FolderNodeViewModel node = session?.Node;
+        if (node == null || !ReferenceEquals(node.RenameSession, session)) return;
+
+        node.RenameSession = null;
+
+        string name = text?.Trim();
+        if (string.IsNullOrEmpty(name) || name == node.Folder.Name) return;
 
         _folders.Rename(node.Folder, name);
         _controller.SaveConfig();
     }
+
+    /// <summary>Ends <paramref name="session"/> without renaming.</summary>
+    public void CancelRename(FolderRenameSession session)
+    {
+        if (session?.Node != null && ReferenceEquals(session.Node.RenameSession, session))
+            session.Node.RenameSession = null;
+    }
+
+    [RelayCommand]
+    private Task DeleteCurrent() => Delete(CurrentNode);
 
     [RelayCommand]
     private async Task Delete(FolderNodeViewModel node)
@@ -216,27 +392,17 @@ public sealed partial class FolderPanelViewModel : ViewModelBase
     /// <summary>Moves the folder below <paramref name="newParent"/> (null = top level) at <paramref name="index"/>.</summary>
     public void Move(FolderNodeViewModel node, FolderNodeViewModel newParent, int index)
     {
-        if (node == null || !_folders.Move(node.Folder, newParent?.Folder, index)) return;
+        if (node == null) return;
 
         if (newParent != null)
-            FindNode(newParent.Folder)?.IsExpanded = true;
+            _collapsed.Remove(newParent.Folder.Id);
+
+        if (!_folders.Move(node.Folder, newParent?.Folder, index)) return;
+
         _controller.SaveConfig();
     }
 
     // ── Dialogs ────────────────────────────────────────────────────────────
-
-    private async Task<string> AskName(string titleKey, string confirmKey, string initialText)
-    {
-        TextInputDialogViewModel prompt = null;
-
-        DialogResult result = await _dialogService.ShowDialogAsync<TextInputDialogViewModel, DialogResult>(vm =>
-        {
-            prompt = vm;
-            vm.Configure(Loc.Tr(titleKey), Loc.Tr("Settings_FolderName"), Loc.Tr(confirmKey), initialText);
-        });
-
-        return result?.IsConfirmed == true && prompt != null ? prompt.Result?.Trim() : null;
-    }
 
     private async Task<bool> Ask(string titleKey, string message, string confirmKey)
     {
