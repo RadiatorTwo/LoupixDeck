@@ -129,7 +129,13 @@ public partial class MainWindow : Window
         panel.RequestCatalogueRefresh();
 
         if (_panel != null)
+        {
             _panel.PropertyChanged -= OnActionPanelPropertyChanged;
+
+            // Each device owns its panel, but whether the panel is showing is a window-level
+            // choice: carry it over so a device switch neither opens nor closes it.
+            panel.IsOpen = _panel.IsOpen;
+        }
 
         _panel = panel;
         _panel.PropertyChanged += OnActionPanelPropertyChanged;
