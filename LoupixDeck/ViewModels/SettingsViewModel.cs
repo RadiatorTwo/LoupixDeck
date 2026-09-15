@@ -668,58 +668,36 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
     public bool HasPackageStatus => !string.IsNullOrWhiteSpace(PackageStatusMessage);
 
     public IAsyncRelayCommand ExportProfileCommand => field ??= Relay.Create<ProfileRow>(
-        row => ExportPackage(row.Profile.Name,
-            path => _packageService.ExportProfileAsync(row.Profile, path)),
+        row => ExportPackage(ProfileExportRequest.ForProfile(row.Profile)),
         static row => row != null);
 
     public IAsyncRelayCommand ExportWorkspaceCommand => field ??= Relay.Create<WorkspaceRow>(
-        row => ExportPackage(row.Workspace.Name,
-            path => _packageService.ExportWorkspaceAsync(row.Workspace, path)),
+        row => ExportPackage(ProfileExportRequest.ForWorkspace(row.Workspace)),
         static row => row != null);
 
     public IAsyncRelayCommand ExportTouchPageCommand => field ??= Relay.Create<TouchButtonPage>(
-        page => ExportPackage(page.PageName, path => _packageService.ExportTouchPageAsync(page, path)),
+        page => ExportPackage(ProfileExportRequest.ForTouchPage(page)),
         static page => page != null);
 
     public IAsyncRelayCommand ExportRotaryPageCommand => field ??= Relay.Create<RotaryButtonPage>(
-        page => ExportPackage(page.PageName, path => _packageService.ExportRotaryPageAsync(page, path)),
+        page => ExportPackage(ProfileExportRequest.ForRotaryPage(page)),
         static page => page != null);
 
     public IAsyncRelayCommand ImportPackageCommand => field ??= Relay.Create(ImportPackage, () => CanEditProfiles);
 
-    private async Task ExportPackage(string itemName, Func<string, Task<ProfilePackageResult>> export)
-    {
-        string target = await FileDialogHelper.SaveProfilePackageDialog(
-            WindowHelper.GetActiveWindow(), FileDialogHelper.SuggestPackageFileName(itemName));
-
-        if (string.IsNullOrEmpty(target))
-            return;
-
-        ProfilePackageResult result = await export(target);
-        ReportPackageResult(result);
-    }
+    private async Task ExportPackage(ProfileExportRequest request) =>
+        ReportPackageResult(await ProfileExportViewModel.ShowAsync(_dialogService, request));
 
     private async Task ImportPackage()
     {
-        string source = await FileDialogHelper.OpenProfilePackageDialog(WindowHelper.GetActiveWindow());
-        if (string.IsNullOrEmpty(source))
+        ProfilePackageResult result = await ProfileImportViewModel.ShowAsync(_dialogService);
+        if (result == null)
             return;
 
-        ProfileImportViewModel importViewModel = null;
-
-        DialogResult dialogResult = await _dialogService.ShowDialogAsync<ProfileImportViewModel, DialogResult>(vm =>
-        {
-            importViewModel = vm;
-            vm.Configure(source);
-        });
-
-        if (dialogResult?.IsConfirmed != true || importViewModel?.Result == null)
-            return;
-
-        ReportPackageResult(importViewModel.Result);
+        ReportPackageResult(result);
 
         // The import writes straight into Config.Profiles, so the tree editor has to be rebuilt.
-        if (importViewModel.Result.Success)
+        if (result.Success)
             BuildProfileRows();
     }
 

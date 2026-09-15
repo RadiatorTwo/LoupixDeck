@@ -447,6 +447,11 @@
                                                       IsVisible="{Binding SelectedDevice.ProfileMenu.IsAppLinkingSupported}"
                                                       Command="{Binding SelectedDevice.ProfileMenu.UnlinkApplicationCommand}" />
                                             <Separator />
+                                            <MenuItem Header="{loc:Tr MainWindow_ImportPackage}"
+                                                      Command="{Binding SelectedDevice.ProfileMenu.ImportPackageCommand}" />
+                                            <MenuItem Header="{loc:Tr MainWindow_ExportProfile}"
+                                                      Command="{Binding SelectedDevice.ProfileMenu.ExportProfileCommand}" />
+                                            <Separator />
                                             <MenuItem Header="{loc:Tr MainWindow_DeleteProfile}"
                                                       Command="{Binding SelectedDevice.ProfileMenu.DeleteProfileCommand}" />
                                         </MenuFlyout>
@@ -485,6 +490,9 @@
                                                       Command="{Binding SelectedDevice.ProfileMenu.NewWorkspaceCommand}" />
                                             <MenuItem Header="{loc:Tr MainWindow_RenameWorkspace}"
                                                       Command="{Binding SelectedDevice.ProfileMenu.RenameWorkspaceCommand}" />
+                                            <Separator />
+                                            <MenuItem Header="{loc:Tr MainWindow_ExportWorkspace}"
+                                                      Command="{Binding SelectedDevice.ProfileMenu.ExportWorkspaceCommand}" />
                                             <Separator />
                                             <MenuItem Header="{loc:Tr MainWindow_DeleteWorkspace}"
                                                       Command="{Binding SelectedDevice.ProfileMenu.DeleteWorkspaceCommand}" />

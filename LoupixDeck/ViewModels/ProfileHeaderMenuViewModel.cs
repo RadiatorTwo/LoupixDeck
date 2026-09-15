@@ -7,6 +7,7 @@ using LoupixDeck.Services;
 using LoupixDeck.Services.AppLauncher;
 using LoupixDeck.Services.AppSwitching;
 using LoupixDeck.Services.Companion;
+using LoupixDeck.Services.Portable;
 using LoupixDeck.Services.Profiles;
 using LoupixDeck.Utils;
 using LoupixDeck.ViewModels.Base;
@@ -89,6 +90,17 @@ public sealed class ProfileHeaderMenuViewModel : ViewModelBase
     public IAsyncRelayCommand DeleteWorkspaceCommand => field ??= Relay.Create(DeleteWorkspace,
         () => CanEditStructure && _editing.CanRemoveWorkspace(_activation.ActiveProfile, _activation.ActiveWorkspace));
 
+    // Export is allowed on a companion too: the pages in its mirrors are its own.
+    public IAsyncRelayCommand ExportProfileCommand => field ??= Relay.Create(
+        () => Export(_activation.ActiveProfile is { } profile ? ProfileExportRequest.ForProfile(profile) : null),
+        () => _activation.ActiveProfile != null);
+    public IAsyncRelayCommand ExportWorkspaceCommand => field ??= Relay.Create(
+        () => Export(_activation.ActiveWorkspace is { } workspace ? ProfileExportRequest.ForWorkspace(workspace) : null),
+        () => _activation.ActiveWorkspace != null);
+
+    // A companion's profiles and workspaces mirror its master's, so it cannot import them.
+    public IAsyncRelayCommand ImportPackageCommand => field ??= Relay.Create(ImportPackage, () => CanEditStructure);
+
     /// <summary>Linking needs foreground-app detection, which exists only on Windows and Linux.</summary>
     public bool IsAppLinkingSupported => OperatingSystem.IsWindows() || OperatingSystem.IsLinux();
 
@@ -119,7 +131,35 @@ public sealed class ProfileHeaderMenuViewModel : ViewModelBase
         DeleteWorkspaceCommand.NotifyCanExecuteChanged();
         LinkApplicationCommand.NotifyCanExecuteChanged();
         UnlinkApplicationCommand.NotifyCanExecuteChanged();
+        ExportProfileCommand.NotifyCanExecuteChanged();
+        ExportWorkspaceCommand.NotifyCanExecuteChanged();
+        ImportPackageCommand.NotifyCanExecuteChanged();
     }
+
+    /// <summary>
+    /// Opens the import preview. The header has no status line, so a failed import or one with
+    /// notes is reported in a notice; a clean import simply shows up in the selectors.
+    /// </summary>
+    private async Task ImportPackage()
+    {
+        ProfilePackageResult result = await ProfileImportViewModel.ShowAsync(_dialogService);
+        if (result == null)
+            return;
+
+        Refresh();
+
+        if (result.Success && result.Warnings.Count == 0)
+            return;
+
+        string message = string.Join(Environment.NewLine, [result.Message, .. result.Warnings]);
+        await _dialogService.ShowDialogAsync<ConfirmDialogViewModel, DialogResult>(vm =>
+            vm.Configure(message, title: Loc.Tr("MainWindow_ImportPackageResultTitle"),
+                confirmText: Loc.Tr("Confirm_Ok"), showCancel: false));
+    }
+
+    /// <summary>Opens the export dialog; it reports failures and notes itself.</summary>
+    private Task Export(ProfileExportRequest request) =>
+        request == null ? Task.CompletedTask : ProfileExportViewModel.ShowAsync(_dialogService, request);
 
     private void RefreshCompanionHint()
     {

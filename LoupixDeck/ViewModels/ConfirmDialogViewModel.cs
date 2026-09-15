@@ -34,12 +34,16 @@ public sealed class ConfirmDialogViewModel : DialogViewModelBase<DialogResult>
     /// <summary>Raised when the dialog should close (after the result is set).</summary>
     public event Action CloseWindow;
 
+    /// <summary>False for a plain notice: only the confirm button is shown.</summary>
+    public bool ShowCancel { get; private set; } = true;
+
     public void Configure(string message, string title = null,
-        string confirmText = null, string cancelText = null)
+        string confirmText = null, string cancelText = null, bool showCancel = true)
     {
         Message = message ?? string.Empty;
         DialogTitle = title ?? Loc.Tr("Confirm_Title");
         ConfirmText = confirmText ?? Loc.Tr("Confirm_Yes");
         CancelText = cancelText ?? Loc.Tr("Confirm_No");
+        ShowCancel = showCancel;
     }
 }

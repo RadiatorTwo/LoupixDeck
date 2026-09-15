@@ -5,6 +5,7 @@ using LoupixDeck.Localization;
 using LoupixDeck.Models;
 using LoupixDeck.Models.Portable;
 using LoupixDeck.Registry;
+using LoupixDeck.Services;
 using LoupixDeck.Services.Companion;
 using LoupixDeck.Services.Portable;
 using LoupixDeck.Utils;
@@ -47,6 +48,26 @@ public sealed partial class ProfileImportViewModel : DialogViewModelBase<DialogR
         Warnings = new();
         ImportTargets = new();
         ReplaceTargets = new();
+    }
+
+    /// <summary>
+    /// Asks for a package file, shows the import preview for it and returns the import result, or
+    /// null when the user cancelled either step. Shared by every place that offers an import.
+    /// </summary>
+    public static async Task<ProfilePackageResult> ShowAsync(IDialogService dialogService)
+    {
+        string source = await FileDialogHelper.OpenProfilePackageDialog(WindowHelper.GetActiveWindow());
+        if (string.IsNullOrEmpty(source))
+            return null;
+
+        ProfileImportViewModel importViewModel = null;
+        DialogResult dialogResult = await dialogService.ShowDialogAsync<ProfileImportViewModel, DialogResult>(vm =>
+        {
+            importViewModel = vm;
+            vm.Configure(source);
+        });
+
+        return dialogResult?.IsConfirmed == true ? importViewModel?.Result : null;
     }
 
     /// <summary>Package to inspect. Set by the caller before the dialog is shown.</summary>

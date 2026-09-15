@@ -489,6 +489,9 @@ public static class ServiceCollectionExtensions
         collection.AddTransient<ProfileImport>();
         collection.AddTransient<ProfileImportViewModel>();
 
+        collection.AddTransient<ProfileExport>();
+        collection.AddTransient<ProfileExportViewModel>();
+
         collection.AddSingleton<IDialogService, DialogService>();
     }
 
@@ -544,6 +547,7 @@ public static class ServiceCollectionExtensions
         dialogService.Register<ConfirmDialogViewModel, ConfirmDialog>();
         dialogService.Register<TextInputDialogViewModel, TextInputDialog>();
         dialogService.Register<ProfileImportViewModel, ProfileImport>();
+        dialogService.Register<ProfileExportViewModel, ProfileExport>();
 
         // Heal configs that were saved before HapticSteps had ObjectCreationHandling.Replace —
         // those files accumulated duplicate steps on every save+load round.
