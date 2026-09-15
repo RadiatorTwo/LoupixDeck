@@ -1,95 +1,79 @@
 # LoupixDeck
 
 [![.NET Release](https://github.com/RadiatorTwo/LoupixDeck/actions/workflows/release.yml/badge.svg)](https://github.com/RadiatorTwo/LoupixDeck/actions/workflows/release.yml)
-[![Platform](https://img.shields.io/badge/platform-linux-blue)](https://github.com/RadiatorTwo/LoupixDeck)
-[![Platform](https://img.shields.io/badge/platform-windows-blue)](https://github.com/RadiatorTwo/LoupixDeck)
-[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+[![Windows](https://img.shields.io/badge/Windows-supported-0078D4?logo=windows)](https://github.com/RadiatorTwo/LoupixDeck/releases/latest)
+[![Linux](https://img.shields.io/badge/Linux-supported-FCC624?logo=linux&logoColor=black)](https://github.com/RadiatorTwo/LoupixDeck/releases/latest)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-**LoupixDeck** is an open-source control deck application for **Loupedeck** devices and the **Razer Stream Controller** family.
+**An open-source control deck application for Loupedeck and Razer Stream Controller devices.**
 
-It runs on **Linux** and **Windows**, lets you build custom touch pages, rotary controls, macros, integrations and plugins, and does not depend on the official vendor software.
+Create custom touch pages, rotary controls, folders, macros and application-aware layouts on **Windows and Linux**—without the official vendor software.
 
-Built with **Avalonia** and **.NET 10**.
+Built with [Avalonia](https://avaloniaui.net/) and [.NET 10](https://dotnet.microsoft.com/).
 
-![LoupixDeck main window](docs/screenshots/main-window-loupedeck.png)
+![LoupixDeck main window with a Loupedeck device](docs/screenshots/main-window-loupedeck.png)
 
-> New here? The [**User Manual**](docs/USER_MANUAL.md) walks through pages, buttons, layers, states, macros, integrations and automation step by step.
-
----
-
-## Highlights
-
-* **Linux and Windows support**
-* **English, German and Spanish interface**, switchable immediately from Settings
-* **Loupedeck Live**, **Live S**, **CT** *(partial)*, **Razer Stream Controller** and **Stream Controller X** support
-* **Multi-device support** with serial-scoped profiles
-* **Layer-based touch button editor** with images, animated images, text, symbols and wallpapers
-* **Stateful buttons** with multiple states and per-state actions
-* **Rotary encoder pages** with rotation, click and press actions
-* **Apps and commands panel** for drag-and-drop app launchers, commands and dial presets
-* **Direct keyboard and mouse actions** with recordable combinations and sequences
-* **Visual macro editor** with variables, conditions, loops, waits and prompts
-* **Background update notifications** with verified installer downloads
-* **OBS Studio**, **Elgato Key Lights**, **Cooler Control**, **Audio** and **SteelSeries Sonar** integrations
-* **Portable profiles** — export a profile, workspace or page as a `.loupixprofile` file and import it anywhere
-* **Local CLI / IPC automation** for scripts and external tools
-* **Plugin SDK** for custom commands, dynamic text, settings UI, plugin screensavers and animated side strips
+[**Download latest release**](https://github.com/RadiatorTwo/LoupixDeck/releases/latest) · [**Read the user manual**](docs/USER_MANUAL.md) · [**Report a bug**](https://github.com/RadiatorTwo/LoupixDeck/issues/new) · [**Plugin SDK**](https://github.com/RadiatorTwo/LoupixDeck.PluginSdk)
 
 ---
 
-## Quick Start
+## Why LoupixDeck?
 
-Pre-built releases are available here:
+- **Cross-platform:** native support for Windows and Linux, including SteamOS
+- **Your layout, your way:** profiles, workspaces, pages, nested folders and per-page wallpapers
+- **Powerful controls:** layered buttons, multiple states, rotary actions, macros and app-focus switching
+- **Multiple devices:** use several supported controllers at the same time, even identical models
+- **Extensible:** install integrations from the built-in Plugin Store or create your own
+- **Portable:** export and share profiles, workspaces or individual pages as `.loupixprofile` packages
+- **Multilingual:** English, German and Spanish interfaces
 
-[**Download latest release**](https://github.com/RadiatorTwo/LoupixDeck/releases/latest)
+## Supported devices
 
-Release builds are self-contained. The .NET runtime is bundled and does not need to be installed separately.
+| Device | Status | Controls |
+| --- | :---: | --- |
+| **Loupedeck Live** | ✅ Supported | 4×3 touch grid, 2 touch strips, 6 dials, 8 round buttons |
+| **Loupedeck Live S** | ✅ Supported | 5×3 touch grid, 2 dials, 8 physical buttons |
+| **Razer Stream Controller** | ✅ Supported | 4×3 touch grid, 2 side panels, 6 dials, 8 LED buttons |
+| **Razer Stream Controller X** | ✅ Supported | 5×3 physical key grid |
+| **Loupedeck CT** | 🚧 Partial | 4×3 touch grid, wheel display, 6 dials and additional buttons |
+
+Loupedeck CT support is still being completed and needs more hardware testing. The Stream Controller X has physical keys instead of a touchscreen; LoupixDeck maps each key to the corresponding display position and supports press-and-hold actions.
+
+Multiple devices can run in one LoupixDeck instance. Devices are separated by USB serial number and retain their own configuration.
+
+## Install
+
+Release builds are self-contained—the .NET runtime is included.
 
 ### Windows
 
-Recommended installer:
+Download the latest release and choose one of these packages:
 
-```text
-LoupixDeck-Setup-win-x64.exe
-```
+| Package | Recommended for |
+| --- | --- |
+| `LoupixDeck-Setup-win-x64.exe` | Normal installation |
+| `LoupixDeck-win-x64.zip` | Portable use |
 
-Portable ZIP:
+For the portable version, extract the archive and run `LoupixDeck.exe`.
 
-```text
-LoupixDeck-win-x64.zip
-```
-
-For the portable build, extract the ZIP and run:
-
-```powershell
-LoupixDeck.exe
-```
+[**Download for Windows**](https://github.com/RadiatorTwo/LoupixDeck/releases/latest)
 
 ### Linux
 
-Recommended installer script:
+Run the installer as your normal user—do **not** prefix the command with `sudo`:
 
 ```bash
 curl -fsSL https://github.com/RadiatorTwo/LoupixDeck/releases/latest/download/install-loupixdeck.sh | bash
 ```
 
-Or with `wget`:
-
-```bash
-wget -qO- https://github.com/RadiatorTwo/LoupixDeck/releases/latest/download/install-loupixdeck.sh | bash
-```
-
-The installer downloads the latest release, shows download progress in a terminal, installs LoupixDeck system-wide, adds udev rules—including the Razer Stream Controller X—and creates a desktop entry. Plugins are not part of the release; install them from the Plugin Store inside the app. Updating an older installation with the script moves the plugins it used to bundle, with their settings, into the user plugin folder, so they keep working and receive updates from the store.
-
-After installation, start it with:
+The installer downloads the latest release, installs LoupixDeck, configures the required device permissions and creates an application-menu entry. Start it from your application menu or run:
 
 ```bash
 loupixdeck
 ```
 
-Or launch it from your application menu.
-
-Prefer to inspect the installer first?
+<details>
+<summary>Inspect the installer before running it</summary>
 
 ```bash
 curl -fsSLO https://github.com/RadiatorTwo/LoupixDeck/releases/latest/download/install-loupixdeck.sh
@@ -97,360 +81,184 @@ less install-loupixdeck.sh
 bash install-loupixdeck.sh
 ```
 
-To build and install the current `master` branch, use:
+</details>
+
+<details>
+<summary>Install the current master branch</summary>
+
+This requires Git and the .NET 10 SDK:
 
 ```bash
 bash install-loupixdeck.sh --from-source
 ```
 
-This source-build mode requires Git and the .NET 10 SDK; the normal installer behavior is unchanged when the option is omitted.
+Add `--restart` to close a running instance before installation and launch it again afterwards.
 
-Pass `--restart` to close a running LoupixDeck cleanly before installation and launch it again afterwards. This is also the mode used by the in-app Linux updater.
+</details>
 
 #### SteamOS
 
-Run the same installer in Konsole in Desktop Mode, as your normal user and without `sudo`. SteamOS replaces its read-only system image on every update, so the installer detects SteamOS and puts LoupixDeck into your home folder (`~/.local/lib/loupixdeck`), with the launcher under `~/.local/bin` and the application-menu entry under `~/.local/share/applications`.
+Use the same command in **Konsole while in Desktop Mode**. The installer automatically uses a SteamOS-compatible installation inside your home directory and registers the device-permission rule so it survives system updates.
 
-Only the device permissions need administrator rights. The udev rule is written to `/etc/udev/rules.d/99-loupixdeck.rules` and listed in `/etc/atomic-update.conf.d/loupixdeck.conf`, so it survives SteamOS updates. The installer also uses this keep list on other systems that provide it. `sudo` needs a password; if you have never set one, run `passwd` first. The SteamOS home install supports the same in-app updates as a normal script installation.
+Only the device-permission step needs administrator rights. If you have never configured a SteamOS password, run `passwd` first.
 
-A Flatpak is not offered: its sandbox blocks device access, input simulation, app launching and many plugins.
+> A Flatpak is not provided because sandboxing blocks hardware access, input simulation, application launching and functionality required by many plugins.
 
----
+## First steps
 
-## Supported Devices
+1. Connect a supported device and start LoupixDeck.
+2. Open the **Apps and Commands** panel from the top-left corner.
+3. Drag an application or command onto a button—or select a control and double-click the item.
+4. Select a button to customize its image, text, symbol, actions and states.
+5. Add profiles, workspaces, pages and folders as your setup grows.
+6. Open **Settings → Plugin Store** to install integrations.
 
-| Device                      | Status      | Layout                                                                            | VID:PID           |
-| --------------------------- | ----------- | --------------------------------------------------------------------------------- | ----------------- |
-| **Loupedeck Live**          | Supported   | 4×3 touch grid, 2 side touch strips, 6 rotary encoders, 8 round buttons            | `2ec2:0004`       |
-| **Loupedeck Live S**        | Supported   | 5×3 touch grid, 2 rotary encoders, 8 physical buttons                             | `2ec2:0006`       |
-| **Razer Stream Controller** | Supported   | 4×3 touch grid, 2 side panels, 6 rotary encoders, 8 LED buttons                   | `1532:0d06`       |
-| **Razer Stream Controller X** | Supported | 5×3 grid of physical keys; no dials, LED buttons, side strips or haptic motor    | `1532:0d09`       |
-| **Loupedeck CT**            | Partial     | 4×3 touch grid, round wheel touchscreen, 6 dials, wheel, round and square buttons | `2ec2:0003/0007`  |
+For a complete walkthrough, see the [User Manual](docs/USER_MANUAL.md).
 
-> Loupedeck **CT** support is still a work in progress. Some controls and behaviours are not feature-complete yet and need further hardware verification.
+## What you can build
 
-> The **Razer Stream Controller X** has fifteen physical keys rather than a touchscreen. LoupixDeck treats each press as a touch at the centre of its matching key,
-> including press-and-hold actions. Controls the device does not have—dials, LED buttons, side strips and haptics—are not offered. Its measured key geometry is used
-> for rendering; use **Settings > General > Key alignment** and the built-in test pattern only if a particular device needs a small adjustment.
+### Buttons and visual layouts
 
-Multiple devices can run in parallel in a single LoupixDeck instance. Even two identical units are separated by USB serial and keep their own configuration.
+- Combine image, animated image, text and symbol layers
+- Move and edit layers with a live preview
+- Add outlines, colors, transparency and Material Design Icons
+- Use per-page wallpapers and optional touch feedback
+- Give a button several named states with separate visuals and actions
 
----
+### Pages and folders
 
-## Features
+- Organize layouts as **Profile → Workspace → Page**
+- Create nested custom folders in the **Folders** panel and drag them onto touch keys
+- Navigate with breadcrumbs in the application and an automatic Back button on the device
+- Use plugin-provided dynamic folders for live content such as audio sessions or OBS scenes
 
-### Apps and Commands Panel
+### Rotary controls
 
-Open the left-side panel from the main-window header to assign common actions without opening a button editor.
+- Assign separate actions to rotate left, rotate right, click and press
+- Run multi-command sequences from any gesture
+- Apply built-in or user-created dial presets
+- Assign related plugin actions as a group
+- Use independent rotary pages where supported
 
-* **Apps** finds Start Menu, Steam and Epic applications on Windows, and XDG desktop entries—including Flatpak and Snap exports—on Linux
-* Add portable programs, scripts or shortcuts manually when discovery does not find them
-* **Commands** uses the same searchable catalogue as the button editors
-* **Dial presets** apply all three rotary gestures in one step
-* **Shell Command** and **Open Website** ask for their command line or HTTP(S) address when assigned
-* Right-click an application to link or unlink it from the active profile
-* Single-click a panel row to select it, double-click to assign it to the selected control, or drag it directly onto a compatible control
-* Touch keys receive ready-to-use artwork and a command; dials receive a strip label
+### Macros and direct input
 
-### Touch Button Editor
+The visual macro editor supports keyboard and mouse input, delays, commands, variables, conditions, loops, wait conditions and prompts.
 
-Create custom touch buttons from multiple visual layers.
+For simpler actions, buttons and dials can directly send mouse clicks, scrolling, keyboard/mouse chords, key combinations and multi-step key sequences.
 
-* Image, animated image, text and symbol layers
-* Live preview with direct layer manipulation
-* Per-page wallpapers with opacity control
-* Optional visual touch feedback
-* Content-addressed asset store for deduplicated images
-* Material Design Icons symbol picker
+| Platform | Input backend |
+| --- | --- |
+| Linux | `uinput` |
+| Windows | `SendInput` |
+| Windows | Optional Interception driver for raw-input applications |
 
-### Stateful Buttons
+### Application-aware layouts
 
-Buttons can hold several named states and cycle through them on press.
+LoupixDeck can automatically switch pages when the foreground application changes. Rules can match the process name and, optionally, part of the window title.
 
-* Per-state visuals and command sequences
-* Local mode for simple state cycling
-* External mode for states driven by plugins or live status commands
-
-### Rotary Encoders
-
-Rotary controls can use separate pages and separate actions for each input type.
-
-* Rotate left / right
-* Click
-* Press
-* Multi-command sequences per action
-* Plugin command groups for assigning related rotary actions together
-* Right-click quick menu for assigning or removing each gesture
-* Built-in and reusable user-created dial presets
-
-### Macros
-
-LoupixDeck includes a visual macro editor for reusable automation sequences.
-
-Supported macro actions include keyboard input, mouse input, delays, command execution, variables, conditions, loops, wait conditions and prompts.
-
-Buttons and dials can also run input directly, without first creating a macro: mouse click and scroll, keyboard-plus-mouse chords, a single key combination, or a multi-step key sequence. Mouse buttons X1 and X2 are supported. Windows also provides previous/next virtual-desktop commands.
-
-Input injection backends:
-
-| Platform    | Backend                      |
-| ----------- | ---------------------------- |
-| **Linux**   | `uinput`                     |
-| **Windows** | `SendInput`                  |
-| **Windows** | Optional Interception driver |
+| Platform | Status |
+| --- | --- |
+| Windows | ✅ Supported |
+| Linux X11 / XWayland | ✅ Supported via `xprop` |
+| Pure Wayland | ❌ Not available—there is no common foreground-window protocol |
 
 ### Integrations
 
-Built-in commands and dynamic values are available for:
+Built-in commands and plugins cover:
 
-* **OBS Studio** via obs-websocket
-* **Elgato Key Lights** via Zeroconf discovery
-* **Cooler Control**
-* **Argus Monitor** on Windows
-* **LinuxHwInfo** on Linux
-* **Audio** device control, per-application mixing and sound playback on Windows and Linux
-* **SteelSeries Sonar** mixer control on Windows
-* Shell commands
-* Page navigation
-* Device power control
-* Runtime button updates
+- OBS Studio via obs-websocket
+- Elgato Key Lights
+- Audio devices, per-application mixing and sound playback on Windows and Linux
+- SteelSeries Sonar on Windows
+- Cooler Control and Linux hardware information
+- Argus Monitor on Windows
+- Shell commands, page navigation and device power
+- Runtime text, color and button-state updates
 
-### Custom Folders
+### More features
 
-Open the right-side **Folders** panel to build reusable touch layouts inside the active workspace. Folders can contain subfolders without a fixed depth limit. Click a folder to open and edit its layout, double-click it to rename it, drag it within the tree to reorder or nest it, or drag it onto a touch key to create a ready-made folder button. The device shows breadcrumbs while a folder is open and reserves an automatic Back tile. **Folder Back**, **Close All Folders**, and **Go to Home Workspace** provide command-driven ways out.
-
-On a companion device, the master owns the shared folder tree while each companion keeps its own layout inside every folder. **Follow into folders** optionally mirrors the master's folder navigation.
-
-### Plugin Folders
-
-Plugin commands such as audio mixers and scene pickers can open a temporary folder on the device. Folders use the connected device's actual key grid, reserve its bottom-left key for Back, and leave side strips untouched. Changing profile or workspace closes the folder and restores the selected layout.
-
-### Screensaver
-
-Play a full-display animated screensaver after a configurable idle time.
-
-* Video/GIF or plugin-provided source
-* Adjustable idle timeout
-* Wakes on the next touch or control interaction
-* `ffmpeg` is needed only for video sources; plugin renderers supply their own frames
-
-### Runtime Efficiency
-
-The display pipeline reuses pooled frame buffers, masks WebSocket payloads in place and parses incoming serial data on a fixed buffer. Command parsing, frozen lookup tables and generated native interop further reduce temporary allocations while displays and animations are updating. These optimisations are automatic and need no user configuration.
-
-### App-Focus Page Switching
-
-Automatically switch pages when the foreground application changes.
-
-Rules can match a process name, an optional window title substring and a fallback page.
-
-Create a simple application link directly from the profile menu or by right-clicking an application in the Apps panel. Linux matching also handles process names longer than the kernel's 15-character foreground-process field.
-
-| Platform                 | Status                                  |
-| ------------------------ | --------------------------------------- |
-| **Windows**              | Supported                               |
-| **Linux X11 / XWayland** | Supported via `xprop`                   |
-| **Pure Wayland**         | Not supported, no common focus protocol |
-
-### Native Haptic Feedback
-
-Supported touch buttons can use native vibration effects.
-
-Native haptic support is based on reverse-engineered firmware commands. Technical notes are available in [docs/NATIVE_HAPTIC.md](docs/NATIVE_HAPTIC.md).
-
-Huge thanks to [@Athorus](https://github.com/Athorus) for the reverse-engineering work that made this possible.
-
-### Multi-Device Support
-
-LoupixDeck can drive multiple connected devices at the same time.
-
-* Each device gets its own profile
-* Identical devices are separated reliably by USB serial, including composite USB devices on Windows
-* Devices can be connected or disconnected while LoupixDeck is running
-* A device switcher appears when more than one device is connected
-* CLI commands can target a specific device
-* The main window opens before device initialisation finishes, and busy serial ports are retried in the background
-* The first connected device stays selected while the rest start, and switching devices resizes the window for the new layout without closing the apps and commands panel
-* Existing configuration files are never renamed; a second identical unit simply receives its own file
-
-### Companion Devices
-
-Create a group under **Settings → Companions** to make one connected device the master of one or more companions. The companions mirror the master's profiles, workspaces, and custom-folder structure, but keep their own touch and rotary pages, folder layouts, and round LED buttons. Their original profiles are put aside and restored when they leave the group.
-
-**Follow pages** can mirror touch pages or touch and rotary pages by position. **Follow into folders** mirrors custom-folder navigation. The master's Profile Rules can choose pages on individual companions, and its **Companions** command group can page them, show their start pages, pause or resume the group, change page following, and resync the shared structure. A paused group lets companions switch context independently until it is resumed or the app restarts.
-
-Profiles, workspaces, rules, and folder structure are read-only on companions; their page and folder layouts remain editable. Before a master deletes or replaces shared structure, the confirmation lists companion pages that would be removed.
-
-### Portable Profiles
-
-A profile, a workspace or a single page can be exported to a `.loupixprofile` file and imported on
-another machine — for backups, for moving a setup to a new computer, or for sharing a layout through
-a release, a chat or a repository.
-
-The file is a plain ZIP:
-
-```text
-manifest.json     what the package is, where it came from, what it needs
-payload.json      the exported profile / workspace / page
-macros.json       only the macros the exported item actually references
-assets/           only the images the exported item actually uses
-```
-
-Every export opens a dialog for an optional description and output file. It suggests a name and remembers the last successful export folder. Export lives on the profile and workspace rows under **Settings → Profiles** and on each page row under **Settings → Pages**; profile and workspace exports plus **Import Package…** are also available directly from the main-window header menus.
-
-Before anything is written, the import preview shows what the package would mean on this machine:
-
-* plugins it needs — installed, installed but disabled for this device (with a one-click enable), or
-  not installed at all (with a link to the project page)
-* commands that resolve to nothing here; these are kept exactly as they are and start working again
-  as soon as whatever provides them is installed
-* a warning when the package came from a different device model, naming the concrete consequence.
-  Importing is still allowed
-* macros whose name is already taken, each with a skip / rename / replace choice
-
-Two import modes: **Add as Copy** gives the imported item fresh identities so it lives next to the
-original, and **Replace** swaps an existing item in place, keeping its identity — and, unless you
-turn it off, writing a backup package of the previous version to `backups/` in the config directory
-first.
-
-Profile and workspace packages include their custom folders. A master can optionally include each companion's own pages and folder layouts; during import, those parts can be assigned to companions of the receiving master. Replacing a profile preserves the stable profile and workspace identities, so existing rules, macros, and companion pages remain linked wherever the corresponding workspace still exists.
-
-Not included by design, because they are device-wide rather than part of a profile: the enabled
-plugin list, context rules, app bindings and the screensaver clip.
-
-Round LED-button commands and colours belong to the profile and are included when a whole profile is exported. Switching workspaces does not change that LED row.
-
----
+- **Multi-device support:** hot-plug devices and target them individually
+- **Companion devices:** let companions mirror a master's profiles, workspaces and folders while keeping their own pages
+- **Portable profiles:** export and import profiles, workspaces or pages
+- **Screensavers:** use a video, GIF or plugin-provided renderer
+- **Native haptics:** configure vibration effects on supported touch controls
+- **CLI automation:** control a running instance from scripts and external tools
+- **Automatic recovery:** corrupted configuration files are backed up before replacement
 
 ## Screenshots
 
-| Layer Editor                                                          | Symbol Picker                                                              |
-| --------------------------------------------------------------------- | -------------------------------------------------------------------------- |
-| ![Layer-based touch button editor](docs/screenshots/layer-editor.png) | ![Material Design Icons symbol picker](docs/screenshots/symbol-picker.png) |
+| Layer editor | Command picker |
+| --- | --- |
+| ![Layer-based touch button editor](docs/screenshots/layer-editor.png) | ![Searchable command picker](docs/screenshots/command-picker.png) |
 
-| Settings                                                              | Macro Editor                                              |
-| --------------------------------------------------------------------- | --------------------------------------------------------- |
-| ![Settings sidebar navigation](docs/screenshots/settings-sidebar.png) | ![Visual macro editor](docs/screenshots/macro-editor.png) |
+| Page management | Macro editor |
+| --- | --- |
+| ![Profile, workspace and page management](docs/screenshots/pages-management.png) | ![Visual macro editor](docs/screenshots/macro-editor.png) |
 
----
+| Settings | Symbol picker |
+| --- | --- |
+| ![Settings sidebar](docs/screenshots/settings-sidebar.png) | ![Material Design Icons symbol picker](docs/screenshots/symbol-picker.png) |
 
 ## Plugins
 
-LoupixDeck supports third-party plugins.
+Plugins can add commands, live text, settings pages, integrations, screensavers, dynamic folders and animated side strips.
 
-Plugins can provide:
+Install and update plugins from **Settings → Plugin Store**. The store checks compatibility, displays release notes and verifies downloaded files against their published checksums. Plugin settings and missing command assignments are preserved across updates or temporary removal.
 
-* custom commands
-* dynamic text providers
-* settings UI
-* full-display screensavers
-* static or animated side-strip renderers
-* integration-specific functionality
+Want to create a plugin?
 
-Plugins are installed from the **Plugin Store** (Settings → Plugin Store) and are no longer bundled with LoupixDeck. The store lists the plugins of the curated `plugin-store.json`, shows the release notes before installing or updating, verifies every download against its published checksum, and only offers versions this LoupixDeck and operating system can load. Updates are checked in the background, like the app update check, and a hint appears when one is available. Plugin settings are kept on update. A plugin that is loaded while it is updated or removed finishes the change on the next start.
+- [Plugin SDK repository](https://github.com/RadiatorTwo/LoupixDeck.PluginSdk)
+- [`LoupixDeck.PluginSdk` on NuGet](https://www.nuget.org/packages/LoupixDeck.PluginSdk) Coming soon
+- [Plugin SDK documentation](https://github.com/RadiatorTwo/LoupixDeck.PluginSdk/wiki)
 
-Buttons that use commands of a removed or missing plugin keep their assignment: the editor marks them unavailable and they work again once the plugin is installed. A known plugin command is never run as a shell command just because its plugin is absent. When a config needs a plugin that is not installed, LoupixDeck offers to open the store.
+## Portable profiles
 
-Plugins installed from a zip or copied into the user plugin folder by hand still load and are shown as manually installed; the store does not update them. When a user plugin and a plugin in the application's `plugins` folder have the same id, LoupixDeck loads the higher manifest version; a version tie favours the user copy. The Plugins settings page hides plugins built only for the other operating system instead of showing unusable disabled rows.
+Export a complete profile, a workspace or a single page from **Settings → Profiles** or **Settings → Pages**; profile and workspace exports plus **Import Package…** are also available from the main-window header menus. Profile and workspace packages include their custom folders and, optionally, the pages of a master's companions.
 
-The Plugin SDK is maintained in a separate repository:
+Before importing, LoupixDeck shows missing plugins and commands, device compatibility warnings and macro-name conflicts. You can add the package as a copy or replace an existing item; replacement can automatically create a backup first.
 
-[**LoupixDeck.PluginSdk**](https://github.com/RadiatorTwo/LoupixDeck.PluginSdk)
+The `.loupixprofile` format is a regular ZIP archive containing only the required configuration, macros and assets.
 
-It is also available as the `LoupixDeck.PluginSdk` NuGet package.
+## CLI and automation
 
-LoupixDeck v1.28.0 keeps SDK 1.22.0 with no API changes, so existing plugins need no rebuild. SDK 1.22.0 adds the active device's folder grid to `IPluginHost`, allowing plugin folders to place entries correctly on both 4×3 and 5×3 devices.
-
----
-
-## CLI / Automation
-
-While LoupixDeck is running, external scripts can control it through a local IPC channel.
-
-The easiest way is to call the LoupixDeck binary again. If an instance is already running, the second process forwards the command and exits.
-
-### Examples
-
-Linux:
+Start the LoupixDeck executable again while the application is running to send it a command:
 
 ```bash
+# Linux
 ./LoupixDeck nextpage
 ./LoupixDeck page 3
 ./LoupixDeck updatebutton 6 text=Build_OK backColor=LimeGreen
 ./LoupixDeck System.ObsStartRecord
+
+# Target a specific device by serial number or name
+./LoupixDeck --device A1B2C3 page 3
+./LoupixDeck -d "Loupedeck Live S" nextpage
 ```
 
-Windows:
-
 ```powershell
+# Windows
 .\LoupixDeck.exe nextpage
 .\LoupixDeck.exe page 3
 .\LoupixDeck.exe updatebutton 6 text=Build_OK backColor=LimeGreen
 ```
 
-Target a specific device:
+| Platform | IPC endpoint |
+| --- | --- |
+| Linux | Unix domain socket `/tmp/loupixdeck_app.sock` |
+| Windows | Named pipe `LoupixDeck_Pipe` |
 
-```bash
-./LoupixDeck --device A1B2C3 page 3
-./LoupixDeck -d "Loupedeck Live S" nextpage
-```
+## Build from source
 
-IPC endpoints:
-
-| Platform    | Endpoint                                      |
-| ----------- | --------------------------------------------- |
-| **Linux**   | Unix domain socket `/tmp/loupixdeck_app.sock` |
-| **Windows** | Named pipe `LoupixDeck_Pipe`                  |
-
----
-
-## Configuration
-
-LoupixDeck auto-detects supported devices by USB VID/PID.
-
-Configuration is stored as JSON in the user config directory.
-
-Typical files:
-
-| File                   | Purpose                               |
-| ---------------------- | ------------------------------------- |
-| `config.json`          | Global application settings           |
-| `config_<device>.json` | Per-device layout and device settings |
-| `obs.json`             | OBS integration settings              |
-| `elgato.json`          | Elgato integration settings           |
-| `macros.json`          | Shared macro definitions              |
-| `custom-apps.json`     | Applications added manually to the Apps panel |
-| `dial-presets.json`    | User-created dial presets             |
-| `companions.json`      | Global master and companion groups    |
-| `backups/`             | Automatic backups written before a profile package replaces an item |
-
-Per-device configuration is scoped by USB serial whenever possible, so two identical devices do not overwrite each other's layouts. LoupixDeck keeps existing file names stable: the first unit can keep `config_<device>.json`, while another unit gets its own serial-scoped file rather than causing the first file to be renamed.
-
-Pages carry stable internal ids so rules and companion references remain attached after reordering. Existing configuration files are migrated automatically when first loaded.
-
-If a configuration file becomes corrupted, LoupixDeck creates a backup before writing a fresh file.
-
----
-
-## Documentation
-
-* [User Manual](docs/USER_MANUAL.md) — complete feature documentation
-* [Native Haptic Notes](docs/NATIVE_HAPTIC.md) — reverse-engineered haptic commands
-* [Plugin SDK](https://github.com/RadiatorTwo/LoupixDeck.PluginSdk) — build custom plugins
-* [Latest Releases](https://github.com/RadiatorTwo/LoupixDeck/releases/latest) — download pre-built binaries
-
----
-
-## Build from Source
-
-Requires the [.NET 10 SDK](https://dotnet.microsoft.com/download).
-
-### Linux
+Install the [.NET 10 SDK](https://dotnet.microsoft.com/download), then clone the repository:
 
 ```bash
 git clone https://github.com/RadiatorTwo/LoupixDeck.git
 cd LoupixDeck
+```
 
+### Linux
+
+```bash
 dotnet publish LoupixDeck.csproj -c Release -r linux-x64 --self-contained true \
   /p:PublishSingleFile=true \
   /p:PublishTrimmed=false \
@@ -462,9 +270,6 @@ dotnet publish LoupixDeck.csproj -c Release -r linux-x64 --self-contained true \
 ### Windows
 
 ```powershell
-git clone https://github.com/RadiatorTwo/LoupixDeck.git
-cd LoupixDeck
-
 dotnet publish LoupixDeck.csproj -c Release -r win-x64 --self-contained true `
   /p:PublishSingleFile=true `
   /p:PublishTrimmed=false `
@@ -474,44 +279,46 @@ dotnet publish LoupixDeck.csproj -c Release -r win-x64 --self-contained true `
 ```
 
 <details>
-<summary>Linux device and macro permissions</summary>
+<summary>Manual Linux device and macro permissions</summary>
 
-On Linux, macro **execution** writes to `/dev/uinput` and macro **recording** reads `/dev/input/event*`.
+The installer configures these permissions automatically. For a manual source installation, macro execution needs write access to `/dev/uinput`, and macro recording needs read access to `/dev/input/event*`.
 
-The bundled `install-loupixdeck.sh` already writes the uinput rule and adds the invoking user to the `input` group. Being able to run macros does **not** automatically mean recording works — recording additionally needs read access to `/dev/input/event*`, which the `input` group provides.
-
-Manual uinput rule:
+Create a uinput rule:
 
 ```text
 KERNEL=="uinput", SUBSYSTEM=="misc", GROUP="input", MODE="0660", OPTIONS+="static_node=uinput"
 ```
 
-Add your user to the `input` group:
+Add your user to the `input` group, then log out and back in:
 
 ```bash
 sudo usermod -aG input "$USER"
 ```
 
-Then log out and back in.
+If the device itself is inaccessible, add rules for its VID/PID:
 
-If the device itself is not accessible without `sudo`, add a udev rule for its VID/PID.
+| Device | VID:PID |
+| --- | --- |
+| Loupedeck Live | `2ec2:0004` |
+| Loupedeck Live S | `2ec2:0006` |
+| Loupedeck CT | `2ec2:0003` / `2ec2:0007` |
+| Razer Stream Controller | `1532:0d06` |
+| Razer Stream Controller X | `1532:0d09` |
 
-Example for the Loupedeck Live S:
+Example for Loupedeck Live S:
 
 ```text
 SUBSYSTEM=="usb", ATTRS{idVendor}=="2ec2", ATTRS{idProduct}=="0006", MODE="0666"
 SUBSYSTEM=="tty", ATTRS{idVendor}=="2ec2", ATTRS{idProduct}=="0006", MODE="0666"
 ```
 
-For the Razer Stream Controller, replace `2ec2:0006` with `1532:0d06`; for the Stream Controller X, with `1532:0d09`.
-
-The Stream Controller X additionally needs its HID interface to be readable, otherwise its keys do nothing:
+The Stream Controller X also needs access to its HID interface:
 
 ```text
 SUBSYSTEM=="hidraw", ATTRS{idVendor}=="1532", ATTRS{idProduct}=="0d09", MODE="0666"
 ```
 
-Reload rules and reconnect the device:
+Reload the rules and reconnect the device:
 
 ```bash
 sudo udevadm control --reload-rules
@@ -520,64 +327,40 @@ sudo udevadm trigger
 
 </details>
 
----
+## Troubleshooting
 
-## Diagnostics
-
-Managed crash logging can be enabled with:
+Enable managed crash logging:
 
 ```bash
 ./LoupixDeck --crashlog
 ```
 
-On Windows:
+Logs are written to the LoupixDeck user configuration directory. For very noisy first-chance exception logging, use `--firstchance`. Native crashes require the .NET minidump environment variables instead.
 
-```powershell
-.\LoupixDeck.exe --crashlog
-```
+For setup and usage help, check the [User Manual](docs/USER_MANUAL.md) or [open an issue](https://github.com/RadiatorTwo/LoupixDeck/issues/new).
 
-For very noisy first-chance exception logging:
+<details>
+<summary>Optional Interception driver on Windows</summary>
 
-```bash
-./LoupixDeck --firstchance
-```
+The optional [Interception](https://github.com/oblitum/Interception) driver can inject keyboard and mouse input at driver level for applications that read raw input.
 
-Crash logs are written to the LoupixDeck user config directory.
+- It is not bundled with LoupixDeck.
+- It is downloaded only when installed from Settings.
+- It is free for non-commercial use; commercial use requires a separate license from its author.
+- Without it, macros use the standard Windows `SendInput` backend.
 
-Native crashes are not captured by `--crashlog`. For native crashes, use the .NET minidump environment variables instead.
+</details>
 
----
+## Contributing
 
-## Third-Party Software
+Bug reports, hardware testing, translations, documentation improvements and pull requests are welcome.
 
-### Interception Driver on Windows
+Please read [CONTRIBUTING.md](CONTRIBUTING.md) before submitting a change. If you are unsure whether an idea fits the project, open an issue first.
 
-The optional Windows macro driver feature can use the [Interception](https://github.com/oblitum/Interception) kernel driver to inject keyboard and mouse input at driver level.
+## Project status
 
-This can be useful for applications that read raw input.
-
-Important notes:
-
-* The Interception driver is **not bundled** with LoupixDeck.
-* It is only downloaded when installing it from the settings.
-* Interception is free for non-commercial use only.
-* Commercial use requires a separate license from its author.
-* Without Interception, macros use the standard Windows `SendInput` backend.
-
----
-
-## Project Status
-
-LoupixDeck is usable for daily use and actively developed.
-
-Most core features are available for Loupedeck Live, Loupedeck Live S and Razer Stream Controller. Loupedeck CT support is still incomplete and depends on further hardware testing.
-
-Bug reports, testing feedback and pull requests are welcome.
-
----
+LoupixDeck is actively developed and suitable for daily use on the fully supported devices listed above. Loupedeck CT support remains experimental while its remaining controls are implemented and verified.
 
 ## License
 
-LoupixDeck is released under the [MIT License](LICENSE).
-
-Third-party components are subject to their own licenses.
+LoupixDeck is available under the [MIT License](LICENSE). Third-party components remain subject to their own licenses.
