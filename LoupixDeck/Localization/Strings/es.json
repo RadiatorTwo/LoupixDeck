@@ -835,5 +835,6 @@
   "FolderPanel_Delete": "Eliminar",
   "FolderPanel_DefaultName": "Nueva carpeta",
   "FolderPanel_ShowPage": "Mostrar la página y cerrar todas las carpetas",
-  "FolderPanel_Empty": "Aún no hay carpetas. Crea una con el botón de arriba y arrástrala a una tecla."
+  "FolderPanel_Empty": "Aún no hay carpetas. Crea una con el botón de arriba y arrástrala a una tecla.",
+  "FolderPanel_CompanionReadOnly": "Este dispositivo es un companion: sus carpetas siguen al maestro y se crean, renombran y mueven allí. El diseño de cada carpeta aquí sigue siendo propio de este dispositivo."
 }

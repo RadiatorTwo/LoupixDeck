@@ -22,19 +22,39 @@ public sealed partial class FolderPanelViewModel : ViewModelBase
     private readonly ICustomFolderService _folders;
     private readonly IDialogService _dialogService;
     private readonly LoupedeckLiveSController _controller;
+    private readonly Services.Companion.ICompanionCoordinator _companions;
+    private readonly string _scopeKey;
 
     public FolderPanelViewModel(LoupedeckConfig config, ICustomFolderService folders, IDialogService dialogService,
-        LoupedeckLiveSController controller)
+        LoupedeckLiveSController controller, Services.Companion.ICompanionCoordinator companions,
+        Services.Companion.ICompanionContextSync companionSync, Registry.DeviceRegistry.DeviceInfo deviceInfo,
+        Registry.ResolvedDevice resolved)
     {
         _config = config;
         _folders = folders;
         _dialogService = dialogService;
         _controller = controller;
+        _companions = companions;
+        _scopeKey = resolved?.ScopeKey ?? deviceInfo.Slug;
 
         _folders.StructureChanged += Rebuild;
         _config.PropertyChanged += OnConfigPropertyChanged;
+
+        // A companion's tree is rewritten by the structure sync, which raises no model event of its own.
+        companionSync.LinkedStructureChanged += key =>
+        {
+            if (string.Equals(key, _scopeKey, StringComparison.OrdinalIgnoreCase))
+                Avalonia.Threading.Dispatcher.UIThread.Post(Rebuild);
+        };
         Rebuild();
     }
+
+    /// <summary>
+    /// False on a companion: its folder tree mirrors the master's and is edited there. Its folder
+    /// layouts stay its own, so opening folders and linking them to keys still works.
+    /// </summary>
+    [ObservableProperty]
+    public partial bool CanEditStructure { get; private set; } = true;
 
     /// <summary>Whether the panel is showing.</summary>
     [ObservableProperty]
@@ -48,8 +68,9 @@ public sealed partial class FolderPanelViewModel : ViewModelBase
     [ObservableProperty]
     public partial bool IsRootCurrent { get; private set; } = true;
 
+    /// <summary>True when there is no folder yet and this device may create one.</summary>
     [ObservableProperty]
-    public partial bool HasFolders { get; private set; }
+    public partial bool ShowEmptyHint { get; private set; }
 
     public ObservableCollection<FolderNodeViewModel> RootNodes { get; } = [];
 
@@ -83,7 +104,8 @@ public sealed partial class FolderPanelViewModel : ViewModelBase
                 RootNodes.Add(BuildNode(folder, null, expanded));
 
         WorkspaceName = _config.ActiveWorkspace?.Name ?? string.Empty;
-        HasFolders = RootNodes.Count > 0;
+        CanEditStructure = _config.CompanionLink == null;
+        ShowEmptyHint = RootNodes.Count == 0 && CanEditStructure;
         RefreshCurrent();
     }
 
@@ -138,6 +160,8 @@ public sealed partial class FolderPanelViewModel : ViewModelBase
 
     private async Task CreateFolderAsync(FolderNodeViewModel parent)
     {
+        if (!CanEditStructure) return;
+
         string name = await AskName("Prompt_NewFolderTitle", "Prompt_Create", Loc.Tr("FolderPanel_DefaultName"));
         if (string.IsNullOrWhiteSpace(name)) return;
 
@@ -153,7 +177,7 @@ public sealed partial class FolderPanelViewModel : ViewModelBase
     [RelayCommand]
     private async Task Rename(FolderNodeViewModel node)
     {
-        if (node == null) return;
+        if (node == null || !CanEditStructure) return;
 
         string name = await AskName("Prompt_RenameFolderTitle", "Prompt_Rename", node.Folder.Name);
         if (string.IsNullOrWhiteSpace(name) || name == node.Folder.Name) return;
@@ -165,12 +189,19 @@ public sealed partial class FolderPanelViewModel : ViewModelBase
     [RelayCommand]
     private async Task Delete(FolderNodeViewModel node)
     {
-        if (node == null) return;
+        if (node == null || !CanEditStructure) return;
 
         FolderDeleteImpact impact = _folders.GetDeleteImpact(node.Folder);
-        if (impact.HasContent || impact.Links > 0)
+        HashSet<Guid> removed = [.. node.Folder.SelfAndDescendants().Select(static f => f.Id)];
+        IReadOnlyList<Services.Companion.CompanionLossEntry> losses = Services.Companion.CompanionImpact.ForFolders(
+            _companions, _scopeKey, _config.ActiveWorkspaceId, removed);
+
+        if (impact.HasContent || impact.Links > 0 || losses.Count > 0)
         {
             string message = Loc.Tr("Confirm_DeleteFolderMessage", node.Folder.Name, impact.Subfolders, impact.Links);
+            if (losses.Count > 0)
+                message += Environment.NewLine + Environment.NewLine + Loc.Tr("Confirm_CompanionPagesLost") +
+                           Environment.NewLine + Services.Companion.CompanionImpact.Describe(losses);
             if (!await Ask("Confirm_DeleteFolderTitle", message, "Confirm_Delete")) return;
         }
 
@@ -180,7 +211,7 @@ public sealed partial class FolderPanelViewModel : ViewModelBase
 
     /// <summary>True when the dragged folder may be moved below <paramref name="newParent"/> (null = top level).</summary>
     public bool CanMove(FolderNodeViewModel node, FolderNodeViewModel newParent)
-        => node != null && _folders.CanMove(node.Folder, newParent?.Folder);
+        => CanEditStructure && node != null && _folders.CanMove(node.Folder, newParent?.Folder);
 
     /// <summary>Moves the folder below <paramref name="newParent"/> (null = top level) at <paramref name="index"/>.</summary>
     public void Move(FolderNodeViewModel node, FolderNodeViewModel newParent, int index)

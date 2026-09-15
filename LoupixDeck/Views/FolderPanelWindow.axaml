@@ -100,6 +100,7 @@
                     <TextBlock Grid.Column="0" Classes="panel-section" Text="{loc:Tr FolderPanel_Title}" />
                     <!-- mdi-folder-plus -->
                     <Button Grid.Column="1" Classes="panel-action"
+                            IsEnabled="{Binding CanEditStructure}"
                             ToolTip.Tip="{loc:Tr FolderPanel_NewFolder}"
                             Command="{Binding NewFolderCommand}" Content="&#xF0257;" />
                 </Grid>
@@ -117,9 +118,14 @@
                     </Grid>
                 </Border>
 
-                <TextBlock Grid.Row="2" Classes="hint" Margin="4,8" TextWrapping="Wrap"
-                           Text="{loc:Tr FolderPanel_Empty}"
-                           IsVisible="{Binding !HasFolders}" />
+                <StackPanel Grid.Row="2">
+                    <TextBlock Classes="hint" Margin="4,8" TextWrapping="Wrap"
+                               Text="{loc:Tr FolderPanel_CompanionReadOnly}"
+                               IsVisible="{Binding !CanEditStructure}" />
+                    <TextBlock Classes="hint" Margin="4,8" TextWrapping="Wrap"
+                               Text="{loc:Tr FolderPanel_Empty}"
+                               IsVisible="{Binding ShowEmptyHint}" />
+                </StackPanel>
 
                 <TreeView Grid.Row="3" Name="FolderTree"
                           ItemsSource="{Binding RootNodes}"
@@ -133,13 +139,16 @@
                                 <Border.ContextFlyout>
                                     <MenuFlyout>
                                         <MenuItem Header="{loc:Tr FolderPanel_NewSubfolder}"
+                                                  IsEnabled="{Binding $parent[TreeView].((fp:FolderPanelViewModel)DataContext).CanEditStructure}"
                                                   Command="{Binding $parent[TreeView].((fp:FolderPanelViewModel)DataContext).NewSubfolderCommand}"
                                                   CommandParameter="{Binding}" />
                                         <MenuItem Header="{loc:Tr FolderPanel_Rename}"
+                                                  IsEnabled="{Binding $parent[TreeView].((fp:FolderPanelViewModel)DataContext).CanEditStructure}"
                                                   Command="{Binding $parent[TreeView].((fp:FolderPanelViewModel)DataContext).RenameCommand}"
                                                   CommandParameter="{Binding}" />
                                         <Separator />
                                         <MenuItem Header="{loc:Tr FolderPanel_Delete}"
+                                                  IsEnabled="{Binding $parent[TreeView].((fp:FolderPanelViewModel)DataContext).CanEditStructure}"
                                                   Command="{Binding $parent[TreeView].((fp:FolderPanelViewModel)DataContext).DeleteCommand}"
                                                   CommandParameter="{Binding}" />
                                     </MenuFlyout>
