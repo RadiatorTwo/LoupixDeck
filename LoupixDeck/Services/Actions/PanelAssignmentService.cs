@@ -50,7 +50,8 @@ public sealed class PanelAssignmentService(
     IAssetService assetService,
     IAppIconExtractor appIcons,
     IDeviceService deviceService,
-    DeviceGeometry geometry) : IPanelAssignmentService
+    DeviceGeometry geometry,
+    Folders.ICustomFolderService folders) : IPanelAssignmentService
 {
     private readonly DeviceGeometry _geometry = geometry ?? DeviceGeometry.Default;
 
@@ -68,6 +69,10 @@ public sealed class PanelAssignmentService(
             ActionPanelItemViewModel { Entry.IsCommandGroup: true } => kind == ButtonTargets.RotaryEncoder,
             // Same for a preset, which is a rotary group the user named and saved.
             DialPresetPanelItemViewModel => kind == ButtonTargets.RotaryEncoder,
+            // A custom folder (issue #249) opens on a key or an LED button, unless it is the folder
+            // shown right now or one it was opened through, which would make a cycle.
+            ViewModels.FolderPanel.FolderNodeViewModel folder =>
+                kind is ButtonTargets.TouchButton or ButtonTargets.SimpleButton && folders.CanLink(folder.Folder.Id),
             ActionPanelItemViewModel action => Supports(action, kind.Value),
             _ => false
         };
@@ -85,6 +90,8 @@ public sealed class PanelAssignmentService(
             ActionPanelItemViewModel action => AssignAction(action, target),
             DialPresetPanelItemViewModel preset =>
                 ApplyRotaryGroup(preset.Preset.ToRotaryGroup(), (RotaryButton)target, preset.Title),
+            ViewModels.FolderPanel.FolderNodeViewModel folder =>
+                ApplyCommand(Folders.FolderCommand.Build(folder.Folder.Id), folder.Folder.Name, "folder", target),
             _ => false
         };
     }
