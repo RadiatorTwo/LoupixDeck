@@ -742,17 +742,17 @@ public partial class MainWindowViewModel : ViewModelBase
         switch (kind)
         {
             case ButtonKind.Touch:
-                ClearTouchContent((TouchButton)button);
+                ButtonContentReset.ClearTouchContent((TouchButton)button);
                 PostTouchChange();
                 break;
 
             case ButtonKind.Simple:
-                ClearSimpleContent((SimpleButton)button);
+                ButtonContentReset.ClearSimpleContent((SimpleButton)button);
                 LoupedeckController.SaveConfig();
                 break;
 
             case ButtonKind.Rotary:
-                ClearRotaryContent((RotaryButton)button);
+                ButtonContentReset.ClearRotaryContent((RotaryButton)button);
                 LoupedeckController.SaveConfig();
                 _ = RefreshRotarySide((RotaryButton)button);
                 break;
@@ -761,7 +761,7 @@ public partial class MainWindowViewModel : ViewModelBase
                 RotarySide side = SideOf((TouchButton)button);
                 TouchButton canvas = EnsureStripCanvas(side, out RotaryButtonPage page);
                 if (canvas == null) return;
-                ClearTouchContent(canvas);
+                ButtonContentReset.ClearTouchContent(canvas);
                 LoupedeckController.RegisterStripCanvas(page);
                 LoupedeckController.SaveConfig();
                 _ = LoupedeckController.RefreshSideStrip(side);
@@ -802,67 +802,6 @@ public partial class MainWindowViewModel : ViewModelBase
                 confirmText: Loc.Tr("Confirm_Overwrite"),
                 cancelText: Loc.Tr("Confirm_Cancel")));
         return result.IsConfirmed;
-    }
-
-    // Collapse a touch/strip button to a single empty default state (keeps the instance, so its
-    // ItemChanged subscription survives), then repaint.
-    private static void ClearTouchContent(TouchButton button)
-    {
-        while (button.States.Count > 1)
-            button.States.RemoveAt(button.States.Count - 1);
-
-        ButtonState state = button.States[0];
-        state.Layers.Clear();
-        state.BackColor = Avalonia.Media.Colors.Black;
-        state.BackgroundEnabled = false;
-        state.LedColor = Avalonia.Media.Colors.Black;
-        state.Command = null;
-        state.VibrationEnabled = false;
-        state.Transition.Kind = StateTransitionKind.Stay;
-        state.Transition.TargetStateId = null;
-
-        button.DefaultStateId = state.Id;
-        button.Command = null;
-        ReleaseStateOwnership(button);
-        button.SetActiveState(state.Id);
-    }
-
-    private static void ClearSimpleContent(SimpleButton button)
-    {
-        while (button.States.Count > 1)
-            button.States.RemoveAt(button.States.Count - 1);
-
-        ButtonState state = button.States[0];
-        state.LedColor = Avalonia.Media.Colors.Black;
-        state.Command = null;
-        state.Transition.Kind = StateTransitionKind.Stay;
-        state.Transition.TargetStateId = null;
-
-        button.DefaultStateId = state.Id;
-        button.Command = null;
-        ReleaseStateOwnership(button);
-        button.SetActiveState(state.Id);
-    }
-
-    /// <summary>
-    /// Hands a cleared button's states back to the user. Without this the button would still
-    /// claim a command owns its states, and assigning one that declares states would ask whether
-    /// to keep states that are no longer there.
-    /// </summary>
-    private static void ReleaseStateOwnership(StatefulButton button)
-    {
-        button.StateOwnerCommand = null;
-        button.Mode = ButtonStateMode.Local;
-        button.ResetOnPageChange = false;
-    }
-
-    private static void ClearRotaryContent(RotaryButton button)
-    {
-        button.Command = null;
-        button.RotaryLeftCommand = string.Empty;
-        button.RotaryRightCommand = string.Empty;
-        button.DisplayText = string.Empty;
-        button.Refresh();
     }
 
     // ─────────────────────────── Apps and actions panel ───────────────────────────
@@ -1166,13 +1105,13 @@ public partial class MainWindowViewModel : ViewModelBase
         {
             case ButtonKind.Touch:
             case ButtonKind.SideDisplay:
-                ClearTouchContent((TouchButton)button);
+                ButtonContentReset.ClearTouchContent((TouchButton)button);
                 break;
             case ButtonKind.Simple:
-                ClearSimpleContent((SimpleButton)button);
+                ButtonContentReset.ClearSimpleContent((SimpleButton)button);
                 break;
             case ButtonKind.Rotary:
-                ClearRotaryContent((RotaryButton)button);
+                ButtonContentReset.ClearRotaryContent((RotaryButton)button);
                 break;
         }
     }
@@ -1197,7 +1136,7 @@ public partial class MainWindowViewModel : ViewModelBase
         else if (_clipboard.IsEmpty(dstCanvas))
         {
             ButtonSnapshot.Apply(ButtonSnapshot.Capture(srcCanvas), dstCanvas);
-            ClearTouchContent(srcCanvas);
+            ButtonContentReset.ClearTouchContent(srcCanvas);
         }
         else
         {
