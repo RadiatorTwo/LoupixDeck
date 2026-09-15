@@ -108,7 +108,7 @@ Only the device-permission step needs administrator rights. If you have never co
 
 1. Connect a supported device and start LoupixDeck.
 2. Open the **Apps and Commands** panel from the top-left corner.
-3. Drag an application or command onto a button—or select a control and click the item.
+3. Drag an application or command onto a button—or select a control and double-click the item.
 4. Select a button to customize its image, text, symbol, actions and states.
 5. Add profiles, workspaces, pages and folders as your setup grows.
 6. Open **Settings → Plugin Store** to install integrations.
@@ -128,7 +128,7 @@ For a complete walkthrough, see the [User Manual](docs/USER_MANUAL.md).
 ### Pages and folders
 
 - Organize layouts as **Profile → Workspace → Page**
-- Create nested custom folders and fill them with commands or more folders
+- Create nested custom folders in the **Folders** panel and drag them onto touch keys
 - Navigate with breadcrumbs in the application and an automatic Back button on the device
 - Use plugin-provided dynamic folders for live content such as audio sessions or OBS scenes
 
@@ -178,6 +178,7 @@ Built-in commands and plugins cover:
 ### More features
 
 - **Multi-device support:** hot-plug devices and target them individually
+- **Companion devices:** let companions mirror a master's profiles, workspaces and folders while keeping their own pages
 - **Portable profiles:** export and import profiles, workspaces or pages
 - **Screensavers:** use a video, GIF or plugin-provided renderer
 - **Native haptics:** configure vibration effects on supported touch controls
@@ -212,7 +213,7 @@ Want to create a plugin?
 
 ## Portable profiles
 
-Export a complete profile, a workspace or a single page from **Settings → Profiles** or **Settings → Pages**. Import packages with **Import Package…** next to **+ Add Profile**.
+Export a complete profile, a workspace or a single page from **Settings → Profiles** or **Settings → Pages**; profile and workspace exports plus **Import Package…** are also available from the main-window header menus. Profile and workspace packages include their custom folders and, optionally, the pages of a master's companions.
 
 Before importing, LoupixDeck shows missing plugins and commands, device compatibility warnings and macro-name conflicts. You can add the package as a copy or replace an existing item; replacement can automatically create a backup first.
 
