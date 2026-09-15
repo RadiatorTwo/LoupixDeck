@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media;
+using Avalonia.VisualTree;
 using LoupixDeck.Models;
 using LoupixDeck.Utils;
 using LoupixDeck.ViewModels.ActionPanel;
@@ -149,6 +150,14 @@ public partial class ActionPanelWindow : Window
         if (_owner == null || _dragDrop == null) return;
         if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed) return;
 
+        // A double-click assigns the row to the selected key; a single click only selects the row.
+        if (e.ClickCount == 2)
+        {
+            if (PanelRowItem(e.Source as Visual) is { } item)
+                _dragDrop.PanelAssignToSelection(item);
+            return;
+        }
+
         _dragArmed = _dragDrop.PanelPointerPressed(e.Source as Visual, ToOwner(e));
 
         // Capture here for the whole gesture: without it the events stop the moment the pointer
@@ -156,6 +165,12 @@ public partial class ActionPanelWindow : Window
         if (_dragArmed)
             e.Pointer.Capture(this);
     }
+
+    private static PanelItemViewModel PanelRowItem(Visual source)
+        => source?.GetSelfAndVisualAncestors()
+            .OfType<Control>()
+            .FirstOrDefault(static c => c.Classes.Contains("panel-row") && c.DataContext is PanelItemViewModel)
+            ?.DataContext as PanelItemViewModel;
 
     private void OnPreviewPointerMoved(object sender, PointerEventArgs e)
     {

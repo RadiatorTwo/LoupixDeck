@@ -214,16 +214,9 @@ public sealed class DeviceDragDrop
         MainWindowViewModel vm = _resolveVm();
         if (vm == null || item == null) return;
 
-        // A press that never became a drag is a click: assign to whatever button is selected. With
-        // nothing selected this does nothing, which is what clicking a row before picking a button
-        // should do.
-        if (!dragged)
-        {
-            _ = vm.AssignPanelItemToSelectionAsync(item);
-            return;
-        }
-
-        if (target != null)
+        // A press that never became a drag is a click, which only selects the row. Assigning it to
+        // the selected button takes a double-click (PanelAssignToSelection).
+        if (dragged && target != null)
             _ = vm.AssignPanelItemAsync(item, target);
     }
 
