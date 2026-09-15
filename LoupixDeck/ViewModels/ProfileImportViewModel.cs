@@ -152,9 +152,11 @@ public sealed partial class ProfileImportViewModel : DialogViewModelBase<DialogR
     public partial ImportTargetRow SelectedReplaceTarget { get; set; }
 
     /// <summary>
-    /// On a master, replacing a profile gives its workspaces new ids, so every companion's mirror of
-    /// them is dropped with the companion's own pages inside. Names the companions that would lose
-    /// pages; null when none would (or the package does not replace a profile).
+    /// On a master, replacing a profile gives its workspaces new ids. The companions' mirrors move to
+    /// the incoming workspaces matched to the old ones (<see cref="ReplacedWorkspaceMatcher"/>); a
+    /// mirror of an old workspace without a counterpart is dropped with the companion's own pages
+    /// inside. Names the companions that would lose pages; null when none would (or the package does
+    /// not replace a profile).
     /// </summary>
     public string CompanionReplaceWarning
     {
@@ -164,7 +166,15 @@ public sealed partial class ProfileImportViewModel : DialogViewModelBase<DialogR
                 SelectedReplaceTarget?.ProfileId is not { } profileId)
                 return null;
 
-            IReadOnlyList<CompanionLossEntry> losses = CompanionImpact.ForProfile(_companions, _device.ScopeKey, profileId);
+            Profile replaced = _config.Profiles?.FirstOrDefault(p => p.Id == profileId);
+            if (replaced == null)
+                return null;
+
+            Dictionary<Guid, int> matched = ReplacedWorkspaceMatcher.Match([.. replaced.Workspaces ?? []],
+                [.. _analysis.Payload?.Profile?.Workspaces ?? []]);
+            List<Guid> unmatched = (replaced.Workspaces ?? []).Select(w => w.Id).Where(id => !matched.ContainsKey(id)).ToList();
+
+            IReadOnlyList<CompanionLossEntry> losses = CompanionImpact.ForWorkspaces(_companions, _device.ScopeKey, unmatched);
             return losses.Count == 0
                 ? null
                 : Loc.Tr("ProfileImport_ReplaceLosesCompanionPages") + Environment.NewLine + CompanionImpact.Describe(losses);

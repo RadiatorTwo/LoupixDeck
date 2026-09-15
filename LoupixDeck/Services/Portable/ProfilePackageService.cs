@@ -7,6 +7,7 @@ using LoupixDeck.Models.Macros;
 using LoupixDeck.Models.Portable;
 using LoupixDeck.Registry;
 using LoupixDeck.Services.Commands;
+using LoupixDeck.Services.Companion;
 using LoupixDeck.Services.Macros;
 using LoupixDeck.Services.Plugins;
 using LoupixDeck.Services.Portable.Migrations;
@@ -27,7 +28,9 @@ public sealed class ProfilePackageService(
     IWorkspaceActivationService workspaceActivation,
     IDeviceController controller,
     LoupedeckConfig config,
-    DeviceRegistry.DeviceInfo deviceInfo) : IProfilePackageService
+    DeviceRegistry.DeviceInfo deviceInfo,
+    ICompanionCoordinator companions,
+    ResolvedDevice device) : IProfilePackageService
 {
     /// <summary>
     /// Envelope upgrade chain. Empty at format version 1 — see <see cref="IPackageMigration"/>.
@@ -829,14 +832,15 @@ public sealed class ProfilePackageService(
                     int index = config.Profiles.IndexOf(existing);
                     bool wasActive = config.ActiveProfileId == existing.Id;
 
+                    // Before the swap: a companion following the activation below must already find
+                    // its mirrors under the new workspace ids.
+                    RetargetReplacedWorkspaces(existing, analysis.Payload?.Profile, profile, warnings);
+
                     config.Profiles.RemoveAt(index);
                     config.Profiles.Insert(index, profile);
 
                     if (wasActive)
                         workspaceActivation.ActivateProfile(profile.Id);
-
-                    warnings.Add("Buttons in other profiles that jump to a specific workspace of the " +
-                                 "replaced profile may no longer resolve.");
                 }
                 else
                 {
@@ -924,6 +928,111 @@ public sealed class ProfilePackageService(
         controller.SaveConfig();
 
         return ProfilePackageResult.Ok($"Imported {what}.", warnings, importedProfileId: importedProfileId);
+    }
+
+    /// <summary>
+    /// Replacing a profile gives its workspaces fresh ids. Moves what pointed at the old workspaces
+    /// onto their counterparts in the incoming profile (see <see cref="ReplacedWorkspaceMatcher"/>):
+    /// context rules and macros of this device, and on a master the companions' mirrors, which keeps
+    /// the companions' own pages in them. Buttons are left alone: <c>System.GotoWorkspace</c> only
+    /// reaches workspaces of the active profile, and the replaced profile's own buttons arrive with
+    /// the package already pointing at the new ids.
+    /// </summary>
+    /// <param name="replaced">The profile being replaced, still in the config.</param>
+    /// <param name="exported">The incoming profile with its ids as exported (the analysis payload).</param>
+    /// <param name="imported">The same profile after remapping, in the same workspace order.</param>
+    private void RetargetReplacedWorkspaces(Profile replaced, Profile exported, Profile imported, List<string> warnings)
+    {
+        List<Workspace> oldWorkspaces = [.. replaced.Workspaces ?? []];
+        List<Workspace> newWorkspaces = [.. imported.Workspaces ?? []];
+
+        Dictionary<Guid, Guid> moved = [];
+        foreach ((Guid oldId, int index) in ReplacedWorkspaceMatcher.Match(oldWorkspaces, [.. exported?.Workspaces ?? []]))
+        {
+            if (index < newWorkspaces.Count && newWorkspaces[index].Id != oldId)
+                moved[oldId] = newWorkspaces[index].Id;
+        }
+
+        int dropped = oldWorkspaces.Count(w => !moved.ContainsKey(w.Id) && newWorkspaces.All(n => n.Id != w.Id));
+        if (dropped > 0)
+        {
+            warnings.Add($"{dropped} workspace(s) of the replaced profile have no counterpart in the package; " +
+                         "rules and companion pages that belonged to them are gone.");
+        }
+
+        if (moved.Count == 0)
+            return;
+
+        foreach (ContextRule rule in config.ContextRules ?? [])
+        {
+            if (rule.ActivateWorkspaceId is { } workspaceId && moved.TryGetValue(workspaceId, out Guid newId))
+                rule.ActivateWorkspaceId = newId;
+        }
+
+        RetargetMacros(moved);
+        RetargetCompanionMirrors(replaced.Id, moved);
+    }
+
+    /// <summary>Rewrites workspace ids inside macro steps (a macro can run <c>System.GotoWorkspace</c>).</summary>
+    private void RetargetMacros(IReadOnlyDictionary<Guid, Guid> moved)
+    {
+        if (macroManager.Macros.Count == 0)
+            return;
+
+        JToken macros = JToken.Parse(macroManager.SerializeSubset(macroManager.Macros));
+        string before = macros.ToString(Newtonsoft.Json.Formatting.None);
+        PortableIdRemapper.SubstituteGuids(macros, moved);
+
+        string after = macros.ToString(Newtonsoft.Json.Formatting.None);
+        if (!string.Equals(before, after, StringComparison.Ordinal))
+            macroManager.ReplaceAll(macroManager.DeserializeSubset(after));
+    }
+
+    /// <summary>
+    /// Gives each companion's mirror of the replaced profile the new workspace ids, so the next
+    /// structure sync keeps the mirrored workspaces (and the companion's pages in them) instead of
+    /// dropping them. A running companion is changed in memory and saved by its controller, an
+    /// unplugged one through its config file.
+    /// </summary>
+    private void RetargetCompanionMirrors(Guid profileId, IReadOnlyDictionary<Guid, Guid> moved)
+    {
+        string masterKey = device?.ScopeKey;
+        if (string.IsNullOrEmpty(masterKey) || !companions.IsMaster(masterKey))
+            return;
+
+        foreach (string companionKey in companions.GetCompanionKeys(masterKey))
+        {
+            try
+            {
+                LoupedeckConfig companion = companions.GetDeviceConfig(companionKey);
+                Profile mirror = companion?.Profiles?.FirstOrDefault(p => p.Id == profileId);
+                if (mirror == null) continue;
+
+                bool changed = false;
+                foreach (Workspace workspace in mirror.Workspaces ?? [])
+                {
+                    if (!moved.TryGetValue(workspace.Id, out Guid newId)) continue;
+
+                    bool active = companion.ActiveWorkspaceId == workspace.Id;
+                    bool home = mirror.HomeWorkspaceId == workspace.Id;
+                    workspace.Id = newId;
+                    if (home) mirror.HomeWorkspaceId = newId;
+                    if (active) companion.ActiveWorkspaceId = newId;
+                    changed = true;
+                }
+
+                if (!changed) continue;
+
+                if (companions.ResolveHost(companionKey) is { } host)
+                    host.Controller.SaveConfig();
+                else if (companions.GetConfigPath(companionKey) is { } path)
+                    configService.SaveConfig(companion, path);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[ProfilePackage] Could not move the mirrored workspaces of '{companionKey}': {ex.Message}");
+            }
+        }
     }
 
     private void EnablePlugins(ProfilePackageAnalysis analysis, ProfilePackageImportOptions options,
