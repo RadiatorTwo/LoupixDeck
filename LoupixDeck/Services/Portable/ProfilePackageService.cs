@@ -951,6 +951,11 @@ public sealed class ProfilePackageService(
                     return ProfilePackageResult.Fail("There is no workspace to import the page into.", warnings);
 
                 InsertOrReplace(target.TouchButtonPages, page, options);
+
+                // A page travels without the folders its buttons open; links to folders this
+                // workspace does not have would navigate nowhere (issue #249).
+                Folders.FolderReferenceCleaner.CleanDangling(target);
+
                 what = $"touch page '{page.Name}' into workspace '{target.Name}'";
                 break;
             }
@@ -1156,6 +1161,10 @@ public sealed class ProfilePackageService(
         target.LeftRotaryButtonPages = source.LeftRotaryButtonPages ?? [];
         target.RightRotaryButtonPages = source.RightRotaryButtonPages ?? [];
         target.StartupTouchPageIndex = source.StartupTouchPageIndex;
+        // Folder layouts belong to the pages (issue #249). The tree shape of a companion mirror is
+        // re-derived from its master by the structure sync, which keeps these nodes by id.
+        target.SetFolderPath([]);
+        target.Folders = source.Folders ?? [];
         target.CurrentTouchPageIndex = -1;
         target.CurrentRotaryPageIndex = -1;
         target.CurrentLeftRotaryPageIndex = -1;

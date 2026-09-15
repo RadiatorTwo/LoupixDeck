@@ -34,6 +34,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly Services.Actions.IPanelAssignmentService _panelAssignment;
     private readonly LoupedeckConfig _config;
     private readonly Services.DialPresets.IDialPresetStore _dialPresetStore;
+    private readonly Services.Folders.ICustomFolderService _folders;
 
     // Guards the profile/workspace ComboBox selection against feedback loops: set while we
     // push an external activation (context rules, commands, buttons) back into the bound
@@ -268,9 +269,13 @@ public partial class MainWindowViewModel : ViewModelBase
         LoupixDeck.Registry.ResolvedDevice resolved,
         LoupixDeck.Registry.DeviceGeometry geometry,
         Services.Companion.ICompanionCoordinator companions,
-        IDeviceHostRegistry hostRegistry)
+        IDeviceHostRegistry hostRegistry,
+        Services.Folders.ICustomFolderService folders,
+        ViewModels.FolderPanel.FolderPanelViewModel folderPanel)
     {
+        FolderPanel = folderPanel;
         LoupedeckController = loupedeck;
+        _folders = folders;
         _companions = companions;
         _companions.GroupsChanged += OnCompanionGroupsChanged;
         _hostRegistry = hostRegistry;
@@ -390,6 +395,12 @@ public partial class MainWindowViewModel : ViewModelBase
         MacroEditorMenuCommand = new AsyncRelayCommand(MacroEditorMenuButton_Click);
         ToggleDeviceStateCommand = new AsyncRelayCommand(LoupedeckController.ToggleDeviceState);
 
+        NavigateFolderDepthCommand = new AsyncRelayCommand<int>(depth => LoupedeckController.PageManager.NavigateFolderDepth(depth));
+        FolderBackCommand = new AsyncRelayCommand(() => LoupedeckController.PageManager.FolderBack());
+        _config.PropertyChanged += OnConfigFolderPropertyChanged;
+        _folders.StructureChanged += RefreshFolderBreadcrumbs;
+        RefreshFolderBreadcrumbs();
+
         // Follow Light/Dark for the rendered device chrome (knob + LED/RGB buttons),
         // whose bitmaps bake in their colours and so can't react to DynamicResource.
         if (Avalonia.Application.Current is { } currentApp)
@@ -413,6 +424,42 @@ public partial class MainWindowViewModel : ViewModelBase
         _companions.GroupsChanged -= OnCompanionGroupsChanged;
         _hostRegistry.HostAdded -= OnHostsChanged;
         _hostRegistry.HostRemoved -= OnHostsChanged;
+        _config.PropertyChanged -= OnConfigFolderPropertyChanged;
+        _folders.StructureChanged -= RefreshFolderBreadcrumbs;
+    }
+
+    // ─────────────────────────── Custom folder breadcrumbs (issue #249) ───────────────────────────
+
+    /// <summary>Jumps to a level of the breadcrumb path; 0 is the page, 1 the outermost folder.</summary>
+    public IAsyncRelayCommand<int> NavigateFolderDepthCommand { get; }
+
+    /// <summary>Closes the innermost open folder.</summary>
+    public IAsyncRelayCommand FolderBackCommand { get; }
+
+    /// <summary>The workspace followed by every open folder, shown in place of the touch pager while a folder is open.</summary>
+    public ObservableCollection<FolderBreadcrumbViewModel> FolderBreadcrumbs { get; } = [];
+
+    /// <summary>True while a custom folder is open on this device.</summary>
+    [ObservableProperty]
+    public partial bool IsFolderOpen { get; private set; }
+
+    private void OnConfigFolderPropertyChanged(object sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        // "Name" is forwarded from the active workspace: the breadcrumb root shows it.
+        if (e.PropertyName is nameof(LoupedeckConfig.FolderPath) or nameof(LoupedeckConfig.ActiveWorkspace) or nameof(Workspace.Name))
+            Avalonia.Threading.Dispatcher.UIThread.Post(RefreshFolderBreadcrumbs);
+    }
+
+    private void RefreshFolderBreadcrumbs()
+    {
+        IReadOnlyList<CustomFolder> path = _config.FolderPath;
+
+        FolderBreadcrumbs.Clear();
+        FolderBreadcrumbs.Add(new FolderBreadcrumbViewModel(_config.ActiveWorkspace?.Name ?? string.Empty, 0, path.Count == 0));
+        for (int i = 0; i < path.Count; i++)
+            FolderBreadcrumbs.Add(new FolderBreadcrumbViewModel(path[i].Name, i + 1, i == path.Count - 1));
+
+        IsFolderOpen = path.Count > 0;
     }
 
     /// <summary>Badge text for the device switcher: "Master", "Companion" (marked while the group is
@@ -578,6 +625,8 @@ public partial class MainWindowViewModel : ViewModelBase
 
     private async Task TouchButton_Click(TouchButton button)
     {
+        if (button == null || button.IsFolderBackSlot) return;
+
         await _dialogService.ShowDialogAsync<TouchButtonSettingsViewModel, DialogResult>(vm => vm.Initialize(button));
 
         LoupedeckController.SaveConfig();
@@ -614,6 +663,10 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         switch (button)
         {
+            // The automatic Back tile of a custom folder (issue #249) is not user content: it cannot
+            // be copied, pasted over, cleared, dragged or dropped onto.
+            case TouchButton { IsFolderBackSlot: true }:
+                return null;
             case TouchButton touch when IsSideStripButton(touch):
                 return ButtonKind.SideDisplay;
             case TouchButton:
@@ -718,6 +771,11 @@ public partial class MainWindowViewModel : ViewModelBase
 
         _clipboard.PasteInto(button);
 
+        // A pasted folder link can come from another layout: drop links this layout may not hold
+        // (the open folder, one it was opened from, or a folder this workspace does not have).
+        if (button is StatefulButton stateful)
+            Services.Folders.FolderReferenceCleaner.CleanButton(stateful, id => !_folders.CanLink(id));
+
         switch (kind)
         {
             case ButtonKind.Touch:
@@ -742,17 +800,17 @@ public partial class MainWindowViewModel : ViewModelBase
         switch (kind)
         {
             case ButtonKind.Touch:
-                ClearTouchContent((TouchButton)button);
+                ButtonContentReset.ClearTouchContent((TouchButton)button);
                 PostTouchChange();
                 break;
 
             case ButtonKind.Simple:
-                ClearSimpleContent((SimpleButton)button);
+                ButtonContentReset.ClearSimpleContent((SimpleButton)button);
                 LoupedeckController.SaveConfig();
                 break;
 
             case ButtonKind.Rotary:
-                ClearRotaryContent((RotaryButton)button);
+                ButtonContentReset.ClearRotaryContent((RotaryButton)button);
                 LoupedeckController.SaveConfig();
                 _ = RefreshRotarySide((RotaryButton)button);
                 break;
@@ -761,7 +819,7 @@ public partial class MainWindowViewModel : ViewModelBase
                 RotarySide side = SideOf((TouchButton)button);
                 TouchButton canvas = EnsureStripCanvas(side, out RotaryButtonPage page);
                 if (canvas == null) return;
-                ClearTouchContent(canvas);
+                ButtonContentReset.ClearTouchContent(canvas);
                 LoupedeckController.RegisterStripCanvas(page);
                 LoupedeckController.SaveConfig();
                 _ = LoupedeckController.RefreshSideStrip(side);
@@ -804,76 +862,18 @@ public partial class MainWindowViewModel : ViewModelBase
         return result.IsConfirmed;
     }
 
-    // Collapse a touch/strip button to a single empty default state (keeps the instance, so its
-    // ItemChanged subscription survives), then repaint.
-    private static void ClearTouchContent(TouchButton button)
-    {
-        while (button.States.Count > 1)
-            button.States.RemoveAt(button.States.Count - 1);
-
-        ButtonState state = button.States[0];
-        state.Layers.Clear();
-        state.BackColor = Avalonia.Media.Colors.Black;
-        state.BackgroundEnabled = false;
-        state.LedColor = Avalonia.Media.Colors.Black;
-        state.Command = null;
-        state.VibrationEnabled = false;
-        state.Transition.Kind = StateTransitionKind.Stay;
-        state.Transition.TargetStateId = null;
-
-        button.DefaultStateId = state.Id;
-        button.Command = null;
-        ReleaseStateOwnership(button);
-        button.SetActiveState(state.Id);
-    }
-
-    private static void ClearSimpleContent(SimpleButton button)
-    {
-        while (button.States.Count > 1)
-            button.States.RemoveAt(button.States.Count - 1);
-
-        ButtonState state = button.States[0];
-        state.LedColor = Avalonia.Media.Colors.Black;
-        state.Command = null;
-        state.Transition.Kind = StateTransitionKind.Stay;
-        state.Transition.TargetStateId = null;
-
-        button.DefaultStateId = state.Id;
-        button.Command = null;
-        ReleaseStateOwnership(button);
-        button.SetActiveState(state.Id);
-    }
-
-    /// <summary>
-    /// Hands a cleared button's states back to the user. Without this the button would still
-    /// claim a command owns its states, and assigning one that declares states would ask whether
-    /// to keep states that are no longer there.
-    /// </summary>
-    private static void ReleaseStateOwnership(StatefulButton button)
-    {
-        button.StateOwnerCommand = null;
-        button.Mode = ButtonStateMode.Local;
-        button.ResetOnPageChange = false;
-    }
-
-    private static void ClearRotaryContent(RotaryButton button)
-    {
-        button.Command = null;
-        button.RotaryLeftCommand = string.Empty;
-        button.RotaryRightCommand = string.Empty;
-        button.DisplayText = string.Empty;
-        button.Refresh();
-    }
-
     // ─────────────────────────── Apps and actions panel ───────────────────────────
 
     /// <summary>The side panel listing the installed applications and the command catalogue.</summary>
     public ViewModels.ActionPanel.ActionPanelViewModel ActionPanel { get; }
 
+    /// <summary>The panel on the right managing the active workspace's custom folders (issue #249).</summary>
+    public ViewModels.FolderPanel.FolderPanelViewModel FolderPanel { get; }
+
     /// <summary>True when a panel row can be dropped on this button, previewing the drop chrome
     /// before the pointer is released.</summary>
     public bool CanAssignPanelItem(ViewModels.ActionPanel.PanelItemViewModel item, LoupedeckButton target)
-        => (Classify(target) != ButtonKind.SideDisplay) && _panelAssignment.CanAssign(item, target);
+        => Classify(target) is ButtonKind kind && kind != ButtonKind.SideDisplay && _panelAssignment.CanAssign(item, target);
 
     /// <summary>
     /// Puts a panel row on <paramref name="target"/>, whether it got there by a drag or by a click
@@ -1166,13 +1166,13 @@ public partial class MainWindowViewModel : ViewModelBase
         {
             case ButtonKind.Touch:
             case ButtonKind.SideDisplay:
-                ClearTouchContent((TouchButton)button);
+                ButtonContentReset.ClearTouchContent((TouchButton)button);
                 break;
             case ButtonKind.Simple:
-                ClearSimpleContent((SimpleButton)button);
+                ButtonContentReset.ClearSimpleContent((SimpleButton)button);
                 break;
             case ButtonKind.Rotary:
-                ClearRotaryContent((RotaryButton)button);
+                ButtonContentReset.ClearRotaryContent((RotaryButton)button);
                 break;
         }
     }
@@ -1197,7 +1197,7 @@ public partial class MainWindowViewModel : ViewModelBase
         else if (_clipboard.IsEmpty(dstCanvas))
         {
             ButtonSnapshot.Apply(ButtonSnapshot.Capture(srcCanvas), dstCanvas);
-            ClearTouchContent(srcCanvas);
+            ButtonContentReset.ClearTouchContent(srcCanvas);
         }
         else
         {

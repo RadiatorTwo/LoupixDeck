@@ -36,7 +36,7 @@ public sealed class NativeHapticService : INativeHapticService, IDisposable
         _debounce.Elapsed += (_, _) => SendNow();
 
         _config.PropertyChanged += OnConfigChanged;
-        _pageManager.OnTouchPageChanged += (_, _) => { RebindCurrentPageButtons(); Schedule(); };
+        _pageManager.TouchLayoutChanged += () => { RebindCurrentPageButtons(); Schedule(); };
         RebindCurrentPageButtons();
 
         _config.HapticSteps.CollectionChanged += OnStepsChanged;

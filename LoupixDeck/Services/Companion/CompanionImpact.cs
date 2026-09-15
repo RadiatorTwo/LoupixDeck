@@ -39,6 +39,31 @@ public static class CompanionImpact
                 (workspaceIds.Select(id => CompanionDeviceTraits.FindWorkspace(config, id)).Where(w => w != null), null),
                 exceptCompanionKeys);
 
+    /// <summary>
+    /// The companions of <paramref name="masterKey"/> whose own layouts in the given custom folders of
+    /// the workspace hold anything (issue #249). Their folder layouts go when the master deletes the folders.
+    /// </summary>
+    public static IReadOnlyList<CompanionLossEntry> ForFolders(ICompanionCoordinator coordinator, string masterKey,
+        Guid workspaceId, IReadOnlySet<Guid> folderIds)
+    {
+        if (folderIds.Count == 0 || string.IsNullOrEmpty(masterKey) || !coordinator.IsMaster(masterKey))
+            return [];
+
+        List<CompanionLossEntry> losses = [];
+        foreach (string companionKey in coordinator.GetCompanionKeys(masterKey))
+        {
+            Workspace workspace = CompanionDeviceTraits.FindWorkspace(coordinator.GetDeviceConfig(companionKey), workspaceId);
+            if (workspace == null) continue;
+
+            int layouts = workspace.EnumerateFolders()
+                .Where(f => folderIds.Contains(f.Id) && f.Layout != null)
+                .Count(f => f.Layout.TouchButtons.Any(b => b != null && !b.IsFolderBackSlot && !ButtonSnapshot.IsEmpty(b)));
+            if (layouts > 0)
+                losses.Add(new CompanionLossEntry(coordinator.GetDisplayName(companionKey), coordinator.IsOnline(companionKey), layouts));
+        }
+        return losses;
+    }
+
     /// <summary>One line per companion ("• Razer Stream Controller: 4 page(s), 2 LED button(s)"), or empty.</summary>
     public static string Describe(IReadOnlyList<CompanionLossEntry> losses) =>
         string.Join(Environment.NewLine, losses.Select(loss => Loc.Tr(
@@ -77,9 +102,9 @@ public static class CompanionImpact
         return losses;
     }
 
-    /// <summary>Touch, rotary and side-strip pages of the workspace that hold at least one non-empty button.</summary>
+    /// <summary>Touch layouts (pages and folders), rotary and side-strip pages of the workspace that hold at least one non-empty button.</summary>
     public static int CountPagesWithContent(Workspace workspace) =>
-        Count(workspace.TouchButtonPages, page => page.TouchButtons) +
+        Count(workspace.EnumerateTouchLayouts(), page => page.TouchButtons) +
         Count(workspace.RotaryButtonPages, page => page.RotaryButtons) +
         Count(workspace.LeftRotaryButtonPages, page => page.RotaryButtons) +
         Count(workspace.RightRotaryButtonPages, page => page.RotaryButtons);

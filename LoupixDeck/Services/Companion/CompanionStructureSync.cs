@@ -141,15 +141,16 @@ public static class CompanionStructureSync
             if (!string.Equals(mirror.Name, wanted.Name, StringComparison.Ordinal))
                 mirror.Name = wanted.Name;
             mirror.HomeWorkspaceId = wanted.HomeWorkspaceId;
-            ReconcileWorkspaces(mirror.Workspaces, wanted.Workspaces);
+            ReconcileWorkspaces(mirror, wanted.Workspaces);
         }
 
         companion.StartupProfileId = master.StartupProfileId;
         return true;
     }
 
-    private static void ReconcileWorkspaces(ObservableCollection<Workspace> mirrors, IEnumerable<Workspace> wanted)
+    private static void ReconcileWorkspaces(Profile profile, IEnumerable<Workspace> wanted)
     {
+        ObservableCollection<Workspace> mirrors = profile.Workspaces;
         List<Workspace> source = [.. wanted ?? []];
 
         for (int i = mirrors.Count - 1; i >= 0; i--)
@@ -174,7 +175,54 @@ public static class CompanionStructureSync
 
             if (!string.Equals(mirror.Name, source[i].Name, StringComparison.Ordinal))
                 mirror.Name = source[i].Name;
+
+            ReconcileFolders(mirror, source[i], profile.SimpleButtons);
         }
+    }
+
+    /// <summary>
+    /// Gives a mirrored workspace the master's custom folder tree (issue #249): the same ids, names,
+    /// nesting and order. Folders the mirror already has keep their own layouts, wherever they moved
+    /// to; new ones start without a layout. Links to folders the master removed are cleared.
+    /// </summary>
+    private static void ReconcileFolders(Workspace mirror, Workspace wanted, SimpleButton[] ledButtons)
+    {
+        Dictionary<Guid, CustomFolder> existing = mirror.EnumerateFolders()
+            .GroupBy(static f => f.Id)
+            .ToDictionary(static g => g.Key, static g => g.First());
+        HashSet<Guid> kept = [];
+
+        CustomFolder Mirror(CustomFolder source)
+        {
+            if (!existing.TryGetValue(source.Id, out CustomFolder node))
+                node = new CustomFolder { Id = source.Id };
+            kept.Add(source.Id);
+
+            if (!string.Equals(node.Name, source.Name, StringComparison.Ordinal))
+                node.Name = source.Name;
+
+            // Children first, so a node that moves up out of this subtree is not also listed below.
+            List<CustomFolder> children = [.. (source.Children ?? []).Where(static c => c != null).Select(Mirror)];
+            ReplaceIfDifferent(node.Children, children);
+            return node;
+        }
+
+        List<CustomFolder> top = [.. (wanted.Folders ?? []).Where(static f => f != null).Select(Mirror)];
+        ReplaceIfDifferent(mirror.Folders, top);
+
+        HashSet<Guid> removed = [.. existing.Keys.Where(id => !kept.Contains(id))];
+        if (removed.Count > 0)
+            Folders.FolderReferenceCleaner.Clean(mirror, removed, ledButtons);
+    }
+
+    private static void ReplaceIfDifferent(ObservableCollection<CustomFolder> target, List<CustomFolder> items)
+    {
+        if (target.Count == items.Count && target.Zip(items).All(static p => ReferenceEquals(p.First, p.Second)))
+            return;
+
+        target.Clear();
+        foreach (CustomFolder item in items)
+            target.Add(item);
     }
 
     /// <summary>The structure the mirrors copy: ids, names, home workspaces, order, startup profile.</summary>
@@ -187,9 +235,22 @@ public static class CompanionStructureSync
             text.Append("P:").Append(profile.Id).Append(':').Append(profile.Name)
                 .Append(':').Append(profile.HomeWorkspaceId).Append(';');
             foreach (Workspace workspace in profile.Workspaces ?? [])
+            {
                 text.Append("W:").Append(workspace.Id).Append(':').Append(workspace.Name).Append(';');
+                AppendFolders(text, workspace.Folders, Guid.Empty);
+            }
         }
         return text.ToString();
+    }
+
+    private static void AppendFolders(StringBuilder text, IEnumerable<CustomFolder> folders, Guid parentId)
+    {
+        foreach (CustomFolder folder in folders ?? [])
+        {
+            if (folder == null) continue;
+            text.Append("F:").Append(folder.Id).Append(':').Append(folder.Name).Append(':').Append(parentId).Append(';');
+            AppendFolders(text, folder.Children, folder.Id);
+        }
     }
 
     private static void ReplaceAll(ObservableCollection<Profile> target, IEnumerable<Profile> items)

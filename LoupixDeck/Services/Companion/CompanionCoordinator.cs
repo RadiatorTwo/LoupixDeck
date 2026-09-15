@@ -280,6 +280,20 @@ public sealed class CompanionCoordinator : ICompanionCoordinator
         return Enum.IsDefined(mode) ? mode : CompanionPageFollowMode.Off;
     }
 
+    public void SetFolderFollow(Guid groupId, bool enabled)
+    {
+        lock (_gate)
+        {
+            CompanionGroup group = _config.Groups.FirstOrDefault(g => g.Id == groupId);
+            if (group == null || group.FolderFollow == enabled) return;
+            group.FolderFollow = enabled;
+        }
+        Persist();
+    }
+
+    public bool GetFolderFollow(string masterKey)
+        => IsMaster(masterKey) && !IsPaused(masterKey) && FindGroup(masterKey)?.FolderFollow == true;
+
     public bool TrySetMaster(Guid groupId, string deviceKey, out string error)
     {
         error = null;

@@ -56,6 +56,17 @@ public interface ICompanionNavigation
     /// companion that just arrived, without a transition. UI thread.</summary>
     Task AlignPagesWithMaster(DeviceHost masterHost, DeviceHost companionHost, CompanionPageFollowMode mode);
 
+    /// <summary>
+    /// Folder follow (issue #249): opens the master's custom folder path <paramref name="folderIds"/> on a
+    /// companion that already shows the master's workspace <paramref name="workspaceId"/>. Folders are
+    /// matched by id, which the mirrored tree shares; the path stops at the first one the companion lacks.
+    /// </summary>
+    Task<bool> FollowFolderPath(string masterKey, string companionKey, Guid workspaceId, IReadOnlyList<Guid> folderIds);
+
+    /// <summary>Folder follow after a workspace switch: opens the master's current folder path on a
+    /// companion that just arrived. UI thread.</summary>
+    Task AlignFoldersWithMaster(DeviceHost masterHost, DeviceHost companionHost);
+
     /// <summary>Shows the start touch page of its active workspace on every available companion of the
     /// master, with the usual page transition. Returns how many companions were shown it.</summary>
     Task<int> ShowStartPages(string masterKey);
@@ -204,6 +215,31 @@ public sealed class CompanionNavigationService : ICompanionNavigation
                 applied |= await ApplyIndex(companion, CompanionPageKind.Rotary, master.CurrentRotaryPageIndex, animate: false);
             }
             return applied;
+        });
+    }
+
+    public Task<bool> FollowFolderPath(string masterKey, string companionKey, Guid workspaceId, IReadOnlyList<Guid> folderIds) =>
+        OnUiThread(async () =>
+        {
+            if (!_coordinator.IsCompanionOf(masterKey, companionKey) || IsFollowing(companionKey)) return false;
+
+            DeviceHost host = _coordinator.ResolveHost(companionKey);
+            if (!CanDrive(host) || host.Controller.Config.ActiveWorkspaceId != workspaceId) return false;
+
+            await host.Controller.PageManager.SetFolderPath(folderIds);
+            return true;
+        });
+
+    public async Task AlignFoldersWithMaster(DeviceHost masterHost, DeviceHost companionHost)
+    {
+        if (masterHost == null || !CanDrive(companionHost)) return;
+        if (companionHost.Controller.Config.ActiveWorkspaceId != masterHost.Controller.Config.ActiveWorkspaceId) return;
+
+        List<Guid> path = [.. masterHost.Controller.Config.FolderPath.Select(static f => f.Id)];
+        await OnUiThread(async () =>
+        {
+            await companionHost.Controller.PageManager.SetFolderPath(path);
+            return true;
         });
     }
 

@@ -88,7 +88,8 @@ public sealed class CompanionContextSyncService : ICompanionContextSync
             _ => OnActiveWorkspaceChanged(host),
             host.Controller.PageManager,
             (_, index) => OnMasterPageChanged(host, CompanionPageKind.Touch, index),
-            (side, _, index) => OnMasterPageChanged(host, KindOf(side), index));
+            (side, _, index) => OnMasterPageChanged(host, KindOf(side), index),
+            path => OnMasterFolderPathChanged(host, path));
         lock (_hostHooks)
         {
             if (!_hostHooks.TryAdd(host, hooks)) return;
@@ -96,6 +97,7 @@ public sealed class CompanionContextSyncService : ICompanionContextSync
         hooks.Activation.ActiveWorkspaceChanged += hooks.WorkspaceChanged;
         hooks.Pages.OnTouchPageChanged += hooks.TouchPageChanged;
         hooks.Pages.OnRotaryPageChanged += hooks.RotaryPageChanged;
+        hooks.Pages.FolderPathChanged += hooks.FolderPathChanged;
     }
 
     private void OnHostRemoved(DeviceHost host)
@@ -108,6 +110,7 @@ public sealed class CompanionContextSyncService : ICompanionContextSync
         hooks.Activation.ActiveWorkspaceChanged -= hooks.WorkspaceChanged;
         hooks.Pages.OnTouchPageChanged -= hooks.TouchPageChanged;
         hooks.Pages.OnRotaryPageChanged -= hooks.RotaryPageChanged;
+        hooks.Pages.FolderPathChanged -= hooks.FolderPathChanged;
     }
 
     private sealed record HostHooks(
@@ -115,7 +118,8 @@ public sealed class CompanionContextSyncService : ICompanionContextSync
         Action<Workspace> WorkspaceChanged,
         IPageManager Pages,
         Action<int, int> TouchPageChanged,
-        Action<RotarySide, int, int> RotaryPageChanged);
+        Action<RotarySide, int, int> RotaryPageChanged,
+        Action<IReadOnlyList<Guid>> FolderPathChanged);
 
     /// <summary>A master switched profile or workspace (a profile switch raises this too): its
     /// running companions follow. On a companion this is the echo of its own follow and is ignored.</summary>
@@ -142,6 +146,20 @@ public sealed class CompanionContextSyncService : ICompanionContextSync
         Guid workspaceId = host.Controller.Config.ActiveWorkspaceId;
         foreach (string companionKey in _coordinator.GetCompanionKeys(masterKey))
             _ = _navigation.FollowPageIndex(masterKey, companionKey, workspaceId, kind, index);
+    });
+
+    /// <summary>
+    /// A master opened or closed a custom folder: with folder follow on, its running companions that
+    /// show the same workspace open the same folders (issue #249).
+    /// </summary>
+    private void OnMasterFolderPathChanged(DeviceHost host, IReadOnlyList<Guid> path) => OnUiThread(() =>
+    {
+        string masterKey = host.Device.ScopeKey;
+        if (!_coordinator.GetFolderFollow(masterKey)) return;
+
+        Guid workspaceId = host.Controller.Config.ActiveWorkspaceId;
+        foreach (string companionKey in _coordinator.GetCompanionKeys(masterKey))
+            _ = _navigation.FollowFolderPath(masterKey, companionKey, workspaceId, path);
     });
 
     private static CompanionPageKind KindOf(RotarySide side) => side switch
@@ -260,6 +278,8 @@ public sealed class CompanionContextSyncService : ICompanionContextSync
                 LoupedeckConfig master = masterHost.Provider.GetRequiredService<LoupedeckConfig>();
                 await activation.FollowMaster(master.ActiveProfileId, master.ActiveWorkspaceId);
                 await _navigation.AlignPagesWithMaster(masterHost, companionHost, _coordinator.GetPageFollow(masterKey));
+                if (_coordinator.GetFolderFollow(masterKey))
+                    await _navigation.AlignFoldersWithMaster(masterHost, companionHost);
             }
             else
             {

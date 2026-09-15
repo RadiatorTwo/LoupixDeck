@@ -1,0 +1,259 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:loc="using:LoupixDeck.Localization"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:fp="using:LoupixDeck.ViewModels.FolderPanel"
+        mc:Ignorable="d"
+        x:Class="LoupixDeck.Views.FolderPanelWindow"
+        x:DataType="fp:FolderPanelViewModel"
+        Title="{loc:Tr FolderPanel_Title}"
+        WindowDecorations="None"
+        ShowInTaskbar="False"
+        CanResize="False"
+        SizeToContent="Manual"
+        Width="296"
+        Focusable="True"
+        Background="{DynamicResource AppWindowBackground}">
+    <Window.Styles>
+        <StyleInclude Source="avares://LoupixDeck/Views/Styles/SettingsStyles.axaml" />
+
+        <!-- Rows follow the settings navigator: 32px, rounded, a blue accent bar on the open entry.
+             Deliberately not Buttons, like the rows of the apps and commands panel: the window
+             decides on release whether the press was a click (open) or a drag. -->
+        <Style Selector="Border.panel-row">
+            <Setter Property="Height" Value="32" />
+            <Setter Property="Margin" Value="0,1" />
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style Selector="Border.panel-row:pointerover">
+            <Setter Property="Background" Value="{DynamicResource AppControlBackgroundHover}" />
+        </Style>
+        <Style Selector="Border.panel-row.current">
+            <Setter Property="Background" Value="{DynamicResource AppControlBackgroundActive}" />
+        </Style>
+        <Style Selector="Border.panel-row.current Border.nav-accent">
+            <Setter Property="Background" Value="#4DA3FF" />
+        </Style>
+        <Style Selector="TextBlock.nav-label">
+            <Setter Property="Margin" Value="8,0,0,0" />
+            <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+        </Style>
+        <Style Selector="TextBlock.row-count">
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="Foreground" Value="{DynamicResource AppTextMuted}" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Margin" Value="6,0,10,0" />
+        </Style>
+
+        <!-- Header actions, the same square buttons as next to the apps and commands search. -->
+        <Style Selector="Button.panel-action">
+            <Setter Property="Width" Value="30" />
+            <Setter Property="Height" Value="30" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Margin" Value="4,0,0,0" />
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="Background" Value="{DynamicResource AppControlBackground}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AppBorderFaint}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="FontFamily" Value="{DynamicResource MdiFont}" />
+            <Setter Property="FontSize" Value="15" />
+            <Setter Property="Foreground" Value="{DynamicResource AppTextSecondary}" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+        </Style>
+        <Style Selector="Button.panel-action:disabled">
+            <Setter Property="Opacity" Value="0.35" />
+        </Style>
+
+        <!-- Borderless in-row glyph button: the expand caret. -->
+        <Style Selector="Button.row-glyph">
+            <Setter Property="Width" Value="18" />
+            <Setter Property="Height" Value="24" />
+            <Setter Property="MinWidth" Value="0" />
+            <Setter Property="MinHeight" Value="0" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="FontFamily" Value="{DynamicResource MdiFont}" />
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="Foreground" Value="{DynamicResource AppTextSecondary}" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+        </Style>
+        <Style Selector="Button.row-glyph:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource AppControlBackground}" />
+            <Setter Property="Foreground" Value="{DynamicResource AppTextPrimary}" />
+        </Style>
+        <Style Selector="Button.row-caret > TextBlock">
+            <Setter Property="RenderTransform" Value="rotate(0deg)" />
+            <Setter Property="Transitions">
+                <Transitions>
+                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.12" />
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="Button.row-caret.expanded > TextBlock">
+            <Setter Property="RenderTransform" Value="rotate(90deg)" />
+        </Style>
+
+        <Style Selector="TextBox.rename-box">
+            <Setter Property="MinHeight" Value="0" />
+            <Setter Property="Height" Value="26" />
+            <Setter Property="Padding" Value="6,2" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+        </Style>
+    </Window.Styles>
+
+    <Panel>
+        <Border BorderBrush="{DynamicResource AppBorderSubtle}" BorderThickness="1,0,0,0">
+            <DockPanel>
+                <!-- Header: title, folder count, new and delete. -->
+                <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto,Auto,Auto" Margin="8,8,8,6">
+                    <TextBlock Grid.Column="0" Classes="section-header" Margin="6,0,0,0"
+                               VerticalAlignment="Center"
+                               Text="{loc:Tr FolderPanel_Title}" />
+                    <TextBlock Grid.Column="1" Classes="row-count" Margin="0,0,4,0"
+                               Text="{Binding Counter}" />
+                    <!-- mdi-folder-plus-outline -->
+                    <Button Grid.Column="2" Classes="panel-action" Content="&#xF0B9D;"
+                            IsEnabled="{Binding CanEditStructure}"
+                            ToolTip.Tip="{loc:Tr FolderPanel_NewFolder}"
+                            Command="{Binding NewFolderCommand}" />
+                    <!-- mdi-delete-outline -->
+                    <Button Grid.Column="3" Classes="panel-action" Content="&#xF09E7;"
+                            IsEnabled="{Binding CanDeleteCurrent}"
+                            ToolTip.Tip="{loc:Tr FolderPanel_DeleteFolder}"
+                            Command="{Binding DeleteCurrentCommand}" />
+                </Grid>
+
+                <TextBox DockPanel.Dock="Top" Margin="8,0,8,6"
+                         Text="{Binding SearchQuery}"
+                         PlaceholderText="{loc:Tr FolderPanel_Search}" />
+
+                <!-- Footer: where the device is. -->
+                <Border DockPanel.Dock="Bottom" Padding="14,8"
+                        BorderBrush="{DynamicResource AppBorderFaint}" BorderThickness="0,1,0,0">
+                    <TextBlock Classes="label" FontSize="11" Text="{Binding PathLabel}"
+                               TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding PathLabel}" />
+                </Border>
+
+                <!-- The inset is the content's margin, not the viewer's padding, so the last row
+                     scrolls fully into view. -->
+                <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+                    <StackPanel Margin="8,0,8,8">
+                        <TextBlock Classes="hint" Margin="6,4,6,8"
+                                   Text="{loc:Tr FolderPanel_CompanionReadOnly}"
+                                   IsVisible="{Binding !CanEditStructure}" />
+
+                        <!-- The workspace itself: clicking it closes every folder, dropping a folder on
+                             it moves that folder to the top level. -->
+                        <Border Name="RootRow" Classes="panel-row workspace-row"
+                                Classes.current="{Binding IsRootCurrent}"
+                                ToolTip.Tip="{loc:Tr FolderPanel_ShowPage}"
+                                Tapped="OnRootTapped">
+                            <Grid ColumnDefinitions="6,18,Auto,*">
+                                <Border Grid.Column="0" Classes="nav-accent" />
+                                <!-- mdi-home-outline -->
+                                <TextBlock Grid.Column="2" Classes="nav-icon" Text="&#xF06A1;" />
+                                <TextBlock Grid.Column="3" Classes="nav-label" Text="{Binding WorkspaceName}" />
+                            </Grid>
+                        </Border>
+
+                        <ItemsControl ItemsSource="{Binding VisibleRows}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="fp:FolderNodeViewModel">
+                                    <Border Classes="panel-row folder-row"
+                                            Classes.current="{Binding IsCurrent}">
+                                        <Border.ContextFlyout>
+                                            <MenuFlyout>
+                                                <MenuItem Header="{loc:Tr FolderPanel_NewSubfolder}"
+                                                          IsEnabled="{Binding $parent[ItemsControl].((fp:FolderPanelViewModel)DataContext).CanEditStructure}"
+                                                          Command="{Binding $parent[ItemsControl].((fp:FolderPanelViewModel)DataContext).NewSubfolderCommand}"
+                                                          CommandParameter="{Binding}" />
+                                                <MenuItem Header="{loc:Tr FolderPanel_Rename}"
+                                                          IsEnabled="{Binding $parent[ItemsControl].((fp:FolderPanelViewModel)DataContext).CanEditStructure}"
+                                                          Command="{Binding $parent[ItemsControl].((fp:FolderPanelViewModel)DataContext).RenameCommand}"
+                                                          CommandParameter="{Binding}" />
+                                                <Separator />
+                                                <MenuItem Header="{loc:Tr FolderPanel_Delete}"
+                                                          IsEnabled="{Binding $parent[ItemsControl].((fp:FolderPanelViewModel)DataContext).CanEditStructure}"
+                                                          Command="{Binding $parent[ItemsControl].((fp:FolderPanelViewModel)DataContext).DeleteCommand}"
+                                                          CommandParameter="{Binding}" />
+                                            </MenuFlyout>
+                                        </Border.ContextFlyout>
+                                        <Grid ColumnDefinitions="6,Auto,18,Auto,*,Auto">
+                                            <Border Grid.Column="0" Classes="nav-accent" />
+                                            <Border Grid.Column="1" Width="{Binding IndentWidth}" />
+
+                                            <!-- mdi-chevron-right -->
+                                            <Button Grid.Column="2" Classes="row-glyph row-caret"
+                                                    Classes.expanded="{Binding IsExpanded}"
+                                                    IsVisible="{Binding HasChildren}"
+                                                    ToolTip.Tip="{loc:Tr FolderPanel_ExpandCollapse}"
+                                                    Command="{Binding $parent[ItemsControl].((fp:FolderPanelViewModel)DataContext).ToggleExpandedCommand}"
+                                                    CommandParameter="{Binding}">
+                                                <TextBlock Text="&#xF0142;" HorizontalAlignment="Center"
+                                                           VerticalAlignment="Center" RenderTransformOrigin="50%,50%" />
+                                            </Button>
+
+                                            <!-- mdi-folder-outline. The drag machine carries this tile as the ghost. -->
+                                            <Border Grid.Column="3" Classes="panel-row-icon" VerticalAlignment="Center">
+                                                <TextBlock Classes="nav-icon" Text="&#xF0256;" />
+                                            </Border>
+
+                                            <TextBlock Grid.Column="4" Classes="nav-label" Text="{Binding Title}"
+                                                       IsVisible="{Binding !IsEditing}" />
+                                            <ContentControl Grid.Column="4" Grid.ColumnSpan="2" Margin="6,0,4,0"
+                                                            VerticalAlignment="Center"
+                                                            Content="{Binding RenameSession}"
+                                                            IsVisible="{Binding IsEditing}">
+                                                <ContentControl.ContentTemplate>
+                                                    <DataTemplate x:DataType="fp:FolderRenameSession">
+                                                        <TextBox Classes="rename-box"
+                                                                 Text="{Binding Text}"
+                                                                 AttachedToVisualTree="OnRenameBoxAttached"
+                                                                 KeyDown="OnRenameBoxKeyDown"
+                                                                 LostFocus="OnRenameBoxLostFocus" />
+                                                    </DataTemplate>
+                                                </ContentControl.ContentTemplate>
+                                            </ContentControl>
+
+                                            <TextBlock Grid.Column="5" Classes="row-count" Text="{Binding ActionCount}"
+                                                       IsVisible="{Binding !IsEditing}" />
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <TextBlock Classes="hint" Margin="6,8"
+                                   Text="{loc:Tr FolderPanel_Empty}"
+                                   IsVisible="{Binding ShowEmptyHint}" />
+                        <TextBlock Classes="hint" Margin="6,8"
+                                   Text="{loc:Tr FolderPanel_NoMatches}"
+                                   IsVisible="{Binding ShowNoMatches}" />
+                    </StackPanel>
+                </ScrollViewer>
+            </DockPanel>
+        </Border>
+
+        <!-- Drag feedback while the pointer is over this window: the ghost of the dragged folder and
+             where a drop would put it in the tree. -->
+        <Canvas Name="DragOverlay" IsHitTestVisible="False" IsVisible="False">
+            <Border Name="DropIndicator" IsVisible="False" CornerRadius="4" />
+            <Border Name="DragGhost"
+                    IsVisible="False"
+                    Opacity="0.7"
+                    CornerRadius="6" ClipToBounds="True"
+                    BorderThickness="3" BorderBrush="#FF3D9BFF"
+                    Background="#FF202020">
+                <Image Name="DragGhostImage" Stretch="Uniform" />
+            </Border>
+        </Canvas>
+    </Panel>
+</Window>

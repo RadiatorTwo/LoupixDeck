@@ -122,6 +122,12 @@ public interface ICompanionCoordinator
     /// for a device that is not an active master, a paused group or an unknown stored value.</summary>
     CompanionPageFollowMode GetPageFollow(string masterKey);
 
+    /// <summary>Sets whether the group's companions open and close custom folders along with its master.</summary>
+    void SetFolderFollow(Guid groupId, bool enabled);
+
+    /// <summary>True when the active, unpaused group the master leads has folder follow on.</summary>
+    bool GetFolderFollow(string masterKey);
+
     /// <summary>Makes the device the group's master. Refused (false + reason) when the device
     /// already belongs to another group or is a companion of this one.</summary>
     bool TrySetMaster(Guid groupId, string deviceKey, out string error);

@@ -28,6 +28,23 @@ public class TouchButton : StatefulButton
 
     public int Index { get; set; }
 
+    /// <summary>
+    /// True while this key is the automatic Back tile of an open custom folder (issue #249).
+    /// Runtime only: the flag is set when the folder layout is prepared, the renderer draws the
+    /// Back chevron instead of the button's content, and the editor treats the key as locked.
+    /// </summary>
+    [JsonIgnore]
+    public bool IsFolderBackSlot
+    {
+        get;
+        set
+        {
+            if (field == value) return;
+            field = value;
+            OnPropertyChanged(nameof(IsFolderBackSlot));
+        }
+    }
+
     protected override void RaiseActiveStateProjections()
     {
         OnPropertyChanged(nameof(Layers));

@@ -102,9 +102,8 @@ public partial class LoupedeckConfig : ObservableObject
 
         foreach (Profile profile in Profiles ?? [])
         foreach (Workspace workspace in profile?.Workspaces ?? [])
-        foreach (TouchButtonPage page in workspace?.TouchButtonPages ?? [])
-            if (page != null)
-                page.Geometry = Geometry;
+        foreach (TouchButtonPage page in workspace?.EnumerateTouchLayouts() ?? [])
+            page.Geometry = Geometry;
     }
 
     public string DevicePort { get; set; }
@@ -363,6 +362,9 @@ public partial class LoupedeckConfig : ObservableObject
         OnPropertyChanged(nameof(LeftRotaryPageLabel));
         OnPropertyChanged(nameof(RightRotaryPageLabel));
         OnPropertyChanged(nameof(StartupTouchPageIndex));
+        OnPropertyChanged(nameof(FolderPath));
+        OnPropertyChanged(nameof(OpenFolder));
+        OnPropertyChanged(nameof(IsFolderOpen));
     }
 
     // ───────── Active-workspace facade (forwards to ActiveWorkspace) ─────────
@@ -426,6 +428,16 @@ public partial class LoupedeckConfig : ObservableObject
 
     [JsonIgnore]
     public TouchButtonPage CurrentTouchButtonPage => ActiveWorkspace?.CurrentTouchButtonPage;
+
+    /// <summary>The open-folder path of the active workspace (issue #249); empty on a page.</summary>
+    [JsonIgnore]
+    public IReadOnlyList<CustomFolder> FolderPath => ActiveWorkspace?.FolderPath ?? [];
+
+    [JsonIgnore]
+    public CustomFolder OpenFolder => ActiveWorkspace?.OpenFolder;
+
+    [JsonIgnore]
+    public bool IsFolderOpen => ActiveWorkspace?.IsFolderOpen ?? false;
 
     [JsonIgnore]
     public string RotaryPageLabel => ActiveWorkspace?.RotaryPageLabel ?? "0 / 0";

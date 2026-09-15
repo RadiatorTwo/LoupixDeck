@@ -298,6 +298,7 @@ public static class ServiceCollectionExtensions
         collection.AddSingleton<IPageManager, PageManager>();
         collection.AddSingleton<IWorkspaceActivationService, WorkspaceActivationService>();
         collection.AddSingleton<IProfileEditingService, ProfileEditingService>();
+        collection.AddSingleton<Services.Folders.ICustomFolderService, Services.Folders.CustomFolderService>();
         collection.AddSingleton<Services.Companion.ICommandLockService, Services.Companion.CommandLockService>();
 
         // Command catalog — device-scoped so command activation
@@ -386,6 +387,7 @@ public static class ServiceCollectionExtensions
         // The apps/actions side panel. One per device because it holds that device's command
         // catalogue and its own open state, while the scan behind it is a shared root singleton.
         collection.AddSingleton<ViewModels.ActionPanel.ActionPanelViewModel>();
+        collection.AddSingleton<ViewModels.FolderPanel.FolderPanelViewModel>();
         collection.AddSingleton<ViewModels.DialQuickMenuViewModel>();
         collection.AddSingleton<ViewModels.ProfileHeaderMenuViewModel>();
         collection.AddSingleton<Services.Actions.IPanelAssignmentService, Services.Actions.PanelAssignmentService>();
@@ -566,9 +568,9 @@ public static class ServiceCollectionExtensions
         // wires its own CollectionChanged hook, but layers created by the JSON
         // converter bypass AttachLayerHandlers.
         var config = services.GetRequiredService<LoupedeckConfig>();
-        if (config.TouchButtonPages != null)
+        if (config.ActiveWorkspace != null)
         {
-            foreach (var page in config.TouchButtonPages)
+            foreach (var page in config.ActiveWorkspace.EnumerateTouchLayouts())
             {
                 if (page?.TouchButtons == null) continue;
                 foreach (var button in page.TouchButtons)

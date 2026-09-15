@@ -66,7 +66,7 @@ public sealed class ButtonAnimationManager : IButtonAnimationManager, IDisposabl
             _started = true;
         }
 
-        _pageManager.OnTouchPageChanged += OnTouchPageChanged;
+        _pageManager.TouchLayoutChanged += OnTouchLayoutChanged;
         _screensaver.Started += OnScreensaverStarted;
         _screensaver.Stopped += OnScreensaverStopped;
         _exclusiveMode.StateChanged += OnTakeoverStateChanged;
@@ -76,7 +76,7 @@ public sealed class ButtonAnimationManager : IButtonAnimationManager, IDisposabl
         Rescan();
     }
 
-    private void OnTouchPageChanged(int previous, int current) => Rescan();
+    private void OnTouchLayoutChanged() => Rescan();
 
     public void Rescan()
     {
@@ -279,7 +279,7 @@ public sealed class ButtonAnimationManager : IButtonAnimationManager, IDisposabl
             _disposed = true;
         }
 
-        _pageManager.OnTouchPageChanged -= OnTouchPageChanged;
+        _pageManager.TouchLayoutChanged -= OnTouchLayoutChanged;
         UnsubscribeStateChanges();
         _screensaver.Started -= OnScreensaverStarted;
         _screensaver.Stopped -= OnScreensaverStopped;

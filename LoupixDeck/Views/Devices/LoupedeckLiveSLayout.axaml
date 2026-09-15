@@ -2,6 +2,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:loc="using:LoupixDeck.Localization"
              xmlns:vm="using:LoupixDeck.ViewModels"
+             xmlns:controls="using:LoupixDeck.Views.Controls"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:conv="clr-namespace:LoupixDeck.Models.Converter"
@@ -417,29 +418,33 @@
              top margin pulls it up into the ~38px transparent band below the visible body
              (SVG y=495) so the gap to the body (~10px) matches the top pager; the larger
              bottom margin keeps it clear of the window edge. -->
-        <Border Classes="Pager" HorizontalAlignment="Center" Margin="0,-30,0,12">
-            <StackPanel Orientation="Horizontal" Spacing="3" VerticalAlignment="Center">
-                <Button Classes="PagerBtn PagerNav" Content="‹"
-                        ToolTip.Tip="{loc:Tr Device_PreviousTouchPage}"
-                        Command="{Binding PreviousTouchPageCommand}" />
-                <TextBox Classes="PageName"
-                         Text="{Binding LoupedeckController.Config.CurrentTouchButtonPage.Name, Mode=TwoWay}"
-                         PlaceholderText="{Binding LoupedeckController.Config.CurrentTouchButtonPage.PageName}"
-                         KeyDown="OnPageNameKeyDown" LostFocus="OnPageNameCommit" />
-                <Button Classes="PagerBtn PagerNav" Content="›"
-                        ToolTip.Tip="{loc:Tr Device_NextTouchPage}"
-                        Command="{Binding NextTouchPageCommand}" />
-                <TextBlock Classes="PageCount"
-                           Text="{Binding LoupedeckController.Config.TouchPageLabel}"
-                           ToolTip.Tip="{loc:Tr Device_CurrentTotalTouchPages}" />
-                <Button Classes="PagerBtn" Content="+"
-                        ToolTip.Tip="{loc:Tr Device_AddTouchPage}"
-                        Command="{Binding AddTouchPageCommand}" />
-                <Button Classes="PagerBtn delete" Content="✕"
-                        ToolTip.Tip="{loc:Tr Device_DeleteCurrentTouchPage}"
-                        Command="{Binding DeleteTouchPageCommand}" />
-            </StackPanel>
-        </Border>
+        <Panel HorizontalAlignment="Center" Margin="0,-30,0,12">
+            <!-- While a custom folder is open its breadcrumbs take the pager's place. -->
+            <controls:FolderBreadcrumbBar HorizontalAlignment="Center" IsVisible="{Binding IsFolderOpen}" />
+            <Border Classes="Pager" HorizontalAlignment="Center" IsVisible="{Binding !IsFolderOpen}">
+                <StackPanel Orientation="Horizontal" Spacing="3" VerticalAlignment="Center">
+                    <Button Classes="PagerBtn PagerNav" Content="‹"
+                            ToolTip.Tip="{loc:Tr Device_PreviousTouchPage}"
+                            Command="{Binding PreviousTouchPageCommand}" />
+                    <TextBox Classes="PageName"
+                             Text="{Binding LoupedeckController.Config.CurrentTouchButtonPage.Name, Mode=TwoWay}"
+                             PlaceholderText="{Binding LoupedeckController.Config.CurrentTouchButtonPage.PageName}"
+                             KeyDown="OnPageNameKeyDown" LostFocus="OnPageNameCommit" />
+                    <Button Classes="PagerBtn PagerNav" Content="›"
+                            ToolTip.Tip="{loc:Tr Device_NextTouchPage}"
+                            Command="{Binding NextTouchPageCommand}" />
+                    <TextBlock Classes="PageCount"
+                               Text="{Binding LoupedeckController.Config.TouchPageLabel}"
+                               ToolTip.Tip="{loc:Tr Device_CurrentTotalTouchPages}" />
+                    <Button Classes="PagerBtn" Content="+"
+                            ToolTip.Tip="{loc:Tr Device_AddTouchPage}"
+                            Command="{Binding AddTouchPageCommand}" />
+                    <Button Classes="PagerBtn delete" Content="✕"
+                            ToolTip.Tip="{loc:Tr Device_DeleteCurrentTouchPage}"
+                            Command="{Binding DeleteTouchPageCommand}" />
+                </StackPanel>
+            </Border>
+        </Panel>
 
     </StackPanel>
 </UserControl>

@@ -665,10 +665,19 @@ public static class BitmapHelper
             bitmap = new SKBitmap(width, height);
             using var canvas = new SKCanvas(bitmap);
 
-            DrawTouchButtonBackground(canvas, touchButton, wallpaperToUse, opacityToUse,
-                wallpaperSource, width, height);
+            if (touchButton.IsFolderBackSlot)
+            {
+                DrawFolderBackTileBackground(canvas, wallpaperToUse, wallpaperSource, width, height);
+                DrawBackChevron(canvas, width, height);
+            }
+            else
+            {
+                DrawTouchButtonBackground(canvas, touchButton, wallpaperToUse, opacityToUse,
+                    wallpaperSource, width, height);
 
-            DrawLayers(canvas, touchButton.Layers, width, height);
+                DrawLayers(canvas, touchButton.Layers, width, height);
+                DrawFolderBadgeIfLinked(canvas, touchButton, width, height);
+            }
         }
 
         // Publish the finished bitmap (fires OnPropertyChanged for the UI binding);
@@ -734,6 +743,65 @@ public static class BitmapHelper
     }
 
     /// <summary>
+    /// Background of a custom folder's Back tile (issue #249): the key's wallpaper cutout darkened
+    /// like the plugin menu Back tile, or black without a wallpaper. Under the render gate.
+    /// </summary>
+    private static void DrawFolderBackTileBackground(SKCanvas canvas, SKBitmap wallpaper, SKRectI? wallpaperSource,
+        int width, int height)
+    {
+        canvas.Clear(SKColors.Black);
+        if (wallpaper == null || wallpaperSource is not { } source) return;
+
+        var destRect = new SKRect(0, 0, width, height);
+        canvas.DrawBitmap(wallpaper, new SKRect(source.Left, source.Top, source.Right, source.Bottom), destRect,
+            SKSamplingOptions.Default, paint: null);
+
+        using var paint = new SKPaint();
+        paint.Color = new SKColor(0, 0, 0, 160);
+        canvas.DrawRect(destRect, paint);
+    }
+
+    /// <summary>
+    /// Draws a small folder glyph in the top-right corner of a key whose command opens a custom
+    /// folder (issue #249), so a folder button stays recognisable however the user styles it.
+    /// </summary>
+    private static void DrawFolderBadgeIfLinked(SKCanvas canvas, TouchButton touchButton, int width, int height)
+    {
+        if (!Services.Folders.FolderCommand.OpensFolder(touchButton.Command)) return;
+
+        float unit = Math.Min(width, height) / 90f;
+        float right = width - (6 * unit);
+        float top = 6 * unit;
+        float bodyWidth = 20 * unit;
+        float bodyHeight = 14 * unit;
+        float left = right - bodyWidth;
+
+        using var builder = new SKPathBuilder();
+        builder.MoveTo(left, top + (2 * unit));
+        builder.LineTo(left + (8 * unit), top + (2 * unit));
+        builder.LineTo(left + (10 * unit), top + (4 * unit));
+        builder.LineTo(right, top + (4 * unit));
+        builder.LineTo(right, top + bodyHeight + (2 * unit));
+        builder.LineTo(left, top + bodyHeight + (2 * unit));
+        builder.Close();
+        using var path = builder.Detach();
+
+        using var fill = new SKPaint();
+        fill.Color = new SKColor(0xFF, 0xC1, 0x07);
+        fill.IsAntialias = true;
+        fill.Style = SKPaintStyle.Fill;
+
+        using var outline = new SKPaint();
+        outline.Color = new SKColor(0, 0, 0, 180);
+        outline.IsAntialias = true;
+        outline.Style = SKPaintStyle.Stroke;
+        outline.StrokeWidth = Math.Max(1f, 1.5f * unit);
+
+        canvas.DrawPath(path, fill);
+        canvas.DrawPath(path, outline);
+    }
+
+    /// <summary>
     /// Renders only a key's layers, on a fully transparent background, so the result can be
     /// composited over a background that already exists — a video wallpaper frame, in practice.
     ///
@@ -762,7 +830,15 @@ public static class BitmapHelper
             var bitmap = new SKBitmap(width, height);
             using var canvas = new SKCanvas(bitmap);
             canvas.Clear(SKColors.Transparent);
-            DrawLayers(canvas, touchButton.Layers, width, height);
+            if (touchButton.IsFolderBackSlot)
+            {
+                DrawBackChevron(canvas, width, height);
+            }
+            else
+            {
+                DrawLayers(canvas, touchButton.Layers, width, height);
+                DrawFolderBadgeIfLinked(canvas, touchButton, width, height);
+            }
             return bitmap;
         }
     }
@@ -1604,7 +1680,18 @@ public static class BitmapHelper
         DrawWallpaperOrColor(canvas, config, slotIndex, width, height, gridColumns,
             Color.FromArgb(160, 0, 0, 0));
 
-        // Draw a chevron-left arrow centered in the slot.
+        DrawBackChevron(canvas, width, height);
+
+        canvas.Flush();
+        return bitmap;
+    }
+
+    /// <summary>
+    /// Draws the white chevron-left arrow of a folder Back tile centered on the canvas. Shared by
+    /// plugin menus and custom folders so both Back tiles look the same.
+    /// </summary>
+    private static void DrawBackChevron(SKCanvas canvas, int width, int height)
+    {
         using var arrowPaint = new SKPaint();
         arrowPaint.Color = SKColors.White;
         arrowPaint.Style = SKPaintStyle.Stroke;
@@ -1624,9 +1711,6 @@ public static class BitmapHelper
         using var path = builder.Detach();
 
         canvas.DrawPath(path, arrowPaint);
-
-        canvas.Flush();
-        return bitmap;
     }
 
     /// <summary>
