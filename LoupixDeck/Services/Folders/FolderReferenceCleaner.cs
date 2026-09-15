@@ -101,6 +101,27 @@ public static class FolderReferenceCleaner
         return dangling.Count == 0 ? 0 : Clean(workspace, dangling, ledButtons);
     }
 
+    /// <summary>
+    /// Strips the folder links <paramref name="reject"/> refuses from a single button, for content that
+    /// just arrived on it (a paste). Returns true when the button changed.
+    /// </summary>
+    public static bool CleanButton(StatefulButton button, Func<Guid, bool> reject)
+    {
+        if (button?.States == null || reject == null) return false;
+
+        HashSet<Guid> rejected = [.. button.States
+            .SelectMany(static s => FolderCommand.ReferencedFolders(s?.Command))
+            .Where(reject)];
+        if (rejected.Count == 0) return false;
+
+        return button switch
+        {
+            TouchButton touch => CleanStateful(touch, rejected, ButtonContentReset.ClearTouchContent),
+            SimpleButton simple => CleanStateful(simple, rejected, ButtonContentReset.ClearSimpleContent),
+            _ => false
+        };
+    }
+
     private static bool CleanStateful<TButton>(TButton button, IReadOnlySet<Guid> folderIds, Action<TButton> clear)
         where TButton : StatefulButton
     {

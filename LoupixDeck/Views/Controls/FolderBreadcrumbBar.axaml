@@ -1,0 +1,72 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:loc="using:LoupixDeck.Localization"
+             xmlns:vm="using:LoupixDeck.ViewModels"
+             x:Class="LoupixDeck.Views.Controls.FolderBreadcrumbBar"
+             x:DataType="vm:MainWindowViewModel"
+             x:Name="Root">
+    <UserControl.Styles>
+        <!-- A breadcrumb segment reads as text; only its hover shows it can be clicked. -->
+        <Style Selector="Button.Crumb">
+            <Setter Property="Height" Value="24" />
+            <Setter Property="Padding" Value="6,0" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Foreground" Value="{DynamicResource AppTextSecondary}" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Border Background="{TemplateBinding Background}"
+                            CornerRadius="{TemplateBinding CornerRadius}"
+                            Padding="{TemplateBinding Padding}">
+                        <ContentPresenter Content="{TemplateBinding Content}"
+                                          VerticalAlignment="Center" />
+                    </Border>
+                </ControlTemplate>
+            </Setter>
+        </Style>
+        <Style Selector="Button.Crumb:pointerover">
+            <Setter Property="Background" Value="{DynamicResource AppControlBackgroundHover}" />
+            <Setter Property="Foreground" Value="{DynamicResource AppTextPrimary}" />
+        </Style>
+        <Style Selector="Button.Crumb.current">
+            <Setter Property="Foreground" Value="{DynamicResource AppTextPrimary}" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
+        <Style Selector="TextBlock.CrumbText">
+            <Setter Property="MaxWidth" Value="140" />
+            <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+        </Style>
+    </UserControl.Styles>
+
+    <!-- Same chrome and height as the touch pager it replaces, so the window never resizes. -->
+    <Border Classes="Pager">
+        <StackPanel Orientation="Horizontal" Spacing="3" VerticalAlignment="Center">
+            <Button Classes="PagerBtn PagerNav" Content="‹"
+                    ToolTip.Tip="{loc:Tr Breadcrumb_Back}"
+                    Command="{Binding FolderBackCommand}" />
+            <ItemsControl ItemsSource="{Binding FolderBreadcrumbs}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <StackPanel Orientation="Horizontal" />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:FolderBreadcrumbViewModel">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="›" VerticalAlignment="Center" Margin="1,0"
+                                       Foreground="{DynamicResource AppTextSecondary}"
+                                       IsVisible="{Binding ShowSeparator}" />
+                            <Button Classes="Crumb" Classes.current="{Binding IsCurrent}"
+                                    ToolTip.Tip="{Binding Name}"
+                                    Command="{Binding #Root.((vm:MainWindowViewModel)DataContext).NavigateFolderDepthCommand}"
+                                    CommandParameter="{Binding Depth}">
+                                <TextBlock Classes="CrumbText" Text="{Binding Name}" />
+                            </Button>
+                        </StackPanel>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </StackPanel>
+    </Border>
+</UserControl>
