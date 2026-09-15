@@ -491,6 +491,9 @@ public static class ServiceCollectionExtensions
         collection.AddTransient<ProfileImport>();
         collection.AddTransient<ProfileImportViewModel>();
 
+        collection.AddTransient<LoupedeckImport>();
+        collection.AddTransient<LoupedeckImportViewModel>();
+
         collection.AddTransient<ProfileExport>();
         collection.AddTransient<ProfileExportViewModel>();
 
@@ -549,6 +552,7 @@ public static class ServiceCollectionExtensions
         dialogService.Register<ConfirmDialogViewModel, ConfirmDialog>();
         dialogService.Register<TextInputDialogViewModel, TextInputDialog>();
         dialogService.Register<ProfileImportViewModel, ProfileImport>();
+        dialogService.Register<LoupedeckImportViewModel, LoupedeckImport>();
         dialogService.Register<ProfileExportViewModel, ProfileExport>();
 
         // Heal configs that were saved before HapticSteps had ObjectCreationHandling.Replace —

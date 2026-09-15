@@ -1,0 +1,196 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:loc="using:LoupixDeck.Localization"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="using:LoupixDeck.ViewModels"
+        mc:Ignorable="d"
+        Width="620" Height="640"
+        MinWidth="520" MinHeight="420"
+        x:Class="LoupixDeck.Views.LoupedeckImport"
+        x:DataType="vm:LoupedeckImportViewModel"
+        WindowStartupLocation="CenterOwner"
+        Title="{loc:Tr LoupedeckImport_Title}"
+        ShowInTaskbar="False">
+
+    <Window.Styles>
+        <Style Selector="TextBlock.sectionHeader">
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{DynamicResource AppTextPrimary}" />
+            <Setter Property="Margin" Value="0,0,0,6" />
+        </Style>
+
+        <Style Selector="TextBlock.hint">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="LineHeight" Value="17" />
+            <Setter Property="Foreground" Value="{DynamicResource AppTextSecondary}" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+        </Style>
+
+        <Style Selector="Border.card">
+            <Setter Property="Background" Value="{DynamicResource AppSurfaceLow}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AppBorderSubtle}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="Padding" Value="12" />
+        </Style>
+
+        <Style Selector="Border.banner">
+            <Setter Property="Background" Value="#26E8A33D" />
+            <Setter Property="BorderBrush" Value="#66E8A33D" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="Padding" Value="12" />
+        </Style>
+
+        <Style Selector="Button.dialogBtn">
+            <Setter Property="MinWidth" Value="100" />
+            <Setter Property="Height" Value="34" />
+            <Setter Property="Padding" Value="14,0" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Border Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="{TemplateBinding CornerRadius}">
+                        <ContentPresenter Content="{TemplateBinding Content}"
+                                          Padding="{TemplateBinding Padding}"
+                                          HorizontalAlignment="Center"
+                                          VerticalAlignment="Center" />
+                    </Border>
+                </ControlTemplate>
+            </Setter>
+        </Style>
+
+        <Style Selector="Button.dialogBtn.cancel">
+            <Setter Property="Background" Value="{DynamicResource AppControlBackground}" />
+            <Setter Property="Foreground" Value="{DynamicResource AppTextPrimary}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AppBorderSubtle}" />
+        </Style>
+        <Style Selector="Button.dialogBtn.cancel:pointerover">
+            <Setter Property="Background" Value="{DynamicResource AppControlBackgroundHover}" />
+        </Style>
+
+        <Style Selector="Button.dialogBtn.confirm">
+            <Setter Property="Background" Value="{StaticResource PageActiveBrush}" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="BorderBrush" Value="{StaticResource PageActiveBorderBrush}" />
+        </Style>
+        <Style Selector="Button.dialogBtn.confirm:pointerover">
+            <Setter Property="Background" Value="{StaticResource PageActiveBorderBrush}" />
+        </Style>
+        <Style Selector="Button.dialogBtn:disabled">
+            <Setter Property="Opacity" Value="0.5" />
+        </Style>
+    </Window.Styles>
+
+    <Grid RowDefinitions="*,Auto">
+
+        <TextBlock Grid.Row="0"
+                   Text="{loc:Tr LoupedeckImport_Reading}"
+                   IsVisible="{Binding IsLoading}"
+                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                   FontSize="13"
+                   Foreground="{DynamicResource AppTextSecondary}" />
+
+        <Border Grid.Row="0"
+                Classes="banner"
+                IsVisible="{Binding HasBlockReason}"
+                Margin="24" VerticalAlignment="Center">
+            <TextBlock Text="{Binding BlockReason}" Classes="hint" />
+        </Border>
+
+        <ScrollViewer Grid.Row="0" IsVisible="{Binding ShowContent}">
+            <!-- Inset on the content, never as ScrollViewer.Padding (see CLAUDE.md layout gotchas). -->
+            <StackPanel Margin="24,20,24,20" Spacing="16">
+
+                <StackPanel Spacing="8">
+                    <TextBlock Text="{Binding SourceText}" Classes="hint" />
+                    <TextBox Text="{Binding NewName}" PlaceholderText="{loc:Tr LoupedeckImport_Name}" FontSize="15" />
+                    <TextBlock Text="{Binding SummaryText}" Classes="hint" />
+                </StackPanel>
+
+                <!-- Application link -->
+                <StackPanel Spacing="6" IsVisible="{Binding CanLinkApp}">
+                    <CheckBox Content="{Binding LinkAppText}" IsChecked="{Binding LinkApp}" FontSize="12" />
+                    <TextBlock Text="{Binding LinkConflictText}" Classes="hint" Margin="28,0,0,0"
+                               IsVisible="{Binding HasLinkConflict}" />
+                    <CheckBox Content="{loc:Tr LoupedeckImport_EnableSwitching}" IsChecked="{Binding EnableSwitching}"
+                              IsVisible="{Binding ShowEnableSwitching}" FontSize="12" Margin="28,0,0,0" />
+                </StackPanel>
+
+                <!-- Actions that stay behind -->
+                <StackPanel Spacing="6" IsVisible="{Binding HasUnmapped}">
+                    <TextBlock Text="{loc:Tr LoupedeckImport_NotImported}" Classes="sectionHeader" />
+                    <TextBlock Text="{loc:Tr LoupedeckImport_NotImportedHint}" Classes="hint" />
+                    <Border Classes="card">
+                        <ItemsControl ItemsSource="{Binding Unmapped}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate DataType="vm:LoupedeckUnmappedRow">
+                                    <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" Margin="0,3">
+                                        <TextBlock Grid.Row="0" Grid.Column="0" Text="{Binding Label}" FontSize="13"
+                                                   TextWrapping="Wrap" Foreground="{DynamicResource AppTextPrimary}" />
+                                        <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding Location}" Classes="hint"
+                                                   Margin="12,0,0,0" />
+                                        <TextBlock Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Text="{Binding Reason}"
+                                                   Classes="hint" />
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </Border>
+                </StackPanel>
+
+                <!-- Macros created -->
+                <StackPanel Spacing="6" IsVisible="{Binding HasMacros}">
+                    <TextBlock Text="{loc:Tr LoupedeckImport_Macros}" Classes="sectionHeader" />
+                    <TextBlock Text="{loc:Tr LoupedeckImport_MacrosHint}" Classes="hint" />
+                    <Border Classes="card">
+                        <ItemsControl ItemsSource="{Binding MacroNames}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="x:String">
+                                    <TextBlock Text="{Binding}" FontSize="12" Margin="0,1"
+                                               Foreground="{DynamicResource AppTextSecondary}" TextWrapping="Wrap" />
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </Border>
+                </StackPanel>
+
+                <!-- Notes -->
+                <StackPanel Spacing="6" IsVisible="{Binding HasNotes}">
+                    <TextBlock Text="{loc:Tr LoupedeckImport_Notes}" Classes="sectionHeader" />
+                    <Border Classes="card">
+                        <ItemsControl ItemsSource="{Binding Notes}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="x:String">
+                                    <TextBlock Text="{Binding}" Classes="hint" Margin="0,1" />
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </Border>
+                </StackPanel>
+            </StackPanel>
+        </ScrollViewer>
+
+        <Border Grid.Row="1"
+                Background="{DynamicResource AppSurfaceLow}"
+                BorderBrush="{DynamicResource AppBorderSubtle}"
+                BorderThickness="0,1,0,0"
+                Padding="16,12">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">
+                <Button Classes="dialogBtn cancel" Content="{loc:Tr ProfileImport_Cancel}"
+                        Command="{Binding CancelCommand}" />
+                <Button Classes="dialogBtn confirm" Content="{loc:Tr ProfileImport_Import}"
+                        IsDefault="True"
+                        Command="{Binding ImportCommand}" />
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>
