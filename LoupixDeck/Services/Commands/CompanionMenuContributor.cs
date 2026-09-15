@@ -53,7 +53,7 @@ public sealed class CompanionMenuContributor(
         };
 
         LoupedeckConfig config = companions.GetDeviceConfig(companionKey);
-        bool hasSideStrips = HasSideStrips(config);
+        bool hasSideStrips = CompanionDeviceTraits.HasSideStrips(config);
 
         folder.Children.Add(Step("Next Touch Page", "Companion.NextTouchPage", companionKey, info));
         folder.Children.Add(Step("Previous Touch Page", "Companion.PreviousTouchPage", companionKey, info));
@@ -112,11 +112,7 @@ public sealed class CompanionMenuContributor(
 
         for (int i = 0; i < pages.Count; i++)
         {
-            string label = Loc.Tr(labelKey, i + 1);
-            if (!string.IsNullOrWhiteSpace(pages[i].Name))
-                label = $"{label}: {pages[i].Name}";
-
-            folder.Children.Add(new MenuEntry(label, command)
+            folder.Children.Add(new MenuEntry(CompanionDeviceTraits.PageLabel(labelKey, i, pages[i].Name), command)
             {
                 Icon = info.Icon,
                 Parameters = new Dictionary<string, string>
@@ -127,11 +123,6 @@ public sealed class CompanionMenuContributor(
             });
         }
     }
-
-    /// <summary>A device with side strips pages its dial columns separately; its config then holds
-    /// left and right rotary pages.</summary>
-    private static bool HasSideStrips(LoupedeckConfig config) =>
-        config?.Profiles?.Any(p => p.Workspaces?.Any(w => w.LeftRotaryButtonPages?.Count > 0) == true) == true;
 
     private static string Display(string name) =>
         string.IsNullOrWhiteSpace(name) ? Loc.Tr("CompanionMenu_Unnamed") : name;
