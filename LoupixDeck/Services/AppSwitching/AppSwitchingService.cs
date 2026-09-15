@@ -7,6 +7,7 @@ using LoupixDeck.Services.ActiveWindow;
 using LoupixDeck.Services.Companion;
 using LoupixDeck.Services.FolderNavigation;
 using LoupixDeck.Services.Plugins;
+using LoupixDeck.Utils;
 
 namespace LoupixDeck.Services.AppSwitching;
 
@@ -247,29 +248,17 @@ public sealed class AppSwitchingService : IAppSwitchingService
         // ApplyTouchPage/ApplyRotaryPage are no-ops when the index already matches, so re-focusing
         // the same app does not flicker the deck.
         // A page id wins when it resolves in the resulting workspace; otherwise the legacy index applies.
-        if (ResolvePageIndex(_pageManager.TouchButtonPages, rule.TouchPageId, rule.TouchPageIndex) is { } ti)
+        if (PageLookup.ResolveIndex(_pageManager.TouchButtonPages, rule.TouchPageId, rule.TouchPageIndex) is { } ti)
             await _pageManager.ApplyTouchPage(ti);
 
-        if (ResolvePageIndex(_pageManager.RotaryButtonPages, rule.RotaryPageId, rule.RotaryPageIndex) is { } ri)
+        if (PageLookup.ResolveIndex(_pageManager.RotaryButtonPages, rule.RotaryPageId, rule.RotaryPageIndex) is { } ri)
             _pageManager.ApplyRotaryPage(ri);
 
-        if (ResolvePageIndex(_pageManager.GetRotaryPages(RotarySide.Left), rule.LeftRotaryPageId, null) is { } li)
+        if (PageLookup.ResolveIndex(_pageManager.GetRotaryPages(RotarySide.Left), rule.LeftRotaryPageId, null) is { } li)
             _pageManager.ApplyRotaryPage(RotarySide.Left, li);
 
-        if (ResolvePageIndex(_pageManager.GetRotaryPages(RotarySide.Right), rule.RightRotaryPageId, null) is { } rri)
+        if (PageLookup.ResolveIndex(_pageManager.GetRotaryPages(RotarySide.Right), rule.RightRotaryPageId, null) is { } rri)
             _pageManager.ApplyRotaryPage(RotarySide.Right, rri);
-    }
-
-    private static int? ResolvePageIndex<TPage>(IList<TPage> pages, Guid? pageId, int? pageIndex)
-        where TPage : ButtonPageBase
-    {
-        if (pageId is { } id)
-        {
-            for (int i = 0; i < pages.Count; i++)
-                if (pages[i].Id == id) return i;
-        }
-
-        return pageIndex is { } index && index >= 0 && index < pages.Count ? index : null;
     }
 
     // ── Process-start detection ──────────────────────────────────────────────
