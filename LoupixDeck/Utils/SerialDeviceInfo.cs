@@ -50,6 +50,13 @@ public static class SerialDeviceHelper
             var parts = deviceId.Split('\\');
             var serial = parts.Length > 2 ? parts[2] : null;
 
+            // A composite USB device exposes its COM port as a child interface
+            // ("USB\VID_2EC2&PID_0006&MI_00\7&26036A56&0&0000"), whose instance id is a
+            // port-dependent value Windows generates. The iSerial sits on the parent
+            // composite device ("USB\VID_2EC2&PID_0006\LDD2201…"), so read it from there.
+            if (serial != null && serial.Contains('&') && TryGetParentInstanceSerial(device) is { } parentSerial)
+                serial = parentSerial;
+
             var manufacturer = device["Manufacturer"]?.ToString();
             var product = name;
 
@@ -69,6 +76,44 @@ public static class SerialDeviceHelper
         }
 
         return result;
+    }
+
+    /// <summary>
+    /// The instance segment of the device's parent (DEVPKEY_Device_Parent), when that parent is the
+    /// USB device itself ("USB\VID_…&amp;PID_…\&lt;serial&gt;"). Null when the property is unavailable or the
+    /// parent is not a plain USB device node.
+    /// </summary>
+    [SuppressMessage("Interoperability", "CA1416:Validate platform compatibility")]
+    private static string TryGetParentInstanceSerial(ManagementObject device)
+    {
+        try
+        {
+            using ManagementBaseObject input = device.GetMethodParameters("GetDeviceProperties");
+            input["devicePropertyKeys"] = new[] { "DEVPKEY_Device_Parent" };
+            using ManagementBaseObject output = device.InvokeMethod("GetDeviceProperties", input, null);
+
+            if (output?["deviceProperties"] is not ManagementBaseObject[] { Length: > 0 } properties)
+                return null;
+
+            string parent = properties[0]["Data"] as string;
+            foreach (ManagementBaseObject property in properties)
+                property.Dispose();
+
+            string[] parts = parent?.Split('\\');
+            if (parts is not { Length: 3 } ||
+                !string.Equals(parts[0], "USB", StringComparison.OrdinalIgnoreCase) ||
+                parts[1].Contains("&MI_", StringComparison.OrdinalIgnoreCase))
+            {
+                return null;
+            }
+
+            return parts[2];
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[SerialDeviceHelper] Parent lookup failed: {ex.Message}");
+            return null;
+        }
     }
 
     // VID_xxxx / PID_xxxx (4 hex digits, case-insensitive tag).

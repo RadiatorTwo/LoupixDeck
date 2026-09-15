@@ -252,11 +252,24 @@
         <Setter Property="BorderBrush" Value="{DynamicResource AppTextMuted}" />
     </Style>
 
-    <!-- Small section heading inside a rule card (Match / Target / Additional options). -->
+    <!-- Small section heading inside a rule card (Match / Target / Additional options). Primary text:
+         secondary grey is hard to read on the raised card surface, more so on hover. -->
     <Style Selector="TextBlock.group-label">
         <Setter Property="FontSize" Value="11" />
         <Setter Property="FontWeight" Value="Bold" />
-        <Setter Property="Foreground" Value="{DynamicResource AppTextSecondary}" />
+        <Setter Property="Foreground" Value="{DynamicResource AppTextPrimary}" />
+    </Style>
+
+    <!-- Field labels inside a rule card, for the same reason. Hints stay secondary. -->
+    <Style Selector="Border.rule-card TextBlock.label">
+        <Setter Property="Foreground" Value="{DynamicResource AppTextPrimary}" />
+    </Style>
+
+    <!-- The thing a block inside a rule card is about, e.g. a companion's device name. -->
+    <Style Selector="TextBlock.rule-subject">
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Foreground" Value="{DynamicResource AppTextPrimary}" />
     </Style>
 
     <!-- Grouping box that visually ties related controls together (e.g. fallback profile). -->

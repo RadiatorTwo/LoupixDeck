@@ -11,6 +11,9 @@ public interface IConfigService
 {
     T LoadConfig<T>(string filePath) where T : class;
     void SaveConfig(object config, string filePath);
+
+    /// <summary>Raised after a config file was written. Carries the file path. Caller's thread.</summary>
+    event Action<string> ConfigSaved;
 }
 
 public class ConfigService : IConfigService
@@ -31,7 +34,8 @@ public class ConfigService : IConfigService
         new PerDeviceKeySizeMigrator(),
         new StreamControllerXKeySizeMigrator(),
         new ButtonBackgroundToggleMigrator(),
-        new SimpleButtonsPerProfileMigrator()
+        new SimpleButtonsPerProfileMigrator(),
+        new PageIdsMigrator()
     ];
 
     public ConfigService()
@@ -266,5 +270,9 @@ public class ConfigService : IConfigService
             Console.WriteLine($"Unexpected error saving config to {filePath}: {ex.Message}");
             throw;
         }
+
+        ConfigSaved?.Invoke(filePath);
     }
+
+    public event Action<string> ConfigSaved;
 }

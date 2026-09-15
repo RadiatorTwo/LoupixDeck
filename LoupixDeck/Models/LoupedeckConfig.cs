@@ -59,8 +59,10 @@ public partial class LoupedeckConfig : ObservableObject
     /// v12 moved the round LED buttons off the config root into each <see cref="Profile"/>, so a
     /// colour or command set in one profile no longer bleeds into the others; the shared set is
     /// cloned into every existing profile. See <c>SimpleButtonsPerProfileMigrator</c>.
+    /// v13 gave every button page a stable <c>Id</c> and resolved context-rule page indices to those
+    /// ids where the target workspace is known. See <c>PageIdsMigrator</c>.
     /// </summary>
-    public const int CurrentVersion = 12;
+    public const int CurrentVersion = 13;
 
     public int Version { get; set; } = CurrentVersion;
 
@@ -245,6 +247,21 @@ public partial class LoupedeckConfig : ObservableObject
     [ObservableProperty]
     [JsonIgnore]
     public partial Guid ActiveWorkspaceId { get; set; }
+
+    /// <summary>
+    /// Set while this device is a companion: its own profiles are kept aside here and
+    /// <see cref="Profiles"/> mirrors the master's. Null otherwise, and absent from every config
+    /// written by a device that never joined a group.
+    /// </summary>
+    [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+    public Companion.CompanionLinkState CompanionLink { get; set; }
+
+    /// <summary>
+    /// The mirrored profiles this device had when it last left a group, restored if it joins the
+    /// same master again. Null when there are none.
+    /// </summary>
+    [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+    public Companion.ParkedCompanionProfiles ParkedCompanionProfiles { get; set; }
 
     /// <summary>The active profile resolved from <see cref="ActiveProfileId"/>, falling back to the
     /// first profile. Null only before <see cref="EnsureDefaultProfile"/> has run.</summary>

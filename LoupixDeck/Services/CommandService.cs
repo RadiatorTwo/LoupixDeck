@@ -1,5 +1,7 @@
 using LoupixDeck.PluginSdk;
+using LoupixDeck.Registry;
 using LoupixDeck.Services.Commands;
+using LoupixDeck.Services.Companion;
 using LoupixDeck.Utils;
 
 namespace LoupixDeck.Services;
@@ -24,13 +26,18 @@ public class CommandService : ICommandService
     private readonly IServiceProvider _deviceProvider;
     private readonly IDeviceRouter _router;
 
+    private readonly ICompanionCoordinator _companions;
+    private readonly ResolvedDevice _device;
+
     public CommandService(ICommandRegistry commandRegistry, ICommandRunner commandRunner,
-        IServiceProvider deviceProvider, IDeviceRouter router)
+        IServiceProvider deviceProvider, IDeviceRouter router, ICompanionCoordinator companions, ResolvedDevice device)
     {
         _commandRegistry = commandRegistry;
         _commandRunner = commandRunner;
         _deviceProvider = deviceProvider;
         _router = router;
+        _companions = companions;
+        _device = device;
     }
 
     public async Task ExecuteCommand(string command, ButtonTargets target, int? sourceIndex = null)
@@ -61,6 +68,15 @@ public class CommandService : ICommandService
         if (string.IsNullOrWhiteSpace(command)) return;
 
         string cleanCommand = CommandStringParser.GetName(command);
+
+        // On a companion the master owns the profile and workspace. Checked here, where every command passes,
+        // so no button, macro, CLI call or plugin can switch them on the companion.
+        if (CompanionCommandPolicy.IsBlocked(_companions, _device.ScopeKey, cleanCommand))
+        {
+            Console.WriteLine($"[Companions] '{cleanCommand}' skipped: '{_device.ScopeKey}' is a companion.");
+            return;
+        }
+
         RegisteredCommand registered = _commandRegistry.Get(cleanCommand);
         if (registered != null)
         {

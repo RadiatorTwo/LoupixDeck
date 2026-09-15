@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Text;
 using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -7,10 +8,14 @@ using CommunityToolkit.Mvvm.Input;
 using LoupixDeck.Localization;
 using LoupixDeck.Models;
 using LoupixDeck.PluginSdk;
+using LoupixDeck.Registry;
+using LoupixDeck.Services;
 using LoupixDeck.Services.AppLauncher;
 using LoupixDeck.Services.AppSwitching;
 using LoupixDeck.Services.Commands;
+using LoupixDeck.Services.Companion;
 using LoupixDeck.Services.DialPresets;
+using LoupixDeck.Services.Macros;
 using LoupixDeck.Utils;
 using LoupixDeck.ViewModels.Base;
 using LoupixDeck.ViewModels.CommandPicker;
@@ -42,7 +47,23 @@ public partial class ActionPanelViewModel : ViewModelBase
     private readonly IAppIconExtractor _icons;
     private readonly IMenuTreeBuilder _menuTreeBuilder;
     private readonly IDialPresetCatalog _dialPresets;
+    private readonly ICompanionCoordinator _companions;
+    private readonly IConfigService _configService;
+    private readonly IMacroManager _macros;
+    private readonly LoupedeckConfig _config;
+    private readonly ResolvedDevice _device;
     private readonly CancellationTokenSource _cancellation = new();
+
+    // Coalesces the change notifications that can invalidate the catalogue: a save or a group edit
+    // often arrives as a burst, and one rebuild after it settles is enough.
+    private readonly DispatcherTimer _catalogueRefreshTimer = new() { Interval = TimeSpan.FromMilliseconds(400) };
+
+    // What the catalogue was last built from, so a save that touched nothing it lists (a button
+    // edit, a page switch) does not rebuild it, and the plugin groups do not reload for nothing.
+    private string _catalogueSignature;
+    private bool _catalogueRefreshForced;
+    private bool _catalogueBuilding;
+    private bool _catalogueRefreshPending;
 
     // The live catalogue. Owned here rather than borrowed, because the panel outlives any one
     // dialog and has to keep seeing plugin groups arrive.
@@ -53,18 +74,31 @@ public partial class ActionPanelViewModel : ViewModelBase
     private bool _loadStarted;
 
     public ActionPanelViewModel(IAppDiscoveryService discovery, ICustomAppStore customApps,
-        IAppIconExtractor icons, IMenuTreeBuilder menuTreeBuilder, IDialPresetCatalog dialPresets)
+        IAppIconExtractor icons, IMenuTreeBuilder menuTreeBuilder, IDialPresetCatalog dialPresets,
+        ICompanionCoordinator companions, IConfigService configService, IMacroManager macros,
+        LoupedeckConfig config, ResolvedDevice device)
     {
         _discovery = discovery;
         _customApps = customApps;
         _icons = icons;
         _menuTreeBuilder = menuTreeBuilder;
         _dialPresets = dialPresets;
+        _companions = companions;
+        _configService = configService;
+        _macros = macros;
+        _config = config;
+        _device = device;
 
         _dialPresets.PresetsChanged += OnDialPresetsChanged;
         RebuildDialPresets();
 
         LocalizationManager.Instance.PropertyChanged += OnLanguageChanged;
+
+        _catalogueRefreshTimer.Tick += OnCatalogueRefreshTick;
+        _companions.GroupsChanged += OnCatalogueSourceChanged;
+        _companions.DeviceOnlineStateChanged += OnDeviceOnlineStateChanged;
+        _configService.ConfigSaved += OnConfigSaved;
+        _macros.MacrosChanged += OnMacrosChanged;
     }
 
     // ── Panel state ────────────────────────────────────────────────────────
@@ -78,7 +112,10 @@ public partial class ActionPanelViewModel : ViewModelBase
         // Normally a no-op: the lists are warmed in the background at start-up. It stays here so a
         // panel opened before that finished, or after it failed, still asks for its content.
         if (value)
+        {
             _ = EnsureLoadedAsync();
+            RequestCatalogueRefresh();
+        }
     }
 
     // ── Applications ───────────────────────────────────────────────────────
@@ -253,9 +290,156 @@ public partial class ActionPanelViewModel : ViewModelBase
 
         // The catalogue is wanted for the whole session, so it is built even if the scan below
         // fails. Core groups land synchronously; plugin groups arrive later and rebuild the list.
-        await _menuTreeBuilder.BuildInto(_catalogue, ButtonTargets.TouchButton);
+        await RebuildCatalogueAsync();
 
         await LoadAppsAsync(rescan: false);
+    }
+
+    // ── Catalogue refresh ──────────────────────────────────────────────────
+    //
+    // The catalogue lists this device's profiles and workspaces and the user macros. None of those tell the menu builder when they
+    // change, so the panel watches the saves and events behind them and rebuilds itself.
+
+    /// <summary>
+    /// Rebuilds the command catalogue shortly, if what it lists has changed since it was built.
+    /// Safe to call from any thread and as often as wanted; bursts collapse into one check. Called
+    /// on the panel's own triggers and by the main window when this device becomes the shown one.
+    /// </summary>
+    public void RequestCatalogueRefresh() => ScheduleCatalogueRefresh(force: false);
+
+    private void ScheduleCatalogueRefresh(bool force)
+    {
+        Dispatcher.UIThread.Post(() =>
+        {
+            // Before the first build there is nothing stale; that build reads the current state.
+            if (!_loadStarted || _cancellation.IsCancellationRequested)
+                return;
+
+            _catalogueRefreshForced |= force;
+            _catalogueRefreshTimer.Stop();
+            _catalogueRefreshTimer.Start();
+        });
+    }
+
+    private void OnCatalogueSourceChanged() => ScheduleCatalogueRefresh(force: false);
+
+    private void OnConfigSaved(string filePath) => ScheduleCatalogueRefresh(force: false);
+
+    // A master lists its companions as connected or offline.
+    private void OnDeviceOnlineStateChanged(string deviceKey) => ScheduleCatalogueRefresh(force: false);
+
+    // Macro names are not part of the signature, so a macro change always rebuilds.
+    private void OnMacrosChanged(object sender, EventArgs e) => ScheduleCatalogueRefresh(force: true);
+
+    private async void OnCatalogueRefreshTick(object sender, EventArgs e)
+    {
+        _catalogueRefreshTimer.Stop();
+
+        bool force = _catalogueRefreshForced;
+        _catalogueRefreshForced = false;
+
+        try
+        {
+            if (!force && string.Equals(CatalogueSignature(), _catalogueSignature, StringComparison.Ordinal))
+                return;
+
+            await RebuildCatalogueAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[ActionPanel] Catalogue refresh failed: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Clears and rebuilds the catalogue. A request that arrives while a build runs is not dropped:
+    /// it runs once more afterwards, so the last change is always reflected.
+    /// </summary>
+    private async Task RebuildCatalogueAsync()
+    {
+        if (_catalogueBuilding)
+        {
+            _catalogueRefreshPending = true;
+            return;
+        }
+
+        _catalogueBuilding = true;
+        try
+        {
+            do
+            {
+                _catalogueRefreshPending = false;
+                _catalogueSignature = CatalogueSignature();
+
+                // Rebuilt rather than merged into: BuildInto merges groups, so building into the
+                // populated collection would leave every entry twice over. The picker follows the
+                // collection and reprojects itself.
+                _catalogue.Clear();
+                await _menuTreeBuilder.BuildInto(_catalogue, ButtonTargets.TouchButton);
+            }
+            while (_catalogueRefreshPending);
+        }
+        finally
+        {
+            _catalogueBuilding = false;
+        }
+    }
+
+    /// <summary>
+    /// A fingerprint of the state the catalogue's device-dependent groups are built from: this
+    /// device's role and profile tree, and on a master each companion's connection state and pages.
+    /// </summary>
+    private string CatalogueSignature()
+    {
+        StringBuilder signature = new();
+        signature.Append(_companions.IsFollowingMaster(_device.ScopeKey)).Append('|');
+        AppendProfileTree(signature, _config);
+
+        if (_companions.IsMaster(_device.ScopeKey))
+        {
+            foreach (string companionKey in _companions.GetCompanionKeys(_device.ScopeKey))
+            {
+                signature.Append("|C:").Append(companionKey).Append(':').Append(_companions.IsOnline(companionKey)).Append(';');
+                LoupedeckConfig companion = _companions.GetDeviceConfig(companionKey);
+                AppendProfileTree(signature, companion);
+                AppendPages(signature, companion);
+            }
+        }
+
+        return signature.ToString();
+    }
+
+    private static void AppendPages(StringBuilder signature, LoupedeckConfig config)
+    {
+        if (config?.Profiles == null)
+            return;
+
+        foreach (Workspace workspace in config.Profiles.Where(p => p.Workspaces != null).SelectMany(p => p.Workspaces))
+        {
+            IEnumerable<ButtonPageBase> pages = Enumerable.Empty<ButtonPageBase>()
+                .Concat(workspace.TouchButtonPages ?? [])
+                .Concat(workspace.RotaryButtonPages ?? [])
+                .Concat(workspace.LeftRotaryButtonPages ?? [])
+                .Concat(workspace.RightRotaryButtonPages ?? []);
+            foreach (ButtonPageBase page in pages)
+                signature.Append("G:").Append(page.Id).Append(':').Append(page.Name).Append(';');
+        }
+    }
+
+    private static void AppendProfileTree(StringBuilder signature, LoupedeckConfig config)
+    {
+        if (config?.Profiles == null)
+            return;
+
+        foreach (Profile profile in config.Profiles)
+        {
+            signature.Append("P:").Append(profile.Id).Append(':').Append(profile.Name).Append(';');
+            if (profile.Workspaces == null)
+                continue;
+
+            foreach (Workspace workspace in profile.Workspaces)
+                signature.Append("W:").Append(workspace.Id).Append(':').Append(workspace.Name).Append(';');
+        }
     }
 
     /// <summary>
@@ -276,13 +460,9 @@ public partial class ActionPanelViewModel : ViewModelBase
         IsRefreshing = true;
         try
         {
-            // Rebuilt rather than merged into: BuildInto merges groups, so building into the
-            // populated collection would leave every entry twice over. The picker follows the
-            // collection and reprojects itself.
-            _catalogue.Clear();
-            await _menuTreeBuilder.BuildInto(_catalogue, ButtonTargets.TouchButton);
-
             _loadStarted = true;
+            await RebuildCatalogueAsync();
+
             await LoadAppsAsync(rescan: true);
         }
         finally
@@ -487,6 +667,13 @@ public partial class ActionPanelViewModel : ViewModelBase
 
         _dialPresets.PresetsChanged -= OnDialPresetsChanged;
         LocalizationManager.Instance.PropertyChanged -= OnLanguageChanged;
+
+        _catalogueRefreshTimer.Stop();
+        _catalogueRefreshTimer.Tick -= OnCatalogueRefreshTick;
+        _companions.GroupsChanged -= OnCatalogueSourceChanged;
+        _companions.DeviceOnlineStateChanged -= OnDeviceOnlineStateChanged;
+        _configService.ConfigSaved -= OnConfigSaved;
+        _macros.MacrosChanged -= OnMacrosChanged;
 
         CommandPicker.Cleanup();
     }

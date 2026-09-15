@@ -15,11 +15,11 @@ public class RotaryButtonSettingsViewModel : DialogViewModelBase<RotaryButton, D
     {
         ButtonData = parameter;
 
-        RotaryLeftSlot = new CommandSequenceSlot(Loc.Tr("Gesture_RotateLeft"), _commandBuilder, _commandRegistry, _dialogService,
+        RotaryLeftSlot = new CommandSequenceSlot(Loc.Tr("Gesture_RotateLeft"), _commandBuilder, _commandRegistry, _commandLock, _dialogService,
             () => ButtonData.RotaryLeftCommand, v => ButtonData.RotaryLeftCommand = v);
-        RotaryRightSlot = new CommandSequenceSlot(Loc.Tr("Gesture_RotateRight"), _commandBuilder, _commandRegistry, _dialogService,
+        RotaryRightSlot = new CommandSequenceSlot(Loc.Tr("Gesture_RotateRight"), _commandBuilder, _commandRegistry, _commandLock, _dialogService,
             () => ButtonData.RotaryRightCommand, v => ButtonData.RotaryRightCommand = v);
-        ButtonPressSlot = new CommandSequenceSlot(Loc.Tr("Slot_ButtonPress"), _commandBuilder, _commandRegistry, _dialogService,
+        ButtonPressSlot = new CommandSequenceSlot(Loc.Tr("Slot_ButtonPress"), _commandBuilder, _commandRegistry, _commandLock, _dialogService,
             () => ButtonData.Command, v => ButtonData.Command = v);
 
         Slots = [RotaryLeftSlot, RotaryRightSlot, ButtonPressSlot];
@@ -42,6 +42,7 @@ public class RotaryButtonSettingsViewModel : DialogViewModelBase<RotaryButton, D
     private readonly ICommandBuilder _commandBuilder;
     private readonly IMenuTreeBuilder _menuTreeBuilder;
     private readonly ICommandRegistry _commandRegistry;
+    private readonly Services.Companion.ICommandLockService _commandLock;
     private readonly IDialogService _dialogService;
 
     public RotaryButton ButtonData { get; set; }
@@ -68,11 +69,13 @@ public class RotaryButtonSettingsViewModel : DialogViewModelBase<RotaryButton, D
         ICommandBuilder commandBuilder,
         IMenuTreeBuilder menuTreeBuilder,
         ICommandRegistry commandRegistry,
-        IDialogService dialogService)
+        IDialogService dialogService,
+        Services.Companion.ICommandLockService commandLock)
     {
         _commandBuilder = commandBuilder;
         _menuTreeBuilder = menuTreeBuilder;
         _commandRegistry = commandRegistry;
+        _commandLock = commandLock;
         _dialogService = dialogService;
 
         SystemCommandMenus = new ObservableCollection<MenuEntry>();

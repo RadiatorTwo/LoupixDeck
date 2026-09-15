@@ -38,6 +38,67 @@ public static class PortablePayloadRewriter
         }
     }
 
+    /// <summary>Prefix of the commands that address a companion by its device key.</summary>
+    private const string CompanionCommandPrefix = "Companion.";
+
+    /// <summary>
+    /// Rewrites the companion device keys in <c>Companion.*</c> commands (<c>Companion.GotoTouchPage(&lt;key&gt;, …)</c>)
+    /// from the exporting machine's keys to the companions chosen on import. Whole parameters are
+    /// matched, never substrings: a slug-only key is a prefix of the same model's serial-scoped key.
+    /// </summary>
+    public static void RemapCompanionKeys(JObject payload, IReadOnlyDictionary<string, string> keys)
+    {
+        if (payload == null || keys == null || keys.Count == 0)
+            return;
+
+        foreach (JProperty property in payload.DescendantsAndSelf().OfType<JProperty>())
+        {
+            bool isCommand = PortableCommandScanner.IsCommandProperty(property.Name);
+            bool isOwnerKey = string.Equals(property.Name, OwnerKeyProperty, StringComparison.OrdinalIgnoreCase);
+
+            if (!isCommand && !isOwnerKey)
+                continue;
+
+            RewriteStrings(property.Value, text => RemapKeysInCommandChain(text, keys));
+        }
+    }
+
+    private static string RemapKeysInCommandChain(string command, IReadOnlyDictionary<string, string> keys)
+    {
+        if (string.IsNullOrWhiteSpace(command) ||
+            command.IndexOf(CompanionCommandPrefix, StringComparison.Ordinal) < 0)
+        {
+            return command;
+        }
+
+        List<string> segments = [];
+        bool changed = false;
+
+        foreach (string segment in CommandStringParser.SplitChain(command))
+        {
+            string name = CommandStringParser.GetName(segment);
+            string[] parameters = CommandStringParser.GetParameters(segment);
+            bool segmentChanged = false;
+
+            if (name.StartsWith(CompanionCommandPrefix, StringComparison.Ordinal))
+            {
+                for (int i = 0; i < parameters.Length; i++)
+                {
+                    if (keys.TryGetValue(parameters[i], out string newKey) && !string.IsNullOrEmpty(newKey))
+                    {
+                        parameters[i] = newKey;
+                        segmentChanged = true;
+                    }
+                }
+            }
+
+            segments.Add(segmentChanged ? $"{name}({string.Join(",", parameters)})" : segment);
+            changed |= segmentChanged;
+        }
+
+        return changed ? string.Join(" && ", segments) : command;
+    }
+
     /// <summary>
     /// Replaces stored asset paths with the paths the local asset store returned. The store is
     /// content-addressed, so the two normally match — this only catches the cases where they do

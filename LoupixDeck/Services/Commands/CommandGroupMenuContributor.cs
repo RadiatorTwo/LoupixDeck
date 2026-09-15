@@ -1,5 +1,7 @@
 using LoupixDeck.Models;
 using LoupixDeck.PluginSdk;
+using LoupixDeck.Registry;
+using LoupixDeck.Services.Companion;
 
 namespace LoupixDeck.Services.Commands;
 
@@ -21,11 +23,17 @@ public class CommandGroupMenuContributor : IMenuContributor
     private readonly IDeviceService _deviceService;
     private readonly IGroupCatalog _groupCatalog;
 
-    public CommandGroupMenuContributor(ICommandRegistry registry, IDeviceService deviceService, IGroupCatalog groupCatalog)
+    private readonly ICompanionCoordinator _companions;
+    private readonly ResolvedDevice _device;
+
+    public CommandGroupMenuContributor(ICommandRegistry registry, IDeviceService deviceService, IGroupCatalog groupCatalog,
+        ICompanionCoordinator companions, ResolvedDevice device)
     {
         _registry = registry;
         _deviceService = deviceService;
         _groupCatalog = groupCatalog;
+        _companions = companions;
+        _device = device;
     }
 
     public Task<IReadOnlyList<MenuEntry>> Contribute(ButtonTargets target)
@@ -41,6 +49,7 @@ public class CommandGroupMenuContributor : IMenuContributor
             .Where(c => !SpecializedGroups.Contains(c.Info.Group))
             .Where(c => !c.HiddenFromMenu)
             .Where(c => !c.RequiresSideStrips || hasSideStrips)
+            .Where(c => !CompanionCommandPolicy.IsBlocked(_companions, _device.ScopeKey, c.CommandName))
             .Where(c => c.SupportedTargets.HasFlag(target))
             .GroupBy(c => c.Info.Group);
 

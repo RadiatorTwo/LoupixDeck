@@ -40,6 +40,7 @@ public sealed class MainShellViewModel : ViewModelBase
         AboutMenuCommand = new AsyncRelayCommand(ShowAbout);
         ShowUpdateCommand = new AsyncRelayCommand(ShowUpdate);
         ShowPluginUpdatesCommand = new AsyncRelayCommand(ShowPluginUpdates);
+        SelectDeviceCommand = new RelayCommand<string>(SelectDevice, CanSelectDevice);
 
         if (_updateService != null)
         {
@@ -177,6 +178,23 @@ public sealed class MainShellViewModel : ViewModelBase
         }
     }
 
+    /// <summary>Selects the running device with the given scope key, e.g. a companion's master from
+    /// the header hint. Not executable while that device is not running.</summary>
+    public RelayCommand<string> SelectDeviceCommand { get; }
+
+    private void SelectDevice(string scopeKey)
+    {
+        if (FindDevice(scopeKey) is { } device)
+            SelectedDevice = device;
+    }
+
+    private bool CanSelectDevice(string scopeKey) => FindDevice(scopeKey) != null;
+
+    private MainWindowViewModel FindDevice(string scopeKey) =>
+        string.IsNullOrWhiteSpace(scopeKey)
+            ? null
+            : Devices.FirstOrDefault(d => string.Equals(d.ScopeKey, scopeKey, StringComparison.OrdinalIgnoreCase));
+
     /// <summary>Show the device tab strip only when more than one device is present,
     /// so the single-device window looks exactly as it did before phase 3.</summary>
     public bool HasMultipleDevices => Devices.Count > 1;
@@ -220,6 +238,7 @@ public sealed class MainShellViewModel : ViewModelBase
         if (_selectedDevice == null)
             SelectedDevice = device;
         OnPropertyChanged(nameof(HasMultipleDevices));
+        SelectDeviceCommand.NotifyCanExecuteChanged();
     }
 
     /// <summary>Drop a device's VM (hot-unplug). If it was the selected one, fall back
@@ -232,5 +251,6 @@ public sealed class MainShellViewModel : ViewModelBase
         if (wasSelected)
             SelectedDevice = Devices.FirstOrDefault();
         OnPropertyChanged(nameof(HasMultipleDevices));
+        SelectDeviceCommand.NotifyCanExecuteChanged();
     }
 }

@@ -16,7 +16,7 @@ public class MenuTreeBuilder : IMenuTreeBuilder
     /// </summary>
     private static readonly string[] CoreGroupOrder =
     {
-        "Dial Presets", "Pages", "Device Control", "Macros", "User Macros", "Dynamic Text", "Audio"
+        "Dial Presets", "Pages", "Companions", "Device Control", "Macros", "User Macros", "Dynamic Text", "Audio"
     };
 
     /// <summary>How long a single plugin may take before its menu is skipped.</summary>

@@ -57,6 +57,15 @@
                             <TextBlock Grid.Column="2" Classes="nav-label" Text="{loc:Tr Settings_ProfileRules}" />
                         </Grid>
                     </Button>
+                    <Button Classes="nav" Classes.active="{Binding CurrentView, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Companions}"
+                            Command="{Binding NavigateCommand}" CommandParameter="{x:Static bs:SettingsView.Companions}">
+                        <Grid ColumnDefinitions="6,Auto,*">
+                            <Border Grid.Column="0" Classes="nav-accent" />
+                            <!-- mdi-link-variant -->
+                            <TextBlock Grid.Column="1" Classes="nav-icon" Text="&#xF0339;" Margin="6,0,0,0"/>
+                            <TextBlock Grid.Column="2" Classes="nav-label" Text="{loc:Tr Companions_Title}" />
+                        </Grid>
+                    </Button>
                     <Button Classes="nav" Classes.active="{Binding CurrentView, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Pages}"
                             Command="{Binding NavigateCommand}" CommandParameter="{x:Static bs:SettingsView.Pages}">
                         <Grid ColumnDefinitions="6,Auto,*">
@@ -346,6 +355,9 @@
                     <TextBlock Classes="page-title" Text="{loc:Tr Settings_Profiles}" />
                     <TextBlock Classes="hint"
                                Text="{loc:Tr Settings_ProfilesGroupWorkspacesForAn}" />
+                    <Border Classes="card" Margin="0,12,0,0" IsVisible="{Binding IsCompanion}">
+                        <TextBlock Text="{Binding CompanionProfilesHint}" TextWrapping="Wrap" />
+                    </Border>
                     <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Left" Margin="0,12,0,0">
                         <Button Content="{loc:Tr Settings_AddProfile}" Command="{Binding AddProfileCommand}" />
                         <Button Content="{loc:Tr Settings_ImportPackage}" ToolTip.Tip="{loc:Tr Settings_ImportALoupixprofilePackage}"
@@ -364,7 +376,8 @@
                                     <StackPanel>
                                         <!-- Profile header: name + actions on one stable row -->
                                         <Grid ColumnDefinitions="*,Auto">
-                                            <TextBox Grid.Column="0" Text="{Binding Name, Mode=TwoWay}" PlaceholderText="{loc:Tr Settings_ProfileName}" VerticalAlignment="Center" />
+                                            <TextBox Grid.Column="0" Text="{Binding Name, Mode=TwoWay}" PlaceholderText="{loc:Tr Settings_ProfileName}" VerticalAlignment="Center"
+                                                     IsReadOnly="{Binding !Owner.CanEditProfiles}" />
                                             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" Margin="12,0,0,0" VerticalAlignment="Center">
                                                 <Button Content="{loc:Tr Settings_Activate}" ToolTip.Tip="{loc:Tr Settings_ActivateThisProfileOpensIts}"
                                                         Command="{Binding $parent[Window].DataContext.ActivateProfileCommand}" CommandParameter="{Binding}" />
@@ -397,7 +410,8 @@
                                                             <Border Background="{DynamicResource AppSurfaceAlt}" CornerRadius="4" Padding="8" Margin="0,0,0,6">
                                                                 <StackPanel>
                                                                     <Grid ColumnDefinitions="*,Auto">
-                                                                        <TextBox Grid.Column="0" Text="{Binding Name, Mode=TwoWay}" PlaceholderText="{loc:Tr Settings_WorkspaceName}" VerticalAlignment="Center" />
+                                                                        <TextBox Grid.Column="0" Text="{Binding Name, Mode=TwoWay}" PlaceholderText="{loc:Tr Settings_WorkspaceName}" VerticalAlignment="Center"
+                                                                                 IsReadOnly="{Binding !Parent.Owner.CanEditProfiles}" />
                                                                         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" Margin="12,0,0,0" VerticalAlignment="Center">
                                                                             <Button Content="{loc:Tr Settings_Open}" ToolTip.Tip="{loc:Tr Settings_ActivateThisWorkspaceAndEdit}"
                                                                                     Command="{Binding $parent[Window].DataContext.ActivateWorkspaceCommand}" CommandParameter="{Binding}" />
@@ -425,6 +439,153 @@
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
+                </StackPanel>
+
+                <!-- ====== Companions ====== -->
+                <StackPanel IsVisible="{Binding CurrentView, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Companions}">
+                    <TextBlock Classes="page-title" Text="{loc:Tr Companions_Title}" />
+
+                    <StackPanel DataContext="{Binding CompanionGroups}">
+                        <Border Classes="card" Margin="0,0,0,12">
+                            <StackPanel Spacing="8">
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <TextBlock Grid.Column="0" Classes="card-title" Text="{loc:Tr Companions_Groups}" Margin="0"
+                                               VerticalAlignment="Center" />
+                                    <Button Grid.Column="1" Classes="accent" Content="{loc:Tr Companions_NewGroup}"
+                                            Command="{Binding AddGroupCommand}" />
+                                </Grid>
+                                <TextBlock Classes="hint" FontSize="12" TextWrapping="Wrap" Text="{loc:Tr Companions_Hint}" />
+                                <TextBlock Classes="hint" FontSize="12" IsVisible="{Binding !HasGroups}"
+                                           Text="{loc:Tr Companions_NoGroups}" />
+                            </StackPanel>
+                        </Border>
+
+                        <ItemsControl ItemsSource="{Binding Groups}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate DataType="vm:CompanionGroupRow">
+                                    <Border Classes="card" Margin="0,0,0,12">
+                                        <StackPanel Spacing="10">
+                                            <Grid ColumnDefinitions="*,Auto">
+                                                <TextBox Grid.Column="0" PlaceholderText="{loc:Tr Companions_GroupName}"
+                                                         Text="{Binding Name, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" />
+                                                <Button Grid.Column="1" Classes="rule-delete" Content="✕" Margin="8,0,0,0"
+                                                        VerticalAlignment="Center"
+                                                        ToolTip.Tip="{loc:Tr Companions_RemoveGroup}"
+                                                        Command="{Binding RemoveGroupCommand}" />
+                                            </Grid>
+
+                                            <TextBlock Classes="hint" FontSize="12" IsVisible="{Binding IsIncomplete}"
+                                                       TextWrapping="Wrap" Text="{loc:Tr Companions_Incomplete}" />
+
+                                            <!-- Pause: runtime only -->
+                                            <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding !IsIncomplete}">
+                                                <TextBlock Grid.Column="0" Classes="hint" FontSize="12" TextWrapping="Wrap"
+                                                           VerticalAlignment="Center"
+                                                           Foreground="{DynamicResource CompanionHintForeground}"
+                                                           IsVisible="{Binding IsPaused}"
+                                                           Text="{loc:Tr Companions_PausedHint}" />
+                                                <Button Grid.Column="1" Margin="8,0,0,0" IsVisible="{Binding CanPause}"
+                                                        Content="{loc:Tr Companions_Pause}"
+                                                        ToolTip.Tip="{loc:Tr Companions_PauseTip}"
+                                                        Command="{Binding PauseCommand}" />
+                                                <Button Grid.Column="1" Margin="8,0,0,0" IsVisible="{Binding IsPaused}"
+                                                        Content="{loc:Tr Companions_Resume}"
+                                                        Command="{Binding ResumeCommand}" />
+                                            </Grid>
+
+                                            <!-- Master -->
+                                            <StackPanel Spacing="4">
+                                                <TextBlock Classes="group-label" Text="{loc:Tr Companions_Master}" />
+                                                <Grid ColumnDefinitions="*,Auto">
+                                                    <ComboBox Grid.Column="0" HorizontalAlignment="Stretch"
+                                                              PlaceholderText="{loc:Tr Companions_ChooseMaster}"
+                                                              ItemsSource="{Binding MasterOptions}"
+                                                              SelectedItem="{Binding SelectedMaster, Mode=TwoWay}">
+                                                        <ComboBox.ItemTemplate>
+                                                            <DataTemplate DataType="vm:CompanionDeviceOption">
+                                                                <TextBlock Text="{Binding DisplayName}" />
+                                                            </DataTemplate>
+                                                        </ComboBox.ItemTemplate>
+                                                    </ComboBox>
+                                                    <TextBlock Grid.Column="1" Classes="hint" Margin="12,0,0,0" VerticalAlignment="Center"
+                                                               Text="{Binding Master.StatusText, FallbackValue=''}" />
+                                                </Grid>
+                                            </StackPanel>
+
+                                            <!-- Companions -->
+                                            <StackPanel Spacing="4">
+                                                <TextBlock Classes="group-label" Text="{loc:Tr Companions_Companions}" />
+                                                <ItemsControl ItemsSource="{Binding Companions}">
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate DataType="vm:CompanionDeviceOption">
+                                                            <Border Background="{DynamicResource AppSurfaceAlt}" CornerRadius="4" Padding="8" Margin="0,0,0,4">
+                                                                <Grid ColumnDefinitions="*,Auto,Auto">
+                                                                    <TextBlock Grid.Column="0" Text="{Binding DisplayName}" VerticalAlignment="Center" />
+                                                                    <TextBlock Grid.Column="1" Classes="hint" Margin="12,0" VerticalAlignment="Center"
+                                                                               Text="{Binding StatusText}" />
+                                                                    <Button Grid.Column="2" Classes="row-action danger" Content="✕"
+                                                                            ToolTip.Tip="{loc:Tr Companions_RemoveCompanion}"
+                                                                            Command="{Binding $parent[ItemsControl].((vm:CompanionGroupRow)DataContext).RemoveCompanionCommand}"
+                                                                            CommandParameter="{Binding}" />
+                                                                </Grid>
+                                                            </Border>
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+                                                <Grid ColumnDefinitions="*,Auto">
+                                                    <ComboBox Grid.Column="0" HorizontalAlignment="Stretch"
+                                                              PlaceholderText="{loc:Tr Companions_ChooseCompanion}"
+                                                              ItemsSource="{Binding CompanionCandidates}"
+                                                              SelectedItem="{Binding SelectedCandidate, Mode=TwoWay}">
+                                                        <ComboBox.ItemTemplate>
+                                                            <DataTemplate DataType="vm:CompanionDeviceOption">
+                                                                <TextBlock Text="{Binding DisplayName}" />
+                                                            </DataTemplate>
+                                                        </ComboBox.ItemTemplate>
+                                                    </ComboBox>
+                                                    <Button Grid.Column="1" Margin="8,0,0,0" Content="{loc:Tr Companions_AddCompanion}"
+                                                            Command="{Binding AddCompanionCommand}" />
+                                                </Grid>
+                                            </StackPanel>
+
+                                            <!-- Page follow -->
+                                            <StackPanel Spacing="4">
+                                                <TextBlock Classes="group-label" Text="{loc:Tr Companions_PageFollow}" />
+                                                <ComboBox HorizontalAlignment="Stretch"
+                                                          ItemsSource="{Binding PageFollowOptions}"
+                                                          SelectedItem="{Binding SelectedPageFollow, Mode=TwoWay}">
+                                                    <ComboBox.ItemTemplate>
+                                                        <DataTemplate DataType="vm:CompanionPageFollowOption">
+                                                            <TextBlock Text="{Binding Label.Value}" />
+                                                        </DataTemplate>
+                                                    </ComboBox.ItemTemplate>
+                                                </ComboBox>
+                                                <TextBlock Classes="hint" FontSize="12" TextWrapping="Wrap"
+                                                           Text="{loc:Tr Companions_PageFollowHint}" />
+                                            </StackPanel>
+
+                                            <TextBlock IsVisible="{Binding HasError}" Text="{Binding Error}" TextWrapping="Wrap"
+                                                       Foreground="#E07A7A" />
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <Border Classes="card" IsVisible="{Binding HasDevicesWithoutSerial}">
+                            <StackPanel Spacing="6">
+                                <TextBlock Classes="card-title" Text="{loc:Tr Companions_NoSerialTitle}" />
+                                <TextBlock Classes="hint" FontSize="12" TextWrapping="Wrap" Text="{loc:Tr Companions_NoSerialHint}" />
+                                <ItemsControl ItemsSource="{Binding DevicesWithoutSerial}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate DataType="x:String">
+                                            <TextBlock Text="{Binding}" />
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
                 </StackPanel>
 
                 <!-- ====== Pages ====== -->
@@ -972,9 +1133,12 @@
                 <!-- ====== Profile Rules ====== -->
                 <StackPanel IsVisible="{Binding CurrentView, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=AppSwitching}">
                     <TextBlock Classes="page-title" Text="{loc:Tr Settings_ProfileRules}" />
+                    <Border Classes="card" IsVisible="{Binding IsCompanion}">
+                        <TextBlock Text="{Binding CompanionProfilesHint}" TextWrapping="Wrap" />
+                    </Border>
 
                     <!-- ===== Automatic switching ===== -->
-                    <Border Classes="card">
+                    <Border Classes="card" IsEnabled="{Binding CanEditProfiles}">
                         <StackPanel Spacing="10">
                             <StackPanel Spacing="4">
                                 <TextBlock Classes="card-title" Text="{loc:Tr Settings_AutomaticSwitching}" Margin="0" />
@@ -1026,7 +1190,7 @@
                     </Border>
 
                     <!-- ===== Rules ===== -->
-                    <Border Classes="card">
+                    <Border Classes="card" IsEnabled="{Binding CanEditProfiles}">
                         <StackPanel Spacing="10">
                             <Grid ColumnDefinitions="*,Auto" VerticalAlignment="Center">
                                 <TextBlock Grid.Column="0" Classes="card-title" Text="{loc:Tr Settings_Rules}"
@@ -1084,6 +1248,88 @@
                                                                 </ComboBox.ItemTemplate>
                                                             </ComboBox>
                                                         </Grid>
+                                                    </StackPanel>
+
+                                                    <!-- Companion pages (master only) -->
+                                                    <StackPanel Spacing="5" IsVisible="{Binding ShowCompanionTargets}">
+                                                        <TextBlock Classes="group-label" Text="{loc:Tr Settings_RuleCompanionPages}" />
+                                                        <TextBlock Classes="hint" FontSize="12" TextWrapping="Wrap"
+                                                                   IsVisible="{Binding CompanionTargetsNeedWorkspace}"
+                                                                   Text="{loc:Tr Settings_RuleCompanionPagesNeedWorkspace}" />
+                                                        <ItemsControl ItemsSource="{Binding CompanionTargets}">
+                                                            <ItemsControl.ItemTemplate>
+                                                                <DataTemplate DataType="vm:CompanionRuleTargetRow">
+                                                                    <StackPanel Spacing="3" Margin="0,0,0,8">
+                                                                        <Grid ColumnDefinitions="*,Auto">
+                                                                            <TextBlock Grid.Column="0" Classes="rule-subject" VerticalAlignment="Center"
+                                                                                       Text="{Binding DeviceLabel}" />
+                                                                            <Button Grid.Column="1" Classes="rule-delete" Content="✕"
+                                                                                    IsVisible="{Binding IsStale}"
+                                                                                    ToolTip.Tip="{loc:Tr Settings_RuleCompanionRemove}"
+                                                                                    Command="{Binding RemoveCommand}" />
+                                                                        </Grid>
+                                                                        <TextBlock Classes="hint" FontSize="12" TextWrapping="Wrap"
+                                                                                   IsVisible="{Binding IsStale}"
+                                                                                   Text="{loc:Tr Settings_RuleCompanionNotInGroup}" />
+                                                                        <TextBlock Classes="hint" FontSize="12" TextWrapping="Wrap"
+                                                                                   IsVisible="{Binding ShowMissingWorkspace}"
+                                                                                   Text="{loc:Tr Settings_RuleCompanionNoWorkspace}" />
+                                                                        <Grid ColumnDefinitions="*,*,*" RowDefinitions="Auto,Auto" ColumnSpacing="12" RowSpacing="3"
+                                                                              IsVisible="{Binding CanPick}">
+                                                                            <TextBlock Grid.Row="0" Grid.Column="0" Classes="label" Text="{loc:Tr Settings_TouchPages}" />
+                                                                            <ComboBox Grid.Row="1" Grid.Column="0" HorizontalAlignment="Stretch"
+                                                                                      ItemsSource="{Binding TouchPages}"
+                                                                                      SelectedItem="{Binding SelectedTouchPage, Mode=TwoWay}">
+                                                                                <ComboBox.ItemTemplate>
+                                                                                    <DataTemplate DataType="vm:RulePageOption">
+                                                                                        <TextBlock Text="{Binding Label}" />
+                                                                                    </DataTemplate>
+                                                                                </ComboBox.ItemTemplate>
+                                                                            </ComboBox>
+
+                                                                            <TextBlock Grid.Row="0" Grid.Column="1" Classes="label" Text="{loc:Tr Settings_RotaryPages}"
+                                                                                       IsVisible="{Binding ShowRotary}" />
+                                                                            <ComboBox Grid.Row="1" Grid.Column="1" HorizontalAlignment="Stretch"
+                                                                                      IsVisible="{Binding ShowRotary}"
+                                                                                      ItemsSource="{Binding RotaryPages}"
+                                                                                      SelectedItem="{Binding SelectedRotaryPage, Mode=TwoWay}">
+                                                                                <ComboBox.ItemTemplate>
+                                                                                    <DataTemplate DataType="vm:RulePageOption">
+                                                                                        <TextBlock Text="{Binding Label}" />
+                                                                                    </DataTemplate>
+                                                                                </ComboBox.ItemTemplate>
+                                                                            </ComboBox>
+
+                                                                            <TextBlock Grid.Row="0" Grid.Column="1" Classes="label" Text="{loc:Tr Settings_LeftRotaryPages}"
+                                                                                       IsVisible="{Binding ShowSideRotary}" />
+                                                                            <ComboBox Grid.Row="1" Grid.Column="1" HorizontalAlignment="Stretch"
+                                                                                      IsVisible="{Binding ShowSideRotary}"
+                                                                                      ItemsSource="{Binding LeftRotaryPages}"
+                                                                                      SelectedItem="{Binding SelectedLeftRotaryPage, Mode=TwoWay}">
+                                                                                <ComboBox.ItemTemplate>
+                                                                                    <DataTemplate DataType="vm:RulePageOption">
+                                                                                        <TextBlock Text="{Binding Label}" />
+                                                                                    </DataTemplate>
+                                                                                </ComboBox.ItemTemplate>
+                                                                            </ComboBox>
+
+                                                                            <TextBlock Grid.Row="0" Grid.Column="2" Classes="label" Text="{loc:Tr Settings_RightRotaryPages}"
+                                                                                       IsVisible="{Binding ShowSideRotary}" />
+                                                                            <ComboBox Grid.Row="1" Grid.Column="2" HorizontalAlignment="Stretch"
+                                                                                      IsVisible="{Binding ShowSideRotary}"
+                                                                                      ItemsSource="{Binding RightRotaryPages}"
+                                                                                      SelectedItem="{Binding SelectedRightRotaryPage, Mode=TwoWay}">
+                                                                                <ComboBox.ItemTemplate>
+                                                                                    <DataTemplate DataType="vm:RulePageOption">
+                                                                                        <TextBlock Text="{Binding Label}" />
+                                                                                    </DataTemplate>
+                                                                                </ComboBox.ItemTemplate>
+                                                                            </ComboBox>
+                                                                        </Grid>
+                                                                    </StackPanel>
+                                                                </DataTemplate>
+                                                            </ItemsControl.ItemTemplate>
+                                                        </ItemsControl>
                                                     </StackPanel>
 
                                                     <!-- Additional options -->

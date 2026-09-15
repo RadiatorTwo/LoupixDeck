@@ -1,8 +1,12 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using LoupixDeck.Localization;
 using LoupixDeck.Models;
 using LoupixDeck.Models.Portable;
+using LoupixDeck.Registry;
+using LoupixDeck.Services;
+using LoupixDeck.Services.Companion;
 using LoupixDeck.Services.Portable;
 using LoupixDeck.Utils;
 using LoupixDeck.ViewModels.Base;
@@ -22,14 +26,19 @@ public sealed partial class ProfileImportViewModel : DialogViewModelBase<DialogR
 {
     private readonly IProfilePackageService _packageService;
     private readonly LoupedeckConfig _config;
+    private readonly ICompanionCoordinator _companions;
+    private readonly ResolvedDevice _device;
 
     private string _packagePath;
     private ProfilePackageAnalysis _analysis;
 
-    public ProfileImportViewModel(IProfilePackageService packageService, LoupedeckConfig config)
+    public ProfileImportViewModel(IProfilePackageService packageService, LoupedeckConfig config,
+        ICompanionCoordinator companions, ResolvedDevice device)
     {
         _packageService = packageService;
         _config = config;
+        _companions = companions;
+        _device = device;
 
         // Assigned here rather than inline so the generated setters run (see the collection-init
         // gotcha documented on LoupedeckConfig / Workspace).
@@ -39,6 +48,27 @@ public sealed partial class ProfileImportViewModel : DialogViewModelBase<DialogR
         Warnings = new();
         ImportTargets = new();
         ReplaceTargets = new();
+        CompanionParts = new();
+    }
+
+    /// <summary>
+    /// Asks for a package file, shows the import preview for it and returns the import result, or
+    /// null when the user cancelled either step. Shared by every place that offers an import.
+    /// </summary>
+    public static async Task<ProfilePackageResult> ShowAsync(IDialogService dialogService)
+    {
+        string source = await FileDialogHelper.OpenProfilePackageDialog(WindowHelper.GetActiveWindow());
+        if (string.IsNullOrEmpty(source))
+            return null;
+
+        ProfileImportViewModel importViewModel = null;
+        DialogResult dialogResult = await dialogService.ShowDialogAsync<ProfileImportViewModel, DialogResult>(vm =>
+        {
+            importViewModel = vm;
+            vm.Configure(source);
+        });
+
+        return dialogResult?.IsConfirmed == true ? importViewModel?.Result : null;
     }
 
     /// <summary>Package to inspect. Set by the caller before the dialog is shown.</summary>
@@ -115,6 +145,8 @@ public sealed partial class ProfileImportViewModel : DialogViewModelBase<DialogR
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsReplace))]
     [NotifyPropertyChangedFor(nameof(CanImport))]
+    [NotifyPropertyChangedFor(nameof(CompanionReplaceWarning))]
+    [NotifyPropertyChangedFor(nameof(HasCompanionReplaceWarning))]
     public partial bool ReplaceExisting { get; set; }
 
     public bool IsReplace => ReplaceExisting;
@@ -137,7 +169,56 @@ public sealed partial class ProfileImportViewModel : DialogViewModelBase<DialogR
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CanImport))]
+    [NotifyPropertyChangedFor(nameof(CompanionReplaceWarning))]
+    [NotifyPropertyChangedFor(nameof(HasCompanionReplaceWarning))]
     public partial ImportTargetRow SelectedReplaceTarget { get; set; }
+
+    /// <summary>
+    /// On a master, replacing a profile gives its workspaces new ids. The companions' mirrors move to
+    /// the incoming workspaces matched to the old ones (<see cref="ReplacedWorkspaceMatcher"/>); a
+    /// mirror of an old workspace without a counterpart is dropped with the companion's own pages
+    /// inside. Names the companions that would lose pages; null when none would (or the package does
+    /// not replace a profile).
+    /// </summary>
+    public string CompanionReplaceWarning
+    {
+        get
+        {
+            if (!IsReplace || _analysis?.Manifest?.Kind != PackageKind.Profile ||
+                SelectedReplaceTarget?.ProfileId is not { } profileId)
+                return null;
+
+            Profile replaced = _config.Profiles?.FirstOrDefault(p => p.Id == profileId);
+            if (replaced == null)
+                return null;
+
+            Dictionary<Guid, int> matched = ReplacedWorkspaceMatcher.Match([.. replaced.Workspaces ?? []],
+                [.. _analysis.Payload?.Profile?.Workspaces ?? []]);
+            List<Guid> unmatched = (replaced.Workspaces ?? []).Select(w => w.Id).Where(id => !matched.ContainsKey(id)).ToList();
+
+            // A companion that receives its pages from the package gets them back with it.
+            List<string> receiving = [.. CompanionParts.Select(row => row.SelectedTarget?.Key).Where(key => key != null)];
+
+            IReadOnlyList<CompanionLossEntry> losses = CompanionImpact.ForWorkspaces(_companions, _device.ScopeKey, unmatched, receiving);
+            return losses.Count == 0
+                ? null
+                : Loc.Tr("ProfileImport_ReplaceLosesCompanionPages") + Environment.NewLine + CompanionImpact.Describe(losses);
+        }
+    }
+
+    public bool HasCompanionReplaceWarning => CompanionReplaceWarning != null;
+
+    // ───────── Companion pages ─────────
+
+    /// <summary>The companions whose own pages the package carries, each with the companion of this
+    /// master that receives them. Empty unless this device is a master and the package has parts.</summary>
+    public ObservableCollection<CompanionPartRow> CompanionParts { get; }
+
+    public bool HasCompanionParts => CompanionParts.Count > 0;
+
+    /// <summary>True when the package carries companion pages this device cannot take (it leads no group).</summary>
+    [ObservableProperty]
+    public partial bool CompanionPartsIgnored { get; set; }
 
     /// <summary>Label of the container list, e.g. "Import into profile".</summary>
     [ObservableProperty]
@@ -230,6 +311,7 @@ public sealed partial class ProfileImportViewModel : DialogViewModelBase<DialogR
             Warnings.Add(warning);
 
         BuildTargets(manifest.Kind);
+        BuildCompanionParts(manifest.Kind);
 
         OnPropertyChanged(nameof(HasPlugins));
         OnPropertyChanged(nameof(HasMacros));
@@ -237,7 +319,65 @@ public sealed partial class ProfileImportViewModel : DialogViewModelBase<DialogR
         OnPropertyChanged(nameof(HasWarnings));
         OnPropertyChanged(nameof(HasDisabledPlugins));
         OnPropertyChanged(nameof(HasImportTargets));
+        OnPropertyChanged(nameof(HasCompanionParts));
+        OnPropertyChanged(nameof(CompanionReplaceWarning));
+        OnPropertyChanged(nameof(HasCompanionReplaceWarning));
         OnPropertyChanged(nameof(CanImport));
+    }
+
+    /// <summary>
+    /// One row per companion part of a profile or workspace package. Each offers this master's
+    /// companions; the same companion (same key, i.e. the same machine) is preselected, else the only
+    /// companion of the same model not taken yet, else nothing is imported for the part.
+    /// </summary>
+    private void BuildCompanionParts(PackageKind kind)
+    {
+        List<CompanionPackagePart> parts = [.. (_analysis.Payload?.Companions ?? []).Where(p => p?.DeviceKey != null)];
+        if (parts.Count == 0 || kind is not (PackageKind.Profile or PackageKind.Workspace))
+            return;
+
+        if (!_companions.IsMaster(_device.ScopeKey))
+        {
+            CompanionPartsIgnored = true;
+            return;
+        }
+
+        IReadOnlyList<string> companionKeys = _companions.GetCompanionKeys(_device.ScopeKey);
+        CompanionTargetOption skip = new(null, Loc.Tr("ProfileImport_DoNotImport"));
+        List<CompanionTargetOption> options =
+        [
+            skip,
+            .. companionKeys.Select(key => new CompanionTargetOption(key, _companions.GetDisplayName(key)))
+        ];
+
+        HashSet<string> taken = new(StringComparer.OrdinalIgnoreCase);
+        foreach (CompanionPackagePart part in parts)
+        {
+            CompanionTargetOption preselected =
+                options.FirstOrDefault(o => o.Key != null && string.Equals(o.Key, part.DeviceKey, StringComparison.OrdinalIgnoreCase));
+
+            if (preselected == null && !string.IsNullOrEmpty(part.DeviceSlug))
+            {
+                List<CompanionTargetOption> sameModel = options
+                    .Where(o => o.Key != null && !taken.Contains(o.Key) &&
+                                string.Equals(CompanionDeviceTraits.FindDevice(_companions, o.Key)?.Slug, part.DeviceSlug,
+                                    StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+                if (sameModel.Count == 1)
+                    preselected = sameModel[0];
+            }
+
+            if (preselected?.Key != null)
+                taken.Add(preselected.Key);
+
+            CompanionPartRow row = new(part.DeviceKey, part.DeviceName ?? part.DeviceKey, options, preselected ?? skip);
+            row.PropertyChanged += (_, _) =>
+            {
+                OnPropertyChanged(nameof(CompanionReplaceWarning));
+                OnPropertyChanged(nameof(HasCompanionReplaceWarning));
+            };
+            CompanionParts.Add(row);
+        }
     }
 
     /// <summary>
@@ -416,7 +556,11 @@ public sealed partial class ProfileImportViewModel : DialogViewModelBase<DialogR
             MacroResolutions = resolutions,
             MacroRenames = renames,
             PluginIdsToEnable = Plugins.Where(p => p.IsDisabled && p.EnableOnImport).Select(p => p.Id).ToList(),
-            BackupReplacedItem = BackupReplacedItem
+            BackupReplacedItem = BackupReplacedItem,
+            CompanionTargets = CompanionParts
+                .Where(row => row.SelectedTarget?.Key != null)
+                .GroupBy(row => row.PackageKey, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(group => group.Key, group => group.First().SelectedTarget.Key, StringComparer.OrdinalIgnoreCase)
         };
     }
 }

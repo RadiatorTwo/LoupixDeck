@@ -124,6 +124,10 @@ public partial class MainWindow : Window
         // reopening every time, which was the worst of the start-up flicker.
         if (panel == null || ReferenceEquals(panel, _panel)) return;
 
+        // The panel of the device switched to may have missed nothing, but a device that was not
+        // shown is the likeliest to hold a catalogue older than the latest profile or macro edits.
+        panel.RequestCatalogueRefresh();
+
         if (_panel != null)
             _panel.PropertyChanged -= OnActionPanelPropertyChanged;
 

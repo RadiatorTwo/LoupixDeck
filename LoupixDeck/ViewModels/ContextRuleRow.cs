@@ -1,16 +1,22 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using LoupixDeck.Models;
+using LoupixDeck.Models.Companion;
+using LoupixDeck.Services.Companion;
 
 namespace LoupixDeck.ViewModels;
 
 /// <summary>
 /// Editor row wrapper for a single <see cref="ContextRule"/> (issue #132). Maps the rule's
 /// nullable profile/workspace ids to <see cref="Profile"/>/<see cref="Workspace"/> ComboBox
-/// selections and keeps the workspace option list in sync with the chosen profile.
+/// selections and keeps the workspace option list in sync with the chosen profile. On a master it
+/// also lists the device's companions with the pages the rule opens on them.
 /// </summary>
 public partial class ContextRuleRow : ObservableObject
 {
+    private readonly ICompanionCoordinator _companions;
+    private readonly string _deviceKey;
+
     public ContextRule Rule { get; }
 
     /// <summary>All profiles (shared instance) — the target-profile ComboBox's ItemsSource.</summary>
@@ -19,11 +25,20 @@ public partial class ContextRuleRow : ObservableObject
     /// <summary>Workspaces of the selected profile — the target-workspace ComboBox's ItemsSource.</summary>
     public ObservableCollection<Workspace> Workspaces { get; } = new();
 
-    public ContextRuleRow(ContextRule rule, ObservableCollection<Profile> profiles)
+    /// <summary>One row per companion of this master, plus stale targets of devices that left the group.</summary>
+    public ObservableCollection<CompanionRuleTargetRow> CompanionTargets { get; } = new();
+
+    /// <param name="companions">Null where no companion targets are edited.</param>
+    /// <param name="deviceKey">Scope key of the device the rule belongs to.</param>
+    public ContextRuleRow(ContextRule rule, ObservableCollection<Profile> profiles,
+        ICompanionCoordinator companions = null, string deviceKey = null)
     {
         Rule = rule;
         Profiles = profiles;
+        _companions = companions;
+        _deviceKey = deviceKey;
         RebuildWorkspaces();
+        RefreshCompanionTargets();
     }
 
     /// <summary>Target profile (null = leave the active profile unchanged).</summary>
@@ -36,6 +51,7 @@ public partial class ContextRuleRow : ObservableObject
             OnPropertyChanged();
             RebuildWorkspaces();
             OnPropertyChanged(nameof(SelectedWorkspace));
+            RefreshCompanionTargets(prune: true);
         }
     }
 
@@ -47,6 +63,7 @@ public partial class ContextRuleRow : ObservableObject
         {
             Rule.ActivateWorkspaceId = value?.Id;
             OnPropertyChanged();
+            RefreshCompanionTargets(prune: true);
         }
     }
 
@@ -62,6 +79,74 @@ public partial class ContextRuleRow : ObservableObject
             OnPropertyChanged();
         }
     }
+
+    /// <summary>True when the companion section is shown: the device is a master, or the rule still
+    /// holds targets from when it was one.</summary>
+    public bool ShowCompanionTargets => CompanionTargets.Count > 0;
+
+    /// <summary>True when companions are listed but the rule names neither profile nor workspace, so
+    /// there is no workspace to pick their pages from.</summary>
+    public bool CompanionTargetsNeedWorkspace => ShowCompanionTargets && TargetWorkspaceId() == null;
+
+    /// <summary>
+    /// Rebuilds the companion rows from the current group, connection state and rule target. With
+    /// <paramref name="prune"/> (the rule's workspace just changed) page ids that do not exist in the
+    /// new workspace are dropped, as a workspace outside the chosen profile is.
+    /// </summary>
+    public void RefreshCompanionTargets(bool prune = false)
+    {
+        CompanionTargets.Clear();
+
+        if (_companions != null && !string.IsNullOrEmpty(_deviceKey))
+        {
+            Guid? workspaceId = TargetWorkspaceId();
+            IReadOnlyList<string> companionKeys = _companions.IsMaster(_deviceKey)
+                ? _companions.GetCompanionKeys(_deviceKey)
+                : [];
+
+            foreach (string companionKey in companionKeys)
+            {
+                LoupedeckConfig config = _companions.GetDeviceConfig(companionKey);
+                Workspace workspace = workspaceId is { } id ? CompanionDeviceTraits.FindWorkspace(config, id) : null;
+                CompanionRuleTargetRow row = new(Rule, companionKey, _companions.GetDisplayName(companionKey),
+                    _companions.IsOnline(companionKey), isInGroup: true, workspace,
+                    CompanionDeviceTraits.HasSideStrips(config), RemoveCompanionTarget)
+                {
+                    RuleHasWorkspace = workspaceId != null
+                };
+
+                // Only prune against a workspace that could be read, or when there is none to pick from.
+                if (prune && (workspaceId == null || row.HasWorkspace))
+                    row.PruneToWorkspace();
+
+                CompanionTargets.Add(row);
+            }
+
+            foreach (CompanionPageTarget target in Rule.CompanionPageTargets?.ToList() ?? [])
+            {
+                if (companionKeys.Any(key => string.Equals(key, target.DeviceKey, StringComparison.OrdinalIgnoreCase)))
+                    continue;
+
+                CompanionTargets.Add(new CompanionRuleTargetRow(Rule, target.DeviceKey,
+                    _companions.GetDisplayName(target.DeviceKey), isOnline: false, isInGroup: false,
+                    workspace: null, hasSideStrips: false, RemoveCompanionTarget));
+            }
+        }
+
+        OnPropertyChanged(nameof(ShowCompanionTargets));
+        OnPropertyChanged(nameof(CompanionTargetsNeedWorkspace));
+    }
+
+    private void RemoveCompanionTarget(CompanionRuleTargetRow row)
+    {
+        row.RemoveTarget();
+        RefreshCompanionTargets();
+    }
+
+    /// <summary>The workspace the rule opens: its workspace, else its profile's home workspace.</summary>
+    private Guid? TargetWorkspaceId() =>
+        Rule.ActivateWorkspaceId ??
+        Profiles.FirstOrDefault(p => p.Id == Rule.ActivateProfileId)?.HomeWorkspace?.Id;
 
     private void RebuildWorkspaces()
     {

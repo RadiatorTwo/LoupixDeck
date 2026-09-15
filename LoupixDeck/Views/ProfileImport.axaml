@@ -264,8 +264,46 @@
                         </ComboBox>
                         <CheckBox Content="{loc:Tr ProfileImport_BackTheReplacedItemUp}"
                                   IsChecked="{Binding BackupReplacedItem}" FontSize="12" />
+                        <!-- On a master: replacing a profile drops its companions' pages in it. -->
+                        <TextBlock IsVisible="{Binding HasCompanionReplaceWarning}"
+                                   Text="{Binding CompanionReplaceWarning}"
+                                   Foreground="{DynamicResource CompanionHintForeground}"
+                                   TextWrapping="Wrap" FontSize="12" />
                     </StackPanel>
                 </StackPanel>
+
+                <!-- Companion pages: which companion of this master receives each part. -->
+                <StackPanel Spacing="6" IsVisible="{Binding HasCompanionParts}">
+                    <TextBlock Text="{loc:Tr ProfileImport_CompanionPages}" Classes="sectionHeader" />
+                    <TextBlock Text="{loc:Tr ProfileImport_CompanionPagesHint}" Classes="hint" />
+                    <ItemsControl ItemsSource="{Binding CompanionParts}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate DataType="vm:CompanionPartRow">
+                                <Border Classes="card" Margin="0,0,0,6">
+                                    <Grid ColumnDefinitions="*,220" ColumnSpacing="12">
+                                        <TextBlock Grid.Column="0" Text="{Binding DeviceName}" FontSize="13"
+                                                   VerticalAlignment="Center" TextWrapping="Wrap"
+                                                   Foreground="{DynamicResource AppTextPrimary}" />
+                                        <ComboBox Grid.Column="1"
+                                                  ItemsSource="{Binding Options}"
+                                                  SelectedItem="{Binding SelectedTarget}"
+                                                  HorizontalAlignment="Stretch" FontSize="12">
+                                            <ComboBox.ItemTemplate>
+                                                <DataTemplate DataType="vm:CompanionTargetOption">
+                                                    <TextBlock Text="{Binding Label}" />
+                                                </DataTemplate>
+                                            </ComboBox.ItemTemplate>
+                                        </ComboBox>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+
+                <Border Classes="banner" IsVisible="{Binding CompanionPartsIgnored}">
+                    <TextBlock Text="{loc:Tr ProfileImport_CompanionPagesIgnored}" Classes="hint" />
+                </Border>
 
                 <!-- Notes -->
                 <StackPanel Spacing="6" IsVisible="{Binding HasWarnings}">

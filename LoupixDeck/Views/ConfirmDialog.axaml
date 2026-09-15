@@ -92,6 +92,7 @@
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">
                 <Button Classes="dialogBtn cancel"
                         Content="{Binding CancelText}"
+                        IsVisible="{Binding ShowCancel}"
                         Command="{Binding CancelCommand}" />
                 <Button Classes="dialogBtn confirm"
                         Content="{Binding ConfirmText}"

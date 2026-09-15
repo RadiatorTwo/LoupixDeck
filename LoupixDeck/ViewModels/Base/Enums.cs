@@ -12,5 +12,6 @@ public enum SettingsView
     Theme,
     About,
     AppSwitching,
-    PluginStore
+    PluginStore,
+    Companions
 }

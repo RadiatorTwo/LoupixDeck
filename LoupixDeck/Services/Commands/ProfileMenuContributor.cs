@@ -1,5 +1,7 @@
 using LoupixDeck.Models;
 using LoupixDeck.PluginSdk;
+using LoupixDeck.Registry;
+using LoupixDeck.Services.Companion;
 // Both the app and the plugin SDK define IMenuContributor — this contributor implements the app-side one.
 using IMenuContributor = LoupixDeck.Services.Commands.IMenuContributor;
 
@@ -12,14 +14,19 @@ namespace LoupixDeck.Services.Commands;
 /// the (hidden) <c>System.ActivateProfile</c> / <c>System.GotoWorkspace</c> commands. Merges into
 /// the same "Profiles" group as the static Next/Previous/Home workspace commands.
 /// </summary>
-public class ProfileMenuContributor(LoupedeckConfig config, IGroupCatalog groupCatalog) : IMenuContributor
+public class ProfileMenuContributor(
+    LoupedeckConfig config,
+    IGroupCatalog groupCatalog,
+    ICompanionCoordinator companions,
+    ResolvedDevice device) : IMenuContributor
 {
     public const string GroupName = "Profiles";
 
     public Task<IReadOnlyList<MenuEntry>> Contribute(ButtonTargets target)
     {
         var profiles = config.Profiles;
-        if (profiles == null || profiles.Count == 0)
+        // On a companion the master owns profile and workspace switching, unless the group is paused.
+        if (profiles == null || profiles.Count == 0 || companions.IsFollowingMaster(device.ScopeKey))
             return Task.FromResult<IReadOnlyList<MenuEntry>>([]);
 
         var info = groupCatalog.Resolve(GroupName);

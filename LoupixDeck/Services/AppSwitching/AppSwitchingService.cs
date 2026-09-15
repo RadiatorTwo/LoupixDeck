@@ -2,9 +2,13 @@ using System.Diagnostics;
 using Avalonia.Threading;
 using LoupixDeck.Controllers;
 using LoupixDeck.Models;
+using LoupixDeck.Models.Companion;
+using LoupixDeck.Registry;
 using LoupixDeck.Services.ActiveWindow;
+using LoupixDeck.Services.Companion;
 using LoupixDeck.Services.FolderNavigation;
 using LoupixDeck.Services.Plugins;
+using LoupixDeck.Utils;
 
 namespace LoupixDeck.Services.AppSwitching;
 
@@ -53,6 +57,10 @@ public sealed class AppSwitchingService : IAppSwitchingService
     // Process-start detection: the set of rule-relevant process names seen running at the last poll.
     private HashSet<string> _runningProcesses = new(StringComparer.OrdinalIgnoreCase);
 
+    private readonly ICompanionCoordinator _companions;
+    private readonly ICompanionNavigation _companionNavigation;
+    private readonly string _deviceKey;
+
     public AppSwitchingService(
         IActiveWindowMonitor monitor,
         LoupedeckConfig config,
@@ -60,7 +68,10 @@ public sealed class AppSwitchingService : IAppSwitchingService
         IExclusiveModeService exclusiveMode,
         IFolderNavigationService folderNav,
         IDeviceController deviceController,
-        IWorkspaceActivationService activation)
+        IWorkspaceActivationService activation,
+        ICompanionCoordinator companions,
+        ICompanionNavigation companionNavigation,
+        ResolvedDevice device)
     {
         _monitor = monitor;
         _config = config;
@@ -69,6 +80,9 @@ public sealed class AppSwitchingService : IAppSwitchingService
         _folderNav = folderNav;
         _deviceController = deviceController;
         _activation = activation;
+        _companions = companions;
+        _companionNavigation = companionNavigation;
+        _deviceKey = device.ScopeKey;
     }
 
     public void Start()
@@ -156,6 +170,9 @@ public sealed class AppSwitchingService : IAppSwitchingService
         {
             if (!_config.AppSwitchingEnabled) return;
 
+            // On a companion the master owns the context: local context switching is off.
+            if (_companions.IsCompanion(_deviceKey)) return;
+
             // Skip while something else owns the screen (device off / folder / exclusive mode).
             if (_exclusiveMode.IsActive || _folderNav.IsActive || _deviceController.IsDeviceOff)
                 return;
@@ -223,7 +240,7 @@ public sealed class AppSwitchingService : IAppSwitchingService
     }
 
     /// <summary>Applies a rule's actions: activate profile (opens its home), then workspace, then
-    /// optional touch/rotary page inside the resulting workspace.</summary>
+    /// optional touch/rotary page inside the resulting workspace, then the pages of its companions.</summary>
     private async Task ApplyRule(ContextRule rule)
     {
         if (rule.ActivateProfileId is { } pid && pid != _config.ActiveProfileId)
@@ -234,11 +251,33 @@ public sealed class AppSwitchingService : IAppSwitchingService
 
         // ApplyTouchPage/ApplyRotaryPage are no-ops when the index already matches, so re-focusing
         // the same app does not flicker the deck.
-        if (rule.TouchPageIndex is { } ti && ti >= 0 && ti < _pageManager.TouchButtonPages.Count)
+        // A page id wins when it resolves in the resulting workspace; otherwise the legacy index applies.
+        if (PageLookup.ResolveIndex(_pageManager.TouchButtonPages, rule.TouchPageId, rule.TouchPageIndex) is { } ti)
             await _pageManager.ApplyTouchPage(ti);
 
-        if (rule.RotaryPageIndex is { } ri && ri >= 0 && ri < _pageManager.RotaryButtonPages.Count)
+        if (PageLookup.ResolveIndex(_pageManager.RotaryButtonPages, rule.RotaryPageId, rule.RotaryPageIndex) is { } ri)
             _pageManager.ApplyRotaryPage(ri);
+
+        if (PageLookup.ResolveIndex(_pageManager.GetRotaryPages(RotarySide.Left), rule.LeftRotaryPageId, null) is { } li)
+            _pageManager.ApplyRotaryPage(RotarySide.Left, li);
+
+        if (PageLookup.ResolveIndex(_pageManager.GetRotaryPages(RotarySide.Right), rule.RightRotaryPageId, null) is { } rri)
+            _pageManager.ApplyRotaryPage(RotarySide.Right, rri);
+
+        ApplyCompanionTargets(rule);
+    }
+
+    /// <summary>
+    /// On a master, opens the rule's companion pages. A companion follows the workspace switch above
+    /// asynchronously, so each target waits until it arrived in the workspace this device now shows.
+    /// </summary>
+    private void ApplyCompanionTargets(ContextRule rule)
+    {
+        if (rule.CompanionPageTargets is not { Count: > 0 } targets || !_companions.IsMaster(_deviceKey))
+            return;
+
+        foreach (CompanionPageTarget target in targets)
+            _ = _companionNavigation.SetArrivalTarget(_deviceKey, _config.ActiveWorkspaceId, target);
     }
 
     // ── Process-start detection ──────────────────────────────────────────────
@@ -248,6 +287,7 @@ public sealed class AppSwitchingService : IAppSwitchingService
         try
         {
             if (!_config.AppSwitchingEnabled || _manualOverride) return;
+            if (_companions.IsCompanion(_deviceKey)) return;
             if (_exclusiveMode.IsActive || _folderNav.IsActive || _deviceController.IsDeviceOff) return;
 
             var nowRunning = new HashSet<string>(StringComparer.OrdinalIgnoreCase);

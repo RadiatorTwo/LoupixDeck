@@ -10,6 +10,7 @@ using LoupixDeck.Registry;
 using LoupixDeck.Models.Converter;
 using LoupixDeck.PluginSdk;
 using LoupixDeck.Services;
+using LoupixDeck.Services.Companion;
 using LoupixDeck.Services.Diagnostics;
 using LoupixDeck.Services.Plugins;
 using LoupixDeck.Services.Portable;
@@ -41,6 +42,9 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
     private readonly IScreensaverProviderRegistry _screensaverRegistry;
     private readonly IExclusiveModeService _exclusiveMode;
     private readonly IUpdateService _updateService;
+    private readonly ICompanionCoordinator _companions;
+    private readonly ICompanionContextSync _contextSync;
+    private readonly ResolvedDevice _device;
 
     /// <summary>
     /// All discovered plugins — drives the Plugins settings page. Read live from the
@@ -141,8 +145,14 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
         IExclusiveModeService exclusiveMode,
         IProfileEditingService profileEditing,
         IUpdateService updateService,
-        PluginStoreViewModel pluginStore)
+        PluginStoreViewModel pluginStore,
+        ICompanionCoordinator companions,
+        ICompanionContextSync contextSync,
+        ResolvedDevice device)
     {
+        _companions = companions;
+        _contextSync = contextSync;
+        _device = device;
         Config = config;
         PluginStore = pluginStore;
         IsVibrationSupported = config?.Geometry.HasVibration ?? true;
@@ -165,6 +175,22 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
         // same DialogResult as the buttons do.
         _ = DialogResult.Task.ContinueWith(_ => StopAlignmentPreview(),
             TaskScheduler.Default);
+
+        // The companion editor listens to the root-level coordinator; unhook it with the window.
+        _ = DialogResult.Task.ContinueWith(_ => _companionGroups?.Dispose(),
+            TaskScheduler.Default);
+
+        // A companion's profiles follow its master and are read-only here. Joining or leaving a group,
+        // or the master changing its profiles, rewrites them while the window is open.
+        _companions.GroupsChanged += OnCompanionGroupsChanged;
+        _companions.DeviceOnlineStateChanged += OnCompanionOnlineStateChanged;
+        _contextSync.LinkedStructureChanged += OnLinkedStructureChanged;
+        _ = DialogResult.Task.ContinueWith(_ =>
+        {
+            _companions.GroupsChanged -= OnCompanionGroupsChanged;
+            _companions.DeviceOnlineStateChanged -= OnCompanionOnlineStateChanged;
+            _contextSync.LinkedStructureChanged -= OnLinkedStructureChanged;
+        }, TaskScheduler.Default);
 
         // Commands are created lazily on first access by their `field ??= Relay.Create(...)`
         // getters, so there is nothing to wire up here.
@@ -195,7 +221,7 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
         // folded any legacy AppPageBindings into Config.ContextRules, so this shows both migrated
         // and user-created rules.
         foreach (var rule in Config.ContextRules)
-            ContextRuleRows.Add(new ContextRuleRow(rule, Config.Profiles));
+            ContextRuleRows.Add(new ContextRuleRow(rule, Config.Profiles, _companions, _device.ScopeKey));
 
         Config.HapticSteps.CollectionChanged += OnHapticStepsChanged;
 
@@ -440,6 +466,12 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
     // ───────── Pages ─────────
 
     public ObservableCollection<TouchButtonPage> TouchPages => _pageManager.TouchButtonPages;
+
+    /// <summary>Companion group editor (global groups, same from every device).</summary>
+    public CompanionGroupsViewModel CompanionGroups => _companionGroups ??= new CompanionGroupsViewModel(_companions);
+
+    private CompanionGroupsViewModel _companionGroups;
+
     public ObservableCollection<RotaryButtonPage> RotaryPages => _pageManager.RotaryButtonPages;
 
     /// <summary>True for devices that page their two dial columns independently (Razer):
@@ -550,18 +582,81 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
             ProfileRows.Add(new ProfileRow(profile, this));
     }
 
-    public IRelayCommand AddProfileCommand => field ??= Relay.Create(AddProfile);
+    public IRelayCommand AddProfileCommand => field ??= Relay.Create(AddProfile, () => CanEditProfiles);
     public IAsyncRelayCommand RemoveProfileCommand => field ??= Relay.Create<ProfileRow>(
-        RemoveProfile, p => p != null && Config.Profiles.Count > 1);
-    public IRelayCommand SetStartupProfileCommand => field ??= Relay.Create<ProfileRow>(SetStartupProfile, p => p != null);
+        RemoveProfile, p => p != null && CanEditProfiles && Config.Profiles.Count > 1);
+    public IRelayCommand SetStartupProfileCommand => field ??= Relay.Create<ProfileRow>(SetStartupProfile, p => p != null && CanEditProfiles);
     public IAsyncRelayCommand ActivateProfileCommand => field ??= Relay.Create<ProfileRow>(
-        p => _activation.ActivateProfile(p.Profile.Id), p => p != null);
+        p => _activation.ActivateProfile(p.Profile.Id), p => p != null && CanEditProfiles);
 
-    public IRelayCommand AddWorkspaceCommand => field ??= Relay.Create<ProfileRow>(AddWorkspace, p => p != null);
+    public IRelayCommand AddWorkspaceCommand => field ??= Relay.Create<ProfileRow>(AddWorkspace, p => p != null && CanEditProfiles);
     public IAsyncRelayCommand RemoveWorkspaceCommand => field ??= Relay.Create<WorkspaceRow>(
-        RemoveWorkspace, p => p != null && p.Parent.Profile.Workspaces.Count > 1);
-    public IRelayCommand SetHomeWorkspaceCommand => field ??= Relay.Create<WorkspaceRow>(SetHomeWorkspace, p => p != null);
-    public IAsyncRelayCommand ActivateWorkspaceCommand => field ??= Relay.Create<WorkspaceRow>(ActivateWorkspace, p => p != null);
+        RemoveWorkspace, p => p != null && CanEditProfiles && p.Parent.Profile.Workspaces.Count > 1);
+    public IRelayCommand SetHomeWorkspaceCommand => field ??= Relay.Create<WorkspaceRow>(SetHomeWorkspace, p => p != null && CanEditProfiles);
+    public IAsyncRelayCommand ActivateWorkspaceCommand => field ??= Relay.Create<WorkspaceRow>(ActivateWorkspace, p => p != null && CanEditProfiles);
+
+    // ───────── Companion (profiles follow the master) ─────────
+
+    /// <summary>True while this device is a companion: its profiles and workspaces mirror its
+    /// master's, so they cannot be added, removed, renamed or switched here. Pages stay editable.</summary>
+    public bool IsCompanion => _companions.IsCompanion(_device.ScopeKey);
+
+    public bool CanEditProfiles => !IsCompanion;
+
+    /// <summary>Explains on a companion who owns its profiles, workspaces and profile rules, and that it
+    /// stays where it is while that master is offline.</summary>
+    public string CompanionProfilesHint => CompanionStatusText.MasterName(_companions, _device.ScopeKey) is { } master
+        ? Loc.Tr(_companions.IsPaused(_device.ScopeKey)
+            ? "Settings_ProfilesFollowPausedMasterFmt"
+            : CompanionStatusText.IsMasterOffline(_companions, _device.ScopeKey)
+                ? "Settings_ProfilesFollowOfflineMasterFmt"
+                : "Settings_ProfilesFollowMasterFmt", master)
+        : string.Empty;
+
+    private void OnCompanionGroupsChanged() => Dispatcher.UIThread.Post(RefreshCompanionState);
+
+    private void OnLinkedStructureChanged(string deviceKey)
+    {
+        if (string.Equals(deviceKey, _device.ScopeKey, StringComparison.OrdinalIgnoreCase))
+            Dispatcher.UIThread.Post(RefreshCompanionState);
+        else if (_companions.IsCompanionOf(_device.ScopeKey, deviceKey))
+            Dispatcher.UIThread.Post(RefreshRuleCompanionTargets);
+    }
+
+    // A master's profile rules show its companions as connected or offline.
+    private void OnCompanionOnlineStateChanged(string deviceKey)
+    {
+        if (_companions.IsCompanionOf(_device.ScopeKey, deviceKey))
+            Dispatcher.UIThread.Post(RefreshRuleCompanionTargets);
+        else if (string.Equals(_companions.GetMasterKey(_device.ScopeKey), deviceKey, StringComparison.OrdinalIgnoreCase))
+            Dispatcher.UIThread.Post(() => OnPropertyChanged(nameof(CompanionProfilesHint)));
+    }
+
+    private void RefreshRuleCompanionTargets()
+    {
+        foreach (ContextRuleRow row in ContextRuleRows)
+            row.RefreshCompanionTargets();
+    }
+
+    private void RefreshCompanionState()
+    {
+        OnPropertyChanged(nameof(IsCompanion));
+        OnPropertyChanged(nameof(CanEditProfiles));
+        OnPropertyChanged(nameof(CompanionProfilesHint));
+
+        BuildProfileRows();
+        RefreshRuleCompanionTargets();
+
+        AddProfileCommand.NotifyCanExecuteChanged();
+        RemoveProfileCommand.NotifyCanExecuteChanged();
+        SetStartupProfileCommand.NotifyCanExecuteChanged();
+        ActivateProfileCommand.NotifyCanExecuteChanged();
+        AddWorkspaceCommand.NotifyCanExecuteChanged();
+        RemoveWorkspaceCommand.NotifyCanExecuteChanged();
+        SetHomeWorkspaceCommand.NotifyCanExecuteChanged();
+        ActivateWorkspaceCommand.NotifyCanExecuteChanged();
+        ImportPackageCommand.NotifyCanExecuteChanged();
+    }
 
     // ───────── Portable profile packages (issue #133) ─────────
 
@@ -573,58 +668,36 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
     public bool HasPackageStatus => !string.IsNullOrWhiteSpace(PackageStatusMessage);
 
     public IAsyncRelayCommand ExportProfileCommand => field ??= Relay.Create<ProfileRow>(
-        row => ExportPackage(row.Profile.Name,
-            path => _packageService.ExportProfileAsync(row.Profile, path)),
+        row => ExportPackage(ProfileExportRequest.ForProfile(row.Profile)),
         static row => row != null);
 
     public IAsyncRelayCommand ExportWorkspaceCommand => field ??= Relay.Create<WorkspaceRow>(
-        row => ExportPackage(row.Workspace.Name,
-            path => _packageService.ExportWorkspaceAsync(row.Workspace, path)),
+        row => ExportPackage(ProfileExportRequest.ForWorkspace(row.Workspace)),
         static row => row != null);
 
     public IAsyncRelayCommand ExportTouchPageCommand => field ??= Relay.Create<TouchButtonPage>(
-        page => ExportPackage(page.PageName, path => _packageService.ExportTouchPageAsync(page, path)),
+        page => ExportPackage(ProfileExportRequest.ForTouchPage(page)),
         static page => page != null);
 
     public IAsyncRelayCommand ExportRotaryPageCommand => field ??= Relay.Create<RotaryButtonPage>(
-        page => ExportPackage(page.PageName, path => _packageService.ExportRotaryPageAsync(page, path)),
+        page => ExportPackage(ProfileExportRequest.ForRotaryPage(page)),
         static page => page != null);
 
-    public IAsyncRelayCommand ImportPackageCommand => field ??= Relay.Create(ImportPackage);
+    public IAsyncRelayCommand ImportPackageCommand => field ??= Relay.Create(ImportPackage, () => CanEditProfiles);
 
-    private async Task ExportPackage(string itemName, Func<string, Task<ProfilePackageResult>> export)
-    {
-        string target = await FileDialogHelper.SaveProfilePackageDialog(
-            WindowHelper.GetActiveWindow(), FileDialogHelper.SuggestPackageFileName(itemName));
-
-        if (string.IsNullOrEmpty(target))
-            return;
-
-        ProfilePackageResult result = await export(target);
-        ReportPackageResult(result);
-    }
+    private async Task ExportPackage(ProfileExportRequest request) =>
+        ReportPackageResult(await ProfileExportViewModel.ShowAsync(_dialogService, request));
 
     private async Task ImportPackage()
     {
-        string source = await FileDialogHelper.OpenProfilePackageDialog(WindowHelper.GetActiveWindow());
-        if (string.IsNullOrEmpty(source))
+        ProfilePackageResult result = await ProfileImportViewModel.ShowAsync(_dialogService);
+        if (result == null)
             return;
 
-        ProfileImportViewModel importViewModel = null;
-
-        DialogResult dialogResult = await _dialogService.ShowDialogAsync<ProfileImportViewModel, DialogResult>(vm =>
-        {
-            importViewModel = vm;
-            vm.Configure(source);
-        });
-
-        if (dialogResult?.IsConfirmed != true || importViewModel?.Result == null)
-            return;
-
-        ReportPackageResult(importViewModel.Result);
+        ReportPackageResult(result);
 
         // The import writes straight into Config.Profiles, so the tree editor has to be rebuilt.
-        if (importViewModel.Result.Success)
+        if (result.Success)
             BuildProfileRows();
     }
 
@@ -653,6 +726,12 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
         // The row goes before the activation event is handled: that handler is posted to the UI
         // thread and walks ProfileRows, so it must not see the removed row.
         if (!_profileEditing.CanRemoveProfile(row.Profile)) return;
+
+        // Removing is immediate here; only ask when companions would lose their own pages with it.
+        if (!await ConfirmCompanionLosses("Confirm_DeleteProfileTitle",
+                Loc.Tr("Confirm_DeleteProfileMessage", row.Profile.Name),
+                CompanionImpact.ForProfile(_companions, _device.ScopeKey, row.Profile.Id)))
+            return;
         ProfileRows.Remove(row);
         await _profileEditing.RemoveProfile(row.Profile);
 
@@ -661,6 +740,19 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
             foreach (ProfileRow r in ProfileRows) r.RefreshFlags();
 
         RemoveProfileCommand.NotifyCanExecuteChanged();
+    }
+
+    /// <summary>True without asking when no companion loses pages; otherwise asks, naming them.</summary>
+    private async Task<bool> ConfirmCompanionLosses(string titleKey, string message, IReadOnlyList<CompanionLossEntry> losses)
+    {
+        if (losses.Count == 0) return true;
+
+        string full = message + Environment.NewLine + Environment.NewLine + Loc.Tr("Confirm_CompanionPagesLost") +
+                      Environment.NewLine + CompanionImpact.Describe(losses);
+        DialogResult result = await _dialogService.ShowDialogAsync<ConfirmDialogViewModel, DialogResult>(vm =>
+            vm.Configure(full, title: Loc.Tr(titleKey), confirmText: Loc.Tr("Confirm_Delete"),
+                cancelText: Loc.Tr("Confirm_Cancel")));
+        return result?.IsConfirmed == true;
     }
 
     private void SetStartupProfile(ProfileRow row)
@@ -682,6 +774,11 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
     {
         if (row == null) return;
         if (!_profileEditing.CanRemoveWorkspace(row.Parent.Profile, row.Workspace)) return;
+
+        if (!await ConfirmCompanionLosses("Confirm_DeleteWorkspaceTitle",
+                Loc.Tr("Confirm_DeleteWorkspaceMessage", row.Workspace.Name),
+                CompanionImpact.ForWorkspace(_companions, _device.ScopeKey, row.Workspace.Id)))
+            return;
 
         row.Parent.Workspaces.Remove(row);
         await _profileEditing.RemoveWorkspace(row.Parent.Profile, row.Workspace);
@@ -786,7 +883,7 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
     {
         var rule = new ContextRule();
         Config.ContextRules.Add(rule);
-        ContextRuleRows.Add(new ContextRuleRow(rule, Config.Profiles));
+        ContextRuleRows.Add(new ContextRuleRow(rule, Config.Profiles, _companions, _device.ScopeKey));
     }
 
     private void RemoveContextRule(ContextRuleRow row)

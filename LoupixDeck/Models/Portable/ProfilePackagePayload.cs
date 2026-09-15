@@ -31,4 +31,12 @@ public sealed class ProfilePackagePayload
     /// <summary>Populated when <see cref="ProfilePackageManifest.Kind"/> is <see cref="PackageKind.RotaryPage"/>.</summary>
     [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
     public RotaryButtonPage RotaryPage { get; set; }
+
+    /// <summary>
+    /// The own content of the exporting master's companions for a Profile or Workspace package; null
+    /// (and absent from the file) otherwise. Additive: older builds ignore it and import only the
+    /// master's part.
+    /// </summary>
+    [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+    public List<CompanionPackagePart> Companions { get; set; }
 }

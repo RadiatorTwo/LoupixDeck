@@ -220,6 +220,8 @@ public partial class App : Application
                         await vm.LoupedeckController.Initialize(null, 0);
                     }
 
+                    root.GetRequiredService<Services.Companion.ICompanionCoordinator>().DeviceInitialized(host);
+
                     ShowWhenConnected(shell, host, vm);
 
                     host.Provider.GetRequiredService<IDynamicTextManager>().Start();
@@ -294,11 +296,9 @@ public partial class App : Application
             // Every connect raises the event, not just the first — a reconnect must not add
             // the device a second time.
             if (shell.Devices.Contains(vm)) return;
+            // Add() selects the first device to appear and nothing else: a device that connects
+            // later, the primary included, joins the switcher without taking the view over.
             shell.Add(vm);
-            // Add() selects the first device by itself; the primary takes the selection back
-            // when it arrives after a secondary.
-            if (host.IsPrimary)
-                shell.SelectedDevice = vm;
         }
     }
 
@@ -360,6 +360,7 @@ public partial class App : Application
         }
 
         await controller.Initialize(null, 0);
+        _root.GetRequiredService<Services.Companion.ICompanionCoordinator>().DeviceInitialized(host);
         // A device can appear on the bus with its port still held by another process, so the
         // tab waits for the link exactly as it does at startup.
         ShowWhenConnected(_shell, host, vm);

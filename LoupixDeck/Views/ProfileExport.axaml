@@ -1,0 +1,169 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:loc="using:LoupixDeck.Localization"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="using:LoupixDeck.ViewModels"
+        mc:Ignorable="d"
+        Width="600" SizeToContent="Height"
+        MinWidth="480"
+        x:Class="LoupixDeck.Views.ProfileExport"
+        x:DataType="vm:ProfileExportViewModel"
+        WindowStartupLocation="CenterOwner"
+        Title="{loc:Tr ProfileExport_Title}"
+        ShowInTaskbar="False">
+
+    <Window.Styles>
+        <Style Selector="TextBlock.sectionHeader">
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{DynamicResource AppTextPrimary}" />
+            <Setter Property="Margin" Value="0,0,0,2" />
+        </Style>
+
+        <Style Selector="TextBlock.hint">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="LineHeight" Value="17" />
+            <Setter Property="Foreground" Value="{DynamicResource AppTextSecondary}" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+        </Style>
+
+        <Style Selector="Border.banner">
+            <Setter Property="Background" Value="#26E8A33D" />
+            <Setter Property="BorderBrush" Value="#66E8A33D" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="Padding" Value="12" />
+        </Style>
+
+        <Style Selector="Border.pill">
+            <Setter Property="CornerRadius" Value="9" />
+            <Setter Property="Padding" Value="8,2" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+
+        <Style Selector="Button.dialogBtn">
+            <Setter Property="MinWidth" Value="100" />
+            <Setter Property="Height" Value="34" />
+            <Setter Property="Padding" Value="14,0" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Border Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="{TemplateBinding CornerRadius}">
+                        <ContentPresenter Content="{TemplateBinding Content}"
+                                          Padding="{TemplateBinding Padding}"
+                                          HorizontalAlignment="Center"
+                                          VerticalAlignment="Center" />
+                    </Border>
+                </ControlTemplate>
+            </Setter>
+        </Style>
+
+        <Style Selector="Button.dialogBtn.cancel">
+            <Setter Property="Background" Value="{DynamicResource AppControlBackground}" />
+            <Setter Property="Foreground" Value="{DynamicResource AppTextPrimary}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AppBorderSubtle}" />
+        </Style>
+        <Style Selector="Button.dialogBtn.cancel:pointerover">
+            <Setter Property="Background" Value="{DynamicResource AppControlBackgroundHover}" />
+        </Style>
+
+        <Style Selector="Button.dialogBtn.confirm">
+            <Setter Property="Background" Value="{StaticResource PageActiveBrush}" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="BorderBrush" Value="{StaticResource PageActiveBorderBrush}" />
+        </Style>
+        <Style Selector="Button.dialogBtn.confirm:pointerover">
+            <Setter Property="Background" Value="{StaticResource PageActiveBorderBrush}" />
+        </Style>
+        <Style Selector="Button.dialogBtn:disabled">
+            <Setter Property="Opacity" Value="0.5" />
+        </Style>
+    </Window.Styles>
+
+    <Grid RowDefinitions="*,Auto">
+
+        <StackPanel Grid.Row="0" Margin="24,20,24,20" Spacing="16" IsVisible="{Binding IsCompleted}">
+            <TextBlock Text="{loc:Tr ProfileExport_ExportedWithNotes}" Classes="sectionHeader" />
+            <Border Classes="banner">
+                <SelectableTextBlock Text="{Binding CompletedNotes}" FontSize="12" TextWrapping="Wrap"
+                                     Foreground="{DynamicResource AppTextSecondary}" />
+            </Border>
+        </StackPanel>
+
+        <StackPanel Grid.Row="0" Margin="24,20,24,20" Spacing="16" IsVisible="{Binding IsEditable}">
+
+            <!-- What is exported -->
+            <StackPanel Orientation="Horizontal" Spacing="8">
+                <Border Classes="pill" Background="{DynamicResource AppControlBackground}">
+                    <TextBlock Text="{Binding KindText}" FontSize="11"
+                               Foreground="{DynamicResource AppTextSecondary}" />
+                </Border>
+                <TextBlock Text="{Binding ItemName}" FontSize="15" VerticalAlignment="Center"
+                           Foreground="{DynamicResource AppTextPrimary}"
+                           TextTrimming="CharacterEllipsis" />
+            </StackPanel>
+
+            <!-- Description -->
+            <StackPanel Spacing="6">
+                <TextBlock Text="{loc:Tr ProfileExport_Description}" Classes="sectionHeader" />
+                <TextBox Text="{Binding Description}"
+                         PlaceholderText="{loc:Tr ProfileExport_DescriptionPlaceholder}"
+                         AcceptsReturn="True" TextWrapping="Wrap"
+                         MinHeight="60" MaxHeight="120" />
+            </StackPanel>
+
+            <!-- Output file -->
+            <StackPanel Spacing="6">
+                <TextBlock Text="{loc:Tr ProfileExport_OutputFile}" Classes="sectionHeader" />
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                    <TextBox Grid.Column="0" Text="{Binding OutputPath}" />
+                    <Button Grid.Column="1" Content="{loc:Tr ProfileExport_Browse}"
+                            Command="{Binding BrowseCommand}" VerticalAlignment="Stretch" />
+                </Grid>
+                <CheckBox IsVisible="{Binding FileExists}"
+                          IsChecked="{Binding OverwriteExisting}"
+                          Content="{loc:Tr ProfileExport_OverwriteExisting}"
+                          FontSize="12" />
+            </StackPanel>
+
+            <!-- Options -->
+            <StackPanel Spacing="6" IsVisible="{Binding HasCompanionContent}">
+                <TextBlock Text="{loc:Tr ProfileExport_Options}" Classes="sectionHeader" />
+                <CheckBox IsChecked="{Binding IncludeCompanionPages}"
+                          Content="{loc:Tr ProfileExport_IncludeCompanionPages}" />
+                <TextBlock Text="{Binding CompanionContent}" Classes="hint" Margin="28,0,0,0" />
+            </StackPanel>
+
+            <Border Classes="banner" IsVisible="{Binding HasErrorMessage}">
+                <TextBlock Text="{Binding ErrorMessage}" Classes="hint" />
+            </Border>
+        </StackPanel>
+
+        <Border Grid.Row="1"
+                Background="{DynamicResource AppSurfaceLow}"
+                BorderBrush="{DynamicResource AppBorderSubtle}"
+                BorderThickness="0,1,0,0"
+                Padding="16,12">
+            <Panel HorizontalAlignment="Right">
+                <StackPanel Orientation="Horizontal" Spacing="10" IsVisible="{Binding IsEditable}">
+                    <Button Classes="dialogBtn cancel" Content="{loc:Tr ProfileExport_Cancel}"
+                            Command="{Binding CancelCommand}" />
+                    <Button Classes="dialogBtn confirm" Content="{loc:Tr ProfileExport_Export}"
+                            IsDefault="True"
+                            Command="{Binding ExportCommand}" />
+                </StackPanel>
+                <Button Classes="dialogBtn confirm" Content="{loc:Tr ProfileExport_Close}"
+                        IsVisible="{Binding IsCompleted}"
+                        Command="{Binding CloseCommand}" />
+            </Panel>
+        </Border>
+    </Grid>
+</Window>
