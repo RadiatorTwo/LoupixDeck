@@ -1229,7 +1229,7 @@
                                                                 <DataTemplate DataType="vm:CompanionRuleTargetRow">
                                                                     <StackPanel Spacing="3" Margin="0,0,0,8">
                                                                         <Grid ColumnDefinitions="*,Auto">
-                                                                            <TextBlock Grid.Column="0" Classes="label" VerticalAlignment="Center"
+                                                                            <TextBlock Grid.Column="0" Classes="rule-subject" VerticalAlignment="Center"
                                                                                        Text="{Binding DeviceLabel}" />
                                                                             <Button Grid.Column="1" Classes="rule-delete" Content="✕"
                                                                                     IsVisible="{Binding IsStale}"
