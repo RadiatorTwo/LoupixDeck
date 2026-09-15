@@ -66,9 +66,11 @@ public sealed class ButtonStateService(LoupedeckConfig config) : IButtonStateSer
         if (string.IsNullOrWhiteSpace(commandName))
             yield break;
 
-        if (config.TouchButtonPages != null)
+        if (config.ActiveWorkspace != null)
         {
-            foreach (var page in config.TouchButtonPages)
+            // Pages and custom folder layouts alike: a folder button bound to a plugin state has
+            // to show the right state when the folder is opened.
+            foreach (var page in config.ActiveWorkspace.EnumerateTouchLayouts())
             {
                 if (page?.TouchButtons == null) continue;
                 foreach (var button in page.TouchButtons)

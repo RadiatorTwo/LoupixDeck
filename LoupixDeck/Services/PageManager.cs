@@ -65,6 +65,13 @@ public interface IPageManager
     /// <summary>Fired when a rotary page changes: (side, previousIndex, newIndex).</summary>
     event Action<RotarySide, int, int> OnRotaryPageChanged;
     event Action<int, int> OnTouchPageChanged;
+
+    /// <summary>
+    /// Fired whenever the touch layout shown changes, whatever the reason. Listeners that only care
+    /// about which buttons are on screen subscribe here instead of <see cref="OnTouchPageChanged"/>,
+    /// whose indices describe pages only.
+    /// </summary>
+    event Action TouchLayoutChanged;
 }
 
 public class PageManager : IPageManager
@@ -258,6 +265,7 @@ public class PageManager : IPageManager
         CurrentTouchButtonPage.Selected = true;
 
         OnTouchPageChanged?.Invoke(PreviousTouchPageIndex, CurrentTouchPageIndex);
+        TouchLayoutChanged?.Invoke();
 
         // The animated path (draw:false) commits page state only; it renders the incoming
         // page and paints the slide/final frame itself, so skip the slot-by-slot redraw and
@@ -431,4 +439,6 @@ public class PageManager : IPageManager
     public event Action<RotarySide, int, int> OnRotaryPageChanged;
 
     public event Action<int, int> OnTouchPageChanged;
+
+    public event Action TouchLayoutChanged;
 }

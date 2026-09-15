@@ -556,7 +556,7 @@ public partial class LoupedeckLiveSController(
         }
 
         // Unsubscribe app-level events so nothing tries to repaint the gone device.
-        pageManager.OnTouchPageChanged -= OnTouchPageChanged;
+        pageManager.TouchLayoutChanged -= OnTouchLayoutChanged;
         pageManager.OnRotaryPageChanged -= OnRotaryPageChanged;
         folderNav.StateChanged -= OnFolderStateChanged;
         exclusiveMode.StateChanged -= OnExclusiveStateChanged;
@@ -582,7 +582,7 @@ public partial class LoupedeckLiveSController(
     {
         foreach (Profile profile in config.Profiles ?? [])
         foreach (Workspace workspace in profile?.Workspaces ?? [])
-        foreach (TouchButtonPage page in workspace?.TouchButtonPages ?? [])
+        foreach (TouchButtonPage page in workspace?.EnumerateTouchLayouts() ?? [])
         foreach (TouchButton button in page?.TouchButtons ?? [])
             if (button != null)
                 button.RenderedImage = null;
@@ -855,7 +855,7 @@ public partial class LoupedeckLiveSController(
         // (The legacy root-level → page-0 wallpaper migration now lives in
         //  WallpaperAssetMigrator, which also moves wallpapers into the asset folder.)
 
-        pageManager.OnTouchPageChanged += OnTouchPageChanged;
+        pageManager.TouchLayoutChanged += OnTouchLayoutChanged;
         folderNav.StateChanged += OnFolderStateChanged;
         exclusiveMode.StateChanged += OnExclusiveStateChanged;
 
@@ -886,7 +886,7 @@ public partial class LoupedeckLiveSController(
             await TryDeviceIo("applying the startup touch page",
                 () => pageManager.ApplyTouchPage(config.CurrentTouchPageIndex, true));
 
-            // ApplyTouchPage early-returns here (the index was pre-set), so OnTouchPageChanged
+            // ApplyTouchPage early-returns here (the index was pre-set), so TouchLayoutChanged
             // does not fire — wire the current page's ItemChanged explicitly (tracked so a later
             // page/workspace switch detaches it cleanly).
             AttachTouchItemChanged(config.CurrentTouchButtonPage);
@@ -2412,11 +2412,10 @@ public partial class LoupedeckLiveSController(
         await device.DrawTouchSlot(grid.RightStripSlot, blank);
     }
 
-    private void OnTouchPageChanged(int oldIndex, int newIndex)
+    private void OnTouchLayoutChanged()
     {
-        var newPage = (newIndex >= 0 && newIndex < config.TouchButtonPages.Count)
-            ? config.TouchButtonPages[newIndex]
-            : null;
+        // The layout on screen, which is a folder layout while a custom folder is open.
+        var newPage = config.CurrentTouchButtonPage;
 
         // Move the per-button ItemChanged wiring onto the newly active page (detaches the
         // previously wired page, which may belong to a different workspace after a switch).

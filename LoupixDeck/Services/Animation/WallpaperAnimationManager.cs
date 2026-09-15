@@ -80,7 +80,7 @@ public sealed class WallpaperAnimationManager : IWallpaperAnimationManager, IDis
             _started = true;
         }
 
-        _pageManager.OnTouchPageChanged += OnTouchPageChanged;
+        _pageManager.TouchLayoutChanged += OnTouchLayoutChanged;
         _screensaver.Started += OnScreensaverStarted;
         _screensaver.Stopped += OnScreensaverStopped;
         _exclusiveMode.StateChanged += OnTakeoverStateChanged;
@@ -136,7 +136,7 @@ public sealed class WallpaperAnimationManager : IWallpaperAnimationManager, IDis
             device.GetWallpaperKeyRect(button.Index));
     }
 
-    private void OnTouchPageChanged(int previous, int current) => Rebuild();
+    private void OnTouchLayoutChanged() => Rebuild();
 
     private void OnScreensaverStarted()
     {
@@ -285,7 +285,7 @@ public sealed class WallpaperAnimationManager : IWallpaperAnimationManager, IDis
             _disposed = true;
         }
 
-        _pageManager.OnTouchPageChanged -= OnTouchPageChanged;
+        _pageManager.TouchLayoutChanged -= OnTouchLayoutChanged;
         _screensaver.Started -= OnScreensaverStarted;
         _screensaver.Stopped -= OnScreensaverStopped;
         _exclusiveMode.StateChanged -= OnTakeoverStateChanged;

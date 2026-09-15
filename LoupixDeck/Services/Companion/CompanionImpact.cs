@@ -77,9 +77,9 @@ public static class CompanionImpact
         return losses;
     }
 
-    /// <summary>Touch, rotary and side-strip pages of the workspace that hold at least one non-empty button.</summary>
+    /// <summary>Touch layouts (pages and folders), rotary and side-strip pages of the workspace that hold at least one non-empty button.</summary>
     public static int CountPagesWithContent(Workspace workspace) =>
-        Count(workspace.TouchButtonPages, page => page.TouchButtons) +
+        Count(workspace.EnumerateTouchLayouts(), page => page.TouchButtons) +
         Count(workspace.RotaryButtonPages, page => page.RotaryButtons) +
         Count(workspace.LeftRotaryButtonPages, page => page.RotaryButtons) +
         Count(workspace.RightRotaryButtonPages, page => page.RotaryButtons);

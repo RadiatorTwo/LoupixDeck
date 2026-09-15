@@ -566,9 +566,9 @@ public static class ServiceCollectionExtensions
         // wires its own CollectionChanged hook, but layers created by the JSON
         // converter bypass AttachLayerHandlers.
         var config = services.GetRequiredService<LoupedeckConfig>();
-        if (config.TouchButtonPages != null)
+        if (config.ActiveWorkspace != null)
         {
-            foreach (var page in config.TouchButtonPages)
+            foreach (var page in config.ActiveWorkspace.EnumerateTouchLayouts())
             {
                 if (page?.TouchButtons == null) continue;
                 foreach (var button in page.TouchButtons)

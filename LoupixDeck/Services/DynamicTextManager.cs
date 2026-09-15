@@ -74,11 +74,11 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
 
     public void Start()
     {
-        _pageManager.OnTouchPageChanged += OnTouchPageChanged;
+        _pageManager.TouchLayoutChanged += OnTouchLayoutChanged;
         Rescan();
     }
 
-    private void OnTouchPageChanged(int previous, int current) => Rescan();
+    private void OnTouchLayoutChanged() => Rescan();
 
     public void Rescan()
     {
@@ -507,7 +507,7 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
 
     public void Dispose()
     {
-        _pageManager.OnTouchPageChanged -= OnTouchPageChanged;
+        _pageManager.TouchLayoutChanged -= OnTouchLayoutChanged;
         StopLoop();
     }
 
