@@ -1,4 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
+using LoupixDeck.Models.Companion;
+using Newtonsoft.Json;
 
 namespace LoupixDeck.Models;
 
@@ -55,6 +57,15 @@ public sealed partial class ContextRule
     /// <summary>Right dial-column rotary page to jump to on a side-strip device, by stable id.</summary>
     [ObservableProperty]
     public partial Guid? RightRotaryPageId { get; set; }
+
+    /// <summary>
+    /// Pages to open on this device's companions when the rule applies, inside the workspace they
+    /// share with it. Only used while this device is a master; kept unchanged otherwise. Null (and
+    /// not written) when the rule has none, so rules saved before it load and save unchanged.
+    /// </summary>
+    [ObservableProperty]
+    [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+    public partial List<CompanionPageTarget> CompanionPageTargets { get; set; }
 
     // ── Selection ───────────────────────────────────────────────────────────
     /// <summary>When several rules match the same window, the highest priority wins; ties are

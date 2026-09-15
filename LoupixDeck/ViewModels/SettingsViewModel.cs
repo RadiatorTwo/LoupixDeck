@@ -183,10 +183,12 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
         // A companion's profiles follow its master and are read-only here. Joining or leaving a group,
         // or the master changing its profiles, rewrites them while the window is open.
         _companions.GroupsChanged += OnCompanionGroupsChanged;
+        _companions.DeviceOnlineStateChanged += OnCompanionOnlineStateChanged;
         _contextSync.LinkedStructureChanged += OnLinkedStructureChanged;
         _ = DialogResult.Task.ContinueWith(_ =>
         {
             _companions.GroupsChanged -= OnCompanionGroupsChanged;
+            _companions.DeviceOnlineStateChanged -= OnCompanionOnlineStateChanged;
             _contextSync.LinkedStructureChanged -= OnLinkedStructureChanged;
         }, TaskScheduler.Default);
 
@@ -219,7 +221,7 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
         // folded any legacy AppPageBindings into Config.ContextRules, so this shows both migrated
         // and user-created rules.
         foreach (var rule in Config.ContextRules)
-            ContextRuleRows.Add(new ContextRuleRow(rule, Config.Profiles));
+            ContextRuleRows.Add(new ContextRuleRow(rule, Config.Profiles, _companions, _device.ScopeKey));
 
         Config.HapticSteps.CollectionChanged += OnHapticStepsChanged;
 
@@ -612,6 +614,21 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
     {
         if (string.Equals(deviceKey, _device.ScopeKey, StringComparison.OrdinalIgnoreCase))
             Dispatcher.UIThread.Post(RefreshCompanionState);
+        else if (_companions.IsCompanionOf(_device.ScopeKey, deviceKey))
+            Dispatcher.UIThread.Post(RefreshRuleCompanionTargets);
+    }
+
+    // A master's profile rules show its companions as connected or offline.
+    private void OnCompanionOnlineStateChanged(string deviceKey)
+    {
+        if (_companions.IsCompanionOf(_device.ScopeKey, deviceKey))
+            Dispatcher.UIThread.Post(RefreshRuleCompanionTargets);
+    }
+
+    private void RefreshRuleCompanionTargets()
+    {
+        foreach (ContextRuleRow row in ContextRuleRows)
+            row.RefreshCompanionTargets();
     }
 
     private void RefreshCompanionState()
@@ -621,6 +638,7 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
         OnPropertyChanged(nameof(CompanionProfilesHint));
 
         BuildProfileRows();
+        RefreshRuleCompanionTargets();
 
         AddProfileCommand.NotifyCanExecuteChanged();
         RemoveProfileCommand.NotifyCanExecuteChanged();
@@ -856,7 +874,7 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
     {
         var rule = new ContextRule();
         Config.ContextRules.Add(rule);
-        ContextRuleRows.Add(new ContextRuleRow(rule, Config.Profiles));
+        ContextRuleRows.Add(new ContextRuleRow(rule, Config.Profiles, _companions, _device.ScopeKey));
     }
 
     private void RemoveContextRule(ContextRuleRow row)

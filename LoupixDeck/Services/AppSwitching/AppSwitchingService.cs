@@ -2,6 +2,7 @@ using System.Diagnostics;
 using Avalonia.Threading;
 using LoupixDeck.Controllers;
 using LoupixDeck.Models;
+using LoupixDeck.Models.Companion;
 using LoupixDeck.Registry;
 using LoupixDeck.Services.ActiveWindow;
 using LoupixDeck.Services.Companion;
@@ -57,6 +58,7 @@ public sealed class AppSwitchingService : IAppSwitchingService
     private HashSet<string> _runningProcesses = new(StringComparer.OrdinalIgnoreCase);
 
     private readonly ICompanionCoordinator _companions;
+    private readonly ICompanionNavigation _companionNavigation;
     private readonly string _deviceKey;
 
     public AppSwitchingService(
@@ -68,6 +70,7 @@ public sealed class AppSwitchingService : IAppSwitchingService
         IDeviceController deviceController,
         IWorkspaceActivationService activation,
         ICompanionCoordinator companions,
+        ICompanionNavigation companionNavigation,
         ResolvedDevice device)
     {
         _monitor = monitor;
@@ -78,6 +81,7 @@ public sealed class AppSwitchingService : IAppSwitchingService
         _deviceController = deviceController;
         _activation = activation;
         _companions = companions;
+        _companionNavigation = companionNavigation;
         _deviceKey = device.ScopeKey;
     }
 
@@ -236,7 +240,7 @@ public sealed class AppSwitchingService : IAppSwitchingService
     }
 
     /// <summary>Applies a rule's actions: activate profile (opens its home), then workspace, then
-    /// optional touch/rotary page inside the resulting workspace.</summary>
+    /// optional touch/rotary page inside the resulting workspace, then the pages of its companions.</summary>
     private async Task ApplyRule(ContextRule rule)
     {
         if (rule.ActivateProfileId is { } pid && pid != _config.ActiveProfileId)
@@ -259,6 +263,21 @@ public sealed class AppSwitchingService : IAppSwitchingService
 
         if (PageLookup.ResolveIndex(_pageManager.GetRotaryPages(RotarySide.Right), rule.RightRotaryPageId, null) is { } rri)
             _pageManager.ApplyRotaryPage(RotarySide.Right, rri);
+
+        ApplyCompanionTargets(rule);
+    }
+
+    /// <summary>
+    /// On a master, opens the rule's companion pages. A companion follows the workspace switch above
+    /// asynchronously, so each target waits until it arrived in the workspace this device now shows.
+    /// </summary>
+    private void ApplyCompanionTargets(ContextRule rule)
+    {
+        if (rule.CompanionPageTargets is not { Count: > 0 } targets || !_companions.IsMaster(_deviceKey))
+            return;
+
+        foreach (CompanionPageTarget target in targets)
+            _ = _companionNavigation.SetArrivalTarget(_deviceKey, _config.ActiveWorkspaceId, target);
     }
 
     // ── Process-start detection ──────────────────────────────────────────────

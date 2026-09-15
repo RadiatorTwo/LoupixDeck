@@ -1218,6 +1218,88 @@
                                                         </Grid>
                                                     </StackPanel>
 
+                                                    <!-- Companion pages (master only) -->
+                                                    <StackPanel Spacing="5" IsVisible="{Binding ShowCompanionTargets}">
+                                                        <TextBlock Classes="group-label" Text="{loc:Tr Settings_RuleCompanionPages}" />
+                                                        <TextBlock Classes="hint" FontSize="12" TextWrapping="Wrap"
+                                                                   IsVisible="{Binding CompanionTargetsNeedWorkspace}"
+                                                                   Text="{loc:Tr Settings_RuleCompanionPagesNeedWorkspace}" />
+                                                        <ItemsControl ItemsSource="{Binding CompanionTargets}">
+                                                            <ItemsControl.ItemTemplate>
+                                                                <DataTemplate DataType="vm:CompanionRuleTargetRow">
+                                                                    <StackPanel Spacing="3" Margin="0,0,0,8">
+                                                                        <Grid ColumnDefinitions="*,Auto">
+                                                                            <TextBlock Grid.Column="0" Classes="label" VerticalAlignment="Center"
+                                                                                       Text="{Binding DeviceLabel}" />
+                                                                            <Button Grid.Column="1" Classes="rule-delete" Content="✕"
+                                                                                    IsVisible="{Binding IsStale}"
+                                                                                    ToolTip.Tip="{loc:Tr Settings_RuleCompanionRemove}"
+                                                                                    Command="{Binding RemoveCommand}" />
+                                                                        </Grid>
+                                                                        <TextBlock Classes="hint" FontSize="12" TextWrapping="Wrap"
+                                                                                   IsVisible="{Binding IsStale}"
+                                                                                   Text="{loc:Tr Settings_RuleCompanionNotInGroup}" />
+                                                                        <TextBlock Classes="hint" FontSize="12" TextWrapping="Wrap"
+                                                                                   IsVisible="{Binding ShowMissingWorkspace}"
+                                                                                   Text="{loc:Tr Settings_RuleCompanionNoWorkspace}" />
+                                                                        <Grid ColumnDefinitions="*,*,*" RowDefinitions="Auto,Auto" ColumnSpacing="12" RowSpacing="3"
+                                                                              IsVisible="{Binding CanPick}">
+                                                                            <TextBlock Grid.Row="0" Grid.Column="0" Classes="label" Text="{loc:Tr Settings_TouchPages}" />
+                                                                            <ComboBox Grid.Row="1" Grid.Column="0" HorizontalAlignment="Stretch"
+                                                                                      ItemsSource="{Binding TouchPages}"
+                                                                                      SelectedItem="{Binding SelectedTouchPage, Mode=TwoWay}">
+                                                                                <ComboBox.ItemTemplate>
+                                                                                    <DataTemplate DataType="vm:RulePageOption">
+                                                                                        <TextBlock Text="{Binding Label}" />
+                                                                                    </DataTemplate>
+                                                                                </ComboBox.ItemTemplate>
+                                                                            </ComboBox>
+
+                                                                            <TextBlock Grid.Row="0" Grid.Column="1" Classes="label" Text="{loc:Tr Settings_RotaryPages}"
+                                                                                       IsVisible="{Binding ShowRotary}" />
+                                                                            <ComboBox Grid.Row="1" Grid.Column="1" HorizontalAlignment="Stretch"
+                                                                                      IsVisible="{Binding ShowRotary}"
+                                                                                      ItemsSource="{Binding RotaryPages}"
+                                                                                      SelectedItem="{Binding SelectedRotaryPage, Mode=TwoWay}">
+                                                                                <ComboBox.ItemTemplate>
+                                                                                    <DataTemplate DataType="vm:RulePageOption">
+                                                                                        <TextBlock Text="{Binding Label}" />
+                                                                                    </DataTemplate>
+                                                                                </ComboBox.ItemTemplate>
+                                                                            </ComboBox>
+
+                                                                            <TextBlock Grid.Row="0" Grid.Column="1" Classes="label" Text="{loc:Tr Settings_LeftRotaryPages}"
+                                                                                       IsVisible="{Binding ShowSideRotary}" />
+                                                                            <ComboBox Grid.Row="1" Grid.Column="1" HorizontalAlignment="Stretch"
+                                                                                      IsVisible="{Binding ShowSideRotary}"
+                                                                                      ItemsSource="{Binding LeftRotaryPages}"
+                                                                                      SelectedItem="{Binding SelectedLeftRotaryPage, Mode=TwoWay}">
+                                                                                <ComboBox.ItemTemplate>
+                                                                                    <DataTemplate DataType="vm:RulePageOption">
+                                                                                        <TextBlock Text="{Binding Label}" />
+                                                                                    </DataTemplate>
+                                                                                </ComboBox.ItemTemplate>
+                                                                            </ComboBox>
+
+                                                                            <TextBlock Grid.Row="0" Grid.Column="2" Classes="label" Text="{loc:Tr Settings_RightRotaryPages}"
+                                                                                       IsVisible="{Binding ShowSideRotary}" />
+                                                                            <ComboBox Grid.Row="1" Grid.Column="2" HorizontalAlignment="Stretch"
+                                                                                      IsVisible="{Binding ShowSideRotary}"
+                                                                                      ItemsSource="{Binding RightRotaryPages}"
+                                                                                      SelectedItem="{Binding SelectedRightRotaryPage, Mode=TwoWay}">
+                                                                                <ComboBox.ItemTemplate>
+                                                                                    <DataTemplate DataType="vm:RulePageOption">
+                                                                                        <TextBlock Text="{Binding Label}" />
+                                                                                    </DataTemplate>
+                                                                                </ComboBox.ItemTemplate>
+                                                                            </ComboBox>
+                                                                        </Grid>
+                                                                    </StackPanel>
+                                                                </DataTemplate>
+                                                            </ItemsControl.ItemTemplate>
+                                                        </ItemsControl>
+                                                    </StackPanel>
+
                                                     <!-- Additional options -->
                                                     <StackPanel Spacing="5">
                                                         <TextBlock Classes="group-label" Text="{loc:Tr Settings_AdditionalOptions}" />
