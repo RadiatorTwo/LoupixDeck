@@ -264,6 +264,11 @@
                         </ComboBox>
                         <CheckBox Content="{loc:Tr ProfileImport_BackTheReplacedItemUp}"
                                   IsChecked="{Binding BackupReplacedItem}" FontSize="12" />
+                        <!-- On a master: replacing a profile drops its companions' pages in it. -->
+                        <TextBlock IsVisible="{Binding HasCompanionReplaceWarning}"
+                                   Text="{Binding CompanionReplaceWarning}"
+                                   Foreground="{DynamicResource CompanionHintForeground}"
+                                   TextWrapping="Wrap" FontSize="12" />
                     </StackPanel>
                 </StackPanel>
 

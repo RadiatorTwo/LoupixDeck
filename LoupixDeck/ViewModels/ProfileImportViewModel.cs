@@ -1,8 +1,11 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using LoupixDeck.Localization;
 using LoupixDeck.Models;
 using LoupixDeck.Models.Portable;
+using LoupixDeck.Registry;
+using LoupixDeck.Services.Companion;
 using LoupixDeck.Services.Portable;
 using LoupixDeck.Utils;
 using LoupixDeck.ViewModels.Base;
@@ -22,14 +25,19 @@ public sealed partial class ProfileImportViewModel : DialogViewModelBase<DialogR
 {
     private readonly IProfilePackageService _packageService;
     private readonly LoupedeckConfig _config;
+    private readonly ICompanionCoordinator _companions;
+    private readonly ResolvedDevice _device;
 
     private string _packagePath;
     private ProfilePackageAnalysis _analysis;
 
-    public ProfileImportViewModel(IProfilePackageService packageService, LoupedeckConfig config)
+    public ProfileImportViewModel(IProfilePackageService packageService, LoupedeckConfig config,
+        ICompanionCoordinator companions, ResolvedDevice device)
     {
         _packageService = packageService;
         _config = config;
+        _companions = companions;
+        _device = device;
 
         // Assigned here rather than inline so the generated setters run (see the collection-init
         // gotcha documented on LoupedeckConfig / Workspace).
@@ -115,6 +123,8 @@ public sealed partial class ProfileImportViewModel : DialogViewModelBase<DialogR
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsReplace))]
     [NotifyPropertyChangedFor(nameof(CanImport))]
+    [NotifyPropertyChangedFor(nameof(CompanionReplaceWarning))]
+    [NotifyPropertyChangedFor(nameof(HasCompanionReplaceWarning))]
     public partial bool ReplaceExisting { get; set; }
 
     public bool IsReplace => ReplaceExisting;
@@ -137,7 +147,31 @@ public sealed partial class ProfileImportViewModel : DialogViewModelBase<DialogR
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CanImport))]
+    [NotifyPropertyChangedFor(nameof(CompanionReplaceWarning))]
+    [NotifyPropertyChangedFor(nameof(HasCompanionReplaceWarning))]
     public partial ImportTargetRow SelectedReplaceTarget { get; set; }
+
+    /// <summary>
+    /// On a master, replacing a profile gives its workspaces new ids, so every companion's mirror of
+    /// them is dropped with the companion's own pages inside. Names the companions that would lose
+    /// pages; null when none would (or the package does not replace a profile).
+    /// </summary>
+    public string CompanionReplaceWarning
+    {
+        get
+        {
+            if (!IsReplace || _analysis?.Manifest?.Kind != PackageKind.Profile ||
+                SelectedReplaceTarget?.ProfileId is not { } profileId)
+                return null;
+
+            IReadOnlyList<CompanionLossEntry> losses = CompanionImpact.ForProfile(_companions, _device.ScopeKey, profileId);
+            return losses.Count == 0
+                ? null
+                : Loc.Tr("ProfileImport_ReplaceLosesCompanionPages") + Environment.NewLine + CompanionImpact.Describe(losses);
+        }
+    }
+
+    public bool HasCompanionReplaceWarning => CompanionReplaceWarning != null;
 
     /// <summary>Label of the container list, e.g. "Import into profile".</summary>
     [ObservableProperty]

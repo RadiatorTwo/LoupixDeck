@@ -746,6 +746,12 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
         // The row goes before the activation event is handled: that handler is posted to the UI
         // thread and walks ProfileRows, so it must not see the removed row.
         if (!_profileEditing.CanRemoveProfile(row.Profile)) return;
+
+        // Removing is immediate here; only ask when companions would lose their own pages with it.
+        if (!await ConfirmCompanionLosses("Confirm_DeleteProfileTitle",
+                Loc.Tr("Confirm_DeleteProfileMessage", row.Profile.Name),
+                CompanionImpact.ForProfile(_companions, _device.ScopeKey, row.Profile.Id)))
+            return;
         ProfileRows.Remove(row);
         await _profileEditing.RemoveProfile(row.Profile);
 
@@ -754,6 +760,19 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
             foreach (ProfileRow r in ProfileRows) r.RefreshFlags();
 
         RemoveProfileCommand.NotifyCanExecuteChanged();
+    }
+
+    /// <summary>True without asking when no companion loses pages; otherwise asks, naming them.</summary>
+    private async Task<bool> ConfirmCompanionLosses(string titleKey, string message, IReadOnlyList<CompanionLossEntry> losses)
+    {
+        if (losses.Count == 0) return true;
+
+        string full = message + Environment.NewLine + Environment.NewLine + Loc.Tr("Confirm_CompanionPagesLost") +
+                      Environment.NewLine + CompanionImpact.Describe(losses);
+        DialogResult result = await _dialogService.ShowDialogAsync<ConfirmDialogViewModel, DialogResult>(vm =>
+            vm.Configure(full, title: Loc.Tr(titleKey), confirmText: Loc.Tr("Confirm_Delete"),
+                cancelText: Loc.Tr("Confirm_Cancel")));
+        return result?.IsConfirmed == true;
     }
 
     private void SetStartupProfile(ProfileRow row)
@@ -775,6 +794,11 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
     {
         if (row == null) return;
         if (!_profileEditing.CanRemoveWorkspace(row.Parent.Profile, row.Workspace)) return;
+
+        if (!await ConfirmCompanionLosses("Confirm_DeleteWorkspaceTitle",
+                Loc.Tr("Confirm_DeleteWorkspaceMessage", row.Workspace.Name),
+                CompanionImpact.ForWorkspace(_companions, _device.ScopeKey, row.Workspace.Id)))
+            return;
 
         row.Parent.Workspaces.Remove(row);
         await _profileEditing.RemoveWorkspace(row.Parent.Profile, row.Workspace);

@@ -151,8 +151,9 @@ public sealed class ProfileHeaderMenuViewModel : ViewModelBase
         Profile profile = _activation.ActiveProfile;
         if (!_editing.CanRemoveProfile(profile)) return;
 
-        if (!await Ask("Confirm_DeleteProfileTitle", Loc.Tr("Confirm_DeleteProfileMessage", profile.Name),
-                "Confirm_Delete"))
+        string message = WithCompanionLosses(Loc.Tr("Confirm_DeleteProfileMessage", profile.Name),
+            CompanionImpact.ForProfile(_companions, _device.ScopeKey, profile.Id));
+        if (!await Ask("Confirm_DeleteProfileTitle", message, "Confirm_Delete"))
             return;
 
         if (await _editing.RemoveProfile(profile))
@@ -193,8 +194,9 @@ public sealed class ProfileHeaderMenuViewModel : ViewModelBase
         Workspace workspace = _activation.ActiveWorkspace;
         if (!_editing.CanRemoveWorkspace(profile, workspace)) return;
 
-        if (!await Ask("Confirm_DeleteWorkspaceTitle", Loc.Tr("Confirm_DeleteWorkspaceMessage", workspace.Name),
-                "Confirm_Delete"))
+        string message = WithCompanionLosses(Loc.Tr("Confirm_DeleteWorkspaceMessage", workspace.Name),
+            CompanionImpact.ForWorkspace(_companions, _device.ScopeKey, workspace.Id));
+        if (!await Ask("Confirm_DeleteWorkspaceTitle", message, "Confirm_Delete"))
             return;
 
         if (await _editing.RemoveWorkspace(profile, workspace))
@@ -310,6 +312,13 @@ public sealed class ProfileHeaderMenuViewModel : ViewModelBase
     }
 
     /// <summary>Shows the confirm dialog. True only when the confirm button was used.</summary>
+    /// <summary>Appends which companions lose their own pages, when any do.</summary>
+    private static string WithCompanionLosses(string message, IReadOnlyList<CompanionLossEntry> losses) =>
+        losses.Count == 0
+            ? message
+            : message + Environment.NewLine + Environment.NewLine + Loc.Tr("Confirm_CompanionPagesLost") +
+              Environment.NewLine + CompanionImpact.Describe(losses);
+
     private async Task<bool> Ask(string titleKey, string message, string confirmKey, string cancelKey = "Confirm_Cancel")
     {
         DialogResult result = await _dialogService.ShowDialogAsync<ConfirmDialogViewModel, DialogResult>(vm =>
