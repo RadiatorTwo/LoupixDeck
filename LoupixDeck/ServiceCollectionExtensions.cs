@@ -298,6 +298,7 @@ public static class ServiceCollectionExtensions
         collection.AddSingleton<IPageManager, PageManager>();
         collection.AddSingleton<IWorkspaceActivationService, WorkspaceActivationService>();
         collection.AddSingleton<IProfileEditingService, ProfileEditingService>();
+        collection.AddSingleton<Services.Folders.ICustomFolderService, Services.Folders.CustomFolderService>();
         collection.AddSingleton<Services.Companion.ICommandLockService, Services.Companion.CommandLockService>();
 
         // Command catalog — device-scoped so command activation
