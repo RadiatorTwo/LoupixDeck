@@ -1,5 +1,7 @@
 using System.Collections.ObjectModel;
 using LoupixDeck.Models;
+using LoupixDeck.Models.Extensions;
+using LoupixDeck.Services.Folders;
 
 namespace LoupixDeck.Services;
 
@@ -72,17 +74,58 @@ public interface IPageManager
     /// whose indices describe pages only.
     /// </summary>
     event Action TouchLayoutChanged;
+
+    // --- Custom folders (issue #249) -----------------------------------------
+
+    /// <summary>
+    /// Opens a folder of the active workspace. <see cref="FolderOpenMode.Tree"/> opens it at its
+    /// place in the folder tree (panel, breadcrumbs); <see cref="FolderOpenMode.Push"/> opens it on
+    /// top of the current path (a folder button), cutting the path back when the folder is already
+    /// part of it so the path never holds a cycle.
+    /// </summary>
+    Task OpenFolder(Guid folderId, FolderOpenMode mode);
+
+    /// <summary>Closes the innermost open folder.</summary>
+    Task FolderBack();
+
+    /// <summary>Cuts the open-folder path to <paramref name="depth"/> folders; 0 shows the page.</summary>
+    Task NavigateFolderDepth(int depth);
+
+    /// <summary>Closes every open folder and shows the page they were opened from.</summary>
+    Task CloseFolders();
+
+    /// <summary>
+    /// Opens the given folder path by id (companion follow). Stops at the first id that does not
+    /// resolve to a child of the previous folder.
+    /// </summary>
+    Task SetFolderPath(IReadOnlyList<Guid> folderIds);
+
+    /// <summary>Fired with the folder ids of the new path whenever the open-folder path changes.</summary>
+    event Action<IReadOnlyList<Guid>> FolderPathChanged;
+}
+
+public enum FolderOpenMode
+{
+    Tree,
+    Push
 }
 
 public class PageManager : IPageManager
 {
     private readonly LoupedeckConfig _config;
     private readonly IDeviceService _deviceService;
+    private readonly FolderNavigation.IFolderNavigationService _pluginMenus;
 
-    public PageManager(LoupedeckConfig config, IDeviceService deviceService)
+    // Folder layouts whose layer handlers were rewired after load. Only the active workspace's
+    // layouts are rewired at start-up, so any other layout is rewired the first time it is shown.
+    private readonly System.Runtime.CompilerServices.ConditionalWeakTable<TouchButtonPage, object> _preparedLayouts = new();
+
+    public PageManager(LoupedeckConfig config, IDeviceService deviceService,
+        FolderNavigation.IFolderNavigationService pluginMenus)
     {
         _config = config;
         _deviceService = deviceService;
+        _pluginMenus = pluginMenus;
     }
 
     public int PreviousTouchPageIndex { get; set; } = -1;
@@ -252,7 +295,12 @@ public class PageManager : IPageManager
 
     public async Task ApplyTouchPage(int pageIndex, bool init = false, bool draw = true)
     {
+        // The same page again keeps any open folder: context rules re-apply their page on every
+        // focus change and must not throw the user out of a folder.
         if (CurrentTouchPageIndex == pageIndex) return;
+
+        // Leaving for another page closes the folders opened from the current one.
+        ClearFolderPath();
 
         PreviousTouchPageIndex = CurrentTouchPageIndex;
         CurrentTouchPageIndex = pageIndex;
@@ -441,4 +489,182 @@ public class PageManager : IPageManager
     public event Action<int, int> OnTouchPageChanged;
 
     public event Action TouchLayoutChanged;
+
+    public event Action<IReadOnlyList<Guid>> FolderPathChanged;
+
+    // --- Custom folders (issue #249) -----------------------------------------
+
+    public Task OpenFolder(Guid folderId, FolderOpenMode mode)
+    {
+        var workspace = _config.ActiveWorkspace;
+        if (workspace == null) return Task.CompletedTask;
+
+        List<CustomFolder> treePath = FolderTree.PathTo(workspace, folderId);
+        if (treePath == null)
+        {
+            Console.WriteLine($"OpenFolder: folder {folderId} not found in the active workspace.");
+            return Task.CompletedTask;
+        }
+
+        List<CustomFolder> path;
+        if (mode == FolderOpenMode.Tree)
+        {
+            path = treePath;
+        }
+        else
+        {
+            path = [.. workspace.FolderPath];
+            int existing = path.FindIndex(f => f.Id == folderId);
+            if (existing >= 0)
+                path.RemoveRange(existing + 1, path.Count - existing - 1);
+            else
+                path.Add(treePath[^1]);
+        }
+
+        return ApplyFolderPath(workspace, path);
+    }
+
+    public Task FolderBack()
+    {
+        var workspace = _config.ActiveWorkspace;
+        if (workspace is not { IsFolderOpen: true }) return Task.CompletedTask;
+        return ApplyFolderPath(workspace, [.. workspace.FolderPath.Take(workspace.FolderPath.Count - 1)]);
+    }
+
+    public Task NavigateFolderDepth(int depth)
+    {
+        var workspace = _config.ActiveWorkspace;
+        if (workspace == null || depth < 0 || depth >= workspace.FolderPath.Count) return Task.CompletedTask;
+        return ApplyFolderPath(workspace, [.. workspace.FolderPath.Take(depth)]);
+    }
+
+    public Task CloseFolders()
+    {
+        var workspace = _config.ActiveWorkspace;
+        if (workspace is not { IsFolderOpen: true }) return Task.CompletedTask;
+        return ApplyFolderPath(workspace, []);
+    }
+
+    public Task SetFolderPath(IReadOnlyList<Guid> folderIds)
+    {
+        var workspace = _config.ActiveWorkspace;
+        if (workspace == null) return Task.CompletedTask;
+
+        List<CustomFolder> path = [];
+        IEnumerable<CustomFolder> level = workspace.Folders ?? [];
+        foreach (Guid id in folderIds ?? [])
+        {
+            CustomFolder next = level.FirstOrDefault(f => f?.Id == id);
+            if (next == null) break;
+            path.Add(next);
+            level = next.Children ?? [];
+        }
+
+        return ApplyFolderPath(workspace, path);
+    }
+
+    /// <summary>
+    /// Closes the open folders of the active workspace without drawing, for callers that repaint
+    /// the grid themselves right after (a page switch). Raises the path event only.
+    /// </summary>
+    private void ClearFolderPath()
+    {
+        var workspace = _config.ActiveWorkspace;
+        if (workspace is not { IsFolderOpen: true }) return;
+
+        workspace.SetFolderPath([]);
+        FolderPathChanged?.Invoke([]);
+    }
+
+    private async Task ApplyFolderPath(Workspace workspace, IReadOnlyList<CustomFolder> path)
+    {
+        if (workspace.FolderPath.SequenceEqual(path)) return;
+
+        if (path.Count > 0)
+            PrepareFolderLayout(path[^1]);
+
+        // The path is committed before a plugin menu is closed: closing it repaints whatever is
+        // current, which then already is the folder, instead of racing a second repaint here.
+        workspace.SetFolderPath(path);
+        TouchLayoutChanged?.Invoke();
+        FolderPathChanged?.Invoke([.. path.Select(static f => f.Id)]);
+
+        if (_pluginMenus.IsActive)
+        {
+            await _pluginMenus.ExitAll();
+            return;
+        }
+
+        await DrawTouchButtons();
+
+        if (_config.ShowPageNameOverlayEnabled)
+        {
+            string name = workspace.OpenFolder?.Name ?? CurrentTouchButtonPage?.PageName;
+            if (!string.IsNullOrEmpty(name))
+                _ = _deviceService.ShowTemporaryTextButton(0, name, 2000);
+        }
+    }
+
+    /// <summary>
+    /// Makes a folder's layout ready to show: creates it on first open, pads it to the device's key
+    /// count, rewires its layers once and marks the Back tile. A layout made on a device with a
+    /// different grid can hold content on this device's Back key; that content moves to the first
+    /// free key so nothing is hidden behind the tile.
+    /// </summary>
+    private void PrepareFolderLayout(CustomFolder folder)
+    {
+        int keyCount = _deviceService.TouchButtonCount;
+
+        if (folder.Layout == null)
+        {
+            var source = _config.ActiveWorkspace?.CurrentPageLayout ?? TouchButtonPages?.FirstOrDefault();
+            folder.Layout = new TouchButtonPage(keyCount)
+            {
+                // A new folder starts on the wallpaper of the page it is opened from, like a new page.
+                MainWallpaper = source?.MainWallpaper?.Clone() ?? new WallpaperSlot(),
+                LeftWallpaper = source?.LeftWallpaper?.Clone() ?? new WallpaperSlot(),
+                RightWallpaper = source?.RightWallpaper?.Clone() ?? new WallpaperSlot()
+            };
+            _preparedLayouts.AddOrUpdate(folder.Layout, null);
+        }
+
+        TouchButtonPage layout = folder.Layout;
+        layout.Geometry = _config.Geometry;
+
+        for (int i = layout.TouchButtons.Count; i < keyCount; i++)
+            layout.TouchButtons.Add(new TouchButton(i));
+
+        if (!_preparedLayouts.TryGetValue(layout, out _))
+        {
+            foreach (TouchButton button in layout.TouchButtons)
+                button?.RewireLayerHandlers();
+            _preparedLayouts.AddOrUpdate(layout, null);
+        }
+
+        FolderNavigation.FolderGrid grid = _pluginMenus.Grid;
+        int backIndex = grid.BackSlotIndex;
+
+        TouchButton back = layout.TouchButtons.FindByIndex(backIndex);
+        if (back != null && !back.IsFolderBackSlot && !ButtonSnapshot.IsEmpty(back))
+        {
+            TouchButton free = layout.TouchButtons.FirstOrDefault(b =>
+                b != null && b.Index != backIndex && grid.IsGridSlot(b.Index) && ButtonSnapshot.IsEmpty(b));
+            if (free != null)
+            {
+                int backPosition = layout.TouchButtons.IndexOf(back);
+                int freePosition = layout.TouchButtons.IndexOf(free);
+                (back.Index, free.Index) = (free.Index, back.Index);
+                layout.TouchButtons[backPosition] = free;
+                layout.TouchButtons[freePosition] = back;
+                Console.WriteLine($"Folder '{folder.Name}': moved the content of key {backIndex} to key {back.Index} to make room for the Back tile.");
+            }
+            else
+            {
+                Console.WriteLine($"Folder '{folder.Name}': key {backIndex} is covered by the Back tile and no free key was left to move its content to.");
+            }
+        }
+
+        foreach (TouchButton button in layout.TouchButtons)
+            button?.IsFolderBackSlot = button.Index == backIndex;
+    }
 }

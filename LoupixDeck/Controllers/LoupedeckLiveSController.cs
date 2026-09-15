@@ -1858,6 +1858,13 @@ public partial class LoupedeckLiveSController(
             if (config.TouchFeedbackEnabled)
                 _ = ShowTouchFeedback(button);
 
+            // The automatic Back tile of a custom folder (issue #249) has no command of its own.
+            if (button.IsFolderBackSlot)
+            {
+                Avalonia.Threading.Dispatcher.UIThread.Post(() => _ = pageManager.FolderBack());
+                continue;
+            }
+
             // Track the press by touch id so a macro can wait for this finger to lift (#185).
             TriggerPress press = BeginTouchPress(touch.Id);
             using (TriggerPressScope.Enter(press))

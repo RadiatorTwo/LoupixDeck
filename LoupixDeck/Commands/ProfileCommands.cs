@@ -81,7 +81,8 @@ public class PreviousWorkspaceCommand(IWorkspaceActivationService activation) : 
 
 [Command("System.GoHomeWorkspace", "Go to Home Workspace", "Profiles",
     Description = "Return to the active profile's home workspace")]
-public class GoHomeWorkspaceCommand(IWorkspaceActivationService activation, IFolderNavigationService folderNav)
+public class GoHomeWorkspaceCommand(IWorkspaceActivationService activation, IFolderNavigationService folderNav,
+    IPageManager pageManager)
     : IExecutableCommand
 {
     public async Task Execute(string[] parameters)
@@ -103,6 +104,10 @@ public class GoHomeWorkspaceCommand(IWorkspaceActivationService activation, IFol
         // the workspace's own repaint. ActivateWorkspace early-returns when home is already
         // active, so a folder left open in that case still needs an explicit ExitAll here.
         await activation.GoToHomeWorkspace();
+
+        // Custom folders (issue #249) belong to the workspace; "return to base" closes them as well.
+        // First, so a plugin menu open on top of one is closed onto the page, not onto the folder.
+        await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(pageManager.CloseFolders);
 
         if (folderNav.IsActive)
             await folderNav.ExitAll();
