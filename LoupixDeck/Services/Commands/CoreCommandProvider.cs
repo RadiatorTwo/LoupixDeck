@@ -106,6 +106,9 @@ public class CoreCommandProvider : ICommandProvider
             // User-defined macros (System.Macro) are generic input automation —
             // assignable to every button type.
             "User Macros" => ButtonTargets.All,
+            // Companion paging and group control (issue #232) — assignable to every button type.
+            // The commands stay hidden; CompanionMenuContributor offers them on a master only.
+            "Companions" => ButtonTargets.All,
             "Dynamic Text" => ButtonTargets.TouchButton,
             // "Button Control" and anything unmapped is not menu-assignable.
             _ => ButtonTargets.None
