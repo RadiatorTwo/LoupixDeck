@@ -25,8 +25,8 @@ public class ProfileMenuContributor(
     public Task<IReadOnlyList<MenuEntry>> Contribute(ButtonTargets target)
     {
         var profiles = config.Profiles;
-        // On a companion the master owns profile and workspace switching.
-        if (profiles == null || profiles.Count == 0 || companions.IsCompanion(device.ScopeKey))
+        // On a companion the master owns profile and workspace switching, unless the group is paused.
+        if (profiles == null || profiles.Count == 0 || companions.IsFollowingMaster(device.ScopeKey))
             return Task.FromResult<IReadOnlyList<MenuEntry>>([]);
 
         var info = groupCatalog.Resolve(GroupName);

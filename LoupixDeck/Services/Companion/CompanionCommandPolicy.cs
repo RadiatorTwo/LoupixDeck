@@ -6,7 +6,8 @@ namespace LoupixDeck.Services.Companion;
 /// assignments stay in the config and work again once the role allows them.
 /// <list type="bullet">
 /// <item>A companion follows its master's profile and workspace, so every command that switches
-/// either is refused there. Paging through the companion's own pages stays allowed.</item>
+/// either is refused there while its group is not paused. Paging through the companion's own pages
+/// stays allowed.</item>
 /// <item>Companion commands (<c>Companion.*</c>) page a master's companions, so only a master runs them.</item>
 /// </list>
 /// </summary>
@@ -33,9 +34,9 @@ public static class CompanionCommandPolicy
         commandName.StartsWith(CompanionCommandPrefix, StringComparison.OrdinalIgnoreCase);
 
     /// <summary>True when the device with <paramref name="deviceKey"/> must not run
-    /// <paramref name="commandName"/>: a context switch on an active companion, or a companion
-    /// command on a device that is not an active master.</summary>
+    /// <paramref name="commandName"/>: a context switch on a companion that follows its master, or a
+    /// companion command on a device that is not an active master.</summary>
     public static bool IsBlocked(ICompanionCoordinator coordinator, string deviceKey, string commandName) =>
-        (IsContextSwitch(commandName) && coordinator.IsCompanion(deviceKey)) ||
+        (IsContextSwitch(commandName) && coordinator.IsFollowingMaster(deviceKey)) ||
         (IsCompanionCommand(commandName) && !coordinator.IsMaster(deviceKey));
 }

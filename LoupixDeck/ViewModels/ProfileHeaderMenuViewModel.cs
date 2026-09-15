@@ -57,11 +57,15 @@ public sealed class ProfileHeaderMenuViewModel : ViewModelBase
         _companions.DeviceOnlineStateChanged += _ => Avalonia.Threading.Dispatcher.UIThread.Post(RefreshCompanionHint);
     }
 
-    /// <summary>False on a companion, whose profile and workspace follow its master.</summary>
-    public bool CanSwitchContext => !_companions.IsCompanion(_device.ScopeKey);
+    /// <summary>False on a companion whose profile and workspace follow its master. A paused
+    /// companion switches on its own.</summary>
+    public bool CanSwitchContext => !_companions.IsFollowingMaster(_device.ScopeKey);
 
-    /// <summary>True on a companion: the header then shows whom it follows.</summary>
-    public bool IsCompanionLocked => !CanSwitchContext;
+    /// <summary>False on any companion: its profiles and workspaces mirror the master's, paused or not.</summary>
+    public bool CanEditStructure => !_companions.IsCompanion(_device.ScopeKey);
+
+    /// <summary>True on a companion, paused or not: the header then shows whom it follows.</summary>
+    public bool IsCompanionDevice => !CanEditStructure;
 
     /// <summary>Scope key of the master this companion follows, or null.</summary>
     public string MasterKey => _companions.GetMasterKey(_device.ScopeKey);
@@ -72,26 +76,26 @@ public sealed class ProfileHeaderMenuViewModel : ViewModelBase
     /// <summary>Tooltip of the locked selectors and the header hint; null (no tooltip) when not locked.</summary>
     public string CompanionLockExplanation => CompanionStatusText.LockExplanation(_companions, _device.ScopeKey);
 
-    public IAsyncRelayCommand NewProfileCommand => field ??= Relay.Create(NewProfile, () => CanSwitchContext);
+    public IAsyncRelayCommand NewProfileCommand => field ??= Relay.Create(NewProfile, () => CanEditStructure);
     public IAsyncRelayCommand RenameProfileCommand => field ??= Relay.Create(RenameProfile,
-        () => CanSwitchContext && _activation.ActiveProfile != null);
+        () => CanEditStructure && _activation.ActiveProfile != null);
     public IAsyncRelayCommand DeleteProfileCommand => field ??= Relay.Create(DeleteProfile,
-        () => CanSwitchContext && _editing.CanRemoveProfile(_activation.ActiveProfile));
+        () => CanEditStructure && _editing.CanRemoveProfile(_activation.ActiveProfile));
 
     public IAsyncRelayCommand NewWorkspaceCommand => field ??= Relay.Create(NewWorkspace,
-        () => CanSwitchContext && _activation.ActiveProfile != null);
+        () => CanEditStructure && _activation.ActiveProfile != null);
     public IAsyncRelayCommand RenameWorkspaceCommand => field ??= Relay.Create(RenameWorkspace,
-        () => CanSwitchContext && _activation.ActiveWorkspace != null);
+        () => CanEditStructure && _activation.ActiveWorkspace != null);
     public IAsyncRelayCommand DeleteWorkspaceCommand => field ??= Relay.Create(DeleteWorkspace,
-        () => CanSwitchContext && _editing.CanRemoveWorkspace(_activation.ActiveProfile, _activation.ActiveWorkspace));
+        () => CanEditStructure && _editing.CanRemoveWorkspace(_activation.ActiveProfile, _activation.ActiveWorkspace));
 
     /// <summary>Linking needs foreground-app detection, which exists only on Windows and Linux.</summary>
     public bool IsAppLinkingSupported => OperatingSystem.IsWindows() || OperatingSystem.IsLinux();
 
     public IAsyncRelayCommand LinkApplicationCommand => field ??= Relay.Create(LinkApplication,
-        () => CanSwitchContext && _activation.ActiveProfile != null);
+        () => CanEditStructure && _activation.ActiveProfile != null);
     public IAsyncRelayCommand UnlinkApplicationCommand => field ??= Relay.Create(UnlinkApplication,
-        () => CanSwitchContext && _activation.ActiveProfile is { } profile
+        () => CanEditStructure && _activation.ActiveProfile is { } profile
               && ProfileAppLink.FindLinkedProcessName(_config.ContextRules, profile.Id).Length > 0);
 
     /// <summary>Raised after an application link was added or removed, or the active profile was
@@ -103,7 +107,8 @@ public sealed class ProfileHeaderMenuViewModel : ViewModelBase
     public void Refresh()
     {
         OnPropertyChanged(nameof(CanSwitchContext));
-        OnPropertyChanged(nameof(IsCompanionLocked));
+        OnPropertyChanged(nameof(CanEditStructure));
+        OnPropertyChanged(nameof(IsCompanionDevice));
         OnPropertyChanged(nameof(MasterKey));
         RefreshCompanionHint();
         NewProfileCommand.NotifyCanExecuteChanged();

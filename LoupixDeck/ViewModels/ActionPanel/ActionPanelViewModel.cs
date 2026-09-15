@@ -392,7 +392,7 @@ public partial class ActionPanelViewModel : ViewModelBase
     private string CatalogueSignature()
     {
         StringBuilder signature = new();
-        signature.Append(_companions.IsCompanion(_device.ScopeKey)).Append('|');
+        signature.Append(_companions.IsFollowingMaster(_device.ScopeKey)).Append('|');
         AppendProfileTree(signature, _config);
 
         if (_companions.IsMaster(_device.ScopeKey))

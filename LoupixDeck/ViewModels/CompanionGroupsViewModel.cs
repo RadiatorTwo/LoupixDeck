@@ -192,6 +192,18 @@ public sealed partial class CompanionGroupRow : ObservableObject
     /// <summary>True while the group lacks a master or a companion; it then assigns no roles.</summary>
     public bool IsIncomplete => string.IsNullOrWhiteSpace(Group.MasterDeviceKey) || Group.CompanionDeviceKeys.Count == 0;
 
+    /// <summary>True while the group is paused: its companions switch on their own until it is resumed
+    /// or the app restarts.</summary>
+    public bool IsPaused => !IsIncomplete && _owner.Coordinator.IsPaused(Group.MasterDeviceKey);
+
+    public bool CanPause => !IsIncomplete && !IsPaused;
+
+    [RelayCommand]
+    private void Pause() => _owner.Coordinator.SetPaused(Group.MasterDeviceKey, true);
+
+    [RelayCommand]
+    private void Resume() => _owner.Coordinator.SetPaused(Group.MasterDeviceKey, false);
+
     [RelayCommand(CanExecute = nameof(CanAddCompanion))]
     private void AddCompanion()
     {

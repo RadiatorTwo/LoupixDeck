@@ -22,6 +22,9 @@ public sealed class CompanionCoordinator : ICompanionCoordinator
     // Hosts whose controller finished Initialize. Only these raise DeviceReady.
     private readonly HashSet<DeviceHost> _initializedHosts = [];
 
+    // Groups paused at runtime. Deliberately not saved: a forgotten pause must not outlive the session.
+    private readonly HashSet<Guid> _pausedGroups = [];
+
     public event Action GroupsChanged;
     public event Action<string> DeviceOnlineStateChanged;
     public event Action<DeviceHost> DeviceReady;
@@ -75,6 +78,27 @@ public sealed class CompanionCoordinator : ICompanionCoordinator
 
     public bool IsMaster(string deviceKey) => GetRole(deviceKey) == CompanionRole.Master;
     public bool IsCompanion(string deviceKey) => GetRole(deviceKey) == CompanionRole.Companion;
+
+    public bool IsPaused(string deviceKey)
+    {
+        if (GetRole(deviceKey) == CompanionRole.None) return false;
+        CompanionGroup group = FindGroup(deviceKey);
+        lock (_gate) return group != null && _pausedGroups.Contains(group.Id);
+    }
+
+    public bool IsFollowingMaster(string deviceKey) => IsCompanion(deviceKey) && !IsPaused(deviceKey);
+
+    public void SetPaused(string masterKey, bool paused)
+    {
+        if (!IsMaster(masterKey) || FindGroup(masterKey) is not { } group) return;
+
+        bool changed;
+        lock (_gate) changed = paused ? _pausedGroups.Add(group.Id) : _pausedGroups.Remove(group.Id);
+        if (!changed) return;
+
+        Console.WriteLine($"[Companions] Group '{group.Name}' {(paused ? "paused" : "resumed")}.");
+        GroupsChanged?.Invoke();
+    }
 
     public CompanionGroup FindGroup(string deviceKey)
     {
@@ -250,7 +274,7 @@ public sealed class CompanionCoordinator : ICompanionCoordinator
 
     public CompanionPageFollowMode GetPageFollow(string masterKey)
     {
-        if (!IsMaster(masterKey)) return CompanionPageFollowMode.Off;
+        if (!IsMaster(masterKey) || IsPaused(masterKey)) return CompanionPageFollowMode.Off;
 
         CompanionPageFollowMode mode = FindGroup(masterKey)?.PageFollow ?? CompanionPageFollowMode.Off;
         return Enum.IsDefined(mode) ? mode : CompanionPageFollowMode.Off;

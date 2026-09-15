@@ -395,7 +395,7 @@
                             </ComboBox>
                             <!-- Companion: whom the locked profile and workspace follow. Click selects the master. -->
                             <Button Classes="CompanionHint"
-                                    IsVisible="{Binding SelectedDevice.ProfileMenu.IsCompanionLocked, FallbackValue=False}"
+                                    IsVisible="{Binding SelectedDevice.ProfileMenu.IsCompanionDevice, FallbackValue=False}"
                                     Command="{Binding SelectDeviceCommand}"
                                     CommandParameter="{Binding SelectedDevice.ProfileMenu.MasterKey}"
                                     ToolTip.Tip="{Binding SelectedDevice.ProfileMenu.CompanionLockExplanation}"

@@ -55,6 +55,10 @@ public interface ICompanionNavigation
     /// <summary>Page follow after a workspace switch: shows the master's current page numbers on a
     /// companion that just arrived, without a transition. UI thread.</summary>
     Task AlignPagesWithMaster(DeviceHost masterHost, DeviceHost companionHost, CompanionPageFollowMode mode);
+
+    /// <summary>Shows the start touch page of its active workspace on every available companion of the
+    /// master, with the usual page transition. Returns how many companions were shown it.</summary>
+    Task<int> ShowStartPages(string masterKey);
 }
 
 public sealed class CompanionNavigationService : ICompanionNavigation
@@ -145,6 +149,24 @@ public sealed class CompanionNavigationService : ICompanionNavigation
     }
 
     private bool IsFollowing(string companionKey) => _following.GetValueOrDefault(companionKey) > 0;
+
+    public async Task<int> ShowStartPages(string masterKey)
+    {
+        int shown = 0;
+        foreach (string companionKey in _coordinator.GetCompanionKeys(masterKey))
+        {
+            bool applied = await OnUiThread(async () =>
+            {
+                DeviceHost host = _coordinator.ResolveHost(companionKey);
+                if (!CanDrive(host) || IsFollowing(companionKey)) return false;
+
+                int start = host.Controller.Config.ActiveWorkspace?.StartupTouchPageIndex ?? 0;
+                return await ApplyIndex(host.Controller, CompanionPageKind.Touch, start, animate: true);
+            });
+            if (applied) shown++;
+        }
+        return shown;
+    }
 
     // ── Page follow ─────────────────────────────────────────────────────────
 

@@ -22,7 +22,8 @@ public interface ICompanionCoordinator
     /// persistence stay in one place.</summary>
     IReadOnlyList<CompanionGroup> Groups { get; }
 
-    /// <summary>Raised after the group set changed (any editing method). Caller's thread.</summary>
+    /// <summary>Raised after the group set changed (any editing method) or a group was paused or
+    /// resumed. Caller's thread.</summary>
     event Action GroupsChanged;
 
     /// <summary>Raised when a device came online or went offline (host added/removed, link up).
@@ -61,6 +62,20 @@ public interface ICompanionCoordinator
 
     /// <summary>The master a companion follows, or null when the device is not an active companion.</summary>
     string GetMasterKey(string companionKey);
+
+    // ── Pause ───────────────────────────────────────────────────────────────
+
+    /// <summary>True when the device belongs to an active group that is paused. Pausing lasts until
+    /// the group is resumed or the app restarts; it is not saved.</summary>
+    bool IsPaused(string deviceKey);
+
+    /// <summary>True when the device is a companion whose group is not paused: its master owns its
+    /// profile and workspace. A paused companion keeps the mirrored profiles but switches on its own.</summary>
+    bool IsFollowingMaster(string deviceKey);
+
+    /// <summary>Pauses or resumes the active group <paramref name="masterKey"/> leads. No-op for a
+    /// device that is not an active master. Raises <see cref="GroupsChanged"/> when the state changed.</summary>
+    void SetPaused(string masterKey, bool paused);
 
     // ── Devices ─────────────────────────────────────────────────────────────
 
@@ -104,7 +119,7 @@ public interface ICompanionCoordinator
     void SetPageFollow(Guid groupId, CompanionPageFollowMode mode);
 
     /// <summary>The page follow mode of the active group the master leads; <see cref="CompanionPageFollowMode.Off"/>
-    /// for a device that is not an active master or an unknown stored value.</summary>
+    /// for a device that is not an active master, a paused group or an unknown stored value.</summary>
     CompanionPageFollowMode GetPageFollow(string masterKey);
 
     /// <summary>Makes the device the group's master. Refused (false + reason) when the device

@@ -17,6 +17,11 @@ public interface ICompanionContextSync
     /// <summary>Raised on the UI thread after a device's mirrored structure was rewritten (it joined,
     /// left, or its master's profiles or workspaces changed). Carries the device key.</summary>
     event Action<string> LinkedStructureChanged;
+
+    /// <summary>Repairs a group by hand: rebuilds every companion's mirrors from the master, even when
+    /// the structure looks unchanged, and lets running companions take the master's state again
+    /// unless the group is paused. No-op for a device that is not an active master.</summary>
+    void Resync(string masterKey);
 }
 
 public sealed class CompanionContextSyncService : ICompanionContextSync
@@ -66,11 +71,12 @@ public sealed class CompanionContextSyncService : ICompanionContextSync
     {
         SyncAllDevices();
 
-        // Page follow may just have been turned on: bring the companions to their master's pages.
+        // A group may just have been resumed or had page follow turned on: bring the companions to
+        // their master's profile, workspace and pages. Following an unchanged state does nothing.
         foreach (DeviceHost host in _registry.Hosts)
         {
             string key = host.Device.ScopeKey;
-            if (_coordinator.IsReady(host) && _coordinator.GetPageFollow(key) != CompanionPageFollowMode.Off)
+            if (_coordinator.IsReady(host) && _coordinator.IsMaster(key) && !_coordinator.IsPaused(key))
                 FollowCompanionsOf(host);
         }
     });
@@ -115,7 +121,8 @@ public sealed class CompanionContextSyncService : ICompanionContextSync
     /// running companions follow. On a companion this is the echo of its own follow and is ignored.</summary>
     private void OnActiveWorkspaceChanged(DeviceHost host) => OnUiThread(() =>
     {
-        if (_coordinator.IsMaster(host.Device.ScopeKey))
+        string key = host.Device.ScopeKey;
+        if (_coordinator.IsMaster(key) && !_coordinator.IsPaused(key))
             FollowCompanionsOf(host);
     });
 
@@ -192,6 +199,17 @@ public sealed class CompanionContextSyncService : ICompanionContextSync
         return timer;
     }
 
+    public void Resync(string masterKey) => OnUiThread(() =>
+    {
+        if (!_coordinator.IsMaster(masterKey)) return;
+
+        Console.WriteLine($"[Companions] Resyncing the companions of '{masterKey}'.");
+        SyncCompanionsOf(masterKey, force: true);
+
+        if (!_coordinator.IsPaused(masterKey) && _coordinator.ResolveHost(masterKey) is { } host && _coordinator.IsReady(host))
+            FollowCompanionsOf(host);
+    });
+
     // ── Structure ───────────────────────────────────────────────────────────
 
     /// <summary>Brings every known device in line with its current role: companions are linked or
@@ -233,7 +251,9 @@ public sealed class CompanionContextSyncService : ICompanionContextSync
         try
         {
             IWorkspaceActivationService activation = companionHost.Provider.GetRequiredService<IWorkspaceActivationService>();
-            DeviceHost masterHost = _coordinator.ResolveHost(masterKey);
+
+            // A paused companion stays where it is (as long as that still exists), like one whose master is not running.
+            DeviceHost masterHost = _coordinator.IsPaused(masterKey) ? null : _coordinator.ResolveHost(masterKey);
 
             if (masterHost != null)
             {

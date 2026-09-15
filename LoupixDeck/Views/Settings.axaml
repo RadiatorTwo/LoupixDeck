@@ -477,6 +477,22 @@
                                             <TextBlock Classes="hint" FontSize="12" IsVisible="{Binding IsIncomplete}"
                                                        TextWrapping="Wrap" Text="{loc:Tr Companions_Incomplete}" />
 
+                                            <!-- Pause: runtime only -->
+                                            <Grid ColumnDefinitions="*,Auto" IsVisible="{Binding !IsIncomplete}">
+                                                <TextBlock Grid.Column="0" Classes="hint" FontSize="12" TextWrapping="Wrap"
+                                                           VerticalAlignment="Center"
+                                                           Foreground="{DynamicResource CompanionHintForeground}"
+                                                           IsVisible="{Binding IsPaused}"
+                                                           Text="{loc:Tr Companions_PausedHint}" />
+                                                <Button Grid.Column="1" Margin="8,0,0,0" IsVisible="{Binding CanPause}"
+                                                        Content="{loc:Tr Companions_Pause}"
+                                                        ToolTip.Tip="{loc:Tr Companions_PauseTip}"
+                                                        Command="{Binding PauseCommand}" />
+                                                <Button Grid.Column="1" Margin="8,0,0,0" IsVisible="{Binding IsPaused}"
+                                                        Content="{loc:Tr Companions_Resume}"
+                                                        Command="{Binding ResumeCommand}" />
+                                            </Grid>
+
                                             <!-- Master -->
                                             <StackPanel Spacing="4">
                                                 <TextBlock Classes="group-label" Text="{loc:Tr Companions_Master}" />

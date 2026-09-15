@@ -415,13 +415,21 @@ public partial class MainWindowViewModel : ViewModelBase
         _hostRegistry.HostRemoved -= OnHostsChanged;
     }
 
-    /// <summary>Badge text for the device switcher: "Master", "Companion", or empty outside a group.</summary>
-    public string CompanionRoleText => _companions.GetRole(ScopeKey) switch
+    /// <summary>Badge text for the device switcher: "Master", "Companion" (marked while the group is
+    /// paused), or empty outside a group.</summary>
+    public string CompanionRoleText
     {
-        Models.Companion.CompanionRole.Master => Loc.Tr("Companion_RoleMaster"),
-        Models.Companion.CompanionRole.Companion => Loc.Tr("Companion_RoleCompanion"),
-        _ => string.Empty
-    };
+        get
+        {
+            string role = _companions.GetRole(ScopeKey) switch
+            {
+                Models.Companion.CompanionRole.Master => Loc.Tr("Companion_RoleMaster"),
+                Models.Companion.CompanionRole.Companion => Loc.Tr("Companion_RoleCompanion"),
+                _ => string.Empty
+            };
+            return role.Length > 0 && _companions.IsPaused(ScopeKey) ? Loc.Tr("Companion_RolePausedFmt", role) : role;
+        }
+    }
 
     public bool HasCompanionRole => CompanionRoleText.Length > 0;
 

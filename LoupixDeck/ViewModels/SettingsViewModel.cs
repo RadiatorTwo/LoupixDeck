@@ -606,9 +606,11 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
     /// <summary>Explains on a companion who owns its profiles, workspaces and profile rules, and that it
     /// stays where it is while that master is offline.</summary>
     public string CompanionProfilesHint => CompanionStatusText.MasterName(_companions, _device.ScopeKey) is { } master
-        ? Loc.Tr(CompanionStatusText.IsMasterOffline(_companions, _device.ScopeKey)
-            ? "Settings_ProfilesFollowOfflineMasterFmt"
-            : "Settings_ProfilesFollowMasterFmt", master)
+        ? Loc.Tr(_companions.IsPaused(_device.ScopeKey)
+            ? "Settings_ProfilesFollowPausedMasterFmt"
+            : CompanionStatusText.IsMasterOffline(_companions, _device.ScopeKey)
+                ? "Settings_ProfilesFollowOfflineMasterFmt"
+                : "Settings_ProfilesFollowMasterFmt", master)
         : string.Empty;
 
     private void OnCompanionGroupsChanged() => Dispatcher.UIThread.Post(RefreshCompanionState);

@@ -11,7 +11,7 @@ namespace LoupixDeck.Services;
 /// the current profile. Each switch updates the config's active ids, rebinds the active-workspace
 /// facade, and repaints the device (via <see cref="IDeviceController.ApplyActiveWorkspace"/>).
 /// On a companion the master owns the profile and workspace: every switch is refused except
-/// <see cref="FollowMaster"/>.
+/// <see cref="FollowMaster"/>, unless the group is paused.
 /// </summary>
 public interface IWorkspaceActivationService
 {
@@ -151,10 +151,11 @@ public sealed class WorkspaceActivationService(
         ActiveWorkspaceChanged?.Invoke(ActiveWorkspace);
     }
 
-    /// <summary>True (and logged) when this device is a companion, whose master owns the switch.</summary>
+    /// <summary>True (and logged) when this device is a companion whose master owns the switch (its
+    /// group is not paused).</summary>
     private bool IsFollowingMaster(string operation)
     {
-        if (!companions.IsCompanion(device.ScopeKey)) return false;
+        if (!companions.IsFollowingMaster(device.ScopeKey)) return false;
         Console.WriteLine($"{operation} skipped: '{device.ScopeKey}' is a companion and follows its master.");
         return true;
     }

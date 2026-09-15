@@ -1,5 +1,6 @@
 using LoupixDeck.Localization;
 using LoupixDeck.Models;
+using LoupixDeck.Models.Companion;
 using LoupixDeck.PluginSdk;
 using LoupixDeck.Registry;
 using LoupixDeck.Services.Companion;
@@ -9,8 +10,8 @@ using IMenuContributor = LoupixDeck.Services.Commands.IMenuContributor;
 namespace LoupixDeck.Services.Commands;
 
 /// <summary>
-/// Lists a master's companions in the "Companions" command group, each with its paging commands and
-/// its pages per profile and workspace, so the picker offers "Touch page 2: Scenes" instead of raw
+/// Lists a master's group commands (pause, resync, page follow, start pages) and its companions in the
+/// "Companions" command group, each companion with its paging commands and its pages per profile and workspace, so the picker offers "Touch page 2: Scenes" instead of raw
 /// device keys and page ids. Offline companions are listed from their config file, so their commands
 /// can be assigned while they are unplugged. Offered on an active master only.
 /// </summary>
@@ -37,10 +38,49 @@ public sealed class CompanionMenuContributor(
             Section = info.Section
         };
 
+        group.Children.Add(BuildGroupCommands(info));
         foreach (string companionKey in companionKeys)
             group.Children.Add(BuildCompanion(companionKey, info));
 
         return Task.FromResult<IReadOnlyList<MenuEntry>>([group]);
+    }
+
+    private static MenuEntry BuildGroupCommands(GroupInfo info)
+    {
+        MenuEntry folder = new(Loc.Tr("CompanionMenu_WholeGroup"), string.Empty)
+        {
+            Icon = info.Icon,
+            Section = info.Section
+        };
+
+        foreach ((string name, string command) in new[]
+                 {
+                     ("Toggle Companion Group Pause", "Companion.TogglePause"),
+                     ("Pause Companion Group", "Companion.PauseGroup"),
+                     ("Resume Companion Group", "Companion.ResumeGroup"),
+                     ("Cycle Companion Page Follow", "Companion.CyclePageFollow"),
+                     ("Show Companion Start Pages", "Companion.ShowStartPages"),
+                     ("Resync Companions", "Companion.Resync")
+                 })
+        {
+            folder.Children.Add(new MenuEntry(name, command) { Icon = info.Icon });
+        }
+
+        foreach ((CompanionPageFollowMode mode, string labelKey) in new[]
+                 {
+                     (CompanionPageFollowMode.Off, "Companions_PageFollowOff"),
+                     (CompanionPageFollowMode.TouchPages, "Companions_PageFollowTouch"),
+                     (CompanionPageFollowMode.TouchAndRotaryPages, "Companions_PageFollowTouchAndRotary")
+                 })
+        {
+            folder.Children.Add(new MenuEntry(Loc.Tr("CompanionMenu_SetPageFollowFmt", Loc.Tr(labelKey)), "Companion.SetPageFollow")
+            {
+                Icon = info.Icon,
+                Parameters = new Dictionary<string, string> { ["Mode"] = mode.ToString() }
+            });
+        }
+
+        return folder;
     }
 
     private MenuEntry BuildCompanion(string companionKey, GroupInfo info)
