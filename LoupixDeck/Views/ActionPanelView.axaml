@@ -131,7 +131,7 @@
         </DataTemplate>
     </UserControl.Resources>
 
-    <Border Background="{DynamicResource AppSurfaceLow}"
+    <Border Background="{DynamicResource AppWindowBackground}"
             BorderBrush="{DynamicResource AppBorderSubtle}"
             BorderThickness="0,0,1,0">
         <TabControl Margin="6,4,6,6" Padding="0">
