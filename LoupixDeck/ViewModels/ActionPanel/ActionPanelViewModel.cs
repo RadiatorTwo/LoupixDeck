@@ -96,6 +96,7 @@ public partial class ActionPanelViewModel : ViewModelBase
 
         _catalogueRefreshTimer.Tick += OnCatalogueRefreshTick;
         _companions.GroupsChanged += OnCatalogueSourceChanged;
+        _companions.DeviceOnlineStateChanged += OnDeviceOnlineStateChanged;
         _configService.ConfigSaved += OnConfigSaved;
         _macros.MacrosChanged += OnMacrosChanged;
     }
@@ -324,6 +325,9 @@ public partial class ActionPanelViewModel : ViewModelBase
 
     private void OnConfigSaved(string filePath) => ScheduleCatalogueRefresh(force: false);
 
+    // A master lists its companions as connected or offline.
+    private void OnDeviceOnlineStateChanged(string deviceKey) => ScheduleCatalogueRefresh(force: false);
+
     // Macro names are not part of the signature, so a macro change always rebuilds.
     private void OnMacrosChanged(object sender, EventArgs e) => ScheduleCatalogueRefresh(force: true);
 
@@ -383,14 +387,43 @@ public partial class ActionPanelViewModel : ViewModelBase
 
     /// <summary>
     /// A fingerprint of the state the catalogue's device-dependent groups are built from: this
-    /// device's role and profile tree.
+    /// device's role and profile tree, and on a master each companion's connection state and pages.
     /// </summary>
     private string CatalogueSignature()
     {
         StringBuilder signature = new();
         signature.Append(_companions.IsCompanion(_device.ScopeKey)).Append('|');
         AppendProfileTree(signature, _config);
+
+        if (_companions.IsMaster(_device.ScopeKey))
+        {
+            foreach (string companionKey in _companions.GetCompanionKeys(_device.ScopeKey))
+            {
+                signature.Append("|C:").Append(companionKey).Append(':').Append(_companions.IsOnline(companionKey)).Append(';');
+                LoupedeckConfig companion = _companions.GetDeviceConfig(companionKey);
+                AppendProfileTree(signature, companion);
+                AppendPages(signature, companion);
+            }
+        }
+
         return signature.ToString();
+    }
+
+    private static void AppendPages(StringBuilder signature, LoupedeckConfig config)
+    {
+        if (config?.Profiles == null)
+            return;
+
+        foreach (Workspace workspace in config.Profiles.Where(p => p.Workspaces != null).SelectMany(p => p.Workspaces))
+        {
+            IEnumerable<ButtonPageBase> pages = Enumerable.Empty<ButtonPageBase>()
+                .Concat(workspace.TouchButtonPages ?? [])
+                .Concat(workspace.RotaryButtonPages ?? [])
+                .Concat(workspace.LeftRotaryButtonPages ?? [])
+                .Concat(workspace.RightRotaryButtonPages ?? []);
+            foreach (ButtonPageBase page in pages)
+                signature.Append("G:").Append(page.Id).Append(':').Append(page.Name).Append(';');
+        }
     }
 
     private static void AppendProfileTree(StringBuilder signature, LoupedeckConfig config)
@@ -638,6 +671,7 @@ public partial class ActionPanelViewModel : ViewModelBase
         _catalogueRefreshTimer.Stop();
         _catalogueRefreshTimer.Tick -= OnCatalogueRefreshTick;
         _companions.GroupsChanged -= OnCatalogueSourceChanged;
+        _companions.DeviceOnlineStateChanged -= OnDeviceOnlineStateChanged;
         _configService.ConfigSaved -= OnConfigSaved;
         _macros.MacrosChanged -= OnMacrosChanged;
 

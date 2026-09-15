@@ -1,0 +1,138 @@
+using LoupixDeck.Localization;
+using LoupixDeck.Models;
+using LoupixDeck.PluginSdk;
+using LoupixDeck.Registry;
+using LoupixDeck.Services.Companion;
+// Both the app and the plugin SDK define IMenuContributor — this contributor implements the app-side one.
+using IMenuContributor = LoupixDeck.Services.Commands.IMenuContributor;
+
+namespace LoupixDeck.Services.Commands;
+
+/// <summary>
+/// Lists a master's companions in the "Companions" command group, each with its paging commands and
+/// its pages per profile and workspace, so the picker offers "Touch page 2: Scenes" instead of raw
+/// device keys and page ids. Offline companions are listed from their config file, so their commands
+/// can be assigned while they are unplugged. Offered on an active master only.
+/// </summary>
+public sealed class CompanionMenuContributor(
+    IGroupCatalog groupCatalog,
+    ICompanionCoordinator companions,
+    ResolvedDevice device) : IMenuContributor
+{
+    public const string GroupName = "Companions";
+
+    public Task<IReadOnlyList<MenuEntry>> Contribute(ButtonTargets target)
+    {
+        IReadOnlyList<string> companionKeys = companions.IsMaster(device.ScopeKey)
+            ? companions.GetCompanionKeys(device.ScopeKey)
+            : [];
+        if (companionKeys.Count == 0)
+            return Task.FromResult<IReadOnlyList<MenuEntry>>([]);
+
+        GroupInfo info = groupCatalog.Resolve(GroupName);
+        MenuEntry group = new(GroupName, string.Empty)
+        {
+            Icon = info.Icon,
+            Description = info.Description,
+            Section = info.Section
+        };
+
+        foreach (string companionKey in companionKeys)
+            group.Children.Add(BuildCompanion(companionKey, info));
+
+        return Task.FromResult<IReadOnlyList<MenuEntry>>([group]);
+    }
+
+    private MenuEntry BuildCompanion(string companionKey, GroupInfo info)
+    {
+        string name = companions.GetDisplayName(companionKey);
+        MenuEntry folder = new(companions.IsOnline(companionKey) ? name : Loc.Tr("CompanionMenu_OfflineDeviceFmt", name), string.Empty)
+        {
+            Icon = info.Icon,
+            Section = info.Section
+        };
+
+        LoupedeckConfig config = companions.GetDeviceConfig(companionKey);
+        bool hasSideStrips = HasSideStrips(config);
+
+        folder.Children.Add(Step("Next Touch Page", "Companion.NextTouchPage", companionKey, info));
+        folder.Children.Add(Step("Previous Touch Page", "Companion.PreviousTouchPage", companionKey, info));
+        if (!hasSideStrips)
+        {
+            folder.Children.Add(Step("Next Rotary Page", "Companion.NextRotaryPage", companionKey, info));
+            folder.Children.Add(Step("Previous Rotary Page", "Companion.PreviousRotaryPage", companionKey, info));
+        }
+
+        if (config?.Profiles == null)
+            return folder;
+
+        foreach (Profile profile in config.Profiles)
+        {
+            if (profile.Workspaces == null) continue;
+
+            foreach (Workspace workspace in profile.Workspaces)
+            {
+                MenuEntry pages = new($"{Display(profile.Name)} / {Display(workspace.Name)}", string.Empty)
+                {
+                    Icon = info.Icon,
+                    Section = info.Section
+                };
+
+                AddPages(pages, workspace.TouchButtonPages, "CompanionMenu_TouchPageFmt", "Companion.GotoTouchPage", companionKey, info);
+                if (hasSideStrips)
+                {
+                    AddPages(pages, workspace.LeftRotaryButtonPages, "CompanionMenu_LeftRotaryPageFmt", "Companion.GotoRotaryPageLeft", companionKey, info);
+                    AddPages(pages, workspace.RightRotaryButtonPages, "CompanionMenu_RightRotaryPageFmt", "Companion.GotoRotaryPageRight", companionKey, info);
+                }
+                else
+                {
+                    AddPages(pages, workspace.RotaryButtonPages, "CompanionMenu_RotaryPageFmt", "Companion.GotoRotaryPage", companionKey, info);
+                }
+
+                if (pages.Children.Count > 0)
+                    folder.Children.Add(pages);
+            }
+        }
+
+        return folder;
+    }
+
+    private static MenuEntry Step(string displayName, string command, string companionKey, GroupInfo info) =>
+        new(displayName, command)
+        {
+            Icon = info.Icon,
+            Parameters = new Dictionary<string, string> { ["Device"] = companionKey }
+        };
+
+    private static void AddPages<TPage>(MenuEntry folder, IList<TPage> pages, string labelKey, string command,
+        string companionKey, GroupInfo info)
+        where TPage : ButtonPageBase
+    {
+        if (pages == null) return;
+
+        for (int i = 0; i < pages.Count; i++)
+        {
+            string label = Loc.Tr(labelKey, i + 1);
+            if (!string.IsNullOrWhiteSpace(pages[i].Name))
+                label = $"{label}: {pages[i].Name}";
+
+            folder.Children.Add(new MenuEntry(label, command)
+            {
+                Icon = info.Icon,
+                Parameters = new Dictionary<string, string>
+                {
+                    ["Device"] = companionKey,
+                    ["Page"] = pages[i].Id.ToString()
+                }
+            });
+        }
+    }
+
+    /// <summary>A device with side strips pages its dial columns separately; its config then holds
+    /// left and right rotary pages.</summary>
+    private static bool HasSideStrips(LoupedeckConfig config) =>
+        config?.Profiles?.Any(p => p.Workspaces?.Any(w => w.LeftRotaryButtonPages?.Count > 0) == true) == true;
+
+    private static string Display(string name) =>
+        string.IsNullOrWhiteSpace(name) ? Loc.Tr("CompanionMenu_Unnamed") : name;
+}

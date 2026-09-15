@@ -25,6 +25,7 @@ public sealed class CompanionContextSyncService : ICompanionContextSync
     private readonly ICompanionCoordinator _coordinator;
     private readonly IDeviceHostRegistry _registry;
     private readonly IConfigService _configService;
+    private readonly ICompanionNavigation _navigation;
 
     // Each running host's ActiveWorkspaceChanged handler, so a removed host is unhooked exactly once.
     private readonly Dictionary<DeviceHost, (IWorkspaceActivationService Activation, Action<Workspace> Handler)> _activationHandlers = new();
@@ -41,11 +42,12 @@ public sealed class CompanionContextSyncService : ICompanionContextSync
     public event Action<string> LinkedStructureChanged;
 
     public CompanionContextSyncService(ICompanionCoordinator coordinator, IDeviceHostRegistry registry,
-        IConfigService configService)
+        IConfigService configService, ICompanionNavigation navigation)
     {
         _coordinator = coordinator;
         _registry = registry;
         _configService = configService;
+        _navigation = navigation;
 
         foreach (DeviceHost host in _registry.Hosts)
             OnHostAdded(host);
@@ -169,9 +171,13 @@ public sealed class CompanionContextSyncService : ICompanionContextSync
     }
 
     /// <summary>Moves a running companion to its master's active profile and workspace. While the
-    /// master is not running the companion stays where it is, as long as that still exists.</summary>
+    /// master is not running the companion stays where it is, as long as that still exists.
+    /// A page target queued for the workspace it arrives in opens afterwards.</summary>
     private async Task FollowAsync(DeviceHost companionHost, string masterKey)
     {
+        // Runs synchronously up to the first await, so a target queued right after the master's
+        // switch already sees this follow in progress.
+        _navigation.BeginFollow(companionHost.Device.ScopeKey);
         try
         {
             IWorkspaceActivationService activation = companionHost.Provider.GetRequiredService<IWorkspaceActivationService>();
@@ -191,6 +197,10 @@ public sealed class CompanionContextSyncService : ICompanionContextSync
         catch (Exception ex)
         {
             Console.WriteLine($"[Companions] '{companionHost.Device.ScopeKey}' could not follow '{masterKey}': {ex.Message}");
+        }
+        finally
+        {
+            await _navigation.EndFollow(companionHost);
         }
     }
 

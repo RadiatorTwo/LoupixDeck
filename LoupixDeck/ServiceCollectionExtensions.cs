@@ -159,6 +159,9 @@ public static class ServiceCollectionExtensions
         collection.AddSingleton<Services.Companion.ICompanionStore, Services.Companion.CompanionStore>();
         collection.AddSingleton<Services.Companion.ICompanionCoordinator, Services.Companion.CompanionCoordinator>();
 
+        // Opens pages on a master's companions, inside the workspace they share.
+        collection.AddSingleton<Services.Companion.ICompanionNavigation, Services.Companion.CompanionNavigationService>();
+
         // Mirrors each master's profiles and workspaces onto its companions, unplugged ones included.
         collection.AddSingleton<Services.Companion.ICompanionContextSync, Services.Companion.CompanionContextSyncService>();
     }
@@ -207,6 +210,7 @@ public static class ServiceCollectionExtensions
         collection.Forward<IPluginManager>(root);
         collection.Forward<Services.Companion.ICompanionCoordinator>(root);
         collection.Forward<Services.Companion.ICompanionContextSync>(root);
+        collection.Forward<Services.Companion.ICompanionNavigation>(root);
         collection.Forward<Services.Animation.IAnimatedImageCache>(root);
         collection.Forward<Services.Animation.IAnimatedImageImporter>(root);
 
@@ -314,6 +318,7 @@ public static class ServiceCollectionExtensions
         collection.AddSingleton<IMenuContributor, CommandGroupMenuContributor>();
         collection.AddSingleton<IMenuContributor, UserMacroMenuContributor>();
         collection.AddSingleton<IMenuContributor, ProfileMenuContributor>();
+        collection.AddSingleton<IMenuContributor, CompanionMenuContributor>();
         collection.AddSingleton<IMenuContributor, DisplayTestMenuContributor>();
         collection.AddSingleton<IMenuContributor, DialPresetMenuContributor>();
         collection.AddSingleton<IPluginMenuSource, PluginMenuContributor>();
