@@ -83,6 +83,9 @@ public sealed partial class PluginStoreService : ObservableObject, IPluginStoreS
     /// <summary>The plugin update check waits for the app update check and the first plugin load.</summary>
     private static readonly TimeSpan StartupDelay = TimeSpan.FromSeconds(10);
 
+    /// <summary>How long a downloaded list is reused when the page is reopened; Refresh ignores it.</summary>
+    private static readonly TimeSpan CatalogFreshness = TimeSpan.FromMinutes(5);
+
     private readonly IPluginManager _pluginManager;
     private readonly IUpdateService _updateService;
 
@@ -96,6 +99,9 @@ public sealed partial class PluginStoreService : ObservableObject, IPluginStoreS
 
     /// <summary>When the copy on disk was written; null while no copy has been read or written.</summary>
     private DateTimeOffset? _cacheWrittenAt;
+
+    /// <summary>When the list was last downloaded; null while it only ever came from disk.</summary>
+    private DateTimeOffset? _catalogLoadedAt;
 
     private readonly IPluginCommandIndex _commandIndex;
 
@@ -235,7 +241,11 @@ public sealed partial class PluginStoreService : ObservableObject, IPluginStoreS
             bool fromCache = false;
             try
             {
-                catalog = await LoadCatalogAsync(cancellationToken);
+                // Reopening the page reuses the list that was just downloaded; Refresh always reloads.
+                catalog = !force && _cachedCatalog is not null && _catalogLoadedAt is { } loadedAt
+                                 && DateTimeOffset.UtcNow - loadedAt < CatalogFreshness
+                    ? _cachedCatalog
+                    : await LoadCatalogAsync(cancellationToken);
             }
             catch (Exception ex) when (IsExpectedFailure(ex))
             {
@@ -282,9 +292,10 @@ public sealed partial class PluginStoreService : ObservableObject, IPluginStoreS
                     cancellationToken);
             return string.IsNullOrWhiteSpace(release?.Notes) ? null : release.Notes.Trim();
         }
-        catch (Exception ex) when (ex is GitHubRateLimitException || IsExpectedFailure(ex))
+        catch (Exception ex) when (IsExpectedFailure(ex))
         {
             // Notes are a courtesy; never let them get in the way of installing.
+            // GitHubRateLimitException is an HttpRequestException, so it lands here too.
             Console.WriteLine(
                 $"[PluginStore] Could not read the release notes of {candidate.Entry.Repository} {candidate.Tag}: {ex.Message}");
             return null;
@@ -511,6 +522,7 @@ public sealed partial class PluginStoreService : ObservableObject, IPluginStoreS
         }
 
         _cachedCatalog = catalog;
+        _catalogLoadedAt = DateTimeOffset.UtcNow;
         try
         {
             // The body is written through unchanged, so an older build reading the same file still works.
