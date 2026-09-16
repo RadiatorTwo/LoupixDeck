@@ -100,34 +100,44 @@ public sealed class GitHubReleaseClient
                 continue;
             }
 
-            string tag = GetString(item, "tag_name");
-            Version version = AppVersion.TryParse(tag);
-            if (version is null)
+            ReleaseInfo release = ParseRelease(item);
+            if (release is not null)
             {
-                continue;
+                releases.Add(release);
             }
-
-            List<ReleaseAsset> assets = [];
-            if (item.TryGetProperty("assets", out JsonElement assetArray) && assetArray.ValueKind == JsonValueKind.Array)
-            {
-                foreach (JsonElement asset in assetArray.EnumerateArray())
-                {
-                    assets.Add(new ReleaseAsset(GetString(asset, "name"), GetString(asset, "browser_download_url"),
-                        ParseSha256(GetString(asset, "digest"))));
-                }
-            }
-
-            releases.Add(new ReleaseInfo(
-                tag,
-                version,
-                GetString(item, "name"),
-                GetString(item, "body"),
-                GetString(item, "html_url"),
-                assets));
         }
 
         releases.Sort((a, b) => b.Version.CompareTo(a.Version));
         return releases;
+    }
+
+    /// <summary>One release object of the API, or null when its tag is not a <c>vX.Y.Z</c> version.</summary>
+    private static ReleaseInfo ParseRelease(JsonElement item)
+    {
+        string tag = GetString(item, "tag_name");
+        Version version = AppVersion.TryParse(tag);
+        if (version is null)
+        {
+            return null;
+        }
+
+        List<ReleaseAsset> assets = [];
+        if (item.TryGetProperty("assets", out JsonElement assetArray) && assetArray.ValueKind == JsonValueKind.Array)
+        {
+            foreach (JsonElement asset in assetArray.EnumerateArray())
+            {
+                assets.Add(new ReleaseAsset(GetString(asset, "name"), GetString(asset, "browser_download_url"),
+                    ParseSha256(GetString(asset, "digest"))));
+            }
+        }
+
+        return new ReleaseInfo(
+            tag,
+            version,
+            GetString(item, "name"),
+            GetString(item, "body"),
+            GetString(item, "html_url"),
+            assets);
     }
 
     /// <summary>
