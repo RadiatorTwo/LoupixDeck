@@ -326,7 +326,10 @@ public static class ServiceCollectionExtensions
         collection.AddSingleton<IPluginMenuSource, PluginMenuContributor>();
         collection.AddSingleton<IMenuTreeBuilder, MenuTreeBuilder>();
 
-        // Built-in dial presets this device can run, plus the user's own from the shared store.
+        // Dial presets the plugins enabled on this device contribute through the SDK.
+        collection.AddSingleton<IPluginDialPresetSource, PluginDialPresetSource>();
+
+        // Built-in dial presets this device can run, plus the plugins' and the user's own.
         collection.AddSingleton<IDialPresetCatalog, DialPresetCatalog>();
 
         // Sequential macro-step executor (uses this device's command service).

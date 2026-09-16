@@ -38,6 +38,24 @@ public sealed class DialPreset
     [JsonIgnore]
     public bool IsBuiltIn { get; init; }
 
+    /// <summary>Id of the plugin that contributed this preset, or null for a built-in or
+    /// user-created one. Never persisted — a plugin's presets are rebuilt from the plugin.</summary>
+    [JsonIgnore]
+    public string SourcePluginId { get; init; }
+
+    /// <summary>Display name of the contributing plugin, used to group and label its presets.</summary>
+    [JsonIgnore]
+    public string SourcePluginName { get; init; }
+
+    /// <summary>True for a preset a plugin contributed through the SDK.</summary>
+    [JsonIgnore]
+    public bool IsFromPlugin => !string.IsNullOrEmpty(SourcePluginId);
+
+    /// <summary>True for a preset the user does not own: it can be applied, but not renamed,
+    /// edited or deleted. A preset of theirs made from a configured dial always can be.</summary>
+    [JsonIgnore]
+    public bool IsReadOnly => IsBuiltIn || IsFromPlugin;
+
     /// <summary>MDI glyph for the panel row and the menu entry. Built-ins declare their own; a
     /// user-created preset uses <see cref="DefaultGlyph"/>.</summary>
     [JsonIgnore]
@@ -82,6 +100,8 @@ public sealed class DialPreset
         Right = Right,
         Press = Press,
         IsBuiltIn = IsBuiltIn,
-        Glyph = Glyph
+        Glyph = Glyph,
+        SourcePluginId = SourcePluginId,
+        SourcePluginName = SourcePluginName
     };
 }
