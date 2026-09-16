@@ -22,8 +22,13 @@ public sealed partial class PluginConnectionViewModel : ViewModelBase
     [NotifyPropertyChangedFor(nameof(HasResult))]
     public partial string ResultText { get; set; }
 
-    /// <summary>Which pill the result wears. An action reports success in its own words, so
-    /// the severity comes from whether the call itself completed, not from the text.</summary>
+    /// <summary>
+    /// Whether the action itself blew up. It is deliberately not inferred from the message: a
+    /// PluginSettingAction answers with a free-form string, so a plugin reporting "could not
+    /// reach the server" is, to the host, a call that completed. Claiming success for such a
+    /// message would be worse than saying nothing, so only a thrown exception is marked, and
+    /// everything else is shown as the neutral report it is.
+    /// </summary>
     [ObservableProperty]
     public partial bool IsFailure { get; set; }
 

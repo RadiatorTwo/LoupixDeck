@@ -187,16 +187,18 @@
                             <DataTemplate x:DataType="vmp:PluginConnectionViewModel">
                                 <Border Classes="card" Margin="0">
                                     <StackPanel Spacing="12">
-                                        <Grid ColumnDefinitions="*,Auto">
-                                            <TextBlock Grid.Column="0" Classes="card-title" Margin="0"
-                                                       Text="{loc:Tr Plugins_Connection}" />
-                                            <Border Grid.Column="1" Classes="pill"
-                                                    IsVisible="{Binding HasResult}"
-                                                    Classes.ok="{Binding !IsFailure}"
-                                                    Classes.warn="{Binding IsFailure}">
-                                                <TextBlock Text="{Binding ResultText}" />
-                                            </Border>
-                                        </Grid>
+                                        <TextBlock Classes="card-title" Margin="0"
+                                                   Text="{loc:Tr Plugins_Connection}" />
+                                        <!-- A plugin's answer can be a sentence, so it gets a row
+                                             of its own and wraps instead of squeezing the title. -->
+                                        <Border Classes="pill" HorizontalAlignment="Left"
+                                                CornerRadius="6" Padding="12,8" MaxWidth="560"
+                                                IsVisible="{Binding HasResult}"
+                                                Classes.neutral="{Binding !IsFailure}"
+                                                Classes.warn="{Binding IsFailure}">
+                                            <TextBlock Text="{Binding ResultText}" TextWrapping="Wrap"
+                                                       FontWeight="Normal" />
+                                        </Border>
                                         <ItemsControl ItemsSource="{Binding Actions}">
                                             <ItemsControl.ItemTemplate>
                                                 <DataTemplate x:DataType="vmp:PluginActionRowViewModel">
