@@ -23,13 +23,9 @@
         <StyleInclude Source="avares://LoupixDeck/Views/Styles/SettingsStyles.axaml" />
     </Window.Styles>
 
-    <!-- OffScreenMargin keeps the extended client area inside the screen while maximised
-         on Windows; it is zero everywhere else. -->
-    <Grid RowDefinitions="Auto,*" Margin="{Binding $parent[Window].OffScreenMargin}">
+    <controls:AppWindowFrame Title="{loc:Tr Settings_Plugins}">
 
-        <controls:AppTitleBar Grid.Row="0" Title="{loc:Tr Settings_Plugins}" />
-
-        <Grid Grid.Row="1" ColumnDefinitions="214,*">
+        <Grid ColumnDefinitions="214,*">
 
             <!-- ===== Rail ===== -->
             <Border Grid.Column="0"
@@ -74,5 +70,5 @@
                 </Panel>
             </Panel>
         </Grid>
-    </Grid>
+    </controls:AppWindowFrame>
 </Window>

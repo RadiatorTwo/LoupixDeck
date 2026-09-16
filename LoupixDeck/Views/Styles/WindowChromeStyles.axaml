@@ -1,19 +1,119 @@
 <Styles xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:loc="using:LoupixDeck.Localization"
+        xmlns:chrome="using:Avalonia.Controls.Chrome"
+        xmlns:cnv="clr-namespace:LoupixDeck.Models.Converter"
+        xmlns:controls="using:LoupixDeck.Views.Controls">
 
     <!-- ===== Custom window chrome =====
-         A window that wears Classes="app-chrome" draws its own title bar through
-         Views/Controls/AppTitleBar instead of the OS one. SystemDecorations stays
-         Full so resize borders, snapping and the taskbar entry keep working; only
-         the caption is ours.
-
-         Avalonia 12 dropped ExtendClientAreaChromeHints (it no longer exists on
-         Window) — extending to the decorations with a title-bar height hint of -1
-         is the whole recipe now. Don't reintroduce the hints property. -->
+         A window that wears Classes="app-chrome" and puts its content inside an AppWindowFrame
+         draws its own title bar instead of the OS one. -->
     <Style Selector="Window.app-chrome">
-        <Setter Property="ExtendClientAreaToDecorationsHint" Value="True" />
-        <Setter Property="ExtendClientAreaTitleBarHeightHint" Value="-1" />
+        <!-- No platform decorations and none drawn by Avalonia either: AppWindowFrame supplies
+             the title bar, the caption buttons and the resize edges, and marks each of them
+             with a WindowDecorationProperties.ElementRole so the platform still handles
+             snapping, the resize cursors and the Windows snap-layout flyout.
+
+             Avalonia 12 replaced ExtendClientAreaChromeHints with this role model. Do not
+             reintroduce that property, and do not set ExtendClientAreaToDecorationsHint here -
+             extending the client area makes Avalonia draw a title bar of its own on top of
+             ours. -->
+        <Setter Property="WindowDecorations" Value="None" />
     </Style>
+
+    <Styles.Resources>
+        <cnv:EnumToBooleanConverter x:Key="ChromeEnumToBoolean" />
+
+        <ControlTheme x:Key="{x:Type controls:AppWindowFrame}" TargetType="controls:AppWindowFrame">
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Grid>
+                        <Grid RowDefinitions="Auto,*">
+                            <Border Grid.Row="0" Classes="title-bar"
+                                    chrome:WindowDecorationProperties.ElementRole="TitleBar">
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <TextBlock Grid.Column="0" Classes="title-bar-label"
+                                               Margin="12,0,12,0"
+                                               Text="{TemplateBinding Title}" />
+
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                        <!-- mdi-window-minimize -->
+                                        <Button Classes="title-bar-button" Content="&#xF05B0;"
+                                                chrome:WindowDecorationProperties.ElementRole="MinimizeButton"
+                                                IsVisible="{TemplateBinding ShowMinimize}"
+                                                ToolTip.Tip="{loc:Tr Window_Minimize}" />
+
+                                        <!-- The maximise and restore glyphs are two buttons that
+                                             take turns, so the window state needs no code. -->
+                                        <!-- mdi-window-maximize -->
+                                        <Button Classes="title-bar-button" Content="&#xF05AF;"
+                                                chrome:WindowDecorationProperties.ElementRole="MaximizeButton"
+                                                ToolTip.Tip="{loc:Tr Window_Maximize}">
+                                            <Button.IsVisible>
+                                                <MultiBinding Converter="{x:Static BoolConverters.And}">
+                                                    <TemplateBinding Property="ShowMaximize" />
+                                                    <Binding Path="$parent[Window].WindowState"
+                                                             Converter="{StaticResource ChromeEnumToBoolean}"
+                                                             ConverterParameter="Normal" />
+                                                </MultiBinding>
+                                            </Button.IsVisible>
+                                        </Button>
+                                        <!-- mdi-window-restore -->
+                                        <Button Classes="title-bar-button" Content="&#xF05B2;"
+                                                chrome:WindowDecorationProperties.ElementRole="MaximizeButton"
+                                                ToolTip.Tip="{loc:Tr Window_Restore}">
+                                            <Button.IsVisible>
+                                                <MultiBinding Converter="{x:Static BoolConverters.And}">
+                                                    <TemplateBinding Property="ShowMaximize" />
+                                                    <Binding Path="$parent[Window].WindowState"
+                                                             Converter="{StaticResource ChromeEnumToBoolean}"
+                                                             ConverterParameter="Maximized" />
+                                                </MultiBinding>
+                                            </Button.IsVisible>
+                                        </Button>
+
+                                        <!-- mdi-close -->
+                                        <Button Classes="title-bar-button close" Content="&#xF0156;"
+                                                chrome:WindowDecorationProperties.ElementRole="CloseButton"
+                                                ToolTip.Tip="{loc:Tr Window_Close}" />
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+
+                            <ContentPresenter Grid.Row="1" Name="PART_ContentPresenter"
+                                              Content="{TemplateBinding Content}"
+                                              ContentTemplate="{TemplateBinding ContentTemplate}" />
+                        </Grid>
+
+                        <!-- Resize edges. Four pixels is about what an OS frame offers too; the
+                             corners are eight so they stay catchable. -->
+                        <Grid ColumnDefinitions="8,*,8" RowDefinitions="8,*,8">
+                            <Border Grid.Row="0" Grid.Column="0" Background="Transparent"
+                                    chrome:WindowDecorationProperties.ElementRole="ResizeNW" />
+                            <Border Grid.Row="0" Grid.Column="1" Background="Transparent" Height="4"
+                                    VerticalAlignment="Top"
+                                    chrome:WindowDecorationProperties.ElementRole="ResizeN" />
+                            <Border Grid.Row="0" Grid.Column="2" Background="Transparent"
+                                    chrome:WindowDecorationProperties.ElementRole="ResizeNE" />
+                            <Border Grid.Row="1" Grid.Column="0" Background="Transparent" Width="4"
+                                    HorizontalAlignment="Left"
+                                    chrome:WindowDecorationProperties.ElementRole="ResizeW" />
+                            <Border Grid.Row="1" Grid.Column="2" Background="Transparent" Width="4"
+                                    HorizontalAlignment="Right"
+                                    chrome:WindowDecorationProperties.ElementRole="ResizeE" />
+                            <Border Grid.Row="2" Grid.Column="0" Background="Transparent"
+                                    chrome:WindowDecorationProperties.ElementRole="ResizeSW" />
+                            <Border Grid.Row="2" Grid.Column="1" Background="Transparent" Height="4"
+                                    VerticalAlignment="Bottom"
+                                    chrome:WindowDecorationProperties.ElementRole="ResizeS" />
+                            <Border Grid.Row="2" Grid.Column="2" Background="Transparent"
+                                    chrome:WindowDecorationProperties.ElementRole="ResizeSE" />
+                        </Grid>
+                    </Grid>
+                </ControlTemplate>
+            </Setter>
+        </ControlTheme>
+    </Styles.Resources>
 
     <Style Selector="Border.title-bar">
         <Setter Property="Background" Value="{DynamicResource AppSurfaceLow}" />
@@ -29,8 +129,8 @@
         <Setter Property="TextTrimming" Value="CharacterEllipsis" />
     </Style>
 
-    <!-- Caption button: chromeless until hovered, sized like the OS ones so the
-         row still reads as a title bar. -->
+    <!-- Caption button: chromeless until hovered, sized like the OS ones so the row still reads
+         as a title bar. -->
     <Style Selector="Button.title-bar-button">
         <Setter Property="Background" Value="Transparent" />
         <Setter Property="BorderThickness" Value="0" />
