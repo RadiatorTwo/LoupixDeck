@@ -79,7 +79,19 @@ public class CommandRegistry : ICommandRegistry
 
         _ordered = ordered;
         _commands = next.ToFrozenDictionary(StringComparer.Ordinal);
+
+        try
+        {
+            CommandsChanged?.Invoke();
+        }
+        catch (Exception ex)
+        {
+            // A listener that throws must not leave the registry half-published.
+            Console.WriteLine($"CommandRegistry: a CommandsChanged listener failed: {ex.Message}");
+        }
     }
+
+    public event Action CommandsChanged;
 
     public bool Contains(string commandName)
     {
