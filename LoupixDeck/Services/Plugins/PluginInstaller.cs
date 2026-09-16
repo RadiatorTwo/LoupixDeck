@@ -219,11 +219,11 @@ public sealed class PluginInstaller : IPluginInstaller
             return PluginActionResult.Fail(Loc.Tr("Plugin_OlderThanBundled", name, bundled.Value.VersionText, manifest.Version));
         }
 
-        // Enable it right away so the reload coordinator loads it (and a restart
-        // would too) — installing a chosen package implies the user wants it active
-        // (symmetric with Remove, which drops the id). The coordinator writes the
-        // config once the install succeeded.
-        EnsureEnabled(manifest.Id);
+        // Installing does NOT enable. Enabling is per device (LoupedeckConfig.EnabledPlugins),
+        // so an install performed here would silently switch the plugin on for whichever device
+        // happened to run the installer - and on no other. The user turns it on per device in
+        // the Plugins window; PluginReloadService.EnableAsync is the one place that writes the
+        // flag, because that is the explicit action.
 
         // Fresh install — id is new, nothing is locked. Coordinator loads it live.
         if (!Directory.Exists(targetDir))
@@ -432,16 +432,6 @@ public sealed class PluginInstaller : IPluginInstaller
         {
             try { Directory.Delete(stagingRoot, recursive: true); } catch { /* best effort */ }
         }
-    }
-
-    private void EnsureEnabled(string id)
-    {
-        if (string.IsNullOrWhiteSpace(id))
-            return;
-
-        _config.EnabledPlugins ??= [];
-        if (!_config.EnabledPlugins.Any(e => string.Equals(e, id, StringComparison.OrdinalIgnoreCase)))
-            _config.EnabledPlugins.Add(id);
     }
 
     private bool MarkForRemoval(string pluginDir)

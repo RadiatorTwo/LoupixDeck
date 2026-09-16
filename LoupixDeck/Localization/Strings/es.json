@@ -869,5 +869,6 @@
   "Plugins_SearchPlaceholder": "Buscar complementos…",
   "Plugins_NoMatches": "Ningún complemento con ese nombre.",
   "Plugins_EnableTooltip": "Activar este complemento en el dispositivo seleccionado",
-  "Plugins_EnablingFor": "Activando para"
+  "Plugins_EnablingFor": "Activando para",
+  "PluginStore_InstalledNeedsEnable": "{0} se instaló. Actívalo para un dispositivo en la página de complementos."
 }

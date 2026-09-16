@@ -869,5 +869,6 @@
   "Plugins_SearchPlaceholder": "Plugins durchsuchen…",
   "Plugins_NoMatches": "Kein Plugin mit diesem Namen.",
   "Plugins_EnableTooltip": "Dieses Plugin auf dem gewählten Gerät aktivieren",
-  "Plugins_EnablingFor": "Aktivieren für"
+  "Plugins_EnablingFor": "Aktivieren für",
+  "PluginStore_InstalledNeedsEnable": "{0} wurde installiert. Auf der Plugins-Seite für ein Gerät einschalten."
 }

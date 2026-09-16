@@ -206,6 +206,15 @@ public sealed partial class PluginStoreViewModel(
             }
 
             store.MarkInstalled(row.Item.Entry, candidate);
+
+            // A fresh install is not switched on: enabling is per device, so it is the user's
+            // call, on the Plugins page, per device. Say so rather than leaving them to wonder
+            // why nothing happened.
+            if (row.Item.Installed is null)
+            {
+                StatusText = Loc.Tr("PluginStore_InstalledNeedsEnable", row.Name);
+            }
+
             if (result.RequiresRestart)
             {
                 store.MarkRestartRequired(row.Item.Entry.Id);
