@@ -72,6 +72,13 @@ public sealed partial class PluginStoreViewModel(
     /// <summary>Raised after a plugin was installed, updated or removed, so the Plugins page can rebuild its list.</summary>
     public event Action PluginsChanged;
 
+    /// <summary>Raised when a tile asks for the installed page, with that plugin selected.</summary>
+    public event Action<string> SetupRequested;
+
+    /// <summary>Drives the update badge on the rail. Reads zero until a catalog has been loaded
+    /// once, by opening this page or by the background check.</summary>
+    public int AvailableUpdateCount => store.AvailableUpdates?.Count ?? 0;
+
     /// <summary>Makes the next visit of the page reload the list, after the Plugins page changed something.</summary>
     public void Invalidate()
     {

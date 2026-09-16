@@ -46,7 +46,14 @@ public partial class PluginsWindowViewModel : DialogViewModelBase<DialogResult>
 
         // The store installs, updates and removes through the same coordinator, so the
         // installed list has to follow what it did.
-        PluginStore.PluginsChanged += Installed.Refresh;
+        PluginStore.PluginsChanged += OnPluginsChanged;
+
+        // The store jumps here to set a freshly installed plugin up.
+        PluginStore.SetupRequested += pluginId =>
+        {
+            Installed.SelectPlugin(pluginId);
+            CurrentPage = PluginsPage.Installed;
+        };
     }
 
     // ───────── Page navigation ─────────
@@ -65,6 +72,25 @@ public partial class PluginsWindowViewModel : DialogViewModelBase<DialogResult>
     }
 
     public IRelayCommand NavigateCommand => field ??= Relay.Create<PluginsPage>(page => CurrentPage = page);
+
+    // ---------- Rail counts ----------
+
+    /// <summary>Shown after the "Plugins" rail entry.</summary>
+    public int InstalledCount => Installed.InstalledCount;
+
+    /// <summary>Update badge on the "Plugin Store" entry. Reads zero until a catalog has been
+    /// loaded once - by opening the store page or by the background check.</summary>
+    public int UpdateCount => PluginStore.AvailableUpdateCount;
+
+    public bool HasUpdates => UpdateCount > 0;
+
+    private void OnPluginsChanged()
+    {
+        Installed.Refresh();
+        OnPropertyChanged(nameof(InstalledCount));
+        OnPropertyChanged(nameof(UpdateCount));
+        OnPropertyChanged(nameof(HasUpdates));
+    }
 
     /// <summary>Opens the window on the Plugin Store page, optionally with one plugin brought to the top.</summary>
     public void OpenPluginStore(string highlightedPluginId = null)

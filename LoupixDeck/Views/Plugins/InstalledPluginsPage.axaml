@@ -44,41 +44,51 @@
     <Grid ColumnDefinitions="292,*">
 
         <!-- ===== Plugin list ===== -->
-        <Border Grid.Column="0"
-                Background="{DynamicResource AppSurfaceLow}"
-                BorderBrush="{DynamicResource AppBorderFaint}"
-                BorderThickness="0,0,1,0">
-            <Grid RowDefinitions="*,Auto" IsEnabled="{Binding !IsBusy}">
-                <ScrollViewer Grid.Row="0">
-                    <StackPanel Margin="0,16,0,16">
-                        <TextBlock Classes="section-header" Margin="16,0,16,7"
-                                   Text="{loc:Tr Settings_Plugins}" />
+        <Border Grid.Column="0" Classes="pane-rail">
+            <Grid RowDefinitions="Auto,Auto,*,Auto" IsEnabled="{Binding !IsBusy}">
 
+                <TextBlock Grid.Row="0" Classes="group-header" Margin="16,16,16,7"
+                           Text="{Binding InstalledHeader}" />
+
+                <!-- Name search only; the magnifier sits over the box's left padding. -->
+                <Panel Grid.Row="1" Margin="14,0,14,10">
+                    <TextBox Classes="search" Text="{Binding SearchText, Mode=TwoWay}"
+                             PlaceholderText="{loc:Tr Plugins_SearchPlaceholder}" />
+                    <!-- mdi-magnify -->
+                    <TextBlock Classes="search-icon" Text="&#xF0349;" />
+                </Panel>
+
+                <ScrollViewer Grid.Row="2">
+                    <StackPanel>
                         <TextBlock Classes="hint" Margin="16,4,16,4" FontSize="12"
                                    IsVisible="{Binding !HasRows}"
                                    Text="{loc:Tr Plugins_NoneInstalled}" />
+                        <TextBlock Classes="hint" Margin="16,4,16,4" FontSize="12"
+                                   IsVisible="{Binding HasNoMatches}"
+                                   Text="{loc:Tr Plugins_NoMatches}" />
 
-                        <ListBox ItemsSource="{Binding Rows}"
+                        <ListBox Classes="plugin-list" ItemsSource="{Binding Rows}"
                                  SelectedItem="{Binding SelectedPlugin, Mode=TwoWay}"
                                  Background="Transparent" BorderThickness="0"
                                  Margin="8,0,8,0">
                             <ListBox.ItemTemplate>
                                 <DataTemplate x:DataType="vmp:InstalledPluginRowViewModel">
-                                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
-                                        <CheckBox Grid.Column="0" VerticalAlignment="Center"
-                                                  IsEnabled="{Binding CanToggle}"
-                                                  IsChecked="{Binding IsEnabled, Mode=TwoWay}" />
-                                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                            <TextBlock Text="{Binding Name}"
-                                                       TextTrimming="CharacterEllipsis" />
-                                            <TextBlock Classes="hint" FontSize="11"
-                                                       Text="{Binding StatusText}"
+                                    <Grid ColumnDefinitions="3,8,*,Auto"
+                                          Classes.row-dimmed="{Binding IsStatusDisabled}"
+                                          Margin="0,0,10,0" MinHeight="34">
+                                        <Border Grid.Column="0" Classes="nav-accent" />
+                                        <Border Grid.Column="1" Classes="status-dot" Margin="8,0,0,0"
+                                                Classes.ok="{Binding IsStatusOk}"
+                                                Classes.warn="{Binding IsStatusRestart}"
+                                                Classes.off="{Binding IsStatusDisabled}" />
+                                        <TextBlock Grid.Column="2" Classes="row-name" Margin="11,0,8,0"
+                                                   Text="{Binding Name}" />
+                                        <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="6">
+                                            <TextBlock Classes="meta warn" Text="{Binding StatusText}"
                                                        IsVisible="{Binding HasStatusText}" />
+                                            <TextBlock Classes="meta" Text="{Binding MetaText}"
+                                                       IsVisible="{Binding HasMeta}" />
                                         </StackPanel>
-                                        <TextBlock Grid.Column="2" Classes="hint" FontSize="11"
-                                                   VerticalAlignment="Center"
-                                                   Text="{Binding MetaText}"
-                                                   IsVisible="{Binding HasMeta}" />
                                     </Grid>
                                 </DataTemplate>
                             </ListBox.ItemTemplate>
@@ -86,9 +96,9 @@
                     </StackPanel>
                 </ScrollViewer>
 
-                <!-- The two local-install actions belong to this page only. -->
-                <Border Grid.Row="1" BorderBrush="{DynamicResource AppBorderFaint}"
-                        BorderThickness="0,1,0,0" Padding="14">
+                <!-- The two local-install actions belong to this page only; they must not appear
+                     on the store page. -->
+                <Border Grid.Row="3" Classes="pane-bar" Padding="14">
                     <StackPanel Spacing="8">
                         <Button HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
                                 Content="{loc:Tr Settings_InstallFromZip}"
@@ -102,121 +112,123 @@
         </Border>
 
         <!-- ===== Detail pane ===== -->
-        <Grid Grid.Column="1" RowDefinitions="*,Auto">
+        <Grid Grid.Column="1" RowDefinitions="*,Auto" IsVisible="{Binding HasSelection}">
 
-            <ScrollViewer Grid.Row="0" IsVisible="{Binding HasSelection}">
-                <ContentControl Content="{Binding Detail}">
-                    <ContentControl.ContentTemplate>
-                        <DataTemplate x:DataType="vmp:PluginDetailViewModel">
-                            <StackPanel Margin="24,22,24,24">
+            <ScrollViewer Grid.Row="0">
+                <StackPanel Margin="24,22,24,24">
 
-                                <!-- Header -->
-                                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="14">
-                                    <Image Grid.Column="0" Width="48" Height="48" VerticalAlignment="Top"
-                                           Source="{Binding Icon}" IsVisible="{Binding HasIcon}" />
-                                    <StackPanel Grid.Column="1" Spacing="2">
-                                        <TextBlock Classes="page-title" Margin="0" Text="{Binding Name}"
-                                                   TextWrapping="Wrap" />
-                                        <TextBlock Classes="hint" FontSize="12" Text="{Binding SubtitleText}" />
-                                        <TextBlock Classes="hint" FontSize="11" FontFamily="Consolas,Menlo,monospace"
-                                                   Text="{Binding PluginId}" IsVisible="{Binding HasPluginId}" />
-                                        <TextBlock Classes="hint" FontSize="12" Margin="0,4,0,0"
-                                                   Text="{Binding BundledFallbackText}"
-                                                   IsVisible="{Binding IsBundledOverride}" />
-                                    </StackPanel>
-                                </Grid>
-
-                                <TextBlock Classes="hint" Margin="0,12,0,0" MaxWidth="620"
-                                           HorizontalAlignment="Left"
-                                           Text="{Binding DescriptionText}"
-                                           IsVisible="{Binding HasDescription}" />
-
-                                <Button Classes="toolbar" Margin="0,10,0,0" HorizontalAlignment="Left"
-                                        Content="{loc:Tr Plugins_OpenProjectPage}"
-                                        Command="{Binding OpenProjectPageCommand}"
-                                        IsVisible="{Binding HasProjectUrl}" />
-
-                                <!-- Not running: say why instead of showing a form that writes nowhere. -->
-                                <Border Classes="card" Margin="0,18,0,0" IsVisible="{Binding HasFailure}">
-                                    <TextBlock Classes="hint" TextWrapping="Wrap" Text="{Binding FailureText}" />
-                                </Border>
-
-                                <TextBlock Classes="hint" Margin="0,18,0,0" IsVisible="{Binding HasNoSettings}"
-                                           Text="{loc:Tr Plugins_NoSettings}" />
-
-                                <!-- Connection: where a settings action reports back. -->
-                                <ContentControl Margin="0,18,0,0" Content="{Binding Connection}"
-                                                IsVisible="{Binding HasConnection}">
-                                    <ContentControl.ContentTemplate>
-                                        <DataTemplate x:DataType="vmp:PluginConnectionViewModel">
-                                            <Border Classes="card" Margin="0">
-                                                <StackPanel Spacing="12">
-                                                    <Grid ColumnDefinitions="*,Auto">
-                                                        <TextBlock Grid.Column="0" Classes="card-title" Margin="0"
-                                                                   Text="{loc:Tr Plugins_Connection}" />
-                                                        <Border Grid.Column="1" Classes="pill"
-                                                                IsVisible="{Binding HasResult}"
-                                                                Classes.ok="{Binding !IsFailure}"
-                                                                Classes.warn="{Binding IsFailure}">
-                                                            <TextBlock Text="{Binding ResultText}" />
-                                                        </Border>
-                                                    </Grid>
-                                                    <ItemsControl ItemsSource="{Binding Actions}">
-                                                        <ItemsControl.ItemTemplate>
-                                                            <DataTemplate x:DataType="vmp:PluginActionRowViewModel">
-                                                                <Button Margin="0,0,8,0" MinWidth="130"
-                                                                        Content="{Binding Label}"
-                                                                        IsEnabled="{Binding IsIdle}"
-                                                                        Command="{Binding RunCommand}" />
-                                                            </DataTemplate>
-                                                        </ItemsControl.ItemTemplate>
-                                                        <ItemsControl.ItemsPanel>
-                                                            <ItemsPanelTemplate>
-                                                                <WrapPanel />
-                                                            </ItemsPanelTemplate>
-                                                        </ItemsControl.ItemsPanel>
-                                                    </ItemsControl>
-                                                </StackPanel>
-                                            </Border>
-                                        </DataTemplate>
-                                    </ContentControl.ContentTemplate>
-                                </ContentControl>
-
-                                <!-- Generated form, one card per declared heading. -->
-                                <ItemsControl ItemsSource="{Binding Groups}" Margin="0,16,0,0">
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate x:DataType="vmp:PluginSettingGroupViewModel">
-                                            <Border Classes="card" Margin="0,0,0,16">
-                                                <StackPanel>
-                                                    <TextBlock Classes="card-title" Text="{Binding Title}"
-                                                               IsVisible="{Binding HasTitle}" />
-                                                    <TextBlock Classes="hint" FontSize="12" Margin="0,0,0,12"
-                                                               MaxWidth="560" HorizontalAlignment="Left"
-                                                               Text="{Binding Description}"
-                                                               IsVisible="{Binding HasDescription}" />
-                                                    <ItemsControl ItemsSource="{Binding Rows}" />
-                                                </StackPanel>
-                                            </Border>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
+                    <!-- Header: who the plugin is, and the one switch that turns it on. -->
+                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="14">
+                        <Image Grid.Column="0" Width="48" Height="48" VerticalAlignment="Top"
+                               Source="{Binding Detail.Icon}" IsVisible="{Binding Detail.HasIcon}" />
+                        <StackPanel Grid.Column="1" Spacing="2">
+                            <TextBlock Classes="page-title" Margin="0" Text="{Binding Detail.Name}"
+                                       TextWrapping="Wrap" />
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBlock Classes="meta" Text="{Binding Detail.SubtitleText}" />
+                                <TextBlock Classes="meta" FontFamily="Consolas,Menlo,monospace"
+                                           Text="{Binding Detail.PluginId}"
+                                           IsVisible="{Binding Detail.HasPluginId}" />
                             </StackPanel>
-                        </DataTemplate>
-                    </ContentControl.ContentTemplate>
-                </ContentControl>
+                            <TextBlock Classes="meta warn" Margin="0,4,0,0"
+                                       Text="{Binding Detail.BundledFallbackText}"
+                                       IsVisible="{Binding Detail.IsBundledOverride}" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="10"
+                                    VerticalAlignment="Top">
+                            <Button Classes="ghost" Content="{loc:Tr Plugins_OpenProjectPage}"
+                                    Command="{Binding Detail.OpenProjectPageCommand}"
+                                    IsVisible="{Binding Detail.HasProjectUrl}" />
+                            <ToggleSwitch OnContent="" OffContent="" VerticalAlignment="Center"
+                                          IsEnabled="{Binding SelectedPlugin.CanToggle}"
+                                          IsChecked="{Binding SelectedPlugin.IsEnabled, Mode=TwoWay}"
+                                          ToolTip.Tip="{loc:Tr Plugins_EnableTooltip}" />
+                        </StackPanel>
+                    </Grid>
+
+                    <TextBlock Classes="hint" Margin="0,12,0,0" MaxWidth="620"
+                               HorizontalAlignment="Left"
+                               Text="{Binding Detail.DescriptionText}"
+                               IsVisible="{Binding Detail.HasDescription}" />
+
+                    <!-- Not running: say why instead of showing a form that writes nowhere. -->
+                    <Border Classes="notice" Margin="0,18,0,0" HorizontalAlignment="Stretch"
+                            IsVisible="{Binding Detail.HasFailure}">
+                        <TextBlock Text="{Binding Detail.FailureText}" />
+                    </Border>
+
+                    <TextBlock Classes="hint" Margin="0,18,0,0"
+                               IsVisible="{Binding Detail.HasNoSettings}"
+                               Text="{loc:Tr Plugins_NoSettings}" />
+
+                    <!-- Connection: the surface where a settings action reports back. -->
+                    <ContentControl Margin="0,18,0,0" Content="{Binding Detail.Connection}"
+                                    IsVisible="{Binding Detail.HasConnection}">
+                        <ContentControl.ContentTemplate>
+                            <DataTemplate x:DataType="vmp:PluginConnectionViewModel">
+                                <Border Classes="card" Margin="0">
+                                    <StackPanel Spacing="12">
+                                        <Grid ColumnDefinitions="*,Auto">
+                                            <TextBlock Grid.Column="0" Classes="card-title" Margin="0"
+                                                       Text="{loc:Tr Plugins_Connection}" />
+                                            <Border Grid.Column="1" Classes="pill"
+                                                    IsVisible="{Binding HasResult}"
+                                                    Classes.ok="{Binding !IsFailure}"
+                                                    Classes.warn="{Binding IsFailure}">
+                                                <TextBlock Text="{Binding ResultText}" />
+                                            </Border>
+                                        </Grid>
+                                        <ItemsControl ItemsSource="{Binding Actions}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate x:DataType="vmp:PluginActionRowViewModel">
+                                                    <Button Margin="0,0,8,0" MinWidth="130"
+                                                            Content="{Binding Label}"
+                                                            IsEnabled="{Binding IsIdle}"
+                                                            Command="{Binding RunCommand}" />
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <WrapPanel />
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                        </ItemsControl>
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ContentControl.ContentTemplate>
+                    </ContentControl>
+
+                    <!-- Generated form, one card per declared heading. -->
+                    <ItemsControl ItemsSource="{Binding Detail.Groups}" Margin="0,16,0,0">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vmp:PluginSettingGroupViewModel">
+                                <Border Classes="card" Margin="0,0,0,16">
+                                    <StackPanel>
+                                        <TextBlock Classes="card-title" Text="{Binding Title}"
+                                                   IsVisible="{Binding HasTitle}" />
+                                        <TextBlock Classes="hint" FontSize="12" Margin="0,0,0,12"
+                                                   MaxWidth="560" HorizontalAlignment="Left"
+                                                   Text="{Binding Description}"
+                                                   IsVisible="{Binding HasDescription}" />
+                                        <ItemsControl ItemsSource="{Binding Rows}" />
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
             </ScrollViewer>
 
             <!-- Action bar: Save and Discard stay reachable however long the form is. -->
-            <Border Grid.Row="1"
-                    Background="{DynamicResource AppSurfaceLow}"
-                    BorderBrush="{DynamicResource AppBorderFaint}"
-                    BorderThickness="0,1,0,0"
-                    Padding="20,12">
-                <Grid ColumnDefinitions="*,Auto">
-                    <StackPanel Grid.Column="0" Spacing="2" VerticalAlignment="Center">
-                        <TextBlock Classes="hint" FontSize="12"
-                                   Text="{Binding Detail.UnsavedText}"
-                                   IsVisible="{Binding Detail.HasUnsavedChanges}" />
+            <Border Grid.Row="1" Classes="pane-bar" Padding="20,12">
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                    <StackPanel Grid.Column="0" Spacing="4" VerticalAlignment="Center">
+                        <StackPanel Orientation="Horizontal" Spacing="8"
+                                    IsVisible="{Binding Detail.HasUnsavedChanges}">
+                            <Border Classes="unsaved-dot" />
+                            <TextBlock Classes="unsaved" Text="{Binding Detail.UnsavedText}" />
+                        </StackPanel>
                         <TextBlock Classes="hint" FontSize="12" TextWrapping="Wrap"
                                    Text="{Binding StatusText}" IsVisible="{Binding HasStatus}" />
                         <TextBlock Classes="hint" FontSize="12" TextWrapping="Wrap"
@@ -224,12 +236,12 @@
                                    IsVisible="{Binding ShowRestartHint}" />
                     </StackPanel>
                     <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12">
-                        <Button Classes="toolbar" Content="{Binding RemoveLabel}"
+                        <Button Classes="ghost destructive" Content="{Binding RemoveLabel}"
                                 IsEnabled="{Binding CanRemoveSelected}"
                                 Command="{Binding RemoveCommand}" />
-                        <Button Classes="toolbar" Content="{loc:Tr Plugins_Discard}"
+                        <Button Content="{loc:Tr Plugins_Discard}"
                                 Command="{Binding Detail.DiscardCommand}" />
-                        <Button Classes="toolbar accent" Content="{loc:Tr Plugins_Save}"
+                        <Button Classes="primary" Content="{loc:Tr Plugins_Save}"
                                 Command="{Binding Detail.SaveCommand}" />
                     </StackPanel>
                 </Grid>

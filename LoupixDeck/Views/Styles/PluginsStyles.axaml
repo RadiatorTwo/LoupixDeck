@@ -1,0 +1,232 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- ===== Plugins window =====
+         Page-specific classes. Everything that already exists in SettingsStyles.axaml is
+         reused rather than re-declared: Border.card, Border.pill.*, Button.nav +
+         Border.nav-accent, TextBlock.page-title / card-title / label / hint / section-header.
+
+         The colours come from the theme brushes, never from the design's literals, so both
+         pages follow Light and Dark like the rest of the app. -->
+
+    <!-- Group header above the list ("Installed - 6"). -->
+    <Style Selector="TextBlock.group-header">
+        <Setter Property="FontSize" Value="11" />
+        <Setter Property="FontWeight" Value="Bold" />
+        <Setter Property="Foreground" Value="{DynamicResource AppTextSecondary}" />
+    </Style>
+
+    <!-- Search field with room for the magnifier drawn over its left edge. -->
+    <Style Selector="TextBox.search">
+        <Setter Property="Padding" Value="30,6,10,6" />
+        <Setter Property="MinHeight" Value="32" />
+        <Setter Property="CornerRadius" Value="4" />
+    </Style>
+    <Style Selector="TextBlock.search-icon">
+        <Setter Property="FontFamily" Value="{DynamicResource MdiFont}" />
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="Foreground" Value="{DynamicResource AppTextMuted}" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="HorizontalAlignment" Value="Left" />
+        <Setter Property="Margin" Value="10,0,0,0" />
+        <Setter Property="IsHitTestVisible" Value="False" />
+    </Style>
+
+    <!-- A list row wears the same selection treatment as the rail: a quiet fill plus a 3px
+         accent bar, never a full-width solid blue row. -->
+    <Style Selector="ListBox.plugin-list > ListBoxItem">
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="Margin" Value="0,1" />
+        <Setter Property="CornerRadius" Value="4" />
+        <Setter Property="Background" Value="Transparent" />
+    </Style>
+    <Style Selector="ListBox.plugin-list > ListBoxItem:pointerover /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource AppControlBackgroundHover}" />
+    </Style>
+    <Style Selector="ListBox.plugin-list > ListBoxItem:selected /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource AppControlBackgroundActive}" />
+    </Style>
+    <Style Selector="ListBox.plugin-list > ListBoxItem Border.nav-accent">
+        <Setter Property="Width" Value="3" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="CornerRadius" Value="2" />
+        <Setter Property="Margin" Value="0,3" />
+    </Style>
+    <Style Selector="ListBox.plugin-list > ListBoxItem:selected Border.nav-accent">
+        <Setter Property="Background" Value="{DynamicResource PickerFocusBrush}" />
+    </Style>
+    <Style Selector="ListBox.plugin-list > ListBoxItem:selected TextBlock.row-name">
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Foreground" Value="{DynamicResource AppTextPrimary}" />
+    </Style>
+
+    <Style Selector="TextBlock.row-name">
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+    </Style>
+
+    <!-- Small meta text: a version, a target version, a short status. -->
+    <Style Selector="TextBlock.meta">
+        <Setter Property="FontSize" Value="11" />
+        <Setter Property="Foreground" Value="{DynamicResource AppTextMuted}" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+    <Style Selector="TextBlock.meta.accent">
+        <Setter Property="Foreground" Value="{DynamicResource PageActiveBorderBrush}" />
+    </Style>
+    <Style Selector="TextBlock.meta.warn">
+        <Setter Property="Foreground" Value="{DynamicResource StatusDotWarn}" />
+    </Style>
+
+    <!-- Status dot: 8px, one colour per state. The row itself dims when the plugin is off. -->
+    <Style Selector="Border.status-dot">
+        <Setter Property="Width" Value="8" />
+        <Setter Property="Height" Value="8" />
+        <Setter Property="CornerRadius" Value="4" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="Background" Value="{DynamicResource StatusDotNeutral}" />
+    </Style>
+    <Style Selector="Border.status-dot.ok">
+        <Setter Property="Background" Value="{DynamicResource StatusDotOk}" />
+    </Style>
+    <Style Selector="Border.status-dot.warn">
+        <Setter Property="Background" Value="{DynamicResource StatusDotWarn}" />
+    </Style>
+    <Style Selector="Border.status-dot.off">
+        <Setter Property="Background" Value="{DynamicResource StatusDotInactive}" />
+    </Style>
+
+    <!-- A disabled plugin's whole row reads at half strength. -->
+    <Style Selector="Grid.row-dimmed">
+        <Setter Property="Opacity" Value="0.5" />
+    </Style>
+
+    <!-- Bars that frame a page: the list's action footer and the detail pane's action bar. -->
+    <Style Selector="Border.pane-bar">
+        <Setter Property="Background" Value="{DynamicResource AppSurfaceLow}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource AppBorderFaint}" />
+        <Setter Property="BorderThickness" Value="0,1,0,0" />
+    </Style>
+
+    <!-- A column that is not the content: the rail and the plugin list. -->
+    <Style Selector="Border.pane-rail">
+        <Setter Property="Background" Value="{DynamicResource AppSurfaceLow}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource AppBorderFaint}" />
+        <Setter Property="BorderThickness" Value="0,0,1,0" />
+    </Style>
+
+    <!-- The one action that commits: filled, so it does not disappear into a row of neutral
+         buttons. -->
+    <Style Selector="Button.primary">
+        <Setter Property="MinWidth" Value="88" />
+        <Setter Property="Padding" Value="13,6" />
+        <Setter Property="CornerRadius" Value="4" />
+        <Setter Property="HorizontalContentAlignment" Value="Center" />
+    </Style>
+    <Style Selector="Button.primary /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource PageActiveBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource PageActiveBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="Foreground" Value="White" />
+    </Style>
+    <Style Selector="Button.primary:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource PageActiveBorderBrush}" />
+        <Setter Property="Foreground" Value="White" />
+    </Style>
+    <Style Selector="Button.primary:disabled /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource AppControlBackground}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource AppBorderSubtle}" />
+        <Setter Property="Foreground" Value="{DynamicResource AppTextMuted}" />
+    </Style>
+
+    <!-- A link that happens to be a button: release notes, remove. -->
+    <Style Selector="Button.ghost">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Padding" Value="6,4" />
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="CornerRadius" Value="4" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Foreground" Value="{DynamicResource PageActiveBorderBrush}" />
+    </Style>
+    <Style Selector="Button.ghost:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource AppControlBackgroundHover}" />
+    </Style>
+    <Style Selector="Button.ghost.destructive">
+        <Setter Property="Foreground" Value="{DynamicResource AppTextDestructive}" />
+    </Style>
+    <Style Selector="Button.ghost:disabled">
+        <Setter Property="Opacity" Value="0.4" />
+    </Style>
+
+    <!-- Unsaved-changes marker in the action bar. -->
+    <Style Selector="Border.unsaved-dot">
+        <Setter Property="Width" Value="8" />
+        <Setter Property="Height" Value="8" />
+        <Setter Property="CornerRadius" Value="4" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="Background" Value="{DynamicResource StatusDotWarn}" />
+    </Style>
+    <Style Selector="TextBlock.unsaved">
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="Foreground" Value="{DynamicResource StatusDotWarn}" />
+    </Style>
+
+    <!-- Warning strip above a page: a stale catalog, an error from the last action. -->
+    <Style Selector="Border.notice">
+        <Setter Property="Background" Value="{DynamicResource NoticeWarnBackground}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource NoticeWarnBorder}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="5" />
+        <Setter Property="Padding" Value="13,10" />
+    </Style>
+    <Style Selector="Border.notice TextBlock">
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="Foreground" Value="{DynamicResource StatusDotWarn}" />
+        <Setter Property="TextWrapping" Value="Wrap" />
+    </Style>
+
+    <!-- Count next to a rail entry; the store's update count is a pill, hidden at zero. -->
+    <Style Selector="Border.rail-badge">
+        <Setter Property="Background" Value="{DynamicResource AppAccentSubtle}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource PageActiveBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="9" />
+        <Setter Property="Padding" Value="7,1" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="Margin" Value="0,0,8,0" />
+    </Style>
+    <Style Selector="Border.rail-badge TextBlock">
+        <Setter Property="FontSize" Value="11" />
+        <Setter Property="Foreground" Value="{DynamicResource PageActiveBorderBrush}" />
+    </Style>
+
+    <!-- Download progress on a store tile. -->
+    <Style Selector="ProgressBar.thin">
+        <Setter Property="Height" Value="4" />
+        <Setter Property="MinHeight" Value="4" />
+        <Setter Property="CornerRadius" Value="2" />
+        <Setter Property="Foreground" Value="{DynamicResource PageActiveBrush}" />
+        <Setter Property="Background" Value="{DynamicResource AppBorderSubtle}" />
+    </Style>
+
+    <!-- A store tile is a card with no outer margin; the grid spaces them. -->
+    <Style Selector="Border.tile">
+        <Setter Property="Background" Value="{DynamicResource AppSurface}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource AppBorderSubtle}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="Padding" Value="16,15" />
+        <Setter Property="Margin" Value="0,0,14,14" />
+    </Style>
+    <!-- Nothing can be installed for this system: the tile stays readable but steps back. -->
+    <Style Selector="Border.tile.unavailable">
+        <Setter Property="Opacity" Value="0.6" />
+    </Style>
+    <!-- The plugin a config asked for, when the store was opened for it. -->
+    <Style Selector="Border.tile.highlighted">
+        <Setter Property="BorderBrush" Value="{DynamicResource PageActiveBorderBrush}" />
+    </Style>
+</Styles>

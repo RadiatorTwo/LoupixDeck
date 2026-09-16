@@ -864,5 +864,9 @@
   "Plugins_StatusDisabled": "Disabled",
   "Plugins_StatusIncompatible": "Needs a different SDK version",
   "Plugins_StatusFailed": "Failed to load",
-  "Plugins_StatusRestart": "Restart required"
+  "Plugins_StatusRestart": "Restart required",
+  "Plugins_InstalledCount": "Installed · {0}",
+  "Plugins_SearchPlaceholder": "Search plugins…",
+  "Plugins_NoMatches": "No plugin matches that name.",
+  "Plugins_EnableTooltip": "Enable this plugin on the selected device"
 }

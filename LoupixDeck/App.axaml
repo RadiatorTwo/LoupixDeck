@@ -76,6 +76,17 @@
                     <SolidColorBrush x:Key="AppTextPrimary" Color="#E4E4E4" />
                     <SolidColorBrush x:Key="AppTextSecondary" Color="#9A9A9A" />
                     <SolidColorBrush x:Key="AppTextMuted" Color="#707070" />
+                    <!-- Status colours used as small dots and as link/label text (plugins
+                         list, store tiles). The pill fills in SettingsStyles are dark-only
+                         literals; these have to read on a light card too, so they are
+                         theme-aware. -->
+                    <SolidColorBrush x:Key="StatusDotOk" Color="#5FCF85" />
+                    <SolidColorBrush x:Key="StatusDotWarn" Color="#E2C37A" />
+                    <SolidColorBrush x:Key="StatusDotNeutral" Color="#7C8287" />
+                    <SolidColorBrush x:Key="StatusDotInactive" Color="#4A4F54" />
+                    <SolidColorBrush x:Key="AppTextDestructive" Color="#E39494" />
+                    <SolidColorBrush x:Key="NoticeWarnBackground" Color="#332A14" />
+                    <SolidColorBrush x:Key="NoticeWarnBorder" Color="#6B5A2D" />
                     <!-- Companion hint under the device selector ("Follows <master>"). -->
                     <SolidColorBrush x:Key="CompanionHintForeground" Color="#D9A05B" />
                     <!-- Simulated-device chrome (the dark hardware in Dark mode). -->
@@ -120,6 +131,14 @@
                     <SolidColorBrush x:Key="AppTextPrimary" Color="#1C1C1C" />
                     <SolidColorBrush x:Key="AppTextSecondary" Color="#5C5C5C" />
                     <SolidColorBrush x:Key="AppTextMuted" Color="#8A8A8A" />
+                    <!-- Same roles as in Dark, darkened so they stay legible on a light card. -->
+                    <SolidColorBrush x:Key="StatusDotOk" Color="#1E7A46" />
+                    <SolidColorBrush x:Key="StatusDotWarn" Color="#9A6B10" />
+                    <SolidColorBrush x:Key="StatusDotNeutral" Color="#8A8A8A" />
+                    <SolidColorBrush x:Key="StatusDotInactive" Color="#C2C2C2" />
+                    <SolidColorBrush x:Key="AppTextDestructive" Color="#B3261E" />
+                    <SolidColorBrush x:Key="NoticeWarnBackground" Color="#FBF3DE" />
+                    <SolidColorBrush x:Key="NoticeWarnBorder" Color="#D9BE79" />
                     <!-- Companion hint under the device selector ("Follows <master>"). -->
                     <SolidColorBrush x:Key="CompanionHintForeground" Color="#A8641F" />
                     <!-- Simulated-device chrome rendered as light hardware in Light mode. -->

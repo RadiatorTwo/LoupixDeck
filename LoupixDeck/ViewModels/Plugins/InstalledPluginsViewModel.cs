@@ -24,12 +24,57 @@ public sealed partial class InstalledPluginsViewModel : ViewModelBase
         Refresh();
     }
 
+    /// <summary>Every plugin that can run here, in list order.</summary>
+    private readonly List<InstalledPluginRowViewModel> _allRows = [];
+
+    /// <summary>What the list shows: <see cref="_allRows"/> narrowed by <see cref="SearchText"/>.</summary>
     public ObservableCollection<InstalledPluginRowViewModel> Rows { get; } = [];
 
     public bool HasRows => Rows.Count > 0;
 
+    /// <summary>Count in the group header and on the rail; the installed set, not the filtered
+    /// one, so searching does not make it look as if plugins disappeared.</summary>
+    public int InstalledCount => _allRows.Count;
+
+    /// <summary>Header above the list. Built here rather than with a StringFormat binding: the
+    /// loc markup extension yields a binding, which a StringFormat cannot take.</summary>
+    public string InstalledHeader => Loc.Tr("Plugins_InstalledCount", InstalledCount);
+
+    /// <summary>Filters by plugin name only, case-insensitive, as you type. Deliberately not
+    /// over commands: a plugin is looked up by its name here.</summary>
+    [ObservableProperty]
+    public partial string SearchText { get; set; }
+
+    partial void OnSearchTextChanged(string value) => ApplyFilter();
+
+    public bool HasSearch => !string.IsNullOrWhiteSpace(SearchText);
+
+    /// <summary>True when a search is active but matches nothing.</summary>
+    public bool HasNoMatches => HasSearch && Rows.Count == 0 && _allRows.Count > 0;
+
+    private void ApplyFilter()
+    {
+        InstalledPluginRowViewModel selected = SelectedPlugin;
+
+        Rows.Clear();
+        foreach (InstalledPluginRowViewModel row in _allRows)
+        {
+            if (!HasSearch || row.Name?.Contains(SearchText, StringComparison.CurrentCultureIgnoreCase) == true)
+                Rows.Add(row);
+        }
+
+        OnPropertyChanged(nameof(HasRows));
+        OnPropertyChanged(nameof(HasSearch));
+        OnPropertyChanged(nameof(HasNoMatches));
+
+        // Keep the detail pane on the plugin it was showing when that row is still listed.
+        SelectedPlugin = Rows.Contains(selected) ? selected : Rows.FirstOrDefault();
+    }
+
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasSelection))]
+    [NotifyPropertyChangedFor(nameof(CanRemoveSelected))]
+    [NotifyPropertyChangedFor(nameof(RemoveLabel))]
     [NotifyCanExecuteChangedFor(nameof(RemoveCommand))]
     public partial InstalledPluginRowViewModel SelectedPlugin { get; set; }
 
@@ -67,7 +112,7 @@ public sealed partial class InstalledPluginsViewModel : ViewModelBase
     {
         string selectedId = SelectedPlugin?.Id;
 
-        Rows.Clear();
+        _allRows.Clear();
         foreach (LoadedPlugin plugin in _owner.Plugins)
         {
             // A plugin whose manifest targets the other OS can never load here, so it is hidden
@@ -76,10 +121,12 @@ public sealed partial class InstalledPluginsViewModel : ViewModelBase
                 continue;
 
             string id = plugin.Manifest?.Id;
-            Rows.Add(new InstalledPluginRowViewModel(plugin, id != null && IsEnabled(id), SetEnabledAsync));
+            _allRows.Add(new InstalledPluginRowViewModel(plugin, id != null && IsEnabled(id), SetEnabledAsync));
         }
 
-        OnPropertyChanged(nameof(HasRows));
+        ApplyFilter();
+        OnPropertyChanged(nameof(InstalledCount));
+        OnPropertyChanged(nameof(InstalledHeader));
 
         SelectedPlugin = Rows.FirstOrDefault(row =>
                              string.Equals(row.Id, selectedId, StringComparison.OrdinalIgnoreCase))
@@ -91,6 +138,9 @@ public sealed partial class InstalledPluginsViewModel : ViewModelBase
     {
         if (string.IsNullOrWhiteSpace(pluginId))
             return;
+
+        // A search that hides the wanted plugin would make the jump look like it did nothing.
+        SearchText = null;
 
         InstalledPluginRowViewModel row = Rows.FirstOrDefault(r =>
             string.Equals(r.Id, pluginId, StringComparison.OrdinalIgnoreCase));
