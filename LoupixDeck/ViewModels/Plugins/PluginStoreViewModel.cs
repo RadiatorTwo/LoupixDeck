@@ -21,11 +21,39 @@ namespace LoupixDeck.ViewModels.Plugins;
 public sealed partial class PluginStoreViewModel(
     IPluginStoreService store,
     IPluginReloadService pluginReload,
+    IUpdateService updateService,
     IDialogService dialogService) : ViewModelBase
 {
     private bool _loaded;
 
+    /// <summary>Everything the catalog offers for this system, in list order.</summary>
+    private readonly List<PluginStoreRowViewModel> _allItems = [];
+
+    /// <summary>What the page shows: <see cref="_allItems"/> narrowed by <see cref="SearchText"/>.</summary>
     public ObservableCollection<PluginStoreRowViewModel> Items { get; } = [];
+
+    /// <summary>Filters the catalog by plugin name, case-insensitive, as you type.</summary>
+    [ObservableProperty]
+    public partial string SearchText { get; set; }
+
+    partial void OnSearchTextChanged(string value) => ApplyFilter();
+
+    public bool HasSearch => !string.IsNullOrWhiteSpace(SearchText);
+
+    public bool HasNoMatches => HasSearch && Items.Count == 0 && _allItems.Count > 0;
+
+    private void ApplyFilter()
+    {
+        Items.Clear();
+        foreach (PluginStoreRowViewModel row in _allItems)
+        {
+            if (!HasSearch || row.Name?.Contains(SearchText, StringComparison.CurrentCultureIgnoreCase) == true)
+                Items.Add(row);
+        }
+
+        OnPropertyChanged(nameof(HasSearch));
+        OnPropertyChanged(nameof(HasNoMatches));
+    }
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(RefreshCommand))]
@@ -69,6 +97,78 @@ public sealed partial class PluginStoreViewModel(
     public IAsyncRelayCommand<PluginStoreRowViewModel> RemoveCommand =>
         field ??= Relay.Create<PluginStoreRowViewModel>(RemoveAsync);
 
+    /// <summary>Stops a download that is already running; the tile goes back to what it was.</summary>
+    public IRelayCommand<PluginStoreRowViewModel> CancelCommand =>
+        field ??= Relay.Create<PluginStoreRowViewModel>(row => row?.Cancel());
+
+    /// <summary>Shows the release notes without offering to install anything.</summary>
+    public IAsyncRelayCommand<PluginStoreRowViewModel> ReleaseNotesCommand =>
+        field ??= Relay.Create<PluginStoreRowViewModel>(ShowReleaseNotesAsync);
+
+    /// <summary>Jumps to the installed page with this plugin selected, to set it up.</summary>
+    public IRelayCommand<PluginStoreRowViewModel> SetupCommand =>
+        field ??= Relay.Create<PluginStoreRowViewModel>(row => SetupRequested?.Invoke(row?.Item.Entry.Id));
+
+    /// <summary>Puts a hand-copied plugin under the store's wing, so it gets updates.</summary>
+    public IAsyncRelayCommand<PluginStoreRowViewModel> AdoptCommand =>
+        field ??= Relay.Create<PluginStoreRowViewModel>(AdoptAsync);
+
+    /// <summary>For a plugin whose newest release needs a newer LoupixDeck than this one.</summary>
+    public IAsyncRelayCommand<PluginStoreRowViewModel> CheckAppUpdateCommand =>
+        field ??= Relay.Create<PluginStoreRowViewModel>(CheckAppUpdateAsync);
+
+    private async Task ShowReleaseNotesAsync(PluginStoreRowViewModel row)
+    {
+        if (row?.Item is null || !row.HasReleaseNotes)
+        {
+            return;
+        }
+
+        await dialogService.ShowDialogAsync<PluginReleaseNotesViewModel, DialogResult>(vm =>
+        {
+            vm.Initialize(row.Item, confirmation: false);
+            _ = vm.LoadNotesAsync();
+        });
+    }
+
+    private async Task AdoptAsync(PluginStoreRowViewModel row)
+    {
+        if (row?.Item.Installed is null)
+        {
+            return;
+        }
+
+        if (!store.Adopt(row.Item.Entry, row.Item.Installed))
+        {
+            StatusText = Loc.Tr("PluginStore_AdoptFailed", row.Name);
+            return;
+        }
+
+        // The marker carries no tag, so the status is recomputed from the versions: the plugin
+        // becomes store-managed and may show an update straight away.
+        await LoadAsync(force: false);
+    }
+
+    private async Task CheckAppUpdateAsync(PluginStoreRowViewModel row)
+    {
+        UpdateCheckResult result = await updateService.CheckAsync(manual: true);
+
+        if (result.Status == UpdateCheckStatus.Failed)
+        {
+            StatusText = Loc.Tr("PluginStore_AppUpdateCheckFailed");
+            return;
+        }
+
+        if (updateService.AvailableUpdate is null)
+        {
+            StatusText = Loc.Tr("PluginStore_NoAppUpdate", row?.Name);
+            return;
+        }
+
+        await dialogService.ShowDialogAsync<UpdateDialogViewModel, DialogResult>(
+            vm => vm.Initialize(updateService.AvailableUpdate));
+    }
+
     /// <summary>Raised after a plugin was installed, updated or removed, so the Plugins page can rebuild its list.</summary>
     public event Action PluginsChanged;
 
@@ -110,18 +210,21 @@ public sealed partial class PluginStoreViewModel(
                 .OrderByDescending(i => string.Equals(i.Entry.Id, HighlightedPluginId, StringComparison.OrdinalIgnoreCase))
                 .ThenBy(i => i.Entry.DisplayName, StringComparer.CurrentCultureIgnoreCase);
 
-            Items.Clear();
+            _allItems.Clear();
             foreach (PluginStoreItem item in visible)
             {
                 PluginStoreRowViewModel row = new(item, string.Equals(item.Entry.Id, HighlightedPluginId,
                     StringComparison.OrdinalIgnoreCase));
-                Items.Add(row);
+                _allItems.Add(row);
                 _ = row.LoadIconAsync();
             }
 
+            ApplyFilter();
+            OnPropertyChanged(nameof(AvailableUpdateCount));
+
             NoticeText = result.Error;
             StaleNoticeText = DescribeStaleness(result);
-            StatusText = Items.Count == 0 && result.Error is null ? Loc.Tr("PluginStore_Empty") : null;
+            StatusText = _allItems.Count == 0 && result.Error is null ? Loc.Tr("PluginStore_Empty") : null;
         }
         catch (Exception ex)
         {
@@ -176,13 +279,12 @@ public sealed partial class PluginStoreViewModel(
             return;
         }
 
-        row.IsBusy = true;
-        row.Progress = 0;
+        CancellationToken cancellation = row.BeginDownload();
         StatusText = Loc.Tr("PluginStore_Downloading", row.Name, candidate.Version);
         try
         {
             Progress<double> progress = new(value => row.Progress = value * 100);
-            PluginDownloadResult download = await store.DownloadAsync(candidate, progress);
+            PluginDownloadResult download = await store.DownloadAsync(candidate, progress, cancellation);
             if (!download.Success)
             {
                 StatusText = download.Error;
@@ -225,7 +327,7 @@ public sealed partial class PluginStoreViewModel(
         }
         finally
         {
-            row.IsBusy = false;
+            row.EndDownload();
         }
 
         string message = StatusText;
@@ -318,10 +420,55 @@ public sealed partial class PluginStoreRowViewModel(PluginStoreItem item, bool i
 
     public bool IsStatusOk => Item.Status == PluginStoreStatus.Installed;
 
-    public bool IsStatusWarn => Item.Status is PluginStoreStatus.UpdateAvailable or PluginStoreStatus.RestartRequired
+    /// <summary>An update is news, not a warning: it gets the info pill.</summary>
+    public bool IsStatusInfo => Item.Status == PluginStoreStatus.UpdateAvailable;
+
+    public bool IsStatusWarn => Item.Status is PluginStoreStatus.RestartRequired
         or PluginStoreStatus.RequiresNewerApp;
 
-    public bool IsStatusNeutral => !IsStatusOk && !IsStatusWarn;
+    public bool IsStatusNeutral => !IsStatusOk && !IsStatusWarn && !IsStatusInfo;
+
+    /// <summary>Nothing here can be installed on this system; the tile steps back.</summary>
+    public bool IsUnavailable => Item.Status is PluginStoreStatus.NoRelease or PluginStoreStatus.Unavailable;
+
+    /// <summary>Author and platforms under the name; each part is optional.</summary>
+    public string MetaText
+    {
+        get
+        {
+            List<string> parts = [];
+            if (!string.IsNullOrWhiteSpace(Author))
+                parts.Add(Author);
+            if (!string.IsNullOrWhiteSpace(VersionText))
+                parts.Add(VersionText);
+
+            return string.Join("  ·  ", parts);
+        }
+    }
+
+    /// <summary>A line explaining a status that is not self-explanatory.</summary>
+    public string NoteText => Item.Status switch
+    {
+        PluginStoreStatus.ManuallyInstalled => Loc.Tr("PluginStore_AdoptNote"),
+        PluginStoreStatus.RestartRequired => Loc.Tr("PluginStore_RestartNote"),
+        PluginStoreStatus.RequiresNewerApp when Item.Newest is not null =>
+            Loc.Tr("PluginStore_NewerNeedsApp", Item.Newest.Version),
+        _ => null
+    };
+
+    public bool HasNote => NoteText != null;
+
+    /// <summary>There is a release whose notes can be read.</summary>
+    public bool HasReleaseNotes => Item.Available is not null || Item.Newest is not null;
+
+    /// <summary>A hand-copied plugin the catalog knows can be taken over by the store.</summary>
+    public bool CanAdopt => Item.Status == PluginStoreStatus.ManuallyInstalled && Item.Installed is not null;
+
+    /// <summary>An installed plugin can be configured; the tile offers the jump.</summary>
+    public bool CanSetup => Item.Installed is not null;
+
+    /// <summary>Its newest release needs a newer LoupixDeck, so an app update is the way out.</summary>
+    public bool CanCheckAppUpdate => Item.Status == PluginStoreStatus.RequiresNewerApp;
 
     /// <summary>Extra line under the status: an error, or a newer release this app cannot load yet.</summary>
     public string DetailText => Item.Error
@@ -344,10 +491,37 @@ public sealed partial class PluginStoreRowViewModel(PluginStoreItem item, bool i
     [NotifyPropertyChangedFor(nameof(IsIdle))]
     public partial bool IsBusy { get; set; }
 
+    /// <summary>Cancels the download in flight. The service reports the cancellation as an
+    /// ordinary failure, so the tile simply goes back to what it was.</summary>
+    private CancellationTokenSource _download;
+
+    public CancellationToken BeginDownload()
+    {
+        _download?.Dispose();
+        _download = new CancellationTokenSource();
+        IsBusy = true;
+        Progress = 0;
+        return _download.Token;
+    }
+
+    public void EndDownload()
+    {
+        IsBusy = false;
+        _download?.Dispose();
+        _download = null;
+    }
+
+    public void Cancel() => _download?.Cancel();
+
     public bool IsIdle => !IsBusy;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ProgressText))]
     public partial double Progress { get; set; }
+
+    /// <summary>Caption under the progress track.</summary>
+    public string ProgressText => Loc.Tr("PluginStore_Downloading", Name,
+        Item.Available?.Version?.ToString() ?? string.Empty);
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasIcon))]

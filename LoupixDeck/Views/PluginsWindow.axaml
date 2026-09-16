@@ -70,7 +70,7 @@
                     <pages:InstalledPluginsPage DataContext="{Binding Installed}" />
                 </Panel>
                 <Panel IsVisible="{Binding CurrentPage, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Store}">
-                    <pages:PluginStorePage />
+                    <pages:PluginStorePage DataContext="{Binding PluginStore}" />
                 </Panel>
             </Panel>
         </Grid>

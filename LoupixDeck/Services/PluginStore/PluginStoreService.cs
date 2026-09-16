@@ -44,6 +44,12 @@ public interface IPluginStoreService : INotifyPropertyChanged
     /// <summary>Marks a freshly installed plugin as store-managed (writes <c>store.json</c>).</summary>
     void MarkInstalled(PluginCatalogEntry entry, PluginReleaseCandidate candidate);
 
+    /// <summary>
+    /// Takes a hand-copied plugin under the store's wing, so it gets updates from now on. Returns
+    /// false when the marker could not be written (a read-only plugin folder).
+    /// </summary>
+    bool Adopt(PluginCatalogEntry entry, LoadedPlugin plugin);
+
     /// <summary>Remembers that a change to <paramref name="pluginId"/> only finishes on the next start.</summary>
     void MarkRestartRequired(string pluginId);
 
@@ -406,14 +412,31 @@ public sealed partial class PluginStoreService : ObservableObject, IPluginStoreS
                 continue;
             }
 
-            PluginStoreMarker marker = new() { Repository = entry.Repository, InstalledAt = DateTime.UtcNow };
-            if (marker.Write(plugin.Directory))
-            {
-                Console.WriteLine($"[PluginStore] Adopted {entry.Id} {plugin.Manifest.Version} as store-managed.");
-            }
+            Adopt(entry, plugin);
         }
 
         UiSettingsStore.Set(AdoptedKey, true);
+    }
+
+    /// <inheritdoc />
+    public bool Adopt(PluginCatalogEntry entry, LoadedPlugin plugin)
+    {
+        if (entry is null || plugin?.Directory is null)
+        {
+            return false;
+        }
+
+        // Tag stays null on purpose, exactly as the one-shot migration leaves it: nobody knows
+        // which release a hand-copied folder came from, so the store compares versions from here
+        // on and may well offer an update straight away.
+        PluginStoreMarker marker = new() { Repository = entry.Repository, InstalledAt = DateTime.UtcNow };
+        if (!marker.Write(plugin.Directory))
+        {
+            return false;
+        }
+
+        Console.WriteLine($"[PluginStore] Adopted {entry.Id} {plugin.Manifest?.Version} as store-managed.");
+        return true;
     }
 
     private static bool IsUsableEntry(PluginCatalogEntry entry)

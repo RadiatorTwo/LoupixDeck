@@ -79,6 +79,16 @@
     <Style Selector="Border.pill.warn TextBlock">
         <Setter Property="Foreground" Value="#F0C878" />
     </Style>
+    <!-- Info: news rather than a warning (an update is available). Uses the app accent so it
+         reads the same in Light and Dark. -->
+    <Style Selector="Border.pill.info">
+        <Setter Property="Background" Value="{DynamicResource AppAccentSubtle}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource PageActiveBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+    </Style>
+    <Style Selector="Border.pill.info TextBlock">
+        <Setter Property="Foreground" Value="{DynamicResource PageActiveBorderBrush}" />
+    </Style>
     <Style Selector="Border.pill.neutral">
         <Setter Property="Background" Value="{DynamicResource AppSurfaceAlt}" />
         <Setter Property="BorderBrush" Value="{DynamicResource AppBorderSubtle}" />

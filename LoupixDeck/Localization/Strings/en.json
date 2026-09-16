@@ -870,5 +870,18 @@
   "Plugins_NoMatches": "No plugin matches that name.",
   "Plugins_EnableTooltip": "Enable this plugin on the selected device",
   "Plugins_EnablingFor": "Enabling for",
-  "PluginStore_InstalledNeedsEnable": "{0} was installed. Turn it on for a device on the Plugins page."
+  "PluginStore_InstalledNeedsEnable": "{0} was installed. Turn it on for a device on the Plugins page.",
+  "PluginStore_Close": "Close",
+  "PluginStore_Adopt": "Adopt",
+  "PluginStore_AdoptNote": "Copied into the plugin folder by hand.",
+  "PluginStore_AdoptFailed": "The plugin folder could not be written to, so {0} stays manually installed.",
+  "PluginStore_ReleaseNotes": "Release notes",
+  "PluginStore_Setup": "Setup",
+  "PluginStore_RestartNote": "The last change finishes on the next start.",
+  "PluginStore_RestartNow": "Restart now",
+  "PluginStore_CheckAppUpdate": "Check for app update",
+  "PluginStore_NoAppUpdate": "LoupixDeck is up to date; {0} still needs a newer version.",
+  "PluginStore_AppUpdateCheckFailed": "The update check failed.",
+  "PluginStore_Search": "Search the store…",
+  "PluginStore_NoMatches": "No plugin matches that name."
 }

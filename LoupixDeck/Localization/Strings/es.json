@@ -870,5 +870,18 @@
   "Plugins_NoMatches": "Ningún complemento con ese nombre.",
   "Plugins_EnableTooltip": "Activar este complemento en el dispositivo seleccionado",
   "Plugins_EnablingFor": "Activando para",
-  "PluginStore_InstalledNeedsEnable": "{0} se instaló. Actívalo para un dispositivo en la página de complementos."
+  "PluginStore_InstalledNeedsEnable": "{0} se instaló. Actívalo para un dispositivo en la página de complementos.",
+  "PluginStore_Close": "Cerrar",
+  "PluginStore_Adopt": "Adoptar",
+  "PluginStore_AdoptNote": "Copiado a mano en la carpeta de complementos.",
+  "PluginStore_AdoptFailed": "No se pudo escribir en la carpeta del complemento; {0} sigue instalado manualmente.",
+  "PluginStore_ReleaseNotes": "Notas de la versión",
+  "PluginStore_Setup": "Configurar",
+  "PluginStore_RestartNote": "El último cambio se completa en el próximo inicio.",
+  "PluginStore_RestartNow": "Reiniciar ahora",
+  "PluginStore_CheckAppUpdate": "Buscar actualización de la app",
+  "PluginStore_NoAppUpdate": "LoupixDeck está actualizado; {0} necesita una versión más nueva.",
+  "PluginStore_AppUpdateCheckFailed": "La búsqueda de actualizaciones falló.",
+  "PluginStore_Search": "Buscar en la tienda…",
+  "PluginStore_NoMatches": "Ningún complemento con ese nombre."
 }
