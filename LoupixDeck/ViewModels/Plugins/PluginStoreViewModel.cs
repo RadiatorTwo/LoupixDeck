@@ -117,6 +117,35 @@ public sealed partial class PluginStoreViewModel(
     public IAsyncRelayCommand<PluginStoreRowViewModel> CheckAppUpdateCommand =>
         field ??= Relay.Create<PluginStoreRowViewModel>(CheckAppUpdateAsync);
 
+    /// <summary>Restarts the app so a change that only finishes on the next start takes effect.</summary>
+    public IAsyncRelayCommand RestartCommand => field ??= Relay.Create(RestartAsync);
+
+    private async Task RestartAsync()
+    {
+        bool confirmed = await ConfirmDialogHelper.AskYesNoAsync(WindowHelper.GetActiveWindow(),
+            Loc.Tr("Plugins_ConfirmRestartTitle"), Loc.Tr("Plugins_ConfirmRestartMessage"));
+        if (!confirmed)
+        {
+            return;
+        }
+
+        if (!AppRestart.BeginRestart())
+        {
+            StatusText = Loc.Tr("Plugins_RestartFailed");
+            return;
+        }
+
+        // The successor is waiting for this process, so shut down the ordinary way: devices are
+        // stopped cleanly and the single-instance handle is released.
+        if (WindowHelper.GetMainWindow() is Views.MainWindow main)
+        {
+            main.QuitApplication();
+            return;
+        }
+
+        Environment.Exit(0);
+    }
+
     private async Task ShowReleaseNotesAsync(PluginStoreRowViewModel row)
     {
         if (row?.Item is null || !row.HasReleaseNotes)
@@ -469,6 +498,9 @@ public sealed partial class PluginStoreRowViewModel(PluginStoreItem item, bool i
 
     /// <summary>Its newest release needs a newer LoupixDeck, so an app update is the way out.</summary>
     public bool CanCheckAppUpdate => Item.Status == PluginStoreStatus.RequiresNewerApp;
+
+    /// <summary>The change is on disk but only takes effect on the next start.</summary>
+    public bool CanRestart => Item.Status == PluginStoreStatus.RestartRequired;
 
     /// <summary>Extra line under the status: an error, or a newer release this app cannot load yet.</summary>
     public string DetailText => Item.Error

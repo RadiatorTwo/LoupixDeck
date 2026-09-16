@@ -131,6 +131,9 @@
                                                 IsVisible="{Binding CanAdopt}"
                                                 Command="{Binding $parent[ItemsControl].((vmp:PluginStoreViewModel)DataContext).AdoptCommand}"
                                                 CommandParameter="{Binding}" />
+                                        <Button Content="{loc:Tr PluginStore_RestartNow}"
+                                                IsVisible="{Binding CanRestart}"
+                                                Command="{Binding $parent[ItemsControl].((vmp:PluginStoreViewModel)DataContext).RestartCommand}" />
                                         <Button Content="{loc:Tr PluginStore_CheckAppUpdate}"
                                                 IsVisible="{Binding CanCheckAppUpdate}"
                                                 Command="{Binding $parent[ItemsControl].((vmp:PluginStoreViewModel)DataContext).CheckAppUpdateCommand}"

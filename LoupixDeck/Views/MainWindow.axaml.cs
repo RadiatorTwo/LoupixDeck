@@ -414,7 +414,7 @@ public partial class MainWindow : Window
     /// </summary>
     internal static void RequestQuit() => Instance?.QuitApplication();
 
-    internal void QuitApplication()
+    public void QuitApplication()
     {
         _isQuitting = true;
         _trayIcon?.Dispose();

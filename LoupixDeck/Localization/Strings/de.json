@@ -885,5 +885,8 @@
   "PluginStore_Search": "Store durchsuchen…",
   "PluginStore_NoMatches": "Kein Plugin mit diesem Namen.",
   "Plugins_ConfirmDiscardTitle": "Änderungen verwerfen?",
-  "Plugins_ConfirmDiscardMessage": "Die Einstellungen von '{0}' haben nicht gespeicherte Änderungen. Verwerfen?"
+  "Plugins_ConfirmDiscardMessage": "Die Einstellungen von '{0}' haben nicht gespeicherte Änderungen. Verwerfen?",
+  "Plugins_ConfirmRestartTitle": "LoupixDeck neu starten?",
+  "Plugins_ConfirmRestartMessage": "LoupixDeck wird beendet und neu gestartet, damit die offene Änderung wirksam wird.",
+  "Plugins_RestartFailed": "LoupixDeck konnte nicht neu gestartet werden. Bitte beenden und neu starten."
 }

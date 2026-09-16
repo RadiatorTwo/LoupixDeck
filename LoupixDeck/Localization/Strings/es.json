@@ -885,5 +885,8 @@
   "PluginStore_Search": "Buscar en la tienda…",
   "PluginStore_NoMatches": "Ningún complemento con ese nombre.",
   "Plugins_ConfirmDiscardTitle": "¿Descartar los cambios?",
-  "Plugins_ConfirmDiscardMessage": "Los ajustes de '{0}' tienen cambios sin guardar. ¿Descartarlos?"
+  "Plugins_ConfirmDiscardMessage": "Los ajustes de '{0}' tienen cambios sin guardar. ¿Descartarlos?",
+  "Plugins_ConfirmRestartTitle": "¿Reiniciar LoupixDeck?",
+  "Plugins_ConfirmRestartMessage": "LoupixDeck se cierra y vuelve a iniciarse para que el cambio pendiente tenga efecto.",
+  "Plugins_RestartFailed": "No se pudo reiniciar LoupixDeck. Ciérralo y vuelve a abrirlo."
 }
