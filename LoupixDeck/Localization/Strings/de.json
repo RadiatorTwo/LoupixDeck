@@ -883,5 +883,7 @@
   "PluginStore_NoAppUpdate": "LoupixDeck ist aktuell; {0} braucht trotzdem eine neuere Version.",
   "PluginStore_AppUpdateCheckFailed": "Die Update-Suche ist fehlgeschlagen.",
   "PluginStore_Search": "Store durchsuchen…",
-  "PluginStore_NoMatches": "Kein Plugin mit diesem Namen."
+  "PluginStore_NoMatches": "Kein Plugin mit diesem Namen.",
+  "Plugins_ConfirmDiscardTitle": "Änderungen verwerfen?",
+  "Plugins_ConfirmDiscardMessage": "Die Einstellungen von '{0}' haben nicht gespeicherte Änderungen. Verwerfen?"
 }

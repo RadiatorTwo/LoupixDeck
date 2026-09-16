@@ -883,5 +883,7 @@
   "PluginStore_NoAppUpdate": "LoupixDeck is up to date; {0} still needs a newer version.",
   "PluginStore_AppUpdateCheckFailed": "The update check failed.",
   "PluginStore_Search": "Search the store…",
-  "PluginStore_NoMatches": "No plugin matches that name."
+  "PluginStore_NoMatches": "No plugin matches that name.",
+  "Plugins_ConfirmDiscardTitle": "Discard changes?",
+  "Plugins_ConfirmDiscardMessage": "The settings of '{0}' have unsaved changes. Discard them?"
 }

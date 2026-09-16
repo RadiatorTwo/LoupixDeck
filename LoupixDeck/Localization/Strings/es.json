@@ -883,5 +883,7 @@
   "PluginStore_NoAppUpdate": "LoupixDeck está actualizado; {0} necesita una versión más nueva.",
   "PluginStore_AppUpdateCheckFailed": "La búsqueda de actualizaciones falló.",
   "PluginStore_Search": "Buscar en la tienda…",
-  "PluginStore_NoMatches": "Ningún complemento con ese nombre."
+  "PluginStore_NoMatches": "Ningún complemento con ese nombre.",
+  "Plugins_ConfirmDiscardTitle": "¿Descartar los cambios?",
+  "Plugins_ConfirmDiscardMessage": "Los ajustes de '{0}' tienen cambios sin guardar. ¿Descartarlos?"
 }

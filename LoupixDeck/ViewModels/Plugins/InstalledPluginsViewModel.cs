@@ -161,9 +161,64 @@ public sealed partial class InstalledPluginsViewModel : ViewModelBase
     [ObservableProperty]
     public partial bool IsBusy { get; set; }
 
+    private InstalledPluginRowViewModel _shown;
+    private bool _restoringSelection;
+
     partial void OnSelectedPluginChanged(InstalledPluginRowViewModel value)
     {
-        Detail = value == null ? null : new PluginDetailViewModel(value.Plugin);
+        // Putting the selection back after the user chose to keep their edits must not ask again.
+        if (_restoringSelection)
+            return;
+
+        if (Detail is { HasUnsavedChanges: true } && _shown is not null && !ReferenceEquals(_shown, value))
+        {
+            _ = ConfirmLeaveAsync(_shown, value);
+            return;
+        }
+
+        Show(value);
+    }
+
+    private void Show(InstalledPluginRowViewModel row)
+    {
+        _shown = row;
+        Detail = row == null ? null : new PluginDetailViewModel(row.Plugin);
+    }
+
+    /// <summary>
+    /// Asks before another plugin replaces one with pending edits. Saying no puts the selection
+    /// back, so the edits stay where they can still be saved.
+    /// </summary>
+    private async Task ConfirmLeaveAsync(InstalledPluginRowViewModel from, InstalledPluginRowViewModel to)
+    {
+        bool leave = await ConfirmDialogHelper.AskYesNoAsync(WindowHelper.GetActiveWindow(),
+            Loc.Tr("Plugins_ConfirmDiscardTitle"),
+            Loc.Tr("Plugins_ConfirmDiscardMessage", from.Name));
+
+        if (leave)
+        {
+            Detail?.DiscardChanges();
+            Show(to);
+            return;
+        }
+
+        _restoringSelection = true;
+        SelectedPlugin = from;
+        _restoringSelection = false;
+    }
+
+    /// <summary>
+    /// Whether the window may close. Asks when the form holds edits that would be lost; the
+    /// window calls this from its Closing handler.
+    /// </summary>
+    public async Task<bool> ConfirmCloseAsync()
+    {
+        if (Detail is not { HasUnsavedChanges: true })
+            return true;
+
+        return await ConfirmDialogHelper.AskYesNoAsync(WindowHelper.GetActiveWindow(),
+            Loc.Tr("Plugins_ConfirmDiscardTitle"),
+            Loc.Tr("Plugins_ConfirmDiscardMessage", _shown?.Name));
     }
 
     /// <summary>
