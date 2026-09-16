@@ -2,12 +2,10 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:loc="using:LoupixDeck.Localization"
         xmlns:cnv="clr-namespace:LoupixDeck.Models.Converter"
-        xmlns:controls="using:LoupixDeck.Views.Controls"
         xmlns:pages="using:LoupixDeck.Views.Plugins"
         xmlns:vmp="using:LoupixDeck.ViewModels.Plugins"
         x:Class="LoupixDeck.Views.PluginsWindow"
         x:DataType="vmp:PluginsWindowViewModel"
-        Classes="app-chrome"
         Title="{loc:Tr Settings_Plugins}"
         Width="1240"
         Height="720"
@@ -19,60 +17,56 @@
     </Window.Resources>
 
     <Window.Styles>
-        <StyleInclude Source="avares://LoupixDeck/Views/Styles/WindowChromeStyles.axaml" />
         <StyleInclude Source="avares://LoupixDeck/Views/Styles/SettingsStyles.axaml" />
         <StyleInclude Source="avares://LoupixDeck/Views/Styles/PluginsStyles.axaml" />
     </Window.Styles>
 
-    <controls:AppWindowFrame Title="{loc:Tr Settings_Plugins}">
+    <Grid ColumnDefinitions="214,*">
 
-        <Grid ColumnDefinitions="214,*">
+        <!-- ===== Rail ===== -->
+        <Border Grid.Column="0" Classes="pane-rail">
+            <StackPanel Margin="8,16,8,16">
+                <Button Classes="nav"
+                        Classes.active="{Binding CurrentPage, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Installed}"
+                        Command="{Binding NavigateCommand}"
+                        CommandParameter="{x:Static vmp:PluginsPage.Installed}">
+                    <Grid ColumnDefinitions="6,Auto,*,Auto">
+                        <Border Grid.Column="0" Classes="nav-accent" />
+                        <!-- mdi-puzzle -->
+                        <TextBlock Grid.Column="1" Classes="nav-icon" Text="&#xF0431;" Margin="6,0,0,0" />
+                        <TextBlock Grid.Column="2" Classes="nav-label" Text="{loc:Tr Settings_Plugins}" />
+                        <TextBlock Grid.Column="3" Classes="meta" Margin="0,0,12,0"
+                                   Text="{Binding InstalledCount}" />
+                    </Grid>
+                </Button>
+                <Button Classes="nav"
+                        Classes.active="{Binding CurrentPage, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Store}"
+                        Command="{Binding NavigateCommand}"
+                        CommandParameter="{x:Static vmp:PluginsPage.Store}">
+                    <Grid ColumnDefinitions="6,Auto,*,Auto">
+                        <Border Grid.Column="0" Classes="nav-accent" />
+                        <!-- mdi-store -->
+                        <TextBlock Grid.Column="1" Classes="nav-icon" Text="&#xF04DC;" Margin="6,0,0,0" />
+                        <TextBlock Grid.Column="2" Classes="nav-label" Text="{loc:Tr PluginStore_Title}" />
+                        <!-- Pending updates, hidden when there are none. -->
+                        <Border Grid.Column="3" Classes="rail-badge" IsVisible="{Binding HasUpdates}">
+                            <TextBlock Text="{Binding UpdateCount}" />
+                        </Border>
+                    </Grid>
+                </Button>
+            </StackPanel>
+        </Border>
 
-            <!-- ===== Rail ===== -->
-            <Border Grid.Column="0" Classes="pane-rail">
-                <StackPanel Margin="8,16,8,16">
-                    <Button Classes="nav"
-                            Classes.active="{Binding CurrentPage, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Installed}"
-                            Command="{Binding NavigateCommand}"
-                            CommandParameter="{x:Static vmp:PluginsPage.Installed}">
-                        <Grid ColumnDefinitions="6,Auto,*,Auto">
-                            <Border Grid.Column="0" Classes="nav-accent" />
-                            <!-- mdi-puzzle -->
-                            <TextBlock Grid.Column="1" Classes="nav-icon" Text="&#xF0431;" Margin="6,0,0,0" />
-                            <TextBlock Grid.Column="2" Classes="nav-label" Text="{loc:Tr Settings_Plugins}" />
-                            <TextBlock Grid.Column="3" Classes="meta" Margin="0,0,12,0"
-                                       Text="{Binding InstalledCount}" />
-                        </Grid>
-                    </Button>
-                    <Button Classes="nav"
-                            Classes.active="{Binding CurrentPage, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Store}"
-                            Command="{Binding NavigateCommand}"
-                            CommandParameter="{x:Static vmp:PluginsPage.Store}">
-                        <Grid ColumnDefinitions="6,Auto,*,Auto">
-                            <Border Grid.Column="0" Classes="nav-accent" />
-                            <!-- mdi-store -->
-                            <TextBlock Grid.Column="1" Classes="nav-icon" Text="&#xF04DC;" Margin="6,0,0,0" />
-                            <TextBlock Grid.Column="2" Classes="nav-label" Text="{loc:Tr PluginStore_Title}" />
-                            <!-- Pending updates, hidden when there are none. -->
-                            <Border Grid.Column="3" Classes="rail-badge" IsVisible="{Binding HasUpdates}">
-                                <TextBlock Text="{Binding UpdateCount}" />
-                            </Border>
-                        </Grid>
-                    </Button>
-                </StackPanel>
-            </Border>
-
-            <!-- ===== Pages =====
-                 Each page owns its own view model, so the visibility lives on a wrapper that
-                 still sees the window's. -->
-            <Panel Grid.Column="1">
-                <Panel IsVisible="{Binding CurrentPage, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Installed}">
-                    <pages:InstalledPluginsPage DataContext="{Binding Installed}" />
-                </Panel>
-                <Panel IsVisible="{Binding CurrentPage, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Store}">
-                    <pages:PluginStorePage DataContext="{Binding PluginStore}" />
-                </Panel>
+        <!-- ===== Pages =====
+             Each page owns its own view model, so the visibility lives on a wrapper that
+             still sees the window's. -->
+        <Panel Grid.Column="1">
+            <Panel IsVisible="{Binding CurrentPage, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Installed}">
+                <pages:InstalledPluginsPage DataContext="{Binding Installed}" />
             </Panel>
-        </Grid>
-    </controls:AppWindowFrame>
+            <Panel IsVisible="{Binding CurrentPage, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Store}">
+                <pages:PluginStorePage DataContext="{Binding PluginStore}" />
+            </Panel>
+        </Panel>
+    </Grid>
 </Window>
