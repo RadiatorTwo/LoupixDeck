@@ -116,6 +116,14 @@ public sealed partial class PluginStoreViewModel(
             StaleNoticeText = DescribeStaleness(result);
             StatusText = Items.Count == 0 && result.Error is null ? Loc.Tr("PluginStore_Empty") : null;
         }
+        catch (Exception ex)
+        {
+            // The service reports what it expects as an error message; anything left is a surprise.
+            // Saying so beats leaving the page on "loading plugins…" with nothing ever happening.
+            Console.WriteLine($"[PluginStore] Loading the list failed unexpectedly: {ex}");
+            NoticeText = Loc.Tr("PluginStore_CatalogUnavailable", ex.Message);
+            StatusText = null;
+        }
         finally
         {
             IsLoading = false;

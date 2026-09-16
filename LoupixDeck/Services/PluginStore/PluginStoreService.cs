@@ -497,6 +497,13 @@ public sealed partial class PluginStoreService : ObservableObject, IPluginStoreS
         return package is { IsUsable: true } ? new PluginReleaseCandidate(entry, release, package) : null;
     }
 
+    /// <summary>True when the catalog location is an http(s) URL; anything else is a path on this machine.</summary>
+    private static bool IsWebLocation(string location)
+    {
+        return Uri.TryCreate(location, UriKind.Absolute, out Uri uri)
+               && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
+    }
+
     private async Task<PluginCatalog> LoadCatalogAsync(CancellationToken cancellationToken)
     {
         string location = UiSettingsStore.GetString(CatalogUrlKey);
@@ -505,9 +512,12 @@ public sealed partial class PluginStoreService : ObservableObject, IPluginStoreS
             location = DefaultCatalogUrl;
         }
 
-        string json = File.Exists(location)
-            ? await File.ReadAllTextAsync(location, cancellationToken)
-            : await FileDownloader.DownloadStringAsync(location, cancellationToken);
+        // Decided by shape, not by File.Exists: a local path whose file is missing must fail as a
+        // missing file, not get handed to the downloader, which answers a path with an exception the
+        // store cannot treat as "the list is unavailable" — leaving the page on "loading" forever.
+        string json = IsWebLocation(location)
+            ? await FileDownloader.DownloadStringAsync(location, cancellationToken)
+            : await File.ReadAllTextAsync(location, cancellationToken);
 
         PluginCatalog catalog = JsonConvert.DeserializeObject<PluginCatalog>(json)
                                 ?? throw new InvalidOperationException("The plugin catalog is empty.");
@@ -569,8 +579,12 @@ public sealed partial class PluginStoreService : ObservableObject, IPluginStoreS
 
     private static bool IsExpectedFailure(Exception ex)
     {
+        // NotSupportedException/FormatException/ArgumentException belong here because a location the
+        // user typed is data: a malformed or non-web one must read as "the list is unavailable"
+        // rather than escape and leave the page waiting.
         return ex is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException
-            or JsonException or IOException or UnauthorizedAccessException or InvalidOperationException;
+            or JsonException or IOException or UnauthorizedAccessException or InvalidOperationException
+            or NotSupportedException or FormatException or ArgumentException;
     }
 
     private static void TryDeleteDirectory(string directory)
