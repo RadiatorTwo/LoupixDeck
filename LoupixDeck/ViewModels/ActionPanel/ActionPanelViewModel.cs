@@ -270,11 +270,32 @@ public partial class ActionPanelViewModel : ViewModelBase
     private void OnDialPresetsChanged(object sender, EventArgs e) =>
         Dispatcher.UIThread.Post(RebuildDialPresets);
 
+    /// <summary>
+    /// Rebuilds the preset list grouped by where the presets come from: the built-in ones, then one
+    /// section per contributing plugin, then the user's own. A section with nothing in it is not
+    /// written at all, so an installation without plugin presets looks exactly as it did before.
+    /// </summary>
     private void RebuildDialPresets()
     {
         DialPresets.Clear();
-        foreach (DialPreset preset in _dialPresets.Presets)
-            DialPresets.Add(new DialPresetPanelItemViewModel(preset));
+
+        foreach (IGrouping<string, DialPreset> section in _dialPresets.Presets.GroupBy(SectionOf))
+        {
+            DialPresets.Add(new PanelSectionHeaderViewModel(section.Key));
+
+            foreach (DialPreset preset in section)
+                DialPresets.Add(new DialPresetPanelItemViewModel(preset));
+        }
+    }
+
+    /// <summary>The caption of the section a preset belongs to. The catalogue already yields
+    /// built-in, then plugin, then user presets, so grouping on this keeps that order.</summary>
+    private static string SectionOf(DialPreset preset)
+    {
+        if (preset.IsFromPlugin)
+            return preset.SourcePluginName;
+
+        return Loc.Tr(preset.IsBuiltIn ? "DialPreset_SectionBuiltIn" : "DialPreset_SectionYours");
     }
 
     // ── Loading ────────────────────────────────────────────────────────────

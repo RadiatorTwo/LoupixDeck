@@ -46,18 +46,40 @@ public class DialPresetMenuContributor : IMenuContributor
             Section = info.Section
         };
 
-        foreach (DialPreset preset in presets)
+        // A plugin's presets go into a folder of their own, named after the plugin, so the group
+        // says which integration a preset belongs to and one plugin cannot bury the rest.
+        foreach (IGrouping<string, DialPreset> section in presets.GroupBy(p => p.SourcePluginId))
         {
-            group.Children.Add(new MenuEntry(preset.Name, string.Empty)
+            if (section.Key == null)
             {
-                Icon = string.IsNullOrEmpty(preset.Glyph) ? info.Icon : preset.Glyph,
-                Description = DescribeGestures(preset),
-                RotaryGroup = preset.ToRotaryGroup()
-            });
+                foreach (DialPreset preset in section)
+                    group.Children.Add(Leaf(preset, info));
+
+                continue;
+            }
+
+            DialPreset first = section.First();
+            MenuEntry folder = new(first.SourcePluginName, string.Empty)
+            {
+                Icon = string.IsNullOrEmpty(first.Glyph) ? info.Icon : first.Glyph
+            };
+
+            foreach (DialPreset preset in section)
+                folder.Children.Add(Leaf(preset, info));
+
+            group.Children.Add(folder);
         }
 
         return Task.FromResult<IReadOnlyList<MenuEntry>>([group]);
     }
+
+    private static MenuEntry Leaf(DialPreset preset, GroupInfo info) =>
+        new(preset.Name, string.Empty)
+        {
+            Icon = string.IsNullOrEmpty(preset.Glyph) ? info.Icon : preset.Glyph,
+            Description = DescribeGestures(preset),
+            RotaryGroup = preset.ToRotaryGroup()
+        };
 
     /// <summary>Which gestures the preset fills, so a preset that leaves one alone says so before
     /// it is applied rather than after.</summary>
