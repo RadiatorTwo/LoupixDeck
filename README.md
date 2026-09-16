@@ -111,7 +111,7 @@ Only the device-permission step needs administrator rights. If you have never co
 3. Drag an application or command onto a button—or select a control and double-click the item.
 4. Select a button to customize its image, text, symbol, actions and states.
 5. Add profiles, workspaces, pages and folders as your setup grows.
-6. Open **Settings → Plugin Store** to install integrations.
+6. Open **Plugins** from the hamburger menu, then choose **Plugin Store** to install integrations.
 
 For a complete walkthrough, see the [User Manual](docs/USER_MANUAL.md).
 
@@ -136,7 +136,7 @@ For a complete walkthrough, see the [User Manual](docs/USER_MANUAL.md).
 
 - Assign separate actions to rotate left, rotate right, click and press
 - Run multi-command sequences from any gesture
-- Apply built-in or user-created dial presets
+- Apply built-in, plugin-provided or user-created dial presets, grouped by source
 - Assign related plugin actions as a group
 - Use independent rotary pages where supported
 
@@ -203,7 +203,9 @@ Built-in commands and plugins cover:
 
 Plugins can add commands, live text, settings pages, integrations, screensavers, dynamic folders and animated side strips.
 
-Install and update plugins from **Settings → Plugin Store**. The store checks compatibility, displays release notes and verifies downloaded files against their published checksums. Plugin settings and missing command assignments are preserved across updates or temporary removal.
+Open the separate **Plugins** window from the hamburger menu. Its searchable installed list shows status and version, lets you choose the device being configured, and keeps plugin settings available even when no deck is connected. Enabling remains an explicit per-device action.
+
+The **Plugin Store** page uses a searchable tile grid and one catalogue request to check published versions. You can read release notes on demand, install, update, remove or adopt a hand-copied plugin, cancel a download, and restart when a staged change needs it. Downloads are checked against their published checksums, while settings and missing command assignments survive updates or temporary removal.
 
 Want to create a plugin?
 

@@ -182,7 +182,7 @@ The main window is a live editor for your connected device.
 - Use `+` and delete controls to add or remove pages.
 - Edit the page name directly in the page name field.
 - Open the left apps and commands panel or the right Folders panel from the header.
-- Use the hamburger menu for `Settings`, `Macros`, `About`, and `Quit`.
+- Use the hamburger menu for `Settings`, `Plugins`, `Macros`, `About`, and `Quit`. The Plugins window remains available even when no device is connected.
 
 The top header shows your current context. It contains `DEVICE`, `PROFILE`, and `WORKSPACE` selectors. If only one device is connected, the device selector is hidden and you will usually just see the profile and workspace selectors. The hamburger menu sits at the right end of this header.
 
@@ -202,9 +202,9 @@ When a device is connected, the button at the left of the header opens a side pa
 | --- | --- |
 | Apps | Applications discovered on the computer, plus applications added manually |
 | Commands | The same searchable command catalogue used by the button editors |
-| Dial presets | Built-in and user-created mappings for all three gestures of a rotary control |
+| Dial presets | Built-in, plugin-provided, and user-created mappings for all three gestures of a rotary control, grouped by source |
 
-Single-click a panel row to select it. To assign it, first select a compatible touch key, physical LED button, or dial and then double-click the row, or drag the row directly onto the control. An invalid target is outlined in red and is not changed. If the target already has content, LoupixDeck asks before replacing it. Command-picker groups stay expanded when a plugin finishes loading its menu.
+Single-click a panel row to select it. To assign it, first select a compatible touch key, physical LED button, or dial and then double-click the row, or drag the row directly onto the control. An invalid target is outlined in red and is not changed. If the target already has content, LoupixDeck asks before replacing it. Command-picker groups stay expanded when a plugin finishes loading its menu, and the tighter rows keep more entries visible.
 
 An application assigned to a touch key receives its launch command and, when available, an extracted app icon sized to leave room for a caption. App icons are cached at full resolution and refreshed when their source changes. A catalogue command receives its glyph and name. Physical LED buttons receive the command, while a dial receives the command and a side-strip label. Side displays themselves are not drop targets. Some catalogue entries are dial-only because they configure all three rotary gestures together.
 
@@ -508,6 +508,8 @@ The `Presets` submenu applies a related set of rotary gestures in one step. Buil
 
 Use `Save this dial as a preset…` to store the current dial under a name. User presets are shared across devices and profiles, appear in the main window's `Dial presets` panel, and can be renamed or deleted there. Built-in presets cannot be edited or removed. Applying a preset copies its commands to the dial; renaming or deleting that preset later does not change dials that already use it. Presets can be applied only to dials.
 
+An enabled plugin can contribute presets for its own commands. The quick menu and action panel group presets under **Built-in**, each plugin's name, and **Yours**. Plugin presets are read-only: you can apply one, but not edit, rename, or delete it. They are read again whenever a preset surface is built, so presets can appear or disappear with live plugin state or after a device is connected, without restarting LoupixDeck. Applying one still copies its commands once; the configured dial does not keep a link to the plugin preset.
+
 For devices with side strips, each knob can also have a strip label. On the Razer Stream Controller, open a side strip and choose its mode for the current rotary page:
 
 - `Segmented` shows the adjacent knobs as separate labelled sections.
@@ -730,19 +732,25 @@ Process matching is case-insensitive, and a trailing `.exe` is ignored. On Linux
 
 ## Plugins and Integrations
 
-LoupixDeck v1.28.0 and later install integrations separately from the app. Open `Settings > Plugin Store` to browse the curated catalogue. Each row shows the plugin's description, author, version, compatibility, and whether it is installed or has an update.
+LoupixDeck v1.28.0 and later install integrations separately from the app. In v1.30.0 and later, open **Plugins** from the hamburger menu instead of looking under Settings. The separate window remains usable without a connected device. Its left rail switches between installed plugins and the Plugin Store and shows the installed count plus a badge when updates are pending.
 
 ### Plugin Store
 
-Use `Install`, `Update`, or `Remove` on a plugin's row. Before an install or update starts, LoupixDeck shows that GitHub release's notes and waits for confirmation. It then downloads the package and verifies its SHA-256 checksum before opening the archive. A missing or mismatched checksum prevents installation.
+Search the store or browse its two-column tile grid. Each tile shows the plugin's description, author, published version, compatibility, and installed state. Release notes load on demand and can be read without installing anything.
+
+Use `Install`, `Update`, or `Remove` on a tile. Before an install or update starts, LoupixDeck shows that release's notes and waits for confirmation. It then displays download progress and verifies the package's SHA-256 checksum before opening the archive. A missing or mismatched checksum prevents installation, and `Cancel` stops a download in progress.
 
 The store selects only releases whose `plugin.json` supports the current operating system and an SDK version provided by this LoupixDeck release. A plugin without a compatible release is labelled accordingly instead of being installed. Plugin releases are independent from LoupixDeck releases, so fixes can be delivered without updating the main app.
 
-Installing a new plugin normally loads it immediately. Updating or removing a plugin also takes effect immediately when its files can be replaced safely. If the operating system has a loaded file locked, LoupixDeck stages the change, shows `Restart required`, and completes it before plugins load on the next start. Updates preserve the plugin's `settings.json`.
+Installing a plugin does not enable it. Choose `Setup` to move to the installed-plugins page, select the device, and enable it explicitly. Its commands then appear in the side panel immediately, without restarting. The enabled state is saved as soon as it changes. Updating or removing a plugin also takes effect immediately when its files can be replaced safely. If the operating system has a loaded file locked, LoupixDeck stages the change, shows `Restart required`, and offers to restart before completing it on the next start. Updates preserve the plugin's `settings.json`.
 
-The background plugin-update check follows the main app's automatic update-check setting. When compatible plugin updates are available, a hint appears in the main window; open it to go to the Plugin Store. `Refresh` checks the catalogue again, although recently fetched GitHub release lists may be reused briefly to avoid exhausting GitHub's unauthenticated request limit. When the limit is reached, the store uses cached release information where possible and displays when a fresh check can be made.
+The store also offers `Adopt` when it recognizes a hand-copied plugin, making that installation store-managed. `Check for app update` appears when the available plugin needs a newer LoupixDeck release.
 
-Plugins installed from a zip or copied into the user plugin folder still load. They are labelled `Manually installed`, and the store does not replace them automatically. Use `Settings > Plugins` for these manual installations and for plugin-specific configuration.
+Published versions now come from the catalogue, so `Refresh` needs one request instead of querying every plugin's GitHub releases. If the current catalogue cannot be fetched, the store can use a cached copy, marks it as possibly outdated, and shows when it was saved. A missing catalogue path no longer leaves the page waiting indefinitely, and an entry without a usable release is shown as unavailable.
+
+The background plugin-update check follows the main app's automatic update-check setting. When compatible plugin updates are available, a hint appears in the main window; open it to go to the Plugin Store.
+
+Plugins installed from a zip or copied into the user plugin folder still load. They are labelled `Manually installed`, and the store does not replace them automatically unless you choose `Adopt`. Use the installed-plugins page for manual installations and plugin-specific configuration.
 
 ### Upgrading from an older LoupixDeck release
 
@@ -756,9 +764,11 @@ Removing a plugin does not erase its button, dial, physical-button, page-command
 
 After startup, LoupixDeck checks saved configuration for commands owned by catalogue plugins that are not installed. It offers to open the Plugin Store with the first missing plugin highlighted. Declining the offer is remembered for that plugin; the assignments themselves remain unchanged.
 
-### Manual plugin management
+### Installed plugins and settings
 
-Open `Settings > Plugins`.
+The installed-plugins page has a searchable list with each plugin's status dot, version, and pending-update state. The detail header names the device being configured and provides a picker when more than one device is running. The enable switch is also in this header because enablement is stored per device.
+
+Plugin setting forms use the current interface language. If you switch plugins or close the window with unsaved changes, LoupixDeck asks before discarding them. An action supplied by a plugin shows its returned message without guessing that it succeeded; only a failed call is labelled as a failure.
 
 From this page you can:
 
@@ -766,9 +776,9 @@ From this page you can:
 - Remove a plugin.
 - Open the plugins folder.
 - Select a plugin and edit its settings if it provides a settings UI.
-- Enable or disable plugins live where supported.
+- Enable or disable a plugin for the selected device. The choice is saved immediately and refreshes its commands and dial presets live.
 
-The v1.28.0 Plugin Store catalogue includes these integrations:
+The v1.30.0 Plugin Store catalogue includes these integrations:
 
 | Plugin | Platform |
 | --- | --- |
@@ -785,7 +795,7 @@ The v1.28.0 Plugin Store catalogue includes these integrations:
 
 Plugins can add commands, dynamic text, settings pages, folders, side-strip providers, or special integration behavior. The exact command names depend on the installed plugin version and what external app or service is configured.
 
-LoupixDeck v1.28.0 uses Plugin SDK 1.22.0 and makes no SDK API changes. Existing plugins do not need to be rebuilt. SDK 1.22.0 lets folder providers read the active device's real key grid; this is an additive API change, so older 1.x plugins continue to load too.
+LoupixDeck v1.30.0 uses Plugin SDK 1.23.0. It adds `DialPresetDescriptor` and `GetDialPresets()` so plugins can contribute presets for their own rotary commands. The change is additive, so existing plugins do not need to be rebuilt and older 1.x plugins continue to load.
 
 The Plugins page only shows plugins that can run on the current operating system. For example, Windows-only plugins are hidden on Linux instead of appearing as disabled rows with controls that cannot work.
 
@@ -793,7 +803,7 @@ Plugins can also provide default values for command settings. In current store v
 
 On a multi-device setup, plugin button-state reads, state changes, and refresh requests apply across every device on which that plugin is enabled. A stateful plugin button on a secondary device therefore stays synchronized just like one on the primary device.
 
-Installing, removing, or switching the active version of a plugin refreshes the command catalogue and side-strip providers for every connected device. You do not need to reconnect secondary devices for the refreshed plugin state to appear.
+Installing, removing, enabling, disabling, or switching the active version of a plugin refreshes the command catalogue, dial presets, and side-strip providers for every connected device. You do not need to reconnect secondary devices for the refreshed plugin state to appear.
 
 ### Audio
 
@@ -809,7 +819,7 @@ On Linux, MP3 and M4A playback uses an external player when a particular playbac
 
 ### SteelSeries Sonar
 
-Install the Windows-only SteelSeries Sonar plugin from the Plugin Store. It exposes controls for the Sonar mixer, including the separate streaming and monitoring volumes used by stream mode. Enable it for the current device under `Settings > Plugins`; it is not offered on Linux.
+Install the Windows-only SteelSeries Sonar plugin from the Plugin Store. It exposes controls for the Sonar mixer, including the separate streaming and monitoring volumes used by stream mode. Enable it for the current device on the installed-plugins page; it is not offered on Linux.
 
 ### OBS Studio
 
@@ -1008,17 +1018,7 @@ Custom folders are created and arranged from the right-side **Folders** panel in
 
 ### Plugin Store
 
-- Browse the curated plugin catalogue.
-- Install, update, or remove compatible plugins.
-- Review a plugin release's notes before installing or updating it.
-- Refresh plugin and release availability.
-- See incompatible, manually installed, and restart-required states.
-
-### Plugins
-
-- Install a plugin manually from a zip file.
-- Remove, enable, disable, and configure installed plugins.
-- Open the per-user plugin folder.
+Plugin management and the Plugin Store now live in their own **Plugins** window rather than Settings. See [Plugins and Integrations](#plugins-and-integrations).
 
 ### Macro Driver
 
@@ -1042,7 +1042,7 @@ Important: Interception is third-party software. It is not bundled with LoupixDe
 - Light.
 - System.
 
-Some controls may keep the old palette until the next app launch.
+Current releases give cards, borders, and hint text distinct tones in both Light and Dark themes. The page-name placeholder in the main pager follows the same readable palette.
 
 ### About
 
@@ -1104,7 +1104,7 @@ Recording needs read access to `/dev/input/event*`. The installer attempts to ha
 - For a video source: install `ffmpeg` and make sure it is on `PATH`.
 - Try a lower FPS limit.
 - Test with a simple local video file.
-- For a plugin source: make sure the plugin is still installed and enabled in `Settings > Plugins`, and that it is selected in the screensaver picker.
+- For a plugin source: open the Plugins window, make sure the plugin is still installed and enabled for the current device, and check that it is selected in the screensaver picker.
 
 ### Video wallpaper does not play
 
@@ -1129,8 +1129,8 @@ Recording needs read access to `/dev/input/event*`. The installer attempts to ha
 
 ### Plugin commands are missing
 
-- Open `Settings > Plugin Store` and install a missing catalogue plugin, or update it if a compatible release is available.
-- Open `Settings > Plugins` and check whether the installed plugin is enabled for the current device.
+- Open **Plugins > Plugin Store** and install a missing catalogue plugin, or update it if a compatible release is available.
+- On the installed-plugins page, check whether the plugin is enabled for the current device.
 - If you use more than one device, enable the plugin on the device where you want to use it.
 - Restart LoupixDeck if the plugin page says some changes need a restart.
 - An unavailable plugin command remains assigned and is not executed as shell text. Reinstalling and enabling its plugin restores it.

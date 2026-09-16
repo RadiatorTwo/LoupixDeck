@@ -7,7 +7,7 @@ value types the host and the plugin share. A plugin is a single .NET class
 library that references this SDK, ships as a folder under the host's plugin
 directory, and is loaded dynamically at startup.
 
-- **Current SDK version:** 1.22.0
+- **Current SDK version:** 1.23.0
 - **Target frameworks:** `net9.0` and `net10.0`
 - **Package:** `LoupixDeck.PluginSdk` (NuGet)
 - **License:** MIT
@@ -21,6 +21,7 @@ directory, and is loaded dynamically at startup.
   - [Host Services](API-Host-Services) — `IPluginHost`, logging, settings, device and folder-grid info
 - Advanced
   - [Dynamic Menus](Advanced-Menus) — `IMenuContributor`, `MenuNode`
+  - [Plugin Dial Presets](Advanced-Dial-Presets) — reusable rotary configurations contributed by plugins
   - [Folder Navigation](Advanced-Folders) — `IFolderProvider`, `FolderEntry`, active-device grid, rotary overrides
   - [Exclusive Mode](Advanced-Exclusive-Mode) — `IExclusiveModeProvider`, `ExclusiveRenderMode`, HUD/screensaver takeovers
   - [Full-Display Renderer](Advanced-Full-Display-Renderer) — raw BGRA video and visualizer frames
@@ -43,6 +44,7 @@ host startup
    ├─ new MyPlugin()
    ├─ plugin.Initialize(host)            ← host hands over IPluginHost
    ├─ plugin.GetCommands()               ← commands registered
+   ├─ plugin.GetDialPresets()            ← read whenever a preset surface is built
    │
    ├─ … runtime: user invokes commands, host calls IPluginCommand.Execute(ctx)
    │

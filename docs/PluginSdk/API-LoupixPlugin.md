@@ -12,6 +12,7 @@ public abstract class LoupixPlugin
     public virtual  void Shutdown() { }
     public abstract IEnumerable<IPluginCommand> GetCommands();
     public virtual  IReadOnlyList<CommandGroupDescriptor> GetCommandGroups() => [];
+    public virtual  IEnumerable<DialPresetDescriptor> GetDialPresets() => [];
     public virtual  IEnumerable<ISideStripProvider> GetSideStripProviders() => [];
     public virtual  IEnumerable<IScreensaverProvider> GetScreensaverProviders() => [];
 }
@@ -45,6 +46,13 @@ folder view).
 Returns optional descriptors for command-picker groups. Groups without a
 descriptor still load with the host's generic plugin presentation.
 
+### `GetDialPresets()`
+
+Returns ready-made rotary configurations listed next to the host's built-in
+presets. The host calls this synchronously whenever it builds a preset surface,
+so implementations may follow live state but must return promptly. The default
+returns no presets. See [Plugin Dial Presets](Advanced-Dial-Presets).
+
 ### `GetSideStripProviders()`
 
 Returns side-strip renderer factories that users can bind to a rotary page in
@@ -65,7 +73,7 @@ close sockets. Default implementation does nothing.
 ## Lifecycle ordering
 
 ```
-ctor → Initialize(host) → collect commands/groups/providers → … → Shutdown()
+ctor → Initialize(host) → collect commands/groups/presets/providers → … → Shutdown()
 ```
 
 The host never calls `Initialize` twice. `Shutdown` runs at most once and may
