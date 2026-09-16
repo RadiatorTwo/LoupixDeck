@@ -38,7 +38,7 @@ next to the `.csproj`:
 Then reference the package:
 
 ```powershell
-dotnet add package LoupixDeck.PluginSdk --version 1.22.*
+dotnet add package LoupixDeck.PluginSdk --version 1.23.*
 ```
 
 > **Important:** Do **not** copy the SDK DLL into your plugin's output folder.
@@ -120,7 +120,7 @@ plugin's `Metadata`:
   "id": "hello",
   "name": "Hello Plugin",
   "version": "1.0.0",
-  "sdkVersion": "1.22.0",
+  "sdkVersion": "1.23.0",
   "entryAssembly": "MyPlugin.dll",
   "platform": "All",
   "author": "you",
@@ -160,6 +160,8 @@ host log shows the line.
   [Settings Page](Advanced-Settings-Page).
 - For dynamic menus listing remote state (OBS scenes, sensors) → see
   [Dynamic Menus](Advanced-Menus).
+- To offer a reusable set of rotary actions → see
+  [Plugin Dial Presets](Advanced-Dial-Presets).
 - To publish through the Plugin Store → see
   [Packaging & Distribution](Packaging-and-Distribution).
 - To attach a debugger and iterate quickly → see [Debugging](Debugging).

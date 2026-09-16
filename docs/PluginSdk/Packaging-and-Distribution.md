@@ -5,8 +5,8 @@ manifest and any runtime dependencies. LoupixDeck v1.28.0 and later can install
 plugins from its curated Plugin Store. Store plugins publish releases from their
 own GitHub repository; they are not bundled with the main application.
 
-LoupixDeck v1.28.0 makes no SDK API changes and continues to provide SDK 1.22.0,
-so existing plugins need no rebuild merely to use the store.
+LoupixDeck v1.30.0 provides SDK 1.23.0. It adds plugin-contributed dial presets;
+the API change is additive, so existing plugins need no rebuild.
 
 ## Manifest and versioning
 
@@ -18,7 +18,7 @@ match the `PluginMetadata` returned by the plugin:
   "id": "myplugin",
   "name": "My Plugin",
   "version": "1.0.0",
-  "sdkVersion": "1.22.0",
+  "sdkVersion": "1.23.0",
   "entryAssembly": "MyPlugin.dll",
   "platform": "All",
   "author": "Example Author",
@@ -162,6 +162,9 @@ A published GitHub Release produces and attaches:
 | `plugin.json` | Lets the Store check identity and compatibility before downloading the package |
 | `SHA256SUMS` | SHA-256 entries for the package and manifest |
 
+The workflow also places `store-entry.json` in the build artifact and prints
+the same ready-to-paste `release` object in the GitHub Actions job summary.
+
 Only the package matching the manifest platform is generated. A manual
 `workflow_dispatch` uploads the same files as a workflow artifact but does not
 attach them to a GitHub Release. Release notes shown by the Store come from the
@@ -169,7 +172,7 @@ GitHub Release description.
 
 ## Add the plugin to the Store
 
-Only repositories listed in `plugin-store.json` in the
+Only repositories listed in schema-v2 `plugin-store.json` in the
 [LoupixDeck repository](https://github.com/RadiatorTwo/LoupixDeck/blob/master/plugin-store.json)
 appear in the Store. After publishing a valid release, open a pull request that
 adds an entry such as:
@@ -183,15 +186,34 @@ adds an entry such as:
   "repository": "example/LoupixDeck.Plugin.MyPlugin",
   "icon": "https://example.com/myplugin.png",
   "platforms": ["Windows", "Linux"],
-  "minSdkVersion": "1.22.0",
-  "commandPrefixes": ["MyPlugin."]
+  "minSdkVersion": "1.23.0",
+  "commandPrefixes": ["MyPlugin."],
+  "release": {
+    "version": "1.0.0",
+    "tag": "v1.0.0",
+    "publishedAt": "2026-09-16T12:00:00Z",
+    "sdkVersion": "1.23.0",
+    "releaseNotesUrl": "https://github.com/example/LoupixDeck.Plugin.MyPlugin/releases/tag/v1.0.0",
+    "packages": [
+      {
+        "platform": "any",
+        "fileName": "myplugin-1.0.0-any.zip",
+        "downloadUrl": "https://github.com/example/LoupixDeck.Plugin.MyPlugin/releases/download/v1.0.0/myplugin-1.0.0-any.zip",
+        "sha256": "<64 lowercase hexadecimal characters>"
+      }
+    ]
+  }
 }
 ```
 
 The catalogue `id` must match the release manifest. `repository` is the GitHub
 `owner/name`; `platforms` controls which operating systems see the entry;
-`minSdkVersion` is catalogue information while each release's `sdkVersion`
-decides actual compatibility. List every stable command prefix in
+`minSdkVersion` is catalogue information while the nested release's
+`sdkVersion` decides actual compatibility. The release object is authoritative
+for the version offered by the Store and includes its tag, publication time,
+notes URL, and one or more platform packages with exact filenames, URLs, and
+checksums. Copy that object from the release workflow's job summary or
+`store-entry.json` instead of transcribing it by hand. List every stable command prefix in
 `commandPrefixes` so LoupixDeck can recognise assignments when the plugin is
 not installed and avoid treating them as shell commands.
 
@@ -199,9 +221,15 @@ Before opening the catalogue pull request, verify that the latest stable GitHub
 Release contains `plugin.json`, the correctly named ZIP, `SHA256SUMS`, and useful
 release notes. Drafts and pre-releases are not offered.
 
+Catalogue pull requests are checked in CI. The validator checks the schema and
+unique ids, rejects a version that moves backwards, verifies tag and URL
+patterns, downloads each changed package, compares its SHA-256 checksum, and
+confirms that the packaged manifest has the listed id, version, and SDK version.
+
 ## Manual distribution
 
-Users can still install a compatible ZIP from `Settings > Plugins` or copy its
-contents into the user plugin folder. Such a copy is shown as manually installed
-and is not updated by the Store. This is useful for development and private
-plugins; public Store distribution should use the release workflow above.
+Users can still install a compatible ZIP from the installed-plugins page in the
+separate Plugins window or copy its contents into the user plugin folder. Such a
+copy is shown as manually installed and is not updated by the Store unless the
+user chooses `Adopt`. This is useful for development and private plugins; public
+Store distribution should use the release workflow above.

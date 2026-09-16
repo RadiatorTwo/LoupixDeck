@@ -33,6 +33,9 @@ interfaces, and a few value types. Everything lives in the
 | `IDisplayCommand` | [Commands](API-Commands#idisplaycommand) | A command that also renders dynamic text on a touch button. |
 | `IMenuContributor` | [Dynamic Menus](Advanced-Menus) | Contributes dynamically built submenu entries. |
 | `MenuNode` | [Dynamic Menus](Advanced-Menus#menunode) | Folder or leaf node in a dynamic submenu. |
+| `DialPresetDescriptor` | [Plugin Dial Presets](Advanced-Dial-Presets) | Ready-made rotary configuration contributed by a plugin. |
+| `RotaryAction` | [Plugin Dial Presets](Advanced-Dial-Presets) | Counter-clockwise, clockwise, or press gesture used as a preset-map key. |
+| `MenuCommandRef` | [Plugin Dial Presets](Advanced-Dial-Presets) | Command name and parameter values assigned by a preset. |
 | `IFolderProvider` | [Folder Navigation](Advanced-Folders#ifolderprovider) | Supplies a folder view on the touch screen. |
 | `FolderProviderBase` | [Folder Navigation](Advanced-Folders#folderproviderbase) | Convenience base class. |
 | `FolderEntry` | [Folder Navigation](Advanced-Folders#folderentry) | A single grid slot in a folder. |
@@ -61,7 +64,7 @@ interfaces, and a few value types. Everything lives in the
 ```csharp
 public static class SdkInfo
 {
-    public static readonly Version Version = new(1, 22, 0);
+    public static readonly Version Version = new(1, 23, 0);
 }
 ```
 
@@ -69,8 +72,9 @@ Always set `PluginMetadata.SdkVersion = SdkInfo.Version`. The host loads a
 plugin only when `SdkVersion.Major` matches its own — within a major version,
 the contracts are guaranteed source- and binary-compatible.
 
-SDK 1.22.0 adds `IPluginHost.FolderGrid` and `FolderGridInfo` for device-aware
-plugin folders. Earlier 1.x additions include command-declared button states,
+SDK 1.23.0 adds `DialPresetDescriptor` and `LoupixPlugin.GetDialPresets()` for
+plugin-provided rotary presets. SDK 1.22.0 added `IPluginHost.FolderGrid` and
+`FolderGridInfo` for device-aware plugin folders. Earlier 1.x additions include command-declared button states,
 optional screensaver and animated-side-strip contracts, and
 `ExclusiveRenderMode.None`. These changes are additive: existing 1.x plugins
 continue to load without a rebuild. The package targets both `net9.0` and

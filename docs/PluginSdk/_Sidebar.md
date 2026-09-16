@@ -11,6 +11,7 @@
 
 **Advanced**
 - [Dynamic menus](Advanced-Menus)
+- [Plugin dial presets](Advanced-Dial-Presets)
 - [Folder navigation](Advanced-Folders)
 - [Exclusive mode](Advanced-Exclusive-Mode)
 - [Full-display renderer](Advanced-Full-Display-Renderer)
