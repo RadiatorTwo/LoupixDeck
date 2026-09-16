@@ -95,8 +95,9 @@
                                   IsVisible="{Binding CanRemove}"
                                   Command="{Binding $parent[ListBox].((panel:ActionPanelViewModel)DataContext).RemoveApplicationCommand}"
                                   CommandParameter="{Binding}" />
-                        <!-- Preset rows only; a built-in preset is neither renamable nor removable,
-                             which is what CanRemove says on those rows. -->
+                        <!-- Preset rows only, and only the user's own: a built-in preset and one a
+                             plugin contributes are neither renamable nor deletable, which is what
+                             CanEdit says on those rows. -->
                         <MenuItem Header="{loc:Tr ActionPanel_Rename}"
                                   IsVisible="{Binding CanEdit}"
                                   Command="{Binding $parent[ListBox].((panel:ActionPanelViewModel)DataContext).RenamePresetCommand}"

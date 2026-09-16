@@ -136,7 +136,7 @@ public sealed class DialPresetPanelItemViewModel : PanelItemViewModel
     {
         Preset = preset;
         Glyph = string.IsNullOrEmpty(preset.Glyph) ? DialPreset.DefaultGlyph : preset.Glyph;
-        CanEdit = !preset.IsBuiltIn;
+        CanEdit = !preset.IsReadOnly;
     }
 
     public override string Title => Preset.Name;

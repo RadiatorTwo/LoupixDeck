@@ -1026,10 +1026,10 @@ public partial class MainWindowViewModel : ViewModelBase
             _dialPresetStore.Add(preset);
     }
 
-    /// <summary>Renames a user preset. Built-in ones are not editable.</summary>
+    /// <summary>Renames a user preset. Built-in and plugin-supplied ones are not editable.</summary>
     public async Task RenameDialPresetAsync(DialPreset preset)
     {
-        if (preset == null || preset.IsBuiltIn)
+        if (preset == null || preset.IsReadOnly)
             return;
 
         DialPreset working = preset.Clone();
@@ -1047,7 +1047,7 @@ public partial class MainWindowViewModel : ViewModelBase
     /// </summary>
     public async Task DeleteDialPresetAsync(DialPreset preset)
     {
-        if (preset == null || preset.IsBuiltIn)
+        if (preset == null || preset.IsReadOnly)
             return;
 
         DialogResult result = await _dialogService.ShowDialogAsync<ConfirmDialogViewModel, DialogResult>(vm =>

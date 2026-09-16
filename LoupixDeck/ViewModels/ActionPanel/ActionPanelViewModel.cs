@@ -190,7 +190,7 @@ public partial class ActionPanelViewModel : ViewModelBase
 
     private static void Invoke(Func<DialPreset, Task> action, PanelItemViewModel row)
     {
-        if (action == null || row is not DialPresetPanelItemViewModel { Preset.IsBuiltIn: false } preset)
+        if (action == null || row is not DialPresetPanelItemViewModel { Preset.IsReadOnly: false } preset)
             return;
 
         _ = action(preset.Preset);
