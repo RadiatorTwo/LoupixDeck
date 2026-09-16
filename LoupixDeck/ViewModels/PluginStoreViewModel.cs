@@ -44,6 +44,16 @@ public sealed partial class PluginStoreViewModel(
 
     public bool HasNotice => !string.IsNullOrEmpty(NoticeText);
 
+    /// <summary>
+    /// Says that the list is not what the server currently publishes — the offline copy, or a list too old to
+    /// carry version information. Shown above the error, which says what went wrong.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasStaleNotice))]
+    public partial string StaleNoticeText { get; set; }
+
+    public bool HasStaleNotice => !string.IsNullOrEmpty(StaleNoticeText);
+
     [ObservableProperty]
     public partial bool ShowRestartHint { get; set; }
 
@@ -85,10 +95,10 @@ public sealed partial class PluginStoreViewModel(
         StatusText = Loc.Tr("PluginStore_Loading");
         try
         {
-            (IReadOnlyList<PluginStoreItem> items, string error) = await store.GetItemsAsync(force);
+            PluginStoreResult result = await store.GetItemsAsync(force);
             _loaded = true;
 
-            IEnumerable<PluginStoreItem> visible = items
+            IEnumerable<PluginStoreItem> visible = result.Items
                 .Where(i => i.Installed is not null || i.Entry.SupportsCurrentPlatform())
                 .OrderByDescending(i => string.Equals(i.Entry.Id, HighlightedPluginId, StringComparison.OrdinalIgnoreCase))
                 .ThenBy(i => i.Entry.DisplayName, StringComparer.CurrentCultureIgnoreCase);
@@ -102,13 +112,40 @@ public sealed partial class PluginStoreViewModel(
                 _ = row.LoadIconAsync();
             }
 
-            NoticeText = error;
-            StatusText = Items.Count == 0 && error is null ? Loc.Tr("PluginStore_Empty") : null;
+            NoticeText = result.Error;
+            StaleNoticeText = DescribeStaleness(result);
+            StatusText = Items.Count == 0 && result.Error is null ? Loc.Tr("PluginStore_Empty") : null;
+        }
+        catch (Exception ex)
+        {
+            // The service reports what it expects as an error message; anything left is a surprise.
+            // Saying so beats leaving the page on "loading plugins…" with nothing ever happening.
+            Console.WriteLine($"[PluginStore] Loading the list failed unexpectedly: {ex}");
+            NoticeText = Loc.Tr("PluginStore_CatalogUnavailable", ex.Message);
+            StatusText = null;
         }
         finally
         {
             IsLoading = false;
         }
+    }
+
+    /// <summary>Why the shown list may not be current, or null when it came fresh from the server.</summary>
+    private static string DescribeStaleness(PluginStoreResult result)
+    {
+        if (result.IsOutdatedSchema)
+        {
+            return Loc.Tr("PluginStore_CatalogTooOld");
+        }
+
+        if (!result.IsFromCache)
+        {
+            return null;
+        }
+
+        return result.CachedAt is { } cachedAt
+            ? Loc.Tr("PluginStore_CachedNotice", cachedAt.ToLocalTime().ToString("g"))
+            : Loc.Tr("PluginStore_CachedNoticeNoTime");
     }
 
     private async Task InstallAsync(PluginStoreRowViewModel row)
@@ -119,9 +156,14 @@ public sealed partial class PluginStoreViewModel(
             return;
         }
 
-        // Release notes first; nothing is downloaded unless the user confirms.
+        // Release notes first; nothing is downloaded unless the user confirms. The notes are read while the
+        // dialog is already open, so the decision never waits on a request.
         DialogResult confirmed = await dialogService.ShowDialogAsync<PluginReleaseNotesViewModel, DialogResult>(
-            vm => vm.Initialize(row.Item));
+            vm =>
+            {
+                vm.Initialize(row.Item);
+                _ = vm.LoadNotesAsync();
+            });
         if (confirmed is not { IsConfirmed: true })
         {
             return;

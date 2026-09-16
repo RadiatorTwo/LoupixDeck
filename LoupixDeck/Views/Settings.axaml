@@ -973,6 +973,13 @@
                     <TextBlock Classes="hint" Margin="0,0,0,12" TextWrapping="Wrap"
                                Text="{loc:Tr PluginStore_Intro}" />
 
+                    <!-- The list is not what the server publishes right now: the offline copy, or one too old. -->
+                    <Border Classes="pill warn" HorizontalAlignment="Stretch" CornerRadius="6" Padding="12,8"
+                            Margin="0,0,20,8" IsVisible="{Binding PluginStore.HasStaleNotice}">
+                        <TextBlock TextWrapping="Wrap" FontSize="13" FontWeight="Normal"
+                                   Text="{Binding PluginStore.StaleNoticeText}" />
+                    </Border>
+
                     <Border Classes="pill warn" HorizontalAlignment="Stretch" CornerRadius="6" Padding="12,8"
                             Margin="0,0,20,12" IsVisible="{Binding PluginStore.HasNotice}">
                         <TextBlock TextWrapping="Wrap" FontSize="13" FontWeight="Normal"

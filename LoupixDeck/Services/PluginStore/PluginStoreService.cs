@@ -23,11 +23,18 @@ public interface IPluginStoreService : INotifyPropertyChanged
     PluginCatalog CachedCatalog { get; }
 
     /// <summary>
-    /// Reads the catalog and every listed plugin's releases and matches them against the installed plugins.
-    /// Never throws: a catalog that cannot be loaded comes back as an empty list plus an error message.
-    /// Release lookups are cached for a few minutes unless <paramref name="force"/> is set.
+    /// Reads the catalog and matches the versions it publishes against the installed plugins. Exactly one
+    /// request, whatever the number of plugins: the catalog is the source of the versions, so no plugin
+    /// repository is ever contacted. Never throws — a catalog that cannot be loaded falls back to the copy
+    /// on disk, or comes back as an empty list plus an error message.
     /// </summary>
-    Task<(IReadOnlyList<PluginStoreItem> Items, string Error)> GetItemsAsync(bool force,
+    Task<PluginStoreResult> GetItemsAsync(bool force, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// The release notes of the version about to be installed — one request, made only when the user asked
+    /// for an install or update. Never throws; null when they cannot be read.
+    /// </summary>
+    Task<string> GetReleaseNotesAsync(PluginReleaseCandidate candidate,
         CancellationToken cancellationToken = default);
 
     /// <summary>Downloads a release package to a temp file and verifies its SHA-256. Never throws.</summary>
@@ -72,31 +79,29 @@ public sealed partial class PluginStoreService : ObservableObject, IPluginStoreS
     private const string AdoptedKey = "PluginStoreAdopted";
 
     private const string CatalogCacheFileName = "plugin-store-cache.json";
-    private const string ManifestAssetName = "plugin.json";
-    private const string ChecksumAssetName = "SHA256SUMS";
-
-    /// <summary>How many releases per plugin are inspected for a compatible one.</summary>
-    private const int MaxReleasesInspected = 10;
-
-    private static readonly TimeSpan CacheLifetime = TimeSpan.FromMinutes(10);
-
-    /// <summary>How old a repository's release list must be before the Refresh button reads it again.</summary>
-    private static readonly TimeSpan MinRefreshInterval = TimeSpan.FromSeconds(60);
 
     /// <summary>The plugin update check waits for the app update check and the first plugin load.</summary>
     private static readonly TimeSpan StartupDelay = TimeSpan.FromSeconds(10);
 
+    /// <summary>How long a downloaded list is reused when the page is reopened; Refresh ignores it.</summary>
+    private static readonly TimeSpan CatalogFreshness = TimeSpan.FromMinutes(5);
+
     private readonly IPluginManager _pluginManager;
     private readonly IUpdateService _updateService;
+
+    /// <summary>Only for the release notes of a version the user is installing; never for the list itself.</summary>
     private readonly GitHubReleaseClient _releaseClient = new();
+
     private readonly SemaphoreSlim _gate = new(1, 1);
     private readonly HashSet<string> _restartRequired = new(StringComparer.OrdinalIgnoreCase);
 
-    // Per repository: the resolved releases and when they were read.
-    private readonly Dictionary<string, (DateTime ReadAt, ResolvedReleases Releases)> _releaseCache =
-        new(StringComparer.OrdinalIgnoreCase);
-
     private PluginCatalog _cachedCatalog;
+
+    /// <summary>When the copy on disk was written; null while no copy has been read or written.</summary>
+    private DateTimeOffset? _cacheWrittenAt;
+
+    /// <summary>When the list was last downloaded; null while it only ever came from disk.</summary>
+    private DateTimeOffset? _catalogLoadedAt;
 
     private readonly IPluginCommandIndex _commandIndex;
 
@@ -212,13 +217,13 @@ public sealed partial class PluginStoreService : ObservableObject, IPluginStoreS
         _ = Task.Run(async () =>
         {
             await Task.Delay(StartupDelay);
-            (IReadOnlyList<PluginStoreItem> items, string error) = await GetItemsAsync(force: false);
-            if (error is not null)
+            PluginStoreResult result = await GetItemsAsync(force: false);
+            if (result.Error is not null)
             {
-                Console.WriteLine($"[PluginStore] Plugin update check failed: {error}");
+                Console.WriteLine($"[PluginStore] Plugin update check failed: {result.Error}");
             }
 
-            foreach (PluginStoreItem item in items.Where(i => i.Status == PluginStoreStatus.UpdateAvailable))
+            foreach (PluginStoreItem item in result.Items.Where(i => i.Status == PluginStoreStatus.UpdateAvailable))
             {
                 Console.WriteLine(
                     $"[PluginStore] {item.Entry.DisplayName} {item.Available.Version} is available (installed: {item.InstalledVersion}).");
@@ -226,20 +231,21 @@ public sealed partial class PluginStoreService : ObservableObject, IPluginStoreS
         });
     }
 
-    public async Task<(IReadOnlyList<PluginStoreItem> Items, string Error)> GetItemsAsync(bool force,
-        CancellationToken cancellationToken = default)
+    public async Task<PluginStoreResult> GetItemsAsync(bool force, CancellationToken cancellationToken = default)
     {
         await _gate.WaitAsync(cancellationToken);
         try
         {
-            // A limit without a known reset time is only assumed for the run that hit it.
-            _rateLimitWithoutReset = false;
-
             PluginCatalog catalog;
             string catalogError = null;
+            bool fromCache = false;
             try
             {
-                catalog = await LoadCatalogAsync(cancellationToken);
+                // Reopening the page reuses the list that was just downloaded; Refresh always reloads.
+                catalog = !force && _cachedCatalog is not null && _catalogLoadedAt is { } loadedAt
+                                 && DateTimeOffset.UtcNow - loadedAt < CatalogFreshness
+                    ? _cachedCatalog
+                    : await LoadCatalogAsync(cancellationToken);
             }
             catch (Exception ex) when (IsExpectedFailure(ex))
             {
@@ -248,29 +254,51 @@ public sealed partial class PluginStoreService : ObservableObject, IPluginStoreS
                 catalogError = Loc.Tr("PluginStore_CatalogUnavailable", ex.Message);
                 if (catalog is null)
                 {
-                    return ([], catalogError);
+                    return new PluginStoreResult([], catalogError);
                 }
+
+                fromCache = true;
             }
 
             AdoptExistingPlugins(catalog);
 
-            List<PluginStoreItem> items = [];
-            foreach (PluginCatalogEntry entry in catalog.Plugins.Where(IsUsableEntry))
-            {
-                items.Add(await BuildItemAsync(entry, force, cancellationToken));
-            }
+            // Purely local: the catalog already carries every version, so the number of plugins is irrelevant.
+            List<PluginStoreItem> items = catalog.Plugins.Where(IsUsableEntry).Select(BuildItem).ToList();
 
             List<PluginStoreItem> updates = items.Where(i => i.Status == PluginStoreStatus.UpdateAvailable).ToList();
             await Dispatcher.UIThread.InvokeAsync(() => AvailableUpdates = updates);
 
-            string error = RateLimitResetAt is not null || _rateLimitWithoutReset
-                ? RateLimitMessage()
-                : catalogError;
-            return (items, error);
+            return new PluginStoreResult(items, catalogError, fromCache, fromCache ? _cacheWrittenAt : null,
+                catalog.IsOutdatedSchema);
         }
         finally
         {
             _gate.Release();
+        }
+    }
+
+    public async Task<string> GetReleaseNotesAsync(PluginReleaseCandidate candidate,
+        CancellationToken cancellationToken = default)
+    {
+        if (candidate is null || string.IsNullOrWhiteSpace(candidate.Entry.Repository))
+        {
+            return null;
+        }
+
+        try
+        {
+            ReleaseInfo release =
+                await _releaseClient.GetReleaseByTagAsync(candidate.Entry.Repository, candidate.Tag,
+                    cancellationToken);
+            return string.IsNullOrWhiteSpace(release?.Notes) ? null : release.Notes.Trim();
+        }
+        catch (Exception ex) when (IsExpectedFailure(ex))
+        {
+            // Notes are a courtesy; never let them get in the way of installing.
+            // GitHubRateLimitException is an HttpRequestException, so it lands here too.
+            Console.WriteLine(
+                $"[PluginStore] Could not read the release notes of {candidate.Entry.Repository} {candidate.Tag}: {ex.Message}");
+            return null;
         }
     }
 
@@ -281,9 +309,9 @@ public sealed partial class PluginStoreService : ObservableObject, IPluginStoreS
         {
             string directory = Path.Combine(Path.GetTempPath(), "LoupixDeck-plugins", Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(directory);
-            string path = Path.Combine(directory, candidate.Package.Name);
+            string path = Path.Combine(directory, candidate.FileName);
 
-            await FileDownloader.DownloadAsync(candidate.Package.DownloadUrl, path, progress, cancellationToken);
+            await FileDownloader.DownloadAsync(candidate.DownloadUrl, path, progress, cancellationToken);
 
             // Verify before the archive is ever opened.
             string actual = await FileDownloader.ComputeSha256Async(path, cancellationToken);
@@ -291,11 +319,11 @@ public sealed partial class PluginStoreService : ObservableObject, IPluginStoreS
             {
                 TryDeleteDirectory(directory);
                 Console.WriteLine(
-                    $"[PluginStore] Checksum mismatch for {candidate.Package.Name} (expected {candidate.Sha256}, got {actual}).");
-                return new PluginDownloadResult(null, Loc.Tr("PluginStore_ChecksumMismatch", candidate.Package.Name));
+                    $"[PluginStore] Checksum mismatch for {candidate.FileName} (expected {candidate.Sha256}, got {actual}).");
+                return new PluginDownloadResult(null, Loc.Tr("PluginStore_ChecksumMismatch", candidate.FileName));
             }
 
-            Console.WriteLine($"[PluginStore] {candidate.Package.Name} verified ({actual}).");
+            Console.WriteLine($"[PluginStore] {candidate.FileName} verified ({actual}).");
             return new PluginDownloadResult(path);
         }
         catch (OperationCanceledException)
@@ -304,7 +332,7 @@ public sealed partial class PluginStoreService : ObservableObject, IPluginStoreS
         }
         catch (Exception ex) when (IsExpectedFailure(ex))
         {
-            Console.WriteLine($"[PluginStore] Download of {candidate.Package.Name} failed: {ex.Message}");
+            Console.WriteLine($"[PluginStore] Download of {candidate.FileName} failed: {ex.Message}");
             return new PluginDownloadResult(null, Loc.Tr("PluginStore_DownloadFailed", ex.Message));
         }
     }
@@ -314,7 +342,7 @@ public sealed partial class PluginStoreService : ObservableObject, IPluginStoreS
         PluginStoreMarker marker = new()
         {
             Repository = entry.Repository,
-            Tag = candidate.Release.Tag,
+            Tag = candidate.Tag,
             InstalledAt = DateTime.UtcNow
         };
 
@@ -337,16 +365,15 @@ public sealed partial class PluginStoreService : ObservableObject, IPluginStoreS
     }
 
     /// <summary>
-    /// True when a release built against <paramref name="manifest"/>'s SDK loads in this app: same major
-    /// version (the loader's rule) and not newer than the SDK this app ships.
+    /// True when a release built against <paramref name="sdkVersion"/> loads in this app: same major version
+    /// (the loader's rule) and not newer than the SDK this app ships. The platform is not checked here — it is
+    /// already decided by which package the release ships for this system.
     /// </summary>
-    public static bool IsCompatible(PluginManifest manifest)
+    public static bool IsCompatible(string sdkVersion)
     {
-        return manifest is not null
-               && Version.TryParse(manifest.SdkVersion, out Version sdk)
+        return Version.TryParse(sdkVersion, out Version sdk)
                && sdk.Major == SdkInfo.Version.Major
-               && sdk <= SdkInfo.Version
-               && PluginManager.SupportsCurrentPlatform(manifest);
+               && sdk <= SdkInfo.Version;
     }
 
     /// <summary>
@@ -394,8 +421,7 @@ public sealed partial class PluginStoreService : ObservableObject, IPluginStoreS
         return !string.IsNullOrWhiteSpace(entry?.Id) && !string.IsNullOrWhiteSpace(entry.Repository);
     }
 
-    private async Task<PluginStoreItem> BuildItemAsync(PluginCatalogEntry entry, bool force,
-        CancellationToken cancellationToken)
+    private PluginStoreItem BuildItem(PluginCatalogEntry entry)
     {
         LoadedPlugin installed = _pluginManager.Plugins
             .FirstOrDefault(p => string.Equals(p.Manifest?.Id, entry.Id, StringComparison.OrdinalIgnoreCase));
@@ -417,198 +443,65 @@ public sealed partial class PluginStoreService : ObservableObject, IPluginStoreS
             return new PluginStoreItem(entry, PluginStoreStatus.ManuallyInstalled, installed, installedVersion, null, null);
         }
 
-        ResolvedReleases releases;
-        try
+        PluginReleaseCandidate candidate = ReadCandidate(entry);
+        if (candidate is null)
         {
-            releases = await ResolveReleasesAsync(entry, force, cancellationToken);
-        }
-        catch (GitHubRateLimitException ex)
-        {
-            RememberRateLimit(ex.ResetAt);
-            Console.WriteLine($"[PluginStore] Could not read the releases of {entry.Repository}: {ex.Message}");
+            // An entry without release information comes from a list older than this app understands; one
+            // that has a release but no package simply does not ship a build for this system.
+            bool noReleaseInfo = entry.Release is null
+                                 || PluginInstaller.ParseVersion(entry.Release.Version) <= new Version(0, 0);
+            PluginStoreStatus missingStatus = installed is not null
+                ? PluginStoreStatus.Installed
+                : noReleaseInfo
+                    ? PluginStoreStatus.Unavailable
+                    : PluginStoreStatus.NoRelease;
 
-            // The last known releases are better than nothing; the page says the limit was reached.
-            if (_releaseCache.TryGetValue(entry.Repository, out (DateTime ReadAt, ResolvedReleases Releases) stale))
-            {
-                releases = stale.Releases;
-            }
-            else
-            {
-                // No per-row error: the page shows the limit and its reset time once, above the list.
-                PluginStoreStatus limitedStatus = installed is null ? PluginStoreStatus.Unavailable : PluginStoreStatus.Installed;
-                return new PluginStoreItem(entry, limitedStatus, installed, installedVersion, null, null);
-            }
+            return new PluginStoreItem(entry, missingStatus, installed, installedVersion, null, null,
+                noReleaseInfo && installed is null ? Loc.Tr("PluginStore_NoReleaseInfo") : null);
         }
-        catch (Exception ex) when (IsExpectedFailure(ex))
-        {
-            Console.WriteLine($"[PluginStore] Could not read the releases of {entry.Repository}: {ex.Message}");
-            PluginStoreStatus failedStatus = installed is null ? PluginStoreStatus.Unavailable : PluginStoreStatus.Installed;
-            return new PluginStoreItem(entry, failedStatus, installed, installedVersion, null, null,
-                Loc.Tr("PluginStore_ReleasesUnavailable", ex.Message));
-        }
+
+        PluginReleaseCandidate compatible = IsCompatible(candidate.Release.SdkVersion) ? candidate : null;
 
         PluginStoreStatus status;
         if (installed is null)
         {
-            status = releases.Compatible is not null ? PluginStoreStatus.NotInstalled
-                : releases.Newest is not null ? PluginStoreStatus.RequiresNewerApp
-                : PluginStoreStatus.NoRelease;
+            status = compatible is not null ? PluginStoreStatus.NotInstalled : PluginStoreStatus.RequiresNewerApp;
         }
         else
         {
             Version current = PluginInstaller.ParseVersion(installedVersion);
-            status = releases.Compatible is not null && releases.Compatible.Version > current
+            status = compatible is not null && compatible.Version > current
                 ? PluginStoreStatus.UpdateAvailable
                 : PluginStoreStatus.Installed;
         }
 
-        return new PluginStoreItem(entry, status, installed, installedVersion, releases.Compatible, releases.Newest);
-    }
-
-    private async Task<ResolvedReleases> ResolveReleasesAsync(PluginCatalogEntry entry, bool force,
-        CancellationToken cancellationToken)
-    {
-        // Every API request counts against GitHub's hourly limit for unauthenticated clients, even a 304.
-        // A forced refresh therefore still reuses a list that was read moments ago.
-        TimeSpan maxAge = force ? MinRefreshInterval : CacheLifetime;
-        if (_releaseCache.TryGetValue(entry.Repository, out (DateTime ReadAt, ResolvedReleases Releases) cached)
-            && DateTime.UtcNow - cached.ReadAt < maxAge)
-        {
-            return cached.Releases;
-        }
-
-        IReadOnlyList<ReleaseInfo> releases;
-        bool fromDiskCache = false;
-        try
-        {
-            // Once GitHub reported the limit, every further request until the reset would be refused too.
-            if (RateLimitResetAt is { } resetAt)
-            {
-                throw new GitHubRateLimitException(resetAt, System.Net.HttpStatusCode.Forbidden);
-            }
-
-            releases = await _releaseClient.GetStableReleasesAsync(entry.Repository, cancellationToken);
-        }
-        catch (GitHubRateLimitException ex)
-        {
-            // The list as last read from GitHub, also from before a restart. Only the list comes from the API:
-            // plugin.json, SHA256SUMS and the package are plain downloads the limit does not apply to, so a
-            // known update can still be installed.
-            releases = GitHubReleaseClient.GetCachedStableReleases(entry.Repository);
-            if (releases is null)
-            {
-                throw;
-            }
-
-            RememberRateLimit(ex.ResetAt);
-            fromDiskCache = true;
-            Console.WriteLine($"[PluginStore] {entry.Repository}: rate limit reached, using the last known releases.");
-        }
-
-        PluginReleaseCandidate newest = null;
-        PluginReleaseCandidate compatible = null;
-        foreach (ReleaseInfo release in releases.Take(MaxReleasesInspected))
-        {
-            PluginReleaseCandidate candidate = await ReadCandidateAsync(entry, release, cancellationToken);
-            if (candidate is null)
-            {
-                continue;
-            }
-
-            newest ??= candidate;
-            if (IsCompatible(candidate.Manifest))
-            {
-                compatible = candidate;
-                break;
-            }
-        }
-
-        ResolvedReleases resolved = new(compatible, newest);
-
-        // A list from the disk cache is not fresh; the first refresh after the reset reads GitHub again.
-        if (!fromDiskCache)
-        {
-            _releaseCache[entry.Repository] = (DateTime.UtcNow, resolved);
-        }
-
-        return resolved;
+        // Newest is the release either way, so the page can say that a newer one needs a newer app.
+        return new PluginStoreItem(entry, status, installed, installedVersion, compatible, candidate);
     }
 
     /// <summary>
-    /// The release as an installable candidate, or null when it lacks a package for this platform, a manifest
-    /// for the catalog id or a checksum to verify the package against.
+    /// The entry's release as an installable candidate, or null when the list carries no release for it or
+    /// the release ships no usable package for this system. Never touches the network.
     /// </summary>
-    private static async Task<PluginReleaseCandidate> ReadCandidateAsync(PluginCatalogEntry entry, ReleaseInfo release,
-        CancellationToken cancellationToken)
+    private static PluginReleaseCandidate ReadCandidate(PluginCatalogEntry entry)
     {
-        string version = $"{release.Version.Major}.{release.Version.Minor}.{release.Version.Build}";
-        string platform = OperatingSystem.IsWindows() ? "windows" : "linux";
-        ReleaseAsset package = release.FindAsset($"{entry.Id}-{version}-{platform}.zip")
-                               ?? release.FindAsset($"{entry.Id}-{version}-any.zip");
-        ReleaseAsset manifestAsset = release.FindAsset(ManifestAssetName);
-        if (package is null || manifestAsset is null)
+        // ParseVersion never fails - it answers 0.0 for anything it cannot read - so an unusable version
+        // has to be recognised by that value, or the plugin would be offered as "0.0".
+        PluginReleaseEntry release = entry.Release;
+        if (release is null || PluginInstaller.ParseVersion(release.Version) <= new Version(0, 0))
         {
             return null;
         }
 
-        PluginManifest manifest;
-        try
-        {
-            manifest = JsonConvert.DeserializeObject<PluginManifest>(
-                await FileDownloader.DownloadStringAsync(manifestAsset.DownloadUrl, cancellationToken));
-        }
-        catch (JsonException ex)
-        {
-            Console.WriteLine($"[PluginStore] {entry.Repository} {release.Tag}: invalid plugin.json ({ex.Message}).");
-            return null;
-        }
-
-        if (!string.Equals(manifest?.Id, entry.Id, StringComparison.OrdinalIgnoreCase))
-        {
-            Console.WriteLine($"[PluginStore] {entry.Repository} {release.Tag}: plugin.json id does not match '{entry.Id}'.");
-            return null;
-        }
-
-        string sha256 = null;
-        ReleaseAsset checksums = release.FindAsset(ChecksumAssetName);
-        if (checksums is not null)
-        {
-            string content = await FileDownloader.DownloadStringAsync(checksums.DownloadUrl, cancellationToken);
-            ParseChecksums(content).TryGetValue(package.Name, out sha256);
-        }
-
-        sha256 ??= package.Sha256;
-        if (sha256 is null)
-        {
-            Console.WriteLine($"[PluginStore] {entry.Repository} {release.Tag}: no checksum for {package.Name}, skipped.");
-            return null;
-        }
-
-        return new PluginReleaseCandidate(release, manifest, package, sha256);
+        PluginPackageEntry package = release.FindPackageForCurrentPlatform();
+        return package is { IsUsable: true } ? new PluginReleaseCandidate(entry, release, package) : null;
     }
 
-    /// <summary>Parses <c>sha256sum</c> output: <c>&lt;hex&gt;  &lt;file&gt;</c> or <c>&lt;hex&gt; *&lt;file&gt;</c> per line.</summary>
-    internal static Dictionary<string, string> ParseChecksums(string content)
+    /// <summary>True when the catalog location is an http(s) URL; anything else is a path on this machine.</summary>
+    private static bool IsWebLocation(string location)
     {
-        Dictionary<string, string> result = new(StringComparer.OrdinalIgnoreCase);
-        foreach (string rawLine in (content ?? string.Empty).Split('\n'))
-        {
-            string line = rawLine.Trim();
-            int space = line.IndexOf(' ');
-            if (space != 64)
-            {
-                continue;
-            }
-
-            string hash = line[..space];
-            string file = line[space..].Trim().TrimStart('*');
-            if (file.Length > 0 && hash.All(Uri.IsHexDigit))
-            {
-                result[file] = hash;
-            }
-        }
-
-        return result;
+        return Uri.TryCreate(location, UriKind.Absolute, out Uri uri)
+               && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
     }
 
     private async Task<PluginCatalog> LoadCatalogAsync(CancellationToken cancellationToken)
@@ -619,19 +512,36 @@ public sealed partial class PluginStoreService : ObservableObject, IPluginStoreS
             location = DefaultCatalogUrl;
         }
 
-        string json = File.Exists(location)
-            ? await File.ReadAllTextAsync(location, cancellationToken)
-            : await FileDownloader.DownloadStringAsync(location, cancellationToken);
+        // Decided by shape, not by File.Exists: a local path whose file is missing must fail as a
+        // missing file, not get handed to the downloader, which answers a path with an exception the
+        // store cannot treat as "the list is unavailable" — leaving the page on "loading" forever.
+        string json = IsWebLocation(location)
+            ? await FileDownloader.DownloadStringAsync(location, cancellationToken)
+            : await File.ReadAllTextAsync(location, cancellationToken);
 
         PluginCatalog catalog = JsonConvert.DeserializeObject<PluginCatalog>(json)
                                 ?? throw new InvalidOperationException("The plugin catalog is empty.");
         catalog.Plugins ??= [];
 
+        if (catalog.IsOutdatedSchema)
+        {
+            Console.WriteLine($"[PluginStore] The plugin list uses schema version {catalog.SchemaVersion} and " +
+                              "carries no release information; nothing can be installed from it.");
+        }
+        else if (catalog.SchemaVersion > PluginCatalog.SupportedSchemaVersion)
+        {
+            Console.WriteLine($"[PluginStore] The plugin list uses schema version {catalog.SchemaVersion}; " +
+                              $"reading it as version {PluginCatalog.SupportedSchemaVersion} and ignoring what is unknown.");
+        }
+
         _cachedCatalog = catalog;
+        _catalogLoadedAt = DateTimeOffset.UtcNow;
         try
         {
+            // The body is written through unchanged, so an older build reading the same file still works.
             await File.WriteAllTextAsync(Path.Combine(FileDialogHelper.GetConfigDir(), CatalogCacheFileName), json,
                 cancellationToken);
+            _cacheWrittenAt = DateTimeOffset.Now;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
@@ -641,7 +551,7 @@ public sealed partial class PluginStoreService : ObservableObject, IPluginStoreS
         return catalog;
     }
 
-    private static PluginCatalog ReadCatalogCache()
+    private PluginCatalog ReadCatalogCache()
     {
         string path = Path.Combine(FileDialogHelper.GetConfigDir(), CatalogCacheFileName);
         try
@@ -655,6 +565,7 @@ public sealed partial class PluginStoreService : ObservableObject, IPluginStoreS
             if (catalog is not null)
             {
                 catalog.Plugins ??= [];
+                _cacheWrittenAt = new DateTimeOffset(File.GetLastWriteTime(path));
             }
 
             return catalog;
@@ -668,8 +579,12 @@ public sealed partial class PluginStoreService : ObservableObject, IPluginStoreS
 
     private static bool IsExpectedFailure(Exception ex)
     {
+        // NotSupportedException/FormatException/ArgumentException belong here because a location the
+        // user typed is data: a malformed or non-web one must read as "the list is unavailable"
+        // rather than escape and leave the page waiting.
         return ex is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException
-            or JsonException or IOException or UnauthorizedAccessException or InvalidOperationException;
+            or JsonException or IOException or UnauthorizedAccessException or InvalidOperationException
+            or NotSupportedException or FormatException or ArgumentException;
     }
 
     private static void TryDeleteDirectory(string directory)
@@ -684,30 +599,4 @@ public sealed partial class PluginStoreService : ObservableObject, IPluginStoreS
         }
     }
 
-    /// <summary>When GitHub accepts API requests again; null when no limit is known to be in effect.</summary>
-    private DateTimeOffset? RateLimitResetAt => _rateLimitResetAt > DateTimeOffset.UtcNow ? _rateLimitResetAt : null;
-
-    private DateTimeOffset? _rateLimitResetAt;
-    private bool _rateLimitWithoutReset;
-
-    private void RememberRateLimit(DateTimeOffset? resetAt)
-    {
-        if (resetAt is null)
-        {
-            _rateLimitWithoutReset = true;
-        }
-        else if (_rateLimitResetAt is null || resetAt > _rateLimitResetAt)
-        {
-            _rateLimitResetAt = resetAt;
-        }
-    }
-
-    private string RateLimitMessage()
-    {
-        return RateLimitResetAt is { } resetAt
-            ? Loc.Tr("PluginStore_RateLimited", resetAt.ToLocalTime().ToString("t"))
-            : Loc.Tr("PluginStore_RateLimitedNoTime");
-    }
-
-    private sealed record ResolvedReleases(PluginReleaseCandidate Compatible, PluginReleaseCandidate Newest);
 }

@@ -221,7 +221,8 @@ public sealed class PluginInstaller : IPluginInstaller
 
         // Enable it right away so the reload coordinator loads it (and a restart
         // would too) — installing a chosen package implies the user wants it active
-        // (symmetric with Remove, which drops the id). Persisted on dialog close.
+        // (symmetric with Remove, which drops the id). The coordinator writes the
+        // config once the install succeeded.
         EnsureEnabled(manifest.Id);
 
         // Fresh install — id is new, nothing is locked. Coordinator loads it live.
@@ -300,8 +301,8 @@ public sealed class PluginInstaller : IPluginInstaller
         // bundled version takes over, so the id has to stay enabled.
         var bundled = FindBundled(id);
 
-        // Drop it from the enabled list regardless of how the delete goes; this is
-        // persisted when the Settings dialog closes (same path as the toggle).
+        // Drop it from the enabled list regardless of how the delete goes; the reload
+        // coordinator writes the config afterwards (same path as the toggle).
         if (bundled == null && !string.IsNullOrWhiteSpace(id))
             _config.EnabledPlugins?.RemoveAll(e => string.Equals(e, id, StringComparison.OrdinalIgnoreCase));
 

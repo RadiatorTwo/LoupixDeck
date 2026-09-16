@@ -62,30 +62,63 @@ public sealed class GitHubReleaseClient
     }
 
     /// <summary>
-    /// The stable releases of <paramref name="repository"/> as last read from GitHub, from the on-disk cache;
-    /// null when there is none. Never touches the network.
+    /// One release of <paramref name="repository"/> by its tag, for its notes. A single request, made only
+    /// when the user is about to install or update a plugin — never while a list is refreshed.
     /// </summary>
-    public static IReadOnlyList<ReleaseInfo> GetCachedStableReleases(string repository)
+    /// <returns>The release, or null when the repository has no release with that tag.</returns>
+    /// <exception cref="GitHubRateLimitException">The hourly API limit is used up.</exception>
+    /// <exception cref="HttpRequestException">Network failure or another non-success status.</exception>
+    public async Task<ReleaseInfo> GetReleaseByTagAsync(string repository, string tag,
+        CancellationToken cancellationToken)
     {
-        string body = GitHubResponseCache.Get(ReleasesUrl(repository))?.Body;
-        if (body is null)
+        if (string.IsNullOrWhiteSpace(repository) || string.IsNullOrWhiteSpace(tag))
         {
             return null;
         }
 
-        try
+        string url = ReleaseByTagUrl(repository, tag);
+        GitHubResponseCache.Entry cached = GitHubResponseCache.Get(url);
+
+        using HttpRequestMessage request = new(HttpMethod.Get, url);
+        if (cached is not null)
         {
-            return ParseReleases(body);
+            request.Headers.TryAddWithoutValidation("If-None-Match", cached.ETag);
         }
-        catch (JsonException)
+
+        using HttpResponseMessage response = await Http.SendAsync(request, cancellationToken);
+
+        // A tag the catalog names but the repository does not have is not an error worth throwing over.
+        if (response.StatusCode == HttpStatusCode.NotFound)
         {
             return null;
         }
+
+        string json;
+        if (response.StatusCode == HttpStatusCode.NotModified && cached is not null)
+        {
+            json = cached.Body;
+        }
+        else
+        {
+            ThrowIfRateLimited(response);
+            response.EnsureSuccessStatusCode();
+
+            json = await response.Content.ReadAsStringAsync(cancellationToken);
+            GitHubResponseCache.Set(url, response.Headers.ETag?.ToString(), json);
+        }
+
+        using JsonDocument document = JsonDocument.Parse(json);
+        return ParseRelease(document.RootElement);
     }
 
     private static string ReleasesUrl(string repository)
     {
         return $"https://api.github.com/repos/{repository}/releases?per_page=50";
+    }
+
+    private static string ReleaseByTagUrl(string repository, string tag)
+    {
+        return $"https://api.github.com/repos/{repository}/releases/tags/{Uri.EscapeDataString(tag)}";
     }
 
     private static IReadOnlyList<ReleaseInfo> ParseReleases(string json)
@@ -100,34 +133,44 @@ public sealed class GitHubReleaseClient
                 continue;
             }
 
-            string tag = GetString(item, "tag_name");
-            Version version = AppVersion.TryParse(tag);
-            if (version is null)
+            ReleaseInfo release = ParseRelease(item);
+            if (release is not null)
             {
-                continue;
+                releases.Add(release);
             }
-
-            List<ReleaseAsset> assets = [];
-            if (item.TryGetProperty("assets", out JsonElement assetArray) && assetArray.ValueKind == JsonValueKind.Array)
-            {
-                foreach (JsonElement asset in assetArray.EnumerateArray())
-                {
-                    assets.Add(new ReleaseAsset(GetString(asset, "name"), GetString(asset, "browser_download_url"),
-                        ParseSha256(GetString(asset, "digest"))));
-                }
-            }
-
-            releases.Add(new ReleaseInfo(
-                tag,
-                version,
-                GetString(item, "name"),
-                GetString(item, "body"),
-                GetString(item, "html_url"),
-                assets));
         }
 
         releases.Sort((a, b) => b.Version.CompareTo(a.Version));
         return releases;
+    }
+
+    /// <summary>One release object of the API, or null when its tag is not a <c>vX.Y.Z</c> version.</summary>
+    private static ReleaseInfo ParseRelease(JsonElement item)
+    {
+        string tag = GetString(item, "tag_name");
+        Version version = AppVersion.TryParse(tag);
+        if (version is null)
+        {
+            return null;
+        }
+
+        List<ReleaseAsset> assets = [];
+        if (item.TryGetProperty("assets", out JsonElement assetArray) && assetArray.ValueKind == JsonValueKind.Array)
+        {
+            foreach (JsonElement asset in assetArray.EnumerateArray())
+            {
+                assets.Add(new ReleaseAsset(GetString(asset, "name"), GetString(asset, "browser_download_url"),
+                    ParseSha256(GetString(asset, "digest"))));
+            }
+        }
+
+        return new ReleaseInfo(
+            tag,
+            version,
+            GetString(item, "name"),
+            GetString(item, "body"),
+            GetString(item, "html_url"),
+            assets);
     }
 
     /// <summary>

@@ -12,6 +12,14 @@ public interface ICommandRegistry
     /// <summary>(Re)builds the command table from all registered providers.</summary>
     void Initialize();
 
+    /// <summary>
+    /// Raised after <see cref="Initialize"/> rebuilt the table, i.e. whenever the set of available
+    /// commands may have changed — a plugin was enabled, disabled, installed or removed. Lets views
+    /// that list commands rebuild; they cannot tell from the commands themselves that anything moved.
+    /// May be raised on any thread.
+    /// </summary>
+    event Action CommandsChanged;
+
     /// <summary>True when a command with the given name is registered.</summary>
     bool Contains(string commandName);
 

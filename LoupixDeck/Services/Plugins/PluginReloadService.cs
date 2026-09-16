@@ -155,6 +155,10 @@ public sealed class PluginReloadService : IPluginReloadService
 
         var id = result.PluginId;
 
+        // The installer enabled the id in this device's config; write that out now, so the plugin is
+        // still enabled on the next start instead of only wearing a ticked box until then.
+        PersistEnabledPlugins();
+
         // Stop any currently-loaded old version so a live update reloads cleanly;
         // a no-op for a brand-new install (nothing loaded yet).
         var existing = Find(id);
@@ -213,6 +217,10 @@ public sealed class PluginReloadService : IPluginReloadService
         // Now attempt the delete; a cleanly-collected plugin is removed live, a
         // still-locked one falls back to the .pending-removals marker (next startup).
         var result = _installer.Remove(plugin);
+
+        // Remove drops the id from this device's enabled set (unless it reverts to a built-in);
+        // persist that with the same guarantee an install gets.
+        PersistEnabledPlugins();
 
         // Deleting a copy that overrode a built-in reverts to the bundled version —
         // load it back live now that the override is gone. When the delete was
@@ -362,6 +370,8 @@ public sealed class PluginReloadService : IPluginReloadService
         _config.EnabledPlugins ??= [];
         if (!_config.EnabledPlugins.Any(e => string.Equals(e, id, StringComparison.OrdinalIgnoreCase)))
             _config.EnabledPlugins.Add(id);
+
+        PersistEnabledPlugins();
     }
 
     private void RemoveEnabled(string id)
@@ -370,6 +380,27 @@ public sealed class PluginReloadService : IPluginReloadService
             return;
 
         _config.EnabledPlugins?.RemoveAll(e => string.Equals(e, id, StringComparison.OrdinalIgnoreCase));
+
+        PersistEnabledPlugins();
+    }
+
+    /// <summary>
+    /// Writes this device's config now that its enabled set changed. The enabled ids used to ride along
+    /// with whatever saved the config later, which loses them when that save writes another device's
+    /// config or never happens: the plugin then shows a ticked box for the rest of the session and comes
+    /// back disabled. <see cref="Models.LoupedeckConfig.EnabledPlugins"/> is a plain list, so no change
+    /// notification would trigger a save on its own.
+    /// </summary>
+    private void PersistEnabledPlugins()
+    {
+        try
+        {
+            _deviceController.SaveConfig();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"PluginReloadService: could not save the enabled plugins: {ex.Message}");
+        }
     }
 
     private static string Name(LoadedPlugin plugin, string fallbackId) =>

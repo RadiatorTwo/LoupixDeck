@@ -1,0 +1,113 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/RadiatorTwo/LoupixDeck/master/plugin-store.schema.json",
+  "title": "LoupixDeck plugin store",
+  "description": "The curated plugin list. It is the only source of the published versions: LoupixDeck downloads this file and installs from it, without asking any plugin repository what its releases are.",
+  "type": "object",
+  "required": [ "schemaVersion", "plugins" ],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": {
+      "description": "2 since the list carries release information.",
+      "const": 2
+    },
+    "plugins": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/plugin" }
+    }
+  },
+  "$defs": {
+    "plugin": {
+      "type": "object",
+      "required": [ "id", "name", "description", "author", "repository", "platforms", "release" ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "description": "Stable plugin id; matches the id in the plugin's plugin.json and names its folder.",
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9-]*$"
+        },
+        "name": { "type": "string", "minLength": 1 },
+        "description": { "type": "string", "minLength": 1 },
+        "author": { "type": "string", "minLength": 1 },
+        "repository": {
+          "description": "GitHub repository as owner/name.",
+          "type": "string",
+          "pattern": "^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$"
+        },
+        "icon": {
+          "description": "Optional HTTPS URL of a square icon; empty when there is none.",
+          "type": "string",
+          "pattern": "^(|https://.*)$"
+        },
+        "platforms": {
+          "description": "Systems the plugin is offered on. Empty means every platform.",
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "enum": [ "Windows", "Linux" ] }
+        },
+        "minSdkVersion": {
+          "description": "Informational; whether a release loads is decided by release.sdkVersion.",
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+(\\.[0-9]+)?$"
+        },
+        "commandPrefixes": {
+          "description": "Prefixes of the plugin's command names, so a config using them is understood even where the plugin is not installed.",
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "release": { "$ref": "#/$defs/release" }
+      }
+    },
+    "release": {
+      "description": "The published release. Everything needed to detect and install an update is here.",
+      "type": "object",
+      "required": [ "version", "tag", "sdkVersion", "packages" ],
+      "additionalProperties": false,
+      "properties": {
+        "version": {
+          "description": "Plain major.minor.patch; the same value the package's plugin.json carries.",
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+        },
+        "tag": {
+          "description": "GitHub tag of the release, always v<version>.",
+          "type": "string",
+          "pattern": "^v[0-9]+\\.[0-9]+\\.[0-9]+$"
+        },
+        "publishedAt": { "type": "string", "format": "date-time" },
+        "sdkVersion": {
+          "description": "SDK the release was built against; decides whether a given LoupixDeck can load it.",
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+(\\.[0-9]+)?$"
+        },
+        "releaseNotesUrl": { "type": "string", "pattern": "^https://" },
+        "packages": {
+          "description": "One entry per platform build. Either a single 'any' package, or one/both of windows and linux.",
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/package" }
+        }
+      }
+    },
+    "package": {
+      "type": "object",
+      "required": [ "platform", "fileName", "downloadUrl", "sha256" ],
+      "additionalProperties": false,
+      "properties": {
+        "platform": { "enum": [ "windows", "linux", "any" ] },
+        "fileName": {
+          "description": "<id>-<version>-<platform>.zip, as produced by the plugin release workflow.",
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9-]*-[0-9]+\\.[0-9]+\\.[0-9]+-(windows|linux|any)\\.zip$"
+        },
+        "downloadUrl": { "type": "string", "pattern": "^https://" },
+        "sha256": {
+          "description": "Lower-case hex SHA-256 of the package; a download that does not match is refused.",
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    }
+  }
+}

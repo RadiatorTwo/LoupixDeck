@@ -50,6 +50,7 @@ public partial class ActionPanelViewModel : ViewModelBase
     private readonly ICompanionCoordinator _companions;
     private readonly IConfigService _configService;
     private readonly IMacroManager _macros;
+    private readonly ICommandRegistry _commandRegistry;
     private readonly LoupedeckConfig _config;
     private readonly ResolvedDevice _device;
     private readonly CancellationTokenSource _cancellation = new();
@@ -76,8 +77,9 @@ public partial class ActionPanelViewModel : ViewModelBase
     public ActionPanelViewModel(IAppDiscoveryService discovery, ICustomAppStore customApps,
         IAppIconExtractor icons, IMenuTreeBuilder menuTreeBuilder, IDialPresetCatalog dialPresets,
         ICompanionCoordinator companions, IConfigService configService, IMacroManager macros,
-        LoupedeckConfig config, ResolvedDevice device)
+        ICommandRegistry commandRegistry, LoupedeckConfig config, ResolvedDevice device)
     {
+        _commandRegistry = commandRegistry;
         _discovery = discovery;
         _customApps = customApps;
         _icons = icons;
@@ -99,6 +101,7 @@ public partial class ActionPanelViewModel : ViewModelBase
         _companions.DeviceOnlineStateChanged += OnDeviceOnlineStateChanged;
         _configService.ConfigSaved += OnConfigSaved;
         _macros.MacrosChanged += OnMacrosChanged;
+        _commandRegistry.CommandsChanged += OnCommandsChanged;
     }
 
     // ── Panel state ────────────────────────────────────────────────────────
@@ -330,6 +333,12 @@ public partial class ActionPanelViewModel : ViewModelBase
 
     // Macro names are not part of the signature, so a macro change always rebuilds.
     private void OnMacrosChanged(object sender, EventArgs e) => ScheduleCatalogueRefresh(force: true);
+
+    // Enabling, disabling, installing or removing a plugin changes which commands exist. The
+    // signature describes this device's profiles and pages, not the command set, so it would not
+    // notice - the rebuild has to be forced or a freshly enabled plugin stays missing from the
+    // panel until the next restart.
+    private void OnCommandsChanged() => ScheduleCatalogueRefresh(force: true);
 
     private async void OnCatalogueRefreshTick(object sender, EventArgs e)
     {
@@ -674,6 +683,7 @@ public partial class ActionPanelViewModel : ViewModelBase
         _companions.DeviceOnlineStateChanged -= OnDeviceOnlineStateChanged;
         _configService.ConfigSaved -= OnConfigSaved;
         _macros.MacrosChanged -= OnMacrosChanged;
+        _commandRegistry.CommandsChanged -= OnCommandsChanged;
 
         CommandPicker.Cleanup();
     }
