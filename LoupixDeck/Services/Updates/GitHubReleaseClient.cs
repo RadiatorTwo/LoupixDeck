@@ -83,9 +83,64 @@ public sealed class GitHubReleaseClient
         }
     }
 
+    /// <summary>
+    /// One release of <paramref name="repository"/> by its tag, for its notes. A single request, made only
+    /// when the user is about to install or update a plugin — never while a list is refreshed.
+    /// </summary>
+    /// <returns>The release, or null when the repository has no release with that tag.</returns>
+    /// <exception cref="GitHubRateLimitException">The hourly API limit is used up.</exception>
+    /// <exception cref="HttpRequestException">Network failure or another non-success status.</exception>
+    public async Task<ReleaseInfo> GetReleaseByTagAsync(string repository, string tag,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(repository) || string.IsNullOrWhiteSpace(tag))
+        {
+            return null;
+        }
+
+        string url = ReleaseByTagUrl(repository, tag);
+        GitHubResponseCache.Entry cached = GitHubResponseCache.Get(url);
+
+        using HttpRequestMessage request = new(HttpMethod.Get, url);
+        if (cached is not null)
+        {
+            request.Headers.TryAddWithoutValidation("If-None-Match", cached.ETag);
+        }
+
+        using HttpResponseMessage response = await Http.SendAsync(request, cancellationToken);
+
+        // A tag the catalog names but the repository does not have is not an error worth throwing over.
+        if (response.StatusCode == HttpStatusCode.NotFound)
+        {
+            return null;
+        }
+
+        string json;
+        if (response.StatusCode == HttpStatusCode.NotModified && cached is not null)
+        {
+            json = cached.Body;
+        }
+        else
+        {
+            ThrowIfRateLimited(response);
+            response.EnsureSuccessStatusCode();
+
+            json = await response.Content.ReadAsStringAsync(cancellationToken);
+            GitHubResponseCache.Set(url, response.Headers.ETag?.ToString(), json);
+        }
+
+        using JsonDocument document = JsonDocument.Parse(json);
+        return ParseRelease(document.RootElement);
+    }
+
     private static string ReleasesUrl(string repository)
     {
         return $"https://api.github.com/repos/{repository}/releases?per_page=50";
+    }
+
+    private static string ReleaseByTagUrl(string repository, string tag)
+    {
+        return $"https://api.github.com/repos/{repository}/releases/tags/{Uri.EscapeDataString(tag)}";
     }
 
     private static IReadOnlyList<ReleaseInfo> ParseReleases(string json)
