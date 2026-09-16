@@ -16,13 +16,17 @@
              decides whether a press became a drag onto a key or a click that assigns to the
              selected one, and a Button's own Click would fire on both. -->
         <Style Selector="Border.panel-row">
-            <Setter Property="Padding" Value="8,5" />
+            <Setter Property="Padding" Value="8,3" />
             <Setter Property="CornerRadius" Value="4" />
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="Cursor" Value="Hand" />
         </Style>
         <Style Selector="Border.panel-row:pointerover">
             <Setter Property="Background" Value="{DynamicResource AppControlBackgroundHover}" />
+        </Style>
+        <Style Selector="ListBoxItem">
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="MinHeight" Value="0" />
         </Style>
         <Style Selector="TextBlock.panel-glyph">
             <Setter Property="FontFamily" Value="{DynamicResource MdiFont}" />
@@ -60,11 +64,13 @@
             <Setter Property="ToolTip.Tip" Value="Scan again for applications and commands" />
         </Style>
 
+        <!-- A section caption reads as a heading over the rows under it, so it is a step larger
+             than a row title rather than a step smaller. -->
         <Style Selector="TextBlock.panel-section">
-            <Setter Property="FontSize" Value="11" />
+            <Setter Property="FontSize" Value="13.5" />
             <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="Foreground" Value="{DynamicResource AppTextSecondary}" />
-            <Setter Property="Margin" Value="8,10,8,4" />
+            <Setter Property="Margin" Value="8,10,8,3" />
         </Style>
     </UserControl.Styles>
 
@@ -72,7 +78,14 @@
         <!-- Shared by both tabs: an application row shows its extracted icon, a command row the
              Material Design glyph the command declares. -->
         <DataTemplate x:Key="PanelRowTemplate" x:DataType="panel:PanelItemViewModel">
-            <Border Classes="panel-row">
+          <Panel>
+            <!-- A section caption: a row of the same list only so the presets stay one virtualized
+                 column. It deliberately carries no panel-row Border, which is what the drag machine
+                 looks for, so a caption can never be picked up. -->
+            <TextBlock Classes="panel-section" Text="{Binding Title}"
+                       IsVisible="{Binding IsSectionHeader}" />
+
+            <Border Classes="panel-row" IsVisible="{Binding !IsSectionHeader}">
                 <Border.ContextFlyout>
                     <MenuFlyout>
                         <!-- Application rows only, where foreground-app detection exists: open the
@@ -95,8 +108,9 @@
                                   IsVisible="{Binding CanRemove}"
                                   Command="{Binding $parent[ListBox].((panel:ActionPanelViewModel)DataContext).RemoveApplicationCommand}"
                                   CommandParameter="{Binding}" />
-                        <!-- Preset rows only; a built-in preset is neither renamable nor removable,
-                             which is what CanRemove says on those rows. -->
+                        <!-- Preset rows only, and only the user's own: a built-in preset and one a
+                             plugin contributes are neither renamable nor deletable, which is what
+                             CanEdit says on those rows. -->
                         <MenuItem Header="{loc:Tr ActionPanel_Rename}"
                                   IsVisible="{Binding CanEdit}"
                                   Command="{Binding $parent[ListBox].((panel:ActionPanelViewModel)DataContext).RenamePresetCommand}"
@@ -107,11 +121,11 @@
                                   CommandParameter="{Binding}" />
                     </MenuFlyout>
                 </Border.ContextFlyout>
-                <Grid ColumnDefinitions="34,*">
+                <Grid ColumnDefinitions="32,*">
                     <!-- The drag machine carries this tile alone as the drag ghost, so that a row
                          headed for a square key does not fly across the window as a wide list row. -->
                     <Border Grid.Column="0" Classes="panel-row-icon"
-                            Width="26" Height="26" Margin="0,0,8,0"
+                            Width="24" Height="24" Margin="0,0,8,0"
                             VerticalAlignment="Center">
                         <Panel>
                             <Image Source="{Binding Icon}" Stretch="Uniform"
@@ -128,6 +142,7 @@
                     </StackPanel>
                 </Grid>
             </Border>
+          </Panel>
         </DataTemplate>
     </UserControl.Resources>
 
@@ -204,7 +219,17 @@
                              ItemTemplate="{StaticResource PanelRowTemplate}"
                              Background="Transparent"
                              BorderThickness="0"
-                             SelectionMode="Single" />
+                             SelectionMode="Single">
+                        <!-- The captions between the groups are labels, not choices: their
+                             containers take neither the pointer nor the focus, so clicking or
+                             arrowing through the list skips straight from one preset to the next. -->
+                        <ListBox.Styles>
+                            <Style Selector="ListBoxItem" x:DataType="panel:PanelItemViewModel">
+                                <Setter Property="IsHitTestVisible" Value="{Binding !IsSectionHeader}" />
+                                <Setter Property="Focusable" Value="{Binding !IsSectionHeader}" />
+                            </Style>
+                        </ListBox.Styles>
+                    </ListBox>
                 </Grid>
             </TabItem>
         </TabControl>

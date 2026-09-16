@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using Avalonia.Media.Imaging;
 using CommunityToolkit.Mvvm.ComponentModel;
+using LoupixDeck.Localization;
 using LoupixDeck.Models;
 using LoupixDeck.Services.AppLauncher;
 using LoupixDeck.Services.Profiles;
@@ -48,6 +49,12 @@ public abstract partial class PanelItemViewModel : ViewModelBase
     /// <see cref="CanRemove"/>: the two offer different menu entries, and a row must never show one
     /// that does nothing to it.</summary>
     public bool CanEdit { get; init; }
+
+    /// <summary>True for a caption row that only names the section the rows under it belong to.
+    /// The shared row template renders it as a caption instead of a row, and the list makes its
+    /// container neither focusable nor hit-testable, so it can be neither selected nor dragged.
+    /// </summary>
+    public virtual bool IsSectionHeader => false;
 
     /// <summary>Menu entry that links the row's application to the active profile. Declared here so
     /// the shared row template binds without casting; only application rows ever show it.</summary>
@@ -136,10 +143,29 @@ public sealed class DialPresetPanelItemViewModel : PanelItemViewModel
     {
         Preset = preset;
         Glyph = string.IsNullOrEmpty(preset.Glyph) ? DialPreset.DefaultGlyph : preset.Glyph;
-        CanEdit = !preset.IsBuiltIn;
+        CanEdit = !preset.IsReadOnly;
     }
 
     public override string Title => Preset.Name;
 
-    public override string Subtitle => Preset.IsBuiltIn ? "Built-in" : "Your preset";
+    public override string Subtitle => Preset.IsFromPlugin
+        ? Loc.Tr("DialPreset_SubtitleFromPlugin", Preset.SourcePluginName)
+        : Loc.Tr(Preset.IsBuiltIn ? "DialPreset_SubtitleBuiltIn" : "DialPreset_SubtitleYours");
+}
+
+/// <summary>
+/// A caption above a run of preset rows, naming where they come from. It is a row of the same list
+/// only so the presets stay one virtualized, scrollable column; it carries no payload, is not
+/// selectable and cannot be dragged — its template deliberately omits the <c>panel-row</c> class
+/// the drag machine looks for.
+/// </summary>
+public sealed class PanelSectionHeaderViewModel : PanelItemViewModel
+{
+    private readonly string _caption;
+
+    public PanelSectionHeaderViewModel(string caption) => _caption = caption ?? string.Empty;
+
+    public override string Title => _caption;
+
+    public override bool IsSectionHeader => true;
 }

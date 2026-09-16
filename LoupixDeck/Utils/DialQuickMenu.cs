@@ -189,20 +189,48 @@ public static class DialQuickMenu
             return item;
         }
 
-        foreach (DialPreset preset in presets)
+        // Grouped by where they come from: the app's own and the user's sit in the menu directly,
+        // a plugin's go into a submenu of their own so a plugin with several presets cannot bury
+        // the rest of the list.
+        foreach (IGrouping<string, DialPreset> section in presets.GroupBy(p => p.SourcePluginId))
         {
-            DialPreset captured = preset;
-            item.Items.Add(new MenuItem
+            if (section.Key == null)
             {
-                Header = preset.Name,
-                Icon = ReferenceEquals(preset, assigned) ? Glyph(CheckGlyph) : Glyph(preset.Glyph),
-                Command = Relay.Create(() => vm.ApplyDialPresetAsync(dial, captured))
-            });
+                foreach (DialPreset preset in section)
+                    item.Items.Add(PresetItem(preset, dial, vm, assigned));
+
+                continue;
+            }
+
+            DialPreset first = section.First();
+            MenuItem group = new()
+            {
+                Header = first.SourcePluginName,
+                // The tick says "what this dial runs is in here", so it has to be resolved before
+                // the submenu is ever opened.
+                Icon = assigned != null && section.Any(p => ReferenceEquals(p, assigned))
+                    ? Glyph(CheckGlyph)
+                    : Glyph(first.Glyph)
+            };
+
+            foreach (DialPreset preset in section)
+                group.Items.Add(PresetItem(preset, dial, vm, assigned));
+
+            item.Items.Add(group);
         }
 
         AddSaveEntry(item, dial, vm);
         return item;
     }
+
+    private static MenuItem PresetItem(DialPreset preset, RotaryButton dial, MainWindowViewModel vm,
+        DialPreset assigned) =>
+        new()
+        {
+            Header = preset.Name,
+            Icon = ReferenceEquals(preset, assigned) ? Glyph(CheckGlyph) : Glyph(preset.Glyph),
+            Command = Relay.Create(() => vm.ApplyDialPresetAsync(dial, preset))
+        };
 
     /// <summary>Turns the dial's current configuration into a preset of its own. Offered on a dial
     /// that has something on it — there is nothing to save off an empty one.</summary>

@@ -1,7 +1,5 @@
 using LoupixDeck.Models;
-using LoupixDeck.PluginSdk;
 using LoupixDeck.Services.Commands;
-using LoupixDeck.Utils;
 
 namespace LoupixDeck.Services.DialPresets;
 
@@ -88,7 +86,7 @@ public static class DialPresetLibrary
         if (registry == null)
             return All;
 
-        return [.. All.Where(preset => IsUsable(preset, registry))];
+        return [.. All.Where(preset => DialPresetCommandFilter.IsUsable(preset, registry))];
     }
 
     /// <summary>True when <paramref name="name"/> is the name of a built-in preset. Checked against
@@ -97,25 +95,4 @@ public static class DialPresetLibrary
     public static bool IsBuiltInName(string name) =>
         !string.IsNullOrWhiteSpace(name) &&
         All.Any(p => string.Equals(p.Name, name.Trim(), StringComparison.OrdinalIgnoreCase));
-
-    private static bool IsUsable(DialPreset preset, ICommandRegistry registry) =>
-        IsUsable(preset.Left, registry) &&
-        IsUsable(preset.Right, registry) &&
-        IsUsable(preset.Press, registry);
-
-    private static bool IsUsable(string command, ICommandRegistry registry)
-    {
-        // An unassigned gesture is fine — a preset need not fill all three.
-        if (string.IsNullOrWhiteSpace(command))
-            return true;
-
-        foreach (string segment in CommandStringParser.SplitChain(command))
-        {
-            RegisteredCommand registered = registry.Get(CommandStringParser.GetName(segment));
-            if (registered == null || !registered.SupportedTargets.HasFlag(ButtonTargets.RotaryEncoder))
-                return false;
-        }
-
-        return true;
-    }
 }
