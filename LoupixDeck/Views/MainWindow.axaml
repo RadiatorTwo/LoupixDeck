@@ -566,8 +566,16 @@
                                 IsEnabled="{Binding HasDevice}"
                                 Command="{Binding SelectedDevice.MacroEditorMenuCommand}" />
                         <Separator />
+                        <!-- Plugins load once for the whole process, so this entry reaches no
+                             hardware and stays usable while no device is connected. -->
                         <Button MinWidth="100" Height="40" HorizontalAlignment="Stretch"
                                 VerticalContentAlignment="Center"
+                                HorizontalContentAlignment="Center"
+                                FontSize="18"
+                                Content="{loc:Tr Settings_Plugins}"
+                                Command="{Binding PluginsMenuCommand}" />
+                        <Button MinWidth="100" Height="40" HorizontalAlignment="Stretch"
+                                VerticalContentAlignment="Center" Margin="0,5,0,0"
                                 HorizontalContentAlignment="Center"
                                 FontSize="18"
                                 Content="{loc:Tr MainWindow_About}"

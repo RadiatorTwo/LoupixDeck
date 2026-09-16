@@ -7,11 +7,9 @@ public enum SettingsView
     Pages,
     Haptic,
     Screensaver,
-    Plugins,
     Interception,
     Theme,
     About,
     AppSwitching,
-    PluginStore,
     Companions
 }

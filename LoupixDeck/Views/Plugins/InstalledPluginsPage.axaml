@@ -1,0 +1,39 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:loc="using:LoupixDeck.Localization"
+             xmlns:vmp="using:LoupixDeck.ViewModels.Plugins"
+             x:Class="LoupixDeck.Views.Plugins.InstalledPluginsPage"
+             x:DataType="vmp:PluginsWindowViewModel">
+
+    <ScrollViewer>
+        <StackPanel Margin="24,16,24,16">
+        <Grid ColumnDefinitions="*,Auto">
+            <TextBlock Grid.Column="0" Classes="page-title" Text="{loc:Tr Settings_Plugins}" />
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8"
+                        VerticalAlignment="Center">
+                <Button Content="{loc:Tr Settings_InstallFromZip}" Click="OnInstallPluginClick" />
+                <Button x:Name="RemovePluginButton" Content="{loc:Tr Settings_Remove}" Click="OnRemovePluginClick" />
+                <Button Content="{loc:Tr Settings_OpenPluginsFolder}"
+                        Command="{Binding OpenPluginsFolderCommand}" />
+            </StackPanel>
+        </Grid>
+
+        <Border Classes="card">
+            <Grid ColumnDefinitions="220,*" MinHeight="280">
+                <ListBox x:Name="PluginList" Grid.Column="0" Margin="0,0,12,0"
+                         SelectionChanged="OnPluginSelectionChanged" />
+                <ScrollViewer Grid.Column="1">
+                    <StackPanel x:Name="PluginSettingsHost" Spacing="8" />
+                </ScrollViewer>
+            </Grid>
+        </Border>
+
+        <TextBlock x:Name="PluginActionStatus" Classes="hint" Margin="0,8,0,0"
+                   IsVisible="False" TextWrapping="Wrap" />
+
+        <TextBlock x:Name="PluginRestartHint" Classes="hint" Margin="0,8,0,0"
+                   IsVisible="False"
+                   Text="{loc:Tr Settings_SomeChangesFinishApplyingAfter}" />
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

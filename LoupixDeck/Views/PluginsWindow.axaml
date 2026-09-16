@@ -1,0 +1,74 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:loc="using:LoupixDeck.Localization"
+        xmlns:cnv="clr-namespace:LoupixDeck.Models.Converter"
+        xmlns:controls="using:LoupixDeck.Views.Controls"
+        xmlns:pages="using:LoupixDeck.Views.Plugins"
+        xmlns:vmp="using:LoupixDeck.ViewModels.Plugins"
+        x:Class="LoupixDeck.Views.PluginsWindow"
+        x:DataType="vmp:PluginsWindowViewModel"
+        Classes="app-chrome"
+        Title="{loc:Tr Settings_Plugins}"
+        Width="1240"
+        Height="720"
+        MinWidth="960"
+        MinHeight="660">
+
+    <Window.Resources>
+        <cnv:EnumToBooleanConverter x:Key="EnumToBooleanConverter" />
+    </Window.Resources>
+
+    <Window.Styles>
+        <StyleInclude Source="avares://LoupixDeck/Views/Styles/WindowChromeStyles.axaml" />
+        <StyleInclude Source="avares://LoupixDeck/Views/Styles/SettingsStyles.axaml" />
+    </Window.Styles>
+
+    <!-- OffScreenMargin keeps the extended client area inside the screen while maximised
+         on Windows; it is zero everywhere else. -->
+    <Grid RowDefinitions="Auto,*" Margin="{Binding $parent[Window].OffScreenMargin}">
+
+        <controls:AppTitleBar Grid.Row="0" Title="{loc:Tr Settings_Plugins}" />
+
+        <Grid Grid.Row="1" ColumnDefinitions="214,*">
+
+            <!-- ===== Rail ===== -->
+            <Border Grid.Column="0"
+                    Background="{DynamicResource AppSurfaceLow}"
+                    BorderBrush="{DynamicResource AppBorderFaint}"
+                    BorderThickness="0,0,1,0">
+                <StackPanel Margin="8,16,8,16">
+                    <Button Classes="nav"
+                            Classes.active="{Binding CurrentPage, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Installed}"
+                            Command="{Binding NavigateCommand}"
+                            CommandParameter="{x:Static vmp:PluginsPage.Installed}">
+                        <Grid ColumnDefinitions="6,Auto,*">
+                            <Border Grid.Column="0" Classes="nav-accent" />
+                            <!-- mdi-puzzle -->
+                            <TextBlock Grid.Column="1" Classes="nav-icon" Text="&#xF0431;" Margin="6,0,0,0" />
+                            <TextBlock Grid.Column="2" Classes="nav-label" Text="{loc:Tr Settings_Plugins}" />
+                        </Grid>
+                    </Button>
+                    <Button Classes="nav"
+                            Classes.active="{Binding CurrentPage, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Store}"
+                            Command="{Binding NavigateCommand}"
+                            CommandParameter="{x:Static vmp:PluginsPage.Store}">
+                        <Grid ColumnDefinitions="6,Auto,*">
+                            <Border Grid.Column="0" Classes="nav-accent" />
+                            <!-- mdi-store -->
+                            <TextBlock Grid.Column="1" Classes="nav-icon" Text="&#xF04DC;" Margin="6,0,0,0" />
+                            <TextBlock Grid.Column="2" Classes="nav-label" Text="{loc:Tr PluginStore_Title}" />
+                        </Grid>
+                    </Button>
+                </StackPanel>
+            </Border>
+
+            <!-- ===== Pages ===== -->
+            <Panel Grid.Column="1">
+                <pages:InstalledPluginsPage
+                    IsVisible="{Binding CurrentPage, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Installed}" />
+                <pages:PluginStorePage
+                    IsVisible="{Binding CurrentPage, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Store}" />
+            </Panel>
+        </Grid>
+    </Grid>
+</Window>

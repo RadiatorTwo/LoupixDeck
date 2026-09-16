@@ -14,6 +14,7 @@ using LoupixDeck.Services.Plugins;
 using LoupixDeck.Services.SystemPower;
 using LoupixDeck.Utils;
 using LoupixDeck.ViewModels;
+using LoupixDeck.ViewModels.Plugins;
 using LoupixDeck.Views;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -475,6 +476,8 @@ public static class ServiceCollectionExtensions
         collection.AddTransient<UpdateDialog>();
         collection.AddTransient<UpdateDialogViewModel>();
 
+        collection.AddTransient<PluginsWindow>();
+        collection.AddTransient<PluginsWindowViewModel>();
         collection.AddTransient<PluginStoreViewModel>();
         collection.AddTransient<PluginReleaseNotesDialog>();
         collection.AddTransient<PluginReleaseNotesViewModel>();
@@ -541,6 +544,7 @@ public static class ServiceCollectionExtensions
         dialogService.Register<TouchPageWallpaperSettingsViewModel, TouchPageWallpaperSettings>();
         dialogService.Register<PageCommandsSettingsViewModel, PageCommandsSettings>();
         dialogService.Register<SettingsViewModel, Settings>();
+        dialogService.Register<PluginsWindowViewModel, PluginsWindow>();
         dialogService.Register<MacroEditorViewModel, MacroEditor>();
         dialogService.Register<DialPresetEditorViewModel, DialPresetEditor>();
         dialogService.Register<AboutViewModel, About>();

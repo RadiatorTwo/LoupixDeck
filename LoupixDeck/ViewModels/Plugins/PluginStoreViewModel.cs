@@ -11,7 +11,7 @@ using LoupixDeck.Services.Updates;
 using LoupixDeck.Utils;
 using LoupixDeck.ViewModels.Base;
 
-namespace LoupixDeck.ViewModels;
+namespace LoupixDeck.ViewModels.Plugins;
 
 /// <summary>
 /// The Plugin Store settings page (issue #234): every catalog plugin with its state on this machine, and
