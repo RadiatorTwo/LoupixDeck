@@ -116,7 +116,7 @@ public class PluginMenuContributor : IPluginMenuSource
             if (!target.HasFlag(ButtonTargets.RotaryEncoder))
                 return null;
 
-            var map = BuildRotaryGroup(node.RotaryGroup);
+            var map = RotaryGroupBuilder.Build(node.RotaryGroup, _commandBuilder);
             if (map.Count == 0)
                 return null;
 
@@ -140,35 +140,5 @@ public class PluginMenuContributor : IPluginMenuSource
         }
 
         return entry;
-    }
-
-    /// <summary>
-    /// Builds the per-action raw command strings for a rotary group, reusing the
-    /// same command-string builder used for normal menu leaves so parameter
-    /// templates are filled identically. Actions whose command does not resolve
-    /// are dropped.
-    /// </summary>
-    private Dictionary<RotaryAction, string> BuildRotaryGroup(
-        IReadOnlyDictionary<RotaryAction, MenuCommandRef> group)
-    {
-        var map = new Dictionary<RotaryAction, string>();
-
-        foreach (var (action, reference) in group)
-        {
-            if (reference == null || string.IsNullOrWhiteSpace(reference.CommandName))
-                continue;
-
-            var parameters = reference.Parameters is { Count: > 0 }
-                ? new Dictionary<string, string>(reference.Parameters)
-                : null;
-
-            var raw = _commandBuilder.CreateCommandFromMenuEntry(
-                new MenuEntry(reference.CommandName, reference.CommandName, null, parameters));
-
-            if (!string.IsNullOrWhiteSpace(raw))
-                map[action] = raw;
-        }
-
-        return map;
     }
 }
