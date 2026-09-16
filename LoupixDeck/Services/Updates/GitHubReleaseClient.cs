@@ -62,28 +62,6 @@ public sealed class GitHubReleaseClient
     }
 
     /// <summary>
-    /// The stable releases of <paramref name="repository"/> as last read from GitHub, from the on-disk cache;
-    /// null when there is none. Never touches the network.
-    /// </summary>
-    public static IReadOnlyList<ReleaseInfo> GetCachedStableReleases(string repository)
-    {
-        string body = GitHubResponseCache.Get(ReleasesUrl(repository))?.Body;
-        if (body is null)
-        {
-            return null;
-        }
-
-        try
-        {
-            return ParseReleases(body);
-        }
-        catch (JsonException)
-        {
-            return null;
-        }
-    }
-
-    /// <summary>
     /// One release of <paramref name="repository"/> by its tag, for its notes. A single request, made only
     /// when the user is about to install or update a plugin — never while a list is refreshed.
     /// </summary>

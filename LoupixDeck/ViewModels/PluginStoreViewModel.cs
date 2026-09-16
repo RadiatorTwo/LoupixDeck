@@ -85,10 +85,10 @@ public sealed partial class PluginStoreViewModel(
         StatusText = Loc.Tr("PluginStore_Loading");
         try
         {
-            (IReadOnlyList<PluginStoreItem> items, string error) = await store.GetItemsAsync(force);
+            PluginStoreResult result = await store.GetItemsAsync(force);
             _loaded = true;
 
-            IEnumerable<PluginStoreItem> visible = items
+            IEnumerable<PluginStoreItem> visible = result.Items
                 .Where(i => i.Installed is not null || i.Entry.SupportsCurrentPlatform())
                 .OrderByDescending(i => string.Equals(i.Entry.Id, HighlightedPluginId, StringComparison.OrdinalIgnoreCase))
                 .ThenBy(i => i.Entry.DisplayName, StringComparer.CurrentCultureIgnoreCase);
@@ -102,8 +102,8 @@ public sealed partial class PluginStoreViewModel(
                 _ = row.LoadIconAsync();
             }
 
-            NoticeText = error;
-            StatusText = Items.Count == 0 && error is null ? Loc.Tr("PluginStore_Empty") : null;
+            NoticeText = result.Error;
+            StatusText = Items.Count == 0 && result.Error is null ? Loc.Tr("PluginStore_Empty") : null;
         }
         finally
         {

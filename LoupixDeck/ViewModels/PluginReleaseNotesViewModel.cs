@@ -43,12 +43,8 @@ public sealed class PluginReleaseNotesViewModel : DialogViewModelBase<DialogResu
         Headline = isUpdate
             ? Loc.Tr("PluginStore_UpdateHeadline", item.Entry.DisplayName, item.InstalledVersion, candidate.Version)
             : Loc.Tr("PluginStore_InstallHeadline", item.Entry.DisplayName, candidate.Version);
-        Subtitle = string.IsNullOrWhiteSpace(candidate.Release.Name) || candidate.Release.Name == candidate.Release.Tag
-            ? candidate.Release.Tag
-            : $"{candidate.Release.Tag} - {candidate.Release.Name}";
-        Notes = string.IsNullOrWhiteSpace(candidate.Release.Notes)
-            ? Loc.Tr("Update_NoReleaseNotes")
-            : candidate.Release.Notes.Trim();
+        Subtitle = candidate.Tag;
+        Notes = Loc.Tr("Update_NoReleaseNotes");
         ConfirmText = isUpdate ? Loc.Tr("PluginStore_Update") : Loc.Tr("PluginStore_Install");
     }
 }
