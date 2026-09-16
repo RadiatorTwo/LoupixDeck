@@ -5,6 +5,7 @@ using LoupixDeck.Localization;
 using LoupixDeck.Services.PluginStore;
 using LoupixDeck.Services.Updates;
 using LoupixDeck.ViewModels.Base;
+using LoupixDeck.ViewModels.Plugins;
 
 namespace LoupixDeck.ViewModels;
 
@@ -38,6 +39,7 @@ public sealed class MainShellViewModel : ViewModelBase
         _updateNotifier = updateNotifier;
         _pluginStore = pluginStore;
         AboutMenuCommand = new AsyncRelayCommand(ShowAbout);
+        PluginsMenuCommand = new AsyncRelayCommand(() => ShowPlugins());
         ShowUpdateCommand = new AsyncRelayCommand(ShowUpdate);
         ShowPluginUpdatesCommand = new AsyncRelayCommand(ShowPluginUpdates);
         SelectDeviceCommand = new RelayCommand<string>(SelectDevice, CanSelectDevice);
@@ -104,8 +106,7 @@ public sealed class MainShellViewModel : ViewModelBase
 
             if (open)
             {
-                if (SelectedDevice != null)
-                    await SelectedDevice.OpenPluginStoreAsync(toAsk[0].PluginId);
+                await ShowPlugins(toAsk[0].PluginId);
                 return;
             }
 
@@ -122,7 +123,25 @@ public sealed class MainShellViewModel : ViewModelBase
     {
         IReadOnlyList<PluginStoreItem> updates = _pluginStore?.AvailableUpdates;
         string highlighted = updates is { Count: 1 } ? updates[0].Entry.Id : null;
-        return SelectedDevice?.OpenPluginStoreAsync(highlighted) ?? Task.CompletedTask;
+        return ShowPlugins(highlighted);
+    }
+
+    /// <summary>Plugins are loaded once for the whole process, so their window lives on the
+    /// shell next to About rather than on a device's view model.</summary>
+    public IAsyncRelayCommand PluginsMenuCommand { get; }
+
+    /// <param name="storePluginId">When set, the window opens on the Plugin Store with that
+    /// plugin brought to the top.</param>
+    private async Task ShowPlugins(string storePluginId = null)
+    {
+        if (_dialogService == null) return;
+
+        await _dialogService.ShowDialogAsync<PluginsWindowViewModel, LoupixDeck.Models.DialogResult>(
+            vm =>
+            {
+                if (storePluginId != null)
+                    vm.OpenPluginStore(storePluginId);
+            });
     }
 
     // ───────── Update hint (issue #233) ─────────

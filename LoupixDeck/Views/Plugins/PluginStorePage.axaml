@@ -1,0 +1,162 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:loc="using:LoupixDeck.Localization"
+             xmlns:vmp="using:LoupixDeck.ViewModels.Plugins"
+             x:Class="LoupixDeck.Views.Plugins.PluginStorePage"
+             x:DataType="vmp:PluginStoreViewModel">
+
+    <Grid RowDefinitions="Auto,*">
+
+        <!-- ===== Header ===== -->
+        <StackPanel Grid.Row="0" Margin="24,22,24,0" Spacing="8">
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                <TextBlock Grid.Column="0" Classes="page-title" Margin="0"
+                           Text="{loc:Tr PluginStore_Title}" />
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10"
+                            VerticalAlignment="Center">
+                    <Panel Width="180">
+                        <TextBox Classes="search" Text="{Binding SearchText, Mode=TwoWay}"
+                                 PlaceholderText="{loc:Tr PluginStore_Search}" />
+                        <!-- mdi-magnify -->
+                        <TextBlock Classes="search-icon" Text="&#xF0349;" />
+                    </Panel>
+                    <Button Content="{loc:Tr PluginStore_Refresh}"
+                            Command="{Binding RefreshCommand}" />
+                </StackPanel>
+            </Grid>
+
+            <TextBlock Classes="hint" FontSize="12" TextWrapping="Wrap" MaxWidth="620"
+                       HorizontalAlignment="Left" Text="{loc:Tr PluginStore_Intro}" />
+
+            <!-- The list is not what the server publishes right now: the offline copy, or one
+                 too old to carry version information. -->
+            <Border Classes="notice" IsVisible="{Binding HasStaleNotice}">
+                <TextBlock Text="{Binding StaleNoticeText}" />
+            </Border>
+
+            <Border Classes="notice" IsVisible="{Binding HasNotice}">
+                <TextBlock Text="{Binding NoticeText}" />
+            </Border>
+
+            <ProgressBar IsIndeterminate="True" IsVisible="{Binding IsLoading}" />
+
+            <TextBlock Classes="hint" FontSize="12" TextWrapping="Wrap"
+                       Text="{Binding StatusText}" IsVisible="{Binding HasStatus}" />
+
+            <TextBlock Classes="hint" FontSize="12" TextWrapping="Wrap"
+                       Text="{loc:Tr Settings_SomeChangesFinishApplyingAfter}"
+                       IsVisible="{Binding ShowRestartHint}" />
+
+            <TextBlock Classes="hint" FontSize="12" IsVisible="{Binding HasNoMatches}"
+                       Text="{loc:Tr PluginStore_NoMatches}" />
+        </StackPanel>
+
+        <!-- ===== Tiles =====
+             Two equal columns; the right inset is a content margin, never ScrollViewer padding,
+             so the last row stays reachable and the scrollbar gets a real gutter. -->
+        <ScrollViewer Grid.Row="1">
+            <ItemsControl ItemsSource="{Binding Items}" Margin="24,16,10,24">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <UniformGrid Columns="2" />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vmp:PluginStoreRowViewModel">
+                        <Border Classes="tile"
+                                Classes.highlighted="{Binding IsHighlighted}"
+                                Classes.unavailable="{Binding IsUnavailable}">
+                            <StackPanel Spacing="8">
+
+                                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+                                    <Panel Grid.Column="0" Width="32" Height="32" VerticalAlignment="Top">
+                                        <Image Source="{Binding Icon}" IsVisible="{Binding HasIcon}" />
+                                        <!-- mdi-puzzle -->
+                                        <TextBlock FontFamily="{StaticResource MdiFont}" Text="&#xF0431;"
+                                                   FontSize="26" Foreground="{DynamicResource AppTextMuted}"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                   IsVisible="{Binding !HasIcon}" />
+                                    </Panel>
+                                    <StackPanel Grid.Column="1" Spacing="2">
+                                        <TextBlock Classes="card-title" Margin="0" Text="{Binding Name}"
+                                                   TextWrapping="Wrap" />
+                                        <TextBlock Classes="meta" Text="{Binding MetaText}" />
+                                    </StackPanel>
+                                    <Border Grid.Column="2" Classes="pill" VerticalAlignment="Top"
+                                            Classes.ok="{Binding IsStatusOk}"
+                                            Classes.info="{Binding IsStatusInfo}"
+                                            Classes.warn="{Binding IsStatusWarn}"
+                                            Classes.neutral="{Binding IsStatusNeutral}">
+                                        <TextBlock Text="{Binding StatusText}" />
+                                    </Border>
+                                </Grid>
+
+                                <TextBlock Classes="hint" FontSize="12" TextWrapping="Wrap"
+                                           Text="{Binding Description}"
+                                           IsVisible="{Binding Description, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+
+                                <TextBlock Classes="meta" TextWrapping="Wrap" Text="{Binding NoteText}"
+                                           IsVisible="{Binding HasNote}" />
+
+                                <TextBlock Classes="meta warn" TextWrapping="Wrap" Text="{Binding DetailText}"
+                                           IsVisible="{Binding HasDetail}" />
+
+                                <!-- Download in progress: the track replaces the action row. -->
+                                <StackPanel Spacing="4" IsVisible="{Binding IsBusy}">
+                                    <ProgressBar Classes="thin" Minimum="0" Maximum="100"
+                                                 Value="{Binding Progress}" />
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <TextBlock Grid.Column="0" Classes="meta"
+                                                   Text="{Binding ProgressText}" />
+                                        <Button Grid.Column="1" Content="{loc:Tr PluginStore_Cancel}"
+                                                Command="{Binding $parent[ItemsControl].((vmp:PluginStoreViewModel)DataContext).CancelCommand}"
+                                                CommandParameter="{Binding}" />
+                                    </Grid>
+                                </StackPanel>
+
+                                <!-- Action row: a link on the left, the one action on the right. -->
+                                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8" Margin="0,6,0,0"
+                                      IsVisible="{Binding IsIdle}">
+                                    <Button Grid.Column="0" Classes="ghost"
+                                            Content="{loc:Tr PluginStore_ReleaseNotes}"
+                                            IsVisible="{Binding HasReleaseNotes}"
+                                            Command="{Binding $parent[ItemsControl].((vmp:PluginStoreViewModel)DataContext).ReleaseNotesCommand}"
+                                            CommandParameter="{Binding}" />
+                                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8">
+                                        <Button Classes="ghost destructive" Content="{loc:Tr Settings_Remove}"
+                                                IsVisible="{Binding CanRemove}"
+                                                Command="{Binding $parent[ItemsControl].((vmp:PluginStoreViewModel)DataContext).RemoveCommand}"
+                                                CommandParameter="{Binding}" />
+                                        <Button Content="{loc:Tr PluginStore_Adopt}"
+                                                IsVisible="{Binding CanAdopt}"
+                                                Command="{Binding $parent[ItemsControl].((vmp:PluginStoreViewModel)DataContext).AdoptCommand}"
+                                                CommandParameter="{Binding}" />
+                                        <Button Content="{loc:Tr PluginStore_RestartNow}"
+                                                IsVisible="{Binding CanRestart}"
+                                                Command="{Binding $parent[ItemsControl].((vmp:PluginStoreViewModel)DataContext).RestartCommand}" />
+                                        <Button Content="{loc:Tr PluginStore_CheckAppUpdate}"
+                                                IsVisible="{Binding CanCheckAppUpdate}"
+                                                Command="{Binding $parent[ItemsControl].((vmp:PluginStoreViewModel)DataContext).CheckAppUpdateCommand}"
+                                                CommandParameter="{Binding}" />
+                                        <Button Content="{loc:Tr PluginStore_Setup}"
+                                                IsVisible="{Binding CanSetup}"
+                                                Command="{Binding $parent[ItemsControl].((vmp:PluginStoreViewModel)DataContext).SetupCommand}"
+                                                CommandParameter="{Binding}" />
+                                        <Button Content="{loc:Tr PluginStore_Install}"
+                                                IsVisible="{Binding CanInstall}"
+                                                Command="{Binding $parent[ItemsControl].((vmp:PluginStoreViewModel)DataContext).InstallCommand}"
+                                                CommandParameter="{Binding}" />
+                                        <Button Classes="primary" Content="{loc:Tr PluginStore_Update}"
+                                                IsVisible="{Binding CanUpdate}"
+                                                Command="{Binding $parent[ItemsControl].((vmp:PluginStoreViewModel)DataContext).InstallCommand}"
+                                                CommandParameter="{Binding}" />
+                                    </StackPanel>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+    </Grid>
+</UserControl>

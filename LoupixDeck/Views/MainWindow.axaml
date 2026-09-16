@@ -19,6 +19,15 @@
          a page name still gets normal text copy/paste. Clear is intentionally menu-only
          (no keyboard shortcut) so an accidental key press can't wipe a button while there
          is no undo yet. -->
+    <Window.Resources>
+        <!-- Fluent dims PART_Placeholder with TextControlPlaceholderOpacity, so setting
+             PlaceholderForeground alone could never make the fallback page name read like a
+             typed one — the colour was multiplied back down to a mid grey. MainWindow's only
+             TextBoxes are the page-name fields (TextBox.PageName in Views/Devices/*), so
+             scoping the override here hits exactly those and no search or settings field. -->
+        <x:Double x:Key="TextControlPlaceholderOpacity">1.0</x:Double>
+    </Window.Resources>
+
     <Window.KeyBindings>
         <KeyBinding Gesture="Ctrl+C" Command="{Binding SelectedDevice.CopySelectedCommand}" />
         <KeyBinding Gesture="Ctrl+X" Command="{Binding SelectedDevice.CutSelectedCommand}" />
@@ -112,10 +121,12 @@
             <Setter Property="VerticalContentAlignment" Value="Center" />
         </Style>
         <!-- The placeholder (shown when no custom page name is set) defaults to a very
-             faint Fluent colour that is hard to read, especially in Light mode. Avalonia 12
-             exposes it as TextBox.PlaceholderForeground (an earlier attempt to restyle a
-             PART_Watermark TextBlock did nothing — that element no longer exists), so set it
-             to the primary text colour so the fallback page name reads like a typed name. -->
+             faint Fluent colour that is hard to read. Avalonia 12 exposes it as
+             TextBox.PlaceholderForeground (an earlier attempt to restyle a PART_Watermark
+             TextBlock did nothing — that element no longer exists), so set it to the primary
+             text colour. On its own that is not enough: Fluent also dims PART_Placeholder
+             with TextControlPlaceholderOpacity, which is overridden in Window.Resources
+             above. Both together make the fallback page name read like a typed one. -->
         <Style Selector="TextBox.PageName">
             <Setter Property="PlaceholderForeground" Value="{DynamicResource AppTextPrimary}" />
         </Style>
@@ -548,9 +559,11 @@
             <Button.Flyout>
                 <Flyout Placement="Left">
                     <StackPanel>
-                        <!-- Settings and Macros act on the selected device, so they go inactive
-                             while no device is connected. About and Quit live on the shell,
-                             reach no hardware and stay usable. -->
+                        <!-- Configuration group. Settings and Macros act on the selected
+                             device, so they go inactive while no device is connected;
+                             Plugins load once for the whole process, so that entry reaches
+                             no hardware and stays usable. Below the line sit the shell
+                             entries, which configure nothing. -->
                         <Button MinWidth="100" Height="40" HorizontalAlignment="Stretch"
                                 VerticalContentAlignment="Center"
                                 HorizontalContentAlignment="Center"
@@ -565,6 +578,12 @@
                                 Content="{loc:Tr MainWindow_Macros}"
                                 IsEnabled="{Binding HasDevice}"
                                 Command="{Binding SelectedDevice.MacroEditorMenuCommand}" />
+                        <Button MinWidth="100" Height="40" HorizontalAlignment="Stretch"
+                                VerticalContentAlignment="Center" Margin="0,5,0,0"
+                                HorizontalContentAlignment="Center"
+                                FontSize="18"
+                                Content="{loc:Tr Settings_Plugins}"
+                                Command="{Binding PluginsMenuCommand}" />
                         <Separator />
                         <Button MinWidth="100" Height="40" HorizontalAlignment="Stretch"
                                 VerticalContentAlignment="Center"

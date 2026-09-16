@@ -33,7 +33,6 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
     private readonly IPageManager _pageManager;
     private readonly IDialogService _dialogService;
     private readonly IInterceptionService _interceptionService;
-    private readonly IPluginReloadService _pluginReload;
     private readonly IPluginManager _pluginManager;
     private readonly IAutostartService _autostart;
     private readonly IWorkspaceActivationService _activation;
@@ -45,16 +44,6 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
     private readonly ICompanionCoordinator _companions;
     private readonly ICompanionContextSync _contextSync;
     private readonly ResolvedDevice _device;
-
-    /// <summary>
-    /// All discovered plugins — drives the Plugins settings page. Read live from the
-    /// manager (its list is swapped on hot-reload), never cached, so the UI re-reads
-    /// the current snapshot after an enable/disable/install/remove.
-    /// </summary>
-    public IReadOnlyList<LoadedPlugin> Plugins => _pluginManager.Plugins;
-
-    /// <summary>The Plugin Store page (issue #234).</summary>
-    public PluginStoreViewModel PluginStore { get; }
 
     public IRelayCommand NavigateCommand => field ??= Relay.Create<SettingsView>(Navigate);
 
@@ -104,8 +93,6 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
         catch { }
     });
 
-    public IRelayCommand OpenPluginsFolderCommand => field ??= Relay.Create(OpenPluginsFolder);
-
     public IAsyncRelayCommand InstallInterceptionCommand => field ??= Relay.Create(InstallInterceptionAsync);
     public IAsyncRelayCommand UninstallInterceptionCommand => field ??= Relay.Create(UninstallInterceptionAsync);
 
@@ -136,7 +123,6 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
         IPageManager pageManager,
         IDialogService dialogService,
         IPluginManager pluginManager,
-        IPluginReloadService pluginReload,
         IInterceptionService interceptionService,
         IAutostartService autostart,
         IWorkspaceActivationService activation,
@@ -145,7 +131,6 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
         IExclusiveModeService exclusiveMode,
         IProfileEditingService profileEditing,
         IUpdateService updateService,
-        PluginStoreViewModel pluginStore,
         ICompanionCoordinator companions,
         ICompanionContextSync contextSync,
         ResolvedDevice device)
@@ -154,13 +139,11 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
         _contextSync = contextSync;
         _device = device;
         Config = config;
-        PluginStore = pluginStore;
         IsVibrationSupported = config?.Geometry.HasVibration ?? true;
         _deviceService = deviceService;
         _pageManager = pageManager;
         _dialogService = dialogService;
         _interceptionService = interceptionService;
-        _pluginReload = pluginReload;
         _pluginManager = pluginManager;
         _autostart = autostart;
         _activation = activation;
@@ -385,45 +368,6 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
             OnPropertyChanged();
         }
     }
-
-    /// <summary>
-    /// Opens the user plugins folder in the OS file manager, creating it first
-    /// if missing. This is the per-build config plugins dir
-    /// (<c>~/.config/LoupixDeck[/debug]/plugins</c>), where users drop their own
-    /// plugins. UseShellExecute=true routes a directory path through Explorer on
-    /// Windows / xdg-open on Linux.
-    /// </summary>
-    private void OpenPluginsFolder()
-    {
-        try
-        {
-            var dir = System.IO.Path.Combine(FileDialogHelper.GetConfigDir(), "plugins");
-            System.IO.Directory.CreateDirectory(dir);
-
-            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
-            {
-                FileName = dir,
-                UseShellExecute = true
-            });
-        }
-        catch { }
-    }
-
-    /// <summary>Installs (or updates) a plugin from the given zip and loads it live.</summary>
-    public Task<PluginActionResult> InstallPluginFromZipAsync(string zipPath) =>
-        _pluginReload.InstallAsync(zipPath);
-
-    /// <summary>Unloads and removes an installed (user) plugin live.</summary>
-    public Task<PluginActionResult> RemovePluginAsync(LoadedPlugin plugin) =>
-        _pluginReload.RemoveAsync(plugin);
-
-    /// <summary>Loads a plugin live (no restart).</summary>
-    public Task<PluginActionResult> EnablePluginAsync(string pluginId) =>
-        _pluginReload.EnableAsync(pluginId);
-
-    /// <summary>Unloads a plugin live (no restart).</summary>
-    public Task<PluginActionResult> DisablePluginAsync(string pluginId) =>
-        _pluginReload.DisableAsync(pluginId);
 
     private void RefreshInterceptionStatus()
     {
@@ -1072,8 +1016,8 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
     public bool IsPluginScreensaver => Config.ScreensaverSource == ScreensaverSourceKind.Plugin;
 
     /// <summary>Screensaver providers contributed by the currently loaded plugins. Read live from
-    /// the registry snapshot; <see cref="RefreshScreensaverProviders"/> re-raises it after the
-    /// Plugins page enables, disables, installs or removes something.</summary>
+    /// the registry snapshot when this window is built, which is after any plugin change: the
+    /// Plugins window is modal, so the two are never open at the same time.</summary>
     public IReadOnlyList<IScreensaverProvider> AvailableScreensaverProviders =>
         _screensaverRegistry.Providers;
 
@@ -1087,13 +1031,6 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
             Config.ScreensaverPluginId = value?.Id;
             OnPropertyChanged();
         }
-    }
-
-    /// <summary>Re-reads the provider snapshot after the plugin list changed.</summary>
-    public void RefreshScreensaverProviders()
-    {
-        OnPropertyChanged(nameof(AvailableScreensaverProviders));
-        OnPropertyChanged(nameof(SelectedScreensaverProvider));
     }
 
     /// <summary>Display name of the selected screensaver clip, or a placeholder when none.
@@ -1193,19 +1130,7 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
     public SettingsView CurrentView
     {
         get => _currentView;
-        set
-        {
-            // The store reaches the network, so it only loads once its page is opened.
-            if (SetProperty(ref _currentView, value) && value == SettingsView.PluginStore)
-                _ = PluginStore.EnsureLoadedAsync();
-        }
-    }
-
-    /// <summary>Opens the window on the Plugin Store page, optionally with one plugin brought to the top.</summary>
-    public void OpenPluginStore(string highlightedPluginId = null)
-    {
-        PluginStore.HighlightedPluginId = highlightedPluginId;
-        CurrentView = SettingsView.PluginStore;
+        set => SetProperty(ref _currentView, value);
     }
 
     private async Task EditWallpaper(TouchButtonPage page)

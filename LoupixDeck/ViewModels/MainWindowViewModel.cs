@@ -1248,10 +1248,6 @@ public partial class MainWindowViewModel : ViewModelBase
 
     private Task SettingsMenuButton_Click() => ShowSettingsAsync(null);
 
-    /// <summary>Opens Settings on the Plugin Store page (issue #234), optionally with one plugin brought to the top.</summary>
-    public Task OpenPluginStoreAsync(string highlightedPluginId = null) =>
-        ShowSettingsAsync(vm => vm.OpenPluginStore(highlightedPluginId));
-
     private async Task ShowSettingsAsync(Action<SettingsViewModel> initializer)
     {
         await _dialogService.ShowDialogAsync<SettingsViewModel, DialogResult>(initializer);

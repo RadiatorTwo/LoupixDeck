@@ -85,12 +85,14 @@
                 Padding="16,12">
             <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Right">
                 <Button Classes="dialogBtn cancel"
-                        Content="{loc:Tr PluginStore_Cancel}"
+                        Content="{Binding DismissText}"
                         IsCancel="True"
                         Command="{Binding CancelCommand}" />
+                <!-- Hidden when the dialog is only showing the notes. -->
                 <Button Classes="dialogBtn confirm"
                         Content="{Binding ConfirmText}"
                         IsDefault="True"
+                        IsVisible="{Binding IsConfirmation}"
                         Command="{Binding ConfirmCommand}" />
             </StackPanel>
         </Border>

@@ -27,6 +27,16 @@ public sealed partial class PluginReleaseNotesViewModel(IPluginStoreService stor
 
     public string ConfirmText { get; private set; } = string.Empty;
 
+    /// <summary>
+    /// False when the dialog is only showing the notes rather than asking whether to install.
+    /// The store's per-tile "Release notes" link opens it that way: Cancel becomes the only
+    /// button, and closing it installs nothing.
+    /// </summary>
+    public bool IsConfirmation { get; private set; } = true;
+
+    /// <summary>Label of the closing button: "Cancel" while deciding, "Close" while reading.</summary>
+    public string DismissText => IsConfirmation ? Loc.Tr("PluginStore_Cancel") : Loc.Tr("PluginStore_Close");
+
     public CommunityToolkit.Mvvm.Input.IRelayCommand ConfirmCommand => field ??= Relay.Create(() =>
     {
         Confirm(new DialogResult(true));
@@ -42,9 +52,13 @@ public sealed partial class PluginReleaseNotesViewModel(IPluginStoreService stor
     /// <summary>Raised when the dialog should close (after the result is set).</summary>
     public event Action CloseWindow;
 
-    public void Initialize(PluginStoreItem item)
+    /// <param name="confirmation">False shows the notes without offering to install.</param>
+    public void Initialize(PluginStoreItem item, bool confirmation = true)
     {
-        _candidate = item.Available;
+        // Reading the notes of something already installed still has a release to read: fall
+        // back to the newest one the catalog knows.
+        _candidate = item.Available ?? item.Newest;
+        IsConfirmation = confirmation;
         bool isUpdate = item.Installed is not null;
 
         Headline = isUpdate

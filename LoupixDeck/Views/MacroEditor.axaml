@@ -562,7 +562,7 @@
                                                                                                 PointerPressed="CommandTree_PointerPressed">
                                                                                         <TextBlock Text="{Binding Name}" />
                                                                                         <TextBlock Text="{loc:Tr MacroEditor_Loading}" Margin="6,0,0,0"
-                                                                                                   Foreground="Gray" FontStyle="Italic"
+                                                                                                   Foreground="{DynamicResource AppTextMuted}" FontStyle="Italic"
                                                                                                    IsVisible="{Binding IsLoading}" />
                                                                                     </StackPanel>
                                                                                 </TreeDataTemplate>

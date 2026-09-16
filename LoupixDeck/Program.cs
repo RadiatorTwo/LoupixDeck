@@ -36,6 +36,12 @@ sealed partial class Program
         RedirectConsoleToLogFile();
         Console.WriteLine($"=== LoupixDeck Main {DateTime.Now:yyyy-MM-dd HH:mm:ss} args=[{string.Join(' ', args)}] ===");
 
+        // A restart hands the new process the old one's id. It has to be honoured before the
+        // single-instance gate below, and before the CLI forwarding that gate does: otherwise
+        // this process would either lose the race against the instance it is replacing, or
+        // forward its own instruction to it as a command.
+        args = AppRestart.WaitForPredecessor(args);
+
 #if !WINDOWS
         if (File.Exists(SocketPath))
         {

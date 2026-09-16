@@ -84,7 +84,7 @@
         <Setter Property="Width" Value="22" />
     </Style>
     <Style Selector="Border.picker-rail-face.selected TextBlock.picker-rail-icon">
-        <Setter Property="Foreground" Value="{DynamicResource PickerAccentBorderBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource PickerAccentText}" />
     </Style>
 
     <Style Selector="TextBlock.picker-rail-title">
@@ -105,7 +105,7 @@
         <Setter Property="Margin" Value="6,0,0,0" />
     </Style>
     <Style Selector="Border.picker-rail-face.selected TextBlock.picker-rail-count">
-        <Setter Property="Foreground" Value="{DynamicResource PickerAccentBorderBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource PickerAccentText}" />
     </Style>
 
     <!-- ===== Detail header (group title + command count) ===== -->
@@ -117,7 +117,7 @@
     <Style Selector="TextBlock.picker-detail-title">
         <Setter Property="FontSize" Value="13" />
         <Setter Property="FontWeight" Value="SemiBold" />
-        <Setter Property="Foreground" Value="{DynamicResource PickerAccentBorderBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource PickerAccentText}" />
         <Setter Property="VerticalAlignment" Value="Center" />
         <Setter Property="TextTrimming" Value="CharacterEllipsis" />
     </Style>
@@ -289,7 +289,7 @@
     <Style Selector="Border.picker-group-badge TextBlock">
         <Setter Property="FontSize" Value="9.5" />
         <Setter Property="FontWeight" Value="SemiBold" />
-        <Setter Property="Foreground" Value="{DynamicResource PickerAccentBorderBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource PickerAccentText}" />
     </Style>
 
     <!-- ===== Footer: selected command + insertion button ===== -->

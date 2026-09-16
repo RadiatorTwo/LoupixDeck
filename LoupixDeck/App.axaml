@@ -50,32 +50,49 @@
                  BitmapHelper. -->
             <ResourceDictionary.ThemeDictionaries>
                 <ResourceDictionary x:Key="Dark">
-                    <SolidColorBrush x:Key="AppWindowBackground" Color="#1E1E1E" />
-                    <SolidColorBrush x:Key="AppSurfaceLow" Color="#1A1A1A" />
-                    <SolidColorBrush x:Key="AppSurface" Color="#262626" />
-                    <SolidColorBrush x:Key="AppSurfaceAlt" Color="#2D2D2D" />
-                    <SolidColorBrush x:Key="AppControlBackground" Color="#3A3A3A" />
-                    <SolidColorBrush x:Key="AppControlBackgroundHover" Color="#4A4A4A" />
-                    <SolidColorBrush x:Key="AppControlBackgroundActive" Color="#373737" />
-                    <SolidColorBrush x:Key="AppBorderSubtle" Color="#3A3A3A" />
+                    <SolidColorBrush x:Key="AppWindowBackground" Color="#141414" />
+                    <SolidColorBrush x:Key="AppSurfaceLow" Color="#0C0C0C" />
+                    <SolidColorBrush x:Key="AppSurface" Color="#2A2A2A" />
+                    <SolidColorBrush x:Key="AppSurfaceAlt" Color="#343434" />
+                    <SolidColorBrush x:Key="AppControlBackground" Color="#3C3C3C" />
+                    <SolidColorBrush x:Key="AppControlBackgroundHover" Color="#4C4C4C" />
+                    <SolidColorBrush x:Key="AppControlBackgroundActive" Color="#464646" />
+                    <SolidColorBrush x:Key="AppBorderSubtle" Color="#525252" />
                     <!-- A step quieter than AppBorderSubtle: outlines and dividers that must
                          read as a hairline rather than as a frame (header switcher, pagers). -->
-                    <SolidColorBrush x:Key="AppBorderFaint" Color="#2F2F2F" />
+                    <SolidColorBrush x:Key="AppBorderFaint" Color="#3A3A3A" />
                     <!-- Fill for the header bars (context switcher, pagers): only just lifted
                          off AppSurfaceLow so the bars settle into the toolbar. -->
-                    <SolidColorBrush x:Key="AppSurfaceBar" Color="#212121" />
+                    <SolidColorBrush x:Key="AppSurfaceBar" Color="#101010" />
                     <!-- Touch-button editor canvas: deliberately lighter than the app
                          surfaces so a black button stays clearly visible. -->
                     <SolidColorBrush x:Key="AppEditorCanvasBackground" Color="#3E4146" />
                     <!-- Subtle accent tint behind an active/selected slot (pairs with the
                          theme-invariant blue accent border). -->
-                    <SolidColorBrush x:Key="AppAccentSubtle" Color="#1F2A3A" />
+                    <SolidColorBrush x:Key="AppAccentSubtle" Color="#26354A" />
                     <!-- Violet tint behind a selected command-picker card (pairs with
                          the theme-invariant violet accent border). -->
-                    <SolidColorBrush x:Key="PickerAccentSubtle" Color="#241B33" />
-                    <SolidColorBrush x:Key="AppTextPrimary" Color="#E4E4E4" />
-                    <SolidColorBrush x:Key="AppTextSecondary" Color="#9A9A9A" />
-                    <SolidColorBrush x:Key="AppTextMuted" Color="#707070" />
+                    <SolidColorBrush x:Key="PickerAccentSubtle" Color="#2E2342" />
+                    <SolidColorBrush x:Key="AppTextPrimary" Color="#F5F5F5" />
+                    <SolidColorBrush x:Key="AppTextSecondary" Color="#D0D0D0" />
+                    <SolidColorBrush x:Key="AppTextMuted" Color="#ABABAB" />
+                    <!-- Status colours used as small dots and as link/label text (plugins
+                         list, store tiles). The pill fills in SettingsStyles are dark-only
+                         literals; these have to read on a light card too, so they are
+                         theme-aware. -->
+                    <SolidColorBrush x:Key="StatusDotOk" Color="#5FCF85" />
+                    <SolidColorBrush x:Key="StatusDotWarn" Color="#E2C37A" />
+                    <SolidColorBrush x:Key="StatusDotNeutral" Color="#9BA1A6" />
+                    <SolidColorBrush x:Key="StatusDotInactive" Color="#7C8287" />
+                    <SolidColorBrush x:Key="AppTextDestructive" Color="#E39494" />
+                    <!-- Accent colours used as TEXT rather than as a border. The
+                         PageActive/PickerAccent border brushes are theme-invariant and far
+                         too pale to read as a label on a light surface, so labels and links
+                         use these instead. -->
+                    <SolidColorBrush x:Key="AppAccentText" Color="#3D9BFF" />
+                    <SolidColorBrush x:Key="PickerAccentText" Color="#A78BFA" />
+                    <SolidColorBrush x:Key="NoticeWarnBackground" Color="#332A14" />
+                    <SolidColorBrush x:Key="NoticeWarnBorder" Color="#6B5A2D" />
                     <!-- Companion hint under the device selector ("Follows <master>"). -->
                     <SolidColorBrush x:Key="CompanionHintForeground" Color="#D9A05B" />
                     <!-- Simulated-device chrome (the dark hardware in Dark mode). -->
@@ -94,20 +111,20 @@
                     <x:String x:Key="RazerXBodySvgPath">avares://LoupixDeck/Assets/razer-x-gehaeuse.svg</x:String>
                 </ResourceDictionary>
                 <ResourceDictionary x:Key="Light">
-                    <SolidColorBrush x:Key="AppWindowBackground" Color="#F3F3F3" />
-                    <SolidColorBrush x:Key="AppSurfaceLow" Color="#E9E9E9" />
-                    <SolidColorBrush x:Key="AppSurface" Color="#FBFBFB" />
-                    <SolidColorBrush x:Key="AppSurfaceAlt" Color="#F0F0F0" />
+                    <SolidColorBrush x:Key="AppWindowBackground" Color="#E8E8E8" />
+                    <SolidColorBrush x:Key="AppSurfaceLow" Color="#DCDCDC" />
+                    <SolidColorBrush x:Key="AppSurface" Color="#FFFFFF" />
+                    <SolidColorBrush x:Key="AppSurfaceAlt" Color="#F2F2F2" />
                     <SolidColorBrush x:Key="AppControlBackground" Color="#FFFFFF" />
-                    <SolidColorBrush x:Key="AppControlBackgroundHover" Color="#ECECEC" />
-                    <SolidColorBrush x:Key="AppControlBackgroundActive" Color="#DCDCDC" />
-                    <SolidColorBrush x:Key="AppBorderSubtle" Color="#CFCFCF" />
+                    <SolidColorBrush x:Key="AppControlBackgroundHover" Color="#EDEDED" />
+                    <SolidColorBrush x:Key="AppControlBackgroundActive" Color="#DADADA" />
+                    <SolidColorBrush x:Key="AppBorderSubtle" Color="#C4C4C4" />
                     <!-- A step quieter than AppBorderSubtle: outlines and dividers that must
                          read as a hairline rather than as a frame (header switcher, pagers). -->
-                    <SolidColorBrush x:Key="AppBorderFaint" Color="#DCDCDC" />
+                    <SolidColorBrush x:Key="AppBorderFaint" Color="#D8D8D8" />
                     <!-- Fill for the header bars (context switcher, pagers): only just lifted
                          off AppSurfaceLow so the bars settle into the toolbar. -->
-                    <SolidColorBrush x:Key="AppSurfaceBar" Color="#F4F4F4" />
+                    <SolidColorBrush x:Key="AppSurfaceBar" Color="#E2E2E2" />
                     <!-- Touch-button editor canvas: deliberately lighter than the app
                          surfaces so a black button stays clearly visible. -->
                     <SolidColorBrush x:Key="AppEditorCanvasBackground" Color="#DCDEE2" />
@@ -117,11 +134,22 @@
                     <!-- Violet tint behind a selected command-picker card (pairs with
                          the theme-invariant violet accent border). -->
                     <SolidColorBrush x:Key="PickerAccentSubtle" Color="#EDE7FB" />
-                    <SolidColorBrush x:Key="AppTextPrimary" Color="#1C1C1C" />
-                    <SolidColorBrush x:Key="AppTextSecondary" Color="#5C5C5C" />
-                    <SolidColorBrush x:Key="AppTextMuted" Color="#8A8A8A" />
+                    <SolidColorBrush x:Key="AppTextPrimary" Color="#111111" />
+                    <SolidColorBrush x:Key="AppTextSecondary" Color="#3D3D3D" />
+                    <SolidColorBrush x:Key="AppTextMuted" Color="#585858" />
+                    <!-- Same roles as in Dark, darkened so they stay legible on a light card. -->
+                    <SolidColorBrush x:Key="StatusDotOk" Color="#196B3C" />
+                    <SolidColorBrush x:Key="StatusDotWarn" Color="#7A5200" />
+                    <SolidColorBrush x:Key="StatusDotNeutral" Color="#666666" />
+                    <SolidColorBrush x:Key="StatusDotInactive" Color="#8F8F8F" />
+                    <SolidColorBrush x:Key="AppTextDestructive" Color="#B3261E" />
+                    <!-- Same roles as in Dark, darkened so they read as text on a light surface. -->
+                    <SolidColorBrush x:Key="AppAccentText" Color="#155FA8" />
+                    <SolidColorBrush x:Key="PickerAccentText" Color="#6D3FD4" />
+                    <SolidColorBrush x:Key="NoticeWarnBackground" Color="#FBF3DE" />
+                    <SolidColorBrush x:Key="NoticeWarnBorder" Color="#D9BE79" />
                     <!-- Companion hint under the device selector ("Follows <master>"). -->
-                    <SolidColorBrush x:Key="CompanionHintForeground" Color="#A8641F" />
+                    <SolidColorBrush x:Key="CompanionHintForeground" Color="#8A4F16" />
                     <!-- Simulated-device chrome rendered as light hardware in Light mode. -->
                     <SolidColorBrush x:Key="DeviceScreenBackground" Color="#C8C8C8" />
                     <SolidColorBrush x:Key="DeviceButtonBorder" Color="#A8A8A8" />
