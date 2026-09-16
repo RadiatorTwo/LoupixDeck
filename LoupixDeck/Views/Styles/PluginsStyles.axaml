@@ -73,7 +73,7 @@
         <Setter Property="VerticalAlignment" Value="Center" />
     </Style>
     <Style Selector="TextBlock.meta.accent">
-        <Setter Property="Foreground" Value="{DynamicResource PageActiveBorderBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource AppAccentText}" />
     </Style>
     <Style Selector="TextBlock.meta.warn">
         <Setter Property="Foreground" Value="{DynamicResource StatusDotWarn}" />
@@ -148,7 +148,7 @@
         <Setter Property="FontSize" Value="12" />
         <Setter Property="CornerRadius" Value="4" />
         <Setter Property="Cursor" Value="Hand" />
-        <Setter Property="Foreground" Value="{DynamicResource PageActiveBorderBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource AppAccentText}" />
     </Style>
     <Style Selector="Button.ghost:pointerover /template/ ContentPresenter#PART_ContentPresenter">
         <Setter Property="Background" Value="{DynamicResource AppControlBackgroundHover}" />
@@ -200,7 +200,7 @@
     </Style>
     <Style Selector="Border.rail-badge TextBlock">
         <Setter Property="FontSize" Value="11" />
-        <Setter Property="Foreground" Value="{DynamicResource PageActiveBorderBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource AppAccentText}" />
     </Style>
 
     <!-- Download progress on a store tile. -->

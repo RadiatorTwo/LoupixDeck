@@ -87,7 +87,7 @@
         <Setter Property="BorderThickness" Value="1" />
     </Style>
     <Style Selector="Border.pill.info TextBlock">
-        <Setter Property="Foreground" Value="{DynamicResource PageActiveBorderBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource AppAccentText}" />
     </Style>
     <Style Selector="Border.pill.neutral">
         <Setter Property="Background" Value="{DynamicResource AppSurfaceAlt}" />
