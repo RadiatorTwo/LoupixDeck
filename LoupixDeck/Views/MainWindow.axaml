@@ -559,9 +559,11 @@
             <Button.Flyout>
                 <Flyout Placement="Left">
                     <StackPanel>
-                        <!-- Settings and Macros act on the selected device, so they go inactive
-                             while no device is connected. About and Quit live on the shell,
-                             reach no hardware and stay usable. -->
+                        <!-- Configuration group. Settings and Macros act on the selected
+                             device, so they go inactive while no device is connected;
+                             Plugins load once for the whole process, so that entry reaches
+                             no hardware and stays usable. Below the line sit the shell
+                             entries, which configure nothing. -->
                         <Button MinWidth="100" Height="40" HorizontalAlignment="Stretch"
                                 VerticalContentAlignment="Center"
                                 HorizontalContentAlignment="Center"
@@ -576,17 +578,15 @@
                                 Content="{loc:Tr MainWindow_Macros}"
                                 IsEnabled="{Binding HasDevice}"
                                 Command="{Binding SelectedDevice.MacroEditorMenuCommand}" />
-                        <Separator />
-                        <!-- Plugins load once for the whole process, so this entry reaches no
-                             hardware and stays usable while no device is connected. -->
                         <Button MinWidth="100" Height="40" HorizontalAlignment="Stretch"
-                                VerticalContentAlignment="Center"
+                                VerticalContentAlignment="Center" Margin="0,5,0,0"
                                 HorizontalContentAlignment="Center"
                                 FontSize="18"
                                 Content="{loc:Tr Settings_Plugins}"
                                 Command="{Binding PluginsMenuCommand}" />
+                        <Separator />
                         <Button MinWidth="100" Height="40" HorizontalAlignment="Stretch"
-                                VerticalContentAlignment="Center" Margin="0,5,0,0"
+                                VerticalContentAlignment="Center"
                                 HorizontalContentAlignment="Center"
                                 FontSize="18"
                                 Content="{loc:Tr MainWindow_About}"
