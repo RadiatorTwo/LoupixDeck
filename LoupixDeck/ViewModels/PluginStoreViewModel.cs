@@ -119,9 +119,14 @@ public sealed partial class PluginStoreViewModel(
             return;
         }
 
-        // Release notes first; nothing is downloaded unless the user confirms.
+        // Release notes first; nothing is downloaded unless the user confirms. The notes are read while the
+        // dialog is already open, so the decision never waits on a request.
         DialogResult confirmed = await dialogService.ShowDialogAsync<PluginReleaseNotesViewModel, DialogResult>(
-            vm => vm.Initialize(row.Item));
+            vm =>
+            {
+                vm.Initialize(row.Item);
+                _ = vm.LoadNotesAsync();
+            });
         if (confirmed is not { IsConfirmed: true })
         {
             return;
