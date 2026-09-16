@@ -35,20 +35,20 @@
       "repository": "RadiatorTwo/LoupixDeck.Plugin.Audio",
       "icon": "",
       "platforms": [ "Windows", "Linux" ],
-      "minSdkVersion": "1.17.0",
+      "minSdkVersion": "1.23.0",
       "commandPrefixes": [ "Audio." ],
       "release": {
-        "version": "1.11.1",
-        "tag": "v1.11.1",
-        "publishedAt": "2026-09-14T12:42:25Z",
-        "sdkVersion": "1.22",
-        "releaseNotesUrl": "https://github.com/RadiatorTwo/LoupixDeck.Plugin.Audio/releases/tag/v1.11.1",
+        "version": "1.12.0",
+        "tag": "v1.12.0",
+        "publishedAt": "2026-09-16T18:07:33Z",
+        "sdkVersion": "1.23",
+        "releaseNotesUrl": "https://github.com/RadiatorTwo/LoupixDeck.Plugin.Audio/releases/tag/v1.12.0",
         "packages": [
           {
             "platform": "any",
-            "fileName": "audio-1.11.1-any.zip",
-            "downloadUrl": "https://github.com/RadiatorTwo/LoupixDeck.Plugin.Audio/releases/download/v1.11.1/audio-1.11.1-any.zip",
-            "sha256": "4c285fadefd29771f2ec874412be85f8ac86575ee5fc55cdc8e290fff894ed10"
+            "fileName": "audio-1.12.0-any.zip",
+            "downloadUrl": "https://github.com/RadiatorTwo/LoupixDeck.Plugin.Audio/releases/download/v1.12.0/audio-1.12.0-any.zip",
+            "sha256": "8eb149ca95bd9c8951adc00431c3c38451df100166398fdd753979013a9873d1"
           }
         ]
       }
