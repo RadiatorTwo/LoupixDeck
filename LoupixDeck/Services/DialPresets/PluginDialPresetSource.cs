@@ -31,20 +31,19 @@ public interface IPluginDialPresetSource
 /// a plugin's presets must not be offered on a device that has it switched off (issue #163).
 /// </para>
 /// <para>
-/// The list is cached and dropped whenever the command registry is rebuilt, which is what
-/// <c>PluginReloadService</c> does on every load, unload, enable, disable, install and remove — so
-/// a plugin's presets appear and disappear without a restart.
+/// Built on every read rather than cached. A plugin's preset list is allowed to depend on live
+/// state — one preset per audio endpoint, say — and a cache would pin whatever was true when the
+/// plugin loaded, so a device plugged in afterwards would never show up. The lists are built when
+/// the user opens a preset surface, not on a timer, and the SDK asks contributors to return
+/// promptly for exactly this reason.
 /// </para>
 /// </remarks>
-public sealed class PluginDialPresetSource : IPluginDialPresetSource, IDisposable
+public sealed class PluginDialPresetSource : IPluginDialPresetSource
 {
     private readonly IPluginManager _pluginManager;
     private readonly ICommandBuilder _commandBuilder;
     private readonly ICommandRegistry _registry;
     private readonly LoupedeckConfig _config;
-    private readonly Lock _gate = new();
-
-    private IReadOnlyList<DialPreset> _cache;
 
     public PluginDialPresetSource(IPluginManager pluginManager, ICommandBuilder commandBuilder,
         ICommandRegistry registry, LoupedeckConfig config)
@@ -53,30 +52,9 @@ public sealed class PluginDialPresetSource : IPluginDialPresetSource, IDisposabl
         _commandBuilder = commandBuilder;
         _registry = registry;
         _config = config;
-
-        _registry.CommandsChanged += Invalidate;
     }
 
-    public IReadOnlyList<DialPreset> Presets
-    {
-        get
-        {
-            lock (_gate)
-            {
-                return _cache ??= Build();
-            }
-        }
-    }
-
-    public void Dispose() => _registry.CommandsChanged -= Invalidate;
-
-    private void Invalidate()
-    {
-        lock (_gate)
-        {
-            _cache = null;
-        }
-    }
+    public IReadOnlyList<DialPreset> Presets => Build();
 
     private List<DialPreset> Build()
     {
