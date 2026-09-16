@@ -448,7 +448,8 @@ public sealed partial class PluginStoreService : ObservableObject, IPluginStoreS
         {
             // An entry without release information comes from a list older than this app understands; one
             // that has a release but no package simply does not ship a build for this system.
-            bool noReleaseInfo = entry.Release is null || string.IsNullOrWhiteSpace(entry.Release.Version);
+            bool noReleaseInfo = entry.Release is null
+                                 || PluginInstaller.ParseVersion(entry.Release.Version) <= new Version(0, 0);
             PluginStoreStatus missingStatus = installed is not null
                 ? PluginStoreStatus.Installed
                 : noReleaseInfo
@@ -484,8 +485,10 @@ public sealed partial class PluginStoreService : ObservableObject, IPluginStoreS
     /// </summary>
     private static PluginReleaseCandidate ReadCandidate(PluginCatalogEntry entry)
     {
+        // ParseVersion never fails - it answers 0.0 for anything it cannot read - so an unusable version
+        // has to be recognised by that value, or the plugin would be offered as "0.0".
         PluginReleaseEntry release = entry.Release;
-        if (release is null || PluginInstaller.ParseVersion(release.Version) is null)
+        if (release is null || PluginInstaller.ParseVersion(release.Version) <= new Version(0, 0))
         {
             return null;
         }
