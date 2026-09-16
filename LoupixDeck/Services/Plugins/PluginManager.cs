@@ -390,15 +390,18 @@ public class PluginManager : IPluginManager
             return Fail(dir, manifest, "plugin.json is missing 'id' or 'entryAssembly'.");
         }
 
-        // User gate — a plugin only loads when enabled in Settings → Plugins.
+        // User gate — a plugin only loads when the user has enabled it.
+        // No FailureReason: the status alone says it, and DescribeStatus renders it in the
+        // user's language. A reason here would override that with developer English, and the
+        // only place it is shown is the plugin window, where the toggle that flips this state
+        // is already on screen.
         if (!IsEnabled(manifest.Id))
         {
             return new LoadedPlugin
             {
                 Manifest = manifest,
                 Directory = dir,
-                Status = PluginLoadStatus.Disabled,
-                FailureReason = "Disabled — enable it in Settings → Plugins (requires a restart)."
+                Status = PluginLoadStatus.Disabled
             };
         }
 
