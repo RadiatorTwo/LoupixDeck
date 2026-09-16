@@ -1,0 +1,32 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:loc="using:LoupixDeck.Localization"
+             xmlns:controls="using:LoupixDeck.Views.Controls"
+             x:Class="LoupixDeck.Views.Controls.AppTitleBar"
+             x:DataType="controls:AppTitleBar"
+             x:CompileBindings="False"
+             x:Name="Root">
+
+    <Border Classes="title-bar" PointerPressed="OnBarPressed">
+        <Grid ColumnDefinitions="*,Auto">
+            <TextBlock Grid.Column="0" Classes="title-bar-label" Margin="12,0,12,0"
+                       Text="{Binding #Root.Title}" />
+
+            <StackPanel Grid.Column="1" Orientation="Horizontal">
+                <Button Classes="title-bar-button" Click="OnMinimizeClick"
+                        IsVisible="{Binding #Root.ShowMinimize}"
+                        ToolTip.Tip="{loc:Tr Window_Minimize}"
+                        Content="&#xF05B0;" />
+                <!-- mdi-window-minimize -->
+                <Button x:Name="MaximizeButton" Classes="title-bar-button" Click="OnMaximizeClick"
+                        IsVisible="{Binding #Root.ShowMaximize}"
+                        Content="&#xF05AF;" />
+                <!-- mdi-window-maximize -->
+                <Button Classes="title-bar-button close" Click="OnCloseClick"
+                        ToolTip.Tip="{loc:Tr Window_Close}"
+                        Content="&#xF0156;" />
+                <!-- mdi-close -->
+            </StackPanel>
+        </Grid>
+    </Border>
+</UserControl>

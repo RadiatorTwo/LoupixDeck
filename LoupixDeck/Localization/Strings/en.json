@@ -842,5 +842,9 @@
   "FolderPanel_DefaultName": "New folder",
   "FolderPanel_ShowPage": "Show the page and close all folders",
   "FolderPanel_Empty": "No folders yet. Create one with the button above, then drag it onto a key.",
-  "FolderPanel_CompanionReadOnly": "This device is a companion: its folders follow the master and are created, renamed and moved there. Each folder's layout here is still this device's own."
+  "FolderPanel_CompanionReadOnly": "This device is a companion: its folders follow the master and are created, renamed and moved there. Each folder's layout here is still this device's own.",
+  "Window_Minimize": "Minimize",
+  "Window_Maximize": "Maximize",
+  "Window_Restore": "Restore",
+  "Window_Close": "Close"
 }

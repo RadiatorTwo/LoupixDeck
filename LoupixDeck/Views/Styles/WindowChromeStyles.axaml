@@ -1,0 +1,64 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- ===== Custom window chrome =====
+         A window that wears Classes="app-chrome" draws its own title bar through
+         Views/Controls/AppTitleBar instead of the OS one. SystemDecorations stays
+         Full so resize borders, snapping and the taskbar entry keep working; only
+         the caption is ours.
+
+         Avalonia 12 dropped ExtendClientAreaChromeHints (it no longer exists on
+         Window) — extending to the decorations with a title-bar height hint of -1
+         is the whole recipe now. Don't reintroduce the hints property. -->
+    <Style Selector="Window.app-chrome">
+        <Setter Property="ExtendClientAreaToDecorationsHint" Value="True" />
+        <Setter Property="ExtendClientAreaTitleBarHeightHint" Value="-1" />
+    </Style>
+
+    <Style Selector="Border.title-bar">
+        <Setter Property="Background" Value="{DynamicResource AppSurfaceLow}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource AppBorderFaint}" />
+        <Setter Property="BorderThickness" Value="0,0,0,1" />
+        <Setter Property="MinHeight" Value="32" />
+    </Style>
+
+    <Style Selector="TextBlock.title-bar-label">
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="Foreground" Value="{DynamicResource AppTextSecondary}" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+    </Style>
+
+    <!-- Caption button: chromeless until hovered, sized like the OS ones so the
+         row still reads as a title bar. -->
+    <Style Selector="Button.title-bar-button">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="CornerRadius" Value="0" />
+        <Setter Property="Width" Value="44" />
+        <Setter Property="Height" Value="32" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="FontFamily" Value="{DynamicResource MdiFont}" />
+        <Setter Property="FontSize" Value="15" />
+        <Setter Property="Foreground" Value="{DynamicResource AppTextMuted}" />
+        <Setter Property="HorizontalContentAlignment" Value="Center" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+    <Style Selector="Button.title-bar-button:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource AppControlBackgroundHover}" />
+        <Setter Property="Foreground" Value="{DynamicResource AppTextPrimary}" />
+    </Style>
+    <Style Selector="Button.title-bar-button:pressed /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource AppControlBackgroundActive}" />
+    </Style>
+
+    <!-- Close keeps the platform-conventional red hover so it stays recognisable. -->
+    <Style Selector="Button.title-bar-button.close:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="#C42B1C" />
+        <Setter Property="Foreground" Value="White" />
+    </Style>
+    <Style Selector="Button.title-bar-button.close:pressed /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="Background" Value="#A32218" />
+        <Setter Property="Foreground" Value="White" />
+    </Style>
+</Styles>
