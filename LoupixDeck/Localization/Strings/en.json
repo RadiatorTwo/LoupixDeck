@@ -868,5 +868,6 @@
   "Plugins_InstalledCount": "Installed · {0}",
   "Plugins_SearchPlaceholder": "Search plugins…",
   "Plugins_NoMatches": "No plugin matches that name.",
-  "Plugins_EnableTooltip": "Enable this plugin on the selected device"
+  "Plugins_EnableTooltip": "Enable this plugin on the selected device",
+  "Plugins_EnablingFor": "Enabling for"
 }

@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using LoupixDeck.Localization;
 using LoupixDeck.Models;
+using LoupixDeck.Services;
 using LoupixDeck.Services.Plugins;
 using LoupixDeck.Utils;
 using LoupixDeck.ViewModels.Base;
@@ -21,8 +22,70 @@ public sealed partial class InstalledPluginsViewModel : ViewModelBase
     public InstalledPluginsViewModel(PluginsWindowViewModel owner)
     {
         _owner = owner;
+        RefreshDevices();
         Refresh();
+
+        // A device coming or going changes who the page can act on.
+        _owner.Hosts.HostAdded += _ => Avalonia.Threading.Dispatcher.UIThread.Post(RefreshDevices);
+        _owner.Hosts.HostRemoved += _ => Avalonia.Threading.Dispatcher.UIThread.Post(RefreshDevices);
     }
+
+    // ---------- The device being configured ----------
+
+    /// <summary>
+    /// Enabling a plugin is per device (see <see cref="PluginDeviceViewModel"/>), and this
+    /// window is not tied to one, so the page names the device it acts on and lets the user
+    /// pick when more than one is running.
+    /// </summary>
+    public ObservableCollection<PluginDeviceViewModel> Devices { get; } = [];
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasDevice))]
+    public partial PluginDeviceViewModel SelectedDevice { get; set; }
+
+    public bool HasDevice => SelectedDevice != null;
+
+    /// <summary>One device shows a plain line; several show a picker.</summary>
+    public bool HasMultipleDevices => Devices.Count > 1;
+
+    partial void OnSelectedDeviceChanged(PluginDeviceViewModel value) => Refresh();
+
+    private void RefreshDevices()
+    {
+        string selectedKey = SelectedDevice?.ScopeKey;
+
+        Devices.Clear();
+        IReadOnlyList<DeviceHost> hosts = _owner.Hosts.Hosts;
+        foreach (DeviceHost host in hosts)
+        {
+            DeviceHost captured = host;
+            Devices.Add(new PluginDeviceViewModel(captured, () => Describe(captured, hosts)));
+        }
+
+        OnPropertyChanged(nameof(HasMultipleDevices));
+
+        SelectedDevice = Devices.FirstOrDefault(d =>
+                             string.Equals(d.ScopeKey, selectedKey, StringComparison.OrdinalIgnoreCase))
+                         ?? Devices.FirstOrDefault(d => d.Host.IsPrimary)
+                         ?? Devices.FirstOrDefault();
+    }
+
+    /// <summary>Model name, plus a trimmed serial only while a second unit of the same model is
+    /// running - the same rule the device tab strip uses.</summary>
+    private static string Describe(DeviceHost host, IReadOnlyList<DeviceHost> all)
+    {
+        string model = host.Device.Info.Name;
+        bool ambiguous = all.Any(h => h.Device.Slug == host.Device.Slug
+                                      && !string.Equals(h.Device.ScopeKey, host.Device.ScopeKey,
+                                          StringComparison.OrdinalIgnoreCase));
+
+        return ambiguous && !string.IsNullOrEmpty(host.Device.Serial)
+            ? $"{model}  ·  {ShortSerial(host.Device.Serial)}"
+            : model;
+    }
+
+    private static string ShortSerial(string serial) =>
+        serial.Length <= 6 ? serial : serial[^6..];
 
     /// <summary>Every plugin that can run here, in list order.</summary>
     private readonly List<InstalledPluginRowViewModel> _allRows = [];
@@ -150,7 +213,7 @@ public sealed partial class InstalledPluginsViewModel : ViewModelBase
     }
 
     private bool IsEnabled(string id) =>
-        _owner.Config?.EnabledPlugins?.Any(e => string.Equals(e, id, StringComparison.OrdinalIgnoreCase))
+        SelectedDevice?.Config?.EnabledPlugins?.Any(e => string.Equals(e, id, StringComparison.OrdinalIgnoreCase))
         ?? false;
 
     private async Task SetEnabledAsync(InstalledPluginRowViewModel row, bool enabled)
@@ -162,9 +225,13 @@ public sealed partial class InstalledPluginsViewModel : ViewModelBase
         IsBusy = true;
         try
         {
+            IPluginReloadService reload = SelectedDevice?.Reload;
+            if (reload == null)
+                return;
+
             PluginActionResult result = enabled
-                ? await _owner.EnablePluginAsync(row.Id)
-                : await _owner.DisablePluginAsync(row.Id);
+                ? await reload.EnableAsync(row.Id)
+                : await reload.DisableAsync(row.Id);
 
             ReportResult(result);
         }
@@ -190,7 +257,10 @@ public sealed partial class InstalledPluginsViewModel : ViewModelBase
         if (string.IsNullOrEmpty(zipPath))
             return;
 
-        ReportResult(await _owner.InstallPluginFromZipAsync(zipPath));
+        if (SelectedDevice?.Reload is not { } reload)
+            return;
+
+        ReportResult(await reload.InstallAsync(zipPath));
 
         // A freshly installed plugin loads live - rebuild the list so it appears.
         Refresh();
@@ -230,7 +300,10 @@ public sealed partial class InstalledPluginsViewModel : ViewModelBase
         if (!confirmed)
             return;
 
-        PluginActionResult result = await _owner.RemovePluginAsync(plugin);
+        if (SelectedDevice?.Reload is not { } reload)
+            return;
+
+        PluginActionResult result = await reload.RemoveAsync(plugin);
 
         if (result.Success)
         {

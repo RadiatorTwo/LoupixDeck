@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.Input;
 using LoupixDeck.Models;
+using LoupixDeck.Services;
 using LoupixDeck.Services.Plugins;
 using LoupixDeck.Utils;
 using LoupixDeck.ViewModels.Base;
@@ -13,12 +14,11 @@ namespace LoupixDeck.ViewModels.Plugins;
 /// </summary>
 public partial class PluginsWindowViewModel : DialogViewModelBase<DialogResult>
 {
-    private readonly IPluginReloadService _pluginReload;
     private readonly IPluginManager _pluginManager;
 
-    /// <summary>The enabled set is persisted per device (LoupedeckConfig.EnabledPlugins), so
-    /// the list's checkboxes read this device's config — exactly as the Settings page did.</summary>
-    public LoupedeckConfig Config { get; }
+    /// <summary>Every running device. Which one a plugin is enabled on is the user's choice, so
+    /// the page shows it and resolves the reload coordinator from that device's container.</summary>
+    public IDeviceHostRegistry Hosts { get; }
 
     /// <summary>
     /// All discovered plugins — drives the installed list. Read live from the manager (its
@@ -33,14 +33,12 @@ public partial class PluginsWindowViewModel : DialogViewModelBase<DialogResult>
     /// <summary>The installed-plugins page.</summary>
     public InstalledPluginsViewModel Installed { get; }
 
-    public PluginsWindowViewModel(LoupedeckConfig config,
-        IPluginManager pluginManager,
-        IPluginReloadService pluginReload,
+    public PluginsWindowViewModel(IPluginManager pluginManager,
+        IDeviceHostRegistry hosts,
         PluginStoreViewModel pluginStore)
     {
-        Config = config;
         _pluginManager = pluginManager;
-        _pluginReload = pluginReload;
+        Hosts = hosts;
         PluginStore = pluginStore;
         Installed = new InstalledPluginsViewModel(this);
 
@@ -126,19 +124,4 @@ public partial class PluginsWindowViewModel : DialogViewModelBase<DialogResult>
         catch { }
     }
 
-    /// <summary>Installs (or updates) a plugin from the given zip and loads it live.</summary>
-    public Task<PluginActionResult> InstallPluginFromZipAsync(string zipPath) =>
-        _pluginReload.InstallAsync(zipPath);
-
-    /// <summary>Unloads and removes an installed (user) plugin live.</summary>
-    public Task<PluginActionResult> RemovePluginAsync(LoadedPlugin plugin) =>
-        _pluginReload.RemoveAsync(plugin);
-
-    /// <summary>Loads a plugin live (no restart).</summary>
-    public Task<PluginActionResult> EnablePluginAsync(string pluginId) =>
-        _pluginReload.EnableAsync(pluginId);
-
-    /// <summary>Unloads a plugin live (no restart).</summary>
-    public Task<PluginActionResult> DisablePluginAsync(string pluginId) =>
-        _pluginReload.DisableAsync(pluginId);
 }

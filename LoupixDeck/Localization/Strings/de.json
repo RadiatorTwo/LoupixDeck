@@ -868,5 +868,6 @@
   "Plugins_InstalledCount": "Installiert · {0}",
   "Plugins_SearchPlaceholder": "Plugins durchsuchen…",
   "Plugins_NoMatches": "Kein Plugin mit diesem Namen.",
-  "Plugins_EnableTooltip": "Dieses Plugin auf dem gewählten Gerät aktivieren"
+  "Plugins_EnableTooltip": "Dieses Plugin auf dem gewählten Gerät aktivieren",
+  "Plugins_EnablingFor": "Aktivieren für"
 }

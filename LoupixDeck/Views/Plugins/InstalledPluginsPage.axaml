@@ -45,20 +45,39 @@
 
         <!-- ===== Plugin list ===== -->
         <Border Grid.Column="0" Classes="pane-rail">
-            <Grid RowDefinitions="Auto,Auto,*,Auto" IsEnabled="{Binding !IsBusy}">
+            <Grid RowDefinitions="Auto,Auto,Auto,*,Auto" IsEnabled="{Binding !IsBusy}">
 
-                <TextBlock Grid.Row="0" Classes="group-header" Margin="16,16,16,7"
+                <!-- Enabling a plugin writes to one device's config, so the page says which.
+                     A second device turns the line into a picker. -->
+                <StackPanel Grid.Row="0" Margin="16,16,16,12" Spacing="4"
+                            IsVisible="{Binding HasDevice}">
+                    <TextBlock Classes="group-header" Text="{loc:Tr Plugins_EnablingFor}" />
+                    <TextBlock Classes="row-name" Text="{Binding SelectedDevice.Name}"
+                               IsVisible="{Binding !HasMultipleDevices}" />
+                    <ComboBox ItemsSource="{Binding Devices}" MinHeight="30"
+                              HorizontalAlignment="Stretch"
+                              SelectedItem="{Binding SelectedDevice, Mode=TwoWay}"
+                              IsVisible="{Binding HasMultipleDevices}">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate x:DataType="vmp:PluginDeviceViewModel">
+                                <TextBlock Text="{Binding Name}" />
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+                </StackPanel>
+
+                <TextBlock Grid.Row="1" Classes="group-header" Margin="16,0,16,7"
                            Text="{Binding InstalledHeader}" />
 
                 <!-- Name search only; the magnifier sits over the box's left padding. -->
-                <Panel Grid.Row="1" Margin="14,0,14,10">
+                <Panel Grid.Row="2" Margin="14,0,14,10">
                     <TextBox Classes="search" Text="{Binding SearchText, Mode=TwoWay}"
                              PlaceholderText="{loc:Tr Plugins_SearchPlaceholder}" />
                     <!-- mdi-magnify -->
                     <TextBlock Classes="search-icon" Text="&#xF0349;" />
                 </Panel>
 
-                <ScrollViewer Grid.Row="2">
+                <ScrollViewer Grid.Row="3">
                     <StackPanel>
                         <TextBlock Classes="hint" Margin="16,4,16,4" FontSize="12"
                                    IsVisible="{Binding !HasRows}"
@@ -98,7 +117,7 @@
 
                 <!-- The two local-install actions belong to this page only; they must not appear
                      on the store page. -->
-                <Border Grid.Row="3" Classes="pane-bar" Padding="14">
+                <Border Grid.Row="4" Classes="pane-bar" Padding="14">
                     <StackPanel Spacing="8">
                         <Button HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
                                 Content="{loc:Tr Settings_InstallFromZip}"
