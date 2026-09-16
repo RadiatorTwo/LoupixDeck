@@ -1,0 +1,142 @@
+name: Validate plugin store
+
+# plugin-store.json is what every LoupixDeck installs from, so a pull request that changes it is
+# checked against the published packages before it can be merged. Everything here is an anonymous
+# HTTPS download of a public release asset plus this repository's own history - no token is needed.
+on:
+  pull_request:
+    paths:
+      - 'plugin-store.json'
+      - 'plugin-store.schema.json'
+      - '.github/workflows/plugin-store-validate.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate plugin-store.json
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          # The "version must be newer" check reads the file as it is on the base branch.
+          fetch-depth: 0
+
+      - name: Validate the schema
+        run: |
+          set -euo pipefail
+          pipx install check-jsonschema
+          check-jsonschema --schemafile plugin-store.schema.json plugin-store.json
+
+      - name: Check the entries
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          set -euo pipefail
+
+          # Unique ids.
+          duplicates=$(jq -r '.plugins[].id' plugin-store.json | sort | uniq -d)
+          if [ -n "$duplicates" ]; then
+            echo "Duplicate plugin ids: $duplicates" >&2
+            exit 1
+          fi
+
+          # The file as the base branch has it, so only entries this pull request touches are downloaded.
+          git show "origin/$BASE_REF:plugin-store.json" > base-store.json 2>/dev/null || echo '{"plugins":[]}' > base-store.json
+
+          failed=0
+          while read -r entry; do
+            id=$(jq -r '.id' <<<"$entry")
+            repository=$(jq -r '.repository' <<<"$entry")
+            version=$(jq -r '.release.version' <<<"$entry")
+            tag=$(jq -r '.release.tag' <<<"$entry")
+            sdk=$(jq -r '.release.sdkVersion' <<<"$entry")
+            notes=$(jq -r '.release.releaseNotesUrl // empty' <<<"$entry")
+
+            if [ "$tag" != "v$version" ]; then
+              echo "✗ $id: tag '$tag' does not match version '$version'." >&2
+              failed=1
+              continue
+            fi
+
+            if [ -n "$notes" ] && [ "$notes" != "https://github.com/$repository/releases/tag/$tag" ]; then
+              echo "✗ $id: releaseNotesUrl does not point at $repository $tag." >&2
+              failed=1
+              continue
+            fi
+
+            # A release whose entry is unchanged was validated when it was added.
+            new_release=$(jq -S -c --arg id "$id" '.plugins[] | select(.id == $id) | .release' plugin-store.json)
+            old_release=$(jq -S -c --arg id "$id" '.plugins[] | select(.id == $id) | .release' base-store.json)
+            if [ "$new_release" = "$old_release" ]; then
+              echo "· $id: release unchanged, skipped."
+              continue
+            fi
+
+            # A plugin that is already listed may only move forward.
+            old_version=$(jq -r --arg id "$id" '.plugins[] | select(.id == $id) | .release.version // empty' base-store.json)
+            if [ -n "$old_version" ] && [ "$old_version" != "$version" ]; then
+              newest=$(printf '%s\n%s\n' "$old_version" "$version" | sort -V | tail -1)
+              if [ "$newest" != "$version" ]; then
+                echo "✗ $id: version $version is older than the published $old_version." >&2
+                failed=1
+                continue
+              fi
+            fi
+
+            while read -r package; do
+              platform=$(jq -r '.platform' <<<"$package")
+              file=$(jq -r '.fileName' <<<"$package")
+              url=$(jq -r '.downloadUrl' <<<"$package")
+              sha=$(jq -r '.sha256' <<<"$package")
+
+              if [ "$file" != "$id-$version-$platform.zip" ]; then
+                echo "✗ $id: fileName '$file' is not '$id-$version-$platform.zip'." >&2
+                failed=1
+                continue
+              fi
+
+              if [ "$url" != "https://github.com/$repository/releases/download/$tag/$file" ]; then
+                echo "✗ $id: downloadUrl does not point at $repository $tag/$file." >&2
+                failed=1
+                continue
+              fi
+
+              if ! curl -fsSL --retry 3 --retry-delay 2 -o package.zip "$url"; then
+                echo "✗ $id: $url could not be downloaded." >&2
+                failed=1
+                continue
+              fi
+
+              actual=$(sha256sum package.zip | cut -d' ' -f1)
+              if [ "$actual" != "$sha" ]; then
+                echo "✗ $id: $file has sha256 $actual, the list says $sha." >&2
+                failed=1
+                continue
+              fi
+
+              # The package must describe itself the same way the list describes it.
+              if ! unzip -p package.zip plugin.json > package-manifest.json 2>/dev/null; then
+                echo "✗ $id: $file has no plugin.json at its root." >&2
+                failed=1
+                continue
+              fi
+
+              manifest_id=$(jq -r '.id // empty' package-manifest.json)
+              manifest_version=$(jq -r '.version // empty' package-manifest.json)
+              manifest_sdk=$(jq -r '.sdkVersion // empty' package-manifest.json)
+              if [ "$manifest_id" != "$id" ] || [ "$manifest_version" != "$version" ] || [ "$manifest_sdk" != "$sdk" ]; then
+                echo "✗ $id: the package says id=$manifest_id version=$manifest_version sdkVersion=$manifest_sdk." >&2
+                failed=1
+                continue
+              fi
+
+              echo "✓ $id $version ($platform): downloaded, checksum and manifest match."
+              rm -f package.zip package-manifest.json
+            done < <(jq -c '.release.packages[]' <<<"$entry")
+          done < <(jq -c '.plugins[]' plugin-store.json)
+
+          exit "$failed"
