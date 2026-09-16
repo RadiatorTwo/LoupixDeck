@@ -62,12 +62,16 @@
                 </StackPanel>
             </Border>
 
-            <!-- ===== Pages ===== -->
+            <!-- ===== Pages =====
+                 Each page owns its own view model, so the visibility lives on a wrapper that
+                 still sees the window's. -->
             <Panel Grid.Column="1">
-                <pages:InstalledPluginsPage
-                    IsVisible="{Binding CurrentPage, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Installed}" />
-                <pages:PluginStorePage
-                    IsVisible="{Binding CurrentPage, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Store}" />
+                <Panel IsVisible="{Binding CurrentPage, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Installed}">
+                    <pages:InstalledPluginsPage DataContext="{Binding Installed}" />
+                </Panel>
+                <Panel IsVisible="{Binding CurrentPage, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Store}">
+                    <pages:PluginStorePage />
+                </Panel>
             </Panel>
         </Grid>
     </Grid>

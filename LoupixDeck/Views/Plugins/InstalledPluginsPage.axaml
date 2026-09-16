@@ -3,37 +3,237 @@
              xmlns:loc="using:LoupixDeck.Localization"
              xmlns:vmp="using:LoupixDeck.ViewModels.Plugins"
              x:Class="LoupixDeck.Views.Plugins.InstalledPluginsPage"
-             x:DataType="vmp:PluginsWindowViewModel">
+             x:DataType="vmp:InstalledPluginsViewModel">
 
-    <ScrollViewer>
-        <StackPanel Margin="24,16,24,16">
-        <Grid ColumnDefinitions="*,Auto">
-            <TextBlock Grid.Column="0" Classes="page-title" Text="{loc:Tr Settings_Plugins}" />
-            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8"
-                        VerticalAlignment="Center">
-                <Button Content="{loc:Tr Settings_InstallFromZip}" Click="OnInstallPluginClick" />
-                <Button x:Name="RemovePluginButton" Content="{loc:Tr Settings_Remove}" Click="OnRemovePluginClick" />
-                <Button Content="{loc:Tr Settings_OpenPluginsFolder}"
-                        Command="{Binding OpenPluginsFolderCommand}" />
+    <UserControl.DataTemplates>
+        <!-- One template per setting kind. Avalonia picks by the row's type, so the schema
+             decides what a descriptor becomes and the view never switches on the kind. -->
+        <DataTemplate DataType="vmp:TextSettingRowViewModel">
+            <StackPanel Spacing="6" Margin="0,0,0,14">
+                <TextBlock Classes="label" Text="{Binding Label}" />
+                <TextBox Text="{Binding Value, Mode=TwoWay}" Width="440"
+                         HorizontalAlignment="Left"
+                         PasswordChar="{Binding PasswordChar}" />
+                <TextBlock Classes="hint" FontSize="12" Text="{Binding Description}"
+                           IsVisible="{Binding HasDescription}" MaxWidth="560"
+                           HorizontalAlignment="Left" />
             </StackPanel>
-        </Grid>
+        </DataTemplate>
 
-        <Border Classes="card">
-            <Grid ColumnDefinitions="220,*" MinHeight="280">
-                <ListBox x:Name="PluginList" Grid.Column="0" Margin="0,0,12,0"
-                         SelectionChanged="OnPluginSelectionChanged" />
-                <ScrollViewer Grid.Column="1">
-                    <StackPanel x:Name="PluginSettingsHost" Spacing="8" />
+        <DataTemplate DataType="vmp:NumberSettingRowViewModel">
+            <StackPanel Spacing="6" Margin="0,0,0,14">
+                <TextBlock Classes="label" Text="{Binding Label}" />
+                <NumericUpDown Value="{Binding Value, Mode=TwoWay}" FormatString="0"
+                               Increment="1" Width="130" HorizontalAlignment="Left" />
+                <TextBlock Classes="hint" FontSize="12" Text="{Binding Description}"
+                           IsVisible="{Binding HasDescription}" MaxWidth="560"
+                           HorizontalAlignment="Left" />
+            </StackPanel>
+        </DataTemplate>
+
+        <DataTemplate DataType="vmp:ToggleSettingRowViewModel">
+            <StackPanel Spacing="6" Margin="0,0,0,14">
+                <CheckBox Content="{Binding Label}" IsChecked="{Binding Value, Mode=TwoWay}" />
+                <TextBlock Classes="hint" FontSize="12" Text="{Binding Description}"
+                           IsVisible="{Binding HasDescription}" MaxWidth="560"
+                           HorizontalAlignment="Left" />
+            </StackPanel>
+        </DataTemplate>
+    </UserControl.DataTemplates>
+
+    <Grid ColumnDefinitions="292,*">
+
+        <!-- ===== Plugin list ===== -->
+        <Border Grid.Column="0"
+                Background="{DynamicResource AppSurfaceLow}"
+                BorderBrush="{DynamicResource AppBorderFaint}"
+                BorderThickness="0,0,1,0">
+            <Grid RowDefinitions="*,Auto" IsEnabled="{Binding !IsBusy}">
+                <ScrollViewer Grid.Row="0">
+                    <StackPanel Margin="0,16,0,16">
+                        <TextBlock Classes="section-header" Margin="16,0,16,7"
+                                   Text="{loc:Tr Settings_Plugins}" />
+
+                        <TextBlock Classes="hint" Margin="16,4,16,4" FontSize="12"
+                                   IsVisible="{Binding !HasRows}"
+                                   Text="{loc:Tr Plugins_NoneInstalled}" />
+
+                        <ListBox ItemsSource="{Binding Rows}"
+                                 SelectedItem="{Binding SelectedPlugin, Mode=TwoWay}"
+                                 Background="Transparent" BorderThickness="0"
+                                 Margin="8,0,8,0">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate x:DataType="vmp:InstalledPluginRowViewModel">
+                                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+                                        <CheckBox Grid.Column="0" VerticalAlignment="Center"
+                                                  IsEnabled="{Binding CanToggle}"
+                                                  IsChecked="{Binding IsEnabled, Mode=TwoWay}" />
+                                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding Name}"
+                                                       TextTrimming="CharacterEllipsis" />
+                                            <TextBlock Classes="hint" FontSize="11"
+                                                       Text="{Binding StatusText}"
+                                                       IsVisible="{Binding HasStatusText}" />
+                                        </StackPanel>
+                                        <TextBlock Grid.Column="2" Classes="hint" FontSize="11"
+                                                   VerticalAlignment="Center"
+                                                   Text="{Binding MetaText}"
+                                                   IsVisible="{Binding HasMeta}" />
+                                    </Grid>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </StackPanel>
                 </ScrollViewer>
+
+                <!-- The two local-install actions belong to this page only. -->
+                <Border Grid.Row="1" BorderBrush="{DynamicResource AppBorderFaint}"
+                        BorderThickness="0,1,0,0" Padding="14">
+                    <StackPanel Spacing="8">
+                        <Button HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
+                                Content="{loc:Tr Settings_InstallFromZip}"
+                                Command="{Binding InstallFromZipCommand}" />
+                        <Button HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
+                                Content="{loc:Tr Settings_OpenPluginsFolder}"
+                                Command="{Binding OpenPluginsFolderCommand}" />
+                    </StackPanel>
+                </Border>
             </Grid>
         </Border>
 
-        <TextBlock x:Name="PluginActionStatus" Classes="hint" Margin="0,8,0,0"
-                   IsVisible="False" TextWrapping="Wrap" />
+        <!-- ===== Detail pane ===== -->
+        <Grid Grid.Column="1" RowDefinitions="*,Auto">
 
-        <TextBlock x:Name="PluginRestartHint" Classes="hint" Margin="0,8,0,0"
-                   IsVisible="False"
-                   Text="{loc:Tr Settings_SomeChangesFinishApplyingAfter}" />
-        </StackPanel>
-    </ScrollViewer>
+            <ScrollViewer Grid.Row="0" IsVisible="{Binding HasSelection}">
+                <ContentControl Content="{Binding Detail}">
+                    <ContentControl.ContentTemplate>
+                        <DataTemplate x:DataType="vmp:PluginDetailViewModel">
+                            <StackPanel Margin="24,22,24,24">
+
+                                <!-- Header -->
+                                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="14">
+                                    <Image Grid.Column="0" Width="48" Height="48" VerticalAlignment="Top"
+                                           Source="{Binding Icon}" IsVisible="{Binding HasIcon}" />
+                                    <StackPanel Grid.Column="1" Spacing="2">
+                                        <TextBlock Classes="page-title" Margin="0" Text="{Binding Name}"
+                                                   TextWrapping="Wrap" />
+                                        <TextBlock Classes="hint" FontSize="12" Text="{Binding SubtitleText}" />
+                                        <TextBlock Classes="hint" FontSize="11" FontFamily="Consolas,Menlo,monospace"
+                                                   Text="{Binding PluginId}" IsVisible="{Binding HasPluginId}" />
+                                        <TextBlock Classes="hint" FontSize="12" Margin="0,4,0,0"
+                                                   Text="{Binding BundledFallbackText}"
+                                                   IsVisible="{Binding IsBundledOverride}" />
+                                    </StackPanel>
+                                </Grid>
+
+                                <TextBlock Classes="hint" Margin="0,12,0,0" MaxWidth="620"
+                                           HorizontalAlignment="Left"
+                                           Text="{Binding DescriptionText}"
+                                           IsVisible="{Binding HasDescription}" />
+
+                                <Button Classes="toolbar" Margin="0,10,0,0" HorizontalAlignment="Left"
+                                        Content="{loc:Tr Plugins_OpenProjectPage}"
+                                        Command="{Binding OpenProjectPageCommand}"
+                                        IsVisible="{Binding HasProjectUrl}" />
+
+                                <!-- Not running: say why instead of showing a form that writes nowhere. -->
+                                <Border Classes="card" Margin="0,18,0,0" IsVisible="{Binding HasFailure}">
+                                    <TextBlock Classes="hint" TextWrapping="Wrap" Text="{Binding FailureText}" />
+                                </Border>
+
+                                <TextBlock Classes="hint" Margin="0,18,0,0" IsVisible="{Binding HasNoSettings}"
+                                           Text="{loc:Tr Plugins_NoSettings}" />
+
+                                <!-- Connection: where a settings action reports back. -->
+                                <ContentControl Margin="0,18,0,0" Content="{Binding Connection}"
+                                                IsVisible="{Binding HasConnection}">
+                                    <ContentControl.ContentTemplate>
+                                        <DataTemplate x:DataType="vmp:PluginConnectionViewModel">
+                                            <Border Classes="card" Margin="0">
+                                                <StackPanel Spacing="12">
+                                                    <Grid ColumnDefinitions="*,Auto">
+                                                        <TextBlock Grid.Column="0" Classes="card-title" Margin="0"
+                                                                   Text="{loc:Tr Plugins_Connection}" />
+                                                        <Border Grid.Column="1" Classes="pill"
+                                                                IsVisible="{Binding HasResult}"
+                                                                Classes.ok="{Binding !IsFailure}"
+                                                                Classes.warn="{Binding IsFailure}">
+                                                            <TextBlock Text="{Binding ResultText}" />
+                                                        </Border>
+                                                    </Grid>
+                                                    <ItemsControl ItemsSource="{Binding Actions}">
+                                                        <ItemsControl.ItemTemplate>
+                                                            <DataTemplate x:DataType="vmp:PluginActionRowViewModel">
+                                                                <Button Margin="0,0,8,0" MinWidth="130"
+                                                                        Content="{Binding Label}"
+                                                                        IsEnabled="{Binding IsIdle}"
+                                                                        Command="{Binding RunCommand}" />
+                                                            </DataTemplate>
+                                                        </ItemsControl.ItemTemplate>
+                                                        <ItemsControl.ItemsPanel>
+                                                            <ItemsPanelTemplate>
+                                                                <WrapPanel />
+                                                            </ItemsPanelTemplate>
+                                                        </ItemsControl.ItemsPanel>
+                                                    </ItemsControl>
+                                                </StackPanel>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ContentControl.ContentTemplate>
+                                </ContentControl>
+
+                                <!-- Generated form, one card per declared heading. -->
+                                <ItemsControl ItemsSource="{Binding Groups}" Margin="0,16,0,0">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="vmp:PluginSettingGroupViewModel">
+                                            <Border Classes="card" Margin="0,0,0,16">
+                                                <StackPanel>
+                                                    <TextBlock Classes="card-title" Text="{Binding Title}"
+                                                               IsVisible="{Binding HasTitle}" />
+                                                    <TextBlock Classes="hint" FontSize="12" Margin="0,0,0,12"
+                                                               MaxWidth="560" HorizontalAlignment="Left"
+                                                               Text="{Binding Description}"
+                                                               IsVisible="{Binding HasDescription}" />
+                                                    <ItemsControl ItemsSource="{Binding Rows}" />
+                                                </StackPanel>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </DataTemplate>
+                    </ContentControl.ContentTemplate>
+                </ContentControl>
+            </ScrollViewer>
+
+            <!-- Action bar: Save and Discard stay reachable however long the form is. -->
+            <Border Grid.Row="1"
+                    Background="{DynamicResource AppSurfaceLow}"
+                    BorderBrush="{DynamicResource AppBorderFaint}"
+                    BorderThickness="0,1,0,0"
+                    Padding="20,12">
+                <Grid ColumnDefinitions="*,Auto">
+                    <StackPanel Grid.Column="0" Spacing="2" VerticalAlignment="Center">
+                        <TextBlock Classes="hint" FontSize="12"
+                                   Text="{Binding Detail.UnsavedText}"
+                                   IsVisible="{Binding Detail.HasUnsavedChanges}" />
+                        <TextBlock Classes="hint" FontSize="12" TextWrapping="Wrap"
+                                   Text="{Binding StatusText}" IsVisible="{Binding HasStatus}" />
+                        <TextBlock Classes="hint" FontSize="12" TextWrapping="Wrap"
+                                   Text="{loc:Tr Settings_SomeChangesFinishApplyingAfter}"
+                                   IsVisible="{Binding ShowRestartHint}" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12">
+                        <Button Classes="toolbar" Content="{Binding RemoveLabel}"
+                                IsEnabled="{Binding CanRemoveSelected}"
+                                Command="{Binding RemoveCommand}" />
+                        <Button Classes="toolbar" Content="{loc:Tr Plugins_Discard}"
+                                Command="{Binding Detail.DiscardCommand}" />
+                        <Button Classes="toolbar accent" Content="{loc:Tr Plugins_Save}"
+                                Command="{Binding Detail.SaveCommand}" />
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </Grid>
+    </Grid>
 </UserControl>

@@ -30,6 +30,9 @@ public partial class PluginsWindowViewModel : DialogViewModelBase<DialogResult>
     /// <summary>The Plugin Store page (issue #234).</summary>
     public PluginStoreViewModel PluginStore { get; }
 
+    /// <summary>The installed-plugins page.</summary>
+    public InstalledPluginsViewModel Installed { get; }
+
     public PluginsWindowViewModel(LoupedeckConfig config,
         IPluginManager pluginManager,
         IPluginReloadService pluginReload,
@@ -39,6 +42,11 @@ public partial class PluginsWindowViewModel : DialogViewModelBase<DialogResult>
         _pluginManager = pluginManager;
         _pluginReload = pluginReload;
         PluginStore = pluginStore;
+        Installed = new InstalledPluginsViewModel(this);
+
+        // The store installs, updates and removes through the same coordinator, so the
+        // installed list has to follow what it did.
+        PluginStore.PluginsChanged += Installed.Refresh;
     }
 
     // ───────── Page navigation ─────────
