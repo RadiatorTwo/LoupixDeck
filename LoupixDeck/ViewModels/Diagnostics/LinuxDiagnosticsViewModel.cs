@@ -109,6 +109,10 @@ public sealed partial class LinuxDiagnosticsViewModel : ViewModelBase
     public IAsyncRelayCommand RecordingTestCommand =>
         field ??= Relay.Create(RunRecordingTestAsync, () => !IsRunning);
 
+    /// <summary>The online store test. The only action of the page that leaves the machine.</summary>
+    public IAsyncRelayCommand StoreTestCommand =>
+        field ??= Relay.Create(RunStoreTestAsync, () => !IsRunning);
+
     public IRelayCommand<DiagnosticCategoryViewModel> SelectCategoryCommand =>
         field ??= Relay.Create<DiagnosticCategoryViewModel>(SelectCategory);
 
@@ -201,6 +205,21 @@ public sealed partial class LinuxDiagnosticsViewModel : ViewModelBase
 
         await NotifyAsync(Loc.Tr("Diagnostics_RecordingTestTitle"), result);
         await RerunCategoryIfSelectedAsync(DiagnosticCategory.InputRecording);
+    }
+
+    private async Task RunStoreTestAsync()
+    {
+        bool confirmed = await ConfirmAsync(Loc.Tr("Diagnostics_StoreTestConfirm"),
+            Loc.Tr("Diagnostics_StoreTestTitle"));
+
+        if (!confirmed)
+        {
+            return;
+        }
+
+        InteractiveTestResult result = await _tests.CheckPluginStoreAsync(CancellationToken.None);
+
+        await NotifyAsync(Loc.Tr("Diagnostics_StoreTestTitle"), result);
     }
 
     /// <summary>After a test, only the category it belongs to is worth running again.</summary>

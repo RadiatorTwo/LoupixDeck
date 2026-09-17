@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using LoupixDeck.Localization;
+using LoupixDeck.Services.PluginStore;
 
 namespace LoupixDeck.Services.Diagnostics.Linux;
 
@@ -28,10 +29,16 @@ public interface IInteractiveDiagnosticTests
     /// two use different device nodes and different permissions.
     /// </summary>
     Task<InteractiveTestResult> AwaitKeyEventAsync(TimeSpan timeout, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Loads the plugin catalog from the network. This is the only check that leaves the
+    /// machine, which is why it is a test the user starts and never part of a run.
+    /// </summary>
+    Task<InteractiveTestResult> CheckPluginStoreAsync(CancellationToken cancellationToken);
 }
 
 /// <inheritdoc cref="IInteractiveDiagnosticTests"/>
-public sealed class InteractiveDiagnosticTests : IInteractiveDiagnosticTests
+public sealed class InteractiveDiagnosticTests(IPluginStoreService store) : IInteractiveDiagnosticTests
 {
     private const string TestDeviceName = "LoupixDeck Diagnostics Test";
 
@@ -41,6 +48,29 @@ public sealed class InteractiveDiagnosticTests : IInteractiveDiagnosticTests
     public Task<InteractiveTestResult> AwaitKeyEventAsync(TimeSpan timeout,
         CancellationToken cancellationToken)
         => Task.Run(() => AwaitKeyEvent(timeout, cancellationToken), cancellationToken);
+
+    public async Task<InteractiveTestResult> CheckPluginStoreAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            PluginStoreResult result = await store.GetItemsAsync(true, cancellationToken);
+
+            if (!string.IsNullOrWhiteSpace(result.Error))
+            {
+                return new InteractiveTestResult(false, Loc.Tr("Diagnostics_StoreTestFailed"), result.Error);
+            }
+
+            return result.IsFromCache
+                ? new InteractiveTestResult(false, Loc.Tr("Diagnostics_StoreTestFromCache"))
+                : new InteractiveTestResult(true,
+                    Loc.Tr("Diagnostics_StoreTestOkFmt", result.Items.Count));
+        }
+        catch (Exception ex)
+        {
+            return new InteractiveTestResult(false, Loc.Tr("Diagnostics_StoreTestFailed"),
+                $"{ex.GetType().Name}: {ex.Message}");
+        }
+    }
 
     private static InteractiveTestResult SendTestKey()
     {

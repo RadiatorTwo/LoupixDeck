@@ -39,6 +39,7 @@ public sealed partial class DiagnosticCheckRowViewModel : ViewModelBase
     [NotifyPropertyChangedFor(nameof(HasCommand))]
     [NotifyPropertyChangedFor(nameof(SupportsKeyTest))]
     [NotifyPropertyChangedFor(nameof(SupportsRecordingTest))]
+    [NotifyPropertyChangedFor(nameof(SupportsStoreTest))]
     [NotifyCanExecuteChangedFor(nameof(CopyCommandCommand))]
     public partial DiagnosticCheckResult Result { get; set; }
 
@@ -56,6 +57,9 @@ public sealed partial class DiagnosticCheckRowViewModel : ViewModelBase
 
     /// <summary>True for the recording checks, which the interactive key-press test proves.</summary>
     public bool SupportsRecordingTest => Category == DiagnosticCategory.InputRecording;
+
+    /// <summary>True for the plugin checks, where the online store test belongs.</summary>
+    public bool SupportsStoreTest => Category == DiagnosticCategory.Plugins;
 
     public DiagnosticCategory Category => Result.Category;
 
