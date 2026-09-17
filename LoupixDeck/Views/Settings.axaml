@@ -1242,30 +1242,27 @@
                      check in full. No expanders — nothing here has to be unfolded to be read. -->
                 <StackPanel IsVisible="{Binding CurrentView, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Diagnostics}">
                     <StackPanel.Styles>
-                        <!-- Row buttons carry their own chrome, so the Fluent button template is
-                             replaced outright rather than fought with setters. -->
+                        <!-- Selection reads exactly like the sidebar's Button.nav: the Fluent
+                             template stays, the ContentPresenter carries the state colour, and an
+                             accent bar marks the active row. Only the fixed height is dropped,
+                             because a check row is two lines. -->
                         <Style Selector="Button.diagrow">
                             <Setter Property="Background" Value="Transparent" />
                             <Setter Property="BorderThickness" Value="0" />
                             <Setter Property="Padding" Value="0" />
+                            <Setter Property="Margin" Value="0,1" />
                             <Setter Property="HorizontalAlignment" Value="Stretch" />
                             <Setter Property="HorizontalContentAlignment" Value="Stretch" />
-                            <Setter Property="CornerRadius" Value="7" />
-                            <Setter Property="Template">
-                                <ControlTemplate>
-                                    <Border Background="{TemplateBinding Background}"
-                                            CornerRadius="{TemplateBinding CornerRadius}">
-                                        <ContentPresenter Content="{TemplateBinding Content}"
-                                                          HorizontalAlignment="Stretch" />
-                                    </Border>
-                                </ControlTemplate>
-                            </Setter>
+                            <Setter Property="CornerRadius" Value="4" />
                         </Style>
-                        <Style Selector="Button.diagrow:pointerover">
-                            <Setter Property="Background" Value="#0DFFFFFF" />
+                        <Style Selector="Button.diagrow:pointerover /template/ ContentPresenter">
+                            <Setter Property="Background" Value="{DynamicResource AppControlBackgroundHover}" />
                         </Style>
-                        <Style Selector="Button.diagrow.selected">
-                            <Setter Property="Background" Value="#14FFFFFF" />
+                        <Style Selector="Button.diagrow.active /template/ ContentPresenter">
+                            <Setter Property="Background" Value="{DynamicResource AppControlBackgroundActive}" />
+                        </Style>
+                        <Style Selector="Button.diagrow.active Border.nav-accent">
+                            <Setter Property="Background" Value="#4DA3FF" />
                         </Style>
 
                         <Style Selector="TextBlock.diagmono">
@@ -1360,21 +1357,23 @@
                                             <ItemsControl.ItemTemplate>
                                                 <DataTemplate x:DataType="dvm:DiagnosticCategoryViewModel">
                                                     <Button Classes="diagrow"
-                                                            Classes.selected="{Binding IsSelected}"
-                                                            Margin="0,0,0,2"
+                                                            Classes.active="{Binding IsSelected}"
                                                             Command="{Binding $parent[Window].DataContext.Diagnostics.SelectCategoryCommand}"
                                                             CommandParameter="{Binding}">
-                                                        <Grid ColumnDefinitions="Auto,*,Auto" Margin="14,11">
-                                                            <Ellipse Grid.Column="0" Width="6" Height="6"
+                                                        <Grid ColumnDefinitions="3,Auto,*,Auto">
+                                                            <Border Grid.Column="0" Classes="nav-accent" />
+                                                            <Ellipse Grid.Column="1" Width="6" Height="6"
+                                                                     Margin="11,11,0,11"
                                                                      VerticalAlignment="Center"
                                                                      Fill="{Binding StatusBrush}" />
-                                                            <TextBlock Grid.Column="1" FontSize="12.5"
+                                                            <TextBlock Grid.Column="2" FontSize="12.5"
                                                                        Margin="9,0,6,0"
                                                                        VerticalAlignment="Center"
                                                                        TextTrimming="CharacterEllipsis"
                                                                        Text="{Binding Title}" />
-                                                            <TextBlock Grid.Column="2" Classes="diagmono"
+                                                            <TextBlock Grid.Column="3" Classes="diagmono"
                                                                        FontSize="10"
+                                                                       Margin="0,0,11,0"
                                                                        VerticalAlignment="Center"
                                                                        Text="{Binding MetaText}" />
                                                         </Grid>
@@ -1393,15 +1392,16 @@
                                             <ItemsControl.ItemTemplate>
                                                 <DataTemplate x:DataType="dvm:DiagnosticCheckRowViewModel">
                                                     <Button Classes="diagrow"
-                                                            Classes.selected="{Binding IsSelected}"
-                                                            Margin="0,0,0,3"
+                                                            Classes.active="{Binding IsSelected}"
                                                             Command="{Binding $parent[Window].DataContext.Diagnostics.SelectCheckCommand}"
                                                             CommandParameter="{Binding}">
-                                                        <Grid ColumnDefinitions="Auto,*" Margin="14,10">
-                                                            <Ellipse Grid.Column="0" Width="7" Height="7"
+                                                        <Grid ColumnDefinitions="3,Auto,*">
+                                                            <Border Grid.Column="0" Classes="nav-accent" />
+                                                            <Ellipse Grid.Column="1" Width="7" Height="7"
+                                                                     Margin="11,10,0,10"
                                                                      VerticalAlignment="Center"
                                                                      Fill="{Binding StatusBrush}" />
-                                                            <StackPanel Grid.Column="1" Margin="10,0,0,0" Spacing="2">
+                                                            <StackPanel Grid.Column="2" Margin="10,10,11,10" Spacing="2">
                                                                 <TextBlock FontSize="12.5"
                                                                            TextTrimming="CharacterEllipsis"
                                                                            Text="{Binding Title}" />
@@ -1511,7 +1511,7 @@
                                                 BorderThickness="1"
                                                 IsVisible="{Binding HasTechnicalDetail}">
                                             <SelectableTextBlock Classes="diagmono" FontSize="11.5"
-                                                                 Foreground="#8FA3B0"
+                                                                 Foreground="{DynamicResource AppTextSecondary}"
                                                                  TextWrapping="Wrap"
                                                                  Text="{Binding Result.TechnicalDetail}" />
                                         </Border>
