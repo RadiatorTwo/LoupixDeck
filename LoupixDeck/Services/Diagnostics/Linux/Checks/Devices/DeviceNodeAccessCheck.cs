@@ -48,7 +48,7 @@ internal sealed class DeviceNodeAccessCheck(LinuxDeckDevice device) : ILinuxDiag
         if ((errno == LinuxInputInterop.EACCES) || (errno == LinuxInputInterop.EPERM))
         {
             DiagnosticFix fix = new(FixKind.InstallerScript, Loc.Tr("Diagnostics_FixInstallDeviceRule"),
-                "./install-loupixdeck.sh", RequiresElevation: true, RequiresReconnect: true);
+                DiagnosticInstaller.Command(), RequiresElevation: true, RequiresReconnect: true);
 
             return Task.FromResult(DiagnosticCheckResult.Fail(Id, Category, title,
                 Loc.Tr("Diagnostics_DeviceAccessDeniedFmt", device.DevNode), detail, fix, evidence,

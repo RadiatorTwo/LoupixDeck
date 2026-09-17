@@ -329,6 +329,7 @@
   "Diagnostics_RequiresElevation": "Requiere permisos de administrador (sudo).",
   "Diagnostics_RequiresLogout": "Requiere cerrar la sesión y volver a iniciarla. Abrir un terminal nuevo no basta.",
   "Diagnostics_RequiresReconnect": "Requiere desconectar el dispositivo y volver a conectarlo.",
+  "Diagnostics_RerunCategory": "Volver a ejecutar la categoría",
   "Diagnostics_RerunCheck": "Volver a ejecutar esta comprobación",
   "Diagnostics_RunChecks": "Ejecutar comprobaciones",
   "Diagnostics_RunningFmt": "Ejecutando la comprobación {0} de {1}…",

@@ -329,6 +329,7 @@
   "Diagnostics_RequiresElevation": "Erfordert Administratorrechte (sudo).",
   "Diagnostics_RequiresLogout": "Erfordert Ab- und erneutes Anmelden. Ein neues Terminal genügt nicht.",
   "Diagnostics_RequiresReconnect": "Erfordert, das Gerät ab- und wieder anzustecken.",
+  "Diagnostics_RerunCategory": "Kategorie erneut prüfen",
   "Diagnostics_RerunCheck": "Diese Prüfung erneut ausführen",
   "Diagnostics_RunChecks": "Prüfungen ausführen",
   "Diagnostics_RunningFmt": "Prüfung {0} von {1} läuft…",

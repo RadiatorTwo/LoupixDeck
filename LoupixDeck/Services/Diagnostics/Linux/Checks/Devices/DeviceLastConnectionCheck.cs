@@ -52,7 +52,7 @@ internal sealed class DeviceLastConnectionCheck(LinuxDeckDevice device) : ILinux
             SerialAttemptOutcome.Denied => DiagnosticCheckResult.Fail(Id, Category, title,
                 Loc.Tr("Diagnostics_DeviceAttemptDeniedFmt", attempt.Port), attempt.Detail,
                 new DiagnosticFix(FixKind.InstallerScript, Loc.Tr("Diagnostics_FixInstallDeviceRule"),
-                    "./install-loupixdeck.sh", RequiresElevation: true, RequiresReconnect: true),
+                    DiagnosticInstaller.Command(), RequiresElevation: true, RequiresReconnect: true),
                 evidence, Loc.Tr("Diagnostics_ValueDenied")),
 
             SerialAttemptOutcome.Missing => DiagnosticCheckResult.Warning(Id, Category, title,

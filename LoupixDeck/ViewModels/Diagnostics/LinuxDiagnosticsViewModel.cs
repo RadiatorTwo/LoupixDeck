@@ -42,6 +42,7 @@ public sealed partial class LinuxDiagnosticsViewModel : ViewModelBase
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(VisibleChecks))]
+    [NotifyCanExecuteChangedFor(nameof(RerunCategoryCommand))]
     public partial DiagnosticCategoryViewModel SelectedCategory { get; set; }
 
     [ObservableProperty]
@@ -54,6 +55,7 @@ public sealed partial class LinuxDiagnosticsViewModel : ViewModelBase
     [NotifyCanExecuteChangedFor(nameof(CancelCommand))]
     [NotifyCanExecuteChangedFor(nameof(ShowReportCommand))]
     [NotifyCanExecuteChangedFor(nameof(RerunCheckCommand))]
+    [NotifyCanExecuteChangedFor(nameof(RerunCategoryCommand))]
     [NotifyPropertyChangedFor(nameof(HasResults))]
     public partial bool IsRunning { get; set; }
 
@@ -89,6 +91,9 @@ public sealed partial class LinuxDiagnosticsViewModel : ViewModelBase
 
     public IAsyncRelayCommand RerunCheckCommand =>
         field ??= Relay.Create(RerunCheckAsync, () => !IsRunning && (SelectedCheck != null));
+
+    public IAsyncRelayCommand RerunCategoryCommand =>
+        field ??= Relay.Create(RerunCategoryAsync, () => !IsRunning && (SelectedCategory != null));
 
     public IRelayCommand<DiagnosticCategoryViewModel> SelectCategoryCommand =>
         field ??= Relay.Create<DiagnosticCategoryViewModel>(SelectCategory);
@@ -135,6 +140,20 @@ public sealed partial class LinuxDiagnosticsViewModel : ViewModelBase
         return string.IsNullOrEmpty(id)
             ? Task.CompletedTask
             : ExecuteAsync(() => _diagnostics.RunCheckAsync(id, BuildProgress(), _run.Token), 1);
+    }
+
+    /// <summary>
+    /// Re-runs the selected category only. After a repair that is what the user wants: the
+    /// checks the fix was about, not the uinput probe and the evdev sweep all over again.
+    /// </summary>
+    private Task RerunCategoryAsync()
+    {
+        DiagnosticCategoryViewModel category = SelectedCategory;
+
+        return category == null
+            ? Task.CompletedTask
+            : ExecuteAsync(() => _diagnostics.RunCategoryAsync(category.Category, BuildProgress(), _run.Token),
+                _diagnostics.CountFor(category.Category));
     }
 
     private async Task ExecuteAsync(Func<Task<DiagnosticRunResult>> run, int total)

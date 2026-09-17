@@ -329,6 +329,7 @@
   "Diagnostics_RequiresElevation": "Requires administrator rights (sudo).",
   "Diagnostics_RequiresLogout": "Requires signing out and back in. Opening a new terminal is not enough.",
   "Diagnostics_RequiresReconnect": "Requires unplugging the device and reconnecting it.",
+  "Diagnostics_RerunCategory": "Run category again",
   "Diagnostics_RerunCheck": "Run this check again",
   "Diagnostics_RunChecks": "Run checks",
   "Diagnostics_RunningFmt": "Running check {0} of {1}…",

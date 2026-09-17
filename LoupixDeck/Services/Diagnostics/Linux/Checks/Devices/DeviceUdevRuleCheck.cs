@@ -29,7 +29,7 @@ internal sealed class DeviceUdevRuleCheck(LinuxDeckDevice device) : ILinuxDiagno
     {
         string title = DeviceCheckTitle.For(Id, device);
         DiagnosticFix installer = new(FixKind.InstallerScript, Loc.Tr("Diagnostics_FixInstallDeviceRule"),
-            "./install-loupixdeck.sh", RequiresElevation: true, RequiresReconnect: true);
+            DiagnosticInstaller.Command(), RequiresElevation: true, RequiresReconnect: true);
 
         string rulePath = RulePaths.FirstOrDefault(File.Exists);
 

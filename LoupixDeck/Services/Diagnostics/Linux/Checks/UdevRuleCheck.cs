@@ -26,7 +26,7 @@ public sealed class UdevRuleCheck : ILinuxDiagnosticCheck
     {
         string title = DiagnosticCheckTitles.For(Id);
         DiagnosticFix installer = new(FixKind.InstallerScript, Loc.Tr("Diagnostics_FixRunInstaller"),
-            "./install-loupixdeck.sh", RequiresElevation: true);
+            DiagnosticInstaller.Command(), RequiresElevation: true);
 
         foreach (string path in RulePaths)
         {

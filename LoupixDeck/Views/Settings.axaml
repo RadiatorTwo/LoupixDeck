@@ -1301,6 +1301,11 @@
                                             <Button Content="{loc:Tr Diagnostics_Cancel}"
                                                     IsVisible="{Binding Diagnostics.IsRunning}"
                                                     Command="{Binding Diagnostics.CancelCommand}" />
+                                            <!-- After a repair the user wants the checks the fix
+                                                 was about, not a full run. -->
+                                            <Button Content="{loc:Tr Diagnostics_RerunCategory}"
+                                                    IsVisible="{Binding Diagnostics.HasRun}"
+                                                    Command="{Binding Diagnostics.RerunCategoryCommand}" />
                                             <Button Content="{loc:Tr Diagnostics_ShowReport}"
                                                     Command="{Binding Diagnostics.ShowReportCommand}" />
                                         </StackPanel>
