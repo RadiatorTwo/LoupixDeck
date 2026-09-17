@@ -116,8 +116,11 @@
                     <SolidColorBrush x:Key="AppSurface" Color="#FFFFFF" />
                     <SolidColorBrush x:Key="AppSurfaceAlt" Color="#F2F2F2" />
                     <SolidColorBrush x:Key="AppControlBackground" Color="#FFFFFF" />
-                    <SolidColorBrush x:Key="AppControlBackgroundHover" Color="#EDEDED" />
-                    <SolidColorBrush x:Key="AppControlBackgroundActive" Color="#DADADA" />
+                    <!-- Darker than every light surface they can sit on, not lighter. The old
+                         values were #EDEDED / #DADADA, which vanished on AppSurfaceLow (#DCDCDC) -
+                         the sidebar and every list built on it had a selection nobody could see. -->
+                    <SolidColorBrush x:Key="AppControlBackgroundHover" Color="#CCCCCC" />
+                    <SolidColorBrush x:Key="AppControlBackgroundActive" Color="#B5B5B5" />
                     <SolidColorBrush x:Key="AppBorderSubtle" Color="#C4C4C4" />
                     <!-- A step quieter than AppBorderSubtle: outlines and dividers that must
                          read as a hairline rather than as a frame (header switcher, pagers). -->
