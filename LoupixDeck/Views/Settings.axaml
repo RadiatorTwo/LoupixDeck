@@ -1433,7 +1433,7 @@
                                                     BorderBrush="{Binding BadgeBorder}"
                                                     BorderThickness="1">
                                                 <TextBlock FontSize="10.5" FontWeight="SemiBold"
-                                                           Foreground="{Binding StatusBrush}"
+                                                           Foreground="{Binding BadgeText}"
                                                            Text="{Binding StatusText}" />
                                             </Border>
                                         </Grid>

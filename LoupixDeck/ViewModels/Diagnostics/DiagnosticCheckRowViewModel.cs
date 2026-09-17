@@ -63,6 +63,8 @@ public sealed partial class DiagnosticCheckRowViewModel : ViewModelBase
 
     public IBrush BadgeBorder => DiagnosticPalette.Border(Result.Status);
 
+    public IBrush BadgeText => DiagnosticPalette.Text(Result.Status);
+
     /// <summary>Sort weight: failures first, passes last.</summary>
     public int Rank => DiagnosticText.Rank(Result.Status);
 

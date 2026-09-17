@@ -16,8 +16,8 @@ public sealed class DiagnosticTallyViewModel
 
         Label = label;
         Dot = empty ? DiagnosticPalette.Off : DiagnosticPalette.Dot(status);
-        Text = empty ? DiagnosticPalette.Off : DiagnosticPalette.Dot(status);
-        Fill = empty ? Brushes.Transparent : DiagnosticPalette.Fill(status);
+        Text = empty ? DiagnosticPalette.NeutralText : DiagnosticPalette.Text(status);
+        Fill = empty ? DiagnosticPalette.NeutralFill : DiagnosticPalette.Fill(status);
         Border = empty ? DiagnosticPalette.NeutralBorder : DiagnosticPalette.Border(status);
     }
 
