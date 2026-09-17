@@ -15,10 +15,10 @@ public sealed class DiagnosticTallyViewModel
         bool empty = count == 0;
 
         Label = label;
-        Dot = empty ? DiagnosticPalette.Off : DiagnosticPalette.Dot(status);
+        Dot = empty ? DiagnosticPalette.ChipDot : DiagnosticPalette.Chip(status);
         Text = empty ? DiagnosticPalette.NeutralText : DiagnosticPalette.Text(status);
-        Fill = empty ? DiagnosticPalette.NeutralFill : DiagnosticPalette.Fill(status);
-        Border = empty ? DiagnosticPalette.NeutralBorder : DiagnosticPalette.Border(status);
+        Fill = empty ? DiagnosticPalette.EmptyFill : DiagnosticPalette.Fill(status);
+        Border = empty ? DiagnosticPalette.EmptyBorder : DiagnosticPalette.Border(status);
     }
 
     public string Label { get; }
