@@ -132,10 +132,13 @@ public partial class App : Application
             router.Default = primaryProvider ?? (registry.Hosts.Count is > 0 ? registry.Hosts[0]?.Provider : null);
 
             var primaryHost = registry.Primary;
-            // The shell owns the two menu entries that reach no hardware, About and Quit, so it
-            // needs the dialog service. It comes from the primary device's container, which
-            // exists as soon as a device is configured — connected or not.
-            var shell = new MainShellViewModel(primaryHost?.Provider.GetService<IDialogService>(),
+            // The shell owns the menu entries that reach no hardware — About, the plugins
+            // window, the update dialog — so it needs the dialog service. It comes from the
+            // primary device's container, and that container may not exist yet: the app starts
+            // with no device at all when nothing is plugged in and nothing is configured. It is
+            // therefore resolved per call, so those entries start working as soon as hot-plug
+            // brings a device up.
+            var shell = new MainShellViewModel(() => registry.Primary?.Provider.GetService<IDialogService>(),
                 root.GetRequiredService<Services.Updates.IUpdateService>(),
                 root.GetRequiredService<Services.Updates.IUpdateNotifier>(),
                 root.GetRequiredService<Services.PluginStore.IPluginStoreService>());

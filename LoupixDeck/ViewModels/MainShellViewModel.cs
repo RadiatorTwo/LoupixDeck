@@ -20,17 +20,20 @@ namespace LoupixDeck.ViewModels;
 /// </summary>
 public sealed class MainShellViewModel : ViewModelBase
 {
-    private readonly LoupixDeck.Services.IDialogService _dialogService;
+    private readonly Func<LoupixDeck.Services.IDialogService> _dialogService;
     private readonly IUpdateService _updateService;
     private readonly IUpdateNotifier _updateNotifier;
 
-    /// <param name="dialogService">Taken from the primary device's container, which exists as
-    /// soon as a device is configured — whether or not it is currently reachable. Only the
-    /// About and update dialogs are opened through it here, and those need no device.</param>
+    /// <param name="dialogService">Resolves the dialog service of the primary device's
+    /// container. A function rather than an instance because the app now starts with no device
+    /// at all (nothing plugged in, nothing configured): there is no container to take one from
+    /// yet, and one appears as soon as hot-plug brings a device up. Capturing the null once
+    /// would leave About, the plugins window and the update dialog dead for the rest of the
+    /// session. Only dialogs that need no device are opened through it here.</param>
     /// <param name="updateService">The app-wide update check (root container); drives the update hint.</param>
     /// <param name="updateNotifier">OS notification used while the window sits in the tray.</param>
     /// <param name="pluginStore">The app-wide plugin store (root container); drives the plugin update hint.</param>
-    public MainShellViewModel(LoupixDeck.Services.IDialogService dialogService = null,
+    public MainShellViewModel(Func<LoupixDeck.Services.IDialogService> dialogService = null,
         IUpdateService updateService = null, IUpdateNotifier updateNotifier = null,
         IPluginStoreService pluginStore = null)
     {
@@ -134,9 +137,11 @@ public sealed class MainShellViewModel : ViewModelBase
     /// plugin brought to the top.</param>
     private async Task ShowPlugins(string storePluginId = null)
     {
-        if (_dialogService == null) return;
+        LoupixDeck.Services.IDialogService dialogs = _dialogService?.Invoke();
 
-        await _dialogService.ShowDialogAsync<PluginsWindowViewModel, LoupixDeck.Models.DialogResult>(
+        if (dialogs == null) return;
+
+        await dialogs.ShowDialogAsync<PluginsWindowViewModel, LoupixDeck.Models.DialogResult>(
             vm =>
             {
                 if (storePluginId != null)
@@ -178,9 +183,11 @@ public sealed class MainShellViewModel : ViewModelBase
     private async Task ShowUpdate()
     {
         UpdateInfo update = _updateService?.AvailableUpdate;
-        if (_dialogService == null || update == null) return;
+        LoupixDeck.Services.IDialogService dialogs = _dialogService?.Invoke();
 
-        await _dialogService.ShowDialogAsync<UpdateDialogViewModel, LoupixDeck.Models.DialogResult>(
+        if (dialogs == null || update == null) return;
+
+        await dialogs.ShowDialogAsync<UpdateDialogViewModel, LoupixDeck.Models.DialogResult>(
             vm => vm.Initialize(update));
     }
 
@@ -229,8 +236,11 @@ public sealed class MainShellViewModel : ViewModelBase
 
     private async Task ShowAbout()
     {
-        if (_dialogService == null) return;
-        await _dialogService.ShowDialogAsync<AboutViewModel, LoupixDeck.Models.DialogResult>();
+        LoupixDeck.Services.IDialogService dialogs = _dialogService?.Invoke();
+
+        if (dialogs == null) return;
+
+        await dialogs.ShowDialogAsync<AboutViewModel, LoupixDeck.Models.DialogResult>();
     }
 
     /// <summary>Quit has to work with no device connected too, so the shell owns it rather
