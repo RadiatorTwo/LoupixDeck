@@ -1,5 +1,6 @@
 using Avalonia.Controls;
 using Avalonia.Platform.Storage;
+using LoupixDeck.Localization;
 using LoupixDeck.Models.Portable;
 
 namespace LoupixDeck.Utils;
@@ -265,6 +266,33 @@ public abstract class FileDialogHelper
                 new FilePickerFileType("LoupixDeck profile package")
                 {
                     Patterns = [$"*.{ProfilePackageFiles.Extension}"]
+                }
+            ]
+        });
+
+        return file == null ? string.Empty : ResolveLocalPath(file);
+    }
+
+    /// <summary>
+    /// Asks where to save a Markdown file. Returns the chosen path, an empty string when the
+    /// user cancelled, or null when there is no window to own the dialog.
+    /// </summary>
+    public static async Task<string> SaveMarkdownDialog(Window owner, string suggestedFileName)
+    {
+        owner ??= WindowHelper.GetActiveWindow() ?? WindowHelper.GetMainWindow();
+        if (owner == null) return null;
+
+        IStorageFile file = await owner.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+        {
+            Title = Loc.Tr("Diagnostics_SaveReportTitle"),
+            SuggestedFileName = suggestedFileName,
+            DefaultExtension = "md",
+            ShowOverwritePrompt = true,
+            FileTypeChoices =
+            [
+                new FilePickerFileType(Loc.Tr("Diagnostics_MarkdownFile"))
+                {
+                    Patterns = ["*.md"]
                 }
             ]
         });
