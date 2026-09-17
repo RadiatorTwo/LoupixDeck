@@ -35,6 +35,7 @@ public sealed class DeviceCheckSource(IDeviceHostRegistry hosts) : ILinuxDiagnos
             checks.Add(new DeviceUdevRuleCheck(deck));
             checks.Add(new DevicePortOwnerCheck(deck));
             checks.Add(new DeviceLinkCheck(deck, hosts));
+            checks.Add(new DeviceLastConnectionCheck(deck));
         }
 
         return checks;

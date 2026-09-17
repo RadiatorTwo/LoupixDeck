@@ -10,12 +10,17 @@ namespace LoupixDeck.Services.Diagnostics.Linux;
 /// <param name="Info">The registry entry for this VID/PID.</param>
 /// <param name="DevNode">The /dev/ttyACM* node udev reports for it.</param>
 /// <param name="Serial">The raw serial. Never reaches a report unshortened.</param>
+/// <param name="Aliases">
+/// The /dev/serial/by-id links udev created for the same node. The app may have opened the deck
+/// through any of them, so a lookup by port name has to know all of them.
+/// </param>
 internal sealed record LinuxDeckDevice(
     DeviceRegistry.DeviceInfo Info,
     string DevNode,
     string Vid,
     string Pid,
-    string Serial)
+    string Serial,
+    IReadOnlyList<string> Aliases)
 {
     /// <summary>The instance part of a per-device check id. Carries no serial in clear text.</summary>
     public string InstanceKey
@@ -29,6 +34,9 @@ internal sealed record LinuxDeckDevice(
                 : $"{Vid}-{Pid}-{serial}";
         }
     }
+
+    /// <summary>Every path this deck can be opened through: its node and its udev links.</summary>
+    public IEnumerable<string> PortNames => Aliases.Prepend(DevNode);
 
     /// <summary>What the user sees: the model, plus the shortened serial when there is one.</summary>
     public string Label => string.IsNullOrEmpty(Serial)
@@ -60,7 +68,8 @@ internal static class LinuxDeckDeviceFacts
             }
 
             decks.Add(new LinuxDeckDevice(info, device.DevNode, device.Vid.ToLowerInvariant(),
-                device.Pid.ToLowerInvariant(), device.NormalizedSerial));
+                device.Pid.ToLowerInvariant(), device.NormalizedSerial,
+                device.Aliases ?? []));
         }
 
         return decks
