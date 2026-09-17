@@ -26,6 +26,14 @@ internal static partial class DiagnosticReportSanitizer
     [GeneratedRegex(@"\b[0-9a-f]{32}\b")]
     private static partial Regex MachineIdRegex();
 
+    /// <summary>
+    /// A /dev/serial/by-id link spells the device's full serial out - "…Loupedeck_Live_S_LS1234…".
+    /// The device checks report the port they were opened through, which can be exactly such a
+    /// link, so the link is reduced to the directory it lives in.
+    /// </summary>
+    [GeneratedRegex(@"/dev/serial/by-id/[^\s""']+")]
+    private static partial Regex SerialByIdRegex();
+
     /// <summary>Replaces user names, home paths, addresses and machine ids with placeholders.</summary>
     public static string Scrub(string text)
     {
@@ -55,6 +63,7 @@ internal static partial class DiagnosticReportSanitizer
         scrubbed = IpV4Regex().Replace(scrubbed, "<ip>");
         scrubbed = IpV6Regex().Replace(scrubbed, "<ip>");
         scrubbed = MachineIdRegex().Replace(scrubbed, "<id>");
+        scrubbed = SerialByIdRegex().Replace(scrubbed, "/dev/serial/by-id/<device>");
 
         return scrubbed;
     }
