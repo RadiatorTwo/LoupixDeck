@@ -65,6 +65,10 @@ public static class ServiceCollectionExtensions
         collection.AddSingleton<ILinuxDiagnosticCheck, UdevRuleCheck>();
         collection.AddSingleton<ILinuxDiagnosticCheck, UInputWriteAccessCheck>();
         collection.AddSingleton<ILinuxDiagnosticCheck, UInputCreateProbeCheck>();
+
+        collection.AddSingleton<ILinuxDiagnosticCheck, EventNodesPresentCheck>();
+        collection.AddSingleton<ILinuxDiagnosticCheck, EventNodeReadableCheck>();
+        collection.AddSingleton<ILinuxDiagnosticCheck, EventAccessMechanismCheck>();
     }
 
     // ───────────────────────── Root (device-agnostic) ─────────────────────────
