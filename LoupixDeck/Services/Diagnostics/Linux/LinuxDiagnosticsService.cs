@@ -77,7 +77,18 @@ public sealed class LinuxDiagnosticsService : ILinuxDiagnosticsService
         return checks;
     }
 
-    private async Task<DiagnosticRunResult> RunAsync(IReadOnlyList<ILinuxDiagnosticCheck> selection,
+    /// <summary>
+    /// Hands the run to the thread pool before anything else happens. Most checks are synchronous
+    /// and return an already-completed task, so a run started from the UI thread would execute
+    /// end to end on it - blocking the window and holding back every progress callback until the
+    /// whole run is over, which showed up as an empty progress bar and a page that was only
+    /// complete on the second run.
+    /// </summary>
+    private Task<DiagnosticRunResult> RunAsync(IReadOnlyList<ILinuxDiagnosticCheck> selection,
+        IProgress<DiagnosticCheckResult> progress, CancellationToken cancellationToken)
+        => Task.Run(() => RunCoreAsync(selection, progress, cancellationToken), CancellationToken.None);
+
+    private async Task<DiagnosticRunResult> RunCoreAsync(IReadOnlyList<ILinuxDiagnosticCheck> selection,
         IProgress<DiagnosticCheckResult> progress, CancellationToken cancellationToken)
     {
         if (!IsSupported || (selection.Count == 0))

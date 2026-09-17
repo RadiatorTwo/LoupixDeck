@@ -296,7 +296,13 @@ public sealed partial class LinuxDiagnosticsViewModel : ViewModelBase
 
         try
         {
-            Merge(await run());
+            DiagnosticRunResult result = await run();
+
+            // The run is done, but its progress callbacks may still be queued on the dispatcher.
+            // Applying the result itself is what makes the page complete on the first run rather
+            // than only on the second.
+            ApplyAll(result);
+            Merge(result);
         }
         catch (Exception ex)
         {
@@ -317,9 +323,23 @@ public sealed partial class LinuxDiagnosticsViewModel : ViewModelBase
 
     /// <summary>
     /// Progress<T> captures the UI SynchronizationContext, so its callback already runs on the
-    /// UI thread and may touch the collections directly.
+    /// UI thread and may touch the collections directly. It posts, though, so a callback can
+    /// still be queued when the run itself is already finished - which is why the finished run
+    /// is applied in full afterwards rather than trusting the callbacks to have all landed.
     /// </summary>
-    private IProgress<DiagnosticCheckResult> BuildProgress() => new Progress<DiagnosticCheckResult>(Apply);
+    private IProgress<DiagnosticCheckResult> BuildProgress() => new Progress<DiagnosticCheckResult>(Report);
+
+    /// <summary>One finished check as it arrives: place it, and count it for the progress bar.</summary>
+    private void Report(DiagnosticCheckResult result)
+    {
+        Apply(result);
+        CompletedCount++;
+
+        if (IsRunning)
+        {
+            HeaderText = Loc.Tr("Diagnostics_RunningFmt", CompletedCount, TotalCount);
+        }
+    }
 
     private void Cancel() => _run?.Cancel();
 
@@ -345,13 +365,20 @@ public sealed partial class LinuxDiagnosticsViewModel : ViewModelBase
         {
             row.Result = result;
         }
+    }
 
-        CompletedCount++;
-
-        if (IsRunning)
+    /// <summary>
+    /// Places every result of a finished run. Applying a result twice is a no-op on the row, so
+    /// this only fills in what a progress callback had not delivered yet.
+    /// </summary>
+    private void ApplyAll(DiagnosticRunResult run)
+    {
+        foreach (DiagnosticCheckResult result in run.Results)
         {
-            HeaderText = Loc.Tr("Diagnostics_RunningFmt", CompletedCount, TotalCount);
+            Apply(result);
         }
+
+        CompletedCount = run.Results.Count;
     }
 
     /// <summary>
