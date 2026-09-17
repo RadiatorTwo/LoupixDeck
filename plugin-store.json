@@ -132,6 +132,32 @@
       }
     },
     {
+      "id": "kdeplasma",
+      "name": "KDE Plasma",
+      "description": "Control KDE Plasma virtual desktops, windows, Activities, Overview, Night Color and the session.",
+      "author": "RadiatorTwo",
+      "repository": "RadiatorTwo/LoupixDeck.Plugin.KDEPlasma",
+      "icon": "",
+      "platforms": [ "Linux" ],
+      "minSdkVersion": "1.23.0",
+      "commandPrefixes": [ "KdePlasma." ],
+      "release": {
+        "version": "1.0.0",
+        "tag": "v1.0.0",
+        "publishedAt": "2026-09-17T21:29:02Z",
+        "sdkVersion": "1.23",
+        "releaseNotesUrl": "https://github.com/RadiatorTwo/LoupixDeck.Plugin.KDEPlasma/releases/tag/v1.0.0",
+        "packages": [
+          {
+            "platform": "linux",
+            "fileName": "kdeplasma-1.0.0-linux.zip",
+            "downloadUrl": "https://github.com/RadiatorTwo/LoupixDeck.Plugin.KDEPlasma/releases/download/v1.0.0/kdeplasma-1.0.0-linux.zip",
+            "sha256": "04c4661add6f30595c43885ae694d0644059076a9171dfa3d42f834df1b1a84c"
+          }
+        ]
+      }
+    },
+    {
       "id": "librehardwaremonitor",
       "name": "LibreHardwareMonitor",
       "description": "Display LibreHardwareMonitor sensor readings on touch buttons and Razer side displays via its WMI data provider.",
