@@ -37,6 +37,8 @@ public sealed partial class DiagnosticCheckRowViewModel : ViewModelBase
     [NotifyPropertyChangedFor(nameof(HasTechnicalDetail))]
     [NotifyPropertyChangedFor(nameof(HasFix))]
     [NotifyPropertyChangedFor(nameof(HasCommand))]
+    [NotifyPropertyChangedFor(nameof(SupportsKeyTest))]
+    [NotifyPropertyChangedFor(nameof(SupportsRecordingTest))]
     [NotifyCanExecuteChangedFor(nameof(CopyCommandCommand))]
     public partial DiagnosticCheckResult Result { get; set; }
 
@@ -44,6 +46,16 @@ public sealed partial class DiagnosticCheckRowViewModel : ViewModelBase
     public partial bool IsSelected { get; set; }
 
     public string Id => Result.Id;
+
+    /// <summary>
+    /// True for the injection checks: their category is the one the optional key test proves.
+    /// The test is offered on the check it belongs to rather than on the page, so nobody starts
+    /// it without having read what it does.
+    /// </summary>
+    public bool SupportsKeyTest => Category == DiagnosticCategory.InputInjection;
+
+    /// <summary>True for the recording checks, which the interactive key-press test proves.</summary>
+    public bool SupportsRecordingTest => Category == DiagnosticCategory.InputRecording;
 
     public DiagnosticCategory Category => Result.Category;
 

@@ -37,6 +37,10 @@ internal static partial class LinuxInputInterop
 
     public const int EV_KEY = 0x01;
 
+    public const ushort EV_SYN = 0x00;
+
+    public const ushort SYN_REPORT = 0x00;
+
     /// <summary>F24. Nothing binds it, so an accidental event could not trigger anything.</summary>
     public const int KEY_F24 = 194;
 
@@ -59,6 +63,9 @@ internal static partial class LinuxInputInterop
 
     [LibraryImport("libc", EntryPoint = "write", SetLastError = true)]
     public static partial nint write(int fd, ReadOnlySpan<byte> buffer, nuint count);
+
+    [LibraryImport("libc", EntryPoint = "read", SetLastError = true)]
+    public static partial nint read(int fd, Span<byte> buffer, nuint count);
 
     [LibraryImport("libc", EntryPoint = "getgroups", SetLastError = true)]
     public static partial int getgroups(int size, [Out] uint[] list);
@@ -91,6 +98,57 @@ internal static partial class LinuxInputInterop
     /// <returns>0 when the access is granted, otherwise the errno.</returns>
     public static int TryAccess(string path, int mode)
         => access(path, mode) == 0 ? 0 : Marshal.GetLastPInvokeError();
+
+    // struct input_event on 64-bit Linux: timeval (16) + type (2) + code (2) + value (4).
+    private const int InputEventSize = 24;
+
+    /// <summary>
+    /// Writes one key event plus the EV_SYN that commits it. Used by the interactive test, which
+    /// is the only place the diagnostics inject anything, and only after the user confirmed.
+    /// </summary>
+    public static bool WriteKey(int fileDescriptor, int key, bool pressed)
+        => WriteEvent(fileDescriptor, EV_KEY, (ushort)key, pressed ? 1 : 0) &&
+           WriteEvent(fileDescriptor, EV_SYN, SYN_REPORT, 0);
+
+    /// <summary>
+    /// Reads one pending key press or release from a non-blocking event node. False when nothing
+    /// is there - which is the normal case while the test waits.
+    /// </summary>
+    public static bool TryReadKeyEvent(int fileDescriptor, out ushort code, out int value)
+    {
+        code = 0;
+        value = 0;
+
+        Span<byte> buffer = stackalloc byte[InputEventSize];
+
+        while (read(fileDescriptor, buffer, InputEventSize) == InputEventSize)
+        {
+            ushort type = BinaryPrimitives.ReadUInt16LittleEndian(buffer[16..]);
+
+            if (type != EV_KEY)
+            {
+                continue;
+            }
+
+            code = BinaryPrimitives.ReadUInt16LittleEndian(buffer[18..]);
+            value = BinaryPrimitives.ReadInt32LittleEndian(buffer[20..]);
+
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool WriteEvent(int fileDescriptor, ushort type, ushort code, int value)
+    {
+        Span<byte> buffer = stackalloc byte[InputEventSize];
+        buffer.Clear();
+        BinaryPrimitives.WriteUInt16LittleEndian(buffer[16..], type);
+        BinaryPrimitives.WriteUInt16LittleEndian(buffer[18..], code);
+        BinaryPrimitives.WriteInt32LittleEndian(buffer[20..], value);
+
+        return write(fileDescriptor, buffer, InputEventSize) == InputEventSize;
+    }
 
     /// <summary>The supplementary group ids of the running process, or null when unreadable.</summary>
     public static uint[] EffectiveGroups()

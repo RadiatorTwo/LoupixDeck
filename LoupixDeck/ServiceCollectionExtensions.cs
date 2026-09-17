@@ -85,6 +85,10 @@ public static class ServiceCollectionExtensions
 
         // The decks themselves are not known until a run starts, so their checks come from a
         // source rather than from this list.
+        // The optional interactive tests. Registered next to the checks, but never run by the
+        // orchestrator: the page starts them, after the user confirmed.
+        collection.AddSingleton<IInteractiveDiagnosticTests, InteractiveDiagnosticTests>();
+
         collection.AddSingleton<ILinuxDiagnosticCheckSource, DeviceCheckSource>();
         collection.AddSingleton<ILinuxDiagnosticCheckSource, PluginStateCheckSource>();
     }

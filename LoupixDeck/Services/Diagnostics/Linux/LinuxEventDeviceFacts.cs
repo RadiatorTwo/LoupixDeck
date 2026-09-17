@@ -22,6 +22,17 @@ internal static partial class LinuxEventDeviceFacts
     private static partial Regex EventNodeRegex();
 
     /// <summary>
+    /// The keyboard nodes alone, as paths. The interactive recording test listens on all of
+    /// them at once, because which one a keypress arrives on is not knowable in advance.
+    /// </summary>
+    public static IReadOnlyList<string> KeyboardNodes()
+        => Discover()?
+               .Where(candidate => candidate.IsKeyboard)
+               .Select(candidate => candidate.Node)
+               .ToList()
+           ?? [];
+
+    /// <summary>
     /// The keyboard and pointer nodes listed in /proc/bus/input/devices, excluding LoupixDeck's
     /// own virtual devices. Returns null when the list itself cannot be read.
     /// </summary>

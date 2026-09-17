@@ -1519,10 +1519,20 @@
                                                                  Text="{Binding Result.TechnicalDetail}" />
                                         </Border>
 
-                                        <Button Margin="0,16,0,0" HorizontalAlignment="Left"
-                                                Content="{loc:Tr Diagnostics_RerunCheck}"
-                                                IsVisible="{Binding !HasFix}"
-                                                Command="{Binding $parent[Window].DataContext.Diagnostics.RerunCheckCommand}" />
+                                        <StackPanel Margin="0,16,0,0" Orientation="Horizontal" Spacing="8">
+                                            <Button Content="{loc:Tr Diagnostics_RerunCheck}"
+                                                    IsVisible="{Binding !HasFix}"
+                                                    Command="{Binding $parent[Window].DataContext.Diagnostics.RerunCheckCommand}" />
+
+                                            <!-- The optional tests: offered on the checks they
+                                                 prove, never started on their own. -->
+                                            <Button Content="{loc:Tr Diagnostics_KeyTestStart}"
+                                                    IsVisible="{Binding SupportsKeyTest}"
+                                                    Command="{Binding $parent[Window].DataContext.Diagnostics.KeyTestCommand}" />
+                                            <Button Content="{loc:Tr Diagnostics_RecordingTestStart}"
+                                                    IsVisible="{Binding SupportsRecordingTest}"
+                                                    Command="{Binding $parent[Window].DataContext.Diagnostics.RecordingTestCommand}" />
+                                        </StackPanel>
                                     </StackPanel>
                                 </ScrollViewer>
                             </Grid>

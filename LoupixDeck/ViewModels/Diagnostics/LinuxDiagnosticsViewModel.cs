@@ -22,14 +22,17 @@ public sealed partial class LinuxDiagnosticsViewModel : ViewModelBase
 {
     private readonly ILinuxDiagnosticsService _diagnostics;
     private readonly IDialogService _dialogService;
+    private readonly IInteractiveDiagnosticTests _tests;
 
     private CancellationTokenSource _run;
     private DiagnosticRunResult _lastRun;
 
-    public LinuxDiagnosticsViewModel(ILinuxDiagnosticsService diagnostics, IDialogService dialogService)
+    public LinuxDiagnosticsViewModel(ILinuxDiagnosticsService diagnostics, IDialogService dialogService,
+        IInteractiveDiagnosticTests tests)
     {
         _diagnostics = diagnostics;
         _dialogService = dialogService;
+        _tests = tests;
         Categories = [];
         Tallies = [];
     }
@@ -95,6 +98,17 @@ public sealed partial class LinuxDiagnosticsViewModel : ViewModelBase
     public IAsyncRelayCommand RerunCategoryCommand =>
         field ??= Relay.Create(RerunCategoryAsync, () => !IsRunning && (SelectedCategory != null));
 
+    /// <summary>
+    /// The optional injection test. It is the only action of the page that changes anything on
+    /// the system, so it asks first and says exactly what it will do.
+    /// </summary>
+    public IAsyncRelayCommand KeyTestCommand =>
+        field ??= Relay.Create(RunKeyTestAsync, () => !IsRunning);
+
+    /// <summary>The interactive recording test: the user presses a key, the app reports it.</summary>
+    public IAsyncRelayCommand RecordingTestCommand =>
+        field ??= Relay.Create(RunRecordingTestAsync, () => !IsRunning);
+
     public IRelayCommand<DiagnosticCategoryViewModel> SelectCategoryCommand =>
         field ??= Relay.Create<DiagnosticCategoryViewModel>(SelectCategory);
 
@@ -154,6 +168,63 @@ public sealed partial class LinuxDiagnosticsViewModel : ViewModelBase
             ? Task.CompletedTask
             : ExecuteAsync(() => _diagnostics.RunCategoryAsync(category.Category, BuildProgress(), _run.Token),
                 _diagnostics.CountFor(category.Category));
+    }
+
+    private async Task RunKeyTestAsync()
+    {
+        bool confirmed = await ConfirmAsync(Loc.Tr("Diagnostics_KeyTestConfirm"),
+            Loc.Tr("Diagnostics_KeyTestTitle"));
+
+        if (!confirmed)
+        {
+            return;
+        }
+
+        InteractiveTestResult result = await _tests.SendTestKeyAsync(CancellationToken.None);
+
+        await NotifyAsync(Loc.Tr("Diagnostics_KeyTestTitle"), result);
+        await RerunCategoryIfSelectedAsync(DiagnosticCategory.InputInjection);
+    }
+
+    private async Task RunRecordingTestAsync()
+    {
+        bool confirmed = await ConfirmAsync(Loc.Tr("Diagnostics_RecordingTestConfirm"),
+            Loc.Tr("Diagnostics_RecordingTestTitle"));
+
+        if (!confirmed)
+        {
+            return;
+        }
+
+        InteractiveTestResult result =
+            await _tests.AwaitKeyEventAsync(TimeSpan.FromSeconds(10), CancellationToken.None);
+
+        await NotifyAsync(Loc.Tr("Diagnostics_RecordingTestTitle"), result);
+        await RerunCategoryIfSelectedAsync(DiagnosticCategory.InputRecording);
+    }
+
+    /// <summary>After a test, only the category it belongs to is worth running again.</summary>
+    private Task RerunCategoryIfSelectedAsync(DiagnosticCategory category)
+        => ExecuteAsync(() => _diagnostics.RunCategoryAsync(category, BuildProgress(), _run.Token),
+            _diagnostics.CountFor(category));
+
+    private async Task<bool> ConfirmAsync(string message, string title)
+    {
+        DialogResult result = await _dialogService.ShowDialogAsync<ConfirmDialogViewModel, DialogResult>(
+            viewModel => viewModel.Configure(message, title, Loc.Tr("Diagnostics_TestStart"),
+                Loc.Tr("Confirm_No")));
+
+        return result?.IsConfirmed == true;
+    }
+
+    private Task NotifyAsync(string title, InteractiveTestResult result)
+    {
+        string message = string.IsNullOrWhiteSpace(result.Detail)
+            ? result.Message
+            : $"{result.Message}\n\n{result.Detail}";
+
+        return _dialogService.ShowDialogAsync<ConfirmDialogViewModel, DialogResult>(
+            viewModel => viewModel.Configure(message, title, Loc.Tr("Confirm_Ok"), showCancel: false));
     }
 
     private async Task ExecuteAsync(Func<Task<DiagnosticRunResult>> run, int total)
