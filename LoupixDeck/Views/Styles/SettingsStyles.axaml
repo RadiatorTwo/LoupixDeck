@@ -45,57 +45,61 @@
         <Setter Property="TextWrapping" Value="Wrap" />
     </Style>
 
-    <!-- Status pill — base shape, color via .ok / .warn / .error / .neutral -->
+    <!-- Status pill - base shape, colour via .ok / .warn / .error / .info / .neutral.
+         Same design as the diagnostics chips (DiagnosticPalette): a loud fill, a 1.5px border in
+         a darker shade of that fill so the chip keeps a hard edge on a white card and on the dark
+         surface alike, and near-black ink instead of white or a tinted label. Fixed colours, not
+         theme resources: a pass has to read as a pass in both themes. -->
     <Style Selector="Border.pill">
         <Setter Property="CornerRadius" Value="999" />
-        <Setter Property="Padding" Value="10,3" />
+        <Setter Property="Padding" Value="11,3" />
         <Setter Property="VerticalAlignment" Value="Center" />
     </Style>
     <Style Selector="Border.pill TextBlock">
         <Setter Property="FontSize" Value="11" />
-        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="FontWeight" Value="Bold" />
     </Style>
     <Style Selector="Border.pill.ok">
-        <Setter Property="Background" Value="#1F3D2A" />
-        <Setter Property="BorderBrush" Value="#2E6B45" />
-        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="Background" Value="#29D95F" />
+        <Setter Property="BorderBrush" Value="#17A845" />
+        <Setter Property="BorderThickness" Value="1.5" />
     </Style>
     <Style Selector="Border.pill.ok TextBlock">
-        <Setter Property="Foreground" Value="#7BD89E" />
+        <Setter Property="Foreground" Value="#06280F" />
     </Style>
     <Style Selector="Border.pill.error">
-        <Setter Property="Background" Value="#4A1F22" />
-        <Setter Property="BorderBrush" Value="#7A2A30" />
-        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="Background" Value="#FF5A4D" />
+        <Setter Property="BorderBrush" Value="#C62828" />
+        <Setter Property="BorderThickness" Value="1.5" />
     </Style>
     <Style Selector="Border.pill.error TextBlock">
-        <Setter Property="Foreground" Value="#F08A8A" />
+        <Setter Property="Foreground" Value="#2E0A06" />
     </Style>
     <Style Selector="Border.pill.warn">
-        <Setter Property="Background" Value="#4A3A1A" />
-        <Setter Property="BorderBrush" Value="#7A5C2A" />
-        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="Background" Value="#FFC400" />
+        <Setter Property="BorderBrush" Value="#C79400" />
+        <Setter Property="BorderThickness" Value="1.5" />
     </Style>
     <Style Selector="Border.pill.warn TextBlock">
-        <Setter Property="Foreground" Value="#F0C878" />
+        <Setter Property="Foreground" Value="#2A1D00" />
     </Style>
-    <!-- Info: news rather than a warning (an update is available). Uses the app accent so it
-         reads the same in Light and Dark. -->
+    <!-- Info: news rather than a warning (an update is available). A blue of the same strength as
+         the other three, fixed rather than the theme accent, so the set stays one design. -->
     <Style Selector="Border.pill.info">
-        <Setter Property="Background" Value="{DynamicResource AppAccentSubtle}" />
-        <Setter Property="BorderBrush" Value="{DynamicResource PageActiveBorderBrush}" />
-        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="Background" Value="#4DA3FF" />
+        <Setter Property="BorderBrush" Value="#1A6FC4" />
+        <Setter Property="BorderThickness" Value="1.5" />
     </Style>
     <Style Selector="Border.pill.info TextBlock">
-        <Setter Property="Foreground" Value="{DynamicResource AppAccentText}" />
+        <Setter Property="Foreground" Value="#04203A" />
     </Style>
     <Style Selector="Border.pill.neutral">
-        <Setter Property="Background" Value="{DynamicResource AppSurfaceAlt}" />
-        <Setter Property="BorderBrush" Value="{DynamicResource AppBorderSubtle}" />
-        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="Background" Value="#C7CDD3" />
+        <Setter Property="BorderBrush" Value="#8E979F" />
+        <Setter Property="BorderThickness" Value="1.5" />
     </Style>
     <Style Selector="Border.pill.neutral TextBlock">
-        <Setter Property="Foreground" Value="{DynamicResource AppTextSecondary}" />
+        <Setter Property="Foreground" Value="#1F2429" />
     </Style>
 
     <!-- Sidebar nav button -->
