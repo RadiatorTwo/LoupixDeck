@@ -50,6 +50,7 @@ public static class DiagnosticText
     {
         DiagnosticCategory.System => Loc.Tr("Diagnostics_CategorySystem"),
         DiagnosticCategory.Session => Loc.Tr("Diagnostics_CategorySession"),
+        DiagnosticCategory.DeviceAccess => Loc.Tr("Diagnostics_CategoryDeviceAccess"),
         DiagnosticCategory.InputInjection => Loc.Tr("Diagnostics_CategoryInputInjection"),
         DiagnosticCategory.InputRecording => Loc.Tr("Diagnostics_CategoryInputRecording"),
         _ => category.ToString()

@@ -178,6 +178,7 @@
   "Diagnostics_ArchitectureMismatchFmt": "The application runs as {0} on a {1} system, so it is running under emulation.",
   "Diagnostics_Cancel": "Cancel",
   "Diagnostics_Cancelled": "Cancelled before this check ran.",
+  "Diagnostics_CategoryDeviceAccess": "Device Access",
   "Diagnostics_CategoryInputInjection": "Input Injection",
   "Diagnostics_CategoryInputRecording": "Input Recording",
   "Diagnostics_CategorySession": "Desktop Session",

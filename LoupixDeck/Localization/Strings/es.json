@@ -178,6 +178,7 @@
   "Diagnostics_ArchitectureMismatchFmt": "La aplicación se ejecuta como {0} en un sistema {1}, es decir, bajo emulación.",
   "Diagnostics_Cancel": "Cancelar",
   "Diagnostics_Cancelled": "Cancelado antes de que se ejecutara esta comprobación.",
+  "Diagnostics_CategoryDeviceAccess": "Acceso al dispositivo",
   "Diagnostics_CategoryInputInjection": "Simulación de entrada",
   "Diagnostics_CategoryInputRecording": "Grabación de entrada",
   "Diagnostics_CategorySession": "Sesión de escritorio",

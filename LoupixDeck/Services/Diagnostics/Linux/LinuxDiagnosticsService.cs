@@ -13,6 +13,9 @@ namespace LoupixDeck.Services.Diagnostics.Linux;
 /// afterwards, so a uinput probe and an evdev sweep can never overlap. Results are returned in
 /// registration order, so the page and the report read the same way on every run.
 ///
+/// Registered checks come first, then whatever an <see cref="ILinuxDiagnosticCheckSource"/>
+/// builds for the hardware that is currently attached.
+///
 /// No check may break a run: <see cref="RunOneAsync"/> turns a throw into
 /// <see cref="DiagnosticStatus.Unknown"/> and a hang into a timeout.
 /// </summary>
@@ -21,34 +24,58 @@ public sealed class LinuxDiagnosticsService : ILinuxDiagnosticsService
     /// <summary>A single check may not occupy the run for longer than this.</summary>
     private static readonly TimeSpan CheckTimeout = TimeSpan.FromSeconds(5);
 
-    private readonly IReadOnlyList<ILinuxDiagnosticCheck> _checks;
-    private readonly IReadOnlyList<ILinuxDiagnosticCheck> _parallel;
-    private readonly IReadOnlyList<ILinuxDiagnosticCheck> _serial;
+    private readonly IReadOnlyList<ILinuxDiagnosticCheck> _static;
+    private readonly IReadOnlyList<ILinuxDiagnosticCheckSource> _sources;
 
-    public LinuxDiagnosticsService(IEnumerable<ILinuxDiagnosticCheck> checks)
+    public LinuxDiagnosticsService(IEnumerable<ILinuxDiagnosticCheck> checks,
+        IEnumerable<ILinuxDiagnosticCheckSource> sources)
     {
-        _checks = checks.ToList();
-        _parallel = _checks.Where(check => check is not IExclusiveDiagnosticCheck).ToList();
-        _serial = _checks.Where(check => check is IExclusiveDiagnosticCheck).ToList();
+        _static = checks.ToList();
+        _sources = sources.ToList();
     }
 
-    public bool IsSupported => OperatingSystem.IsLinux() && (_checks.Count > 0);
+    public bool IsSupported => OperatingSystem.IsLinux() && (_static.Count > 0);
 
-    public int CheckCount => _checks.Count;
+    public int CheckCount => Checks().Count;
 
-    public int CountFor(DiagnosticCategory category) => _checks.Count(check => check.Category == category);
+    public int CountFor(DiagnosticCategory category) => Checks().Count(check => check.Category == category);
 
     public Task<DiagnosticRunResult> RunAllAsync(IProgress<DiagnosticCheckResult> progress,
         CancellationToken cancellationToken)
-        => RunAsync(_checks, progress, cancellationToken);
+        => RunAsync(Checks(), progress, cancellationToken);
 
     public Task<DiagnosticRunResult> RunCategoryAsync(DiagnosticCategory category,
         IProgress<DiagnosticCheckResult> progress, CancellationToken cancellationToken)
-        => RunAsync(_checks.Where(check => check.Category == category).ToList(), progress, cancellationToken);
+        => RunAsync(Checks().Where(check => check.Category == category).ToList(), progress, cancellationToken);
 
     public Task<DiagnosticRunResult> RunCheckAsync(string id,
         IProgress<DiagnosticCheckResult> progress, CancellationToken cancellationToken)
-        => RunAsync(_checks.Where(check => check.Id == id).ToList(), progress, cancellationToken);
+        => RunAsync(Checks().Where(check => check.Id == id).ToList(), progress, cancellationToken);
+
+    /// <summary>
+    /// The checks of this moment: the registered ones, then whatever the sources build for the
+    /// hardware that is plugged in right now. Rebuilt per call rather than cached, so a deck
+    /// connected after the last run is diagnosed without a restart.
+    /// </summary>
+    private IReadOnlyList<ILinuxDiagnosticCheck> Checks()
+    {
+        List<ILinuxDiagnosticCheck> checks = [.. _static];
+
+        foreach (ILinuxDiagnosticCheckSource source in _sources)
+        {
+            try
+            {
+                checks.AddRange(source.CreateChecks());
+            }
+            catch (Exception)
+            {
+                // A source that cannot enumerate must not take the run down; its checks are
+                // simply absent, exactly as if no hardware were attached.
+            }
+        }
+
+        return checks;
+    }
 
     private async Task<DiagnosticRunResult> RunAsync(IReadOnlyList<ILinuxDiagnosticCheck> selection,
         IProgress<DiagnosticCheckResult> progress, CancellationToken cancellationToken)
@@ -60,8 +87,8 @@ public sealed class LinuxDiagnosticsService : ILinuxDiagnosticsService
 
         ConcurrentDictionary<string, DiagnosticCheckResult> results = new();
 
-        List<ILinuxDiagnosticCheck> parallel = selection.Where(_parallel.Contains).ToList();
-        List<ILinuxDiagnosticCheck> serial = selection.Where(_serial.Contains).ToList();
+        List<ILinuxDiagnosticCheck> parallel = selection.Where(check => check is not IExclusiveDiagnosticCheck).ToList();
+        List<ILinuxDiagnosticCheck> serial = selection.Where(check => check is IExclusiveDiagnosticCheck).ToList();
 
         await Task.WhenAll(parallel.Select(check => RunAndCollectAsync(check, results, progress, cancellationToken)));
 

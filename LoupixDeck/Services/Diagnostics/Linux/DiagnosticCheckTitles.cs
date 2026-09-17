@@ -18,12 +18,23 @@ public static class DiagnosticCheckTitles
     /// </summary>
     public static string For(string id) => Loc.Tr(KeyFor(id));
 
-    /// <summary>The localization key a check id maps to.</summary>
+    /// <summary>
+    /// The localization key a check id maps to. Everything from a ':' on is the instance suffix
+    /// of a per-device check ("device.access:2ec2-0006-LS12345"), which names the unit rather
+    /// than the check, so it is cut off before the key is built.
+    /// </summary>
     public static string KeyFor(string id)
     {
         if (string.IsNullOrEmpty(id))
         {
             return "Diagnostics_Check_Unnamed";
+        }
+
+        int suffix = id.IndexOf(':');
+
+        if (suffix >= 0)
+        {
+            id = id[..suffix];
         }
 
         StringBuilder key = new("Diagnostics_Check_");
