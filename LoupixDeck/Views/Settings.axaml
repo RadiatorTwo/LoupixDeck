@@ -1315,19 +1315,17 @@
                                         </ItemsControl.ItemsPanel>
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate x:DataType="dvm:DiagnosticTallyViewModel">
-                                                <Border CornerRadius="999" Padding="10,5"
+                                                <!-- Loud fill, a darker shade of it as the border,
+                                                     near-black ink: no dot, the count is the
+                                                     content. -->
+                                                <Border CornerRadius="999" Padding="11,5"
                                                         Margin="0,0,7,0"
                                                         Background="{Binding Fill}"
                                                         BorderBrush="{Binding Border}"
-                                                        BorderThickness="1">
-                                                    <StackPanel Orientation="Horizontal" Spacing="6">
-                                                        <Ellipse Width="6" Height="6"
-                                                                 VerticalAlignment="Center"
-                                                                 Fill="{Binding Dot}" />
-                                                        <TextBlock FontSize="11.5" FontWeight="SemiBold"
-                                                                   Foreground="{Binding Text}"
-                                                                   Text="{Binding Label}" />
-                                                    </StackPanel>
+                                                        BorderThickness="1.5">
+                                                    <TextBlock FontSize="11.5" FontWeight="Bold"
+                                                               Foreground="{Binding Text}"
+                                                               Text="{Binding Label}" />
                                                 </Border>
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>
@@ -1427,12 +1425,12 @@
                                             <TextBlock Grid.Column="0" FontSize="18" FontWeight="SemiBold"
                                                        TextWrapping="Wrap" VerticalAlignment="Center"
                                                        Text="{Binding Title}" />
-                                            <Border Grid.Column="1" CornerRadius="999" Padding="10,6"
+                                            <Border Grid.Column="1" CornerRadius="999" Padding="12,6"
                                                     VerticalAlignment="Center"
                                                     Background="{Binding BadgeFill}"
                                                     BorderBrush="{Binding BadgeBorder}"
-                                                    BorderThickness="1">
-                                                <TextBlock FontSize="10.5" FontWeight="SemiBold"
+                                                    BorderThickness="1.5">
+                                                <TextBlock FontSize="10.5" FontWeight="Bold"
                                                            Foreground="{Binding BadgeText}"
                                                            Text="{Binding StatusText}" />
                                             </Border>
