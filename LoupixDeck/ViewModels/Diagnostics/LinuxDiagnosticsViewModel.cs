@@ -3,8 +3,9 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using LoupixDeck.Localization;
 using LoupixDeck.Models;
-using LoupixDeck.PluginSdk;
 using LoupixDeck.Models.Diagnostics;
+using LoupixDeck.PluginSdk;
+using LoupixDeck.Registry;
 using LoupixDeck.Services;
 using LoupixDeck.Services.Diagnostics.Linux;
 using LoupixDeck.Utils;
@@ -25,17 +26,19 @@ public sealed partial class LinuxDiagnosticsViewModel : ViewModelBase
     private readonly IDialogService _dialogService;
     private readonly IInteractiveDiagnosticTests _tests;
     private readonly ICommandService _commands;
+    private readonly IDeviceHostRegistry _hosts;
 
     private CancellationTokenSource _run;
     private DiagnosticRunResult _lastRun;
 
     public LinuxDiagnosticsViewModel(ILinuxDiagnosticsService diagnostics, IDialogService dialogService,
-        IInteractiveDiagnosticTests tests, ICommandService commands)
+        IInteractiveDiagnosticTests tests, ICommandService commands, IDeviceHostRegistry hosts)
     {
         _diagnostics = diagnostics;
         _dialogService = dialogService;
         _tests = tests;
         _commands = commands;
+        _hosts = hosts;
         Categories = [];
         Tallies = [];
     }
@@ -53,6 +56,7 @@ public sealed partial class LinuxDiagnosticsViewModel : ViewModelBase
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasSelection))]
+    [NotifyPropertyChangedFor(nameof(CanRunDisplayTest))]
     [NotifyCanExecuteChangedFor(nameof(RerunCheckCommand))]
     public partial DiagnosticCheckRowViewModel SelectedCheck { get; set; }
 
@@ -84,6 +88,51 @@ public sealed partial class LinuxDiagnosticsViewModel : ViewModelBase
     public bool HasResults => HasRun && !IsRunning;
 
     public bool HasSelection => SelectedCheck != null;
+
+    /// <summary>
+    /// True only for the checks of the deck this settings window belongs to. The display test
+    /// runs through this device's command service, so offering it on another deck's checks - or
+    /// on the "no device found" row - would light up the wrong device, or none at all.
+    /// </summary>
+    public bool CanRunDisplayTest
+    {
+        get
+        {
+            string id = SelectedCheck?.Id;
+
+            if ((id == null) || !id.StartsWith("device.", StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            int suffix = id.IndexOf(':');
+
+            if (suffix < 0)
+            {
+                return false;
+            }
+
+            string primary = PrimaryInstanceKey();
+
+            // Without a usable serial one deck cannot be told from another, and the app runs a
+            // single one anyway. Then every device row belongs to it.
+            return (primary == null) || id[(suffix + 1)..].Equals(primary, StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
+    /// <summary>
+    /// The instance key of the primary deck, in the form the per-device checks build it, or null
+    /// when it has no serial to build one from.
+    /// </summary>
+    private string PrimaryInstanceKey()
+    {
+        ResolvedDevice device = _hosts.Primary?.Device;
+        string serial = SerialNormalizer.ForFilename(device?.Serial);
+
+        return string.IsNullOrEmpty(serial)
+            ? null
+            : $"{device.Info.VendorId.ToLowerInvariant()}-{device.Info.ProductId.ToLowerInvariant()}-{serial}";
+    }
 
     /// <summary>The checks of the selected category.</summary>
     public IReadOnlyList<DiagnosticCheckRowViewModel> VisibleChecks =>
@@ -287,12 +336,14 @@ public sealed partial class LinuxDiagnosticsViewModel : ViewModelBase
         IsRunning = true;
         CompletedCount = 0;
 
-        int count = await Task.Run(total);
+        // Created before the count, not after: counting enumerates the attached decks and takes
+        // long enough to click Cancel in, and a Cancel against a null source does nothing.
+        _run = new CancellationTokenSource();
+
+        int count = await Task.Run(total, _run.Token);
 
         TotalCount = count;
         HeaderText = Loc.Tr("Diagnostics_RunningFmt", 0, count);
-
-        _run = new CancellationTokenSource();
 
         try
         {
@@ -351,8 +402,12 @@ public sealed partial class LinuxDiagnosticsViewModel : ViewModelBase
 
         if (category == null)
         {
+            // Results arrive in completion order, so a category is inserted at its place in the
+            // enum rather than appended: the column order has to be the same on every run.
             category = new DiagnosticCategoryViewModel(result.Category);
-            Categories.Add(category);
+
+            int position = Categories.Count(entry => entry.Category < result.Category);
+            Categories.Insert(position, category);
         }
 
         DiagnosticCheckRowViewModel row = category.Checks.FirstOrDefault(entry => entry.Id == result.Id);
