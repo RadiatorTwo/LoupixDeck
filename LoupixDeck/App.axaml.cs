@@ -63,35 +63,13 @@ public partial class App : Application
             else
             {
                 // Nothing connected — fall back to the existing per-device file /
-                // legacy config.json / marker resolution; null → InitSetup.
+                // legacy config.json / marker resolution. A null resolution is no longer a
+                // question for the user: the window opens with no device and hot-plug brings
+                // one up as soon as it is attached, the same state the window already reaches
+                // when the last device is unplugged while it runs.
                 var resolved = ActiveDeviceResolver.Resolve();
-                if (resolved == null)
-                {
-                    var initWindow = new InitSetup
-                    {
-                        DataContext = new InitSetupViewModel()
-                    };
 
-                    initWindow.Closed += async (_, _) =>
-                    {
-                        if (initWindow.DataContext is InitSetupViewModel { ConnectionWorking: true } vm
-                            && vm.SelectedDevice?.Info != null)
-                        {
-                            var picked = new ResolvedDevice(vm.SelectedDevice.Info, vm.SelectedDevice.Serial);
-                            await InitializeDevices([picked], picked, vm.SelectedDevice.Path, vm.SelectedBaudRate, desktop);
-                        }
-                        else
-                        {
-                            desktop.Shutdown();
-                        }
-                    };
-
-                    initWindow.Show();
-                }
-                else
-                {
-                    await InitializeDevices([resolved], resolved, null, 0, desktop);
-                }
+                await InitializeDevices(resolved == null ? [] : [resolved], resolved, null, 0, desktop);
             }
         }
 
@@ -138,7 +116,11 @@ public partial class App : Application
                 }
             }
 
-            if (registry.Hosts.Count == 0)
+            // Devices were requested and every one of them failed to build: a config or model
+            // bug, nothing left to drive the window with. An EMPTY request is a different
+            // thing — that is the "nothing plugged in, nothing configured" start, which opens
+            // the window with no device and waits for hot-plug.
+            if ((devices.Count > 0) && (registry.Hosts.Count == 0))
             {
                 Console.WriteLine("[Init] No device could be brought up — shutting down.");
                 desktop.Shutdown();
@@ -150,10 +132,13 @@ public partial class App : Application
             router.Default = primaryProvider ?? (registry.Hosts.Count is > 0 ? registry.Hosts[0]?.Provider : null);
 
             var primaryHost = registry.Primary;
-            // The shell owns the two menu entries that reach no hardware, About and Quit, so it
-            // needs the dialog service. It comes from the primary device's container, which
-            // exists as soon as a device is configured — connected or not.
-            var shell = new MainShellViewModel(primaryHost?.Provider.GetService<IDialogService>(),
+            // The shell owns the menu entries that reach no hardware — About, the plugins
+            // window, the update dialog — so it needs the dialog service. It comes from the
+            // primary device's container, and that container may not exist yet: the app starts
+            // with no device at all when nothing is plugged in and nothing is configured. It is
+            // therefore resolved per call, so those entries start working as soon as hot-plug
+            // brings a device up.
+            var shell = new MainShellViewModel(() => registry.Primary?.Provider.GetService<IDialogService>(),
                 root.GetRequiredService<Services.Updates.IUpdateService>(),
                 root.GetRequiredService<Services.Updates.IUpdateNotifier>(),
                 root.GetRequiredService<Services.PluginStore.IPluginStoreService>());
@@ -237,7 +222,7 @@ public partial class App : Application
                 }
             }
 
-            if (broughtUp == 0)
+            if ((registry.Hosts.Count > 0) && (broughtUp == 0))
             {
                 // Every device threw a non-transport failure — a config or model bug, since a
                 // dead link no longer aborts a bring-up. Nothing left to drive the window with.

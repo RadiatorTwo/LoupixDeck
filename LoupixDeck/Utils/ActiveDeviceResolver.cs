@@ -13,7 +13,10 @@ namespace LoupixDeck.Utils;
 ///      used both when multiple supported devices are plugged in (tie-break)
 ///      and when none are plugged in (offline launch / device disconnected).
 ///   3. Single existing per-device config — if exactly one exists, use it.
-///   4. null → caller runs InitSetup so the user picks.
+///   4. Several candidates and no marker — take the first. The device switcher in the
+///      window covers a wrong guess; a modal picker at every start does not.
+///   5. null only when there is nothing at all: no device, no config. The caller then
+///      opens the window with no device and waits for hot-plug.
 ///
 /// Everything is keyed by <see cref="ResolvedDevice.ScopeKey"/> (slug + serial),
 /// so two physically identical units no longer collapse into one. The marker is
@@ -124,13 +127,20 @@ public static class ActiveDeviceResolver
                 Console.WriteLine($"[ActiveDeviceResolver] Multiple connected ({connected.Count}); marker picked {preferred.Info.Name}");
                 return preferred;
             }
-            Console.WriteLine($"[ActiveDeviceResolver] Multiple connected ({connected.Count}) and no marker match — InitSetup");
-            return null;
+            // No marker match: pick the first rather than asking. The window can switch
+            // devices, so a wrong first pick costs a click; a modal picker at every start
+            // costs one on every start.
+            Console.WriteLine($"[ActiveDeviceResolver] Multiple connected ({connected.Count}), no marker match — picking {connected[0].Info.Name}");
+            return connected[0];
         }
 
         // 0 connected. Fall back to existing configs.
         var configs = EnumerateConfigDevices();
-        if (configs.Count == 0) return null;
+        if (configs.Count == 0)
+        {
+            Console.WriteLine("[ActiveDeviceResolver] Nothing connected and no config — starting without a device.");
+            return null;
+        }
 
         // 2b. Marker wins among configs if it points to one of them.
         var byMarker = configs.FirstOrDefault(d => MarkerMatches(d, marker));
@@ -147,9 +157,9 @@ public static class ActiveDeviceResolver
             return configs[0];
         }
 
-        // 4. Multiple configs, no marker → ask the user.
-        Console.WriteLine($"[ActiveDeviceResolver] Ambiguous ({configs.Count} configs, no marker) — InitSetup");
-        return null;
+        // 4. Multiple configs, no marker → pick the first, same reasoning as 2a.
+        Console.WriteLine($"[ActiveDeviceResolver] No device connected; {configs.Count} configs, no marker — picking {configs[0].Info.Name}");
+        return configs[0];
     }
 
     private static bool MarkerMatches(ResolvedDevice d, string marker)

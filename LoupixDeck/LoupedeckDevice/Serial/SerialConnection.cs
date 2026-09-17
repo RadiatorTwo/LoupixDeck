@@ -129,6 +129,7 @@ public class SerialConnection : ISerialConnection
             }
 
             // If the handshake is successful, notify that we have connected.
+            SerialConnectionDiagnostics.RecordOpened(_portName, _baudRate);
             Connected?.Invoke(this, new ConnectionEventArgs(_portName));
 
             // Start the thread that reads incoming data and raises the MessageReceived event.
@@ -153,6 +154,10 @@ public class SerialConnection : ISerialConnection
                 _ => string.Empty
             };
             LogFailure(_portName, $"[Serial] Failed to open '{_portName}' @ {_baudRate}: {ex.Message}{hint}");
+
+            // Keep the classified cause for the diagnostics page: the log line above is for a
+            // human reading a log, this is what Device Doctor reports on.
+            SerialConnectionDiagnostics.RecordFailure(_portName, _baudRate, ex);
 
             // If something fails, close the port immediately.
             if (_serialPort != null && _serialPort.IsOpen)

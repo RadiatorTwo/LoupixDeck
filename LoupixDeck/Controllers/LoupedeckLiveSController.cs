@@ -805,7 +805,7 @@ public partial class LoupedeckLiveSController(
         // hub change). When the config knows this unit's serial, match on it first
         // so two identical devices can't steal each other's port; fall back to
         // VID/PID otherwise. Skip when the user just picked a port explicitly via
-        // InitSetup — that's an authoritative override.
+        // the resolver — that's an authoritative override.
         if (port == null && !string.IsNullOrEmpty(Config.DeviceVid) && !string.IsNullOrEmpty(Config.DevicePid))
         {
             try

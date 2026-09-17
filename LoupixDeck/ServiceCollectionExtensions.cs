@@ -6,6 +6,11 @@ using LoupixDeck.Services.ActiveWindow;
 using LoupixDeck.Services.AppLauncher;
 using LoupixDeck.Services.AppSwitching;
 using LoupixDeck.Services.Commands;
+using LoupixDeck.Services.Diagnostics.Linux;
+using LoupixDeck.Services.Diagnostics.Linux.Checks;
+using LoupixDeck.Services.Diagnostics.Linux.Checks.Devices;
+using LoupixDeck.Services.Diagnostics.Linux.Checks.Installation;
+using LoupixDeck.Services.Diagnostics.Linux.Checks.Plugins;
 using LoupixDeck.Services.DialPresets;
 using LoupixDeck.Services.FolderNavigation;
 using LoupixDeck.Services.Macros;
@@ -14,6 +19,7 @@ using LoupixDeck.Services.Plugins;
 using LoupixDeck.Services.SystemPower;
 using LoupixDeck.Utils;
 using LoupixDeck.ViewModels;
+using LoupixDeck.ViewModels.Diagnostics;
 using LoupixDeck.ViewModels.Plugins;
 using LoupixDeck.Views;
 using Microsoft.Extensions.DependencyInjection;
@@ -38,6 +44,51 @@ public static class ServiceCollectionExtensions
     private static void Forward<T>(this IServiceCollection collection, IServiceProvider root)
         where T : class
         => collection.AddSingleton(_ => root.GetRequiredService<T>());
+
+    /// <summary>
+    /// Registers the Linux Device Doctor checks (issue #258). Registration order is run order
+    /// and report order, so the page reads the same way on every run.
+    /// </summary>
+    private static void AddLinuxDiagnosticChecks(this IServiceCollection collection)
+    {
+        collection.AddSingleton<ILinuxDiagnosticCheck, DistributionCheck>();
+        collection.AddSingleton<ILinuxDiagnosticCheck, KernelCheck>();
+        collection.AddSingleton<ILinuxDiagnosticCheck, ArchitectureCheck>();
+        collection.AddSingleton<ILinuxDiagnosticCheck, InstallationModeCheck>();
+        collection.AddSingleton<ILinuxDiagnosticCheck, VersionsCheck>();
+
+        collection.AddSingleton<ILinuxDiagnosticCheck, DesktopEnvironmentCheck>();
+        collection.AddSingleton<ILinuxDiagnosticCheck, SessionTypeCheck>();
+        collection.AddSingleton<ILinuxDiagnosticCheck, XWaylandCheck>();
+        collection.AddSingleton<ILinuxDiagnosticCheck, XPropCheck>();
+        collection.AddSingleton<ILinuxDiagnosticCheck, ActiveWindowCheck>();
+        collection.AddSingleton<ILinuxDiagnosticCheck, PipeWireSocketCheck>();
+        collection.AddSingleton<ILinuxDiagnosticCheck, DBusSessionBusCheck>();
+        collection.AddSingleton<ILinuxDiagnosticCheck, DBusSystemBusCheck>();
+
+        collection.AddSingleton<ILinuxDiagnosticCheck, UInputNodeCheck>();
+        collection.AddSingleton<ILinuxDiagnosticCheck, InputGroupMembershipCheck>();
+        collection.AddSingleton<ILinuxDiagnosticCheck, UdevRuleCheck>();
+        collection.AddSingleton<ILinuxDiagnosticCheck, UInputWriteAccessCheck>();
+        collection.AddSingleton<ILinuxDiagnosticCheck, UInputCreateProbeCheck>();
+
+        collection.AddSingleton<ILinuxDiagnosticCheck, EventNodesPresentCheck>();
+        collection.AddSingleton<ILinuxDiagnosticCheck, EventNodeReadableCheck>();
+        collection.AddSingleton<ILinuxDiagnosticCheck, EventAccessMechanismCheck>();
+
+        collection.AddSingleton<ILinuxDiagnosticCheck, PluginDirectoriesCheck>();
+        collection.AddSingleton<ILinuxDiagnosticCheck, PluginManifestCheck>();
+
+        collection.AddSingleton<ILinuxDiagnosticCheck, DesktopEntryCheck>();
+        collection.AddSingleton<ILinuxDiagnosticCheck, LauncherCheck>();
+        collection.AddSingleton<ILinuxDiagnosticCheck, AutostartEntryCheck>();
+        collection.AddSingleton<ILinuxDiagnosticCheck, SteamOsPersistenceCheck>();
+
+        // The decks themselves are not known until a run starts, so their checks come from a
+        // source rather than from this list.
+        collection.AddSingleton<ILinuxDiagnosticCheckSource, DeviceCheckSource>();
+        collection.AddSingleton<ILinuxDiagnosticCheckSource, PluginStateCheckSource>();
+    }
 
     // ───────────────────────── Root (device-agnostic) ─────────────────────────
 
@@ -84,6 +135,22 @@ public static class ServiceCollectionExtensions
         collection.AddSingleton<Services.Animation.IAnimatedImageImporter, Services.Animation.AnimatedImageImporter>();
 
         collection.AddSingleton<IDBusController, DBusController>();
+
+        // Linux Device Doctor (issue #258). The session, uinput and evdev facts are the same for
+        // every deck, so one root instance is forwarded into each device provider. On Windows no
+        // check is registered and the service reports itself as unsupported.
+        collection.AddSingleton<ILinuxDiagnosticsService, LinuxDiagnosticsService>();
+
+        // The optional interactive tests. Registered on every platform, unlike the checks:
+        // LinuxDiagnosticsViewModel is built wherever the settings window opens, and a service
+        // that exists only on Linux would take the window down on Windows. On a non-Linux system
+        // no Linux category is ever shown, so no test can be started.
+        collection.AddSingleton<IInteractiveDiagnosticTests, InteractiveDiagnosticTests>();
+
+        if (OperatingSystem.IsLinux())
+        {
+            collection.AddLinuxDiagnosticChecks();
+        }
 
         // Update check against GitHub Releases (issue #233). App-wide: one check, one hint, one
         // installer run, whatever the number of devices.
@@ -192,6 +259,8 @@ public static class ServiceCollectionExtensions
         collection.Forward<IAppIconExtractor>(root);
         collection.Forward<ICustomAppStore>(root);
         collection.Forward<IDBusController>(root);
+        collection.Forward<ILinuxDiagnosticsService>(root);
+        collection.Forward<IInteractiveDiagnosticTests>(root);
         collection.Forward<Services.Updates.IUpdateService>(root);
         collection.Forward<Services.Updates.IUpdateInstaller>(root);
         collection.Forward<Services.PluginStore.IPluginStoreService>(root);
@@ -266,7 +335,7 @@ public static class ServiceCollectionExtensions
                 };
 
                 // First launch for this device — seed the serial port/baud from any
-                // existing sibling config so the user does not have to re-run InitSetup
+                // existing sibling config so the user keeps their setup
                 // just because they switched device type (the port is hardware, not
                 // device-type-specific). Crucial for the LOUPIXDECK_FAKE_DEVICE flow:
                 // without this the fresh config has no port → device times out →
@@ -468,7 +537,10 @@ public static class ServiceCollectionExtensions
         collection.AddTransient<PageCommandsSettingsViewModel>();
 
         collection.AddTransient<Settings>();
+        collection.AddTransient<LinuxDiagnosticsViewModel>();
         collection.AddTransient<SettingsViewModel>();
+        collection.AddTransient<DiagnosticReportViewModel>();
+        collection.AddTransient<DiagnosticReportDialog>();
 
         collection.AddTransient<MacroEditor>();
         collection.AddTransient<MacroEditorViewModel>();
@@ -548,6 +620,7 @@ public static class ServiceCollectionExtensions
         dialogService.Register<PageCommandsSettingsViewModel, PageCommandsSettings>();
         dialogService.Register<SettingsViewModel, Settings>();
         dialogService.Register<PluginsWindowViewModel, PluginsWindow>();
+        dialogService.Register<DiagnosticReportViewModel, DiagnosticReportDialog>();
         dialogService.Register<MacroEditorViewModel, MacroEditor>();
         dialogService.Register<DialPresetEditorViewModel, DialPresetEditor>();
         dialogService.Register<AboutViewModel, About>();

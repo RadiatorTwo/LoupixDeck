@@ -594,7 +594,7 @@ public class LoupedeckDevice
     /// OnRotate, …) remain wired up. The auto-reconnect handler is suppressed
     /// while we close, and the port is briefly opened by a probe before the
     /// real connect — that DTR pulse is what gets the device into a workable
-    /// state on the very first connection (mirrors InitSetup.TestConnection).
+    /// state on the very first connection.
     /// </summary>
     public void Reconnect()
     {

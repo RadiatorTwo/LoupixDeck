@@ -17,6 +17,7 @@ using LoupixDeck.Services.Portable;
 using LoupixDeck.Services.Updates;
 using LoupixDeck.Utils;
 using LoupixDeck.ViewModels.Base;
+using LoupixDeck.ViewModels.Diagnostics;
 using SkiaSharp;
 
 namespace LoupixDeck.ViewModels;
@@ -103,6 +104,12 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
 
     public bool IsWindows => OperatingSystem.IsWindows();
 
+    /// <summary>Gates the Linux-only Device Doctor page (issue #258).</summary>
+    public bool IsLinux => OperatingSystem.IsLinux();
+
+    /// <summary>Owns the Device Doctor run state; kept out of this class, which is large enough.</summary>
+    public LinuxDiagnosticsViewModel Diagnostics { get; }
+
     /// <summary>Windows "run at startup" toggle. Backed directly by the HKCU Run entry
     /// (the same one the installer manages), so it needs no config field.</summary>
     public bool StartWithWindows
@@ -133,9 +140,11 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
         IUpdateService updateService,
         ICompanionCoordinator companions,
         ICompanionContextSync contextSync,
-        ResolvedDevice device)
+        ResolvedDevice device,
+        LinuxDiagnosticsViewModel diagnostics)
     {
         _companions = companions;
+        Diagnostics = diagnostics;
         _contextSync = contextSync;
         _device = device;
         Config = config;

@@ -11,5 +11,6 @@ public enum SettingsView
     Theme,
     About,
     AppSwitching,
-    Companions
+    Companions,
+    Diagnostics
 }
