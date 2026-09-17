@@ -85,10 +85,6 @@ public static class ServiceCollectionExtensions
 
         // The decks themselves are not known until a run starts, so their checks come from a
         // source rather than from this list.
-        // The optional interactive tests. Registered next to the checks, but never run by the
-        // orchestrator: the page starts them, after the user confirmed.
-        collection.AddSingleton<IInteractiveDiagnosticTests, InteractiveDiagnosticTests>();
-
         collection.AddSingleton<ILinuxDiagnosticCheckSource, DeviceCheckSource>();
         collection.AddSingleton<ILinuxDiagnosticCheckSource, PluginStateCheckSource>();
     }
@@ -143,6 +139,13 @@ public static class ServiceCollectionExtensions
         // every deck, so one root instance is forwarded into each device provider. On Windows no
         // check is registered and the service reports itself as unsupported.
         collection.AddSingleton<ILinuxDiagnosticsService, LinuxDiagnosticsService>();
+
+        // The optional interactive tests. Registered on every platform, unlike the checks:
+        // LinuxDiagnosticsViewModel is built wherever the settings window opens, and a service
+        // that exists only on Linux would take the window down on Windows. On a non-Linux system
+        // no Linux category is ever shown, so no test can be started.
+        collection.AddSingleton<IInteractiveDiagnosticTests, InteractiveDiagnosticTests>();
+
         if (OperatingSystem.IsLinux())
         {
             collection.AddLinuxDiagnosticChecks();
@@ -256,6 +259,7 @@ public static class ServiceCollectionExtensions
         collection.Forward<ICustomAppStore>(root);
         collection.Forward<IDBusController>(root);
         collection.Forward<ILinuxDiagnosticsService>(root);
+        collection.Forward<IInteractiveDiagnosticTests>(root);
         collection.Forward<Services.Updates.IUpdateService>(root);
         collection.Forward<Services.Updates.IUpdateInstaller>(root);
         collection.Forward<Services.PluginStore.IPluginStoreService>(root);
