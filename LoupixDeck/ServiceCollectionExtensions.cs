@@ -7,6 +7,7 @@ using LoupixDeck.Services.AppLauncher;
 using LoupixDeck.Services.AppSwitching;
 using LoupixDeck.Services.Commands;
 using LoupixDeck.Services.Diagnostics.Linux;
+using LoupixDeck.Services.Diagnostics.Linux.Checks;
 using LoupixDeck.Services.DialPresets;
 using LoupixDeck.Services.FolderNavigation;
 using LoupixDeck.Services.Macros;
@@ -46,6 +47,18 @@ public static class ServiceCollectionExtensions
     /// </summary>
     private static void AddLinuxDiagnosticChecks(this IServiceCollection collection)
     {
+        collection.AddSingleton<ILinuxDiagnosticCheck, DistributionCheck>();
+        collection.AddSingleton<ILinuxDiagnosticCheck, KernelCheck>();
+        collection.AddSingleton<ILinuxDiagnosticCheck, ArchitectureCheck>();
+        collection.AddSingleton<ILinuxDiagnosticCheck, InstallationModeCheck>();
+        collection.AddSingleton<ILinuxDiagnosticCheck, VersionsCheck>();
+
+        collection.AddSingleton<ILinuxDiagnosticCheck, DesktopEnvironmentCheck>();
+        collection.AddSingleton<ILinuxDiagnosticCheck, SessionTypeCheck>();
+        collection.AddSingleton<ILinuxDiagnosticCheck, XWaylandCheck>();
+        collection.AddSingleton<ILinuxDiagnosticCheck, PipeWireSocketCheck>();
+        collection.AddSingleton<ILinuxDiagnosticCheck, DBusSessionBusCheck>();
+        collection.AddSingleton<ILinuxDiagnosticCheck, DBusSystemBusCheck>();
     }
 
     // ───────────────────────── Root (device-agnostic) ─────────────────────────
