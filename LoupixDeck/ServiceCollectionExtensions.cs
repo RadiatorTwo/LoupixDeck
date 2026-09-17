@@ -8,6 +8,7 @@ using LoupixDeck.Services.AppSwitching;
 using LoupixDeck.Services.Commands;
 using LoupixDeck.Services.Diagnostics.Linux;
 using LoupixDeck.Services.Diagnostics.Linux.Checks;
+using LoupixDeck.Services.Diagnostics.Linux.Checks.Devices;
 using LoupixDeck.Services.DialPresets;
 using LoupixDeck.Services.FolderNavigation;
 using LoupixDeck.Services.Macros;
@@ -70,6 +71,10 @@ public static class ServiceCollectionExtensions
         collection.AddSingleton<ILinuxDiagnosticCheck, EventNodesPresentCheck>();
         collection.AddSingleton<ILinuxDiagnosticCheck, EventNodeReadableCheck>();
         collection.AddSingleton<ILinuxDiagnosticCheck, EventAccessMechanismCheck>();
+
+        // The decks themselves are not known until a run starts, so their checks come from a
+        // source rather than from this list.
+        collection.AddSingleton<ILinuxDiagnosticCheckSource, DeviceCheckSource>();
     }
 
     // ───────────────────────── Root (device-agnostic) ─────────────────────────

@@ -21,6 +21,11 @@ internal static partial class LinuxInputInterop
     public const int O_WRONLY = 0x0001;
     public const int O_NONBLOCK = 0x0800;
 
+    /// <summary>access(2) modes. Used to test a device node without opening it.</summary>
+    public const int R_OK = 4;
+
+    public const int W_OK = 2;
+
     public const int EPERM = 1;
     public const int ENOENT = 2;
     public const int EACCES = 13;
@@ -42,6 +47,9 @@ internal static partial class LinuxInputInterop
 
     [LibraryImport("libc", EntryPoint = "open", SetLastError = true, StringMarshalling = StringMarshalling.Utf8)]
     public static partial int open(string pathname, int flags);
+
+    [LibraryImport("libc", EntryPoint = "access", SetLastError = true, StringMarshalling = StringMarshalling.Utf8)]
+    public static partial int access(string pathname, int mode);
 
     [LibraryImport("libc", EntryPoint = "close", SetLastError = true)]
     public static partial int close(int fd);
@@ -74,6 +82,15 @@ internal static partial class LinuxInputInterop
         close(fileDescriptor);
         return 0;
     }
+
+    /// <summary>
+    /// Tests a path with access(2). Unlike <see cref="TryOpenAndClose"/> this never opens the
+    /// node, which is what the device checks need: a deck's serial port may be held by the app
+    /// itself, and opening it a second time has to stay out of the question.
+    /// </summary>
+    /// <returns>0 when the access is granted, otherwise the errno.</returns>
+    public static int TryAccess(string path, int mode)
+        => access(path, mode) == 0 ? 0 : Marshal.GetLastPInvokeError();
 
     /// <summary>The supplementary group ids of the running process, or null when unreadable.</summary>
     public static uint[] EffectiveGroups()
