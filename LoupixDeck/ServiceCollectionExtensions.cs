@@ -59,6 +59,12 @@ public static class ServiceCollectionExtensions
         collection.AddSingleton<ILinuxDiagnosticCheck, PipeWireSocketCheck>();
         collection.AddSingleton<ILinuxDiagnosticCheck, DBusSessionBusCheck>();
         collection.AddSingleton<ILinuxDiagnosticCheck, DBusSystemBusCheck>();
+
+        collection.AddSingleton<ILinuxDiagnosticCheck, UInputNodeCheck>();
+        collection.AddSingleton<ILinuxDiagnosticCheck, InputGroupMembershipCheck>();
+        collection.AddSingleton<ILinuxDiagnosticCheck, UdevRuleCheck>();
+        collection.AddSingleton<ILinuxDiagnosticCheck, UInputWriteAccessCheck>();
+        collection.AddSingleton<ILinuxDiagnosticCheck, UInputCreateProbeCheck>();
     }
 
     // ───────────────────────── Root (device-agnostic) ─────────────────────────
