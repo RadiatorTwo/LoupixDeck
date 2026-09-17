@@ -12,6 +12,18 @@ namespace LoupixDeck.Services.Diagnostics.Linux.Checks.Devices;
 /// </summary>
 public sealed class DeviceCheckSource(IDeviceHostRegistry hosts) : ILinuxDiagnosticCheckSource
 {
+    /// <summary>
+    /// How long an enumeration is reused. Enumerating runs udevadm once per serial node, and a
+    /// single run asks for the checks twice - once to count them, once to run them. Anything
+    /// longer would start hiding a deck that was just plugged in.
+    /// </summary>
+    private static readonly TimeSpan EnumerationFreshness = TimeSpan.FromSeconds(3);
+
+    private readonly Lock _gate = new();
+
+    private IReadOnlyList<LinuxDeckDevice> _cached;
+    private DateTime _cachedAt;
+
     public IReadOnlyList<ILinuxDiagnosticCheck> CreateChecks()
     {
         if (!OperatingSystem.IsLinux())
@@ -19,7 +31,7 @@ public sealed class DeviceCheckSource(IDeviceHostRegistry hosts) : ILinuxDiagnos
             return [];
         }
 
-        IReadOnlyList<LinuxDeckDevice> decks = LinuxDeckDeviceFacts.Enumerate();
+        IReadOnlyList<LinuxDeckDevice> decks = Enumerate();
 
         if (decks.Count == 0)
         {
@@ -39,6 +51,22 @@ public sealed class DeviceCheckSource(IDeviceHostRegistry hosts) : ILinuxDiagnos
         }
 
         return checks;
+    }
+
+    private IReadOnlyList<LinuxDeckDevice> Enumerate()
+    {
+        lock (_gate)
+        {
+            if ((_cached != null) && (DateTime.UtcNow - _cachedAt < EnumerationFreshness))
+            {
+                return _cached;
+            }
+
+            _cached = LinuxDeckDeviceFacts.Enumerate();
+            _cachedAt = DateTime.UtcNow;
+
+            return _cached;
+        }
     }
 }
 
