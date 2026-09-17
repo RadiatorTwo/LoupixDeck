@@ -1280,9 +1280,9 @@
                     <TextBlock Classes="hint" TextWrapping="Wrap" Margin="0,0,0,12"
                                Text="{loc:Tr Diagnostics_Intro}" />
 
-                    <Border Background="{DynamicResource AppSurfaceLow}"
-                            BorderBrush="{DynamicResource AppBorderSubtle}"
-                            BorderThickness="1" CornerRadius="10" ClipToBounds="True">
+                    <!-- Same Border.card as every other settings card, only without its 16px
+                         padding: the header and the three columns bring their own. -->
+                    <Border Classes="card" Padding="0" ClipToBounds="True">
                         <Grid RowDefinitions="Auto,*">
 
                             <!-- Header: counters and the two actions -->
