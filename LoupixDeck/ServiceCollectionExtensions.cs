@@ -511,6 +511,8 @@ public static class ServiceCollectionExtensions
 
         collection.AddTransient<Settings>();
         collection.AddTransient<SettingsViewModel>();
+        collection.AddTransient<DiagnosticReportViewModel>();
+        collection.AddTransient<DiagnosticReportDialog>();
 
         collection.AddTransient<MacroEditor>();
         collection.AddTransient<MacroEditorViewModel>();
@@ -590,6 +592,7 @@ public static class ServiceCollectionExtensions
         dialogService.Register<PageCommandsSettingsViewModel, PageCommandsSettings>();
         dialogService.Register<SettingsViewModel, Settings>();
         dialogService.Register<PluginsWindowViewModel, PluginsWindow>();
+        dialogService.Register<DiagnosticReportViewModel, DiagnosticReportDialog>();
         dialogService.Register<MacroEditorViewModel, MacroEditor>();
         dialogService.Register<DialPresetEditorViewModel, DialPresetEditor>();
         dialogService.Register<AboutViewModel, About>();
