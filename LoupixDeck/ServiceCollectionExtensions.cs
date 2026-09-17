@@ -9,6 +9,7 @@ using LoupixDeck.Services.Commands;
 using LoupixDeck.Services.Diagnostics.Linux;
 using LoupixDeck.Services.Diagnostics.Linux.Checks;
 using LoupixDeck.Services.Diagnostics.Linux.Checks.Devices;
+using LoupixDeck.Services.Diagnostics.Linux.Checks.Plugins;
 using LoupixDeck.Services.DialPresets;
 using LoupixDeck.Services.FolderNavigation;
 using LoupixDeck.Services.Macros;
@@ -58,6 +59,8 @@ public static class ServiceCollectionExtensions
         collection.AddSingleton<ILinuxDiagnosticCheck, DesktopEnvironmentCheck>();
         collection.AddSingleton<ILinuxDiagnosticCheck, SessionTypeCheck>();
         collection.AddSingleton<ILinuxDiagnosticCheck, XWaylandCheck>();
+        collection.AddSingleton<ILinuxDiagnosticCheck, XPropCheck>();
+        collection.AddSingleton<ILinuxDiagnosticCheck, ActiveWindowCheck>();
         collection.AddSingleton<ILinuxDiagnosticCheck, PipeWireSocketCheck>();
         collection.AddSingleton<ILinuxDiagnosticCheck, DBusSessionBusCheck>();
         collection.AddSingleton<ILinuxDiagnosticCheck, DBusSystemBusCheck>();
@@ -72,9 +75,12 @@ public static class ServiceCollectionExtensions
         collection.AddSingleton<ILinuxDiagnosticCheck, EventNodeReadableCheck>();
         collection.AddSingleton<ILinuxDiagnosticCheck, EventAccessMechanismCheck>();
 
+        collection.AddSingleton<ILinuxDiagnosticCheck, PluginDirectoriesCheck>();
+
         // The decks themselves are not known until a run starts, so their checks come from a
         // source rather than from this list.
         collection.AddSingleton<ILinuxDiagnosticCheckSource, DeviceCheckSource>();
+        collection.AddSingleton<ILinuxDiagnosticCheckSource, PluginStateCheckSource>();
     }
 
     // ───────────────────────── Root (device-agnostic) ─────────────────────────

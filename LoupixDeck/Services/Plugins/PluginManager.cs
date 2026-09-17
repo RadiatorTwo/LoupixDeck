@@ -114,8 +114,12 @@ public class PluginManager : IPluginManager
         _plugins = next; // atomic reference swap
     }
 
-    /// <summary>The bundled root next to the executable, and the user plugins root.</summary>
-    private static (string Bundled, string User) GetPluginRoots() =>
+    /// <summary>
+    /// The bundled root next to the executable, and the user plugins root. Public because the
+    /// Linux diagnostics report on both roots and must look at the same two paths the loader
+    /// uses, not at a second copy of the rule (issue #258).
+    /// </summary>
+    public static (string Bundled, string User) GetPluginRoots() =>
         (Path.Combine(AppContext.BaseDirectory, "plugins"),
             Path.Combine(Utils.FileDialogHelper.GetConfigDir(), "plugins"));
 
