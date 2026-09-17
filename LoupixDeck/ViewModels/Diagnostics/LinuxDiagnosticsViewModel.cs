@@ -12,12 +12,11 @@ using LoupixDeck.ViewModels.Base;
 namespace LoupixDeck.ViewModels.Diagnostics;
 
 /// <summary>
-/// Drives the Linux Diagnostics page: starts a run, shows results as they arrive, and opens the
-/// report preview.
+/// Drives the Linux Diagnostics page: category column, check column, detail pane.
 ///
 /// Nothing runs on its own. The page opens empty with a Run button, because one check creates
-/// and destroys a virtual input device, and the issue is explicit that Device Doctor changes
-/// nothing without an explicit action.
+/// and destroys a virtual input device and Device Doctor must change nothing without an
+/// explicit action.
 /// </summary>
 public sealed partial class LinuxDiagnosticsViewModel : ViewModelBase
 {
@@ -32,15 +31,28 @@ public sealed partial class LinuxDiagnosticsViewModel : ViewModelBase
         _diagnostics = diagnostics;
         _dialogService = dialogService;
         Categories = [];
+        Tallies = [];
     }
 
-    /// <summary>The categories, in the order their first check is registered.</summary>
+    /// <summary>The category column, in the order the checks are registered.</summary>
     public ObservableCollection<DiagnosticCategoryViewModel> Categories { get; }
+
+    /// <summary>The counter pills in the header.</summary>
+    public ObservableCollection<DiagnosticTallyViewModel> Tallies { get; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(VisibleChecks))]
+    public partial DiagnosticCategoryViewModel SelectedCategory { get; set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasSelection))]
+    public partial DiagnosticCheckRowViewModel SelectedCheck { get; set; }
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(RunCommand))]
     [NotifyCanExecuteChangedFor(nameof(CancelCommand))]
     [NotifyCanExecuteChangedFor(nameof(ShowReportCommand))]
+    [NotifyCanExecuteChangedFor(nameof(RerunCheckCommand))]
     [NotifyPropertyChangedFor(nameof(HasResults))]
     public partial bool IsRunning { get; set; }
 
@@ -55,23 +67,18 @@ public sealed partial class LinuxDiagnosticsViewModel : ViewModelBase
     [ObservableProperty]
     public partial int TotalCount { get; set; }
 
+    /// <summary>The line under the page title: how many checks, and when they last ran.</summary>
     [ObservableProperty]
-    public partial string SummaryText { get; set; } = string.Empty;
-
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsOverallOk))]
-    [NotifyPropertyChangedFor(nameof(IsOverallWarning))]
-    [NotifyPropertyChangedFor(nameof(IsOverallFailed))]
-    public partial DiagnosticStatus OverallStatus { get; set; } = DiagnosticStatus.Unknown;
+    public partial string HeaderText { get; set; } = string.Empty;
 
     /// <summary>True once a finished run is available to report on.</summary>
     public bool HasResults => HasRun && !IsRunning;
 
-    public bool IsOverallOk => HasResults && (OverallStatus == DiagnosticStatus.Pass);
+    public bool HasSelection => SelectedCheck != null;
 
-    public bool IsOverallWarning => HasResults && (OverallStatus == DiagnosticStatus.Warning);
-
-    public bool IsOverallFailed => HasResults && (OverallStatus == DiagnosticStatus.Fail);
+    /// <summary>The checks of the selected category.</summary>
+    public IReadOnlyList<DiagnosticCheckRowViewModel> VisibleChecks =>
+        SelectedCategory?.Checks ?? (IReadOnlyList<DiagnosticCheckRowViewModel>)[];
 
     public IAsyncRelayCommand RunCommand => field ??= Relay.Create(RunAllAsync, () => !IsRunning);
 
@@ -79,15 +86,57 @@ public sealed partial class LinuxDiagnosticsViewModel : ViewModelBase
 
     public IAsyncRelayCommand ShowReportCommand => field ??= Relay.Create(ShowReportAsync, () => HasResults);
 
-    public IAsyncRelayCommand<DiagnosticCategoryViewModel> RunCategoryCommand =>
-        field ??= Relay.Create<DiagnosticCategoryViewModel>(RunCategoryAsync, category => (category != null) && !IsRunning);
+    public IAsyncRelayCommand RerunCheckCommand =>
+        field ??= Relay.Create(RerunCheckAsync, () => !IsRunning && (SelectedCheck != null));
 
-    private Task RunAllAsync() => ExecuteAsync(null);
+    public IRelayCommand<DiagnosticCategoryViewModel> SelectCategoryCommand =>
+        field ??= Relay.Create<DiagnosticCategoryViewModel>(SelectCategory);
 
-    private Task RunCategoryAsync(DiagnosticCategoryViewModel category)
-        => category == null ? Task.CompletedTask : ExecuteAsync(category.Category);
+    public IRelayCommand<DiagnosticCheckRowViewModel> SelectCheckCommand =>
+        field ??= Relay.Create<DiagnosticCheckRowViewModel>(SelectCheck);
 
-    private async Task ExecuteAsync(DiagnosticCategory? category)
+    private void SelectCategory(DiagnosticCategoryViewModel category)
+    {
+        if (category == null)
+        {
+            return;
+        }
+
+        foreach (DiagnosticCategoryViewModel entry in Categories)
+        {
+            entry.IsSelected = entry == category;
+        }
+
+        SelectedCategory = category;
+        OnPropertyChanged(nameof(VisibleChecks));
+
+        // Open on the worst check of the category, which is the first one after sorting.
+        SelectCheck(category.FirstWorst());
+    }
+
+    private void SelectCheck(DiagnosticCheckRowViewModel check)
+    {
+        foreach (DiagnosticCheckRowViewModel row in Categories.SelectMany(category => category.Checks))
+        {
+            row.IsSelected = row == check;
+        }
+
+        SelectedCheck = check;
+    }
+
+    private Task RunAllAsync() => ExecuteAsync(() => _diagnostics.RunAllAsync(BuildProgress(), _run.Token),
+        _diagnostics.CheckCount);
+
+    private Task RerunCheckAsync()
+    {
+        string id = SelectedCheck?.Id;
+
+        return string.IsNullOrEmpty(id)
+            ? Task.CompletedTask
+            : ExecuteAsync(() => _diagnostics.RunCheckAsync(id, BuildProgress(), _run.Token), 1);
+    }
+
+    private async Task ExecuteAsync(Func<Task<DiagnosticRunResult>> run, int total)
     {
         if (IsRunning)
         {
@@ -96,22 +145,14 @@ public sealed partial class LinuxDiagnosticsViewModel : ViewModelBase
 
         IsRunning = true;
         CompletedCount = 0;
-        TotalCount = category == null ? _diagnostics.CheckCount : _diagnostics.CountFor(category.Value);
-        SummaryText = Loc.Tr("Diagnostics_RunningFmt", 0, TotalCount);
+        TotalCount = total;
+        HeaderText = Loc.Tr("Diagnostics_RunningFmt", 0, total);
 
         _run = new CancellationTokenSource();
 
         try
         {
-            // Progress<T> captures the UI SynchronizationContext, so the callback already runs
-            // on the UI thread and the collections can be touched directly.
-            Progress<DiagnosticCheckResult> progress = new(Apply);
-
-            DiagnosticRunResult run = category == null
-                ? await _diagnostics.RunAllAsync(progress, _run.Token)
-                : await _diagnostics.RunCategoryAsync(category.Value, progress, _run.Token);
-
-            Merge(run);
+            Merge(await run());
         }
         catch (Exception ex)
         {
@@ -123,16 +164,26 @@ public sealed partial class LinuxDiagnosticsViewModel : ViewModelBase
             _run = null;
             IsRunning = false;
             HasRun = true;
-            RefreshSummary();
+
+            // After IsRunning, so a progress callback that lands late cannot overwrite the
+            // finished header with "running check N of M".
+            Refresh();
         }
     }
+
+    /// <summary>
+    /// Progress<T> captures the UI SynchronizationContext, so its callback already runs on the
+    /// UI thread and may touch the collections directly.
+    /// </summary>
+    private IProgress<DiagnosticCheckResult> BuildProgress() => new Progress<DiagnosticCheckResult>(Apply);
 
     private void Cancel() => _run?.Cancel();
 
     /// <summary>Places one finished result in its category, replacing an earlier run's row.</summary>
     private void Apply(DiagnosticCheckResult result)
     {
-        DiagnosticCategoryViewModel category = Categories.FirstOrDefault(entry => entry.Category == result.Category);
+        DiagnosticCategoryViewModel category =
+            Categories.FirstOrDefault(entry => entry.Category == result.Category);
 
         if (category == null)
         {
@@ -152,12 +203,16 @@ public sealed partial class LinuxDiagnosticsViewModel : ViewModelBase
         }
 
         CompletedCount++;
-        SummaryText = Loc.Tr("Diagnostics_RunningFmt", CompletedCount, TotalCount);
+
+        if (IsRunning)
+        {
+            HeaderText = Loc.Tr("Diagnostics_RunningFmt", CompletedCount, TotalCount);
+        }
     }
 
     /// <summary>
-    /// Keeps the results of a category run merged into whatever the last full run produced, so
-    /// re-running one category does not empty the other three.
+    /// Keeps the results of a partial run merged into whatever the last full run produced, so
+    /// re-running one check does not empty the rest of the page.
     /// </summary>
     private void Merge(DiagnosticRunResult run)
     {
@@ -186,28 +241,42 @@ public sealed partial class LinuxDiagnosticsViewModel : ViewModelBase
         _lastRun = new DiagnosticRunResult(run.CompletedAt, run.WasCancelled, merged);
     }
 
-    private void RefreshSummary()
+    private void Refresh()
     {
         foreach (DiagnosticCategoryViewModel category in Categories)
         {
-            category.RefreshCounts();
+            category.Refresh();
         }
 
-        IReadOnlyList<DiagnosticCheckRowViewModel> rows =
-            Categories.SelectMany(category => category.Checks).ToList();
+        IReadOnlyList<DiagnosticCheckResult> results = Categories
+            .SelectMany(category => category.Checks)
+            .Select(row => row.Result)
+            .ToList();
 
-        int problems = rows.Count(row => row.IsFail || row.IsWarning ||
-                                         (row.Result.Status == DiagnosticStatus.Unknown));
+        Tallies.Clear();
 
-        OverallStatus = rows.Any(row => row.IsFail)
-            ? DiagnosticStatus.Fail
-            : problems > 0
-                ? DiagnosticStatus.Warning
-                : DiagnosticStatus.Pass;
+        foreach (DiagnosticTallyViewModel tally in DiagnosticTallyViewModel.For(results))
+        {
+            Tallies.Add(tally);
+        }
 
-        SummaryText = problems == 0
-            ? Loc.Tr("Diagnostics_SummaryAllGood")
-            : Loc.Tr("Diagnostics_SummaryProblemsFmt", problems);
+        HeaderText = Loc.Tr("Diagnostics_HeaderFmt", results.Count,
+            (_lastRun?.CompletedAt ?? DateTimeOffset.Now).ToLocalTime().ToString("HH:mm"));
+
+        // Keep the selection, and open on the worst check the first time round.
+        if (SelectedCategory == null)
+        {
+            SelectCategory(Categories.OrderBy(category => DiagnosticText.Rank(category.Status)).FirstOrDefault());
+        }
+        else if (SelectedCheck == null)
+        {
+            SelectCheck(SelectedCategory.FirstWorst());
+        }
+        else
+        {
+            // The row object survives a re-run, but its position and content changed.
+            OnPropertyChanged(nameof(VisibleChecks));
+        }
     }
 
     private async Task ShowReportAsync()

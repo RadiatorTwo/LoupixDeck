@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using Avalonia.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 using LoupixDeck.Localization;
 using LoupixDeck.Models.Diagnostics;
@@ -7,10 +8,7 @@ using LoupixDeck.ViewModels.Base;
 
 namespace LoupixDeck.ViewModels.Diagnostics;
 
-/// <summary>
-/// One expandable group of checks. It starts expanded only when it has something to say, so a
-/// healthy system shows four collapsed rows rather than a wall of green.
-/// </summary>
+/// <summary>One entry of the category column: a dot, the name, and how it went.</summary>
 public sealed partial class DiagnosticCategoryViewModel : ViewModelBase
 {
     public DiagnosticCategoryViewModel(DiagnosticCategory category)
@@ -23,31 +21,55 @@ public sealed partial class DiagnosticCategoryViewModel : ViewModelBase
 
     public string Title => DiagnosticText.CategoryTitle(Category);
 
-    /// <summary>The recording category carries the playback-is-not-recording hint.</summary>
-    public bool ShowRecordingHint => Category == DiagnosticCategory.InputRecording;
-
+    /// <summary>The checks of this category, worst first.</summary>
     public ObservableCollection<DiagnosticCheckRowViewModel> Checks { get; }
 
     [ObservableProperty]
-    public partial bool IsExpanded { get; set; }
+    public partial bool IsSelected { get; set; }
 
     [ObservableProperty]
-    public partial string CountsText { get; set; } = string.Empty;
+    [NotifyPropertyChangedFor(nameof(StatusBrush))]
+    public partial DiagnosticStatus Status { get; set; } = DiagnosticStatus.Pass;
 
+    /// <summary>The short right-hand note: what is wrong, or how many passed.</summary>
     [ObservableProperty]
-    public partial bool HasProblems { get; set; }
+    public partial string MetaText { get; set; } = string.Empty;
 
-    /// <summary>Recomputes the header line from the rows currently in the group.</summary>
-    public void RefreshCounts()
+    public IBrush StatusBrush => DiagnosticPalette.Dot(Status);
+
+    /// <summary>Re-sorts the checks and recomputes the dot and the note.</summary>
+    public void Refresh()
     {
-        int passed = Checks.Count(row => row.IsPass);
-        int warnings = Checks.Count(row => row.IsWarning);
-        int failed = Checks.Count(row => row.IsFail);
-        int unknown = Checks.Count(row => row.Result.Status == DiagnosticStatus.Unknown);
-        int skipped = Checks.Count(row => row.Result.Status == DiagnosticStatus.Skipped);
+        List<DiagnosticCheckRowViewModel> ordered = Checks
+            .OrderBy(row => row.Rank)
+            .ThenBy(row => row.Title, StringComparer.CurrentCulture)
+            .ToList();
 
-        CountsText = Loc.Tr("Diagnostics_CountsFmt", passed, warnings, failed, unknown, skipped);
-        HasProblems = (warnings + failed + unknown) > 0;
-        IsExpanded = HasProblems;
+        for (int index = 0; index < ordered.Count; index++)
+        {
+            int current = Checks.IndexOf(ordered[index]);
+
+            if (current != index)
+            {
+                Checks.Move(current, index);
+            }
+        }
+
+        Status = DiagnosticText.Worst(Checks.Select(row => row.Result.Status));
+
+        int failed = Checks.Count(row => row.Result.Status == DiagnosticStatus.Fail);
+        int warnings = Checks.Count(row => row.Result.Status == DiagnosticStatus.Warning);
+        int unknown = Checks.Count(row => row.Result.Status == DiagnosticStatus.Unknown);
+
+        MetaText = failed > 0
+            ? Loc.Tr("Diagnostics_MetaFailedFmt", failed)
+            : warnings > 0
+                ? Loc.Tr("Diagnostics_MetaWarningsFmt", warnings)
+                : unknown > 0
+                    ? Loc.Tr("Diagnostics_MetaUnknownFmt", unknown)
+                    : Loc.Tr("Diagnostics_MetaOkFmt", Checks.Count);
     }
+
+    /// <summary>The check this category should open on: the worst one.</summary>
+    public DiagnosticCheckRowViewModel FirstWorst() => Checks.FirstOrDefault();
 }

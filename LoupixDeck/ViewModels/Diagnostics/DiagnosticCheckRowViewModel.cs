@@ -1,3 +1,4 @@
+using Avalonia.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using LoupixDeck.Localization;
@@ -8,9 +9,13 @@ using LoupixDeck.ViewModels.Base;
 
 namespace LoupixDeck.ViewModels.Diagnostics;
 
+/// <summary>One key/value line of the detail pane.</summary>
+/// <param name="Key">Localized label, shown upper-case.</param>
+/// <param name="Value">The value, shown monospaced.</param>
+public sealed record DiagnosticFact(string Key, string Value);
+
 /// <summary>
-/// One check in the diagnostics list. The status is flattened into booleans so the pill and the
-/// detail blocks bind straight to IsVisible, which is how the plugin rows do it too.
+/// One check: a row in the middle column and, when selected, the content of the detail pane.
 /// </summary>
 public sealed partial class DiagnosticCheckRowViewModel : ViewModelBase
 {
@@ -20,43 +25,73 @@ public sealed partial class DiagnosticCheckRowViewModel : ViewModelBase
     }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsPass))]
-    [NotifyPropertyChangedFor(nameof(IsWarning))]
-    [NotifyPropertyChangedFor(nameof(IsFail))]
-    [NotifyPropertyChangedFor(nameof(IsNeutral))]
+    [NotifyPropertyChangedFor(nameof(Title))]
+    [NotifyPropertyChangedFor(nameof(ValueText))]
     [NotifyPropertyChangedFor(nameof(StatusText))]
+    [NotifyPropertyChangedFor(nameof(StatusBrush))]
+    [NotifyPropertyChangedFor(nameof(BadgeFill))]
+    [NotifyPropertyChangedFor(nameof(BadgeBorder))]
+    [NotifyPropertyChangedFor(nameof(Rank))]
+    [NotifyPropertyChangedFor(nameof(Facts))]
+    [NotifyPropertyChangedFor(nameof(Description))]
     [NotifyPropertyChangedFor(nameof(HasTechnicalDetail))]
-    [NotifyPropertyChangedFor(nameof(HasEvidence))]
     [NotifyPropertyChangedFor(nameof(HasFix))]
     [NotifyPropertyChangedFor(nameof(HasCommand))]
-    [NotifyPropertyChangedFor(nameof(EvidenceLines))]
-    [NotifyPropertyChangedFor(nameof(RequirementLines))]
+    [NotifyCanExecuteChangedFor(nameof(CopyCommandCommand))]
     public partial DiagnosticCheckResult Result { get; set; }
+
+    [ObservableProperty]
+    public partial bool IsSelected { get; set; }
 
     public string Id => Result.Id;
 
-    public bool IsPass => Result.Status == DiagnosticStatus.Pass;
+    public DiagnosticCategory Category => Result.Category;
 
-    public bool IsWarning => Result.Status == DiagnosticStatus.Warning;
+    public string Title => Result.Title;
 
-    public bool IsFail => Result.Status == DiagnosticStatus.Fail;
+    /// <summary>The short form for the list column, falling back to the full sentence.</summary>
+    public string ValueText => string.IsNullOrWhiteSpace(Result.Value) ? Result.Summary : Result.Value;
 
-    /// <summary>Skipped and Unknown share the neutral pill - neither is a pass.</summary>
-    public bool IsNeutral => Result.Status is DiagnosticStatus.Skipped or DiagnosticStatus.Unknown;
+    /// <summary>The full sentence, shown in the detail pane.</summary>
+    public string Description => Result.Summary;
 
     public string StatusText => DiagnosticText.StatusText(Result.Status);
 
-    public bool HasTechnicalDetail => !string.IsNullOrWhiteSpace(Result.TechnicalDetail);
+    public IBrush StatusBrush => DiagnosticPalette.Dot(Result.Status);
 
-    public bool HasEvidence => Result.Evidence.Count > 0;
+    public IBrush BadgeFill => DiagnosticPalette.Fill(Result.Status);
+
+    public IBrush BadgeBorder => DiagnosticPalette.Border(Result.Status);
+
+    /// <summary>Sort weight: failures first, passes last.</summary>
+    public int Rank => DiagnosticText.Rank(Result.Status);
+
+    public bool HasTechnicalDetail => !string.IsNullOrWhiteSpace(Result.TechnicalDetail);
 
     public bool HasFix => Result.Fix != null;
 
     public bool HasCommand => !string.IsNullOrWhiteSpace(Result.Fix?.Command);
 
-    /// <summary>The evidence as "key: value" lines, for the collapsed detail block.</summary>
-    public IReadOnlyList<string> EvidenceLines =>
-        Result.Evidence.Select(entry => $"{entry.Key}: {entry.Value}").ToList();
+    /// <summary>
+    /// The detail pane's key/value block: the result, its group, how long the check took, then
+    /// whatever evidence the check collected.
+    /// </summary>
+    public IReadOnlyList<DiagnosticFact> Facts
+    {
+        get
+        {
+            List<DiagnosticFact> facts =
+            [
+                new(Loc.Tr("Diagnostics_FactResult"), ValueText),
+                new(Loc.Tr("Diagnostics_FactGroup"), DiagnosticText.CategoryTitle(Result.Category)),
+                new(Loc.Tr("Diagnostics_FactDuration"), $"{Result.Duration.TotalMilliseconds:F0} ms")
+            ];
+
+            facts.AddRange(Result.Evidence.Select(entry => new DiagnosticFact(entry.Key, entry.Value)));
+
+            return facts;
+        }
+    }
 
     /// <summary>What the fix additionally requires, as ready-made sentences.</summary>
     public IReadOnlyList<string> RequirementLines
