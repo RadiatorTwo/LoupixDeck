@@ -77,6 +77,7 @@ public static class ServiceCollectionExtensions
         collection.AddSingleton<ILinuxDiagnosticCheck, EventAccessMechanismCheck>();
 
         collection.AddSingleton<ILinuxDiagnosticCheck, PluginDirectoriesCheck>();
+        collection.AddSingleton<ILinuxDiagnosticCheck, PluginManifestCheck>();
 
         collection.AddSingleton<ILinuxDiagnosticCheck, DesktopEntryCheck>();
         collection.AddSingleton<ILinuxDiagnosticCheck, LauncherCheck>();
