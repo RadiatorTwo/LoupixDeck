@@ -16,6 +16,7 @@ using LoupixDeck.Services.Plugins;
 using LoupixDeck.Services.SystemPower;
 using LoupixDeck.Utils;
 using LoupixDeck.ViewModels;
+using LoupixDeck.ViewModels.Diagnostics;
 using LoupixDeck.ViewModels.Plugins;
 using LoupixDeck.Views;
 using Microsoft.Extensions.DependencyInjection;
@@ -510,6 +511,7 @@ public static class ServiceCollectionExtensions
         collection.AddTransient<PageCommandsSettingsViewModel>();
 
         collection.AddTransient<Settings>();
+        collection.AddTransient<LinuxDiagnosticsViewModel>();
         collection.AddTransient<SettingsViewModel>();
         collection.AddTransient<DiagnosticReportViewModel>();
         collection.AddTransient<DiagnosticReportDialog>();

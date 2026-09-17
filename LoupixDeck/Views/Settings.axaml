@@ -5,6 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="using:LoupixDeck.ViewModels"
         xmlns:bs="clr-namespace:LoupixDeck.ViewModels.Base"
+        xmlns:dvm="clr-namespace:LoupixDeck.ViewModels.Diagnostics"
         xmlns:cnv="clr-namespace:LoupixDeck.Models.Converter"
         xmlns:m="clr-namespace:LoupixDeck.Models"
         x:Class="LoupixDeck.Views.Settings"
@@ -98,6 +99,18 @@
                                 <Border Grid.Column="0" Classes="nav-accent" />
                                 <TextBlock Grid.Column="1" Classes="nav-icon" Text="&#xF030C;" Margin="6,0,0,0"/>
                                 <TextBlock Grid.Column="2" Classes="nav-label" Text="{loc:Tr Settings_MacroDriver}" />
+                            </Grid>
+                        </Button>
+                    </StackPanel>
+
+                    <StackPanel IsVisible="{Binding IsLinux}">
+                        <TextBlock Classes="section-header" Text="{loc:Tr Settings_DIAGNOSTICS}" />
+                        <Button Classes="nav" Classes.active="{Binding CurrentView, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Diagnostics}"
+                                Command="{Binding NavigateCommand}" CommandParameter="{x:Static bs:SettingsView.Diagnostics}">
+                            <Grid ColumnDefinitions="6,Auto,*">
+                                <Border Grid.Column="0" Classes="nav-accent" />
+                                <TextBlock Grid.Column="1" Classes="nav-icon" Text="&#xF0A03;" Margin="6,0,0,0"/>
+                                <TextBlock Grid.Column="2" Classes="nav-label" Text="{loc:Tr Settings_Diagnostics}" />
                             </Grid>
                         </Button>
                     </StackPanel>
@@ -1222,6 +1235,168 @@
                                        Text="{loc:Tr Settings_TheHighestPriorityMatchingRule2}" />
                         </StackPanel>
                     </Border>
+                </StackPanel>
+
+                <!-- ===== Linux Diagnostics (Device Doctor, issue #258) ===== -->
+                <StackPanel IsVisible="{Binding CurrentView, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Diagnostics}">
+                    <TextBlock Classes="page-title" Text="{loc:Tr Diagnostics_PageTitle}" />
+                    <TextBlock Classes="hint" TextWrapping="Wrap" Margin="0,0,0,12"
+                               Text="{loc:Tr Diagnostics_Intro}" />
+
+                    <Border Classes="card">
+                        <StackPanel Spacing="10">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <TextBlock Grid.Column="0" Classes="card-title" Text="{loc:Tr Diagnostics_Overall}" />
+                                <Border Grid.Column="1" Classes="pill"
+                                        IsVisible="{Binding Diagnostics.HasResults}"
+                                        Classes.ok="{Binding Diagnostics.IsOverallOk}"
+                                        Classes.warn="{Binding Diagnostics.IsOverallWarning}"
+                                        Classes.error="{Binding Diagnostics.IsOverallFailed}">
+                                    <TextBlock Text="{Binding Diagnostics.SummaryText}" />
+                                </Border>
+                            </Grid>
+
+                            <TextBlock Classes="hint" TextWrapping="Wrap"
+                                       IsVisible="{Binding Diagnostics.IsRunning}"
+                                       Text="{Binding Diagnostics.SummaryText}" />
+
+                            <ProgressBar IsVisible="{Binding Diagnostics.IsRunning}"
+                                         Minimum="0"
+                                         Maximum="{Binding Diagnostics.TotalCount}"
+                                         Value="{Binding Diagnostics.CompletedCount}" />
+
+                            <TextBlock Classes="hint" TextWrapping="Wrap"
+                                       IsVisible="{Binding !Diagnostics.HasRun}"
+                                       Text="{loc:Tr Diagnostics_EmptyState}" />
+
+                            <StackPanel Orientation="Horizontal" Spacing="10">
+                                <Button Content="{loc:Tr Diagnostics_RunChecks}"
+                                        Command="{Binding Diagnostics.RunCommand}" />
+                                <Button Content="{loc:Tr Diagnostics_Cancel}"
+                                        IsVisible="{Binding Diagnostics.IsRunning}"
+                                        Command="{Binding Diagnostics.CancelCommand}" />
+                                <Button Content="{loc:Tr Diagnostics_ShowReport}"
+                                        Command="{Binding Diagnostics.ShowReportCommand}" />
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <ItemsControl ItemsSource="{Binding Diagnostics.Categories}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="dvm:DiagnosticCategoryViewModel">
+                                <Expander Margin="0,0,0,12" HorizontalAlignment="Stretch"
+                                          IsExpanded="{Binding IsExpanded, Mode=TwoWay}">
+                                    <Expander.Header>
+                                        <Grid ColumnDefinitions="*,Auto" MinWidth="560">
+                                            <TextBlock Grid.Column="0" FontWeight="SemiBold"
+                                                       VerticalAlignment="Center"
+                                                       Text="{Binding Title}" />
+                                            <TextBlock Grid.Column="1" Classes="hint" FontSize="12"
+                                                       VerticalAlignment="Center"
+                                                       Text="{Binding CountsText}" />
+                                        </Grid>
+                                    </Expander.Header>
+
+                                    <StackPanel Spacing="10">
+                                        <TextBlock Classes="hint" FontSize="12" TextWrapping="Wrap"
+                                                   IsVisible="{Binding ShowRecordingHint}"
+                                                   Text="{loc:Tr Diagnostics_PlaybackIsNotRecording}" />
+
+                                        <Button Content="{loc:Tr Diagnostics_RunAgain}"
+                                                HorizontalAlignment="Left"
+                                                Command="{Binding $parent[Window].DataContext.Diagnostics.RunCategoryCommand}"
+                                                CommandParameter="{Binding}" />
+
+                                        <ItemsControl ItemsSource="{Binding Checks}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate x:DataType="dvm:DiagnosticCheckRowViewModel">
+                                                    <Border Background="{DynamicResource AppSurfaceAlt}"
+                                                            BorderBrush="{DynamicResource AppBorderSubtle}"
+                                                            BorderThickness="1"
+                                                            CornerRadius="6"
+                                                            Padding="12"
+                                                            Margin="0,0,0,8">
+                                                        <StackPanel Spacing="6">
+                                                            <Grid ColumnDefinitions="*,Auto">
+                                                                <TextBlock Grid.Column="0" FontWeight="SemiBold"
+                                                                           TextWrapping="Wrap"
+                                                                           VerticalAlignment="Center"
+                                                                           Text="{Binding Result.Title}" />
+                                                                <Border Grid.Column="1" Classes="pill"
+                                                                        Classes.ok="{Binding IsPass}"
+                                                                        Classes.warn="{Binding IsWarning}"
+                                                                        Classes.error="{Binding IsFail}"
+                                                                        Classes.neutral="{Binding IsNeutral}">
+                                                                    <TextBlock Text="{Binding StatusText}" />
+                                                                </Border>
+                                                            </Grid>
+
+                                                            <TextBlock Classes="hint" TextWrapping="Wrap"
+                                                                       Text="{Binding Result.Summary}" />
+
+                                                            <StackPanel Spacing="6" IsVisible="{Binding HasFix}">
+                                                                <TextBlock Classes="hint" TextWrapping="Wrap"
+                                                                           FontWeight="SemiBold"
+                                                                           Text="{Binding Result.Fix.Description}" />
+
+                                                                <ItemsControl ItemsSource="{Binding RequirementLines}">
+                                                                    <ItemsControl.ItemTemplate>
+                                                                        <DataTemplate x:DataType="x:String">
+                                                                            <TextBlock Classes="hint" FontSize="12"
+                                                                                       TextWrapping="Wrap"
+                                                                                       Text="{Binding}" />
+                                                                        </DataTemplate>
+                                                                    </ItemsControl.ItemTemplate>
+                                                                </ItemsControl>
+
+                                                                <SelectableTextBlock IsVisible="{Binding HasCommand}"
+                                                                                     FontFamily="Cascadia Mono,Menlo,DejaVu Sans Mono,monospace"
+                                                                                     FontSize="12"
+                                                                                     TextWrapping="Wrap"
+                                                                                     Text="{Binding Result.Fix.Command}" />
+
+                                                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                                                    <Button Content="{loc:Tr Diagnostics_CopyCommand}"
+                                                                            IsVisible="{Binding HasCommand}"
+                                                                            Command="{Binding CopyCommandCommand}" />
+                                                                    <TextBlock Classes="hint" FontSize="12"
+                                                                               VerticalAlignment="Center"
+                                                                               IsVisible="{Binding HasCopyStatus}"
+                                                                               Text="{Binding CopyStatusText}" />
+                                                                </StackPanel>
+                                                            </StackPanel>
+
+                                                            <Expander Header="{loc:Tr Diagnostics_TechnicalDetails}"
+                                                                      IsExpanded="False">
+                                                                <StackPanel Spacing="6">
+                                                                    <SelectableTextBlock IsVisible="{Binding HasTechnicalDetail}"
+                                                                                         FontFamily="Cascadia Mono,Menlo,DejaVu Sans Mono,monospace"
+                                                                                         FontSize="12"
+                                                                                         TextWrapping="Wrap"
+                                                                                         Text="{Binding Result.TechnicalDetail}" />
+
+                                                                    <ItemsControl ItemsSource="{Binding EvidenceLines}">
+                                                                        <ItemsControl.ItemTemplate>
+                                                                            <DataTemplate x:DataType="x:String">
+                                                                                <SelectableTextBlock FontFamily="Cascadia Mono,Menlo,DejaVu Sans Mono,monospace"
+                                                                                                     FontSize="12"
+                                                                                                     TextWrapping="Wrap"
+                                                                                                     Text="{Binding}" />
+                                                                            </DataTemplate>
+                                                                        </ItemsControl.ItemTemplate>
+                                                                    </ItemsControl>
+                                                                </StackPanel>
+                                                            </Expander>
+                                                        </StackPanel>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
+                                </Expander>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
                 </StackPanel>
             </Grid>
         </ScrollViewer>
