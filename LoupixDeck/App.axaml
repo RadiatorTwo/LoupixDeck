@@ -116,11 +116,13 @@
                     <SolidColorBrush x:Key="AppSurface" Color="#FFFFFF" />
                     <SolidColorBrush x:Key="AppSurfaceAlt" Color="#F2F2F2" />
                     <SolidColorBrush x:Key="AppControlBackground" Color="#FFFFFF" />
-                    <!-- Darker than every light surface they can sit on, not lighter. The old
-                         values were #EDEDED / #DADADA, which vanished on AppSurfaceLow (#DCDCDC) -
-                         the sidebar and every list built on it had a selection nobody could see. -->
-                    <SolidColorBrush x:Key="AppControlBackgroundHover" Color="#CCCCCC" />
-                    <SolidColorBrush x:Key="AppControlBackgroundActive" Color="#B5B5B5" />
+                    <!-- Translucent black rather than fixed greys: hover and selection have to
+                         read the same on every light surface they sit on - the sidebar's
+                         AppSurfaceLow (#DCDCDC) and a white Border.card alike. Opaque #CCCCCC /
+                         #B5B5B5 were tuned for the sidebar and looked far too dark on a card
+                         (diagnostics lists); an overlay darkens each surface by the same step. -->
+                    <SolidColorBrush x:Key="AppControlBackgroundHover" Color="#14000000" />
+                    <SolidColorBrush x:Key="AppControlBackgroundActive" Color="#29000000" />
                     <SolidColorBrush x:Key="AppBorderSubtle" Color="#C4C4C4" />
                     <!-- A step quieter than AppBorderSubtle: outlines and dividers that must
                          read as a hairline rather than as a frame (header switcher, pagers). -->
