@@ -160,7 +160,7 @@ public sealed partial class LinuxDiagnosticsViewModel : ViewModelBase
     }
 
     private Task RunAllAsync() => ExecuteAsync(() => _diagnostics.RunAllAsync(BuildProgress(), _run.Token),
-        _diagnostics.CheckCount);
+        () => _diagnostics.CheckCount);
 
     private Task RerunCheckAsync()
     {
@@ -168,7 +168,7 @@ public sealed partial class LinuxDiagnosticsViewModel : ViewModelBase
 
         return string.IsNullOrEmpty(id)
             ? Task.CompletedTask
-            : ExecuteAsync(() => _diagnostics.RunCheckAsync(id, BuildProgress(), _run.Token), 1);
+            : ExecuteAsync(() => _diagnostics.RunCheckAsync(id, BuildProgress(), _run.Token), () => 1);
     }
 
     /// <summary>
@@ -182,7 +182,7 @@ public sealed partial class LinuxDiagnosticsViewModel : ViewModelBase
         return category == null
             ? Task.CompletedTask
             : ExecuteAsync(() => _diagnostics.RunCategoryAsync(category.Category, BuildProgress(), _run.Token),
-                _diagnostics.CountFor(category.Category));
+                () => _diagnostics.CountFor(category.Category));
     }
 
     private async Task RunKeyTestAsync()
@@ -251,7 +251,7 @@ public sealed partial class LinuxDiagnosticsViewModel : ViewModelBase
     /// <summary>After a test, only the category it belongs to is worth running again.</summary>
     private Task RerunCategoryIfSelectedAsync(DiagnosticCategory category)
         => ExecuteAsync(() => _diagnostics.RunCategoryAsync(category, BuildProgress(), _run.Token),
-            _diagnostics.CountFor(category));
+            () => _diagnostics.CountFor(category));
 
     private async Task<bool> ConfirmAsync(string message, string title)
     {
@@ -272,7 +272,12 @@ public sealed partial class LinuxDiagnosticsViewModel : ViewModelBase
             viewModel => viewModel.Configure(message, title, Loc.Tr("Confirm_Ok"), showCancel: false));
     }
 
-    private async Task ExecuteAsync(Func<Task<DiagnosticRunResult>> run, int total)
+    /// <summary>
+    /// Runs a selection and drives the progress state. <paramref name="total"/> is a function
+    /// rather than a number because counting the checks enumerates the attached decks, which
+    /// runs udevadm per serial node - that belongs off the UI thread, not in the click handler.
+    /// </summary>
+    private async Task ExecuteAsync(Func<Task<DiagnosticRunResult>> run, Func<int> total)
     {
         if (IsRunning)
         {
@@ -281,8 +286,11 @@ public sealed partial class LinuxDiagnosticsViewModel : ViewModelBase
 
         IsRunning = true;
         CompletedCount = 0;
-        TotalCount = total;
-        HeaderText = Loc.Tr("Diagnostics_RunningFmt", 0, total);
+
+        int count = await Task.Run(total);
+
+        TotalCount = count;
+        HeaderText = Loc.Tr("Diagnostics_RunningFmt", 0, count);
 
         _run = new CancellationTokenSource();
 
