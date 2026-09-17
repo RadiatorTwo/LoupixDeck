@@ -6,6 +6,7 @@ using LoupixDeck.Services.ActiveWindow;
 using LoupixDeck.Services.AppLauncher;
 using LoupixDeck.Services.AppSwitching;
 using LoupixDeck.Services.Commands;
+using LoupixDeck.Services.Diagnostics.Linux;
 using LoupixDeck.Services.DialPresets;
 using LoupixDeck.Services.FolderNavigation;
 using LoupixDeck.Services.Macros;
@@ -38,6 +39,14 @@ public static class ServiceCollectionExtensions
     private static void Forward<T>(this IServiceCollection collection, IServiceProvider root)
         where T : class
         => collection.AddSingleton(_ => root.GetRequiredService<T>());
+
+    /// <summary>
+    /// Registers the Linux Device Doctor checks (issue #258). Registration order is run order
+    /// and report order, so the page reads the same way on every run.
+    /// </summary>
+    private static void AddLinuxDiagnosticChecks(this IServiceCollection collection)
+    {
+    }
 
     // ───────────────────────── Root (device-agnostic) ─────────────────────────
 
@@ -84,6 +93,15 @@ public static class ServiceCollectionExtensions
         collection.AddSingleton<Services.Animation.IAnimatedImageImporter, Services.Animation.AnimatedImageImporter>();
 
         collection.AddSingleton<IDBusController, DBusController>();
+
+        // Linux Device Doctor (issue #258). The session, uinput and evdev facts are the same for
+        // every deck, so one root instance is forwarded into each device provider. On Windows no
+        // check is registered and the service reports itself as unsupported.
+        collection.AddSingleton<ILinuxDiagnosticsService, LinuxDiagnosticsService>();
+        if (OperatingSystem.IsLinux())
+        {
+            collection.AddLinuxDiagnosticChecks();
+        }
 
         // Update check against GitHub Releases (issue #233). App-wide: one check, one hint, one
         // installer run, whatever the number of devices.
@@ -192,6 +210,7 @@ public static class ServiceCollectionExtensions
         collection.Forward<IAppIconExtractor>(root);
         collection.Forward<ICustomAppStore>(root);
         collection.Forward<IDBusController>(root);
+        collection.Forward<ILinuxDiagnosticsService>(root);
         collection.Forward<Services.Updates.IUpdateService>(root);
         collection.Forward<Services.Updates.IUpdateInstaller>(root);
         collection.Forward<Services.PluginStore.IPluginStoreService>(root);
