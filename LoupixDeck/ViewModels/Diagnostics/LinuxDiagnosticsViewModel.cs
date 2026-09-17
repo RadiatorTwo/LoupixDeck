@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using LoupixDeck.Localization;
 using LoupixDeck.Models;
+using LoupixDeck.PluginSdk;
 using LoupixDeck.Models.Diagnostics;
 using LoupixDeck.Services;
 using LoupixDeck.Services.Diagnostics.Linux;
@@ -23,16 +24,18 @@ public sealed partial class LinuxDiagnosticsViewModel : ViewModelBase
     private readonly ILinuxDiagnosticsService _diagnostics;
     private readonly IDialogService _dialogService;
     private readonly IInteractiveDiagnosticTests _tests;
+    private readonly ICommandService _commands;
 
     private CancellationTokenSource _run;
     private DiagnosticRunResult _lastRun;
 
     public LinuxDiagnosticsViewModel(ILinuxDiagnosticsService diagnostics, IDialogService dialogService,
-        IInteractiveDiagnosticTests tests)
+        IInteractiveDiagnosticTests tests, ICommandService commands)
     {
         _diagnostics = diagnostics;
         _dialogService = dialogService;
         _tests = tests;
+        _commands = commands;
         Categories = [];
         Tallies = [];
     }
@@ -108,6 +111,14 @@ public sealed partial class LinuxDiagnosticsViewModel : ViewModelBase
     /// <summary>The interactive recording test: the user presses a key, the app reports it.</summary>
     public IAsyncRelayCommand RecordingTestCommand =>
         field ??= Relay.Create(RunRecordingTestAsync, () => !IsRunning);
+
+    /// <summary>
+    /// Starts the display test pattern on this device. The test itself is the existing
+    /// System.DisplayTest command - the diagnostics link to it rather than drawing their own
+    /// patterns, so there is one implementation of what a correct display looks like.
+    /// </summary>
+    public IAsyncRelayCommand DisplayTestCommand =>
+        field ??= Relay.Create(RunDisplayTestAsync, () => !IsRunning);
 
     /// <summary>The online store test. The only action of the page that leaves the machine.</summary>
     public IAsyncRelayCommand StoreTestCommand =>
@@ -205,6 +216,21 @@ public sealed partial class LinuxDiagnosticsViewModel : ViewModelBase
 
         await NotifyAsync(Loc.Tr("Diagnostics_RecordingTestTitle"), result);
         await RerunCategoryIfSelectedAsync(DiagnosticCategory.InputRecording);
+    }
+
+    private async Task RunDisplayTestAsync()
+    {
+        bool confirmed = await ConfirmAsync(Loc.Tr("Diagnostics_DisplayTestConfirm"),
+            Loc.Tr("Diagnostics_DisplayTestTitle"));
+
+        if (!confirmed)
+        {
+            return;
+        }
+
+        // Takes the display over until a key is pressed, exactly as the command does when a
+        // button runs it.
+        await _commands.ExecuteCommand("System.DisplayTest(cycle,5)", ButtonTargets.None);
     }
 
     private async Task RunStoreTestAsync()

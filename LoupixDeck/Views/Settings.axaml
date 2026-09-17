@@ -1535,6 +1535,9 @@
                                             <Button Content="{loc:Tr Diagnostics_StoreTestStart}"
                                                     IsVisible="{Binding SupportsStoreTest}"
                                                     Command="{Binding $parent[Window].DataContext.Diagnostics.StoreTestCommand}" />
+                                            <Button Content="{loc:Tr Diagnostics_DisplayTestStart}"
+                                                    IsVisible="{Binding SupportsDisplayTest}"
+                                                    Command="{Binding $parent[Window].DataContext.Diagnostics.DisplayTestCommand}" />
                                         </StackPanel>
                                     </StackPanel>
                                 </ScrollViewer>

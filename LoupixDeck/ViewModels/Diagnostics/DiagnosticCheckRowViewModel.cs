@@ -40,6 +40,7 @@ public sealed partial class DiagnosticCheckRowViewModel : ViewModelBase
     [NotifyPropertyChangedFor(nameof(SupportsKeyTest))]
     [NotifyPropertyChangedFor(nameof(SupportsRecordingTest))]
     [NotifyPropertyChangedFor(nameof(SupportsStoreTest))]
+    [NotifyPropertyChangedFor(nameof(SupportsDisplayTest))]
     [NotifyCanExecuteChangedFor(nameof(CopyCommandCommand))]
     public partial DiagnosticCheckResult Result { get; set; }
 
@@ -60,6 +61,9 @@ public sealed partial class DiagnosticCheckRowViewModel : ViewModelBase
 
     /// <summary>True for the plugin checks, where the online store test belongs.</summary>
     public bool SupportsStoreTest => Category == DiagnosticCategory.Plugins;
+
+    /// <summary>True for the device checks, where the display test belongs.</summary>
+    public bool SupportsDisplayTest => Category == DiagnosticCategory.DeviceAccess;
 
     public DiagnosticCategory Category => Result.Category;
 
