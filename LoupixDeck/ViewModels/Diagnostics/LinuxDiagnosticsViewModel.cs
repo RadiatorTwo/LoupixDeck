@@ -46,6 +46,7 @@ public sealed partial class LinuxDiagnosticsViewModel : ViewModelBase
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasSelection))]
+    [NotifyCanExecuteChangedFor(nameof(RerunCheckCommand))]
     public partial DiagnosticCheckRowViewModel SelectedCheck { get; set; }
 
     [ObservableProperty]
