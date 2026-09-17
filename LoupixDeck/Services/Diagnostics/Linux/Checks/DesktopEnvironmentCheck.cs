@@ -21,6 +21,6 @@ public sealed class DesktopEnvironmentCheck : ILinuxDiagnosticCheck
                 Loc.Tr("Diagnostics_DesktopUnknown")));
         }
 
-        return Task.FromResult(DiagnosticCheckResult.Pass(Id, Category, title, desktop));
+        return Task.FromResult(DiagnosticCheckResult.Pass(Id, Category, title, desktop, null, null, desktop));
     }
 }

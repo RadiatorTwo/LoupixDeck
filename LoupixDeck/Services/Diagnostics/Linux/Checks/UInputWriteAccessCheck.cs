@@ -51,7 +51,7 @@ public sealed class UInputWriteAccessCheck : ILinuxDiagnosticCheck, IExclusiveDi
                 "sudo usermod -aG input $USER", RequiresElevation: true, RequiresLogout: true);
 
             return Task.FromResult(DiagnosticCheckResult.Fail(Id, Category, title,
-                Loc.Tr("Diagnostics_UinputWriteDeniedFmt", errno), detail, fix, evidence));
+                Loc.Tr("Diagnostics_UinputWriteDeniedFmt", errno), detail, fix, evidence, $"errno {errno}"));
         }
 
         return Task.FromResult(DiagnosticCheckResult.Unknown(Id, Category, title,

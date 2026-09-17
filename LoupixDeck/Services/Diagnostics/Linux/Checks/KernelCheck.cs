@@ -21,6 +21,6 @@ public sealed class KernelCheck : ILinuxDiagnosticCheck
                 Loc.Tr("Diagnostics_KernelUnreadable")));
         }
 
-        return Task.FromResult(DiagnosticCheckResult.Pass(Id, Category, title, release));
+        return Task.FromResult(DiagnosticCheckResult.Pass(Id, Category, title, release, null, null, release));
     }
 }

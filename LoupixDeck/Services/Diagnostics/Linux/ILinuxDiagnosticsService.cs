@@ -23,4 +23,8 @@ public interface ILinuxDiagnosticsService
     /// <summary>Runs the checks of a single category.</summary>
     Task<DiagnosticRunResult> RunCategoryAsync(DiagnosticCategory category,
         IProgress<DiagnosticCheckResult> progress, CancellationToken cancellationToken);
+
+    /// <summary>Runs exactly one check again, by its id.</summary>
+    Task<DiagnosticRunResult> RunCheckAsync(string id,
+        IProgress<DiagnosticCheckResult> progress, CancellationToken cancellationToken);
 }

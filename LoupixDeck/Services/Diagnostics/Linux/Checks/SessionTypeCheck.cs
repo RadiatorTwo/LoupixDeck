@@ -38,13 +38,13 @@ public sealed class SessionTypeCheck : ILinuxDiagnosticCheck
         return Task.FromResult(sessionType switch
         {
             "x11" => DiagnosticCheckResult.Pass(Id, Category, title,
-                Loc.Tr("Diagnostics_SessionX11"), null, evidence),
+                Loc.Tr("Diagnostics_SessionX11"), null, evidence, "x11"),
             "wayland" when hasDisplay => DiagnosticCheckResult.Pass(Id, Category, title,
-                Loc.Tr("Diagnostics_SessionXWayland"), null, evidence),
+                Loc.Tr("Diagnostics_SessionXWayland"), null, evidence, "wayland + xwayland"),
             "wayland" => DiagnosticCheckResult.Warning(Id, Category, title,
-                Loc.Tr("Diagnostics_SessionPureWayland"), null, null, evidence),
+                Loc.Tr("Diagnostics_SessionPureWayland"), null, null, evidence, "wayland"),
             "tty" => DiagnosticCheckResult.Warning(Id, Category, title,
-                Loc.Tr("Diagnostics_SessionTty"), null, null, evidence),
+                Loc.Tr("Diagnostics_SessionTty"), null, null, evidence, "tty"),
             _ => DiagnosticCheckResult.Unknown(Id, Category, title,
                 Loc.Tr("Diagnostics_SessionTypeUnknown"))
         });

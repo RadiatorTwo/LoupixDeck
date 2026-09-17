@@ -35,9 +35,11 @@ public sealed class VersionsCheck : ILinuxDiagnosticCheck
         if (AppVersion.IsDevelopmentBuild)
         {
             return Task.FromResult(DiagnosticCheckResult.Warning(Id, Category, title,
-                Loc.Tr("Diagnostics_VersionsDevelopmentFmt", appVersion, sdkVersion), null, null, evidence));
+                Loc.Tr("Diagnostics_VersionsDevelopmentFmt", appVersion, sdkVersion), null, null, evidence,
+                appVersion));
         }
 
-        return Task.FromResult(DiagnosticCheckResult.Pass(Id, Category, title, summary, null, evidence));
+        return Task.FromResult(DiagnosticCheckResult.Pass(Id, Category, title, summary, null, evidence,
+            appVersion));
     }
 }

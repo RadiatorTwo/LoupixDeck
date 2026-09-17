@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using LoupixDeck.Localization;
 using LoupixDeck.Models.Diagnostics;
 
@@ -44,6 +45,10 @@ public sealed class LinuxDiagnosticsService : ILinuxDiagnosticsService
     public Task<DiagnosticRunResult> RunCategoryAsync(DiagnosticCategory category,
         IProgress<DiagnosticCheckResult> progress, CancellationToken cancellationToken)
         => RunAsync(_checks.Where(check => check.Category == category).ToList(), progress, cancellationToken);
+
+    public Task<DiagnosticRunResult> RunCheckAsync(string id,
+        IProgress<DiagnosticCheckResult> progress, CancellationToken cancellationToken)
+        => RunAsync(_checks.Where(check => check.Id == id).ToList(), progress, cancellationToken);
 
     private async Task<DiagnosticRunResult> RunAsync(IReadOnlyList<ILinuxDiagnosticCheck> selection,
         IProgress<DiagnosticCheckResult> progress, CancellationToken cancellationToken)
@@ -102,12 +107,16 @@ public sealed class LinuxDiagnosticsService : ILinuxDiagnosticsService
             CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeout.CancelAfter(CheckTimeout);
 
+        long startedAt = Stopwatch.GetTimestamp();
+
         try
         {
             DiagnosticCheckResult result = await check.RunAsync(timeout.Token);
 
-            return result ?? DiagnosticCheckResult.Unknown(check.Id, check.Category, title,
+            result ??= DiagnosticCheckResult.Unknown(check.Id, check.Category, title,
                 Loc.Tr("Diagnostics_CheckFailedToRun"));
+
+            return result with { Duration = Stopwatch.GetElapsedTime(startedAt) };
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {

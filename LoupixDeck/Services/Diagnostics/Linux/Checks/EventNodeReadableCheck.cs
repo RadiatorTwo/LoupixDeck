@@ -65,6 +65,7 @@ public sealed class EventNodeReadableCheck : ILinuxDiagnosticCheck, IExclusiveDi
         }
 
         return Task.FromResult(DiagnosticCheckResult.Pass(Id, Category, title,
-            Loc.Tr("Diagnostics_EventReadableOkFmt", keyboards, keyboardCount), null, evidence));
+            Loc.Tr("Diagnostics_EventReadableOkFmt", keyboards, keyboardCount), null, evidence,
+            $"{keyboards}/{keyboardCount}"));
     }
 }

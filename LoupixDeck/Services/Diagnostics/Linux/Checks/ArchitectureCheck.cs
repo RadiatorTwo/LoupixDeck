@@ -28,10 +28,11 @@ public sealed class ArchitectureCheck : ILinuxDiagnosticCheck
         if (os != process)
         {
             return Task.FromResult(DiagnosticCheckResult.Warning(Id, Category, title,
-                Loc.Tr("Diagnostics_ArchitectureMismatchFmt", process, os), null, null, evidence));
+                Loc.Tr("Diagnostics_ArchitectureMismatchFmt", process, os), null, null, evidence,
+                $"{process} / {os}"));
         }
 
         return Task.FromResult(DiagnosticCheckResult.Pass(Id, Category, title,
-            os.ToString(), null, evidence));
+            os.ToString(), null, evidence, os.ToString()));
     }
 }

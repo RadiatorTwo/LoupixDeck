@@ -41,7 +41,8 @@ public sealed class DistributionCheck : ILinuxDiagnosticCheck
         AddIfPresent(evidence, osRelease, "VERSION_ID", "version_id");
         AddIfPresent(evidence, osRelease, "VARIANT_ID", "variant_id");
 
-        return Task.FromResult(DiagnosticCheckResult.Pass(Id, Category, title, name, null, evidence));
+        return Task.FromResult(DiagnosticCheckResult.Pass(Id, Category, title, name, null, evidence,
+            Pick(osRelease, "ID") ?? name));
     }
 
     private static string Pick(IReadOnlyDictionary<string, string> values, string key)

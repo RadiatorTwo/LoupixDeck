@@ -16,6 +16,35 @@ public static class DiagnosticText
         _ => Loc.Tr("Diagnostics_StatusUnknown")
     };
 
+    /// <summary>
+    /// Sort weight: what is wrong comes first, what is fine comes last. Used for the check list
+    /// and to pick which check a category opens on.
+    /// </summary>
+    public static int Rank(DiagnosticStatus status) => status switch
+    {
+        DiagnosticStatus.Fail => 0,
+        DiagnosticStatus.Warning => 1,
+        DiagnosticStatus.Unknown => 2,
+        DiagnosticStatus.Pass => 3,
+        _ => 4
+    };
+
+    /// <summary>The worst status in a set, or <see cref="DiagnosticStatus.Pass"/> when it is empty.</summary>
+    public static DiagnosticStatus Worst(IEnumerable<DiagnosticStatus> statuses)
+    {
+        DiagnosticStatus worst = DiagnosticStatus.Pass;
+
+        foreach (DiagnosticStatus status in statuses)
+        {
+            if (Rank(status) < Rank(worst))
+            {
+                worst = status;
+            }
+        }
+
+        return worst;
+    }
+
     /// <summary>The localized title of a category.</summary>
     public static string CategoryTitle(DiagnosticCategory category) => category switch
     {

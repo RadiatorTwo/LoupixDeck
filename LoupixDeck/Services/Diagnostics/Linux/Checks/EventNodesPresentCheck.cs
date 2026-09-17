@@ -40,6 +40,6 @@ public sealed class EventNodesPresentCheck : ILinuxDiagnosticCheck
         }
 
         return Task.FromResult(DiagnosticCheckResult.Pass(Id, Category, title,
-            Loc.Tr("Diagnostics_EventNodesFoundFmt", count), null, evidence));
+            Loc.Tr("Diagnostics_EventNodesFoundFmt", count), null, evidence, count.ToString()));
     }
 }
