@@ -64,6 +64,12 @@ public abstract class DBusBusCheck : ILinuxDiagnosticCheck
             return DiagnosticCheckResult.Unknown(Id, Category, title,
                 Loc.Tr("Diagnostics_DBusTimedOut"), address);
         }
+        catch (OperationCanceledException)
+        {
+            // A cancelled run says nothing about D-Bus. The orchestrator turns this into
+            // Skipped or TimedOut; swallowing it here would report a healthy bus as a failure.
+            throw;
+        }
         catch (Exception ex)
         {
             return Unavailable(title, Loc.Tr("Diagnostics_DBusUnavailable"),

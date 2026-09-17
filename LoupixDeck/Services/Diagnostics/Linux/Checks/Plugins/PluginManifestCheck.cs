@@ -26,7 +26,12 @@ public sealed class PluginManifestCheck : ILinuxDiagnosticCheck
 
         List<string> broken = [];
         List<string> foreign = [];
-        int valid = 0;
+
+        // A plugin id present in both roots is ONE plugin to the loader: ResolvePlugins picks a
+        // winner, the user copy overriding the bundled one. Counting both would report two valid
+        // manifests for what the plugin list shows as a single entry, so ids are collected and
+        // counted once. The user root is walked first, so it wins the id.
+        HashSet<string> valid = new(StringComparer.OrdinalIgnoreCase);
 
         foreach (string folder in Folders(user).Concat(Folders(bundled)))
         {
@@ -72,12 +77,12 @@ public sealed class PluginManifestCheck : ILinuxDiagnosticCheck
                 continue;
             }
 
-            valid++;
+            valid.Add(manifest.Id);
         }
 
         Dictionary<string, string> evidence = new(StringComparer.Ordinal)
         {
-            ["valid"] = valid.ToString(),
+            ["valid"] = valid.Count.ToString(),
             ["broken"] = broken.Count.ToString(),
             ["other_platform"] = foreign.Count.ToString()
         };
@@ -100,8 +105,8 @@ public sealed class PluginManifestCheck : ILinuxDiagnosticCheck
         }
 
         return Task.FromResult(DiagnosticCheckResult.Pass(Id, Category, title,
-            Loc.Tr("Diagnostics_PluginManifestsOkFmt", valid), null, evidence,
-            Loc.Tr("Diagnostics_ValueValidFmt", valid)));
+            Loc.Tr("Diagnostics_PluginManifestsOkFmt", valid.Count), null, evidence,
+            Loc.Tr("Diagnostics_ValueValidFmt", valid.Count)));
     }
 
     /// <summary>The manifest's Platform value against the running OS ("All" matches everything).</summary>
