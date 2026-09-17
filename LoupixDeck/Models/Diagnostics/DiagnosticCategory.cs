@@ -2,8 +2,8 @@ namespace LoupixDeck.Models.Diagnostics;
 
 /// <summary>
 /// Groups the diagnostic checks in the UI and in the report.
-/// Phase 1, the device access of phase 2 and the plugins of phase 3 exist. The installation
-/// checks arrive with a later phase and add their own value here.
+/// One value per block of issue #258: the phase-1 categories, the device access of phase 2, the
+/// plugins of phase 3, and the installation checks.
 /// </summary>
 public enum DiagnosticCategory
 {
@@ -23,5 +23,8 @@ public enum DiagnosticCategory
     InputRecording,
 
     /// <summary>Plugin discovery, manifests and load failures.</summary>
-    Plugins
+    Plugins,
+
+    /// <summary>Desktop entry, launcher, autostart and the atomic-update keep list.</summary>
+    Installation
 }

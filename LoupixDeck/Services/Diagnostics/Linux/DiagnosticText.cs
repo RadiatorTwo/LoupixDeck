@@ -54,6 +54,7 @@ public static class DiagnosticText
         DiagnosticCategory.InputInjection => Loc.Tr("Diagnostics_CategoryInputInjection"),
         DiagnosticCategory.InputRecording => Loc.Tr("Diagnostics_CategoryInputRecording"),
         DiagnosticCategory.Plugins => Loc.Tr("Diagnostics_CategoryPlugins"),
+        DiagnosticCategory.Installation => Loc.Tr("Diagnostics_CategoryInstallation"),
         _ => category.ToString()
     };
 }

@@ -9,6 +9,7 @@ using LoupixDeck.Services.Commands;
 using LoupixDeck.Services.Diagnostics.Linux;
 using LoupixDeck.Services.Diagnostics.Linux.Checks;
 using LoupixDeck.Services.Diagnostics.Linux.Checks.Devices;
+using LoupixDeck.Services.Diagnostics.Linux.Checks.Installation;
 using LoupixDeck.Services.Diagnostics.Linux.Checks.Plugins;
 using LoupixDeck.Services.DialPresets;
 using LoupixDeck.Services.FolderNavigation;
@@ -76,6 +77,11 @@ public static class ServiceCollectionExtensions
         collection.AddSingleton<ILinuxDiagnosticCheck, EventAccessMechanismCheck>();
 
         collection.AddSingleton<ILinuxDiagnosticCheck, PluginDirectoriesCheck>();
+
+        collection.AddSingleton<ILinuxDiagnosticCheck, DesktopEntryCheck>();
+        collection.AddSingleton<ILinuxDiagnosticCheck, LauncherCheck>();
+        collection.AddSingleton<ILinuxDiagnosticCheck, AutostartEntryCheck>();
+        collection.AddSingleton<ILinuxDiagnosticCheck, SteamOsPersistenceCheck>();
 
         // The decks themselves are not known until a run starts, so their checks come from a
         // source rather than from this list.
