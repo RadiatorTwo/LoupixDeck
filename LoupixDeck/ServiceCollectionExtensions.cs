@@ -309,7 +309,7 @@ public static class ServiceCollectionExtensions
                 };
 
                 // First launch for this device — seed the serial port/baud from any
-                // existing sibling config so the user does not have to re-run InitSetup
+                // existing sibling config so the user keeps their setup
                 // just because they switched device type (the port is hardware, not
                 // device-type-specific). Crucial for the LOUPIXDECK_FAKE_DEVICE flow:
                 // without this the fresh config has no port → device times out →

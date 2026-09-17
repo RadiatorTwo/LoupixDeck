@@ -36,7 +36,7 @@ public class LoupedeckDeviceService : IDeviceService
         var deviceThread = new Thread(() =>
         {
             // The active device type was selected before DI build (App.axaml.cs +
-            // ActiveDeviceResolver / InitSetup). Falling back to Live S keeps very
+            // ActiveDeviceResolver). Falling back to Live S keeps very
             // old configs that predate the device registry alive.
             var type = _deviceInfo?.DeviceType ?? typeof(LoupedeckLiveSDevice);
 

@@ -19,8 +19,8 @@ public partial class About : Window
         };
 
         // No Closing guard here: About has nothing to complete or confirm, so every close
-        // path — the Close button, Alt+F4 — just closes it (issue #201). InitSetup keeps
-        // its guard, that dialog must be filled in before the app can continue.
+        // path — the Close button, Alt+F4 — just closes it (issue #201). The dialogs that do
+        // carry a result keep their guard.
     }
 
     /// <summary>
