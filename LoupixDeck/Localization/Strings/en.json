@@ -885,6 +885,8 @@
   "Settings_RuleCompanionRemove": "Remove this companion's pages from the rule",
   "Settings_RuleCompanionUnchanged": "(unchanged)",
   "Settings_Rules": "Rules",
+  "Settings_Save": "Save",
+  "Settings_SavedAtFmt": "Saved at {0}.",
   "Settings_Screensaver": "Screensaver",
   "Settings_Seconds": "seconds",
   "Settings_SelectAPluginToRemove": "Select a plugin in the list to remove.",

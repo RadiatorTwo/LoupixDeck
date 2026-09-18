@@ -4,6 +4,7 @@ using Avalonia.Styling;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using LoupixDeck.Controllers;
 using LoupixDeck.Localization;
 using LoupixDeck.Models;
 using LoupixDeck.Registry;
@@ -45,8 +46,26 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
     private readonly ICompanionCoordinator _companions;
     private readonly ICompanionContextSync _contextSync;
     private readonly ResolvedDevice _device;
+    private readonly IDeviceController _controller;
 
     public IRelayCommand NavigateCommand => field ??= Relay.Create<SettingsView>(Navigate);
+
+    /// <summary>Writes the config to disk now. Edits go straight into the in-memory config and are
+    /// otherwise only saved when the window closes; closing still saves as before.</summary>
+    public IRelayCommand SaveCommand => field ??= Relay.Create(Save);
+
+    /// <summary>When the config was last saved from this window; empty until then.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasSaveStatus))]
+    public partial string SaveStatusText { get; set; }
+
+    public bool HasSaveStatus => !string.IsNullOrWhiteSpace(SaveStatusText);
+
+    private void Save()
+    {
+        _controller.SaveConfig();
+        SaveStatusText = Loc.Tr("Settings_SavedAtFmt", DateTime.Now.ToString("HH:mm:ss"));
+    }
 
     public IRelayCommand AddAppBindingCommand => field ??= Relay.Create(AddAppBinding);
     public IRelayCommand RemoveAppBindingCommand => field ??= Relay.Create<AppBindingRow>(RemoveAppBinding, static p => p != null);
@@ -140,6 +159,7 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
         IUpdateService updateService,
         ICompanionCoordinator companions,
         ICompanionContextSync contextSync,
+        IDeviceController controller,
         ResolvedDevice device,
         LinuxDiagnosticsViewModel diagnostics)
     {
@@ -147,6 +167,7 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
         Diagnostics = diagnostics;
         _contextSync = contextSync;
         _device = device;
+        _controller = controller;
         Config = config;
         IsVibrationSupported = config?.Geometry.HasVibration ?? true;
         _deviceService = deviceService;
