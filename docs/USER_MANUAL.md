@@ -158,9 +158,11 @@ In v1.22.0 and later, display frames reuse pooled buffers, WebSocket payloads ar
 
 On start, LoupixDeck opens the main window first and brings supported USB devices online in the background. There is no separate splash screen. A connected device joins the window as soon as its link is ready; only devices whose links are ready appear in the device selector.
 
+Starting with no device connected no longer opens a setup question. Even on a first start with no saved device, LoupixDeck opens the empty main window and waits for hot plug instead of asking you to choose a model. Update checks do not wait for hardware initialization. A device-less start also no longer leaves the About dialog, the Plugins window, and the update dialog unusable for the rest of the session: if no saved device context exists yet, plugging in the first device enables them without an app restart.
+
 When several devices connect during startup, the first one that becomes available stays selected while the others join the selector. A later connection no longer takes the editor away from the device you are using.
 
-If no device is ready, the device area shows `No device connected` instead of empty profile and workspace selectors. Plug a supported deck in over USB and LoupixDeck picks it up automatically. If the deck is already plugged in, the vendor software or another program may still be holding its serial port. LoupixDeck retries a busy port with backoff and adds the device when the port becomes available, without requiring an app restart. Device actions stay disabled in the meantime, while `About` and `Quit` remain available from the hamburger menu. Starting minimized also works when no device is ready yet.
+If no device is ready, the device area shows `No device connected` instead of empty profile and workspace selectors. Plug a supported deck in over USB and LoupixDeck picks it up automatically. If the deck is already plugged in, the vendor software or another program may still be holding its serial port. LoupixDeck retries a busy port with backoff and adds the device when the port becomes available, without requiring an app restart. Device actions stay disabled in the meantime, while `Quit` remains available. Starting minimized also works when no device is ready yet.
 
 When the computer wakes from sleep or standby, LoupixDeck rebuilds the device connection and sends the current state again. Brightness, LED colours, the active touch page, and side-strip content are restored. The same state refresh happens after automatic reconnect or after you press `Reconnect` in `Settings > General`, so the display should not remain black after the link returns.
 
@@ -616,6 +618,8 @@ Media, volume, browser and launcher keys have names of their own: `PlayPause`, `
 
 On Windows, normal macros use `SendInput`. LoupixDeck can optionally use the Interception driver for applications that read raw input.
 
+With the standard Windows backend, the final key press of a combination and every release are sent as one batch. This prevents a modifier such as `Win` from remaining held when the shortcut brings an elevated window to the foreground.
+
 On Linux, macro execution uses `uinput`; recording may need access to `/dev/input/event*`.
 
 ## Dynamic Text
@@ -660,6 +664,8 @@ The Feedback page has:
 - Haptic: an enable toggle and one global effect picker.
 
 In current releases, haptics use LoupixDeck's software vibration pulse. Older config files still load, but the old delay, duration, second-step, and firmware haptic controls are no longer part of the settings page.
+
+The effect picker labels **Long Buzz (11.5s)** with its actual duration. Once the device starts this effect, the host cannot stop it early.
 
 Feedback controls are capability-aware. For example, the haptic card and per-button vibration options are not shown for a device without a vibration motor; colour controls are likewise available only where that hardware supports them.
 
@@ -778,7 +784,7 @@ From this page you can:
 - Select a plugin and edit its settings if it provides a settings UI.
 - Enable or disable a plugin for the selected device. The choice is saved immediately and refreshes its commands and dial presets live.
 
-The v1.30.0 Plugin Store catalogue includes these integrations:
+The v1.31.0 Plugin Store catalogue includes these integrations:
 
 | Plugin | Platform |
 | --- | --- |
@@ -789,9 +795,11 @@ The v1.30.0 Plugin Store catalogue includes these integrations:
 | CoolerControl | All |
 | Argus Monitor | Windows |
 | HWiNFO | Windows |
+| KDE Plasma | Linux |
 | LibreHardwareMonitor | Windows |
 | LinuxHwInfo | Linux |
 | SteelSeries Sonar | Windows |
+| Twitch | Windows |
 
 Plugins can add commands, dynamic text, settings pages, folders, side-strip providers, or special integration behavior. The exact command names depend on the installed plugin version and what external app or service is configured.
 
@@ -820,6 +828,14 @@ On Linux, MP3 and M4A playback uses an external player when a particular playbac
 ### SteelSeries Sonar
 
 Install the Windows-only SteelSeries Sonar plugin from the Plugin Store. It exposes controls for the Sonar mixer, including the separate streaming and monitoring volumes used by stream mode. Enable it for the current device on the installed-plugins page; it is not offered on Linux.
+
+### Twitch
+
+The Windows-only Twitch plugin can send chat messages, create clips, run ads, set stream markers, clear chat, toggle slow or emote-only mode, and show the live viewer count. Install and configure it from the Plugin Store, then enable it for the device that should expose its commands.
+
+### KDE Plasma
+
+The Linux-only KDE Plasma plugin controls virtual desktops, windows, Activities, Overview, Night Color, and session actions. It is offered by the Plugin Store on Linux and requires Plugin SDK 1.23.0 or later.
 
 ### OBS Studio
 
@@ -951,6 +967,8 @@ Underscores in `text` are treated as spaces in the short CLI form.
 
 ## Settings Reference
 
+Settings are still saved when the settings window closes. Use the **Save** button at the bottom of the sidebar to write all current settings immediately without closing the window; a status message confirms the save time.
+
 ### General
 
 - Language: English, German, or Spanish. The selection applies immediately and is shared by all connected devices.
@@ -1036,6 +1054,23 @@ Important: Interception is third-party software. It is not bundled with LoupixDe
 - Trigger rules when a process starts.
 - Choose what happens to the profile when you leave matched apps.
 
+### Linux Diagnostics (Device Doctor)
+
+This page appears only on Linux under `Settings > Diagnostics`. It opens empty and does not inspect or change anything until you select **Run checks**. A normal run is read-only and groups its results into System, Desktop Session, Device Access, Input Injection, Input Recording, Plugins, and Installation.
+
+The checks cover the Linux distribution and architecture, the graphical session, X11/XWayland support, D-Bus, PipeWire, plugin folders, desktop integration, `/dev/uinput`, and access to `/dev/input/event*`. Each attached supported deck is checked separately for its model and USB ids, serial node access, installed udev rule, the process holding its port, its current LoupixDeck connection, and the last connection attempt. Serial numbers shown in the page and report are shortened.
+
+Select a result to see its evidence, technical detail, and suggested solution. When the installer is the appropriate repair, Device Doctor locates the real `install-loupixdeck.sh` and shows the exact `sudo <path>` command for you to copy; it never runs that command by itself. After applying a fix, use **Run category again** or **Run this check again** instead of repeating the entire scan. Device checks are rebuilt for each run, so a newly connected deck can be diagnosed without restarting LoupixDeck.
+
+The optional tests are also never started automatically and ask before acting:
+
+- **Send test key** creates a temporary virtual keyboard, sends `F24` once, and removes it again.
+- **Test key press** listens for the first keyboard event for up to ten seconds; it stores and injects nothing.
+- **Show test pattern** draws a test pattern on a connected deck until you press a device key.
+- **Test Plugin Store** loads the catalogue. This is the only diagnostic test that contacts the internet.
+
+Use **Show report** to review the Markdown report before copying it to the clipboard or saving it as a `.md` file. The report replaces user names, home-directory paths, network addresses, machine ids, and serial-by-id links with placeholders, but you should still review it before sharing.
+
 ### Theme
 
 - Dark.
@@ -1073,6 +1108,7 @@ Per-device layout is scoped by serial number when possible. Existing file names 
 
 ### Device is not detected
 
+- On Linux, open `Settings > Diagnostics`, run the checks, and select **Device Access**. The page distinguishes missing permissions or rules from a port held by another process and provides the matching next step.
 - If the deck is plugged in but the empty state remains, another program may be holding its serial port. LoupixDeck keeps retrying in the background; close the vendor application or service if you want to release the port immediately.
 - A busy device does not appear in the selector until its serial link succeeds. You do not need to restart LoupixDeck after the port is released.
 - Unplug and reconnect the device.
