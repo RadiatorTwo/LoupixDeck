@@ -1759,14 +1759,13 @@ public partial class LoupedeckLiveSController(
             HandleStripDragEnd(e.ChangedTouch);
             HandleStripTapEnd(e.ChangedTouch);
 
-            foreach (var touch in e.Touches)
+            // The lifted contact is ChangedTouch; e.Touches no longer contains it, so a
+            // single tap would never send Off and a continuous pattern (Long Buzz) keeps going.
+            if (e.ChangedTouch != null)
             {
-                var btn = config.CurrentTouchButtonPage?.TouchButtons?.FindByIndex(touch.Target.Key);
+                var btn = config.CurrentTouchButtonPage?.TouchButtons?.FindByIndex(e.ChangedTouch.Target.Key);
                 if (btn != null && ResolveVibrationPattern(btn).HasValue)
-                {
                     deviceService.Device.Vibrate(Constants.VibrationPattern.Off);
-                    break;
-                }
             }
             _activeTouchSlot = null;
             return;
