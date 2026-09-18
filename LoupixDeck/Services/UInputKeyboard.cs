@@ -485,24 +485,34 @@ public partial class WindowsUInputKeyboard : IUInputKeyboard
         if (keys.Count == 0)
             return;
 
-        // Press all keys, hold them briefly, then release in reverse order. Sending down and up
-        // as one batch is sometimes too fast for a SYSTEM hotkey to register — Win+Ctrl+Left for
-        // the previous virtual desktop is the common case — especially while another application
-        // has focus. The short hold makes those reliable.
-        INPUT[] down = new INPUT[keys.Count];
-        for (int d = 0; d < keys.Count; d++)
-            down[d] = KeyInput(keys[d].virtualKey, keys[d].extended, false);
-        Send(down);
+        // Hold the modifiers briefly before the last key, then send that key and every release
+        // as ONE batch. Sending everything as one batch is sometimes too fast for a SYSTEM hotkey
+        // to register (Win+Ctrl+Left for the previous virtual desktop is the common case), so
+        // the modifiers go down first and stay held for a moment.
+        //
+        // The releases must not be a separate SendInput call after the hotkey fired: the hotkey
+        // can bring an elevated window to the front (Win+D restoring an OBS that runs as admin),
+        // and UIPI then silently refuses the key-ups from this unelevated process, leaving Win
+        // held. One batch is checked once, when it is sent, before the hotkey takes effect.
+        var last = keys.Count - 1;
+        if (last > 0)
+        {
+            INPUT[] modifiers = new INPUT[last];
+            for (int d = 0; d < last; d++)
+                modifiers[d] = KeyInput(keys[d].virtualKey, keys[d].extended, false);
+            Send(modifiers);
 
-        Thread.Sleep(HotkeyHoldMs);
+            Thread.Sleep(HotkeyHoldMs);
+        }
 
-        INPUT[] up = new INPUT[keys.Count];
+        INPUT[] press = new INPUT[keys.Count + 1];
+        press[0] = KeyInput(keys[last].virtualKey, keys[last].extended, false);
         for (int u = 0; u < keys.Count; u++)
         {
-            (int virtualKey, bool extended) = keys[keys.Count - 1 - u];
-            up[u] = KeyInput(virtualKey, extended, true);
+            (int virtualKey, bool extended) = keys[last - u];
+            press[u + 1] = KeyInput(virtualKey, extended, true);
         }
-        Send(up);
+        Send(press);
     }
 
     public void KeyDown(string keyName)
