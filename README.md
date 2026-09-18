@@ -72,6 +72,8 @@ The installer downloads the latest release, installs LoupixDeck, configures the 
 loupixdeck
 ```
 
+If hardware access, macro input or the desktop integration does not work, open **Settings → Diagnostics**. The Linux-only Device Doctor runs read-only checks for the system, session, devices, input permissions, plugins and installation, then offers copyable repair commands and a sanitized Markdown report.
+
 <details>
 <summary>Inspect the installer before running it</summary>
 
@@ -112,6 +114,8 @@ Only the device-permission step needs administrator rights. If you have never co
 4. Select a button to customize its image, text, symbol, actions and states.
 5. Add profiles, workspaces, pages and folders as your setup grows.
 6. Open **Plugins** from the hamburger menu, then choose **Plugin Store** to install integrations.
+
+LoupixDeck can also start with no device connected. It opens the main window without asking for a model and waits for a supported deck to be plugged in.
 
 For a complete walkthrough, see the [User Manual](docs/USER_MANUAL.md).
 
@@ -170,6 +174,8 @@ Built-in commands and plugins cover:
 - Elgato Key Lights
 - Audio devices, per-application mixing and sound playback on Windows and Linux
 - SteelSeries Sonar on Windows
+- Twitch chat and stream controls on Windows
+- KDE Plasma desktops, windows, Activities and session controls on Linux
 - Cooler Control and Linux hardware information
 - Argus Monitor on Windows
 - Shell commands, page navigation and device power
@@ -338,6 +344,8 @@ Enable managed crash logging:
 ```
 
 Logs are written to the LoupixDeck user configuration directory. For very noisy first-chance exception logging, use `--firstchance`. Native crashes require the .NET minidump environment variables instead.
+
+On Linux, run **Settings → Diagnostics** first for device access, udev, `uinput`, input-recording, D-Bus, Plugin Store and installation checks. Individual checks and categories can be rerun after applying a suggested fix.
 
 For setup and usage help, check the [User Manual](docs/USER_MANUAL.md) or [open an issue](https://github.com/RadiatorTwo/LoupixDeck/issues/new).
 
