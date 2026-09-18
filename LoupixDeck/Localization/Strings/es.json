@@ -885,6 +885,8 @@
   "Settings_RuleCompanionRemove": "Quitar de la regla las páginas de este acompañante",
   "Settings_RuleCompanionUnchanged": "(sin cambios)",
   "Settings_Rules": "Reglas",
+  "Settings_Save": "Guardar",
+  "Settings_SavedAtFmt": "Guardado a las {0}.",
   "Settings_Screensaver": "Salvapantallas",
   "Settings_Seconds": "segundos",
   "Settings_SelectAPluginToRemove": "Selecciona un plugin en la lista para eliminarlo.",

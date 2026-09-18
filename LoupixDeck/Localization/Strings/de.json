@@ -885,6 +885,8 @@
   "Settings_RuleCompanionRemove": "Die Seiten dieses Companions aus der Regel entfernen",
   "Settings_RuleCompanionUnchanged": "(unverändert)",
   "Settings_Rules": "Regeln",
+  "Settings_Save": "Speichern",
+  "Settings_SavedAtFmt": "Gespeichert um {0}.",
   "Settings_Screensaver": "Bildschirmschoner",
   "Settings_Seconds": "Sekunden",
   "Settings_SelectAPluginToRemove": "Ein Plugin in der Liste zum Entfernen auswählen.",

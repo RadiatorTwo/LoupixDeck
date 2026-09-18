@@ -135,6 +135,14 @@
                         </Grid>
                     </Button>
 
+                    <!-- Changes are saved when the window closes; this saves them without closing it. -->
+                    <StackPanel Spacing="6" Margin="8,16,8,0">
+                        <Button Classes="accent" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                                Content="{loc:Tr Settings_Save}" Command="{Binding SaveCommand}" />
+                        <TextBlock Classes="hint" FontSize="12" HorizontalAlignment="Center"
+                                   Text="{Binding SaveStatusText}" IsVisible="{Binding HasSaveStatus}" />
+                    </StackPanel>
+
                 </StackPanel>
             </ScrollViewer>
         </Border>
