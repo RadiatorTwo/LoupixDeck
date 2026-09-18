@@ -17,7 +17,7 @@ public static class VibrationPatternCatalog
         new VibrationPatternItem("Alert 750ms",     Constants.VibrationPattern.Long),
         new VibrationPatternItem("Alert 1000ms",    Constants.VibrationPattern.LongAlert),
         new VibrationPatternItem("Strong Buzz",     Constants.VibrationPattern.StrongBuzz),
-        new VibrationPatternItem("Long Buzz",       Constants.VibrationPattern.VeryLong),
+        new VibrationPatternItem("Long Buzz (11.5s)", Constants.VibrationPattern.VeryLong),
         new VibrationPatternItem("Soft Buzz",       Constants.VibrationPattern.ShortLower),
         new VibrationPatternItem("Smooth Hum",      Constants.VibrationPattern.Rumble5),
         new VibrationPatternItem("Ramp Up Smooth",  Constants.VibrationPattern.AscendSlow),
