@@ -290,7 +290,7 @@
     {
       "id": "twitch",
       "name": "Twitch",
-      "description": "Send chat messages, create clips, clear chat, toggle slow and emote-only mode, and show the live viewer count.",
+      "description": "Send chat messages, create clips, run ads, set stream markers, clear chat, toggle slow and emote-only mode, and show the live viewer count.",
       "author": "vividflash",
       "repository": "vividflash/LoupixDeck.Plugin.Twitch",
       "icon": "",
@@ -298,17 +298,17 @@
       "minSdkVersion": "1.23.0",
       "commandPrefixes": [ "Twitch." ],
       "release": {
-        "version": "1.0.1",
-        "tag": "v1.0.1",
-        "publishedAt": "2026-09-18T13:26:40Z",
+        "version": "1.1.0",
+        "tag": "v1.1.0",
+        "publishedAt": "2026-09-18T20:30:19Z",
         "sdkVersion": "1.23.0",
-        "releaseNotesUrl": "https://github.com/vividflash/LoupixDeck.Plugin.Twitch/releases/tag/v1.0.1",
+        "releaseNotesUrl": "https://github.com/vividflash/LoupixDeck.Plugin.Twitch/releases/tag/v1.1.0",
         "packages": [
           {
             "platform": "windows",
-            "fileName": "twitch-1.0.1-windows.zip",
-            "downloadUrl": "https://github.com/vividflash/LoupixDeck.Plugin.Twitch/releases/download/v1.0.1/twitch-1.0.1-windows.zip",
-            "sha256": "721380baeb50aa143de8681f7ad35f6a98ee46c0397c5af75909eb10f2d5c478"
+            "fileName": "twitch-1.1.0-windows.zip",
+            "downloadUrl": "https://github.com/vividflash/LoupixDeck.Plugin.Twitch/releases/download/v1.1.0/twitch-1.1.0-windows.zip",
+            "sha256": "f336eb672533caa5afd7e3ed8e509398f6eb7d13a85edbe3fb453ed354c5864e"
           }
         ]
       }
