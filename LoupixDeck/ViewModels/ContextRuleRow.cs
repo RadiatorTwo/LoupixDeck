@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using LoupixDeck.Models;
 using LoupixDeck.Models.Companion;
@@ -16,6 +17,7 @@ public partial class ContextRuleRow : ObservableObject
 {
     private readonly ICompanionCoordinator _companions;
     private readonly string _deviceKey;
+    private bool _rebuildingWorkspaces;
 
     public ContextRule Rule { get; }
 
@@ -47,12 +49,47 @@ public partial class ContextRuleRow : ObservableObject
         get => Profiles.FirstOrDefault(p => p.Id == Rule.ActivateProfileId);
         set
         {
-            Rule.ActivateProfileId = value?.Id;
-            OnPropertyChanged();
-            RebuildWorkspaces();
-            OnPropertyChanged(nameof(SelectedWorkspace));
-            RefreshCompanionTargets(prune: true);
+            // Removing the rule's profile from Profiles makes Avalonia clear the ComboBox's
+            // SelectedItem, and the TwoWay binding writes that null back. A package import with
+            // "Replace existing" does this too: it removes the old instance and inserts the new one
+            // under the same id. Defer the null until that swap is done, so a replaced profile is
+            // re-selected instead of dropping the rule's profile and workspace.
+            if (value == null && Rule.ActivateProfileId is { } id && Profiles.All(p => p.Id != id))
+            {
+                Dispatcher.UIThread.Post(() => ResolveRemovedProfile(id));
+                return;
+            }
+
+            ApplyProfile(value);
         }
+    }
+
+    private void ApplyProfile(Profile profile)
+    {
+        Rule.ActivateProfileId = profile?.Id;
+        OnPropertyChanged(nameof(SelectedProfile));
+        RebuildWorkspaces();
+        OnPropertyChanged(nameof(SelectedWorkspace));
+        RefreshCompanionTargets(prune: true);
+    }
+
+    /// <summary>Runs after a removal of the rule's profile: re-selects it when a profile with the same
+    /// id is back (replaced), otherwise clears the target as before (deleted).</summary>
+    private void ResolveRemovedProfile(Guid id)
+    {
+        if (Rule.ActivateProfileId != id)
+            return;
+
+        if (Profiles.All(p => p.Id != id))
+        {
+            ApplyProfile(null);
+            return;
+        }
+
+        RebuildWorkspaces();
+        OnPropertyChanged(nameof(SelectedProfile));
+        OnPropertyChanged(nameof(SelectedWorkspace));
+        RefreshCompanionTargets();
     }
 
     /// <summary>Target workspace within the selected profile (null = the profile's home workspace).</summary>
@@ -61,6 +98,11 @@ public partial class ContextRuleRow : ObservableObject
         get => Workspaces.FirstOrDefault(w => w.Id == Rule.ActivateWorkspaceId);
         set
         {
+            // Clearing Workspaces in RebuildWorkspaces makes the ComboBox write null here; the
+            // rebuild itself decides whether the workspace still belongs to the profile.
+            if (_rebuildingWorkspaces)
+                return;
+
             Rule.ActivateWorkspaceId = value?.Id;
             OnPropertyChanged();
             RefreshCompanionTargets(prune: true);
@@ -150,11 +192,19 @@ public partial class ContextRuleRow : ObservableObject
 
     private void RebuildWorkspaces()
     {
-        Workspaces.Clear();
-        var profile = Profiles.FirstOrDefault(p => p.Id == Rule.ActivateProfileId);
-        if (profile != null)
-            foreach (var workspace in profile.Workspaces)
-                Workspaces.Add(workspace);
+        _rebuildingWorkspaces = true;
+        try
+        {
+            Workspaces.Clear();
+            var profile = Profiles.FirstOrDefault(p => p.Id == Rule.ActivateProfileId);
+            if (profile != null)
+                foreach (var workspace in profile.Workspaces)
+                    Workspaces.Add(workspace);
+        }
+        finally
+        {
+            _rebuildingWorkspaces = false;
+        }
 
         // Drop a workspace target that no longer belongs to the chosen profile.
         if (Rule.ActivateWorkspaceId is { } wid && Workspaces.All(w => w.Id != wid))
