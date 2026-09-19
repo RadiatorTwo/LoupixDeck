@@ -759,7 +759,7 @@ public class PluginManager : IPluginManager
             return changed;
         }
 
-        return new PluginHost(logger, settings, device, ExecuteCommand, RequestButtonRefresh,
+        return new PluginHost(manifest.Id, logger, settings, device, ExecuteCommand, RequestButtonRefresh,
             OpenFolder, OverlayTouchText, GetTouchSlotForRotary,
             RequestExclusiveMode, ReleaseExclusiveMode, IsInExclusiveMode,
             RequestFullDisplayRenderer,

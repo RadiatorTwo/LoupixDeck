@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using LoupixDeck.Localization;
 using LoupixDeck.PluginSdk;
 
 namespace LoupixDeck.Services.Plugins;
@@ -10,6 +11,7 @@ namespace LoupixDeck.Services.Plugins;
 /// </summary>
 public sealed class PluginHost : IPluginHost
 {
+    private readonly string _pluginId;
     private readonly Action<string> _executeCommand;
     private readonly Action<string> _requestButtonRefresh;
     private readonly Action<IFolderProvider> _openFolder;
@@ -25,6 +27,7 @@ public sealed class PluginHost : IPluginHost
     private readonly Func<FolderGridInfo> _getFolderGrid;
 
     public PluginHost(
+        string pluginId,
         IPluginLogger logger,
         IPluginSettings settings,
         DeviceInfo activeDevice,
@@ -42,6 +45,7 @@ public sealed class PluginHost : IPluginHost
         Func<string, string, bool> setActiveButtonState,
         Func<FolderGridInfo> getFolderGrid)
     {
+        _pluginId = pluginId;
         Logger = logger;
         Settings = settings;
         ActiveDevice = activeDevice;
@@ -65,6 +69,15 @@ public sealed class PluginHost : IPluginHost
     public IPluginSettings Settings { get; }
 
     public DeviceInfo ActiveDevice { get; }
+
+    public string CurrentLanguage => LocalizationManager.Instance.CurrentLanguage;
+
+    /// <summary>
+    /// Resolved against the owning plugin's own <c>strings.&lt;code&gt;.json</c>, so two plugins can
+    /// translate the same English wording differently. Reads only, and the plugin map is locked,
+    /// so a plugin may call this from any thread.
+    /// </summary>
+    public string Tr(string english) => LocalizationManager.Instance.TrText(english, _pluginId);
 
     /// <summary>
     /// Falls back to the SDK's 5x3 default when no device/navigation service can be resolved
