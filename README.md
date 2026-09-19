@@ -216,7 +216,7 @@ The **Plugin Store** page uses a searchable tile grid and one catalogue request 
 Want to create a plugin?
 
 - [Plugin SDK repository](https://github.com/RadiatorTwo/LoupixDeck.PluginSdk)
-- [`LoupixDeck.PluginSdk` on NuGet](https://www.nuget.org/packages/LoupixDeck.PluginSdk) Coming soon
+- [`LoupixDeck.PluginSdk` on NuGet](https://www.nuget.org/packages/LoupixDeck.PluginSdk)
 - [Plugin SDK documentation](https://github.com/RadiatorTwo/LoupixDeck.PluginSdk/wiki)
 
 ## Portable profiles
