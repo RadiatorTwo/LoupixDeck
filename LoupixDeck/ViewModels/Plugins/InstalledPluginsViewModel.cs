@@ -144,6 +144,12 @@ public sealed partial class InstalledPluginsViewModel : ViewModelBase
     [ObservableProperty]
     public partial PluginDetailViewModel Detail { get; set; }
 
+    partial void OnDetailChanged(PluginDetailViewModel oldValue, PluginDetailViewModel newValue) =>
+        oldValue?.Detach();
+
+    /// <summary>Lets go of the shown pane when the window closes.</summary>
+    public void Cleanup() => Detail?.Detach();
+
     public bool HasSelection => SelectedPlugin != null;
 
     [ObservableProperty]

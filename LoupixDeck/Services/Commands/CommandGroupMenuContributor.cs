@@ -60,14 +60,18 @@ public class CommandGroupMenuContributor : IMenuContributor
             {
                 Icon = groupInfo.Icon,
                 Description = groupInfo.Description,
-                Section = groupInfo.Section
+                Section = groupInfo.Section,
+                // An undeclared group takes the plugin of its commands, so its name can still
+                // come from that plugin's strings.
+                OwnerPluginId = groupInfo.OwnerPluginId ?? group.First().Info.OwnerPluginId
             };
 
             foreach (var command in group)
                 groupMenu.Children.Add(new MenuEntry(command.Info.DisplayName, command.CommandName)
                 {
                     Icon = command.Info.Icon,
-                    Description = command.Info.Description
+                    Description = command.Info.Description,
+                    OwnerPluginId = command.Info.OwnerPluginId
                 });
 
             if (groupMenu.Children.Count > 0)

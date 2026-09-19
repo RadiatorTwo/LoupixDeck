@@ -29,23 +29,45 @@ public sealed partial class PluginDetailViewModel : ViewModelBase
         _plugin = plugin;
 
         PluginManifest manifest = plugin.Manifest;
-        Name = manifest?.Name ?? plugin.Directory;
+        _name = manifest?.Name ?? plugin.Directory;
         PluginId = manifest?.Id;
         Author = manifest?.Author;
         Version = manifest?.Version;
         SdkVersion = manifest?.SdkVersion;
-        DescriptionText = manifest?.Description;
+        _description = manifest?.Description;
         ProjectUrl = manifest?.ProjectUrl;
         Icon = LoadIcon(plugin);
 
         BuildForm();
+
+        LocalizationManager.Instance.PropertyChanged += OnLanguageChanged;
+    }
+
+    /// <summary>Stops following language changes. Called when the page drops this pane.</summary>
+    public void Detach()
+    {
+        LocalizationManager.Instance.PropertyChanged -= OnLanguageChanged;
+    }
+
+    /// <summary>Plugin texts are looked up at display time, so a language switch only has to
+    /// re-raise them; rebuilding the form would throw pending edits away.</summary>
+    private void OnLanguageChanged(object sender, PropertyChangedEventArgs e)
+    {
+        OnPropertyChanged(nameof(Name));
+        OnPropertyChanged(nameof(DescriptionText));
+        foreach (PluginSettingGroupViewModel group in Groups)
+            group.RefreshTexts();
+        Connection?.RefreshTexts();
     }
 
     public LoadedPlugin Plugin => _plugin;
 
     // ---------- Header ----------
 
-    public string Name { get; }
+    private readonly string _name;
+    private readonly string _description;
+
+    public string Name => LocalizationManager.Instance.TrText(_name, PluginId);
 
     public string PluginId { get; }
 
@@ -55,7 +77,7 @@ public sealed partial class PluginDetailViewModel : ViewModelBase
 
     public string SdkVersion { get; }
 
-    public string DescriptionText { get; }
+    public string DescriptionText => LocalizationManager.Instance.TrText(_description, PluginId);
 
     public string ProjectUrl { get; }
 
@@ -63,7 +85,7 @@ public sealed partial class PluginDetailViewModel : ViewModelBase
 
     public bool HasIcon => Icon != null;
 
-    public bool HasDescription => !string.IsNullOrWhiteSpace(DescriptionText);
+    public bool HasDescription => !string.IsNullOrWhiteSpace(_description);
 
     public bool HasProjectUrl => !string.IsNullOrWhiteSpace(ProjectUrl);
 
@@ -173,7 +195,7 @@ public sealed partial class PluginDetailViewModel : ViewModelBase
 
         // Settings declared before the first heading have no card of their own; they get an
         // untitled one so nothing is dropped.
-        PluginSettingGroupViewModel current = new(null, null);
+        PluginSettingGroupViewModel current = new(null, null, PluginId);
 
         foreach (PluginSettingDescriptor descriptor in _page.SettingsSchema)
         {
@@ -182,11 +204,11 @@ public sealed partial class PluginDetailViewModel : ViewModelBase
                 if (current.Rows.Count > 0)
                     Groups.Add(current);
 
-                current = new PluginSettingGroupViewModel(descriptor.Label, descriptor.Description);
+                current = new PluginSettingGroupViewModel(descriptor.Label, descriptor.Description, PluginId);
                 continue;
             }
 
-            PluginSettingRowViewModel row = PluginSettingRowViewModel.Create(descriptor);
+            PluginSettingRowViewModel row = PluginSettingRowViewModel.Create(descriptor, PluginId);
             row.Load(_settings);
             row.PropertyChanged += OnRowChanged;
             current.Rows.Add(row);
@@ -200,7 +222,7 @@ public sealed partial class PluginDetailViewModel : ViewModelBase
             PluginConnectionViewModel card = new();
             foreach (PluginSettingAction action in actions)
             {
-                card.Actions.Add(new PluginActionRowViewModel(action, card,
+                card.Actions.Add(new PluginActionRowViewModel(action, card, PluginId,
                     beforeInvoke: () =>
                     {
                         WriteAndSave();

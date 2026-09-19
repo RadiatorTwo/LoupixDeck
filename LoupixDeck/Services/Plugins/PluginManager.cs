@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using LoupixDeck.Localization;
 using LoupixDeck.PluginSdk;
 using LoupixDeck.Registry;
 using Microsoft.Extensions.DependencyInjection;
@@ -356,6 +357,7 @@ public class PluginManager : IPluginManager
         // Safety net after Shutdown had its chance: never leave a renderer of an unloaded plugin
         // registered with the animation scheduler (issue #124).
         ReleaseFullDisplaySessions(pluginId);
+        LocalizationManager.Instance.UnregisterPluginStrings(pluginId);
 
         ReplacePlugins(list =>
             list.RemoveAll(p => string.Equals(p.Manifest?.Id, pluginId, StringComparison.OrdinalIgnoreCase)));
@@ -393,6 +395,10 @@ public class PluginManager : IPluginManager
         {
             return Fail(dir, manifest, "plugin.json is missing 'id' or 'entryAssembly'.");
         }
+
+        // Translations the plugin ships next to its manifest. Registered before the gates, so a
+        // disabled plugin's name and description still show in the user's language.
+        LocalizationManager.Instance.RegisterPluginStrings(manifest.Id, dir);
 
         // User gate — a plugin only loads when the user has enabled it.
         // No FailureReason: the status alone says it, and DescribeStatus renders it in the
@@ -804,6 +810,9 @@ public class PluginManager : IPluginManager
 
     public void ShutdownAll()
     {
+        foreach (var plugin in _plugins)
+            LocalizationManager.Instance.UnregisterPluginStrings(plugin.Manifest?.Id);
+
         foreach (var plugin in _plugins.Where(p => p.Status == PluginLoadStatus.Loaded))
         {
             try

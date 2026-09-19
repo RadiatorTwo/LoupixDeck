@@ -41,7 +41,7 @@ public class PluginCommandProvider : ICommandProvider
             {
                 try
                 {
-                    result.Add(Adapt(command, plugin.Host));
+                    result.Add(Adapt(command, plugin.Host, plugin.Manifest?.Id));
                 }
                 catch (Exception ex)
                 {
@@ -65,7 +65,7 @@ public class PluginCommandProvider : ICommandProvider
                && enabled.Any(id => string.Equals(id, pluginId, StringComparison.OrdinalIgnoreCase));
     }
 
-    private static RegisteredCommand Adapt(IPluginCommand command, IPluginHost host)
+    private static RegisteredCommand Adapt(IPluginCommand command, IPluginHost host, string pluginId)
     {
         var descriptor = command.Descriptor;
 
@@ -82,7 +82,8 @@ public class PluginCommandProvider : ICommandProvider
                 .ToList(),
             States = descriptor.States
                 .Select(state => new CommandStateInfo(state.Name, state.Description))
-                .ToList()
+                .ToList(),
+            OwnerPluginId = pluginId
         };
 
         Func<string[], ButtonTargets, int?, Task> execute = async (parameters, target, sourceIndex) =>

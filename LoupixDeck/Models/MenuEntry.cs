@@ -30,6 +30,10 @@ public class MenuEntry(string name, string command, string parentName = null, Di
     /// category is filed under. Null on leaves (and treated as Plugins when unset).</summary>
     public CommandGroupSection? Section { get; set; }
 
+    /// <summary>Id of the plugin that contributed this entry, so its name and description are
+    /// translated from the plugin's own strings files. Null for core entries. Never persisted.</summary>
+    public string OwnerPluginId { get; set; }
+
     /// <summary>
     /// When set, this entry is a rotary command group: each <see cref="RotaryAction"/>
     /// maps to a fully-built, ready-to-persist command string. Applying the group

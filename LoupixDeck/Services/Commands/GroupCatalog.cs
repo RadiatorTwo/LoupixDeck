@@ -16,6 +16,9 @@ public sealed class GroupInfo
 
     /// <summary>Short description shown under the category title on the card.</summary>
     public string Description { get; init; }
+
+    /// <summary>Id of the plugin that declared the group; null for core and undeclared groups.</summary>
+    public string OwnerPluginId { get; init; }
 }
 
 /// <summary>
@@ -116,7 +119,8 @@ public sealed class GroupCatalog : IGroupCatalog
                     {
                         Section = group.Section,
                         Icon = string.IsNullOrEmpty(group.Icon) ? FallbackIcon : group.Icon,
-                        Description = group.Description
+                        Description = group.Description,
+                        OwnerPluginId = plugin.Manifest?.Id
                     };
             }
         }

@@ -79,8 +79,8 @@ public partial class CommandRowViewModel : ViewModelBase
     /// <summary>The underlying menu leaf — the insertion payload handed to the host.</summary>
     public MenuEntry Entry { get; }
 
-    public string Title => LocalizationManager.Instance.TrText(Entry.Name);
-    public string Description => LocalizationManager.Instance.TrText(Entry.Description);
+    public string Title => LocalizationManager.Instance.TrText(Entry.Name, Entry.OwnerPluginId);
+    public string Description => LocalizationManager.Instance.TrText(Entry.Description, Entry.OwnerPluginId);
     public bool HasDescription => !string.IsNullOrWhiteSpace(Entry.Description);
 
     /// <summary>True when this row inserts a rotary command group (fills several
@@ -118,8 +118,8 @@ public partial class CommandGroupNodeViewModel : ViewModelBase
     /// <summary>The underlying group menu entry.</summary>
     public MenuEntry Group { get; }
 
-    public string Title => LocalizationManager.Instance.TrText(Group.Name);
-    public string Description => LocalizationManager.Instance.TrText(Group.Description);
+    public string Title => LocalizationManager.Instance.TrText(Group.Name, Group.OwnerPluginId);
+    public string Description => LocalizationManager.Instance.TrText(Group.Description, Group.OwnerPluginId);
     public bool HasDescription => !string.IsNullOrWhiteSpace(Group.Description);
     public string Icon { get; }
 
@@ -154,8 +154,8 @@ public partial class CommandCategoryViewModel : ViewModelBase
     /// <summary>The underlying top-level group menu entry.</summary>
     public MenuEntry Group { get; }
 
-    public string Title => LocalizationManager.Instance.TrText(Group.Name);
-    public string Description => LocalizationManager.Instance.TrText(Group.Description);
+    public string Title => LocalizationManager.Instance.TrText(Group.Name, Group.OwnerPluginId);
+    public string Description => LocalizationManager.Instance.TrText(Group.Description, Group.OwnerPluginId);
     public bool HasDescription => !string.IsNullOrWhiteSpace(Group.Description);
     public string Icon { get; }
 

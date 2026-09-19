@@ -33,16 +33,26 @@ public sealed partial class PluginConnectionViewModel : ViewModelBase
     public partial bool IsFailure { get; set; }
 
     public bool HasResult => !string.IsNullOrWhiteSpace(ResultText);
+
+    /// <summary>Re-reads the button labels after the UI language changed.</summary>
+    public void RefreshTexts()
+    {
+        foreach (PluginActionRowViewModel action in Actions)
+            action.RefreshTexts();
+    }
 }
 
 /// <summary>One action button. It disables itself for the duration of the call, because a
 /// "Test connection" that can be pressed again while it is still running reads as broken.</summary>
 public sealed partial class PluginActionRowViewModel(PluginSettingAction action,
     PluginConnectionViewModel card,
+    string pluginId,
     Func<Task> beforeInvoke,
     Func<Task> afterInvoke) : ViewModelBase
 {
-    public string Label => action.Label;
+    public string Label => LocalizationManager.Instance.TrText(action.Label, pluginId);
+
+    public void RefreshTexts() => OnPropertyChanged(nameof(Label));
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsIdle))]

@@ -22,6 +22,10 @@ public class CommandInfo
     /// states to the user (every core command, and every plugin command that declares none).
     /// </summary>
     public List<CommandStateInfo> States { get; set; } = [];
+
+    /// <summary>Id of the plugin that declared this command, so its texts are translated from the
+    /// plugin's own strings files. Null for core commands.</summary>
+    public string OwnerPluginId { get; set; }
 }
 
 /// <summary>One state a command declares, mirroring the SDK's ButtonStateDescriptor.</summary>

@@ -25,6 +25,7 @@ public partial class PluginsWindow : Window
         InitializeComponent();
 
         Closing += OnClosing;
+        Closed += (_, _) => (DataContext as PluginsWindowViewModel)?.Installed.Cleanup();
     }
 
     /// <summary>

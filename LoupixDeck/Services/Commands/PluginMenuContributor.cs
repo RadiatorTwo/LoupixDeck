@@ -62,7 +62,7 @@ public class PluginMenuContributor : IPluginMenuSource
                 {
                     foreach (var node in nodes)
                     {
-                        var entry = Convert(node, target);
+                        var entry = Convert(node, target, pluginId);
                         if (entry != null)
                             result.Add(entry);
                     }
@@ -103,7 +103,7 @@ public class PluginMenuContributor : IPluginMenuSource
         }
     }
 
-    private MenuEntry Convert(MenuNode node, ButtonTargets target)
+    private MenuEntry Convert(MenuNode node, ButtonTargets target, string pluginId)
     {
         if (node == null)
             return null;
@@ -120,20 +120,23 @@ public class PluginMenuContributor : IPluginMenuSource
             if (map.Count == 0)
                 return null;
 
-            return new MenuEntry(node.Name, string.Empty) { RotaryGroup = map };
+            return new MenuEntry(node.Name, string.Empty) { RotaryGroup = map, OwnerPluginId = pluginId };
         }
 
         var parameters = node.Parameters is { Count: > 0 }
             ? new Dictionary<string, string>(node.Parameters)
             : null;
 
-        var entry = new MenuEntry(node.Name, node.CommandName ?? string.Empty, null, parameters);
+        var entry = new MenuEntry(node.Name, node.CommandName ?? string.Empty, null, parameters)
+        {
+            OwnerPluginId = pluginId
+        };
 
         if (node.Children != null)
         {
             foreach (var child in node.Children)
             {
-                var converted = Convert(child, target);
+                var converted = Convert(child, target, pluginId);
                 if (converted != null)
                     entry.Children.Add(converted);
             }
