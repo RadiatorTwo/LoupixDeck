@@ -59,6 +59,12 @@ public sealed class LocalizationManager : INotifyPropertyChanged
     private Dictionary<string, string> _commandBase;
     private Dictionary<string, string> _commandActive;
 
+    // Plugin catalogs: a plugin may ship strings.<code>.json next to its plugin.json, keyed by
+    // the same English text as the command catalog. Plugins load off the UI thread, so the map
+    // is only touched under _pluginLock.
+    private readonly Lock _pluginLock = new();
+    private readonly Dictionary<string, PluginStrings> _pluginStrings = new(StringComparer.OrdinalIgnoreCase);
+
     private string _currentLanguage = BaseLanguage;
 
     private LocalizationManager()
@@ -139,6 +145,77 @@ public sealed class LocalizationManager : INotifyPropertyChanged
     }
 
     /// <summary>
+    /// Translate English text a plugin declared. The plugin's own <c>strings.&lt;code&gt;.json</c>
+    /// wins, then its <c>strings.en.json</c>, then the host command catalog (so shared words
+    /// still translate), then the text itself. A null or unregistered plugin id behaves exactly
+    /// like <see cref="TrText(string)"/>.
+    /// </summary>
+    public string TrText(string english, string pluginId)
+    {
+        if (string.IsNullOrEmpty(english) || string.IsNullOrEmpty(pluginId))
+        {
+            return TrText(english);
+        }
+
+        PluginStrings strings;
+        lock (_pluginLock)
+        {
+            _pluginStrings.TryGetValue(pluginId, out strings);
+        }
+
+        if (strings != null)
+        {
+            if (strings.Active.TryGetValue(english, out string value))
+            {
+                return value;
+            }
+
+            if (strings.Base.TryGetValue(english, out string fallback))
+            {
+                return fallback;
+            }
+        }
+
+        return TrText(english);
+    }
+
+    /// <summary>
+    /// Load the <c>strings.&lt;code&gt;.json</c> files a plugin ships in <paramref name="pluginDir"/>
+    /// for the current language and for English. A plugin without them simply has nothing to add.
+    /// Replaces an earlier registration of the same id, so a reloaded plugin re-reads its files.
+    /// </summary>
+    public void RegisterPluginStrings(string pluginId, string pluginDir)
+    {
+        if (string.IsNullOrWhiteSpace(pluginId) || string.IsNullOrWhiteSpace(pluginDir))
+        {
+            return;
+        }
+
+        lock (_pluginLock)
+        {
+            Dictionary<string, string> baseStrings = LoadPluginDictionary(pluginDir, BaseLanguage);
+            Dictionary<string, string> active = _currentLanguage == BaseLanguage
+                ? baseStrings
+                : LoadPluginDictionary(pluginDir, _currentLanguage);
+            _pluginStrings[pluginId] = new PluginStrings(pluginDir, baseStrings, active);
+        }
+    }
+
+    /// <summary>Forget a plugin's strings when it is unloaded.</summary>
+    public void UnregisterPluginStrings(string pluginId)
+    {
+        if (string.IsNullOrWhiteSpace(pluginId))
+        {
+            return;
+        }
+
+        lock (_pluginLock)
+        {
+            _pluginStrings.Remove(pluginId);
+        }
+    }
+
+    /// <summary>
     /// Switch the UI language and refresh every live <see cref="TrExtension"/> binding. Unknown
     /// codes fall back to English. Must be called on the UI thread.
     /// </summary>
@@ -152,8 +229,18 @@ public sealed class LocalizationManager : INotifyPropertyChanged
 
         _active = normalized == BaseLanguage ? _base : LoadDictionary(normalized);
         _commandActive = normalized == BaseLanguage ? _commandBase : LoadDictionary("commands." + normalized);
-        _currentLanguage = normalized;
         _reportedMissingKeys.Clear();
+
+        lock (_pluginLock)
+        {
+            _currentLanguage = normalized;
+            foreach (PluginStrings strings in _pluginStrings.Values)
+            {
+                strings.Active = normalized == BaseLanguage
+                    ? strings.Base
+                    : LoadPluginDictionary(strings.Directory, normalized);
+            }
+        }
 
         ApplyCulture(normalized);
         ReportMissingTranslations();
@@ -227,16 +314,42 @@ public sealed class LocalizationManager : INotifyPropertyChanged
         try
         {
             using Stream stream = AssetLoader.Open(uri);
-            Dictionary<string, string> dictionary = JsonSerializer.Deserialize<Dictionary<string, string>>(stream);
-            return dictionary == null
-                ? new Dictionary<string, string>(StringComparer.Ordinal)
-                : new Dictionary<string, string>(dictionary, StringComparer.Ordinal);
+            return ReadDictionary(stream);
         }
         catch (Exception ex)
         {
             Console.WriteLine($"[Localization] Failed to load dictionary '{name}': {ex.Message}");
             return new Dictionary<string, string>(StringComparer.Ordinal);
         }
+    }
+
+    /// <summary>A plugin's <c>strings.&lt;code&gt;.json</c>; a missing file is an empty dictionary.</summary>
+    private static Dictionary<string, string> LoadPluginDictionary(string pluginDir, string code)
+    {
+        string path = Path.Combine(pluginDir, $"strings.{code}.json");
+        if (!File.Exists(path))
+        {
+            return new Dictionary<string, string>(StringComparer.Ordinal);
+        }
+
+        try
+        {
+            using Stream stream = File.OpenRead(path);
+            return ReadDictionary(stream);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Localization] Failed to load plugin strings '{path}': {ex.Message}");
+            return new Dictionary<string, string>(StringComparer.Ordinal);
+        }
+    }
+
+    private static Dictionary<string, string> ReadDictionary(Stream stream)
+    {
+        Dictionary<string, string> dictionary = JsonSerializer.Deserialize<Dictionary<string, string>>(stream);
+        return dictionary == null
+            ? new Dictionary<string, string>(StringComparer.Ordinal)
+            : new Dictionary<string, string>(dictionary, StringComparer.Ordinal);
     }
 
     private void ReportMissingKey(string key, string language)
@@ -272,6 +385,15 @@ public sealed class LocalizationManager : INotifyPropertyChanged
     private static string ReadPersistedLanguage()
     {
         return UiSettingsStore.GetString(LanguageSettingKey);
+    }
+
+    /// <summary>One plugin's catalogs: English and the active language, plus where to reload from.</summary>
+    private sealed class PluginStrings(string directory, Dictionary<string, string> baseStrings,
+        Dictionary<string, string> active)
+    {
+        public string Directory { get; } = directory;
+        public Dictionary<string, string> Base { get; } = baseStrings;
+        public Dictionary<string, string> Active { get; set; } = active;
     }
 }
 

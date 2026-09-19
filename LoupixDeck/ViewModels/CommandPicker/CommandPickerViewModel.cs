@@ -193,7 +193,7 @@ public partial class CommandPickerViewModel : ViewModelBase
             sectionVm.Categories.Add(categoryVm);
 
             // Flatten every leaf in the category subtree for search.
-            CollectLeaves(group, LocalizationManager.Instance.TrText(group.Name), icon, _searchLeaves);
+            CollectLeaves(group, LocalizationManager.Instance.TrText(group.Name, group.OwnerPluginId), icon, _searchLeaves);
 
             SubscribeGroup(group);
         }
@@ -291,7 +291,7 @@ public partial class CommandPickerViewModel : ViewModelBase
             if (child.IsGroup())
             {
                 var childIcon = string.IsNullOrEmpty(child.Icon) ? icon : child.Icon;
-                CollectLeaves(child, $"{path} / {LocalizationManager.Instance.TrText(child.Name)}", childIcon, output);
+                CollectLeaves(child, $"{path} / {LocalizationManager.Instance.TrText(child.Name, child.OwnerPluginId)}", childIcon, output);
             }
             else if (child.IsCommand())
             {

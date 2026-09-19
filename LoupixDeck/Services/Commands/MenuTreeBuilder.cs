@@ -71,7 +71,8 @@ public class MenuTreeBuilder : IMenuTreeBuilder
                     {
                         Icon = groupInfo.Icon,
                         Description = groupInfo.Description,
-                        Section = groupInfo.Section
+                        Section = groupInfo.Section,
+                        OwnerPluginId = groupInfo.OwnerPluginId ?? source.PluginId
                     };
                     MergeGroup(target, group);
                 }

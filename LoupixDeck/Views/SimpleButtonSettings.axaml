@@ -265,7 +265,7 @@
                                                                                                   Margin="0,0,0,4">
                                                                                                 <TextBlock Grid.Column="0"
                                                                                                            Classes="editor-label"
-                                                                                                           Text="{Binding Name}"
+                                                                                                           Text="{Binding DisplayName}"
                                                                                                            VerticalAlignment="Center"
                                                                                                            Margin="0,0,10,0" />
                                                                                                 <TextBox Grid.Column="1"

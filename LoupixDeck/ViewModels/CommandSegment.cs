@@ -22,6 +22,11 @@ namespace LoupixDeck.ViewModels;
 public partial class CommandParameter
 {
     public string Name { get; }
+
+    /// <summary>The name as shown in the editor. <see cref="Name"/> stays the key the command
+    /// string is built from, so a translation never reaches the saved command.</summary>
+    public string DisplayName { get; }
+
     public Type ParameterType { get; }
 
     public bool IsBool { get; }
@@ -47,9 +52,11 @@ public partial class CommandParameter
     public ICommand PickCommand => field ??= new AsyncRelayCommand(PickValueAsync);
 
     public CommandParameter(string name, Type parameterType, string value,
-        string picker = null, IDialogService dialogService = null)
+        string picker = null, IDialogService dialogService = null, string ownerPluginId = null)
     {
         Name = name;
+        // Only plugin parameters are looked up; core parameter names were never translated.
+        DisplayName = ownerPluginId == null ? name : LocalizationManager.Instance.TrText(name, ownerPluginId);
         ParameterType = parameterType ?? typeof(string);
         IsBool = ParameterType == typeof(bool);
         IsEnum = ParameterType.IsEnum;
@@ -195,7 +202,7 @@ public partial class CommandSegment
             var shellRaw = fromMenu ? string.Empty : raw;
             // Only used while the free-text is empty — otherwise the chip shows the typed text.
             var shellDisplay = LocalizationManager.Instance.TrText(
-                fromMenu ? info.DisplayName : ShellCommand.DisplayName);
+                fromMenu ? info.DisplayName : ShellCommand.DisplayName, info?.OwnerPluginId);
             var shell = new CommandSegment(commandBuilder, null,
                 CommandStringParser.GetName(shellRaw), shellDisplay, shellRaw)
             {
@@ -209,7 +216,7 @@ public partial class CommandSegment
 
         var display = string.IsNullOrWhiteSpace(info.DisplayName)
             ? name
-            : LocalizationManager.Instance.TrText(info.DisplayName);
+            : LocalizationManager.Instance.TrText(info.DisplayName, info.OwnerPluginId);
         var segment = new CommandSegment(commandBuilder, info, name, display, raw) { UnavailableHint = lockHint };
 
         // Map the positional values parsed from the raw string onto the declared
@@ -220,7 +227,7 @@ public partial class CommandSegment
             var descriptor = info.Parameters[i];
             var value = i < values.Length ? values[i] : string.Empty;
             var parameter = new CommandParameter(descriptor.Name, descriptor.ParameterType, value,
-                descriptor.Picker, dialogService);
+                descriptor.Picker, dialogService, info.OwnerPluginId);
             parameter.PropertyChanged += segment.OnParameterChanged;
             segment.Parameters.Add(parameter);
         }
