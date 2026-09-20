@@ -210,6 +210,32 @@
       }
     },
     {
+      "id": "mpris",
+      "name": "MPRIS Media",
+      "description": "Control any MPRIS media player on Linux (VLC, Spotify, Elisa, mpv, browsers) over D-Bus.",
+      "author": "RadiatorTwo",
+      "repository": "RadiatorTwo/LoupixDeck.Plugin.Mpris",
+      "icon": "",
+      "platforms": [ "Linux" ],
+      "minSdkVersion": "1.24.0",
+      "commandPrefixes": [ "Mpris." ],
+      "release": {
+        "version": "1.0.0",
+        "tag": "v1.0.0",
+        "publishedAt": "2026-09-20T21:03:51Z",
+        "sdkVersion": "1.24",
+        "releaseNotesUrl": "https://github.com/RadiatorTwo/LoupixDeck.Plugin.Mpris/releases/tag/v1.0.0",
+        "packages": [
+          {
+            "platform": "linux",
+            "fileName": "mpris-1.0.0-linux.zip",
+            "downloadUrl": "https://github.com/RadiatorTwo/LoupixDeck.Plugin.Mpris/releases/download/v1.0.0/mpris-1.0.0-linux.zip",
+            "sha256": "ac5f11d99ad1cb8aecd8cc44c8c7d1f8fb60d9695d6bb9538a123db6d996d434"
+          }
+        ]
+      }
+    },
+    {
       "id": "obs",
       "name": "OBS Studio",
       "description": "Control recording, streaming, replay buffer, scenes and sources in OBS Studio.",
