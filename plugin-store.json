@@ -139,20 +139,20 @@
       "repository": "RadiatorTwo/LoupixDeck.Plugin.KDEPlasma",
       "icon": "",
       "platforms": [ "Linux" ],
-      "minSdkVersion": "1.23.0",
+      "minSdkVersion": "1.24.0",
       "commandPrefixes": [ "KdePlasma." ],
       "release": {
-        "version": "1.1.0",
-        "tag": "v1.1.0",
-        "publishedAt": "2026-09-17T21:29:02Z",
-        "sdkVersion": "1.23",
-        "releaseNotesUrl": "https://github.com/RadiatorTwo/LoupixDeck.Plugin.KDEPlasma/releases/tag/v1.1.0",
+        "version": "1.2.0",
+        "tag": "v1.2.0",
+        "publishedAt": "2026-09-20T18:51:41Z",
+        "sdkVersion": "1.24",
+        "releaseNotesUrl": "https://github.com/RadiatorTwo/LoupixDeck.Plugin.KDEPlasma/releases/tag/v1.2.0",
         "packages": [
           {
             "platform": "linux",
-            "fileName": "kdeplasma-1.1.0-linux.zip",
-            "downloadUrl": "https://github.com/RadiatorTwo/LoupixDeck.Plugin.KDEPlasma/releases/download/v1.1.0/kdeplasma-1.1.0-linux.zip",
-            "sha256": "09a07f8133b8ccc5954cd13086bac8b0bb9765d078c416b783a11f43bee0aeff"
+            "fileName": "kdeplasma-1.2.0-linux.zip",
+            "downloadUrl": "https://github.com/RadiatorTwo/LoupixDeck.Plugin.KDEPlasma/releases/download/v1.2.0/kdeplasma-1.2.0-linux.zip",
+            "sha256": "60832e231fe9cd07fdc9ca53d92415647db096e96107192de1a963581660ecdd"
           }
         ]
       }
