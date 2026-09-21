@@ -381,6 +381,12 @@ public static class ServiceCollectionExtensions
         collection.AddSingleton<ICommandProvider, PluginCommandProvider>();
         collection.AddSingleton<ICommandRegistry, CommandRegistry>();
 
+        // Rewrites this device's rotary bindings onto the commands a plugin replaced them with.
+        // Device-scoped because it resolves against this device's registry and config.
+        collection
+            .AddSingleton<Services.Migrations.IPluginCommandMigrationRunner,
+                Services.Migrations.PluginCommandMigrationRunner>();
+
         // Resolves per-category card metadata (section/icon/description) for the
         // command picker, from core [CommandGroup] attributes and plugin descriptors.
         collection.AddSingleton<IGroupCatalog, GroupCatalog>();

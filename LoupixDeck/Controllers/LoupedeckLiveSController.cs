@@ -49,6 +49,9 @@ public partial class LoupedeckLiveSController(
         ? FileDialogHelper.GetConfigPath(deviceInfo, resolved?.Serial)
         : FileDialogHelper.GetConfigPath("config.json");
 
+    /// <inheritdoc/>
+    public string ConfigPath => _configPath;
+
     public IPageManager PageManager => pageManager;
 
     public LoupedeckConfig Config => config;

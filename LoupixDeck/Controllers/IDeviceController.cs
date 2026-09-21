@@ -14,6 +14,13 @@ public interface IDeviceController
     LoupedeckConfig Config { get; }
 
     /// <summary>
+    /// Path of this device's configuration file. Exposed so a caller that has to write the
+    /// config back — the plugin command migration — uses the same path the controller saves
+    /// to, instead of recomputing it from the device info in a second place.
+    /// </summary>
+    string ConfigPath { get; }
+
+    /// <summary>
     /// True while the device is in the manually-off / suspended state — inputs
     /// are suppressed unless the source button has EnableWhenOff set.
     /// </summary>
