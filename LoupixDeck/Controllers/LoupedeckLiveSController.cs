@@ -1,4 +1,4 @@
-﻿using System.ComponentModel;
+using System.ComponentModel;
 using System.IO.Hashing;
 using System.Threading;
 using LoupixDeck.LoupedeckDevice;
@@ -1145,6 +1145,54 @@ public partial class LoupedeckLiveSController(
     /// </summary>
     private SkiaSharp.SKBitmap RenderStripFor(RotaryButtonPage page, RotarySide side, bool useSessions)
     {
+        // Every dial's adjustment value is resolved HERE, before anything takes
+        // SkiaRenderGate.Sync. Resolving one calls into a plugin, which talks to its backend
+        // (the audio plugin queries WASAPI), and the strip render holds the process-wide Skia
+        // gate: pulling it from inside the gate blocks every other render in the app behind a
+        // plugin's I/O, and lets the backend's own notification thread — which wants the gate to
+        // repaint — deadlock against the render thread waiting on the backend. Inside the gate
+        // the pulls are served from this snapshot, so they neither block nor re-enter.
+        var idx = SideIndex(side);
+        _frameAdjustmentValues[idx] = SnapshotAdjustmentValues(page, side);
+        try
+        {
+            return RenderStripLocked(page, side, useSessions);
+        }
+        finally
+        {
+            _frameAdjustmentValues[idx] = null;
+        }
+    }
+
+    /// <summary>
+    /// Per-side snapshot of the current frame's adjustment values, keyed by global knob index.
+    /// Non-null only while <see cref="RenderStripFor"/> runs, which is what makes a pull from
+    /// inside the render free of plugin I/O. A pull outside a render (a plugin polling on its
+    /// own) finds no snapshot and resolves live.
+    /// </summary>
+    private readonly Dictionary<int, AdjustmentValue?>[] _frameAdjustmentValues = new Dictionary<int, AdjustmentValue?>[2];
+
+    /// <summary>Resolves the adjustment value of every dial on the side's page, off the Skia gate.</summary>
+    private Dictionary<int, AdjustmentValue?> SnapshotAdjustmentValues(RotaryButtonPage page, RotarySide side)
+    {
+        var buttons = page?.RotaryButtons;
+        var snapshot = new Dictionary<int, AdjustmentValue?>(buttons?.Count ?? 0);
+        if (buttons == null) return snapshot;
+
+        for (var i = 0; i < buttons.Count; i++)
+        {
+            var dial = buttons[i];
+            if (dial == null) continue;
+
+            var globalIndex = side == RotarySide.Right ? i + 3 : i;
+            snapshot[globalIndex] = ResolveDialAdjustmentValue(dial, globalIndex);
+        }
+
+        return snapshot;
+    }
+
+    private SkiaSharp.SKBitmap RenderStripLocked(RotaryButtonPage page, RotarySide side, bool useSessions)
+    {
         // PluginOverride: a plugin provider renders the strip; FreeDraw: the page's
         // editable canvas; Segmented (default): the three adjacent dial labels.
         var valueFor = AdjustmentValueFor(page, side);
@@ -1192,9 +1240,35 @@ public partial class LoupedeckLiveSController(
         };
     }
 
-    /// <summary>The adjustment value of the first of a dial's three slots that has one.</summary>
+    /// <summary>
+    /// The adjustment value of the first of a dial's three slots that has one — from the current
+    /// frame's snapshot while a strip render is in flight, so a pull from inside
+    /// <see cref="SkiaRenderGate"/>.Sync costs nothing and touches no plugin, and resolved live
+    /// otherwise.
+    /// </summary>
     private AdjustmentValue? DialAdjustmentValue(RotaryButton dial, int globalIndex)
     {
+        var snapshot = _frameAdjustmentValues[globalIndex < 3 ? 0 : 1];
+        if (snapshot != null && snapshot.TryGetValue(globalIndex, out var snapshotted))
+            return snapshotted;
+
+        return ResolveDialAdjustmentValue(dial, globalIndex);
+    }
+
+    /// <summary>Asks the commands themselves, which calls into the owning plugin. Never call
+    /// this under <see cref="SkiaRenderGate"/>.Sync — see <see cref="RenderStripFor"/>.</summary>
+    private AdjustmentValue? ResolveDialAdjustmentValue(RotaryButton dial, int globalIndex)
+    {
+        // Loud rather than mysterious: a pull that still reaches a plugin from under the render
+        // gate is the shape that stalled every other render and deadlocked against the audio
+        // backend's notification thread. If a path ever reintroduces it, say so instead of
+        // leaving a hang to be bisected.
+        if (Utils.SkiaRenderGate.Sync.IsHeldByCurrentThread)
+        {
+            Console.WriteLine("BUG: adjustment value resolved under SkiaRenderGate.Sync " +
+                              $"(knob {globalIndex}) — plugin I/O is holding the render gate.");
+        }
+
         foreach (var command in new[] { dial.RotaryLeftCommand, dial.RotaryRightCommand, dial.Command })
         {
             var value = commandService.GetAdjustmentValue(command, globalIndex);
