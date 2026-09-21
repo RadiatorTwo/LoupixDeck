@@ -14,6 +14,13 @@ public interface IDeviceController
     LoupedeckConfig Config { get; }
 
     /// <summary>
+    /// Path of this device's configuration file. Exposed so a caller that has to write the
+    /// config back — the plugin command migration — uses the same path the controller saves
+    /// to, instead of recomputing it from the device info in a second place.
+    /// </summary>
+    string ConfigPath { get; }
+
+    /// <summary>
     /// True while the device is in the manually-off / suspended state — inputs
     /// are suppressed unless the source button has EnableWhenOff set.
     /// </summary>
@@ -116,6 +123,15 @@ public interface IDeviceController
     /// the strip. No-op on devices without side strips. Safe to call from the animation loop.
     /// </summary>
     Task RefreshSideStripAnimationFrame(RotarySide side);
+
+    /// <summary>
+    /// Repaints the side strips that carry a dial bound to <paramref name="commandName"/>, so a
+    /// plugin whose adjustment value changed can get its dial indicator redrawn — the dial
+    /// counterpart of <see cref="LoupixDeck.PluginSdk.IPluginHost.RequestButtonRefresh"/>.
+    /// Honors the per-side redraw gate and skips a side a swipe owns. No-op on devices without
+    /// side strips and when no current dial is bound to the command.
+    /// </summary>
+    Task RefreshDialsForCommand(string commandName);
 
     /// <summary>Global "next rotary page" with a slide transition on side-strip devices
     /// (both columns animate); instant fallback otherwise or when animation is unavailable.</summary>

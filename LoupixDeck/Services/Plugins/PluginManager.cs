@@ -536,6 +536,19 @@ public class PluginManager : IPluginManager
                 {
                     Console.WriteLine($"PluginHost[{manifest.Id}]: RequestButtonRefresh failed: {ex.Message}");
                 }
+
+                // A dial indicator is drawn from the command's adjustment value, so the same
+                // request has to reach the side strips. Guarded separately: a strip that fails
+                // to repaint must not cost the touch buttons their refresh.
+                try
+                {
+                    _ = target.GetRequiredService<Controllers.IDeviceController>()
+                        .RefreshDialsForCommand(commandName);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"PluginHost[{manifest.Id}]: RefreshDialsForCommand failed: {ex.Message}");
+                }
             }
         }
 

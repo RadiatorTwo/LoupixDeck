@@ -49,6 +49,9 @@ public partial class LoupedeckLiveSController(
         ? FileDialogHelper.GetConfigPath(deviceInfo, resolved?.Serial)
         : FileDialogHelper.GetConfigPath("config.json");
 
+    /// <inheritdoc/>
+    public string ConfigPath => _configPath;
+
     public IPageManager PageManager => pageManager;
 
     public LoupedeckConfig Config => config;
@@ -1144,17 +1147,61 @@ public partial class LoupedeckLiveSController(
     {
         // PluginOverride: a plugin provider renders the strip; FreeDraw: the page's
         // editable canvas; Segmented (default): the three adjacent dial labels.
+        var valueFor = AdjustmentValueFor(page, side);
+
         return page.StripMode switch
         {
             StripMode.PluginOverride => useSessions
                 ? RenderPluginStripOrFallback(page, side)
-                : BitmapHelper.RenderRotaryStrip(page, config, StripWidth, StripHeight, side),
+                : BitmapHelper.RenderRotaryStrip(page, config, StripWidth, StripHeight, side,
+                    valueFor: valueFor),
             StripMode.FreeDraw => BitmapHelper.RenderStripCanvas(page.StripCanvas, config, StripWidth, StripHeight, side),
             _ => useSessions
                 ? BitmapHelper.RenderRotaryStrip(page, config, StripWidth, StripHeight, side,
-                    (i, rc) => (_segmentSession[SideIndex(side)] as ISegmentStripSession)?.RenderSegment(i, rc) ?? false)
-                : BitmapHelper.RenderRotaryStrip(page, config, StripWidth, StripHeight, side)
+                    (i, rc) => (_segmentSession[SideIndex(side)] as ISegmentStripSession)?.RenderSegment(i, rc) ?? false,
+                    valueFor)
+                : BitmapHelper.RenderRotaryStrip(page, config, StripWidth, StripHeight, side,
+                    valueFor: valueFor)
         };
+    }
+
+    /// <summary>
+    /// Builds the per-dial value resolver the segmented strip draws as the adjustment
+    /// indicator: for dial <c>localIndex</c> of this side's page, the value of the first of its
+    /// three slots that holds an adjustment command. Null when the page has no dials, and null
+    /// per dial when none of its commands is an adjustment command — then the dial keeps its
+    /// plain static label.
+    /// </summary>
+    private Func<int, AdjustmentValue?> AdjustmentValueFor(RotaryButtonPage page, RotarySide side)
+    {
+        var buttons = page?.RotaryButtons;
+        if (buttons == null || buttons.Count == 0) return null;
+
+        return localIndex =>
+        {
+            if (localIndex < 0 || localIndex >= buttons.Count) return null;
+
+            var dial = buttons[localIndex];
+            if (dial == null) return null;
+
+            // Mirrors ResolveRotary: the right column's dials carry global indices 3–5, which
+            // is what a plugin sees as CommandContext.SourceIndex when the knob fires.
+            var globalIndex = side == RotarySide.Right ? localIndex + 3 : localIndex;
+
+            return DialAdjustmentValue(dial, globalIndex);
+        };
+    }
+
+    /// <summary>The adjustment value of the first of a dial's three slots that has one.</summary>
+    private AdjustmentValue? DialAdjustmentValue(RotaryButton dial, int globalIndex)
+    {
+        foreach (var command in new[] { dial.RotaryLeftCommand, dial.RotaryRightCommand, dial.Command })
+        {
+            var value = commandService.GetAdjustmentValue(command, globalIndex);
+            if (value.HasValue) return value;
+        }
+
+        return null;
     }
 
     /// <summary>Re-evaluates plugin-override attachment for both strips, then repaints
@@ -1209,6 +1256,45 @@ public partial class LoupedeckLiveSController(
     }
 
     /// <inheritdoc/>
+    public async Task RefreshDialsForCommand(string commandName)
+    {
+        if (string.IsNullOrWhiteSpace(commandName)) return;
+        if (deviceService.Device?.HasSideStrips != true) return;
+
+        foreach (var side in new[] { RotarySide.Left, RotarySide.Right })
+        {
+            var page = pageManager.GetCurrentRotaryPage(side);
+            if (page?.RotaryButtons == null) continue;
+
+            var bound = page.RotaryButtons.Any(dial => dial != null &&
+                (BindsCommand(dial.RotaryLeftCommand, commandName) ||
+                 BindsCommand(dial.RotaryRightCommand, commandName) ||
+                 BindsCommand(dial.Command, commandName)));
+
+            if (!bound) continue;
+
+            var idx = SideIndex(side);
+            if (IsStripDragBusy(idx)) continue;
+
+            await RedrawStripCoalesced(side, idx);
+        }
+    }
+
+    /// <summary>True when any part of a (possibly chained) binding runs the given command.</summary>
+    private static bool BindsCommand(string binding, string commandName)
+    {
+        if (string.IsNullOrWhiteSpace(binding)) return false;
+
+        foreach (var part in CommandStringParser.SplitChain(binding))
+        {
+            if (string.Equals(CommandStringParser.GetName(part), commandName, StringComparison.Ordinal))
+                return true;
+        }
+
+        return false;
+    }
+
+    /// <inheritdoc/>
     public void DetachAllSideStripProviders()
     {
         ResetStripDrags();
@@ -1253,7 +1339,8 @@ public partial class LoupedeckLiveSController(
         }
 
         // Unbound / orphaned id / declined / failed → segmented labels.
-        return BitmapHelper.RenderRotaryStrip(page, config, StripWidth, StripHeight, side);
+        return BitmapHelper.RenderRotaryStrip(page, config, StripWidth, StripHeight, side,
+            valueFor: AdjustmentValueFor(page, side));
     }
 
     /// <summary>
@@ -1289,7 +1376,7 @@ public partial class LoupedeckLiveSController(
             Side = side == RotarySide.Right ? StripSide.Right : StripSide.Left,
             Width = StripWidth,
             Height = StripHeight,
-            Rotaries = BuildStripRotaries(page),
+            Rotaries = BuildStripRotaries(page, side),
             RequestNextPage = () => pageManager.NextRotaryPage(side),
             RequestPreviousPage = () => pageManager.PreviousRotaryPage(side)
         };
@@ -1309,7 +1396,7 @@ public partial class LoupedeckLiveSController(
     }
 
     /// <summary>Maps a side page's dials to the SDK's rotary context (top-to-bottom).</summary>
-    private static IReadOnlyList<SideStripRotary> BuildStripRotaries(RotaryButtonPage page)
+    private IReadOnlyList<SideStripRotary> BuildStripRotaries(RotaryButtonPage page, RotarySide side)
     {
         var rotaries = page.RotaryButtons;
         if (rotaries == null || rotaries.Count == 0) return Array.Empty<SideStripRotary>();
@@ -1318,13 +1405,19 @@ public partial class LoupedeckLiveSController(
         for (var i = 0; i < rotaries.Count; i++)
         {
             var r = rotaries[i];
+            // The list is a snapshot, so the value has to be a closure the provider pulls at
+            // render time — a value copied in here would freeze at session creation.
+            var dial = r;
+            var globalIndex = side == RotarySide.Right ? i + 3 : i;
+
             list.Add(new SideStripRotary
             {
                 Index = i,
                 Label = r.DisplayText ?? string.Empty,
                 LeftCommand = r.RotaryLeftCommand ?? string.Empty,
                 RightCommand = r.RotaryRightCommand ?? string.Empty,
-                PressCommand = r.Command ?? string.Empty
+                PressCommand = r.Command ?? string.Empty,
+                GetValue = () => dial == null ? null : DialAdjustmentValue(dial, globalIndex)
             });
         }
         return list;
@@ -1386,7 +1479,7 @@ public partial class LoupedeckLiveSController(
             Side = side == RotarySide.Right ? StripSide.Right : StripSide.Left,
             Width = StripWidth,
             Height = StripHeight,
-            Rotaries = BuildStripRotaries(page),
+            Rotaries = BuildStripRotaries(page, side),
             RequestNextPage = () => pageManager.NextRotaryPage(side),
             RequestPreviousPage = () => pageManager.PreviousRotaryPage(side)
         };
@@ -1595,7 +1688,19 @@ public partial class LoupedeckLiveSController(
         var (page, rotary) = resolved.Value;
         if (_isDeviceOff && !rotary.EnableWhenOff) return;
         var cmd = rotary.Command;
-        if (string.IsNullOrEmpty(cmd)) return;
+
+        // Same borrowing rule as a turn: an adjustment command bound to a turn slot owns
+        // the press too (it resets the value), so an unassigned press slot uses it instead
+        // of staying dead. Never borrows a normal command.
+        if (string.IsNullOrEmpty(cmd))
+        {
+            var turnCommand = rotary.RotaryLeftCommand;
+            if (!commandService.IsAdjustmentCommand(turnCommand))
+                turnCommand = rotary.RotaryRightCommand;
+            if (!commandService.IsAdjustmentCommand(turnCommand)) return;
+            cmd = turnCommand;
+        }
+
         var wrappedRotary = page.KnobPressWrap?.Apply(cmd) ?? cmd;
         DispatchWithPress(e.ButtonId, () => FireAndForget(wrappedRotary, ButtonTargets.RotaryEncoder, idx));
     }
@@ -1607,14 +1712,44 @@ public partial class LoupedeckLiveSController(
     /// deadlock the very thread that needs to complete the await, and the
     /// device would appear disconnected after the first such command.
     /// </summary>
-    private void FireAndForget(string command, ButtonTargets target, int? sourceIndex = null)
+    private void FireAndForget(string command, ButtonTargets target, int? sourceIndex = null, int ticks = 0)
     {
         if (string.IsNullOrEmpty(command)) return;
         _ = Task.Run(async () =>
         {
-            try { await commandService.ExecuteCommand(command, target, sourceIndex); }
+            try
+            {
+                await commandService.ExecuteCommand(command, target, sourceIndex, ticks);
+
+                // An adjustment command changed its value, so the dial indicator drawn from
+                // GetValueText is stale. Repaint that dial's strip once the call finished
+                // (no-op on devices without side strips).
+                if (target == ButtonTargets.RotaryEncoder && sourceIndex.HasValue &&
+                    commandService.IsAdjustmentCommand(command))
+                {
+                    await RefreshAdjustmentIndicator(sourceIndex.Value);
+                }
+            }
             catch (Exception ex) { Console.WriteLine($"Command failed ({command}): {ex.Message}"); }
         });
+    }
+
+    /// <summary>
+    /// Repaints the side strip carrying the given global knob index, so the dial's
+    /// adjustment indicator shows the value the command just wrote. Routed through the
+    /// shared coalescing gate: a fast dial turn fires one call per detent, and without it
+    /// the redraws would overlap on the serial queue. A swipe drag owns the strip until it
+    /// lands, so that frame is skipped — the next turn (or the swipe's commit) repaints.
+    /// </summary>
+    private Task RefreshAdjustmentIndicator(int globalIndex)
+    {
+        if (deviceService.Device?.HasSideStrips != true) return Task.CompletedTask;
+
+        var (side, _) = ResolveRotary(globalIndex);
+        var idx = SideIndex(side);
+        if (IsStripDragBusy(idx)) return Task.CompletedTask;
+
+        return RedrawStripCoalesced(side, idx);
     }
 
     /// <summary>
@@ -1988,10 +2123,21 @@ public partial class LoupedeckLiveSController(
         if (_isDeviceOff && !btn.EnableWhenOff) return;
         var leftTurn = e.Delta < 0;
         var command = leftTurn ? btn.RotaryLeftCommand : btn.RotaryRightCommand;
-        if (string.IsNullOrEmpty(command)) return;
+
+        // An adjustment command covers both directions on its own (the tick delta carries
+        // the sign), so binding it to one slot is enough: the empty opposite slot borrows
+        // it instead of doing nothing. Only ever borrows an adjustment command — a normal
+        // command assigned to one direction keeps turning the other way into a no-op.
+        if (string.IsNullOrEmpty(command))
+        {
+            var opposite = leftTurn ? btn.RotaryRightCommand : btn.RotaryLeftCommand;
+            if (!commandService.IsAdjustmentCommand(opposite)) return;
+            command = opposite;
+        }
+
         var wrap = leftTurn ? page.KnobLeftWrap : page.KnobRightWrap;
         var wrapped = wrap?.Apply(command) ?? command;
-        FireAndForget(wrapped, ButtonTargets.RotaryEncoder, idx);
+        FireAndForget(wrapped, ButtonTargets.RotaryEncoder, idx, e.Delta);
     }
 
     /// <summary>

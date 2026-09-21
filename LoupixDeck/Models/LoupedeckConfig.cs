@@ -493,6 +493,15 @@ public partial class LoupedeckConfig : ObservableObject
     /// </summary>
     public List<string> EnabledPlugins { get; set; } = [];
 
+    /// <summary>
+    /// Ids (<c>"{pluginId}:{migrationId}"</c>) of the plugin command migrations already run
+    /// against this config. A rule runs at most once, ever, so a binding the user rebuilds by
+    /// hand afterwards is never rewritten behind their back. Additive and optional: absent in a
+    /// file written before this existed, which simply means none have run yet — no schema
+    /// version bump, so an older build reads the same file unchanged.
+    /// </summary>
+    public List<string> AppliedCommandMigrations { get; set; } = [];
+
     // ObjectCreationHandling.Replace: Newtonsoft otherwise reuses the default
     // collection and appends deserialized items to it — so each save+load round
     // would duplicate every step.

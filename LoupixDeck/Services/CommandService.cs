@@ -15,8 +15,28 @@ public interface ICommandService
     /// Chained commands joined by <c>&amp;&amp;</c> all inherit this target.
     /// <paramref name="sourceIndex"/> identifies the originating control
     /// (rotary index, touch slot) when the target is an indexed source.
+    /// <paramref name="ticks"/> carries the rotary delta for a turn (negative for a
+    /// left turn); 0 means "not a turn" (a knob press, a button, the CLI). It only
+    /// matters for an adjustment command on <see cref="ButtonTargets.RotaryEncoder"/>:
+    /// a turn runs its ApplyAdjustment, a press its ApplyReset. Every other command
+    /// ignores it and runs exactly as before.
     /// </summary>
-    Task ExecuteCommand(string command, ButtonTargets target, int? sourceIndex = null);
+    Task ExecuteCommand(string command, ButtonTargets target, int? sourceIndex = null, int ticks = 0);
+
+    /// <summary>
+    /// The value an adjustment command wants shown on its dial — scale position plus display
+    /// text — or null when <paramref name="command"/> is empty, not registered, not an
+    /// adjustment command, or the plugin supplies no value. Called from the side-strip render
+    /// path and by plugins that render a dial themselves, so it must stay cheap.
+    /// </summary>
+    AdjustmentValue? GetAdjustmentValue(string command, int? sourceIndex = null);
+
+    /// <summary>
+    /// True when the command string resolves to a registered adjustment command, i.e.
+    /// the rotary path drives it through ApplyAdjustment/ApplyReset. Lets the device
+    /// controller decide whether a dial needs its indicator repainted after a turn.
+    /// </summary>
+    bool IsAdjustmentCommand(string command);
 }
 
 public class CommandService : ICommandService
@@ -40,7 +60,7 @@ public class CommandService : ICommandService
         _device = device;
     }
 
-    public async Task ExecuteCommand(string command, ButtonTargets target, int? sourceIndex = null)
+    public async Task ExecuteCommand(string command, ButtonTargets target, int? sourceIndex = null, int ticks = 0)
     {
         if (string.IsNullOrWhiteSpace(command))
             return;
@@ -59,11 +79,48 @@ public class CommandService : ICommandService
         // CommandStringParser so the command editor stays in lockstep.
         foreach (var part in CommandStringParser.SplitChain(command))
         {
-            await ExecuteSingle(part, target, sourceIndex);
+            await ExecuteSingle(part, target, sourceIndex, ticks);
         }
     }
 
-    private async Task ExecuteSingle(string command, ButtonTargets target, int? sourceIndex)
+    public AdjustmentValue? GetAdjustmentValue(string command, int? sourceIndex = null)
+    {
+        string part = FirstChainPart(command);
+        if (part == null)
+            return null;
+
+        RegisteredCommand registered = _commandRegistry.Get(CommandStringParser.GetName(part));
+        if (registered is not { IsAdjustmentCommand: true } || registered.GetValue == null)
+            return null;
+
+        using var _routerScope = _router.Enter(_deviceProvider);
+        return registered.GetValue(CommandStringParser.GetParameters(part) ?? [], sourceIndex);
+    }
+
+    public bool IsAdjustmentCommand(string command)
+    {
+        string part = FirstChainPart(command);
+        if (part == null)
+            return false;
+
+        return _commandRegistry.Get(CommandStringParser.GetName(part)) is { IsAdjustmentCommand: true };
+    }
+
+    /// <summary>
+    /// The first part of a (possibly chained) command string, or null when there is none.
+    /// Only that part owns the dial: a wrap's pre/post commands are side actions, not the
+    /// adjusted value.
+    /// </summary>
+    private static string FirstChainPart(string command)
+    {
+        if (string.IsNullOrWhiteSpace(command))
+            return null;
+
+        string part = CommandStringParser.SplitChain(command).FirstOrDefault();
+        return string.IsNullOrWhiteSpace(part) ? null : part;
+    }
+
+    private async Task ExecuteSingle(string command, ButtonTargets target, int? sourceIndex, int ticks)
     {
         if (string.IsNullOrWhiteSpace(command)) return;
 
@@ -80,8 +137,28 @@ public class CommandService : ICommandService
         RegisteredCommand registered = _commandRegistry.Get(cleanCommand);
         if (registered != null)
         {
-            string[] parameters = CommandStringParser.GetParameters(command);
-            await registered.Execute(parameters ?? [], target, sourceIndex);
+            string[] parameters = CommandStringParser.GetParameters(command) ?? [];
+
+            // An adjustment command bound to a dial is driven by the encoder, not by a
+            // plain Execute: a turn applies the delta, a press resets. Any other target
+            // (touch button, simple button, macro, CLI) falls through to Execute, so the
+            // plugin's own Execute stays the single entry point everywhere else.
+            if (registered is { IsAdjustmentCommand: true } && target == ButtonTargets.RotaryEncoder)
+            {
+                if (ticks != 0 && registered.ApplyAdjustment != null)
+                {
+                    await registered.ApplyAdjustment(parameters, sourceIndex, ticks);
+                    return;
+                }
+
+                if (ticks == 0 && registered.ApplyReset != null)
+                {
+                    await registered.ApplyReset(parameters, sourceIndex);
+                    return;
+                }
+            }
+
+            await registered.Execute(parameters, target, sourceIndex);
         }
         else if (_commandRegistry.GetMissingPluginOwner(cleanCommand) is { } owner)
         {

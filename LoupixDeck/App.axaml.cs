@@ -195,6 +195,22 @@ public partial class App : Application
 
                     var vm = host.Provider.GetRequiredService<MainWindowViewModel>();
 
+                    // Rewrite this device's dials onto the commands a plugin replaced them with,
+                    // before the controller paints anything from them. Deliberately after the
+                    // view model was resolved: its constructor is what builds the command
+                    // registry, and a migration running before that would find no target command
+                    // registered and silently decline every dial.
+                    try
+                    {
+                        host.Provider.GetRequiredService<Services.Migrations.IPluginCommandMigrationRunner>()
+                            .Apply(host.Provider.GetRequiredService<LoupedeckConfig>(),
+                                vm.LoupedeckController.ConfigPath);
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"[Migration] skipped for '{host.Device?.ScopeKey}': {ex.Message}");
+                    }
+
                     if (host.IsPrimary)
                     {
                         await vm.LoupedeckController.Initialize(port, baudRate);
