@@ -68,7 +68,11 @@ public sealed class DialQuickMenuViewModel
     /// rather than showing an empty command list.</summary>
     public bool IsReady => Catalogue.Count > 0;
 
-    /// <summary>The built-in and user presets available on this device.</summary>
+    /// <summary>
+    /// The built-in and user presets available on this device. Built on every read: the
+    /// catalogue asks each enabled plugin for its contributions, and a plugin may go to its
+    /// backend to answer. Read it once per menu and pass the result on.
+    /// </summary>
     public IReadOnlyList<DialPreset> Presets => _presets.Presets;
 
     /// <summary>
@@ -189,12 +193,20 @@ public sealed class DialQuickMenuViewModel
 
     /// <summary>The preset the dial is currently configured from, or null. A preset matches when
     /// every gesture it names holds exactly its command.</summary>
-    public DialPreset FindAssignedPreset(RotaryButton dial)
+    public DialPreset FindAssignedPreset(RotaryButton dial) => FindAssignedPreset(dial, Presets);
+
+    /// <summary>
+    /// The preset a dial currently carries, searched in a list the caller already has. Reading
+    /// <see cref="Presets"/> builds the catalogue - which asks every enabled plugin for its
+    /// contributions - so a caller that needs both the list and the assignment passes the list
+    /// in rather than paying for a second build.
+    /// </summary>
+    public DialPreset FindAssignedPreset(RotaryButton dial, IReadOnlyList<DialPreset> presets)
     {
-        if (dial == null || dial.IsEmpty())
+        if (dial == null || dial.IsEmpty() || presets == null)
             return null;
 
-        return Presets.FirstOrDefault(preset => Matches(dial, preset));
+        return presets.FirstOrDefault(preset => Matches(dial, preset));
     }
 
     private static bool Matches(RotaryButton dial, DialPreset preset)

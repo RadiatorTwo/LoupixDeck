@@ -180,7 +180,7 @@ public static class DialQuickMenu
         MenuItem item = new() { Header = "Presets", Icon = Glyph(DialPreset.DefaultGlyph) };
 
         IReadOnlyList<DialPreset> presets = menu.Presets;
-        DialPreset assigned = menu.FindAssignedPreset(dial);
+        DialPreset assigned = menu.FindAssignedPreset(dial, presets);
 
         if (presets.Count == 0)
         {
