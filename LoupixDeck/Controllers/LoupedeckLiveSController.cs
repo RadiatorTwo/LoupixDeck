@@ -1253,6 +1253,45 @@ public partial class LoupedeckLiveSController(
     }
 
     /// <inheritdoc/>
+    public async Task RefreshDialsForCommand(string commandName)
+    {
+        if (string.IsNullOrWhiteSpace(commandName)) return;
+        if (deviceService.Device?.HasSideStrips != true) return;
+
+        foreach (var side in new[] { RotarySide.Left, RotarySide.Right })
+        {
+            var page = pageManager.GetCurrentRotaryPage(side);
+            if (page?.RotaryButtons == null) continue;
+
+            var bound = page.RotaryButtons.Any(dial => dial != null &&
+                (BindsCommand(dial.RotaryLeftCommand, commandName) ||
+                 BindsCommand(dial.RotaryRightCommand, commandName) ||
+                 BindsCommand(dial.Command, commandName)));
+
+            if (!bound) continue;
+
+            var idx = SideIndex(side);
+            if (IsStripDragBusy(idx)) continue;
+
+            await RedrawStripCoalesced(side, idx);
+        }
+    }
+
+    /// <summary>True when any part of a (possibly chained) binding runs the given command.</summary>
+    private static bool BindsCommand(string binding, string commandName)
+    {
+        if (string.IsNullOrWhiteSpace(binding)) return false;
+
+        foreach (var part in CommandStringParser.SplitChain(binding))
+        {
+            if (string.Equals(CommandStringParser.GetName(part), commandName, StringComparison.Ordinal))
+                return true;
+        }
+
+        return false;
+    }
+
+    /// <inheritdoc/>
     public void DetachAllSideStripProviders()
     {
         ResetStripDrags();

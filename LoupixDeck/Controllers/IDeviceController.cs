@@ -117,6 +117,15 @@ public interface IDeviceController
     /// </summary>
     Task RefreshSideStripAnimationFrame(RotarySide side);
 
+    /// <summary>
+    /// Repaints the side strips that carry a dial bound to <paramref name="commandName"/>, so a
+    /// plugin whose adjustment value changed can get its dial indicator redrawn — the dial
+    /// counterpart of <see cref="LoupixDeck.PluginSdk.IPluginHost.RequestButtonRefresh"/>.
+    /// Honors the per-side redraw gate and skips a side a swipe owns. No-op on devices without
+    /// side strips and when no current dial is bound to the command.
+    /// </summary>
+    Task RefreshDialsForCommand(string commandName);
+
     /// <summary>Global "next rotary page" with a slide transition on side-strip devices
     /// (both columns animate); instant fallback otherwise or when animation is unavailable.</summary>
     void AnimateNextRotaryPage();
