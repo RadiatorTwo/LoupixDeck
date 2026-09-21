@@ -93,11 +93,11 @@ public sealed class RegisteredCommand
     public Func<string[], int?, Task> ApplyReset { get; init; }
 
     /// <summary>
-    /// For adjustment commands: the current value as display text for the dial indicator,
-    /// or null for no overlay. The second argument is the rotary index being rendered.
-    /// Null for non-adjustment commands.
+    /// For adjustment commands: the current value for the dial indicator — scale position plus
+    /// display text — or null for no indicator. The second argument is the rotary index being
+    /// rendered. Null for non-adjustment commands.
     /// </summary>
-    public Func<string[], int?, string> GetValueText { get; init; }
+    public Func<string[], int?, AdjustmentValue?> GetValue { get; init; }
 
     /// <summary>
     /// Runs the command. The second argument is the button type that triggered

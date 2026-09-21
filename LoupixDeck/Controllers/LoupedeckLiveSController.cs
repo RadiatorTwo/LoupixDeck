@@ -1144,32 +1144,32 @@ public partial class LoupedeckLiveSController(
     {
         // PluginOverride: a plugin provider renders the strip; FreeDraw: the page's
         // editable canvas; Segmented (default): the three adjacent dial labels.
-        var valueText = AdjustmentValueTextFor(page, side);
+        var valueFor = AdjustmentValueFor(page, side);
 
         return page.StripMode switch
         {
             StripMode.PluginOverride => useSessions
                 ? RenderPluginStripOrFallback(page, side)
                 : BitmapHelper.RenderRotaryStrip(page, config, StripWidth, StripHeight, side,
-                    valueTextFor: valueText),
+                    valueFor: valueFor),
             StripMode.FreeDraw => BitmapHelper.RenderStripCanvas(page.StripCanvas, config, StripWidth, StripHeight, side),
             _ => useSessions
                 ? BitmapHelper.RenderRotaryStrip(page, config, StripWidth, StripHeight, side,
                     (i, rc) => (_segmentSession[SideIndex(side)] as ISegmentStripSession)?.RenderSegment(i, rc) ?? false,
-                    valueText)
+                    valueFor)
                 : BitmapHelper.RenderRotaryStrip(page, config, StripWidth, StripHeight, side,
-                    valueTextFor: valueText)
+                    valueFor: valueFor)
         };
     }
 
     /// <summary>
-    /// Builds the per-dial value-text resolver the segmented strip draws as the adjustment
-    /// indicator: for dial <c>localIndex</c> of this side's page, the value text of the first
-    /// of its three slots that holds an adjustment command. Null when the page has no dials,
-    /// and null per dial when none of its commands is an adjustment command — then the dial
-    /// keeps its plain static label.
+    /// Builds the per-dial value resolver the segmented strip draws as the adjustment
+    /// indicator: for dial <c>localIndex</c> of this side's page, the value of the first of its
+    /// three slots that holds an adjustment command. Null when the page has no dials, and null
+    /// per dial when none of its commands is an adjustment command — then the dial keeps its
+    /// plain static label.
     /// </summary>
-    private Func<int, string> AdjustmentValueTextFor(RotaryButtonPage page, RotarySide side)
+    private Func<int, AdjustmentValue?> AdjustmentValueFor(RotaryButtonPage page, RotarySide side)
     {
         var buttons = page?.RotaryButtons;
         if (buttons == null || buttons.Count == 0) return null;
@@ -1185,17 +1185,17 @@ public partial class LoupedeckLiveSController(
             // is what a plugin sees as CommandContext.SourceIndex when the knob fires.
             var globalIndex = side == RotarySide.Right ? localIndex + 3 : localIndex;
 
-            return FirstAdjustmentValueText(globalIndex,
-                dial.RotaryLeftCommand, dial.RotaryRightCommand, dial.Command);
+            return DialAdjustmentValue(dial, globalIndex);
         };
     }
 
-    private string FirstAdjustmentValueText(int globalIndex, params string[] commands)
+    /// <summary>The adjustment value of the first of a dial's three slots that has one.</summary>
+    private AdjustmentValue? DialAdjustmentValue(RotaryButton dial, int globalIndex)
     {
-        foreach (var command in commands)
+        foreach (var command in new[] { dial.RotaryLeftCommand, dial.RotaryRightCommand, dial.Command })
         {
-            var text = commandService.GetAdjustmentValueText(command, globalIndex);
-            if (!string.IsNullOrWhiteSpace(text)) return text;
+            var value = commandService.GetAdjustmentValue(command, globalIndex);
+            if (value.HasValue) return value;
         }
 
         return null;
@@ -1298,7 +1298,7 @@ public partial class LoupedeckLiveSController(
 
         // Unbound / orphaned id / declined / failed → segmented labels.
         return BitmapHelper.RenderRotaryStrip(page, config, StripWidth, StripHeight, side,
-            valueTextFor: AdjustmentValueTextFor(page, side));
+            valueFor: AdjustmentValueFor(page, side));
     }
 
     /// <summary>
@@ -1334,7 +1334,7 @@ public partial class LoupedeckLiveSController(
             Side = side == RotarySide.Right ? StripSide.Right : StripSide.Left,
             Width = StripWidth,
             Height = StripHeight,
-            Rotaries = BuildStripRotaries(page),
+            Rotaries = BuildStripRotaries(page, side),
             RequestNextPage = () => pageManager.NextRotaryPage(side),
             RequestPreviousPage = () => pageManager.PreviousRotaryPage(side)
         };
@@ -1354,7 +1354,7 @@ public partial class LoupedeckLiveSController(
     }
 
     /// <summary>Maps a side page's dials to the SDK's rotary context (top-to-bottom).</summary>
-    private static IReadOnlyList<SideStripRotary> BuildStripRotaries(RotaryButtonPage page)
+    private IReadOnlyList<SideStripRotary> BuildStripRotaries(RotaryButtonPage page, RotarySide side)
     {
         var rotaries = page.RotaryButtons;
         if (rotaries == null || rotaries.Count == 0) return Array.Empty<SideStripRotary>();
@@ -1363,13 +1363,19 @@ public partial class LoupedeckLiveSController(
         for (var i = 0; i < rotaries.Count; i++)
         {
             var r = rotaries[i];
+            // The list is a snapshot, so the value has to be a closure the provider pulls at
+            // render time — a value copied in here would freeze at session creation.
+            var dial = r;
+            var globalIndex = side == RotarySide.Right ? i + 3 : i;
+
             list.Add(new SideStripRotary
             {
                 Index = i,
                 Label = r.DisplayText ?? string.Empty,
                 LeftCommand = r.RotaryLeftCommand ?? string.Empty,
                 RightCommand = r.RotaryRightCommand ?? string.Empty,
-                PressCommand = r.Command ?? string.Empty
+                PressCommand = r.Command ?? string.Empty,
+                GetValue = () => dial == null ? null : DialAdjustmentValue(dial, globalIndex)
             });
         }
         return list;
@@ -1431,7 +1437,7 @@ public partial class LoupedeckLiveSController(
             Side = side == RotarySide.Right ? StripSide.Right : StripSide.Left,
             Width = StripWidth,
             Height = StripHeight,
-            Rotaries = BuildStripRotaries(page),
+            Rotaries = BuildStripRotaries(page, side),
             RequestNextPage = () => pageManager.NextRotaryPage(side),
             RequestPreviousPage = () => pageManager.PreviousRotaryPage(side)
         };

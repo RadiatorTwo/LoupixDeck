@@ -112,7 +112,7 @@ public class PluginCommandProvider : ICommandProvider
         var isAdjustment = false;
         Func<string[], int?, int, Task> applyAdjustment = null;
         Func<string[], int?, Task> applyReset = null;
-        Func<string[], int?, string> getValueText = null;
+        Func<string[], int?, AdjustmentValue?> getValue = null;
 
         CommandContext RotaryContext(string[] parameters, int? sourceIndex) => new()
         {
@@ -151,17 +151,30 @@ public class PluginCommandProvider : ICommandProvider
                 }
             };
 
-            getValueText = (parameters, sourceIndex) =>
+            getValue = (parameters, sourceIndex) =>
             {
+                CommandContext ctx = RotaryContext(parameters, sourceIndex);
                 try
                 {
-                    return adjustmentCommand.GetValueText(RotaryContext(parameters, sourceIndex));
+                    AdjustmentValue? value = adjustmentCommand.GetValue(ctx);
+                    if (value.HasValue)
+                    {
+                        // A plugin computing its own scale may land marginally outside it; that is
+                        // a rounding artefact, not a reason to skip the indicator.
+                        return value.Value with { Normalized = Math.Clamp(value.Value.Normalized, 0d, 1d) };
+                    }
+
+                    // A command that supplies only text keeps working. NaN is the host's marker
+                    // for "no scale position" — a caption without a bar. Normalized 0 would mean
+                    // the opposite: a bar the plugin claims is empty.
+                    string text = adjustmentCommand.GetValueText(ctx);
+                    return string.IsNullOrWhiteSpace(text) ? null : new AdjustmentValue(double.NaN, text);
                 }
                 catch (Exception ex)
                 {
                     // Runs on the strip render path — a throwing plugin must not take the
                     // whole strip down, so the dial falls back to its static label.
-                    host?.Logger?.Error($"GetValueText failed for '{descriptor.CommandName}'", ex);
+                    host?.Logger?.Error($"GetValue failed for '{descriptor.CommandName}'", ex);
                     return null;
                 }
             };
@@ -228,7 +241,7 @@ public class PluginCommandProvider : ICommandProvider
             IsAdjustmentCommand = isAdjustment,
             ApplyAdjustment = applyAdjustment,
             ApplyReset = applyReset,
-            GetValueText = getValueText,
+            GetValue = getValue,
             Execute = execute,
             GetText = getText,
             RenderImage = renderImage,

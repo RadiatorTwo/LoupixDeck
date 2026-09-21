@@ -24,11 +24,12 @@ public interface ICommandService
     Task ExecuteCommand(string command, ButtonTargets target, int? sourceIndex = null, int ticks = 0);
 
     /// <summary>
-    /// The value text an adjustment command wants shown on its dial (e.g. "75%"), or
-    /// null when <paramref name="command"/> is empty, not registered, not an adjustment
-    /// command, or the plugin supplies no text. Called from the side-strip render path.
+    /// The value an adjustment command wants shown on its dial — scale position plus display
+    /// text — or null when <paramref name="command"/> is empty, not registered, not an
+    /// adjustment command, or the plugin supplies no value. Called from the side-strip render
+    /// path and by plugins that render a dial themselves, so it must stay cheap.
     /// </summary>
-    string GetAdjustmentValueText(string command, int? sourceIndex = null);
+    AdjustmentValue? GetAdjustmentValue(string command, int? sourceIndex = null);
 
     /// <summary>
     /// True when the command string resolves to a registered adjustment command, i.e.
@@ -82,18 +83,18 @@ public class CommandService : ICommandService
         }
     }
 
-    public string GetAdjustmentValueText(string command, int? sourceIndex = null)
+    public AdjustmentValue? GetAdjustmentValue(string command, int? sourceIndex = null)
     {
         string part = FirstChainPart(command);
         if (part == null)
             return null;
 
         RegisteredCommand registered = _commandRegistry.Get(CommandStringParser.GetName(part));
-        if (registered is not { IsAdjustmentCommand: true } || registered.GetValueText == null)
+        if (registered is not { IsAdjustmentCommand: true } || registered.GetValue == null)
             return null;
 
         using var _routerScope = _router.Enter(_deviceProvider);
-        return registered.GetValueText(CommandStringParser.GetParameters(part) ?? [], sourceIndex);
+        return registered.GetValue(CommandStringParser.GetParameters(part) ?? [], sourceIndex);
     }
 
     public bool IsAdjustmentCommand(string command)

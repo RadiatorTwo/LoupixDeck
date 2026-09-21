@@ -1736,7 +1736,9 @@ public static class BitmapHelper
     /// <summary>
     /// Renders a side strip in segmented mode: the strip's full height is split into
     /// one region per knob on that dial column (3 × 60×90 on the Razer), each showing
-    /// the knob's <see cref="RotaryButton.DisplayText"/> label centered. The background
+    /// the knob's <see cref="RotaryButton.DisplayText"/> label centered — or, when the knob
+    /// is bound to an adjustment command, that command's value as a bar with its text. The
+    /// background
     /// is the page wallpaper's true panel region for this strip (left = x 0–60, right =
     /// x 420–480 of the 480-wide panel) so the image stays continuous with the centre
     /// grid across the bezel; falls back to a solid dark fill when no wallpaper is set.
@@ -1748,7 +1750,7 @@ public static class BitmapHelper
         int height,
         RotarySide side,
         Func<int, LoupixDeck.PluginSdk.IRenderCanvas, bool> drawSegment = null,
-        Func<int, string> valueTextFor = null)
+        Func<int, LoupixDeck.PluginSdk.AdjustmentValue?> valueFor = null)
     {
         ArgumentNullException.ThrowIfNull(page);
 
@@ -1792,72 +1794,125 @@ public static class BitmapHelper
 
                 var text = buttons[i]?.DisplayText;
 
-                // An adjustment command bound to this dial supplies its current value
-                // (e.g. "75%"). With a label present the segment is split: label on top,
-                // value bold below. Without one the value takes the whole segment.
-                string valueText = null;
-                if (valueTextFor != null)
+                // A dial bound to an adjustment command shows that command's value instead of
+                // a bare label: the bar says where it sits, the text says what it is.
+                LoupixDeck.PluginSdk.AdjustmentValue? value = null;
+                if (valueFor != null)
                 {
-                    try { valueText = valueTextFor(i); }
+                    try { value = valueFor(i); }
                     catch (Exception ex)
                     {
-                        Console.WriteLine($"RenderRotaryStrip: segment {i} value text failed: {ex.Message}");
+                        Console.WriteLine($"RenderRotaryStrip: segment {i} value failed: {ex.Message}");
                     }
                 }
 
-                var hasLabel = !string.IsNullOrWhiteSpace(text);
-                var hasValue = !string.IsNullOrWhiteSpace(valueText);
-                if (!hasLabel && !hasValue)
-                    continue;
-
-                if (hasLabel && hasValue)
+                if (value.HasValue)
                 {
-                    var halfHeight = segmentHeight / 2f;
-
-                    DrawTextAt(
-                        canvas,
-                        text,
-                        SKColors.White,
-                        14,
-                        centered: true,
-                        posX: 0,
-                        posY: top,
-                        imageWidth: width,
-                        imageHeight: halfHeight,
-                        bold: false);
-
-                    DrawTextAt(
-                        canvas,
-                        valueText,
-                        SKColors.White,
-                        18,
-                        centered: true,
-                        posX: 0,
-                        posY: top + halfHeight,
-                        imageWidth: width,
-                        imageHeight: halfHeight,
-                        bold: true);
-
+                    DrawAdjustmentIndicator(canvas, value.Value, text, width, top, segmentHeight);
                     continue;
                 }
 
+                if (string.IsNullOrWhiteSpace(text))
+                    continue;
+
                 DrawTextAt(
                     canvas,
-                    hasValue ? valueText : text,
+                    text,
                     SKColors.White,
-                    hasValue ? 18 : 16,
+                    16,
                     centered: true,
                     posX: 0,
                     posY: top,
                     imageWidth: width,
                     imageHeight: segmentHeight,
-                    bold: hasValue);
+                    bold: false);
             }
 
             canvas.Flush();
         }
 
         return bitmap;
+    }
+
+    // Dial indicator palette. Deliberately neutral: the host draws this for every plugin's
+    // adjustment command, so it must not look like it belongs to one of them.
+    private static readonly SKColor IndicatorTrack = new(0x30, 0x30, 0x30);
+    private static readonly SKColor IndicatorFill = new(0xE0, 0xE0, 0xE0);
+
+    /// <summary>
+    /// Draws one dial's adjustment indicator into its strip segment: a horizontal bar filled
+    /// to <see cref="LoupixDeck.PluginSdk.AdjustmentValue.Normalized"/>, the value text above
+    /// it, and the dial's own label above that when it has one.
+    /// <para>
+    /// A <c>Normalized</c> of <c>NaN</c> means the command supplies text but no scale position
+    /// (it only implements <c>GetValueText</c>); then the caption is drawn alone, because an
+    /// empty bar would claim a value the command never reported.
+    /// </para>
+    /// </summary>
+    private static void DrawAdjustmentIndicator(
+        SKCanvas canvas,
+        LoupixDeck.PluginSdk.AdjustmentValue value,
+        string label,
+        int width,
+        float top,
+        float segmentHeight)
+    {
+        bool hasBar = !double.IsNaN(value.Normalized);
+        bool hasLabel = !string.IsNullOrWhiteSpace(label);
+        bool hasText = !string.IsNullOrWhiteSpace(value.Text);
+
+        if (!hasBar)
+        {
+            // Caption only — same treatment a plain label gets, so the two look alike.
+            if (hasText || hasLabel)
+            {
+                DrawTextAt(canvas, hasText ? value.Text : label, SKColors.White, 16, centered: true,
+                    posX: 0, posY: top, imageWidth: width, imageHeight: segmentHeight, bold: hasText);
+            }
+
+            return;
+        }
+
+        // The bar sits at the bottom of the segment with the text stacked above it, so three
+        // dials in a column read as three rows rather than as one block of numbers.
+        const float BarHeight = 6f;
+        float sideInset = Math.Max(4f, width * 0.12f);
+        float barBottom = top + segmentHeight - Math.Max(6f, segmentHeight * 0.12f);
+        float barTop = barBottom - BarHeight;
+        float barLeft = sideInset;
+        float barRight = width - sideInset;
+
+        using (var paint = new SKPaint { IsAntialias = true, Style = SKPaintStyle.Fill, Color = IndicatorTrack })
+        {
+            canvas.DrawRoundRect(new SKRect(barLeft, barTop, barRight, barBottom), 3f, 3f, paint);
+        }
+
+        float filledWidth = (float)(value.Normalized * (barRight - barLeft));
+        if (filledWidth > 0f)
+        {
+            using var paint = new SKPaint { IsAntialias = true, Style = SKPaintStyle.Fill, Color = IndicatorFill };
+            canvas.DrawRoundRect(new SKRect(barLeft, barTop, barLeft + filledWidth, barBottom), 3f, 3f, paint);
+        }
+
+        float textHeight = barTop - top;
+        if (textHeight <= 0f)
+            return;
+
+        if (hasLabel && hasText)
+        {
+            float half = textHeight / 2f;
+            DrawTextAt(canvas, label, SKColors.White, 13, centered: true,
+                posX: 0, posY: top, imageWidth: width, imageHeight: half, bold: false);
+            DrawTextAt(canvas, value.Text, SKColors.White, 17, centered: true,
+                posX: 0, posY: top + half, imageWidth: width, imageHeight: half, bold: true);
+            return;
+        }
+
+        if (hasLabel || hasText)
+        {
+            DrawTextAt(canvas, hasText ? value.Text : label, SKColors.White, hasText ? 17 : 15, centered: true,
+                posX: 0, posY: top, imageWidth: width, imageHeight: textHeight, bold: hasText);
+        }
     }
 
     /// <summary>
