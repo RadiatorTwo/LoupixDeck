@@ -1144,17 +1144,61 @@ public partial class LoupedeckLiveSController(
     {
         // PluginOverride: a plugin provider renders the strip; FreeDraw: the page's
         // editable canvas; Segmented (default): the three adjacent dial labels.
+        var valueText = AdjustmentValueTextFor(page, side);
+
         return page.StripMode switch
         {
             StripMode.PluginOverride => useSessions
                 ? RenderPluginStripOrFallback(page, side)
-                : BitmapHelper.RenderRotaryStrip(page, config, StripWidth, StripHeight, side),
+                : BitmapHelper.RenderRotaryStrip(page, config, StripWidth, StripHeight, side,
+                    valueTextFor: valueText),
             StripMode.FreeDraw => BitmapHelper.RenderStripCanvas(page.StripCanvas, config, StripWidth, StripHeight, side),
             _ => useSessions
                 ? BitmapHelper.RenderRotaryStrip(page, config, StripWidth, StripHeight, side,
-                    (i, rc) => (_segmentSession[SideIndex(side)] as ISegmentStripSession)?.RenderSegment(i, rc) ?? false)
-                : BitmapHelper.RenderRotaryStrip(page, config, StripWidth, StripHeight, side)
+                    (i, rc) => (_segmentSession[SideIndex(side)] as ISegmentStripSession)?.RenderSegment(i, rc) ?? false,
+                    valueText)
+                : BitmapHelper.RenderRotaryStrip(page, config, StripWidth, StripHeight, side,
+                    valueTextFor: valueText)
         };
+    }
+
+    /// <summary>
+    /// Builds the per-dial value-text resolver the segmented strip draws as the adjustment
+    /// indicator: for dial <c>localIndex</c> of this side's page, the value text of the first
+    /// of its three slots that holds an adjustment command. Null when the page has no dials,
+    /// and null per dial when none of its commands is an adjustment command — then the dial
+    /// keeps its plain static label.
+    /// </summary>
+    private Func<int, string> AdjustmentValueTextFor(RotaryButtonPage page, RotarySide side)
+    {
+        var buttons = page?.RotaryButtons;
+        if (buttons == null || buttons.Count == 0) return null;
+
+        return localIndex =>
+        {
+            if (localIndex < 0 || localIndex >= buttons.Count) return null;
+
+            var dial = buttons[localIndex];
+            if (dial == null) return null;
+
+            // Mirrors ResolveRotary: the right column's dials carry global indices 3–5, which
+            // is what a plugin sees as CommandContext.SourceIndex when the knob fires.
+            var globalIndex = side == RotarySide.Right ? localIndex + 3 : localIndex;
+
+            return FirstAdjustmentValueText(globalIndex,
+                dial.RotaryLeftCommand, dial.RotaryRightCommand, dial.Command);
+        };
+    }
+
+    private string FirstAdjustmentValueText(int globalIndex, params string[] commands)
+    {
+        foreach (var command in commands)
+        {
+            var text = commandService.GetAdjustmentValueText(command, globalIndex);
+            if (!string.IsNullOrWhiteSpace(text)) return text;
+        }
+
+        return null;
     }
 
     /// <summary>Re-evaluates plugin-override attachment for both strips, then repaints
@@ -1253,7 +1297,8 @@ public partial class LoupedeckLiveSController(
         }
 
         // Unbound / orphaned id / declined / failed → segmented labels.
-        return BitmapHelper.RenderRotaryStrip(page, config, StripWidth, StripHeight, side);
+        return BitmapHelper.RenderRotaryStrip(page, config, StripWidth, StripHeight, side,
+            valueTextFor: AdjustmentValueTextFor(page, side));
     }
 
     /// <summary>
@@ -1595,7 +1640,19 @@ public partial class LoupedeckLiveSController(
         var (page, rotary) = resolved.Value;
         if (_isDeviceOff && !rotary.EnableWhenOff) return;
         var cmd = rotary.Command;
-        if (string.IsNullOrEmpty(cmd)) return;
+
+        // Same borrowing rule as a turn: an adjustment command bound to a turn slot owns
+        // the press too (it resets the value), so an unassigned press slot uses it instead
+        // of staying dead. Never borrows a normal command.
+        if (string.IsNullOrEmpty(cmd))
+        {
+            var turnCommand = rotary.RotaryLeftCommand;
+            if (!commandService.IsAdjustmentCommand(turnCommand))
+                turnCommand = rotary.RotaryRightCommand;
+            if (!commandService.IsAdjustmentCommand(turnCommand)) return;
+            cmd = turnCommand;
+        }
+
         var wrappedRotary = page.KnobPressWrap?.Apply(cmd) ?? cmd;
         DispatchWithPress(e.ButtonId, () => FireAndForget(wrappedRotary, ButtonTargets.RotaryEncoder, idx));
     }
@@ -1607,14 +1664,44 @@ public partial class LoupedeckLiveSController(
     /// deadlock the very thread that needs to complete the await, and the
     /// device would appear disconnected after the first such command.
     /// </summary>
-    private void FireAndForget(string command, ButtonTargets target, int? sourceIndex = null)
+    private void FireAndForget(string command, ButtonTargets target, int? sourceIndex = null, int ticks = 0)
     {
         if (string.IsNullOrEmpty(command)) return;
         _ = Task.Run(async () =>
         {
-            try { await commandService.ExecuteCommand(command, target, sourceIndex); }
+            try
+            {
+                await commandService.ExecuteCommand(command, target, sourceIndex, ticks);
+
+                // An adjustment command changed its value, so the dial indicator drawn from
+                // GetValueText is stale. Repaint that dial's strip once the call finished
+                // (no-op on devices without side strips).
+                if (target == ButtonTargets.RotaryEncoder && sourceIndex.HasValue &&
+                    commandService.IsAdjustmentCommand(command))
+                {
+                    await RefreshAdjustmentIndicator(sourceIndex.Value);
+                }
+            }
             catch (Exception ex) { Console.WriteLine($"Command failed ({command}): {ex.Message}"); }
         });
+    }
+
+    /// <summary>
+    /// Repaints the side strip carrying the given global knob index, so the dial's
+    /// adjustment indicator shows the value the command just wrote. Routed through the
+    /// shared coalescing gate: a fast dial turn fires one call per detent, and without it
+    /// the redraws would overlap on the serial queue. A swipe drag owns the strip until it
+    /// lands, so that frame is skipped — the next turn (or the swipe's commit) repaints.
+    /// </summary>
+    private Task RefreshAdjustmentIndicator(int globalIndex)
+    {
+        if (deviceService.Device?.HasSideStrips != true) return Task.CompletedTask;
+
+        var (side, _) = ResolveRotary(globalIndex);
+        var idx = SideIndex(side);
+        if (IsStripDragBusy(idx)) return Task.CompletedTask;
+
+        return RedrawStripCoalesced(side, idx);
     }
 
     /// <summary>
@@ -1988,10 +2075,21 @@ public partial class LoupedeckLiveSController(
         if (_isDeviceOff && !btn.EnableWhenOff) return;
         var leftTurn = e.Delta < 0;
         var command = leftTurn ? btn.RotaryLeftCommand : btn.RotaryRightCommand;
-        if (string.IsNullOrEmpty(command)) return;
+
+        // An adjustment command covers both directions on its own (the tick delta carries
+        // the sign), so binding it to one slot is enough: the empty opposite slot borrows
+        // it instead of doing nothing. Only ever borrows an adjustment command — a normal
+        // command assigned to one direction keeps turning the other way into a no-op.
+        if (string.IsNullOrEmpty(command))
+        {
+            var opposite = leftTurn ? btn.RotaryRightCommand : btn.RotaryLeftCommand;
+            if (!commandService.IsAdjustmentCommand(opposite)) return;
+            command = opposite;
+        }
+
         var wrap = leftTurn ? page.KnobLeftWrap : page.KnobRightWrap;
         var wrapped = wrap?.Apply(command) ?? command;
-        FireAndForget(wrapped, ButtonTargets.RotaryEncoder, idx);
+        FireAndForget(wrapped, ButtonTargets.RotaryEncoder, idx, e.Delta);
     }
 
     /// <summary>

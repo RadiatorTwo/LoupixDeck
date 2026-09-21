@@ -107,6 +107,66 @@ public class PluginCommandProvider : ICommandProvider
             }
         };
 
+        // Rotary value adjustment (IAdjustmentCommand). Orthogonal to the display
+        // classification below: the same command may also render its own button.
+        var isAdjustment = false;
+        Func<string[], int?, int, Task> applyAdjustment = null;
+        Func<string[], int?, Task> applyReset = null;
+        Func<string[], int?, string> getValueText = null;
+
+        CommandContext RotaryContext(string[] parameters, int? sourceIndex) => new()
+        {
+            Parameters = parameters ?? Array.Empty<string>(),
+            Target = ButtonTargets.RotaryEncoder,
+            SourceIndex = sourceIndex,
+            Device = host?.ActiveDevice,
+            Host = host
+        };
+
+        if (command is IAdjustmentCommand adjustmentCommand)
+        {
+            isAdjustment = true;
+
+            applyAdjustment = async (parameters, sourceIndex, ticks) =>
+            {
+                try
+                {
+                    await adjustmentCommand.ApplyAdjustment(RotaryContext(parameters, sourceIndex), ticks);
+                }
+                catch (Exception ex)
+                {
+                    host?.Logger?.Error($"ApplyAdjustment failed for '{descriptor.CommandName}'", ex);
+                }
+            };
+
+            applyReset = async (parameters, sourceIndex) =>
+            {
+                try
+                {
+                    await adjustmentCommand.ApplyReset(RotaryContext(parameters, sourceIndex));
+                }
+                catch (Exception ex)
+                {
+                    host?.Logger?.Error($"ApplyReset failed for '{descriptor.CommandName}'", ex);
+                }
+            };
+
+            getValueText = (parameters, sourceIndex) =>
+            {
+                try
+                {
+                    return adjustmentCommand.GetValueText(RotaryContext(parameters, sourceIndex));
+                }
+                catch (Exception ex)
+                {
+                    // Runs on the strip render path — a throwing plugin must not take the
+                    // whole strip down, so the dial falls back to its static label.
+                    host?.Logger?.Error($"GetValueText failed for '{descriptor.CommandName}'", ex);
+                    return null;
+                }
+            };
+        }
+
         var isDisplay = false;
         var isImageDisplay = false;
         var isAnimatedImage = false;
@@ -165,6 +225,10 @@ public class PluginCommandProvider : ICommandProvider
             IsAnimatedImageCommand = isAnimatedImage,
             AnimatedTargetFps = animatedFps,
             UpdateInterval = interval,
+            IsAdjustmentCommand = isAdjustment,
+            ApplyAdjustment = applyAdjustment,
+            ApplyReset = applyReset,
+            GetValueText = getValueText,
             Execute = execute,
             GetText = getText,
             RenderImage = renderImage,

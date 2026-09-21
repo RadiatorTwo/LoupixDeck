@@ -1747,7 +1747,8 @@ public static class BitmapHelper
         int width,
         int height,
         RotarySide side,
-        Func<int, LoupixDeck.PluginSdk.IRenderCanvas, bool> drawSegment = null)
+        Func<int, LoupixDeck.PluginSdk.IRenderCanvas, bool> drawSegment = null,
+        Func<int, string> valueTextFor = null)
     {
         ArgumentNullException.ThrowIfNull(page);
 
@@ -1790,20 +1791,67 @@ public static class BitmapHelper
                 }
 
                 var text = buttons[i]?.DisplayText;
-                if (string.IsNullOrWhiteSpace(text))
+
+                // An adjustment command bound to this dial supplies its current value
+                // (e.g. "75%"). With a label present the segment is split: label on top,
+                // value bold below. Without one the value takes the whole segment.
+                string valueText = null;
+                if (valueTextFor != null)
+                {
+                    try { valueText = valueTextFor(i); }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"RenderRotaryStrip: segment {i} value text failed: {ex.Message}");
+                    }
+                }
+
+                var hasLabel = !string.IsNullOrWhiteSpace(text);
+                var hasValue = !string.IsNullOrWhiteSpace(valueText);
+                if (!hasLabel && !hasValue)
                     continue;
+
+                if (hasLabel && hasValue)
+                {
+                    var halfHeight = segmentHeight / 2f;
+
+                    DrawTextAt(
+                        canvas,
+                        text,
+                        SKColors.White,
+                        14,
+                        centered: true,
+                        posX: 0,
+                        posY: top,
+                        imageWidth: width,
+                        imageHeight: halfHeight,
+                        bold: false);
+
+                    DrawTextAt(
+                        canvas,
+                        valueText,
+                        SKColors.White,
+                        18,
+                        centered: true,
+                        posX: 0,
+                        posY: top + halfHeight,
+                        imageWidth: width,
+                        imageHeight: halfHeight,
+                        bold: true);
+
+                    continue;
+                }
 
                 DrawTextAt(
                     canvas,
-                    text,
+                    hasValue ? valueText : text,
                     SKColors.White,
-                    16,
+                    hasValue ? 18 : 16,
                     centered: true,
                     posX: 0,
                     posY: top,
                     imageWidth: width,
                     imageHeight: segmentHeight,
-                    bold: false);
+                    bold: hasValue);
             }
 
             canvas.Flush();

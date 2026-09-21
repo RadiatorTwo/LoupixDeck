@@ -71,6 +71,35 @@ public sealed class RegisteredCommand
     public TimeSpan UpdateInterval { get; init; }
 
     /// <summary>
+    /// True when the command is a rotary value adjustment — adapted from an
+    /// <c>IAdjustmentCommand</c>. A turn of a dial it is bound to runs
+    /// <see cref="ApplyAdjustment"/> instead of <see cref="Execute"/>, a knob press runs
+    /// <see cref="ApplyReset"/>. Only the rotary path routes this way; every other target
+    /// (touch button, macro, CLI) keeps calling <see cref="Execute"/>.
+    /// </summary>
+    public bool IsAdjustmentCommand { get; init; }
+
+    /// <summary>
+    /// For adjustment commands: applies a relative change. The second argument is the
+    /// originating rotary index, the third the tick delta (negative for a left turn).
+    /// Null for non-adjustment commands.
+    /// </summary>
+    public Func<string[], int?, int, Task> ApplyAdjustment { get; init; }
+
+    /// <summary>
+    /// For adjustment commands: resets the value (knob press). The second argument is the
+    /// originating rotary index. Null for non-adjustment commands.
+    /// </summary>
+    public Func<string[], int?, Task> ApplyReset { get; init; }
+
+    /// <summary>
+    /// For adjustment commands: the current value as display text for the dial indicator,
+    /// or null for no overlay. The second argument is the rotary index being rendered.
+    /// Null for non-adjustment commands.
+    /// </summary>
+    public Func<string[], int?, string> GetValueText { get; init; }
+
+    /// <summary>
     /// Runs the command. The second argument is the button type that triggered
     /// the call — forwarded to <c>CommandContext.Target</c> on plugin commands;
     /// core commands ignore it. The third argument identifies the originating
