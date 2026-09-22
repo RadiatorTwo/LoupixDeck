@@ -155,7 +155,16 @@ public static class SerialDeviceHelper
         return string.Concat("COM", name.Slice(digits, end - digits));
     }
 #else
+    /// <summary>
+    /// Unix discovery. Linux reads sysfs through <c>udevadm</c>; macOS has neither sysfs nor
+    /// udev, so it walks the IO registry instead. Both fill the same record.
+    /// </summary>
     public static List<SerialDeviceInfo> ListSerialUsbDevices()
+    {
+        return OperatingSystem.IsMacOS() ? ListMacSerialUsbDevices() : ListLinuxSerialUsbDevices();
+    }
+
+    private static List<SerialDeviceInfo> ListLinuxSerialUsbDevices()
     {
         var result = new List<SerialDeviceInfo>();
         var candidates = Directory.EnumerateFiles("/dev")
@@ -188,6 +197,175 @@ public static class SerialDeviceHelper
         }
 
         return result;
+    }
+
+    // ──────── macOS ────────
+
+    /// <summary>
+    /// macOS serial ports are <c>/dev/cu.*</c> and carry no identity of their own: the VID/PID
+    /// and serial live on an ancestor USB node in the IO registry. <c>ioreg</c> prints that
+    /// registry as a tree indented two spaces per level, so this walks the tree keeping an
+    /// ancestor chain and, for every node owning an <c>IOCalloutDevice</c>, fills each field
+    /// from the nearest ancestor that has it. Fields are filled independently because a USB
+    /// interface node may carry <c>idVendor</c> without <c>idProduct</c> — stopping at the
+    /// first node with any identity would drop the product id and fail the registry lookup.
+    /// </summary>
+    private static List<SerialDeviceInfo> ListMacSerialUsbDevices()
+    {
+        var result = new List<SerialDeviceInfo>();
+
+        string dump = RunIoreg();
+        if (string.IsNullOrWhiteSpace(dump)) return result;
+
+        var stack = new List<IoRegNode>();
+        var nodes = new List<IoRegNode>();
+        IoRegNode current = null;
+
+        foreach (string line in dump.Split('\n'))
+        {
+            int depth = NodeDepth(line);
+            if (depth >= 0)
+            {
+                if (depth > stack.Count) depth = stack.Count;
+                stack.RemoveRange(depth, stack.Count - depth);
+
+                current = new IoRegNode { Parent = stack.Count > 0 ? stack[^1] : null };
+                stack.Add(current);
+                nodes.Add(current);
+                continue;
+            }
+
+            if (current == null) continue;
+            if (!TrySplitProperty(line, out string key, out string value)) continue;
+
+            switch (key)
+            {
+                case "idVendor": current.Vid = ToHex4(value); break;
+                case "idProduct": current.Pid = ToHex4(value); break;
+                case "USB Serial Number": current.Serial = value; break;
+                case "USB Vendor Name": current.Manufacturer = value; break;
+                case "USB Product Name": current.Product = value; break;
+                case "IOCalloutDevice": current.Callout = value; break;
+                case "IODialinDevice": current.Dialin = value; break;
+            }
+        }
+
+        foreach (IoRegNode node in nodes)
+        {
+            if (string.IsNullOrEmpty(node.Callout)) continue;
+
+            string vid = null, pid = null, serial = null, manufacturer = null, product = null;
+            for (IoRegNode walk = node; walk != null; walk = walk.Parent)
+            {
+                vid ??= walk.Vid;
+                pid ??= walk.Pid;
+                serial ??= walk.Serial;
+                manufacturer ??= walk.Manufacturer;
+                product ??= walk.Product;
+            }
+
+            // Bluetooth and the debug console also publish callout nodes; without a USB
+            // identity they can never match the registry, so drop them here.
+            if (vid == null || pid == null) continue;
+
+            result.Add(new SerialDeviceInfo(
+                DevNode: node.Callout,
+                Vid: vid,
+                Pid: pid,
+                Serial: serial,
+                // ioreg already yields decoded ASCII — as on Linux, route empty/whitespace
+                // to null so it matches the Windows null fallback.
+                NormalizedSerial: string.IsNullOrWhiteSpace(serial) ? null : serial,
+                Manufacturer: manufacturer,
+                Product: product,
+                // The matching /dev/tty.* dial-in node, so callers can recognise either name.
+                Aliases: string.IsNullOrEmpty(node.Dialin) ? [] : [node.Dialin]
+            ));
+        }
+
+        return result;
+    }
+
+    private sealed class IoRegNode
+    {
+        public IoRegNode Parent;
+        public string Vid;
+        public string Pid;
+        public string Serial;
+        public string Manufacturer;
+        public string Product;
+        public string Callout;
+        public string Dialin;
+    }
+
+    /// <summary>
+    /// Tree depth of an ioreg node line, or -1 when the line is not a node. Node lines are
+    /// <c>"  | | +-o Name@addr &lt;class ...&gt;"</c>: only spaces and pipes before the marker,
+    /// two columns per level.
+    /// </summary>
+    private static int NodeDepth(string line)
+    {
+        int marker = line.IndexOf("+-o ", StringComparison.Ordinal);
+        if (marker < 0) return -1;
+
+        for (int i = 0; i < marker; i++)
+        {
+            if (line[i] != ' ' && line[i] != '|') return -1;
+        }
+
+        return marker / 2;
+    }
+
+    /// <summary>
+    /// Pulls <c>"key" = value</c> out of an ioreg property line. Values arrive quoted
+    /// (strings) or bare (numbers); quotes are stripped either way.
+    /// </summary>
+    private static bool TrySplitProperty(string line, out string key, out string value)
+    {
+        key = null;
+        value = null;
+
+        int open = line.IndexOf('"');
+        if (open < 0) return false;
+
+        int close = line.IndexOf('"', open + 1);
+        if (close < 0) return false;
+
+        int eq = line.IndexOf('=', close + 1);
+        if (eq < 0) return false;
+
+        key = line.Substring(open + 1, close - open - 1);
+        value = line[(eq + 1)..].Trim();
+
+        if (value.Length >= 2 && value[0] == '"' && value[^1] == '"')
+            value = value[1..^1];
+
+        return key.Length > 0 && value.Length > 0;
+    }
+
+    /// <summary>
+    /// ioreg reports idVendor/idProduct in decimal, while
+    /// <see cref="LoupixDeck.Registry.DeviceRegistry"/> matches the lowercase 4-digit hex that
+    /// Windows and udev produce. Converting here keeps the comparison in one form.
+    /// </summary>
+    private static string ToHex4(string value)
+    {
+        return int.TryParse(value, out int id) && id >= 0 ? id.ToString("x4") : null;
+    }
+
+    private static string RunIoreg()
+    {
+        var psi = new ProcessStartInfo
+        {
+            FileName = "ioreg",
+            Arguments = "-p IOService -l -w 0",
+            RedirectStandardOutput = true,
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
+
+        using var proc = Process.Start(psi);
+        return proc?.StandardOutput.ReadToEnd() ?? "";
     }
 
 #endif
