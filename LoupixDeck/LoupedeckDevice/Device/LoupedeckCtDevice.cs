@@ -9,12 +9,10 @@ namespace LoupixDeck.LoupedeckDevice.Device;
 /// <summary>
 /// Loupedeck CT — the most complex device in the family. Unlike Live/Razer, which
 /// share one unified framebuffer addressed by X-offset, the CT exposes FOUR
-/// independent framebuffers: "center" (360x270), "left"/"right" side strips
-/// (60x270 each), and "knob" — the round 240x240 touchscreen embedded in the
-/// large centre dial ("the wheel"), which the firmware expects in big-endian
-/// pixel order (not yet implemented here — drawing to it will produce garbled
-/// colors until <see cref="LoupedeckDevice.ConvertSKBitmapToRaw16BppUnsafe"/> /
-/// <see cref="DisplayInfo"/> gain an endianness flag).
+/// two framebuffers: the unified "center" (480x270, id "\0M") carrying both side
+/// strips and the 4x3 grid exactly as on Live/Razer, and "knob" — the round 240x240
+/// touchscreen embedded in the large centre dial ("the wheel"), which the firmware
+/// expects in big-endian pixel order (see <see cref="DisplayInfo.BigEndianPixels"/>).
 ///
 /// Geometry: 4x3 touch grid (indices 0-11), 2 side strips (12/13, same pattern as
 /// <see cref="RazerStreamControllerDevice"/>), 6 side dials + 1 centre wheel dial
@@ -62,20 +60,12 @@ public class LoupedeckCtDevice : LoupedeckDevice
 
     /// <inheritdoc />
     /// <remarks>
-    /// This offset only affects which slice of a continuous wallpaper bitmap is
-    /// cropped for the grid (see <see cref="Utils.BitmapHelper.RenderTouchButtonContent"/>);
-    /// it is unrelated to the framebuffer write position, which is always 0 for the
-    /// CT's dedicated "center" buffer (see <see cref="DrawTouchButtonAt"/>). Kept at
-    /// 60 — same as Razer — on the assumption that CT wallpapers are authored as one
-    /// continuous 480px-wide image spanning both side strips and the grid; revisit
-    /// once real hardware/wallpaper behaviour can be observed.
+    /// This offset selects which slice of a continuous wallpaper bitmap is cropped for the
+    /// grid (see <see cref="Utils.BitmapHelper.RenderTouchButtonContent"/>). 60 — same as
+    /// Razer — because CT wallpapers are one continuous 480px-wide image spanning both side
+    /// strips and the grid, which matches the unified framebuffer the hardware actually has.
     /// </remarks>
     public override int WallpaperGridXOffset => 60;
-
-    /// <inheritdoc />
-    /// <remarks>The CT's "center" is its own dedicated 360-wide grid-only framebuffer, so the
-    /// grid starts at 0 there — unlike the unified 480-wide buffer of Live/Razer.</remarks>
-    public override int GridOriginX => 0;
 
     public LoupedeckCtDevice(string host = null, string path = null, int baudrate = 0,
         bool autoConnect = true, int reconnectInterval = Constants.DefaultReconnectInterval)
@@ -94,15 +84,14 @@ public class LoupedeckCtDevice : LoupedeckDevice
         ProductId = "0003";
         VendorId = "2ec2";
 
-        // Four independent framebuffers (unlike Live/Razer's single unified one).
+        // One unified 480x270 buffer for the strips and the grid, exactly as on
+        // Live/Razer, plus the wheel's own screen. Verified on hardware: the strips are
+        // regions of "\0M" at x=0 and x=420, not separate "\0L"/"\0R" framebuffers.
         Displays = new Dictionary<string, DisplayInfo>
         {
-            ["center"] = new() { Id = "\0A"u8.ToArray(), Width = 360, Height = 270 },
-            ["left"] = new() { Id = "\0L"u8.ToArray(), Width = 60, Height = 270 },
-            ["right"] = new() { Id = "\0R"u8.ToArray(), Width = 60, Height = 270 },
-            // VERIFY ON HARDWARE: firmware expects this buffer big-endian; the base
-            // class's pixel converter is little-endian-only today (Phase 2 work).
-            ["knob"] = new() { Id = "\0W"u8.ToArray(), Width = 240, Height = 240 }
+            ["center"] = new() { Id = "\0M"u8.ToArray(), Width = 480, Height = 270 },
+            // The wheel is the one framebuffer that wants MSB-first pixels.
+            ["knob"] = new() { Id = "\0W"u8.ToArray(), Width = 240, Height = 240, BigEndianPixels = true }
         }.ToFrozenDictionary();
     }
 
@@ -134,11 +123,9 @@ public class LoupedeckCtDevice : LoupedeckDevice
     }
 
     /// <summary>
-    /// Routes side-strip slots to their own dedicated "left"/"right" framebuffers
-    /// (each at origin 0,0 — simpler than Razer's X-offset-into-one-buffer trick,
-    /// since the CT gives each strip its own buffer); grid slots go to "center" at
-    /// their own 0-based position (NOT the base class's VisibleX[0]-offset DrawKey,
-    /// which assumes a unified buffer the CT doesn't have).
+    /// Routes the side strips to their X offsets on the unified "center" buffer, the same
+    /// way <see cref="RazerStreamControllerDevice"/> does; grid slots fall through to the
+    /// base class, whose GridOriginX offset is now correct for this device.
     /// </summary>
     public override async Task DrawTouchSlot(int index, SKBitmap bitmap, bool refresh = true)
     {
@@ -146,16 +133,15 @@ public class LoupedeckCtDevice : LoupedeckDevice
 
         if (index == LeftSideIndex || index == RightSideIndex)
         {
-            var displayId = index == LeftSideIndex ? "left" : "right";
-            try { await DrawCanvasRegion(displayId, 60, 270, bitmap, 0, 0, refresh); }
+            const int sideW = 60;
+            const int sideH = 270;
+            var destX = index == LeftSideIndex ? 0 : 420;
+            try { await DrawCanvasRegion("center", sideW, sideH, bitmap, destX, 0, refresh); }
             catch (Exception ex) { Console.WriteLine($"CT side-panel slot draw failed for index {index}: {ex.Message}"); }
             return;
         }
 
-        if (index < 0 || index >= Columns * Rows)
-            throw new ArgumentOutOfRangeException(nameof(index), $"Key {index} is not a valid grid key");
-
-        await DrawTouchButtonAt(index, bitmap, refresh);
+        await base.DrawTouchSlot(index, bitmap, refresh);
     }
 
     /// <inheritdoc />
@@ -167,93 +153,6 @@ public class LoupedeckCtDevice : LoupedeckDevice
         if (touchButton.Index >= Columns * Rows)
             return; // side panels — not owned by the grid touch-button pipeline
 
-        if (refresh || touchButton.RenderedImage == null)
-        {
-            var renderedBitmap =
-                BitmapHelper.RenderTouchButtonContent(touchButton, config, KeySize, KeySize,
-                    GetWallpaperKeyRect(touchButton.Index));
-            if (renderedBitmap == null) return;
-        }
-
-        await DrawTouchButtonAt(touchButton.Index, touchButton.RenderedImage, refresh);
-    }
-
-    /// <inheritdoc />
-    /// <remarks>
-    /// The base implementation offsets slots by VisibleX[0] (=60) into a unified
-    /// buffer; the CT's "center" buffer is its own dedicated 360-wide framebuffer
-    /// starting at 0, so that offset would draw the grid partly off-canvas. This
-    /// override is identical to the base except xBase is always 0.
-    /// </remarks>
-    public override async Task DrawTouchSlotsAtomic(IReadOnlyList<SKBitmap> slotBitmaps, bool refresh = true)
-    {
-        if (slotBitmaps == null || slotBitmaps.Count == 0) return;
-        var (width, height) = GetDisplaySize("center");
-        if (width == 0) return;
-
-        // Positions come from GetKeyRect; the CT's "center" is a grid-only buffer, which
-        // its VisibleX override already accounts for.
-
-        using var full = new SKBitmap(new SKImageInfo(width, height,
-            SKColorType.Bgra8888, SKAlphaType.Premul));
-
-        lock (SkiaRenderGate.Sync)
-        {
-            using var canvas = new SKCanvas(full);
-            canvas.Clear(SKColors.Black);
-            for (var slot = 0; slot < slotBitmaps.Count && slot < Columns * Rows; slot++)
-            {
-                var bmp = slotBitmaps[slot];
-                if (bmp == null) continue;
-                SKRectI rect = GetKeyRect(slot);
-                var x = rect.Left;
-                var y = rect.Top;
-                canvas.DrawBitmap(bmp, x, y, SKSamplingOptions.Default, paint: null);
-            }
-        }
-
-        try
-        {
-            await DrawCanvasRegion("center", width, height, full, 0, 0, refresh);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"DrawTouchSlotsAtomic (CT) failed: {ex.Message}");
-        }
-    }
-
-    /// <inheritdoc />
-    /// <remarks>The CT's "center" is its own dedicated grid-only buffer starting at 0, so
-    /// the grid region is pushed at x=0 (the base uses VisibleX[0]=60 into a unified buffer).</remarks>
-    public override async Task DrawCenterGridRegion(SKBitmap gridBitmap, bool refresh = true)
-    {
-        ArgumentNullException.ThrowIfNull(gridBitmap);
-        await DrawCanvasRegion("center", gridBitmap.Width, gridBitmap.Height, gridBitmap, 0, 0, refresh);
-    }
-
-    /// <summary>
-    /// Writes a KeySize-square bitmap to the "center" buffer at the grid position for
-    /// <paramref name="index"/>, using a 0-based origin (the CT's center buffer is
-    /// its own dedicated 360-wide framebuffer — unlike Razer's unified 480-wide one,
-    /// it does NOT start at VisibleX[0]).
-    /// </summary>
-    private async Task DrawTouchButtonAt(int index, SKBitmap bitmap, bool refresh)
-    {
-        SKRectI rect = GetKeyRect(index);
-        int x = rect.Left;
-        int y = rect.Top;
-
-        try
-        {
-            await DrawCanvasRegion("center", KeySize, KeySize, bitmap, x, y, refresh);
-        }
-        catch (TimeoutException ex)
-        {
-            Console.WriteLine($"Timeout occurred: {ex.Message}");
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Unexpected error: {ex.Message}");
-        }
+        await base.DrawTouchButton(touchButton, config, refresh);
     }
 }
