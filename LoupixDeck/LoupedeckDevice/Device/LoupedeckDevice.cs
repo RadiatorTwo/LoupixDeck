@@ -1390,7 +1390,7 @@ public class LoupedeckDevice
     /// <summary>
     /// Converts a RenderTargetBitmap (usually BGRA32) into 16-bit-565 bytes in <paramref name="output"/>.
     /// </summary>
-    /// <param name="bitmap">Source bitmap in BGRA8888.</param>
+    /// <param name="bitmap">Source bitmap in BGRA8888 (Windows, Linux) or RGBA8888 (macOS).</param>
     /// <param name="output">Destination RGB565 bytes; must be at least width*height*2 long.
     /// A rented array may be larger than that — only the exact pixel count is written.</param>
     /// <param name="originX">Absolute X of the converted window on the target display.</param>
@@ -1405,8 +1405,25 @@ public class LoupedeckDevice
         if (bitmap == null || bitmap.IsNull)
             throw new InvalidOperationException("Bitmap is null or empty.");
 
-        if (bitmap.ColorType != SKColorType.Bgra8888)
-            throw new InvalidOperationException("Bitmap must be BGRA8888.");
+        // Skia's 32-bit native order is not the same everywhere: Windows and Linux hand back
+        // BGRA, macOS hands back RGBA. Both are 4 bytes with green in the middle and alpha
+        // last, so the only difference is which end red and blue sit at — read them through
+        // offsets picked once here rather than rejecting the bitmap or copying it per frame.
+        int redOffset, blueOffset;
+        switch (bitmap.ColorType)
+        {
+            case SKColorType.Bgra8888:
+                blueOffset = 0;
+                redOffset = 2;
+                break;
+            case SKColorType.Rgba8888:
+                redOffset = 0;
+                blueOffset = 2;
+                break;
+            default:
+                throw new InvalidOperationException(
+                    $"Bitmap must be BGRA8888 or RGBA8888, got {bitmap.ColorType}.");
+        }
 
         if (srcRect.Left < 0 || srcRect.Top < 0 || srcRect.Width < 0 || srcRect.Height < 0 ||
             srcRect.Right > bitmap.Width || srcRect.Bottom > bitmap.Height)
@@ -1461,9 +1478,9 @@ public class LoupedeckDevice
                     byte* srcPtr = srcBase + ((long)(srcTop + row) * srcRowBytes) + ((long)srcLeft * 4);
                     for (int col = 0; col < width; col++)
                     {
-                        byte b = srcPtr[0];
+                        byte b = srcPtr[blueOffset];
                         byte g = srcPtr[1];
-                        byte r = srcPtr[2];
+                        byte r = srcPtr[redOffset];
                         // byte a = srcPtr[3]; // optional
 
                         int r5, g6, b5;
@@ -1490,7 +1507,7 @@ public class LoupedeckDevice
                         destPtr[0] = (byte)(rgb565 & 0xFF);       // LSB
                         destPtr[1] = (byte)((rgb565 >> 8) & 0xFF); // MSB
 
-                        srcPtr += 4;   // advance 4 bytes (BGRA8888)
+                        srcPtr += 4;   // advance 4 bytes (32bpp, BGRA or RGBA)
                         destPtr += 2;  // advance 2 bytes (RGB565)
                     }
                 }
