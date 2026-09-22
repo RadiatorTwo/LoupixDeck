@@ -299,6 +299,20 @@ public static class ServiceCollectionExtensions
             // Global keyboard recorder for the macro editor (evdev /dev/input/event*).
             collection.AddSingleton<IInputRecorder, LinuxInputRecorder>();
         }
+        else if (OperatingSystem.IsMacOS())
+        {
+            // Quartz Event Services. This arm must exist: without it macOS falls through to the
+            // Windows arm below and every key or mouse step dies on a missing user32.dll.
+            collection.AddSingleton<IUInputKeyboard, MacOsQuartzKeyboard>();
+            collection.AddSingleton<IVirtualMouse, MacOsQuartzMouse>();
+
+            // No Interception driver on macOS — a stand-in so SettingsViewModel still resolves.
+            collection.AddSingleton<IInterceptionService, NoOpInterceptionService>();
+
+            // Recording needs a CGEventTap and the separate Input Monitoring grant; not built yet,
+            // so the macro editor disables the button rather than failing at runtime.
+            collection.AddSingleton<IInputRecorder, NoOpInputRecorder>();
+        }
         else
         {
             // Two concrete keyboard backends plus a router that picks between them per call:
