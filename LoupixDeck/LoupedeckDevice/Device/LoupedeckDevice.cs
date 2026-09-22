@@ -1356,7 +1356,8 @@ public class LoupedeckDevice
                 rented.AsSpan(bodyOffset + displayId.Length + 8, pixelBytes),
                 x,
                 y,
-                srcRect);
+                srcRect,
+                displayInfo.BigEndianPixels);
 
             byte[] packet = rented;
             rented = null;
@@ -1400,7 +1401,7 @@ public class LoupedeckDevice
     /// <param name="srcRect">Window of the bitmap to convert. Reading a sub-rectangle is how
     /// both banding and edge clipping avoid copying the bitmap: the read window moves instead.</param>
     private unsafe void ConvertSKBitmapToRaw16BppUnsafe(SKBitmap bitmap, Span<byte> output, int originX,
-        int originY, SKRectI srcRect)
+        int originY, SKRectI srcRect, bool bigEndian = false)
     {
         if (bitmap == null || bitmap.IsNull)
             throw new InvalidOperationException("Bitmap is null or empty.");
@@ -1487,8 +1488,16 @@ public class LoupedeckDevice
 
                         ushort rgb565 = (ushort)((r5 << 11) | (g6 << 5) | b5);
 
-                        destPtr[0] = (byte)(rgb565 & 0xFF);       // LSB
-                        destPtr[1] = (byte)((rgb565 >> 8) & 0xFF); // MSB
+                        if (bigEndian)
+                        {
+                            destPtr[0] = (byte)((rgb565 >> 8) & 0xFF); // MSB
+                            destPtr[1] = (byte)(rgb565 & 0xFF);        // LSB
+                        }
+                        else
+                        {
+                            destPtr[0] = (byte)(rgb565 & 0xFF);        // LSB
+                            destPtr[1] = (byte)((rgb565 >> 8) & 0xFF); // MSB
+                        }
 
                         srcPtr += 4;   // advance 4 bytes (BGRA8888)
                         destPtr += 2;  // advance 2 bytes (RGB565)
