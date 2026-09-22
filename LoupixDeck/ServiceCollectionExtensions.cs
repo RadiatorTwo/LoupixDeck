@@ -122,6 +122,8 @@ public static class ServiceCollectionExtensions
         else if (OperatingSystem.IsWindows())
             collection.AddSingleton<IAppDiscoveryService, WindowsAppDiscoveryService>();
 #endif
+        else if (OperatingSystem.IsMacOS())
+            collection.AddSingleton<IAppDiscoveryService, MacAppDiscoveryService>();
         else
             collection.AddSingleton<IAppDiscoveryService, NoOpAppDiscoveryService>();
 

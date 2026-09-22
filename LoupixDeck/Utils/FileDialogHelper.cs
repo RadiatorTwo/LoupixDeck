@@ -199,9 +199,15 @@ public abstract class FileDialogHelper
         owner ??= WindowHelper.GetMainWindow();
         if (owner == null) return null;
 
-        FilePickerFileType programs = OperatingSystem.IsWindows()
-            ? new FilePickerFileType("Programs") { Patterns = ["*.exe", "*.lnk", "*.url", "*.bat", "*.cmd"] }
-            : new FilePickerFileType("Programs") { Patterns = ["*.desktop", "*.sh", "*"] };
+        string[] programPatterns;
+        if (OperatingSystem.IsWindows())
+            programPatterns = ["*.exe", "*.lnk", "*.url", "*.bat", "*.cmd"];
+        else if (OperatingSystem.IsMacOS())
+            programPatterns = ["*.app", "*.sh", "*"];
+        else
+            programPatterns = ["*.desktop", "*.sh", "*"];
+
+        FilePickerFileType programs = new("Programs") { Patterns = programPatterns };
 
         IReadOnlyList<IStorageFile> files = await owner.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
         {
