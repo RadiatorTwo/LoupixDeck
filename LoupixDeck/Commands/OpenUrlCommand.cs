@@ -45,15 +45,27 @@ public sealed class OpenUrlCommand : IExecutableCommand
 
         try
         {
-            ProcessStartInfo start = OperatingSystem.IsWindows()
-                ? new ProcessStartInfo(uri.AbsoluteUri) { UseShellExecute = true }
-                : new ProcessStartInfo("xdg-open", uri.AbsoluteUri) { UseShellExecute = false };
+            ProcessStartInfo start;
+            if (OperatingSystem.IsWindows())
+            {
+                start = new ProcessStartInfo(uri.AbsoluteUri) { UseShellExecute = true };
+            }
+            else
+            {
+                // ArgumentList, not the Arguments string: that one is re-split on whitespace, so an
+                // address carrying an encoded space would reach the opener as several arguments.
+                start = new ProcessStartInfo(OperatingSystem.IsMacOS() ? "open" : "xdg-open")
+                {
+                    UseShellExecute = false
+                };
+                start.ArgumentList.Add(uri.AbsoluteUri);
+            }
 
             using Process process = Process.Start(start);
         }
         catch (Exception ex)
         {
-            // A missing browser or xdg-open must not take the button's command chain down.
+            // A missing browser or opener must not take the button's command chain down.
             Console.WriteLine($"System.OpenUrl failed for '{uri.AbsoluteUri}': {ex.Message}");
         }
 
