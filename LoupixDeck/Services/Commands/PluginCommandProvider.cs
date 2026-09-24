@@ -86,7 +86,7 @@ public class PluginCommandProvider : ICommandProvider
             OwnerPluginId = pluginId
         };
 
-        Func<string[], ButtonTargets, int?, Task> execute = async (parameters, target, sourceIndex) =>
+        Func<string[], ButtonTargets, int?, string, Task> execute = async (parameters, target, sourceIndex, buttonKey) =>
         {
             try
             {
@@ -96,7 +96,8 @@ public class PluginCommandProvider : ICommandProvider
                     Target = target,
                     SourceIndex = sourceIndex,
                     Device = host?.ActiveDevice,
-                    Host = host
+                    Host = host,
+                    ButtonKey = buttonKey
                 });
             }
             catch (Exception ex)
@@ -185,19 +186,21 @@ public class PluginCommandProvider : ICommandProvider
         var isAnimatedImage = false;
         var animatedFps = 0;
         var interval = TimeSpan.Zero;
-        Func<string[], IReadOnlyList<SequenceCommand>, string, string> getText = null;
-        Func<string[], IReadOnlyList<SequenceCommand>, string, IRenderCanvas, bool> renderImage = null;
-        Func<string[], IReadOnlyList<SequenceCommand>, string, IRenderCanvas, AnimationFrameContext, AnimationFrameInfo>
+        Func<string[], IReadOnlyList<SequenceCommand>, string, string, string> getText = null;
+        Func<string[], IReadOnlyList<SequenceCommand>, string, string, IRenderCanvas, bool> renderImage = null;
+        Func<string[], IReadOnlyList<SequenceCommand>, string, string, IRenderCanvas, AnimationFrameContext, AnimationFrameInfo>
             renderAnimatedFrame = null;
 
-        CommandContext DisplayContext(string[] parameters, IReadOnlyList<SequenceCommand> sequence, string stateName) => new()
+        CommandContext DisplayContext(string[] parameters, IReadOnlyList<SequenceCommand> sequence, string stateName,
+            string buttonKey) => new()
         {
             Parameters = parameters ?? Array.Empty<string>(),
             Target = ButtonTargets.TouchButton,
             Device = host?.ActiveDevice,
             Host = host,
             StateName = stateName,
-            SequenceCommands = sequence ?? []
+            SequenceCommands = sequence ?? [],
+            ButtonKey = buttonKey
         };
 
         // Classification precedence: animated → image → text. A command implementing several picks
@@ -208,22 +211,22 @@ public class PluginCommandProvider : ICommandProvider
         {
             isAnimatedImage = true;
             animatedFps = animatedCommand.TargetFps;
-            renderAnimatedFrame = (parameters, sequence, stateName, canvas, frame) =>
-                animatedCommand.RenderAnimatedFrame(DisplayContext(parameters, sequence, stateName), canvas, frame);
+            renderAnimatedFrame = (parameters, sequence, stateName, buttonKey, canvas, frame) =>
+                animatedCommand.RenderAnimatedFrame(DisplayContext(parameters, sequence, stateName, buttonKey), canvas, frame);
         }
         else if (command is IDisplayImageCommand imageCommand)
         {
             isImageDisplay = true;
             interval = imageCommand.UpdateInterval;
-            renderImage = (parameters, sequence, stateName, canvas) =>
-                imageCommand.RenderImage(DisplayContext(parameters, sequence, stateName), canvas);
+            renderImage = (parameters, sequence, stateName, buttonKey, canvas) =>
+                imageCommand.RenderImage(DisplayContext(parameters, sequence, stateName, buttonKey), canvas);
         }
         else if (command is IDisplayCommand displayCommand)
         {
             isDisplay = true;
             interval = displayCommand.UpdateInterval;
-            getText = (parameters, sequence, stateName) =>
-                displayCommand.GetText(DisplayContext(parameters, sequence, stateName));
+            getText = (parameters, sequence, stateName, buttonKey) =>
+                displayCommand.GetText(DisplayContext(parameters, sequence, stateName, buttonKey));
         }
 
         return new RegisteredCommand

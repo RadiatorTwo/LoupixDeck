@@ -37,7 +37,7 @@ public class CoreCommandProvider : ICommandProvider
 
             var isDisplay = false;
             var interval = TimeSpan.Zero;
-            Func<string[], IReadOnlyList<SequenceCommand>, string, string> getText = null;
+            Func<string[], IReadOnlyList<SequenceCommand>, string, string, string> getText = null;
 
             if (_sysCommandService.TryGetCommandType(name, out var type)
                 && typeof(IDynamicTextProvider).IsAssignableFrom(type))
@@ -51,8 +51,8 @@ public class CoreCommandProvider : ICommandProvider
                     isDisplay = true;
                     interval = provider.UpdateInterval;
                     // Core display commands don't compose from siblings and declare no states;
-                    // ignore the sequence list and the rendered state name.
-                    getText = (parms, _, _) => provider.GetText(parms);
+                    // ignore the sequence list, the rendered state name and the button key.
+                    getText = (parms, _, _, _) => provider.GetText(parms);
                 }
                 catch (Exception ex)
                 {
@@ -70,7 +70,7 @@ public class CoreCommandProvider : ICommandProvider
                 RequiresSideStrips = info.RequiresSideStrips,
                 IsDisplayCommand = isDisplay,
                 UpdateInterval = interval,
-                Execute = (parameters, _, _) => _sysCommandService.ExecuteCommand(capturedName, parameters),
+                Execute = (parameters, _, _, _) => _sysCommandService.ExecuteCommand(capturedName, parameters),
                 GetText = getText
             });
         }

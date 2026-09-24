@@ -335,7 +335,7 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
                 {
                     using var canvas = new SKCanvas(bitmap);
                     var rc = new SkiaRenderCanvas(canvas, keySize, keySize);
-                    drew = command.RenderImage(entry.Parameters, entry.SequenceCommands, stateName, rc);
+                    drew = command.RenderImage(entry.Parameters, entry.SequenceCommands, stateName, button.RuntimeKey, rc);
                     if (drew) canvas.Flush();
                 }
             }
@@ -373,7 +373,7 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
         string newText;
         try
         {
-            newText = command.GetText(entry.Parameters, entry.SequenceCommands, stateName) ?? string.Empty;
+            newText = command.GetText(entry.Parameters, entry.SequenceCommands, stateName, button.RuntimeKey) ?? string.Empty;
         }
         catch (Exception ex)
         {

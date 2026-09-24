@@ -20,8 +20,12 @@ public interface ICommandService
     /// matters for an adjustment command on <see cref="ButtonTargets.RotaryEncoder"/>:
     /// a turn runs its ApplyAdjustment, a press its ApplyReset. Every other command
     /// ignores it and runs exactly as before.
+    /// <paramref name="buttonKey"/> is the pressed button's runtime key
+    /// (<c>StatefulButton.RuntimeKey</c>), forwarded to plugins as <c>CommandContext.ButtonKey</c>;
+    /// null when no button triggered the call.
     /// </summary>
-    Task ExecuteCommand(string command, ButtonTargets target, int? sourceIndex = null, int ticks = 0);
+    Task ExecuteCommand(string command, ButtonTargets target, int? sourceIndex = null, int ticks = 0,
+        string buttonKey = null);
 
     /// <summary>
     /// The value an adjustment command wants shown on its dial — scale position plus display
@@ -60,7 +64,8 @@ public class CommandService : ICommandService
         _device = device;
     }
 
-    public async Task ExecuteCommand(string command, ButtonTargets target, int? sourceIndex = null, int ticks = 0)
+    public async Task ExecuteCommand(string command, ButtonTargets target, int? sourceIndex = null, int ticks = 0,
+        string buttonKey = null)
     {
         if (string.IsNullOrWhiteSpace(command))
             return;
@@ -79,7 +84,7 @@ public class CommandService : ICommandService
         // CommandStringParser so the command editor stays in lockstep.
         foreach (var part in CommandStringParser.SplitChain(command))
         {
-            await ExecuteSingle(part, target, sourceIndex, ticks);
+            await ExecuteSingle(part, target, sourceIndex, ticks, buttonKey);
         }
     }
 
@@ -120,7 +125,8 @@ public class CommandService : ICommandService
         return string.IsNullOrWhiteSpace(part) ? null : part;
     }
 
-    private async Task ExecuteSingle(string command, ButtonTargets target, int? sourceIndex, int ticks)
+    private async Task ExecuteSingle(string command, ButtonTargets target, int? sourceIndex, int ticks,
+        string buttonKey)
     {
         if (string.IsNullOrWhiteSpace(command)) return;
 
@@ -158,7 +164,7 @@ public class CommandService : ICommandService
                 }
             }
 
-            await registered.Execute(parameters, target, sourceIndex);
+            await registered.Execute(parameters, target, sourceIndex, buttonKey);
         }
         else if (_commandRegistry.GetMissingPluginOwner(cleanCommand) is { } owner)
         {

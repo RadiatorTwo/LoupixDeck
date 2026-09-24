@@ -49,6 +49,15 @@ public abstract class StatefulButton : LoupedeckButton
 
     public Guid DefaultStateId { get; set; }
 
+    /// <summary>
+    /// Runtime identity of this button, handed to plugins as <c>CommandContext.ButtonKey</c> on
+    /// both the render path and a press, so a plugin can keep per-button state. Never serialized:
+    /// a fresh key per instance is exactly the contract (stable for the session, new after a
+    /// reload).
+    /// </summary>
+    [JsonIgnore]
+    public string RuntimeKey { get; } = Guid.NewGuid().ToString("N");
+
     public ButtonStateMode Mode { get; set; } = ButtonStateMode.Local;
 
     /// <summary>

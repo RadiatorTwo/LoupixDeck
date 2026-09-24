@@ -1843,7 +1843,8 @@ public partial class LoupedeckLiveSController(
             try
             {
                 if (!string.IsNullOrEmpty(wrapped))
-                    await commandService.ExecuteCommand(wrapped, ButtonTargets.SimpleButton, null);
+                    await commandService.ExecuteCommand(wrapped, ButtonTargets.SimpleButton, null,
+                        buttonKey: button.RuntimeKey);
             }
             catch (Exception ex)
             {
@@ -1871,7 +1872,8 @@ public partial class LoupedeckLiveSController(
             try
             {
                 if (!string.IsNullOrEmpty(wrapped))
-                    await commandService.ExecuteCommand(wrapped, ButtonTargets.TouchButton, null);
+                    await commandService.ExecuteCommand(wrapped, ButtonTargets.TouchButton, null,
+                        buttonKey: button.RuntimeKey);
             }
             catch (Exception ex)
             {
