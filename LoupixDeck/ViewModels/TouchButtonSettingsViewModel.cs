@@ -71,6 +71,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     private readonly IDialogService _dialogService;
     private readonly ISideStripProviderRegistry _sideStripRegistry;
     private readonly IDynamicTextManager _dynamicTextManager;
+    private readonly Services.Animation.IButtonAnimationManager _buttonAnimationManager;
     private readonly Services.Animation.IAnimatedImageImporter _animatedImageImporter;
     private readonly Services.Animation.IAnimatedImageCache _animatedImageCache;
     private readonly Services.AppLauncher.IAppIconExtractor _appIcons;
@@ -883,6 +884,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         IDialogService dialogService,
         ISideStripProviderRegistry sideStripRegistry,
         IDynamicTextManager dynamicTextManager,
+        Services.Animation.IButtonAnimationManager buttonAnimationManager,
         Services.Animation.IAnimatedImageImporter animatedImageImporter,
         Services.Animation.IAnimatedImageCache animatedImageCache,
         Services.AppLauncher.IAppIconExtractor appIcons,
@@ -899,6 +901,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         _dialogService = dialogService;
         _sideStripRegistry = sideStripRegistry;
         _dynamicTextManager = dynamicTextManager;
+        _buttonAnimationManager = buttonAnimationManager;
         _animatedImageImporter = animatedImageImporter;
         _animatedImageCache = animatedImageCache;
         _appIcons = appIcons;
@@ -1289,11 +1292,18 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
             // one place a command that declares its own states needs to be reconciled.
             ReconcileCommandStates();
 
-            // Re-scan dynamic-text/-image commands so a display command's layer appears (or its
-            // orphaned layer disappears) immediately while the editor is open, instead of only
-            // after it closes. The strip-canvas surface is not a real page button, so skip it.
+            // Re-scan dynamic-text/-image commands and animated display commands so a display
+            // command's layer appears (or its orphaned layer disappears) immediately while the
+            // editor is open, instead of only after it closes. The strip-canvas surface is not a
+            // real page button, so skip it.
             if (!IsStripCanvas)
-                Avalonia.Threading.Dispatcher.UIThread.Post(() => _dynamicTextManager.Rescan());
+            {
+                Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                {
+                    _dynamicTextManager.Rescan();
+                    _buttonAnimationManager.Rescan();
+                });
+            }
         }
     }
 
