@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using LoupixDeck.PluginSdk;
 using SkiaSharp;
 
@@ -172,6 +173,21 @@ internal sealed class SkiaRenderCanvas : IRenderCanvas
             _canvas.DrawBitmap(decoded, new SKRect(left, top, left + dw, top + dh),
                 SKSamplingOptions.Default, paint);
         });
+    }
+
+    public void DrawPixels(ReadOnlySpan<uint> pixels, int width, int height, int x = 0, int y = 0)
+    {
+        if (width <= 0 || height <= 0) return;
+        if (pixels.Length < width * height)
+            throw new ArgumentException("Fewer pixels than width × height.", nameof(pixels));
+
+        // A 0xAARRGGBB uint is laid out B,G,R,A in memory on the little-endian targets we ship,
+        // which is Skia's Bgra8888. Copied, so the image never outlives the plugin's span.
+        var info = new SKImageInfo(width, height, SKColorType.Bgra8888, SKAlphaType.Unpremul);
+        using var image = SKImage.FromPixelCopy(info, MemoryMarshal.AsBytes(pixels[..(width * height)]), width * 4);
+        if (image is null) return;
+
+        InRegion(() => _canvas.DrawImage(image, x, y, SKSamplingOptions.Default, paint: null));
     }
 
     // ── Transform ───────────────────────────────────────────────────────────

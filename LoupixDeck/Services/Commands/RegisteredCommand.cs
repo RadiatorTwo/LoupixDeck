@@ -104,31 +104,37 @@ public sealed class RegisteredCommand
     /// the call — forwarded to <c>CommandContext.Target</c> on plugin commands;
     /// core commands ignore it. The third argument identifies the originating
     /// indexed control (rotary index, slot index) and is forwarded to
-    /// <c>CommandContext.SourceIndex</c>; null for chained/CLI invocations.
+    /// <c>CommandContext.SourceIndex</c>; null for chained/CLI invocations. The fourth is the
+    /// pressed button's runtime key (<c>StatefulButton.RuntimeKey</c>), forwarded to
+    /// <c>CommandContext.ButtonKey</c>; null when no button triggered the call.
     /// </summary>
-    public Func<string[], ButtonTargets, int?, Task> Execute { get; init; }
+    public Func<string[], ButtonTargets, int?, string, Task> Execute { get; init; }
 
     /// <summary>
     /// For display commands: produces the current text. Null otherwise. The second argument is the
     /// button's full command sequence (empty for single-command buttons) — forwarded to
     /// <c>CommandContext.SequenceCommands</c> for plugin commands; core commands ignore it. The
     /// third is the name of the button state being rendered (null when the button has no
-    /// command-declared states) — forwarded to <c>CommandContext.StateName</c>.
+    /// command-declared states) — forwarded to <c>CommandContext.StateName</c>. The fourth is the
+    /// rendered button's runtime key, forwarded to <c>CommandContext.ButtonKey</c>.
     /// </summary>
-    public Func<string[], IReadOnlyList<SequenceCommand>, string, string> GetText { get; init; }
+    public Func<string[], IReadOnlyList<SequenceCommand>, string, string, string> GetText { get; init; }
 
     /// <summary>
     /// For image display commands: draws the current button content onto a host canvas, returning
     /// true when drawn (false → leave the button unchanged). Null for non-image commands. The second
-    /// argument is the button's full command sequence (empty for single-command buttons).
+    /// argument is the button's full command sequence (empty for single-command buttons), the third
+    /// the rendered state name and the fourth the button's runtime key (<c>CommandContext.ButtonKey</c>).
     /// </summary>
-    public Func<string[], IReadOnlyList<SequenceCommand>, string, LoupixDeck.PluginSdk.IRenderCanvas, bool> RenderImage { get; init; }
+    public Func<string[], IReadOnlyList<SequenceCommand>, string, string, LoupixDeck.PluginSdk.IRenderCanvas, bool> RenderImage { get; init; }
 
     /// <summary>
     /// For animated image commands: draws one animation frame onto a host canvas for the given
     /// timing snapshot, returning whether it drew and whether the animation finished. Null otherwise.
-    /// The second argument is the button's full command sequence (empty for single-command buttons).
+    /// The second argument is the button's full command sequence (empty for single-command buttons),
+    /// the third the rendered state name and the fourth the button's runtime key
+    /// (<c>CommandContext.ButtonKey</c>).
     /// </summary>
-    public Func<string[], IReadOnlyList<SequenceCommand>, string, LoupixDeck.PluginSdk.IRenderCanvas, AnimationFrameContext,
+    public Func<string[], IReadOnlyList<SequenceCommand>, string, string, LoupixDeck.PluginSdk.IRenderCanvas, AnimationFrameContext,
         AnimationFrameInfo> RenderAnimatedFrame { get; init; }
 }

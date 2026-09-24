@@ -221,7 +221,7 @@ public sealed class ButtonAnimationSource : IAnimationSource, IDisposable
             {
                 using var canvas = new SKCanvas(bitmap);
                 var rc = new SkiaRenderCanvas(canvas, keySize, keySize);
-                info = render(entry.Parameters, entry.SequenceCommands, stateName, rc, frameCtx);
+                info = render(entry.Parameters, entry.SequenceCommands, stateName, entry.Button?.RuntimeKey, rc, frameCtx);
                 if (info.Drawn) canvas.Flush();
             }
         }
