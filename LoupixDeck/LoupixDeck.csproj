@@ -44,6 +44,7 @@
          The control namespace stays Avalonia.Svg.Skia; only the assembly name changed
          to Svg.Controls.Skia.Avalonia (see the svg: xmlns in the device layouts). -->
     <PackageReference Include="Svg.Controls.Skia.Avalonia" />
+    <PackageReference Include="Svg.Skia" />
     <PackageReference Include="Avalonia.Themes.Fluent" />
     <PackageReference Include="Avalonia.Fonts.Inter" />
     <!--Condition below is needed to remove Avalonia.Diagnostics package from build output in Release configuration.-->

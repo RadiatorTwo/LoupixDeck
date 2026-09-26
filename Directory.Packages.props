@@ -27,6 +27,9 @@
          The control namespace stays Avalonia.Svg.Skia; only the assembly name changed
          to Svg.Controls.Skia.Avalonia (see the svg: xmlns in the device layouts). -->
     <PackageVersion Include="Svg.Controls.Skia.Avalonia" Version="12.0.0.15" />
+    <!-- Renders .svg image assets to bitmaps (AssetService). Pinned to the version
+         Svg.Controls.Skia.Avalonia already resolves, so there is a single copy. -->
+    <PackageVersion Include="Svg.Skia" Version="5.2.1" />
   </ItemGroup>
   <ItemGroup>
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.11" />
