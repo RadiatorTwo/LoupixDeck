@@ -50,6 +50,15 @@ public sealed partial class InstalledPluginsViewModel : ViewModelBase
 
     partial void OnSelectedDeviceChanged(PluginDeviceViewModel value) => Refresh();
 
+    /// <summary>Preselects the device the window was opened from; unknown keys keep the default.</summary>
+    public void SelectDevice(string scopeKey)
+    {
+        PluginDeviceViewModel match = Devices.FirstOrDefault(d =>
+            string.Equals(d.ScopeKey, scopeKey, StringComparison.OrdinalIgnoreCase));
+        if (match != null)
+            SelectedDevice = match;
+    }
+
     private void RefreshDevices()
     {
         string selectedKey = SelectedDevice?.ScopeKey;
