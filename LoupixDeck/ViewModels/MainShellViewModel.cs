@@ -141,9 +141,14 @@ public sealed class MainShellViewModel : ViewModelBase
 
         if (dialogs == null) return;
 
+        string currentScopeKey = SelectedDevice?.ScopeKey;
+
         await dialogs.ShowDialogAsync<PluginsWindowViewModel, LoupixDeck.Models.DialogResult>(
             vm =>
             {
+                if (currentScopeKey != null)
+                    vm.Installed.SelectDevice(currentScopeKey);
+
                 if (storePluginId != null)
                     vm.OpenPluginStore(storePluginId);
             });
