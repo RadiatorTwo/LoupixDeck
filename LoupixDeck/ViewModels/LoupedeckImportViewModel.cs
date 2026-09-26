@@ -169,8 +169,11 @@ public sealed partial class LoupedeckImportViewModel : DialogViewModelBase<Dialo
                 return (archive, Lp5Converter.Convert(archive, shape, assets: null));
             });
         }
-        catch (Exception ex) when (ex is InvalidDataException or IOException or UnauthorizedAccessException)
+        catch (Exception ex)
         {
+            // The dialog runs this fire-and-forget: anything left uncaught would leave it loading forever.
+            // Unreadable ZIP entries, for instance, throw NotSupportedException.
+            Console.WriteLine($"[lp5] Cannot read '{_path}': {ex}");
             BlockReason = Loc.Tr("LoupedeckImport_CannotRead", ex.Message);
             IsLoading = false;
             return;
