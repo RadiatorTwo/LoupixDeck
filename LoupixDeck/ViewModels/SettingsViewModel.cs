@@ -630,6 +630,7 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
         SetHomeWorkspaceCommand.NotifyCanExecuteChanged();
         ActivateWorkspaceCommand.NotifyCanExecuteChanged();
         ImportPackageCommand.NotifyCanExecuteChanged();
+        ImportLoupedeckCommand.NotifyCanExecuteChanged();
     }
 
     // ───────── Portable profile packages (issue #133) ─────────
@@ -673,6 +674,18 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
         // The import writes straight into Config.Profiles, so the tree editor has to be rebuilt.
         if (result.Success)
             BuildProfileRows();
+    }
+
+    public IAsyncRelayCommand ImportLoupedeckCommand => field ??= Relay.Create(ImportLoupedeck, () => CanEditProfiles);
+
+    private async Task ImportLoupedeck()
+    {
+        string message = await LoupedeckImportViewModel.ShowAsync(_dialogService);
+        if (message == null)
+            return;
+
+        PackageStatusMessage = message;
+        BuildProfileRows();
     }
 
     private void ReportPackageResult(ProfilePackageResult result)

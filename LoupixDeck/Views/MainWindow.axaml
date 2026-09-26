@@ -460,6 +460,8 @@
                                             <Separator />
                                             <MenuItem Header="{loc:Tr MainWindow_ImportPackage}"
                                                       Command="{Binding SelectedDevice.ProfileMenu.ImportPackageCommand}" />
+                                            <MenuItem Header="{loc:Tr MainWindow_ImportLoupedeck}"
+                                                      Command="{Binding SelectedDevice.ProfileMenu.ImportLoupedeckCommand}" />
                                             <MenuItem Header="{loc:Tr MainWindow_ExportProfile}"
                                                       Command="{Binding SelectedDevice.ProfileMenu.ExportProfileCommand}" />
                                             <Separator />
