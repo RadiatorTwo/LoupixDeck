@@ -1,23 +1,48 @@
 using System.Collections.Frozen;
 using System.Collections.Immutable;
+using System.Globalization;
+using System.Text.Json;
 using Avalonia.Platform;
 using SkiaSharp;
 
 namespace LoupixDeck.Utils;
 
-/// <summary>
-/// One selectable icon from the bundled Material Design Icons webfont.
-/// </summary>
-public sealed record SymbolDefinition(string Id, string DisplayName, string Category, int Codepoint)
+/// <summary>The bundled icon fonts a symbol can come from.</summary>
+public enum SymbolFontLibrary
 {
-    /// <summary>The UTF-16 string that renders this glyph in the MDI font.</summary>
-    public string Glyph => char.ConvertFromUtf32(Codepoint);
+    /// <summary>Material Design Icons. Ids of this library carry no prefix.</summary>
+    Mdi,
+
+    /// <summary>Material Design Light. Ids carry the <see cref="SymbolLibrary.LightIdPrefix"/>.</summary>
+    MdiLight
 }
 
 /// <summary>
-/// Curated registry of the most common Loupedeck symbols, backed by the
-/// Material Design Icons webfont (Pictogrammers, Apache-2.0). The font ships
-/// thousands of glyphs; only this curated subset is offered in the picker.
+/// One selectable icon from one of the bundled icon webfonts.
+/// </summary>
+public sealed record SymbolDefinition(
+    string Id, string DisplayName, string Category, int Codepoint,
+    SymbolFontLibrary Library = SymbolFontLibrary.Mdi)
+{
+    /// <summary>The UTF-16 string that renders this glyph in its library's font.</summary>
+    public string Glyph => char.ConvertFromUtf32(Codepoint);
+
+    /// <summary>avares font URI of the library, for views that render the glyph.</summary>
+    public string FontUri => SymbolLibrary.GetFontUri(Library);
+
+    /// <summary>Upstream tags (the icon groups on pictogrammers.com); empty for curated entries.</summary>
+    public ImmutableArray<string> Tags { get; init; } = [];
+
+    /// <summary>Upstream alternative names, used by the picker search.</summary>
+    public ImmutableArray<string> Aliases { get; init; } = [];
+}
+
+/// <summary>
+/// Registry of the symbols a <c>SymbolLayer</c> can show. The curated list <see cref="All"/> holds
+/// the most common Loupedeck symbols and is the picker's default. The full sets of the bundled
+/// Material Design Icons (Pictogrammers Free License) and Material Design Light (SIL OFL 1.1) fonts
+/// come from the generated catalogs next to the fonts, which also record each font's version
+/// (see <c>tools/UpdateMdiFont</c>).
 /// </summary>
 public static class SymbolLibrary
 {
@@ -28,14 +53,32 @@ public static class SymbolLibrary
     public const string FontUri =
         "avares://LoupixDeck/Assets/Fonts/materialdesignicons-webfont.ttf#Material Design Icons";
 
-    private static readonly Uri FontAssetUri =
-        new("avares://LoupixDeck/Assets/Fonts/materialdesignicons-webfont.ttf");
+    /// <summary>avares URI of the bundled Material Design Light webfont.</summary>
+    public const string LightFontUri =
+        "avares://LoupixDeck/Assets/Fonts/materialdesignicons-light-webfont.ttf#Material Design Icons Light";
+
+    /// <summary>
+    /// Id prefix of Material Design Light symbols. Almost every Light name also exists in MDI, so
+    /// the prefix keeps the stored ids apart; MDI ids stay unprefixed as they always were.
+    /// </summary>
+    public const string LightIdPrefix = "mdil:";
+
+    private const string AssetBase = "avares://LoupixDeck/Assets/Fonts/";
 
     private static readonly Lock Sync = new();
-    private static SKTypeface _typeface;
-    private static bool _typefaceLoadFailed;
+    private static readonly Dictionary<SymbolFontLibrary, SKTypeface> Typefaces = [];
+    private static readonly HashSet<SymbolFontLibrary> FailedTypefaces = [];
+
+    private static readonly Lazy<SymbolCatalog> MdiCatalog =
+        new(() => SymbolCatalog.Load(SymbolFontLibrary.Mdi, "mdi-catalog.json", string.Empty));
+
+    private static readonly Lazy<SymbolCatalog> LightCatalog =
+        new(() => SymbolCatalog.Load(SymbolFontLibrary.MdiLight, "mdil-catalog.json", LightIdPrefix));
 
     public const string AllCategoriesKey = "All";
+
+    /// <summary>Category of full-catalog icons that carry no upstream tag.</summary>
+    public const string OtherCategoryKey = "Other";
 
     public static ImmutableArray<SymbolDefinition> All { get; } =
     [
@@ -189,15 +232,42 @@ public static class SymbolLibrary
 
     public static ImmutableArray<string> CategoriesWithAll { get; } = Categories.Insert(0, AllCategoriesKey);
 
-    /// <summary>Looks up a symbol by its stable id (the value stored in <c>SymbolLayer.SymbolId</c>).</summary>
+    /// <summary>
+    /// Looks up a symbol by its stable id (the value stored in <c>SymbolLayer.SymbolId</c>).
+    /// A <see cref="LightIdPrefix"/> id resolves in the Material Design Light catalog. Any other id
+    /// resolves in the curated list first, which keeps curated display names, and then in the full
+    /// MDI catalog by name or alias. The full catalogs load on the first miss only.
+    /// </summary>
     public static bool TryGet(string id, out SymbolDefinition definition)
     {
-        if (!string.IsNullOrEmpty(id))
-            return ById.TryGetValue(id, out definition);
-
         definition = null;
-        return false;
+        if (string.IsNullOrEmpty(id))
+            return false;
+
+        if (id.StartsWith(LightIdPrefix, StringComparison.OrdinalIgnoreCase))
+            return LightCatalog.Value.TryGetByName(id[LightIdPrefix.Length..], out definition);
+
+        return ById.TryGetValue(id, out definition) || MdiCatalog.Value.TryGetByName(id, out definition);
     }
+
+    /// <summary>All non-deprecated icons of a library, sorted by name.</summary>
+    public static ImmutableArray<SymbolDefinition> FullIcons(SymbolFontLibrary library) => Catalog(library).Icons;
+
+    /// <summary>The upstream tags of a library, sorted, plus <see cref="OtherCategoryKey"/> when used.</summary>
+    public static ImmutableArray<string> FullCategories(SymbolFontLibrary library) => Catalog(library).Categories;
+
+    /// <summary>
+    /// npm package version of the bundled font, as recorded in its catalog, or null when the
+    /// catalog is missing. <c>tools/UpdateMdiFont/update-mdi-font.ps1</c> compares it with the
+    /// latest release.
+    /// </summary>
+    public static string LibraryVersion(SymbolFontLibrary library) => Catalog(library).Version;
+
+    public static string GetFontUri(SymbolFontLibrary library) =>
+        library == SymbolFontLibrary.MdiLight ? LightFontUri : FontUri;
+
+    private static SymbolCatalog Catalog(SymbolFontLibrary library) =>
+        library == SymbolFontLibrary.MdiLight ? LightCatalog.Value : MdiCatalog.Value;
 
     /// <summary>
     /// Looks up a symbol by the glyph string itself, for callers that only have the rendered
@@ -221,29 +291,126 @@ public static class SymbolLibrary
     /// resource. Returns null if the font asset is missing or unreadable — callers
     /// should fall back to a placeholder render in that case.
     /// </summary>
-    public static SKTypeface GetTypeface()
-    {
-        if (_typeface != null) return _typeface;
-        if (_typefaceLoadFailed) return null;
+    public static SKTypeface GetTypeface() => GetTypeface(SymbolFontLibrary.Mdi);
 
+    /// <summary>
+    /// Lazily loads and caches the <see cref="SKTypeface"/> of <paramref name="library"/>.
+    /// Returns null if the font asset is missing or unreadable.
+    /// </summary>
+    public static SKTypeface GetTypeface(SymbolFontLibrary library)
+    {
         lock (Sync)
         {
-            if (_typeface != null) return _typeface;
-            if (_typefaceLoadFailed) return null;
+            if (Typefaces.TryGetValue(library, out SKTypeface cached)) return cached;
+            if (FailedTypefaces.Contains(library)) return null;
 
+            SKTypeface typeface;
             try
             {
-                using var stream = AssetLoader.Open(FontAssetUri);
-                using var data = SKData.Create(stream);
-                _typeface = SKTypeface.FromData(data);
+                string uri = GetFontUri(library);
+                using Stream stream = AssetLoader.Open(new Uri(uri[..uri.IndexOf('#')]));
+                using SKData data = SKData.Create(stream);
+                typeface = SKTypeface.FromData(data);
             }
             catch
             {
-                _typeface = null;
+                typeface = null;
             }
 
-            if (_typeface == null) _typefaceLoadFailed = true;
-            return _typeface;
+            if (typeface == null)
+                FailedTypefaces.Add(library);
+            else
+                Typefaces[library] = typeface;
+
+            return typeface;
         }
+    }
+
+    /// <summary>
+    /// The full icon set of one library, parsed from its generated catalog asset. A missing or
+    /// broken catalog yields an empty set, so the curated symbols keep working.
+    /// </summary>
+    private sealed class SymbolCatalog
+    {
+        private readonly FrozenDictionary<string, SymbolDefinition> _byName;
+
+        private SymbolCatalog(string version, ImmutableArray<SymbolDefinition> icons,
+            FrozenDictionary<string, SymbolDefinition> byName)
+        {
+            Version = version;
+            Icons = icons;
+            _byName = byName;
+            Categories = icons
+                .SelectMany(static s => s.Tags.IsEmpty ? [OtherCategoryKey] : s.Tags.AsEnumerable())
+                .Distinct()
+                .Order(StringComparer.OrdinalIgnoreCase)
+                .ToImmutableArray();
+        }
+
+        public string Version { get; }
+
+        public ImmutableArray<SymbolDefinition> Icons { get; }
+
+        public ImmutableArray<string> Categories { get; }
+
+        public bool TryGetByName(string name, out SymbolDefinition definition) =>
+            _byName.TryGetValue(name, out definition);
+
+        public static SymbolCatalog Load(SymbolFontLibrary library, string fileName, string idPrefix)
+        {
+            try
+            {
+                using Stream stream = AssetLoader.Open(new Uri(AssetBase + fileName));
+                using JsonDocument document = JsonDocument.Parse(stream);
+                JsonElement root = document.RootElement;
+
+                ImmutableArray<SymbolDefinition>.Builder icons = ImmutableArray.CreateBuilder<SymbolDefinition>();
+                Dictionary<string, SymbolDefinition> byName = new(StringComparer.OrdinalIgnoreCase);
+                List<(string Alias, SymbolDefinition Definition)> aliases = [];
+
+                foreach (JsonElement entry in root.GetProperty("icons").EnumerateArray())
+                {
+                    string name = entry[0].GetString();
+                    ImmutableArray<string> tags = ReadStrings(entry[2]);
+                    SymbolDefinition definition = new(
+                        idPrefix + name,
+                        ToDisplayName(name),
+                        tags.IsEmpty ? OtherCategoryKey : tags[0],
+                        int.Parse(entry[1].GetString(), NumberStyles.HexNumber, CultureInfo.InvariantCulture),
+                        library)
+                    {
+                        Tags = tags,
+                        Aliases = ReadStrings(entry[3])
+                    };
+
+                    icons.Add(definition);
+                    byName[name] = definition;
+                    foreach (string alias in definition.Aliases)
+                        aliases.Add((alias, definition));
+                }
+
+                // Real names win over aliases, so an alias never shadows another icon.
+                foreach ((string alias, SymbolDefinition definition) in aliases)
+                    byName.TryAdd(alias, definition);
+
+                return new SymbolCatalog(
+                    root.GetProperty("version").GetString(),
+                    icons.ToImmutable(),
+                    byName.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase));
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[SymbolLibrary] Failed to load '{fileName}': {ex.Message}");
+                return new SymbolCatalog(null, [], FrozenDictionary<string, SymbolDefinition>.Empty);
+            }
+        }
+
+        private static ImmutableArray<string> ReadStrings(JsonElement array) =>
+            [.. array.EnumerateArray().Select(static e => e.GetString())];
+
+        /// <summary>"volume-high" -> "Volume High".</summary>
+        private static string ToDisplayName(string name) =>
+            string.Join(' ', name.Split('-', StringSplitOptions.RemoveEmptyEntries)
+                .Select(static part => char.ToUpperInvariant(part[0]) + part[1..]));
     }
 }
