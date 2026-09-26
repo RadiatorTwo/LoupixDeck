@@ -338,6 +338,32 @@
           }
         ]
       }
+    },
+    {
+      "id": "voicemeeter",
+      "name": "Voicemeeter",
+      "description": "Mute, solo, A/B routing, gain, pan, effect and EQ knobs, level meters and raw commands for Voicemeeter Standard, Banana and Potato.",
+      "author": "vividflash",
+      "repository": "vividflash/LoupixDeck.Plugin.Voicemeeter",
+      "icon": "",
+      "platforms": [ "Windows" ],
+      "minSdkVersion": "1.23.0",
+      "commandPrefixes": [ "Voicemeeter." ],
+      "release": {
+        "version": "0.2.0",
+        "tag": "v0.2.0",
+        "publishedAt": "2026-09-19T11:31:41Z",
+        "sdkVersion": "1.23.0",
+        "releaseNotesUrl": "https://github.com/vividflash/LoupixDeck.Plugin.Voicemeeter/releases/tag/v0.2.0",
+        "packages": [
+          {
+            "platform": "windows",
+            "fileName": "voicemeeter-0.2.0-windows.zip",
+            "downloadUrl": "https://github.com/vividflash/LoupixDeck.Plugin.Voicemeeter/releases/download/v0.2.0/voicemeeter-0.2.0-windows.zip",
+            "sha256": "df755a17f8f38b649a7b699c209ad5044dc3d0b1edff9feb5d173a873ff02960"
+          }
+        ]
+      }
     }
   ]
 }
