@@ -106,6 +106,32 @@
       }
     },
     {
+      "id": "homeassistant",
+      "name": "Home Assistant",
+      "description": "Control Home Assistant entities directly from LoupixDeck.",
+      "author": "Vencite",
+      "repository": "Vencite/LoupixDeck.Plugin.HomeAssistant",
+      "icon": "https://raw.githubusercontent.com/Vencite/LoupixDeck.Plugin.HomeAssistant/v0.1.0/icon.png",
+      "platforms": [ "Windows", "Linux" ],
+      "minSdkVersion": "1.26.0",
+      "commandPrefixes": [ "HomeAssistant." ],
+      "release": {
+        "version": "0.1.0",
+        "tag": "v0.1.0",
+        "publishedAt": "2026-09-26T11:24:37Z",
+        "sdkVersion": "1.26.0",
+        "releaseNotesUrl": "https://github.com/Vencite/LoupixDeck.Plugin.HomeAssistant/releases/tag/v0.1.0",
+        "packages": [
+          {
+            "platform": "any",
+            "fileName": "homeassistant-0.1.0-any.zip",
+            "downloadUrl": "https://github.com/Vencite/LoupixDeck.Plugin.HomeAssistant/releases/download/v0.1.0/homeassistant-0.1.0-any.zip",
+            "sha256": "092765a1612388dae9ac8f3b18198e099d7f950972b64439595a23e3c4cc2590"
+          }
+        ]
+      }
+    },
+    {
       "id": "hwinfo",
       "name": "HWiNFO",
       "description": "Display HWiNFO sensor readings on touch buttons.",
