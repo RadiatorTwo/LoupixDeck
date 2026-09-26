@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Collections.Frozen;
 using System.Collections.Immutable;
 using System.Globalization;
@@ -75,6 +76,8 @@ public static class SymbolLibrary
 
     private static readonly Lazy<SymbolCatalog> LightCatalog =
         new(() => SymbolCatalog.Load(SymbolFontLibrary.MdiLight, "mdil-catalog.json", LightIdPrefix));
+
+    private static readonly ConcurrentDictionary<string, double> AspectRatios = new(StringComparer.OrdinalIgnoreCase);
 
     private static readonly Lazy<FontFamily> MdiFontFamily = new(() => new FontFamily(FontUri));
     private static readonly Lazy<FontFamily> LightFontFamily = new(() => new FontFamily(LightFontUri));
@@ -269,6 +272,32 @@ public static class SymbolLibrary
 
     public static string GetFontUri(SymbolFontLibrary library) =>
         library == SymbolFontLibrary.MdiLight ? LightFontUri : FontUri;
+
+    /// <summary>
+    /// Width / height of the glyph's tight bounds, the same bounds the renderer stretches into a
+    /// layer's box. A layer sized to this ratio shows the icon undistorted. Returns 1 when the
+    /// glyph cannot be measured. Cached per symbol id.
+    /// </summary>
+    public static double GlyphAspectRatio(SymbolDefinition definition)
+    {
+        if (definition == null) return 1.0;
+
+        return AspectRatios.GetOrAdd(definition.Id, static (_, def) =>
+        {
+            SKTypeface typeface = GetTypeface(def.Library);
+            if (typeface == null) return 1.0;
+
+            using SKFont font = new(typeface, 128f);
+            ushort[] glyphs = font.GetGlyphs(def.Glyph);
+            if (glyphs.Length == 0) return 1.0;
+
+            using SKPath path = font.GetGlyphPath(glyphs[0]);
+            if (path == null || path.IsEmpty) return 1.0;
+
+            SKRect bounds = path.TightBounds;
+            return bounds.Width > 0 && bounds.Height > 0 ? bounds.Width / (double)bounds.Height : 1.0;
+        }, definition);
+    }
 
     public static FontFamily GetFontFamily(SymbolFontLibrary library) =>
         library == SymbolFontLibrary.MdiLight ? LightFontFamily.Value : MdiFontFamily.Value;
