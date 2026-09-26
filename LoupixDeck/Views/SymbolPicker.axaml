@@ -39,6 +39,13 @@
                           HorizontalAlignment="Stretch"
                           ItemsSource="{Binding Categories}"
                           SelectedItem="{Binding SelectedCategory, Mode=TwoWay}">
+                    <!-- A virtualizing panel sizes the drop-down to the entries realized so far, so its
+                         width jumps while scrolling the long tag list; measuring all entries keeps it stable. -->
+                    <ComboBox.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel />
+                        </ItemsPanelTemplate>
+                    </ComboBox.ItemsPanel>
                     <ComboBox.ItemTemplate>
                         <DataTemplate DataType="vm:SymbolCategoryOption">
                             <TextBlock Text="{Binding DisplayName}" />
