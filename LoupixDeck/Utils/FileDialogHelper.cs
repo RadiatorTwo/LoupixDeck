@@ -20,7 +20,7 @@ public abstract class FileDialogHelper
             {
                 new("Pictures")
                 {
-                    Patterns = ["*.png", "*.jpg", "*.jpeg", "*.bmp", "*.tif", "*.tiff"]
+                    Patterns = ["*.png", "*.jpg", "*.jpeg", "*.bmp", "*.tif", "*.tiff", "*.svg"]
                 },
                 new("All files")
                 {
