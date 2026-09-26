@@ -1,5 +1,6 @@
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Threading;
 using LoupixDeck.Models;
 using LoupixDeck.ViewModels;
 using LoupixDeck.ViewModels.Base;
@@ -14,8 +15,12 @@ public partial class SymbolPicker : Window
 
         Opened += (_, _) =>
         {
-            if (DataContext is SymbolPickerViewModel vm)
-                vm.CloseRequested += Close;
+            if (DataContext is not SymbolPickerViewModel vm)
+                return;
+
+            vm.CloseRequested += Close;
+            if (vm.InitialRowIndex >= 0)
+                Dispatcher.UIThread.Post(() => SymbolRows.ScrollIntoView(vm.InitialRowIndex), DispatcherPriority.Loaded);
         };
 
         Closing += (_, _) =>
@@ -26,9 +31,18 @@ public partial class SymbolPicker : Window
         };
     }
 
-    private void SymbolList_DoubleTapped(object sender, TappedEventArgs e)
+    private void SymbolCell_Tapped(object sender, TappedEventArgs e)
     {
-        if (DataContext is SymbolPickerViewModel vm)
+        if (DataContext is SymbolPickerViewModel vm && sender is Control { DataContext: SymbolCell cell })
+            vm.SelectCell(cell);
+    }
+
+    private void SymbolCell_DoubleTapped(object sender, TappedEventArgs e)
+    {
+        if (DataContext is SymbolPickerViewModel vm && sender is Control { DataContext: SymbolCell cell })
+        {
+            vm.SelectCell(cell);
             vm.ConfirmSelection();
+        }
     }
 }

@@ -2,6 +2,7 @@ using System.Collections.Frozen;
 using System.Collections.Immutable;
 using System.Globalization;
 using System.Text.Json;
+using Avalonia.Media;
 using Avalonia.Platform;
 using SkiaSharp;
 
@@ -27,8 +28,8 @@ public sealed record SymbolDefinition(
     /// <summary>The UTF-16 string that renders this glyph in its library's font.</summary>
     public string Glyph => char.ConvertFromUtf32(Codepoint);
 
-    /// <summary>avares font URI of the library, for views that render the glyph.</summary>
-    public string FontUri => SymbolLibrary.GetFontUri(Library);
+    /// <summary>Font family of the library, for views that render the glyph.</summary>
+    public FontFamily FontFamily => SymbolLibrary.GetFontFamily(Library);
 
     /// <summary>Upstream tags (the icon groups on pictogrammers.com); empty for curated entries.</summary>
     public ImmutableArray<string> Tags { get; init; } = [];
@@ -74,6 +75,9 @@ public static class SymbolLibrary
 
     private static readonly Lazy<SymbolCatalog> LightCatalog =
         new(() => SymbolCatalog.Load(SymbolFontLibrary.MdiLight, "mdil-catalog.json", LightIdPrefix));
+
+    private static readonly Lazy<FontFamily> MdiFontFamily = new(() => new FontFamily(FontUri));
+    private static readonly Lazy<FontFamily> LightFontFamily = new(() => new FontFamily(LightFontUri));
 
     public const string AllCategoriesKey = "All";
 
@@ -265,6 +269,9 @@ public static class SymbolLibrary
 
     public static string GetFontUri(SymbolFontLibrary library) =>
         library == SymbolFontLibrary.MdiLight ? LightFontUri : FontUri;
+
+    public static FontFamily GetFontFamily(SymbolFontLibrary library) =>
+        library == SymbolFontLibrary.MdiLight ? LightFontFamily.Value : MdiFontFamily.Value;
 
     private static SymbolCatalog Catalog(SymbolFontLibrary library) =>
         library == SymbolFontLibrary.MdiLight ? LightCatalog.Value : MdiCatalog.Value;
