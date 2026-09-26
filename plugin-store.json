@@ -288,6 +288,32 @@
       }
     },
     {
+      "id": "powertoys",
+      "name": "PowerToys",
+      "description": "Control Microsoft PowerToys with shortcuts configured in PowerToys.",
+      "author": "Vencite",
+      "repository": "Vencite/LoupixDeck.Plugin.PowerToys",
+      "icon": "https://raw.githubusercontent.com/Vencite/LoupixDeck.Plugin.PowerToys/v0.2.0/icon.png",
+      "platforms": [ "Windows" ],
+      "minSdkVersion": "1.26.0",
+      "commandPrefixes": [ "PowerToys." ],
+      "release": {
+        "version": "0.2.0",
+        "tag": "v0.2.0",
+        "publishedAt": "2026-09-26T12:38:45Z",
+        "sdkVersion": "1.26.0",
+        "releaseNotesUrl": "https://github.com/Vencite/LoupixDeck.Plugin.PowerToys/releases/tag/v0.2.0",
+        "packages": [
+          {
+            "platform": "windows",
+            "fileName": "powertoys-0.2.0-windows.zip",
+            "downloadUrl": "https://github.com/Vencite/LoupixDeck.Plugin.PowerToys/releases/download/v0.2.0/powertoys-0.2.0-windows.zip",
+            "sha256": "b774b70763d21763ef4b954a726c6b0d681428460f18becf8585f987bfec2993"
+          }
+        ]
+      }
+    },
+    {
       "id": "spotifypremium",
       "name": "SpotifyPremium",
       "description": "Control Spotify playback, volume, playlists and devices (requires Spotify Premium).",
