@@ -37,7 +37,8 @@ public partial class AppRowViewModel(InstalledApp app) : ObservableObject
 /// <summary>
 /// Dialog view model for choosing an installed application. The list is scanned once by
 /// <see cref="IAppDiscoveryService"/> and shared with every other consumer; icons stream in
-/// afterwards so the names appear immediately.
+/// afterwards so the names appear immediately. The applications the user added by hand through
+/// <see cref="ICustomAppStore"/> are listed first, and more can be added from here.
 /// </summary>
 public partial class AppPickerViewModel : DialogViewModelBase<AppPickerRequest, DialogResult>, IAsyncInitViewModel
 {
@@ -46,15 +47,17 @@ public partial class AppPickerViewModel : DialogViewModelBase<AppPickerRequest, 
     private const int IconWidth = 48;
 
     private readonly IAppDiscoveryService _discovery;
+    private readonly ICustomAppStore _customApps;
     private readonly IAppIconExtractor _icons;
     private readonly CancellationTokenSource _cancellation = new();
 
     private List<AppRowViewModel> _all = [];
     private AppPickerRequest _request;
 
-    public AppPickerViewModel(IAppDiscoveryService discovery, IAppIconExtractor icons)
+    public AppPickerViewModel(IAppDiscoveryService discovery, ICustomAppStore customApps, IAppIconExtractor icons)
     {
         _discovery = discovery;
+        _customApps = customApps;
         _icons = icons;
     }
 
@@ -99,6 +102,12 @@ public partial class AppPickerViewModel : DialogViewModelBase<AppPickerRequest, 
     public IRelayCommand ConfirmCommand => Relay.Ref(ref _confirmCommand, ConfirmSelection, () => SelectedApp != null);
     public IRelayCommand CancelCommand => Relay.Ref(ref _cancelCommand, CancelSelection);
 
+    /// <summary>
+    /// Adds a program the scan does not find, the same way the action panel's + button does. The
+    /// entry is stored, so it is offered again here and in the panel after a restart.
+    /// </summary>
+    public IAsyncRelayCommand AddApplicationCommand => field ??= Relay.Create(AddApplicationAsync);
+
     /// <summary>Raised when the dialog should close (after Confirm or Cancel).</summary>
     public event Action CloseRequested;
 
@@ -109,10 +118,18 @@ public partial class AppPickerViewModel : DialogViewModelBase<AppPickerRequest, 
 
     public async Task InitializeAsync()
     {
+        // A platform without discovery still offers whatever the user added by hand.
         if (!_discovery.IsSupported)
         {
+            Rebuild([]);
             IsLoading = false;
-            BlockReason = "Listing installed applications is not supported on this system.";
+
+            if (_all.Count == 0)
+                BlockReason = "Listing installed applications is not supported on this system. "
+                    + "Add a program with the + button.";
+            else
+                LoadIcons();
+
             return;
         }
 
@@ -126,14 +143,7 @@ public partial class AppPickerViewModel : DialogViewModelBase<AppPickerRequest, 
             return;
         }
 
-        _all = apps.Select(app => new AppRowViewModel(app)).ToList();
-        ApplyFilter();
-
-        int games = _all.Count(row => row.IsGame);
-        CountLabel = games > 0
-            ? $"{_all.Count} applications, {games} games"
-            : $"{_all.Count} applications";
-
+        Rebuild(apps);
         IsLoading = false;
 
         if (_all.Count == 0)
@@ -143,6 +153,68 @@ public partial class AppPickerViewModel : DialogViewModelBase<AppPickerRequest, 
         }
 
         LoadIcons();
+    }
+
+    /// <summary>
+    /// Rebuilds the rows from a scan plus the applications the user added by hand. The added ones
+    /// come first, as in the action panel: they are there because the scan missed them.
+    /// </summary>
+    private void Rebuild(IReadOnlyList<InstalledApp> scanned)
+    {
+        _all = _customApps.Apps.Concat(scanned).Select(app => new AppRowViewModel(app)).ToList();
+        ApplyFilter();
+        UpdateCountLabel();
+    }
+
+    private void UpdateCountLabel()
+    {
+        int games = _all.Count(row => row.IsGame);
+        CountLabel = games > 0
+            ? $"{_all.Count} applications, {games} games"
+            : $"{_all.Count} applications";
+    }
+
+    private async Task AddApplicationAsync()
+    {
+        string path = await FileDialogHelper.OpenApplicationDialog(WindowHelper.GetActiveWindow());
+        if (string.IsNullOrEmpty(path))
+            return;
+
+        InstalledApp added = _customApps.Add(path);
+
+        // Add returns null for a program that is already stored; select its row instead.
+        AppRowViewModel row = added == null
+            ? _all.FirstOrDefault(existing => string.Equals(existing.App.Target, path, StringComparison.OrdinalIgnoreCase))
+            : new AppRowViewModel(added);
+        if (row == null)
+            return;
+
+        if (added != null)
+        {
+            _all.Insert(0, row);
+            UpdateCountLabel();
+        }
+
+        BlockReason = null;
+        IsLoading = false;
+
+        // The search could hide the row that was just picked.
+        SearchText = string.Empty;
+        ApplyFilter();
+        SelectedApp = row;
+
+        if (added == null)
+            return;
+
+        // One icon, so it is not left blank.
+        try
+        {
+            row.Icon = await _icons.GetThumbnailAsync(added, IconWidth, _cancellation.Token);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[AppPicker] Icon failed for '{added.Name}': {ex.Message}");
+        }
     }
 
     /// <summary>

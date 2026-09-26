@@ -22,12 +22,26 @@
                        Foreground="{DynamicResource AppTextSecondary}"
                        Margin="2,0,0,8" />
 
-            <!-- Search -->
-            <TextBox Grid.Row="1"
-                     PlaceholderText="{loc:Tr AppPicker_SearchApplications}"
-                     Text="{Binding SearchText, Mode=TwoWay}"
-                     IsEnabled="{Binding ShowContent}"
-                     Margin="0,0,0,8" />
+            <!-- Search, and a program the scan does not find, picked by hand -->
+            <Grid Grid.Row="1" ColumnDefinitions="*,Auto" Margin="0,0,0,8">
+                <TextBox Grid.Column="0"
+                         PlaceholderText="{loc:Tr AppPicker_SearchApplications}"
+                         Text="{Binding SearchText, Mode=TwoWay}"
+                         IsEnabled="{Binding ShowContent}" />
+                <!-- mdi-plus -->
+                <Button Grid.Column="1"
+                        Width="32" Height="32"
+                        Padding="0"
+                        Margin="6,0,0,0"
+                        CornerRadius="4"
+                        FontFamily="{DynamicResource MdiFont}"
+                        FontSize="16"
+                        HorizontalContentAlignment="Center"
+                        VerticalContentAlignment="Center"
+                        ToolTip.Tip="{loc:Tr ActionPanel_AddAnApplicationTheScan}"
+                        Command="{Binding AddApplicationCommand}"
+                        Content="&#xF0415;" />
+            </Grid>
 
             <!-- List, with the loading and empty states layered over it -->
             <Border Grid.Row="2"
