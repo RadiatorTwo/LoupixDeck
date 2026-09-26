@@ -72,13 +72,14 @@ public static class ActionAssignment
 
         if (!string.IsNullOrEmpty(symbolId) && SymbolLibrary.TryGet(symbolId, out _))
         {
-            button.Layers.Add(new SymbolLayer
+            SymbolLayer symbol = new()
             {
                 Name = text,
                 SymbolId = symbolId,
-                Scale = SymbolScale,
                 PositionY = Scaled(SymbolOffsetYPx, scaleY)
-            });
+            };
+            symbol.FitScaleToGlyph(SymbolScale);
+            button.Layers.Add(symbol);
 
             button.Layers.Add(new TextLayer
             {

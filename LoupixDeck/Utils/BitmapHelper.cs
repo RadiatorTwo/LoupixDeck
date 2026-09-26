@@ -1363,7 +1363,7 @@ public static class BitmapHelper
             return;
         }
 
-        var typeface = SymbolLibrary.GetTypeface();
+        var typeface = SymbolLibrary.GetTypeface(def.Library);
         if (typeface == null)
         {
             DrawSymbolPlaceholderRect(canvas, rect, tint);

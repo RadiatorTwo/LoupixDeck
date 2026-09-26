@@ -99,5 +99,18 @@ public partial class SymbolLayer : LayerBase
         }
     }
 
+    /// <summary>
+    /// Sizes the layer box to the glyph's own aspect ratio, fitted into a square of
+    /// <paramref name="size"/> (a <see cref="LayerBase.Scale"/> multiplier). The renderer stretches
+    /// the glyph into the box, so a square box would distort every non-square icon.
+    /// </summary>
+    public void FitScaleToGlyph(double size)
+    {
+        double ratio = SymbolLibrary.TryGet(SymbolId, out SymbolDefinition def) ? SymbolLibrary.GlyphAspectRatio(def) : 1.0;
+
+        Scale = size * Math.Min(1.0, ratio);
+        ScaleY = size * Math.Min(1.0, 1.0 / ratio);
+    }
+
     public override string LayerKind => Kind;
 }

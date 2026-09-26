@@ -125,7 +125,7 @@ For a complete walkthrough, see the [User Manual](docs/USER_MANUAL.md).
 
 - Combine image, animated image, text and symbol layers
 - Move and edit layers with a live preview
-- Add outlines, colors, transparency and Material Design Icons
+- Add outlines, colors, transparency and symbols from a curated list or the full Material Design Icons and Material Design Light sets
 - Use per-page wallpapers and optional touch feedback
 - Give a button several named states with separate visuals and actions
 
@@ -374,3 +374,5 @@ LoupixDeck is actively developed and suitable for daily use on the fully support
 ## License
 
 LoupixDeck is available under the [MIT License](LICENSE). Third-party components remain subject to their own licenses.
+
+The bundled icon fonts come from [Pictogrammers](https://pictogrammers.com/): Material Design Icons under the Pictogrammers Free License, Material Design Light under the SIL Open Font License 1.1. `tools/UpdateMdiFont/update-mdi-font.ps1` checks and updates both fonts.

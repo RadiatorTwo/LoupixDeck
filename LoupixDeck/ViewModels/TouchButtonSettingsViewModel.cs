@@ -1083,9 +1083,9 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         SymbolLayer layer = new()
         {
             Name = GetUniqueLayerName(def.DisplayName),
-            SymbolId = def.Id,
-            Scale = 0.7
+            SymbolId = def.Id
         };
+        layer.FitScaleToGlyph(0.7);
         AddLayer(layer);
         SelectedLayer = layer;
     }
@@ -1105,8 +1105,11 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         if (result is not { IsConfirmed: true } || request.SelectedSymbol == null) return;
 
         var def = request.SelectedSymbol;
+        // Keep the box's larger side and re-fit it to the new glyph's aspect ratio.
+        double size = Math.Max(symbol.EffectiveScaleX, symbol.EffectiveScaleY);
         symbol.SymbolId = def.Id;
         symbol.Name = def.DisplayName;
+        symbol.FitScaleToGlyph(size);
     }
 
     /// <summary>
