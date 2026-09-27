@@ -502,6 +502,8 @@
   "LoupedeckImport_LocationKey": "Tecla {0}",
   "LoupedeckImport_LocationPage": "Página {0}",
   "LoupedeckImport_LocationRoundButton": "Botón redondo {0}",
+  "LoupedeckImport_MissingPlugins": "Complementos que faltan",
+  "LoupedeckImport_MissingPluginsHint": "Las acciones de estos complementos se importan, pero solo funcionan cuando el complemento está instalado desde la tienda de complementos.",
   "LoupedeckImport_Name": "Nombre del perfil",
   "LoupedeckImport_NotImported": "No importado",
   "LoupedeckImport_NotImportedHint": "Las teclas reciben un marcador rojo 'No importado'; los diales y los botones redondos quedan vacíos. Vuelve a crearlos a mano.",

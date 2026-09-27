@@ -502,6 +502,8 @@
   "LoupedeckImport_LocationKey": "Key {0}",
   "LoupedeckImport_LocationPage": "Page {0}",
   "LoupedeckImport_LocationRoundButton": "Round button {0}",
+  "LoupedeckImport_MissingPlugins": "Missing plugins",
+  "LoupedeckImport_MissingPluginsHint": "Actions of these plugins are imported, but only work once the plugin is installed from the Plugin Store.",
   "LoupedeckImport_Name": "Profile name",
   "LoupedeckImport_NotImported": "Not imported",
   "LoupedeckImport_NotImportedHint": "Keys get a red 'Not imported' placeholder; dials and round buttons stay empty. Recreate these by hand.",

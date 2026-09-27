@@ -4,13 +4,18 @@ using CommunityToolkit.Mvvm.Input;
 using LoupixDeck.Controllers;
 using LoupixDeck.Localization;
 using LoupixDeck.Models;
+using LoupixDeck.Models.Converter;
+using LoupixDeck.Models.Layers;
 using LoupixDeck.Registry;
 using LoupixDeck.Services;
 using LoupixDeck.Services.Import.Lp5;
+using LoupixDeck.Services.PluginStore;
 using LoupixDeck.Services.Portable;
 using LoupixDeck.Services.Profiles;
 using LoupixDeck.Utils;
 using LoupixDeck.ViewModels.Base;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace LoupixDeck.ViewModels;
 
@@ -33,13 +38,14 @@ public sealed partial class LoupedeckImportViewModel : DialogViewModelBase<Dialo
     private readonly IPageManager _pageManager;
     private readonly IDeviceController _controller;
     private readonly DeviceGeometry _geometry;
+    private readonly IPluginStoreService _pluginStore;
 
     private string _path;
     private Lp5Archive _archive;
     private Lp5ConversionResult _preview;
 
     public LoupedeckImportViewModel(LoupedeckConfig config, IAssetService assets, IDeviceService deviceService,
-        IPageManager pageManager, IDeviceController controller, DeviceGeometry geometry)
+        IPageManager pageManager, IDeviceController controller, DeviceGeometry geometry, IPluginStoreService pluginStore)
     {
         _config = config;
         _assets = assets;
@@ -47,6 +53,7 @@ public sealed partial class LoupedeckImportViewModel : DialogViewModelBase<Dialo
         _pageManager = pageManager;
         _controller = controller;
         _geometry = geometry ?? DeviceGeometry.Default;
+        _pluginStore = pluginStore;
 
         Unmapped = new();
         Notes = new();
@@ -117,6 +124,13 @@ public sealed partial class LoupedeckImportViewModel : DialogViewModelBase<Dialo
         Unmapped.Select(row => $"{row.Label}  ·  {row.Location}{Environment.NewLine}{row.Reason}"));
 
     public string NotesText => string.Join(Environment.NewLine, Notes);
+
+    /// <summary>Plugins whose commands the profile uses but which are not installed; their actions import anyway.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasMissingPlugins))]
+    public partial string MissingPluginsText { get; set; }
+
+    public bool HasMissingPlugins => !string.IsNullOrEmpty(MissingPluginsText);
 
     // ───────── App link ─────────
 
@@ -201,6 +215,7 @@ public sealed partial class LoupedeckImportViewModel : DialogViewModelBase<Dialo
             Notes.Add(DescribeNote(note));
 
         BuildAppLink();
+        await FindMissingPluginsAsync();
 
         IsLoading = false;
         OnPropertyChanged(nameof(HasUnmapped));
@@ -208,6 +223,21 @@ public sealed partial class LoupedeckImportViewModel : DialogViewModelBase<Dialo
         OnPropertyChanged(nameof(UnmappedText));
         OnPropertyChanged(nameof(NotesText));
         ImportCommand.NotifyCanExecuteChanged();
+    }
+
+    private async Task FindMissingPluginsAsync()
+    {
+        if (_pluginStore == null) return;
+
+        // Scanned as serialized JSON, the same way the startup check scans the configs on disk.
+        JsonSerializer serializer = new();
+        serializer.Converters.Add(new ColorJsonConverter());
+        serializer.Converters.Add(new LayerJsonConverter());
+        HashSet<string> names = PortableCommandScanner.CollectCommandNames(JToken.FromObject(_preview.Profile, serializer));
+
+        IReadOnlyList<PluginCommandOwner> missing = await _pluginStore.FindMissingPluginsAsync(names);
+        if (missing.Count > 0)
+            MissingPluginsText = string.Join(Environment.NewLine, missing.Select(m => m.DisplayName));
     }
 
     private void BuildAppLink()

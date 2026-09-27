@@ -126,6 +126,15 @@
                               IsVisible="{Binding ShowEnableSwitching}" FontSize="12" Margin="28,0,0,0" />
                 </StackPanel>
 
+                <!-- Plugins the imported actions need -->
+                <StackPanel Spacing="6" IsVisible="{Binding HasMissingPlugins}">
+                    <TextBlock Text="{loc:Tr LoupedeckImport_MissingPlugins}" Classes="sectionHeader" />
+                    <TextBlock Text="{loc:Tr LoupedeckImport_MissingPluginsHint}" Classes="hint" />
+                    <Border Classes="card">
+                        <SelectableTextBlock Text="{Binding MissingPluginsText}" Classes="hint" />
+                    </Border>
+                </StackPanel>
+
                 <!-- Actions that stay behind -->
                 <StackPanel Spacing="6" IsVisible="{Binding HasUnmapped}">
                     <TextBlock Text="{loc:Tr LoupedeckImport_NotImported}" Classes="sectionHeader" />
