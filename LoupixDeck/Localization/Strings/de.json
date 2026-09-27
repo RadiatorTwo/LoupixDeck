@@ -518,6 +518,7 @@
   "LoupedeckImport_LabelBack": "Zurück",
   "LoupedeckImport_ReasonGoBack": "LoupixDeck merkt sich keinen Seitenverlauf, daher wird \"Zurück\" nur importiert, wenn genau eine Taste diese Seite öffnet.",
   "LoupedeckImport_ReasonAdjustment": "Für diese Drehung gibt es keine Entsprechung in LoupixDeck: {0}",
+  "LoupedeckImport_ReasonAudioDevice": "Die Audioausgabe \"{0}\" wurde auf diesem Computer nicht gefunden, oder mehrere Ausgaben tragen diesen Namen.",
   "LoupedeckImport_ReasonEmptyText": "Der einzugebende Text ist in der Datei leer.",
   "LoupedeckImport_ReasonMacro": "Die Mehrfachaktion enthält einen Schritt, der nicht importiert werden kann: {0}",
   "LoupedeckImport_ReasonMissing": "Die Aktion ist in der Datei nicht definiert.",

@@ -51,6 +51,7 @@ internal sealed class Lp5ActionResolver
     private const string ShortcutPrefix = "$@Generic___@KeyboardShortcut___";
     private const string TypeTextPrefix = "$@Generic___@TypeText___";
     private const string GoBack = "$@Generic___@GoBack";
+    private const string DefaultOutputPrefix = "$WinAudio___NotADoctor99.WinAudioPlugin.DefaultOutputDeviceCommand___";
     private const int MaxDepth = 8;
     private const int MaxLabelLength = 28;
 
@@ -147,6 +148,15 @@ internal sealed class Lp5ActionResolver
         if (actionRef.StartsWith(TypeTextPrefix, StringComparison.Ordinal))
             return TypeText(actionRef[TypeTextPrefix.Length..], actionRef);
 
+        if (actionRef.StartsWith(DefaultOutputPrefix, StringComparison.Ordinal))
+        {
+            // Loupedeck names the output; the Audio plugin needs its endpoint id, found on this computer.
+            string device = actionRef[DefaultOutputPrefix.Length..];
+            return Lp5AudioDevices.RenderEndpointId(device) is { } endpoint
+                ? new Lp5Resolution($"Audio.SetDefaultDevice({CommandParameterEncoding.Encode(endpoint)})")
+                : new Lp5Resolution(null, Lp5UnsupportedReason.AudioDeviceNotFound, device);
+        }
+
         if (actionRef.StartsWith(ExecutePrefix, StringComparison.Ordinal))
         {
             string target = actionRef[ExecutePrefix.Length..];
@@ -160,6 +170,9 @@ internal sealed class Lp5ActionResolver
         return actionRef switch
         {
             "$DefaultWin___MediaPlayPause" => new Lp5Resolution("System.KeyCombination(PlayPause)"),
+            "$DefaultWin___MediaNextTrack" => new Lp5Resolution("System.KeyCombination(NextTrack)"),
+            "$DefaultWin___MediaPrevTrack" => new Lp5Resolution("System.KeyCombination(PrevTrack)"),
+            "$DefaultWin___MediaStop" => new Lp5Resolution("System.KeyCombination(MediaStop)"),
             // The press ("reset") of Loupedeck's volume dial toggles mute.
             "$DefaultWin___ResetVolume" => new Lp5Resolution("System.KeyCombination(Mute)"),
             // Loupedeck's "Windows actions" opens Quick Settings, which is Win+A.

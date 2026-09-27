@@ -518,6 +518,7 @@
   "LoupedeckImport_LabelBack": "Back",
   "LoupedeckImport_ReasonGoBack": "LoupixDeck keeps no page history, so \"go back\" is only imported when exactly one key opens this page.",
   "LoupedeckImport_ReasonAdjustment": "This dial turn has no LoupixDeck equivalent: {0}",
+  "LoupedeckImport_ReasonAudioDevice": "The audio output \"{0}\" was not found on this computer, or several outputs share that name.",
   "LoupedeckImport_ReasonEmptyText": "The text to type is empty in the file.",
   "LoupedeckImport_ReasonMacro": "The multi-action contains a step that cannot be imported: {0}",
   "LoupedeckImport_ReasonMissing": "The action is not defined in the file.",

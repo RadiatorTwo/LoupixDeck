@@ -48,7 +48,10 @@ public enum Lp5UnsupportedReason
     AmbiguousGoBack,
 
     /// <summary>A "type text" action whose text is empty.</summary>
-    EmptyText
+    EmptyText,
+
+    /// <summary>An audio output, named in the profile, that this computer does not have.</summary>
+    AudioDeviceNotFound
 }
 
 /// <summary>One control whose assignment was not (fully) converted.</summary>

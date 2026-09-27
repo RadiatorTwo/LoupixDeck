@@ -40,6 +40,13 @@ internal static class Lp5PluginActions
         ["$Spotify___SpotifyVolume"] = "SpotifyPremium.VolumeAdjustment"
     };
 
+    /// <summary>Dial turns whose adjustment carries a parameter after a fixed prefix.</summary>
+    private static readonly (string Prefix, string Command)[] ParameterizedAdjustments =
+    [
+        // Both address the output by its Windows endpoint id.
+        ("$VolumeControl___Loupedeck.VolumeControlPlugin.Commands.OutputAdjustment___", "Audio.Volume")
+    ];
+
     /// <summary>The LoupixDeck command for a Loupedeck plugin action, or null when none is known.</summary>
     public static string Command(string actionRef)
     {
@@ -77,5 +84,17 @@ internal static class Lp5PluginActions
     }
 
     /// <summary>The adjustment command for a Loupedeck plugin dial turn, or null when none is known.</summary>
-    public static string Adjustment(string rotateRef) => Adjustments.GetValueOrDefault(rotateRef);
+    public static string Adjustment(string rotateRef)
+    {
+        if (Adjustments.TryGetValue(rotateRef, out string command))
+            return command;
+
+        foreach ((string prefix, string name) in ParameterizedAdjustments)
+        {
+            if (rotateRef.Length > prefix.Length && rotateRef.StartsWith(prefix, StringComparison.Ordinal))
+                return $"{name}({CommandParameterEncoding.Encode(rotateRef[prefix.Length..])})";
+        }
+
+        return null;
+    }
 }
