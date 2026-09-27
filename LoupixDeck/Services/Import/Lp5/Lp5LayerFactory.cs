@@ -38,6 +38,15 @@ internal sealed class Lp5LayerFactory(Lp5Archive archive, IAssetService assets, 
     {
         if (Lp5ActionResolver.IsNone(actionRef)) return [];
 
+        List<LayerBase> layers = IconOrImageLayers(actionRef, label);
+        return layers.Count > 0 || string.IsNullOrEmpty(label) ? layers : [Caption(label)];
+    }
+
+    /// <summary>The key's own look from the profile (icon editor layers or a key image); empty when it has none.</summary>
+    public List<LayerBase> IconOrImageLayers(string actionRef, string label)
+    {
+        if (Lp5ActionResolver.IsNone(actionRef)) return [];
+
         List<LayerBase> layers = IconLayers(actionRef);
         if (layers.Count > 0) return layers;
 
@@ -53,7 +62,7 @@ internal sealed class Lp5LayerFactory(Lp5Archive archive, IAssetService assets, 
             }];
         }
 
-        return string.IsNullOrEmpty(label) ? [] : [Caption(label)];
+        return [];
     }
 
     /// <summary>A centred caption, shortened to what fits on a key.</summary>

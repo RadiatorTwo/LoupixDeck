@@ -303,13 +303,30 @@ public sealed class Lp5Converter
         {
             Record(location, label, resolution);
 
-            // Keep the key visible so the gap is obvious on the device.
-            string shortLabel = label.Length > 12 ? label[..11] + "…" : label;
-            TextLayer caption = Lp5LayerFactory.Caption(Loc.Tr("LoupedeckImport_KeyNotImported") + "\n" + shortLabel,
-                Loc.Tr("LoupedeckImport_KeyNotImported"));
+            // Keep the key visible so the gap is obvious on the device. A key with its own icon keeps it,
+            // so recreating the action by hand leaves the look intact; a marker on top flags the gap.
+            List<LayerBase> icon = _layers.IconOrImageLayers(actionRef, label);
+            TextLayer caption;
+            if (icon.Count > 0)
+            {
+                FitCaptionUnderIcon(icon);
+                foreach (LayerBase layer in icon)
+                    button.Layers.Add(layer);
+
+                caption = Lp5LayerFactory.Caption(Loc.Tr("LoupedeckImport_KeyNotImported"), Loc.Tr("LoupedeckImport_KeyNotImported"));
+                caption.BoxHeight = (int)Math.Round(18 * KeyScale);
+                caption.PositionY = -(int)Math.Round(34 * KeyScale);
+            }
+            else
+            {
+                string shortLabel = label.Length > 12 ? label[..11] + "…" : label;
+                caption = Lp5LayerFactory.Caption(Loc.Tr("LoupedeckImport_KeyNotImported") + "\n" + shortLabel,
+                    Loc.Tr("LoupedeckImport_KeyNotImported"));
+                caption.BoxHeight = (int)Math.Round(84 * KeyScale);
+            }
+
             caption.TextSize = 10;
             caption.BoxWidth = (int)Math.Round(84 * KeyScale);
-            caption.BoxHeight = (int)Math.Round(84 * KeyScale);
             button.Layers.Add(caption);
             button.BackColor = UnmappedBackground;
             button.BackgroundEnabled = true;
