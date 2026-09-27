@@ -39,10 +39,11 @@ public sealed class Lp5Converter
     private readonly Lp5ActionResolver _resolver;
     private readonly Dictionary<string, Guid> _workspaceIds = new(StringComparer.Ordinal);
     private readonly List<Lp5UnsupportedControl> _unsupported = [];
+    private readonly List<Lp5MovedControl> _moved = [];
     private int _totalControls;
     private int _mappedControls;
-    private int _surplusKeys;
-    private int _surplusDials;
+    private int _movedKeys;
+    private int _movedDials;
     private int _wheelPages;
 
     private Lp5Converter(Lp5Archive archive, Lp5DeviceShape shape, IAssetService assets)
@@ -113,14 +114,15 @@ public sealed class Lp5Converter
 
         List<Lp5Note> notes = [];
         AddNote(notes, Lp5NoteKind.WheelPagesSkipped, _wheelPages);
-        AddNote(notes, Lp5NoteKind.SurplusKeys, _surplusKeys);
-        AddNote(notes, Lp5NoteKind.SurplusDials, _surplusDials);
+        AddNote(notes, Lp5NoteKind.MovedKeys, _movedKeys);
+        AddNote(notes, Lp5NoteKind.MovedDials, _movedDials);
         AddNote(notes, Lp5NoteKind.UnreadableIcons, _layers.UnreadableIcons);
 
         return new Lp5ConversionResult
         {
             Profile = profile,
             Unsupported = _unsupported,
+            Moved = _moved,
             Notes = notes,
             Workspaces = profile.Workspaces.Count,
             TouchPages = touchPages,
@@ -148,11 +150,20 @@ public sealed class Lp5Converter
         List<string> encoderNames = Lp5Json.Strings(source, "encoderPageNames").ToList();
         Lp5Context context = new(sourceId, touchNames, encoderNames);
 
+        // Controls that do not fit go to extra pages. Those are appended after all source pages, so the
+        // page switches, which address pages by their source position, still land on the right page.
+        List<TouchButtonPage> extraTouchPages = [];
+        List<(RotaryButtonPage Left, RotaryButtonPage Right)> extraSplitPages = [];
+        List<RotaryButtonPage> extraSharedPages = [];
+
         Dictionary<string, JObject> touchPages = PagesById("touchPages");
         foreach (string pageId in touchNames)
         {
             if (pageId != null && touchPages.TryGetValue(pageId, out JObject page))
-                workspace.TouchButtonPages.Add(ConvertTouchPage(page, workspace.TouchButtonPages.Count + 1, name, context));
+            {
+                workspace.TouchButtonPages.Add(ConvertTouchPage(page, workspace.TouchButtonPages.Count + 1, name, context,
+                    extraTouchPages));
+            }
         }
 
         Dictionary<string, JObject> encoderPages = PagesById("encoderPages");
@@ -163,15 +174,27 @@ public sealed class Lp5Converter
             if (_shape.HasIndependentRotarySides)
             {
                 int number = workspace.LeftRotaryButtonPages.Count + 1;
-                (RotaryButtonPage left, RotaryButtonPage right) = ConvertSplitDialPage(page, number, name, context);
+                (RotaryButtonPage left, RotaryButtonPage right) = ConvertSplitDialPage(page, number, name, context,
+                    extraSplitPages);
                 workspace.LeftRotaryButtonPages.Add(left);
                 workspace.RightRotaryButtonPages.Add(right);
             }
             else
             {
-                workspace.RotaryButtonPages.Add(ConvertSharedDialPage(page, workspace.RotaryButtonPages.Count + 1, name, context));
+                workspace.RotaryButtonPages.Add(ConvertSharedDialPage(page, workspace.RotaryButtonPages.Count + 1, name,
+                    context, extraSharedPages));
             }
         }
+
+        foreach (TouchButtonPage page in extraTouchPages)
+            workspace.TouchButtonPages.Add(page);
+        foreach ((RotaryButtonPage left, RotaryButtonPage right) in extraSplitPages)
+        {
+            workspace.LeftRotaryButtonPages.Add(left);
+            workspace.RightRotaryButtonPages.Add(right);
+        }
+        foreach (RotaryButtonPage page in extraSharedPages)
+            workspace.RotaryButtonPages.Add(page);
 
         return workspace;
     }
@@ -190,12 +213,15 @@ public sealed class Lp5Converter
 
     // ---- Touch pages -------------------------------------------------------------------------
 
-    private TouchButtonPage ConvertTouchPage(JObject source, int number, string workspaceName, Lp5Context context)
+    private TouchButtonPage ConvertTouchPage(JObject source, int number, string workspaceName, Lp5Context context,
+        List<TouchButtonPage> extraPages)
     {
         string pageName = Lp5Json.Str(source, "displayName") ?? string.Empty;
+        string shownName = pageName.Length > 0 ? pageName : Loc.Tr("LoupedeckImport_LocationPage", number);
         TouchButtonPage page = new(_shape.TouchButtonCount) { Name = pageName };
         IReadOnlyList<JToken> controls = Lp5Json.Arr(source, "controls");
-        string location = $"{workspaceName} › {(pageName.Length > 0 ? pageName : Loc.Tr("LoupedeckImport_LocationPage", number))}";
+        string location = $"{workspaceName} › {shownName}";
+        List<(int Index, string ActionRef)> surplus = [];
 
         for (int i = 0; i < controls.Count; i++)
         {
@@ -205,15 +231,39 @@ public sealed class Lp5Converter
             int slot = TouchSlot(i, controls.Count);
             if (slot < 0)
             {
-                _surplusKeys++;
+                surplus.Add((i, actionRef));
                 continue;
             }
 
             ConvertKey(page.TouchButtons[slot], actionRef, context, $"{location} › {Loc.Tr("LoupedeckImport_LocationKey", slot + 1)}");
         }
 
+        // Keys the grid has no room for fill extra pages in their source order.
+        int perPage = Math.Min(_shape.Geometry.GridSlots, _shape.TouchButtonCount);
+        for (int start = 0; perPage > 0 && start < surplus.Count; start += perPage)
+        {
+            string extraName = ExtraPageName(shownName, start / perPage);
+            string extraLocation = $"{workspaceName} › {extraName}";
+            TouchButtonPage extra = new(_shape.TouchButtonCount) { Name = extraName };
+
+            for (int slot = 0; slot < perPage && start + slot < surplus.Count; slot++)
+            {
+                (int index, string actionRef) = surplus[start + slot];
+                string to = $"{extraLocation} › {Loc.Tr("LoupedeckImport_LocationKey", slot + 1)}";
+                ConvertKey(extra.TouchButtons[slot], actionRef, context, to);
+                _moved.Add(new Lp5MovedControl(_resolver.Label(actionRef),
+                    $"{location} › {Loc.Tr("LoupedeckImport_LocationKey", index + 1)}", to));
+                _movedKeys++;
+            }
+
+            extraPages.Add(extra);
+        }
+
         return page;
     }
+
+    /// <summary>The name of the <paramref name="extra"/>-th (0-based) extra page of a page: "Main (2)", "Main (3)".</summary>
+    private static string ExtraPageName(string pageName, int extra) => $"{pageName} ({extra + 2})";
 
     /// <summary>
     /// The target slot for source key <paramref name="index"/>, or -1 when the device has no room for
@@ -309,13 +359,38 @@ public sealed class Lp5Converter
     /// its dial icons drawn onto the side strip.
     /// </summary>
     private (RotaryButtonPage Left, RotaryButtonPage Right) ConvertSplitDialPage(JObject source, int number,
-        string workspaceName, Lp5Context context)
+        string workspaceName, Lp5Context context, List<(RotaryButtonPage Left, RotaryButtonPage Right)> extraPages)
     {
         string pageName = Lp5Json.Str(source, "displayName") ?? string.Empty;
+        string shownName = pageName.Length > 0 ? pageName : Loc.Tr("LoupedeckImport_LocationDials", number);
         IReadOnlyList<JToken> controls = Lp5Json.Arr(source, "controls");
-        int perSide = _shape.SideRotaryButtonCount;
-        string location = $"{workspaceName} › {(pageName.Length > 0 ? pageName : Loc.Tr("LoupedeckImport_LocationDials", number))}";
+        int perPage = _shape.SideRotaryButtonCount * 2;
+        string location = $"{workspaceName} › {shownName}";
 
+        (RotaryButtonPage left, RotaryButtonPage right) = FillSplitDialPage(pageName, controls.Take(perPage).ToList(),
+            context, i => $"{location} › {Loc.Tr("LoupedeckImport_LocationDial", i + 1)}");
+
+        // Assigned dials the device has no room for fill extra pages in their source order.
+        List<(int Index, JToken Control)> surplus = perPage > 0 ? SurplusDials(controls, perPage) : [];
+        for (int start = 0; start < surplus.Count; start += perPage)
+        {
+            List<(int Index, JToken Control)> chunk = surplus.Skip(start).Take(perPage).ToList();
+            string extraName = ExtraPageName(shownName, start / perPage);
+            string extraLocation = $"{workspaceName} › {extraName}";
+
+            extraPages.Add(FillSplitDialPage(extraName, chunk.Select(c => c.Control).ToList(), context,
+                i => $"{extraLocation} › {Loc.Tr("LoupedeckImport_LocationDial", i + 1)}"));
+            RecordMovedDials(chunk, location, extraLocation);
+        }
+
+        return (left, right);
+    }
+
+    /// <summary>Fills a left and a right page with up to one page's worth of dials, left column first.</summary>
+    private (RotaryButtonPage Left, RotaryButtonPage Right) FillSplitDialPage(string pageName,
+        IReadOnlyList<JToken> controls, Lp5Context context, Func<int, string> location)
+    {
+        int perSide = _shape.SideRotaryButtonCount;
         RotaryButtonPage left = new(perSide) { Name = pageName, Side = RotarySide.Left };
         RotaryButtonPage right = new(perSide) { Name = pageName, Side = RotarySide.Right };
 
@@ -323,13 +398,7 @@ public sealed class Lp5Converter
         {
             RotaryButtonPage page = i < perSide ? left : right;
             int index = i < perSide ? i : i - perSide;
-            if (i >= perSide * 2)
-            {
-                if (HasAssignment(controls[i])) _surplusDials++;
-                continue;
-            }
-
-            ConvertDial(page.RotaryButtons[index], controls[i], context, $"{location} › {Loc.Tr("LoupedeckImport_LocationDial", i + 1)}");
+            ConvertDial(page.RotaryButtons[index], controls[i], context, location(i));
         }
 
         DrawStrip(left, controls.Take(perSide).ToList(), StripCanvasIndex(RotarySide.Left));
@@ -337,26 +406,60 @@ public sealed class Lp5Converter
         return (left, right);
     }
 
+    /// <summary>The assigned dials beyond the first <paramref name="fitting"/>, with their source position.</summary>
+    private static List<(int Index, JToken Control)> SurplusDials(IReadOnlyList<JToken> controls, int fitting) =>
+        controls.Select((control, index) => (index, control))
+            .Skip(fitting)
+            .Where(c => HasAssignment(c.control))
+            .ToList();
+
+    private void RecordMovedDials(List<(int Index, JToken Control)> chunk, string location, string extraLocation)
+    {
+        for (int i = 0; i < chunk.Count; i++)
+        {
+            JToken control = chunk[i].Control;
+            string rotateRef = Lp5Json.Str(control, "rotateAction");
+            string label = _resolver.Label(Lp5ActionResolver.IsNone(rotateRef) ? Lp5Json.Str(control, "pressAction") : rotateRef);
+            _moved.Add(new Lp5MovedControl(label,
+                $"{location} › {Loc.Tr("LoupedeckImport_LocationDial", chunk[i].Index + 1)}",
+                $"{extraLocation} › {Loc.Tr("LoupedeckImport_LocationDial", i + 1)}"));
+            _movedDials++;
+        }
+    }
+
     private static int StripCanvasIndex(RotarySide side) =>
         side == RotarySide.Left ? RazerStreamControllerDevice.LeftSideIndex : RazerStreamControllerDevice.RightSideIndex;
 
-    private RotaryButtonPage ConvertSharedDialPage(JObject source, int number, string workspaceName, Lp5Context context)
+    private RotaryButtonPage ConvertSharedDialPage(JObject source, int number, string workspaceName, Lp5Context context,
+        List<RotaryButtonPage> extraPages)
     {
         string pageName = Lp5Json.Str(source, "displayName") ?? string.Empty;
+        string shownName = pageName.Length > 0 ? pageName : Loc.Tr("LoupedeckImport_LocationDials", number);
         IReadOnlyList<JToken> controls = Lp5Json.Arr(source, "controls");
         int count = _shape.RotaryButtonCount;
-        string location = $"{workspaceName} › {(pageName.Length > 0 ? pageName : Loc.Tr("LoupedeckImport_LocationDials", number))}";
+        string location = $"{workspaceName} › {shownName}";
 
         RotaryButtonPage page = new(count) { Name = pageName, Side = RotarySide.Both };
-        for (int i = 0; i < controls.Count; i++)
+        for (int i = 0; i < Math.Min(count, controls.Count); i++)
+            ConvertDial(page.RotaryButtons[i], controls[i], context, $"{location} › {Loc.Tr("LoupedeckImport_LocationDial", i + 1)}");
+
+        // Assigned dials the device has no room for fill extra pages in their source order.
+        List<(int Index, JToken Control)> surplus = count > 0 ? SurplusDials(controls, count) : [];
+        for (int start = 0; start < surplus.Count; start += count)
         {
-            if (i >= count)
+            List<(int Index, JToken Control)> chunk = surplus.Skip(start).Take(count).ToList();
+            string extraName = ExtraPageName(shownName, start / count);
+            string extraLocation = $"{workspaceName} › {extraName}";
+
+            RotaryButtonPage extra = new(count) { Name = extraName, Side = RotarySide.Both };
+            for (int i = 0; i < chunk.Count; i++)
             {
-                if (HasAssignment(controls[i])) _surplusDials++;
-                continue;
+                ConvertDial(extra.RotaryButtons[i], chunk[i].Control, context,
+                    $"{extraLocation} › {Loc.Tr("LoupedeckImport_LocationDial", i + 1)}");
             }
 
-            ConvertDial(page.RotaryButtons[i], controls[i], context, $"{location} › {Loc.Tr("LoupedeckImport_LocationDial", i + 1)}");
+            extraPages.Add(extra);
+            RecordMovedDials(chunk, location, extraLocation);
         }
 
         return page;

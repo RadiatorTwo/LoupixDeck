@@ -125,6 +125,13 @@ public sealed partial class LoupedeckImportViewModel : DialogViewModelBase<Dialo
 
     public string NotesText => string.Join(Environment.NewLine, Notes);
 
+    /// <summary>Controls placed on extra pages, one "label · from → to" entry each.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasMoved))]
+    public partial string MovedText { get; set; }
+
+    public bool HasMoved => !string.IsNullOrEmpty(MovedText);
+
     /// <summary>Plugins whose commands the profile uses but which are not installed; their actions import anyway.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasMissingPlugins))]
@@ -213,6 +220,9 @@ public sealed partial class LoupedeckImportViewModel : DialogViewModelBase<Dialo
 
         foreach (Lp5Note note in _preview.Notes)
             Notes.Add(DescribeNote(note));
+
+        MovedText = string.Join(Environment.NewLine + Environment.NewLine, _preview.Moved.Select(moved =>
+            $"{(string.IsNullOrWhiteSpace(moved.Label) ? "—" : moved.Label)}{Environment.NewLine}{moved.From}  →  {moved.To}"));
 
         BuildAppLink();
         await FindMissingPluginsAsync();
@@ -326,8 +336,8 @@ public sealed partial class LoupedeckImportViewModel : DialogViewModelBase<Dialo
     private static string DescribeNote(Lp5Note note) => note.Kind switch
     {
         Lp5NoteKind.WheelPagesSkipped => Loc.Tr("LoupedeckImport_NoteWheelPages", note.Count),
-        Lp5NoteKind.SurplusKeys => Loc.Tr("LoupedeckImport_NoteSurplusKeys", note.Count),
-        Lp5NoteKind.SurplusDials => Loc.Tr("LoupedeckImport_NoteSurplusDials", note.Count),
+        Lp5NoteKind.MovedKeys => Loc.Tr("LoupedeckImport_NoteMovedKeys", note.Count),
+        Lp5NoteKind.MovedDials => Loc.Tr("LoupedeckImport_NoteMovedDials", note.Count),
         _ => Loc.Tr("LoupedeckImport_NoteUnreadableIcons", note.Count)
     };
 }

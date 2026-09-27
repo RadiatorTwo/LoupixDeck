@@ -54,17 +54,23 @@ public enum Lp5NoteKind
     /// <summary>Loupedeck wheel pages (Loupedeck CT) have no equivalent and were skipped.</summary>
     WheelPagesSkipped,
 
-    /// <summary>The source pages have more keys than the device; the surplus was dropped.</summary>
-    SurplusKeys,
+    /// <summary>The source pages have more keys than the device; the surplus moved to extra pages.</summary>
+    MovedKeys,
 
-    /// <summary>The source pages have more dials than the device; the surplus was dropped.</summary>
-    SurplusDials,
+    /// <summary>The source pages have more dials than the device; the surplus moved to extra pages.</summary>
+    MovedDials,
 
     /// <summary>Icons that could not be read were left out.</summary>
     UnreadableIcons
 }
 
 public sealed record Lp5Note(Lp5NoteKind Kind, int Count);
+
+/// <summary>A control that did not fit on its page and was placed on an extra page of the same workspace.</summary>
+/// <param name="Label">The Loupedeck name of the action.</param>
+/// <param name="From">Where the control sat in the source profile, e.g. "Home › Main › Dial 5".</param>
+/// <param name="To">Where it is now, e.g. "Home › Main (2) › Dial 1".</param>
+public sealed record Lp5MovedControl(string Label, string From, string To);
 
 /// <summary>The outcome of converting a Loupedeck profile.</summary>
 public sealed class Lp5ConversionResult
@@ -74,6 +80,9 @@ public sealed class Lp5ConversionResult
     public required IReadOnlyList<Lp5UnsupportedControl> Unsupported { get; init; }
 
     public required IReadOnlyList<Lp5Note> Notes { get; init; }
+
+    /// <summary>Controls placed on extra pages because their page had no room for them.</summary>
+    public required IReadOnlyList<Lp5MovedControl> Moved { get; init; }
 
     public int Workspaces { get; init; }
 

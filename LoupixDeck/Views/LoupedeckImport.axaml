@@ -144,6 +144,15 @@
                     </Border>
                 </StackPanel>
 
+                <!-- Controls placed on extra pages -->
+                <StackPanel Spacing="6" IsVisible="{Binding HasMoved}">
+                    <TextBlock Text="{loc:Tr LoupedeckImport_Moved}" Classes="sectionHeader" />
+                    <TextBlock Text="{loc:Tr LoupedeckImport_MovedHint}" Classes="hint" />
+                    <Border Classes="card">
+                        <SelectableTextBlock Text="{Binding MovedText}" Classes="hint" />
+                    </Border>
+                </StackPanel>
+
                 <!-- Notes -->
                 <StackPanel Spacing="6" IsVisible="{Binding HasNotes}">
                     <TextBlock Text="{loc:Tr LoupedeckImport_Notes}" Classes="sectionHeader" />
