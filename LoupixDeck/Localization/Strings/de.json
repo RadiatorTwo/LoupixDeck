@@ -515,6 +515,8 @@
   "LoupedeckImport_NoteWheelPages": "{0} Wheel-Seite(n) haben keine Entsprechung in LoupixDeck und werden nicht importiert.",
   "LoupedeckImport_Notes": "Hinweise",
   "LoupedeckImport_Reading": "Loupedeck-Profil wird gelesen…",
+  "LoupedeckImport_LabelBack": "Zurück",
+  "LoupedeckImport_ReasonGoBack": "LoupixDeck merkt sich keinen Seitenverlauf, daher wird \"Zurück\" nur importiert, wenn genau eine Taste diese Seite öffnet.",
   "LoupedeckImport_ReasonAdjustment": "Für diese Drehung gibt es keine Entsprechung in LoupixDeck: {0}",
   "LoupedeckImport_ReasonMacro": "Die Mehrfachaktion enthält einen Schritt, der nicht importiert werden kann.",
   "LoupedeckImport_ReasonMissing": "Die Aktion ist in der Datei nicht definiert.",

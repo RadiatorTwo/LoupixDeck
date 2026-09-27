@@ -42,7 +42,10 @@ public enum Lp5UnsupportedReason
     RecursionLimit,
 
     /// <summary>A macro whose steps point at editor commands the profile does not contain.</summary>
-    MissingMacroSteps
+    MissingMacroSteps,
+
+    /// <summary>A "go back" key on a page that more than one action leads to.</summary>
+    AmbiguousGoBack
 }
 
 /// <summary>One control whose assignment was not (fully) converted.</summary>

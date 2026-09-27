@@ -515,6 +515,8 @@
   "LoupedeckImport_NoteWheelPages": "{0} wheel page(s) have no equivalent in LoupixDeck and are not imported.",
   "LoupedeckImport_Notes": "Notes",
   "LoupedeckImport_Reading": "Reading the Loupedeck profile…",
+  "LoupedeckImport_LabelBack": "Back",
+  "LoupedeckImport_ReasonGoBack": "LoupixDeck keeps no page history, so \"go back\" is only imported when exactly one key opens this page.",
   "LoupedeckImport_ReasonAdjustment": "This dial turn has no LoupixDeck equivalent: {0}",
   "LoupedeckImport_ReasonMacro": "The multi-action contains a step that cannot be imported.",
   "LoupedeckImport_ReasonMissing": "The action is not defined in the file.",

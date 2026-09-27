@@ -515,6 +515,8 @@
   "LoupedeckImport_NoteWheelPages": "{0} página(s) de rueda no tienen equivalente en LoupixDeck y no se importan.",
   "LoupedeckImport_Notes": "Notas",
   "LoupedeckImport_Reading": "Leyendo el perfil de Loupedeck…",
+  "LoupedeckImport_LabelBack": "Atrás",
+  "LoupedeckImport_ReasonGoBack": "LoupixDeck no guarda un historial de páginas, así que \"atrás\" solo se importa si exactamente una tecla abre esta página.",
   "LoupedeckImport_ReasonAdjustment": "Este giro de dial no tiene equivalente en LoupixDeck: {0}",
   "LoupedeckImport_ReasonMacro": "La acción múltiple contiene un paso que no se puede importar.",
   "LoupedeckImport_ReasonMissing": "La acción no está definida en el archivo.",

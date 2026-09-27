@@ -222,6 +222,7 @@ public sealed class Lp5Converter
         IReadOnlyList<JToken> controls = Lp5Json.Arr(source, "controls");
         string location = $"{workspaceName} › {shownName}";
         List<(int Index, string ActionRef)> surplus = [];
+        context = context with { PageId = Lp5Json.Str(source, "name") };
 
         for (int i = 0; i < controls.Count; i++)
         {

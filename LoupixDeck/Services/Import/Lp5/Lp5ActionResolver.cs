@@ -8,6 +8,9 @@ namespace LoupixDeck.Services.Import.Lp5;
 internal sealed record Lp5Context(string WorkspaceId, IReadOnlyList<string> TouchPageNames,
     IReadOnlyList<string> EncoderPageNames)
 {
+    /// <summary>The touch page the action sits on; null for dials and round buttons.</summary>
+    public string PageId { get; init; }
+
     public static readonly Lp5Context Global = new(null, [], []);
 }
 
@@ -43,6 +46,7 @@ internal sealed class Lp5ActionResolver
     private const string ExecutePrefix = "$@Generic___@ExecuteApplication___";
     private const string KeyboardTemplate = "$@Generic___@KeyboardKey";
     private const string MouseClickTemplate = "$@Generic___@MouseClickExt";
+    private const string GoBack = "$@Generic___@GoBack";
     private const int MaxDepth = 8;
     private const int MaxLabelLength = 28;
 
@@ -53,6 +57,7 @@ internal sealed class Lp5ActionResolver
     private readonly Dictionary<string, JObject> _touchPages;
     private readonly Dictionary<string, JObject> _encoderPages;
     private readonly IReadOnlyDictionary<string, Guid> _workspaceIds;
+    private readonly Dictionary<string, (string Workspace, string Page)> _backTargets;
     private readonly bool _independentSides;
 
     public Lp5ActionResolver(Lp5Archive archive, IReadOnlyDictionary<string, Guid> workspaceIds, bool independentSides)
@@ -65,6 +70,7 @@ internal sealed class Lp5ActionResolver
         _encoderPages = ByName(Lp5Json.Arr(archive.LayoutMode, "encoderPages"));
         _workspaceIds = workspaceIds;
         _independentSides = independentSides;
+        _backTargets = BackTargets(archive);
     }
 
     /// <summary>True for an empty assignment.</summary>
@@ -119,6 +125,9 @@ internal sealed class Lp5ActionResolver
                 ? $"System.GotoRotaryPageLeft({n}) && System.GotoRotaryPageRight({n})"
                 : $"System.GotoRotaryPage({n})");
         }
+
+        if (actionRef == GoBack)
+            return ResolveGoBack(context);
 
         if (actionRef.StartsWith(ExecutePrefix, StringComparison.Ordinal))
         {
@@ -205,6 +214,7 @@ internal sealed class Lp5ActionResolver
     public string Label(string actionRef)
     {
         if (IsNone(actionRef)) return string.Empty;
+        if (actionRef == GoBack) return Loc.Tr("LoupedeckImport_LabelBack");
 
         if (actionRef.StartsWith(ProfileActionPrefix, StringComparison.Ordinal))
             return DisplayName(_profileActions.GetValueOrDefault(actionRef)) ?? Loc.Tr("LoupedeckImport_FallbackProfileAction");
@@ -330,6 +340,86 @@ internal sealed class Lp5ActionResolver
         }
 
         return new Lp5Resolution(page);
+    }
+
+    /// <summary>
+    /// Loupedeck's "go back" returns to the previous page. LoupixDeck keeps no page history, so it only
+    /// converts when exactly one key leads to the page: then "back" can only mean that key's page.
+    /// </summary>
+    private Lp5Resolution ResolveGoBack(Lp5Context context)
+    {
+        if (context.PageId == null || !_backTargets.TryGetValue(context.PageId, out (string Workspace, string Page) back))
+            return new Lp5Resolution(null, Lp5UnsupportedReason.AmbiguousGoBack, GoBack);
+
+        int index = _workspaces.TryGetValue(back.Workspace, out JObject workspace)
+            ? Lp5Json.Strings(workspace, "touchPageNames").ToList().IndexOf(back.Page)
+            : -1;
+        if (index < 0)
+            return new Lp5Resolution(null, Lp5UnsupportedReason.AmbiguousGoBack, GoBack);
+
+        string page = $"System.GotoPage({index + 1})";
+        return back.Workspace != context.WorkspaceId && _workspaceIds.TryGetValue(back.Workspace, out Guid id)
+            ? new Lp5Resolution($"System.GotoWorkspace({id}) && {page}")
+            : new Lp5Resolution(page);
+    }
+
+    /// <summary>
+    /// For every touch page opened by exactly one key, the workspace and page of that key. A page that is
+    /// also opened from anywhere else (a second key, a macro, a dial) has no single way back and is left out.
+    /// </summary>
+    private Dictionary<string, (string Workspace, string Page)> BackTargets(Lp5Archive archive)
+    {
+        Dictionary<string, int> references = new(StringComparer.Ordinal);
+        foreach (JValue value in archive.Profile.Descendants().OfType<JValue>())
+        {
+            if (value.Type == JTokenType.String && OpenedPage(value.ToString()) is { } target)
+                references[target] = references.GetValueOrDefault(target) + 1;
+        }
+
+        Dictionary<string, List<(string Workspace, string Page)>> sources = new(StringComparer.Ordinal);
+        Dictionary<string, JObject> touchPages = ByName(Lp5Json.Arr(archive.LayoutMode, "touchPages"));
+        foreach (JObject workspace in _workspaces.Values)
+        {
+            string workspaceId = Lp5Json.Str(workspace, "name");
+            foreach (string pageId in Lp5Json.Strings(workspace, "touchPageNames"))
+            {
+                if (pageId == null || !touchPages.TryGetValue(pageId, out JObject page)) continue;
+
+                foreach (JToken control in Lp5Json.Arr(page, "controls"))
+                {
+                    if (OpenedPage(Lp5Json.Str(control, "pressAction")) is not { } target) continue;
+                    if (!sources.TryGetValue(target, out List<(string Workspace, string Page)> list))
+                        sources[target] = list = [];
+                    list.Add((workspaceId, pageId));
+                }
+            }
+        }
+
+        Dictionary<string, (string Workspace, string Page)> result = new(StringComparer.Ordinal);
+        foreach ((string target, List<(string Workspace, string Page)> list) in sources)
+        {
+            if (list.Count == 1 && references.GetValueOrDefault(target) == 1)
+                result[target] = list[0];
+        }
+
+        return result;
+    }
+
+    /// <summary>The touch page a page or workspace switch opens; null for any other action.</summary>
+    private string OpenedPage(string actionRef)
+    {
+        if (actionRef == null) return null;
+
+        if (actionRef.StartsWith(TouchPagePrefix, StringComparison.Ordinal))
+            return actionRef.Split('|')[^1];
+
+        if (actionRef.StartsWith(WorkspacePrefix, StringComparison.Ordinal) &&
+            _workspaces.TryGetValue(actionRef.Split('|')[^1], out JObject workspace))
+        {
+            return Lp5Json.Strings(workspace, "touchPageNames").FirstOrDefault();
+        }
+
+        return null;
     }
 
     private static string DisplayName(JObject obj) =>
