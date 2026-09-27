@@ -45,7 +45,10 @@ public enum Lp5UnsupportedReason
     MissingMacroSteps,
 
     /// <summary>A "go back" key on a page that more than one action leads to.</summary>
-    AmbiguousGoBack
+    AmbiguousGoBack,
+
+    /// <summary>A "type text" action whose text is empty.</summary>
+    EmptyText
 }
 
 /// <summary>One control whose assignment was not (fully) converted.</summary>

@@ -50,12 +50,15 @@ internal static class Lp5KeyCombo
                 continue;
             }
 
+            // "Shift+None" is a modifier with no key: the modifier alone is meant.
+            if (token == "None") continue;
+
             if (token.StartsWith("Key", StringComparison.Ordinal) && token.Length > 3)
                 token = token[3..];
 
             keys.Add(KeyMap.GetValueOrDefault(token, token));
         }
 
-        return string.Join('+', keys);
+        return keys.Count > 0 ? string.Join('+', keys) : null;
     }
 }

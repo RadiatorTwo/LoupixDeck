@@ -46,6 +46,10 @@ internal sealed class Lp5ActionResolver
     private const string ExecutePrefix = "$@Generic___@ExecuteApplication___";
     private const string KeyboardTemplate = "$@Generic___@KeyboardKey";
     private const string MouseClickTemplate = "$@Generic___@MouseClickExt";
+    private const string MouseWheelTemplate = "$@Generic___@MouseWheelExt";
+    private const string MouseWheel = "$@Generic___@MouseWheel";
+    private const string ShortcutPrefix = "$@Generic___@KeyboardShortcut___";
+    private const string TypeTextPrefix = "$@Generic___@TypeText___";
     private const string GoBack = "$@Generic___@GoBack";
     private const int MaxDepth = 8;
     private const int MaxLabelLength = 28;
@@ -101,12 +105,15 @@ internal sealed class Lp5ActionResolver
             if (!_macros.TryGetValue(LastSegment(actionRef), out JObject macro))
                 return new Lp5Resolution(null, Lp5UnsupportedReason.MissingDefinition, actionRef);
 
-            string command = Chain(macro, Lp5Json.Strings(macro, "actions"), context, depth);
-            return command != null
-                ? new Lp5Resolution(command)
-                : new Lp5Resolution(null, HasMissingSteps(macro, Lp5Json.Strings(macro, "actions"))
-                    ? Lp5UnsupportedReason.MissingMacroSteps
-                    : Lp5UnsupportedReason.UnsupportedMacro, actionRef);
+            List<string> steps = Lp5Json.Strings(macro, "actions").Where(s => !string.IsNullOrEmpty(s)).ToList();
+            string command = Chain(macro, steps, context, depth, null, out Lp5Resolution failed);
+            if (command != null) return new Lp5Resolution(command);
+            if (HasMissingSteps(macro, steps)) return new Lp5Resolution(null, Lp5UnsupportedReason.MissingMacroSteps, actionRef);
+
+            // A one-step macro is just that step, so its own reason is the more precise one.
+            return steps.Count == 1 && failed?.Reason != null
+                ? failed
+                : new Lp5Resolution(null, Lp5UnsupportedReason.UnsupportedMacro, failed?.Detail ?? actionRef);
         }
 
         if (actionRef.StartsWith(WorkspacePrefix, StringComparison.Ordinal))
@@ -129,6 +136,17 @@ internal sealed class Lp5ActionResolver
         if (actionRef == GoBack)
             return ResolveGoBack(context);
 
+        if (actionRef.StartsWith(ShortcutPrefix, StringComparison.Ordinal))
+        {
+            string combo = Lp5KeyCombo.Normalize(actionRef[ShortcutPrefix.Length..]);
+            return combo != null
+                ? new Lp5Resolution($"System.KeyCombination({combo})")
+                : new Lp5Resolution(null, Lp5UnsupportedReason.MissingDefinition, actionRef);
+        }
+
+        if (actionRef.StartsWith(TypeTextPrefix, StringComparison.Ordinal))
+            return TypeText(actionRef[TypeTextPrefix.Length..], actionRef);
+
         if (actionRef.StartsWith(ExecutePrefix, StringComparison.Ordinal))
         {
             string target = actionRef[ExecutePrefix.Length..];
@@ -147,6 +165,14 @@ internal sealed class Lp5ActionResolver
             // Loupedeck's "Windows actions" opens Quick Settings, which is Win+A.
             "$DefaultWin___WindowsActions" => new Lp5Resolution("System.KeyCombination(Win+A)"),
             "$@Generic___@MouseClick" => new Lp5Resolution("System.MouseClick(Left)"),
+            "$@Generic___@NextTouchPage" => new Lp5Resolution("System.NextPage"),
+            "$@Generic___@PreviousTouchPage" => new Lp5Resolution("System.PreviousPage"),
+            "$@Generic___@NextEncoderPage" => new Lp5Resolution(_independentSides
+                ? "System.NextRotaryPageLeft && System.NextRotaryPageRight"
+                : "System.NextRotaryPage"),
+            "$@Generic___@PreviousEncoderPage" => new Lp5Resolution(_independentSides
+                ? "System.PreviousRotaryPageLeft && System.PreviousRotaryPageRight"
+                : "System.PreviousRotaryPage"),
             _ => Lp5PluginActions.Command(actionRef) is { } pluginCommand
                 ? new Lp5Resolution(pluginCommand)
                 : new Lp5Resolution(null, Lp5UnsupportedReason.UnknownAction, actionRef)
@@ -168,8 +194,8 @@ internal sealed class Lp5ActionResolver
             {
                 if (_adjustments.TryGetValue(LastSegment(rotateRef), out JObject adjustment))
                 {
-                    left = Chain(adjustment, Lp5Json.Strings(adjustment, "actionsLeft"), context, 0);
-                    right = Chain(adjustment, Lp5Json.Strings(adjustment, "actionsRight"), context, 0);
+                    left = Chain(adjustment, Lp5Json.Strings(adjustment, "actionsLeft"), context, 0, false, out _);
+                    right = Chain(adjustment, Lp5Json.Strings(adjustment, "actionsRight"), context, 0, true, out _);
                     if (left == null && right == null)
                     {
                         rotateReason = HasMissingSteps(adjustment,
@@ -193,10 +219,18 @@ internal sealed class Lp5ActionResolver
                 left = adjustment;
                 right = adjustment;
             }
-            else if (rotateRef == "$@Generic___@MouseWheel")
+            else if (IsWheel(rotateRef))
             {
-                left = "System.MouseScroll(-1)";
-                right = "System.MouseScroll(1)";
+                left = WheelCommand(rotateRef, false);
+                right = WheelCommand(rotateRef, true);
+                if (left == null)
+                    rotateReason = Lp5UnsupportedReason.UnsupportedAdjustment;
+            }
+            else if (Resolve(rotateRef, context).Command is { } command)
+            {
+                // A plain command on a dial turn runs on every step, whichever way the dial turns.
+                left = command;
+                right = command;
             }
             else
             {
@@ -262,12 +296,54 @@ internal sealed class Lp5ActionResolver
         return Lp5PluginActions.ProfileActionCommand(template, key => Lp5Json.Str(parameters, key));
     }
 
+    /// <summary>True for a mouse-wheel adjustment, plain or as a profile action with options.</summary>
+    private bool IsWheel(string actionRef) =>
+        actionRef == MouseWheel ||
+        (_profileActions.TryGetValue(actionRef, out JObject action) && Lp5Json.Str(action, "templateActionName") == MouseWheelTemplate);
+
+    /// <summary>
+    /// One wheel step, up for a right turn. The profile-action form can invert the direction and hold keys
+    /// while scrolling; null for a horizontal wheel, which LoupixDeck cannot scroll.
+    /// </summary>
+    private string WheelCommand(string actionRef, bool right)
+    {
+        if (actionRef == MouseWheel)
+            return right ? "System.MouseScroll(1)" : "System.MouseScroll(-1)";
+
+        JObject parameters = Lp5Json.Obj(Lp5Json.Obj(_profileActions[actionRef], "actionParameters"), "parameters");
+        if (Lp5Json.Bool(parameters, "isHorizontalWheel")) return null;
+
+        bool up = right != Lp5Json.Bool(parameters, "isInverted");
+        string keys = Lp5KeyCombo.Normalize(Lp5Json.Str(parameters, "keyboardKey"));
+        return keys != null
+            ? $"System.MouseCombo({keys},{(up ? "ScrollUp" : "ScrollDown")})"
+            : $"System.MouseScroll({(up ? 1 : -1)})";
+    }
+
+    /// <summary>
+    /// Types <paramref name="text"/>. The command parser splits parameters on <c>,</c> and cuts at
+    /// <c>)</c>, and the text command does not decode escapes, so only text free of those converts.
+    /// </summary>
+    private static Lp5Resolution TypeText(string text, string actionRef)
+    {
+        if (text.Length == 0)
+            return new Lp5Resolution(null, Lp5UnsupportedReason.EmptyText, actionRef);
+
+        return text.IndexOfAny([',', '(', ')']) < 0 && !text.Contains("&&", StringComparison.Ordinal) && text.Trim() == text
+            ? new Lp5Resolution($"System.SimpleMacro({text})")
+            : new Lp5Resolution(null, Lp5UnsupportedReason.UnknownAction, actionRef);
+    }
+
     /// <summary>
     /// Joins a macro's steps into one <c>&amp;&amp;</c> chain; null when any step cannot be converted,
-    /// as a partial macro would do something different from the original.
+    /// as a partial macro would do something different from the original. <paramref name="right"/> is
+    /// the turn direction for an adjustment's steps, null for a command macro.
     /// </summary>
-    private string Chain(JObject macro, IEnumerable<string> steps, Lp5Context context, int depth)
+    private string Chain(JObject macro, IEnumerable<string> steps, Lp5Context context, int depth, bool? right,
+        out Lp5Resolution failed)
     {
+        failed = null;
+
         // Keyboard steps are defined inline in the macro's own editor commands.
         Dictionary<string, string> local = new(StringComparer.Ordinal);
         foreach (JToken editor in Lp5Json.Arr(macro, "actionEditorCommands"))
@@ -291,9 +367,27 @@ internal sealed class Lp5ActionResolver
                 continue;
             }
 
-            string command = Resolve(step, context, depth + 1).Command;
-            if (command == null) return null;
-            parts.Add(command);
+            if (right is { } direction && IsWheel(step))
+            {
+                string wheel = WheelCommand(step, direction);
+                if (wheel == null)
+                {
+                    failed = new Lp5Resolution(null, Lp5UnsupportedReason.UnsupportedAdjustment, step);
+                    return null;
+                }
+
+                parts.Add(wheel);
+                continue;
+            }
+
+            Lp5Resolution resolution = Resolve(step, context, depth + 1);
+            if (resolution.Command == null)
+            {
+                failed = resolution;
+                return null;
+            }
+
+            parts.Add(resolution.Command);
         }
 
         return parts.Count > 0 ? string.Join(" && ", parts) : null;

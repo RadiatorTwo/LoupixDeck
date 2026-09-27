@@ -326,10 +326,11 @@ public sealed partial class LoupedeckImportViewModel : DialogViewModelBase<Dialo
     {
         Lp5UnsupportedReason.UnknownAction => Loc.Tr("LoupedeckImport_ReasonUnknownAction", detail ?? string.Empty),
         Lp5UnsupportedReason.UnsupportedProfileAction => Loc.Tr("LoupedeckImport_ReasonProfileAction", detail ?? string.Empty),
-        Lp5UnsupportedReason.UnsupportedMacro => Loc.Tr("LoupedeckImport_ReasonMacro"),
+        Lp5UnsupportedReason.UnsupportedMacro => Loc.Tr("LoupedeckImport_ReasonMacro", detail ?? string.Empty),
         Lp5UnsupportedReason.MissingDefinition => Loc.Tr("LoupedeckImport_ReasonMissing"),
         Lp5UnsupportedReason.MissingMacroSteps => Loc.Tr("LoupedeckImport_ReasonMissingSteps"),
         Lp5UnsupportedReason.AmbiguousGoBack => Loc.Tr("LoupedeckImport_ReasonGoBack"),
+        Lp5UnsupportedReason.EmptyText => Loc.Tr("LoupedeckImport_ReasonEmptyText"),
         Lp5UnsupportedReason.PageOutsideWorkspace => Loc.Tr("LoupedeckImport_ReasonPageOutsideWorkspace"),
         Lp5UnsupportedReason.UnsupportedAdjustment => Loc.Tr("LoupedeckImport_ReasonAdjustment", detail ?? string.Empty),
         _ => Loc.Tr("LoupedeckImport_ReasonRecursion")
