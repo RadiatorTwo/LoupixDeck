@@ -68,6 +68,21 @@ public sealed class Lp5Converter
     public static Lp5ConversionResult Convert(Lp5Archive archive, Lp5DeviceShape shape, IAssetService assets) =>
         new Lp5Converter(archive, shape, assets).Run();
 
+    /// <summary>
+    /// False for a wheel page that still holds Loupedeck's default (analog clock, press shows the clock,
+    /// turn scrolls): every workspace gets one, and skipping it loses nothing the user set up.
+    /// </summary>
+    private bool IsCustomWheelPage(string name)
+    {
+        JToken page = Lp5Json.Arr(_archive.LayoutMode, "wheelPages").FirstOrDefault(p => Lp5Json.Str(p, "name") == name);
+        if (page == null) return false;
+
+        JObject parameters = Lp5Json.Obj(page, "parameters");
+        return Lp5Json.Str(page, "templateName") != "WheelToolAnalogClock"
+               || Lp5Json.Str(parameters, "actions") != "$@Generic___@ButtonClock"
+               || Lp5Json.Str(parameters, "adjustment") != "$@Generic___@MouseWheel";
+    }
+
     private Lp5ConversionResult Run()
     {
         Profile profile = new() { Name = _archive.ProfileName };
@@ -82,7 +97,7 @@ public sealed class Lp5Converter
 
             touchPages += workspace.TouchButtonPages.Count;
             rotaryPages += workspace.RotaryButtonPages.Count + workspace.LeftRotaryButtonPages.Count;
-            _wheelPages += Lp5Json.Arr(source, "wheelPageNames").Count;
+            _wheelPages += Lp5Json.Strings(source, "wheelPageNames").Count(IsCustomWheelPage);
         }
 
         if (profile.Workspaces.Count == 0)
