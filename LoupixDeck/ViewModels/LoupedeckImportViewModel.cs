@@ -112,6 +112,12 @@ public sealed partial class LoupedeckImportViewModel : DialogViewModelBase<Dialo
     public bool HasUnmapped => Unmapped.Count > 0;
     public bool HasNotes => Notes.Count > 0;
 
+    // Each list is shown as one text block: selection cannot span separate text controls.
+    public string UnmappedText => string.Join(Environment.NewLine + Environment.NewLine,
+        Unmapped.Select(row => $"{row.Label}  ·  {row.Location}{Environment.NewLine}{row.Reason}"));
+
+    public string NotesText => string.Join(Environment.NewLine, Notes);
+
     // ───────── App link ─────────
 
     /// <summary>True when the file names an application a profile rule can target.</summary>
@@ -143,11 +149,6 @@ public sealed partial class LoupedeckImportViewModel : DialogViewModelBase<Dialo
     public IAsyncRelayCommand ImportCommand => field ??= Relay.Create(ImportAsync, () => CanImport);
 
     public bool CanImport => _preview != null && !IsImporting && !string.IsNullOrWhiteSpace(NewName);
-
-    public IAsyncRelayCommand CopyUnmappedCommand => field ??= Relay.Create(CopyUnmappedAsync);
-
-    [ObservableProperty]
-    public partial string CopyStatusText { get; set; }
 
     public IRelayCommand CancelCommand => field ??= Relay.Create(() =>
     {
@@ -204,6 +205,8 @@ public sealed partial class LoupedeckImportViewModel : DialogViewModelBase<Dialo
         IsLoading = false;
         OnPropertyChanged(nameof(HasUnmapped));
         OnPropertyChanged(nameof(HasNotes));
+        OnPropertyChanged(nameof(UnmappedText));
+        OnPropertyChanged(nameof(NotesText));
         ImportCommand.NotifyCanExecuteChanged();
     }
 
@@ -271,15 +274,6 @@ public sealed partial class LoupedeckImportViewModel : DialogViewModelBase<Dialo
         Confirm(new DialogResult(true));
         CloseWindow?.Invoke();
         return Task.CompletedTask;
-    }
-
-    private async Task CopyUnmappedAsync()
-    {
-        // One line per action plus the notes, so the list can be pasted into an issue or a chat as is.
-        IEnumerable<string> lines = Unmapped.Select(row => $"{row.Label} ({row.Location}): {row.Reason}")
-            .Concat(Notes);
-        bool copied = await ClipboardHelper.SetTextAsync(string.Join(Environment.NewLine, lines));
-        CopyStatusText = Loc.Tr(copied ? "LoupedeckImport_CopyListDone" : "LoupedeckImport_CopyListFailed");
     }
 
     private string DisambiguateName(string name)

@@ -128,31 +128,10 @@
 
                 <!-- Actions that stay behind -->
                 <StackPanel Spacing="6" IsVisible="{Binding HasUnmapped}">
-                    <Grid ColumnDefinitions="*,Auto">
-                        <TextBlock Text="{loc:Tr LoupedeckImport_NotImported}" Classes="sectionHeader"
-                                   VerticalAlignment="Center" />
-                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" Margin="0,0,0,6">
-                            <TextBlock Text="{Binding CopyStatusText}" Classes="hint" VerticalAlignment="Center" />
-                            <Button Content="{loc:Tr LoupedeckImport_CopyList}" Command="{Binding CopyUnmappedCommand}"
-                                    FontSize="12" Padding="10,3" />
-                        </StackPanel>
-                    </Grid>
+                    <TextBlock Text="{loc:Tr LoupedeckImport_NotImported}" Classes="sectionHeader" />
                     <TextBlock Text="{loc:Tr LoupedeckImport_NotImportedHint}" Classes="hint" />
                     <Border Classes="card">
-                        <ItemsControl ItemsSource="{Binding Unmapped}">
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate DataType="vm:LoupedeckUnmappedRow">
-                                    <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" Margin="0,3">
-                                        <SelectableTextBlock Grid.Row="0" Grid.Column="0" Text="{Binding Label}" FontSize="13"
-                                                             TextWrapping="Wrap" Foreground="{DynamicResource AppTextPrimary}" />
-                                        <SelectableTextBlock Grid.Row="0" Grid.Column="1" Text="{Binding Location}" Classes="hint"
-                                                             Margin="12,0,0,0" />
-                                        <SelectableTextBlock Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Text="{Binding Reason}"
-                                                             Classes="hint" />
-                                    </Grid>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
+                        <SelectableTextBlock Text="{Binding UnmappedText}" Classes="hint" />
                     </Border>
                 </StackPanel>
 
@@ -160,13 +139,7 @@
                 <StackPanel Spacing="6" IsVisible="{Binding HasNotes}">
                     <TextBlock Text="{loc:Tr LoupedeckImport_Notes}" Classes="sectionHeader" />
                     <Border Classes="card">
-                        <ItemsControl ItemsSource="{Binding Notes}">
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate x:DataType="x:String">
-                                    <SelectableTextBlock Text="{Binding}" Classes="hint" Margin="0,1" />
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
+                        <SelectableTextBlock Text="{Binding NotesText}" Classes="hint" />
                     </Border>
                 </StackPanel>
             </StackPanel>
