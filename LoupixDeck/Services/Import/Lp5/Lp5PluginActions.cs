@@ -78,9 +78,37 @@ internal static class Lp5PluginActions
                     ? $"System.ObsSetScene({CommandParameterEncoding.Encode(scene)})"
                     : null;
 
+            case "$AudioControl___Loupedeck.AudioControlPlugin.AudioControlVolumeAdjustment":
+                // Used both as the dial turn and as its press ("reset"); Audio.AppVolume mutes on a press.
+                string app = parameter("type") == "application" ? AppId(parameter("endpoint")) : null;
+                return app != null ? $"Audio.AppVolume({CommandParameterEncoding.Encode(app)})" : null;
+
             default:
                 return null;
         }
+    }
+
+    /// <summary>
+    /// The Audio plugin's app id for an AudioControl endpoint: <c>foregroundApplication</c>, or
+    /// <c>&lt;device id&gt;|&lt;exe path&gt;%b&lt;guid&gt;</c>, whose executable name, lower-cased and
+    /// without extension, is what the Audio plugin identifies apps by.
+    /// </summary>
+    private static string AppId(string endpoint)
+    {
+        if (string.IsNullOrEmpty(endpoint)) return null;
+        if (endpoint == "foregroundApplication") return "@foreground";
+
+        int bar = endpoint.IndexOf('|');
+        if (bar < 0) return null;
+
+        string path = endpoint[(bar + 1)..];
+        int suffix = path.IndexOf("%b", StringComparison.Ordinal);
+        if (suffix >= 0) path = path[..suffix];
+
+        // Windows paths: take the last segment by hand, Path.GetFileName ignores '\' off Windows.
+        string file = path[(path.LastIndexOf('\\') + 1)..];
+        string name = Path.GetFileNameWithoutExtension(file).ToLowerInvariant();
+        return name.Length > 0 ? name : null;
     }
 
     /// <summary>The adjustment command for a Loupedeck plugin dial turn, or null when none is known.</summary>
