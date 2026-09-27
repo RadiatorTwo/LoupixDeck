@@ -55,6 +55,27 @@ internal static class Lp5PluginActions
         return null;
     }
 
+    /// <summary>
+    /// The LoupixDeck command for a profile action built from a Loupedeck plugin template, or null when the
+    /// template is unknown or uses options LoupixDeck cannot reproduce.
+    /// </summary>
+    public static string ProfileActionCommand(string template, Func<string, string> parameter)
+    {
+        switch (template)
+        {
+            case "$OBSStudioForLogi___SceneSwitchAdjustable":
+                // Switching the OBS profile or scene collection along with the scene is not supported.
+                string scene = parameter("sceneName");
+                return !string.IsNullOrEmpty(scene) && string.IsNullOrEmpty(parameter("profileName"))
+                                                    && string.IsNullOrEmpty(parameter("collectionName"))
+                    ? $"System.ObsSetScene({CommandParameterEncoding.Encode(scene)})"
+                    : null;
+
+            default:
+                return null;
+        }
+    }
+
     /// <summary>The adjustment command for a Loupedeck plugin dial turn, or null when none is known.</summary>
     public static string Adjustment(string rotateRef) => Adjustments.GetValueOrDefault(rotateRef);
 }

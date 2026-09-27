@@ -240,7 +240,7 @@ internal sealed class Lp5ActionResolver
         }
 
         // MouseMoveExt drags the pointer; LoupixDeck has no pointer-move command.
-        return null;
+        return Lp5PluginActions.ProfileActionCommand(template, key => Lp5Json.Str(parameters, key));
     }
 
     /// <summary>
