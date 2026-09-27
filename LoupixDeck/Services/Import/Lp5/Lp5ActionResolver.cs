@@ -98,7 +98,9 @@ internal sealed class Lp5ActionResolver
             string command = Chain(macro, Lp5Json.Strings(macro, "actions"), context, depth);
             return command != null
                 ? new Lp5Resolution(command)
-                : new Lp5Resolution(null, Lp5UnsupportedReason.UnsupportedMacro, actionRef);
+                : new Lp5Resolution(null, HasMissingSteps(macro, Lp5Json.Strings(macro, "actions"))
+                    ? Lp5UnsupportedReason.MissingMacroSteps
+                    : Lp5UnsupportedReason.UnsupportedMacro, actionRef);
         }
 
         if (actionRef.StartsWith(WorkspacePrefix, StringComparison.Ordinal))
@@ -158,7 +160,12 @@ internal sealed class Lp5ActionResolver
                     left = Chain(adjustment, Lp5Json.Strings(adjustment, "actionsLeft"), context, 0);
                     right = Chain(adjustment, Lp5Json.Strings(adjustment, "actionsRight"), context, 0);
                     if (left == null && right == null)
-                        rotateReason = Lp5UnsupportedReason.UnsupportedAdjustment;
+                    {
+                        rotateReason = HasMissingSteps(adjustment,
+                            Lp5Json.Strings(adjustment, "actionsLeft").Concat(Lp5Json.Strings(adjustment, "actionsRight")))
+                            ? Lp5UnsupportedReason.MissingMacroSteps
+                            : Lp5UnsupportedReason.UnsupportedAdjustment;
+                    }
                 }
                 else
                 {
@@ -278,6 +285,20 @@ internal sealed class Lp5ActionResolver
         }
 
         return parts.Count > 0 ? string.Join(" && ", parts) : null;
+    }
+
+    /// <summary>
+    /// True when a step is a bare editor-command name that the macro does not define. Loupedeck
+    /// sometimes saves a copied macro without its editor commands, leaving nothing to convert.
+    /// </summary>
+    private static bool HasMissingSteps(JObject macro, IEnumerable<string> steps)
+    {
+        HashSet<string> defined = Lp5Json.Arr(macro, "actionEditorCommands")
+            .Select(editor => Lp5Json.Str(editor, "name"))
+            .Where(name => name != null)
+            .ToHashSet(StringComparer.Ordinal);
+
+        return steps.Any(step => !string.IsNullOrEmpty(step) && !step.StartsWith('$') && !defined.Contains(step));
     }
 
     /// <summary>

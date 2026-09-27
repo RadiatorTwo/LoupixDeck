@@ -39,7 +39,10 @@ public enum Lp5UnsupportedReason
     UnsupportedAdjustment,
 
     /// <summary>Actions nested deeper than the converter follows.</summary>
-    RecursionLimit
+    RecursionLimit,
+
+    /// <summary>A macro whose steps point at editor commands the profile does not contain.</summary>
+    MissingMacroSteps
 }
 
 /// <summary>One control whose assignment was not (fully) converted.</summary>

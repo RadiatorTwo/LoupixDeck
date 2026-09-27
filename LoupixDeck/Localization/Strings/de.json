@@ -518,6 +518,7 @@
   "LoupedeckImport_ReasonAdjustment": "Für diese Drehung gibt es keine Entsprechung in LoupixDeck: {0}",
   "LoupedeckImport_ReasonMacro": "Die Mehrfachaktion enthält einen Schritt, der nicht importiert werden kann.",
   "LoupedeckImport_ReasonMissing": "Die Aktion ist in der Datei nicht definiert.",
+  "LoupedeckImport_ReasonMissingSteps": "Die Schritte des Makros fehlen in der Datei, daher gibt es nichts zu importieren.",
   "LoupedeckImport_ReasonPageOutsideWorkspace": "Die Zielseite gehört nicht zum Arbeitsbereich.",
   "LoupedeckImport_ReasonProfileAction": "Nicht unterstützt: {0}",
   "LoupedeckImport_ReasonRecursion": "Die Aktion ist zu tief verschachtelt.",

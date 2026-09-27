@@ -518,6 +518,7 @@
   "LoupedeckImport_ReasonAdjustment": "Este giro de dial no tiene equivalente en LoupixDeck: {0}",
   "LoupedeckImport_ReasonMacro": "La acción múltiple contiene un paso que no se puede importar.",
   "LoupedeckImport_ReasonMissing": "La acción no está definida en el archivo.",
+  "LoupedeckImport_ReasonMissingSteps": "Faltan los pasos de la macro en el archivo, así que no hay nada que importar.",
   "LoupedeckImport_ReasonPageOutsideWorkspace": "La página de destino no forma parte del espacio de trabajo.",
   "LoupedeckImport_ReasonProfileAction": "No compatible: {0}",
   "LoupedeckImport_ReasonRecursion": "La acción está anidada demasiado profundamente.",
