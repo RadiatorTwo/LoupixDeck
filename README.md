@@ -227,6 +227,10 @@ Before importing, LoupixDeck shows missing plugins and commands, device compatib
 
 The `.loupixprofile` format is a regular ZIP archive containing only the required configuration, macros and assets.
 
+### Importing from the Loupedeck software
+
+**Import Loupedeck profile…** (header menu and **Settings → Profiles**) converts a `.lp5` profile exported from the Logitech/Loupedeck software: workspaces, touch pages, dial pages (split into left and right columns on the Razer Stream Controller, with the dial icons drawn on the side strips), round buttons, key icons and captions. Keyboard shortcuts, multi-actions, page and workspace switches, application launches, mouse clicks and wheel, media and volume actions are translated. Plugin actions and anything else without a LoupixDeck equivalent are never guessed: the preview lists them, and imported keys show a red "Not imported" placeholder.
+
 ## CLI and automation
 
 Start the LoupixDeck executable again while the application is running to send it a command:
@@ -374,5 +378,7 @@ LoupixDeck is actively developed and suitable for daily use on the fully support
 ## License
 
 LoupixDeck is available under the [MIT License](LICENSE). Third-party components remain subject to their own licenses.
+
+The Loupedeck profile import is a C# port of [loupedeck-to-loupixdeck](https://github.com/Vencite/loupedeck-to-loupixdeck) by Vencite, used under the MIT License (Copyright (c) 2026 Vencite).
 
 The bundled icon fonts come from [Pictogrammers](https://pictogrammers.com/): Material Design Icons under the Pictogrammers Free License, Material Design Light under the SIL Open Font License 1.1. `tools/UpdateMdiFont/update-mdi-font.ps1` checks and updates both fonts.

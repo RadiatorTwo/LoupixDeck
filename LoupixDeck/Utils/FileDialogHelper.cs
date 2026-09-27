@@ -20,7 +20,7 @@ public abstract class FileDialogHelper
             {
                 new("Pictures")
                 {
-                    Patterns = ["*.png", "*.jpg", "*.jpeg", "*.bmp", "*.tif", "*.tiff"]
+                    Patterns = ["*.png", "*.jpg", "*.jpeg", "*.bmp", "*.tif", "*.tiff", "*.svg"]
                 },
                 new("All files")
                 {
@@ -213,6 +213,29 @@ public abstract class FileDialogHelper
         if (files.Count == 0) return string.Empty;
 
         return ResolveLocalPath(files[0]);
+    }
+
+    /// <summary>
+    /// Picks a Loupedeck profile export (<c>.lp5</c>) to import. Returns the absolute path, an empty
+    /// string if cancelled, or null when there's no window.
+    /// </summary>
+    public static async Task<string> OpenLoupedeckProfileDialog(Window owner = null)
+    {
+        owner ??= WindowHelper.GetMainWindow();
+        if (owner == null) return null;
+
+        IReadOnlyList<IStorageFile> files = await owner.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = Localization.Loc.Tr("LoupedeckImport_Title"),
+            AllowMultiple = false,
+            FileTypeFilter =
+            [
+                new FilePickerFileType("Loupedeck profile") { Patterns = ["*.lp5"] },
+                new FilePickerFileType("All files") { Patterns = ["*"] }
+            ]
+        });
+
+        return files.Count == 0 ? string.Empty : ResolveLocalPath(files[0]);
     }
 
     /// <summary>

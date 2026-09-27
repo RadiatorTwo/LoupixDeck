@@ -2,12 +2,16 @@ using System.Collections.Concurrent;
 using System.Security.Cryptography;
 using LoupixDeck.Utils;
 using SkiaSharp;
+using Svg.Skia;
 
 namespace LoupixDeck.Services;
 
 public class AssetService : IAssetService
 {
     private const string AssetsFolderName = "assets";
+
+    /// <summary>Longest edge, in pixels, that SVG assets are rasterized to.</summary>
+    private const float SvgRasterSize = 512f;
 
     private readonly ConcurrentDictionary<string, SKBitmap> _cache = new(StringComparer.OrdinalIgnoreCase);
 
@@ -76,7 +80,9 @@ public class AssetService : IAssetService
 
         try
         {
-            var bitmap = SKBitmap.Decode(absolute);
+            var bitmap = string.Equals(Path.GetExtension(absolute), ".svg", StringComparison.OrdinalIgnoreCase)
+                ? RasterizeSvg(absolute)
+                : SKBitmap.Decode(absolute);
             if (bitmap != null)
                 _cache[relativePath] = bitmap;
             return bitmap;
@@ -86,6 +92,34 @@ public class AssetService : IAssetService
             Console.WriteLine($"AssetService: failed to load '{absolute}': {ex.Message}");
             return null;
         }
+    }
+
+    /// <summary>
+    /// Renders an SVG asset to a bitmap whose longest edge is <see cref="SvgRasterSize"/>, keeping
+    /// the drawing's aspect ratio. The renderers aspect-fit and scale image layers, so one fixed,
+    /// generously sized raster serves every key size; null when the SVG cannot be read.
+    /// </summary>
+    private static SKBitmap RasterizeSvg(string absolute)
+    {
+        using var svg = new SKSvg();
+        var picture = svg.Load(absolute);
+        if (picture == null) return null;
+
+        var bounds = picture.CullRect;
+        if (bounds.Width <= 0 || bounds.Height <= 0) return null;
+
+        var scale = SvgRasterSize / Math.Max(bounds.Width, bounds.Height);
+        var width = Math.Max(1, (int)Math.Round(bounds.Width * scale));
+        var height = Math.Max(1, (int)Math.Round(bounds.Height * scale));
+
+        var bitmap = new SKBitmap(new SKImageInfo(width, height, SKColorType.Bgra8888, SKAlphaType.Premul));
+        using var canvas = new SKCanvas(bitmap);
+        canvas.Clear(SKColors.Transparent);
+        canvas.Scale(scale);
+        canvas.Translate(-bounds.Left, -bounds.Top);
+        canvas.DrawPicture(picture);
+        canvas.Flush();
+        return bitmap;
     }
 
     public void Cleanup(IEnumerable<string> referencedRelativePaths)
