@@ -144,6 +144,11 @@ public sealed partial class LoupedeckImportViewModel : DialogViewModelBase<Dialo
 
     public bool CanImport => _preview != null && !IsImporting && !string.IsNullOrWhiteSpace(NewName);
 
+    public IAsyncRelayCommand CopyUnmappedCommand => field ??= Relay.Create(CopyUnmappedAsync);
+
+    [ObservableProperty]
+    public partial string CopyStatusText { get; set; }
+
     public IRelayCommand CancelCommand => field ??= Relay.Create(() =>
     {
         Cancel();
@@ -266,6 +271,15 @@ public sealed partial class LoupedeckImportViewModel : DialogViewModelBase<Dialo
         Confirm(new DialogResult(true));
         CloseWindow?.Invoke();
         return Task.CompletedTask;
+    }
+
+    private async Task CopyUnmappedAsync()
+    {
+        // One line per action plus the notes, so the list can be pasted into an issue or a chat as is.
+        IEnumerable<string> lines = Unmapped.Select(row => $"{row.Label} ({row.Location}): {row.Reason}")
+            .Concat(Notes);
+        bool copied = await ClipboardHelper.SetTextAsync(string.Join(Environment.NewLine, lines));
+        CopyStatusText = Loc.Tr(copied ? "LoupedeckImport_CopyListDone" : "LoupedeckImport_CopyListFailed");
     }
 
     private string DisambiguateName(string name)
