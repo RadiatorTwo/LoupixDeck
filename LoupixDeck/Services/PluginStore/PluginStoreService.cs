@@ -68,6 +68,13 @@ public interface IPluginStoreService : INotifyPropertyChanged
     /// disk; loads the catalog once when there is no cached copy yet. Never throws.
     /// </summary>
     Task<IReadOnlyList<PluginCommandOwner>> FindMissingPluginsAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Plugins that own one of <paramref name="commandNames"/> but are not installed, e.g. for a profile that is
+    /// about to be imported. Loads the catalog once when there is no cached copy yet. Never throws.
+    /// </summary>
+    Task<IReadOnlyList<PluginCommandOwner>> FindMissingPluginsAsync(IEnumerable<string> commandNames,
+        CancellationToken cancellationToken = default);
 }
 
 /// <summary>A plugin that owns a command name.</summary>
@@ -121,6 +128,23 @@ public sealed partial class PluginStoreService : ObservableObject, IPluginStoreS
     public async Task<IReadOnlyList<PluginCommandOwner>> FindMissingPluginsAsync(
         CancellationToken cancellationToken = default)
     {
+        HashSet<string> names;
+        try
+        {
+            names = await Task.Run(CollectConfiguredCommandNames, cancellationToken);
+        }
+        catch (Exception ex) when (IsExpectedFailure(ex))
+        {
+            Console.WriteLine($"[PluginStore] Could not check the configs for missing plugins: {ex.Message}");
+            return [];
+        }
+
+        return await FindMissingPluginsAsync(names, cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<PluginCommandOwner>> FindMissingPluginsAsync(IEnumerable<string> commandNames,
+        CancellationToken cancellationToken = default)
+    {
         try
         {
             if (CachedCatalog is null)
@@ -136,12 +160,11 @@ public sealed partial class PluginStoreService : ObservableObject, IPluginStoreS
 
         try
         {
-            HashSet<string> names = await Task.Run(CollectConfiguredCommandNames, cancellationToken);
             HashSet<string> installed = new(
                 _pluginManager.Plugins.Select(p => p.Manifest?.Id).Where(id => id is not null),
                 StringComparer.OrdinalIgnoreCase);
 
-            return names
+            return commandNames
                 .Select(FindCommandOwner)
                 .Where(owner => owner is not null && !installed.Contains(owner.PluginId))
                 .DistinctBy(owner => owner.PluginId, StringComparer.OrdinalIgnoreCase)
@@ -149,7 +172,7 @@ public sealed partial class PluginStoreService : ObservableObject, IPluginStoreS
         }
         catch (Exception ex) when (IsExpectedFailure(ex))
         {
-            Console.WriteLine($"[PluginStore] Could not check the configs for missing plugins: {ex.Message}");
+            Console.WriteLine($"[PluginStore] Could not check for missing plugins: {ex.Message}");
             return [];
         }
     }
