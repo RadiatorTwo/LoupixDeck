@@ -131,6 +131,8 @@ internal sealed class Lp5ActionResolver
         return actionRef switch
         {
             "$DefaultWin___MediaPlayPause" => new Lp5Resolution("System.KeyCombination(PlayPause)"),
+            // Loupedeck's "Windows actions" opens Quick Settings, which is Win+A.
+            "$DefaultWin___WindowsActions" => new Lp5Resolution("System.KeyCombination(Win+A)"),
             "$@Generic___@MouseClick" => new Lp5Resolution("System.MouseClick(Left)"),
             _ => new Lp5Resolution(null, Lp5UnsupportedReason.UnknownAction, actionRef)
         };
