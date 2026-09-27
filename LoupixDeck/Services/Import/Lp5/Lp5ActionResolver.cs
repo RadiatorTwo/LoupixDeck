@@ -46,6 +46,7 @@ internal sealed class Lp5ActionResolver
     private const string ExecutePrefix = "$@Generic___@ExecuteApplication___";
     private const string KeyboardTemplate = "$@Generic___@KeyboardKey";
     private const string MouseClickTemplate = "$@Generic___@MouseClickExt";
+    private const string KeyboardCharTemplate = "$@Generic___@KeyboardChar";
     private const string MouseWheelTemplate = "$@Generic___@MouseWheelExt";
     private const string MouseWheel = "$@Generic___@MouseWheel";
     private const string ShortcutPrefix = "$@Generic___@KeyboardShortcut___";
@@ -303,6 +304,16 @@ internal sealed class Lp5ActionResolver
 
             string keys = Lp5KeyCombo.Normalize(Lp5Json.Str(parameters, "keyboardKey"));
             return keys != null ? $"System.MouseCombo({keys},{button})" : click;
+        }
+
+        // One typed character, stored as its hex code point ("0031" for "1").
+        if (template == KeyboardCharTemplate)
+        {
+            return int.TryParse(Lp5Json.Str(parameters, "keyboardKey"), System.Globalization.NumberStyles.HexNumber,
+                       System.Globalization.CultureInfo.InvariantCulture, out int codePoint)
+                   && codePoint is > 0 and <= 0x10FFFF and not (>= 0xD800 and <= 0xDFFF)
+                ? TypeText(char.ConvertFromUtf32(codePoint), template).Command
+                : null;
         }
 
         // MouseMoveExt drags the pointer; LoupixDeck has no pointer-move command.
