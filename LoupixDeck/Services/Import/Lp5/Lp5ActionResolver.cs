@@ -134,12 +134,9 @@ internal sealed class Lp5ActionResolver
             // Loupedeck's "Windows actions" opens Quick Settings, which is Win+A.
             "$DefaultWin___WindowsActions" => new Lp5Resolution("System.KeyCombination(Win+A)"),
             "$@Generic___@MouseClick" => new Lp5Resolution("System.MouseClick(Left)"),
-            // Loupedeck plugin dynamic folders whose counterpart is a folder of the LoupixDeck Audio plugin.
-            "$AudioSwitcher___#DynamicFolder___DynamicFolder#Loupedeck.Steinerd.AudioSwitcherPlugin.Actions.AudioDevicesFolder"
-                => new Lp5Resolution("Audio.OutputDevices"),
-            "$AudioControl___#DynamicFolder___DynamicFolder#Loupedeck.AudioControlPlugin.AudioRenderSessionsFolder"
-                => new Lp5Resolution("Audio.Mixer"),
-            _ => new Lp5Resolution(null, Lp5UnsupportedReason.UnknownAction, actionRef)
+            _ => Lp5PluginActions.Command(actionRef) is { } pluginCommand
+                ? new Lp5Resolution(pluginCommand)
+                : new Lp5Resolution(null, Lp5UnsupportedReason.UnknownAction, actionRef)
         };
     }
 
@@ -172,6 +169,11 @@ internal sealed class Lp5ActionResolver
             {
                 left = "System.KeyCombination(VolumeDown)";
                 right = "System.KeyCombination(VolumeUp)";
+            }
+            else if (Lp5PluginActions.Adjustment(rotateRef) is { } adjustment)
+            {
+                left = adjustment;
+                right = adjustment;
             }
             else if (rotateRef == "$@Generic___@MouseWheel")
             {
