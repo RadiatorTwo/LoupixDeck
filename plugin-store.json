@@ -9,20 +9,20 @@
       "repository": "RadiatorTwo/LoupixDeck.Plugin.Argus",
       "icon": "",
       "platforms": [ "Windows" ],
-      "minSdkVersion": "1.14.0",
+      "minSdkVersion": "1.26.0",
       "commandPrefixes": [ "Argus." ],
       "release": {
-        "version": "1.0.0",
-        "tag": "v1.0.0",
-        "publishedAt": "2026-09-14T12:37:47Z",
-        "sdkVersion": "1.14",
-        "releaseNotesUrl": "https://github.com/RadiatorTwo/LoupixDeck.Plugin.Argus/releases/tag/v1.0.0",
+        "version": "1.1.0",
+        "tag": "v1.1.0",
+        "publishedAt": "2026-09-24T21:18:41Z",
+        "sdkVersion": "1.26",
+        "releaseNotesUrl": "https://github.com/RadiatorTwo/LoupixDeck.Plugin.Argus/releases/tag/v1.1.0",
         "packages": [
           {
             "platform": "windows",
-            "fileName": "argus-1.0.0-windows.zip",
-            "downloadUrl": "https://github.com/RadiatorTwo/LoupixDeck.Plugin.Argus/releases/download/v1.0.0/argus-1.0.0-windows.zip",
-            "sha256": "c3fccf9e0b043b255fbcba6c625a2a9a9351193d537c05ff04cca74f97950f5f"
+            "fileName": "argus-1.1.0-windows.zip",
+            "downloadUrl": "https://github.com/RadiatorTwo/LoupixDeck.Plugin.Argus/releases/download/v1.1.0/argus-1.1.0-windows.zip",
+            "sha256": "83aeb006512a6e464116c526d43d96ac0cb166f081e650b76a4f7959eb41db08"
           }
         ]
       }
@@ -56,25 +56,25 @@
     {
       "id": "coolercontrol",
       "name": "CoolerControl",
-      "description": "Switch CoolerControl modes from the deck.",
+      "description": "Activate CoolerControl modes and show the daemon's sensor readings on touch buttons.",
       "author": "RadiatorTwo",
       "repository": "RadiatorTwo/LoupixDeck.Plugin.CoolerControl",
       "icon": "",
       "platforms": [ "Windows", "Linux" ],
-      "minSdkVersion": "1.1.0",
-      "commandPrefixes": [ "System.CoolerControl" ],
+      "minSdkVersion": "1.26.0",
+      "commandPrefixes": [ "System.CoolerControl", "CoolerControl." ],
       "release": {
-        "version": "1.0.0",
-        "tag": "v1.0.0",
-        "publishedAt": "2026-09-14T12:38:32Z",
-        "sdkVersion": "1.1",
-        "releaseNotesUrl": "https://github.com/RadiatorTwo/LoupixDeck.Plugin.CoolerControl/releases/tag/v1.0.0",
+        "version": "1.1.0",
+        "tag": "v1.1.0",
+        "publishedAt": "2026-09-27T14:31:55Z",
+        "sdkVersion": "1.26",
+        "releaseNotesUrl": "https://github.com/RadiatorTwo/LoupixDeck.Plugin.CoolerControl/releases/tag/v1.1.0",
         "packages": [
           {
             "platform": "any",
-            "fileName": "coolercontrol-1.0.0-any.zip",
-            "downloadUrl": "https://github.com/RadiatorTwo/LoupixDeck.Plugin.CoolerControl/releases/download/v1.0.0/coolercontrol-1.0.0-any.zip",
-            "sha256": "650fd9cbd910683338d70947aab1a67f5647bc10af761dbe178812898e910996"
+            "fileName": "coolercontrol-1.1.0-any.zip",
+            "downloadUrl": "https://github.com/RadiatorTwo/LoupixDeck.Plugin.CoolerControl/releases/download/v1.1.0/coolercontrol-1.1.0-any.zip",
+            "sha256": "36976546acf798615868ffb2609c77201d70141c34c96efb0a88f906fdbbf78d"
           }
         ]
       }
@@ -134,25 +134,25 @@
     {
       "id": "hwinfo",
       "name": "HWiNFO",
-      "description": "Display HWiNFO sensor readings on touch buttons.",
+      "description": "Display HWiNFO sensor readings on touch buttons; chain several to compose a multi-sensor tile.",
       "author": "RadiatorTwo",
       "repository": "RadiatorTwo/LoupixDeck.Plugin.HwInfo",
       "icon": "",
       "platforms": [ "Windows" ],
-      "minSdkVersion": "1.15.0",
+      "minSdkVersion": "1.26.0",
       "commandPrefixes": [ "HwInfo." ],
       "release": {
-        "version": "1.0.0",
-        "tag": "v1.0.0",
-        "publishedAt": "2026-09-14T12:39:51Z",
-        "sdkVersion": "1.15",
-        "releaseNotesUrl": "https://github.com/RadiatorTwo/LoupixDeck.Plugin.HwInfo/releases/tag/v1.0.0",
+        "version": "1.1.0",
+        "tag": "v1.1.0",
+        "publishedAt": "2026-09-24T22:56:23Z",
+        "sdkVersion": "1.26",
+        "releaseNotesUrl": "https://github.com/RadiatorTwo/LoupixDeck.Plugin.HwInfo/releases/tag/v1.1.0",
         "packages": [
           {
             "platform": "windows",
-            "fileName": "hwinfo-1.0.0-windows.zip",
-            "downloadUrl": "https://github.com/RadiatorTwo/LoupixDeck.Plugin.HwInfo/releases/download/v1.0.0/hwinfo-1.0.0-windows.zip",
-            "sha256": "39c01773d7fdd51b33e00df2771a0038a5e7194287e7816f771cf1841185bb98"
+            "fileName": "hwinfo-1.1.0-windows.zip",
+            "downloadUrl": "https://github.com/RadiatorTwo/LoupixDeck.Plugin.HwInfo/releases/download/v1.1.0/hwinfo-1.1.0-windows.zip",
+            "sha256": "aafc758d5e88361c4d2bc31a148e57634635ac496d80154d06dce797cced84fe"
           }
         ]
       }
@@ -186,25 +186,25 @@
     {
       "id": "librehardwaremonitor",
       "name": "LibreHardwareMonitor",
-      "description": "Display LibreHardwareMonitor sensor readings on touch buttons and Razer side displays via its WMI data provider.",
+      "description": "Display LibreHardwareMonitor sensor readings on touch buttons via its built-in web server.",
       "author": "RadiatorTwo",
       "repository": "RadiatorTwo/LoupixDeck.Plugin.LibreHardwareMonitor",
       "icon": "",
       "platforms": [ "Windows" ],
-      "minSdkVersion": "1.15.0",
+      "minSdkVersion": "1.26.0",
       "commandPrefixes": [ "LibreHardwareMonitor." ],
       "release": {
-        "version": "1.0.0",
-        "tag": "v1.0.0",
-        "publishedAt": "2026-09-14T12:40:11Z",
-        "sdkVersion": "1.15",
-        "releaseNotesUrl": "https://github.com/RadiatorTwo/LoupixDeck.Plugin.LibreHardwareMonitor/releases/tag/v1.0.0",
+        "version": "1.1.0",
+        "tag": "v1.1.0",
+        "publishedAt": "2026-09-24T22:10:53Z",
+        "sdkVersion": "1.26",
+        "releaseNotesUrl": "https://github.com/RadiatorTwo/LoupixDeck.Plugin.LibreHardwareMonitor/releases/tag/v1.1.0",
         "packages": [
           {
             "platform": "windows",
-            "fileName": "librehardwaremonitor-1.0.0-windows.zip",
-            "downloadUrl": "https://github.com/RadiatorTwo/LoupixDeck.Plugin.LibreHardwareMonitor/releases/download/v1.0.0/librehardwaremonitor-1.0.0-windows.zip",
-            "sha256": "406e39e280d02bc1311ec4945cad6cb58e1b6381e428abc8041578bae34abfc2"
+            "fileName": "librehardwaremonitor-1.1.0-windows.zip",
+            "downloadUrl": "https://github.com/RadiatorTwo/LoupixDeck.Plugin.LibreHardwareMonitor/releases/download/v1.1.0/librehardwaremonitor-1.1.0-windows.zip",
+            "sha256": "baa2b56340d1a779d864fdd298fd924916ca1496b751b8bcc38ff7b5e950a0cb"
           }
         ]
       }
@@ -217,20 +217,20 @@
       "repository": "RadiatorTwo/LoupixDeck.Plugin.LinuxHWInfo",
       "icon": "",
       "platforms": [ "Linux" ],
-      "minSdkVersion": "1.21.0",
+      "minSdkVersion": "1.26.0",
       "commandPrefixes": [ "LinuxHwInfo." ],
       "release": {
-        "version": "1.0.0",
-        "tag": "v1.0.0",
-        "publishedAt": "2026-09-14T12:40:29Z",
-        "sdkVersion": "1.21",
-        "releaseNotesUrl": "https://github.com/RadiatorTwo/LoupixDeck.Plugin.LinuxHWInfo/releases/tag/v1.0.0",
+        "version": "1.1.0",
+        "tag": "v1.1.0",
+        "publishedAt": "2026-09-25T19:52:33Z",
+        "sdkVersion": "1.26",
+        "releaseNotesUrl": "https://github.com/RadiatorTwo/LoupixDeck.Plugin.LinuxHWInfo/releases/tag/v1.1.0",
         "packages": [
           {
             "platform": "linux",
-            "fileName": "linuxhwinfo-1.0.0-linux.zip",
-            "downloadUrl": "https://github.com/RadiatorTwo/LoupixDeck.Plugin.LinuxHWInfo/releases/download/v1.0.0/linuxhwinfo-1.0.0-linux.zip",
-            "sha256": "211d4d21177e3cfaaca6e543eefeda3753190f2ee1b9dafdbdc1549e03dd1d1c"
+            "fileName": "linuxhwinfo-1.1.0-linux.zip",
+            "downloadUrl": "https://github.com/RadiatorTwo/LoupixDeck.Plugin.LinuxHWInfo/releases/download/v1.1.0/linuxhwinfo-1.1.0-linux.zip",
+            "sha256": "e791da24b3135a1a427631b5c278a7efb120b8356ebcac616b48e21dfb12b3e7"
           }
         ]
       }
