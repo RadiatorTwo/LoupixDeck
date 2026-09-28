@@ -11,7 +11,7 @@ Create custom touch pages, rotary controls, folders, macros and application-awar
 
 Built with [Avalonia](https://avaloniaui.net/) and [.NET 10](https://dotnet.microsoft.com/).
 
-![LoupixDeck main window with a Loupedeck device](docs/screenshots/main-window-loupedeck.png)
+![LoupixDeck main window with a Razer Stream Controller](docs/screenshots/main.png)
 
 [**Download latest release**](https://github.com/RadiatorTwo/LoupixDeck/releases/latest) · [**Read the user manual**](docs/USER_MANUAL.md) · [**Report a bug**](https://github.com/RadiatorTwo/LoupixDeck/issues/new) · [**Plugin SDK**](https://github.com/RadiatorTwo/LoupixDeck.PluginSdk)
 
@@ -193,17 +193,17 @@ Built-in commands and plugins cover:
 
 ## Screenshots
 
-| Layer editor | Command picker |
-| --- | --- |
-| ![Layer-based touch button editor](docs/screenshots/layer-editor.png) | ![Searchable command picker](docs/screenshots/command-picker.png) |
+![Animated keys over a looping video wallpaper on a Razer Stream Controller](docs/screenshots/animation.webp)
 
-| Page management | Macro editor |
-| --- | --- |
-| ![Profile, workspace and page management](docs/screenshots/pages-management.png) | ![Visual macro editor](docs/screenshots/macro-editor.png) |
+Keys can play animated GIF and WebP images or short video clips, and a page can use a looping video as its wallpaper (video needs ffmpeg). Every animation runs at the same time, and the page wallpaper continues across the side strips of the Razer Stream Controller.
 
-| Settings | Symbol picker |
+| Touch button editor | Action panel |
 | --- | --- |
-| ![Settings sidebar](docs/screenshots/settings-sidebar.png) | ![Material Design Icons symbol picker](docs/screenshots/symbol-picker.png) |
+| ![Layer-based touch button editor with states, gradients and shadows](docs/screenshots/touch_editor.png) | ![Action panel with apps, commands and dial presets](docs/screenshots/command.png) |
+
+| Macro editor | Plugin Store |
+| --- | --- |
+| ![Visual macro editor with conditions, loops and variables](docs/screenshots/macro.png) | ![Plugin Store with installable plugins](docs/screenshots/plugin_store.png) |
 
 ## Plugins
 
