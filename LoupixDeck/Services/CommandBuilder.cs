@@ -27,21 +27,29 @@ public class CommandBuilder : ICommandBuilder
         if (command == null) return string.Empty;
 
         var parameters = new Dictionary<string, object>();
+        Dictionary<string, string> named = MatchMenuParameters(command, menuEntry);
 
         for (int i = 0; i < command.Parameters.Count; i++)
         {
             var parameter = command.Parameters[i];
 
-            // A command-defined default always wins — it pre-fills the settings flyout with
-            // the value the command declares (e.g. a rotary adjustment's step). Only when the
-            // parameter declares no default do we fall back to the legacy behaviour: the first
-            // parameter is treated as the menu-derived Target, the rest get a type default.
-            if (!string.IsNullOrEmpty(parameter.DefaultValue))
+            // A menu value addressed to this parameter by name wins. Otherwise a command-defined
+            // default pre-fills the settings flyout with the value the command declares (e.g. a
+            // rotary adjustment's step). Only when neither exists do we fall back to the legacy
+            // behaviour: the first parameter is treated as the menu-derived Target, the rest get
+            // a type default.
+            if (named.TryGetValue(parameter.Name, out string namedValue))
+            {
+                parameters.Add(parameter.Name, namedValue);
+            }
+            else if (!string.IsNullOrEmpty(parameter.DefaultValue))
             {
                 parameters.Add(parameter.Name, parameter.DefaultValue);
             }
-            else if (i == 0)
+            else if (i == 0 && named.Count == 0)
             {
+                // Legacy style, only when no menu key matched a parameter name — once one did,
+                // matching is purely by name so a by-name value never leaks into Target.
                 // First parameter is always Target.
                 if (!string.IsNullOrEmpty(menuEntry.ParentName))
                 {
@@ -49,10 +57,11 @@ public class CommandBuilder : ICommandBuilder
                 }
                 else
                 {
+                    // A single value under an arbitrary key. It is stored under the parameter's
+                    // own name; stored under its key it would never reach the template.
                     if (menuEntry.Parameters != null && menuEntry.Parameters.Count != 0)
                     {
-                        var menuParameter = menuEntry.Parameters.First();
-                        parameters.Add(menuParameter.Key, menuParameter.Value);
+                        parameters.Add(parameter.Name, menuEntry.Parameters.First().Value);
                     }
                     else
                     {
@@ -67,6 +76,41 @@ public class CommandBuilder : ICommandBuilder
         }
 
         return BuildCommandString(command, parameters);
+    }
+
+    /// <summary>
+    /// Maps the menu entry's parameter values onto the command's parameter names,
+    /// case-insensitively. The result is keyed by the declared parameter name; keys that
+    /// match no parameter are dropped and logged, unless none matched at all — that is the
+    /// legacy single-value style, whose key is arbitrary by design.
+    /// </summary>
+    private static Dictionary<string, string> MatchMenuParameters(CommandInfo command, MenuEntry menuEntry)
+    {
+        Dictionary<string, string> named = new(StringComparer.OrdinalIgnoreCase);
+        if (menuEntry.Parameters == null || menuEntry.Parameters.Count == 0)
+            return named;
+
+        Dictionary<string, string> declared = new(StringComparer.OrdinalIgnoreCase);
+        foreach (var parameter in command.Parameters)
+            declared.TryAdd(parameter.Name, parameter.Name);
+
+        List<string> unmatched = [];
+        foreach ((string key, string value) in menuEntry.Parameters)
+        {
+            if (key != null && declared.TryGetValue(key, out string name))
+                named[name] = value;
+            else
+                unmatched.Add(key);
+        }
+
+        if (named.Count > 0 && unmatched.Count > 0)
+        {
+            Console.WriteLine(
+                $"CommandBuilder: menu entry '{menuEntry.Name}' passes unknown parameter(s) " +
+                $"{string.Join(", ", unmatched)} to '{command.CommandName}'; ignored.");
+        }
+
+        return named;
     }
 
     public string BuildCommandString(CommandInfo commandInfo, Dictionary<string, object> parameterValues)
