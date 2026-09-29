@@ -308,16 +308,17 @@ public static class SymbolLibrary
     /// <summary>
     /// Looks up a symbol by the glyph string itself, for callers that only have the rendered
     /// character — commands declare their picker icon that way (<c>CommandAttribute.Icon</c>), and
-    /// putting one on a button needs the id a <c>SymbolLayer</c> stores. A glyph outside the curated
-    /// subset simply has no id, which callers treat as "no symbol" rather than as an error.
+    /// putting one on a button needs the id a <c>SymbolLayer</c> stores. The curated list is searched
+    /// first, then the full MDI catalog, which loads on the first miss only. A glyph in neither simply
+    /// has no id, which callers treat as "no symbol" rather than as an error.
     /// </summary>
     public static bool TryGetByGlyph(string glyph, out SymbolDefinition definition)
     {
-        if (!string.IsNullOrEmpty(glyph))
-            return ByGlyph.TryGetValue(glyph, out definition);
-
         definition = null;
-        return false;
+        if (string.IsNullOrEmpty(glyph))
+            return false;
+
+        return ByGlyph.TryGetValue(glyph, out definition) || MdiCatalog.Value.TryGetByGlyph(glyph, out definition);
     }
 
     public static string GlyphString(int codepoint) => char.ConvertFromUtf32(codepoint);
@@ -369,6 +370,7 @@ public static class SymbolLibrary
     private sealed class SymbolCatalog
     {
         private readonly FrozenDictionary<string, SymbolDefinition> _byName;
+        private readonly FrozenDictionary<string, SymbolDefinition> _byGlyph;
 
         private SymbolCatalog(string version, ImmutableArray<SymbolDefinition> icons,
             FrozenDictionary<string, SymbolDefinition> byName)
@@ -376,6 +378,8 @@ public static class SymbolLibrary
             Version = version;
             Icons = icons;
             _byName = byName;
+            _byGlyph = icons.GroupBy(static s => s.Glyph, StringComparer.Ordinal)
+                .ToFrozenDictionary(static g => g.Key, static g => g.First(), StringComparer.Ordinal);
             Categories = icons
                 .SelectMany(static s => s.Tags.IsEmpty ? [OtherCategoryKey] : s.Tags.AsEnumerable())
                 .Distinct()
@@ -391,6 +395,9 @@ public static class SymbolLibrary
 
         public bool TryGetByName(string name, out SymbolDefinition definition) =>
             _byName.TryGetValue(name, out definition);
+
+        public bool TryGetByGlyph(string glyph, out SymbolDefinition definition) =>
+            _byGlyph.TryGetValue(glyph, out definition);
 
         public static SymbolCatalog Load(SymbolFontLibrary library, string fileName, string idPrefix)
         {
