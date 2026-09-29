@@ -8,6 +8,7 @@ using LoupixDeck.PluginSdk;
 using LoupixDeck.Registry;
 using LoupixDeck.Services;
 using LoupixDeck.Services.Commands;
+using LoupixDeck.Services.IconPacks;
 using LoupixDeck.Services.Plugins;
 using LoupixDeck.Utils;
 using LoupixDeck.ViewModels.Base;
@@ -1077,17 +1078,59 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         var result = await _dialogService.ShowDialogAsync<SymbolPickerViewModel, DialogResult>(
             vm => vm.Initialize(request));
 
-        if (result is not { IsConfirmed: true } || request.SelectedSymbol == null) return;
+        if (result is not { IsConfirmed: true }) return;
 
-        var def = request.SelectedSymbol;
-        SymbolLayer layer = new()
+        SymbolLayer layer;
+        if (request.SelectedPackIcon is { } icon)
         {
-            Name = GetUniqueLayerName(def.DisplayName),
-            SymbolId = def.Id
-        };
-        layer.FitScaleToGlyph(0.7);
+            layer = new SymbolLayer { Name = GetUniqueLayerName(icon.DisplayName) };
+            if (!ApplyPackIcon(layer, icon, 0.7)) return;
+        }
+        else if (request.SelectedSymbol is { } def)
+        {
+            layer = new SymbolLayer
+            {
+                Name = GetUniqueLayerName(def.DisplayName),
+                SymbolId = def.Id
+            };
+            layer.FitScaleToGlyph(0.7);
+        }
+        else
+            return;
+
         AddLayer(layer);
         SelectedLayer = layer;
+    }
+
+    /// <summary>
+    /// Puts an icon-pack icon on a symbol layer: the file is copied into the asset store, so the
+    /// button keeps working when the pack folder goes away. Colored icons keep their colors, single-
+    /// color ones take the tint like a glyph. Returns false when the file could not be copied.
+    /// </summary>
+    private bool ApplyPackIcon(SymbolLayer layer, IconPackEntry icon, double size)
+    {
+        string relative;
+        try
+        {
+            relative = _assetService.Import(icon.FullPath, "icons");
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Console.WriteLine($"[IconPacks] Importing '{icon.FullPath}' failed: {ex.Message}");
+            return false;
+        }
+
+        if (string.IsNullOrEmpty(relative)) return false;
+
+        SKBitmap bitmap = _assetService.Load(relative);
+        SKRectI bounds = bitmap != null ? IconColorAnalysis.GetContentBounds(bitmap) : SKRectI.Empty;
+
+        layer.SymbolId = string.Empty;
+        layer.IconSource = icon.Key;
+        layer.IconAssetPath = relative;
+        layer.KeepOriginalColors = bitmap != null && !IconColorAnalysis.IsMonochrome(bitmap);
+        layer.FitScaleToAspect(size, bounds.Height > 0 ? (double)bounds.Width / bounds.Height : 1.0);
+        return true;
     }
 
     /// <summary>
@@ -1098,15 +1141,32 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     {
         if (_selectedLayer is not SymbolLayer symbol) return;
 
-        var request = new SymbolPickerRequest { CurrentSymbolId = symbol.SymbolId };
+        var request = new SymbolPickerRequest
+        {
+            CurrentSymbolId = symbol.IsImageIcon ? null : symbol.SymbolId,
+            CurrentPackIconKey = symbol.IsImageIcon ? symbol.IconSource : null
+        };
         var result = await _dialogService.ShowDialogAsync<SymbolPickerViewModel, DialogResult>(
             vm => vm.Initialize(request));
 
-        if (result is not { IsConfirmed: true } || request.SelectedSymbol == null) return;
+        if (result is not { IsConfirmed: true }) return;
 
-        var def = request.SelectedSymbol;
-        // Keep the box's larger side and re-fit it to the new glyph's aspect ratio.
+        // Keep the box's larger side and re-fit it to the new icon's aspect ratio.
         double size = Math.Max(symbol.EffectiveScaleX, symbol.EffectiveScaleY);
+
+        if (request.SelectedPackIcon is { } icon)
+        {
+            if (ApplyPackIcon(symbol, icon, size))
+                symbol.Name = icon.DisplayName;
+            return;
+        }
+
+        if (request.SelectedSymbol is not { } def) return;
+
+        // A glyph replaces a pack icon entirely.
+        symbol.IconAssetPath = null;
+        symbol.IconSource = null;
+        symbol.KeepOriginalColors = false;
         symbol.SymbolId = def.Id;
         symbol.Name = def.DisplayName;
         symbol.FitScaleToGlyph(size);

@@ -2,6 +2,7 @@ using Avalonia.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 using LoupixDeck.Utils;
 using Newtonsoft.Json;
+using SkiaSharp;
 
 namespace LoupixDeck.Models.Layers;
 
@@ -53,6 +54,63 @@ public partial class SymbolLayer : LayerBase
     /// <summary>True when the tint and gradient apply; false for a pack icon kept in its own colors.</summary>
     [JsonIgnore]
     public bool IsTintable => !IsImageIcon || !KeepOriginalColors;
+
+    /// <summary>Longest edge of <see cref="IconPreview"/> in pixels.</summary>
+    private const int IconPreviewSize = 96;
+
+    private SKBitmap _iconPreview;
+
+    /// <summary>
+    /// Small preview of a pack icon for the editor's properties panel, drawn in the tint (or its own
+    /// colors) so it looks like the key. Null for a glyph or a missing asset.
+    /// </summary>
+    [JsonIgnore]
+    public SKBitmap IconPreview => _iconPreview ??= BuildIconPreview();
+
+    partial void OnIconAssetPathChanged(string value) => InvalidateIconPreview();
+
+    partial void OnKeepOriginalColorsChanged(bool value) => InvalidateIconPreview();
+
+    partial void OnTintChanged(Color value)
+    {
+        if (IsImageIcon)
+            InvalidateIconPreview();
+    }
+
+    private void InvalidateIconPreview()
+    {
+        SKBitmap old = _iconPreview;
+        _iconPreview = null;
+        OnPropertyChanged(nameof(IconPreview));
+        // The panel's converter copies the pixels, so the old bitmap is no longer used.
+        old?.Dispose();
+    }
+
+    private SKBitmap BuildIconPreview()
+    {
+        if (!IsImageIcon || BitmapHelper.AssetResolver?.Invoke(IconAssetPath) is not { } source)
+            return null;
+
+        SKRectI src = IconColorAnalysis.GetContentBounds(source);
+        if (src.Width <= 0 || src.Height <= 0)
+            return null;
+
+        float fit = (float)IconPreviewSize / Math.Max(src.Width, src.Height);
+        SKBitmap preview = new(new SKImageInfo(
+            Math.Max(1, (int)Math.Round(src.Width * fit)),
+            Math.Max(1, (int)Math.Round(src.Height * fit)),
+            SKColorType.Bgra8888, SKAlphaType.Premul));
+
+        using SKCanvas canvas = new(preview);
+        using SKColorFilter tint = IsTintable
+            ? SKColorFilter.CreateBlendMode(new SKColor(Tint.R, Tint.G, Tint.B, Tint.A), SKBlendMode.SrcIn)
+            : null;
+        using SKPaint paint = new() { ColorFilter = tint };
+        canvas.Clear(SKColors.Transparent);
+        canvas.DrawBitmap(source, src, new SKRect(0, 0, preview.Width, preview.Height),
+            new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear), paint);
+        return preview;
+    }
 
     /// <summary>Solid fill color — used when <see cref="UseGradient"/> is false.</summary>
     [ObservableProperty]

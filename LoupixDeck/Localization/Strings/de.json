@@ -1243,5 +1243,7 @@
   "SymbolPicker_PackEmpty": "In diesem Ordner und seinen Unterordnern wurden keine PNG- oder SVG-Icons gefunden.",
   "SymbolPicker_PackFontsUnsupported": "Dieser Ordner enthält Icon-Fonts statt einzelner Icon-Dateien. Icon-Fonts werden noch nicht unterstützt; nutze stattdessen die einzelnen SVG- oder PNG-Dateien des Packs.",
   "SymbolPicker_PackTruncatedFmt": "{0} Symbole (nur die ersten {1} Icons dieses Ordners werden geladen)",
-  "SymbolPicker_PackRootCategory": "(Hauptordner)"
+  "SymbolPicker_PackRootCategory": "(Hauptordner)",
+  "TouchButton_KeepOriginalColors": "Originalfarben behalten",
+  "TouchButton_KeepOriginalColorsTip": "Das Icon in seinen eigenen Farben statt mit Farbton oder Verlauf zeichnen. Wird bei farbigen Icons automatisch gesetzt."
 }

@@ -888,11 +888,19 @@
                                                         BorderThickness="1" BorderBrush="{DynamicResource AppBorderSubtle}"
                                                         Background="{DynamicResource AppSurfaceLow}"
                                                         Margin="0,0,8,0">
-                                                    <TextBlock Text="{Binding Glyph}"
-                                                               FontFamily="{StaticResource MdiFont}"
-                                                               FontSize="28"
-                                                               HorizontalAlignment="Center"
-                                                               VerticalAlignment="Center" />
+                                                    <Panel>
+                                                        <TextBlock Text="{Binding Glyph}"
+                                                                   IsVisible="{Binding !IsImageIcon}"
+                                                                   FontFamily="{StaticResource MdiFont}"
+                                                                   FontSize="28"
+                                                                   HorizontalAlignment="Center"
+                                                                   VerticalAlignment="Center" />
+                                                        <Image Source="{Binding IconPreview, Converter={StaticResource SkiaToBitmapConverter}}"
+                                                               IsVisible="{Binding IsImageIcon}"
+                                                               Width="36" Height="36"
+                                                               Stretch="Uniform"
+                                                               RenderOptions.BitmapInterpolationMode="HighQuality" />
+                                                    </Panel>
                                                 </Border>
                                                 <Button Grid.Column="1"
                                                         Content="{loc:Tr TouchButton_ChangeSymbol}"
@@ -901,7 +909,14 @@
                                                         Click="ChangeSymbol_Click" />
                                             </Grid>
 
-                                            <StackPanel Orientation="Horizontal" Margin="0,4,0,4">
+                                            <CheckBox Content="{loc:Tr TouchButton_KeepOriginalColors}"
+                                                      ToolTip.Tip="{loc:Tr TouchButton_KeepOriginalColorsTip}"
+                                                      IsVisible="{Binding IsImageIcon}"
+                                                      IsChecked="{Binding KeepOriginalColors, Mode=TwoWay}"
+                                                      Margin="0,0,0,2" />
+
+                                            <StackPanel Orientation="Horizontal" Margin="0,4,0,4"
+                                                        IsVisible="{Binding IsTintable}">
                                                 <TextBlock Classes="label" Text="{loc:Tr TouchButton_Tint}" Width="60" VerticalAlignment="Center" />
                                                 <ccp:ColorPicker Color="{Binding Tint, Mode=TwoWay}" Width="80" />
                                             </StackPanel>
@@ -909,10 +924,17 @@
                                             <Separator Margin="0,6,0,6" />
                                             <TextBlock Classes="label" Text="{loc:Tr TouchButton_Style}" Margin="0,0,0,4" />
 
-                                            <!-- Gradient fill -->
+                                            <!-- Gradient fill; a pack icon kept in its own colors has no fill to replace -->
                                             <CheckBox Content="{loc:Tr TouchButton_GradientFill}"
+                                                      IsVisible="{Binding IsTintable}"
                                                       IsChecked="{Binding UseGradient, Mode=TwoWay}" />
-                                            <StackPanel IsVisible="{Binding UseGradient}" Margin="16,2,0,4">
+                                            <StackPanel Margin="16,2,0,4">
+                                                <StackPanel.IsVisible>
+                                                    <MultiBinding Converter="{x:Static BoolConverters.And}">
+                                                        <Binding Path="UseGradient" />
+                                                        <Binding Path="IsTintable" />
+                                                    </MultiBinding>
+                                                </StackPanel.IsVisible>
                                                 <StackPanel Orientation="Horizontal" Margin="0,2,0,2">
                                                     <TextBlock Text="{loc:Tr TouchButton_From}" Width="50" VerticalAlignment="Center" />
                                                     <ccp:ColorPicker Color="{Binding GradientStartColor, Mode=TwoWay}" Width="80" />
