@@ -17,7 +17,7 @@ public enum PluginRowStatus
     /// <summary>Present but not running for a reason that is not the user's doing.</summary>
     Neutral,
 
-    /// <summary>Switched off by the user.</summary>
+    /// <summary>Switched off by the user on this device.</summary>
     Disabled
 }
 
@@ -84,8 +84,10 @@ public sealed partial class InstalledPluginRowViewModel : ViewModelBase
     {
         get
         {
+            // Plugins are loaded once for all devices, so a loaded plugin that is off here is
+            // running for another device. Disabling is live, so this device simply has it off.
             if (Plugin.Status == PluginLoadStatus.Loaded)
-                return IsEnabled ? PluginRowStatus.Ok : PluginRowStatus.Restart;
+                return IsEnabled ? PluginRowStatus.Ok : PluginRowStatus.Disabled;
 
             // Enabled in the config but not running: the load only happens on the next start.
             if (IsEnabled)
