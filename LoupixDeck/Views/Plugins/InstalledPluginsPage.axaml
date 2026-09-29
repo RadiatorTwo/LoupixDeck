@@ -87,14 +87,23 @@
                                    Text="{loc:Tr Plugins_NoMatches}" />
 
                         <ListBox Classes="plugin-list" ItemsSource="{Binding Rows}"
+                                 Grid.IsSharedSizeScope="True"
                                  SelectedItem="{Binding SelectedPlugin, Mode=TwoWay}"
                                  Background="Transparent" BorderThickness="0"
                                  Margin="8,0,8,0">
                             <ListBox.ItemTemplate>
                                 <DataTemplate x:DataType="vmp:InstalledPluginRowViewModel">
-                                    <Grid ColumnDefinitions="3,8,*,Auto"
-                                          Classes.row-dimmed="{Binding IsStatusDisabled}"
+                                    <!-- The version gets a column shared by every row, so versions of
+                                         different lengths still line up (issue #308). -->
+                                    <Grid Classes.row-dimmed="{Binding IsStatusDisabled}"
                                           Margin="0,0,10,0" MinHeight="34">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="3" />
+                                            <ColumnDefinition Width="8" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="Auto" SharedSizeGroup="PluginVersion" />
+                                        </Grid.ColumnDefinitions>
                                         <Border Grid.Column="0" Classes="nav-accent" />
                                         <Border Grid.Column="1" Classes="status-dot" Margin="8,0,0,0"
                                                 Classes.ok="{Binding IsStatusOk}"
@@ -102,12 +111,11 @@
                                                 Classes.off="{Binding IsStatusDisabled}" />
                                         <TextBlock Grid.Column="2" Classes="row-name" Margin="11,0,8,0"
                                                    Text="{Binding Name}" />
-                                        <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="6">
-                                            <TextBlock Classes="meta warn" Text="{Binding StatusText}"
-                                                       IsVisible="{Binding HasStatusText}" />
-                                            <TextBlock Classes="meta" Text="{Binding MetaText}"
-                                                       IsVisible="{Binding HasMeta}" />
-                                        </StackPanel>
+                                        <TextBlock Grid.Column="3" Classes="meta warn" Margin="0,0,6,0"
+                                                   Text="{Binding StatusText}"
+                                                   IsVisible="{Binding HasStatusText}" />
+                                        <TextBlock Grid.Column="4" Classes="meta" Text="{Binding MetaText}"
+                                                   IsVisible="{Binding HasMeta}" />
                                     </Grid>
                                 </DataTemplate>
                             </ListBox.ItemTemplate>
