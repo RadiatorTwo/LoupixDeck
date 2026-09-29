@@ -138,8 +138,11 @@ public sealed class SymbolRow(ImmutableArray<SymbolCell> cells)
 /// folders, are opt-in sources that the picker remembers in <c>ui-settings.json</c>. Supports text
 /// search and category filtering.
 /// </summary>
-public partial class SymbolPickerViewModel : DialogViewModelBase<SymbolPickerRequest, DialogResult>, IDisposable
+public partial class SymbolPickerViewModel : DialogViewModelBase<SymbolPickerRequest, DialogResult>
 {
+    /// <summary>Delay before memory is handed back, so the closed window's last frame has let go of it.</summary>
+    private static readonly TimeSpan MemoryTrimDelay = TimeSpan.FromSeconds(1);
+
     /// <summary>Symbols per grid row; matches the fixed dialog width.</summary>
     public const int ColumnsPerRow = 6;
 
@@ -626,14 +629,20 @@ public partial class SymbolPickerViewModel : DialogViewModelBase<SymbolPickerReq
 
     /// <summary>
     /// Stops a running scan and the thumbnail workers once the dialog has closed, and frees the
-    /// thumbnails: the picker's memory is only in use while it is open.
+    /// thumbnails: the picker's memory is only in use while it is open. After a pack was shown, the
+    /// freed memory is also handed back to the OS, since the app then idles in the background.
     /// </summary>
-    public void Dispose()
+    /// <remarks>
+    /// Deliberately not <see cref="IDisposable"/>: the view model is a transient of the device
+    /// container, which would keep every disposable instance alive until the device goes away.
+    /// </remarks>
+    public void ReleaseResources()
     {
         _searchTimer.Stop();
         CancelScan();
 
-        if (_thumbnails != null)
+        bool hadThumbnails = _thumbnails != null;
+        if (hadThumbnails)
         {
             _thumbnails.ThumbnailsLoaded -= OnThumbnailsLoaded;
             _thumbnails.Dispose();
@@ -642,5 +651,10 @@ public partial class SymbolPickerViewModel : DialogViewModelBase<SymbolPickerReq
 
         _cellsById.Clear();
         Rows.Clear();
+        _packIndex = null;
+        SelectedCell = null;
+
+        if (hadThumbnails)
+            DispatcherTimer.RunOnce(MemoryTrim.ReturnFreedMemory, MemoryTrimDelay, DispatcherPriority.Background);
     }
 }

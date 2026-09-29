@@ -31,7 +31,7 @@ public partial class SymbolPicker : Window
 
             vm.CloseRequested -= Close;
             vm.ScrollToRowRequested -= ScrollToRow;
-            vm.Dispose();
+            vm.ReleaseResources();
         };
 
         Closing += (_, _) =>
