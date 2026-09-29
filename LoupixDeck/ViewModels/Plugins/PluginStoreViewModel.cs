@@ -237,6 +237,7 @@ public sealed partial class PluginStoreViewModel(
             IEnumerable<PluginStoreItem> visible = result.Items
                 .Where(i => i.Installed is not null || i.Entry.SupportsCurrentPlatform())
                 .OrderByDescending(i => string.Equals(i.Entry.Id, HighlightedPluginId, StringComparison.OrdinalIgnoreCase))
+                .ThenBy(InstallRank)
                 .ThenBy(i => i.Entry.DisplayName, StringComparer.CurrentCultureIgnoreCase);
 
             _allItems.Clear();
@@ -267,6 +268,20 @@ public sealed partial class PluginStoreViewModel(
         {
             IsLoading = false;
         }
+    }
+
+    /// <summary>
+    /// List group of a plugin (issue #308): installed plugins with an update first, then the other installed
+    /// ones, then everything not installed.
+    /// </summary>
+    private static int InstallRank(PluginStoreItem item)
+    {
+        if (item.Status == PluginStoreStatus.UpdateAvailable)
+        {
+            return 0;
+        }
+
+        return item.Installed is not null ? 1 : 2;
     }
 
     /// <summary>Why the shown list may not be current, or null when it came fresh from the server.</summary>
