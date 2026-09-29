@@ -231,56 +231,28 @@ public partial class SymbolPickerViewModel : DialogViewModelBase<SymbolPickerReq
         _persistSource = true;
     }
 
+    /// <summary>
+    /// Applies the request. The picker always opens in the remembered source, the same for every
+    /// device; the current symbol or pack icon is only pre-selected when that source contains it.
+    /// </summary>
     public override void Initialize(SymbolPickerRequest parameter)
     {
         _request = parameter ?? new SymbolPickerRequest();
 
         if (IconPackKey.TryParse(_request.CurrentPackIconKey, out string packId, out _))
         {
-            InitializeForPackIcon(packId);
+            // A pack is scanned asynchronously; the icon is selected once the scan has landed.
+            if (SelectedSource.Pack?.Id == packId)
+            {
+                _pendingSelectKey = _request.CurrentPackIconKey;
+                TrySelectPending(scroll: false);
+            }
+
             return;
         }
 
-        if (string.IsNullOrEmpty(_request.CurrentSymbolId) ||
-            !SymbolLibrary.TryGet(_request.CurrentSymbolId, out SymbolDefinition current))
-            return;
-
-        // Open in a source that contains the current symbol, without changing the remembered one.
-        SymbolSource needed = current.Library == SymbolFontLibrary.MdiLight ? SymbolSource.MdiLight
-            : SelectedSource.Source == SymbolSource.MdiAll || !SymbolLibrary.All.Contains(current) ? SymbolSource.MdiAll
-            : SymbolSource.Curated;
-
-        if (needed != SelectedSource.Source)
-            SelectSourceWithoutPersisting(Sources.First(o => o.Source == needed));
-
-        if (needed == SymbolSource.Curated)
-            SelectedCategory = Categories.FirstOrDefault(c => c.Key == current.Category) ?? SelectedCategory;
-
-        Select(current.Id);
-    }
-
-    /// <summary>
-    /// Opens the pack the current icon came from and selects the icon once the pack is scanned.
-    /// When the pack was removed, the remembered source opens with nothing selected.
-    /// </summary>
-    private void InitializeForPackIcon(string packId)
-    {
-        SymbolSourceOption option = Sources.FirstOrDefault(o => o.Pack?.Id == packId);
-        if (option == null)
-            return;
-
-        _pendingSelectKey = _request.CurrentPackIconKey;
-        if (option != SelectedSource)
-            SelectSourceWithoutPersisting(option);
-        else
-            TrySelectPending(scroll: false);
-    }
-
-    private void SelectSourceWithoutPersisting(SymbolSourceOption option)
-    {
-        _persistSource = false;
-        SelectedSource = option;
-        _persistSource = true;
+        if (!string.IsNullOrEmpty(_request.CurrentSymbolId))
+            Select(_request.CurrentSymbolId);
     }
 
     private ImmutableArray<SymbolSourceOption> BuildSources()
