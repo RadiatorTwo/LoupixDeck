@@ -12,7 +12,8 @@ public static class ParameterDefaults
         if (type == null)
             throw new ArgumentNullException(nameof(type));
 
-        if (type == typeof(string)) return "string";
+        // Empty, not a placeholder: the value lands in the command and reaches the command as-is.
+        if (type == typeof(string)) return string.Empty;
         if (type == typeof(bool)) return false;
         if (type == typeof(char)) return '\0';
         if (type == typeof(byte)) return (byte)0;
