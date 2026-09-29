@@ -42,7 +42,7 @@ public sealed class MainShellViewModel : ViewModelBase
         _updateNotifier = updateNotifier;
         _pluginStore = pluginStore;
         AboutMenuCommand = new AsyncRelayCommand(ShowAbout);
-        PluginsMenuCommand = new AsyncRelayCommand(() => ShowPlugins());
+        PluginsMenuCommand = new AsyncRelayCommand(() => ShowPlugins(openStore: HasAnyPluginUpdate));
         ShowUpdateCommand = new AsyncRelayCommand(ShowUpdate);
         ShowPluginUpdatesCommand = new AsyncRelayCommand(ShowPluginUpdates);
         SelectDeviceCommand = new RelayCommand<string>(SelectDevice, CanSelectDevice);
@@ -109,7 +109,7 @@ public sealed class MainShellViewModel : ViewModelBase
 
             if (open)
             {
-                await ShowPlugins(toAsk[0].PluginId);
+                await ShowPlugins(openStore: true, toAsk[0].PluginId);
                 return;
             }
 
@@ -126,16 +126,19 @@ public sealed class MainShellViewModel : ViewModelBase
     {
         IReadOnlyList<PluginStoreItem> updates = _pluginStore?.AvailableUpdates;
         string highlighted = updates is { Count: 1 } ? updates[0].Entry.Id : null;
-        return ShowPlugins(highlighted);
+        return ShowPlugins(openStore: true, highlighted);
     }
 
     /// <summary>Plugins are loaded once for the whole process, so their window lives on the
     /// shell next to About rather than on a device's view model.</summary>
     public IAsyncRelayCommand PluginsMenuCommand { get; }
 
-    /// <param name="storePluginId">When set, the window opens on the Plugin Store with that
-    /// plugin brought to the top.</param>
-    private async Task ShowPlugins(string storePluginId = null)
+    /// <summary>A plugin update is waiting, so the Plugins window opens on the store (issue #308).</summary>
+    private bool HasAnyPluginUpdate => _pluginStore?.AvailableUpdates?.Count > 0;
+
+    /// <param name="openStore">Opens the window on the Plugin Store instead of the installed plugins.</param>
+    /// <param name="storePluginId">The plugin brought to the top of the store, if any.</param>
+    private async Task ShowPlugins(bool openStore = false, string storePluginId = null)
     {
         LoupixDeck.Services.IDialogService dialogs = _dialogService?.Invoke();
 
@@ -149,7 +152,7 @@ public sealed class MainShellViewModel : ViewModelBase
                 if (currentScopeKey != null)
                     vm.Installed.SelectDevice(currentScopeKey);
 
-                if (storePluginId != null)
+                if (openStore)
                     vm.OpenPluginStore(storePluginId);
             });
     }
