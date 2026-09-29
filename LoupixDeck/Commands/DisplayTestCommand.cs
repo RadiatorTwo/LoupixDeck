@@ -25,9 +25,9 @@ namespace LoupixDeck.Commands;
     parameterTemplate: "({Pattern},{Seconds})",
     parameterNames: ["Pattern", "Seconds"],
     parameterTypes: [typeof(string), typeof(int)],
-    // Pattern declares NO default on purpose: a command-defined default outranks the value a
-    // menu entry carries, so declaring one here would make every entry in the picker insert
-    // that same pattern. It comes from DisplayTestMenuContributor's leaves instead.
+    // Pattern declares no default (empty counts as none): each DisplayTestMenuContributor leaf
+    // supplies it under the key "Pattern", which CommandBuilder matches by name and which wins
+    // over a declared default. Seconds is not in the menu entries, so it takes its default.
     parameterDefaults: ["", "5"],
     Icon = "\U000F03D8",
     // Hidden from the generic group listing: DisplayTestMenuContributor lists the patterns as

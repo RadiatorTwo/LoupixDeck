@@ -183,7 +183,7 @@ public sealed class ButtonAnimationManager : IButtonAnimationManager, IDisposabl
                     {
                         Button = button,
                         Command = command,
-                        Parameters = PluginLayerKey.ParseParameters(button.Command),
+                        Parameters = CommandStringParser.GetParameters(button.Command),
                         SequenceCommands = CommandStringParser.BuildSequence(button.Command),
                         OwnerKey = ownerKey,
                         PluginLayer = layer,

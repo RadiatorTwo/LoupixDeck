@@ -50,6 +50,12 @@ public static class CommandStringParser
 
     /// <summary>Returns the parameter values inside the segment's parentheses, split on
     /// ',' and trimmed. Empty array when the segment has no parameter list.</summary>
+    /// <remarks>
+    /// An empty value keeps its position (<c>a(,x)</c> → <c>["", "x"]</c>): parameters are
+    /// positional, so dropping it would shift every later value onto the wrong parameter.
+    /// Trailing empty values are dropped, as they always were, so <c>a(x,)</c> stays
+    /// <c>["x"]</c> and commands checking the parameter count see what they did before.
+    /// </remarks>
     public static string[] GetParameters(string segment)
     {
         if (string.IsNullOrWhiteSpace(segment))
@@ -62,27 +68,15 @@ public static class CommandStringParser
             return [];
 
         ReadOnlySpan<char> inner = span.Slice(start + 1, end - start - 1);
-        int count = 0;
+        List<string> result = [];
         foreach (Range range in inner.Split(','))
-        {
-            if (!inner[range].Trim().IsEmpty)
-                count++;
-        }
+            result.Add(inner[range].Trim().ToString());
 
-        if (count == 0)
-            return [];
+        int count = result.Count;
+        while ((count > 0) && (result[count - 1].Length == 0))
+            count--;
 
-        string[] result = new string[count];
-        int i = 0;
-        foreach (Range range in inner.Split(','))
-        {
-            ReadOnlySpan<char> piece = inner[range].Trim();
-            if (piece.IsEmpty)
-                continue;
-            result[i++] = piece.ToString();
-        }
-
-        return result;
+        return result.GetRange(0, count).ToArray();
     }
 
     /// <summary>
