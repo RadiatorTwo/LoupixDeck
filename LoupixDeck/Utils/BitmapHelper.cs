@@ -1330,6 +1330,12 @@ public static class BitmapHelper
         var cy = (height / 2f) + layer.PositionY;
         var rect = new SKRect(cx - (dstW / 2f), cy - (dstH / 2f), cx + (dstW / 2f), cy + (dstH / 2f));
 
+        if (layer.IsImageIcon)
+        {
+            DrawSymbolBitmap(canvas, layer, rect);
+            return;
+        }
+
         DrawSymbolGlyph(
             canvas, layer.SymbolId, rect, layer.Tint.ToSKColor(),
             rotation: (float)layer.Rotation,
@@ -1481,6 +1487,105 @@ public static class BitmapHelper
 
         canvas.DrawPath(path, fillPaint);
         gradientShader?.Dispose();
+    }
+
+    /// <summary>
+    /// Renders a pack icon (<see cref="SymbolLayer.IconAssetPath"/>) into <paramref name="rect"/> with
+    /// the same effects as a glyph: shadow → outline → fill. The icon's alpha plays the role of the
+    /// glyph shape, so a single-color icon tints exactly like a glyph; with
+    /// <see cref="SymbolLayer.KeepOriginalColors"/> the fill keeps the icon's own colors. Transparent
+    /// padding is cropped so the visible content fills the box. Falls back to the dashed placeholder
+    /// when the asset is missing.
+    /// </summary>
+    private static void DrawSymbolBitmap(SKCanvas canvas, SymbolLayer layer, SKRect rect)
+    {
+        if (rect.Width <= 0 || rect.Height <= 0) return;
+
+        SKColor tint = layer.Tint.ToSKColor();
+        SKBitmap source = AssetResolver?.Invoke(layer.IconAssetPath);
+        if (source == null)
+        {
+            DrawSymbolPlaceholderRect(canvas, rect, tint);
+            return;
+        }
+
+        SKRect src = IconColorAnalysis.GetContentBounds(source);
+        SKRect dst = new(-rect.Width / 2f, -rect.Height / 2f, rect.Width / 2f, rect.Height / 2f);
+        SKSamplingOptions sampling = new(SKFilterMode.Linear, SKMipmapMode.Linear);
+
+        // Draws the icon centered on the layer position and rotated about it; offset shifts it in
+        // device space (the shadow), like the glyph renderer translates before drawing its path.
+        void DrawIcon(SKPaint paint, float offsetX = 0, float offsetY = 0)
+        {
+            int saved = canvas.Save();
+            canvas.Translate(rect.MidX + offsetX, rect.MidY + offsetY);
+            canvas.RotateDegrees((float)layer.Rotation);
+            canvas.DrawBitmap(source, src, dst, sampling, paint);
+            canvas.RestoreToCount(saved);
+        }
+
+        // 1) Drop shadow: the icon's alpha in the shadow color, blurred.
+        if (layer.Shadow)
+        {
+            using SKColorFilter shadowColor = SKColorFilter.CreateBlendMode(layer.ShadowColor.ToSKColor(), SKBlendMode.SrcIn);
+            using SKImageFilter colorize = SKImageFilter.CreateColorFilter(shadowColor);
+            float blur = (float)Math.Max(0, layer.ShadowBlur);
+            using SKImageFilter filter = blur > 0 ? SKImageFilter.CreateBlur(blur, blur, colorize) : null;
+            using SKPaint shadowPaint = new() { IsAntialias = true, ImageFilter = filter ?? colorize };
+            DrawIcon(shadowPaint, layer.ShadowOffsetX, layer.ShadowOffsetY);
+        }
+
+        // 2) Outline: the alpha grown by half the stroke width, so it matches a stroke centered on
+        // the glyph's edge.
+        if (layer.Outlined && layer.OutlineWidth > 0)
+        {
+            float radius = (float)layer.OutlineWidth / 2f;
+            using SKImageFilter dilate = SKImageFilter.CreateDilate(radius, radius);
+            using SKColorFilter outlineColor = SKColorFilter.CreateBlendMode(layer.OutlineColor.ToSKColor(), SKBlendMode.SrcIn);
+            using SKImageFilter filter = SKImageFilter.CreateColorFilter(outlineColor, dilate);
+            using SKPaint outlinePaint = new() { IsAntialias = true, ImageFilter = filter };
+            DrawIcon(outlinePaint);
+        }
+
+        // 3) Fill: original colors, solid tint, or a gradient masked by the icon's alpha.
+        if (layer.KeepOriginalColors)
+        {
+            using SKPaint plain = new() { IsAntialias = true };
+            DrawIcon(plain);
+            return;
+        }
+
+        if (!layer.UseGradient)
+        {
+            using SKColorFilter tintFilter = SKColorFilter.CreateBlendMode(tint, SKBlendMode.SrcIn);
+            using SKPaint tinted = new() { IsAntialias = true, ColorFilter = tintFilter };
+            DrawIcon(tinted);
+            return;
+        }
+
+        // The gradient runs in device space over the rotated icon's bounds, as it does over a
+        // glyph's transformed path.
+        SKMatrix toDevice = SKMatrix.CreateTranslation(rect.MidX, rect.MidY)
+            .PreConcat(SKMatrix.CreateRotationDegrees((float)layer.Rotation));
+        SKRect bounds = toDevice.MapRect(dst);
+
+        double rad = layer.GradientAngle * Math.PI / 180.0;
+        float dx = (float)Math.Cos(rad);
+        float dy = (float)Math.Sin(rad);
+        float half = 0.5f * ((Math.Abs(dx) * bounds.Width) + (Math.Abs(dy) * bounds.Height));
+        SKPoint p0 = new(bounds.MidX - (dx * half), bounds.MidY - (dy * half));
+        SKPoint p1 = new(bounds.MidX + (dx * half), bounds.MidY + (dy * half));
+
+        int layerSave = canvas.SaveLayer(bounds, null);
+        using (SKPaint mask = new() { IsAntialias = true })
+            DrawIcon(mask);
+
+        using SKShader shader = SKShader.CreateLinearGradient(
+            p0, p1, [layer.GradientStartColor.ToSKColor(), layer.GradientEndColor.ToSKColor()], null,
+            SKShaderTileMode.Clamp);
+        using SKPaint gradientPaint = new() { Shader = shader, BlendMode = SKBlendMode.SrcIn };
+        canvas.DrawRect(bounds, gradientPaint);
+        canvas.RestoreToCount(layerSave);
     }
 
     /// <summary>Fallback renderer: a dashed box in <paramref name="rect"/>, drawn when a symbol
