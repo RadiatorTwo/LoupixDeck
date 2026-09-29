@@ -390,6 +390,36 @@
           }
         ]
       }
+    },
+    {
+      "id": "mediasession",
+      "name": "Media Session",
+      "description": "Show and control the current Windows media session from LoupixDeck.",
+      "author": "Vencite",
+      "repository": "Vencite/LoupixDeck.Plugin.MediaSession",
+      "icon": "https://raw.githubusercontent.com/Vencite/LoupixDeck.Plugin.MediaSession/v0.1.0/icon.png",
+      "platforms": [
+        "Windows"
+      ],
+      "minSdkVersion": "1.26.0",
+      "commandPrefixes": [
+        "MediaSession."
+      ],
+      "release": {
+        "version": "0.1.0",
+        "tag": "v0.1.0",
+        "publishedAt": "2026-09-29T06:32:12Z",
+        "sdkVersion": "1.26.0",
+        "releaseNotesUrl": "https://github.com/Vencite/LoupixDeck.Plugin.MediaSession/releases/tag/v0.1.0",
+        "packages": [
+          {
+            "platform": "windows",
+            "fileName": "mediasession-0.1.0-windows.zip",
+            "downloadUrl": "https://github.com/Vencite/LoupixDeck.Plugin.MediaSession/releases/download/v0.1.0/mediasession-0.1.0-windows.zip",
+            "sha256": "1d62404f164a7df8eeecdbcc4cdbf61c3dee6756954789232d28d8a32033218f"
+          }
+        ]
+      }
     }
   ]
 }
