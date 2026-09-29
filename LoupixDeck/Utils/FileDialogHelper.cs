@@ -35,6 +35,26 @@ public abstract class FileDialogHelper
     }
 
     /// <summary>
+    /// Picks a folder, parented to the active window so it opens above a modal dialog. Returns the
+    /// local path, an empty string if cancelled or the folder has no local path, or null when there
+    /// is no window.
+    /// </summary>
+    public static async Task<string> OpenFolderDialog(string title)
+    {
+        Window parent = WindowHelper.GetActiveWindow();
+        if (parent == null) return null;
+
+        IReadOnlyList<IStorageFolder> folders = await parent.StorageProvider.OpenFolderPickerAsync(
+            new FolderPickerOpenOptions
+            {
+                Title = title,
+                AllowMultiple = false
+            });
+
+        return folders.Count == 0 ? string.Empty : folders[0].TryGetLocalPath() ?? string.Empty;
+    }
+
+    /// <summary>
     /// Picks a page wallpaper — a still image or a video clip, in one dialog, because a slot holds
     /// one or the other and never both. The caller tells them apart by extension. Returns the
     /// absolute path, an empty string if cancelled, or null when there's no window.

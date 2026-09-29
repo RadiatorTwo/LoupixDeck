@@ -1233,5 +1233,15 @@
   "Plugins_ConfirmDiscardMessage": "Die Einstellungen von '{0}' haben nicht gespeicherte Änderungen. Verwerfen?",
   "Plugins_ConfirmRestartTitle": "LoupixDeck neu starten?",
   "Plugins_ConfirmRestartMessage": "LoupixDeck wird beendet und neu gestartet, damit die offene Änderung wirksam wird.",
-  "Plugins_RestartFailed": "LoupixDeck konnte nicht neu gestartet werden. Bitte beenden und neu starten."
+  "Plugins_RestartFailed": "LoupixDeck konnte nicht neu gestartet werden. Bitte beenden und neu starten.",
+  "SymbolPicker_AddPackTip": "Einen Ordner mit PNG- oder SVG-Icons als Icon-Pack hinzufügen. Der Ordner bleibt, wo er ist; ein Icon wird erst in LoupixDeck kopiert, wenn du es auf einen Button legst.",
+  "SymbolPicker_RemovePackTip": "Das ausgewählte Icon-Pack aus der Liste entfernen. Der Ordner und Buttons mit seinen Icons bleiben unberührt.",
+  "SymbolPicker_SelectPackFolder": "Icon-Ordner auswählen",
+  "SymbolPicker_PackMissingFmt": "{0} (Ordner fehlt)",
+  "SymbolPicker_PackMissingInfo": "Der Ordner dieses Icon-Packs wurde nicht gefunden. Buttons mit seinen Icons funktionieren weiter, weil jedes platzierte Icon in LoupixDeck kopiert wurde.",
+  "SymbolPicker_PackScanning": "Ordner wird durchsucht…",
+  "SymbolPicker_PackEmpty": "In diesem Ordner und seinen Unterordnern wurden keine PNG- oder SVG-Icons gefunden.",
+  "SymbolPicker_PackFontsUnsupported": "Dieser Ordner enthält Icon-Fonts statt einzelner Icon-Dateien. Icon-Fonts werden noch nicht unterstützt; nutze stattdessen die einzelnen SVG- oder PNG-Dateien des Packs.",
+  "SymbolPicker_PackTruncatedFmt": "{0} Symbole (nur die ersten {1} Icons dieses Ordners werden geladen)",
+  "SymbolPicker_PackRootCategory": "(Hauptordner)"
 }

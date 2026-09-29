@@ -1,10 +1,14 @@
 using System.Collections.Immutable;
 using System.Collections.ObjectModel;
+using Avalonia;
+using Avalonia.Media;
+using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using LoupixDeck.Localization;
 using LoupixDeck.Models;
+using LoupixDeck.Services.IconPacks;
 using LoupixDeck.Utils;
 using LoupixDeck.ViewModels.Base;
 // LoupixDeck.Utils also declares a RelayCommand; the dialog needs the
@@ -16,15 +20,21 @@ namespace LoupixDeck.ViewModels;
 /// <summary>
 /// Mutable parameter/result holder passed into <see cref="SymbolPickerViewModel"/>.
 /// The caller creates one, hands it to <see cref="SymbolPickerViewModel.Initialize"/>,
-/// and reads <see cref="SelectedSymbol"/> after the dialog confirms.
+/// and reads <see cref="SelectedSymbol"/> or <see cref="SelectedPackIcon"/> after the dialog confirms.
 /// </summary>
 public sealed class SymbolPickerRequest
 {
     /// <summary>Symbol id to pre-select when re-picking; null for a fresh pick.</summary>
     public string CurrentSymbolId { get; set; }
 
-    /// <summary>Set by the picker on confirm; null if the dialog was cancelled.</summary>
+    /// <summary>Picker key of the pack icon to pre-select when re-picking (see <see cref="IconPackKey"/>).</summary>
+    public string CurrentPackIconKey { get; set; }
+
+    /// <summary>Set by the picker on confirm when a glyph was chosen; null otherwise.</summary>
     public SymbolDefinition SelectedSymbol { get; set; }
+
+    /// <summary>Set by the picker on confirm when an icon from an icon pack was chosen; null otherwise.</summary>
+    public IconPackEntry SelectedPackIcon { get; set; }
 }
 
 /// <summary>The icon set the picker shows.</summary>
@@ -37,27 +47,77 @@ public enum SymbolSource
     MdiAll,
 
     /// <summary>Every icon of the bundled Material Design Light font.</summary>
-    MdiLight
+    MdiLight,
+
+    /// <summary>A folder of icon files the user added (<see cref="SymbolSourceOption.Pack"/>).</summary>
+    IconPack
 }
 
-public sealed record SymbolSourceOption(SymbolSource Source, string DisplayName)
+public sealed record SymbolSourceOption(SymbolSource Source, string DisplayName, IconPack Pack = null)
 {
-    /// <summary>Stable key persisted in <c>ui-settings.json</c>; the enum name for the built-in sources.</summary>
-    public string Key => Source.ToString();
+    /// <summary>
+    /// Stable key persisted in <c>ui-settings.json</c>: the enum name for the built-in sources,
+    /// <c>pack:&lt;id&gt;</c> for an icon pack.
+    /// </summary>
+    public string Key => Pack != null ? $"pack:{Pack.Id}" : Source.ToString();
 }
 
 /// <summary>A category filter entry; <see cref="Key"/> is the value compared against symbols.</summary>
 public sealed record SymbolCategoryOption(string Key, string DisplayName);
 
-/// <summary>One symbol in the picker grid, with its own selection state for the highlight.</summary>
-public sealed partial class SymbolCell(SymbolDefinition symbol) : ObservableObject
+/// <summary>
+/// One entry in the picker grid, with its own selection state for the highlight: a font glyph
+/// (<see cref="Symbol"/>) or an icon-pack file (<see cref="Icon"/>).
+/// </summary>
+public sealed partial class SymbolCell : ObservableObject
 {
-    public SymbolDefinition Symbol { get; } = symbol;
+    private readonly IconThumbnailLoader _thumbnails;
+    private bool _thumbnailRequested;
 
-    /// <summary>Unique key of the cell within its source; the symbol id for glyphs.</summary>
-    public string Key { get; } = symbol.Id;
+    public SymbolCell(SymbolDefinition symbol)
+    {
+        Symbol = symbol;
+        Key = symbol.Id;
+        DisplayName = symbol.DisplayName;
+    }
 
-    public string DisplayName { get; } = symbol.DisplayName;
+    public SymbolCell(IconPackEntry icon, IconThumbnailLoader thumbnails)
+    {
+        Icon = icon;
+        Key = icon.Key;
+        DisplayName = icon.DisplayName;
+        _thumbnails = thumbnails;
+    }
+
+    public SymbolDefinition Symbol { get; }
+
+    public IconPackEntry Icon { get; }
+
+    /// <summary>Unique key of the cell within its source: the symbol id or the pack icon key.</summary>
+    public string Key { get; }
+
+    public string DisplayName { get; }
+
+    public bool IsGlyph => Symbol != null;
+
+    /// <summary>
+    /// Preview of a pack icon. Only the realized cells of the virtualized grid read it, so the first
+    /// read queues the decode and the icons scrolled into view load first.
+    /// </summary>
+    public Bitmap Thumbnail
+    {
+        get
+        {
+            if (!_thumbnailRequested && _thumbnails != null)
+            {
+                _thumbnailRequested = true;
+                field = _thumbnails.Request(Icon, bitmap => Thumbnail = bitmap);
+            }
+
+            return field;
+        }
+        private set => SetProperty(ref field, value);
+    }
 
     [ObservableProperty]
     public partial bool IsSelected { get; set; }
@@ -74,35 +134,40 @@ public sealed class SymbolRow(ImmutableArray<SymbolCell> cells)
 
 /// <summary>
 /// Dialog view model for choosing a symbol. Shows the curated list by default; the full
-/// Material Design Icons and Material Design Light sets are an opt-in source that the picker
-/// remembers in <c>ui-settings.json</c>. Supports text search and category filtering.
+/// Material Design Icons and Material Design Light sets, and icon packs the user added from
+/// folders, are opt-in sources that the picker remembers in <c>ui-settings.json</c>. Supports text
+/// search and category filtering.
 /// </summary>
-public partial class SymbolPickerViewModel : DialogViewModelBase<SymbolPickerRequest, DialogResult>
+public partial class SymbolPickerViewModel : DialogViewModelBase<SymbolPickerRequest, DialogResult>, IDisposable
 {
     /// <summary>Symbols per grid row; matches the fixed dialog width.</summary>
     public const int ColumnsPerRow = 6;
 
     private const string SourceSettingKey = "symbolPickerSource";
 
+    private readonly IIconPackService _iconPacks;
     private SymbolPickerRequest _request;
     private readonly Dictionary<string, SymbolCell> _cellsById = new(StringComparer.OrdinalIgnoreCase);
     private readonly DispatcherTimer _searchTimer = new() { Interval = TimeSpan.FromMilliseconds(150) };
     private bool _persistSource = true;
 
+    // Icon pack state: the index shown, the running scan, and a key to select once a scan lands.
+    private IconPackIndex _packIndex;
+    private CancellationTokenSource _scanCancellation;
+    private int _scanGeneration;
+    private string _pendingSelectKey;
+    private IconThumbnailLoader _thumbnails;
+
     public ObservableCollection<SymbolRow> Rows { get; } = [];
 
     [ObservableProperty]
-    public partial ImmutableArray<SymbolSourceOption> Sources { get; set; } =
-    [
-        new(SymbolSource.Curated, Loc.Tr("SymbolPicker_SourceCurated")),
-        new(SymbolSource.MdiAll, Loc.Tr("SymbolPicker_SourceMdiAll")),
-        new(SymbolSource.MdiLight, Loc.Tr("SymbolPicker_SourceMdiLight"))
-    ];
+    public partial ImmutableArray<SymbolSourceOption> Sources { get; set; }
 
     [ObservableProperty]
     public partial ImmutableArray<SymbolCategoryOption> Categories { get; set; }
 
     [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(RemovePackCommand))]
     public partial SymbolSourceOption SelectedSource { get; set; }
 
     [ObservableProperty]
@@ -114,18 +179,29 @@ public partial class SymbolPickerViewModel : DialogViewModelBase<SymbolPickerReq
     [ObservableProperty]
     public partial string CountText { get; set; }
 
+    /// <summary>Message shown over the grid for an icon pack that has nothing to show; null hides it.</summary>
+    [ObservableProperty]
+    public partial string PackStatusText { get; set; }
+
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(ConfirmCommand))]
     public partial SymbolCell SelectedCell { get; set; }
 
     private IRelayCommand _confirmCommand;
     private IRelayCommand _cancelCommand;
+    private IAsyncRelayCommand _addPackCommand;
+    private IRelayCommand _removePackCommand;
 
     public IRelayCommand ConfirmCommand => Relay.Ref(ref _confirmCommand, ConfirmSelection, () => SelectedCell != null);
     public IRelayCommand CancelCommand => Relay.Ref(ref _cancelCommand, CancelSelection);
+    public IAsyncRelayCommand AddPackCommand => Relay.Ref(ref _addPackCommand, AddPackAsync);
+    public IRelayCommand RemovePackCommand => Relay.Ref(ref _removePackCommand, RemovePack, () => SelectedSource?.Pack != null);
 
     /// <summary>Raised when the dialog should close (after Confirm or Cancel).</summary>
     public event Action CloseRequested;
+
+    /// <summary>Raised with a row index when a selection landed after the window opened (async pack scan).</summary>
+    public event Action<int> ScrollToRowRequested;
 
     /// <summary>
     /// Row of the symbol pre-selected by <see cref="Initialize"/>, or -1. Initialize runs before the
@@ -133,16 +209,20 @@ public partial class SymbolPickerViewModel : DialogViewModelBase<SymbolPickerReq
     /// </summary>
     public int InitialRowIndex { get; private set; } = -1;
 
-    public SymbolPickerViewModel()
+    public SymbolPickerViewModel(IIconPackService iconPacks)
     {
+        _iconPacks = iconPacks;
+
         _searchTimer.Tick += (_, _) =>
         {
             _searchTimer.Stop();
             ApplyFilter();
         };
 
+        Sources = BuildSources();
         string saved = UiSettingsStore.GetString(SourceSettingKey);
 
+        // A remembered pack that was removed since falls back to the curated list.
         _persistSource = false;
         SelectedSource = Sources.FirstOrDefault(o => o.Key == saved) ?? Sources[0];
         _persistSource = true;
@@ -151,6 +231,12 @@ public partial class SymbolPickerViewModel : DialogViewModelBase<SymbolPickerReq
     public override void Initialize(SymbolPickerRequest parameter)
     {
         _request = parameter ?? new SymbolPickerRequest();
+
+        if (IconPackKey.TryParse(_request.CurrentPackIconKey, out string packId, out _))
+        {
+            InitializeForPackIcon(packId);
+            return;
+        }
 
         if (string.IsNullOrEmpty(_request.CurrentSymbolId) ||
             !SymbolLibrary.TryGet(_request.CurrentSymbolId, out SymbolDefinition current))
@@ -162,16 +248,50 @@ public partial class SymbolPickerViewModel : DialogViewModelBase<SymbolPickerReq
             : SymbolSource.Curated;
 
         if (needed != SelectedSource.Source)
-        {
-            _persistSource = false;
-            SelectedSource = Sources.First(o => o.Source == needed);
-            _persistSource = true;
-        }
+            SelectSourceWithoutPersisting(Sources.First(o => o.Source == needed));
 
         if (needed == SymbolSource.Curated)
             SelectedCategory = Categories.FirstOrDefault(c => c.Key == current.Category) ?? SelectedCategory;
 
         Select(current.Id);
+    }
+
+    /// <summary>
+    /// Opens the pack the current icon came from and selects the icon once the pack is scanned.
+    /// When the pack was removed, the remembered source opens with nothing selected.
+    /// </summary>
+    private void InitializeForPackIcon(string packId)
+    {
+        SymbolSourceOption option = Sources.FirstOrDefault(o => o.Pack?.Id == packId);
+        if (option == null)
+            return;
+
+        _pendingSelectKey = _request.CurrentPackIconKey;
+        if (option != SelectedSource)
+            SelectSourceWithoutPersisting(option);
+        else
+            TrySelectPending(scroll: false);
+    }
+
+    private void SelectSourceWithoutPersisting(SymbolSourceOption option)
+    {
+        _persistSource = false;
+        SelectedSource = option;
+        _persistSource = true;
+    }
+
+    private ImmutableArray<SymbolSourceOption> BuildSources()
+    {
+        return
+        [
+            new(SymbolSource.Curated, Loc.Tr("SymbolPicker_SourceCurated")),
+            new(SymbolSource.MdiAll, Loc.Tr("SymbolPicker_SourceMdiAll")),
+            new(SymbolSource.MdiLight, Loc.Tr("SymbolPicker_SourceMdiLight")),
+            .. _iconPacks.Packs.Select(static p => new SymbolSourceOption(
+                SymbolSource.IconPack,
+                Directory.Exists(p.Path) ? p.Name : Loc.Tr("SymbolPicker_PackMissingFmt", p.Name),
+                p))
+        ];
     }
 
     partial void OnSelectedSourceChanged(SymbolSourceOption value)
@@ -181,6 +301,16 @@ public partial class SymbolPickerViewModel : DialogViewModelBase<SymbolPickerReq
         if (_persistSource)
             UiSettingsStore.Set(SourceSettingKey, value.Key);
 
+        CancelScan();
+        PackStatusText = null;
+        _packIndex = null;
+
+        if (value.Pack != null)
+        {
+            LoadPack(value.Pack);
+            return;
+        }
+
         IEnumerable<string> keys = value.Source switch
         {
             SymbolSource.MdiAll => SymbolLibrary.FullCategories(SymbolFontLibrary.Mdi),
@@ -188,13 +318,136 @@ public partial class SymbolPickerViewModel : DialogViewModelBase<SymbolPickerReq
             _ => SymbolLibrary.Categories
         };
 
-        Categories = [new(SymbolLibrary.AllCategoriesKey, Loc.Tr("SymbolPicker_AllCategories")),
+        Categories = [AllCategory(),
             .. keys.Select(static k => new SymbolCategoryOption(
                 k, k == SymbolLibrary.OtherCategoryKey ? Loc.Tr("SymbolPicker_OtherCategory") : k))];
 
         // Setting the category runs the filter.
         SelectedCategory = null;
         SelectedCategory = Categories[0];
+    }
+
+    private static SymbolCategoryOption AllCategory()
+        => new(SymbolLibrary.AllCategoriesKey, Loc.Tr("SymbolPicker_AllCategories"));
+
+    /// <summary>
+    /// Shows a pack: its last scan at once when there is one, then a fresh scan, so files added to the
+    /// folder since appear without restarting.
+    /// </summary>
+    private async void LoadPack(IconPack pack)
+    {
+        int generation = ++_scanGeneration;
+        CancellationTokenSource cancellation = new();
+        _scanCancellation = cancellation;
+
+        IconPackIndex cached = _iconPacks.GetCachedIndex(pack.Id);
+        if (cached != null)
+            ApplyPackIndex(cached, keepCategory: false);
+        else
+        {
+            Categories = [AllCategory()];
+            SelectedCategory = null;
+            SelectedCategory = Categories[0];
+            PackStatusText = Loc.Tr("SymbolPicker_PackScanning");
+        }
+
+        IconPackIndex index;
+        try
+        {
+            index = await _iconPacks.ScanAsync(pack, cancellation.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[IconPacks] Scanning '{pack.Path}' failed: {ex.Message}");
+            index = IconPackIndex.Missing(pack.Id);
+        }
+
+        if (generation != _scanGeneration)
+            return;
+
+        // An unchanged folder keeps the grid (and its scroll position) as it is.
+        if (cached == null || !SameEntries(cached, index))
+            ApplyPackIndex(index, keepCategory: cached != null);
+
+        TrySelectPending(scroll: true);
+        _pendingSelectKey = null;
+    }
+
+    private static bool SameEntries(IconPackIndex a, IconPackIndex b)
+    {
+        return a.FolderMissing == b.FolderMissing && a.Entries.Length == b.Entries.Length &&
+               a.Entries.Select(static e => e.Key).SequenceEqual(b.Entries.Select(static e => e.Key));
+    }
+
+    private void ApplyPackIndex(IconPackIndex index, bool keepCategory)
+    {
+        _packIndex = index;
+        string previous = keepCategory ? SelectedCategory?.Key : null;
+
+        Categories = [AllCategory(),
+            .. index.Categories.Select(static k => new SymbolCategoryOption(
+                k, k == IconPackScanner.RootCategoryKey ? Loc.Tr("SymbolPicker_PackRootCategory") : k))];
+
+        PackStatusText = index.FolderMissing ? Loc.Tr("SymbolPicker_PackMissingInfo")
+            : !index.Entries.IsEmpty ? null
+            : index.SkippedFontFiles > 0 ? Loc.Tr("SymbolPicker_PackFontsUnsupported")
+            : Loc.Tr("SymbolPicker_PackEmpty");
+
+        SelectedCategory = null;
+        SelectedCategory = Categories.FirstOrDefault(c => c.Key == previous) ?? Categories[0];
+        TrySelectPending(scroll: false);
+    }
+
+    private void TrySelectPending(bool scroll)
+    {
+        if (_pendingSelectKey == null || !_cellsById.ContainsKey(_pendingSelectKey))
+            return;
+
+        Select(_pendingSelectKey);
+        _pendingSelectKey = null;
+
+        if (scroll && InitialRowIndex >= 0)
+            ScrollToRowRequested?.Invoke(InitialRowIndex);
+    }
+
+    private void CancelScan()
+    {
+        _scanGeneration++;
+        _scanCancellation?.Cancel();
+        _scanCancellation?.Dispose();
+        _scanCancellation = null;
+    }
+
+    private async Task AddPackAsync()
+    {
+        string path = await FileDialogHelper.OpenFolderDialog(Loc.Tr("SymbolPicker_SelectPackFolder"));
+        if (string.IsNullOrEmpty(path))
+            return;
+
+        IconPack pack = _iconPacks.Add(path);
+        if (pack == null)
+            return;
+
+        Sources = BuildSources();
+        SelectedSource = Sources.First(o => o.Pack?.Id == pack.Id);
+    }
+
+    /// <summary>
+    /// Removes the selected pack from the picker. Only the reference goes: the folder stays on disk,
+    /// and buttons using its icons keep working because each placed icon was copied to the assets.
+    /// </summary>
+    private void RemovePack()
+    {
+        if (SelectedSource?.Pack is not { } pack)
+            return;
+
+        _iconPacks.Remove(pack.Id);
+        Sources = BuildSources();
+        SelectedSource = Sources[0];
     }
 
     partial void OnSelectedCategoryChanged(SymbolCategoryOption value)
@@ -243,24 +496,23 @@ public partial class SymbolPickerViewModel : DialogViewModelBase<SymbolPickerReq
 
         string search = SearchText?.Trim() ?? string.Empty;
         string category = SelectedCategory?.Key ?? SymbolLibrary.AllCategoriesKey;
-        bool curated = SelectedSource?.Source is null or SymbolSource.Curated;
 
-        List<SymbolDefinition> filtered = SourceSymbols().Where(s =>
-            (category == SymbolLibrary.AllCategoriesKey || InCategory(s, category, curated)) &&
-            (search.Length == 0 || Matches(s, search))).ToList();
+        List<SymbolCell> filtered = SelectedSource?.Pack != null ? FilterPackIcons(search, category) : FilterSymbols(search, category);
 
         _cellsById.Clear();
         Rows.Clear();
 
         for (int i = 0; i < filtered.Count; i += ColumnsPerRow)
         {
-            ImmutableArray<SymbolCell> cells = [.. filtered.Skip(i).Take(ColumnsPerRow).Select(s => new SymbolCell(s))];
+            ImmutableArray<SymbolCell> cells = [.. filtered.Skip(i).Take(ColumnsPerRow)];
             foreach (SymbolCell cell in cells)
                 _cellsById.TryAdd(cell.Key, cell);
             Rows.Add(new SymbolRow(cells));
         }
 
-        CountText = Loc.Tr("SymbolPicker_CountFmt", filtered.Count);
+        CountText = _packIndex is { Truncated: true } && SelectedSource?.Pack != null
+            ? Loc.Tr("SymbolPicker_PackTruncatedFmt", filtered.Count, IconPackScanner.MaxEntries)
+            : Loc.Tr("SymbolPicker_CountFmt", filtered.Count);
 
         // Cells are rebuilt, so re-point the selection at the new cell with the same key.
         if (SelectedCell != null && _cellsById.TryGetValue(SelectedCell.Key, out SymbolCell selected))
@@ -270,6 +522,50 @@ public partial class SymbolPickerViewModel : DialogViewModelBase<SymbolPickerReq
         }
         else
             SelectedCell = null;
+    }
+
+    private List<SymbolCell> FilterSymbols(string search, string category)
+    {
+        bool curated = SelectedSource?.Source is null or SymbolSource.Curated;
+
+        return SourceSymbols().Where(s =>
+                (category == SymbolLibrary.AllCategoriesKey || InCategory(s, category, curated)) &&
+                (search.Length == 0 || Matches(s, search)))
+            .Select(static s => new SymbolCell(s))
+            .ToList();
+    }
+
+    /// <summary>
+    /// Filters the pack's icons. Every word of the search must appear in the icon's search text (file
+    /// name and its parts, folder, tags), so "arrow left" finds "arrow-left-bold".
+    /// </summary>
+    private List<SymbolCell> FilterPackIcons(string search, string category)
+    {
+        if (_packIndex == null)
+            return [];
+
+        // The old cells are gone; their queued thumbnail loads would only waste time.
+        _thumbnails?.ClearPending();
+        IconThumbnailLoader thumbnails = _thumbnails ??= new IconThumbnailLoader(ThumbnailColor());
+
+        string[] words = search.ToLowerInvariant().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+
+        return _packIndex.Entries.Where(e =>
+                (category == SymbolLibrary.AllCategoriesKey || e.Categories.Contains(category, StringComparer.OrdinalIgnoreCase)) &&
+                words.All(w => e.SearchText.Contains(w, StringComparison.Ordinal)))
+            .Select(e => new SymbolCell(e, thumbnails))
+            .ToList();
+    }
+
+    /// <summary>The theme's text color, which single-color pack icons are previewed in.</summary>
+    private static Color ThumbnailColor()
+    {
+        if (Application.Current is { } app &&
+            app.TryGetResource("AppTextPrimary", app.ActualThemeVariant, out object resource) &&
+            resource is ISolidColorBrush brush)
+            return brush.Color;
+
+        return Colors.Gray;
     }
 
     private static bool InCategory(SymbolDefinition symbol, string category, bool curated)
@@ -293,6 +589,7 @@ public partial class SymbolPickerViewModel : DialogViewModelBase<SymbolPickerReq
         if (SelectedCell == null) return;
 
         _request.SelectedSymbol = SelectedCell.Symbol;
+        _request.SelectedPackIcon = SelectedCell.Icon;
         Confirm(new DialogResult(true));
         CloseRequested?.Invoke();
     }
@@ -301,5 +598,14 @@ public partial class SymbolPickerViewModel : DialogViewModelBase<SymbolPickerReq
     {
         Cancel();
         CloseRequested?.Invoke();
+    }
+
+    /// <summary>Stops a running scan and the thumbnail workers once the dialog has closed.</summary>
+    public void Dispose()
+    {
+        _searchTimer.Stop();
+        CancelScan();
+        _thumbnails?.Dispose();
+        _thumbnails = null;
     }
 }

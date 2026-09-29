@@ -19,8 +19,19 @@ public partial class SymbolPicker : Window
                 return;
 
             vm.CloseRequested += Close;
+            vm.ScrollToRowRequested += ScrollToRow;
             if (vm.InitialRowIndex >= 0)
-                Dispatcher.UIThread.Post(() => SymbolRows.ScrollIntoView(vm.InitialRowIndex), DispatcherPriority.Loaded);
+                ScrollToRow(vm.InitialRowIndex);
+        };
+
+        Closed += (_, _) =>
+        {
+            if (DataContext is not SymbolPickerViewModel vm)
+                return;
+
+            vm.CloseRequested -= Close;
+            vm.ScrollToRowRequested -= ScrollToRow;
+            vm.Dispose();
         };
 
         Closing += (_, _) =>
@@ -29,6 +40,11 @@ public partial class SymbolPicker : Window
             if (DataContext is IDialogViewModel vm && !vm.DialogResult.Task.IsCompleted)
                 vm.DialogResult.TrySetResult(new DialogResult(false));
         };
+    }
+
+    private void ScrollToRow(int row)
+    {
+        Dispatcher.UIThread.Post(() => SymbolRows.ScrollIntoView(row), DispatcherPriority.Loaded);
     }
 
     private void SymbolCell_Tapped(object sender, TappedEventArgs e)
