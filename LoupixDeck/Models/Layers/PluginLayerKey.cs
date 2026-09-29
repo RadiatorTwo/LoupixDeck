@@ -40,6 +40,9 @@ public static class PluginLayerKey
     }
 
     /// <summary>The trimmed, empty-removed parameters between the parentheses.</summary>
+    /// <remarks>Only for building the layer key, which is persisted and must stay stable.
+    /// Values handed to a command come from <see cref="Utils.CommandStringParser.GetParameters"/>,
+    /// which keeps an empty value's position.</remarks>
     public static string[] ParseParameters(string command)
     {
         if (string.IsNullOrWhiteSpace(command))
