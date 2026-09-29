@@ -14,27 +14,30 @@ namespace LoupixDeck.Services.IconPacks;
 /// Decodes small preview bitmaps of pack icons for one symbol picker session.
 /// </summary>
 /// <remarks>
-/// Nothing is decoded up front: a cell asks for its thumbnail the first time the virtualized grid
-/// shows it. Requests are served newest first, so after a fast scroll the rows now on screen win
-/// over the ones scrolled past. Decoded thumbnails are kept in a small LRU cache that is disposed
-/// with the loader when the picker closes.
+/// Only runs while the picker is open: when a pack is shown, all of its icons are queued top to
+/// bottom, and a cell the grid shows before its turn is moved to the front. Finished thumbnails are
+/// handed to the UI in batches rather than one dispatcher call each, so decoding does not compete
+/// with scrolling. Everything is released when the picker closes; nothing is kept for the app.
 /// </remarks>
 public sealed class IconThumbnailLoader : IDisposable
 {
-    /// <summary>Longest edge of a thumbnail in pixels; enough for a 48 px cell on a 2x display.</summary>
-    public const int ThumbnailSize = 96;
+    /// <summary>Longest edge of a thumbnail in pixels; the grid shows 44 px, so this covers ~150% scaling.</summary>
+    public const int ThumbnailSize = 64;
 
-    private const int CacheCapacity = 1000;
+    /// <summary>How often finished thumbnails are handed to the UI.</summary>
+    private static readonly TimeSpan DeliveryInterval = TimeSpan.FromMilliseconds(50);
 
-    private sealed record PendingLoad(IconPackEntry Entry, Action<Bitmap> OnLoaded);
-
-    private readonly ConcurrentStack<PendingLoad> _pending = new();
+    private readonly ConcurrentStack<IconPackEntry> _pending = new();
+    private readonly ConcurrentQueue<(string Key, Bitmap Bitmap)> _finished = new();
+    private readonly ConcurrentDictionary<string, Bitmap> _cache = new();
+    private readonly ConcurrentDictionary<string, byte> _started = new();
     private readonly SemaphoreSlim _signal = new(0);
     private readonly CancellationTokenSource _cancellation = new();
-    private readonly Lock _cacheGate = new();
-    private readonly Dictionary<string, LinkedListNode<(string Key, Bitmap Bitmap)>> _cache = [];
-    private readonly LinkedList<(string Key, Bitmap Bitmap)> _lru = new();
+    private readonly DispatcherTimer _deliveryTimer;
     private readonly SKColor _monochromeColor;
+
+    /// <summary>Raised on the UI thread with thumbnails finished since the last batch.</summary>
+    public event Action<IReadOnlyList<(string Key, Bitmap Bitmap)>> ThumbnailsLoaded;
 
     /// <param name="monochromeColor">
     /// Color single-color icons are drawn in, so black line icons stay visible on a dark theme.
@@ -43,27 +46,44 @@ public sealed class IconThumbnailLoader : IDisposable
     {
         _monochromeColor = new SKColor(monochromeColor.R, monochromeColor.G, monochromeColor.B, monochromeColor.A);
 
+        _deliveryTimer = new DispatcherTimer(DeliveryInterval, DispatcherPriority.Background, (_, _) => Deliver());
+        _deliveryTimer.Start();
+
         int workers = Math.Clamp(Environment.ProcessorCount / 2, 2, 4);
         for (int i = 0; i < workers; i++)
             _ = Task.Run(WorkAsync);
     }
 
     /// <summary>
-    /// Queues <paramref name="entry"/>; <paramref name="onLoaded"/> runs on the UI thread with the
-    /// thumbnail, or with null when the file cannot be decoded. A cached thumbnail is returned at once.
+    /// Queues every icon of a pack, first entry first, replacing what an earlier pack left queued.
     /// </summary>
-    public Bitmap Request(IconPackEntry entry, Action<Bitmap> onLoaded)
+    public void LoadAll(IReadOnlyList<IconPackEntry> entries)
     {
-        if (TryGetCached(entry.Key, out Bitmap cached))
+        _pending.Clear();
+
+        // A stack serves the last push first, so push bottom-up to decode top-down.
+        for (int i = entries.Count - 1; i >= 0; i--)
+        {
+            if (!_cache.ContainsKey(entries[i].Key))
+                _pending.Push(entries[i]);
+        }
+
+        _signal.Release(Math.Max(1, _pending.Count));
+    }
+
+    /// <summary>
+    /// The thumbnail if it is already decoded; otherwise moves the icon to the front of the queue
+    /// and returns null. It arrives later through <see cref="ThumbnailsLoaded"/>.
+    /// </summary>
+    public Bitmap GetOrPrioritize(IconPackEntry entry)
+    {
+        if (_cache.TryGetValue(entry.Key, out Bitmap cached))
             return cached;
 
-        _pending.Push(new PendingLoad(entry, onLoaded));
+        _pending.Push(entry);
         _signal.Release();
         return null;
     }
-
-    /// <summary>Drops requests not yet started, e.g. after the filter replaced the grid's cells.</summary>
-    public void ClearPending() => _pending.Clear();
 
     private async Task WorkAsync()
     {
@@ -73,33 +93,43 @@ public sealed class IconThumbnailLoader : IDisposable
             while (true)
             {
                 await _signal.WaitAsync(token);
-                if (!_pending.TryPop(out PendingLoad request))
+                if (!_pending.TryPop(out IconPackEntry entry))
                     continue;
 
-                if (!TryGetCached(request.Entry.Key, out Bitmap bitmap))
-                {
-                    bitmap = Decode(request.Entry);
-                    if (token.IsCancellationRequested)
-                    {
-                        bitmap?.Dispose();
-                        return;
-                    }
+                // An icon can be queued twice (bulk + prioritized); decode it once.
+                if (!_started.TryAdd(entry.Key, 0))
+                    continue;
 
-                    if (bitmap != null)
-                        bitmap = AddToCache(request.Entry.Key, bitmap);
+                Bitmap bitmap = Decode(entry);
+                if (token.IsCancellationRequested)
+                {
+                    bitmap?.Dispose();
+                    return;
                 }
 
-                Dispatcher.UIThread.Post(() =>
-                {
-                    if (!token.IsCancellationRequested)
-                        request.OnLoaded(bitmap);
-                });
+                if (bitmap == null)
+                    continue;
+
+                _cache[entry.Key] = bitmap;
+                _finished.Enqueue((entry.Key, bitmap));
             }
         }
         catch (OperationCanceledException)
         {
             // The picker closed.
         }
+    }
+
+    private void Deliver()
+    {
+        if (_finished.IsEmpty)
+            return;
+
+        List<(string Key, Bitmap Bitmap)> batch = [];
+        while (_finished.TryDequeue(out (string Key, Bitmap Bitmap) item))
+            batch.Add(item);
+
+        ThumbnailsLoaded?.Invoke(batch);
     }
 
     private Bitmap Decode(IconPackEntry entry)
@@ -223,59 +253,20 @@ public sealed class IconThumbnailLoader : IDisposable
         return result;
     }
 
-    private bool TryGetCached(string key, out Bitmap bitmap)
-    {
-        lock (_cacheGate)
-        {
-            if (_cache.TryGetValue(key, out LinkedListNode<(string Key, Bitmap Bitmap)> node))
-            {
-                _lru.Remove(node);
-                _lru.AddFirst(node);
-                bitmap = node.Value.Bitmap;
-                return true;
-            }
-        }
-
-        bitmap = null;
-        return false;
-    }
-
-    /// <summary>Caches a thumbnail and returns the cached instance (another worker may have won).</summary>
-    private Bitmap AddToCache(string key, Bitmap bitmap)
-    {
-        lock (_cacheGate)
-        {
-            if (_cache.TryGetValue(key, out LinkedListNode<(string Key, Bitmap Bitmap)> existing))
-            {
-                bitmap.Dispose();
-                return existing.Value.Bitmap;
-            }
-
-            _cache[key] = _lru.AddFirst((key, bitmap));
-
-            // Evicted thumbnails are not disposed: a realized cell may still show one, and disposing
-            // a bitmap an Image is rendering crashes the renderer. The GC reclaims them once unused.
-            while (_lru.Count > CacheCapacity)
-            {
-                _cache.Remove(_lru.Last!.Value.Key);
-                _lru.RemoveLast();
-            }
-        }
-
-        return bitmap;
-    }
-
+    /// <summary>
+    /// Stops the workers and frees every thumbnail. Called once the picker window has closed, so no
+    /// realized cell renders them any more.
+    /// </summary>
     public void Dispose()
     {
         _cancellation.Cancel();
+        _deliveryTimer.Stop();
         _pending.Clear();
+        _finished.Clear();
+        ThumbnailsLoaded = null;
 
-        // Only dropped, not disposed, for the same reason as eviction: the closing window may still
-        // render a frame with them.
-        lock (_cacheGate)
-        {
-            _cache.Clear();
-            _lru.Clear();
-        }
+        foreach (Bitmap bitmap in _cache.Values)
+            bitmap.Dispose();
+        _cache.Clear();
     }
 }

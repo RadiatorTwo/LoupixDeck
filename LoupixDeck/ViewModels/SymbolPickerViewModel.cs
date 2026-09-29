@@ -101,22 +101,22 @@ public sealed partial class SymbolCell : ObservableObject
     public bool IsGlyph => Symbol != null;
 
     /// <summary>
-    /// Preview of a pack icon. Only the realized cells of the virtualized grid read it, so the first
-    /// read queues the decode and the icons scrolled into view load first.
+    /// Preview of a pack icon. The whole pack is decoded while the picker is open; a cell the grid
+    /// shows before its turn moves to the front of the queue, so visible icons come first.
     /// </summary>
     public Bitmap Thumbnail
     {
         get
         {
-            if (!_thumbnailRequested && _thumbnails != null)
+            if (field == null && !_thumbnailRequested && _thumbnails != null)
             {
                 _thumbnailRequested = true;
-                field = _thumbnails.Request(Icon, bitmap => Thumbnail = bitmap);
+                field = _thumbnails.GetOrPrioritize(Icon);
             }
 
             return field;
         }
-        private set => SetProperty(ref field, value);
+        set => SetProperty(ref field, value);
     }
 
     [ObservableProperty]
@@ -304,6 +304,8 @@ public partial class SymbolPickerViewModel : DialogViewModelBase<SymbolPickerReq
         CancelScan();
         PackStatusText = null;
         _packIndex = null;
+        // Stop decoding the previous pack; what is decoded stays until the picker closes.
+        _thumbnails?.LoadAll([]);
 
         if (value.Pack != null)
         {
@@ -397,9 +399,33 @@ public partial class SymbolPickerViewModel : DialogViewModelBase<SymbolPickerReq
             : index.SkippedFontFiles > 0 ? Loc.Tr("SymbolPicker_PackFontsUnsupported")
             : Loc.Tr("SymbolPicker_PackEmpty");
 
+        // Queue the whole pack before the grid is rebuilt, so the cells it shows first can jump the queue.
+        if (!index.Entries.IsEmpty)
+            Thumbnails().LoadAll(index.Entries);
+
         SelectedCategory = null;
         SelectedCategory = Categories.FirstOrDefault(c => c.Key == previous) ?? Categories[0];
         TrySelectPending(scroll: false);
+    }
+
+    /// <summary>The session's thumbnail loader, created when the first pack is shown.</summary>
+    private IconThumbnailLoader Thumbnails()
+    {
+        if (_thumbnails != null)
+            return _thumbnails;
+
+        _thumbnails = new IconThumbnailLoader(ThumbnailColor());
+        _thumbnails.ThumbnailsLoaded += OnThumbnailsLoaded;
+        return _thumbnails;
+    }
+
+    private void OnThumbnailsLoaded(IReadOnlyList<(string Key, Bitmap Bitmap)> batch)
+    {
+        foreach ((string key, Bitmap bitmap) in batch)
+        {
+            if (_cellsById.TryGetValue(key, out SymbolCell cell))
+                cell.Thumbnail = bitmap;
+        }
     }
 
     private void TrySelectPending(bool scroll)
@@ -544,9 +570,7 @@ public partial class SymbolPickerViewModel : DialogViewModelBase<SymbolPickerReq
         if (_packIndex == null)
             return [];
 
-        // The old cells are gone; their queued thumbnail loads would only waste time.
-        _thumbnails?.ClearPending();
-        IconThumbnailLoader thumbnails = _thumbnails ??= new IconThumbnailLoader(ThumbnailColor());
+        IconThumbnailLoader thumbnails = Thumbnails();
 
         string[] words = search.ToLowerInvariant().Split(' ', StringSplitOptions.RemoveEmptyEntries);
 
@@ -600,12 +624,23 @@ public partial class SymbolPickerViewModel : DialogViewModelBase<SymbolPickerReq
         CloseRequested?.Invoke();
     }
 
-    /// <summary>Stops a running scan and the thumbnail workers once the dialog has closed.</summary>
+    /// <summary>
+    /// Stops a running scan and the thumbnail workers once the dialog has closed, and frees the
+    /// thumbnails: the picker's memory is only in use while it is open.
+    /// </summary>
     public void Dispose()
     {
         _searchTimer.Stop();
         CancelScan();
-        _thumbnails?.Dispose();
-        _thumbnails = null;
+
+        if (_thumbnails != null)
+        {
+            _thumbnails.ThumbnailsLoaded -= OnThumbnailsLoaded;
+            _thumbnails.Dispose();
+            _thumbnails = null;
+        }
+
+        _cellsById.Clear();
+        Rows.Clear();
     }
 }
