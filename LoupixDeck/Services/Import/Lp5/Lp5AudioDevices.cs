@@ -22,6 +22,10 @@ internal static class Lp5AudioDevices
     public static string RenderEndpointId(string friendlyName)
     {
 #if WINDOWS
+        // Always true here; tells the platform analyzer (CA1416) that the registry calls below
+        // only run on Windows, which it cannot infer from the #if on a net10.0 target.
+        if (!OperatingSystem.IsWindows()) return null;
+
         List<(string Id, bool Active)> matches = [];
         try
         {
