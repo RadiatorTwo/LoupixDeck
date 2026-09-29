@@ -13,6 +13,7 @@ using LoupixDeck.Services.Diagnostics.Linux.Checks.Installation;
 using LoupixDeck.Services.Diagnostics.Linux.Checks.Plugins;
 using LoupixDeck.Services.DialPresets;
 using LoupixDeck.Services.FolderNavigation;
+using LoupixDeck.Services.IconPacks;
 using LoupixDeck.Services.Macros;
 using LoupixDeck.Services.Mouse;
 using LoupixDeck.Services.Plugins;
@@ -127,6 +128,9 @@ public static class ServiceCollectionExtensions
 
         collection.AddSingleton<IAppIconExtractor, AppIconExtractor>();
         collection.AddSingleton<ICustomAppStore, CustomAppStore>();
+
+        // Icon folders added to the symbol picker; the same packs for every device.
+        collection.AddSingleton<IIconPackService, IconPackService>();
 
         // Animated-button assets (issue #121): decode-once frame cache and the import/transcode
         // pipeline are device-agnostic, so they live as shared root singletons (one decode shared
@@ -254,6 +258,7 @@ public static class ServiceCollectionExtensions
         // Re-expose the root singletons device-bound services depend on.
         collection.Forward<IConfigService>(root);
         collection.Forward<IAssetService>(root);
+        collection.Forward<IIconPackService>(root);
         collection.Forward<IAutostartService>(root);
         collection.Forward<IAppDiscoveryService>(root);
         collection.Forward<IAppIconExtractor>(root);

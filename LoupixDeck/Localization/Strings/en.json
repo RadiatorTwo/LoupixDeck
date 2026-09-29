@@ -1233,5 +1233,17 @@
   "Plugins_ConfirmDiscardMessage": "The settings of '{0}' have unsaved changes. Discard them?",
   "Plugins_ConfirmRestartTitle": "Restart LoupixDeck?",
   "Plugins_ConfirmRestartMessage": "LoupixDeck closes and starts again so the pending change takes effect.",
-  "Plugins_RestartFailed": "LoupixDeck could not be restarted. Please close and start it again."
+  "Plugins_RestartFailed": "LoupixDeck could not be restarted. Please close and start it again.",
+  "SymbolPicker_AddPackTip": "Add a folder of PNG or SVG icons as an icon pack. The folder stays where it is; an icon is copied into LoupixDeck only when you place it on a button.",
+  "SymbolPicker_RemovePackTip": "Remove the selected icon pack from the list. The folder and buttons using its icons are not affected.",
+  "SymbolPicker_SelectPackFolder": "Select icon folder",
+  "SymbolPicker_PackMissingFmt": "{0} (folder missing)",
+  "SymbolPicker_PackMissingInfo": "The folder of this icon pack can't be found. Buttons using its icons keep working, because each placed icon was copied into LoupixDeck.",
+  "SymbolPicker_PackScanning": "Scanning folder…",
+  "SymbolPicker_PackEmpty": "No PNG or SVG icons found in this folder or its subfolders.",
+  "SymbolPicker_PackFontsUnsupported": "This folder contains icon fonts, not individual icon files. Icon fonts aren't supported yet; use the pack's separate SVG or PNG files instead.",
+  "SymbolPicker_PackTruncatedFmt": "{0} symbols (only the first {1} icons of this folder are loaded)",
+  "SymbolPicker_PackRootCategory": "(Top folder)",
+  "TouchButton_KeepOriginalColors": "Keep original colors",
+  "TouchButton_KeepOriginalColorsTip": "Draw the icon in its own colors instead of the tint or gradient. Set automatically for colored icons."
 }

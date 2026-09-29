@@ -1233,5 +1233,17 @@
   "Plugins_ConfirmDiscardMessage": "Los ajustes de '{0}' tienen cambios sin guardar. ¿Descartarlos?",
   "Plugins_ConfirmRestartTitle": "¿Reiniciar LoupixDeck?",
   "Plugins_ConfirmRestartMessage": "LoupixDeck se cierra y vuelve a iniciarse para que el cambio pendiente tenga efecto.",
-  "Plugins_RestartFailed": "No se pudo reiniciar LoupixDeck. Ciérralo y vuelve a abrirlo."
+  "Plugins_RestartFailed": "No se pudo reiniciar LoupixDeck. Ciérralo y vuelve a abrirlo.",
+  "SymbolPicker_AddPackTip": "Añade una carpeta de iconos PNG o SVG como paquete de iconos. La carpeta se queda donde está; un icono solo se copia a LoupixDeck cuando lo colocas en un botón.",
+  "SymbolPicker_RemovePackTip": "Quita el paquete de iconos seleccionado de la lista. La carpeta y los botones que usan sus iconos no se ven afectados.",
+  "SymbolPicker_SelectPackFolder": "Seleccionar carpeta de iconos",
+  "SymbolPicker_PackMissingFmt": "{0} (falta la carpeta)",
+  "SymbolPicker_PackMissingInfo": "No se encuentra la carpeta de este paquete de iconos. Los botones que usan sus iconos siguen funcionando, porque cada icono colocado se copió a LoupixDeck.",
+  "SymbolPicker_PackScanning": "Examinando carpeta…",
+  "SymbolPicker_PackEmpty": "No se encontraron iconos PNG ni SVG en esta carpeta ni en sus subcarpetas.",
+  "SymbolPicker_PackFontsUnsupported": "Esta carpeta contiene fuentes de iconos, no archivos de iconos individuales. Las fuentes de iconos aún no son compatibles; usa en su lugar los archivos SVG o PNG sueltos del paquete.",
+  "SymbolPicker_PackTruncatedFmt": "{0} símbolos (solo se cargan los primeros {1} iconos de esta carpeta)",
+  "SymbolPicker_PackRootCategory": "(Carpeta principal)",
+  "TouchButton_KeepOriginalColors": "Mantener colores originales",
+  "TouchButton_KeepOriginalColorsTip": "Dibuja el icono con sus propios colores en lugar del tinte o el degradado. Se activa automáticamente en los iconos a color."
 }

@@ -2,6 +2,7 @@ using Avalonia.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 using LoupixDeck.Utils;
 using Newtonsoft.Json;
+using SkiaSharp;
 
 namespace LoupixDeck.Models.Layers;
 
@@ -9,6 +10,8 @@ namespace LoupixDeck.Models.Layers;
 /// A layer that renders a tinted glyph from the bundled Material Design Icons
 /// font. <see cref="SymbolId"/> references an entry in <see cref="SymbolLibrary"/>;
 /// the renderer (<c>BitmapHelper.DrawSymbolLayer</c>) resolves it to a glyph.
+/// When <see cref="IconAssetPath"/> is set, the layer instead renders an icon imported
+/// from an icon pack, with the same tint, outline, shadow and gradient options.
 /// </summary>
 public partial class SymbolLayer : LayerBase
 {
@@ -17,6 +20,97 @@ public partial class SymbolLayer : LayerBase
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(Glyph))]
     public partial string SymbolId { get; set; } = string.Empty;
+
+    // --- Icon pack image (issue #300) ---
+
+    /// <summary>
+    /// Relative asset path of an icon copied from an icon pack; wins over <see cref="SymbolId"/>.
+    /// Null for a glyph, and then omitted from the file, so glyph layers serialize as before.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsImageIcon))]
+    [NotifyPropertyChangedFor(nameof(IsTintable))]
+    [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+    public partial string IconAssetPath { get; set; }
+
+    /// <summary>
+    /// Picker key of the pack icon (<c>pack:&lt;id&gt;/&lt;path&gt;</c>), only used to pre-select it
+    /// when the icon is picked again. Rendering never depends on the pack still existing.
+    /// </summary>
+    [ObservableProperty]
+    [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+    public partial string IconSource { get; set; }
+
+    /// <summary>Draws a pack icon in its own colors instead of the tint or gradient.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsTintable))]
+    [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
+    public partial bool KeepOriginalColors { get; set; }
+
+    /// <summary>True when the layer shows a pack icon rather than a font glyph.</summary>
+    [JsonIgnore]
+    public bool IsImageIcon => !string.IsNullOrEmpty(IconAssetPath);
+
+    /// <summary>True when the tint and gradient apply; false for a pack icon kept in its own colors.</summary>
+    [JsonIgnore]
+    public bool IsTintable => !IsImageIcon || !KeepOriginalColors;
+
+    /// <summary>Longest edge of <see cref="IconPreview"/> in pixels.</summary>
+    private const int IconPreviewSize = 96;
+
+    private SKBitmap _iconPreview;
+
+    /// <summary>
+    /// Small preview of a pack icon for the editor's properties panel, drawn in the tint (or its own
+    /// colors) so it looks like the key. Null for a glyph or a missing asset.
+    /// </summary>
+    [JsonIgnore]
+    public SKBitmap IconPreview => _iconPreview ??= BuildIconPreview();
+
+    partial void OnIconAssetPathChanged(string value) => InvalidateIconPreview();
+
+    partial void OnKeepOriginalColorsChanged(bool value) => InvalidateIconPreview();
+
+    partial void OnTintChanged(Color value)
+    {
+        if (IsImageIcon)
+            InvalidateIconPreview();
+    }
+
+    private void InvalidateIconPreview()
+    {
+        SKBitmap old = _iconPreview;
+        _iconPreview = null;
+        OnPropertyChanged(nameof(IconPreview));
+        // The panel's converter copies the pixels, so the old bitmap is no longer used.
+        old?.Dispose();
+    }
+
+    private SKBitmap BuildIconPreview()
+    {
+        if (!IsImageIcon || BitmapHelper.AssetResolver?.Invoke(IconAssetPath) is not { } source)
+            return null;
+
+        SKRectI src = IconColorAnalysis.GetContentBounds(source);
+        if (src.Width <= 0 || src.Height <= 0)
+            return null;
+
+        float fit = (float)IconPreviewSize / Math.Max(src.Width, src.Height);
+        SKBitmap preview = new(new SKImageInfo(
+            Math.Max(1, (int)Math.Round(src.Width * fit)),
+            Math.Max(1, (int)Math.Round(src.Height * fit)),
+            SKColorType.Bgra8888, SKAlphaType.Premul));
+
+        using SKCanvas canvas = new(preview);
+        using SKColorFilter tint = IsTintable
+            ? SKColorFilter.CreateBlendMode(new SKColor(Tint.R, Tint.G, Tint.B, Tint.A), SKBlendMode.SrcIn)
+            : null;
+        using SKPaint paint = new() { ColorFilter = tint };
+        canvas.Clear(SKColors.Transparent);
+        canvas.DrawBitmap(source, src, new SKRect(0, 0, preview.Width, preview.Height),
+            new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear), paint);
+        return preview;
+    }
 
     /// <summary>Solid fill color — used when <see cref="UseGradient"/> is false.</summary>
     [ObservableProperty]
@@ -107,6 +201,18 @@ public partial class SymbolLayer : LayerBase
     public void FitScaleToGlyph(double size)
     {
         double ratio = SymbolLibrary.TryGet(SymbolId, out SymbolDefinition def) ? SymbolLibrary.GlyphAspectRatio(def) : 1.0;
+
+        Scale = size * Math.Min(1.0, ratio);
+        ScaleY = size * Math.Min(1.0, 1.0 / ratio);
+    }
+
+    /// <summary>
+    /// Sizes the layer box to <paramref name="aspectRatio"/> (width / height), fitted into a square
+    /// of <paramref name="size"/>. Used for pack icons, whose ratio comes from their pixels.
+    /// </summary>
+    public void FitScaleToAspect(double size, double aspectRatio)
+    {
+        double ratio = aspectRatio > 0 && double.IsFinite(aspectRatio) ? aspectRatio : 1.0;
 
         Scale = size * Math.Min(1.0, ratio);
         ScaleY = size * Math.Min(1.0, 1.0 / ratio);

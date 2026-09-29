@@ -18,7 +18,7 @@
         <Grid RowDefinitions="Auto,*,Auto">
 
             <!-- Search + source + category filter -->
-            <Grid Grid.Row="0" ColumnDefinitions="*,190,170" Margin="0,0,0,8">
+            <Grid Grid.Row="0" ColumnDefinitions="*,190,Auto,170" Margin="0,0,0,8">
                 <TextBox Grid.Column="0"
                          PlaceholderText="{loc:Tr SymbolPicker_SearchSymbols}"
                          Text="{Binding SearchText, Mode=TwoWay}"
@@ -35,7 +35,22 @@
                         </DataTemplate>
                     </ComboBox.ItemTemplate>
                 </ComboBox>
-                <ComboBox Grid.Column="2"
+                <!-- Add a folder of icons as a source / remove the selected one -->
+                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" Margin="0,0,8,0">
+                    <Button Width="32" Height="32" Padding="0"
+                            ToolTip.Tip="{loc:Tr SymbolPicker_AddPackTip}"
+                            Command="{Binding AddPackCommand}">
+                        <TextBlock Text="&#xF0B9D;" FontFamily="{StaticResource MdiFont}" FontSize="18"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Button>
+                    <Button Width="32" Height="32" Padding="0"
+                            ToolTip.Tip="{loc:Tr SymbolPicker_RemovePackTip}"
+                            Command="{Binding RemovePackCommand}">
+                        <TextBlock Text="&#xF0B9E;" FontFamily="{StaticResource MdiFont}" FontSize="18"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Button>
+                </StackPanel>
+                <ComboBox Grid.Column="3"
                           HorizontalAlignment="Stretch"
                           ItemsSource="{Binding Categories}"
                           SelectedItem="{Binding SelectedCategory, Mode=TwoWay}">
@@ -100,14 +115,22 @@
                                                 Classes.selected="{Binding IsSelected}"
                                                 Tapped="SymbolCell_Tapped"
                                                 DoubleTapped="SymbolCell_DoubleTapped"
-                                                ToolTip.Tip="{Binding Symbol.Id}">
+                                                ToolTip.Tip="{Binding Key}">
                                             <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-                                                <TextBlock Text="{Binding Symbol.Glyph}"
-                                                           FontFamily="{Binding Symbol.FontFamily}"
+                                                <TextBlock Text="{Binding Symbol.Glyph, FallbackValue={x:Null}}"
+                                                           FontFamily="{Binding Symbol.FontFamily, FallbackValue={x:Null}}"
+                                                           IsVisible="{Binding IsGlyph}"
                                                            FontSize="40"
                                                            HorizontalAlignment="Center"
                                                            Margin="0,0,0,4" />
-                                                <TextBlock Text="{Binding Symbol.DisplayName}"
+                                                <Image Source="{Binding Thumbnail}"
+                                                       IsVisible="{Binding !IsGlyph}"
+                                                       Width="44" Height="44"
+                                                       Stretch="Uniform"
+                                                       RenderOptions.BitmapInterpolationMode="HighQuality"
+                                                       HorizontalAlignment="Center"
+                                                       Margin="0,2,0,6" />
+                                                <TextBlock Text="{Binding DisplayName}"
                                                            FontSize="11"
                                                            MaxHeight="30"
                                                            TextWrapping="Wrap"
@@ -124,18 +147,29 @@
                 </ListBox>
             </Border>
 
+            <!-- Icon pack status: scanning, empty, folder missing, only icon fonts -->
+            <TextBlock Grid.Row="1"
+                       Text="{Binding PackStatusText}"
+                       IsVisible="{Binding PackStatusText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                       Foreground="{DynamicResource AppTextSecondary}"
+                       TextWrapping="Wrap"
+                       TextAlignment="Center"
+                       MaxWidth="440"
+                       HorizontalAlignment="Center"
+                       VerticalAlignment="Center" />
+
             <!-- Buttons -->
             <Grid Grid.Row="2" ColumnDefinitions="*,Auto,Auto" Margin="0,8,0,0">
                 <TextBlock Grid.Column="0"
                            VerticalAlignment="Center"
                            Foreground="{DynamicResource AppTextSecondary}"
-                           Text="{Binding SelectedSymbol.DisplayName, FallbackValue={x:Null}}"
-                           IsVisible="{Binding SelectedSymbol, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                           Text="{Binding SelectedCell.DisplayName, FallbackValue={x:Null}}"
+                           IsVisible="{Binding SelectedCell, Converter={x:Static ObjectConverters.IsNotNull}}" />
                 <TextBlock Grid.Column="0"
                            VerticalAlignment="Center"
                            Foreground="{DynamicResource AppTextSecondary}"
                            Text="{Binding CountText}"
-                           IsVisible="{Binding SelectedSymbol, Converter={x:Static ObjectConverters.IsNull}}" />
+                           IsVisible="{Binding SelectedCell, Converter={x:Static ObjectConverters.IsNull}}" />
                 <Button Grid.Column="1"
                         Content="{loc:Tr SymbolPicker_Cancel}"
                         MinWidth="110"
