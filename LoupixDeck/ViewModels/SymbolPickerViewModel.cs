@@ -40,7 +40,11 @@ public enum SymbolSource
     MdiLight
 }
 
-public sealed record SymbolSourceOption(SymbolSource Source, string DisplayName);
+public sealed record SymbolSourceOption(SymbolSource Source, string DisplayName)
+{
+    /// <summary>Stable key persisted in <c>ui-settings.json</c>; the enum name for the built-in sources.</summary>
+    public string Key => Source.ToString();
+}
 
 /// <summary>A category filter entry; <see cref="Key"/> is the value compared against symbols.</summary>
 public sealed record SymbolCategoryOption(string Key, string DisplayName);
@@ -49,6 +53,11 @@ public sealed record SymbolCategoryOption(string Key, string DisplayName);
 public sealed partial class SymbolCell(SymbolDefinition symbol) : ObservableObject
 {
     public SymbolDefinition Symbol { get; } = symbol;
+
+    /// <summary>Unique key of the cell within its source; the symbol id for glyphs.</summary>
+    public string Key { get; } = symbol.Id;
+
+    public string DisplayName { get; } = symbol.DisplayName;
 
     [ObservableProperty]
     public partial bool IsSelected { get; set; }
@@ -82,7 +91,8 @@ public partial class SymbolPickerViewModel : DialogViewModelBase<SymbolPickerReq
 
     public ObservableCollection<SymbolRow> Rows { get; } = [];
 
-    public ImmutableArray<SymbolSourceOption> Sources { get; } =
+    [ObservableProperty]
+    public partial ImmutableArray<SymbolSourceOption> Sources { get; set; } =
     [
         new(SymbolSource.Curated, Loc.Tr("SymbolPicker_SourceCurated")),
         new(SymbolSource.MdiAll, Loc.Tr("SymbolPicker_SourceMdiAll")),
@@ -106,12 +116,12 @@ public partial class SymbolPickerViewModel : DialogViewModelBase<SymbolPickerReq
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(ConfirmCommand))]
-    public partial SymbolDefinition SelectedSymbol { get; set; }
+    public partial SymbolCell SelectedCell { get; set; }
 
     private IRelayCommand _confirmCommand;
     private IRelayCommand _cancelCommand;
 
-    public IRelayCommand ConfirmCommand => Relay.Ref(ref _confirmCommand, ConfirmSelection, () => SelectedSymbol != null);
+    public IRelayCommand ConfirmCommand => Relay.Ref(ref _confirmCommand, ConfirmSelection, () => SelectedCell != null);
     public IRelayCommand CancelCommand => Relay.Ref(ref _cancelCommand, CancelSelection);
 
     /// <summary>Raised when the dialog should close (after Confirm or Cancel).</summary>
@@ -131,12 +141,10 @@ public partial class SymbolPickerViewModel : DialogViewModelBase<SymbolPickerReq
             ApplyFilter();
         };
 
-        SymbolSource saved = Enum.TryParse(UiSettingsStore.GetString(SourceSettingKey), out SymbolSource source)
-            ? source
-            : SymbolSource.Curated;
+        string saved = UiSettingsStore.GetString(SourceSettingKey);
 
         _persistSource = false;
-        SelectedSource = Sources.First(o => o.Source == saved);
+        SelectedSource = Sources.FirstOrDefault(o => o.Key == saved) ?? Sources[0];
         _persistSource = true;
     }
 
@@ -171,7 +179,7 @@ public partial class SymbolPickerViewModel : DialogViewModelBase<SymbolPickerReq
         if (value == null) return;
 
         if (_persistSource)
-            UiSettingsStore.Set(SourceSettingKey, value.Source.ToString());
+            UiSettingsStore.Set(SourceSettingKey, value.Key);
 
         IEnumerable<string> keys = value.Source switch
         {
@@ -201,24 +209,24 @@ public partial class SymbolPickerViewModel : DialogViewModelBase<SymbolPickerReq
         _searchTimer.Start();
     }
 
-    partial void OnSelectedSymbolChanged(SymbolDefinition value)
+    partial void OnSelectedCellChanged(SymbolCell value)
     {
         foreach (SymbolCell cell in _cellsById.Values)
-            cell.IsSelected = value != null && cell.Symbol.Id.Equals(value.Id, StringComparison.OrdinalIgnoreCase);
+            cell.IsSelected = value != null && cell.Key.Equals(value.Key, StringComparison.OrdinalIgnoreCase);
     }
 
-    /// <summary>Selects the symbol of a tapped grid cell.</summary>
+    /// <summary>Selects a tapped grid cell.</summary>
     public void SelectCell(SymbolCell cell)
     {
-        SelectedSymbol = cell?.Symbol;
+        SelectedCell = cell;
     }
 
-    private void Select(string id)
+    private void Select(string key)
     {
-        if (!_cellsById.TryGetValue(id, out SymbolCell cell))
+        if (!_cellsById.TryGetValue(key, out SymbolCell cell))
             return;
 
-        SelectedSymbol = cell.Symbol;
+        SelectedCell = cell;
         InitialRowIndex = Rows.IndexOf(Rows.First(r => r.Cells.Contains(cell)));
     }
 
@@ -248,16 +256,20 @@ public partial class SymbolPickerViewModel : DialogViewModelBase<SymbolPickerReq
         {
             ImmutableArray<SymbolCell> cells = [.. filtered.Skip(i).Take(ColumnsPerRow).Select(s => new SymbolCell(s))];
             foreach (SymbolCell cell in cells)
-                _cellsById.TryAdd(cell.Symbol.Id, cell);
+                _cellsById.TryAdd(cell.Key, cell);
             Rows.Add(new SymbolRow(cells));
         }
 
         CountText = Loc.Tr("SymbolPicker_CountFmt", filtered.Count);
 
-        if (SelectedSymbol != null && _cellsById.TryGetValue(SelectedSymbol.Id, out SymbolCell selected))
+        // Cells are rebuilt, so re-point the selection at the new cell with the same key.
+        if (SelectedCell != null && _cellsById.TryGetValue(SelectedCell.Key, out SymbolCell selected))
+        {
+            SelectedCell = selected;
             selected.IsSelected = true;
+        }
         else
-            SelectedSymbol = null;
+            SelectedCell = null;
     }
 
     private static bool InCategory(SymbolDefinition symbol, string category, bool curated)
@@ -278,9 +290,9 @@ public partial class SymbolPickerViewModel : DialogViewModelBase<SymbolPickerReq
 
     public void ConfirmSelection()
     {
-        if (SelectedSymbol == null) return;
+        if (SelectedCell == null) return;
 
-        _request.SelectedSymbol = SelectedSymbol;
+        _request.SelectedSymbol = SelectedCell.Symbol;
         Confirm(new DialogResult(true));
         CloseRequested?.Invoke();
     }

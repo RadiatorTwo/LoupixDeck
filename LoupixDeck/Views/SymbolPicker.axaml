@@ -100,14 +100,14 @@
                                                 Classes.selected="{Binding IsSelected}"
                                                 Tapped="SymbolCell_Tapped"
                                                 DoubleTapped="SymbolCell_DoubleTapped"
-                                                ToolTip.Tip="{Binding Symbol.Id}">
+                                                ToolTip.Tip="{Binding Key}">
                                             <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
                                                 <TextBlock Text="{Binding Symbol.Glyph}"
                                                            FontFamily="{Binding Symbol.FontFamily}"
                                                            FontSize="40"
                                                            HorizontalAlignment="Center"
                                                            Margin="0,0,0,4" />
-                                                <TextBlock Text="{Binding Symbol.DisplayName}"
+                                                <TextBlock Text="{Binding DisplayName}"
                                                            FontSize="11"
                                                            MaxHeight="30"
                                                            TextWrapping="Wrap"
@@ -129,13 +129,13 @@
                 <TextBlock Grid.Column="0"
                            VerticalAlignment="Center"
                            Foreground="{DynamicResource AppTextSecondary}"
-                           Text="{Binding SelectedSymbol.DisplayName, FallbackValue={x:Null}}"
-                           IsVisible="{Binding SelectedSymbol, Converter={x:Static ObjectConverters.IsNotNull}}" />
+                           Text="{Binding SelectedCell.DisplayName, FallbackValue={x:Null}}"
+                           IsVisible="{Binding SelectedCell, Converter={x:Static ObjectConverters.IsNotNull}}" />
                 <TextBlock Grid.Column="0"
                            VerticalAlignment="Center"
                            Foreground="{DynamicResource AppTextSecondary}"
                            Text="{Binding CountText}"
-                           IsVisible="{Binding SelectedSymbol, Converter={x:Static ObjectConverters.IsNull}}" />
+                           IsVisible="{Binding SelectedCell, Converter={x:Static ObjectConverters.IsNull}}" />
                 <Button Grid.Column="1"
                         Content="{loc:Tr SymbolPicker_Cancel}"
                         MinWidth="110"
