@@ -2574,30 +2574,40 @@ public partial class LoupedeckLiveSController(
 
                 _folderModeWasActive = true;
 
-                for (int slot = 0; slot < grid.GridSlots; slot++)
+                // Every key is rendered first and the grid then goes to the panel as one picture. Writing the
+                // keys one by one left the previous folder's icons on screen until each key's turn came.
+                int keySize = device.KeySize;
+                SkiaSharp.SKBitmap[] tiles = new SkiaSharp.SKBitmap[grid.GridSlots];
+                try
                 {
-                    SkiaSharp.SKBitmap bmp;
-
-                    // The page's own keys sample the wallpaper at this rectangle, so the folder does too.
-                    SkiaSharp.SKRectI wallpaperKey = device.GetWallpaperKeyRect(slot);
-
-                    if (slot == grid.BackSlotIndex)
+                    for (int slot = 0; slot < grid.GridSlots; slot++)
                     {
-                        bmp = BitmapHelper.RenderFolderBackButton(config, slot, KeySize, KeySize, grid.Columns,
-                            wallpaperKey);
-                    }
-                    else if (folderNav.CurrentEntries.TryGetValue(slot, out var entry))
-                    {
-                        bmp = BitmapHelper.RenderFolderEntry(entry, config, slot, KeySize, KeySize, grid.Columns,
-                            wallpaperKey);
-                    }
-                    else
-                    {
-                        bmp = BitmapHelper.RenderEmptyFolderSlot(config, slot, KeySize, KeySize, grid.Columns,
-                            wallpaperKey);
+                        // The page's own keys sample the wallpaper at this rectangle, so the folder does too.
+                        SkiaSharp.SKRectI wallpaperKey = device.GetWallpaperKeyRect(slot);
+
+                        if (slot == grid.BackSlotIndex)
+                        {
+                            tiles[slot] = BitmapHelper.RenderFolderBackButton(config, slot, keySize, keySize,
+                                grid.Columns, wallpaperKey);
+                        }
+                        else if (folderNav.CurrentEntries.TryGetValue(slot, out var entry))
+                        {
+                            tiles[slot] = BitmapHelper.RenderFolderEntry(entry, config, slot, keySize, keySize,
+                                grid.Columns, wallpaperKey);
+                        }
+                        else
+                        {
+                            tiles[slot] = BitmapHelper.RenderEmptyFolderSlot(config, slot, keySize, keySize,
+                                grid.Columns, wallpaperKey);
+                        }
                     }
 
-                    await device.DrawTouchSlot(slot, bmp);
+                    using SkiaSharp.SKBitmap region = BitmapHelper.ComposeTouchGrid(tiles, device);
+                    await device.DrawCenterGridRegion(region);
+                }
+                finally
+                {
+                    foreach (SkiaSharp.SKBitmap tile in tiles) tile?.Dispose();
                 }
             }
             else
