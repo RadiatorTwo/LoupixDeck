@@ -21,6 +21,14 @@ public interface IAssetService
     string Import(string sourcePath, string subFolder = null);
 
     /// <summary>
+    /// Stores <paramref name="data"/> in the asset folder under a hashed filename with the given
+    /// <paramref name="extension"/> (with the dot, e.g. ".svg") and returns the relative path to use in
+    /// a layer. The same bytes always land on the same file, so repeated imports add nothing. Returns
+    /// null for empty data.
+    /// </summary>
+    string Import(byte[] data, string extension, string subFolder = null);
+
+    /// <summary>
     /// Loads (and caches) the bitmap for the given relative asset path.
     /// Returns null if the file is missing or unreadable.
     /// </summary>

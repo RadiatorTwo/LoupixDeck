@@ -373,7 +373,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         var symbolId = SymbolLibrary.TryGetByGlyph(menuEntry.Icon, out var definition) ? definition.Id : string.Empty;
         var layout = _commandRegistry.Get(menuEntry.Command)?.Info?.ButtonLayout;
 
-        ActionAssignment.AddLayers(ButtonData, menuEntry.Name, symbolId, DeviceWidth, DeviceHeight, layout);
+        ActionAssignment.AddLayers(ButtonData, menuEntry.Name, symbolId, DeviceWidth, DeviceHeight, layout, _assetService);
     }
 
     /// <summary>(Re)builds the command sequence slots for the current mode and selects the first.</summary>

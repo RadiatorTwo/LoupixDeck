@@ -3,6 +3,7 @@ using LoupixDeck.Models;
 using LoupixDeck.Models.Layers;
 using LoupixDeck.PluginSdk;
 using LoupixDeck.Utils;
+using SkiaSharp;
 
 namespace LoupixDeck.Services.Actions;
 
@@ -67,7 +68,8 @@ public static class ActionAssignment
     /// The layers the command asks for, or null for the standard icon-and-caption look.
     /// </param>
     public static void ApplyToTouchButton(TouchButton button, string command, string label,
-        string symbolId, int keyWidthPx, int keyHeightPx, ButtonLayoutDescriptor layout = null)
+        string symbolId, int keyWidthPx, int keyHeightPx, ButtonLayoutDescriptor layout = null,
+        IAssetService assets = null)
     {
         if (button == null || string.IsNullOrEmpty(command))
             return;
@@ -75,7 +77,7 @@ public static class ActionAssignment
         button.Command = command;
         button.Layers.Clear();
 
-        AddLayers(button, label, symbolId, keyWidthPx, keyHeightPx, layout);
+        AddLayers(button, label, symbolId, keyWidthPx, keyHeightPx, layout, assets);
     }
 
     /// <summary>
@@ -83,7 +85,7 @@ public static class ActionAssignment
     /// the command and every existing layer alone. The button editor uses this on an empty state.
     /// </summary>
     public static void AddLayers(TouchButton button, string label, string symbolId,
-        int keyWidthPx, int keyHeightPx, ButtonLayoutDescriptor layout = null)
+        int keyWidthPx, int keyHeightPx, ButtonLayoutDescriptor layout = null, IAssetService assets = null)
     {
         if (button == null)
             return;
@@ -107,7 +109,7 @@ public static class ActionAssignment
                 break;
 
             case ButtonLayoutMode.Custom:
-                AddCustomLayers(button, layout, text, symbolId, scaleX, scaleY);
+                AddCustomLayers(button, layout, text, symbolId, scaleX, scaleY, assets);
                 break;
 
             // Default, IconAndCaption, and IconOnly for a command whose icon cannot be resolved:
@@ -165,7 +167,7 @@ public static class ActionAssignment
     /// glyph, a kind this host does not know — is skipped rather than failing the assignment.
     /// </summary>
     private static void AddCustomLayers(TouchButton button, ButtonLayoutDescriptor layout, string label,
-        string symbolId, double scaleX, double scaleY)
+        string symbolId, double scaleX, double scaleY, IAssetService assets)
     {
         foreach (ButtonLayerDescriptor descriptor in layout.Layers ?? [])
         {
@@ -180,6 +182,30 @@ public static class ActionAssignment
             switch (descriptor.Kind)
             {
                 case ButtonLayerKind.Symbol:
+                    double iconScale = Math.Clamp(descriptor.IconScale, 0.1, 1.0);
+
+                    // A picture the plugin brought wins over a glyph; when it cannot be stored or
+                    // decoded, a glyph the plugin also named still gives the layer something to show.
+                    if (TryImportPicture(assets, descriptor.ImageData, out string iconPath, out SKBitmap iconBitmap))
+                    {
+                        SymbolLayer pictureSymbol = new()
+                        {
+                            Name = name,
+                            IconAssetPath = iconPath,
+                            KeepOriginalColors = descriptor.KeepOriginalColors ?? !IconColorAnalysis.IsMonochrome(iconBitmap),
+                            PositionX = x,
+                            PositionY = y
+                        };
+                        SKRectI bounds = IconColorAnalysis.GetContentBounds(iconBitmap);
+                        pictureSymbol.FitScaleToAspect(iconScale,
+                            bounds.Height > 0 ? (double)bounds.Width / bounds.Height : 1.0);
+                        if (hasColor && pictureSymbol.IsTintable)
+                            pictureSymbol.Tint = color;
+
+                        button.Layers.Add(pictureSymbol);
+                        break;
+                    }
+
                     string id = symbolId;
                     if (!string.IsNullOrEmpty(descriptor.Glyph))
                     {
@@ -191,12 +217,27 @@ public static class ActionAssignment
                     if (string.IsNullOrEmpty(id) || !SymbolLibrary.TryGet(id, out _))
                         break;
 
-                    SymbolLayer symbol = CreateSymbol(name, id, y, Math.Clamp(descriptor.IconScale, 0.1, 1.0));
+                    SymbolLayer symbol = CreateSymbol(name, id, y, iconScale);
                     symbol.PositionX = x;
                     if (hasColor)
                         symbol.Tint = color;
 
                     button.Layers.Add(symbol);
+                    break;
+
+                case ButtonLayerKind.Image:
+                    if (!TryImportPicture(assets, descriptor.ImageData, out string imagePath, out SKBitmap imageBitmap))
+                        break;
+
+                    button.Layers.Add(new ImageLayer
+                    {
+                        Name = name,
+                        AssetRelativePath = imagePath,
+                        CachedImage = imageBitmap,
+                        Scale = Math.Clamp(descriptor.IconScale, 0.1, 1.0),
+                        PositionX = x,
+                        PositionY = y
+                    });
                     break;
 
                 case ButtonLayerKind.Text:
@@ -219,6 +260,56 @@ public static class ActionAssignment
                     break;
             }
         }
+    }
+
+    /// <summary>
+    /// Stores a plugin's picture in the asset store and decodes it. False — and nothing written to
+    /// the button — when there is no asset store, no data, a format the host does not know, or data
+    /// that will not decode; a broken picture must not fail the assignment.
+    /// </summary>
+    private static bool TryImportPicture(IAssetService assets, byte[] data, out string relativePath, out SKBitmap bitmap)
+    {
+        relativePath = null;
+        bitmap = null;
+
+        string extension = DetectPictureExtension(data);
+        if (assets == null || extension == null)
+            return false;
+
+        try
+        {
+            relativePath = assets.Import(data, extension, "plugin");
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Console.WriteLine($"[ActionAssignment] Storing a plugin picture failed: {ex.Message}");
+            return false;
+        }
+
+        bitmap = string.IsNullOrEmpty(relativePath) ? null : assets.Load(relativePath);
+        return bitmap != null;
+    }
+
+    /// <summary>The file extension for the picture's format, recognised from its bytes; null when
+    /// it is none of SVG, PNG, JPEG, GIF or WebP.</summary>
+    private static string DetectPictureExtension(byte[] data)
+    {
+        if (data == null || data.Length < 12)
+            return null;
+
+        if (data[0] == 0x89 && data[1] == 0x50 && data[2] == 0x4E && data[3] == 0x47)
+            return ".png";
+        if (data[0] == 0xFF && data[1] == 0xD8 && data[2] == 0xFF)
+            return ".jpg";
+        if (data[0] == 'G' && data[1] == 'I' && data[2] == 'F' && data[3] == '8')
+            return ".gif";
+        if (data[0] == 'R' && data[1] == 'I' && data[2] == 'F' && data[3] == 'F'
+            && data[8] == 'W' && data[9] == 'E' && data[10] == 'B' && data[11] == 'P')
+            return ".webp";
+
+        // An SVG is text; the root element may follow an XML declaration, a doctype and comments.
+        string head = System.Text.Encoding.UTF8.GetString(data, 0, Math.Min(data.Length, 2048));
+        return head.Contains("<svg", StringComparison.OrdinalIgnoreCase) ? ".svg" : null;
     }
 
     /// <summary>

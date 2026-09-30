@@ -68,6 +68,32 @@ public class AssetService : IAssetService
         return (relativeDir + "/" + targetFileName).Replace('\\', '/');
     }
 
+    public string Import(byte[] data, string extension, string subFolder = null)
+    {
+        if (data == null || data.Length == 0)
+            return null;
+
+        string hash = Convert.ToHexString(SHA256.HashData(data)).ToLowerInvariant();
+        string ext = string.IsNullOrEmpty(extension) ? ".png" : extension.ToLowerInvariant();
+        string targetFileName = hash + ext;
+
+        string targetDir = AssetsRoot;
+        string relativeDir = AssetsFolderName;
+        if (!string.IsNullOrWhiteSpace(subFolder))
+        {
+            string normalizedSub = subFolder.Replace('\\', '/').Trim('/');
+            targetDir = Path.Combine(AssetsRoot, normalizedSub.Replace('/', Path.DirectorySeparatorChar));
+            relativeDir = AssetsFolderName + "/" + normalizedSub;
+            Directory.CreateDirectory(targetDir);
+        }
+
+        string targetAbsolute = Path.Combine(targetDir, targetFileName);
+        if (!File.Exists(targetAbsolute))
+            File.WriteAllBytes(targetAbsolute, data);
+
+        return (relativeDir + "/" + targetFileName).Replace('\\', '/');
+    }
+
     public SKBitmap Load(string relativePath)
     {
         if (string.IsNullOrWhiteSpace(relativePath)) return null;

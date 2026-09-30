@@ -177,7 +177,7 @@ public sealed class PanelAssignmentService(
             return AssignCommandOnly(command, label, target);
 
         ActionAssignment.ApplyToTouchButton(touch, command, label, symbolId,
-            _geometry.KeySize, _geometry.KeySize, layout);
+            _geometry.KeySize, _geometry.KeySize, layout, assetService);
 
         ReconcileStates(touch);
         return true;
