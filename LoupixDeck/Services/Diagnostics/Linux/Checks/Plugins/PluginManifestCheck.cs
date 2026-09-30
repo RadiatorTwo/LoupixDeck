@@ -37,12 +37,12 @@ public sealed class PluginManifestCheck : ILinuxDiagnosticCheck
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            string manifestPath = Path.Combine(folder, "manifest.json");
+            string manifestPath = Path.Combine(folder, "plugin.json");
             string name = Path.GetFileName(folder);
 
             if (!File.Exists(manifestPath))
             {
-                broken.Add($"{name}: no manifest.json");
+                broken.Add($"{name}: no plugin.json");
                 continue;
             }
 
