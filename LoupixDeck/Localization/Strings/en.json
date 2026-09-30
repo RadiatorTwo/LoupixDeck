@@ -1091,6 +1091,7 @@
   "TouchButton_PickAnInstalledApplicationSets": "Pick an installed application: sets this button's launch command and its icon",
   "TouchButton_Position": "Position",
   "TouchButton_Preview": "Preview",
+  "TouchButton_Parameters": "Parameters",
   "TouchButton_Properties": "Properties",
   "TouchButton_Provider": "Provider",
   "TouchButton_RemoveAllCommandsInThis": "Remove all commands in this sequence",

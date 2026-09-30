@@ -1091,6 +1091,7 @@
   "TouchButton_PickAnInstalledApplicationSets": "Eine installierte Anwendung auswählen: setzt den Startbefehl dieser Taste und ihr Symbol",
   "TouchButton_Position": "Position",
   "TouchButton_Preview": "Vorschau",
+  "TouchButton_Parameters": "Parameter",
   "TouchButton_Properties": "Eigenschaften",
   "TouchButton_Provider": "Anbieter",
   "TouchButton_RemoveAllCommandsInThis": "Alle Befehle dieser Folge entfernen",

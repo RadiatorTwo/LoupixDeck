@@ -406,6 +406,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
                     Loc.Tr(SegmentTitleKeys[index]), _commandBuilder, _commandRegistry, _commandLock, _dialogService,
                     () => _stripPage.GetStripSegmentCommand(index),
                     v => _stripPage.SetStripSegmentCommand(index, string.IsNullOrWhiteSpace(v) ? null : v)));
+                CommandSlots[^1].Commands.CollectionChanged += (_, _) => RefreshParameterSegments();
             }
         }
         else
@@ -415,11 +416,14 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
                 () => ButtonData.Command,
                 v => ButtonData.Command = string.IsNullOrWhiteSpace(v) ? null : v);
             slot.CommandInserted += OnMainCommandInserted;
+            slot.Commands.CollectionChanged += (_, _) => RefreshParameterSegments();
             CommandSlots.Add(slot);
         }
 
         if (CommandSlots.Count > 0)
             SetActiveSlot(CommandSlots[0]);
+
+        RefreshParameterSegments();
     }
 
     /// <summary>
@@ -549,6 +553,38 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     /// removed by unbinding the button's command — so the delete button is disabled for them.
     /// </summary>
     public bool CanDeleteSelectedLayer => _selectedLayer != null && !_selectedLayer.IsCommandOwned;
+
+    /// <summary>Commands of the sequence(s) that declare parameters — one card each in the
+    /// Parameters tab, the same rows as the chip flyout.</summary>
+    public ObservableCollection<CommandSegment> ParameterSegments { get; } = [];
+
+    /// <summary>True when at least one command in the sequence has parameters to edit.</summary>
+    public bool ShowParametersTab => ParameterSegments.Count > 0;
+
+    /// <summary>Index of the selected right-hand tab (0 Properties, 1 Commands, 2 Parameters).</summary>
+    public int RightTabIndex
+    {
+        get;
+        set => SetProperty(ref field, value);
+    }
+
+    private const int ParametersTabIndex = 2;
+
+    private void RefreshParameterSegments()
+    {
+        ParameterSegments.Clear();
+        foreach (CommandSegment segment in CommandSlots.SelectMany(slot => slot.Commands))
+        {
+            if (segment is { IsKnown: true, Parameters.Count: > 0 })
+                ParameterSegments.Add(segment);
+        }
+
+        OnPropertyChanged(nameof(ShowParametersTab));
+
+        // A tab that disappears under the selection would leave the panel blank.
+        if (!ShowParametersTab && RightTabIndex == ParametersTabIndex)
+            RightTabIndex = 0;
+    }
 
     private SKBitmap _editorPreview;
 

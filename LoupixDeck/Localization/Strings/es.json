@@ -1091,6 +1091,7 @@
   "TouchButton_PickAnInstalledApplicationSets": "Elegir una aplicación instalada: define el comando de inicio de este botón y su icono",
   "TouchButton_Position": "Posición",
   "TouchButton_Preview": "Vista previa",
+  "TouchButton_Parameters": "Parámetros",
   "TouchButton_Properties": "Propiedades",
   "TouchButton_Provider": "Proveedor",
   "TouchButton_RemoveAllCommandsInThis": "Quitar todos los comandos de esta secuencia",
