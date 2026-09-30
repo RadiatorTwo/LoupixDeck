@@ -1734,20 +1734,39 @@ public static class BitmapHelper
         int slotIndex,
         int width,
         int height,
-        int gridColumns)
+        int gridColumns,
+        SKRectI? wallpaperSource = null)
     {
         ArgumentNullException.ThrowIfNull(entry);
 
         var bitmap = new SKBitmap(width, height);
         using var canvas = new SKCanvas(bitmap);
 
-        DrawWallpaperOrColor(canvas, config, slotIndex, width, height, gridColumns, entry.BackColor);
+        DrawWallpaperOrColor(canvas, config, slotIndex, width, height, gridColumns, entry.BackColor, wallpaperSource);
 
         if (entry.Image != null)
         {
             var destRect = new SKRect(0, 0, width, height);
             using var scaledImage = ScaleAndPositionBitmap(entry.Image, width, height);
             canvas.DrawBitmap(scaledImage, destRect, SKSamplingOptions.Default, paint: null);
+        }
+
+        // A plugin that draws the slot itself gets the key's real size, so it can put pixel-exact
+        // content on it instead of handing over a picture the host has to scale.
+        if (entry.Render != null)
+        {
+            lock (SkiaRenderGate.Sync)
+            {
+                try
+                {
+                    entry.Render(new SkiaRenderCanvas(canvas, width, height));
+                }
+                catch (Exception ex)
+                {
+                    // The slot stays usable without the plugin's layer.
+                    Console.WriteLine($"Folder entry render callback failed: {ex.Message}");
+                }
+            }
         }
 
         if (!string.IsNullOrEmpty(entry.Text))
@@ -1777,13 +1796,14 @@ public static class BitmapHelper
         int slotIndex,
         int width,
         int height,
-        int gridColumns)
+        int gridColumns,
+        SKRectI? wallpaperSource = null)
     {
         var bitmap = new SKBitmap(width, height);
         using var canvas = new SKCanvas(bitmap);
 
         DrawWallpaperOrColor(canvas, config, slotIndex, width, height, gridColumns,
-            Color.FromArgb(160, 0, 0, 0));
+            Color.FromArgb(160, 0, 0, 0), wallpaperSource);
 
         DrawBackChevron(canvas, width, height);
 
@@ -1827,12 +1847,13 @@ public static class BitmapHelper
         int slotIndex,
         int width,
         int height,
-        int gridColumns)
+        int gridColumns,
+        SKRectI? wallpaperSource = null)
     {
         var bitmap = new SKBitmap(width, height);
         using var canvas = new SKCanvas(bitmap);
 
-        DrawWallpaperOrColor(canvas, config, slotIndex, width, height, gridColumns, Colors.Black);
+        DrawWallpaperOrColor(canvas, config, slotIndex, width, height, gridColumns, Colors.Black, wallpaperSource);
 
         canvas.Flush();
         return bitmap;
@@ -2215,6 +2236,13 @@ public static class BitmapHelper
         }
     }
 
+    /// <summary>
+    /// Paints a folder slot's wallpaper cutout, or the fallback colour when the page has none.
+    /// <paramref name="wallpaperSource"/> is the part of the panel-wide wallpaper the key covers
+    /// (<c>device.GetWallpaperKeyRect</c>), which is what the page's own keys sample, so a folder shows the
+    /// wallpaper exactly where the page did. Without it the cutout is taken from a gapless grid that starts at
+    /// the wallpaper's origin, which is not where the grid sits on a device with side strips.
+    /// </summary>
     private static void DrawWallpaperOrColor(
         SKCanvas canvas,
         LoupedeckConfig config,
@@ -2222,20 +2250,23 @@ public static class BitmapHelper
         int width,
         int height,
         int gridColumns,
-        Color fallbackColor)
+        Color fallbackColor,
+        SKRectI? wallpaperSource = null)
     {
         var (wallpaperToUse, opacityToUse) = ResolveWallpaper(config);
 
-        if (wallpaperToUse != null && gridColumns > 0)
+        if (wallpaperToUse != null && (gridColumns > 0 || wallpaperSource != null))
         {
-            var col = slotIndex % gridColumns;
-            var row = slotIndex / gridColumns;
+            var col = gridColumns > 0 ? slotIndex % gridColumns : 0;
+            var row = gridColumns > 0 ? slotIndex / gridColumns : 0;
 
-            var srcRect = new SKRect(
-                col * width,
-                row * height,
-                (col + 1) * width,
-                (row + 1) * height);
+            var srcRect = wallpaperSource is { } source
+                ? new SKRect(source.Left, source.Top, source.Right, source.Bottom)
+                : new SKRect(
+                    col * width,
+                    row * height,
+                    (col + 1) * width,
+                    (row + 1) * height);
             var destRect = new SKRect(0, 0, width, height);
 
             canvas.DrawBitmap(wallpaperToUse, srcRect, destRect, SKSamplingOptions.Default, paint: null);

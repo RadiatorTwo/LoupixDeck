@@ -12,6 +12,12 @@ public sealed class FolderEntry
     public int SlotIndex { get; init; }
     public string Text { get; init; }
     public SKBitmap Image { get; init; }
+
+    /// <summary>
+    /// Optional plugin callback that draws the slot on a canvas of the key's real size, after the
+    /// image and before the text. Null for every entry that is not drawn by a plugin.
+    /// </summary>
+    public Action<LoupixDeck.PluginSdk.IRenderCanvas> Render { get; init; }
     public Color BackColor { get; init; } = Colors.Black;
     public Color TextColor { get; init; } = Colors.White;
     public int TextSize { get; init; } = 16;

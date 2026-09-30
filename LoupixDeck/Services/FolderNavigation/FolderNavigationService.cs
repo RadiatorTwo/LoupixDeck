@@ -21,8 +21,11 @@ public sealed class FolderNavigationService(DeviceGeometry geometry) : IFolderNa
     {
         ArgumentNullException.ThrowIfNull(provider);
 
-        provider.EntriesChanged += OnProviderEntriesChanged;
+        // Subscribed after OnEnter: the entries are built right below, so a change the provider announces while
+        // it is entering would only make the host redraw the page or parent folder, racing the redraw that
+        // shows the new folder and leaving the old icons on screen.
         provider.OnEnter();
+        provider.EntriesChanged += OnProviderEntriesChanged;
 
         _stack.Push(provider);
         SetActive(provider);

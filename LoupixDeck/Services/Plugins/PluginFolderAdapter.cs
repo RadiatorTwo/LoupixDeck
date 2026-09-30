@@ -51,6 +51,7 @@ internal sealed class PluginFolderAdapter : CoreFolder.IFolderProvider
             SlotIndex = e.SlotIndex,
             Text = e.Text,
             Image = DecodeImage(e.Image),
+            Render = e.Render,
             BackColor = ToColor(e.BackColor),
             TextColor = ToColor(e.TextColor),
             TextSize = e.TextSize,
