@@ -1245,5 +1245,7 @@
   "SymbolPicker_PackTruncatedFmt": "{0} Symbole (nur die ersten {1} Icons dieses Ordners werden geladen)",
   "SymbolPicker_PackRootCategory": "(Hauptordner)",
   "TouchButton_KeepOriginalColors": "Originalfarben behalten",
-  "TouchButton_KeepOriginalColorsTip": "Das Icon in seinen eigenen Farben statt mit Farbton oder Verlauf zeichnen. Wird bei farbigen Icons automatisch gesetzt."
+  "TouchButton_KeepOriginalColorsTip": "Das Icon in seinen eigenen Farben statt mit Farbton oder Verlauf zeichnen. Wird bei farbigen Icons automatisch gesetzt.",
+  "PluginRequirements_NoticeOne": "{0}: {1}",
+  "PluginRequirements_NoticeMany": "{0}: {1} Voraussetzungen sind nicht erfüllt"
 }

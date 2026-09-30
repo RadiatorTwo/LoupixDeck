@@ -1245,5 +1245,7 @@
   "SymbolPicker_PackTruncatedFmt": "{0} símbolos (solo se cargan los primeros {1} iconos de esta carpeta)",
   "SymbolPicker_PackRootCategory": "(Carpeta principal)",
   "TouchButton_KeepOriginalColors": "Mantener colores originales",
-  "TouchButton_KeepOriginalColorsTip": "Dibuja el icono con sus propios colores en lugar del tinte o el degradado. Se activa automáticamente en los iconos a color."
+  "TouchButton_KeepOriginalColorsTip": "Dibuja el icono con sus propios colores en lugar del tinte o el degradado. Se activa automáticamente en los iconos a color.",
+  "PluginRequirements_NoticeOne": "{0}: {1}",
+  "PluginRequirements_NoticeMany": "{0}: no se cumplen {1} requisitos"
 }

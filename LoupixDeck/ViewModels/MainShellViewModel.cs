@@ -159,12 +159,17 @@ public sealed class MainShellViewModel : ViewModelBase
     /// shell next to About rather than on a device's view model.</summary>
     public IAsyncRelayCommand PluginsMenuCommand { get; }
 
+    /// <summary>Opens the Plugins window on the details of one installed plugin (issue #315).</summary>
+    public Task ShowPluginDetails(string pluginId) => ShowPlugins(installedPluginId: pluginId);
+
     /// <summary>A plugin update is waiting, so the Plugins window opens on the store (issue #308).</summary>
     private bool HasAnyPluginUpdate => _pluginStore?.AvailableUpdates?.Count > 0;
 
     /// <param name="openStore">Opens the window on the Plugin Store instead of the installed plugins.</param>
     /// <param name="storePluginId">The plugin brought to the top of the store, if any.</param>
-    private async Task ShowPlugins(bool openStore = false, string storePluginId = null)
+    /// <param name="installedPluginId">The installed plugin whose details are selected, if any.</param>
+    private async Task ShowPlugins(bool openStore = false, string storePluginId = null,
+        string installedPluginId = null)
     {
         LoupixDeck.Services.IDialogService dialogs = _dialogService?.Invoke();
 
@@ -177,6 +182,9 @@ public sealed class MainShellViewModel : ViewModelBase
             {
                 if (currentScopeKey != null)
                     vm.Installed.SelectDevice(currentScopeKey);
+
+                if (installedPluginId != null)
+                    vm.Installed.SelectPlugin(installedPluginId);
 
                 if (openStore)
                     vm.OpenPluginStore(storePluginId);
