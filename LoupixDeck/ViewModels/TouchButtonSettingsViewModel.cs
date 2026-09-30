@@ -361,8 +361,9 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     public void InsertCommand(MenuEntry menuEntry) => ActiveSlot?.InsertCommand(menuEntry);
 
     /// <summary>
-    /// Gives a button that has no artwork yet the layers its first command asks for — the same result
-    /// the actions panel produces. A button that already has layers is left alone: the user's work
+    /// Gives a button that has no artwork yet the layers its first command declares — the same result
+    /// the actions panel produces for it. Commands without a declared layout change nothing. A button
+    /// that already has layers is left alone: the user's work
     /// is never replaced by picking a command.
     /// </summary>
     private void OnMainCommandInserted(MenuEntry menuEntry, bool wasEmpty)
@@ -370,8 +371,18 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         if (!wasEmpty || ButtonData?.Layers is not { Count: 0 } || !CanEditCanvas)
             return;
 
-        var symbolId = SymbolLibrary.TryGetByGlyph(menuEntry.Icon, out var definition) ? definition.Id : string.Empty;
-        var layout = _commandRegistry.Get(menuEntry.Command)?.Info?.ButtonLayout;
+        var registered = _commandRegistry.Get(menuEntry.Command);
+
+        // Only a command that declares its own layout gets layers here; every other command leaves
+        // the button as it was, which is how the editor has always behaved.
+        var layout = registered?.Info?.ButtonLayout;
+        if (layout == null)
+            return;
+
+        // The entry the editor's picker hands over does not always carry the glyph, so the command's
+        // own declaration is the fallback.
+        var glyph = string.IsNullOrEmpty(menuEntry.Icon) ? registered.Info.Icon : menuEntry.Icon;
+        var symbolId = SymbolLibrary.TryGetByGlyph(glyph, out var definition) ? definition.Id : string.Empty;
 
         ActionAssignment.AddLayers(ButtonData, menuEntry.Name, symbolId, DeviceWidth, DeviceHeight, layout, _assetService);
     }
