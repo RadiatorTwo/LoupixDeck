@@ -204,6 +204,9 @@
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
+                            <Button Content="{loc:Tr Plugins_RequirementsRecheck}" HorizontalAlignment="Left"
+                                    Padding="10,3" FontSize="12"
+                                    Command="{Binding Detail.RecheckRequirementsCommand}" />
                         </StackPanel>
                     </Border>
 

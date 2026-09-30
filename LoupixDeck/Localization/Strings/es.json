@@ -1254,5 +1254,6 @@
   "Diagnostics_PluginRequirementFmt": "{0}: {1}",
   "Diagnostics_PluginRequirementMetFmt": "{0}: {1} está disponible.",
   "Diagnostics_PluginRequirementGoneFmt": "{0} ya no informa de este requisito.",
-  "Diagnostics_FixPluginRequirement": "Instala lo que necesita el plugin y vuelve a ejecutar la comprobación."
+  "Diagnostics_FixPluginRequirement": "Instala lo que necesita el plugin y vuelve a ejecutar la comprobación.",
+  "Plugins_RequirementsRecheck": "Comprobar de nuevo"
 }

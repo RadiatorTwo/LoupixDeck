@@ -1254,5 +1254,6 @@
   "Diagnostics_PluginRequirementFmt": "{0}: {1}",
   "Diagnostics_PluginRequirementMetFmt": "{0}: {1} ist vorhanden.",
   "Diagnostics_PluginRequirementGoneFmt": "{0} meldet diese Voraussetzung nicht mehr.",
-  "Diagnostics_FixPluginRequirement": "Die vom Plugin benötigte Software installieren und die Prüfung danach erneut ausführen."
+  "Diagnostics_FixPluginRequirement": "Die vom Plugin benötigte Software installieren und die Prüfung danach erneut ausführen.",
+  "Plugins_RequirementsRecheck": "Erneut prüfen"
 }

@@ -24,9 +24,13 @@ public sealed partial class PluginDetailViewModel : ViewModelBase
     private IPluginSettingsPage _page;
     private IPluginSettings _settings;
 
-    public PluginDetailViewModel(LoadedPlugin plugin)
+    private readonly Func<Task> _recheckRequirements;
+
+    /// <param name="recheckRequirements">Asks the host to evaluate the plugin requirements again.</param>
+    public PluginDetailViewModel(LoadedPlugin plugin, Func<Task> recheckRequirements = null)
     {
         _plugin = plugin;
+        _recheckRequirements = recheckRequirements;
 
         PluginManifest manifest = plugin.Manifest;
         _name = manifest?.Name ?? plugin.Directory;
@@ -137,6 +141,20 @@ public sealed partial class PluginDetailViewModel : ViewModelBase
     public ObservableCollection<PluginRequirementItem> UnmetRequirements { get; } = [];
 
     public bool HasUnmetRequirements => UnmetRequirements.Count > 0;
+
+    /// <summary>Evaluates the requirements again on demand, for the user who just fixed what was
+    /// missing (issue #315). Disabled while a check is running.</summary>
+    public IAsyncRelayCommand RecheckRequirementsCommand => field ??= Relay.Create(RecheckRequirementsAsync);
+
+    private async Task RecheckRequirementsAsync()
+    {
+        if (_recheckRequirements != null)
+            await _recheckRequirements();
+
+        // The host only announces a change; a check that found the same state still has to end
+        // with a current pane.
+        RefreshRequirements();
+    }
 
     /// <summary>Re-reads <see cref="LoadedPlugin.Requirements"/>; called when the host evaluated
     /// them again and when the language changed.</summary>
