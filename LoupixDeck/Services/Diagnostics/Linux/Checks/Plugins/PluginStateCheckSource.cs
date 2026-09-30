@@ -1,5 +1,6 @@
 using LoupixDeck.Localization;
 using LoupixDeck.Models.Diagnostics;
+using LoupixDeck.PluginSdk;
 using LoupixDeck.Services.Plugins;
 
 namespace LoupixDeck.Services.Diagnostics.Linux.Checks.Plugins;
@@ -20,10 +21,20 @@ public sealed class PluginStateCheckSource(IPluginManager plugins) : ILinuxDiagn
             return [new NoPluginCheck()];
         }
 
-        return discovered
-            .OrderBy(plugin => plugin.Manifest?.Name ?? plugin.Manifest?.Id, StringComparer.CurrentCulture)
-            .Select(ILinuxDiagnosticCheck (plugin) => new PluginStateCheck(plugin))
-            .ToList();
+        List<ILinuxDiagnosticCheck> checks = [];
+
+        foreach (LoadedPlugin plugin in discovered
+                     .OrderBy(plugin => plugin.Manifest?.Name ?? plugin.Manifest?.Id, StringComparer.CurrentCulture))
+        {
+            checks.Add(new PluginStateCheck(plugin));
+
+            // One warning per requirement the plugin reported as unmet (issue #315), so the Doctor
+            // learns about it from the plugin instead of knowing every plugin's needs itself.
+            foreach (PluginRequirement requirement in plugin.Requirements.Where(r => !r.IsMet))
+                checks.Add(new PluginRequirementCheck(plugins, plugin, requirement.Id));
+        }
+
+        return checks;
     }
 }
 
@@ -84,6 +95,60 @@ internal sealed class PluginStateCheck(LoadedPlugin plugin) : ILinuxDiagnosticCh
         string[] lines = reason.Split('\n', StringSplitOptions.RemoveEmptyEntries);
 
         return string.Join('\n', lines.Take(3)).Trim();
+    }
+}
+
+/// <summary>
+/// One requirement a plugin reported as unmet (issue #315). It asks the plugin again when it runs,
+/// so a requirement the user has fixed since the run started reads as met instead of stale.
+/// </summary>
+internal sealed class PluginRequirementCheck(
+    IPluginManager plugins, LoadedPlugin plugin, string requirementId) : ILinuxDiagnosticCheck
+{
+    private string PluginId => plugin.Manifest?.Id ?? Path.GetFileName(plugin.Directory);
+
+    public string Id => $"plugin.requirement:{PluginId}:{requirementId}";
+
+    public DiagnosticCategory Category => DiagnosticCategory.Plugins;
+
+    public async Task<DiagnosticCheckResult> RunAsync(CancellationToken cancellationToken)
+    {
+        await plugins.RefreshRequirementsAsync().ConfigureAwait(false);
+
+        LocalizationManager loc = LocalizationManager.Instance;
+        string pluginName = loc.TrText(plugin.Manifest?.Name ?? PluginId, PluginId);
+        PluginRequirement requirement = plugin.Requirements.FirstOrDefault(r => r.Id == requirementId);
+
+        if (requirement == null)
+        {
+            return DiagnosticCheckResult.Skipped(Id, Category, $"{DiagnosticCheckTitles.For(Id)} — {pluginName}",
+                Loc.Tr("Diagnostics_PluginRequirementGoneFmt", pluginName), null, Loc.Tr("Diagnostics_ValueNone"));
+        }
+
+        string requirementName = loc.TrText(requirement.Name, PluginId);
+        string title = $"{DiagnosticCheckTitles.For(Id)} — {pluginName}: {requirementName}";
+
+        Dictionary<string, string> evidence = new(StringComparer.Ordinal)
+        {
+            ["plugin"] = PluginId,
+            ["requirement"] = requirement.Id
+        };
+
+        if (requirement.IsMet)
+        {
+            return DiagnosticCheckResult.Pass(Id, Category, title,
+                Loc.Tr("Diagnostics_PluginRequirementMetFmt", pluginName, requirementName), null, evidence,
+                Loc.Tr("Diagnostics_ValueAvailable"));
+        }
+
+        string message = loc.TrText(requirement.Message ?? requirement.Name, PluginId);
+        string hint = string.IsNullOrWhiteSpace(requirement.InstallHint)
+            ? Loc.Tr("Diagnostics_FixPluginRequirement")
+            : loc.TrText(requirement.InstallHint, PluginId);
+
+        return DiagnosticCheckResult.Warning(Id, Category, title,
+            Loc.Tr("Diagnostics_PluginRequirementFmt", pluginName, message), null,
+            new DiagnosticFix(FixKind.Manual, hint), evidence, Loc.Tr("Diagnostics_ValueMissing"));
     }
 }
 
