@@ -2577,17 +2577,24 @@ public partial class LoupedeckLiveSController(
                 for (int slot = 0; slot < grid.GridSlots; slot++)
                 {
                     SkiaSharp.SKBitmap bmp;
+
+                    // The page's own keys sample the wallpaper at this rectangle, so the folder does too.
+                    SkiaSharp.SKRectI wallpaperKey = device.GetWallpaperKeyRect(slot);
+
                     if (slot == grid.BackSlotIndex)
                     {
-                        bmp = BitmapHelper.RenderFolderBackButton(config, slot, KeySize, KeySize, grid.Columns);
+                        bmp = BitmapHelper.RenderFolderBackButton(config, slot, KeySize, KeySize, grid.Columns,
+                            wallpaperKey);
                     }
                     else if (folderNav.CurrentEntries.TryGetValue(slot, out var entry))
                     {
-                        bmp = BitmapHelper.RenderFolderEntry(entry, config, slot, KeySize, KeySize, grid.Columns);
+                        bmp = BitmapHelper.RenderFolderEntry(entry, config, slot, KeySize, KeySize, grid.Columns,
+                            wallpaperKey);
                     }
                     else
                     {
-                        bmp = BitmapHelper.RenderEmptyFolderSlot(config, slot, KeySize, KeySize, grid.Columns);
+                        bmp = BitmapHelper.RenderEmptyFolderSlot(config, slot, KeySize, KeySize, grid.Columns,
+                            wallpaperKey);
                     }
 
                     await device.DrawTouchSlot(slot, bmp);
