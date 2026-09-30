@@ -141,7 +141,8 @@ public partial class App : Application
             var shell = new MainShellViewModel(() => registry.Primary?.Provider.GetService<IDialogService>(),
                 root.GetRequiredService<Services.Updates.IUpdateService>(),
                 root.GetRequiredService<Services.Updates.IUpdateNotifier>(),
-                root.GetRequiredService<Services.PluginStore.IPluginStoreService>());
+                root.GetRequiredService<Services.PluginStore.IPluginStoreService>(),
+                root.GetRequiredService<Services.Notices.INoticeService>());
             _shell = shell;
 
             // The window goes up here, before the plugins load and before a single device is
