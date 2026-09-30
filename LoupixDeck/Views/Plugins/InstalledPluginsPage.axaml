@@ -107,7 +107,7 @@
                                         <Border Grid.Column="0" Classes="nav-accent" />
                                         <Border Grid.Column="1" Classes="status-dot" Margin="8,0,0,0"
                                                 Classes.ok="{Binding IsStatusOk}"
-                                                Classes.warn="{Binding IsStatusRestart}"
+                                                Classes.warn="{Binding IsStatusWarn}"
                                                 Classes.off="{Binding IsStatusDisabled}" />
                                         <TextBlock Grid.Column="2" Classes="row-name" Margin="11,0,8,0"
                                                    Text="{Binding Name}" />
@@ -183,6 +183,31 @@
                     <Border Classes="notice" Margin="0,18,0,0" HorizontalAlignment="Stretch"
                             IsVisible="{Binding Detail.HasFailure}">
                         <TextBlock Text="{Binding Detail.FailureText}" />
+                    </Border>
+
+                    <!-- Running, but the plugin reported a missing system requirement (issue #315). -->
+                    <Border Classes="notice" Margin="0,18,0,0" HorizontalAlignment="Stretch"
+                            IsVisible="{Binding Detail.HasUnmetRequirements}">
+                        <StackPanel Spacing="8">
+                            <TextBlock FontWeight="SemiBold" Text="{loc:Tr Plugins_RequirementsTitle}" />
+                            <ItemsControl ItemsSource="{Binding Detail.UnmetRequirements}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="vmp:PluginRequirementItem">
+                                        <StackPanel Spacing="2" Margin="0,0,0,6">
+                                            <TextBlock FontWeight="SemiBold" Text="{Binding Name}" />
+                                            <TextBlock TextWrapping="Wrap" Text="{Binding Message}"
+                                                       IsVisible="{Binding HasMessage}" />
+                                            <SelectableTextBlock Classes="hint" TextWrapping="Wrap"
+                                                                 Text="{Binding InstallHint}"
+                                                                 IsVisible="{Binding HasInstallHint}" />
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <Button Content="{loc:Tr Plugins_RequirementsRecheck}" HorizontalAlignment="Left"
+                                    Padding="10,3" FontSize="12"
+                                    Command="{Binding Detail.RecheckRequirementsCommand}" />
+                        </StackPanel>
                     </Border>
 
                     <TextBlock Classes="hint" Margin="0,18,0,0"

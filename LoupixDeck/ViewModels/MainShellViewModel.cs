@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using LoupixDeck.Localization;
+using LoupixDeck.Services.Notices;
 using LoupixDeck.Services.PluginStore;
 using LoupixDeck.Services.Updates;
 using LoupixDeck.ViewModels.Base;
@@ -35,16 +36,17 @@ public sealed class MainShellViewModel : ViewModelBase
     /// <param name="pluginStore">The app-wide plugin store (root container); drives the plugin update hint.</param>
     public MainShellViewModel(Func<LoupixDeck.Services.IDialogService> dialogService = null,
         IUpdateService updateService = null, IUpdateNotifier updateNotifier = null,
-        IPluginStoreService pluginStore = null)
+        IPluginStoreService pluginStore = null, INoticeService notices = null)
     {
         _dialogService = dialogService;
         _updateService = updateService;
         _updateNotifier = updateNotifier;
         _pluginStore = pluginStore;
+        _notices = notices ?? new NoticeService();
         AboutMenuCommand = new AsyncRelayCommand(ShowAbout);
         PluginsMenuCommand = new AsyncRelayCommand(() => ShowPlugins(openStore: HasAnyPluginUpdate));
-        ShowUpdateCommand = new AsyncRelayCommand(ShowUpdate);
-        ShowPluginUpdatesCommand = new AsyncRelayCommand(ShowPluginUpdates);
+        _showUpdateCommand = new AsyncRelayCommand(ShowUpdate);
+        _showPluginUpdatesCommand = new AsyncRelayCommand(ShowPluginUpdates);
         SelectDeviceCommand = new RelayCommand<string>(SelectDevice, CanSelectDevice);
 
         if (_updateService != null)
@@ -55,29 +57,53 @@ public sealed class MainShellViewModel : ViewModelBase
 
         if (_pluginStore != null)
             _pluginStore.PropertyChanged += OnPluginStorePropertyChanged;
+
+        RefreshUpdateNotice();
+        RefreshPluginUpdateNotice();
     }
+
+    private readonly IAsyncRelayCommand _showUpdateCommand;
+    private readonly IAsyncRelayCommand _showPluginUpdatesCommand;
+
+    // ───────── Notice strip ─────────
+
+    private readonly INoticeService _notices;
+
+    /// <summary>The notices shown in the strip under the switcher (app update, plugin updates, ...).</summary>
+    public ReadOnlyObservableCollection<Notice> Notices => _notices.Notices;
 
     // ───────── Plugin update hint (issue #234) ─────────
 
+    private const string PluginUpdateNoticeId = "plugin-updates";
+
     private readonly IPluginStoreService _pluginStore;
-
-    /// <summary>The app update strip takes the row while both are pending; plugins follow once it is gone.</summary>
-    public bool HasPluginUpdates => !HasUpdate && _pluginStore?.AvailableUpdates.Count > 0;
-
-    public string PluginUpdateHintText => _pluginStore?.AvailableUpdates is { Count: > 0 } updates
-        ? updates.Count == 1
-            ? Loc.Tr("PluginStore_UpdateHintOne", updates[0].Entry.DisplayName, updates[0].Available.Version)
-            : Loc.Tr("PluginStore_UpdateHintMany", updates.Count)
-        : string.Empty;
-
-    public IAsyncRelayCommand ShowPluginUpdatesCommand { get; }
 
     private void OnPluginStorePropertyChanged(object sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName != nameof(IPluginStoreService.AvailableUpdates)) return;
 
-        OnPropertyChanged(nameof(HasPluginUpdates));
-        OnPropertyChanged(nameof(PluginUpdateHintText));
+        RefreshPluginUpdateNotice();
+    }
+
+    private void RefreshPluginUpdateNotice()
+    {
+        if (_pluginStore?.AvailableUpdates is not { Count: > 0 } updates)
+        {
+            _notices.Remove(PluginUpdateNoticeId);
+            return;
+        }
+
+        _notices.Post(new Notice
+        {
+            Id = PluginUpdateNoticeId,
+            // mdi-puzzle
+            Icon = char.ConvertFromUtf32(0xF0431),
+            Message = updates.Count == 1
+                ? Loc.Tr("PluginStore_UpdateHintOne", updates[0].Entry.DisplayName, updates[0].Available.Version)
+                : Loc.Tr("PluginStore_UpdateHintMany", updates.Count),
+            ActionText = Loc.Tr("Update_Details"),
+            ActionCommand = _showPluginUpdatesCommand
+        });
     }
 
     /// <summary><c>ui-settings.json</c> key: ids of missing plugins the user declined to install, comma-separated.</summary>
@@ -133,12 +159,17 @@ public sealed class MainShellViewModel : ViewModelBase
     /// shell next to About rather than on a device's view model.</summary>
     public IAsyncRelayCommand PluginsMenuCommand { get; }
 
+    /// <summary>Opens the Plugins window on the details of one installed plugin (issue #315).</summary>
+    public Task ShowPluginDetails(string pluginId) => ShowPlugins(installedPluginId: pluginId);
+
     /// <summary>A plugin update is waiting, so the Plugins window opens on the store (issue #308).</summary>
     private bool HasAnyPluginUpdate => _pluginStore?.AvailableUpdates?.Count > 0;
 
     /// <param name="openStore">Opens the window on the Plugin Store instead of the installed plugins.</param>
     /// <param name="storePluginId">The plugin brought to the top of the store, if any.</param>
-    private async Task ShowPlugins(bool openStore = false, string storePluginId = null)
+    /// <param name="installedPluginId">The installed plugin whose details are selected, if any.</param>
+    private async Task ShowPlugins(bool openStore = false, string storePluginId = null,
+        string installedPluginId = null)
     {
         LoupixDeck.Services.IDialogService dialogs = _dialogService?.Invoke();
 
@@ -152,6 +183,9 @@ public sealed class MainShellViewModel : ViewModelBase
                 if (currentScopeKey != null)
                     vm.Installed.SelectDevice(currentScopeKey);
 
+                if (installedPluginId != null)
+                    vm.Installed.SelectPlugin(installedPluginId);
+
                 if (openStore)
                     vm.OpenPluginStore(storePluginId);
             });
@@ -163,13 +197,26 @@ public sealed class MainShellViewModel : ViewModelBase
     /// into an OS notification while it sits in the tray.</summary>
     public event Action<UpdateInfo> UpdateFound;
 
-    public bool HasUpdate => _updateService?.AvailableUpdate != null;
+    private const string UpdateNoticeId = "app-update";
 
-    public string UpdateHintText => _updateService?.AvailableUpdate is { } update
-        ? Loc.Tr("Update_Available", update.Latest.Tag, $"v{update.InstalledVersion}")
-        : string.Empty;
+    private void RefreshUpdateNotice()
+    {
+        if (_updateService?.AvailableUpdate is not { } update)
+        {
+            _notices.Remove(UpdateNoticeId);
+            return;
+        }
 
-    public IAsyncRelayCommand ShowUpdateCommand { get; }
+        _notices.Post(new Notice
+        {
+            Id = UpdateNoticeId,
+            // mdi-update
+            Icon = char.ConvertFromUtf32(0xF06B0),
+            Message = Loc.Tr("Update_Available", update.Latest.Tag, $"v{update.InstalledVersion}"),
+            ActionText = Loc.Tr("Update_Details"),
+            ActionCommand = _showUpdateCommand
+        });
+    }
 
     /// <summary>Announces <paramref name="update"/> as an OS notification.</summary>
     /// <param name="windowHandle">Native handle of the main window (used on Windows).</param>
@@ -183,9 +230,7 @@ public sealed class MainShellViewModel : ViewModelBase
     {
         if (e.PropertyName != nameof(IUpdateService.AvailableUpdate)) return;
 
-        OnPropertyChanged(nameof(HasUpdate));
-        OnPropertyChanged(nameof(UpdateHintText));
-        OnPropertyChanged(nameof(HasPluginUpdates));
+        RefreshUpdateNotice();
     }
 
     private async Task ShowUpdate()

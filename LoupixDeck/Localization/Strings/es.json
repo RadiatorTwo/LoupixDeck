@@ -1245,5 +1245,15 @@
   "SymbolPicker_PackTruncatedFmt": "{0} símbolos (solo se cargan los primeros {1} iconos de esta carpeta)",
   "SymbolPicker_PackRootCategory": "(Carpeta principal)",
   "TouchButton_KeepOriginalColors": "Mantener colores originales",
-  "TouchButton_KeepOriginalColorsTip": "Dibuja el icono con sus propios colores en lugar del tinte o el degradado. Se activa automáticamente en los iconos a color."
+  "TouchButton_KeepOriginalColorsTip": "Dibuja el icono con sus propios colores en lugar del tinte o el degradado. Se activa automáticamente en los iconos a color.",
+  "PluginRequirements_NoticeOne": "{0}: {1}",
+  "PluginRequirements_NoticeMany": "{0}: no se cumplen {1} requisitos",
+  "Plugins_StatusNeedsAttention": "Requiere atención",
+  "Plugins_RequirementsTitle": "Este plugin necesita algo en tu sistema",
+  "Diagnostics_Check_PluginRequirement": "Requisito del plugin",
+  "Diagnostics_PluginRequirementFmt": "{0}: {1}",
+  "Diagnostics_PluginRequirementMetFmt": "{0}: {1} está disponible.",
+  "Diagnostics_PluginRequirementGoneFmt": "{0} ya no informa de este requisito.",
+  "Diagnostics_FixPluginRequirement": "Instala lo que necesita el plugin y vuelve a ejecutar la comprobación.",
+  "Plugins_RequirementsRecheck": "Comprobar de nuevo"
 }

@@ -28,6 +28,11 @@ public sealed partial class InstalledPluginsViewModel : ViewModelBase
         // A device coming or going changes who the page can act on.
         _owner.Hosts.HostAdded += _ => Avalonia.Threading.Dispatcher.UIThread.Post(RefreshDevices);
         _owner.Hosts.HostRemoved += _ => Avalonia.Threading.Dispatcher.UIThread.Post(RefreshDevices);
+
+        // A plugin may report a missing requirement after the page was built; evaluate again
+        // now (on demand, off the UI thread) and follow later changes.
+        _owner.Manager.RequirementsChanged += OnRequirementsChanged;
+        _ = _owner.Manager.RefreshRequirementsAsync();
     }
 
     // ---------- The device being configured ----------
@@ -157,7 +162,20 @@ public sealed partial class InstalledPluginsViewModel : ViewModelBase
         oldValue?.Detach();
 
     /// <summary>Lets go of the shown pane when the window closes.</summary>
-    public void Cleanup() => Detail?.Detach();
+    public void Cleanup()
+    {
+        _owner.Manager.RequirementsChanged -= OnRequirementsChanged;
+        Detail?.Detach();
+    }
+
+    private void OnRequirementsChanged() =>
+        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        {
+            foreach (InstalledPluginRowViewModel row in _allRows)
+                row.RefreshRequirements();
+
+            Detail?.RefreshRequirements();
+        });
 
     public bool HasSelection => SelectedPlugin != null;
 
@@ -197,7 +215,7 @@ public sealed partial class InstalledPluginsViewModel : ViewModelBase
     private void Show(InstalledPluginRowViewModel row)
     {
         _shown = row;
-        Detail = row == null ? null : new PluginDetailViewModel(row.Plugin);
+        Detail = row == null ? null : new PluginDetailViewModel(row.Plugin, _owner.Manager.RefreshRequirementsAsync);
     }
 
     /// <summary>

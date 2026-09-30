@@ -53,6 +53,16 @@ public sealed class LoadedPlugin
     /// <summary>The host bridge handed to the plugin; null unless loaded.</summary>
     public PluginHost Host { get; set; }
 
+    /// <summary>
+    /// Last evaluation of the plugin's <see cref="IPluginRequirements"/>, met and unmet entries
+    /// alike; empty for a plugin that does not implement the interface, is not loaded, or has
+    /// not been evaluated yet. Replaced as a whole, so a reader always sees a consistent list.
+    /// </summary>
+    public IReadOnlyList<PluginRequirement> Requirements { get; set; } = Array.Empty<PluginRequirement>();
+
+    /// <summary>True when at least one entry of <see cref="Requirements"/> is not met.</summary>
+    public bool HasUnmetRequirements => Requirements.Any(r => !r.IsMet);
+
     /// <summary>Commands contributed by the plugin.</summary>
     public IReadOnlyList<IPluginCommand> Commands { get; set; } = Array.Empty<IPluginCommand>();
 

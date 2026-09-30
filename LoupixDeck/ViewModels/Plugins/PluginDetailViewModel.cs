@@ -24,9 +24,13 @@ public sealed partial class PluginDetailViewModel : ViewModelBase
     private IPluginSettingsPage _page;
     private IPluginSettings _settings;
 
-    public PluginDetailViewModel(LoadedPlugin plugin)
+    private readonly Func<Task> _recheckRequirements;
+
+    /// <param name="recheckRequirements">Asks the host to evaluate the plugin requirements again.</param>
+    public PluginDetailViewModel(LoadedPlugin plugin, Func<Task> recheckRequirements = null)
     {
         _plugin = plugin;
+        _recheckRequirements = recheckRequirements;
 
         PluginManifest manifest = plugin.Manifest;
         _name = manifest?.Name ?? plugin.Directory;
@@ -39,6 +43,7 @@ public sealed partial class PluginDetailViewModel : ViewModelBase
         Icon = LoadIcon(plugin);
 
         BuildForm();
+        RefreshRequirements();
 
         LocalizationManager.Instance.PropertyChanged += OnLanguageChanged;
     }
@@ -55,6 +60,7 @@ public sealed partial class PluginDetailViewModel : ViewModelBase
     {
         OnPropertyChanged(nameof(Name));
         OnPropertyChanged(nameof(DescriptionText));
+        RefreshRequirements();
         foreach (PluginSettingGroupViewModel group in Groups)
             group.RefreshTexts();
         Connection?.RefreshTexts();
@@ -127,6 +133,45 @@ public sealed partial class PluginDetailViewModel : ViewModelBase
         : _plugin.FailureReason ?? InstalledPluginRowViewModel.DescribeStatus(_plugin.Status);
 
     public bool HasFailure => !IsLoaded;
+
+    // ---------- Requirements (issue #315) ----------
+
+    /// <summary>The requirements of the plugin that are not met right now, in its own words
+    /// (translated through the plugin's strings).</summary>
+    public ObservableCollection<PluginRequirementItem> UnmetRequirements { get; } = [];
+
+    public bool HasUnmetRequirements => UnmetRequirements.Count > 0;
+
+    /// <summary>Evaluates the requirements again on demand, for the user who just fixed what was
+    /// missing (issue #315). Disabled while a check is running.</summary>
+    public IAsyncRelayCommand RecheckRequirementsCommand => field ??= Relay.Create(RecheckRequirementsAsync);
+
+    private async Task RecheckRequirementsAsync()
+    {
+        if (_recheckRequirements != null)
+            await _recheckRequirements();
+
+        // The host only announces a change; a check that found the same state still has to end
+        // with a current pane.
+        RefreshRequirements();
+    }
+
+    /// <summary>Re-reads <see cref="LoadedPlugin.Requirements"/>; called when the host evaluated
+    /// them again and when the language changed.</summary>
+    public void RefreshRequirements()
+    {
+        LocalizationManager loc = LocalizationManager.Instance;
+        string Translate(string text) => string.IsNullOrWhiteSpace(text) ? text : loc.TrText(text, PluginId);
+
+        UnmetRequirements.Clear();
+        foreach (PluginRequirement requirement in _plugin.Requirements.Where(r => !r.IsMet))
+        {
+            UnmetRequirements.Add(new PluginRequirementItem(
+                Translate(requirement.Name), Translate(requirement.Message), Translate(requirement.InstallHint)));
+        }
+
+        OnPropertyChanged(nameof(HasUnmetRequirements));
+    }
 
     // ---------- Generated form ----------
 

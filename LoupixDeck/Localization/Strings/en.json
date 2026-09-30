@@ -1245,5 +1245,15 @@
   "SymbolPicker_PackTruncatedFmt": "{0} symbols (only the first {1} icons of this folder are loaded)",
   "SymbolPicker_PackRootCategory": "(Top folder)",
   "TouchButton_KeepOriginalColors": "Keep original colors",
-  "TouchButton_KeepOriginalColorsTip": "Draw the icon in its own colors instead of the tint or gradient. Set automatically for colored icons."
+  "TouchButton_KeepOriginalColorsTip": "Draw the icon in its own colors instead of the tint or gradient. Set automatically for colored icons.",
+  "PluginRequirements_NoticeOne": "{0}: {1}",
+  "PluginRequirements_NoticeMany": "{0}: {1} requirements are not met",
+  "Plugins_StatusNeedsAttention": "Needs attention",
+  "Plugins_RequirementsTitle": "This plugin needs something on your system",
+  "Diagnostics_Check_PluginRequirement": "Plugin requirement",
+  "Diagnostics_PluginRequirementFmt": "{0}: {1}",
+  "Diagnostics_PluginRequirementMetFmt": "{0}: {1} is available.",
+  "Diagnostics_PluginRequirementGoneFmt": "{0} no longer reports this requirement.",
+  "Diagnostics_FixPluginRequirement": "Install what the plugin needs, then run the check again.",
+  "Plugins_RequirementsRecheck": "Check again"
 }

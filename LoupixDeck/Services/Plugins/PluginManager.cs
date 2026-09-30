@@ -50,6 +50,21 @@ public interface IPluginManager
 
     /// <summary>Shuts down every loaded plugin and unloads its context.</summary>
     void ShutdownAll();
+
+    /// <summary>
+    /// Asks every loaded plugin that implements <see cref="IPluginRequirements"/> for its
+    /// requirements and stores the result on <see cref="LoadedPlugin.Requirements"/>. Runs on a
+    /// worker thread so a slow probe (for example starting a process) never blocks the caller,
+    /// and never throws. Raises <see cref="RequirementsChanged"/> when the outcome differs from
+    /// the previous evaluation.
+    /// </summary>
+    Task RefreshRequirementsAsync();
+
+    /// <summary>
+    /// Raised after a refresh changed the requirements of at least one plugin. May fire on a
+    /// worker thread; UI subscribers must marshal to the UI thread.
+    /// </summary>
+    event Action RequirementsChanged;
 }
 
 /// <inheritdoc cref="IPluginManager"/>
@@ -78,6 +93,11 @@ public class PluginManager : IPluginManager
         new(StringComparer.OrdinalIgnoreCase);
 
     private readonly PluginStore.IPluginCommandIndex _commandIndex;
+
+    // Serializes refreshes so two overlapping calls (page open + Doctor run) cannot interleave.
+    private readonly SemaphoreSlim _requirementsGate = new(1, 1);
+
+    public event Action RequirementsChanged;
 
     public PluginManager(IDeviceRouter router, IDeviceHostRegistry hostRegistry,
         PluginStore.IPluginCommandIndex commandIndex)
@@ -311,6 +331,78 @@ public class PluginManager : IPluginManager
 
         var ok = loadedPlugins.Count(p => p.Status == PluginLoadStatus.Loaded);
         Console.WriteLine($"PluginManager: {ok}/{loadedPlugins.Count} plugin(s) loaded.");
+
+        // Never on the startup path: the probes may spawn processes.
+        _ = RefreshRequirementsAsync();
+    }
+
+    public async Task RefreshRequirementsAsync()
+    {
+        await _requirementsGate.WaitAsync().ConfigureAwait(false);
+        try
+        {
+            bool changed = await Task.Run(() =>
+            {
+                bool any = false;
+                foreach (LoadedPlugin plugin in _plugins)
+                    any |= EvaluateRequirements(plugin);
+                return any;
+            }).ConfigureAwait(false);
+
+            if (changed)
+                RaiseRequirementsChanged();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"PluginManager: refreshing plugin requirements failed: {ex.Message}");
+        }
+        finally
+        {
+            _requirementsGate.Release();
+        }
+    }
+
+    /// <summary>
+    /// Evaluates one plugin's requirements and stores them. Returns true when the stored list
+    /// differs from the previous one. A plugin that throws is treated as reporting nothing.
+    /// </summary>
+    private static bool EvaluateRequirements(LoadedPlugin plugin)
+    {
+        IReadOnlyList<PluginRequirement> next = Array.Empty<PluginRequirement>();
+
+        if (plugin.Status == PluginLoadStatus.Loaded && plugin.Instance is IPluginRequirements provider)
+        {
+            try
+            {
+                next = provider.GetRequirements()?.Where(r => r != null).ToList() ?? next;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(
+                    $"PluginManager: '{plugin.Manifest?.Id}' GetRequirements threw: {ex.Message}");
+            }
+        }
+
+        if (RequirementsSignature(plugin.Requirements) == RequirementsSignature(next))
+            return false;
+
+        plugin.Requirements = next;
+        return true;
+    }
+
+    private static string RequirementsSignature(IReadOnlyList<PluginRequirement> requirements) =>
+        string.Join("\n", requirements.Select(r => $"{r.Id}|{r.IsMet}|{r.Message}|{r.InstallHint}"));
+
+    private void RaiseRequirementsChanged()
+    {
+        try
+        {
+            RequirementsChanged?.Invoke();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"PluginManager: a RequirementsChanged subscriber threw: {ex.Message}");
+        }
     }
 
     public LoadedPlugin LoadPlugin(string pluginId)
@@ -337,6 +429,8 @@ public class PluginManager : IPluginManager
             list.RemoveAll(p => string.Equals(p.Manifest?.Id, pluginId, StringComparison.OrdinalIgnoreCase));
             list.Add(loaded);
         });
+
+        _ = RefreshRequirementsAsync();
 
         return loaded;
     }
@@ -367,6 +461,8 @@ public class PluginManager : IPluginManager
         var context = plugin.LoadContext;
         plugin.Instance = null;
         plugin.Host = null;
+        bool hadRequirements = plugin.Requirements.Count > 0;
+        plugin.Requirements = Array.Empty<PluginRequirement>();
         plugin.Commands = Array.Empty<IPluginCommand>();
         plugin.SideStripProviders = Array.Empty<ISideStripProvider>();
         plugin.ScreensaverProviders = Array.Empty<IScreensaverProvider>();
@@ -374,6 +470,9 @@ public class PluginManager : IPluginManager
 
         try { context?.Unload(); }
         catch (Exception ex) { Console.WriteLine($"PluginManager: '{pluginId}' Unload threw: {ex.Message}"); }
+
+        if (hadRequirements)
+            RaiseRequirementsChanged();
 
         return context != null;
     }

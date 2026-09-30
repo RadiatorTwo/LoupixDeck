@@ -141,8 +141,14 @@ public partial class App : Application
             var shell = new MainShellViewModel(() => registry.Primary?.Provider.GetService<IDialogService>(),
                 root.GetRequiredService<Services.Updates.IUpdateService>(),
                 root.GetRequiredService<Services.Updates.IUpdateNotifier>(),
-                root.GetRequiredService<Services.PluginStore.IPluginStoreService>());
+                root.GetRequiredService<Services.PluginStore.IPluginStoreService>(),
+                root.GetRequiredService<Services.Notices.INoticeService>());
             _shell = shell;
+            // Reports the unmet requirements of plugins (issue #315) in the shell's notice strip. It stays
+            // alive through its subscription to the plugin manager.
+            _ = new Services.Plugins.PluginRequirementsNotices(root.GetRequiredService<Services.Plugins.IPluginManager>(),
+                root.GetRequiredService<Services.Notices.INoticeService>(),
+                pluginId => _ = shell.ShowPluginDetails(pluginId));
 
             // The window goes up here, before the plugins load and before a single device is
             // brought up, and it opens on the empty state it already has for a full unplug

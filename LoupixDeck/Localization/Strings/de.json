@@ -1245,5 +1245,15 @@
   "SymbolPicker_PackTruncatedFmt": "{0} Symbole (nur die ersten {1} Icons dieses Ordners werden geladen)",
   "SymbolPicker_PackRootCategory": "(Hauptordner)",
   "TouchButton_KeepOriginalColors": "Originalfarben behalten",
-  "TouchButton_KeepOriginalColorsTip": "Das Icon in seinen eigenen Farben statt mit Farbton oder Verlauf zeichnen. Wird bei farbigen Icons automatisch gesetzt."
+  "TouchButton_KeepOriginalColorsTip": "Das Icon in seinen eigenen Farben statt mit Farbton oder Verlauf zeichnen. Wird bei farbigen Icons automatisch gesetzt.",
+  "PluginRequirements_NoticeOne": "{0}: {1}",
+  "PluginRequirements_NoticeMany": "{0}: {1} Voraussetzungen sind nicht erfüllt",
+  "Plugins_StatusNeedsAttention": "Braucht Aufmerksamkeit",
+  "Plugins_RequirementsTitle": "Dieses Plugin benötigt etwas auf dem System",
+  "Diagnostics_Check_PluginRequirement": "Plugin-Voraussetzung",
+  "Diagnostics_PluginRequirementFmt": "{0}: {1}",
+  "Diagnostics_PluginRequirementMetFmt": "{0}: {1} ist vorhanden.",
+  "Diagnostics_PluginRequirementGoneFmt": "{0} meldet diese Voraussetzung nicht mehr.",
+  "Diagnostics_FixPluginRequirement": "Die vom Plugin benötigte Software installieren und die Prüfung danach erneut ausführen.",
+  "Plugins_RequirementsRecheck": "Erneut prüfen"
 }

@@ -164,6 +164,10 @@ public static class ServiceCollectionExtensions
         // Plugin store (issue #234): one catalog, one release cache and one plugin update check for the
         // app, like the plugins themselves.
         collection.AddSingleton<Services.PluginStore.IPluginStoreService, Services.PluginStore.PluginStoreService>();
+
+        // Notice strip of the main window (issue #315): one list the app update hint, the plugin update
+        // hint and the plugin requirement notices all post to.
+        collection.AddSingleton<Services.Notices.INoticeService, Services.Notices.NoticeService>();
 #if WINDOWS
         if (OperatingSystem.IsWindows())
             collection.AddSingleton<Services.Updates.IUpdateNotifier, Services.Updates.WindowsUpdateNotifier>();
