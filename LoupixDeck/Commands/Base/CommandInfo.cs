@@ -1,3 +1,5 @@
+using LoupixDeck.PluginSdk;
+
 namespace LoupixDeck.Commands.Base;
 
 public class CommandInfo
@@ -22,6 +24,12 @@ public class CommandInfo
     /// states to the user (every core command, and every plugin command that declares none).
     /// </summary>
     public List<CommandStateInfo> States { get; set; } = [];
+
+    /// <summary>
+    /// The layers the command asks for when it is put on a touch button. Null keeps the standard
+    /// icon-and-caption look, which is what every core command and every older plugin gets.
+    /// </summary>
+    public ButtonLayoutDescriptor ButtonLayout { get; set; }
 
     /// <summary>Id of the plugin that declared this command, so its texts are translated from the
     /// plugin's own strings files. Null for core commands.</summary>

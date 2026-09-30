@@ -1,5 +1,7 @@
+using Avalonia.Media;
 using LoupixDeck.Models;
 using LoupixDeck.Models.Layers;
+using LoupixDeck.PluginSdk;
 using LoupixDeck.Utils;
 
 namespace LoupixDeck.Services.Actions;
@@ -12,7 +14,8 @@ namespace LoupixDeck.Services.Actions;
 /// The sibling of <see cref="AppLauncher.AppAssignment"/> for everything that is not an installed
 /// application. A command has no artwork of its own, so the button is built from the glyph the
 /// command declares (<c>CommandAttribute.Icon</c>, surfaced through <c>MenuEntry.Icon</c>) plus a
-/// text caption. Commands that declare no glyph get the caption alone, at a larger size.
+/// text caption. Commands that declare no glyph get the caption alone, at a larger size. A plugin
+/// command may ask for other layers through <c>CommandDescriptor.ButtonLayout</c>.
 /// </remarks>
 public static class ActionAssignment
 {
@@ -39,6 +42,9 @@ public static class ActionAssignment
     private const int TextOnlySizePx = 14;
     private const int TextOnlyBoxPx = 84;
 
+    /// <summary>The fraction of the key an icon fills when it stands alone, without a caption.</summary>
+    private const double IconOnlyScale = 0.6;
+
     /// <summary>
     /// The fraction of the key's short edge the glyph fills. A <see cref="LayerBase.Scale"/> is
     /// already relative to the surface, so unlike the pixel constants it needs no scaling.
@@ -57,8 +63,11 @@ public static class ActionAssignment
     /// </param>
     /// <param name="keyWidthPx">Width of the key being written, in device pixels.</param>
     /// <param name="keyHeightPx">Height of the key being written, in device pixels.</param>
+    /// <param name="layout">
+    /// The layers the command asks for, or null for the standard icon-and-caption look.
+    /// </param>
     public static void ApplyToTouchButton(TouchButton button, string command, string label,
-        string symbolId, int keyWidthPx, int keyHeightPx)
+        string symbolId, int keyWidthPx, int keyHeightPx, ButtonLayoutDescriptor layout = null)
     {
         if (button == null || string.IsNullOrEmpty(command))
             return;
@@ -66,46 +75,150 @@ public static class ActionAssignment
         button.Command = command;
         button.Layers.Clear();
 
+        AddLayers(button, label, symbolId, keyWidthPx, keyHeightPx, layout);
+    }
+
+    /// <summary>
+    /// Appends the layers a command brings along to <paramref name="button"/>'s active state, leaving
+    /// the command and every existing layer alone. The button editor uses this on an empty state.
+    /// </summary>
+    public static void AddLayers(TouchButton button, string label, string symbolId,
+        int keyWidthPx, int keyHeightPx, ButtonLayoutDescriptor layout = null)
+    {
+        if (button == null)
+            return;
+
         double scaleX = ScaleFactor(keyWidthPx);
         double scaleY = ScaleFactor(keyHeightPx);
         string text = label ?? string.Empty;
+        bool hasSymbol = !string.IsNullOrEmpty(symbolId) && SymbolLibrary.TryGet(symbolId, out _);
 
-        if (!string.IsNullOrEmpty(symbolId) && SymbolLibrary.TryGet(symbolId, out _))
+        switch (layout?.Mode ?? ButtonLayoutMode.Default)
         {
-            SymbolLayer symbol = new()
-            {
-                Name = text,
-                SymbolId = symbolId,
-                PositionY = Scaled(SymbolOffsetYPx, scaleY)
-            };
-            symbol.FitScaleToGlyph(SymbolScale);
-            button.Layers.Add(symbol);
+            case ButtonLayoutMode.None:
+                break;
 
-            button.Layers.Add(new TextLayer
-            {
-                Name = text,
-                Text = text,
-                Centered = true,
-                TextSize = Scaled(LabelTextSizePx, scaleY),
-                PositionY = Scaled(LabelOffsetYPx, scaleY),
-                BoxWidth = Scaled(LabelBoxWidthPx, scaleX),
-                BoxHeight = Scaled(LabelBoxHeightPx, scaleY)
-            });
-        }
-        else
-        {
-            button.Layers.Add(new TextLayer
-            {
-                Name = text,
-                Text = text,
-                Centered = true,
-                TextSize = Scaled(TextOnlySizePx, scaleY),
-                BoxWidth = Scaled(TextOnlyBoxPx, scaleX),
-                BoxHeight = Scaled(TextOnlyBoxPx, scaleY)
-            });
+            case ButtonLayoutMode.IconOnly when hasSymbol:
+                button.Layers.Add(CreateSymbol(text, symbolId, 0, IconOnlyScale));
+                break;
+
+            case ButtonLayoutMode.CaptionOnly:
+                button.Layers.Add(CreateTextOnly(text, scaleX, scaleY));
+                break;
+
+            case ButtonLayoutMode.Custom:
+                AddCustomLayers(button, layout, text, symbolId, scaleX, scaleY);
+                break;
+
+            // Default, IconAndCaption, and IconOnly for a command whose icon cannot be resolved:
+            // the button must not end up empty, so it gets the standard look.
+            default:
+                if (hasSymbol)
+                {
+                    button.Layers.Add(CreateSymbol(text, symbolId, Scaled(SymbolOffsetYPx, scaleY), SymbolScale));
+                    button.Layers.Add(new TextLayer
+                    {
+                        Name = text,
+                        Text = text,
+                        Centered = true,
+                        TextSize = Scaled(LabelTextSizePx, scaleY),
+                        PositionY = Scaled(LabelOffsetYPx, scaleY),
+                        BoxWidth = Scaled(LabelBoxWidthPx, scaleX),
+                        BoxHeight = Scaled(LabelBoxHeightPx, scaleY)
+                    });
+                }
+                else
+                {
+                    button.Layers.Add(CreateTextOnly(text, scaleX, scaleY));
+                }
+
+                break;
         }
 
         button.RewireLayerHandlers();
+    }
+
+    private static SymbolLayer CreateSymbol(string name, string symbolId, int positionY, double scale)
+    {
+        SymbolLayer symbol = new()
+        {
+            Name = name,
+            SymbolId = symbolId,
+            PositionY = positionY
+        };
+        symbol.FitScaleToGlyph(scale);
+        return symbol;
+    }
+
+    private static TextLayer CreateTextOnly(string text, double scaleX, double scaleY) => new()
+    {
+        Name = text,
+        Text = text,
+        Centered = true,
+        TextSize = Scaled(TextOnlySizePx, scaleY),
+        BoxWidth = Scaled(TextOnlyBoxPx, scaleX),
+        BoxHeight = Scaled(TextOnlyBoxPx, scaleY)
+    };
+
+    /// <summary>
+    /// Builds the layers a plugin listed, bottom first. A layer that cannot be built — an unknown
+    /// glyph, a kind this host does not know — is skipped rather than failing the assignment.
+    /// </summary>
+    private static void AddCustomLayers(TouchButton button, ButtonLayoutDescriptor layout, string label,
+        string symbolId, double scaleX, double scaleY)
+    {
+        foreach (ButtonLayerDescriptor descriptor in layout.Layers ?? [])
+        {
+            if (descriptor == null)
+                continue;
+
+            int x = Scaled(descriptor.OffsetX, scaleX);
+            int y = Scaled(descriptor.OffsetY, scaleY);
+            string name = string.IsNullOrEmpty(descriptor.Name) ? label : descriptor.Name;
+            bool hasColor = Color.TryParse(descriptor.Color, out Color color);
+
+            switch (descriptor.Kind)
+            {
+                case ButtonLayerKind.Symbol:
+                    string id = symbolId;
+                    if (!string.IsNullOrEmpty(descriptor.Glyph))
+                    {
+                        id = SymbolLibrary.TryGetByGlyph(descriptor.Glyph, out SymbolDefinition definition)
+                            ? definition.Id
+                            : null;
+                    }
+
+                    if (string.IsNullOrEmpty(id) || !SymbolLibrary.TryGet(id, out _))
+                        break;
+
+                    SymbolLayer symbol = CreateSymbol(name, id, y, Math.Clamp(descriptor.IconScale, 0.1, 1.0));
+                    symbol.PositionX = x;
+                    if (hasColor)
+                        symbol.Tint = color;
+
+                    button.Layers.Add(symbol);
+                    break;
+
+                case ButtonLayerKind.Text:
+                    TextLayer layer = new()
+                    {
+                        Name = name,
+                        Text = descriptor.Text ?? label,
+                        Centered = true,
+                        TextSize = Scaled(descriptor.TextSize, scaleY),
+                        PositionX = x,
+                        PositionY = y,
+                        // 0 stays 0: the box then fills the key.
+                        BoxWidth = descriptor.BoxWidth > 0 ? Scaled(descriptor.BoxWidth, scaleX) : 0,
+                        BoxHeight = descriptor.BoxHeight > 0 ? Scaled(descriptor.BoxHeight, scaleY) : 0
+                    };
+                    if (hasColor)
+                        layer.TextColor = color;
+
+                    button.Layers.Add(layer);
+                    break;
+            }
+        }
     }
 
     /// <summary>
