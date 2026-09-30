@@ -27,6 +27,9 @@ public partial class PluginsWindowViewModel : DialogViewModelBase<DialogResult>
     /// </summary>
     public IReadOnlyList<LoadedPlugin> Plugins => _pluginManager.Plugins;
 
+    /// <summary>The plugin manager, for pages that follow its requirement evaluation (issue #315).</summary>
+    public IPluginManager Manager => _pluginManager;
+
     /// <summary>The Plugin Store page (issue #234).</summary>
     public PluginStoreViewModel PluginStore { get; }
 

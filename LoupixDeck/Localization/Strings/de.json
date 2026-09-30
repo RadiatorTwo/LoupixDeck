@@ -1247,5 +1247,7 @@
   "TouchButton_KeepOriginalColors": "Originalfarben behalten",
   "TouchButton_KeepOriginalColorsTip": "Das Icon in seinen eigenen Farben statt mit Farbton oder Verlauf zeichnen. Wird bei farbigen Icons automatisch gesetzt.",
   "PluginRequirements_NoticeOne": "{0}: {1}",
-  "PluginRequirements_NoticeMany": "{0}: {1} Voraussetzungen sind nicht erfüllt"
+  "PluginRequirements_NoticeMany": "{0}: {1} Voraussetzungen sind nicht erfüllt",
+  "Plugins_StatusNeedsAttention": "Braucht Aufmerksamkeit",
+  "Plugins_RequirementsTitle": "Dieses Plugin benötigt etwas auf dem System"
 }

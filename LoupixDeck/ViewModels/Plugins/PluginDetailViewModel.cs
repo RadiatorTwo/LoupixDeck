@@ -39,6 +39,7 @@ public sealed partial class PluginDetailViewModel : ViewModelBase
         Icon = LoadIcon(plugin);
 
         BuildForm();
+        RefreshRequirements();
 
         LocalizationManager.Instance.PropertyChanged += OnLanguageChanged;
     }
@@ -55,6 +56,7 @@ public sealed partial class PluginDetailViewModel : ViewModelBase
     {
         OnPropertyChanged(nameof(Name));
         OnPropertyChanged(nameof(DescriptionText));
+        RefreshRequirements();
         foreach (PluginSettingGroupViewModel group in Groups)
             group.RefreshTexts();
         Connection?.RefreshTexts();
@@ -127,6 +129,31 @@ public sealed partial class PluginDetailViewModel : ViewModelBase
         : _plugin.FailureReason ?? InstalledPluginRowViewModel.DescribeStatus(_plugin.Status);
 
     public bool HasFailure => !IsLoaded;
+
+    // ---------- Requirements (issue #315) ----------
+
+    /// <summary>The requirements of the plugin that are not met right now, in its own words
+    /// (translated through the plugin's strings).</summary>
+    public ObservableCollection<PluginRequirementItem> UnmetRequirements { get; } = [];
+
+    public bool HasUnmetRequirements => UnmetRequirements.Count > 0;
+
+    /// <summary>Re-reads <see cref="LoadedPlugin.Requirements"/>; called when the host evaluated
+    /// them again and when the language changed.</summary>
+    public void RefreshRequirements()
+    {
+        LocalizationManager loc = LocalizationManager.Instance;
+        string Translate(string text) => string.IsNullOrWhiteSpace(text) ? text : loc.TrText(text, PluginId);
+
+        UnmetRequirements.Clear();
+        foreach (PluginRequirement requirement in _plugin.Requirements.Where(r => !r.IsMet))
+        {
+            UnmetRequirements.Add(new PluginRequirementItem(
+                Translate(requirement.Name), Translate(requirement.Message), Translate(requirement.InstallHint)));
+        }
+
+        OnPropertyChanged(nameof(HasUnmetRequirements));
+    }
 
     // ---------- Generated form ----------
 

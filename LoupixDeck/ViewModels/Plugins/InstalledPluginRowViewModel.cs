@@ -17,6 +17,9 @@ public enum PluginRowStatus
     /// <summary>Present but not running for a reason that is not the user's doing.</summary>
     Neutral,
 
+    /// <summary>Running, but a system requirement the plugin reported is missing (issue #315).</summary>
+    Attention,
+
     /// <summary>Switched off by the user on this device.</summary>
     Disabled
 }
@@ -57,6 +60,8 @@ public sealed partial class InstalledPluginRowViewModel : ViewModelBase
     [NotifyPropertyChangedFor(nameof(Status))]
     [NotifyPropertyChangedFor(nameof(IsStatusOk))]
     [NotifyPropertyChangedFor(nameof(IsStatusRestart))]
+    [NotifyPropertyChangedFor(nameof(IsStatusAttention))]
+    [NotifyPropertyChangedFor(nameof(IsStatusWarn))]
     [NotifyPropertyChangedFor(nameof(IsStatusNeutral))]
     [NotifyPropertyChangedFor(nameof(IsStatusDisabled))]
     [NotifyPropertyChangedFor(nameof(StatusText))]
@@ -70,6 +75,17 @@ public sealed partial class InstalledPluginRowViewModel : ViewModelBase
             return;
 
         _ = _setEnabled(this, value);
+    }
+
+    /// <summary>Re-reads the status after the plugin's requirements were evaluated again.</summary>
+    public void RefreshRequirements()
+    {
+        OnPropertyChanged(nameof(Status));
+        OnPropertyChanged(nameof(IsStatusOk));
+        OnPropertyChanged(nameof(IsStatusAttention));
+        OnPropertyChanged(nameof(IsStatusWarn));
+        OnPropertyChanged(nameof(StatusText));
+        OnPropertyChanged(nameof(HasStatusText));
     }
 
     /// <summary>Writes the checkbox without running the enable/disable side effect.</summary>
@@ -87,7 +103,9 @@ public sealed partial class InstalledPluginRowViewModel : ViewModelBase
             // Plugins are loaded once for all devices, so a loaded plugin that is off here is
             // running for another device. Disabling is live, so this device simply has it off.
             if (Plugin.Status == PluginLoadStatus.Loaded)
-                return IsEnabled ? PluginRowStatus.Ok : PluginRowStatus.Disabled;
+                return !IsEnabled ? PluginRowStatus.Disabled
+                    : Plugin.HasUnmetRequirements ? PluginRowStatus.Attention
+                    : PluginRowStatus.Ok;
 
             // Enabled in the config but not running: the load only happens on the next start.
             if (IsEnabled)
@@ -103,6 +121,11 @@ public sealed partial class InstalledPluginRowViewModel : ViewModelBase
 
     public bool IsStatusRestart => Status == PluginRowStatus.Restart;
 
+    public bool IsStatusAttention => Status == PluginRowStatus.Attention;
+
+    /// <summary>Amber dot: something needs the user, whether a restart or a missing requirement.</summary>
+    public bool IsStatusWarn => IsStatusRestart || IsStatusAttention;
+
     public bool IsStatusNeutral => Status == PluginRowStatus.Neutral;
 
     public bool IsStatusDisabled => Status == PluginRowStatus.Disabled;
@@ -112,6 +135,7 @@ public sealed partial class InstalledPluginRowViewModel : ViewModelBase
     {
         PluginRowStatus.Ok => null,
         PluginRowStatus.Restart => Loc.Tr("Plugins_StatusRestart"),
+        PluginRowStatus.Attention => Loc.Tr("Plugins_StatusNeedsAttention"),
         PluginRowStatus.Disabled => Loc.Tr("Plugins_StatusDisabled"),
         _ => DescribeStatus(Plugin.Status)
     };

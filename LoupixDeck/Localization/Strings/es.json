@@ -1247,5 +1247,7 @@
   "TouchButton_KeepOriginalColors": "Mantener colores originales",
   "TouchButton_KeepOriginalColorsTip": "Dibuja el icono con sus propios colores en lugar del tinte o el degradado. Se activa automáticamente en los iconos a color.",
   "PluginRequirements_NoticeOne": "{0}: {1}",
-  "PluginRequirements_NoticeMany": "{0}: no se cumplen {1} requisitos"
+  "PluginRequirements_NoticeMany": "{0}: no se cumplen {1} requisitos",
+  "Plugins_StatusNeedsAttention": "Requiere atención",
+  "Plugins_RequirementsTitle": "Este plugin necesita algo en tu sistema"
 }
