@@ -316,7 +316,7 @@
     {
       "id": "spotifypremium",
       "name": "SpotifyPremium",
-      "description": "Control Spotify playback, volume, playlists and devices (requires Spotify Premium).",
+      "description": "Control Spotify playback, volume, seeking, queue, likes, playlists, albums and devices (requires Spotify Premium).",
       "author": "RadiatorTwo",
       "repository": "RadiatorTwo/LoupixDeck.Plugin.SpotifyPremium",
       "icon": "",
@@ -324,17 +324,17 @@
       "minSdkVersion": "1.17.0",
       "commandPrefixes": [ "SpotifyPremium." ],
       "release": {
-        "version": "1.1.0",
-        "tag": "v1.1.0",
-        "publishedAt": "2026-09-14T12:40:48Z",
+        "version": "1.2.0",
+        "tag": "v1.2.0",
+        "publishedAt": "2026-09-30T22:21:59Z",
         "sdkVersion": "1.17",
-        "releaseNotesUrl": "https://github.com/RadiatorTwo/LoupixDeck.Plugin.SpotifyPremium/releases/tag/v1.1.0",
+        "releaseNotesUrl": "https://github.com/RadiatorTwo/LoupixDeck.Plugin.SpotifyPremium/releases/tag/v1.2.0",
         "packages": [
           {
             "platform": "any",
-            "fileName": "spotifypremium-1.1.0-any.zip",
-            "downloadUrl": "https://github.com/RadiatorTwo/LoupixDeck.Plugin.SpotifyPremium/releases/download/v1.1.0/spotifypremium-1.1.0-any.zip",
-            "sha256": "b98e72b2067bacbbb8934ea5f9737c8f64a09a4d4d61783308f577a8befb61a7"
+            "fileName": "spotifypremium-1.2.0-any.zip",
+            "downloadUrl": "https://github.com/RadiatorTwo/LoupixDeck.Plugin.SpotifyPremium/releases/download/v1.2.0/spotifypremium-1.2.0-any.zip",
+            "sha256": "dd88c2c77cb1bc1f168f27834fd7e192d9950d0f3ecb309331b2c6a02e4b1fe8"
           }
         ]
       }
