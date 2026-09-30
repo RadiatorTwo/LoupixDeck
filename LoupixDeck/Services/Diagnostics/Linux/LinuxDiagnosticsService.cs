@@ -42,15 +42,16 @@ public sealed class LinuxDiagnosticsService : ILinuxDiagnosticsService
 
     public Task<DiagnosticRunResult> RunAllAsync(IProgress<DiagnosticCheckResult> progress,
         CancellationToken cancellationToken)
-        => RunAsync(Checks(), progress, cancellationToken);
+        => RunAsync(Checks, progress, cancellationToken);
 
     public Task<DiagnosticRunResult> RunCategoryAsync(DiagnosticCategory category,
         IProgress<DiagnosticCheckResult> progress, CancellationToken cancellationToken)
-        => RunAsync(Checks().Where(check => check.Category == category).ToList(), progress, cancellationToken);
+        => RunAsync(() => Checks().Where(check => check.Category == category).ToList(), progress,
+            cancellationToken);
 
     public Task<DiagnosticRunResult> RunCheckAsync(string id,
         IProgress<DiagnosticCheckResult> progress, CancellationToken cancellationToken)
-        => RunAsync(Checks().Where(check => check.Id == id).ToList(), progress, cancellationToken);
+        => RunAsync(() => Checks().Where(check => check.Id == id).ToList(), progress, cancellationToken);
 
     /// <summary>
     /// The checks of this moment: the registered ones, then whatever the sources build for the
@@ -83,10 +84,34 @@ public sealed class LinuxDiagnosticsService : ILinuxDiagnosticsService
     /// end to end on it - blocking the window and holding back every progress callback until the
     /// whole run is over, which showed up as an empty progress bar and a page that was only
     /// complete on the second run.
+    ///
+    /// The selection is built on the pool too, after every source had its chance to look at the
+    /// system again (<see cref="ILinuxDiagnosticCheckSource.PrepareAsync"/>): a source may have to
+    /// probe something slow, and the checks it then builds must reflect the state of this run.
     /// </summary>
-    private Task<DiagnosticRunResult> RunAsync(IReadOnlyList<ILinuxDiagnosticCheck> selection,
+    private Task<DiagnosticRunResult> RunAsync(Func<IReadOnlyList<ILinuxDiagnosticCheck>> select,
         IProgress<DiagnosticCheckResult> progress, CancellationToken cancellationToken)
-        => Task.Run(() => RunCoreAsync(selection, progress, cancellationToken), CancellationToken.None);
+        => Task.Run(async () =>
+        {
+            await PrepareSourcesAsync(cancellationToken);
+            return await RunCoreAsync(select(), progress, cancellationToken);
+        }, CancellationToken.None);
+
+    private async Task PrepareSourcesAsync(CancellationToken cancellationToken)
+    {
+        foreach (ILinuxDiagnosticCheckSource source in _sources)
+        {
+            try
+            {
+                await source.PrepareAsync(cancellationToken);
+            }
+            catch (Exception)
+            {
+                // Same rule as for CreateChecks: a source that cannot prepare must not take the
+                // run down; it simply builds its checks from what it already knows.
+            }
+        }
+    }
 
     private async Task<DiagnosticRunResult> RunCoreAsync(IReadOnlyList<ILinuxDiagnosticCheck> selection,
         IProgress<DiagnosticCheckResult> progress, CancellationToken cancellationToken)
