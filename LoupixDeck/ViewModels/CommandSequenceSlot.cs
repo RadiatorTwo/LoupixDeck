@@ -140,10 +140,16 @@ public class CommandSequenceSlot : ViewModelBase
         var formattedCommand = _commandBuilder.CreateCommandFromMenuEntry(menuEntry);
         if (string.IsNullOrWhiteSpace(formattedCommand)) return;
 
+        var wasEmpty = Commands.Count == 0;
         index = Math.Clamp(index, 0, Commands.Count);
         Commands.Insert(index, CreateSegment(formattedCommand));
         RebuildCommandString();
+        CommandInserted?.Invoke(menuEntry, wasEmpty);
     }
+
+    /// <summary>Raised after a command was inserted from the picker; the flag says whether the
+    /// chain was empty before, i.e. whether this is the slot's first command.</summary>
+    public event Action<MenuEntry, bool> CommandInserted;
 
     public void RemoveSegment(CommandSegment segment)
     {

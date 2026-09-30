@@ -83,6 +83,7 @@ public class PluginCommandProvider : ICommandProvider
             States = descriptor.States
                 .Select(state => new CommandStateInfo(state.Name, state.Description))
                 .ToList(),
+            ButtonLayout = descriptor.ButtonLayout,
             OwnerPluginId = pluginId
         };
 

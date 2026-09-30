@@ -162,17 +162,22 @@ public sealed class PanelAssignmentService(
         if (string.IsNullOrEmpty(command))
             return false;
 
-        return ApplyCommand(command, item.Title, item.SymbolId, target);
+        ButtonLayoutDescriptor layout = commandRegistry.Get(item.Entry.Command)?.Info?.ButtonLayout;
+        return ApplyCommand(command, item.Title, item.SymbolId, target, layout);
     }
 
-    /// <summary>Writes a finished command: glyph and caption on a touch key, command only elsewhere.</summary>
-    private bool ApplyCommand(string command, string label, string symbolId, LoupedeckButton target)
+    /// <summary>
+    /// Writes a finished command: the layers it asks for (by default glyph and caption) on a touch
+    /// key, command only elsewhere.
+    /// </summary>
+    private bool ApplyCommand(string command, string label, string symbolId, LoupedeckButton target,
+        ButtonLayoutDescriptor layout = null)
     {
         if (target is not TouchButton touch)
             return AssignCommandOnly(command, label, target);
 
         ActionAssignment.ApplyToTouchButton(touch, command, label, symbolId,
-            _geometry.KeySize, _geometry.KeySize);
+            _geometry.KeySize, _geometry.KeySize, layout, assetService);
 
         ReconcileStates(touch);
         return true;
