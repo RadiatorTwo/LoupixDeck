@@ -85,7 +85,16 @@ public class LaunchAppCommand : IExecutableCommand
 
         if (IsUri(target))
         {
-            Start(new ProcessStartInfo("xdg-open", target) { UseShellExecute = false });
+            Start(OpenerFor(target));
+            return;
+        }
+
+        // A macOS .app is a directory, not an executable, so it cannot be started directly —
+        // `open` is what resolves the bundle to the binary inside it.
+        if (OperatingSystem.IsMacOS() &&
+            target.TrimEnd('/').EndsWith(".app", StringComparison.OrdinalIgnoreCase))
+        {
+            Start(OpenerFor(target));
             return;
         }
 
@@ -126,6 +135,24 @@ public class LaunchAppCommand : IExecutableCommand
         // per-distribution question with no portable answer, so the program is started directly
         // and simply has no visible console.
         Start(startInfo);
+    }
+
+    /// <summary>
+    /// The platform opener invoked with <paramref name="target"/> as a single argument.
+    /// <see cref="ProcessStartInfo.ArgumentList"/> rather than the Arguments string: the latter is
+    /// re-split on whitespace, so any path containing a space — "/Applications/Affinity Photo
+    /// 2.app", "~/My Games/..." — arrives at the opener as several nonexistent paths and silently
+    /// does nothing.
+    /// </summary>
+    private static ProcessStartInfo OpenerFor(string target)
+    {
+        var startInfo = new ProcessStartInfo(OperatingSystem.IsMacOS() ? "open" : "xdg-open")
+        {
+            UseShellExecute = false
+        };
+
+        startInfo.ArgumentList.Add(target);
+        return startInfo;
     }
 
     private static void Start(ProcessStartInfo startInfo)

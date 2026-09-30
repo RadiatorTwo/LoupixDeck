@@ -138,6 +138,10 @@ public sealed class AppIconExtractor : IAppIconExtractor
         // OS guard (the same reason Program.cs carries one).
         return OperatingSystem.IsWindows() && WindowsAppIcons.TryExtractPng(source, destination);
 #else
+        // macOS ships the icon as an .icns inside the bundle, which discovery already located.
+        if (OperatingSystem.IsMacOS())
+            return MacAppIcons.TryConvertIcns(source, destination);
+
         // Linux gets its icon from the desktop entry, already resolved during discovery; there is
         // nothing to pull out of an ELF binary.
         return false;

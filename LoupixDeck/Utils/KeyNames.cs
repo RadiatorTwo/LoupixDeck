@@ -7,6 +7,7 @@ namespace LoupixDeck.Utils;
 /// macros to the platform-specific codes the keyboard backends expect.
 ///
 /// - Linux: Linux input-event (evdev) key codes, written to /dev/uinput.
+/// - macOS: Carbon virtual key codes (kVK_*), posted as CGEvents.
 /// - Windows: virtual-key codes (VK_*) plus an "extended key" flag, sent via SendInput.
 /// - Interception: PS/2 set-1 scan codes plus an "E0 extended" flag, sent via interception.dll.
 ///
@@ -136,6 +137,89 @@ public static class KeyNames
 
     private static readonly FrozenDictionary<string, int>.AlternateLookup<ReadOnlySpan<char>> LinuxBySpan =
         Linux.GetAlternateLookup<ReadOnlySpan<char>>();
+
+    // Canonical name -> macOS virtual key code (Carbon kVK_* / CGKeyCode), for CGEventPost.
+    // These are positional codes on the ANSI layout, exactly like the Linux and Windows tables,
+    // so a macro keeps hitting the same physical key whatever layout is active.
+    //
+    // Deliberately absent, because macOS has no equivalent key and inventing one would fire
+    // something unrelated: PrintScreen, ScrollLock, Pause, Insert, Menu, F21-F24, and the
+    // browser/launcher keys. The media and volume keys are absent too — those are not keyboard
+    // events on macOS at all but NX system-defined events, which need a different call.
+    private static readonly FrozenDictionary<string, int> MacOs = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
+    {
+        // Modifiers. "win" is Command, the position Windows gives the Win key.
+        ["ctrl"] = 59,        // kVK_Control
+        ["rctrl"] = 62,       // kVK_RightControl
+        ["shift"] = 56,       // kVK_Shift
+        ["rshift"] = 60,      // kVK_RightShift
+        ["alt"] = 58,         // kVK_Option
+        ["altgr"] = 61,       // kVK_RightOption
+        ["win"] = 55,         // kVK_Command
+
+        // Whitespace / control keys
+        ["space"] = 49,       // kVK_Space
+        ["enter"] = 36,       // kVK_Return
+        ["tab"] = 48,         // kVK_Tab
+        ["esc"] = 53,         // kVK_Escape
+        ["backspace"] = 51,   // kVK_Delete (the backspace position)
+        ["capslock"] = 57,    // kVK_CapsLock
+
+        // Navigation block
+        ["del"] = 117,        // kVK_ForwardDelete
+        ["home"] = 115,       // kVK_Home
+        ["end"] = 119,        // kVK_End
+        ["pageup"] = 116,     // kVK_PageUp
+        ["pagedown"] = 121,   // kVK_PageDown
+        ["up"] = 126,         // kVK_UpArrow
+        ["down"] = 125,       // kVK_DownArrow
+        ["left"] = 123,       // kVK_LeftArrow
+        ["right"] = 124,      // kVK_RightArrow
+
+        // Function keys. Note these are not in numeric order on macOS.
+        ["f1"] = 122, ["f2"] = 120, ["f3"] = 99, ["f4"] = 118, ["f5"] = 96, ["f6"] = 97,
+        ["f7"] = 98, ["f8"] = 100, ["f9"] = 101, ["f10"] = 109, ["f11"] = 103, ["f12"] = 111,
+        ["f13"] = 105, ["f14"] = 107, ["f15"] = 113, ["f16"] = 106, ["f17"] = 64,
+        ["f18"] = 79, ["f19"] = 80, ["f20"] = 90,
+
+        // Letters
+        ["a"] = 0, ["b"] = 11, ["c"] = 8, ["d"] = 2, ["e"] = 14, ["f"] = 3, ["g"] = 5,
+        ["h"] = 4, ["i"] = 34, ["j"] = 38, ["k"] = 40, ["l"] = 37, ["m"] = 46, ["n"] = 45,
+        ["o"] = 31, ["p"] = 35, ["q"] = 12, ["r"] = 15, ["s"] = 1, ["t"] = 17, ["u"] = 32,
+        ["v"] = 9, ["w"] = 13, ["x"] = 7, ["y"] = 16, ["z"] = 6,
+
+        // Digits (number row)
+        ["0"] = 29, ["1"] = 18, ["2"] = 19, ["3"] = 20, ["4"] = 21, ["5"] = 23, ["6"] = 22,
+        ["7"] = 26, ["8"] = 28, ["9"] = 25,
+
+        // Punctuation / OEM keys, named by their US-layout position as elsewhere.
+        ["grave"] = 50,        // kVK_ANSI_Grave
+        ["minus"] = 27,        // kVK_ANSI_Minus
+        ["equals"] = 24,       // kVK_ANSI_Equal
+        ["leftbracket"] = 33,  // kVK_ANSI_LeftBracket
+        ["rightbracket"] = 30, // kVK_ANSI_RightBracket
+        ["semicolon"] = 41,    // kVK_ANSI_Semicolon
+        ["quote"] = 39,        // kVK_ANSI_Quote
+        ["backslash"] = 42,    // kVK_ANSI_Backslash
+        ["comma"] = 43,        // kVK_ANSI_Comma
+        ["period"] = 47,       // kVK_ANSI_Period
+        ["slash"] = 44,        // kVK_ANSI_Slash
+        ["oem102"] = 10,       // kVK_ISO_Section (the extra key by left shift on ISO boards)
+
+        // Numeric keypad. NumLock maps to Clear, which is the key in that position.
+        ["numlock"] = 71,      // kVK_ANSI_KeypadClear
+        ["num0"] = 82, ["num1"] = 83, ["num2"] = 84, ["num3"] = 85, ["num4"] = 86,
+        ["num5"] = 87, ["num6"] = 88, ["num7"] = 89, ["num8"] = 91, ["num9"] = 92,
+        ["numdivide"] = 75,    // kVK_ANSI_KeypadDivide
+        ["nummultiply"] = 67,  // kVK_ANSI_KeypadMultiply
+        ["numminus"] = 78,     // kVK_ANSI_KeypadMinus
+        ["numplus"] = 69,      // kVK_ANSI_KeypadPlus
+        ["numenter"] = 76,     // kVK_ANSI_KeypadEnter
+        ["numdecimal"] = 65,   // kVK_ANSI_KeypadDecimal
+    }.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
+
+    private static readonly FrozenDictionary<string, int>.AlternateLookup<ReadOnlySpan<char>> MacOsBySpan =
+        MacOs.GetAlternateLookup<ReadOnlySpan<char>>();
 
     // Canonical name -> Windows virtual-key code (VK_*) + extended-key flag.
     // Extended keys (right ctrl/alt, Win/Apps, navigation block, arrows) require
@@ -598,6 +682,12 @@ public static class KeyNames
     public static bool TryGetLinux(string name, out int keyCode)
     {
         return TryResolve(name, LinuxBySpan, out keyCode);
+    }
+
+    /// <summary>Resolves a key name to its macOS virtual key code (CGKeyCode).</summary>
+    public static bool TryGetMacOs(string name, out int keyCode)
+    {
+        return TryResolve(name, MacOsBySpan, out keyCode);
     }
 
     /// <summary>Resolves a key name to its Windows virtual-key code (VK_*) and extended flag.</summary>
