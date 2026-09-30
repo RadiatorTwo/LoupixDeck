@@ -7,6 +7,7 @@ using LoupixDeck.Models.Layers;
 using LoupixDeck.PluginSdk;
 using LoupixDeck.Registry;
 using LoupixDeck.Services;
+using LoupixDeck.Services.Actions;
 using LoupixDeck.Services.Commands;
 using LoupixDeck.Services.IconPacks;
 using LoupixDeck.Services.Plugins;
@@ -359,6 +360,22 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     /// <summary>Appends a command (double-click in the tree) to the active slot.</summary>
     public void InsertCommand(MenuEntry menuEntry) => ActiveSlot?.InsertCommand(menuEntry);
 
+    /// <summary>
+    /// Gives a button that has no artwork yet the layers its first command asks for — the same result
+    /// the actions panel produces. A button that already has layers is left alone: the user's work
+    /// is never replaced by picking a command.
+    /// </summary>
+    private void OnMainCommandInserted(MenuEntry menuEntry, bool wasEmpty)
+    {
+        if (!wasEmpty || ButtonData?.Layers is not { Count: 0 } || !CanEditCanvas)
+            return;
+
+        var symbolId = SymbolLibrary.TryGetByGlyph(menuEntry.Icon, out var definition) ? definition.Id : string.Empty;
+        var layout = _commandRegistry.Get(menuEntry.Command)?.Info?.ButtonLayout;
+
+        ActionAssignment.AddLayers(ButtonData, menuEntry.Name, symbolId, DeviceWidth, DeviceHeight, layout);
+    }
+
     /// <summary>(Re)builds the command sequence slots for the current mode and selects the first.</summary>
     private void BuildCommandSlots()
     {
@@ -382,10 +399,12 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         }
         else
         {
-            CommandSlots.Add(new CommandSequenceSlot(
+            var slot = new CommandSequenceSlot(
                 Loc.Tr("Slot_CommandSequence"), _commandBuilder, _commandRegistry, _commandLock, _dialogService,
                 () => ButtonData.Command,
-                v => ButtonData.Command = string.IsNullOrWhiteSpace(v) ? null : v));
+                v => ButtonData.Command = string.IsNullOrWhiteSpace(v) ? null : v);
+            slot.CommandInserted += OnMainCommandInserted;
+            CommandSlots.Add(slot);
         }
 
         if (CommandSlots.Count > 0)
