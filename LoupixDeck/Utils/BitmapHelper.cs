@@ -1750,6 +1750,24 @@ public static class BitmapHelper
             canvas.DrawBitmap(scaledImage, destRect, SKSamplingOptions.Default, paint: null);
         }
 
+        // A plugin that draws the slot itself gets the key's real size, so it can put pixel-exact
+        // content on it instead of handing over a picture the host has to scale.
+        if (entry.Render != null)
+        {
+            lock (SkiaRenderGate.Sync)
+            {
+                try
+                {
+                    entry.Render(new SkiaRenderCanvas(canvas, width, height));
+                }
+                catch (Exception ex)
+                {
+                    // The slot stays usable without the plugin's layer.
+                    Console.WriteLine($"Folder entry render callback failed: {ex.Message}");
+                }
+            }
+        }
+
         if (!string.IsNullOrEmpty(entry.Text))
         {
             DrawTextAt(
