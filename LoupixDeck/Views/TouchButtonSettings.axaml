@@ -31,6 +31,39 @@
             <WrapPanel Orientation="Horizontal" />
         </ItemsPanelTemplate>
 
+        <!-- One parameter row; shared by the command chip flyout and the Parameters tab. -->
+        <DataTemplate x:Key="CommandParameterTemplate" DataType="{x:Type vm:CommandParameter}">
+            <Grid ColumnDefinitions="120,*" Margin="0,0,0,4">
+                <TextBlock Grid.Column="0"
+                           Classes="editor-label"
+                           Text="{Binding DisplayName}"
+                           VerticalAlignment="Center"
+                           Margin="0,0,10,0" />
+                <TextBox Grid.Column="1"
+                         Text="{Binding Value, Mode=TwoWay}"
+                         IsVisible="{Binding IsText}">
+                    <TextBox.InnerRightContent>
+                        <!-- Record the value by pressing the keys instead of typing their names. -->
+                        <Button Classes="chip-action"
+                                Margin="0,0,4,0"
+                                FontFamily="{StaticResource MdiFont}"
+                                Content="&#xF030C;"
+                                IsVisible="{Binding HasPicker}"
+                                Command="{Binding PickCommand}"
+                                ToolTip.Tip="{Binding PickerHint}" />
+                    </TextBox.InnerRightContent>
+                </TextBox>
+                <ComboBox Grid.Column="1"
+                          HorizontalAlignment="Stretch"
+                          ItemsSource="{Binding Options}"
+                          SelectedItem="{Binding Value, Mode=TwoWay}"
+                          IsVisible="{Binding IsEnum}" />
+                <CheckBox Grid.Column="1"
+                          IsChecked="{Binding BoolValue, Mode=TwoWay}"
+                          IsVisible="{Binding IsBool}" />
+            </Grid>
+        </DataTemplate>
+
         <!-- One chip per chained command. Shared by every sequence strip; the event
              handlers resolve their owning strip/slot from the visual tree. -->
         <DataTemplate x:Key="CommandChipTemplate" DataType="{x:Type vm:CommandSegment}">
@@ -70,41 +103,8 @@
                                 <Flyout Placement="Top">
                                     <Panel Width="300">
                                         <StackPanel Spacing="4" IsVisible="{Binding IsKnown}">
-                                            <ItemsControl ItemsSource="{Binding Parameters}">
-                                                <ItemsControl.ItemTemplate>
-                                                    <DataTemplate DataType="{x:Type vm:CommandParameter}">
-                                                        <Grid ColumnDefinitions="120,*" Margin="0,0,0,4">
-                                                            <TextBlock Grid.Column="0"
-                                                                       Classes="editor-label"
-                                                                       Text="{Binding DisplayName}"
-                                                                       VerticalAlignment="Center"
-                                                                       Margin="0,0,10,0" />
-                                                            <TextBox Grid.Column="1"
-                                                                     Text="{Binding Value, Mode=TwoWay}"
-                                                                     IsVisible="{Binding IsText}">
-                                                                <TextBox.InnerRightContent>
-                                                                    <!-- Record the value by pressing the keys instead of typing their names. -->
-                                                                    <Button Classes="chip-action"
-                                                                            Margin="0,0,4,0"
-                                                                            FontFamily="{StaticResource MdiFont}"
-                                                                            Content="&#xF030C;"
-                                                                            IsVisible="{Binding HasPicker}"
-                                                                            Command="{Binding PickCommand}"
-                                                                            ToolTip.Tip="{Binding PickerHint}" />
-                                                                </TextBox.InnerRightContent>
-                                                            </TextBox>
-                                                            <ComboBox Grid.Column="1"
-                                                                      HorizontalAlignment="Stretch"
-                                                                      ItemsSource="{Binding Options}"
-                                                                      SelectedItem="{Binding Value, Mode=TwoWay}"
-                                                                      IsVisible="{Binding IsEnum}" />
-                                                            <CheckBox Grid.Column="1"
-                                                                      IsChecked="{Binding BoolValue, Mode=TwoWay}"
-                                                                      IsVisible="{Binding IsBool}" />
-                                                        </Grid>
-                                                    </DataTemplate>
-                                                </ItemsControl.ItemTemplate>
-                                            </ItemsControl>
+                                            <ItemsControl ItemsSource="{Binding Parameters}"
+                                                          ItemTemplate="{StaticResource CommandParameterTemplate}" />
                                             <TextBlock Classes="hint"
                                                        Text="{loc:Tr TouchButton_ThisCommandHasNoParameters}"
                                                        IsVisible="{Binding !Parameters.Count}" />
@@ -671,7 +671,8 @@
             </Border>
 
             <!-- Right: Tabs (Properties / Commands) -->
-            <TabControl Grid.Column="2" Name="RightTabs" Margin="12,0,0,0">
+            <TabControl Grid.Column="2" Name="RightTabs" Margin="12,0,0,0"
+                        SelectedIndex="{Binding RightTabIndex, Mode=TwoWay}">
                 <TabItem Header="{loc:Tr TouchButton_Properties}">
                     <ScrollViewer VerticalScrollBarVisibility="Auto"
                                   HorizontalScrollBarVisibility="Disabled">
@@ -1134,6 +1135,27 @@
                         <views:CommandPickerView Name="PickerControl"
                                                  DataContext="{Binding CommandPicker}" />
                     </Border>
+                </TabItem>
+
+                <!-- Parameters of the commands in the sequence (issue #305). The same rows as
+                     the chip flyout; shown whenever a command has parameters. -->
+                <TabItem Header="{loc:Tr TouchButton_Parameters}" IsVisible="{Binding ShowParametersTab}">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                  HorizontalScrollBarVisibility="Disabled">
+                        <ItemsControl ItemsSource="{Binding ParameterSegments}" Margin="0,4,4,0">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate DataType="{x:Type vm:CommandSegment}">
+                                    <Border Classes="editor-panel" Margin="0,0,0,8">
+                                        <StackPanel Spacing="8">
+                                            <TextBlock Classes="panel-title" Text="{Binding DisplayName}" />
+                                            <ItemsControl ItemsSource="{Binding Parameters}"
+                                                          ItemTemplate="{StaticResource CommandParameterTemplate}" />
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
                 </TabItem>
             </TabControl>
         </Grid>
