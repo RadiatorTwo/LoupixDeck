@@ -4,6 +4,7 @@ using LoupixDeck.Localization;
 using LoupixDeck.Models;
 using LoupixDeck.Registry;
 using LoupixDeck.Services;
+using LoupixDeck.Services.PluginStore;
 using LoupixDeck.Services.StarterProfiles;
 using LoupixDeck.Utils;
 using LoupixDeck.ViewModels.Base;
@@ -34,11 +35,14 @@ public sealed class StarterTemplateRow(StarterProfileTemplate template, bool isW
 public sealed partial class StarterProfilePickerViewModel : DialogViewModelBase<DialogResult>
 {
     private readonly IStarterProfileService _starter;
+    private readonly IPluginStoreService _pluginStore;
     private readonly ResolvedDevice _device;
 
-    public StarterProfilePickerViewModel(IStarterProfileService starter, ResolvedDevice device)
+    public StarterProfilePickerViewModel(IStarterProfileService starter, IPluginStoreService pluginStore,
+        ResolvedDevice device)
     {
         _starter = starter;
+        _pluginStore = pluginStore;
         _device = device;
         Templates = starter.Templates.Select(t => new StarterTemplateRow(t, starter.IsWindows)).ToList();
         SelectedTemplate = Templates.FirstOrDefault();
@@ -110,17 +114,24 @@ public sealed partial class StarterProfilePickerViewModel : DialogViewModelBase<
                 vm.OpenPluginStore(missing[0].Id);
             });
 
-            // Installing does not enable a plugin for any device, so the ones just installed are
-            // switched on here, for the device the profile was created on.
+            // Switches on what was installed and loaded live; a plugin is already enabled ahead
+            // for this device, so this only matters where that had no effect yet.
             enabled.AddRange(await _starter.EnableInstalledPluginsAsync(template));
             missing = _starter.FindMissingPlugins(template);
         }
 
+        // A plugin installed from the store that only loads on the next start is not missing: it is
+        // already enabled for this device and its keys fill in after the restart.
+        List<StarterPluginRequirement> afterRestart = missing.Where(p => _pluginStore.IsRestartRequired(p.Id)).ToList();
+        List<StarterPluginRequirement> notInstalled = missing.Except(afterRestart).ToList();
+
         List<string> lines = [Loc.Tr("StarterPicker_Created", result.Profile.Name)];
         if (enabled.Count > 0)
             lines.Add(Loc.Tr("StarterPicker_PluginsEnabled", string.Join(", ", enabled)));
-        if (missing.Count > 0)
-            lines.Add(Loc.Tr("StarterPicker_PluginsStillMissing", string.Join(", ", missing.Select(p => p.Name))));
+        if (afterRestart.Count > 0)
+            lines.Add(Loc.Tr("StarterPicker_PluginsAfterRestart", string.Join(", ", afterRestart.Select(p => p.Name))));
+        if (notInstalled.Count > 0)
+            lines.Add(Loc.Tr("StarterPicker_PluginsStillMissing", string.Join(", ", notInstalled.Select(p => p.Name))));
         if (template.SetupNote is { Length: > 0 } note)
             lines.Add(note);
 

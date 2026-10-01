@@ -32,7 +32,8 @@ public interface IStarterProfileService
 
     /// <summary>
     /// Builds <paramref name="template"/> for this device, adds it as a new profile, enables the
-    /// installed plugins it uses for this device, activates it and saves the config.
+    /// plugins it uses for this device, activates it and saves the config. A plugin that is not
+    /// installed yet is enabled ahead, so it works as soon as it is installed.
     /// </summary>
     Task<StarterProfileResult> CreateAsync(StarterProfileTemplate template);
 
@@ -75,6 +76,14 @@ public sealed class StarterProfileService(
 
         // Enabled first, so the plugin's commands resolve when the profile is activated below.
         IReadOnlyList<string> enabled = await EnableInstalledPluginsAsync(template);
+
+        // Installing a plugin never enables it for any device, and a store install that needs a
+        // restart only loads on the next start. Without its id in this device's list the profile
+        // would then stay blank, so the id is put there now; the plugin loads enabled once it is
+        // installed, live or after the restart.
+        config.EnabledPlugins ??= [];
+        foreach (StarterPluginRequirement plugin in FindMissingPlugins(template).Where(plugin => !IsEnabledHere(plugin)))
+            config.EnabledPlugins.Add(plugin.Id);
 
         DeviceShape shape = new(deviceService.TouchButtonCount, deviceService.RotaryButtonCount,
             pageManager.SideRotaryButtonCount, pageManager.HasIndependentRotarySides, config.Geometry);

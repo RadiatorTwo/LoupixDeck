@@ -53,6 +53,9 @@ public interface IPluginStoreService : INotifyPropertyChanged
     /// <summary>Remembers that a change to <paramref name="pluginId"/> only finishes on the next start.</summary>
     void MarkRestartRequired(string pluginId);
 
+    /// <summary>True when a change to <paramref name="pluginId"/> made in this session waits for a restart.</summary>
+    bool IsRestartRequired(string pluginId);
+
     /// <summary>Checks for plugin updates once in the background, if the automatic update check is on.</summary>
     void StartAutomaticCheck();
 
@@ -380,6 +383,14 @@ public sealed partial class PluginStoreService : ObservableObject, IPluginStoreS
         string staged = Path.Combine(UserPluginsRoot, PluginInstaller.PendingInstallsDirName, entry.Id);
         string live = Path.Combine(UserPluginsRoot, entry.Id);
         marker.Write(Directory.Exists(staged) ? staged : live);
+    }
+
+    public bool IsRestartRequired(string pluginId)
+    {
+        lock (_restartRequired)
+        {
+            return _restartRequired.Contains(pluginId);
+        }
     }
 
     public void MarkRestartRequired(string pluginId)
