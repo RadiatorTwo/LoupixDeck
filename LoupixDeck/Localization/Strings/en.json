@@ -1273,7 +1273,7 @@
   "StarterPicker_Created": "Created the profile \"{0}\".",
   "StarterPicker_PluginsEnabled": "Enabled for this device: {0}.",
   "StarterPicker_PluginsAfterRestart": "Installed: {0}. It is already enabled for this device; its keys fill in after LoupixDeck restarts.",
-  "StarterPicker_PluginsRemovedOnRestart": "{0} is removed when LoupixDeck restarts. Restart, then install it again from the Plugin Store; it is already enabled for this device, so the keys that use it work as soon as it is installed.",
+  "StarterPicker_RestartFirst": "{0} is removed when LoupixDeck restarts and cannot be installed again before that. Restart LoupixDeck, then add the starter profile \"{1}\" again; you are then offered to install it.",
   "StarterPicker_PluginsStillMissing": "Not installed: {0}. It is already enabled for this device, so the keys that use it work once it is installed from the Plugin Store.",
   "StarterPicker_Failed": "The starter profile could not be created: {0}",
   "StarterProfile_Basic_Name": "Starter",

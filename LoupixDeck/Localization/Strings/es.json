@@ -1273,7 +1273,7 @@
   "StarterPicker_Created": "Se creó el perfil «{0}».",
   "StarterPicker_PluginsEnabled": "Activado para este dispositivo: {0}.",
   "StarterPicker_PluginsAfterRestart": "Instalado: {0}. Ya está activado para este dispositivo; sus teclas aparecerán cuando LoupixDeck se reinicie.",
-  "StarterPicker_PluginsRemovedOnRestart": "{0} se eliminará cuando LoupixDeck se reinicie. Reinicia y vuelve a instalarlo desde la tienda de plugins; ya está activado para este dispositivo, así que las teclas que lo usan funcionarán en cuanto se instale.",
+  "StarterPicker_RestartFirst": "{0} se eliminará cuando LoupixDeck se reinicie y no se puede volver a instalar antes. Reinicia LoupixDeck y vuelve a añadir el perfil inicial «{1}»; entonces se te ofrecerá instalarlo.",
   "StarterPicker_PluginsStillMissing": "No instalado: {0}. Ya está activado para este dispositivo, así que las teclas que lo usan funcionarán cuando se instale desde la tienda de plugins.",
   "StarterPicker_Failed": "No se pudo crear el perfil inicial: {0}",
   "StarterProfile_Basic_Name": "Inicio",

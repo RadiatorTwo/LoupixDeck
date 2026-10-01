@@ -1273,7 +1273,7 @@
   "StarterPicker_Created": "Profil „{0}“ angelegt.",
   "StarterPicker_PluginsEnabled": "Für dieses Gerät aktiviert: {0}.",
   "StarterPicker_PluginsAfterRestart": "Installiert: {0}. Es ist für dieses Gerät bereits aktiviert; seine Tasten erscheinen nach einem Neustart von LoupixDeck.",
-  "StarterPicker_PluginsRemovedOnRestart": "{0} wird beim Neustart von LoupixDeck entfernt. Starte neu und installiere es danach wieder aus dem Plugin Store; es ist für dieses Gerät bereits aktiviert, die Tasten, die es nutzen, funktionieren also, sobald es installiert ist.",
+  "StarterPicker_RestartFirst": "{0} wird beim Neustart von LoupixDeck entfernt und kann vorher nicht neu installiert werden. Starte LoupixDeck neu und füge das Startprofil „{1}“ danach erneut hinzu; dann wird dir die Installation angeboten.",
   "StarterPicker_PluginsStillMissing": "Nicht installiert: {0}. Es ist für dieses Gerät bereits aktiviert, die Tasten, die es nutzen, funktionieren also, sobald es aus dem Plugin Store installiert ist.",
   "StarterPicker_Failed": "Das Startprofil konnte nicht angelegt werden: {0}",
   "StarterProfile_Basic_Name": "Starter",

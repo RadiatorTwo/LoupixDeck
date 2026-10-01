@@ -91,6 +91,16 @@ public sealed partial class StarterProfilePickerViewModel : DialogViewModelBase<
     private async Task<string> CreateAsync(IDialogService dialogService)
     {
         StarterProfileTemplate template = SelectedTemplate.Template;
+
+        // A plugin whose removal finishes on the next start cannot be installed again before that:
+        // its store row only offers the restart. Creating the profile now would leave it without its
+        // plugin, so it is not created until LoupixDeck has restarted.
+        List<StarterPluginRequirement> beingRemoved = _starter.FindMissingPlugins(template)
+            .Where(p => _pluginStore.IsRestartRequired(p.Id) && !_pluginStore.IsPresentAfterRestart(p.Id))
+            .ToList();
+        if (beingRemoved.Count > 0)
+            return Loc.Tr("StarterPicker_RestartFirst", Names(beingRemoved.Select(p => p.Name)), template.Name);
+
         StarterProfileResult result;
 
         try
@@ -125,19 +135,15 @@ public sealed partial class StarterProfilePickerViewModel : DialogViewModelBase<
         }
 
         // Every missing plugin is already enabled for this device, so what is left to say is what
-        // the user has to do: restart, restart and then install, or install.
-        List<StarterPluginRequirement> pending = missing.Where(p => _pluginStore.IsRestartRequired(p.Id)).ToList();
-        List<StarterPluginRequirement> afterRestart = pending.Where(p => _pluginStore.IsPresentAfterRestart(p.Id)).ToList();
-        List<StarterPluginRequirement> removedOnRestart = pending.Except(afterRestart).ToList();
-        List<StarterPluginRequirement> notInstalled = missing.Except(pending).ToList();
+        // the user has to do: restart (an install or update finishes then) or install.
+        List<StarterPluginRequirement> afterRestart = missing.Where(p => _pluginStore.IsRestartRequired(p.Id)).ToList();
+        List<StarterPluginRequirement> notInstalled = missing.Except(afterRestart).ToList();
 
         List<string> lines = [Loc.Tr("StarterPicker_Created", result.Profile.Name)];
         if (enabled.Count > 0)
             lines.Add(Loc.Tr("StarterPicker_PluginsEnabled", Names(enabled)));
         if (afterRestart.Count > 0)
             lines.Add(Loc.Tr("StarterPicker_PluginsAfterRestart", Names(afterRestart.Select(p => p.Name))));
-        if (removedOnRestart.Count > 0)
-            lines.Add(Loc.Tr("StarterPicker_PluginsRemovedOnRestart", Names(removedOnRestart.Select(p => p.Name))));
         if (notInstalled.Count > 0)
             lines.Add(Loc.Tr("StarterPicker_PluginsStillMissing", Names(notInstalled.Select(p => p.Name))));
         if (template.SetupNote is { Length: > 0 } note)
