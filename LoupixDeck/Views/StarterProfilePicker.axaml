@@ -1,0 +1,122 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:loc="using:LoupixDeck.Localization"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="using:LoupixDeck.ViewModels"
+        mc:Ignorable="d"
+        Width="560" SizeToContent="Height"
+        MinWidth="440"
+        x:Class="LoupixDeck.Views.StarterProfilePicker"
+        x:DataType="vm:StarterProfilePickerViewModel"
+        WindowStartupLocation="CenterOwner"
+        Title="{loc:Tr StarterPicker_Title}"
+        ShowInTaskbar="False">
+
+    <Window.Styles>
+        <Style Selector="TextBlock.hint">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="LineHeight" Value="17" />
+            <Setter Property="Foreground" Value="{DynamicResource AppTextSecondary}" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+        </Style>
+
+        <Style Selector="Border.banner">
+            <Setter Property="Background" Value="#26E8A33D" />
+            <Setter Property="BorderBrush" Value="#66E8A33D" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="Padding" Value="12" />
+        </Style>
+
+        <Style Selector="Button.dialogBtn">
+            <Setter Property="MinWidth" Value="100" />
+            <Setter Property="Height" Value="34" />
+            <Setter Property="Padding" Value="14,0" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Border Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="{TemplateBinding CornerRadius}">
+                        <ContentPresenter Content="{TemplateBinding Content}"
+                                          Padding="{TemplateBinding Padding}"
+                                          HorizontalAlignment="Center"
+                                          VerticalAlignment="Center" />
+                    </Border>
+                </ControlTemplate>
+            </Setter>
+        </Style>
+
+        <Style Selector="Button.dialogBtn.cancel">
+            <Setter Property="Background" Value="{DynamicResource AppControlBackground}" />
+            <Setter Property="Foreground" Value="{DynamicResource AppTextPrimary}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AppBorderSubtle}" />
+        </Style>
+        <Style Selector="Button.dialogBtn.cancel:pointerover">
+            <Setter Property="Background" Value="{DynamicResource AppControlBackgroundHover}" />
+        </Style>
+
+        <Style Selector="Button.dialogBtn.confirm">
+            <Setter Property="Background" Value="{StaticResource PageActiveBrush}" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="BorderBrush" Value="{StaticResource PageActiveBorderBrush}" />
+        </Style>
+        <Style Selector="Button.dialogBtn.confirm:pointerover">
+            <Setter Property="Background" Value="{StaticResource PageActiveBorderBrush}" />
+        </Style>
+        <Style Selector="Button.dialogBtn:disabled">
+            <Setter Property="Opacity" Value="0.5" />
+        </Style>
+    </Window.Styles>
+
+    <Grid RowDefinitions="*,Auto">
+
+        <StackPanel Grid.Row="0" Margin="24,20,24,20" Spacing="12">
+            <TextBlock Classes="hint" Text="{loc:Tr StarterPicker_Intro}" />
+
+            <Border Classes="banner" IsVisible="{Binding IsDeviceUnavailable}">
+                <TextBlock Classes="hint" Text="{loc:Tr StarterPicker_DeviceUnavailable}" />
+            </Border>
+
+            <ListBox ItemsSource="{Binding Templates}"
+                     SelectedItem="{Binding SelectedTemplate}"
+                     SelectionMode="Single">
+                <ListBox.ItemTemplate>
+                    <DataTemplate x:DataType="vm:StarterTemplateRow">
+                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12" Margin="0,6">
+                            <TextBlock Grid.Column="0" Text="{Binding Glyph}"
+                                       FontFamily="{StaticResource MdiFont}" FontSize="26"
+                                       VerticalAlignment="Center" />
+                            <StackPanel Grid.Column="1" Spacing="2">
+                                <TextBlock Text="{Binding Name}" FontSize="14" FontWeight="SemiBold" />
+                                <TextBlock Classes="hint" Text="{Binding Description}" />
+                                <TextBlock Classes="hint" Text="{Binding PluginsText}"
+                                           IsVisible="{Binding HasPlugins}" FontStyle="Italic" />
+                            </StackPanel>
+                        </Grid>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+        </StackPanel>
+
+        <Border Grid.Row="1"
+                Background="{DynamicResource AppSurfaceLow}"
+                BorderBrush="{DynamicResource AppBorderSubtle}"
+                BorderThickness="0,1,0,0"
+                Padding="16,12">
+            <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Right">
+                <Button Classes="dialogBtn cancel" Content="{loc:Tr StarterPicker_Cancel}"
+                        Command="{Binding CancelCommand}" />
+                <Button Classes="dialogBtn confirm" Content="{loc:Tr StarterPicker_Create}"
+                        IsDefault="True"
+                        Command="{Binding CreateCommand}" />
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>

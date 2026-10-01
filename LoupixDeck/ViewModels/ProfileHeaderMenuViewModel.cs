@@ -78,6 +78,7 @@ public sealed class ProfileHeaderMenuViewModel : ViewModelBase
     public string CompanionLockExplanation => CompanionStatusText.LockExplanation(_companions, _device.ScopeKey);
 
     public IAsyncRelayCommand NewProfileCommand => field ??= Relay.Create(NewProfile, () => CanEditStructure);
+    public IAsyncRelayCommand NewStarterProfileCommand => field ??= Relay.Create(NewStarterProfile, () => CanEditStructure);
     public IAsyncRelayCommand RenameProfileCommand => field ??= Relay.Create(RenameProfile,
         () => CanEditStructure && _activation.ActiveProfile != null);
     public IAsyncRelayCommand DeleteProfileCommand => field ??= Relay.Create(DeleteProfile,
@@ -125,6 +126,7 @@ public sealed class ProfileHeaderMenuViewModel : ViewModelBase
         OnPropertyChanged(nameof(MasterKey));
         RefreshCompanionHint();
         NewProfileCommand.NotifyCanExecuteChanged();
+        NewStarterProfileCommand.NotifyCanExecuteChanged();
         RenameProfileCommand.NotifyCanExecuteChanged();
         DeleteProfileCommand.NotifyCanExecuteChanged();
         NewWorkspaceCommand.NotifyCanExecuteChanged();
@@ -156,6 +158,20 @@ public sealed class ProfileHeaderMenuViewModel : ViewModelBase
         string message = string.Join(Environment.NewLine, [result.Message, .. result.Warnings]);
         await _dialogService.ShowDialogAsync<ConfirmDialogViewModel, DialogResult>(vm =>
             vm.Configure(message, title: Loc.Tr("MainWindow_ImportPackageResultTitle"),
+                confirmText: Loc.Tr("Confirm_Ok"), showCancel: false));
+    }
+
+    /// <summary>Opens the starter profile picker (issue #301) and reports the outcome in a notice.</summary>
+    private async Task NewStarterProfile()
+    {
+        string message = await StarterProfilePickerViewModel.ShowAsync(_dialogService);
+        if (message == null)
+            return;
+
+        Refresh();
+
+        await _dialogService.ShowDialogAsync<ConfirmDialogViewModel, DialogResult>(vm =>
+            vm.Configure(message, title: Loc.Tr("StarterPicker_ResultTitle"),
                 confirmText: Loc.Tr("Confirm_Ok"), showCancel: false));
     }
 

@@ -449,6 +449,8 @@
                                         <MenuFlyout Placement="BottomEdgeAlignedRight">
                                             <MenuItem Header="{loc:Tr MainWindow_NewProfile}"
                                                       Command="{Binding SelectedDevice.ProfileMenu.NewProfileCommand}" />
+                                            <MenuItem Header="{loc:Tr MainWindow_NewStarterProfile}"
+                                                      Command="{Binding SelectedDevice.ProfileMenu.NewStarterProfileCommand}" />
                                             <MenuItem Header="{loc:Tr MainWindow_RenameProfile}"
                                                       Command="{Binding SelectedDevice.ProfileMenu.RenameProfileCommand}" />
                                             <Separator IsVisible="{Binding SelectedDevice.ProfileMenu.IsAppLinkingSupported}" />

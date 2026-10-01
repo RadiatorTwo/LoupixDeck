@@ -1,0 +1,194 @@
+using Avalonia.Media;
+using LoupixDeck.Models;
+using LoupixDeck.Models.Layers;
+using LoupixDeck.Registry;
+using LoupixDeck.Services.Actions;
+
+namespace LoupixDeck.Services.StarterProfiles;
+
+/// <summary>One dial of a starter profile: what a turn left, a turn right and a press run.</summary>
+public sealed record StarterDial(string Label, string Left, string Right, string Press = null);
+
+/// <summary>The look of one state of a two-state starter key.</summary>
+public sealed record StarterState(string Name, string Label, string SymbolId, Color Background);
+
+/// <summary>
+/// Places the keys, dials, pages, workspaces and folders of a starter profile (issue #301) on the
+/// attached device. Templates address keys by grid row and column; a key outside this device's
+/// grid (the fifth column on a 4×3 device) is skipped, and dials are dropped on a device without
+/// any, so a template is written once and fits every device.
+/// </summary>
+public sealed class StarterProfileBuilder(DeviceShape shape, bool isWindows)
+{
+    /// <summary>True on Windows. The Linux variant of a template is built otherwise.</summary>
+    public bool IsWindows { get; } = isWindows;
+
+    public int Columns => shape.Geometry.Columns;
+
+    public int Rows => shape.Geometry.Rows;
+
+    /// <summary>True when the device has dials. Templates move their dial functions onto keys otherwise.</summary>
+    public bool HasDials => DialCount > 0;
+
+    /// <summary>Dials one dial page holds: both columns on a device with side strips.</summary>
+    public int DialCount => shape.HasIndependentRotarySides
+        ? shape.SideRotaryButtonCount * 2
+        : shape.RotaryButtonCount;
+
+    private int KeySize => shape.Geometry.KeySize;
+
+    /// <summary>Adds a workspace. The first one becomes the profile's home workspace.</summary>
+    public Workspace AddWorkspace(Profile profile, string name)
+    {
+        Workspace workspace = new() { Name = name };
+        profile.Workspaces.Add(workspace);
+
+        if (profile.Workspaces.Count == 1)
+            profile.HomeWorkspaceId = workspace.Id;
+
+        return workspace;
+    }
+
+    public TouchButtonPage AddTouchPage(Workspace workspace, string name)
+    {
+        TouchButtonPage page = new(shape.TouchButtonCount) { Name = name };
+        workspace.TouchButtonPages.Add(page);
+        return page;
+    }
+
+    /// <summary>
+    /// Adds a folder to the workspace, or into <paramref name="parent"/>. Its bottom-left key is the
+    /// Back tile the host draws, so templates leave that key free.
+    /// </summary>
+    public CustomFolder AddFolder(Workspace workspace, string name, CustomFolder parent = null)
+    {
+        CustomFolder folder = new() { Name = name, Layout = new TouchButtonPage(shape.TouchButtonCount) };
+        (parent?.Children ?? workspace.Folders).Add(folder);
+        return folder;
+    }
+
+    /// <summary>A key with the command's icon and a caption, the way the actions panel assigns one.</summary>
+    public TouchButton Key(TouchButtonPage page, int row, int column, string command, string label,
+        string symbolId, Color? background = null)
+    {
+        TouchButton button = At(page, row, column);
+        if (button == null)
+            return null;
+
+        ActionAssignment.ApplyToTouchButton(button, command, label, symbolId, KeySize, KeySize);
+        if (background is { } color)
+            Paint(button, color);
+
+        return button;
+    }
+
+    /// <summary>
+    /// A key that shows what its display command draws (a clock, the playing track, an entity). It
+    /// gets no layers of its own: the host adds the one the command draws into.
+    /// </summary>
+    public TouchButton Display(TouchButtonPage page, int row, int column, string command)
+    {
+        TouchButton button = At(page, row, column);
+        if (button != null)
+            button.Command = command;
+
+        return button;
+    }
+
+    /// <summary>
+    /// A key with two states. <paramref name="ownedByCommand"/> builds the states a plugin command
+    /// declares exactly as assigning that command in the editor does (same names, plugin-driven), so
+    /// the plugin switches them; otherwise every press flips between the two states.
+    /// </summary>
+    public TouchButton Toggle(TouchButtonPage page, int row, int column, string command,
+        StarterState first, StarterState second, bool ownedByCommand)
+    {
+        TouchButton button = At(page, row, column);
+        if (button == null)
+            return null;
+
+        ButtonState firstState = button.States[0];
+        ButtonState secondState = new();
+        button.States.Add(secondState);
+
+        foreach ((ButtonState state, StarterState spec) in new[] { (firstState, first), (secondState, second) })
+        {
+            state.Name = spec.Name;
+            state.Command = command;
+            button.SetActiveState(state.Id);
+            ActionAssignment.AddLayers(button, spec.Label, spec.SymbolId, KeySize, KeySize);
+            Paint(button, spec.Background);
+        }
+
+        if (ownedByCommand)
+        {
+            button.StateOwnerCommand = PluginLayerKey.For(command);
+            button.Mode = ButtonStateMode.External;
+            button.ResetOnPageChange = false;
+        }
+        else
+        {
+            firstState.Transition.Kind = StateTransitionKind.Specific;
+            firstState.Transition.TargetStateId = secondState.Id;
+            secondState.Transition.Kind = StateTransitionKind.Specific;
+            secondState.Transition.TargetStateId = firstState.Id;
+        }
+
+        button.DefaultStateId = firstState.Id;
+        button.SetActiveState(firstState.Id);
+        return button;
+    }
+
+    /// <summary>
+    /// Adds a dial page. On a device with side strips the dials fill the left column first, then the
+    /// right; elsewhere the device takes as many as it has. Nothing is added on a device without dials.
+    /// </summary>
+    public void AddDialPage(Workspace workspace, string name, params StarterDial[] dials)
+    {
+        if (!HasDials)
+            return;
+
+        if (shape.HasIndependentRotarySides)
+        {
+            int perSide = shape.SideRotaryButtonCount;
+            RotaryButtonPage left = new(perSide) { Name = name, Side = RotarySide.Left };
+            RotaryButtonPage right = new(perSide) { Name = name, Side = RotarySide.Right };
+
+            for (int i = 0; i < dials.Length && i < perSide * 2; i++)
+                Fill(i < perSide ? left.RotaryButtons[i] : right.RotaryButtons[i - perSide], dials[i]);
+
+            workspace.LeftRotaryButtonPages.Add(left);
+            workspace.RightRotaryButtonPages.Add(right);
+            return;
+        }
+
+        RotaryButtonPage page = new(shape.RotaryButtonCount) { Name = name, Side = RotarySide.Both };
+        for (int i = 0; i < dials.Length && i < shape.RotaryButtonCount; i++)
+            Fill(page.RotaryButtons[i], dials[i]);
+
+        workspace.RotaryButtonPages.Add(page);
+    }
+
+    private TouchButton At(TouchButtonPage page, int row, int column)
+    {
+        if (page == null || row < 0 || column < 0 || row >= Rows || column >= Columns)
+            return null;
+
+        int index = (row * Columns) + column;
+        return index < page.TouchButtons.Count ? page.TouchButtons[index] : null;
+    }
+
+    private static void Paint(TouchButton button, Color color)
+    {
+        button.BackColor = color;
+        button.BackgroundEnabled = true;
+    }
+
+    private static void Fill(RotaryButton dial, StarterDial spec)
+    {
+        dial.DisplayText = spec.Label;
+        dial.RotaryLeftCommand = spec.Left ?? string.Empty;
+        dial.RotaryRightCommand = spec.Right ?? string.Empty;
+        dial.Command = spec.Press;
+    }
+}
