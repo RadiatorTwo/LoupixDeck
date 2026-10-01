@@ -56,6 +56,12 @@ public interface IPluginStoreService : INotifyPropertyChanged
     /// <summary>True when a change to <paramref name="pluginId"/> made in this session waits for a restart.</summary>
     bool IsRestartRequired(string pluginId);
 
+    /// <summary>
+    /// For a plugin that waits for a restart: true when it is there after the restart (an install or
+    /// update finishes then), false when the restart completes its removal.
+    /// </summary>
+    bool IsPresentAfterRestart(string pluginId);
+
     /// <summary>Checks for plugin updates once in the background, if the automatic update check is on.</summary>
     void StartAutomaticCheck();
 
@@ -390,6 +396,31 @@ public sealed partial class PluginStoreService : ObservableObject, IPluginStoreS
         lock (_restartRequired)
         {
             return _restartRequired.Contains(pluginId);
+        }
+    }
+
+    public bool IsPresentAfterRestart(string pluginId)
+    {
+        if (string.IsNullOrWhiteSpace(pluginId))
+            return false;
+
+        try
+        {
+            if (Directory.Exists(Path.Combine(UserPluginsRoot, PluginInstaller.PendingInstallsDirName, pluginId)))
+                return true;
+
+            if (!Directory.Exists(Path.Combine(UserPluginsRoot, pluginId)))
+                return false;
+
+            // A folder that was locked when it was removed stays until the start-up deletes it.
+            string removals = Path.Combine(UserPluginsRoot, PluginInstaller.PendingRemovalsFileName);
+            return !File.Exists(removals) || !File.ReadAllLines(removals)
+                .Any(line => string.Equals(line.Trim(), pluginId, StringComparison.OrdinalIgnoreCase));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Console.WriteLine($"[PluginStore] Could not tell whether '{pluginId}' survives the restart: {ex.Message}");
+            return false;
         }
     }
 

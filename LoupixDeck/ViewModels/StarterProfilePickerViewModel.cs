@@ -106,12 +106,16 @@ public sealed partial class StarterProfilePickerViewModel : DialogViewModelBase<
         List<string> enabled = [.. result.EnabledPlugins];
         IReadOnlyList<StarterPluginRequirement> missing = result.MissingPlugins;
 
-        if (missing.Count > 0 && await AskToInstallAsync(missing))
+        // A plugin that waits for a restart (installed, updated or removed in this session) cannot
+        // be installed from the store until then: its row only offers the restart. Offering the
+        // store for it would lead nowhere, so only the others are offered.
+        List<StarterPluginRequirement> installable = missing.Where(p => !_pluginStore.IsRestartRequired(p.Id)).ToList();
+        if (installable.Count > 0 && await AskToInstallAsync(installable))
         {
             await dialogService.ShowDialogAsync<PluginsWindowViewModel, DialogResult>(vm =>
             {
                 vm.Installed.SelectDevice(_device.ScopeKey);
-                vm.OpenPluginStore(missing[0].Id);
+                vm.OpenPluginStore(installable[0].Id);
             });
 
             // Switches on what was installed and loaded live; a plugin is already enabled ahead
@@ -120,23 +124,29 @@ public sealed partial class StarterProfilePickerViewModel : DialogViewModelBase<
             missing = _starter.FindMissingPlugins(template);
         }
 
-        // A plugin installed from the store that only loads on the next start is not missing: it is
-        // already enabled for this device and its keys fill in after the restart.
-        List<StarterPluginRequirement> afterRestart = missing.Where(p => _pluginStore.IsRestartRequired(p.Id)).ToList();
-        List<StarterPluginRequirement> notInstalled = missing.Except(afterRestart).ToList();
+        // Every missing plugin is already enabled for this device, so what is left to say is what
+        // the user has to do: restart, restart and then install, or install.
+        List<StarterPluginRequirement> pending = missing.Where(p => _pluginStore.IsRestartRequired(p.Id)).ToList();
+        List<StarterPluginRequirement> afterRestart = pending.Where(p => _pluginStore.IsPresentAfterRestart(p.Id)).ToList();
+        List<StarterPluginRequirement> removedOnRestart = pending.Except(afterRestart).ToList();
+        List<StarterPluginRequirement> notInstalled = missing.Except(pending).ToList();
 
         List<string> lines = [Loc.Tr("StarterPicker_Created", result.Profile.Name)];
         if (enabled.Count > 0)
-            lines.Add(Loc.Tr("StarterPicker_PluginsEnabled", string.Join(", ", enabled)));
+            lines.Add(Loc.Tr("StarterPicker_PluginsEnabled", Names(enabled)));
         if (afterRestart.Count > 0)
-            lines.Add(Loc.Tr("StarterPicker_PluginsAfterRestart", string.Join(", ", afterRestart.Select(p => p.Name))));
+            lines.Add(Loc.Tr("StarterPicker_PluginsAfterRestart", Names(afterRestart.Select(p => p.Name))));
+        if (removedOnRestart.Count > 0)
+            lines.Add(Loc.Tr("StarterPicker_PluginsRemovedOnRestart", Names(removedOnRestart.Select(p => p.Name))));
         if (notInstalled.Count > 0)
-            lines.Add(Loc.Tr("StarterPicker_PluginsStillMissing", string.Join(", ", notInstalled.Select(p => p.Name))));
+            lines.Add(Loc.Tr("StarterPicker_PluginsStillMissing", Names(notInstalled.Select(p => p.Name))));
         if (template.SetupNote is { Length: > 0 } note)
             lines.Add(note);
 
         return string.Join(Environment.NewLine + Environment.NewLine, lines);
     }
+
+    private static string Names(IEnumerable<string> names) => string.Join(", ", names);
 
     private static Task<bool> AskToInstallAsync(IReadOnlyList<StarterPluginRequirement> missing) =>
         ConfirmDialogHelper.AskYesNoAsync(WindowHelper.GetActiveWindow(),
