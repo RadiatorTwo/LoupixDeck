@@ -118,16 +118,7 @@ public static class ActionAssignment
                 if (hasSymbol)
                 {
                     button.Layers.Add(CreateSymbol(text, symbolId, Scaled(SymbolOffsetYPx, scaleY), SymbolScale));
-                    button.Layers.Add(new TextLayer
-                    {
-                        Name = text,
-                        Text = text,
-                        Centered = true,
-                        TextSize = Scaled(LabelTextSizePx, scaleY),
-                        PositionY = Scaled(LabelOffsetYPx, scaleY),
-                        BoxWidth = Scaled(LabelBoxWidthPx, scaleX),
-                        BoxHeight = Scaled(LabelBoxHeightPx, scaleY)
-                    });
+                    button.Layers.Add(CreateCaption(text, keyWidthPx, keyHeightPx));
                 }
                 else
                 {
@@ -138,6 +129,23 @@ public static class ActionAssignment
         }
 
         button.RewireLayerHandlers();
+    }
+
+    /// <summary>The caption under an icon, sized for a key of the given size.</summary>
+    public static TextLayer CreateCaption(string text, int keyWidthPx, int keyHeightPx)
+    {
+        double scaleX = ScaleFactor(keyWidthPx);
+        double scaleY = ScaleFactor(keyHeightPx);
+        return new TextLayer
+        {
+            Name = text,
+            Text = text,
+            Centered = true,
+            TextSize = Scaled(LabelTextSizePx, scaleY),
+            PositionY = Scaled(LabelOffsetYPx, scaleY),
+            BoxWidth = Scaled(LabelBoxWidthPx, scaleX),
+            BoxHeight = Scaled(LabelBoxHeightPx, scaleY)
+        };
     }
 
     private static SymbolLayer CreateSymbol(string name, string symbolId, int positionY, double scale)
