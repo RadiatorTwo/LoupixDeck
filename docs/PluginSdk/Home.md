@@ -7,7 +7,7 @@ value types the host and the plugin share. A plugin is a single .NET class
 library that references this SDK, ships as a folder under the host's plugin
 directory, and is loaded dynamically at startup.
 
-- **Current SDK version:** 1.23.0
+- **SDK provided by LoupixDeck v1.38.0:** 1.28.0
 - **Target frameworks:** `net9.0` and `net10.0`
 - **Package:** `LoupixDeck.PluginSdk` (NuGet)
 - **License:** MIT
@@ -15,6 +15,7 @@ directory, and is loaded dynamically at startup.
 ## Contents
 
 - [Getting Started](Getting-Started) — build your first plugin in ten minutes
+- [Recent SDK additions](Recent-SDK-Additions) — translations, adjustments, button layouts, pixel rendering and requirements in SDK 1.24–1.28
 - [API Reference](API-Reference) — index of every public type
   - [LoupixPlugin](API-LoupixPlugin) — the plugin entry point
   - [Commands](API-Commands) — `IPluginCommand`, `IDisplayCommand`, descriptors, context

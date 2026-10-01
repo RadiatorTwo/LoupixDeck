@@ -10,8 +10,7 @@ command — clicking the assigned button writes a line to the host log.
   the C# Dev Kit)
 - LoupixDeck installed locally so you can drop the built plugin into its plugin
   folder and watch it load
-- A local copy of the `LoupixDeck.PluginSdk` NuGet package (build the SDK
-  repository once — it writes the `.nupkg` to `./nupkg/`)
+- Access to nuget.org for the published `LoupixDeck.PluginSdk` package
 
 ## 1. Create the project
 
@@ -22,24 +21,16 @@ cd MyPlugin
 
 ## 2. Reference the SDK
 
-The SDK is consumed as a NuGet package from a local feed. Add a `nuget.config`
-next to the `.csproj`:
-
-```xml
-<?xml version="1.0" encoding="utf-8"?>
-<configuration>
-  <packageSources>
-    <add key="LoupixDeck.PluginSdk" value="..\..\LoupixDeck.PluginSdk\nupkg" />
-    <add key="nuget.org" value="https://api.nuget.org/v3/index.json" />
-  </packageSources>
-</configuration>
-```
-
-Then reference the package:
+The SDK is published on nuget.org. For LoupixDeck v1.38.0, reference SDK 1.28.0:
 
 ```powershell
-dotnet add package LoupixDeck.PluginSdk --version 1.23.*
+dotnet add package LoupixDeck.PluginSdk --version 1.28.0
 ```
+
+No SDK source checkout or local feed is needed. If you are developing an
+unreleased SDK change, build the SDK repository and add its `nupkg/` directory
+as a local package source instead. See [Recent SDK additions](Recent-SDK-Additions)
+for the host releases required by newer APIs.
 
 > **Important:** Do **not** copy the SDK DLL into your plugin's output folder.
 > The host provides the SDK assembly — bundling it causes load conflicts. The

@@ -60,7 +60,7 @@ public interface IExclusiveModeProvider
 | `SingleTileSlot` | Target slot for `SingleTile` mode only; ignored otherwise. Defaults to 0. |
 
 The touch grid is the device's standard 5×3 layout (15 slots, see
-[`FolderLayout`](Advanced-Folders#folderlayout)). Unlike folders, exclusive mode
+[`FolderLayout`](Advanced-Folders#foldergridinfo-and-folderlayout)). Unlike folders, exclusive mode
 has **no reserved back-button slot** — all 15 slots are yours.
 
 ## ExclusiveRenderMode

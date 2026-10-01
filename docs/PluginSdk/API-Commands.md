@@ -174,5 +174,10 @@ button type:
 - `IDisplayCommand` makes no sense on a simple key (no display) — use
   `ButtonTargets.TouchButton`.
 - `RotaryEncoder` covers all three rotation/press events; the host invokes
-  `Execute` for each, and the command should branch on `ctx.Target` (or on a
-  parameter) if it needs to distinguish.
+  `Execute` for ordinary commands. For `IAdjustmentCommand`, a turn calls
+  `ApplyAdjustment` with the signed tick count and a press calls `ApplyReset`.
+  See [Dial adjustment commands](Recent-SDK-Additions#dial-adjustment-commands-and-migrations).
+
+For recent additions to command metadata and context, see
+[Initial button layouts](Recent-SDK-Additions#initial-button-layouts) and
+[Per-button state](Recent-SDK-Additions#per-button-state-and-pixel-rendering).

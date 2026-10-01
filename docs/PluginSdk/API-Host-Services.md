@@ -13,6 +13,9 @@ public interface IPluginHost
     IPluginSettings Settings      { get; }
     FolderGridInfo  FolderGrid    { get; }
     DeviceInfo?     ActiveDevice  { get; }
+    string          CurrentLanguage { get; }
+
+    string Tr(string english);
 
     void RequestButtonRefresh(string commandName);
     void ExecuteCommand(string command);
@@ -30,6 +33,7 @@ public interface IPluginHost
 | `Settings` | Per-plugin JSON-backed key/value store under `plugins/<plugin-id>/settings.json`. See [IPluginSettings](#ipluginsettings). |
 | `FolderGrid` | Key grid of the active device for plugin folder layout. Use it instead of the legacy 5×3 `FolderLayout` constants. See [FolderGridInfo](#foldergridinfo). |
 | `ActiveDevice` | Currently driven device, or `null` if none. Mirrored on `CommandContext.Device`. |
+| `CurrentLanguage` / `Tr(english)` | Active language code and plugin-scoped translation of runtime English text, added in SDK 1.24.0. See [Plugin translations](Recent-SDK-Additions#plugin-translations). |
 | `RequestButtonRefresh(commandName)` | Asks the host to re-render every touch button bound to `commandName`. Use after data backing an `IDisplayCommand` changes via push so the user sees the new value immediately instead of at the next poll tick. |
 | `ExecuteCommand(command)` | Runs a command string through the host's command pipeline (`Plugin.Command(arg1,arg2)` syntax). Enables chaining across plugin boundaries — e.g. an action that triggers another plugin's command. |
 | `OpenFolder(provider)` | Pushes a [folder navigation view](Advanced-Folders) onto the touch screen. The host calls `provider.OnEnter()` and starts rendering from `provider.BuildEntries()`. |
