@@ -53,7 +53,9 @@ public sealed partial class StarterProfilePickerViewModel : DialogViewModelBase<
     /// Returns a summary of what happened, or null when the user cancelled. Shared by every place
     /// that offers starter profiles.
     /// </summary>
-    public static async Task<string> ShowAsync(IDialogService dialogService)
+    /// <param name="replaceUntouchedDefault">On the very first start: the new profile takes the place of
+    /// the empty one a fresh config starts with.</param>
+    public static async Task<string> ShowAsync(IDialogService dialogService, bool replaceUntouchedDefault = false)
     {
         StarterProfilePickerViewModel picker = null;
         DialogResult result = await dialogService.ShowDialogAsync<StarterProfilePickerViewModel, DialogResult>(
@@ -62,7 +64,7 @@ public sealed partial class StarterProfilePickerViewModel : DialogViewModelBase<
         if (result?.IsConfirmed != true || picker?.SelectedTemplate == null)
             return null;
 
-        return await picker.CreateAsync(dialogService);
+        return await picker.CreateAsync(dialogService, replaceUntouchedDefault);
     }
 
     public event Action CloseWindow;
@@ -88,7 +90,7 @@ public sealed partial class StarterProfilePickerViewModel : DialogViewModelBase<
         CloseWindow?.Invoke();
     });
 
-    private async Task<string> CreateAsync(IDialogService dialogService)
+    private async Task<string> CreateAsync(IDialogService dialogService, bool replaceUntouchedDefault)
     {
         StarterProfileTemplate template = SelectedTemplate.Template;
 
@@ -105,7 +107,7 @@ public sealed partial class StarterProfilePickerViewModel : DialogViewModelBase<
 
         try
         {
-            result = await _starter.CreateAsync(template);
+            result = await _starter.CreateAsync(template, replaceUntouchedDefault);
         }
         catch (Exception ex)
         {

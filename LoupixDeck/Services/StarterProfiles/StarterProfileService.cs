@@ -35,7 +35,10 @@ public interface IStarterProfileService
     /// plugins it uses for this device, activates it and saves the config. A plugin that is not
     /// installed yet is enabled ahead, so it works as soon as it is installed.
     /// </summary>
-    Task<StarterProfileResult> CreateAsync(StarterProfileTemplate template);
+    /// <param name="replaceUntouchedDefault">On the very first start: also removes the empty profile a
+    /// fresh config starts with, so the starter profile takes its place. A profile that holds anything
+    /// is never removed.</param>
+    Task<StarterProfileResult> CreateAsync(StarterProfileTemplate template, bool replaceUntouchedDefault = false);
 
     /// <summary>
     /// Enables the template's plugins that are installed but not enabled for this device, e.g. after
@@ -55,7 +58,8 @@ public sealed class StarterProfileService(
     IDeviceController controller,
     IPluginManager pluginManager,
     IPluginReloadService pluginReload,
-    IStarterArt art) : IStarterProfileService
+    IStarterArt art,
+    IProfileEditingService editing) : IStarterProfileService
 {
     public IReadOnlyList<StarterProfileTemplate> Templates { get; } =
     [
@@ -71,7 +75,7 @@ public sealed class StarterProfileService(
 
     public bool CanCreate => deviceService.TouchButtonCount > 0;
 
-    public async Task<StarterProfileResult> CreateAsync(StarterProfileTemplate template)
+    public async Task<StarterProfileResult> CreateAsync(StarterProfileTemplate template, bool replaceUntouchedDefault = false)
     {
         ArgumentNullException.ThrowIfNull(template);
 
@@ -100,6 +104,15 @@ public sealed class StarterProfileService(
         controller.SaveConfig();
 
         await activation.ActivateProfile(profile.Id);
+
+        if (replaceUntouchedDefault)
+        {
+            foreach (Profile empty in config.Profiles.Where(p => p != profile && IsUntouched(p)).ToList())
+                await editing.RemoveProfile(empty);
+
+            config.StartupProfileId = profile.Id;
+        }
+
         controller.SaveConfig();
 
         return new StarterProfileResult(profile, FindMissingPlugins(template), enabled);
@@ -132,6 +145,22 @@ public sealed class StarterProfileService(
 
     private bool IsEnabledHere(StarterPluginRequirement plugin) =>
         config.EnabledPlugins?.Any(id => string.Equals(id, plugin.Id, StringComparison.OrdinalIgnoreCase)) == true;
+
+    /// <summary>
+    /// True for a profile nobody has put anything into yet, like the one a fresh config starts with:
+    /// no folders, no key or dial with a command or a look. Its round LED buttons are not looked at,
+    /// since the device fills them with its defaults on its own.
+    /// </summary>
+    private static bool IsUntouched(Profile profile) =>
+        (profile.Workspaces ?? []).All(workspace =>
+            !workspace.EnumerateFolders().Any() &&
+            (workspace.TouchButtonPages ?? []).All(page => page.TouchButtons.All(ButtonSnapshot.IsEmpty)) &&
+            (workspace.RotaryButtonPages ?? []).Concat(workspace.LeftRotaryButtonPages ?? [])
+                .Concat(workspace.RightRotaryButtonPages ?? [])
+                .All(page => page.RotaryButtons.All(dial =>
+                    string.IsNullOrEmpty(dial.Command) &&
+                    string.IsNullOrEmpty(dial.RotaryLeftCommand) &&
+                    string.IsNullOrEmpty(dial.RotaryRightCommand))));
 
     /// <summary>The template's name, numbered when a profile of that name already exists.</summary>
     private string UniqueName(string name)

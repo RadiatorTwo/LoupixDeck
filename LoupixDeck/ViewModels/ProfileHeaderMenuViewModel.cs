@@ -162,9 +162,18 @@ public sealed class ProfileHeaderMenuViewModel : ViewModelBase
     }
 
     /// <summary>Opens the starter profile picker (issue #301) and reports the outcome in a notice.</summary>
-    private async Task NewStarterProfile()
+    private Task NewStarterProfile() => ShowStarterProfiles(replaceUntouchedDefault: false);
+
+    /// <summary>
+    /// The starter profile picker of the very first start: the profile picked there replaces the empty
+    /// one a fresh config starts with. Does nothing on a companion, whose profiles are its master's.
+    /// </summary>
+    public Task OfferStarterProfilesOnFirstStart() =>
+        CanEditStructure ? ShowStarterProfiles(replaceUntouchedDefault: true) : Task.CompletedTask;
+
+    private async Task ShowStarterProfiles(bool replaceUntouchedDefault)
     {
-        string message = await StarterProfilePickerViewModel.ShowAsync(_dialogService);
+        string message = await StarterProfilePickerViewModel.ShowAsync(_dialogService, replaceUntouchedDefault);
         if (message == null)
             return;
 

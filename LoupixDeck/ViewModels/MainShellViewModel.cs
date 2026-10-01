@@ -147,9 +147,8 @@ public sealed class MainShellViewModel : ViewModelBase
 
         try
         {
-            IAsyncRelayCommand command = SelectedDevice?.ProfileMenu.NewStarterProfileCommand;
-            if (command?.CanExecute(null) == true)
-                await command.ExecuteAsync(null);
+            if (SelectedDevice?.ProfileMenu is { } menu)
+                await menu.OfferStarterProfilesOnFirstStart();
         }
         catch (Exception ex)
         {
