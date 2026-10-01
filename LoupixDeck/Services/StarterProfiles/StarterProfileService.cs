@@ -54,7 +54,8 @@ public sealed class StarterProfileService(
     IWorkspaceActivationService activation,
     IDeviceController controller,
     IPluginManager pluginManager,
-    IPluginReloadService pluginReload) : IStarterProfileService
+    IPluginReloadService pluginReload,
+    IStarterArt art) : IStarterProfileService
 {
     public IReadOnlyList<StarterProfileTemplate> Templates { get; } =
     [
@@ -89,11 +90,15 @@ public sealed class StarterProfileService(
             pageManager.SideRotaryButtonCount, pageManager.HasIndependentRotarySides, config.Geometry);
 
         Profile profile = new() { Name = UniqueName(template.Name) };
-        template.Build(new StarterProfileBuilder(shape, IsWindows), profile);
+        template.Build(new StarterProfileBuilder(shape, IsWindows, art, template.Id), profile);
         PortablePayloadNormalizer.Normalize(profile, shape.TouchButtonCount, shape.RotaryButtonCount,
             shape.SideRotaryButtonCount);
 
+        // Saved straight away, before anything is awaited: the wallpapers and animations are already
+        // in the asset store, and another device's save sweeps assets no config on disk references.
         config.Profiles.Add(profile);
+        controller.SaveConfig();
+
         await activation.ActivateProfile(profile.Id);
         controller.SaveConfig();
 

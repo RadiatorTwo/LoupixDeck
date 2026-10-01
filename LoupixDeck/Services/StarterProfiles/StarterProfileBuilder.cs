@@ -1,4 +1,5 @@
 using Avalonia.Media;
+using LoupixDeck.LoupedeckDevice.Device;
 using LoupixDeck.Models;
 using LoupixDeck.Models.Layers;
 using LoupixDeck.Registry;
@@ -16,10 +17,18 @@ public sealed record StarterState(string Name, string Label, string SymbolId, Co
 /// Places the keys, dials, pages, workspaces and folders of a starter profile (issue #301) on the
 /// attached device. Templates address keys by grid row and column; a key outside this device's
 /// grid (the fifth column on a 4×3 device) is skipped, and dials are dropped on a device without
-/// any, so a template is written once and fits every device.
+/// any, so a template is written once and fits every device. Every page and folder gets the
+/// template's wallpaper, plus matching side-display wallpapers on a device with side strips.
 /// </summary>
-public sealed class StarterProfileBuilder(DeviceShape shape, bool isWindows)
+/// <param name="theme">Name of the template's art in <c>Assets/StarterProfiles</c> (its id).</param>
+public sealed class StarterProfileBuilder(DeviceShape shape, bool isWindows, IStarterArt art, string theme)
 {
+    private const string WallpaperFolder = "wallpapers";
+    private const string AnimationFolder = "animations";
+
+    // Each file is stored once and its path reused for every page that shows it.
+    private readonly Dictionary<string, string> _imported = new(StringComparer.Ordinal);
+
     /// <summary>True on Windows. The Linux variant of a template is built otherwise.</summary>
     public bool IsWindows { get; } = isWindows;
 
@@ -52,6 +61,7 @@ public sealed class StarterProfileBuilder(DeviceShape shape, bool isWindows)
     public TouchButtonPage AddTouchPage(Workspace workspace, string name)
     {
         TouchButtonPage page = new(shape.TouchButtonCount) { Name = name };
+        ApplyWallpaper(page);
         workspace.TouchButtonPages.Add(page);
         return page;
     }
@@ -63,6 +73,7 @@ public sealed class StarterProfileBuilder(DeviceShape shape, bool isWindows)
     public CustomFolder AddFolder(Workspace workspace, string name, CustomFolder parent = null)
     {
         CustomFolder folder = new() { Name = name, Layout = new TouchButtonPage(shape.TouchButtonCount) };
+        ApplyWallpaper(folder.Layout);
         (parent?.Children ?? workspace.Folders).Add(folder);
         return folder;
     }
@@ -92,6 +103,30 @@ public sealed class StarterProfileBuilder(DeviceShape shape, bool isWindows)
         if (button != null)
             button.Command = command;
 
+        return button;
+    }
+
+    /// <summary>
+    /// A key that plays one of the shipped animations (<c>anim-&lt;name&gt;.webp</c>) above a caption.
+    /// </summary>
+    public TouchButton Animation(TouchButtonPage page, int row, int column, string animation, string command,
+        string label)
+    {
+        TouchButton button = At(page, row, column);
+        string path = Art($"anim-{animation}.webp", AnimationFolder);
+        if (button == null || path == null)
+            return button;
+
+        button.Command = command;
+        button.Layers.Add(new ImageLayer
+        {
+            Name = label,
+            AnimatedAssetPath = path,
+            Scale = 0.8,
+            PositionY = -(int)Math.Round(KeySize * 0.09)
+        });
+        button.Layers.Add(ActionAssignment.CreateCaption(label, KeySize, KeySize));
+        button.RewireLayerHandlers();
         return button;
     }
 
@@ -143,7 +178,15 @@ public sealed class StarterProfileBuilder(DeviceShape shape, bool isWindows)
     /// Adds a dial page. On a device with side strips the dials fill the left column first, then the
     /// right; elsewhere the device takes as many as it has. Nothing is added on a device without dials.
     /// </summary>
-    public void AddDialPage(Workspace workspace, string name, params StarterDial[] dials)
+    public void AddDialPage(Workspace workspace, string name, params StarterDial[] dials) =>
+        AddDialPage(workspace, name, null, dials);
+
+    /// <summary>
+    /// Adds a dial page whose side displays play <paramref name="stripAnimation"/>
+    /// (<c>anim-&lt;name&gt;.webp</c>) behind the dial labels. Only a device with side strips shows
+    /// it; elsewhere this is an ordinary dial page.
+    /// </summary>
+    public void AddDialPage(Workspace workspace, string name, string stripAnimation, params StarterDial[] dials)
     {
         if (!HasDials)
             return;
@@ -157,6 +200,12 @@ public sealed class StarterProfileBuilder(DeviceShape shape, bool isWindows)
             for (int i = 0; i < dials.Length && i < perSide * 2; i++)
                 Fill(i < perSide ? left.RotaryButtons[i] : right.RotaryButtons[i - perSide], dials[i]);
 
+            if (stripAnimation != null)
+            {
+                AnimateStrip(left, RazerStreamControllerDevice.LeftSideIndex, stripAnimation);
+                AnimateStrip(right, RazerStreamControllerDevice.RightSideIndex, stripAnimation);
+            }
+
             workspace.LeftRotaryButtonPages.Add(left);
             workspace.RightRotaryButtonPages.Add(right);
             return;
@@ -167,6 +216,71 @@ public sealed class StarterProfileBuilder(DeviceShape shape, bool isWindows)
             Fill(page.RotaryButtons[i], dials[i]);
 
         workspace.RotaryButtonPages.Add(page);
+    }
+
+    /// <summary>
+    /// Switches a side display to free drawing: the animation fills the strip and each dial's label
+    /// sits on its third, where the segmented strip would have shown it.
+    /// </summary>
+    private void AnimateStrip(RotaryButtonPage page, int canvasIndex, string animation)
+    {
+        int stripWidth = shape.Geometry.StripWidth;
+        string path = Art($"anim-{animation}.webp", AnimationFolder);
+        if (stripWidth <= 0 || path == null)
+            return;
+
+        TouchButton canvas = new(canvasIndex);
+        canvas.Layers.Add(new ImageLayer { Name = animation, AnimatedAssetPath = path, Scale = 1.0 });
+
+        double segment = shape.Geometry.PanelHeight / (double)RotaryButtonPage.StripSegmentCount;
+        for (int i = 0; i < page.RotaryButtons.Count && i < RotaryButtonPage.StripSegmentCount; i++)
+        {
+            string label = page.RotaryButtons[i].DisplayText;
+            if (string.IsNullOrEmpty(label))
+                continue;
+
+            canvas.Layers.Add(new TextLayer
+            {
+                Name = label,
+                Text = label,
+                Centered = true,
+                Bold = true,
+                TextSize = 12,
+                BoxWidth = stripWidth - 2,
+                BoxHeight = (int)Math.Round(segment),
+                PositionY = (int)Math.Round((i - ((RotaryButtonPage.StripSegmentCount - 1) / 2.0)) * segment)
+            });
+        }
+
+        canvas.RewireLayerHandlers();
+        page.StripCanvas = canvas;
+        page.StripMode = StripMode.FreeDraw;
+    }
+
+    /// <summary>The template's wallpaper on the panel and, where the device has them, its side displays.</summary>
+    private void ApplyWallpaper(TouchButtonPage page)
+    {
+        page.MainWallpaper.AssetPath = Art($"wallpaper-{theme}.png", WallpaperFolder);
+
+        if (shape.Geometry.StripWidth <= 0)
+            return;
+
+        string strip = Art($"strip-{theme}.png", WallpaperFolder);
+        page.LeftWallpaper.AssetPath = strip;
+        page.RightWallpaper.AssetPath = strip;
+        // Mirrored, so both side displays frame the panel symmetrically.
+        page.RightWallpaper.Mirror = true;
+    }
+
+    private string Art(string fileName, string subFolder)
+    {
+        if (!_imported.TryGetValue(fileName, out string path))
+        {
+            path = art.Import(fileName, subFolder);
+            _imported[fileName] = path;
+        }
+
+        return path;
     }
 
     private TouchButton At(TouchButtonPage page, int row, int column)

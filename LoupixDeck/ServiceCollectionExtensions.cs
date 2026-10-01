@@ -479,6 +479,7 @@ public static class ServiceCollectionExtensions
         collection.AddSingleton<Services.Portable.IProfilePackageService, Services.Portable.ProfilePackageService>();
 
         // Starter profiles (issue #301): built for this device's controls, so device-scoped too.
+        collection.AddSingleton<Services.StarterProfiles.IStarterArt, Services.StarterProfiles.StarterArt>();
         collection.AddSingleton<Services.StarterProfiles.IStarterProfileService, Services.StarterProfiles.StarterProfileService>();
 
         // Plugin full-display raw-BGRA renderer (issue #124): single-owner, drives a plugin

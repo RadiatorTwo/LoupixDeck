@@ -7,7 +7,8 @@ namespace LoupixDeck.Services.StarterProfiles.Templates;
 
 /// <summary>
 /// One example of each building block: workspaces, pages, nested folders, a key with states, a
-/// command sequence, a typed macro, a live clock and dials with a second dial page. Needs no plugin.
+/// command sequence, a typed macro, a live clock, animated keys and dials with a second dial page,
+/// whose side displays are animated too. Needs no plugin.
 /// </summary>
 internal sealed class FeatureTourTemplate : StarterProfileTemplate
 {
@@ -54,6 +55,10 @@ internal sealed class FeatureTourTemplate : StarterProfileTemplate
             b.Key(first, 2, 1, VolumeUp, "Volume +", "volume-plus");
         }
 
+        b.Animation(first, 2, 2, "equalizer", PlayPause, "Play/Pause");
+        b.Animation(first, 2, 3, "pulse", NextTrack, "Next");
+        b.Animation(first, 2, 4, "orbit", "System.NextWorkspace", "Workspace");
+
         b.Key(second, 0, 0, "System.PreviousPage", "Back", "arrow-left");
         b.Key(second, 0, 1, PlayPause, "Play/Pause", "play-pause");
         b.Key(second, 0, 2, PreviousTrack, "Previous", "skip-previous");
@@ -74,7 +79,7 @@ internal sealed class FeatureTourTemplate : StarterProfileTemplate
             new StarterDial("Workspace", "System.PreviousWorkspace", "System.NextWorkspace", "System.GoHomeWorkspace"),
             new StarterDial("Scroll", "System.MouseScroll(-1)", "System.MouseScroll(1)"),
             TrackDial);
-        b.AddDialPage(tour, "Dials 2",
+        b.AddDialPage(tour, "Dials 2", "strip-flow",
             TrackDial,
             new StarterDial("Pages", "System.PreviousPage", "System.NextPage", "System.PreviousRotaryPage"),
             new StarterDial("Zoom", Keys("Ctrl+NumMinus"), Keys("Ctrl+NumPlus")),
