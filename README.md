@@ -25,6 +25,7 @@ Built with [Avalonia](https://avaloniaui.net/) and [.NET 10](https://dotnet.micr
 - **Multiple devices:** use several supported controllers at the same time, even identical models
 - **Extensible:** install integrations from the built-in Plugin Store or create your own
 - **Portable:** export and share profiles, workspaces or individual pages as `.loupixprofile` packages
+- **Ready-made profiles:** start with a device-sized template for everyday controls, a feature tour, media, OBS, Resolve or Home Assistant
 - **Multilingual:** English, German and Spanish interfaces
 
 ## Supported devices
@@ -117,6 +118,8 @@ Only the device-permission step needs administrator rights. If you have never co
 
 LoupixDeck can also start with no device connected. It opens the main window without asking for a model and waits for a supported deck to be plugged in.
 
+On a fresh installation, a template picker opens when the first device connects. Later, use **New profile from template…** in the profile menu or **Add profile from template…** under Settings → Profiles. Templates add a new profile, enable their required plugins for the device, and offer the Plugin Store for missing ones. See [Profile templates](docs/USER_MANUAL.md#profile-templates) for setup details.
+
 For a complete walkthrough, see the [User Manual](docs/USER_MANUAL.md).
 
 ## What you can build
@@ -126,6 +129,8 @@ For a complete walkthrough, see the [User Manual](docs/USER_MANUAL.md).
 - Combine image, animated image, text and symbol layers
 - Move and edit layers with a live preview
 - Add outlines, colors, transparency and symbols from a curated list or the full Material Design Icons and Material Design Light sets
+- Add custom SVG/image icon folders to the symbol picker; placed icons are copied into the app and can keep their own colors or take a tint
+- Edit a touch button's command parameters together in the **Parameters** tab
 - Use per-page wallpapers and optional touch feedback
 - Give a button several named states with separate visuals and actions
 
@@ -142,6 +147,7 @@ For a complete walkthrough, see the [User Manual](docs/USER_MANUAL.md).
 - Run multi-command sequences from any gesture
 - Apply built-in, plugin-provided or user-created dial presets, grouped by source
 - Assign related plugin actions as a group
+- Use plugin adjustment commands for a whole dial, with tick-aware turning, a press action and live value indicators on side strips
 - Use independent rotary pages where supported
 
 ### Macros and direct input
@@ -176,6 +182,8 @@ Built-in commands and plugins cover:
 - SteelSeries Sonar on Windows
 - Twitch chat and stream controls on Windows
 - KDE Plasma desktops, windows, Activities and session controls on Linux
+- Media Session on Windows and MPRIS Media on Linux
+- Home Assistant and PowerToys integrations from the Plugin Store
 - Cooler Control and Linux hardware information
 - Argus Monitor on Windows
 - Shell commands, page navigation and device power
@@ -213,6 +221,8 @@ Open the separate **Plugins** window from the hamburger menu. Its searchable ins
 
 The **Plugin Store** page uses a searchable tile grid and one catalogue request to check published versions. You can read release notes on demand, install, update, remove or adopt a hand-copied plugin, cancel a download, and restart when a staged change needs it. Downloads are checked against their published checksums, while settings and missing command assignments survive updates or temporary removal.
 
+Plugins can ship translations that follow the app's language immediately. Plugins reporting unmet system requirements are marked **Needs attention**, with repair hints and **Check again**; Linux Diagnostics includes those requirements too. App updates, plugin updates and requirements share the main-window notice area. The Store lists installed plugins with updates first.
+
 Want to create a plugin?
 
 - [Plugin SDK repository](https://github.com/RadiatorTwo/LoupixDeck.PluginSdk)
@@ -229,7 +239,7 @@ The `.loupixprofile` format is a regular ZIP archive containing only the require
 
 ### Importing from the Loupedeck software
 
-**Import Loupedeck profile…** (header menu and **Settings → Profiles**) converts a `.lp5` profile exported from the Logitech/Loupedeck software: workspaces, touch pages, dial pages (split into left and right columns on the Razer Stream Controller, with the dial icons drawn on the side strips), round buttons, key icons and captions. Keyboard shortcuts, multi-actions, page and workspace switches, application launches, mouse clicks and wheel, media and volume actions are translated. Plugin actions and anything else without a LoupixDeck equivalent are never guessed: the preview lists them, and imported keys show a red "Not imported" placeholder.
+**Import Loupedeck profile…** (header menu and **Settings → Profiles**) converts a `.lp5` profile exported from the Logitech/Loupedeck software: workspaces, touch pages, dial pages (split into left and right columns on the Razer Stream Controller, with the dial icons drawn on the side strips), round buttons, key icons and captions. Keyboard shortcuts, multi-actions, page and workspace switches, application launches, mouse clicks and wheel, media and volume actions are translated, as are supported Audio, Home Assistant, Spotify and OBS actions. The preview names missing plugins and unsupported actions; unsupported keys retain their readable icon with a red **Not imported** placeholder. Controls that do not fit move to extra pages. An optional application link opens the imported profile automatically. See the [import walkthrough](docs/USER_MANUAL.md#importing-a-loupedeck-profile) for limits and setup.
 
 ## CLI and automation
 

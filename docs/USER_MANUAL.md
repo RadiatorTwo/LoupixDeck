@@ -1,6 +1,6 @@
 # LoupixDeck User Manual
 
-This manual is for people who want to use LoupixDeck, not develop plugins for it. It is based on the current GitHub README, the existing docs, the application source, and the Plugin Store catalogue and manifests. Because LoupixDeck is moving quickly, small names and details may change between releases.
+This manual is for people who want to use LoupixDeck, not develop plugins for it. It covers LoupixDeck v1.38.0 and is based on the GitHub README, existing docs, application source, and Plugin Store catalogue and manifests. Plugins release independently, so their command names and available features can differ by installed version.
 
 ## Index
 
@@ -54,6 +54,8 @@ Current documented support:
 Multiple devices can run at the same time. If more than one device is connected, the main window shows a device selector. Two identical devices are separated reliably by USB serial number—including composite USB devices on Windows—so each keeps its own layout. Existing configuration files keep their names; connecting a second unit gives it a separate file instead of renaming the first unit's file.
 
 The Stream Controller X's physical keys act like touches at the centre of their matching keys. Touch-button actions, including press-and-hold, work normally. Settings and controls for hardware the device does not have are hidden.
+
+Since v1.34.0, the CT's main touch grid and side strips draw on their shared display area, and its wheel display uses the correct colours. CT support remains partial; this display fix does not imply that every CT control is implemented.
 
 ## Install and Start
 
@@ -162,6 +164,8 @@ Starting with no device connected no longer opens a setup question. Even on a fi
 
 When several devices connect during startup, the first one that becomes available stays selected while the others join the selector. A later connection no longer takes the editor away from the device you are using.
 
+On a fresh installation, the profile-template picker opens when the first device becomes available. Choose a template to get a working example, or cancel and build your own layout. Existing installations are not prompted. See [Profile templates](#profile-templates) for the templates and their setup requirements.
+
 If no device is ready, the device area shows `No device connected` instead of empty profile and workspace selectors. Plug a supported deck in over USB and LoupixDeck picks it up automatically. If the deck is already plugged in, the vendor software or another program may still be holding its serial port. LoupixDeck retries a busy port with backoff and adds the device when the port becomes available, without requiring an app restart. Device actions stay disabled in the meantime, while `Quit` remains available. Starting minimized also works when no device is ready yet.
 
 When the computer wakes from sleep or standby, LoupixDeck rebuilds the device connection and sends the current state again. Brightness, LED colours, the active touch page, and side-strip content are restored. The same state refresh happens after automatic reconnect or after you press `Reconnect` in `Settings > General`, so the display should not remain black after the link returns.
@@ -208,7 +212,7 @@ When a device is connected, the button at the left of the header opens a side pa
 
 Single-click a panel row to select it. To assign it, first select a compatible touch key, physical LED button, or dial and then double-click the row, or drag the row directly onto the control. An invalid target is outlined in red and is not changed. If the target already has content, LoupixDeck asks before replacing it. Command-picker groups stay expanded when a plugin finishes loading its menu, and the tighter rows keep more entries visible.
 
-An application assigned to a touch key receives its launch command and, when available, an extracted app icon sized to leave room for a caption. App icons are cached at full resolution and refreshed when their source changes. A catalogue command receives its glyph and name. Physical LED buttons receive the command, while a dial receives the command and a side-strip label. Side displays themselves are not drop targets. Some catalogue entries are dial-only because they configure all three rotary gestures together.
+An application assigned to a touch key receives its launch command and, when available, an extracted app icon sized to leave room for a caption. App icons are cached at full resolution and refreshed when their source changes. A catalogue command receives its glyph and name unless it declares its own button layout. Physical LED buttons receive the command, while a dial receives the command and a side-strip label. Side displays themselves are not drop targets. Some catalogue entries are dial-only because they configure all three rotary gestures together.
 
 Assigning **Shell Command** or **Open Website** from the panel first asks for the command line or the web address; cancelling leaves the control unchanged. A touch key is labelled with the program name or the site, for example `notepad` or `youtube.com`. Open Website only opens `http://` and `https://` addresses; an address without a scheme is opened as `https://`.
 
@@ -244,6 +248,25 @@ Open `Settings > Profiles` to manage this structure, or use the `⋮` menus in t
 Old layouts are migrated automatically. If you had pages before profiles and workspaces existed, they are placed in a `Default` profile with a `Home` workspace, so the app should behave as it did before.
 
 Profiles and workspaces can also be changed from commands. The command picker has a `Profiles` group with commands such as `Activate Profile`, `Go to Workspace`, `Next Workspace`, `Previous Workspace`, and `Go to Home Workspace`. In the picker, profile and workspace choices are shown by their real names.
+
+### Profile templates
+
+Connect the device you want to configure, then choose **New profile from template…** in the main window's profile menu, or **Add profile from template…** under `Settings > Profiles`. Select a template and press **Create**. It is built for that device's key grid, dials, and side displays, added as a new profile, saved, and activated. Existing profiles are kept; repeated creation gets a distinct profile name.
+
+| Template | What to try and configure |
+| --- | --- |
+| Starter | Everyday media, clipboard, screenshot, clock, volume, and brightness controls; no plugin required |
+| Feature tour | Two workspaces, two pages, nested folders, button states, a command sequence, typed text, a live clock, animated keys, and two dial pages with animated side displays where supported |
+| Media | Current-track display, playback, track skipping, and volume; uses Media Session on Windows or MPRIS Media on Linux |
+| OBS Studio | Recording, streaming, virtual camera, studio mode, replay buffer, scenes, and audio mutes; configure the OBS plugin's WebSocket connection and your scene names |
+| DaVinci Resolve | Default Resolve shortcuts for playback, marks, edit tools, frames, zoom, and edit points; adjust assignments if you changed those shortcuts in Resolve |
+| Home Assistant | Lights, climate, scenes, a sensor, and light-brightness dials; configure the plugin's server address and access token, then replace the example entity ids with your own |
+
+Templates include themed page/folder wallpapers and matching side-display artwork where available. A device without dials, such as the Stream Controller X, gets a layout for its keys instead.
+
+Creating a template enables the plugins it uses for this device. If a required plugin is missing, LoupixDeck offers to open the Plugin Store; its assignments are already kept and enabled so they work after installation. Follow any **Restart required** message before expecting a staged plugin to run. This template workflow enables its required plugins deliberately; installing an unrelated plugin from the store still needs explicit enablement.
+
+The first-start picker can remove the untouched empty default profile when the template takes its place, and sets the new profile as the startup profile. A profile containing your own layout is kept.
 
 ## Companion Devices
 
@@ -285,6 +308,18 @@ The package is deliberately layout-focused. Enabled plugins, Profile Rules, app 
 Profiles exported by v1.25.0 and later carry their LED-button row. When an older package has no such row, LoupixDeck creates the device's normal default LED buttons during import.
 
 When a master exports a whole profile or workspace, the export dialog offers **Include the companions' own pages** if its companions have content there. This adds their touch/rotary pages, folder layouts, and—for a profile—their LED buttons. Folder structure is already part of the master's profile or workspace and is always included.
+
+### Importing a Loupedeck profile
+
+For a profile exported from the Logitech/Loupedeck software, use **Import Loupedeck profile…** in the header menu or `Settings > Profiles` and select its `.lp5` file. This is a separate importer from `.loupixprofile` packages. Review the preview, choose the profile name and optional application link, and then import it as a new profile.
+
+The importer brings over workspaces, touch pages, dial pages, round buttons, readable icons, and captions. On the Razer Stream Controller, dial pages are split into left/right columns with their icons on the side strips. Controls that do not fit on the target device move to additional pages at the end of their workspace.
+
+Supported conversions include keyboard shortcuts, typed text, multi-actions as command chains, page/workspace navigation, application launches, mouse clicks and scrolling, media/volume actions, audio-output switching, application-volume dials, OBS scenes, and supported Home Assistant, Spotify, and OBS plugin actions. A **Go back** action converts only when exactly one key opens that page; LoupixDeck does not keep page history.
+
+The preview names missing plugins and lists actions that cannot be converted, with reasons. You can select and copy that list. Unsupported touch keys retain their original readable icon with a red **Not imported** placeholder; unsupported dials and round buttons remain empty. Recreate these actions manually. CT wheel pages have no equivalent and are not imported. Supported plugin assignments are retained and can work after you install and enable the named plugins.
+
+When an application link is available, enable it to open the new profile when that app is in front. If the app already opens another profile, the preview warns that selecting the link moves it to the imported profile. Automatic Profile Rules must be enabled for switching to take effect.
 
 ## Pages
 
@@ -355,6 +390,8 @@ The touch-button, rotary, and physical-button editors can be resized. Drag a win
 
 The command picker is wider in these editors. In the Touch Button editor, the behavior area has its own scroll bar, so a long command sequence scrolls inside that panel without pushing the main preview out of view. The color swatch remains visible beside its editor, even in tight layouts. Command rows and section headers keep a gutter beside the scroll bar, while the selected-row highlight still spans the full row. The Rotary and physical-button editors use the same clean picker layout without the old gray outer frame.
 
+The touch button editor also has a **Parameters** tab beside **Properties** and **Commands**. It appears when a known command in the current sequence has parameters, and shows one card per such command. Text fields, key recorders where available, drop-downs, and checkboxes edit the same values as the command chip's pencil menu. Use **Commands** to add, remove, or reorder the sequence; use **Parameters** to adjust its values together.
+
 ### Editing and Rearranging Buttons
 
 In v1.14.0 and later, the main window supports faster editing for buttons and side displays:
@@ -382,6 +419,22 @@ Typical layer workflow:
 5. Reorder layers so background images sit below text and symbols.
 
 The editor has a live preview. Layers are useful because you can build a button from reusable pieces instead of flattening everything into one image.
+
+### Symbols, SVG images, and custom icon packs
+
+The symbol picker has a source selector for **Curated**, **Material Design Icons (all)**, and **Material Design Light**. The full MDI source includes more than 7,000 icons, with search matching aliases and tags as well as names. The picker remembers the last source used. New symbol layers keep the icon's aspect ratio; existing layers retain their previous appearance. You can also select SVG files directly for ordinary image layers.
+
+To add your own icons, use the picker's add-folder button and select a folder containing SVG or image files. Its pack appears after the built-in sources. Subfolders are scanned recursively; SVG, PNG, JPEG, WebP, and BMP files are supported. Categories come from subfolders or optional per-icon JSON side files containing `categories` and `tags` arrays. Search matches the file name, folder, and tags.
+
+Selecting a pack icon copies it into LoupixDeck's asset store. Moving the source folder or removing the pack from the picker therefore does not break buttons already using it. Removing a pack only removes its registration; it leaves the source folder intact. Single-colour icons take the symbol tint and gradient, while multicolour icons keep their own colours. Change **Keep original colors** in the properties panel to override that choice.
+
+If a folder is missing, empty, or contains only icon fonts, the picker explains the problem. Use individual SVG or bitmap files rather than font-only packs. Large packs load thumbnails in the background while the picker is open.
+
+### Plugin-provided button layouts
+
+Plugins can declare the initial layers for their commands, including icon-only, caption-only, custom layers, or no extra layers when the command draws the complete button itself. Assignment from the actions panel follows that layout. In the editor it is applied when adding the first command to a button with no layers yet. Plugin-supplied SVG and bitmap assets are copied into LoupixDeck, and the generated layers can be edited normally.
+
+Animated plugin commands appear immediately in the editor, and removing them clears their drawing. Moving or hiding a plugin layer is retained if its plugin is temporarily disabled or missing. Two keys with the same plugin command can keep separate state when the plugin uses the host's per-button identity, for example for independent paging tiles.
 
 ### Animated image layers
 
@@ -461,11 +514,15 @@ Built-in command groups include:
 
 Some commands have parameters, such as a page number, key combination, date/time format, shell command, or target button index. Parameter fields appear in the command chip editor, opened with the pencil icon on the command chip.
 
+For touch buttons, the [Parameters tab](#button-editor-windows) offers the same fields for the whole sequence. Empty text parameters stay empty and do not shift later values into the wrong parameter.
+
 For the `Shell Command` chip, the chip label follows the command text while you edit it. If the field is empty, it returns to the `Shell Command` placeholder.
 
 `Open Website` accepts only `http://` and `https://` addresses and uses the system's default browser. If you omit the scheme, LoupixDeck adds `https://`. Other schemes are refused so the command cannot act as a general application launcher.
 
 Shell commands start in your home directory, not in the LoupixDeck installation folder. Use absolute paths when a command refers to a program or file in a particular location; relative paths are resolved from your home directory.
+
+The application picker in the touch editor lists manually added programs first. Use its **+** button if the scan missed an application. On Linux, application/file launches now handle paths containing spaces correctly.
 
 In v1.17.0 and later, commands can provide their own default settings. When you add such a command, its settings popup is already filled with sensible values. You can still change those values for that one button, knob direction, physical button, or page command. Existing assignments are left as they were.
 
@@ -493,6 +550,14 @@ Each rotary control can have separate command sequences for:
 - Rotate left.
 - Rotate right.
 - Button press.
+
+### Adjustment commands
+
+A plugin adjustment command controls the whole dial: turning changes its value and pressing runs the plugin's reset action, such as resetting a value or toggling mute. Assign it to one turn direction; an empty opposite direction and an empty press slot borrow that command. An explicitly assigned gesture keeps its own action. Ordinary commands keep their normal separate-gesture behavior.
+
+Fast turns pass the encoder's tick count as one adjustment rather than replaying a plain command for each detent. On a device with side strips, a command that reports a scale value shows a bar and value text. A text-only value keeps a caption without a bar. Changes made in the external application also refresh the dial when the plugin reports them.
+
+Plugins may supply one-time migration rules for old per-gesture bindings. Matching dials across profiles and workspaces are rewritten to the new command, with a backup at `<config>.premigration.<timestamp>.bak` before saving. A failed migration leaves the file unchanged, and a completed rule is not rerun if you later rebuild a binding manually. Dials that do not match the rule are kept.
 
 ### Command groups
 
@@ -744,6 +809,8 @@ LoupixDeck v1.28.0 and later install integrations separately from the app. In v1
 
 Search the store or browse its two-column tile grid. Each tile shows the plugin's description, author, published version, compatibility, and installed state. Release notes load on demand and can be read without installing anything.
 
+Installed plugins with updates are listed first, followed by other installed plugins and then plugins not yet installed. Opening Plugins while plugin updates are pending takes you straight to the Store, including when several updates are waiting.
+
 Use `Install`, `Update`, or `Remove` on a tile. Before an install or update starts, LoupixDeck shows that release's notes and waits for confirmation. It then displays download progress and verifies the package's SHA-256 checksum before opening the archive. A missing or mismatched checksum prevents installation, and `Cancel` stops a download in progress.
 
 The store selects only releases whose `plugin.json` supports the current operating system and an SDK version provided by this LoupixDeck release. A plugin without a compatible release is labelled accordingly instead of being installed. Plugin releases are independent from LoupixDeck releases, so fixes can be delivered without updating the main app.
@@ -774,6 +841,8 @@ After startup, LoupixDeck checks saved configuration for commands owned by catal
 
 The installed-plugins page has a searchable list with each plugin's status dot, version, and pending-update state. The detail header names the device being configured and provides a picker when more than one device is running. The enable switch is also in this header because enablement is stored per device.
 
+The window opens on the device currently selected in the main window. A plugin switched off only on that device is shown as **Disabled**; **Restart required** means a staged change needs the app to restart.
+
 Plugin setting forms use the current interface language. If you switch plugins or close the window with unsaved changes, LoupixDeck asks before discarding them. An action supplied by a plugin shows its returned message without guessing that it succeeded; only a failed call is labelled as a failure.
 
 From this page you can:
@@ -784,7 +853,7 @@ From this page you can:
 - Select a plugin and edit its settings if it provides a settings UI.
 - Enable or disable a plugin for the selected device. The choice is saved immediately and refreshes its commands and dial presets live.
 
-The v1.31.0 Plugin Store catalogue includes these integrations:
+The v1.38.0 Plugin Store catalogue includes these integrations:
 
 | Plugin | Platform |
 | --- | --- |
@@ -795,15 +864,19 @@ The v1.31.0 Plugin Store catalogue includes these integrations:
 | CoolerControl | All |
 | Argus Monitor | Windows |
 | HWiNFO | Windows |
+| Home Assistant | All |
 | KDE Plasma | Linux |
 | LibreHardwareMonitor | Windows |
 | LinuxHwInfo | Linux |
+| Media Session | Windows |
+| MPRIS Media | Linux |
+| PowerToys | Windows |
 | SteelSeries Sonar | Windows |
 | Twitch | Windows |
 
 Plugins can add commands, dynamic text, settings pages, folders, side-strip providers, or special integration behavior. The exact command names depend on the installed plugin version and what external app or service is configured.
 
-LoupixDeck v1.30.0 uses Plugin SDK 1.23.0. It adds `DialPresetDescriptor` and `GetDialPresets()` so plugins can contribute presets for their own rotary commands. The change is additive, so existing plugins do not need to be rebuilt and older 1.x plugins continue to load.
+LoupixDeck v1.38.0 provides Plugin SDK 1.28.0. Recent additions include plugin translations, dial adjustments, per-button identity, initial button layouts, pixel-exact folder rendering, and system-requirement reporting. These additions preserve older plugins; a plugin using newer APIs needs a host that provides them, which the Store's compatibility checks take into account.
 
 The Plugins page only shows plugins that can run on the current operating system. For example, Windows-only plugins are hidden on Linux instead of appearing as disabled rows with controls that cannot work.
 
@@ -812,6 +885,16 @@ Plugins can also provide default values for command settings. In current store v
 On a multi-device setup, plugin button-state reads, state changes, and refresh requests apply across every device on which that plugin is enabled. A stateful plugin button on a secondary device therefore stays synchronized just like one on the primary device.
 
 Installing, removing, enabling, disabling, or switching the active version of a plugin refreshes the command catalogue, dial presets, and side-strip providers for every connected device. You do not need to reconnect secondary devices for the refreshed plugin state to appear.
+
+### Plugin requirements and notices
+
+A plugin can report unmet system requirements, such as a missing external tool. The installed-plugins page marks it **Needs attention**, shows the requirement and any repair hint, and offers **Check again** to re-evaluate without restarting. Installing or enabling the plugin alone does not satisfy an external requirement.
+
+The main window shows a dismissible notice with a **Details** action. A dismissed requirement notice returns when the set of unmet requirements changes. App updates, plugin updates, and requirements share this notice area. On Linux, Device Doctor rechecks plugin requirements at the start of each run and includes unmet ones as warnings. Plugins that do not report requirements continue to work as before.
+
+### Media playback
+
+Install **Media Session** on Windows or **MPRIS Media** on Linux for player controls and current-track information. MPRIS Media talks to players supporting MPRIS over D-Bus, including VLC, Spotify, Elisa, mpv, and supported browsers. These are the plugins used by the Media profile template on their respective platforms.
 
 ### Audio
 
@@ -986,7 +1069,9 @@ Settings are still saved when the settings window closes. Use the **Save** butto
 - Start minimized to tray.
 - Page switching: show the page name overlay, animate rotary page transitions, animate touch page transitions, and choose whether next/previous navigation cycles at the ends.
 
-English is the source language. If a translated string is unavailable, LoupixDeck falls back to its English text instead of showing a blank label. Built-in command names, group headings, category cards, and command chips are translated at display time, and command search matches the translated wording. Assignments, macros, and dial presets continue to store stable internal command ids, so changing the language does not rewrite them. Names supplied directly by plugins remain in the language provided by the plugin.
+English is the source language. If a translated string is unavailable, LoupixDeck falls back to its English text instead of showing a blank label. Built-in command names, group headings, category cards, and command chips are translated at display time, and command search matches the translated wording. Assignments, macros, and dial presets continue to store stable internal command ids, so changing the language does not rewrite them.
+
+Plugins can ship their own translations. Their names, descriptions, command/group names, parameter names, and setting labels follow the selected language immediately without restarting. Each plugin has its own translation namespace; a missing entry falls back to English. Plugins without translation files keep their original text. Text drawn directly by a plugin follows its own translation/redraw support.
 
 On Windows, `Start with Windows` controls whether LoupixDeck launches at login. The installer can set the same behavior during setup with `Start on system startup`, but v1.12.1 and later let you turn it on or off from this settings page. Use it together with `Start minimized to tray` if you want LoupixDeck to launch quietly after login.
 
@@ -997,6 +1082,7 @@ Key alignment normally needs no changes: LoupixDeck uses the measured layout for
 ### Profiles
 
 - Add, rename, and delete profiles.
+- Add a profile from a ready-made template, or import a Loupedeck `.lp5` profile.
 - Add, rename, and delete workspaces inside profiles.
 - Activate a profile or workspace.
 - Set a profile's Home workspace.
@@ -1060,6 +1146,8 @@ This page appears only on Linux under `Settings > Diagnostics`. It opens empty a
 
 The checks cover the Linux distribution and architecture, the graphical session, X11/XWayland support, D-Bus, PipeWire, plugin folders, desktop integration, `/dev/uinput`, and access to `/dev/input/event*`. Each attached supported deck is checked separately for its model and USB ids, serial node access, installed udev rule, the process holding its port, its current LoupixDeck connection, and the last connection attempt. Serial numbers shown in the page and report are shortened.
 
+Plugin requirements are re-evaluated at the start of each run and unmet ones appear as warnings, with any repair hint the plugin supplied. The manifest check uses `plugin.json`; current releases no longer report valid plugins as broken because of the former filename mismatch.
+
 Select a result to see its evidence, technical detail, and suggested solution. When the installer is the appropriate repair, Device Doctor locates the real `install-loupixdeck.sh` and shows the exact `sudo <path>` command for you to copy; it never runs that command by itself. After applying a fix, use **Run category again** or **Run this check again** instead of repeating the entire scan. Device checks are rebuilt for each run, so a newly connected deck can be diagnosed without restarting LoupixDeck.
 
 The optional tests are also never started automatically and ask before acting:
@@ -1098,6 +1186,7 @@ LoupixDeck stores configuration as JSON in the user config directory. Typical fi
 | `macros.json` | Shared macro definitions |
 | `custom-apps.json` | Applications added manually to the Apps panel |
 | `dial-presets.json` | User-created dial presets shared across devices and profiles |
+| `icon-packs.json` | Shared registrations of external icon-pack folders; placed icons are stored separately as assets |
 | `ui-settings.json` | Interface language and update-check preferences shared by all devices |
 | `companions.json` | Global master and companion group definitions |
 | Plugin config files | Integration-specific settings |
@@ -1166,6 +1255,7 @@ Recording needs read access to `/dev/input/event*`. The installer attempts to ha
 ### Plugin commands are missing
 
 - Open **Plugins > Plugin Store** and install a missing catalogue plugin, or update it if a compatible release is available.
+- For **Needs attention**, read the plugin's requirement details, apply its suggested fix, then choose **Check again**. On Linux, Device Doctor also reports those requirements.
 - On the installed-plugins page, check whether the plugin is enabled for the current device.
 - If you use more than one device, enable the plugin on the device where you want to use it.
 - Restart LoupixDeck if the plugin page says some changes need a restart.

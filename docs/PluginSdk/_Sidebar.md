@@ -5,6 +5,7 @@
 
 **API reference**
 - [Overview](API-Reference)
+- [Recent SDK additions](Recent-SDK-Additions)
 - [LoupixPlugin](API-LoupixPlugin)
 - [Commands](API-Commands)
 - [Host services](API-Host-Services)

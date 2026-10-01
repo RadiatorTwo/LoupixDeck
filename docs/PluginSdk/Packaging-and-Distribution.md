@@ -5,8 +5,10 @@ manifest and any runtime dependencies. LoupixDeck v1.28.0 and later can install
 plugins from its curated Plugin Store. Store plugins publish releases from their
 own GitHub repository; they are not bundled with the main application.
 
-LoupixDeck v1.30.0 provides SDK 1.23.0. It adds plugin-contributed dial presets;
-the API change is additive, so existing plugins need no rebuild.
+LoupixDeck v1.38.0 provides SDK 1.28.0. The recent API additions are documented
+in [Recent SDK additions](Recent-SDK-Additions). Older plugins keep working;
+publish the SDK version your plugin builds against so the Store can exclude
+hosts that do not provide its newer APIs.
 
 ## Manifest and versioning
 
@@ -18,7 +20,7 @@ match the `PluginMetadata` returned by the plugin:
   "id": "myplugin",
   "name": "My Plugin",
   "version": "1.0.0",
-  "sdkVersion": "1.23.0",
+  "sdkVersion": "1.28.0",
   "entryAssembly": "MyPlugin.dll",
   "platform": "All",
   "author": "Example Author",
@@ -67,6 +69,7 @@ Package the following at the archive root:
 - `MyPlugin.dll`, matching `entryAssembly`
 - any third-party runtime dependencies
 - optional icons or other files the plugin reads at runtime
+- optional `strings.<language-code>.json` translation files beside `plugin.json`
 
 Do not redistribute `LoupixDeck.PluginSdk.dll`; the host provides it. Bundling
 the SDK causes assembly-load conflicts. PDB and `.runtimeconfig.json` files are

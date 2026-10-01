@@ -123,6 +123,10 @@ can address a side strip or a key that does not exist.
 
 ## RotaryOverride
 
+For SDK 1.28.0's optional `FolderEntry.Render` callback on the real-size key
+canvas, see [Pixel-exact folder slots](Recent-SDK-Additions#pixel-exact-folder-slots).
+It supplements `Image` rather than changing grid placement or rotary overrides.
+
 ```csharp
 public sealed class RotaryOverride
 {

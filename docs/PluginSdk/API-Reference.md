@@ -64,7 +64,7 @@ interfaces, and a few value types. Everything lives in the
 ```csharp
 public static class SdkInfo
 {
-    public static readonly Version Version = new(1, 23, 0);
+    public static readonly Version Version = new(1, 28, 0);
 }
 ```
 
@@ -72,7 +72,12 @@ Always set `PluginMetadata.SdkVersion = SdkInfo.Version`. The host loads a
 plugin only when `SdkVersion.Major` matches its own — within a major version,
 the contracts are guaranteed source- and binary-compatible.
 
-SDK 1.23.0 adds `DialPresetDescriptor` and `LoupixPlugin.GetDialPresets()` for
+LoupixDeck v1.38.0 provides SDK 1.28.0. See [Recent SDK additions](Recent-SDK-Additions)
+for translations, adjustment values and migrations, per-button identity, button
+layout descriptors, pixel rendering, and plugin requirements. These APIs were
+added in SDK 1.24–1.28; a plugin using them must declare the SDK it builds against.
+
+SDK 1.23.0 added `DialPresetDescriptor` and `LoupixPlugin.GetDialPresets()` for
 plugin-provided rotary presets. SDK 1.22.0 added `IPluginHost.FolderGrid` and
 `FolderGridInfo` for device-aware plugin folders. Earlier 1.x additions include command-declared button states,
 optional screensaver and animated-side-strip contracts, and
