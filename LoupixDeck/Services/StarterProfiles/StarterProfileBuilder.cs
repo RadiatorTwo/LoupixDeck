@@ -26,6 +26,10 @@ public sealed record StarterState(string Name, string Label, string SymbolId, Co
 public sealed class StarterProfileBuilder(DeviceShape shape, bool isWindows, IStarterArt art, string theme,
     StarterIconStyle iconStyle = null)
 {
+    // Captions are a little larger than the actions panel's, and every icon and caption is outlined,
+    // so both stay readable on the wallpapers.
+    private const int CaptionSizeIncrease = 2;
+
     private const string WallpaperFolder = "wallpapers";
     private const string AnimationFolder = "animations";
 
@@ -93,7 +97,7 @@ public sealed class StarterProfileBuilder(DeviceShape shape, bool isWindows, ISt
         if (background is { } color)
             Paint(button, color);
 
-        StyleIcons(button);
+        StyleLayers(button);
         return button;
     }
 
@@ -130,6 +134,7 @@ public sealed class StarterProfileBuilder(DeviceShape shape, bool isWindows, ISt
             PositionY = -(int)Math.Round(KeySize * 0.09)
         });
         button.Layers.Add(ActionAssignment.CreateCaption(label, KeySize, KeySize));
+        StyleLayers(button);
         button.RewireLayerHandlers();
         return button;
     }
@@ -176,7 +181,7 @@ public sealed class StarterProfileBuilder(DeviceShape shape, bool isWindows, ISt
             }
         }
 
-        StyleIcons(button);
+        StyleLayers(button);
         button.RewireLayerHandlers();
 
         if (ownedByCommand)
@@ -269,7 +274,8 @@ public sealed class StarterProfileBuilder(DeviceShape shape, bool isWindows, ISt
                 Text = label,
                 Centered = true,
                 Bold = true,
-                TextSize = 12,
+                Outlined = true,
+                TextSize = 13,
                 BoxWidth = stripWidth - 2,
                 BoxHeight = (int)Math.Round(segment),
                 PositionY = (int)Math.Round((i - ((RotaryButtonPage.StripSegmentCount - 1) / 2.0)) * segment)
@@ -316,19 +322,33 @@ public sealed class StarterProfileBuilder(DeviceShape shape, bool isWindows, ISt
         return index < page.TouchButtons.Count ? page.TouchButtons[index] : null;
     }
 
-    /// <summary>Gives every icon of every state the template's gradient and a soft shadow.</summary>
-    private void StyleIcons(TouchButton button)
+    /// <summary>
+    /// Outlines every icon and caption of every state and enlarges the captions; icons also get the
+    /// template's gradient and a soft shadow. Text a command writes at runtime is left alone.
+    /// </summary>
+    private void StyleLayers(TouchButton button)
     {
-        if (iconStyle == null)
-            return;
-
-        foreach (SymbolLayer symbol in button.States.SelectMany(state => state.Layers).OfType<SymbolLayer>())
+        foreach (LayerBase layer in button.States.SelectMany(state => state.Layers))
         {
-            symbol.UseGradient = true;
-            symbol.GradientStartColor = iconStyle.GradientStart;
-            symbol.GradientEndColor = iconStyle.GradientEnd;
-            symbol.GradientAngle = 90;
-            symbol.Shadow = true;
+            switch (layer)
+            {
+                case SymbolLayer symbol:
+                    symbol.Outlined = true;
+                    if (iconStyle == null)
+                        break;
+
+                    symbol.UseGradient = true;
+                    symbol.GradientStartColor = iconStyle.GradientStart;
+                    symbol.GradientEndColor = iconStyle.GradientEnd;
+                    symbol.GradientAngle = 90;
+                    symbol.Shadow = true;
+                    break;
+
+                case TextLayer text when !text.IsCommandOwned:
+                    text.Outlined = true;
+                    text.TextSize += CaptionSizeIncrease;
+                    break;
+            }
         }
     }
 
