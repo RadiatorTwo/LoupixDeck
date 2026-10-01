@@ -1,3 +1,4 @@
+using Avalonia.Media;
 using LoupixDeck.Models;
 using static LoupixDeck.Services.StarterProfiles.StarterCommands;
 
@@ -16,6 +17,9 @@ internal sealed class MediaTemplate : StarterProfileTemplate
     protected override string NameKey => "StarterProfile_Media_Name";
     protected override string DescriptionKey => "StarterProfile_Media_Description";
     public override string SymbolId => "music";
+
+    public override StarterIconStyle IconStyle { get; } =
+        new(Color.Parse("#FF9CC2"), Color.Parse("#FFB86B"));
 
     public override IReadOnlyList<StarterPluginRequirement> GetRequiredPlugins(bool isWindows) =>
         [isWindows ? MediaSession : Mpris];

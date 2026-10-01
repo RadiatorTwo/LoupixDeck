@@ -1,3 +1,4 @@
+using Avalonia.Media;
 using LoupixDeck.Localization;
 using LoupixDeck.Models;
 using LoupixDeck.Utils;
@@ -8,6 +9,10 @@ namespace LoupixDeck.Services.StarterProfiles;
 /// <param name="Id">Plugin id as in <c>plugin.json</c> and the Plugin Store catalog.</param>
 /// <param name="Name">Name shown when offering to install it.</param>
 public sealed record StarterPluginRequirement(string Id, string Name);
+
+/// <summary>How a template styles its key icons: a top-to-bottom gradient that picks up the colours
+/// of its wallpaper, with a soft shadow that keeps the icons readable on it.</summary>
+public sealed record StarterIconStyle(Color GradientStart, Color GradientEnd);
 
 /// <summary>
 /// A ready-made profile shipped with the app (issue #301). It is built for the attached device on
@@ -26,6 +31,9 @@ public abstract class StarterProfileTemplate
 
     /// <summary>Localization key of what to set up after creating the profile, or null.</summary>
     protected virtual string SetupNoteKey => null;
+
+    /// <summary>Style of the key icons, or null to keep them plain white.</summary>
+    public virtual StarterIconStyle IconStyle => null;
 
     /// <summary>Material Design icon shown next to the template in the picker.</summary>
     public abstract string SymbolId { get; }

@@ -22,6 +22,9 @@ internal sealed class ObsTemplate : StarterProfileTemplate
     protected override string SetupNoteKey => "StarterProfile_Obs_SetupNote";
     public override string SymbolId => "broadcast";
 
+    public override StarterIconStyle IconStyle { get; } =
+        new(Color.Parse("#FFFFFF"), Color.Parse("#FF8A8A"));
+
     public override IReadOnlyList<StarterPluginRequirement> GetRequiredPlugins(bool isWindows) => [Obs];
 
     public override void Build(StarterProfileBuilder b, Profile profile)

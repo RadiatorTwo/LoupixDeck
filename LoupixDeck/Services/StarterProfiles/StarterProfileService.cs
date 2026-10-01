@@ -90,7 +90,7 @@ public sealed class StarterProfileService(
             pageManager.SideRotaryButtonCount, pageManager.HasIndependentRotarySides, config.Geometry);
 
         Profile profile = new() { Name = UniqueName(template.Name) };
-        template.Build(new StarterProfileBuilder(shape, IsWindows, art, template.Id), profile);
+        template.Build(new StarterProfileBuilder(shape, IsWindows, art, template.Id, template.IconStyle), profile);
         PortablePayloadNormalizer.Normalize(profile, shape.TouchButtonCount, shape.RotaryButtonCount,
             shape.SideRotaryButtonCount);
 

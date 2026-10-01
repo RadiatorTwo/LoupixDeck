@@ -20,6 +20,9 @@ internal sealed class FeatureTourTemplate : StarterProfileTemplate
     protected override string DescriptionKey => "StarterProfile_Tour_Description";
     public override string SymbolId => "compass";
 
+    public override StarterIconStyle IconStyle { get; } =
+        new(Color.Parse("#7AF7DA"), Color.Parse("#9C8CFF"));
+
     public override void Build(StarterProfileBuilder b, Profile profile)
     {
         Workspace tour = b.AddWorkspace(profile, "Tour");

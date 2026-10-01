@@ -1,3 +1,4 @@
+using Avalonia.Media;
 using LoupixDeck.Models;
 using static LoupixDeck.Services.StarterProfiles.StarterCommands;
 
@@ -10,6 +11,9 @@ internal sealed class BasicStarterTemplate : StarterProfileTemplate
     protected override string NameKey => "StarterProfile_Basic_Name";
     protected override string DescriptionKey => "StarterProfile_Basic_Description";
     public override string SymbolId => "rocket-launch";
+
+    public override StarterIconStyle IconStyle { get; } =
+        new(Color.Parse("#A9C9FF"), Color.Parse("#B98BFF"));
 
     public override void Build(StarterProfileBuilder b, Profile profile)
     {

@@ -1,3 +1,4 @@
+using Avalonia.Media;
 using LoupixDeck.Models;
 using static LoupixDeck.Services.StarterProfiles.StarterCommands;
 
@@ -14,6 +15,9 @@ internal sealed class DaVinciResolveTemplate : StarterProfileTemplate
     protected override string DescriptionKey => "StarterProfile_Resolve_Description";
     protected override string SetupNoteKey => "StarterProfile_Resolve_SetupNote";
     public override string SymbolId => "movie-roll";
+
+    public override StarterIconStyle IconStyle { get; } =
+        new(Color.Parse("#8BE6EE"), Color.Parse("#FFB36B"));
 
     public override void Build(StarterProfileBuilder b, Profile profile)
     {

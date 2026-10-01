@@ -22,7 +22,9 @@ public sealed record StarterState(string Name, string Label, string SymbolId, Co
 /// template's wallpaper, plus matching side-display wallpapers on a device with side strips.
 /// </summary>
 /// <param name="theme">Name of the template's art in <c>Assets/StarterProfiles</c> (its id).</param>
-public sealed class StarterProfileBuilder(DeviceShape shape, bool isWindows, IStarterArt art, string theme)
+/// <param name="iconStyle">Applied to every key icon; null keeps the icons plain.</param>
+public sealed class StarterProfileBuilder(DeviceShape shape, bool isWindows, IStarterArt art, string theme,
+    StarterIconStyle iconStyle = null)
 {
     private const string WallpaperFolder = "wallpapers";
     private const string AnimationFolder = "animations";
@@ -91,6 +93,7 @@ public sealed class StarterProfileBuilder(DeviceShape shape, bool isWindows, ISt
         if (background is { } color)
             Paint(button, color);
 
+        StyleIcons(button);
         return button;
     }
 
@@ -173,6 +176,7 @@ public sealed class StarterProfileBuilder(DeviceShape shape, bool isWindows, ISt
             }
         }
 
+        StyleIcons(button);
         button.RewireLayerHandlers();
 
         if (ownedByCommand)
@@ -310,6 +314,22 @@ public sealed class StarterProfileBuilder(DeviceShape shape, bool isWindows, ISt
 
         int index = (row * Columns) + column;
         return index < page.TouchButtons.Count ? page.TouchButtons[index] : null;
+    }
+
+    /// <summary>Gives every icon of every state the template's gradient and a soft shadow.</summary>
+    private void StyleIcons(TouchButton button)
+    {
+        if (iconStyle == null)
+            return;
+
+        foreach (SymbolLayer symbol in button.States.SelectMany(state => state.Layers).OfType<SymbolLayer>())
+        {
+            symbol.UseGradient = true;
+            symbol.GradientStartColor = iconStyle.GradientStart;
+            symbol.GradientEndColor = iconStyle.GradientEnd;
+            symbol.GradientAngle = 90;
+            symbol.Shadow = true;
+        }
     }
 
     private static void Paint(TouchButton button, Color color)
