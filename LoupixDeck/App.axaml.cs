@@ -21,6 +21,7 @@ public partial class App : Application
     private IServiceProvider _root;
     private MainShellViewModel _shell;
     private IClassicDesktopStyleApplicationLifetime _desktop;
+    private bool _firstStart;
 
     public override void Initialize()
     {
@@ -52,6 +53,10 @@ public partial class App : Application
                               "LOUPIXDECK_FAKE_DEVICE has no effect.");
 #endif
 
+            // Read before any device is brought up, which writes the first config: without one this is
+            // the very first start, which offers the starter profiles (issue #301).
+            _firstStart = IsFirstStart();
+
             // Bring up EVERY connected supported device in parallel (issue #116 phase 2).
             var connected = ActiveDeviceResolver.ResolveAll();
 
@@ -74,6 +79,21 @@ public partial class App : Application
         }
 
         base.OnFrameworkInitializationCompleted();
+    }
+
+    /// <summary>True when no device config exists yet, neither per device nor the legacy <c>config.json</c>.</summary>
+    private static bool IsFirstStart()
+    {
+        try
+        {
+            string configDir = FileDialogHelper.GetConfigDir();
+            return !Directory.Exists(configDir) || !Directory.EnumerateFiles(configDir, "config*.json").Any();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Console.WriteLine($"[Startup] Could not tell whether this is the first start: {ex.Message}");
+            return false;
+        }
     }
 
     /// <summary>
@@ -259,6 +279,8 @@ public partial class App : Application
             // Configs that use commands of plugins that are not installed (issue #234): point to the store.
             // Not awaited, so a slow catalog download never holds up the rest of startup.
             _ = shell.PromptForMissingPluginsAsync();
+
+            shell.OfferStarterProfilesOnFirstStart(_firstStart);
         }
         catch (Exception ex)
         {
