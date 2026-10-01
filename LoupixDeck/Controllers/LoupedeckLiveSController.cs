@@ -1113,8 +1113,10 @@ public partial class LoupedeckLiveSController(
     /// </summary>
     private async Task DrawSideStrip(RotarySide side)
     {
+        // Any side-strip device, not just the Razer: the Loupedeck CT shares the Razer's
+        // slot indexes (12/13) and routes them to its own framebuffer in DrawTouchSlot.
         var device = deviceService.Device;
-        if (device is not LoupedeckDevice.Device.RazerStreamControllerDevice razer)
+        if (device is not { HasSideStrips: true })
             return;
 
         var page = pageManager.GetCurrentRotaryPage(side);
@@ -1133,7 +1135,7 @@ public partial class LoupedeckLiveSController(
         var slotButton = config.CurrentTouchButtonPage?.TouchButtons?.FindByIndex(slotIndex);
         slotButton?.RenderedImage = strip;
 
-        await razer.DrawTouchSlot(slotIndex, strip);
+        await device.DrawTouchSlot(slotIndex, strip);
     }
 
     /// <summary>
