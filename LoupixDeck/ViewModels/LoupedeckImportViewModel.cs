@@ -181,12 +181,12 @@ public sealed partial class LoupedeckImportViewModel : DialogViewModelBase<Dialo
 
     partial void OnIsImportingChanged(bool value) => ImportCommand.NotifyCanExecuteChanged();
 
-    private Lp5DeviceShape Shape => new(_deviceService.TouchButtonCount, _deviceService.RotaryButtonCount,
+    private DeviceShape Shape => new(_deviceService.TouchButtonCount, _deviceService.RotaryButtonCount,
         _pageManager.SideRotaryButtonCount, _pageManager.HasIndependentRotarySides, _geometry);
 
     public async Task InitializeAsync()
     {
-        Lp5DeviceShape shape = Shape;
+        DeviceShape shape = Shape;
 
         try
         {

@@ -4,6 +4,7 @@ using LoupixDeck.LoupedeckDevice;
 using LoupixDeck.LoupedeckDevice.Device;
 using LoupixDeck.Models;
 using LoupixDeck.Models.Layers;
+using LoupixDeck.Registry;
 using Newtonsoft.Json.Linq;
 
 namespace LoupixDeck.Services.Import.Lp5;
@@ -34,7 +35,7 @@ public sealed class Lp5Converter
     private static readonly Color UnmappedBackground = Color.Parse("#54202B");
 
     private readonly Lp5Archive _archive;
-    private readonly Lp5DeviceShape _shape;
+    private readonly DeviceShape _shape;
     private readonly Lp5LayerFactory _layers;
     private readonly Lp5ActionResolver _resolver;
     private readonly Dictionary<string, Guid> _workspaceIds = new(StringComparer.Ordinal);
@@ -46,7 +47,7 @@ public sealed class Lp5Converter
     private int _movedDials;
     private int _wheelPages;
 
-    private Lp5Converter(Lp5Archive archive, Lp5DeviceShape shape, IAssetService assets)
+    private Lp5Converter(Lp5Archive archive, DeviceShape shape, IAssetService assets)
     {
         _archive = archive;
         _shape = shape;
@@ -66,7 +67,7 @@ public sealed class Lp5Converter
 
     /// <summary>Converts <paramref name="archive"/> for a device of <paramref name="shape"/>.</summary>
     /// <param name="assets">Asset store for icons; null for a preview that stores nothing.</param>
-    public static Lp5ConversionResult Convert(Lp5Archive archive, Lp5DeviceShape shape, IAssetService assets) =>
+    public static Lp5ConversionResult Convert(Lp5Archive archive, DeviceShape shape, IAssetService assets) =>
         new Lp5Converter(archive, shape, assets).Run();
 
     /// <summary>

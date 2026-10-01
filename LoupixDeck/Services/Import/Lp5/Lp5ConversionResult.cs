@@ -1,21 +1,6 @@
 using LoupixDeck.Models;
-using LoupixDeck.Registry;
 
 namespace LoupixDeck.Services.Import.Lp5;
-
-/// <summary>The control layout of the device a Loupedeck profile is converted for.</summary>
-/// <param name="TouchButtonCount">Touch slots per page, including any side-strip slots.</param>
-/// <param name="RotaryButtonCount">Dials on a shared (both-sides) rotary page.</param>
-/// <param name="SideRotaryButtonCount">Dials on one side's rotary page.</param>
-/// <param name="HasIndependentRotarySides">True when the device has left and right dial columns
-/// with their own pages and side strips (Razer Stream Controller).</param>
-/// <param name="Geometry">Pixel geometry, used to place icons and labels.</param>
-public sealed record Lp5DeviceShape(
-    int TouchButtonCount,
-    int RotaryButtonCount,
-    int SideRotaryButtonCount,
-    bool HasIndependentRotarySides,
-    DeviceGeometry Geometry);
 
 /// <summary>Why a Loupedeck assignment could not be converted.</summary>
 public enum Lp5UnsupportedReason

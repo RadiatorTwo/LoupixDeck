@@ -478,6 +478,10 @@ public static class ServiceCollectionExtensions
         // workspace or page. Device-scoped — it needs this device's config and geometry.
         collection.AddSingleton<Services.Portable.IProfilePackageService, Services.Portable.ProfilePackageService>();
 
+        // Starter profiles (issue #301): built for this device's controls, so device-scoped too.
+        collection.AddSingleton<Services.StarterProfiles.IStarterArt, Services.StarterProfiles.StarterArt>();
+        collection.AddSingleton<Services.StarterProfiles.IStarterProfileService, Services.StarterProfiles.StarterProfileService>();
+
         // Plugin full-display raw-BGRA renderer (issue #124): single-owner, drives a plugin
         // IFullDisplayRenderer on the central scheduler for high-throughput full-screen content
         // (e.g. video streaming) that Exclusive Mode's per-slot PNG tiles can't sustain.
@@ -606,6 +610,9 @@ public static class ServiceCollectionExtensions
         collection.AddTransient<ProfileExport>();
         collection.AddTransient<ProfileExportViewModel>();
 
+        collection.AddTransient<StarterProfilePicker>();
+        collection.AddTransient<StarterProfilePickerViewModel>();
+
         collection.AddSingleton<IDialogService, DialogService>();
     }
 
@@ -665,6 +672,7 @@ public static class ServiceCollectionExtensions
         dialogService.Register<ProfileImportViewModel, ProfileImport>();
         dialogService.Register<LoupedeckImportViewModel, LoupedeckImport>();
         dialogService.Register<ProfileExportViewModel, ProfileExport>();
+        dialogService.Register<StarterProfilePickerViewModel, StarterProfilePicker>();
 
         // Heal configs that were saved before HapticSteps had ObjectCreationHandling.Replace —
         // those files accumulated duplicate steps on every save+load round.

@@ -109,6 +109,53 @@ public sealed class MainShellViewModel : ViewModelBase
     /// <summary><c>ui-settings.json</c> key: ids of missing plugins the user declined to install, comma-separated.</summary>
     private const string DeclinedMissingPluginsKey = "PluginStoreDeclinedMissing";
 
+    /// <summary><c>ui-settings.json</c> key: true once the starter profiles were offered on the first start.</summary>
+    private const string StarterProfilesOfferedKey = "StarterProfilesOffered";
+
+    /// <summary>
+    /// On the very first start of LoupixDeck (no device config existed yet), opens the starter profile
+    /// picker (issue #301) for the first device that shows up: right away when one is connected, else
+    /// when one is plugged in. Offered once; an update of an existing installation never shows it.
+    /// </summary>
+    public void OfferStarterProfilesOnFirstStart(bool firstStart)
+    {
+        if (!firstStart || Utils.UiSettingsStore.GetBool(StarterProfilesOfferedKey, false))
+            return;
+
+        if (SelectedDevice != null)
+        {
+            _ = OfferStarterProfilesAsync();
+            return;
+        }
+
+        void OnDeviceSelected(object sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName != nameof(SelectedDevice) || SelectedDevice == null)
+                return;
+
+            PropertyChanged -= OnDeviceSelected;
+            _ = OfferStarterProfilesAsync();
+        }
+
+        PropertyChanged += OnDeviceSelected;
+    }
+
+    private async Task OfferStarterProfilesAsync()
+    {
+        // Remembered before the picker opens, so it is never offered twice, whatever the user picks.
+        Utils.UiSettingsStore.Set(StarterProfilesOfferedKey, true);
+
+        try
+        {
+            if (SelectedDevice?.ProfileMenu is { } menu)
+                await menu.OfferStarterProfilesOnFirstStart();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[StarterProfiles] Offering the starter profiles failed: {ex.Message}");
+        }
+    }
+
     /// <summary>
     /// After startup: when the configs use commands of plugins that are not installed, offers to open the
     /// store for them. Asked once per plugin; declining is remembered. Never throws.

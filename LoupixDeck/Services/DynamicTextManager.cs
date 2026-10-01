@@ -424,6 +424,13 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
 
                 var validKey = ResolveDisplayKey(button);
 
+                // A bound command whose plugin is not loaded (missing, disabled, not yet installed)
+                // keeps its layer: the plugin may come back, and the layer carries the user's
+                // placement and visibility for it.
+                var unresolvedKey = validKey == null && IsUnregistered(button.Command)
+                    ? PluginLayerKey.For(button.Command)
+                    : null;
+
                 // Layers live per state, and a command that declares states owns one layer in each
                 // of them — so sweep every state, not just the active one.
                 foreach (var state in button.States.ToArray())
@@ -432,6 +439,9 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
                     if (!layer.IsCommandOwned)
                         continue;
                     if (validKey != null && string.Equals(layer.OwnerKey, validKey, StringComparison.Ordinal))
+                        continue;
+                    if (layer is PluginLayer && unresolvedKey != null &&
+                        string.Equals(layer.OwnerKey, unresolvedKey, StringComparison.Ordinal))
                         continue;
 
                     switch (layer)
@@ -460,6 +470,13 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
     /// The owner key the button's currently bound command would produce, or <c>null</c> when
     /// the button is not bound to a registered text/image display command.
     /// </summary>
+    /// <summary>True when the command string names a command that is not registered on this device.</summary>
+    private bool IsUnregistered(string command)
+    {
+        var name = string.IsNullOrWhiteSpace(command) ? null : CommandStringParser.GetName(command);
+        return !string.IsNullOrEmpty(name) && _commandRegistry.Get(name) == null;
+    }
+
     private string ResolveDisplayKey(TouchButton button)
     {
         if (button == null || string.IsNullOrWhiteSpace(button.Command))

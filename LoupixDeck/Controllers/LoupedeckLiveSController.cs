@@ -2117,10 +2117,18 @@ public partial class LoupedeckLiveSController(
             await device.DrawTouchSlot(button.Index, flash);
             await Task.Delay(100);
 
-            // Restore — if we have a cached original, draw it directly; otherwise
+            // The press may have opened a folder, switched the page or changed the key's state
+            // while the flash was up. The new content is already on the device then, and the image
+            // captured before the press would paint over it, so a key that left the slot is not
+            // restored and one that stayed gets its current image.
+            if (!ReferenceEquals(config.CurrentTouchButtonPage?.TouchButtons.FindByIndex(button.Index), button))
+                return;
+
+            // Restore — if the key has a rendered image, draw it directly; otherwise
             // re-render the button through its normal path.
-            if (original != null)
-                await device.DrawTouchSlot(button.Index, original);
+            var current = button.RenderedImage;
+            if (current != null)
+                await device.DrawTouchSlot(button.Index, current);
             else
                 await device.DrawTouchButton(button, config, true);
         }
