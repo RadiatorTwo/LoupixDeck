@@ -4,6 +4,7 @@ using LoupixDeck.Models;
 using LoupixDeck.Models.Layers;
 using LoupixDeck.Registry;
 using LoupixDeck.Services.Actions;
+using LoupixDeck.Utils;
 
 namespace LoupixDeck.Services.StarterProfiles;
 
@@ -150,10 +151,29 @@ public sealed class StarterProfileBuilder(DeviceShape shape, bool isWindows, ISt
         {
             state.Name = spec.Name;
             state.Command = command;
+            // AddLayers writes to the active state and then rewires the button, which falls back to
+            // the default state, so everything after it goes to the state object itself.
             button.SetActiveState(state.Id);
             ActionAssignment.AddLayers(button, spec.Label, spec.SymbolId, KeySize, KeySize);
-            Paint(button, spec.Background);
+            state.BackColor = spec.Background;
+            state.BackgroundEnabled = true;
+
+            // The states carry their own look, so the indicator the plugin would draw over it is
+            // hidden. The host reuses this layer (same owner key) instead of adding a visible one.
+            if (ownedByCommand)
+            {
+                state.Layers.Add(new PluginLayer
+                {
+                    Name = CommandStringParser.GetName(command),
+                    OwnerKey = PluginLayerKey.For(command),
+                    CommandName = CommandStringParser.GetName(command),
+                    OwnerCreated = true,
+                    Visible = false
+                });
+            }
         }
+
+        button.RewireLayerHandlers();
 
         if (ownedByCommand)
         {
