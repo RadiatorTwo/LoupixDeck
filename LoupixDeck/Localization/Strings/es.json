@@ -1259,8 +1259,8 @@
   "Plugins_RequirementsRecheck": "Comprobar de nuevo",
 
   "MainWindow_NewStarterProfile": "Nuevo perfil desde plantilla…",
-  "Settings_AddStarterProfile": "Añadir perfil inicial…",
-  "Settings_AddStarterProfileHint": "Añadir un perfil listo para usar que muestra lo que puede hacer LoupixDeck",
+  "Settings_AddStarterProfile": "Añadir perfil desde plantilla…",
+  "Settings_AddStarterProfileHint": "Añadir un perfil desde una plantilla lista para usar que muestra lo que puede hacer LoupixDeck",
   "StarterPicker_Title": "Nuevo perfil desde plantilla",
   "StarterPicker_Intro": "Elige un perfil inicial. Se añade como un perfil nuevo adaptado a este dispositivo; tus perfiles existentes no cambian.",
   "StarterPicker_DeviceUnavailable": "El dispositivo no está conectado. Los perfiles iniciales se adaptan a sus teclas y diales, así que conéctalo primero.",

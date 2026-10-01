@@ -1259,8 +1259,8 @@
   "Plugins_RequirementsRecheck": "Check again",
 
   "MainWindow_NewStarterProfile": "New profile from template…",
-  "Settings_AddStarterProfile": "Add starter profile…",
-  "Settings_AddStarterProfileHint": "Add a ready-made profile that shows what LoupixDeck can do",
+  "Settings_AddStarterProfile": "Add profile from template…",
+  "Settings_AddStarterProfileHint": "Add a profile from a ready-made template that shows what LoupixDeck can do",
   "StarterPicker_Title": "New profile from template",
   "StarterPicker_Intro": "Pick a starter profile. It is added as a new profile laid out for this device; your existing profiles stay as they are.",
   "StarterPicker_DeviceUnavailable": "The device is not connected. Starter profiles are laid out for its keys and dials, so connect it first.",

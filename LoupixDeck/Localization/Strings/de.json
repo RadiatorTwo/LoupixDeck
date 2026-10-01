@@ -1259,8 +1259,8 @@
   "Plugins_RequirementsRecheck": "Erneut prüfen",
 
   "MainWindow_NewStarterProfile": "Neues Profil aus Vorlage…",
-  "Settings_AddStarterProfile": "Startprofil hinzufügen…",
-  "Settings_AddStarterProfileHint": "Ein fertiges Profil hinzufügen, das zeigt, was LoupixDeck kann",
+  "Settings_AddStarterProfile": "Profil aus Template hinzufügen…",
+  "Settings_AddStarterProfileHint": "Ein Profil aus einem fertigen Template hinzufügen, das zeigt, was LoupixDeck kann",
   "StarterPicker_Title": "Neues Profil aus Vorlage",
   "StarterPicker_Intro": "Wähle ein Startprofil. Es wird als neues Profil passend für dieses Gerät angelegt; deine vorhandenen Profile bleiben unverändert.",
   "StarterPicker_DeviceUnavailable": "Das Gerät ist nicht verbunden. Startprofile werden für seine Tasten und Drehregler angelegt, verbinde es daher zuerst.",
