@@ -61,6 +61,12 @@ public partial class MainWindowViewModel : ViewModelBase
     public IRelayCommand NextRotaryPageCommand { get; }
     public IRelayCommand PreviousRotaryPageCommand { get; }
 
+    // Loupedeck CT centre-wheel modes of the current touch page (device view pager).
+    public IRelayCommand AddWheelModeCommand { get; }
+    public IRelayCommand DeleteWheelModeCommand { get; }
+    public IRelayCommand NextWheelModeCommand { get; }
+    public IRelayCommand PreviousWheelModeCommand { get; }
+
     // Side-specific rotary paging — used by the Razer layout, whose two dial columns
     // page independently. Bound per side (Left/Right) in the device layout.
     public IRelayCommand AddLeftRotaryPageCommand { get; }
@@ -373,6 +379,11 @@ public partial class MainWindowViewModel : ViewModelBase
         RotaryPageButtonCommand = new RelayCommand<int>(RotaryPageButton_Click);
         NextRotaryPageCommand = new RelayCommand(NextRotaryPage_Click);
         PreviousRotaryPageCommand = new RelayCommand(PreviousRotaryPage_Click);
+
+        AddWheelModeCommand = new RelayCommand(() => LoupedeckController.AddWheelMode());
+        DeleteWheelModeCommand = new RelayCommand(() => LoupedeckController.DeleteWheelMode());
+        NextWheelModeCommand = new RelayCommand(() => LoupedeckController.StepWheelMode(1));
+        PreviousWheelModeCommand = new RelayCommand(() => LoupedeckController.StepWheelMode(-1));
 
         AddLeftRotaryPageCommand = new RelayCommand(() => AddRotaryPageForSide(RotarySide.Left));
         DeleteLeftRotaryPageCommand = new RelayCommand(() => DeleteRotaryPageForSide(RotarySide.Left));

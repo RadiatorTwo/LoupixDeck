@@ -93,15 +93,73 @@ public sealed partial class TouchButtonPage(int pageSize) : ButtonPageBase()
     public CommandWrap TouchButtonWrap { get; set; } = new();
 
     /// <summary>
-    /// The Loupedeck CT's centre wheel binding for this page: rotate left/right, press (a tap
-    /// on the wheel's screen) and the label drawn on that screen. Kept on the touch page rather
-    /// than in a rotary page set so the wheel follows the page, workspace and profile the user
-    /// is on. Present on every page but only consumed on devices with a wheel; additive —
-    /// missing in older JSON simply keeps the empty default.
+    /// The Loupedeck CT's centre wheel modes for this page. Each mode is a full wheel binding —
+    /// rotate left/right, press (a tap on the wheel's screen) and the label drawn on that screen —
+    /// and the user switches between them from the wheel's on-screen menu (swipe up/down, tap).
+    /// Kept on the touch page rather than in a rotary page set so the wheel follows the page,
+    /// workspace and profile the user is on. Never empty; consumed only on devices with a wheel.
+    /// Replace, not reuse: Newtonsoft would otherwise append the saved modes to the default one.
     /// </summary>
-    public RotaryButton Wheel
+    [JsonProperty(ObjectCreationHandling = ObjectCreationHandling.Replace)]
+    public List<RotaryButton> WheelModes
     {
         get;
-        set => field = value ?? new RotaryButton(LoupedeckDevice.Device.LoupedeckDevice.WheelRotaryIndex, string.Empty, string.Empty);
-    } = new(LoupedeckDevice.Device.LoupedeckDevice.WheelRotaryIndex, string.Empty, string.Empty);
+        set
+        {
+            field = value is { Count: > 0 } ? value : [NewWheelMode()];
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(Wheel));
+            OnPropertyChanged(nameof(WheelModeLabel));
+        }
+    } = [NewWheelMode()];
+
+    /// <summary>Which of <see cref="WheelModes"/> is active. Persisted, so each page reopens on the
+    /// mode it was left on; out-of-range values (a hand-edited config) clamp.</summary>
+    public int WheelModeIndex
+    {
+        get;
+        set
+        {
+            if (field == value) return;
+            field = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(Wheel));
+            OnPropertyChanged(nameof(WheelModeLabel));
+        }
+    }
+
+    /// <summary>The active wheel mode — what turning and pressing the wheel run and what its screen
+    /// shows.</summary>
+    [JsonIgnore]
+    public RotaryButton Wheel => WheelModes[Math.Clamp(WheelModeIndex, 0, WheelModes.Count - 1)];
+
+    /// <summary>"active / total" for the device view's wheel-mode pager.</summary>
+    [JsonIgnore]
+    public string WheelModeLabel => $"{Math.Clamp(WheelModeIndex, 0, WheelModes.Count - 1) + 1} / {WheelModes.Count}";
+
+    /// <summary>
+    /// Reads the single-binding <c>Wheel</c> that pages carried before wheel modes existed and
+    /// keeps it as the only mode. Read-only for JSON: it is never written back.
+    /// </summary>
+    [JsonProperty("Wheel")]
+    private RotaryButton LegacyWheel
+    {
+        get => null;
+        set
+        {
+            if (value != null) WheelModes = [value];
+        }
+    }
+
+    public bool ShouldSerializeLegacyWheel() => false;
+
+    /// <summary>Notifies the device view after <see cref="WheelModes"/> was changed in place.</summary>
+    public void NotifyWheelModesChanged()
+    {
+        OnPropertyChanged(nameof(Wheel));
+        OnPropertyChanged(nameof(WheelModeLabel));
+    }
+
+    public static RotaryButton NewWheelMode() =>
+        new(LoupedeckDevice.Device.LoupedeckDevice.WheelRotaryIndex, string.Empty, string.Empty);
 }

@@ -2221,6 +2221,7 @@ public partial class LoupedeckLiveSController(
         }
 
         if (!TryGetRotaryIndex(e.ButtonId, out var idx)) return;
+        if (IsWheelIndex(idx) && TryScrollWheelMenu(e.Delta)) return;
         var resolved = ResolveRotaryButton(idx);
         if (resolved == null) return;
         var (page, btn) = resolved.Value;

@@ -17,6 +17,12 @@ namespace LoupixDeck.Controllers;
 /// still touch there is treated as the press, and a horizontal swipe across it switches workspace
 /// (left = next, matching the slide direction of the touch-page transition).
 /// </para>
+/// <para>
+/// A page can hold several wheel modes (<see cref="Models.TouchButtonPage.WheelModes"/>). A vertical
+/// swipe opens the mode menu on the wheel screen and moves its highlight; turning the wheel scrolls
+/// it too, a tap switches to the highlighted mode, and it closes by itself after a few idle seconds
+/// without changing anything.
+/// </para>
 /// </summary>
 public partial class LoupedeckLiveSController
 {
@@ -40,6 +46,14 @@ public partial class LoupedeckLiveSController
     private readonly Dictionary<byte, (int X, int Y, long Timestamp)> _wheelTouchStarts = new();
     private readonly Dictionary<byte, (int X, int Y)> _wheelTouchLast = new();
     private long _lastWheelTapTimestamp;
+
+    // Mode menu state. Touched from the serial read thread (touches, turns) and the auto-close
+    // timer, hence the lock. The menu belongs to the page it was opened on: a page change closes it.
+    private readonly Lock _wheelMenuLock = new();
+    private Models.TouchButtonPage _wheelMenuPage;
+    private int _wheelMenuHighlight;
+    private CancellationTokenSource _wheelMenuCloseCts;
+    private const int WheelMenuIdleCloseMs = 4000;
 
     // Serialises wheel redraws and coalesces bursts — an adjustment command turned quickly
     // asks for one repaint per detent. Same scheme as the exclusive-mode redraw gate.
@@ -77,12 +91,24 @@ public partial class LoupedeckLiveSController
             if (Interlocked.Read(ref _wheelDrawnGen) >= requested) return;
             var snapshot = Interlocked.Read(ref _wheelRequestedGen);
 
-            var wheel = config.CurrentTouchButtonPage?.Wheel;
+            var page = config.CurrentTouchButtonPage;
+            var wheel = page?.Wheel;
             if (wheel == null) return;
 
-            // Resolved before rendering, outside the Skia gate — see RenderStripFor.
-            AdjustmentValue? value = ResolveDialAdjustmentValue(wheel, Device.WheelRotaryIndex);
-            var frame = BitmapHelper.RenderWheelScreen(wheel, value, device.WheelScreenSize);
+            SkiaSharp.SKBitmap frame;
+            if (TryGetOpenWheelMenu(page, out var highlight))
+            {
+                var labels = page.WheelModes.Select((mode, i) =>
+                    string.IsNullOrWhiteSpace(mode?.DisplayText) ? $"Mode {i + 1}" : mode.DisplayText).ToList();
+                frame = BitmapHelper.RenderWheelMenu(labels, highlight,
+                    Math.Clamp(page.WheelModeIndex, 0, labels.Count - 1), device.WheelScreenSize);
+            }
+            else
+            {
+                // Resolved before rendering, outside the Skia gate — see RenderStripFor.
+                AdjustmentValue? value = ResolveDialAdjustmentValue(wheel, Device.WheelRotaryIndex);
+                frame = BitmapHelper.RenderWheelScreen(wheel, value, device.WheelScreenSize);
+            }
 
             // The setter owns the bitmap's lifetime (deferred dispose); the push below and the
             // UI binding both read it, so it is not disposed here.
@@ -145,7 +171,15 @@ public partial class LoupedeckLiveSController
         var dy = endY - start.Y;
         if (Math.Abs(dx) >= WheelSwipeMinTravel && Math.Abs(dx) >= Math.Abs(dy) * WheelSwipeDominance)
         {
+            CloseWheelMenu(redraw: false);
             OnWheelSwiped(next: dx < 0);
+            return;
+        }
+
+        if (Math.Abs(dy) >= WheelSwipeMinTravel && Math.Abs(dy) >= Math.Abs(dx) * WheelSwipeDominance)
+        {
+            // Swiping up scrolls the list up, bringing the next mode into the middle.
+            StepWheelMenu(dy < 0 ? 1 : -1);
             return;
         }
 
@@ -158,7 +192,149 @@ public partial class LoupedeckLiveSController
             return;
         _lastWheelTapTimestamp = now;
 
+        if (TrySelectWheelMenuHighlight()) return;
         OnWheelPressed();
+    }
+
+    /// <summary>
+    /// True (with the highlighted index) while the mode menu is open on <paramref name="page"/>.
+    /// A menu left open on another page is stale and closed here.
+    /// </summary>
+    private bool TryGetOpenWheelMenu(Models.TouchButtonPage page, out int highlight)
+    {
+        lock (_wheelMenuLock)
+        {
+            highlight = _wheelMenuHighlight;
+            if (_wheelMenuPage == null) return false;
+            if (ReferenceEquals(_wheelMenuPage, page) && page.WheelModes.Count > 1) return true;
+
+            _wheelMenuPage = null;
+            _wheelMenuCloseCts?.Cancel();
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Opens the mode menu (on the active mode) or moves its highlight by <paramref name="step"/>,
+    /// wrapping, and restarts the idle close. A no-op on a page with a single mode, or while
+    /// something else owns the wheel.
+    /// </summary>
+    private void StepWheelMenu(int step)
+    {
+        using var _routerScope = router.Enter(serviceProvider);
+        if (StopFullDisplayOnInput()) return;
+        if (_isDeviceOff || folderNav.IsActive || exclusiveMode.Owns(ExclusiveControlScope.RotaryPress))
+            return;
+
+        var page = config.CurrentTouchButtonPage;
+        var count = page?.WheelModes.Count ?? 0;
+        if (count < 2) return;
+
+        lock (_wheelMenuLock)
+        {
+            if (!ReferenceEquals(_wheelMenuPage, page))
+            {
+                _wheelMenuPage = page;
+                _wheelMenuHighlight = Math.Clamp(page.WheelModeIndex, 0, count - 1);
+            }
+
+            _wheelMenuHighlight = ((_wheelMenuHighlight + step) % count + count) % count;
+            RestartWheelMenuCloseTimer();
+        }
+
+        _ = RedrawWheel();
+    }
+
+    /// <summary>While the mode menu is open, a wheel turn scrolls its highlight instead of running the
+    /// active mode's command. Returns true when the turn was consumed.</summary>
+    private bool TryScrollWheelMenu(int delta)
+    {
+        if (!TryGetOpenWheelMenu(config.CurrentTouchButtonPage, out _)) return false;
+        StepWheelMenu(Math.Sign(delta));
+        return true;
+    }
+
+    /// <summary>Tap while the mode menu is open: activate the highlighted mode and close the menu.</summary>
+    private bool TrySelectWheelMenuHighlight()
+    {
+        var page = config.CurrentTouchButtonPage;
+        if (!TryGetOpenWheelMenu(page, out var highlight)) return false;
+
+        CloseWheelMenu(redraw: false);
+        SelectWheelModeIndex(page, highlight);
+        return true;
+    }
+
+    private void RestartWheelMenuCloseTimer()
+    {
+        _wheelMenuCloseCts?.Cancel();
+        var cts = _wheelMenuCloseCts = new CancellationTokenSource();
+        _ = Task.Delay(WheelMenuIdleCloseMs, cts.Token).ContinueWith(t =>
+        {
+            if (t.IsCanceled) return;
+            lock (_wheelMenuLock)
+            {
+                if (!ReferenceEquals(_wheelMenuCloseCts, cts)) return;
+            }
+            CloseWheelMenu(redraw: true);
+        }, TaskScheduler.Default);
+    }
+
+    private void CloseWheelMenu(bool redraw)
+    {
+        lock (_wheelMenuLock)
+        {
+            if (_wheelMenuPage == null) return;
+            _wheelMenuPage = null;
+            _wheelMenuCloseCts?.Cancel();
+        }
+
+        if (redraw) _ = RedrawWheel();
+    }
+
+    private void SelectWheelModeIndex(Models.TouchButtonPage page, int index)
+    {
+        if (page == null || page.WheelModes.Count == 0) return;
+        page.WheelModeIndex = ((index % page.WheelModes.Count) + page.WheelModes.Count) % page.WheelModes.Count;
+        SaveConfig();
+        _ = RedrawWheel();
+    }
+
+    // ───────── Wheel-mode editing (device view pager) ─────────
+
+    /// <summary>Activates the next/previous wheel mode of the current page (wrapping).</summary>
+    public void StepWheelMode(int step)
+    {
+        var page = config.CurrentTouchButtonPage;
+        if (page == null) return;
+        CloseWheelMenu(redraw: false);
+        SelectWheelModeIndex(page, page.WheelModeIndex + step);
+    }
+
+    /// <summary>Adds an empty wheel mode after the active one and activates it.</summary>
+    public void AddWheelMode()
+    {
+        var page = config.CurrentTouchButtonPage;
+        if (page == null) return;
+        CloseWheelMenu(redraw: false);
+
+        var insertAt = Math.Clamp(page.WheelModeIndex + 1, 0, page.WheelModes.Count);
+        page.WheelModes.Insert(insertAt, Models.TouchButtonPage.NewWheelMode());
+        page.NotifyWheelModesChanged();
+        SelectWheelModeIndex(page, insertAt);
+    }
+
+    /// <summary>Deletes the active wheel mode; the last remaining mode is never deleted.</summary>
+    public void DeleteWheelMode()
+    {
+        var page = config.CurrentTouchButtonPage;
+        if (page == null || page.WheelModes.Count < 2) return;
+        CloseWheelMenu(redraw: false);
+
+        var index = Math.Clamp(page.WheelModeIndex, 0, page.WheelModes.Count - 1);
+        page.WheelModes.RemoveAt(index);
+        page.NotifyWheelModesChanged();
+        SelectWheelModeIndex(page, Math.Min(index, page.WheelModes.Count - 1));
     }
 
     /// <summary>

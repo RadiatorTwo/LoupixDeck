@@ -2118,6 +2118,68 @@ public static class BitmapHelper
         return bitmap;
     }
 
+    private static readonly SKColor WheelMenuHighlight = new(0x3D, 0x9B, 0xFF);
+    private static readonly SKColor WheelMenuDim = new(0x8A, 0x8A, 0x8A);
+
+    /// <summary>
+    /// Renders the CT wheel's mode menu on its round screen: the highlighted mode large in a pill
+    /// across the middle, its neighbours dimmed above and below (wrapping, like the menu itself),
+    /// a dot beside whichever mode is currently active, and the highlight's position at the bottom.
+    /// </summary>
+    public static SKBitmap RenderWheelMenu(IReadOnlyList<string> labels, int highlight, int active, int size)
+    {
+        ArgumentNullException.ThrowIfNull(labels);
+        var bitmap = new SKBitmap(size, size);
+
+        lock (SkiaRenderGate.Sync)
+        {
+            using var canvas = new SKCanvas(bitmap);
+            canvas.Clear(SKColors.Black);
+
+            var count = labels.Count;
+            if (count == 0)
+            {
+                canvas.Flush();
+                return bitmap;
+            }
+
+            float rowHeight = size * 0.24f;
+            float centreTop = (size - rowHeight) / 2f;
+            float pillInset = size * 0.12f;
+
+            using (var pill = new SKPaint { IsAntialias = true, Style = SKPaintStyle.Fill, Color = WheelMenuHighlight })
+            {
+                canvas.DrawRoundRect(new SKRect(pillInset, centreTop, size - pillInset, centreTop + rowHeight),
+                    rowHeight / 2f, rowHeight / 2f, pill);
+            }
+
+            // The rows above and below sit where the circle is narrower, so their boxes shrink.
+            void Row(int offset, float textSize, SKColor color, bool bold)
+            {
+                if (count < 2 && offset != 0) return;
+                if (count == 2 && offset == -1) return; // two modes: show the other one once, below
+                var index = ((highlight + offset) % count + count) % count;
+                float top = centreTop + offset * rowHeight * 1.05f;
+                float inset = pillInset + Math.Abs(offset) * size * 0.06f;
+                var text = labels[index];
+                if (index == active) text = "• " + text;
+                DrawTextAt(canvas, text, color, textSize, centered: true, posX: inset, posY: top,
+                    imageWidth: size - inset * 2, imageHeight: rowHeight, bold: bold);
+            }
+
+            Row(-1, 18, WheelMenuDim, false);
+            Row(1, 18, WheelMenuDim, false);
+            Row(0, 24, SKColors.White, true);
+
+            DrawTextAt(canvas, $"{highlight + 1} / {count}", WheelMenuDim, 13, centered: true,
+                posX: 0, posY: size * 0.82f, imageWidth: size, imageHeight: size * 0.1f);
+
+            canvas.Flush();
+        }
+
+        return bitmap;
+    }
+
     /// <summary>
     /// Composites two side-strip bitmaps into a single frame for a swipe-follow
     /// animation. <paramref name="current"/> is drawn shifted vertically by
