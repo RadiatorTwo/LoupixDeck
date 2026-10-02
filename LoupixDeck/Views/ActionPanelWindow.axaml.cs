@@ -25,6 +25,11 @@ namespace LoupixDeck.Views;
 /// here for the whole gesture, so the events keep arriving; they are translated into the main
 /// window's coordinates and handed to its drag machine, which then behaves exactly as it does for
 /// a drag that started inside it.
+///
+/// Following the main window is platform-dependent. On Windows and X11 the panel is re-placed from
+/// the owner's <see cref="WindowBase.PositionChanged"/>; on macOS it is made an AppKit child window
+/// instead (see <see cref="MacOsChildWindow"/>), because an owned window does not move with its
+/// owner there and chasing it one event behind read as judder.
 /// </remarks>
 public partial class ActionPanelWindow : Window
 {
@@ -64,11 +69,32 @@ public partial class ActionPanelWindow : Window
         _owner = owner;
         _dragDrop = dragDrop;
 
-        owner.PositionChanged += (_, _) => FollowOwner();
+        // Where the window server moves the panel with its owner, re-placing it here as well would
+        // move it a second time per mouse event. A resize still needs us: it can shift the owner's
+        // origin, and the panel has to take the new height either way.
+        if (!MacOsChildWindow.IsSupported)
+            owner.PositionChanged += (_, _) => FollowOwner();
         owner.Resized += (_, _) => FollowOwner();
 
         WireCommandPicker();
         FollowOwner();
+    }
+
+    protected override void OnOpened(EventArgs e)
+    {
+        base.OnOpened(e);
+
+        // Re-made on every show: ordering the panel out dissolves the relationship.
+        if (_owner != null)
+            MacOsChildWindow.Attach(_owner, this);
+    }
+
+    public override void Hide()
+    {
+        if (_owner != null)
+            MacOsChildWindow.Detach(_owner, this);
+
+        base.Hide();
     }
 
     // ── The embedded command picker ────────────────────────────────────────
@@ -133,7 +159,11 @@ public partial class ActionPanelWindow : Window
         if (frame.Height > 0)
             Height = frame.Height;
 
-        int width = (int)Math.Round((FrameSize?.Width ?? Width) * _owner.RenderScaling);
+        // A window's position is in pixels and its size in logical units, and the factor between
+        // them is DesktopScaling, not RenderScaling. The two agree on Windows and X11, but macOS
+        // positions windows in points — its DesktopScaling is 1 while a Retina display renders at 2 —
+        // so scaling by RenderScaling parked the panel a whole panel-width too far out.
+        int width = (int)Math.Round((FrameSize?.Width ?? Width) * _owner.DesktopScaling);
         Position = new PixelPoint(_owner.Position.X - width - Gap, _owner.Position.Y);
     }
 

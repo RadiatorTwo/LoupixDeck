@@ -73,10 +73,29 @@ public partial class FolderPanelWindow : Window
         _owner = owner;
         _dragDrop = dragDrop;
 
-        owner.PositionChanged += (_, _) => FollowOwner();
+        // Same arrangement as the apps panel: on macOS the window server moves the panel with its
+        // owner as an AppKit child window, so only a resize needs following there.
+        if (!MacOsChildWindow.IsSupported)
+            owner.PositionChanged += (_, _) => FollowOwner();
         owner.Resized += (_, _) => FollowOwner();
 
         FollowOwner();
+    }
+
+    protected override void OnOpened(EventArgs e)
+    {
+        base.OnOpened(e);
+
+        if (_owner != null)
+            MacOsChildWindow.Attach(_owner, this);
+    }
+
+    public override void Hide()
+    {
+        if (_owner != null)
+            MacOsChildWindow.Detach(_owner, this);
+
+        base.Hide();
     }
 
     /// <summary>Matches the owner's height and parks against its right edge.</summary>
@@ -88,7 +107,9 @@ public partial class FolderPanelWindow : Window
         if (frame.Height > 0)
             Height = frame.Height;
 
-        int ownerWidth = (int)Math.Round(frame.Width * _owner.RenderScaling);
+        // DesktopScaling, not RenderScaling: window positions are pixels and sizes logical, and on
+        // macOS the former are points, so the two factors differ there (see ActionPanelWindow).
+        int ownerWidth = (int)Math.Round(frame.Width * _owner.DesktopScaling);
         Position = new PixelPoint(_owner.Position.X + ownerWidth + Gap, _owner.Position.Y);
     }
 
