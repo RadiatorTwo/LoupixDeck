@@ -152,7 +152,7 @@
   "Device_AddRightRotaryPage": "Add right rotary page",
   "Device_AddRotaryPage": "Add rotary page",
   "Device_AddTouchPage": "Add touch page",
-  "Device_CentreWheel": "Centre wheel — turn it, or tap its screen to press. Set per touch page.",
+  "Device_CentreWheel": "Centre wheel — turn it, tap its screen to press, swipe left/right to switch workspace. Set per touch page.",
   "Device_CurrentTotalLeftRotaryPages": "Current / total left rotary pages",
   "Device_CurrentTotalRightRotaryPages": "Current / total right rotary pages",
   "Device_CurrentTotalRotaryPages": "Current / total rotary pages",

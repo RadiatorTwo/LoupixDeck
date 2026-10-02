@@ -14,7 +14,8 @@ namespace LoupixDeck.Controllers;
 /// <para>
 /// Turning it arrives as ordinary KNOB_ROTATE frames and goes through <see cref="OnRotate"/>.
 /// It has no press button code: pushing the wheel shows up as touches on its screen, so a short,
-/// still touch there is treated as the press.
+/// still touch there is treated as the press, and a horizontal swipe across it switches workspace
+/// (left = next, matching the slide direction of the touch-page transition).
 /// </para>
 /// </summary>
 public partial class LoupedeckLiveSController
@@ -29,9 +30,15 @@ public partial class LoupedeckLiveSController
     // than this are one press.
     private const int WheelTapDebounceMs = 250;
 
-    // Touch-down position and time per firmware touch id. Only touched from the serial read
-    // thread, which raises every wheel touch.
+    // A swipe must travel at least this far horizontally (on the 240px screen) and clearly more
+    // than it moved vertically, so a press that wobbles or a vertical drag never switches.
+    private const int WheelSwipeMinTravel = 60;
+    private const double WheelSwipeDominance = 1.5;
+
+    // Touch-down position and time per firmware touch id, and the latest position seen while the
+    // finger moves. Only touched from the serial read thread, which raises every wheel touch.
     private readonly Dictionary<byte, (int X, int Y, long Timestamp)> _wheelTouchStarts = new();
+    private readonly Dictionary<byte, (int X, int Y)> _wheelTouchLast = new();
     private long _lastWheelTapTimestamp;
 
     // Serialises wheel redraws and coalesces bursts — an adjustment command turned quickly
@@ -95,8 +102,9 @@ public partial class LoupedeckLiveSController
     }
 
     /// <summary>
-    /// Turns touches on the wheel screen into presses. The firmware reports a held finger as
-    /// repeated TOUCH_START frames for the same id, so only the first one records the start.
+    /// Turns touches on the wheel screen into presses and workspace swipes. The firmware reports a
+    /// held finger as repeated TOUCH_START frames for the same id, so only the first one records the
+    /// start; the later ones track where the finger has moved to.
     /// </summary>
     private void OnWheelTouch(object sender, TouchEventArgs e)
     {
@@ -105,7 +113,11 @@ public partial class LoupedeckLiveSController
 
         if (e.EventType != Constants.TouchEventType.TOUCH_END)
         {
-            if (_wheelTouchStarts.ContainsKey(touch.Id)) return;
+            if (_wheelTouchStarts.ContainsKey(touch.Id))
+            {
+                _wheelTouchLast[touch.Id] = (touch.X, touch.Y);
+                return;
+            }
 
             // Any input resets the screensaver idle timer; a touch that stops a running
             // screensaver was a wake gesture, so its release must not press.
@@ -115,13 +127,30 @@ public partial class LoupedeckLiveSController
             }
 
             _wheelTouchStarts[touch.Id] = (touch.X, touch.Y, Stopwatch.GetTimestamp());
+            _wheelTouchLast[touch.Id] = (touch.X, touch.Y);
             return;
         }
 
         if (!_wheelTouchStarts.Remove(touch.Id, out var start)) return;
+        _wheelTouchLast.Remove(touch.Id, out var last);
+
+        // The end frame normally carries the lift-off position; fall back to the last move if it
+        // reports nothing past the start.
+        var endX = touch.X;
+        var endY = touch.Y;
+        if (endX == start.X && endY == start.Y)
+            (endX, endY) = last;
+
+        var dx = endX - start.X;
+        var dy = endY - start.Y;
+        if (Math.Abs(dx) >= WheelSwipeMinTravel && Math.Abs(dx) >= Math.Abs(dy) * WheelSwipeDominance)
+        {
+            OnWheelSwiped(next: dx < 0);
+            return;
+        }
 
         var now = Stopwatch.GetTimestamp();
-        var travel = Math.Max(Math.Abs(touch.X - start.X), Math.Abs(touch.Y - start.Y));
+        var travel = Math.Max(Math.Abs(dx), Math.Abs(dy));
         if (travel > WheelTapMaxTravel || StopwatchMs(now - start.Timestamp) > WheelTapMaxMs)
             return;
 
@@ -130,6 +159,24 @@ public partial class LoupedeckLiveSController
         _lastWheelTapTimestamp = now;
 
         OnWheelPressed();
+    }
+
+    /// <summary>
+    /// Switches to the next or previous workspace of the active profile (wrapping), through the
+    /// same commands a button would bind, so the switch pins auto-switching and repaints exactly as
+    /// any manual workspace change. Ignored while the device is off, a folder is open, or an
+    /// exclusive provider owns the wheel's press; a display takeover consumes it as a wake.
+    /// </summary>
+    private void OnWheelSwiped(bool next)
+    {
+        using var _routerScope = router.Enter(serviceProvider);
+
+        if (StopFullDisplayOnInput()) return;
+        if (_isDeviceOff || folderNav.IsActive || exclusiveMode.Owns(ExclusiveControlScope.RotaryPress))
+            return;
+
+        FireAndForget(next ? "System.NextWorkspace" : "System.PreviousWorkspace", ButtonTargets.RotaryEncoder,
+            Device.WheelRotaryIndex);
     }
 
     /// <summary>
