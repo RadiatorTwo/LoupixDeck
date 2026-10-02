@@ -30,6 +30,24 @@ public partial class LoupedeckCtLayout : UserControl
 
     private void OnPageNameCommit(object sender, RoutedEventArgs e) => PageNameEditing.Save(sender);
 
+    // The wheel-mode label is bound two-way to the active mode's DisplayText; a commit persists
+    // it and repaints the wheel screen, which draws that label.
+    private void OnWheelLabelKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.Enter) return;
+        CommitWheelLabel();
+        e.Handled = true;
+    }
+
+    private void OnWheelLabelCommit(object sender, RoutedEventArgs e) => CommitWheelLabel();
+
+    private void CommitWheelLabel()
+    {
+        if (DataContext is not MainWindowViewModel vm) return;
+        vm.LoupedeckController.SaveConfig();
+        _ = vm.LoupedeckController.RefreshWheel();
+    }
+
     // Single click selects a button (touch tile, side strip, rotary dial, or LED),
     // shown as a hover/selection frame; a double click opens the matching editor. Every
     // interactive button carries its LoupedeckButton as CommandParameter, so selection is

@@ -21,11 +21,9 @@
          - a bottom cluster: a left 2x3 block of named buttons (Home/Enter, Undo/Save,
            Keyboard/FnL), the centre wheel, and a right 2x3 block (A/B, C/D, FnR/E),
            bound to SimpleButtons[8..19].
-         - the centre "wheel" — the 7th rotary, with its own round touchscreen —
-           is shown decoratively only for now; wiring its press/rotate commands needs
-           a dedicated paging slot since the Left/Right per-strip paging model used by
-           the 6 side dials doesn't have room for a 7th control; see
-           LoupedeckLiveSController.ResolveRotary. -->
+         - the centre "wheel" — the 7th rotary, with its own round touchscreen. Its
+           binding is per touch page (TouchButtonPage.Wheel) rather than in the
+           Left/Right per-strip rotary pages used by the 6 side dials. -->
     <UserControl.Styles>
         <!-- Rotary dials: hover/selection shown as a round ring following the knob shape. -->
         <Style Selector="Button.Knob">
@@ -145,6 +143,14 @@
         <!-- Selected (single click): solid accent border; declared last so it wins over hover. -->
         <Style Selector="Button[Tag=Touch] /template/ Border#HighlightBorder.selected">
             <Setter Property="BorderBrush" Value="{StaticResource PageActiveBorderBrush}" />
+        </Style>
+        <!-- Leading icon of a pager, naming the control it pages (touch grid vs. wheel). -->
+        <Style Selector="TextBlock.PagerIcon">
+            <Setter Property="FontFamily" Value="{StaticResource MdiFont}" />
+            <Setter Property="FontSize" Value="18" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Margin" Value="4,0,2,0" />
+            <Setter Property="Foreground" Value="{DynamicResource AppTextSecondary}" />
         </Style>
     </UserControl.Styles>
 
@@ -501,18 +507,23 @@
                         </Border>
                     </Button>
 
-                    <!-- Centre wheel: the 7th rotary + its own 240x240 round
-                         touchscreen. Shown decoratively (no Command) — wiring its
-                         press/rotate needs a dedicated paging slot, since the
-                         Left/Right per-strip model used by the 6 side dials above
-                         doesn't have room for a 7th control. See
-                         LoupedeckLiveSController.ResolveRotary / TryGetRotaryIndex. -->
-                    <Border Canvas.Left="350" Canvas.Top="510" Width="200" Height="200"
-                            CornerRadius="100" ClipToBounds="True"
-                            Background="{DynamicResource DeviceBezelBrush}"
-                            ToolTip.Tip="{loc:Tr Device_CentreWheelNotYetWired}">
-                        <Image Source="{Binding RotaryKnobImage}" Width="200" Height="200" />
-                    </Border>
+                    <!-- Centre wheel: the 7th rotary (global index 6) + its own 240x240 round
+                         touchscreen. Its binding lives on the current touch page
+                         (TouchButtonPage.Wheel), so it follows touch-page switches; the
+                         screen's last frame is mirrored inside the ring. -->
+                    <Button Classes="Knob" Canvas.Left="350" Canvas.Top="510" Width="200" Height="200"
+                            Tapped="OnButtonTapped" DoubleTapped="OnButtonDoubleTapped"
+                            ToolTip.Tip="{loc:Tr Device_CentreWheel}"
+                            CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.Wheel}">
+                        <Grid>
+                            <Image Source="{Binding RotaryKnobImage}" Width="200" Height="200" />
+                            <Border Width="120" Height="120" CornerRadius="60" ClipToBounds="True"
+                                    HorizontalAlignment="Center" VerticalAlignment="Center"
+                                    IsHitTestVisible="False">
+                                <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.Wheel.RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
+                            </Border>
+                        </Grid>
+                    </Button>
 
                     <!-- Right block. -->
                     <Button Tag="Led" Classes="LedSquare" Canvas.Left="580" Canvas.Top="520" Width="70" Height="55"
@@ -581,33 +592,67 @@
             </Grid>
         </Viewbox>
 
-        <Panel HorizontalAlignment="Center" Margin="0,-26,0,12">
-            <!-- While a custom folder is open its breadcrumbs take the pager's place. -->
-            <controls:FolderBreadcrumbBar HorizontalAlignment="Center" IsVisible="{Binding IsFolderOpen}" />
-            <Border Classes="Pager" HorizontalAlignment="Center" IsVisible="{Binding !IsFolderOpen}">
+        <!-- Touch pages (the 12-key grid) and the centre wheel's modes of the current touch page,
+             side by side; the leading icon says which control each pager belongs to. -->
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="16" Margin="0,-26,0,12">
+            <Panel VerticalAlignment="Center">
+                <!-- While a custom folder is open its breadcrumbs take the pager's place. -->
+                <controls:FolderBreadcrumbBar HorizontalAlignment="Center" IsVisible="{Binding IsFolderOpen}" />
+                <Border Classes="Pager" HorizontalAlignment="Center" IsVisible="{Binding !IsFolderOpen}">
+                    <StackPanel Orientation="Horizontal" Spacing="3" VerticalAlignment="Center">
+                        <TextBlock Classes="PagerIcon" Text="&#xF11D9;"
+                                   ToolTip.Tip="{loc:Tr Device_TouchPagesTitle}" />
+                        <Button Classes="PagerBtn PagerNav" Content="‹"
+                                ToolTip.Tip="{loc:Tr Device_PreviousTouchPage}"
+                                Command="{Binding PreviousTouchPageCommand}" />
+                        <TextBox Classes="PageName"
+                                 Text="{Binding LoupedeckController.Config.CurrentTouchButtonPage.Name, Mode=TwoWay}"
+                                 PlaceholderText="{Binding LoupedeckController.Config.CurrentTouchButtonPage.PageName}"
+                                 KeyDown="OnPageNameKeyDown" LostFocus="OnPageNameCommit" />
+                        <Button Classes="PagerBtn PagerNav" Content="›"
+                                ToolTip.Tip="{loc:Tr Device_NextTouchPage}"
+                                Command="{Binding NextTouchPageCommand}" />
+                        <TextBlock Classes="PageCount"
+                                   Text="{Binding LoupedeckController.Config.TouchPageLabel}"
+                                   ToolTip.Tip="{loc:Tr Device_CurrentTotalTouchPages}" />
+                        <Button Classes="PagerBtn" Content="+"
+                                ToolTip.Tip="{loc:Tr Device_AddTouchPage}"
+                                Command="{Binding AddTouchPageCommand}" />
+                        <Button Classes="PagerBtn delete" Content="✕"
+                                ToolTip.Tip="{loc:Tr Device_DeleteCurrentTouchPage}"
+                                Command="{Binding DeleteTouchPageCommand}" />
+                    </StackPanel>
+                </Border>
+            </Panel>
+
+            <!-- Centre-wheel modes of the current touch page. The name box edits the active mode's
+                 label (what the wheel screen shows); double-click the wheel to edit its commands. -->
+            <Border Classes="Pager" VerticalAlignment="Center">
                 <StackPanel Orientation="Horizontal" Spacing="3" VerticalAlignment="Center">
+                    <TextBlock Classes="PagerIcon" Text="&#xF1B96;"
+                               ToolTip.Tip="{loc:Tr Device_WheelModesTitle}" />
                     <Button Classes="PagerBtn PagerNav" Content="‹"
-                            ToolTip.Tip="{loc:Tr Device_PreviousTouchPage}"
-                            Command="{Binding PreviousTouchPageCommand}" />
-                    <TextBox Classes="PageName"
-                             Text="{Binding LoupedeckController.Config.CurrentTouchButtonPage.Name, Mode=TwoWay}"
-                             PlaceholderText="{Binding LoupedeckController.Config.CurrentTouchButtonPage.PageName}"
-                             KeyDown="OnPageNameKeyDown" LostFocus="OnPageNameCommit" />
+                            ToolTip.Tip="{loc:Tr Device_PreviousWheelMode}"
+                            Command="{Binding PreviousWheelModeCommand}" />
+                    <TextBox Classes="PageName" Width="130"
+                             Text="{Binding LoupedeckController.Config.CurrentTouchButtonPage.Wheel.DisplayText, Mode=TwoWay}"
+                             PlaceholderText="{loc:Tr Device_WheelModeLabelPlaceholder}"
+                             KeyDown="OnWheelLabelKeyDown" LostFocus="OnWheelLabelCommit" />
                     <Button Classes="PagerBtn PagerNav" Content="›"
-                            ToolTip.Tip="{loc:Tr Device_NextTouchPage}"
-                            Command="{Binding NextTouchPageCommand}" />
+                            ToolTip.Tip="{loc:Tr Device_NextWheelMode}"
+                            Command="{Binding NextWheelModeCommand}" />
                     <TextBlock Classes="PageCount"
-                               Text="{Binding LoupedeckController.Config.TouchPageLabel}"
-                               ToolTip.Tip="{loc:Tr Device_CurrentTotalTouchPages}" />
+                               Text="{Binding LoupedeckController.Config.CurrentTouchButtonPage.WheelModeLabel}"
+                               ToolTip.Tip="{loc:Tr Device_CurrentTotalWheelModes}" />
                     <Button Classes="PagerBtn" Content="+"
-                            ToolTip.Tip="{loc:Tr Device_AddTouchPage}"
-                            Command="{Binding AddTouchPageCommand}" />
+                            ToolTip.Tip="{loc:Tr Device_AddWheelMode}"
+                            Command="{Binding AddWheelModeCommand}" />
                     <Button Classes="PagerBtn delete" Content="✕"
-                            ToolTip.Tip="{loc:Tr Device_DeleteCurrentTouchPage}"
-                            Command="{Binding DeleteTouchPageCommand}" />
+                            ToolTip.Tip="{loc:Tr Device_DeleteWheelMode}"
+                            Command="{Binding DeleteWheelModeCommand}" />
                 </StackPanel>
             </Border>
-        </Panel>
+        </StackPanel>
 
     </StackPanel>
 </UserControl>

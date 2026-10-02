@@ -24,8 +24,8 @@ public static class Constants
         // trace (LOUPIXDECK_DEBUG_PROTOCOL=1). The wheel has no separate "click"
         // button code: pressing it shows up as a tight cluster of touch
         // start/end events near the centre of its own screen (command bytes
-        // 0x52/0x72 — see Command.WHEEL_TOUCH below), not as a BUTTON_PRESS.
-        // Detecting a "click" from that touch cluster is not yet implemented.
+        // 0x52/0x72 — see Command.WHEEL_TOUCH below), not as a BUTTON_PRESS; the
+        // controller detects the press from those touches.
         CT_HOME = 14,
         CT_UNDO = 15,
         CT_KEYBOARD = 16,

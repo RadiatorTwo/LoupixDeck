@@ -228,6 +228,25 @@ public class LoupedeckDevice
     public virtual bool HasSideStrips => false;
 
     /// <summary>
+    /// True when the device has a centre wheel with its own round touchscreen (Loupedeck CT).
+    /// Gates the wheel pipeline — rotary index <see cref="WheelRotaryIndex"/>, the
+    /// <see cref="OnWheelTouch"/> press gesture and <see cref="DrawWheelScreen"/>. Base returns false.
+    /// </summary>
+    public virtual bool HasWheel => false;
+
+    /// <summary>Global rotary index the centre wheel reports as, slotted after the six side dials.</summary>
+    public const int WheelRotaryIndex = 6;
+
+    /// <summary>Edge length of the wheel's square screen in pixels; 0 when there is none.</summary>
+    public virtual int WheelScreenSize => 0;
+
+    /// <summary>
+    /// Pushes a full-screen bitmap (<see cref="WheelScreenSize"/> square) to the wheel's
+    /// screen. A no-op on devices without one.
+    /// </summary>
+    public virtual Task DrawWheelScreen(SKBitmap bitmap, bool refresh = true) => Task.CompletedTask;
+
+    /// <summary>
     /// Maps a raw BUTTON_PRESS byte to a centre-grid slot on devices whose grid is physical
     /// keys instead of a touchscreen. Base never matches, so every other device resolves its
     /// button bytes through <see cref="Constants.Buttons"/> exactly as before.
