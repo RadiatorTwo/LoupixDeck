@@ -287,7 +287,8 @@ public partial class LoupedeckLiveSController
     /// device — the push tail shared with <c>DrawSideStrip</c>.</summary>
     private async Task PushStrip(RotarySide side, SKBitmap strip)
     {
-        if (deviceService.Device is not LoupedeckDevice.Device.RazerStreamControllerDevice razer)
+        var device = deviceService.Device;
+        if (device is not { HasSideStrips: true })
             return;
 
         var slotIndex = side == RotarySide.Left
@@ -297,7 +298,7 @@ public partial class LoupedeckLiveSController
         var slotButton = config.CurrentTouchButtonPage?.TouchButtons?.FindByIndex(slotIndex);
         slotButton?.RenderedImage = strip;
 
-        await razer.DrawTouchSlot(slotIndex, strip);
+        await device.DrawTouchSlot(slotIndex, strip);
     }
 
     /// <summary>Handles a finger release for any active strip drag: decides commit vs
