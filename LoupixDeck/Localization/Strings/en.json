@@ -662,6 +662,7 @@
   "MainWindow_ImportLoupedeck": "Import Loupedeck profile…",
   "MainWindow_ImportPackage": "Import package…",
   "MainWindow_ImportPackageResultTitle": "Import",
+  "MainWindow_ImportWorkspace": "Import workspace…",
   "MainWindow_LinkApplication": "Link application…",
   "MainWindow_Macros": "Macros",
   "MainWindow_NewProfile": "New profile…",
