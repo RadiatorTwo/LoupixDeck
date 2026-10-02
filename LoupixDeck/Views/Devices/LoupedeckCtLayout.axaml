@@ -584,33 +584,7 @@
             </Grid>
         </Viewbox>
 
-        <!-- Centre-wheel modes of the current touch page. The name box edits the active mode's
-             label (what the wheel screen shows); double-click the wheel to edit its commands. -->
-        <Border Classes="Pager" HorizontalAlignment="Center" Margin="0,-6,0,4">
-            <StackPanel Orientation="Horizontal" Spacing="3" VerticalAlignment="Center">
-                <Button Classes="PagerBtn PagerNav" Content="‹"
-                        ToolTip.Tip="{loc:Tr Device_PreviousWheelMode}"
-                        Command="{Binding PreviousWheelModeCommand}" />
-                <TextBox Classes="PageName" Width="130"
-                         Text="{Binding LoupedeckController.Config.CurrentTouchButtonPage.Wheel.DisplayText, Mode=TwoWay}"
-                         PlaceholderText="{loc:Tr Device_WheelModeLabelPlaceholder}"
-                         KeyDown="OnWheelLabelKeyDown" LostFocus="OnWheelLabelCommit" />
-                <Button Classes="PagerBtn PagerNav" Content="›"
-                        ToolTip.Tip="{loc:Tr Device_NextWheelMode}"
-                        Command="{Binding NextWheelModeCommand}" />
-                <TextBlock Classes="PageCount"
-                           Text="{Binding LoupedeckController.Config.CurrentTouchButtonPage.WheelModeLabel}"
-                           ToolTip.Tip="{loc:Tr Device_CurrentTotalWheelModes}" />
-                <Button Classes="PagerBtn" Content="+"
-                        ToolTip.Tip="{loc:Tr Device_AddWheelMode}"
-                        Command="{Binding AddWheelModeCommand}" />
-                <Button Classes="PagerBtn delete" Content="✕"
-                        ToolTip.Tip="{loc:Tr Device_DeleteWheelMode}"
-                        Command="{Binding DeleteWheelModeCommand}" />
-            </StackPanel>
-        </Border>
-
-        <Panel HorizontalAlignment="Center" Margin="0,-26,0,12">
+        <Panel HorizontalAlignment="Center" Margin="0,-26,0,4">
             <!-- While a custom folder is open its breadcrumbs take the pager's place. -->
             <controls:FolderBreadcrumbBar HorizontalAlignment="Center" IsVisible="{Binding IsFolderOpen}" />
             <Border Classes="Pager" HorizontalAlignment="Center" IsVisible="{Binding !IsFolderOpen}">
@@ -637,6 +611,33 @@
                 </StackPanel>
             </Border>
         </Panel>
+
+        <!-- Centre-wheel modes of the current touch page. The name box edits the active mode's
+             label (what the wheel screen shows); double-click the wheel to edit its commands. -->
+        <Border Classes="Pager" HorizontalAlignment="Center" Margin="0,0,0,12">
+            <StackPanel Orientation="Horizontal" Spacing="3" VerticalAlignment="Center">
+                <TextBlock Classes="PageCount" Text="{loc:Tr Device_WheelModesTitle}" />
+                <Button Classes="PagerBtn PagerNav" Content="‹"
+                        ToolTip.Tip="{loc:Tr Device_PreviousWheelMode}"
+                        Command="{Binding PreviousWheelModeCommand}" />
+                <TextBox Classes="PageName" Width="130"
+                         Text="{Binding LoupedeckController.Config.CurrentTouchButtonPage.Wheel.DisplayText, Mode=TwoWay}"
+                         PlaceholderText="{loc:Tr Device_WheelModeLabelPlaceholder}"
+                         KeyDown="OnWheelLabelKeyDown" LostFocus="OnWheelLabelCommit" />
+                <Button Classes="PagerBtn PagerNav" Content="›"
+                        ToolTip.Tip="{loc:Tr Device_NextWheelMode}"
+                        Command="{Binding NextWheelModeCommand}" />
+                <TextBlock Classes="PageCount"
+                           Text="{Binding LoupedeckController.Config.CurrentTouchButtonPage.WheelModeLabel}"
+                           ToolTip.Tip="{loc:Tr Device_CurrentTotalWheelModes}" />
+                <Button Classes="PagerBtn" Content="+"
+                        ToolTip.Tip="{loc:Tr Device_AddWheelMode}"
+                        Command="{Binding AddWheelModeCommand}" />
+                <Button Classes="PagerBtn delete" Content="✕"
+                        ToolTip.Tip="{loc:Tr Device_DeleteWheelMode}"
+                        Command="{Binding DeleteWheelModeCommand}" />
+            </StackPanel>
+        </Border>
 
     </StackPanel>
 </UserControl>

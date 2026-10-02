@@ -157,6 +157,7 @@
   "Device_CurrentTotalWheelModes": "Aktiver / alle Rad-Modi dieser Touch-Seite",
   "Device_AddWheelMode": "Rad-Modus hinzufügen",
   "Device_DeleteWheelMode": "Aktuellen Rad-Modus löschen",
+  "Device_WheelModesTitle": "Rad",
   "Device_WheelModeLabelPlaceholder": "Rad-Beschriftung",
   "Device_CentreWheel": "Mittleres Rad — drehen, zum Drücken auf den Bildschirm tippen, links/rechts wischen zum Wechseln des Arbeitsbereichs, hoch/runter wischen für das Modus-Menü. Pro Touch-Seite einstellbar.",
   "Device_CurrentTotalLeftRotaryPages": "Aktuelle / gesamte linke Drehregler-Seiten",

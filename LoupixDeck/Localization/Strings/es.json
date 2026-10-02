@@ -157,6 +157,7 @@
   "Device_CurrentTotalWheelModes": "Modo activo / total de modos de rueda en esta página táctil",
   "Device_AddWheelMode": "Añadir modo de rueda",
   "Device_DeleteWheelMode": "Eliminar el modo de rueda actual",
+  "Device_WheelModesTitle": "Rueda",
   "Device_WheelModeLabelPlaceholder": "Etiqueta de la rueda",
   "Device_CentreWheel": "Rueda central — gírala, toca su pantalla para pulsar, desliza a izquierda/derecha para cambiar de espacio de trabajo y arriba/abajo para su menú de modos. Se configura por página táctil.",
   "Device_CurrentTotalLeftRotaryPages": "Páginas de dial izquierdo actuales / totales",
