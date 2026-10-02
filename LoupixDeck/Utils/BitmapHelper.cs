@@ -2124,9 +2124,9 @@ public static class BitmapHelper
     /// <summary>
     /// Renders the CT wheel's mode menu on its round screen: the highlighted mode large in a pill
     /// across the middle, its neighbours dimmed above and below (wrapping, like the menu itself),
-    /// a dot beside whichever mode is currently active, and the highlight's position at the bottom.
+    /// and the highlight's position at the bottom.
     /// </summary>
-    public static SKBitmap RenderWheelMenu(IReadOnlyList<string> labels, int highlight, int active, int size)
+    public static SKBitmap RenderWheelMenu(IReadOnlyList<string> labels, int highlight, int size)
     {
         ArgumentNullException.ThrowIfNull(labels);
         var bitmap = new SKBitmap(size, size);
@@ -2161,9 +2161,7 @@ public static class BitmapHelper
                 var index = ((highlight + offset) % count + count) % count;
                 float top = centreTop + offset * rowHeight * 1.05f;
                 float inset = pillInset + Math.Abs(offset) * size * 0.06f;
-                var text = labels[index];
-                if (index == active) text = "• " + text;
-                DrawTextAt(canvas, text, color, textSize, centered: true, posX: inset, posY: top,
+                DrawTextAt(canvas, labels[index], color, textSize, centered: true, posX: inset, posY: top,
                     imageWidth: size - inset * 2, imageHeight: rowHeight, bold: bold);
             }
 

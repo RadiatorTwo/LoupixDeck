@@ -100,8 +100,7 @@ public partial class LoupedeckLiveSController
             {
                 var labels = page.WheelModes.Select((mode, i) =>
                     string.IsNullOrWhiteSpace(mode?.DisplayText) ? $"Mode {i + 1}" : mode.DisplayText).ToList();
-                frame = BitmapHelper.RenderWheelMenu(labels, highlight,
-                    Math.Clamp(page.WheelModeIndex, 0, labels.Count - 1), device.WheelScreenSize);
+                frame = BitmapHelper.RenderWheelMenu(labels, highlight, device.WheelScreenSize);
             }
             else
             {
