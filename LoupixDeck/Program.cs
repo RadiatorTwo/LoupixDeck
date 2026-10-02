@@ -115,13 +115,23 @@ sealed partial class Program
         }
     }
 
-    private static void AcceptUdsLoop()
+    /// <summary>
+    /// Accepts CLI connections until the listener is closed at process exit.
+    /// </summary>
+    /// <remarks>
+    /// The accept has to be asynchronous. A thread blocked in a synchronous Accept() is woken by
+    /// Socket.Close() through shutdown(), and macOS does not wake accept() for a shutdown on a
+    /// listening socket (Linux does). Close() then spins waiting for that thread, the ProcessExit
+    /// handler never returns, and Environment.Exit() never finishes: the app sat in the tray as a
+    /// zombie after Quit until it was force-quit. An asynchronous accept is simply cancelled.
+    /// </remarks>
+    private static async Task AcceptUdsLoop()
     {
         try
         {
             while (true)
             {
-                var client = _listenerSocket.Accept();
+                var client = await _listenerSocket.AcceptAsync();
                 _ = Task.Run(() => HandleUdsClient(client));
             }
         }
