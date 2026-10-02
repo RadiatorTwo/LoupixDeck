@@ -422,7 +422,7 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
                 if (button?.States == null)
                     continue;
 
-                var validKey = ResolveDisplayKey(button);
+                var (validKey, validKind) = ResolveDisplayKey(button);
 
                 // A bound command whose plugin is not loaded (missing, disabled, not yet installed)
                 // keeps its layer: the plugin may come back, and the layer carries the user's
@@ -438,7 +438,12 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
                 {
                     if (!layer.IsCommandOwned)
                         continue;
-                    if (validKey != null && string.Equals(layer.OwnerKey, validKey, StringComparison.Ordinal))
+                    // Valid only when the key matches AND the layer is the kind the bound command
+                    // renders now. A command that moved from text to image (or back) in a plugin
+                    // update leaves a layer with the right key but the wrong kind; it falls through
+                    // to the same removal/demotion rules as a layer whose command is gone.
+                    if (validKey != null && string.Equals(layer.OwnerKey, validKey, StringComparison.Ordinal) &&
+                        LayerMatchesKind(layer, validKind))
                         continue;
                     if (layer is PluginLayer && unresolvedKey != null &&
                         string.Equals(layer.OwnerKey, unresolvedKey, StringComparison.Ordinal))
@@ -470,6 +475,10 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
     /// The owner key the button's currently bound command would produce, or <c>null</c> when
     /// the button is not bound to a registered text/image display command.
     /// </summary>
+    /// <summary>
+    /// The owner key the button's currently bound command would produce, or <c>null</c> when
+    /// the button is not bound to a registered text/image display command.
+    /// </summary>
     /// <summary>True when the command string names a command that is not registered on this device.</summary>
     private bool IsUnregistered(string command)
     {
@@ -477,18 +486,39 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
         return !string.IsNullOrEmpty(name) && _commandRegistry.Get(name) == null;
     }
 
-    private string ResolveDisplayKey(TouchButton button)
+    /// <summary>The layer kind a display command owns on a button.</summary>
+    private enum DisplayLayerKind
+    {
+        None,
+        Text,   // IDisplayCommand → TextLayer
+        Image   // IDisplayImageCommand / IAnimatedDisplayCommand → PluginLayer
+    }
+
+    private static bool LayerMatchesKind(LayerBase layer, DisplayLayerKind kind) => kind switch
+    {
+        DisplayLayerKind.Image => layer is PluginLayer,
+        DisplayLayerKind.Text => layer is TextLayer,
+        _ => false
+    };
+
+    /// <summary>
+    /// The owner key the button's currently bound command would produce and the layer kind that
+    /// command renders, or <c>(null, None)</c> when the button has no display-capable command
+    /// bound. Image wins over text for a command that implements both, matching
+    /// <see cref="RenderEntry"/>.
+    /// </summary>
+    private (string Key, DisplayLayerKind Kind) ResolveDisplayKey(TouchButton button)
     {
         if (button == null || string.IsNullOrWhiteSpace(button.Command))
-            return null;
+            return (null, DisplayLayerKind.None);
 
         var name = CommandStringParser.GetName(button.Command);
         if (string.IsNullOrEmpty(name))
-            return null;
+            return (null, DisplayLayerKind.None);
 
         var command = _commandRegistry.Get(name);
         if (command == null)
-            return null;
+            return (null, DisplayLayerKind.None);
 
         var isText = command.IsDisplayCommand && command.GetText != null;
         var isImage = command.IsImageDisplayCommand && command.RenderImage != null;
@@ -497,9 +527,10 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
         // layer alive instead of deleting it on every rescan.
         var isAnimated = command.IsAnimatedImageCommand && command.RenderAnimatedFrame != null;
         if (!isText && !isImage && !isAnimated)
-            return null;
+            return (null, DisplayLayerKind.None);
 
-        return PluginLayerKey.For(button.Command);
+        var kind = isImage || isAnimated ? DisplayLayerKind.Image : DisplayLayerKind.Text;
+        return (PluginLayerKey.For(button.Command), kind);
     }
 
     private void StopLoop()
