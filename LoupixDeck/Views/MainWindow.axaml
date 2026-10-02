@@ -507,6 +507,8 @@
                                             <MenuItem Header="{loc:Tr MainWindow_RenameWorkspace}"
                                                       Command="{Binding SelectedDevice.ProfileMenu.RenameWorkspaceCommand}" />
                                             <Separator />
+                                            <MenuItem Header="{loc:Tr MainWindow_ImportWorkspace}"
+                                                      Command="{Binding SelectedDevice.ProfileMenu.ImportPackageCommand}" />
                                             <MenuItem Header="{loc:Tr MainWindow_ExportWorkspace}"
                                                       Command="{Binding SelectedDevice.ProfileMenu.ExportWorkspaceCommand}" />
                                             <Separator />
