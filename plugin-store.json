@@ -80,6 +80,37 @@
       }
     },
     {
+      "id": "discord",
+      "name": "Discord",
+      "description": "Control mute, deafen, volume, voice and text channels, soundboard, camera and Go Live in the Discord desktop app.",
+      "author": "RadiatorTwo",
+      "repository": "RadiatorTwo/LoupixDeck.Plugin.Discord",
+      "icon": "https://raw.githubusercontent.com/RadiatorTwo/LoupixDeck.Plugin.Discord/master/icon.png",
+      "platforms": [
+        "Windows",
+        "Linux"
+      ],
+      "minSdkVersion": "1.28.0",
+      "commandPrefixes": [
+        "Discord."
+      ],
+      "release": {
+        "version": "1.0.0",
+        "tag": "v1.0.0",
+        "publishedAt": "2026-10-02T15:23:04Z",
+        "sdkVersion": "1.28",
+        "releaseNotesUrl": "https://github.com/RadiatorTwo/LoupixDeck.Plugin.Discord/releases/tag/v1.0.0",
+        "packages": [
+          {
+            "platform": "any",
+            "fileName": "discord-1.0.0-any.zip",
+            "downloadUrl": "https://github.com/RadiatorTwo/LoupixDeck.Plugin.Discord/releases/download/v1.0.0/discord-1.0.0-any.zip",
+            "sha256": "04db3fbf7f14f69cff49914bca4fc0071192acd429919e0a3411c797301fd99f"
+          }
+        ]
+      }
+    },
+    {
       "id": "elgato",
       "name": "Elgato Key Lights",
       "description": "Toggle Elgato Key Lights and adjust brightness, temperature, hue and saturation.",
