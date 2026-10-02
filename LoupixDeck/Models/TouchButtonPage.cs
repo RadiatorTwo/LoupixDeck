@@ -91,4 +91,17 @@ public sealed partial class TouchButtonPage(int pageSize) : ButtonPageBase()
 
     /// <summary>Pre/Post-command wrap applied to every touch button on this page.</summary>
     public CommandWrap TouchButtonWrap { get; set; } = new();
+
+    /// <summary>
+    /// The Loupedeck CT's centre wheel binding for this page: rotate left/right, press (a tap
+    /// on the wheel's screen) and the label drawn on that screen. Kept on the touch page rather
+    /// than in a rotary page set so the wheel follows the page, workspace and profile the user
+    /// is on. Present on every page but only consumed on devices with a wheel; additive —
+    /// missing in older JSON simply keeps the empty default.
+    /// </summary>
+    public RotaryButton Wheel
+    {
+        get;
+        set => field = value ?? new RotaryButton(LoupedeckDevice.Device.LoupedeckDevice.WheelRotaryIndex, string.Empty, string.Empty);
+    } = new(LoupedeckDevice.Device.LoupedeckDevice.WheelRotaryIndex, string.Empty, string.Empty);
 }

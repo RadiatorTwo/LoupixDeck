@@ -602,18 +602,9 @@ public partial class MainWindowViewModel : ViewModelBase
 
         LoupedeckController.SaveConfig();
 
-        // Refresh the side strip so a command change on this dial (e.g. assigning an audio
-        // command) updates its segment immediately. Resolve which side the dial belongs to;
-        // RefreshSideStrip is a no-op on devices without side strips.
-        var pageManager = LoupedeckController.PageManager;
-        foreach (var side in new[] { RotarySide.Left, RotarySide.Right })
-        {
-            if (pageManager.GetCurrentRotaryPage(side)?.RotaryButtons?.Contains(button) == true)
-            {
-                await LoupedeckController.RefreshSideStrip(side);
-                break;
-            }
-        }
+        // Refresh the side strip (or the CT wheel screen) so a command change on this dial
+        // (e.g. assigning an audio command) updates its label immediately.
+        await RefreshRotarySide(button);
     }
 
     private async Task SimpleButton_Click(SimpleButton button)
@@ -837,9 +828,16 @@ public partial class MainWindowViewModel : ViewModelBase
     }
 
     /// <summary>Repaint the side strip the given dial belongs to (a rotary command drives its
-    /// segment label). No-op on devices without side strips.</summary>
+    /// segment label), or the wheel screen when it is the CT's centre wheel. No-op on devices
+    /// without side strips.</summary>
     private async Task RefreshRotarySide(RotaryButton rotary)
     {
+        if (ReferenceEquals(rotary, LoupedeckController.Config.CurrentTouchButtonPage?.Wheel))
+        {
+            await LoupedeckController.RefreshWheel();
+            return;
+        }
+
         IPageManager pageManager = LoupedeckController.PageManager;
         foreach (RotarySide side in new[] { RotarySide.Left, RotarySide.Right })
         {

@@ -152,7 +152,7 @@
   "Device_AddRightRotaryPage": "Rechte Drehregler-Seite hinzufügen",
   "Device_AddRotaryPage": "Drehregler-Seite hinzufügen",
   "Device_AddTouchPage": "Touch-Seite hinzufügen",
-  "Device_CentreWheelNotYetWired": "Mittleres Rad (noch nicht angebunden — siehe CT-Support-Plan)",
+  "Device_CentreWheel": "Mittleres Rad — drehen oder auf den Bildschirm tippen zum Drücken. Pro Touch-Seite einstellbar.",
   "Device_CurrentTotalLeftRotaryPages": "Aktuelle / gesamte linke Drehregler-Seiten",
   "Device_CurrentTotalRightRotaryPages": "Aktuelle / gesamte rechte Drehregler-Seiten",
   "Device_CurrentTotalRotaryPages": "Aktuelle / gesamte Drehregler-Seiten",

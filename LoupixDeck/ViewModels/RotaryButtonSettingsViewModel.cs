@@ -36,8 +36,11 @@ public class RotaryButtonSettingsViewModel : DialogViewModelBase<RotaryButton, D
 
     /// <summary>User-facing label. Displayed 1-based so the first knob reads
     /// "Rotary Button 1"; the underlying Index stays 0-based to match the
-    /// System.UpdateButton / GotoRotaryPage index space.</summary>
-    public string KnobLabel => $"Rotary Button {(ButtonData?.Index ?? 0) + 1}";
+    /// System.UpdateButton / GotoRotaryPage index space. The CT's centre wheel is named
+    /// as such rather than as a seventh rotary.</summary>
+    public string KnobLabel => ButtonData?.Index == LoupedeckDevice.Device.LoupedeckDevice.WheelRotaryIndex
+        ? "Centre Wheel"
+        : $"Rotary Button {(ButtonData?.Index ?? 0) + 1}";
 
     private readonly ICommandBuilder _commandBuilder;
     private readonly IMenuTreeBuilder _menuTreeBuilder;

@@ -152,7 +152,7 @@
   "Device_AddRightRotaryPage": "Añadir página de dial derecho",
   "Device_AddRotaryPage": "Añadir página de dial",
   "Device_AddTouchPage": "Añadir página táctil",
-  "Device_CentreWheelNotYetWired": "Rueda central (aún sin conectar — ver plan de soporte CT)",
+  "Device_CentreWheel": "Rueda central — gírala o toca su pantalla para pulsar. Se configura por página táctil.",
   "Device_CurrentTotalLeftRotaryPages": "Páginas de dial izquierdo actuales / totales",
   "Device_CurrentTotalRightRotaryPages": "Páginas de dial derecho actuales / totales",
   "Device_CurrentTotalRotaryPages": "Páginas de dial actuales / totales",

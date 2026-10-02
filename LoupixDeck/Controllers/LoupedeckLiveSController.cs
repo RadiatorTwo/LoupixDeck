@@ -547,6 +547,7 @@ public partial class LoupedeckLiveSController(
             device.OnTouch -= OnTouchButtonPress;
             device.OnRotate -= OnRotate;
             device.OnSwipe -= OnSwipe;
+            device.OnWheelTouch -= OnWheelTouch;
             device.OnConnect -= OnDeviceConnected;
 
             // Hand the hardware back in a clean state: a black panel, no backlight and dark
@@ -957,6 +958,7 @@ public partial class LoupedeckLiveSController(
         device.OnTouch += OnTouchButtonPress;
         device.OnRotate += OnRotate;
         device.OnSwipe += OnSwipe;
+        device.OnWheelTouch += OnWheelTouch;
         // Wired only here, after Initialize has already drawn everything, so the very
         // first connect doesn't repaint a second time — every later connect does (#195).
         device.OnConnect += OnDeviceConnected;
@@ -1014,12 +1016,20 @@ public partial class LoupedeckLiveSController(
     /// Resolves the rotary button for a global knob index (0–5) against the active
     /// rotary page. On side-strip devices this picks the matching column's current
     /// page and the per-side local index; otherwise the shared page and the index
-    /// as-is. Returns null when no page/button is available.
+    /// as-is. The CT's centre wheel (index 6) resolves to the current touch page's
+    /// <see cref="TouchButtonPage.Wheel"/> with a null Page, as it belongs to no rotary
+    /// page. Returns null when no page/button is available.
     /// </summary>
     private (RotaryButtonPage Page, RotaryButton Button)? ResolveRotaryButton(int globalIndex)
     {
         RotaryButtonPage page;
         int localIndex;
+
+        if (IsWheelIndex(globalIndex))
+        {
+            var wheel = config.CurrentTouchButtonPage?.Wheel;
+            return wheel == null ? null : (null, wheel);
+        }
 
         if (deviceService.Device?.HasSideStrips == true)
         {
@@ -1282,9 +1292,11 @@ public partial class LoupedeckLiveSController(
 
     /// <summary>Re-evaluates plugin-override attachment for both strips, then repaints
     /// them (no-op on devices without side strips, or while an exclusive provider owns
-    /// the side displays).</summary>
+    /// the side displays). Also repaints the CT's wheel screen, which every caller —
+    /// page change, connect, wake, takeover end — needs refreshed at the same moments.</summary>
     private async Task RedrawSideStrips()
     {
+        await RedrawWheel();
         if (deviceService.Device?.HasSideStrips != true) return;
         if (exclusiveMode.Owns(ExclusiveControlScope.SideDisplays)) return;
         EnsureStripAttachment(RotarySide.Left);
@@ -1763,22 +1775,27 @@ public partial class LoupedeckLiveSController(
         if (resolved == null) return;
         var (page, rotary) = resolved.Value;
         if (_isDeviceOff && !rotary.EnableWhenOff) return;
-        var cmd = rotary.Command;
+        var cmd = RotaryPressCommand(rotary);
+        if (cmd == null) return;
 
-        // Same borrowing rule as a turn: an adjustment command bound to a turn slot owns
-        // the press too (it resets the value), so an unassigned press slot uses it instead
-        // of staying dead. Never borrows a normal command.
-        if (string.IsNullOrEmpty(cmd))
-        {
-            var turnCommand = rotary.RotaryLeftCommand;
-            if (!commandService.IsAdjustmentCommand(turnCommand))
-                turnCommand = rotary.RotaryRightCommand;
-            if (!commandService.IsAdjustmentCommand(turnCommand)) return;
-            cmd = turnCommand;
-        }
-
-        var wrappedRotary = page.KnobPressWrap?.Apply(cmd) ?? cmd;
+        var wrappedRotary = page?.KnobPressWrap?.Apply(cmd) ?? cmd;
         DispatchWithPress(e.ButtonId, () => FireAndForget(wrappedRotary, ButtonTargets.RotaryEncoder, idx));
+    }
+
+    /// <summary>
+    /// The command a dial press runs: its own press slot, or — same borrowing rule as a turn —
+    /// an adjustment command bound to a turn slot, which owns the press too (it resets the
+    /// value), so an unassigned press slot uses it instead of staying dead. Never borrows a
+    /// normal command. Null when there is nothing to run.
+    /// </summary>
+    private string RotaryPressCommand(RotaryButton rotary)
+    {
+        if (!string.IsNullOrEmpty(rotary.Command)) return rotary.Command;
+
+        var turnCommand = rotary.RotaryLeftCommand;
+        if (!commandService.IsAdjustmentCommand(turnCommand))
+            turnCommand = rotary.RotaryRightCommand;
+        return commandService.IsAdjustmentCommand(turnCommand) ? turnCommand : null;
     }
 
     /// <summary>
@@ -1819,6 +1836,7 @@ public partial class LoupedeckLiveSController(
     /// </summary>
     private Task RefreshAdjustmentIndicator(int globalIndex)
     {
+        if (IsWheelIndex(globalIndex)) return RedrawWheel();
         if (deviceService.Device?.HasSideStrips != true) return Task.CompletedTask;
 
         var (side, _) = ResolveRotary(globalIndex);
@@ -2221,7 +2239,7 @@ public partial class LoupedeckLiveSController(
             command = opposite;
         }
 
-        var wrap = leftTurn ? page.KnobLeftWrap : page.KnobRightWrap;
+        var wrap = leftTurn ? page?.KnobLeftWrap : page?.KnobRightWrap;
         var wrapped = wrap?.Apply(command) ?? command;
         FireAndForget(wrapped, ButtonTargets.RotaryEncoder, idx, e.Delta);
     }

@@ -2042,6 +2042,83 @@ public static class BitmapHelper
     }
 
     /// <summary>
+    /// Renders the Loupedeck CT's round wheel screen (<paramref name="size"/> square, the
+    /// visible area being the inscribed circle): the wheel's <see cref="RotaryButton.DisplayText"/>
+    /// centred, or — when the wheel is bound to an adjustment command — a 270° arc filled to the
+    /// value with the value text in the middle and the label above it. Same rules as a strip
+    /// segment's <see cref="DrawAdjustmentIndicator"/>: a <c>NaN</c> position draws the text
+    /// without an arc.
+    /// </summary>
+    public static SKBitmap RenderWheelScreen(RotaryButton wheel, LoupixDeck.PluginSdk.AdjustmentValue? value, int size)
+    {
+        var bitmap = new SKBitmap(size, size);
+
+        lock (SkiaRenderGate.Sync)
+        {
+            using var canvas = new SKCanvas(bitmap);
+            canvas.Clear(SKColors.Black);
+
+            var label = wheel?.DisplayText;
+            bool hasLabel = !string.IsNullOrWhiteSpace(label);
+            bool hasText = value.HasValue && !string.IsNullOrWhiteSpace(value.Value.Text);
+            bool hasArc = value.HasValue && !double.IsNaN(value.Value.Normalized);
+
+            // Text stays inside a square inscribed well within the circle, so a long label
+            // wraps instead of running off the round glass.
+            float textBox = size * 0.62f;
+            float textLeft = (size - textBox) / 2f;
+
+            if (hasArc)
+            {
+                float stroke = size * 0.045f;
+                float inset = stroke / 2f + size * 0.06f;
+                var arcRect = new SKRect(inset, inset, size - inset, size - inset);
+                const float StartAngle = 135f; // gap centred at the bottom
+                const float SweepAngle = 270f;
+
+                using (var track = new SKPaint
+                       {
+                           IsAntialias = true, Style = SKPaintStyle.Stroke, StrokeWidth = stroke,
+                           StrokeCap = SKStrokeCap.Round, Color = IndicatorTrack
+                       })
+                {
+                    canvas.DrawArc(arcRect, StartAngle, SweepAngle, false, track);
+                }
+
+                float filled = (float)(Math.Clamp(value.Value.Normalized, 0d, 1d) * SweepAngle);
+                if (filled > 0f)
+                {
+                    using var fill = new SKPaint
+                    {
+                        IsAntialias = true, Style = SKPaintStyle.Stroke, StrokeWidth = stroke,
+                        StrokeCap = SKStrokeCap.Round, Color = IndicatorFill
+                    };
+                    canvas.DrawArc(arcRect, StartAngle, filled, false, fill);
+                }
+            }
+
+            if (hasLabel && hasText)
+            {
+                float half = textBox / 2f;
+                DrawTextAt(canvas, label, SKColors.White, 22, centered: true,
+                    posX: textLeft, posY: textLeft, imageWidth: textBox, imageHeight: half * 0.8f, bold: false);
+                DrawTextAt(canvas, value.Value.Text, SKColors.White, 40, centered: true,
+                    posX: textLeft, posY: textLeft + half * 0.8f, imageWidth: textBox, imageHeight: half * 1.2f, bold: true);
+            }
+            else if (hasLabel || hasText)
+            {
+                DrawTextAt(canvas, hasText ? value.Value.Text : label, SKColors.White, hasText ? 40 : 30,
+                    centered: true, posX: textLeft, posY: textLeft, imageWidth: textBox, imageHeight: textBox,
+                    bold: hasText);
+            }
+
+            canvas.Flush();
+        }
+
+        return bitmap;
+    }
+
+    /// <summary>
     /// Composites two side-strip bitmaps into a single frame for a swipe-follow
     /// animation. <paramref name="current"/> is drawn shifted vertically by
     /// <paramref name="offsetY"/> and <paramref name="neighbor"/> fills the gap it

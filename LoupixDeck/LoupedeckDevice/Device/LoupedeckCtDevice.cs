@@ -8,7 +8,7 @@ namespace LoupixDeck.LoupedeckDevice.Device;
 
 /// <summary>
 /// Loupedeck CT — the most complex device in the family. Unlike Live/Razer, which
-/// share one unified framebuffer addressed by X-offset, the CT exposes FOUR
+/// share one unified framebuffer addressed by X-offset, the CT exposes
 /// two framebuffers: the unified "center" (480x270, id "\0M") carrying both side
 /// strips and the 4x3 grid exactly as on Live/Razer, and "knob" — the round 240x240
 /// touchscreen embedded in the large centre dial ("the wheel"), which the firmware
@@ -25,9 +25,9 @@ namespace LoupixDeck.LoupedeckDevice.Device;
 /// (corrected from an initial 0x1b guess); the wheel has no separate "click" byte
 /// — pressing it shows up as a tight cluster of touch start/end events near the
 /// centre of its own screen (Constants.Command.WHEEL_TOUCH/WHEEL_TOUCH_END,
-/// wired to <see cref="LoupedeckDevice.OnWheelTouch"/>). Still unconfirmed/unwired:
-/// the big-endian "knob" framebuffer, and turning the wheel's touch cluster into an
-/// actual click command (no consumer wiring yet — see the CT support plan).
+/// wired to <see cref="LoupedeckDevice.OnWheelTouch"/>). The controller turns a short,
+/// still touch there into the wheel's press, and draws the wheel screen through
+/// <see cref="DrawWheelScreen"/> (see LoupedeckLiveSController.Wheel.cs).
 /// </summary>
 public class LoupedeckCtDevice : LoupedeckDevice
 {
@@ -39,6 +39,23 @@ public class LoupedeckCtDevice : LoupedeckDevice
 
     /// <inheritdoc />
     public override bool HasSideStrips => true;
+
+    /// <inheritdoc />
+    public override bool HasWheel => true;
+
+    private const int WheelSize = 240;
+
+    /// <inheritdoc />
+    public override int WheelScreenSize => WheelSize;
+
+    /// <inheritdoc />
+    public override async Task DrawWheelScreen(SKBitmap bitmap, bool refresh = true)
+    {
+        ArgumentNullException.ThrowIfNull(bitmap);
+
+        try { await DrawCanvasRegion("knob", WheelSize, WheelSize, bitmap, 0, 0, refresh); }
+        catch (Exception ex) { Console.WriteLine($"CT wheel screen draw failed: {ex.Message}"); }
+    }
 
     /// <summary>
     /// 90px keys on a 480x270 panel with 60px side strips. The panel stays 480 wide even
