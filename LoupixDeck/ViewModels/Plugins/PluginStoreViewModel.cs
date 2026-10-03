@@ -26,6 +26,10 @@ public sealed partial class PluginStoreViewModel(
 {
     private bool _loaded;
 
+    /// <summary>Lets the rows in <see cref="_allItems"/> stop waiting for their icons once they are replaced
+    /// or the window closes.</summary>
+    private CancellationTokenSource _iconLoads;
+
     /// <summary>Everything the catalog offers for this system, in list order.</summary>
     private readonly List<PluginStoreRowViewModel> _allItems = [];
 
@@ -214,6 +218,16 @@ public sealed partial class PluginStoreViewModel(
         _loaded = false;
     }
 
+    /// <summary>Lets go of the icons still being loaded when the window closes.</summary>
+    public void Cleanup() => CancelIconLoads();
+
+    private void CancelIconLoads()
+    {
+        _iconLoads?.Cancel();
+        _iconLoads?.Dispose();
+        _iconLoads = null;
+    }
+
     /// <summary>Loads the list the first time the page is shown.</summary>
     public Task EnsureLoadedAsync()
     {
@@ -240,13 +254,16 @@ public sealed partial class PluginStoreViewModel(
                 .ThenBy(InstallRank)
                 .ThenBy(i => i.Entry.DisplayName, StringComparer.CurrentCultureIgnoreCase);
 
+            CancelIconLoads();
+            _iconLoads = new CancellationTokenSource();
+
             _allItems.Clear();
             foreach (PluginStoreItem item in visible)
             {
                 PluginStoreRowViewModel row = new(item, string.Equals(item.Entry.Id, HighlightedPluginId,
                     StringComparison.OrdinalIgnoreCase));
                 _allItems.Add(row);
-                _ = row.LoadIconAsync();
+                _ = row.LoadIconAsync(_iconLoads.Token);
             }
 
             int hidden = result.Items.Count - _allItems.Count;
@@ -582,7 +599,7 @@ public sealed partial class PluginStoreRowViewModel(PluginStoreItem item, bool i
 
     public bool HasIcon => Icon is not null;
 
-    public async Task LoadIconAsync()
+    public async Task LoadIconAsync(CancellationToken cancellation)
     {
         string url = Item.Entry.Icon;
         if (string.IsNullOrWhiteSpace(url) || !Uri.TryCreate(url, UriKind.Absolute, out Uri uri)
@@ -593,14 +610,11 @@ public sealed partial class PluginStoreRowViewModel(PluginStoreItem item, bool i
 
         try
         {
-            byte[] bytes = await FileDownloader.DownloadBytesAsync(url, CancellationToken.None);
-            using MemoryStream stream = new(bytes);
-            Icon = new Bitmap(stream);
+            Icon = await PluginStoreIconCache.GetAsync(url, cancellation);
         }
-        catch (Exception ex)
+        catch (OperationCanceledException)
         {
-            // An icon is decoration; a broken one never gets in the way of the list.
-            Console.WriteLine($"[PluginStore] Could not load the icon of {Item.Entry.Id}: {ex.Message}");
+            // The row is gone; the download carries on and stays in the cache for the next one.
         }
     }
 }
