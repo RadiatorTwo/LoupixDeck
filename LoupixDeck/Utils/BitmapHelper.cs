@@ -175,7 +175,7 @@ public static class BitmapHelper
                     ringBuilder.AddCircle(cx, cy, printedRadius);
                     dotRadius = printedRadius * 0.24f;
                 }
-                else if (legend is >= 1 and <= 7)
+                else if (legend is >= 1 and <= 8)
                 {
                     AddLegendDigit(ringBuilder, legend.Value, cx, cy, bodyRadius * 0.44f);
                 }
@@ -260,7 +260,7 @@ public static class BitmapHelper
     }
 
     /// <summary>
-    /// Adds one of the digits 1–7 printed on the Loupedeck Live's LED buttons as a
+    /// Adds one of the digits 1–8 printed on the Loupedeck Live/CT LED buttons as a
     /// single-stroke outline, <paramref name="height"/> tall and centred on
     /// (<paramref name="cx"/>, <paramref name="cy"/>). Drawn as lines rather than font
     /// glyphs so the shapes match the device (flat-topped 3, open 4) on every platform.
@@ -311,6 +311,10 @@ public static class BitmapHelper
                 builder.MoveTo(P(-0.28f, -0.5f));
                 builder.LineTo(P(0.28f, -0.5f));
                 builder.LineTo(P(-0.08f, 0.5f));
+                break;
+            case 8:
+                builder.AddCircle(cx, cy - (0.26f * height), 0.24f * height);
+                builder.AddCircle(cx, cy + (0.23f * height), 0.27f * height);
                 break;
         }
     }

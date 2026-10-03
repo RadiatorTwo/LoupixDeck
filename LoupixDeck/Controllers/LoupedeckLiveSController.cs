@@ -3067,14 +3067,22 @@ public partial class LoupedeckLiveSController(
 
     /// <summary>
     /// Renders the on-screen image of an LED button. The Loupedeck Live prints a ring with a
-    /// centre dot on its first button and 1–7 on the rest; other devices get the generic ring.
+    /// centre dot on its first round button and 1–7 on the rest, the Loupedeck CT prints 1–8;
+    /// other devices and buttons get the generic ring.
     /// </summary>
     private Avalonia.Media.Imaging.Bitmap RenderSimpleButton(SimpleButton button)
     {
-        int? legend = deviceInfo?.Slug == "loupedeck-live"
-                      && button.Id is >= Constants.ButtonType.BUTTON0 and <= Constants.ButtonType.BUTTON7
-            ? button.Id - Constants.ButtonType.BUTTON0
-            : null;
+        int? legend = null;
+        if (button.Id is >= Constants.ButtonType.BUTTON0 and <= Constants.ButtonType.BUTTON7)
+        {
+            var index = button.Id - Constants.ButtonType.BUTTON0;
+            legend = deviceInfo?.Slug switch
+            {
+                "loupedeck-live" => index,
+                "loupedeck-ct" => index + 1,
+                _ => null
+            };
+        }
 
         return BitmapHelper.RenderSimpleButtonImage(button, 90, 90, legend);
     }
