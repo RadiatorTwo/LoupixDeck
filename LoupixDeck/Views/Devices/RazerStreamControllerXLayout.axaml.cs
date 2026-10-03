@@ -3,6 +3,7 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
 using LoupixDeck.Models;
+using LoupixDeck.Utils;
 using LoupixDeck.ViewModels;
 
 namespace LoupixDeck.Views.Devices;
@@ -12,6 +13,7 @@ public partial class RazerStreamControllerXLayout : UserControl
     public RazerStreamControllerXLayout()
     {
         InitializeComponent();
+        DeviceButtonToolTip.Attach(this);
     }
 
     private void InitializeComponent()
