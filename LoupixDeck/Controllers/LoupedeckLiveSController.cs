@@ -3066,9 +3066,9 @@ public partial class LoupedeckLiveSController(
         string.IsNullOrWhiteSpace(command) ? Avalonia.Media.Colors.Black : Avalonia.Media.Colors.Blue;
 
     /// <summary>
-    /// Renders the on-screen image of an LED button. The Loupedeck Live prints a ring with a
-    /// centre dot on its first round button and 1–7 on the rest, the Loupedeck CT prints 1–8;
-    /// other devices and buttons get the generic ring.
+    /// Renders the on-screen image of an LED button. The Loupedeck Live and the Razer Stream
+    /// Controller print a ring with a centre dot on their first round button and 1–7 on the
+    /// rest, the Loupedeck CT prints 1–8; other devices and buttons get the generic ring.
     /// </summary>
     private Avalonia.Media.Imaging.Bitmap RenderSimpleButton(SimpleButton button)
     {
@@ -3078,7 +3078,7 @@ public partial class LoupedeckLiveSController(
             var index = button.Id - Constants.ButtonType.BUTTON0;
             legend = deviceInfo?.Slug switch
             {
-                "loupedeck-live" => index,
+                "loupedeck-live" or "razer-stream-controller" => index,
                 "loupedeck-ct" => index + 1,
                 _ => null
             };

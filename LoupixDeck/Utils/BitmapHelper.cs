@@ -260,7 +260,7 @@ public static class BitmapHelper
     }
 
     /// <summary>
-    /// Adds one of the digits 1–8 printed on the Loupedeck Live/CT LED buttons as a
+    /// Adds one of the digits 1–8 printed on the device's LED buttons as a
     /// single-stroke outline, <paramref name="height"/> tall and centred on
     /// (<paramref name="cx"/>, <paramref name="cy"/>). Drawn as lines rather than font
     /// glyphs so the shapes match the device (flat-topped 3, open 4) on every platform.
