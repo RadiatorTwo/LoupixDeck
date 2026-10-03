@@ -3065,6 +3065,20 @@ public partial class LoupedeckLiveSController(
     private static Avalonia.Media.Color DefaultLedColor(string command) =>
         string.IsNullOrWhiteSpace(command) ? Avalonia.Media.Colors.Black : Avalonia.Media.Colors.Blue;
 
+    /// <summary>
+    /// Renders the on-screen image of an LED button. The Loupedeck Live prints a ring with a
+    /// centre dot on its first button and 1–7 on the rest; other devices get the generic ring.
+    /// </summary>
+    private Avalonia.Media.Imaging.Bitmap RenderSimpleButton(SimpleButton button)
+    {
+        int? legend = deviceInfo?.Slug == "loupedeck-live"
+                      && button.Id is >= Constants.ButtonType.BUTTON0 and <= Constants.ButtonType.BUTTON7
+            ? button.Id - Constants.ButtonType.BUTTON0
+            : null;
+
+        return BitmapHelper.RenderSimpleButtonImage(button, 90, 90, legend);
+    }
+
     private async Task<SimpleButton> CreateSimpleButton(Constants.ButtonType id, Avalonia.Media.Color color,
         string command)
     {
@@ -3077,7 +3091,7 @@ public partial class LoupedeckLiveSController(
 
         Avalonia.Threading.Dispatcher.UIThread.Invoke(() =>
         {
-            button.RenderedImage = BitmapHelper.RenderSimpleButtonImage(button, 90, 90);
+            button.RenderedImage = RenderSimpleButton(button);
         });
 
         button.ItemChanged += SimpleButtonChanged;
@@ -3104,7 +3118,7 @@ public partial class LoupedeckLiveSController(
         // dispatcher (a device write is still pending below).
         Avalonia.Threading.Dispatcher.UIThread.Post(() =>
         {
-            button.RenderedImage = BitmapHelper.RenderSimpleButtonImage(button, 90, 90);
+            button.RenderedImage = RenderSimpleButton(button);
         });
         // async void: an unhandled transport failure here would tear the process down.
         await TryDeviceIo($"setting the colour of button {button.Id}",
@@ -3124,7 +3138,7 @@ public partial class LoupedeckLiveSController(
         foreach (var button in config.SimpleButtons)
         {
             if (button == null) continue;
-            button.RenderedImage = BitmapHelper.RenderSimpleButtonImage(button, 90, 90);
+            button.RenderedImage = RenderSimpleButton(button);
         }
     }
 
