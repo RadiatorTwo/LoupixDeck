@@ -18,6 +18,11 @@ public class TouchButton : StatefulButton
     public TouchButton(int index)
     {
         Index = index;
+        PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(Command))
+                OnPropertyChanged(nameof(ShowsCommandHint));
+        };
     }
 
     /// <summary>Parameterless ctor for the JSON deserializer.</summary>
@@ -42,8 +47,20 @@ public class TouchButton : StatefulButton
             if (field == value) return;
             field = value;
             OnPropertyChanged(nameof(IsFolderBackSlot));
+            OnPropertyChanged(nameof(ShowsCommandHint));
         }
     }
+
+    /// <summary>
+    /// True when the button has a command but no visible layer, so it would look unused in the
+    /// editor (issue #306). Drives an editor-only badge; the device image is never touched.
+    /// Re-evaluated on every render, since any layer change re-renders the button.
+    /// </summary>
+    [JsonIgnore]
+    public bool ShowsCommandHint =>
+        !IsFolderBackSlot
+        && !string.IsNullOrWhiteSpace(Command)
+        && !(Layers?.Any(layer => layer is { Visible: true }) ?? false);
 
     protected override void RaiseActiveStateProjections()
     {
@@ -52,6 +69,7 @@ public class TouchButton : StatefulButton
         OnPropertyChanged(nameof(BackgroundEnabled));
         OnPropertyChanged(nameof(VibrationEnabled));
         OnPropertyChanged(nameof(VibrationPattern));
+        OnPropertyChanged(nameof(ShowsCommandHint));
     }
 
     // ---- Appearance / haptic projected onto the active state --------------
@@ -153,6 +171,7 @@ public class TouchButton : StatefulButton
             }
 
             OnPropertyChanged(nameof(RenderedImage));
+            OnPropertyChanged(nameof(ShowsCommandHint));
         }
     }
 

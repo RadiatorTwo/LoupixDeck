@@ -3,6 +3,7 @@ using System.Collections.ObjectModel;
 using System.Windows.Input;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using LoupixDeck.Commands.Base;
 using LoupixDeck.Controllers;
 using LoupixDeck.Models;
 using LoupixDeck.Models.Extensions;
@@ -13,6 +14,7 @@ using LoupixDeck.Services.Commands;
 using LoupixDeck.Services.Plugins;
 using LoupixDeck.Services.Profiles;
 using LoupixDeck.Services.SystemPower;
+using LoupixDeck.Utils;
 using LoupixDeck.ViewModels.Base;
 
 namespace LoupixDeck.ViewModels;
@@ -254,6 +256,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
     private readonly LoupixDeck.Registry.DeviceGeometry _geometry;
     private readonly Services.Companion.ICompanionCoordinator _companions;
+    private readonly ICommandRegistry _commandRegistry;
 
     public MainWindowViewModel(LoupedeckLiveSController loupedeck,
         IDialogService dialogService,
@@ -335,6 +338,7 @@ public partial class MainWindowViewModel : ViewModelBase
         _workspaceActivation.ActiveProfileChanged += OnActiveProfileChanged;
         _workspaceActivation.ActiveWorkspaceChanged += OnActiveWorkspaceChanged;
 
+        _commandRegistry = commandRegistry;
         commandRegistry.Initialize();
 
         // Mirror exclusive-mode state into bindable properties. StateChanged can
@@ -654,6 +658,25 @@ public partial class MainWindowViewModel : ViewModelBase
 
         if (button != null)
             button.IsSelected = true;
+    }
+
+    /// <summary>
+    /// Tooltip text for a device button in the layout view (issue #306): the display names of the
+    /// assigned command chain, joined with arrows. Unknown and shell segments show their raw text.
+    /// Null when nothing is assigned, so no tooltip opens.
+    /// </summary>
+    public string DescribeCommand(string command)
+    {
+        List<string> names = [];
+        foreach (string segment in CommandStringParser.SplitChain(command))
+        {
+            CommandInfo info = _commandRegistry.Get(CommandStringParser.GetName(segment))?.Info;
+            names.Add(string.IsNullOrWhiteSpace(info?.DisplayName)
+                ? segment
+                : LocalizationManager.Instance.TrText(info.DisplayName, info.OwnerPluginId));
+        }
+
+        return names.Count == 0 ? null : string.Join(" → ", names);
     }
 
     // ─────────────────────────── Copy / cut / paste / clear (issue #166) ───────────────────────────
