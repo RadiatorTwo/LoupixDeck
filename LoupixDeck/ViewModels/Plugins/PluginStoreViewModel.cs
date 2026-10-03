@@ -26,7 +26,7 @@ public sealed partial class PluginStoreViewModel(
 {
     private bool _loaded;
 
-    /// <summary>Cancels the icon requests of the rows in <see cref="_allItems"/> once they are replaced
+    /// <summary>Lets the rows in <see cref="_allItems"/> stop waiting for their icons once they are replaced
     /// or the window closes.</summary>
     private CancellationTokenSource _iconLoads;
 
@@ -218,7 +218,7 @@ public sealed partial class PluginStoreViewModel(
         _loaded = false;
     }
 
-    /// <summary>Stops the icon requests still in flight when the window closes.</summary>
+    /// <summary>Lets go of the icons still being loaded when the window closes.</summary>
     public void Cleanup() => CancelIconLoads();
 
     private void CancelIconLoads()
@@ -610,18 +610,11 @@ public sealed partial class PluginStoreRowViewModel(PluginStoreItem item, bool i
 
         try
         {
-            byte[] bytes = await FileDownloader.DownloadBytesAsync(url, cancellation);
-            using MemoryStream stream = new(bytes);
-            Icon = new Bitmap(stream);
+            Icon = await PluginStoreIconCache.GetAsync(url, cancellation);
         }
-        catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
+        catch (OperationCanceledException)
         {
-            // The row is gone; nobody is waiting for this icon.
-        }
-        catch (Exception ex)
-        {
-            // An icon is decoration; a broken one never gets in the way of the list.
-            Console.WriteLine($"[PluginStore] Could not load the icon of {Item.Entry.Id}: {ex.Message}");
+            // The row is gone; the download carries on and stays in the cache for the next one.
         }
     }
 }
