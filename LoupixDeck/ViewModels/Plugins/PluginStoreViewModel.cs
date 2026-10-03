@@ -249,6 +249,12 @@ public sealed partial class PluginStoreViewModel(
                 _ = row.LoadIconAsync();
             }
 
+            int hidden = result.Items.Count - _allItems.Count;
+            if (hidden > 0)
+            {
+                Console.WriteLine($"[PluginStore] {hidden} of {result.Items.Count} catalog plugins ship no build for this system and are not listed.");
+            }
+
             ApplyFilter();
             OnPropertyChanged(nameof(AvailableUpdateCount));
 

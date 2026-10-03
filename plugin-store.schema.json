@@ -44,7 +44,7 @@
           "description": "Systems the plugin is offered on. Empty means every platform.",
           "type": "array",
           "uniqueItems": true,
-          "items": { "enum": [ "Windows", "Linux" ] }
+          "items": { "enum": [ "Windows", "Linux", "macOS" ] }
         },
         "minSdkVersion": {
           "description": "Informational; whether a release loads is decided by release.sdkVersion.",
@@ -83,7 +83,7 @@
         },
         "releaseNotesUrl": { "type": "string", "pattern": "^https://" },
         "packages": {
-          "description": "One entry per platform build. Either a single 'any' package, or one/both of windows and linux.",
+          "description": "One entry per platform build. Either a single 'any' package, or one or more of windows, linux and macos.",
           "type": "array",
           "minItems": 1,
           "items": { "$ref": "#/$defs/package" }
@@ -95,7 +95,7 @@
       "required": [ "platform", "fileName", "downloadUrl", "sha256" ],
       "additionalProperties": false,
       "properties": {
-        "platform": { "enum": [ "windows", "linux", "any" ] },
+        "platform": { "enum": [ "windows", "linux", "macos", "any" ] },
         "fileName": {
           "description": "<id>-<version>-<platform>.zip, as produced by the plugin release workflow.",
           "type": "string",
