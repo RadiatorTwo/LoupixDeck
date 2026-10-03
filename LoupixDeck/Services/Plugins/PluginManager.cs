@@ -1022,6 +1022,9 @@ public class PluginManager : IPluginManager
         if (platform.Equals("Linux", StringComparison.OrdinalIgnoreCase))
             return OperatingSystem.IsLinux();
 
+        if (platform.Equals("macOS", StringComparison.OrdinalIgnoreCase))
+            return OperatingSystem.IsMacOS();
+
         return false;
     }
 

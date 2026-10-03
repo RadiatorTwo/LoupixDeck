@@ -21,7 +21,7 @@ public sealed class PluginManifest
     /// <summary>File name of the entry assembly within the plugin folder.</summary>
     public string EntryAssembly { get; set; }
 
-    /// <summary>"All", "Windows" or "Linux" — the OS the plugin supports.</summary>
+    /// <summary>"All", "Windows", "Linux" or "macOS" — the OS the plugin supports.</summary>
     public string Platform { get; set; } = "All";
 
     // ───────── Display metadata (all optional; older manifests omit them) ─────────

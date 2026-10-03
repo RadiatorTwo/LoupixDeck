@@ -31,8 +31,8 @@ match the `PluginMetadata` returned by the plugin:
 ```
 
 Required Store-release fields are `id`, `version`, `sdkVersion`, and
-`entryAssembly`. `platform` is `All`, `Windows`, or `Linux` and defaults to
-`All`. The release workflow requires `version` in plain `major.minor.patch`
+`entryAssembly`. `platform` is `All`, `Windows`, `Linux`, or `macOS` and defaults
+to `All`. The release workflow requires `version` in plain `major.minor.patch`
 form, and a GitHub Release tag must be exactly `v<version>`.
 
 Two versions matter:
@@ -162,6 +162,7 @@ A published GitHub Release produces and attaches:
 | `<id>-<version>-any.zip` | Package for `platform: All` |
 | `<id>-<version>-windows.zip` | Package for `platform: Windows` |
 | `<id>-<version>-linux.zip` | Package for `platform: Linux` |
+| `<id>-<version>-macos.zip` | Package for `platform: macOS` |
 | `plugin.json` | Lets the Store check identity and compatibility before downloading the package |
 | `SHA256SUMS` | SHA-256 entries for the package and manifest |
 
@@ -210,13 +211,16 @@ adds an entry such as:
 ```
 
 The catalogue `id` must match the release manifest. `repository` is the GitHub
-`owner/name`; `platforms` controls which operating systems see the entry;
+`owner/name`; `platforms` (`"Windows"`, `"Linux"`, `"macOS"`) controls which operating
+systems see the entry, although a release that ships an `any` package or the
+running system's own package is listed regardless;
 `minSdkVersion` is catalogue information while the nested release's
 `sdkVersion` decides actual compatibility. The release object is authoritative
 for the version offered by the Store and includes its tag, publication time,
-notes URL, and one or more platform packages with exact filenames, URLs, and
-checksums. Copy that object from the release workflow's job summary or
-`store-entry.json` instead of transcribing it by hand. List every stable command prefix in
+notes URL, and one or more platform packages (`windows`, `linux`, `macos`, or a
+single `any`) with exact filenames, URLs, and checksums. Copy that object from
+the release workflow's job summary or `store-entry.json` instead of
+transcribing it by hand. List every stable command prefix in
 `commandPrefixes` so LoupixDeck can recognise assignments when the plugin is
 not installed and avoid treating them as shell commands.
 

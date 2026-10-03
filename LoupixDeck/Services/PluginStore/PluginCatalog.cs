@@ -39,7 +39,7 @@ public sealed class PluginCatalogEntry
     /// <summary>Optional URL of an icon image.</summary>
     public string Icon { get; set; }
 
-    /// <summary>"Windows" and/or "Linux"; empty means every platform.</summary>
+    /// <summary>"Windows", "Linux" and/or "macOS"; empty means every platform.</summary>
     public List<string> Platforms { get; set; } = [];
 
     /// <summary>
@@ -62,7 +62,10 @@ public sealed class PluginCatalogEntry
 
     public string DisplayName => string.IsNullOrWhiteSpace(Name) ? Id : Name;
 
-    /// <summary>True when the catalog lists the running OS (or no platform at all).</summary>
+    /// <summary>
+    /// True when the catalog lists the running OS (or no platform at all), or when the published release ships
+    /// a build this system can install: its own platform's package or the platform-independent one.
+    /// </summary>
     public bool SupportsCurrentPlatform()
     {
         if (Platforms is not { Count: > 0 })
@@ -70,9 +73,15 @@ public sealed class PluginCatalogEntry
             return true;
         }
 
-        return Platforms.Any(p => p.Equals("All", StringComparison.OrdinalIgnoreCase)
-                                  || (p.Equals("Windows", StringComparison.OrdinalIgnoreCase) && OperatingSystem.IsWindows())
-                                  || (p.Equals("Linux", StringComparison.OrdinalIgnoreCase) && OperatingSystem.IsLinux()));
+        if (Platforms.Any(p => p.Equals("All", StringComparison.OrdinalIgnoreCase)
+                               || (p.Equals("Windows", StringComparison.OrdinalIgnoreCase) && OperatingSystem.IsWindows())
+                               || (p.Equals("Linux", StringComparison.OrdinalIgnoreCase) && OperatingSystem.IsLinux())
+                               || (p.Equals("macOS", StringComparison.OrdinalIgnoreCase) && OperatingSystem.IsMacOS())))
+        {
+            return true;
+        }
+
+        return Release?.FindPackageForCurrentPlatform() is not null;
     }
 
     /// <summary>True when <paramref name="commandName"/> starts with one of <see cref="CommandPrefixes"/>.</summary>
@@ -113,8 +122,8 @@ public sealed class PluginReleaseEntry
         : Tag;
 
     /// <summary>
-    /// The package to install on this machine: the build for the running OS, else the platform-independent
-    /// one, else null when the release ships nothing for this system.
+    /// The package to install on this machine: the build for the running OS (windows, linux or macos), else
+    /// the platform-independent one, else null when the release ships nothing for this system.
     /// </summary>
     public PluginPackageEntry FindPackageForCurrentPlatform()
     {
@@ -123,7 +132,9 @@ public sealed class PluginReleaseEntry
             return null;
         }
 
-        string platform = OperatingSystem.IsWindows() ? "windows" : "linux";
+        string platform = OperatingSystem.IsWindows() ? "windows"
+            : OperatingSystem.IsMacOS() ? "macos"
+            : "linux";
         return Packages.FirstOrDefault(p => p != null && p.Matches(platform))
                ?? Packages.FirstOrDefault(p => p != null && p.Matches("any"));
     }
@@ -132,7 +143,7 @@ public sealed class PluginReleaseEntry
 /// <summary>One downloadable build of a release.</summary>
 public sealed class PluginPackageEntry
 {
-    /// <summary><c>windows</c>, <c>linux</c> or <c>any</c>.</summary>
+    /// <summary><c>windows</c>, <c>linux</c>, <c>macos</c> or <c>any</c>.</summary>
     public string Platform { get; set; }
 
     public string FileName { get; set; }
