@@ -103,6 +103,15 @@
                                 BorderThickness="3" BorderBrush="Transparent"
                                 IsHitTestVisible="False"
                                 Classes.selected="{Binding ((models:LoupedeckButton)CommandParameter).IsSelected, RelativeSource={RelativeSource TemplatedParent}, FallbackValue=False}" />
+                        <!-- Editor-only hint (issue #306): the tile has a command but no visible layer, so
+                             it would look unused. Never part of the rendered image sent to the device. -->
+                        <Ellipse Name="CommandBadge"
+                                 Width="10" Height="10" Margin="0,13,13,0"
+                                 HorizontalAlignment="Right" VerticalAlignment="Top"
+                                 Fill="{StaticResource PageActiveBorderBrush}"
+                                 Stroke="#99000000" StrokeThickness="1.5"
+                                 IsHitTestVisible="False"
+                                 IsVisible="{Binding ((models:TouchButton)CommandParameter).ShowsCommandHint, RelativeSource={RelativeSource TemplatedParent}, FallbackValue=False}" />
                     </Grid>
                 </ControlTemplate>
             </Setter>
