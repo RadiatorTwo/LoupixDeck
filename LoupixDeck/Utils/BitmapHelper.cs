@@ -54,9 +54,12 @@ public static class BitmapHelper
     /// faint base glow even when the button colour is (near-)black so it stays
     /// visible in the "off" state. Drawn with SkiaSharp (for blur-based glow and
     /// gradient shading) and returned as an Avalonia <see cref="Bitmap"/> so the
-    /// existing image bindings stay unchanged.
+    /// existing image bindings stay unchanged. <paramref name="legend"/> replaces the
+    /// gapped ring with the marking printed on the device's button: 0 = ring with a
+    /// centre dot, 1 and up = that digit; null keeps the generic ring.
     /// </summary>
-    public static Bitmap RenderSimpleButtonImage(SimpleButton simpleButton, int width, int height)
+    public static Bitmap RenderSimpleButtonImage(SimpleButton simpleButton, int width, int height,
+        int? legend = null)
     {
         ArgumentNullException.ThrowIfNull(simpleButton);
 
@@ -143,7 +146,7 @@ public static class BitmapHelper
                     canvas.DrawCircle(cx, cy, bodyRadius - (rimWidth / 2f), rim);
                 }
 
-                // 4. Glowing LED ring with a gap at the top-right.
+                // 4. Glowing LED ring with a gap at the top-right, or the device's legend.
                 var glowColor = ResolveGlowColor(simpleButton.ButtonColor.ToSKColor());
                 var coreColor = MixToWhite(glowColor, 0.45f);
 
@@ -158,22 +161,55 @@ public static class BitmapHelper
                 const float sweepAngle = 360f - gapAngle;
                 var coreWidth = 2.4f * ss;
 
+                // A printed legend is a crisp marking on a dark face, so it glows far
+                // less than the generic ring.
+                var printed = legend != null;
+                var dotRadius = 0f;
+
                 using var ringBuilder = new SKPathBuilder();
-                ringBuilder.AddArc(oval, startAngle, sweepAngle);
+                if (legend == 0)
+                {
+                    // Closed ring, smaller than the generic one, with a solid dot in the
+                    // middle (filled separately below).
+                    var printedRadius = bodyRadius * 0.36f;
+                    ringBuilder.AddCircle(cx, cy, printedRadius);
+                    dotRadius = printedRadius * 0.24f;
+                }
+                else if (legend is >= 1 and <= 8)
+                {
+                    AddLegendDigit(ringBuilder, legend.Value, cx, cy, bodyRadius * 0.44f);
+                }
+                else
+                {
+                    ringBuilder.AddArc(oval, startAngle, sweepAngle);
+                }
+
                 using var ringPath = ringBuilder.Detach();
+
+                void DrawLegend(SKPaint paint)
+                {
+                    canvas.DrawPath(ringPath, paint);
+                    if (dotRadius <= 0f) return;
+
+                    // Same outer edge the stroke would give a dot of this radius.
+                    var grow = (paint.StrokeWidth - coreWidth) / 2f;
+                    paint.Style = SKPaintStyle.Fill;
+                    canvas.DrawCircle(cx, cy, dotRadius + grow, paint);
+                }
 
                 // Wide soft halo.
                 using (var halo = new SKPaint
                        {
                            IsAntialias = true,
                            Style = SKPaintStyle.Stroke,
-                           StrokeWidth = coreWidth * 3.2f,
+                           StrokeWidth = coreWidth * (printed ? 2f : 3.2f),
                            StrokeCap = SKStrokeCap.Round,
-                           Color = glowColor.WithAlpha(110),
-                           MaskFilter = SKMaskFilter.CreateBlur(SKBlurStyle.Normal, 4.5f * ss)
+                           StrokeJoin = SKStrokeJoin.Round,
+                           Color = glowColor.WithAlpha((byte)(printed ? 45 : 110)),
+                           MaskFilter = SKMaskFilter.CreateBlur(SKBlurStyle.Normal, (printed ? 2.5f : 4.5f) * ss)
                        })
                 {
-                    canvas.DrawPath(ringPath, halo);
+                    DrawLegend(halo);
                 }
 
                 // Tighter inner glow.
@@ -181,13 +217,14 @@ public static class BitmapHelper
                        {
                            IsAntialias = true,
                            Style = SKPaintStyle.Stroke,
-                           StrokeWidth = coreWidth * 1.8f,
+                           StrokeWidth = coreWidth * (printed ? 1.3f : 1.8f),
                            StrokeCap = SKStrokeCap.Round,
-                           Color = glowColor.WithAlpha(180),
-                           MaskFilter = SKMaskFilter.CreateBlur(SKBlurStyle.Normal, 2f * ss)
+                           StrokeJoin = SKStrokeJoin.Round,
+                           Color = glowColor.WithAlpha((byte)(printed ? 90 : 180)),
+                           MaskFilter = SKMaskFilter.CreateBlur(SKBlurStyle.Normal, (printed ? 1f : 2f) * ss)
                        })
                 {
-                    canvas.DrawPath(ringPath, innerGlow);
+                    DrawLegend(innerGlow);
                 }
 
                 // Crisp bright core (the lit filament).
@@ -197,10 +234,11 @@ public static class BitmapHelper
                            Style = SKPaintStyle.Stroke,
                            StrokeWidth = coreWidth,
                            StrokeCap = SKStrokeCap.Round,
+                           StrokeJoin = SKStrokeJoin.Round,
                            Color = coreColor
                        })
                 {
-                    canvas.DrawPath(ringPath, core);
+                    DrawLegend(core);
                 }
             }
 
@@ -219,6 +257,66 @@ public static class BitmapHelper
         }
 
         return result;
+    }
+
+    /// <summary>
+    /// Adds one of the digits 1–8 printed on the device's LED buttons as a
+    /// single-stroke outline, <paramref name="height"/> tall and centred on
+    /// (<paramref name="cx"/>, <paramref name="cy"/>). Drawn as lines rather than font
+    /// glyphs so the shapes match the device (flat-topped 3, open 4) on every platform.
+    /// </summary>
+    private static void AddLegendDigit(SKPathBuilder builder, int digit, float cx, float cy, float height)
+    {
+        // Unit box: x -0.3..0.3, y -0.5 (top)..0.5 (bottom).
+        SKPoint P(float x, float y) => new(cx + (x * height), cy + (y * height));
+        SKRect Circle(float x, float y, float r) =>
+            new(cx + ((x - r) * height), cy + ((y - r) * height), cx + ((x + r) * height), cy + ((y + r) * height));
+
+        switch (digit)
+        {
+            case 1:
+                builder.MoveTo(P(-0.12f, -0.32f));
+                builder.LineTo(P(0.08f, -0.5f));
+                builder.LineTo(P(0.08f, 0.5f));
+                break;
+            case 2:
+                builder.AddArc(Circle(0f, -0.22f, 0.28f), 180f, 220f);
+                builder.LineTo(P(-0.28f, 0.5f));
+                builder.LineTo(P(0.3f, 0.5f));
+                break;
+            case 3:
+                builder.MoveTo(P(-0.26f, -0.5f));
+                builder.LineTo(P(0.24f, -0.5f));
+                builder.LineTo(P(-0.02f, -0.1f));
+                builder.ArcTo(Circle(-0.02f, 0.2f, 0.3f), 270f, 240f, false);
+                break;
+            case 4:
+                builder.MoveTo(P(-0.02f, -0.5f));
+                builder.LineTo(P(-0.3f, 0.2f));
+                builder.LineTo(P(0.3f, 0.2f));
+                builder.MoveTo(P(0.16f, -0.15f));
+                builder.LineTo(P(0.16f, 0.5f));
+                break;
+            case 5:
+                builder.MoveTo(P(0.24f, -0.5f));
+                builder.LineTo(P(-0.2f, -0.5f));
+                builder.ArcTo(Circle(-0.02f, 0.19f, 0.31f), 225f, 285f, false);
+                break;
+            case 6:
+                builder.MoveTo(P(0.1f, -0.5f));
+                builder.LineTo(P(-0.26f, 0.05f));
+                builder.AddCircle(cx, cy + (0.2f * height), 0.3f * height);
+                break;
+            case 7:
+                builder.MoveTo(P(-0.28f, -0.5f));
+                builder.LineTo(P(0.28f, -0.5f));
+                builder.LineTo(P(-0.08f, 0.5f));
+                break;
+            case 8:
+                builder.AddCircle(cx, cy - (0.26f * height), 0.24f * height);
+                builder.AddCircle(cx, cy + (0.23f * height), 0.27f * height);
+                break;
+        }
     }
 
     /// <summary>
