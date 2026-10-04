@@ -477,6 +477,36 @@
           }
         ]
       }
+    },
+    {
+      "id": "vtubestudio",
+      "name": "VTube Studio",
+      "description": "Activate, deactivate and toggle model expressions in VTube Studio.",
+      "author": "vividflash",
+      "repository": "vividflash/LoupixDeck.Plugin.VTubeStudio",
+      "icon": "https://raw.githubusercontent.com/vividflash/LoupixDeck.Plugin.VTubeStudio/main/icon.png",
+      "platforms": [
+        "Windows",
+        "Linux"
+      ],
+      "minSdkVersion": "1.28.0",
+      "commandPrefixes": [
+        "VTubeStudio."
+      ],
+      "release": {
+        "version": "1.0.0",
+        "tag": "v1.0.0",
+        "sdkVersion": "1.28.0",
+        "releaseNotesUrl": "https://github.com/vividflash/LoupixDeck.Plugin.VTubeStudio/releases/tag/v1.0.0",
+        "packages": [
+          {
+            "platform": "any",
+            "fileName": "vtubestudio-1.0.0-any.zip",
+            "downloadUrl": "https://github.com/vividflash/LoupixDeck.Plugin.VTubeStudio/releases/download/v1.0.0/vtubestudio-1.0.0-any.zip",
+            "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+          }
+        ]
+      }
     }
   ]
 }
