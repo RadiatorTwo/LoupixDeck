@@ -3,11 +3,12 @@
 [![.NET Release](https://github.com/RadiatorTwo/LoupixDeck/actions/workflows/release.yml/badge.svg)](https://github.com/RadiatorTwo/LoupixDeck/actions/workflows/release.yml)
 [![Windows](https://img.shields.io/badge/Windows-supported-0078D4?logo=windows)](https://github.com/RadiatorTwo/LoupixDeck/releases/latest)
 [![Linux](https://img.shields.io/badge/Linux-supported-FCC624?logo=linux&logoColor=black)](https://github.com/RadiatorTwo/LoupixDeck/releases/latest)
+[![macOS](https://img.shields.io/badge/macOS-alpha-999999?logo=apple)](https://github.com/RadiatorTwo/LoupixDeck/releases/latest)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
 **An open-source control deck application for Loupedeck and Razer Stream Controller devices.**
 
-Create custom touch pages, rotary controls, folders, macros and application-aware layouts on **Windows and Linux**—without the official vendor software.
+Create custom touch pages, rotary controls, folders, macros and application-aware layouts on **Windows and Linux**—without the official vendor software. Experimental alpha builds are also available for **macOS**.
 
 Built with [Avalonia](https://avaloniaui.net/) and [.NET 10](https://dotnet.microsoft.com/).
 
@@ -19,7 +20,7 @@ Built with [Avalonia](https://avaloniaui.net/) and [.NET 10](https://dotnet.micr
 
 ## Why LoupixDeck?
 
-- **Cross-platform:** native support for Windows and Linux, including SteamOS
+- **Cross-platform:** native support for Windows and Linux, including SteamOS, plus experimental macOS builds
 - **Your layout, your way:** profiles, workspaces, pages, nested folders and per-page wallpapers
 - **Powerful controls:** layered buttons, multiple states, rotary actions, macros and app-focus switching
 - **Multiple devices:** use several supported controllers at the same time, even identical models
@@ -107,6 +108,25 @@ Only the device-permission step needs administrator rights. If you have never co
 
 > A Flatpak is not provided because sandboxing blocks hardware access, input simulation, application launching and functionality required by many plugins.
 
+### macOS (experimental alpha)
+
+> **macOS support is an experimental alpha.** It is not yet tested as thoroughly as Windows and Linux. Expect missing features and rough edges. Bug reports and hardware test results are very welcome.
+
+Download the disk image for your Mac from the latest release:
+
+| Package | Recommended for |
+| --- | --- |
+| `LoupixDeck-osx-arm64.dmg` | Apple Silicon (M1 and later) |
+| `LoupixDeck-osx-x64.dmg` | Intel Macs |
+
+Open the disk image and drag LoupixDeck into your **Applications** folder.
+
+Macros and direct keyboard/mouse input need the **Accessibility** permission. LoupixDeck asks for it on first use; you can also grant it under **System Settings → Privacy & Security → Accessibility**. Without this permission, macOS silently discards the injected input.
+
+[**Download for macOS**](https://github.com/RadiatorTwo/LoupixDeck/releases/latest)
+
+macOS builds are sponsored by [**Web Engineer**](https://www.web-engineer.co.uk/) ([@web-engineer](https://github.com/web-engineer)).
+
 ## First steps
 
 1. Connect a supported device and start LoupixDeck.
@@ -159,6 +179,7 @@ For simpler actions, buttons and dials can directly send mouse clicks, scrolling
 | Platform | Input backend |
 | --- | --- |
 | Linux | `uinput` |
+| macOS (alpha) | `CGEventPost` (needs the Accessibility permission) |
 | Windows | `SendInput` |
 | Windows | Optional Interception driver for raw-input applications |
 
@@ -383,7 +404,11 @@ Please read [CONTRIBUTING.md](CONTRIBUTING.md) before submitting a change. If yo
 
 ## Project status
 
-LoupixDeck is actively developed and suitable for daily use on the fully supported devices listed above. Loupedeck CT support remains experimental while its remaining controls are implemented and verified.
+LoupixDeck is actively developed and suitable for daily use on the fully supported devices listed above. Loupedeck CT support remains experimental while its remaining controls are implemented and verified. macOS support is an experimental alpha.
+
+## Credits
+
+macOS builds are sponsored by [**Web Engineer**](https://www.web-engineer.co.uk/) ([@web-engineer](https://github.com/web-engineer)).
 
 ## License
 
