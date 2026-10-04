@@ -481,7 +481,7 @@
     {
       "id": "vtubestudio",
       "name": "VTube Studio",
-      "description": "Activate, deactivate and toggle model expressions in VTube Studio.",
+      "description": "Toggle expressions and trigger hotkeys of the model and of Live2D items in VTube Studio, with the on/off state and icons on the buttons.",
       "author": "vividflash",
       "repository": "vividflash/LoupixDeck.Plugin.VTubeStudio",
       "icon": "https://raw.githubusercontent.com/vividflash/LoupixDeck.Plugin.VTubeStudio/main/icon.png",
@@ -496,6 +496,7 @@
       "release": {
         "version": "1.0.0",
         "tag": "v1.0.0",
+        "publishedAt": "2026-10-04T14:01:08Z",
         "sdkVersion": "1.28.0",
         "releaseNotesUrl": "https://github.com/vividflash/LoupixDeck.Plugin.VTubeStudio/releases/tag/v1.0.0",
         "packages": [
@@ -503,7 +504,7 @@
             "platform": "any",
             "fileName": "vtubestudio-1.0.0-any.zip",
             "downloadUrl": "https://github.com/vividflash/LoupixDeck.Plugin.VTubeStudio/releases/download/v1.0.0/vtubestudio-1.0.0-any.zip",
-            "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+            "sha256": "d691bab5a59df3d46a0c2405f29250d9f90db2f6744099ac16c6ef48ea1c104c"
           }
         ]
       }
