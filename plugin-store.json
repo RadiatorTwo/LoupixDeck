@@ -494,17 +494,17 @@
         "VTubeStudio."
       ],
       "release": {
-        "version": "1.0.0",
-        "tag": "v1.0.0",
-        "publishedAt": "2026-10-04T14:01:08Z",
+        "version": "1.1.0",
+        "tag": "v1.1.0",
+        "publishedAt": "2026-10-04T16:07:30Z",
         "sdkVersion": "1.28.0",
-        "releaseNotesUrl": "https://github.com/vividflash/LoupixDeck.Plugin.VTubeStudio/releases/tag/v1.0.0",
+        "releaseNotesUrl": "https://github.com/vividflash/LoupixDeck.Plugin.VTubeStudio/releases/tag/v1.1.0",
         "packages": [
           {
             "platform": "any",
-            "fileName": "vtubestudio-1.0.0-any.zip",
-            "downloadUrl": "https://github.com/vividflash/LoupixDeck.Plugin.VTubeStudio/releases/download/v1.0.0/vtubestudio-1.0.0-any.zip",
-            "sha256": "d691bab5a59df3d46a0c2405f29250d9f90db2f6744099ac16c6ef48ea1c104c"
+            "fileName": "vtubestudio-1.1.0-any.zip",
+            "downloadUrl": "https://github.com/vividflash/LoupixDeck.Plugin.VTubeStudio/releases/download/v1.1.0/vtubestudio-1.1.0-any.zip",
+            "sha256": "59124b17610254f4bff35e4284fad89ab20df8293478be700e632663b7cbb5a5"
           }
         ]
       }
