@@ -367,9 +367,15 @@ public sealed partial class PluginDetailViewModel : ViewModelBase
         }
     }
 
-    /// <summary>The manifest's icon, when it names one that is really there. A broken or
-    /// unsupported image must never break the page.</summary>
+    /// <summary>The manifest's icon, when it names one that is really there, otherwise the icon
+    /// bytes a loaded plugin reports in its metadata. A broken or unsupported image must never
+    /// break the page.</summary>
     private static Bitmap LoadIcon(LoadedPlugin plugin)
+    {
+        return LoadIconFile(plugin) ?? LoadMetadataIcon(plugin);
+    }
+
+    private static Bitmap LoadIconFile(LoadedPlugin plugin)
     {
         string file = plugin.Manifest?.IconFile;
         if (string.IsNullOrWhiteSpace(file) || string.IsNullOrWhiteSpace(plugin.Directory))
@@ -386,6 +392,24 @@ public sealed partial class PluginDetailViewModel : ViewModelBase
         catch (Exception ex)
         {
             Console.WriteLine($"[Plugins] Icon '{path}' could not be read: {ex.Message}");
+            return null;
+        }
+    }
+
+    private static Bitmap LoadMetadataIcon(LoadedPlugin plugin)
+    {
+        try
+        {
+            byte[] bytes = plugin.Instance?.Metadata?.Icon;
+            if (bytes == null || bytes.Length == 0)
+                return null;
+
+            using MemoryStream stream = new(bytes);
+            return new Bitmap(stream);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Plugins] Icon of '{plugin.Manifest?.Id}' could not be read: {ex.Message}");
             return null;
         }
     }
