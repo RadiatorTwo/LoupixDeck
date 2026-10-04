@@ -9,20 +9,20 @@
       "repository": "RadiatorTwo/LoupixDeck.Plugin.Argus",
       "icon": "https://raw.githubusercontent.com/RadiatorTwo/LoupixDeck.Plugin.Argus/master/icon.png",
       "platforms": [ "Windows" ],
-      "minSdkVersion": "1.26.0",
+      "minSdkVersion": "1.28.0",
       "commandPrefixes": [ "Argus." ],
       "release": {
-        "version": "1.1.0",
-        "tag": "v1.1.0",
-        "publishedAt": "2026-09-24T21:18:41Z",
-        "sdkVersion": "1.26",
-        "releaseNotesUrl": "https://github.com/RadiatorTwo/LoupixDeck.Plugin.Argus/releases/tag/v1.1.0",
+        "version": "1.2.0",
+        "tag": "v1.2.0",
+        "publishedAt": "2026-10-04T19:26:38Z",
+        "sdkVersion": "1.28",
+        "releaseNotesUrl": "https://github.com/RadiatorTwo/LoupixDeck.Plugin.Argus/releases/tag/v1.2.0",
         "packages": [
           {
             "platform": "windows",
-            "fileName": "argus-1.1.0-windows.zip",
-            "downloadUrl": "https://github.com/RadiatorTwo/LoupixDeck.Plugin.Argus/releases/download/v1.1.0/argus-1.1.0-windows.zip",
-            "sha256": "83aeb006512a6e464116c526d43d96ac0cb166f081e650b76a4f7959eb41db08"
+            "fileName": "argus-1.2.0-windows.zip",
+            "downloadUrl": "https://github.com/RadiatorTwo/LoupixDeck.Plugin.Argus/releases/download/v1.2.0/argus-1.2.0-windows.zip",
+            "sha256": "63d047dd2cb2794f172dfcb659fc9518721db8f103aa251c6b72f0a591ece1b9"
           }
         ]
       }
@@ -170,20 +170,20 @@
       "repository": "RadiatorTwo/LoupixDeck.Plugin.HwInfo",
       "icon": "https://raw.githubusercontent.com/RadiatorTwo/LoupixDeck.Plugin.HwInfo/master/icon.png",
       "platforms": [ "Windows" ],
-      "minSdkVersion": "1.26.0",
+      "minSdkVersion": "1.28.0",
       "commandPrefixes": [ "HwInfo." ],
       "release": {
-        "version": "1.1.0",
-        "tag": "v1.1.0",
-        "publishedAt": "2026-09-24T22:56:23Z",
-        "sdkVersion": "1.26",
-        "releaseNotesUrl": "https://github.com/RadiatorTwo/LoupixDeck.Plugin.HwInfo/releases/tag/v1.1.0",
+        "version": "1.2.0",
+        "tag": "v1.2.0",
+        "publishedAt": "2026-10-04T19:30:20Z",
+        "sdkVersion": "1.28",
+        "releaseNotesUrl": "https://github.com/RadiatorTwo/LoupixDeck.Plugin.HwInfo/releases/tag/v1.2.0",
         "packages": [
           {
             "platform": "windows",
-            "fileName": "hwinfo-1.1.0-windows.zip",
-            "downloadUrl": "https://github.com/RadiatorTwo/LoupixDeck.Plugin.HwInfo/releases/download/v1.1.0/hwinfo-1.1.0-windows.zip",
-            "sha256": "aafc758d5e88361c4d2bc31a148e57634635ac496d80154d06dce797cced84fe"
+            "fileName": "hwinfo-1.2.0-windows.zip",
+            "downloadUrl": "https://github.com/RadiatorTwo/LoupixDeck.Plugin.HwInfo/releases/download/v1.2.0/hwinfo-1.2.0-windows.zip",
+            "sha256": "5bea1736d0bbc3365cde381eb7d7197e9416151c124604772366a5b52b433e2f"
           }
         ]
       }
@@ -222,20 +222,20 @@
       "repository": "RadiatorTwo/LoupixDeck.Plugin.LibreHardwareMonitor",
       "icon": "https://raw.githubusercontent.com/RadiatorTwo/LoupixDeck.Plugin.LibreHardwareMonitor/master/icon.png",
       "platforms": [ "Windows" ],
-      "minSdkVersion": "1.26.0",
+      "minSdkVersion": "1.28.0",
       "commandPrefixes": [ "LibreHardwareMonitor." ],
       "release": {
-        "version": "1.1.0",
-        "tag": "v1.1.0",
-        "publishedAt": "2026-09-24T22:10:53Z",
-        "sdkVersion": "1.26",
-        "releaseNotesUrl": "https://github.com/RadiatorTwo/LoupixDeck.Plugin.LibreHardwareMonitor/releases/tag/v1.1.0",
+        "version": "1.2.0",
+        "tag": "v1.2.0",
+        "publishedAt": "2026-10-04T19:38:10Z",
+        "sdkVersion": "1.28",
+        "releaseNotesUrl": "https://github.com/RadiatorTwo/LoupixDeck.Plugin.LibreHardwareMonitor/releases/tag/v1.2.0",
         "packages": [
           {
             "platform": "windows",
-            "fileName": "librehardwaremonitor-1.1.0-windows.zip",
-            "downloadUrl": "https://github.com/RadiatorTwo/LoupixDeck.Plugin.LibreHardwareMonitor/releases/download/v1.1.0/librehardwaremonitor-1.1.0-windows.zip",
-            "sha256": "baa2b56340d1a779d864fdd298fd924916ca1496b751b8bcc38ff7b5e950a0cb"
+            "fileName": "librehardwaremonitor-1.2.0-windows.zip",
+            "downloadUrl": "https://github.com/RadiatorTwo/LoupixDeck.Plugin.LibreHardwareMonitor/releases/download/v1.2.0/librehardwaremonitor-1.2.0-windows.zip",
+            "sha256": "83754a004349a39f193f4f68a6f6f6c85a75ff3da6c9805c61864dae9ebd4c3a"
           }
         ]
       }
@@ -248,20 +248,20 @@
       "repository": "RadiatorTwo/LoupixDeck.Plugin.LinuxHWInfo",
       "icon": "https://raw.githubusercontent.com/RadiatorTwo/LoupixDeck.Plugin.LinuxHWInfo/master/icon.png",
       "platforms": [ "Linux" ],
-      "minSdkVersion": "1.26.0",
+      "minSdkVersion": "1.28.0",
       "commandPrefixes": [ "LinuxHwInfo." ],
       "release": {
-        "version": "1.1.0",
-        "tag": "v1.1.0",
-        "publishedAt": "2026-09-25T19:52:33Z",
-        "sdkVersion": "1.26",
-        "releaseNotesUrl": "https://github.com/RadiatorTwo/LoupixDeck.Plugin.LinuxHWInfo/releases/tag/v1.1.0",
+        "version": "1.2.0",
+        "tag": "v1.2.0",
+        "publishedAt": "2026-10-04T19:40:41Z",
+        "sdkVersion": "1.28",
+        "releaseNotesUrl": "https://github.com/RadiatorTwo/LoupixDeck.Plugin.LinuxHWInfo/releases/tag/v1.2.0",
         "packages": [
           {
             "platform": "linux",
-            "fileName": "linuxhwinfo-1.1.0-linux.zip",
-            "downloadUrl": "https://github.com/RadiatorTwo/LoupixDeck.Plugin.LinuxHWInfo/releases/download/v1.1.0/linuxhwinfo-1.1.0-linux.zip",
-            "sha256": "e791da24b3135a1a427631b5c278a7efb120b8356ebcac616b48e21dfb12b3e7"
+            "fileName": "linuxhwinfo-1.2.0-linux.zip",
+            "downloadUrl": "https://github.com/RadiatorTwo/LoupixDeck.Plugin.LinuxHWInfo/releases/download/v1.2.0/linuxhwinfo-1.2.0-linux.zip",
+            "sha256": "18448f5be8a714a25dbe3b07adc85ca3af62eabe7a9f78f48df3d805bb5cc563"
           }
         ]
       }
