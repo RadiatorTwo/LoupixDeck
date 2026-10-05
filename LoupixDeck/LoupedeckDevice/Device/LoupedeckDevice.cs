@@ -1591,7 +1591,6 @@ public class LoupedeckDevice
         if (buttons == null) return;
 
         int slots = Columns * Rows;
-        SKBitmap[] tiles = new SKBitmap[slots];
 
         foreach (TouchButton button in buttons)
         {
@@ -1599,14 +1598,13 @@ public class LoupedeckDevice
             // and whose own renderer owns them.
             if (button == null || button.Index < 0 || button.Index >= slots) continue;
 
-            // The bitmap belongs to the button (RenderedImage owns its lifetime); compose
-            // from it, never dispose it here.
-            tiles[button.Index] =
-                BitmapHelper.RenderTouchButtonContent(button, config, KeySize, KeySize,
-                    GetWallpaperKeyRect(button.Index));
+            // Publishes the key's RenderedImage. The compose below reads it from the button
+            // rather than keeping this reference: the button may free it before then.
+            BitmapHelper.RenderTouchButtonContent(button, config, KeySize, KeySize,
+                GetWallpaperKeyRect(button.Index));
         }
 
-        using SKBitmap region = BitmapHelper.ComposeTouchGrid(tiles, this);
+        using SKBitmap region = BitmapHelper.ComposeTouchGrid(buttons, this);
 
         // Same tolerance the per-key path has: a device that does not answer must not take
         // the caller down with it. Page setup runs during device initialisation, so an
