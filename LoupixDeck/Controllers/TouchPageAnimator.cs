@@ -183,11 +183,7 @@ public partial class LoupedeckLiveSController
         var device = deviceService.Device;
         if (device == null) return null;
 
-        var slots = new SKBitmap[columns * rows];
-        if (page?.TouchButtons != null)
-            for (var i = 0; i < slots.Length; i++)
-                slots[i] = page.TouchButtons.FindByIndex(i)?.RenderedImage;
-        return BitmapHelper.ComposeTouchGrid(slots, device);
+        return BitmapHelper.ComposeTouchGrid(page?.TouchButtons, device);
     }
 
     /// <summary>Renders every grid button of the (now current) incoming page and composes them
@@ -199,16 +195,17 @@ public partial class LoupedeckLiveSController
         if (device == null) return null;
 
         int keySize = device.KeySize;
-        var slots = new SKBitmap[columns * rows];
         if (page?.TouchButtons != null)
-            for (var i = 0; i < slots.Length; i++)
+            for (var i = 0; i < columns * rows; i++)
             {
+                // Publishes the key's RenderedImage; the compose reads it back from the button
+                // because another render may free this one first.
                 var button = page.TouchButtons.FindByIndex(i);
                 if (button != null)
-                    slots[i] = BitmapHelper.RenderTouchButtonContent(button, config, keySize, keySize,
+                    BitmapHelper.RenderTouchButtonContent(button, config, keySize, keySize,
                         device.GetWallpaperKeyRect(i));
             }
-        return BitmapHelper.ComposeTouchGrid(slots, device);
+        return BitmapHelper.ComposeTouchGrid(page?.TouchButtons, device);
     }
 
     /// <summary>Arms a touch-page transition and wakes the scheduler. Supersedes any in-flight

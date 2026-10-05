@@ -2352,6 +2352,38 @@ public static class BitmapHelper
     /// rather than defaulted so a caller that still assumes 90 fails to compile.</param>
     public static SKBitmap ComposeTouchGrid(IReadOnlyList<SKBitmap> slots, LoupedeckDevice.Device.LoupedeckDevice device)
     {
+        var count = slots?.Count ?? 0;
+        return ComposeTouchGrid(i => i < count ? slots[i] : null, device);
+    }
+
+    /// <summary>
+    /// Composes the grid from the buttons' current <see cref="TouchButton.RenderedImage"/>s,
+    /// indexed by <see cref="TouchButton.Index"/>.
+    /// </summary>
+    /// <remarks>
+    /// A rendered image belongs to its button, which frees it a few renders after replacing it.
+    /// Holding those bitmaps across a render pass and composing them afterwards let a busy key
+    /// (a plugin pushing state, dynamic text) free one first, and the compose then drew freed
+    /// pixels: a native crash in the touch-page slide. Each image is read here, inside the
+    /// render gate that the retirement also takes, so the one drawn is always alive.
+    /// </remarks>
+    public static SKBitmap ComposeTouchGrid(IEnumerable<TouchButton> buttons, LoupedeckDevice.Device.LoupedeckDevice device)
+    {
+        ArgumentNullException.ThrowIfNull(device);
+
+        var byIndex = new TouchButton[device.Columns * device.Rows];
+        foreach (var button in buttons ?? [])
+        {
+            if (button != null && button.Index >= 0 && button.Index < byIndex.Length)
+                byIndex[button.Index] = button;
+        }
+
+        return ComposeTouchGrid(i => byIndex[i]?.RenderedImage, device);
+    }
+
+    /// <summary><paramref name="slotAt"/> is called under the render gate, once per grid slot.</summary>
+    private static SKBitmap ComposeTouchGrid(Func<int, SKBitmap> slotAt, LoupedeckDevice.Device.LoupedeckDevice device)
+    {
         ArgumentNullException.ThrowIfNull(device);
 
         SKSizeI size = device.GetGridRegionSize();
@@ -2361,10 +2393,10 @@ public static class BitmapHelper
         {
             using var canvas = new SKCanvas(bitmap);
             canvas.Clear(SKColors.Black);
-            var count = Math.Min(slots?.Count ?? 0, device.Columns * device.Rows);
+            var count = device.Columns * device.Rows;
             for (var i = 0; i < count; i++)
             {
-                var slot = slots[i];
+                var slot = slotAt(i);
                 if (slot == null) continue;
 
                 // Calibrated position, so a gapped grid keeps its gaps here too. The canvas
