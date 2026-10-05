@@ -179,7 +179,7 @@ public sealed partial class PluginStoreViewModel(
 
         // The marker carries no tag, so the status is recomputed from the versions: the plugin
         // becomes store-managed and may show an update straight away.
-        await LoadAsync(force: false);
+        await LoadAsync(force: false, keepOrder: true);
     }
 
     private async Task CheckAppUpdateAsync(PluginStoreRowViewModel row)
@@ -234,7 +234,10 @@ public sealed partial class PluginStoreViewModel(
         return _loaded ? Task.CompletedTask : LoadAsync(force: false);
     }
 
-    private async Task LoadAsync(bool force)
+    /// <param name="force">Reads the catalog from the server even when a fresh copy is cached.</param>
+    /// <param name="keepOrder">Leaves the rows already shown where they are, so a tile that was just acted on
+    /// does not jump away from under the pointer; plugins new to the list are sorted in after them.</param>
+    private async Task LoadAsync(bool force, bool keepOrder = false)
     {
         if (IsLoading)
         {
@@ -248,9 +251,19 @@ public sealed partial class PluginStoreViewModel(
             PluginStoreResult result = await store.GetItemsAsync(force);
             _loaded = true;
 
+            Dictionary<string, int> shownOrder = new(StringComparer.OrdinalIgnoreCase);
+            if (keepOrder)
+            {
+                foreach (PluginStoreRowViewModel shown in _allItems)
+                {
+                    shownOrder.TryAdd(shown.Item.Entry.Id, shownOrder.Count);
+                }
+            }
+
             IEnumerable<PluginStoreItem> visible = result.Items
                 .Where(i => i.Installed is not null || i.Entry.SupportsCurrentPlatform())
-                .OrderByDescending(i => string.Equals(i.Entry.Id, HighlightedPluginId, StringComparison.OrdinalIgnoreCase))
+                .OrderBy(i => shownOrder.GetValueOrDefault(i.Entry.Id, int.MaxValue))
+                .ThenByDescending(i => string.Equals(i.Entry.Id, HighlightedPluginId, StringComparison.OrdinalIgnoreCase))
                 .ThenBy(InstallRank)
                 .ThenBy(i => i.Entry.DisplayName, StringComparer.CurrentCultureIgnoreCase);
 
@@ -294,12 +307,12 @@ public sealed partial class PluginStoreViewModel(
     }
 
     /// <summary>
-    /// List group of a plugin (issue #308): installed plugins with an update first, then the other installed
-    /// ones, then everything not installed.
+    /// List group of a plugin (issue #308): plugins waiting for an update or a restart first, then the other
+    /// installed ones, then everything not installed.
     /// </summary>
     private static int InstallRank(PluginStoreItem item)
     {
-        if (item.Status == PluginStoreStatus.UpdateAvailable)
+        if (item.Status is PluginStoreStatus.UpdateAvailable or PluginStoreStatus.RestartRequired)
         {
             return 0;
         }
@@ -398,7 +411,7 @@ public sealed partial class PluginStoreViewModel(
         }
 
         string message = StatusText;
-        await LoadAsync(force: false);
+        await LoadAsync(force: false, keepOrder: true);
         StatusText = message;
     }
 
@@ -436,7 +449,7 @@ public sealed partial class PluginStoreViewModel(
         }
 
         string message = StatusText;
-        await LoadAsync(force: false);
+        await LoadAsync(force: false, keepOrder: true);
         StatusText = message;
     }
 
