@@ -352,20 +352,20 @@
       "repository": "RadiatorTwo/LoupixDeck.Plugin.SpotifyPremium",
       "icon": "https://raw.githubusercontent.com/RadiatorTwo/LoupixDeck.Plugin.SpotifyPremium/master/icon.png",
       "platforms": [ "Windows", "Linux" ],
-      "minSdkVersion": "1.17.0",
+      "minSdkVersion": "1.28.0",
       "commandPrefixes": [ "SpotifyPremium." ],
       "release": {
-        "version": "1.2.0",
-        "tag": "v1.2.0",
-        "publishedAt": "2026-09-30T22:21:59Z",
-        "sdkVersion": "1.17",
-        "releaseNotesUrl": "https://github.com/RadiatorTwo/LoupixDeck.Plugin.SpotifyPremium/releases/tag/v1.2.0",
+        "version": "1.3.0",
+        "tag": "v1.3.0",
+        "publishedAt": "2026-10-05T10:21:36Z",
+        "sdkVersion": "1.28",
+        "releaseNotesUrl": "https://github.com/RadiatorTwo/LoupixDeck.Plugin.SpotifyPremium/releases/tag/v1.3.0",
         "packages": [
           {
             "platform": "any",
-            "fileName": "spotifypremium-1.2.0-any.zip",
-            "downloadUrl": "https://github.com/RadiatorTwo/LoupixDeck.Plugin.SpotifyPremium/releases/download/v1.2.0/spotifypremium-1.2.0-any.zip",
-            "sha256": "dd88c2c77cb1bc1f168f27834fd7e192d9950d0f3ecb309331b2c6a02e4b1fe8"
+            "fileName": "spotifypremium-1.3.0-any.zip",
+            "downloadUrl": "https://github.com/RadiatorTwo/LoupixDeck.Plugin.SpotifyPremium/releases/download/v1.3.0/spotifypremium-1.3.0-any.zip",
+            "sha256": "1c6385541832b9049989befde9dd9117db2b2194ded1a4aef2089ebd0d3c92ec"
           }
         ]
       }
