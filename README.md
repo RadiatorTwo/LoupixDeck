@@ -267,7 +267,8 @@ The `.loupixprofile` format is a regular ZIP archive containing only the require
 Start the LoupixDeck executable again while the application is running to send it a command:
 
 ```bash
-# Linux
+# Linux and macOS (on macOS the executable is
+# /Applications/LoupixDeck.app/Contents/MacOS/LoupixDeck)
 ./LoupixDeck nextpage
 ./LoupixDeck page 3
 ./LoupixDeck updatebutton 6 text=Build_OK backColor=LimeGreen
@@ -287,8 +288,16 @@ Start the LoupixDeck executable again while the application is running to send i
 
 | Platform | IPC endpoint |
 | --- | --- |
-| Linux | Unix domain socket `/tmp/loupixdeck_app.sock` |
+| Linux | Unix domain socket `$XDG_RUNTIME_DIR/loupixdeck_app.sock` (normally `/run/user/<uid>/`; `/tmp/loupixdeck-<uid>/` when there is no runtime directory) |
+| macOS | Unix domain socket `$TMPDIR/loupixdeck_app.sock` (the per-user `/var/folders/…/T/` directory) |
 | Windows | Named pipe `LoupixDeck_Pipe` |
+
+Only the user running LoupixDeck can connect to the socket. Scripts can call the executable as above, or write to the socket directly: one UTF-8 command per connection, answered with a single text reply.
+
+```bash
+printf 'nextpage' | nc -U "$XDG_RUNTIME_DIR/loupixdeck_app.sock"   # Linux
+printf 'nextpage' | nc -U "$TMPDIR/loupixdeck_app.sock"            # macOS
+```
 
 ## Build from source
 

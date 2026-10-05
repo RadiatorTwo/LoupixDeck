@@ -993,7 +993,7 @@ Examples:
 .\LoupixDeck.exe removelayer 6 MyLayer
 ```
 
-On Linux:
+On Linux and macOS (on macOS the executable is `/Applications/LoupixDeck.app/Contents/MacOS/LoupixDeck`):
 
 ```bash
 ./LoupixDeck nextpage
@@ -1007,6 +1007,21 @@ For multiple devices, target a specific device:
 ```bash
 ./LoupixDeck --device A1B2C3 page 3
 ./LoupixDeck -d "Loupedeck Live S" nextpage
+```
+
+The running instance listens on:
+
+| Platform | IPC endpoint |
+| --- | --- |
+| Linux | Unix domain socket `$XDG_RUNTIME_DIR/loupixdeck_app.sock` (normally `/run/user/<uid>/`; `/tmp/loupixdeck-<uid>/` when there is no runtime directory) |
+| macOS | Unix domain socket `$TMPDIR/loupixdeck_app.sock` (the per-user `/var/folders/…/T/` directory) |
+| Windows | Named pipe `LoupixDeck_Pipe` |
+
+Only the user running LoupixDeck can connect to the socket. Scripts can run the executable, or write to the socket directly: one UTF-8 command per connection, answered with a single text reply.
+
+```bash
+printf 'nextpage' | nc -U "$XDG_RUNTIME_DIR/loupixdeck_app.sock"   # Linux
+printf 'nextpage' | nc -U "$TMPDIR/loupixdeck_app.sock"            # macOS
 ```
 
 ### Available CLI verbs

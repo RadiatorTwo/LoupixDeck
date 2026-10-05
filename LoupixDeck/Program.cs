@@ -16,7 +16,6 @@ namespace LoupixDeck;
 sealed partial class Program
 {
 #if !WINDOWS
-    private const string SocketPath = "/tmp/loupixdeck_app.sock";
     private static Socket _listenerSocket;
 #else
     private const string MutexName = "LoupixDeck_Mutex";
@@ -43,7 +42,18 @@ sealed partial class Program
         args = AppRestart.WaitForPredecessor(args);
 
 #if !WINDOWS
-        if (File.Exists(SocketPath))
+        string socketPath;
+        try
+        {
+            socketPath = CliSocket.Path;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Cannot start: no private location for the CLI socket ({ex.Message}).");
+            return;
+        }
+
+        if (File.Exists(socketPath))
         {
             // Another instance is (probably) running. If the user passed CLI
             // args, forward them as a command and exit; otherwise just bail.
@@ -55,24 +65,41 @@ sealed partial class Program
             try
             {
                 using var probe = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified);
-                probe.Connect(new UnixDomainSocketEndPoint(SocketPath));
+                probe.Connect(new UnixDomainSocketEndPoint(socketPath));
                 Console.WriteLine("Already running.");
                 return;
             }
             catch (SocketException)
             {
                 // Stale socket file (previous instance crashed) — clean up and continue.
-                File.Delete(SocketPath);
+                try
+                {
+                    File.Delete(socketPath);
+                }
+                catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
+                {
+                    Console.WriteLine($"Cannot start: {socketPath} belongs to another user or cannot be removed ({ex.Message}).");
+                    return;
+                }
             }
         }
 
-        _listenerSocket = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified);
-        _listenerSocket.Bind(new UnixDomainSocketEndPoint(SocketPath));
-        _listenerSocket.Listen(4);
+        try
+        {
+            _listenerSocket = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified);
+            _listenerSocket.Bind(new UnixDomainSocketEndPoint(socketPath));
+            CliSocket.Restrict();
+            _listenerSocket.Listen(4);
+        }
+        catch (Exception ex) when (ex is SocketException or IOException or UnauthorizedAccessException)
+        {
+            Console.WriteLine($"Cannot start: the CLI socket {socketPath} could not be created ({ex.Message}).");
+            return;
+        }
         AppDomain.CurrentDomain.ProcessExit += (_, _) =>
         {
             _listenerSocket.Close();
-            try { File.Delete(SocketPath); } catch { /* ignore */ }
+            try { File.Delete(socketPath); } catch { /* ignore */ }
         };
         _ = Task.Run(AcceptUdsLoop);
 #else
@@ -102,7 +129,7 @@ sealed partial class Program
         try
         {
             using var client = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified);
-            client.Connect(new UnixDomainSocketEndPoint(SocketPath));
+            client.Connect(new UnixDomainSocketEndPoint(CliSocket.Path));
             client.Send(Encoding.UTF8.GetBytes(string.Join(' ', args)));
             var buf = new byte[4096];
             var n = client.Receive(buf);

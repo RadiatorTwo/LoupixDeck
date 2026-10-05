@@ -7,20 +7,16 @@ namespace LoupixDeck.Utils;
 /// to go and find the app themselves.
 ///
 /// A naive relaunch does not work, because only one instance may run: the successor would reach
-/// the single-instance gate (the Windows mutex, the Linux socket) while this process is still
+/// the single-instance gate (the Windows mutex, the Unix socket) while this process is still
 /// dying and exit with "Already running." So the successor is told to wait for this process:
 /// it is started with <see cref="WaitArgument"/> and this process's id, and waits at the very
-/// top of Main until that id is gone - and, on Linux, until the socket file it leaves behind is
+/// top of Main until that id is gone - and, on Linux and macOS, until the socket file it leaves behind is
 /// gone too - before taking the gate itself.
 /// </summary>
 public static class AppRestart
 {
     /// <summary>Recognised in <c>Program.Main</c> before anything else looks at the arguments.</summary>
     public const string WaitArgument = "--restart-wait";
-
-#if !WINDOWS
-    private const string SocketPath = "/tmp/loupixdeck_app.sock";
-#endif
 
     /// <summary>How long the successor waits before giving up and starting anyway. Generous:
     /// shutting every device down cleanly can take a moment, and starting anyway only risks the
@@ -114,7 +110,18 @@ public static class AppRestart
         // The predecessor deletes the socket from its ProcessExit handler, which runs after the
         // process is observably finishing. Waiting for the file keeps the gate from being taken
         // twice.
-        while (File.Exists(SocketPath) && DateTime.UtcNow < deadline)
+        string socketPath;
+        try
+        {
+            socketPath = CliSocket.Path;
+        }
+        catch (IOException)
+        {
+            // Main reports this when it reaches the gate.
+            return;
+        }
+
+        while (File.Exists(socketPath) && DateTime.UtcNow < deadline)
         {
             Thread.Sleep(100);
         }
