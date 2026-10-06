@@ -397,7 +397,7 @@
 
                     <ListBox Grid.Row="5"
                              IsEnabled="{Binding CanEditCanvas}"
-                             ItemsSource="{Binding ButtonData.Layers}"
+                             ItemsSource="{Binding LayerListItems}"
                              SelectedItem="{Binding SelectedLayer, Mode=TwoWay}"
                              Background="{DynamicResource AppSurfaceLow}"
                              CornerRadius="6">
