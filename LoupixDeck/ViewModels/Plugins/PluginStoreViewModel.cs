@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using Avalonia.Media.Imaging;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using LoupixDeck.Commands;
 using LoupixDeck.Localization;
 using LoupixDeck.Models;
 using LoupixDeck.Services;
@@ -108,6 +109,26 @@ public sealed partial class PluginStoreViewModel(
     /// <summary>Shows the release notes without offering to install anything.</summary>
     public IAsyncRelayCommand<PluginStoreRowViewModel> ReleaseNotesCommand =>
         field ??= Relay.Create<PluginStoreRowViewModel>(ShowReleaseNotesAsync);
+
+    /// <summary>Opens the plugin's repository in the browser (issue #348).</summary>
+    public IRelayCommand<PluginStoreRowViewModel> OpenProjectPageCommand =>
+        field ??= Relay.Create<PluginStoreRowViewModel>(row =>
+        {
+            if (row?.ProjectUrl is { } url)
+                OpenUrlCommand.TryOpen(url.AbsoluteUri);
+        });
+
+    /// <summary>The repository the catalog names for <paramref name="pluginId"/>; null when the
+    /// catalog has never been loaded or does not list the plugin. Never touches the network.</summary>
+    public string FindCatalogRepository(string pluginId)
+    {
+        if (string.IsNullOrWhiteSpace(pluginId))
+            return null;
+
+        return store.CachedCatalog?.Plugins?
+            .FirstOrDefault(e => string.Equals(e.Id, pluginId, StringComparison.OrdinalIgnoreCase))?
+            .Repository;
+    }
 
     /// <summary>Jumps to the installed page with this plugin selected, to set it up.</summary>
     public IRelayCommand<PluginStoreRowViewModel> SetupCommand =>
@@ -540,6 +561,11 @@ public sealed partial class PluginStoreRowViewModel(PluginStoreItem item, bool i
 
     /// <summary>There is a release whose notes can be read.</summary>
     public bool HasReleaseNotes => Item.Available is not null || Item.Newest is not null;
+
+    /// <summary>The repository's web page; null when the catalog names none, so the link is hidden.</summary>
+    public Uri ProjectUrl => PluginCatalogEntry.TryGetRepositoryUrl(Item.Entry.Repository, out Uri uri) ? uri : null;
+
+    public bool HasProjectUrl => ProjectUrl is not null;
 
     /// <summary>A hand-copied plugin the catalog knows can be taken over by the store.</summary>
     public bool CanAdopt => Item.Status == PluginStoreStatus.ManuallyInstalled && Item.Installed is not null;

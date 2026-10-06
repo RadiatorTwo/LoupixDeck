@@ -3,8 +3,10 @@ using System.ComponentModel;
 using Avalonia.Media.Imaging;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using LoupixDeck.Commands;
 using LoupixDeck.Localization;
 using LoupixDeck.PluginSdk;
+using LoupixDeck.Services.PluginStore;
 using LoupixDeck.Services.Plugins;
 using LoupixDeck.Utils;
 using LoupixDeck.ViewModels.Base;
@@ -27,7 +29,10 @@ public sealed partial class PluginDetailViewModel : ViewModelBase
     private readonly Func<Task> _recheckRequirements;
 
     /// <param name="recheckRequirements">Asks the host to evaluate the plugin requirements again.</param>
-    public PluginDetailViewModel(LoadedPlugin plugin, Func<Task> recheckRequirements = null)
+    /// <param name="findCatalogRepository">The repository the store catalog names for a plugin id;
+    /// the project page of a store-managed plugin whose manifest names none.</param>
+    public PluginDetailViewModel(LoadedPlugin plugin, Func<Task> recheckRequirements = null,
+        Func<string, string> findCatalogRepository = null)
     {
         _plugin = plugin;
         _recheckRequirements = recheckRequirements;
@@ -39,7 +44,7 @@ public sealed partial class PluginDetailViewModel : ViewModelBase
         Version = manifest?.Version;
         SdkVersion = manifest?.SdkVersion;
         _description = manifest?.Description;
-        ProjectUrl = manifest?.ProjectUrl;
+        ProjectUrl = ResolveProjectUrl(plugin, findCatalogRepository)?.AbsoluteUri;
         Icon = LoadIcon(plugin);
 
         BuildForm();
@@ -93,7 +98,7 @@ public sealed partial class PluginDetailViewModel : ViewModelBase
 
     public bool HasDescription => !string.IsNullOrWhiteSpace(_description);
 
-    public bool HasProjectUrl => !string.IsNullOrWhiteSpace(ProjectUrl);
+    public bool HasProjectUrl => ProjectUrl != null;
 
     public bool HasPluginId => !string.IsNullOrWhiteSpace(PluginId);
 
@@ -210,7 +215,7 @@ public sealed partial class PluginDetailViewModel : ViewModelBase
 
     public IRelayCommand DiscardCommand => field ??= Relay.Create(Discard, () => HasUnsavedChanges);
 
-    public IRelayCommand OpenProjectPageCommand => field ??= Relay.Create(() => OpenUrl(ProjectUrl));
+    public IRelayCommand OpenProjectPageCommand => field ??= Relay.Create(() => OpenUrlCommand.TryOpen(ProjectUrl));
 
     /// <summary>Throws the pending edits away without asking. Used when the page moves on to
     /// another plugin after the user chose to lose them.</summary>
@@ -347,24 +352,27 @@ public sealed partial class PluginDetailViewModel : ViewModelBase
         StatusText = null;
     }
 
-    /// <summary>UseShellExecute routes the URL through the OS browser on both platforms.</summary>
-    private static void OpenUrl(string url)
+    /// <summary>
+    /// The manifest's <c>projectUrl</c> when it is an http(s) address; otherwise, for a plugin the
+    /// store manages, the repository its store marker or the catalog names (issue #348). A manually
+    /// installed plugin without a <c>projectUrl</c> has none.
+    /// </summary>
+    private static Uri ResolveProjectUrl(LoadedPlugin plugin, Func<string, string> findCatalogRepository)
     {
-        if (string.IsNullOrWhiteSpace(url))
-            return;
+        if (OpenUrlCommand.TryNormalize(plugin.Manifest?.ProjectUrl, out Uri manifestUrl))
+            return manifestUrl;
 
-        try
-        {
-            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
-            {
-                FileName = url,
-                UseShellExecute = true
-            });
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"[Plugins] Could not open '{url}': {ex.Message}");
-        }
+        if (!PluginStoreService.IsStoreManaged(plugin))
+            return null;
+
+        if (PluginCatalogEntry.TryGetRepositoryUrl(PluginStoreMarker.Read(plugin.Directory)?.Repository,
+                out Uri markerUrl))
+            return markerUrl;
+
+        return PluginCatalogEntry.TryGetRepositoryUrl(findCatalogRepository?.Invoke(plugin.Manifest?.Id),
+            out Uri catalogUrl)
+            ? catalogUrl
+            : null;
     }
 
     /// <summary>The manifest's icon, when it names one that is really there, otherwise the icon

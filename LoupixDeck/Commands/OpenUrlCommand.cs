@@ -43,6 +43,28 @@ public sealed class OpenUrlCommand : IExecutableCommand
             return Task.CompletedTask;
         }
 
+        Launch(uri);
+        return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// Opens <paramref name="text"/> in the default browser when it is an http or https address
+    /// (see <see cref="TryNormalize"/>). Never throws; false when the address was refused or the
+    /// opener could not be started.
+    /// </summary>
+    public static bool TryOpen(string text)
+    {
+        if (!TryNormalize(text, out Uri uri))
+        {
+            Console.WriteLine($"[OpenUrl] Refused '{text}' (only http and https addresses are opened)");
+            return false;
+        }
+
+        return Launch(uri);
+    }
+
+    private static bool Launch(Uri uri)
+    {
         try
         {
             ProcessStartInfo start;
@@ -62,14 +84,14 @@ public sealed class OpenUrlCommand : IExecutableCommand
             }
 
             using Process process = Process.Start(start);
+            return true;
         }
         catch (Exception ex)
         {
-            // A missing browser or opener must not take the button's command chain down.
-            Console.WriteLine($"System.OpenUrl failed for '{uri.AbsoluteUri}': {ex.Message}");
+            // A missing browser or opener must not take the caller down.
+            Console.WriteLine($"[OpenUrl] Could not open '{uri.AbsoluteUri}': {ex.Message}");
+            return false;
         }
-
-        return Task.CompletedTask;
     }
 
     /// <summary>
