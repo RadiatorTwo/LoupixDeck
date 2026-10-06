@@ -25,6 +25,12 @@ public sealed class FolderNavigationService(DeviceGeometry geometry) : IFolderNa
         // it is entering would only make the host redraw the page or parent folder, racing the redraw that
         // shows the new folder and leaving the old icons on screen.
         provider.OnEnter();
+
+        // Only the folder on screen may trigger a redraw. A covered parent keeps running (it is not exited,
+        // so its lifecycle stays as plugins expect), but its announcements would rebuild and repaint the
+        // sub-folder on top of it. NavigateBack subscribes it again and rebuilds it with fresh entries.
+        if (_stack.Count > 0)
+            _stack.Peek().EntriesChanged -= OnProviderEntriesChanged;
         provider.EntriesChanged += OnProviderEntriesChanged;
 
         _stack.Push(provider);
@@ -50,7 +56,10 @@ public sealed class FolderNavigationService(DeviceGeometry geometry) : IFolderNa
         }
         else
         {
-            SetActive(_stack.Peek());
+            // Subscribed before the rebuild, so a change announced while it runs is not lost.
+            IFolderProvider parent = _stack.Peek();
+            parent.EntriesChanged += OnProviderEntriesChanged;
+            SetActive(parent);
         }
 
         StateChanged?.Invoke();
