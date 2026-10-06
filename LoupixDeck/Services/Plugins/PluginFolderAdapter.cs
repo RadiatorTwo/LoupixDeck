@@ -13,16 +13,48 @@ namespace LoupixDeck.Services.Plugins;
 internal sealed class PluginFolderAdapter : CoreFolder.IFolderProvider
 {
     private readonly Sdk.IFolderProvider _inner;
+    private readonly Lock _subscriptionLock = new();
+    private Action _entriesChanged;
 
     public PluginFolderAdapter(Sdk.IFolderProvider inner)
     {
         _inner = inner;
-        _inner.EntriesChanged += () => EntriesChanged?.Invoke();
     }
 
     public string Title => _inner.Title;
 
-    public event Action EntriesChanged;
+    /// <summary>
+    /// Forwards the plugin's event only while the core listens. A sub-folder adapter is created
+    /// on every rebuild of its parent, so subscribing up front would pile one handler per rebuild
+    /// onto a plugin that reuses its sub-folder instance, and keep each adapter alive with it.
+    /// </summary>
+    public event Action EntriesChanged
+    {
+        add
+        {
+            lock (_subscriptionLock)
+            {
+                bool first = _entriesChanged == null;
+                _entriesChanged += value;
+                if (first && _entriesChanged != null)
+                    _inner.EntriesChanged += OnInnerEntriesChanged;
+            }
+        }
+        remove
+        {
+            lock (_subscriptionLock)
+            {
+                if (_entriesChanged == null)
+                    return;
+
+                _entriesChanged -= value;
+                if (_entriesChanged == null)
+                    _inner.EntriesChanged -= OnInnerEntriesChanged;
+            }
+        }
+    }
+
+    private void OnInnerEntriesChanged() => Volatile.Read(ref _entriesChanged)?.Invoke();
 
     public void OnEnter() => _inner.OnEnter();
 
