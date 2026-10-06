@@ -42,6 +42,7 @@ public class LayerJsonConverter : JsonConverter<LayerBase>
             TextLayer.Kind => new TextLayer(),
             SymbolLayer.Kind => new SymbolLayer(),
             PluginLayer.Kind => new PluginLayer(),
+            DialIndicatorLayer.Kind => new DialIndicatorLayer(),
             _ => throw new JsonSerializationException($"Unknown layer kind '{kind}'.")
         };
 

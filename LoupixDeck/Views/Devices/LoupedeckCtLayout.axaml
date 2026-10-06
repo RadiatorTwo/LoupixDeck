@@ -655,6 +655,9 @@
                     <TextBlock Classes="PageCount"
                                Text="{Binding LoupedeckController.Config.CurrentTouchButtonPage.WheelModeLabel}"
                                ToolTip.Tip="{loc:Tr Device_CurrentTotalWheelModes}" />
+                    <Button Classes="PagerBtn" Content="&#xF0E8A;" FontFamily="{StaticResource MdiFont}"
+                            ToolTip.Tip="{loc:Tr Device_EditWheelAppearance}"
+                            Command="{Binding EditWheelCanvasCommand}" />
                     <Button Classes="PagerBtn" Content="+"
                             ToolTip.Tip="{loc:Tr Device_AddWheelMode}"
                             Command="{Binding AddWheelModeCommand}" />

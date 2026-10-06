@@ -52,6 +52,45 @@ public class RotaryButton(int index,string rotaryLeftCommand, string rotaryRight
         }
     }
 
+    /// <summary>
+    /// <see cref="TouchButton.Index"/> of a wheel's <see cref="Canvas"/>. Not a grid slot; it only
+    /// identifies the canvas in snapshots and logs.
+    /// </summary>
+    public const int WheelCanvasIndex = 1000;
+
+    private TouchButton _canvas;
+
+    /// <summary>
+    /// Custom layout of this dial's own screen (the Loupedeck CT's centre wheel), as a layer
+    /// canvas edited like a touch button. Null means the automatic layout: the label, and the
+    /// adjustment command's arc and value when it has one, drawn the way LoupixDeck always has.
+    /// Persisted only when set, so configs without one load and save unchanged. Each wheel mode
+    /// has its own.
+    /// </summary>
+    [JsonProperty("Canvas", NullValueHandling = NullValueHandling.Ignore)]
+    public TouchButton Canvas
+    {
+        get => _canvas;
+        set
+        {
+            if (ReferenceEquals(_canvas, value)) return;
+            _canvas = value;
+            OnPropertyChanged(nameof(Canvas));
+            OnPropertyChanged(nameof(HasCustomCanvas));
+        }
+    }
+
+    /// <summary>True when <see cref="Canvas"/> replaces the automatic layout.</summary>
+    [JsonIgnore]
+    public bool HasCustomCanvas => _canvas != null;
+
+    /// <summary>
+    /// Post-load wiring for <see cref="Canvas"/>: the deserializer builds its layers without
+    /// going through the setters, so their change handlers have to be attached afterwards, the
+    /// same as <see cref="TouchButton.RewireLayerHandlers"/> for grid keys.
+    /// </summary>
+    public void RewireAfterLoad() => _canvas?.RewireLayerHandlers();
+
     private SKBitmap _renderedImage;
 
     // Retired, not disposed on swap: the UI preview converter may still be copying the

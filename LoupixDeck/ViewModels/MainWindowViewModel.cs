@@ -84,6 +84,10 @@ public partial class MainWindowViewModel : ViewModelBase
     /// that side is in FreeDraw mode.</summary>
     public IAsyncRelayCommand EditStripCanvasCommand { get; }
 
+    /// <summary>Opens the layer editor on the current touch page's active CT wheel mode, so its
+    /// screen can be styled like a touch button. No-op on devices without a wheel.</summary>
+    public IAsyncRelayCommand EditWheelCanvasCommand { get; }
+
     public IRelayCommand AddTouchPageCommand { get; }
     public IRelayCommand DeleteTouchPageCommand { get; }
     public IRelayCommand TouchPageButtonCommand { get; }
@@ -399,6 +403,7 @@ public partial class MainWindowViewModel : ViewModelBase
         PreviousRightRotaryPageCommand = new RelayCommand(() => PageRotaryForSide(RotarySide.Right, next: false));
 
         EditStripCanvasCommand = new AsyncRelayCommand<RotarySide>(EditStripCanvas_Click);
+        EditWheelCanvasCommand = new AsyncRelayCommand(EditWheelCanvas_Click);
 
         AddTouchPageCommand = new RelayCommand(AddTouchPageButton_Click);
         DeleteTouchPageCommand = new RelayCommand(DeleteTouchPageButton_Click);
@@ -1276,6 +1281,42 @@ public partial class MainWindowViewModel : ViewModelBase
 
         LoupedeckController.SaveConfig();
         await LoupedeckController.RefreshSideStrip(side);
+    }
+
+    /// <summary>
+    /// Opens the layer editor on the active wheel mode's canvas (the CT's 240×240 wheel screen).
+    /// A mode without a canvas gets one that reproduces the automatic layout first, so the
+    /// editor opens on what the wheel already shows; "Use automatic layout" in the editor drops
+    /// it again.
+    /// </summary>
+    private async Task EditWheelCanvas_Click()
+    {
+        var wheel = LoupedeckController.Config.CurrentTouchButtonPage?.Wheel;
+        int size = LoupedeckController.WheelScreenSize;
+        if (wheel == null || size <= 0) return;
+
+        bool created = wheel.Canvas == null;
+        wheel.Canvas ??= WheelCanvasDefaults.Create(size);
+        LoupedeckController.RegisterWheelCanvas(wheel);
+
+        TouchButtonSettingsViewModel editor = null;
+        await _dialogService.ShowDialogAsync<TouchButtonSettingsViewModel, DialogResult>(vm =>
+        {
+            editor = vm;
+            vm.SetCanvasSize(size, size);
+            vm.ConfigureWheel(wheel);
+            vm.Initialize(wheel.Canvas);
+        });
+
+        // Opening and closing the editor is not a customisation: a canvas created just for this
+        // visit is dropped again unless something was edited, so the automatic layout (which
+        // adapts to whether the command reports a value) stays in charge until the user changes
+        // something. "Use automatic layout" drops a canvas of any age.
+        if (editor?.RevertToAutoLayout == true || (created && editor?.HasEdits != true))
+            wheel.Canvas = null;
+
+        LoupedeckController.SaveConfig();
+        await LoupedeckController.RefreshWheel();
     }
 
     private Task SettingsMenuButton_Click() => ShowSettingsAsync(null);

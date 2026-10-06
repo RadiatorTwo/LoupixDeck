@@ -975,7 +975,9 @@ public static class BitmapHelper
         int deviceHeight = 90,
         bool drawGrid = false,
         int gridStepDevice = 10,
-        int segmentCount = 0)
+        int segmentCount = 0,
+        DialRenderContext? dial = null,
+        bool roundMask = false)
     {
         ArgumentNullException.ThrowIfNull(touchButton);
 
@@ -1021,7 +1023,7 @@ public static class BitmapHelper
                         DrawImageLayerExtended(canvas, image, deviceWidth, deviceHeight);
                         break;
                     case TextLayer text:
-                        DrawTextLayer(canvas, text, deviceWidth, deviceHeight);
+                        DrawTextLayer(canvas, text, deviceWidth, deviceHeight, dial);
                         break;
                     case SymbolLayer symbol:
                         DrawSymbolLayer(canvas, symbol, deviceWidth, deviceHeight);
@@ -1029,11 +1031,36 @@ public static class BitmapHelper
                     case PluginLayer plugin:
                         DrawPluginLayerExtended(canvas, plugin, deviceWidth, deviceHeight);
                         break;
+                    case DialIndicatorLayer indicator:
+                        DrawDialIndicatorLayer(canvas, indicator, deviceWidth, deviceHeight, dial?.Normalized);
+                        break;
                 }
             }
         }
 
         canvas.Restore();
+
+        // A round screen (the CT wheel) only shows the inscribed circle: dim the corners the
+        // glass hides and outline the visible edge, so the user places content where it shows.
+        if (roundMask)
+        {
+            // A round rect with a radius of half the side is the inscribed circle.
+            var circle = new SKRoundRect(frameRect, frameRect.Width / 2f, frameRect.Height / 2f);
+            canvas.Save();
+            canvas.ClipRoundRect(circle, SKClipOperation.Difference, antialias: true);
+            using (var dim = new SKPaint { Color = new SKColor(0, 0, 0, 0x99) })
+            {
+                canvas.DrawRect(frameRect, dim);
+            }
+            canvas.Restore();
+
+            using var edge = new SKPaint
+            {
+                Color = new SKColor(255, 255, 255, 0x80), StrokeWidth = 1,
+                IsAntialias = true, Style = SKPaintStyle.Stroke
+            };
+            canvas.DrawOval(frameRect, edge);
+        }
 
         // Optional alignment grid, drawn on top of the layers but kept subtle so it
         // never competes with the content. Lines are spaced in device pixels and
@@ -1156,16 +1183,11 @@ public static class BitmapHelper
                 return new SKRect(drawX, drawY, drawX + dstW, drawY + dstH);
             }
             case SymbolLayer symbol:
-            {
-                var baseSize = Math.Min(deviceW, deviceH);
-                var dstW = baseSize * (float)Math.Max(0.01, symbol.EffectiveScaleX);
-                var dstH = baseSize * (float)Math.Max(0.01, symbol.EffectiveScaleY);
-                var cx = (deviceW / 2f) + symbol.PositionX;
-                var cy = (deviceH / 2f) + symbol.PositionY;
-                return new SKRect(cx - (dstW / 2f), cy - (dstH / 2f), cx + (dstW / 2f), cy + (dstH / 2f));
-            }
+                return CenteredSquareRect(symbol, deviceW, deviceH);
             case TextLayer text:
                 return MeasureTextDeviceRect(text, deviceW, deviceH);
+            case DialIndicatorLayer indicator:
+                return CenteredSquareRect(indicator, deviceW, deviceH);
             case PluginLayer plugin:
             {
                 var bmp = plugin.RenderedBitmap;
@@ -1247,7 +1269,7 @@ public static class BitmapHelper
     /// </summary>
     private static void DrawLayers(SKCanvas canvas,
         System.Collections.ObjectModel.ObservableCollection<LayerBase> layers,
-        int width, int height)
+        int width, int height, DialRenderContext? dial = null)
     {
         if (layers == null) return;
 
@@ -1261,13 +1283,16 @@ public static class BitmapHelper
                     DrawImageLayer(canvas, image, width, height);
                     break;
                 case TextLayer text:
-                    DrawTextLayer(canvas, text, width, height);
+                    DrawTextLayer(canvas, text, width, height, dial);
                     break;
                 case SymbolLayer symbol:
                     DrawSymbolLayer(canvas, symbol, width, height);
                     break;
                 case PluginLayer plugin:
                     DrawPluginLayer(canvas, plugin, width, height);
+                    break;
+                case DialIndicatorLayer indicator:
+                    DrawDialIndicatorLayer(canvas, indicator, width, height, dial?.Normalized);
                     break;
             }
         }
@@ -1368,9 +1393,22 @@ public static class BitmapHelper
         }
     }
 
-    private static void DrawTextLayer(SKCanvas canvas, TextLayer layer, int width, int height)
+    /// <summary>
+    /// The string a text layer draws: its own text, or — for a dial <see cref="TextSource"/> — the
+    /// label or value text from <paramref name="dial"/>. Null or empty means nothing is drawn.
+    /// </summary>
+    internal static string ResolveText(TextLayer layer, DialRenderContext? dial) => layer.TextSource switch
     {
-        if (string.IsNullOrEmpty(layer.Text)) return;
+        TextSource.DialLabel => dial?.Label,
+        TextSource.DialValue => dial?.ValueText,
+        _ => layer.Text
+    };
+
+    private static void DrawTextLayer(SKCanvas canvas, TextLayer layer, int width, int height,
+        DialRenderContext? dial = null)
+    {
+        var text = ResolveText(layer, dial);
+        if (string.IsNullOrEmpty(text)) return;
 
         var boxW = layer.ResolveBoxWidth(width);
         var boxH = layer.ResolveBoxHeight(height);
@@ -1381,7 +1419,7 @@ public static class BitmapHelper
 
         DrawTextAt(
             canvas,
-            layer.Text,
+            text,
             layer.TextColor.ToSKColor(),
             layer.TextSize,
             layer.Centered,
@@ -1395,6 +1433,79 @@ public static class BitmapHelper
             layer.OutlineColor.ToSKColor());
 
         canvas.RestoreToCount(saved);
+    }
+
+    /// <summary>
+    /// Box of a layer that scales uniformly from the surface's short side (symbols, dial
+    /// indicators): <c>Min(width,height) · Scale</c> centred at the layer position. The renderer
+    /// and the editor's hit-test both use it so the selection frame always matches the drawing.
+    /// </summary>
+    private static SKRect CenteredSquareRect(LayerBase layer, int deviceW, int deviceH)
+    {
+        var baseSize = Math.Min(deviceW, deviceH);
+        var dstW = baseSize * (float)Math.Max(0.01, layer.EffectiveScaleX);
+        var dstH = baseSize * (float)Math.Max(0.01, layer.EffectiveScaleY);
+        var cx = (deviceW / 2f) + layer.PositionX;
+        var cy = (deviceH / 2f) + layer.PositionY;
+        return new SKRect(cx - (dstW / 2f), cy - (dstH / 2f), cx + (dstW / 2f), cy + (dstH / 2f));
+    }
+
+    /// <summary>
+    /// Draws a <see cref="DialIndicatorLayer"/>: the track over the whole sweep, then the fill up
+    /// to <paramref name="normalized"/>. Nothing is drawn without a position, matching the
+    /// automatic wheel layout, where a <c>NaN</c> value shows text alone. The stroke is
+    /// proportional to the box's short side so the arc keeps its weight when resized.
+    /// </summary>
+    private static void DrawDialIndicatorLayer(SKCanvas canvas, DialIndicatorLayer layer,
+        int width, int height, double? normalized)
+    {
+        if (normalized is not { } position || double.IsNaN(position)) return;
+
+        var box = CenteredSquareRect(layer, width, height);
+        var side = Math.Min(box.Width, box.Height);
+        if (side <= 0) return;
+
+        var stroke = (float)Math.Max(1.0, side * Math.Clamp(layer.Thickness, 0.005, 0.5));
+        var inset = stroke / 2f + side * (float)Math.Clamp(layer.Inset, 0.0, 0.45);
+        var arcRect = new SKRect(box.Left + inset, box.Top + inset, box.Right - inset, box.Bottom - inset);
+        if (arcRect.Width <= 0 || arcRect.Height <= 0) return;
+
+        DrawIndicatorArc(canvas, arcRect,
+            start: (float)(layer.StartAngle + layer.Rotation),
+            sweep: (float)Math.Clamp(layer.SweepAngle, 0.0, 360.0),
+            position, stroke,
+            layer.RoundCaps ? SKStrokeCap.Round : SKStrokeCap.Butt,
+            layer.TrackColor.ToSKColor(), layer.FillColor.ToSKColor());
+    }
+
+    /// <summary>
+    /// The arc both the automatic wheel layout and <see cref="DialIndicatorLayer"/> draw: the
+    /// track over the whole <paramref name="sweep"/> from <paramref name="start"/>, then the fill
+    /// over the first <paramref name="position"/> (0..1) of it.
+    /// </summary>
+    private static void DrawIndicatorArc(SKCanvas canvas, SKRect arcRect, float start, float sweep,
+        double position, float stroke, SKStrokeCap cap, SKColor trackColor, SKColor fillColor)
+    {
+        if (sweep <= 0f) return;
+
+        using (var track = new SKPaint
+               {
+                   IsAntialias = true, Style = SKPaintStyle.Stroke, StrokeWidth = stroke,
+                   StrokeCap = cap, Color = trackColor
+               })
+        {
+            canvas.DrawArc(arcRect, start, sweep, false, track);
+        }
+
+        var filled = (float)(Math.Clamp(position, 0d, 1d) * sweep);
+        if (filled <= 0f) return;
+
+        using var fill = new SKPaint
+        {
+            IsAntialias = true, Style = SKPaintStyle.Stroke, StrokeWidth = stroke,
+            StrokeCap = cap, Color = fillColor
+        };
+        canvas.DrawArc(arcRect, start, filled, false, fill);
     }
 
     private static (float Left, float Top) TextBoxOrigin(TextLayer layer, int deviceW, int deviceH)
@@ -1421,12 +1532,7 @@ public static class BitmapHelper
     /// </summary>
     private static void DrawSymbolLayer(SKCanvas canvas, SymbolLayer layer, int width, int height)
     {
-        var baseSize = Math.Min(width, height);
-        var dstW = baseSize * (float)Math.Max(0.01, layer.EffectiveScaleX);
-        var dstH = baseSize * (float)Math.Max(0.01, layer.EffectiveScaleY);
-        var cx = (width / 2f) + layer.PositionX;
-        var cy = (height / 2f) + layer.PositionY;
-        var rect = new SKRect(cx - (dstW / 2f), cy - (dstH / 2f), cx + (dstW / 2f), cy + (dstH / 2f));
+        var rect = CenteredSquareRect(layer, width, height);
 
         if (layer.IsImageIcon)
         {
@@ -2140,6 +2246,32 @@ public static class BitmapHelper
     }
 
     /// <summary>
+    /// Renders the Loupedeck CT's wheel screen from the wheel's own layer canvas
+    /// (<see cref="RotaryButton.Canvas"/>): the canvas background colour (black when the
+    /// background is off — the wheel has no wallpaper to show through), then its layers, with
+    /// the dial's label and live <paramref name="value"/> available to indicator and dial-text
+    /// layers. The caller owns the bitmap and publishes it as the wheel's rendered image.
+    /// </summary>
+    public static SKBitmap RenderWheelCanvas(RotaryButton wheel, TouchButton canvas,
+        LoupixDeck.PluginSdk.AdjustmentValue? value, int size)
+    {
+        ArgumentNullException.ThrowIfNull(wheel);
+        ArgumentNullException.ThrowIfNull(canvas);
+
+        var bitmap = new SKBitmap(size, size);
+
+        lock (SkiaRenderGate.Sync)
+        {
+            using var skCanvas = new SKCanvas(bitmap);
+            skCanvas.Clear(canvas.BackgroundEnabled ? canvas.BackColor.ToSKColor() : SKColors.Black);
+            DrawLayers(skCanvas, canvas.Layers, size, size, new DialRenderContext(wheel.DisplayText, value));
+            skCanvas.Flush();
+        }
+
+        return bitmap;
+    }
+
+    /// <summary>
     /// Renders the Loupedeck CT's round wheel screen (<paramref name="size"/> square, the
     /// visible area being the inscribed circle): the wheel's <see cref="RotaryButton.DisplayText"/>
     /// centred, or — when the wheel is bound to an adjustment command — a 270° arc filled to the
@@ -2168,31 +2300,16 @@ public static class BitmapHelper
 
             if (hasArc)
             {
-                float stroke = size * 0.045f;
-                float inset = stroke / 2f + size * 0.06f;
+                // The same arc a default DialIndicatorLayer draws at scale 1, so "Edit appearance"
+                // opens on exactly this look; the layer's defaults are the single source of the
+                // proportions, angles and palette.
+                var defaults = new DialIndicatorLayer();
+                float stroke = size * (float)defaults.Thickness;
+                float inset = stroke / 2f + size * (float)defaults.Inset;
                 var arcRect = new SKRect(inset, inset, size - inset, size - inset);
-                const float StartAngle = 135f; // gap centred at the bottom
-                const float SweepAngle = 270f;
-
-                using (var track = new SKPaint
-                       {
-                           IsAntialias = true, Style = SKPaintStyle.Stroke, StrokeWidth = stroke,
-                           StrokeCap = SKStrokeCap.Round, Color = IndicatorTrack
-                       })
-                {
-                    canvas.DrawArc(arcRect, StartAngle, SweepAngle, false, track);
-                }
-
-                float filled = (float)(Math.Clamp(value.Value.Normalized, 0d, 1d) * SweepAngle);
-                if (filled > 0f)
-                {
-                    using var fill = new SKPaint
-                    {
-                        IsAntialias = true, Style = SKPaintStyle.Stroke, StrokeWidth = stroke,
-                        StrokeCap = SKStrokeCap.Round, Color = IndicatorFill
-                    };
-                    canvas.DrawArc(arcRect, StartAngle, filled, false, fill);
-                }
+                DrawIndicatorArc(canvas, arcRect, (float)defaults.StartAngle, (float)defaults.SweepAngle,
+                    value.Value.Normalized, stroke, SKStrokeCap.Round,
+                    defaults.TrackColor.ToSKColor(), defaults.FillColor.ToSKColor());
             }
 
             if (hasLabel && hasText)

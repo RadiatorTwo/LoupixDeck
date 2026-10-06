@@ -92,6 +92,9 @@ public static class PortablePayloadNormalizer
     {
         if (page?.TouchButtons == null) return;
 
+        foreach (RotaryButton mode in page.WheelModes)
+            mode?.RewireAfterLoad();
+
         while (page.TouchButtons.Count < touchButtonCount)
             page.TouchButtons.Add(new TouchButton(page.TouchButtons.Count));
 

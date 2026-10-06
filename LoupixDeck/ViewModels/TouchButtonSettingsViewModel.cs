@@ -398,6 +398,14 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
 
         if (ButtonData == null) return;
 
+        // The wheel canvas has no press command of its own; the wheel's gestures live on the
+        // RotaryButton and are edited in the rotary editor.
+        if (IsWheelCanvas)
+        {
+            RefreshParameterSegments();
+            return;
+        }
+
         if (IsSegmentCommandMode && _stripPage != null)
         {
             for (var i = 0; i < RotaryButtonPage.StripSegmentCount; i++)
@@ -456,6 +464,70 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         OnPropertyChanged(nameof(IsSegmentCommandMode));
     }
 
+    private RotaryButton _wheel;
+
+    /// <summary>True while editing a CT wheel mode's screen canvas (<see cref="RotaryButton.Canvas"/>).</summary>
+    public bool IsWheelCanvas => _wheel != null;
+
+    /// <summary>
+    /// Set when the user chose "Use automatic layout": the caller drops the canvas so the wheel
+    /// goes back to the built-in rendering. The canvas object itself is left untouched here.
+    /// </summary>
+    public bool RevertToAutoLayout { get; private set; }
+
+    /// <summary>
+    /// True once the edited surface has changed while the editor was open (a layer added, moved
+    /// or restyled, the background toggled, ...). Lets the caller tell "opened and closed again"
+    /// from a real edit.
+    /// </summary>
+    public bool HasEdits { get; private set; }
+
+    /// <summary>
+    /// Marks this editor as editing <paramref name="wheel"/>'s screen canvas: no states, no
+    /// commands (the wheel's gestures are edited in the rotary editor), a round preview mask, and
+    /// a sample dial value so indicator and dial-text layers show while styling. Call after
+    /// <see cref="SetCanvasSize"/> and before <see cref="Initialize"/>.
+    /// </summary>
+    public void ConfigureWheel(RotaryButton wheel)
+    {
+        _wheel = wheel;
+        OnPropertyChanged(nameof(IsWheelCanvas));
+        OnPropertyChanged(nameof(ShowStatesSection));
+        OnPropertyChanged(nameof(ShowButtonSection));
+        OnPropertyChanged(nameof(ShowCommandArea));
+        OnPropertyChanged(nameof(ShowParametersTab));
+        OnPropertyChanged(nameof(ButtonLabel));
+    }
+
+    /// <summary>Sample value the wheel preview is rendered with, so the arc and value text are visible.</summary>
+    private static readonly AdjustmentValue WheelPreviewValue = new(0.65, "65 %");
+
+    /// <summary>The dial context for the preview: the real label (or a sample) and a sample value.</summary>
+    private DialRenderContext? PreviewDial => IsWheelCanvas
+        ? new DialRenderContext(
+            string.IsNullOrWhiteSpace(_wheel.DisplayText) ? Loc.Tr("TouchButton_WheelSampleLabel") : _wheel.DisplayText,
+            WheelPreviewValue)
+        : null;
+
+    /// <summary>The text sources a wheel text layer can pick from.</summary>
+    public static IReadOnlyList<TextSource> TextSources { get; } = Enum.GetValues<TextSource>();
+
+    public IRelayCommand AddIndicatorLayerCommand => field ??= Relay.Create(AddIndicatorLayer);
+    public IRelayCommand UseAutomaticLayoutCommand => field ??= Relay.Create(UseAutomaticLayout);
+
+    private void AddIndicatorLayer()
+    {
+        var layer = new DialIndicatorLayer { Name = GetUniqueLayerName("Indicator") };
+        AddLayer(layer);
+        SelectedLayer = layer;
+    }
+
+    private void UseAutomaticLayout()
+    {
+        RevertToAutoLayout = true;
+        DialogResult.TrySetResult(new DialogResult(true));
+    }
+
     /// <summary>Spacing of the editor's alignment grid in device pixels; also the
     /// step used when <see cref="SnapToGrid"/> is active.</summary>
     public const int GridStepDevice = 10;
@@ -511,8 +583,8 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     /// 0-based.</summary>
     public int ButtonNumber => (ButtonData?.Index ?? 0) + 1;
 
-    /// <summary>Window title, e.g. "Touch Button 1".</summary>
-    public string ButtonLabel => $"Touch Button {ButtonNumber}";
+    /// <summary>Window title, e.g. "Touch Button 1" — or the wheel's own title for its canvas.</summary>
+    public string ButtonLabel => IsWheelCanvas ? Loc.Tr("TouchButton_CentreWheelTitle") : $"Touch Button {ButtonNumber}";
 
     /// <summary>Resolution badge shown in the canvas corner, e.g. "90 × 90 px".</summary>
     public string CanvasSizeText => $"{DeviceWidth} × {DeviceHeight} px";
@@ -560,7 +632,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     public ObservableCollection<CommandSegment> ParameterSegments { get; } = [];
 
     /// <summary>True when at least one command in the sequence has parameters to edit.</summary>
-    public bool ShowParametersTab => ParameterSegments.Count > 0;
+    public bool ShowParametersTab => ParameterSegments.Count > 0 && !IsWheelCanvas;
 
     /// <summary>Index of the selected right-hand tab (0 Properties, 1 Commands, 2 Parameters).</summary>
     public int RightTabIndex
@@ -707,7 +779,13 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     /// The States section + transition UI are shown for ordinary grid touch buttons only.
     /// Side-strip canvases keep their single default state and their per-segment command flow.
     /// </summary>
-    public bool ShowStatesSection => !IsStripCanvas;
+    public bool ShowStatesSection => !IsStripCanvas && !IsWheelCanvas;
+
+    /// <summary>The Button block (assign app, run while off, vibration): a wheel canvas has none of these.</summary>
+    public bool ShowButtonSection => !IsWheelCanvas;
+
+    /// <summary>The Commands tab and the command-sequence strip: hidden for a wheel canvas.</summary>
+    public bool ShowCommandArea => !IsWheelCanvas;
 
     /// <summary>
     /// Whether the edited state paints its background color. Off leaves the button transparent
@@ -1415,6 +1493,11 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
             b.ResetOnPageChange = false;
             b.ResetOnRestart = true;
             b.SetActiveState(fresh.Id);
+
+            // A wheel canvas resets to the automatic layout's layers rather than to nothing, so
+            // "Reset" means "back to the stock look", not a blank disc.
+            if (IsWheelCanvas)
+                WheelCanvasDefaults.Populate(b, DeviceWidth);
         }
         finally
         {
@@ -1453,7 +1536,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
             // command's layer appears (or its orphaned layer disappears) immediately while the
             // editor is open, instead of only after it closes. The strip-canvas surface is not a
             // real page button, so skip it.
-            if (!IsStripCanvas)
+            if (!IsStripCanvas && !IsWheelCanvas)
             {
                 Avalonia.Threading.Dispatcher.UIThread.Post(() =>
                 {
@@ -1470,7 +1553,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     /// </summary>
     private void ReconcileCommandStates()
     {
-        if (ButtonData == null || IsStripCanvas || _switchingState) return;
+        if (ButtonData == null || IsStripCanvas || IsWheelCanvas || _switchingState) return;
 
         Services.Commands.StateSyncResult result = _stateMaterializer.Reconcile(ButtonData);
         switch (result)
@@ -1532,6 +1615,8 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
 
     private void ButtonData_ItemChanged(object sender, EventArgs e)
     {
+        HasEdits = true;
+
         // ItemChanged may fire on a background thread (e.g. dynamic-text timer).
         // Dispatch to the UI thread so the bitmap swap and property notifications
         // are observed by Avalonia bindings.
@@ -1550,7 +1635,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         var segmentCount = IsSegmentCommandMode ? RotaryButtonPage.StripSegmentCount : 0;
         EditorPreview = BitmapHelper.RenderEditorCanvas(
             ButtonData, _config, EditorCanvasWidth, EditorCanvasHeight, DeviceWidth, DeviceHeight,
-            ShowGrid, GridStepDevice, segmentCount);
+            ShowGrid, GridStepDevice, segmentCount, PreviewDial, roundMask: IsWheelCanvas);
     }
 
     /// <summary>

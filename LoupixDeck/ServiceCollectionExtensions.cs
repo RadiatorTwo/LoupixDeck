@@ -695,7 +695,11 @@ public static class ServiceCollectionExtensions
         {
             foreach (var page in config.ActiveWorkspace.EnumerateTouchLayouts())
             {
-                if (page?.TouchButtons == null) continue;
+                if (page == null) continue;
+                // The CT wheel's custom canvases are layer surfaces too.
+                foreach (var mode in page.WheelModes)
+                    mode?.RewireAfterLoad();
+                if (page.TouchButtons == null) continue;
                 foreach (var button in page.TouchButtons)
                 {
                     button?.RewireLayerHandlers();

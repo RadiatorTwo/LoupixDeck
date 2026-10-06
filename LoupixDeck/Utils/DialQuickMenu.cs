@@ -1,5 +1,6 @@
 using Avalonia.Controls;
 using Avalonia.Media;
+using LoupixDeck.Localization;
 using LoupixDeck.Models;
 using LoupixDeck.Models.Extensions;
 using LoupixDeck.PluginSdk;
@@ -34,6 +35,17 @@ public static class DialQuickMenu
 
         yield return BuildPresetMenu(dial, vm, menu);
         yield return new Separator();
+
+        // The CT wheel has a screen of its own; its look is edited like a touch button's.
+        if (dial.Index == LoupedeckDevice.Device.LoupedeckDevice.WheelRotaryIndex)
+        {
+            yield return new MenuItem
+            {
+                Header = Loc.Tr("DialMenu_EditAppearance"),
+                Command = vm.EditWheelCanvasCommand
+            };
+        }
+
         yield return new MenuItem
         {
             Header = "Advanced settings…",

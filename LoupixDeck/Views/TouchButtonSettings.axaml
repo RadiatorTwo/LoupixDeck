@@ -24,6 +24,7 @@
 
     <Window.Resources>
         <conv:TransitionKindLabelConverter x:Key="TransitionKindLabel" />
+        <conv:TextSourceLabelConverter x:Key="TextSourceLabel" />
         <conv:EnumToBooleanConverter x:Key="EnumToBoolean" />
 
         <!-- Wrapped, left → top-to-bottom execution order, shared by all sequence strips. -->
@@ -258,6 +259,7 @@
                             <Separator Margin="0,12,0,0" />
                         </StackPanel>
 
+                        <StackPanel IsVisible="{Binding ShowButtonSection}">
                         <TextBlock Classes="panel-title" Text="{loc:Tr TouchButton_Button}" />
                         <!-- Sets the launch command and the icon in one step; it configures the
                              whole button, not a single layer, so it sits here rather than in the
@@ -281,9 +283,10 @@
                                       SelectedItem="{Binding SelectedVibrationPattern}"
                                       HorizontalAlignment="Stretch" />
                         </StackPanel>
+                        </StackPanel>
                     </StackPanel>
 
-                    <Separator Grid.Row="1" Margin="0,12,0,12" />
+                    <Separator Grid.Row="1" Margin="0,12,0,12" IsVisible="{Binding ShowButtonSection}" />
 
                     <!-- States: compact state management, between Button and Layers. Mirrors the
                          Layers section's button sizes/layout. Fixed-height list (does not grow with
@@ -386,13 +389,22 @@
                             <Button Classes="toolbar" Content="{loc:Tr TouchButton_Image}" Margin="0,0,0,4"
                                     HorizontalAlignment="Stretch"
                                     Command="{Binding AddImageLayerCommand}" />
+                            <!-- The wheel screen is repainted on change only, never by the animation
+                                 scheduler, so an animated layer there would show its first frame. -->
                             <Button Classes="toolbar" Content="{loc:Tr TouchButton_Animation}" Margin="0,0,4,0"
                                     HorizontalAlignment="Stretch"
+                                    IsEnabled="{Binding !IsWheelCanvas}"
                                     Command="{Binding AddAnimatedImageLayerCommand}" />
                             <Button Classes="toolbar" Content="{loc:Tr TouchButton_Symbol}" Margin="0,0,0,0"
                                     HorizontalAlignment="Stretch"
                                     Command="{Binding AddSymbolLayerCommand}" />
                         </UniformGrid>
+                        <!-- Only a dial-driven surface (the CT wheel) has a value to indicate. -->
+                        <Button Classes="toolbar" Content="{loc:Tr TouchButton_Indicator}" Margin="0,-4,0,8"
+                                HorizontalAlignment="Stretch"
+                                IsVisible="{Binding IsWheelCanvas}"
+                                Command="{Binding AddIndicatorLayerCommand}"
+                                ToolTip.Tip="{loc:Tr TouchButton_IndicatorArcHint}" />
                     </StackPanel>
 
                     <ListBox Grid.Row="5"
@@ -452,6 +464,21 @@
                                               ToolTip.Tip="{loc:Tr TouchButton_LayerVisibility}" />
                                     <Border Grid.Column="1" Classes="layer-badge">
                                         <TextBlock Text="S" />
+                                    </Border>
+                                    <TextBlock Grid.Column="2" Text="{Binding Name}"
+                                               VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                                               ToolTip.Tip="{Binding Name}" />
+                                </Grid>
+                            </DataTemplate>
+                            <DataTemplate DataType="layers:DialIndicatorLayer">
+                                <Grid ColumnDefinitions="Auto,Auto,*">
+                                    <CheckBox Grid.Column="0"
+                                              IsChecked="{Binding Visible, Mode=TwoWay}"
+                                              MinWidth="0" Margin="0,0,6,0"
+                                              VerticalAlignment="Center"
+                                              ToolTip.Tip="{loc:Tr TouchButton_LayerVisibility}" />
+                                    <Border Grid.Column="1" Classes="layer-badge">
+                                        <TextBlock Text="A" />
                                     </Border>
                                     <TextBlock Grid.Column="2" Text="{Binding Name}"
                                                VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
@@ -682,7 +709,11 @@
                             <Border Classes="editor-panel" IsEnabled="{Binding CanEditCanvas}">
                                 <StackPanel>
                                     <TextBlock Classes="panel-title"
+                                               IsVisible="{Binding !IsWheelCanvas}"
                                                Text="{loc:TrFormat TouchButton_ButtonNumberFmt, ButtonNumber}" />
+                                    <TextBlock Classes="panel-title"
+                                               IsVisible="{Binding IsWheelCanvas}"
+                                               Text="{loc:Tr TouchButton_CentreWheelTitle}" />
                                     <Grid ColumnDefinitions="Auto,*,Auto">
                                         <CheckBox Grid.Column="0" Content="{loc:Tr TouchButton_Background}" Margin="0,0,10,0"
                                                   VerticalAlignment="Center"
@@ -698,6 +729,12 @@
                                                 Background="#A03030" Foreground="White"
                                                 ToolTip.Tip="{loc:Tr TouchButton_ClearsLayersColorsAndThe}" />
                                     </Grid>
+                                    <Button Classes="toolbar" Margin="0,8,0,0"
+                                            HorizontalAlignment="Stretch"
+                                            IsVisible="{Binding IsWheelCanvas}"
+                                            Content="{loc:Tr TouchButton_UseAutomaticLayout}"
+                                            Command="{Binding UseAutomaticLayoutCommand}"
+                                            ToolTip.Tip="{loc:Tr TouchButton_UseAutomaticLayoutHint}" />
                                 </StackPanel>
                             </Border>
 
@@ -796,12 +833,30 @@
                                             <TextBlock Classes="label" Text="{loc:Tr TouchButton_Name}" />
                                             <TextBox Text="{Binding Name, Mode=TwoWay}" Margin="0,2,0,8" />
 
+                                            <!-- Only a dial-driven surface (the CT wheel) can feed a layer live text. -->
+                                            <StackPanel IsVisible="{Binding $parent[Window].((vm:TouchButtonSettingsViewModel)DataContext).IsWheelCanvas}">
+                                                <TextBlock Classes="label" Text="{loc:Tr TouchButton_TextSource}" />
+                                                <ComboBox Margin="0,2,0,8" HorizontalAlignment="Stretch"
+                                                          ItemsSource="{x:Static vm:TouchButtonSettingsViewModel.TextSources}"
+                                                          SelectedItem="{Binding TextSource, Mode=TwoWay}">
+                                                    <ComboBox.ItemTemplate>
+                                                        <DataTemplate x:DataType="layers:TextSource">
+                                                            <TextBlock Text="{Binding Converter={StaticResource TextSourceLabel}}" />
+                                                        </DataTemplate>
+                                                    </ComboBox.ItemTemplate>
+                                                </ComboBox>
+                                            </StackPanel>
+
                                             <TextBlock Classes="label" Text="{loc:Tr TouchButton_Text2}" />
                                             <TextBox Text="{Binding Text, Mode=TwoWay}" Margin="0,2,0,2"
-                                                     IsReadOnly="{Binding IsCommandOwned}" />
+                                                     IsReadOnly="{Binding IsCommandOwned}"
+                                                     IsEnabled="{Binding !IsDynamicText}" />
                                             <TextBlock Classes="hint" Margin="0,0,0,8"
                                                        IsVisible="{Binding IsCommandOwned}"
                                                        Text="{loc:TrFormat TouchButton_TextSuppliedByFmt, CommandName}" />
+                                            <TextBlock Classes="hint" Margin="0,0,0,8"
+                                                       IsVisible="{Binding IsDynamicText}"
+                                                       Text="{loc:Tr TouchButton_TextSuppliedByWheel}" />
 
                                             <Grid ColumnDefinitions="*,12,*"
                                                   RowDefinitions="Auto,Auto"
@@ -1055,6 +1110,84 @@
                                         </StackPanel>
                                     </DataTemplate>
 
+                                    <!-- Dial indicator layer: the wheel's adjustment arc. -->
+                                    <DataTemplate DataType="layers:DialIndicatorLayer">
+                                        <StackPanel>
+                                            <TextBlock Classes="panel-title" Text="{loc:Tr TouchButton_SelectedLayerIndicator}" />
+                                            <TextBlock Classes="hint" Margin="0,0,0,8"
+                                                       Text="{loc:Tr TouchButton_IndicatorArcHint}" />
+
+                                            <TextBlock Classes="label" Text="{loc:Tr TouchButton_Name}" />
+                                            <TextBox Text="{Binding Name, Mode=TwoWay}" Margin="0,2,0,8" />
+
+                                            <Grid ColumnDefinitions="*,12,*" RowDefinitions="Auto,Auto" Margin="0,0,0,8">
+                                                <TextBlock Grid.Row="0" Grid.Column="0" Classes="label" Text="{loc:Tr TouchButton_TrackColor}" />
+                                                <Panel Grid.Row="1" Grid.Column="0" Margin="0,2,0,0">
+                                                    <ccp:ColorPicker Color="{Binding TrackColor, Mode=TwoWay}" Height="32"
+                                                                     Width="{Binding $parent[Panel].Bounds.Width}" />
+                                                </Panel>
+                                                <TextBlock Grid.Row="0" Grid.Column="2" Classes="label" Text="{loc:Tr TouchButton_FillColor}" />
+                                                <Panel Grid.Row="1" Grid.Column="2" Margin="0,2,0,0">
+                                                    <ccp:ColorPicker Color="{Binding FillColor, Mode=TwoWay}" Height="32"
+                                                                     Width="{Binding $parent[Panel].Bounds.Width}" />
+                                                </Panel>
+                                            </Grid>
+
+                                            <Grid ColumnDefinitions="*,12,*" RowDefinitions="Auto,Auto" Margin="0,0,0,8">
+                                                <TextBlock Grid.Row="0" Grid.Column="0" Classes="label" Text="{loc:Tr TouchButton_Thickness}" />
+                                                <NumericUpDown Grid.Row="1" Grid.Column="0" Margin="0,2,0,0"
+                                                               Value="{Binding Thickness, Mode=TwoWay}"
+                                                               Minimum="0.005" Maximum="0.5"
+                                                               Increment="0.005" FormatString="0.000" />
+                                                <CheckBox Grid.Row="1" Grid.Column="2" Margin="0,2,0,0"
+                                                          VerticalAlignment="Center"
+                                                          Content="{loc:Tr TouchButton_RoundCaps}"
+                                                          IsChecked="{Binding RoundCaps, Mode=TwoWay}" />
+                                            </Grid>
+
+                                            <Grid ColumnDefinitions="*,12,*" RowDefinitions="Auto,Auto" Margin="0,0,0,8">
+                                                <TextBlock Grid.Row="0" Grid.Column="0" Classes="label" Text="{loc:Tr TouchButton_StartAngle}" />
+                                                <NumericUpDown Grid.Row="1" Grid.Column="0" Margin="0,2,0,0"
+                                                               Value="{Binding StartAngle, Mode=TwoWay}"
+                                                               Minimum="0" Maximum="360"
+                                                               Increment="5" FormatString="0" />
+                                                <TextBlock Grid.Row="0" Grid.Column="2" Classes="label" Text="{loc:Tr TouchButton_SweepAngle}" />
+                                                <NumericUpDown Grid.Row="1" Grid.Column="2" Margin="0,2,0,0"
+                                                               Value="{Binding SweepAngle, Mode=TwoWay}"
+                                                               Minimum="10" Maximum="360"
+                                                               Increment="5" FormatString="0" />
+                                            </Grid>
+
+                                            <TextBlock Classes="label" Text="{loc:Tr TouchButton_Position}" />
+                                            <Grid ColumnDefinitions="16,*,12,16,*" Margin="0,2,0,8">
+                                                <TextBlock Grid.Column="0" Text="X" VerticalAlignment="Center" Margin="0,0,6,0" />
+                                                <NumericUpDown Grid.Column="1"
+                                                               Value="{Binding PositionX, Mode=TwoWay}"
+                                                               Minimum="-200" Maximum="200"
+                                                               Increment="1" FormatString="0" />
+                                                <TextBlock Grid.Column="3" Text="Y" VerticalAlignment="Center" Margin="0,0,6,0" />
+                                                <NumericUpDown Grid.Column="4"
+                                                               Value="{Binding PositionY, Mode=TwoWay}"
+                                                               Minimum="-200" Maximum="200"
+                                                               Increment="1" FormatString="0" />
+                                            </Grid>
+
+                                            <TextBlock Classes="label" Text="{loc:Tr TouchButton_SizePx}" />
+                                            <Grid ColumnDefinitions="16,*,12,16,*" Margin="0,2,0,8">
+                                                <TextBlock Grid.Column="0" Text="W" VerticalAlignment="Center" Margin="0,0,6,0" />
+                                                <NumericUpDown Grid.Column="1"
+                                                               Value="{Binding DisplayWidth, Mode=TwoWay}"
+                                                               Minimum="1" Maximum="4000"
+                                                               Increment="1" FormatString="0" />
+                                                <TextBlock Grid.Column="3" Text="H" VerticalAlignment="Center" Margin="0,0,6,0" />
+                                                <NumericUpDown Grid.Column="4"
+                                                               Value="{Binding DisplayHeight, Mode=TwoWay}"
+                                                               Minimum="1" Maximum="4000"
+                                                               Increment="1" FormatString="0" />
+                                            </Grid>
+                                        </StackPanel>
+                                    </DataTemplate>
+
                                     <!-- Plugin layer: content is rendered by a plugin command
                                          (read-only); the user may move/scale/rotate/hide it. -->
                                     <DataTemplate DataType="layers:PluginLayer">
@@ -1126,7 +1259,7 @@
                     </ScrollViewer>
                 </TabItem>
 
-                <TabItem Header="{loc:Tr TouchButton_Commands}">
+                <TabItem Header="{loc:Tr TouchButton_Commands}" IsVisible="{Binding ShowCommandArea}">
                     <!-- Master-detail command picker (issue #171). The assigned sequence
                          lives in the pipeline strip at the bottom of the window; the
                          picker keeps its full height. Double-click an entry to append
@@ -1165,7 +1298,8 @@
              command sequence (one strip for a normal button, three top/middle/bottom segments
              for a FreeDraw side strip). Capped in height and scrollable inside, so a long
              sequence never squeezes the editor area out of a resized window. -->
-        <Border Grid.Row="1" Classes="editor-panel" Margin="0,12,0,0" MaxHeight="320">
+        <Border Grid.Row="1" Classes="editor-panel" Margin="0,12,0,0" MaxHeight="320"
+                IsVisible="{Binding ShowCommandArea}">
             <ScrollViewer VerticalScrollBarVisibility="Auto"
                           HorizontalScrollBarVisibility="Disabled">
                 <StackPanel>

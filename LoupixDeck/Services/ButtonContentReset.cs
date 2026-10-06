@@ -54,6 +54,7 @@ public static class ButtonContentReset
         button.RotaryLeftCommand = string.Empty;
         button.RotaryRightCommand = string.Empty;
         button.DisplayText = string.Empty;
+        button.Canvas = null;
         button.Refresh();
     }
 
