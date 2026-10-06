@@ -106,8 +106,19 @@ public partial class CommandParameter
             if (_value == value) return;
             _value = value;
             OnPropertyChanged();
+            OnPropertyChanged(nameof(DisplayValue));
             OnPropertyChanged(nameof(BoolValue));
         }
+    }
+
+    /// <summary>
+    /// What the text box shows. A recorded key value reads as the platform names its keys
+    /// (⌘ rather than Win on macOS) while <see cref="Value"/> keeps the stored tokens.
+    /// </summary>
+    public string DisplayValue
+    {
+        get => HasPicker ? KeyComboFormatter.ForDisplay(_value) : _value;
+        set => Value = HasPicker ? KeyComboFormatter.FromDisplay(value) : value;
     }
 
     /// <summary>Two-way bridge for the bool checkbox — parses/serialises <see cref="Value"/>.</summary>

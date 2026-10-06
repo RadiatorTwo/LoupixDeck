@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using Avalonia.Input;
 
 namespace LoupixDeck.Utils;
@@ -51,18 +52,23 @@ public static class KeyComboFormatter
     /// <summary>
     /// The combination as the user should read it. The stored tokens stay platform-neutral
     /// ("Win+Alt+S"), but on macOS those keys are Command and Option, so they are shown as ⌘ and ⌥.
+    /// Works on a single combination and on a comma-separated sequence alike.
     /// </summary>
     public static string ForDisplay(string combo)
     {
         if (string.IsNullOrEmpty(combo) || !OperatingSystem.IsMacOS())
             return combo;
 
-        return string.Join("+", combo.Split('+').Select(token => token switch
-        {
-            "Win" => "⌘",
-            "Alt" => "⌥",
-            _ => token
-        }));
+        return Regex.Replace(combo, @"\b(Win|Alt)\b", match => match.Value == "Win" ? "⌘" : "⌥");
+    }
+
+    /// <summary>Turns text shown by <see cref="ForDisplay"/> back into the stored tokens.</summary>
+    public static string FromDisplay(string text)
+    {
+        if (string.IsNullOrEmpty(text))
+            return text;
+
+        return text.Replace("⌘", "Win").Replace("⌥", "Alt");
     }
 
     /// <summary>The token for a key: a canonical modifier name, or the key's own name.</summary>
