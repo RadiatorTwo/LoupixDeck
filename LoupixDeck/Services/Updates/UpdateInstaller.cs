@@ -21,6 +21,9 @@ public enum UpdateInstallOutcome
     /// <summary>No self-update is possible, the release page was opened instead.</summary>
     ReleasePageOpened,
 
+    /// <summary>No self-update is possible and the release page could not be opened either.</summary>
+    ReleasePageFailed,
+
     Failed
 }
 
@@ -82,8 +85,7 @@ public sealed class UpdateInstaller : IUpdateInstaller
         {
             // Nothing that can be installed and verified for this platform: let the user download it.
             Console.WriteLine($"[Update] No verifiable installer for {Mode} in {release.Tag} - opening the release page.");
-            DetachedProcess.OpenUrl(release.PageUrl);
-            return new UpdateInstallResult(UpdateInstallOutcome.ReleasePageOpened);
+            return OpenReleasePage(release);
         }
 
         try
@@ -114,8 +116,7 @@ public sealed class UpdateInstaller : IUpdateInstaller
             else if (!DetachedProcess.TryStartInTerminal(["bash", path, release.Tag, "--restart"]))
             {
                 Console.WriteLine("[Update] No terminal emulator found - opening the release page.");
-                DetachedProcess.OpenUrl(release.PageUrl);
-                return new UpdateInstallResult(UpdateInstallOutcome.ReleasePageOpened);
+                return OpenReleasePage(release);
             }
 
             return new UpdateInstallResult(UpdateInstallOutcome.InstallerStarted);
@@ -128,6 +129,13 @@ public sealed class UpdateInstaller : IUpdateInstaller
         {
             return Fail(ex.Message);
         }
+    }
+
+    private static UpdateInstallResult OpenReleasePage(ReleaseInfo release)
+    {
+        return DetachedProcess.OpenUrl(release.PageUrl)
+            ? new UpdateInstallResult(UpdateInstallOutcome.ReleasePageOpened)
+            : new UpdateInstallResult(UpdateInstallOutcome.ReleasePageFailed, release.PageUrl);
     }
 
     private static UpdateInstallResult Fail(string error)

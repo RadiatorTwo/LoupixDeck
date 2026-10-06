@@ -126,6 +126,10 @@ public sealed partial class UpdateDialogViewModel(IUpdateService updateService, 
                     Confirm(new DialogResult(true));
                     CloseWindow?.Invoke();
                     break;
+                case UpdateInstallOutcome.ReleasePageFailed:
+                    // Keep the dialog open: closing it would look as if the page had been opened.
+                    StatusText = Loc.Tr("Update_ReleasePageFailed", result.Error);
+                    break;
                 default:
                     StatusText = Loc.Tr("Update_Failed", result.Error);
                     break;

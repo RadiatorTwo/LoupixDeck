@@ -82,20 +82,33 @@ public static class DetachedProcess
         return false;
     }
 
-    /// <summary>Opens a web page in the default browser.</summary>
-    public static void OpenUrl(string url)
+    /// <summary>Opens a web page in the default browser. False when no opener could be started.</summary>
+    public static bool OpenUrl(string url)
     {
         try
         {
-            ProcessStartInfo start = OperatingSystem.IsWindows()
-                ? new ProcessStartInfo(url) { UseShellExecute = true }
-                : new ProcessStartInfo("xdg-open", url) { UseShellExecute = false };
+            ProcessStartInfo start;
+            if (OperatingSystem.IsWindows())
+            {
+                start = new ProcessStartInfo(url) { UseShellExecute = true };
+            }
+            else
+            {
+                // macOS has no xdg-open; its opener is open.
+                start = new ProcessStartInfo(OperatingSystem.IsMacOS() ? "open" : "xdg-open")
+                {
+                    UseShellExecute = false
+                };
+                start.ArgumentList.Add(url);
+            }
 
             using Process process = Process.Start(start);
+            return true;
         }
         catch (Exception ex)
         {
             Console.WriteLine($"[Update] Could not open '{url}': {ex.Message}");
+            return false;
         }
     }
 

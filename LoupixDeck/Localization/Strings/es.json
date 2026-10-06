@@ -1162,6 +1162,7 @@
   "Update_NoReleaseNotes": "Sin notas de la versión.",
   "Update_NotificationTitle": "Actualización disponible",
   "Update_OpenReleasePage": "Abrir página de la versión",
+  "Update_ReleasePageFailed": "No se pudo abrir la página de la versión. Ábrela en el navegador: {0}",
   "Update_SkipThisVersion": "Omitir esta versión",
   "Update_Title": "Actualización disponible",
   "Update_UpdateNow": "Actualizar ahora",
