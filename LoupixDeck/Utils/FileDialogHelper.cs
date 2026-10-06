@@ -7,9 +7,13 @@ namespace LoupixDeck.Utils;
 
 public abstract class FileDialogHelper
 {
+    /// <summary>
+    /// Picks a still image for a layer. Parented to the active window, so it opens above the
+    /// button editor that asked for it instead of behind it on the main window.
+    /// </summary>
     public static async Task<string> OpenFileDialog()
     {
-        var parent = WindowHelper.GetMainWindow();
+        var parent = WindowHelper.GetActiveWindow();
         if (parent == null) return null;
 
         var files = await parent.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
@@ -61,7 +65,7 @@ public abstract class FileDialogHelper
     /// </summary>
     public static async Task<string> OpenWallpaperMediaDialog()
     {
-        var parent = WindowHelper.GetMainWindow();
+        var parent = WindowHelper.GetActiveWindow();
         if (parent == null) return null;
 
         var files = await parent.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
@@ -105,7 +109,7 @@ public abstract class FileDialogHelper
     /// </summary>
     public static async Task<string> OpenAnimatedImageDialog()
     {
-        var parent = WindowHelper.GetMainWindow();
+        var parent = WindowHelper.GetActiveWindow();
         if (parent == null) return null;
 
         var files = await parent.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
@@ -141,7 +145,7 @@ public abstract class FileDialogHelper
     /// </summary>
     public static async Task<string> OpenVideoDialog(Window owner = null)
     {
-        owner ??= WindowHelper.GetMainWindow();
+        owner ??= WindowHelper.GetActiveWindow();
         if (owner == null) return null;
 
         var files = await owner.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
@@ -180,7 +184,7 @@ public abstract class FileDialogHelper
     /// </summary>
     public static async Task<string> OpenZipDialog(Window owner = null)
     {
-        owner ??= WindowHelper.GetMainWindow();
+        owner ??= WindowHelper.GetActiveWindow();
         if (owner == null) return null;
 
         var files = await owner.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
@@ -216,7 +220,7 @@ public abstract class FileDialogHelper
     /// </remarks>
     public static async Task<string> OpenApplicationDialog(Window owner = null)
     {
-        owner ??= WindowHelper.GetMainWindow();
+        owner ??= WindowHelper.GetActiveWindow();
         if (owner == null) return null;
 
         string[] programPatterns;
@@ -247,7 +251,7 @@ public abstract class FileDialogHelper
     /// </summary>
     public static async Task<string> OpenLoupedeckProfileDialog(Window owner = null)
     {
-        owner ??= WindowHelper.GetMainWindow();
+        owner ??= WindowHelper.GetActiveWindow();
         if (owner == null) return null;
 
         IReadOnlyList<IStorageFile> files = await owner.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
@@ -271,7 +275,7 @@ public abstract class FileDialogHelper
     /// </summary>
     public static async Task<string> OpenProfilePackageDialog(Window owner = null)
     {
-        owner ??= WindowHelper.GetMainWindow();
+        owner ??= WindowHelper.GetActiveWindow();
         if (owner == null) return null;
 
         IReadOnlyList<IStorageFile> files = await owner.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
@@ -301,7 +305,7 @@ public abstract class FileDialogHelper
     /// </summary>
     public static async Task<string> SaveProfilePackageDialog(Window owner, string suggestedFileName)
     {
-        owner ??= WindowHelper.GetMainWindow();
+        owner ??= WindowHelper.GetActiveWindow();
         if (owner == null) return null;
 
         IStorageFile file = await owner.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
