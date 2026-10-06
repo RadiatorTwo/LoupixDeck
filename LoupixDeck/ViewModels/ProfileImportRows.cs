@@ -1,8 +1,8 @@
 using System.Collections.Immutable;
-using System.Diagnostics;
 using System.Runtime.InteropServices;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using LoupixDeck.Commands;
 using LoupixDeck.Services.Macros;
 using LoupixDeck.Services.Portable;
 using LoupixDeck.Utils;
@@ -41,7 +41,7 @@ public sealed partial class PackagePluginRow : ObservableObject
     public bool IsDisabled => _status.State == PackagePluginState.InstalledButDisabled;
     public bool IsMissing => _status.State == PackagePluginState.Missing;
 
-    public bool HasProjectUrl => !string.IsNullOrWhiteSpace(_status.Requirement.ProjectUrl);
+    public bool HasProjectUrl => OpenUrlCommand.TryNormalize(_status.Requirement.ProjectUrl, out _);
 
     /// <summary>Only meaningful for a disabled plugin; the import adds it to the enabled list.</summary>
     [ObservableProperty]
@@ -49,16 +49,10 @@ public sealed partial class PackagePluginRow : ObservableObject
 
     public IRelayCommand OpenProjectCommand => field ??= Relay.Create(() =>
     {
-        if (!HasProjectUrl) return;
-
-        try
-        {
-            Process.Start(new ProcessStartInfo(_status.Requirement.ProjectUrl) { UseShellExecute = true });
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"[ProfileImport] Could not open '{_status.Requirement.ProjectUrl}': {ex.Message}");
-        }
+        // The address comes from the imported package, so it must never reach the shell as a
+        // path or program: only http(s) is opened.
+        if (HasProjectUrl)
+            OpenUrlCommand.TryOpen(_status.Requirement.ProjectUrl);
     });
 }
 
