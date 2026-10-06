@@ -12,6 +12,7 @@ namespace LoupixDeck.Services.HotPlug;
 ///   • Windows: WMI <c>Win32_DeviceChangeEvent</c> (extrinsic push event, backed by
 ///     WM_DEVICECHANGE — no polling, ~0 % idle cost).
 ///   • Linux:   a long-running <c>udevadm monitor</c> subprocess on the tty subsystem.
+///   • macOS:   a cheap poll of the <c>/dev/cu.*</c> serial nodes (issue #354).
 ///   • Other:   a no-op watcher (hot-plug simply disabled).
 /// Each only signals "something changed"; the manager rescans + diffs.
 /// </summary>
@@ -25,6 +26,8 @@ public static class DeviceWatcher
 #endif
         if (OperatingSystem.IsLinux())
             return new UdevDeviceWatcher();
+        if (OperatingSystem.IsMacOS())
+            return new MacDeviceWatcher();
 
         return new NoOpDeviceWatcher();
     }
@@ -157,5 +160,81 @@ internal sealed class UdevDeviceWatcher : IDeviceWatcher
         catch { /* best effort */ }
         try { _proc?.Dispose(); } catch { /* best effort */ }
         _proc = null;
+    }
+}
+
+/// <summary>
+/// macOS hot-plug by polling the <c>/dev/cu.*</c> callout nodes (issue #354). macOS has
+/// neither udev nor WMI, and every USB serial device publishes a <c>cu.*</c> node while it
+/// is attached, so a change in that set is exactly the "rescan" signal the manager needs.
+/// A directory listing every <see cref="PollMs"/> costs next to nothing and needs no
+/// IOKit interop; the expensive <c>ioreg</c> scan only runs once the set actually changed.
+/// </summary>
+internal sealed class MacDeviceWatcher : IDeviceWatcher
+{
+    private const int PollMs = 1500;
+
+    private readonly Lock _gate = new();
+    private Timer _timer;
+    private HashSet<string> _known;
+    private bool _polling;
+
+    public event Action DevicesChanged;
+
+    public void Start()
+    {
+        try
+        {
+            _known = ListCalloutNodes();
+            _timer = new Timer(_ => Poll(), null, PollMs, PollMs);
+            Console.WriteLine($"[HotPlug] macOS device watcher started (polling /dev/cu.* every {PollMs} ms).");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[HotPlug] macOS device watcher failed to start: {ex.Message}");
+            _timer = null;
+        }
+    }
+
+    private void Poll()
+    {
+        // A slow listing must not let two ticks overlap and compare against a stale set.
+        lock (_gate)
+        {
+            if (_polling || _timer == null) return;
+            _polling = true;
+        }
+
+        try
+        {
+            HashSet<string> current = ListCalloutNodes();
+            if (current.SetEquals(_known)) return;
+
+            _known = current;
+            Console.WriteLine("[HotPlug] macOS /dev/cu.* set changed");
+            DevicesChanged?.Invoke();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[HotPlug] macOS device poll failed: {ex.Message}");
+        }
+        finally
+        {
+            lock (_gate) _polling = false;
+        }
+    }
+
+    private static HashSet<string> ListCalloutNodes()
+        => new(Directory.EnumerateFileSystemEntries("/dev", "cu.*"), StringComparer.Ordinal);
+
+    public void Dispose()
+    {
+        Timer timer;
+        lock (_gate)
+        {
+            timer = _timer;
+            _timer = null;
+        }
+        try { timer?.Dispose(); } catch { /* best effort */ }
     }
 }
