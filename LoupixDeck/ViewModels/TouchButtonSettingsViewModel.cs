@@ -42,6 +42,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
             ApplyDeviceBaseToLayers();
             RefreshStateBadges();
             SelectedState = ButtonData.ActiveState;
+            RebuildLayerListItems();
 
             SeedAnimatedLayerPreviews();
             UpdateEditorPreview();
@@ -1323,23 +1324,46 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         return boundKey != null && string.Equals(layer.OwnerKey, boundKey, StringComparison.Ordinal);
     }
 
-    private void MoveSelectedLayerUp()
+    /// <summary>
+    /// The layers as the list shows them: topmost first. A reversed mirror of
+    /// <see cref="TouchButton.Layers"/>, whose order is the paint order (first at the bottom).
+    /// </summary>
+    public ReversedLayerView LayerListItems
     {
-        if (_selectedLayer == null) return;
-        var layer = _selectedLayer;
-        var idx = ButtonData.Layers.IndexOf(layer);
-        if (idx <= 0) return;
-        ButtonData.Layers.Move(idx, idx - 1);
-        ReselectAfterMove(layer);
+        get;
+        private set
+        {
+            if (ReferenceEquals(field, value)) return;
+            field = value;
+            OnPropertyChanged(nameof(LayerListItems));
+        }
     }
 
-    private void MoveSelectedLayerDown()
+    private void RebuildLayerListItems()
+    {
+        LayerListItems?.Dispose();
+        LayerListItems = ButtonData?.Layers != null ? new ReversedLayerView(ButtonData.Layers) : null;
+    }
+
+    /// <summary>Moves the selected layer one step up the list, i.e. one step closer to the top of the stack.</summary>
+    private void MoveSelectedLayerUp()
     {
         if (_selectedLayer == null) return;
         var layer = _selectedLayer;
         var idx = ButtonData.Layers.IndexOf(layer);
         if (idx < 0 || idx >= ButtonData.Layers.Count - 1) return;
         ButtonData.Layers.Move(idx, idx + 1);
+        ReselectAfterMove(layer);
+    }
+
+    /// <summary>Moves the selected layer one step down the list, i.e. further behind the others.</summary>
+    private void MoveSelectedLayerDown()
+    {
+        if (_selectedLayer == null) return;
+        var layer = _selectedLayer;
+        var idx = ButtonData.Layers.IndexOf(layer);
+        if (idx <= 0) return;
+        ButtonData.Layers.Move(idx, idx - 1);
         ReselectAfterMove(layer);
     }
 
@@ -1415,6 +1439,10 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
 
     private void ButtonData_PropertyChanged(object sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
+        // Switching the active state swaps the whole layer collection the button projects.
+        if (e.PropertyName == nameof(TouchButton.Layers))
+            RebuildLayerListItems();
+
         if (e.PropertyName == nameof(TouchButton.Command))
         {
             // Every insert/clear/parameter edit funnels through ButtonData.Command, so this is the
@@ -1576,6 +1604,9 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
             ButtonData.ItemChanged -= ButtonData_ItemChanged;
             ButtonData.PropertyChanged -= ButtonData_PropertyChanged;
         }
+
+        LayerListItems?.Dispose();
+        LayerListItems = null;
 
         _sideStripRegistry.ProvidersChanged -= OnStripProvidersChanged;
 
