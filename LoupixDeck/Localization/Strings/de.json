@@ -1162,6 +1162,7 @@
   "Update_NoReleaseNotes": "Keine Versionshinweise.",
   "Update_NotificationTitle": "Update verfügbar",
   "Update_OpenReleasePage": "Release-Seite öffnen",
+  "Update_ReleasePageFailed": "Die Release-Seite konnte nicht geöffnet werden. Öffne sie im Browser: {0}",
   "Update_SkipThisVersion": "Diese Version überspringen",
   "Update_Title": "Update verfügbar",
   "Update_UpdateNow": "Jetzt aktualisieren",

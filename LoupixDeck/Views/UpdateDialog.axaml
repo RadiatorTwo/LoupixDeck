@@ -96,7 +96,7 @@
         <StackPanel Grid.Row="2" Spacing="6" Margin="24,12,24,12">
             <ProgressBar Minimum="0" Maximum="100" Value="{Binding Progress}"
                          IsVisible="{Binding ShowProgress}" />
-            <TextBlock Text="{Binding StatusText}" IsVisible="{Binding HasStatus}"
+            <SelectableTextBlock Text="{Binding StatusText}" IsVisible="{Binding HasStatus}"
                        FontSize="13" TextWrapping="Wrap"
                        Foreground="{DynamicResource AppTextPrimary}" />
         </StackPanel>
