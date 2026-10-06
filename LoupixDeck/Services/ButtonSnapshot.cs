@@ -65,6 +65,13 @@ public static class ButtonSnapshot
                 case SimpleButton simple:
                     simple.RewireAfterLoad();
                     break;
+                case RotaryButton rotary:
+                    // Canvas is omitted from the JSON when null, so Populate leaves a target's old
+                    // canvas in place; a snapshot without one means "automatic layout".
+                    if (!JObject.Parse(json).ContainsKey("Canvas"))
+                        rotary.Canvas = null;
+                    rotary.RewireAfterLoad();
+                    break;
             }
         }
         catch (Exception ex)
@@ -101,7 +108,8 @@ public static class ButtonSnapshot
                 return string.IsNullOrEmpty(rotary.Command)
                        && string.IsNullOrEmpty(rotary.RotaryLeftCommand)
                        && string.IsNullOrEmpty(rotary.RotaryRightCommand)
-                       && string.IsNullOrEmpty(rotary.DisplayText);
+                       && string.IsNullOrEmpty(rotary.DisplayText)
+                       && rotary.Canvas == null;
 
             default:
                 return button == null;

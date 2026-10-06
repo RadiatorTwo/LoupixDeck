@@ -638,6 +638,8 @@ public class PageManager : IPageManager
         {
             foreach (TouchButton button in layout.TouchButtons)
                 button?.RewireLayerHandlers();
+            foreach (RotaryButton mode in layout.WheelModes)
+                mode?.RewireAfterLoad();
             _preparedLayouts.AddOrUpdate(layout, null);
         }
 

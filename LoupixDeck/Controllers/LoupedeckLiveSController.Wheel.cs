@@ -70,6 +70,40 @@ public partial class LoupedeckLiveSController
     /// </summary>
     public Task RefreshWheel() => RedrawWheel();
 
+    /// <summary>Side of the connected device's wheel screen in pixels, or 0 without a wheel.</summary>
+    public int WheelScreenSize => deviceService.Device is { HasWheel: true } d ? d.WheelScreenSize : 0;
+
+    /// <summary>
+    /// Subscribes a wheel mode's custom <see cref="Models.RotaryButton.Canvas"/> to the live
+    /// redraw pipeline, so editing its layers repaints the wheel screen immediately (mirroring
+    /// <see cref="RegisterStripCanvas"/> for the side strips). Idempotent; <see cref="RedrawWheel"/>
+    /// calls it on every paint so page, mode, workspace and profile switches need no extra wiring.
+    /// </summary>
+    public void RegisterWheelCanvas(Models.RotaryButton wheel)
+    {
+        var canvas = wheel?.Canvas;
+        if (canvas == null) return;
+        if (ReferenceEquals(_wiredWheelCanvas, canvas)) return;
+
+        // One canvas is wired at a time: the mode showing on the glass. A canvas that was
+        // dropped (automatic layout) or belongs to a mode no longer showing is let go.
+        if (_wiredWheelCanvas != null)
+            _wiredWheelCanvas.ItemChanged -= WheelCanvasItemChanged;
+        canvas.ItemChanged += WheelCanvasItemChanged;
+        _wiredWheelCanvas = canvas;
+    }
+
+    /// <summary>The wheel canvas currently subscribed to <see cref="WheelCanvasItemChanged"/>.</summary>
+    private Models.TouchButton _wiredWheelCanvas;
+
+    private void WheelCanvasItemChanged(object sender, EventArgs e)
+    {
+        // A canvas of a mode that is no longer showing can still be subscribed; only the
+        // active mode's edits reach the glass. RedrawWheel guards the device state itself.
+        if (!ReferenceEquals(sender, config.CurrentTouchButtonPage?.Wheel?.Canvas)) return;
+        _ = RedrawWheel();
+    }
+
     /// <summary>
     /// Renders the current page's wheel binding and pushes it to the wheel screen, mirroring the
     /// frame onto <see cref="Models.RotaryButton.RenderedImage"/> for the device view. Skipped
@@ -106,7 +140,15 @@ public partial class LoupedeckLiveSController
             {
                 // Resolved before rendering, outside the Skia gate — see RenderStripFor.
                 AdjustmentValue? value = ResolveDialAdjustmentValue(wheel, Device.WheelRotaryIndex);
-                frame = BitmapHelper.RenderWheelScreen(wheel, value, device.WheelScreenSize);
+                if (wheel.Canvas != null)
+                {
+                    RegisterWheelCanvas(wheel);
+                    frame = BitmapHelper.RenderWheelCanvas(wheel, wheel.Canvas, value, device.WheelScreenSize);
+                }
+                else
+                {
+                    frame = BitmapHelper.RenderWheelScreen(wheel, value, device.WheelScreenSize);
+                }
             }
 
             // The setter owns the bitmap's lifetime (deferred dispose); the push below and the
