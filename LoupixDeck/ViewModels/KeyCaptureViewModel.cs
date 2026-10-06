@@ -185,8 +185,8 @@ public sealed class KeyCaptureViewModel : DialogViewModelBase<KeyCaptureRequest,
     {
         if (IsSequence)
         {
-            string shown = string.Join(", ", _steps);
-            string partial = _building ? (_chord ?? KeyComboFormatter.PartialText(_order)) : null;
+            string shown = string.Join(", ", _steps.Select(KeyComboFormatter.ForDisplay));
+            string partial = _building ? KeyComboFormatter.ForDisplay(_chord ?? KeyComboFormatter.PartialText(_order)) : null;
 
             if (!string.IsNullOrEmpty(partial))
                 shown = shown.Length == 0 ? partial + "…" : shown + ", " + partial + "…";
@@ -197,8 +197,8 @@ public sealed class KeyCaptureViewModel : DialogViewModelBase<KeyCaptureRequest,
         }
         else
         {
-            string partial = _building ? (_chord ?? KeyComboFormatter.PartialText(_order)) : null;
-            DisplayText = !string.IsNullOrEmpty(partial) ? partial : (_captured ?? "…");
+            string partial = _building ? KeyComboFormatter.ForDisplay(_chord ?? KeyComboFormatter.PartialText(_order)) : null;
+            DisplayText = !string.IsNullOrEmpty(partial) ? partial : (KeyComboFormatter.ForDisplay(_captured) ?? "…");
             CanConfirm = !string.IsNullOrEmpty(_captured);
             CanUndo = false;
         }
