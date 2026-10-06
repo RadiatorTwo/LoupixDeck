@@ -1354,6 +1354,19 @@ public partial class LoupedeckLiveSController(
     public async Task RefreshDialsForCommand(string commandName)
     {
         if (string.IsNullOrWhiteSpace(commandName)) return;
+
+        // The CT's centre wheel draws the value of its own adjustment command, so a value the
+        // plugin reports from outside (another remote, the application itself) has to repaint it
+        // too; otherwise the wheel stays stale until the next turn or page change.
+        if (deviceService.Device is { HasWheel: true } &&
+            config.CurrentTouchButtonPage?.Wheel is { } wheel &&
+            (BindsCommand(wheel.RotaryLeftCommand, commandName) ||
+             BindsCommand(wheel.RotaryRightCommand, commandName) ||
+             BindsCommand(wheel.Command, commandName)))
+        {
+            await RedrawWheel();
+        }
+
         if (deviceService.Device?.HasSideStrips != true) return;
 
         foreach (var side in new[] { RotarySide.Left, RotarySide.Right })
