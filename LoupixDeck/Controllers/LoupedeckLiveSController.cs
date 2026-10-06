@@ -140,6 +140,13 @@ public partial class LoupedeckLiveSController(
     // in OnFolderStateChanged all go through Interlocked/Volatile rather than a plain int.
     private int _workspaceApplyDepth;
 
+    // Serialises folder redraws and coalesces bursts. A live folder can announce a change every
+    // few milliseconds (marquee, level meters, a dial turned quickly), and each redraw renders and
+    // pushes the whole grid. Same scheme as the wheel and side-strip redraw gates.
+    private readonly SemaphoreSlim _folderRedrawGate = new(1, 1);
+    private long _folderRequestedGen;
+    private long _folderDrawnGen;
+
     // Tracks the slot index of the currently active touch contact. Set on the
     // first TOUCH_START of a finger-down sequence, cleared on TOUCH_END.
     private int? _activeTouchSlot;
@@ -2571,6 +2578,31 @@ public partial class LoupedeckLiveSController(
 
     private async void OnFolderStateChanged()
     {
+        // Read before waiting on the gate: ExitAll raises this synchronously from inside
+        // ApplyActiveWorkspace, which may have finished by the time a queued redraw runs.
+        bool workspaceApplying = Volatile.Read(ref _workspaceApplyDepth) > 0;
+        long requested = Interlocked.Increment(ref _folderRequestedGen);
+
+        await _folderRedrawGate.WaitAsync();
+        try
+        {
+            // Coalesced away: an earlier waiter already drew state at least this fresh. The redraw
+            // reads the live folder state, so the newest one always shows the current folder.
+            if (Interlocked.Read(ref _folderDrawnGen) >= requested) return;
+            long snapshot = Interlocked.Read(ref _folderRequestedGen);
+
+            await RedrawFolderState(workspaceApplying);
+
+            Interlocked.Exchange(ref _folderDrawnGen, snapshot);
+        }
+        finally
+        {
+            _folderRedrawGate.Release();
+        }
+    }
+
+    private async Task RedrawFolderState(bool workspaceApplying)
+    {
         try
         {
             var device = deviceService.Device;
@@ -2649,7 +2681,7 @@ public partial class LoupedeckLiveSController(
                 // null (a never-visited workspace), or simply about to be overwritten.
                 // ApplyActiveWorkspace's own repaint (page + side strips) covers what this
                 // branch would otherwise do; painting here too would race it.
-                if (Volatile.Read(ref _workspaceApplyDepth) > 0) return;
+                if (workspaceApplying || Volatile.Read(ref _workspaceApplyDepth) > 0) return;
 
                 // Folder mode left — restore the configured page.
                 if (!wallpaperAnimation.TryRedirectPageRedraw())
