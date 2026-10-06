@@ -215,7 +215,8 @@ public sealed partial class InstalledPluginsViewModel : ViewModelBase
     private void Show(InstalledPluginRowViewModel row)
     {
         _shown = row;
-        Detail = row == null ? null : new PluginDetailViewModel(row.Plugin, _owner.Manager.RefreshRequirementsAsync);
+        Detail = row == null ? null : new PluginDetailViewModel(row.Plugin, _owner.Manager.RefreshRequirementsAsync,
+                _owner.PluginStore.FindCatalogRepository);
     }
 
     /// <summary>

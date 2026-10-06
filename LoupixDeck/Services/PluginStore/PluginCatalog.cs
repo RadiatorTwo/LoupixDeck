@@ -1,3 +1,5 @@
+using LoupixDeck.Commands;
+
 namespace LoupixDeck.Services.PluginStore;
 
 /// <summary>
@@ -35,6 +37,23 @@ public sealed class PluginCatalogEntry
 
     /// <summary>GitHub repository as <c>owner/name</c>; its stable releases are the plugin's versions.</summary>
     public string Repository { get; set; }
+
+    /// <summary>
+    /// The web page of a <see cref="Repository"/> value (<c>owner/name</c> on GitHub, or a full http(s)
+    /// address). False for a blank value and anything that does not form an http(s) address.
+    /// </summary>
+    public static bool TryGetRepositoryUrl(string repository, out Uri uri)
+    {
+        string value = repository?.Trim().Trim('/') ?? string.Empty;
+        if (value.Length == 0)
+        {
+            uri = null;
+            return false;
+        }
+
+        string candidate = value.Contains("://", StringComparison.Ordinal) ? value : "https://github.com/" + value;
+        return OpenUrlCommand.TryNormalize(candidate, out uri);
+    }
 
     /// <summary>Optional URL of an icon image.</summary>
     public string Icon { get; set; }

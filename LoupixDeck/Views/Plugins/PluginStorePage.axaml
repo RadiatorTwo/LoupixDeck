@@ -117,11 +117,18 @@
                                 <!-- Action row: a link on the left, the one action on the right. -->
                                 <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8" Margin="0,6,0,0"
                                       IsVisible="{Binding IsIdle}">
-                                    <Button Grid.Column="0" Classes="ghost"
-                                            Content="{loc:Tr PluginStore_ReleaseNotes}"
-                                            IsVisible="{Binding HasReleaseNotes}"
-                                            Command="{Binding $parent[ItemsControl].((vmp:PluginStoreViewModel)DataContext).ReleaseNotesCommand}"
-                                            CommandParameter="{Binding}" />
+                                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8">
+                                        <Button Classes="ghost"
+                                                Content="{loc:Tr PluginStore_ReleaseNotes}"
+                                                IsVisible="{Binding HasReleaseNotes}"
+                                                Command="{Binding $parent[ItemsControl].((vmp:PluginStoreViewModel)DataContext).ReleaseNotesCommand}"
+                                                CommandParameter="{Binding}" />
+                                        <Button Classes="ghost"
+                                                Content="{loc:Tr Plugins_OpenProjectPage}"
+                                                IsVisible="{Binding HasProjectUrl}"
+                                                Command="{Binding $parent[ItemsControl].((vmp:PluginStoreViewModel)DataContext).OpenProjectPageCommand}"
+                                                CommandParameter="{Binding}" />
+                                    </StackPanel>
                                     <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8">
                                         <Button Classes="ghost destructive" Content="{loc:Tr Settings_Remove}"
                                                 IsVisible="{Binding CanRemove}"
