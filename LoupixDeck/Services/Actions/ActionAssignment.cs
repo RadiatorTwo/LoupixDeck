@@ -357,6 +357,19 @@ public static class ActionAssignment
     }
 
     /// <summary>
+    /// Whether <paramref name="button"/>'s active state has an icon layer a template can use: the first
+    /// symbol or image layer that no command owns.
+    /// </summary>
+    public static bool HasTemplateIcon(TouchButton button)
+    {
+        if (button == null)
+            return false;
+
+        FindTemplateLayers(button, out LayerBase icon, out _, out _);
+        return icon != null;
+    }
+
+    /// <summary>
     /// The layers <see cref="ApplyTemplate"/> would remove from <paramref name="button"/>'s active
     /// state, so the editor can ask first. Empty when nothing would be removed or applying would do
     /// nothing at all.
