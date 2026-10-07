@@ -261,6 +261,10 @@ public sealed class PluginInstaller : IPluginInstaller
             // anything is loaded. The coordinator unloads the old version live so its
             // commands stop now — only the on-disk swap waits for the restart. The
             // preserved files are carried over from the old folder during that swap.
+            // The failed delete has already removed every file that was not locked, the
+            // preserved ones included, so they are put back first.
+            RestorePreservedFiles(targetDir, preserved);
+
             if (StageForInstall(manifest.Id, contentRoot))
             {
                 return PluginActionResult.Ok(
@@ -549,6 +553,23 @@ public sealed class PluginInstaller : IPluginInstaller
                 continue;
 
             File.WriteAllBytes(path, content);
+        }
+    }
+
+    /// <summary>
+    /// Puts the preserved files back into a plugin folder whose delete failed halfway (a recursive
+    /// delete removes the unlocked files before it reports the locked one).
+    /// </summary>
+    private static void RestorePreservedFiles(string pluginDir, Dictionary<string, byte[]> preserved)
+    {
+        try
+        {
+            Directory.CreateDirectory(pluginDir);
+            WritePreservedFiles(pluginDir, preserved);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Console.WriteLine($"PluginInstaller: could not keep the settings of '{pluginDir}': {ex.Message}");
         }
     }
 
