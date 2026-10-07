@@ -1238,7 +1238,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     /// </summary>
     private async Task ApplyTemplate(ButtonTemplate template)
     {
-        if (ButtonData == null) return;
+        if (ButtonData == null || IsStripCanvas) return;
 
         // A template that needs an icon asks for one first; cancelling the picker changes nothing.
         SymbolLayer addedIcon = null;

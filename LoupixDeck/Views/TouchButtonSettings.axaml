@@ -382,7 +382,7 @@
                     <StackPanel Grid.Row="4" IsEnabled="{Binding CanEditCanvas}">
                         <TextBlock Classes="panel-title" Text="{loc:Tr TouchButton_Layers}" />
                         <Button Classes="toolbar" Content="{loc:Tr TouchButton_LayoutTemplate}" Margin="0,0,0,8"
-                                HorizontalAlignment="Stretch">
+                                HorizontalAlignment="Stretch" IsVisible="{Binding !IsStripCanvas}">
                             <Button.Flyout>
                                 <MenuFlyout Placement="BottomEdgeAlignedLeft">
                                     <MenuItem Header="{loc:Tr TouchButton_Template_IconTextBottom}"
