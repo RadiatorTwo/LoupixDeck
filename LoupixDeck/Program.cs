@@ -429,6 +429,9 @@ sealed partial class Program
         => AppBuilder.Configure<App>()
             .UsePlatformDetect()
             .WithInterFont()
+            // macOS launches as an accessory (no Dock icon); App.ShowMainWindow / MainWindow.ShowFromTray
+            // turn the Dock icon on together with the window via MacOsDock. Ignored on other platforms.
+            .With(new MacOSPlatformOptions { ShowInDock = false })
             .LogToTrace();
 }
 

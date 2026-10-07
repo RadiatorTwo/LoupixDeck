@@ -324,6 +324,8 @@ public partial class MainWindow : Window
         _isMinimizedToTray = true;
     }
 
+    // On macOS this status item is the only UI while the window is hidden — the app drops its
+    // Dock icon via MacOsDock.
     private void CreateTrayIcon()
     {
         if (_trayIcon != null) return;
@@ -379,18 +381,28 @@ public partial class MainWindow : Window
             _isMinimizedToTray = true;
             Hide();
             SyncPanelVisibility();
+            // Policy switch last, once the main window and attached panels are off-screen.
+            MacOsDock.Hide();
         });
     }
 
-    private void ShowFromTray()
+    internal void ShowFromTray()
     {
         Avalonia.Threading.Dispatcher.UIThread.Post(() =>
         {
+            // Dock icon and menu bar back before the window appears.
+            MacOsDock.Show();
             _isMinimizedToTray = false;
             Show();
             WindowState = WindowState.Normal;
             Activate();
             SyncPanelVisibility();
+            // AppKit may still be mid-way through the accessory→regular switch when the first
+            // Activate() runs, leaving the window shown but not key. One deferred retry covers it.
+            Avalonia.Threading.DispatcherTimer.RunOnce(() =>
+            {
+                if (!_isMinimizedToTray && IsVisible) Activate();
+            }, TimeSpan.FromMilliseconds(100));
         });
     }
 
