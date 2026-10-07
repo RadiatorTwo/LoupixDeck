@@ -189,6 +189,7 @@ The main window is a live editor for your connected device.
 - Edit the page name directly in the page name field.
 - Open the left apps and commands panel or the right Folders panel from the header.
 - Use the hamburger menu for `Settings`, `Plugins`, `Macros`, `About`, and `Quit`. The Plugins window remains available even when no device is connected.
+- On macOS the Dock icon is only shown while the window is open. Closing the window hides it to the menu bar, where the LoupixDeck icon's menu offers `Show` to bring it back and `Quit` to exit.
 
 The top header shows your current context. It contains `DEVICE`, `PROFILE`, and `WORKSPACE` selectors. If only one device is connected, the device selector is hidden and you will usually just see the profile and workspace selectors. The hamburger menu sits at the right end of this header.
 

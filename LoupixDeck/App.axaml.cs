@@ -40,6 +40,7 @@ public partial class App : Application
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             WireGracefulShutdown(desktop);
+            WireDockReopen();
 
             // The device emulation is compiled out of Release builds, so a Release launch
             // ignores LOUPIXDECK_FAKE_DEVICE without a word. State the build and the value
@@ -483,6 +484,21 @@ public partial class App : Application
         }
     }
 
+    /// <summary>
+    /// A click on the macOS Dock icon re-shows the window. The icon is only present while the
+    /// window is up or miniaturised, so this mostly restores a miniaturised window — and is the
+    /// safety net should the Dock icon ever linger after a hide. No-op where the lifetime has no
+    /// activation feature (Windows, Linux).
+    /// </summary>
+    private void WireDockReopen()
+    {
+        if (TryGetFeature(typeof(IActivatableLifetime)) is not IActivatableLifetime activatable) return;
+        activatable.Activated += (_, e) =>
+        {
+            if (e.Kind == ActivationKind.Reopen) MainWindow.Instance?.ShowFromTray();
+        };
+    }
+
     private static IServiceProvider BuildDeviceProvider(ResolvedDevice device, IServiceProvider root)
     {
         var collection = new ServiceCollection();
@@ -529,6 +545,10 @@ public partial class App : Application
             }
             else
             {
+                // Synchronous, before the lifetime finishes launching, so Avalonia's own launch
+                // activation sees a regular app with a Dock icon and menu bar. The start-minimized
+                // branch stays an accessory.
+                MacOsDock.Show();
                 // Assigned before Show() so the lifetime's own Show finds a visible window
                 // and does nothing.
                 desktop.MainWindow = mainWindow;
