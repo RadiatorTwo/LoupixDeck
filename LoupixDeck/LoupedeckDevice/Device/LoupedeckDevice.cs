@@ -1214,6 +1214,18 @@ public class LoupedeckDevice
     }
 
     /// <summary>
+    /// The touch slot under a panel coordinate, or -1 for none — the same mapping a touch at
+    /// that point gets. Lets the simulator of a virtual device find the key it was clicked on.
+    /// </summary>
+    public int SlotAt(int x, int y) => GetTarget(x, y).Key;
+
+    /// <summary>
+    /// The BUTTON_PRESS byte the physical key at <paramref name="slot"/> reports, or null on a
+    /// device whose grid is a touchscreen. The inverse of <see cref="TryGetPhysicalKeySlot"/>.
+    /// </summary>
+    public virtual byte? PhysicalKeyCode(int slot) => null;
+
+    /// <summary>
     /// This method is overridden in derived classes to determine which area or key is touched.
     /// </summary>
     protected virtual TouchTarget GetTarget(int x, int y) => new() { Screen = "center", Key = -1 };

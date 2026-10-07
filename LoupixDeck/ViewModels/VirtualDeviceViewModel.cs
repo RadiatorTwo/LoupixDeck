@@ -12,19 +12,50 @@ using LoupixDeck.ViewModels.Base;
 
 namespace LoupixDeck.ViewModels;
 
+/// <summary>The kinds of control the simulator draws, each with its own shape.</summary>
+public enum VirtualControlKind
+{
+    /// <summary>A rotary encoder: turned with the mouse wheel, pressed with a click.</summary>
+    Dial,
+
+    /// <summary>A round LED button, lit in the colour the app sets.</summary>
+    Round,
+
+    /// <summary>One of the Loupedeck CT's named square buttons.</summary>
+    Named
+}
+
 /// <summary>
 /// One control of the simulated device: a dial, an LED button or a named button, addressed by the
 /// byte the hardware reports it with.
 /// </summary>
-public sealed partial class VirtualControlViewModel(byte code, string label) : ObservableObject
+public sealed partial class VirtualControlViewModel : ObservableObject
 {
-    public byte Code { get; } = code;
+    private static readonly IBrush DialBrush = new SolidColorBrush(Color.Parse("#FF2A2A2A"));
 
-    public string Label { get; } = label;
+    public VirtualControlViewModel(VirtualControlKind kind, byte code, string label)
+    {
+        Kind = kind;
+        Code = code;
+        Label = label;
+        Fill = kind == VirtualControlKind.Round ? Brushes.DimGray : DialBrush;
+    }
 
-    /// <summary>LED colour as last set by the app; grey until then.</summary>
+    public VirtualControlKind Kind { get; }
+
+    public byte Code { get; }
+
+    public string Label { get; }
+
+    public bool IsDial => Kind == VirtualControlKind.Dial;
+
+    public bool IsRound => Kind == VirtualControlKind.Round;
+
+    public bool IsNamed => Kind == VirtualControlKind.Named;
+
+    /// <summary>Face colour; for an LED button the colour last set by the app, grey until then.</summary>
     [ObservableProperty]
-    public partial IBrush Fill { get; set; } = Brushes.DimGray;
+    public partial IBrush Fill { get; set; }
 }
 
 /// <summary>
@@ -115,11 +146,14 @@ public sealed partial class VirtualDeviceViewModel : ViewModelBase, IDisposable
 
     public int WheelSize { get; }
 
-    public ObservableCollection<VirtualControlViewModel> LeftDials { get; } = [];
+    /// <summary>Controls beside the panel's left edge, top to bottom.</summary>
+    public ObservableCollection<VirtualControlViewModel> LeftColumn { get; } = [];
 
-    public ObservableCollection<VirtualControlViewModel> RightDials { get; } = [];
+    /// <summary>Controls beside the panel's right edge, top to bottom.</summary>
+    public ObservableCollection<VirtualControlViewModel> RightColumn { get; } = [];
 
-    public ObservableCollection<VirtualControlViewModel> RoundButtons { get; } = [];
+    /// <summary>Controls in a row below the panel.</summary>
+    public ObservableCollection<VirtualControlViewModel> BottomRow { get; } = [];
 
     public ObservableCollection<VirtualControlViewModel> NamedButtonsLeft { get; } = [];
 
@@ -141,10 +175,47 @@ public sealed partial class VirtualDeviceViewModel : ViewModelBase, IDisposable
 
     // ───────── Input: the frames the hardware would send ─────────
 
-    /// <summary>A touch on the main panel at panel coordinates; <paramref name="end"/> lifts the finger.</summary>
-    public void TouchPanel(int pointerId, double x, double y, bool end) =>
+    /// <summary>
+    /// A touch on the main panel at panel coordinates; <paramref name="end"/> lifts the finger. On
+    /// a device whose grid is physical keys (Razer Stream Controller X) it presses the key under
+    /// the pointer instead, as that hardware reports keys, not touches.
+    /// </summary>
+    public void TouchPanel(int pointerId, double x, double y, bool end)
+    {
+        if (_device.Geometry.PhysicalKeys)
+        {
+            PressKeyAt(pointerId, x, y, end);
+            return;
+        }
+
         Inject(end ? Constants.Command.TOUCH_END : Constants.Command.TOUCH,
             TouchPayload(pointerId, x, y, PanelWidth, PanelHeight));
+    }
+
+    // Physical key held per pointer, so its release goes to the key the press went to.
+    private readonly Dictionary<int, byte> _heldKeys = new();
+
+    private void PressKeyAt(int pointerId, double x, double y, bool end)
+    {
+        if (end)
+        {
+            if (_heldKeys.Remove(pointerId, out byte held))
+                Inject(Constants.Command.BUTTON_PRESS, [held, 0x01]);
+            return;
+        }
+
+        // A drag keeps the key down; a physical key does not follow the finger.
+        if (_heldKeys.ContainsKey(pointerId))
+            return;
+
+        int px = Math.Clamp((int)x, 0, Math.Max(0, PanelWidth - 1));
+        int py = Math.Clamp((int)y, 0, Math.Max(0, PanelHeight - 1));
+        if (_device.PhysicalKeyCode(_device.SlotAt(px, py)) is not { } code)
+            return;
+
+        _heldKeys[pointerId] = code;
+        Inject(Constants.Command.BUTTON_PRESS, [code, 0x00]);
+    }
 
     /// <summary>A touch on the wheel's own screen at its local coordinates.</summary>
     public void TouchWheel(int pointerId, double x, double y, bool end) =>
@@ -185,32 +256,59 @@ public sealed partial class VirtualDeviceViewModel : ViewModelBase, IDisposable
 
     // ───────── Controls ─────────
 
+    /// <summary>
+    /// Places the controls the way the device has them, following its main-window layout:
+    /// <list type="bullet">
+    /// <item>Live S: two dials on the left above LED button 1, LED buttons 2-4 on the right.</item>
+    /// <item>Live, Stream Controller, CT: three dials on each side, the LED buttons in a row below;
+    /// the CT's named buttons flank its wheel.</item>
+    /// <item>Stream Controller X: nothing but the key grid on the panel.</item>
+    /// </list>
+    /// </summary>
     private void BuildControls()
     {
+        List<VirtualControlViewModel> leftDials = [];
+        List<VirtualControlViewModel> rightDials = [];
         int sideDials = Math.Clamp(_device.RotaryCount - (HasWheel ? 1 : 0), 0, SideDials.Length);
         foreach (Constants.ButtonType dial in SideDials.Take(sideDials))
         {
-            VirtualControlViewModel control = new(CodeOf(dial), null);
+            VirtualControlViewModel control = new(VirtualControlKind.Dial, CodeOf(dial), null);
             bool left = dial is Constants.ButtonType.KNOB_TL or Constants.ButtonType.KNOB_CL or Constants.ButtonType.KNOB_BL;
-            (left ? LeftDials : RightDials).Add(control);
+            (left ? leftDials : rightDials).Add(control);
         }
 
         // Simple button n is ButtonType BUTTON0 + n: the round LED buttons first, then the
         // CT's named square buttons.
+        List<VirtualControlViewModel> leds = [];
         foreach (int index in _device.Buttons ?? [])
         {
             Constants.ButtonType type = Constants.ButtonType.BUTTON0 + index;
             if (type <= Constants.ButtonType.BUTTON7)
             {
-                VirtualControlViewModel control = new(CodeOf(type), (index + 1).ToString());
+                VirtualControlViewModel control = new(VirtualControlKind.Round, CodeOf(type), (index + 1).ToString());
                 _leds[control.Code] = control;
-                RoundButtons.Add(control);
+                leds.Add(control);
             }
             else if (NamedLabel(type) is { } label)
             {
-                VirtualControlViewModel control = new(CodeOf(type), label);
+                VirtualControlViewModel control = new(VirtualControlKind.Named, CodeOf(type), label);
                 (IsLeftNamed(type) ? NamedButtonsLeft : NamedButtonsRight).Add(control);
             }
+        }
+
+        leftDials.ForEach(LeftColumn.Add);
+        rightDials.ForEach(RightColumn.Add);
+
+        if (_device is LoupedeckDevice.Device.LoupedeckLiveSDevice)
+        {
+            // The Live S has no right-hand dials: its first LED button sits under the left
+            // dials, the other three form the right-hand column.
+            leds.Take(1).ToList().ForEach(LeftColumn.Add);
+            leds.Skip(1).ToList().ForEach(RightColumn.Add);
+        }
+        else
+        {
+            leds.ForEach(BottomRow.Add);
         }
     }
 

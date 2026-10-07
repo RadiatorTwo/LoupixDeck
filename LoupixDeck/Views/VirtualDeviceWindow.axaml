@@ -11,6 +11,18 @@
         SizeToContent="WidthAndHeight"
         CanResize="False"
         Background="{DynamicResource AppWindowBackground}">
+    <Window.Resources>
+        <!-- One template for every control; the kind picks the shape through its class. -->
+        <DataTemplate x:Key="ControlTemplate" x:DataType="vm:VirtualControlViewModel">
+            <Border Classes.dial="{Binding IsDial}"
+                    Classes.round="{Binding IsRound}"
+                    Classes.named="{Binding IsNamed}"
+                    Background="{Binding Fill}">
+                <TextBlock Text="{Binding Label}" />
+            </Border>
+        </DataTemplate>
+    </Window.Resources>
+
     <Window.Styles>
         <!-- Dials and buttons are plain shapes, not Buttons: a press and its release are two
              separate hardware frames (press-and-hold must work), which a Button's Click hides. -->
@@ -19,7 +31,6 @@
             <Setter Property="Height" Value="48" />
             <Setter Property="Margin" Value="0,6" />
             <Setter Property="CornerRadius" Value="24" />
-            <Setter Property="Background" Value="#FF2A2A2A" />
             <Setter Property="BorderBrush" Value="#FF5A5A5A" />
             <Setter Property="BorderThickness" Value="2" />
             <Setter Property="Cursor" Value="Hand" />
@@ -30,7 +41,7 @@
         <Style Selector="Border.round">
             <Setter Property="Width" Value="40" />
             <Setter Property="Height" Value="40" />
-            <Setter Property="Margin" Value="5,0" />
+            <Setter Property="Margin" Value="5" />
             <Setter Property="CornerRadius" Value="20" />
             <Setter Property="BorderBrush" Value="#FF5A5A5A" />
             <Setter Property="BorderThickness" Value="2" />
@@ -41,7 +52,6 @@
             <Setter Property="Height" Value="40" />
             <Setter Property="Margin" Value="4" />
             <Setter Property="CornerRadius" Value="4" />
-            <Setter Property="Background" Value="#FF2A2A2A" />
             <Setter Property="BorderBrush" Value="#FF5A5A5A" />
             <Setter Property="BorderThickness" Value="2" />
             <Setter Property="Cursor" Value="Hand" />
@@ -68,15 +78,11 @@
 
     <Border Name="Body" Classes.vibrating="{Binding IsVibrating}" BorderThickness="3" Padding="16">
         <StackPanel Spacing="14">
-            <!-- Side dials around the main panel, as on the device. -->
+            <!-- The panel with the controls beside and below it, placed per model (see
+                 VirtualDeviceViewModel.BuildControls). -->
             <Grid ColumnDefinitions="Auto,Auto,Auto" HorizontalAlignment="Center">
-                <ItemsControl Grid.Column="0" ItemsSource="{Binding LeftDials}" VerticalAlignment="Center">
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate x:DataType="vm:VirtualControlViewModel">
-                            <Border Classes="dial" />
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
+                <ItemsControl Grid.Column="0" ItemsSource="{Binding LeftColumn}" VerticalAlignment="Center"
+                              ItemTemplate="{StaticResource ControlTemplate}" />
 
                 <Border Grid.Column="1" Margin="14,0" Background="Black" CornerRadius="4" ClipToBounds="True">
                     <Image Name="PanelScreen"
@@ -88,46 +94,28 @@
                            RenderOptions.BitmapInterpolationMode="None" />
                 </Border>
 
-                <ItemsControl Grid.Column="2" ItemsSource="{Binding RightDials}" VerticalAlignment="Center">
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate x:DataType="vm:VirtualControlViewModel">
-                            <Border Classes="dial" />
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
+                <ItemsControl Grid.Column="2" ItemsSource="{Binding RightColumn}" VerticalAlignment="Center"
+                              ItemTemplate="{StaticResource ControlTemplate}" />
             </Grid>
 
-            <!-- Round LED buttons, lit in the colour the app last set. -->
-            <ItemsControl ItemsSource="{Binding RoundButtons}" HorizontalAlignment="Center">
+            <ItemsControl ItemsSource="{Binding BottomRow}" HorizontalAlignment="Center"
+                          ItemTemplate="{StaticResource ControlTemplate}">
                 <ItemsControl.ItemsPanel>
                     <ItemsPanelTemplate>
                         <StackPanel Orientation="Horizontal" />
                     </ItemsPanelTemplate>
                 </ItemsControl.ItemsPanel>
-                <ItemsControl.ItemTemplate>
-                    <DataTemplate x:DataType="vm:VirtualControlViewModel">
-                        <Border Classes="round" Background="{Binding Fill}">
-                            <TextBlock Text="{Binding Label}" />
-                        </Border>
-                    </DataTemplate>
-                </ItemsControl.ItemTemplate>
             </ItemsControl>
 
             <!-- Loupedeck CT: the wheel with its round screen between the named buttons. -->
             <Grid ColumnDefinitions="Auto,Auto,Auto" HorizontalAlignment="Center" IsVisible="{Binding HasWheel}">
-                <ItemsControl Grid.Column="0" ItemsSource="{Binding NamedButtonsLeft}" VerticalAlignment="Center">
+                <ItemsControl Grid.Column="0" ItemsSource="{Binding NamedButtonsLeft}" VerticalAlignment="Center"
+                              ItemTemplate="{StaticResource ControlTemplate}">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
                             <UniformGrid Columns="2" />
                         </ItemsPanelTemplate>
                     </ItemsControl.ItemsPanel>
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate x:DataType="vm:VirtualControlViewModel">
-                            <Border Classes="named">
-                                <TextBlock Text="{Binding Label}" />
-                            </Border>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
                 </ItemsControl>
 
                 <Border Grid.Column="1" Margin="18,0"
@@ -143,19 +131,13 @@
                            RenderOptions.BitmapInterpolationMode="None" />
                 </Border>
 
-                <ItemsControl Grid.Column="2" ItemsSource="{Binding NamedButtonsRight}" VerticalAlignment="Center">
+                <ItemsControl Grid.Column="2" ItemsSource="{Binding NamedButtonsRight}" VerticalAlignment="Center"
+                              ItemTemplate="{StaticResource ControlTemplate}">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
                             <UniformGrid Columns="2" />
                         </ItemsPanelTemplate>
                     </ItemsControl.ItemsPanel>
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate x:DataType="vm:VirtualControlViewModel">
-                            <Border Classes="named">
-                                <TextBlock Text="{Binding Label}" />
-                            </Border>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
                 </ItemsControl>
             </Grid>
 
