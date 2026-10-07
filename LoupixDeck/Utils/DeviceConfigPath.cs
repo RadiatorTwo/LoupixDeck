@@ -38,6 +38,11 @@ public static class DeviceConfigPath
 
         string scoped = Path.Combine(FileDialogHelper.GetConfigDir(), $"config_{info.Slug}_{safe}.json");
 
+        // A virtual device always keeps to its own file: claiming the slug-only one would hand a
+        // real unit plugged in later a fresh config instead of the one it was set up with.
+        if (VirtualDevice.IsVirtualSerial(serial))
+            return scoped;
+
         lock (Gate)
         {
             if (Claims.TryGetValue(slugOnly, out string claimedBy))

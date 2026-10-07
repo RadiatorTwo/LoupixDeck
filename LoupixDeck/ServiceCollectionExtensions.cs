@@ -365,7 +365,9 @@ public static class ServiceCollectionExtensions
                 // device-type-specific). Crucial for the LOUPIXDECK_FAKE_DEVICE flow:
                 // without this the fresh config has no port → device times out →
                 // App.InitializeDevices catches and shuts down silently.
-                SeedSerialPortFromSibling(config, configService, deviceInfo);
+                // A virtual device has no serial port to inherit.
+                if (!VirtualDevice.IsVirtual(resolved))
+                    SeedSerialPortFromSibling(config, configService, deviceInfo);
             }
 
             // A companion mirrors its master's profiles and workspaces; a device that left its group

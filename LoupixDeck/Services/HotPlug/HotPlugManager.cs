@@ -112,7 +112,8 @@ public sealed class HotPlugManager : IHotPlugManager
                     continue;
                 }
 
-                if (fakeActive || _detaching.Contains(key))
+                // A virtual device never appears in a USB scan and is never unplugged.
+                if (fakeActive || _detaching.Contains(key) || VirtualDevice.IsVirtual(host.Device))
                     continue;
 
                 var misses = _missCounts.GetValueOrDefault(key) + 1;

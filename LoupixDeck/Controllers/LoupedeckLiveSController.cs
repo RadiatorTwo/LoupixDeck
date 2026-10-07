@@ -788,6 +788,12 @@ public partial class LoupedeckLiveSController(
         if (port != null)
             Config.DevicePort = port;
 
+        // A virtual device always runs on its virtual port; the USB re-detection below would
+        // otherwise move it onto a real unit of the same model.
+        bool isVirtual = VirtualDevice.IsVirtual(resolved);
+        if (isVirtual && deviceInfo != null)
+            Config.DevicePort = VirtualDevice.PortFor(deviceInfo);
+
         if (baudrate > 0)
             Config.DeviceBaudrate = baudrate;
 
@@ -817,7 +823,7 @@ public partial class LoupedeckLiveSController(
         // so two identical devices can't steal each other's port; fall back to
         // VID/PID otherwise. Skip when the user just picked a port explicitly via
         // the resolver — that's an authoritative override.
-        if (port == null && !string.IsNullOrEmpty(Config.DeviceVid) && !string.IsNullOrEmpty(Config.DevicePid))
+        if (!isVirtual && port == null && !string.IsNullOrEmpty(Config.DeviceVid) && !string.IsNullOrEmpty(Config.DevicePid))
         {
             try
             {

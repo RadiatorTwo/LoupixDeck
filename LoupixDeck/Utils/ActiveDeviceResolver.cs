@@ -44,7 +44,8 @@ public static class ActiveDeviceResolver
     /// ambiguous.</summary>
     public static void RememberActive(ResolvedDevice device)
     {
-        if (device == null) return;
+        // A virtual device must not become the one a normal start prefers.
+        if (device == null || VirtualDevice.IsVirtual(device)) return;
         try
         {
             var path = Path.Combine(FileDialogHelper.GetConfigDir(), MarkerFile);
@@ -75,6 +76,12 @@ public static class ActiveDeviceResolver
 #endif
             result.Add(dev);
         }
+
+        // A virtual device is never on the bus, so it joins the scan result itself — next to any
+        // real hardware, never in place of it.
+        ResolvedDevice virtualDevice = VirtualDevice.CreateResolved();
+        if (virtualDevice != null)
+            result.Add(virtualDevice);
         return result;
     }
 
@@ -223,6 +230,9 @@ public static class ActiveDeviceResolver
                     if (remainder.StartsWith(info.Slug + "_", StringComparison.OrdinalIgnoreCase))
                     {
                         var tail = remainder[(info.Slug.Length + 1)..];
+                        // A virtual device's config is only used while one is requested; it must
+                        // not come back as an offline real device on a normal start.
+                        if (VirtualDevice.IsVirtualSerial(tail)) break;
                         result.Add(new ResolvedDevice(info, tail));
                         break;
                     }
