@@ -330,7 +330,7 @@ public static class ActionAssignment
     }
 
     /// <summary>
-    /// The layers a template works with. Plugin layers and command-owned layers are never touched
+    /// The layers a template works with. Plugin layers, dial indicators and command-owned layers are never touched
     /// (a command-owned caption is only positioned); <paramref name="others"/> is everything else
     /// that is neither the icon nor the caption, which a template removes.
     /// </summary>
@@ -349,7 +349,7 @@ public static class ActionAssignment
 
         foreach (LayerBase layer in layers)
         {
-            if (layer is PluginLayer || layer.IsCommandOwned || ReferenceEquals(layer, icon) || ReferenceEquals(layer, caption))
+            if (layer is PluginLayer or DialIndicatorLayer || layer.IsCommandOwned || ReferenceEquals(layer, icon) || ReferenceEquals(layer, caption))
                 continue;
 
             others.Add(layer);
