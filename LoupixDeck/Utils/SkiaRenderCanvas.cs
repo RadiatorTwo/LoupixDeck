@@ -158,12 +158,13 @@ internal sealed class SkiaRenderCanvas : IRenderCanvas
             var dh = decoded.Height * fit;
             var left = x + ((width - dw) / 2f);
             var top = y + ((height - dh) / 2f);
+            var sampling = BitmapHelper.SamplingFor(decoded.Width, decoded.Height, dw, dh);
 
             var hasTint = tint.A > 0 && (tint.R != 255 || tint.G != 255 || tint.B != 255 || tint.A != 255);
             if (opacity == 255 && !hasTint)
             {
                 _canvas.DrawBitmap(decoded, new SKRect(left, top, left + dw, top + dh),
-                    SKSamplingOptions.Default, paint: null);
+                    sampling, paint: null);
                 return;
             }
 
@@ -171,7 +172,7 @@ internal sealed class SkiaRenderCanvas : IRenderCanvas
             if (hasTint)
                 paint.ColorFilter = SKColorFilter.CreateBlendMode(ToSk(tint), SKBlendMode.Modulate);
             _canvas.DrawBitmap(decoded, new SKRect(left, top, left + dw, top + dh),
-                SKSamplingOptions.Default, paint);
+                sampling, paint);
         });
     }
 
