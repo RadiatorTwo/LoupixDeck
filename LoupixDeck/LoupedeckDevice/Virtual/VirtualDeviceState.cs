@@ -119,8 +119,13 @@ public sealed class VirtualDeviceState(Func<IReadOnlyDictionary<string, DisplayI
     {
         lock (_gate)
         {
+            // A display nothing was drawn to yet is copied as the black it is on the hardware.
             if (!_surfaces.TryGetValue(name, out Surface surface))
-                return;
+            {
+                if (!Displays.TryGetValue(name, out DisplayInfo info))
+                    return;
+                surface = GetSurface(name, info);
+            }
 
             int width = surface.Info.Width;
             for (int row = 0; row < surface.Info.Height; row++)

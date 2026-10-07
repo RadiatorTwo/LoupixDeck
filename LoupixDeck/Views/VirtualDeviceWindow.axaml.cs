@@ -25,6 +25,12 @@ public partial class VirtualDeviceWindow : Window
     // pointer has left it by then.
     private Border _pressed;
 
+    // The touch in progress per screen and where it last was, so a lost capture can still lift it.
+    private readonly Dictionary<Image, (int PointerId, Point Position)> _activeTouches = new();
+
+    // Unspent scroll per target: a trackpad reports fractions of a notch, which add up to detents.
+    private readonly Dictionary<object, double> _scrollRemainders = new();
+
     public VirtualDeviceWindow()
     {
         InitializeComponent();
@@ -36,7 +42,7 @@ public partial class VirtualDeviceWindow : Window
         WireScreen(_wheel, (vm, id, x, y, end) => vm.TouchWheel(id, x, y, end));
         _wheel.PointerWheelChanged += (_, e) =>
         {
-            ViewModel?.RotateWheel(Notches(e));
+            ViewModel?.RotateWheel(Notches(_wheel, e));
             e.Handled = true;
         };
 
@@ -78,35 +84,49 @@ public partial class VirtualDeviceWindow : Window
     {
         screen.PointerPressed += (_, e) =>
         {
-            if (ViewModel is not { } vm) return;
-            e.Pointer.Capture(screen);
+            if (ViewModel is not { } vm || !IsPrimaryPress(e, screen) || _activeTouches.ContainsKey(screen)) return;
             Point p = e.GetPosition(screen);
+            _activeTouches[screen] = (e.Pointer.Id, p);
+            e.Pointer.Capture(screen);
             touch(vm, e.Pointer.Id, p.X, p.Y, false);
             e.Handled = true;
         };
         screen.PointerMoved += (_, e) =>
         {
-            if (ViewModel is not { } vm || !ReferenceEquals(e.Pointer.Captured, screen)) return;
+            if (ViewModel is not { } vm || !_activeTouches.TryGetValue(screen, out var active) ||
+                active.PointerId != e.Pointer.Id) return;
             Point p = e.GetPosition(screen);
+            _activeTouches[screen] = (e.Pointer.Id, p);
             touch(vm, e.Pointer.Id, p.X, p.Y, false);
         };
         screen.PointerReleased += (_, e) =>
         {
-            if (ViewModel is not { } vm || !ReferenceEquals(e.Pointer.Captured, screen)) return;
+            if (!_activeTouches.TryGetValue(screen, out var active) || active.PointerId != e.Pointer.Id) return;
+            // Removed before the capture is released, so the capture-lost handler finds no touch.
+            _activeTouches.Remove(screen);
             Point p = e.GetPosition(screen);
-            touch(vm, e.Pointer.Id, p.X, p.Y, true);
+            if (ViewModel is { } vm)
+                touch(vm, e.Pointer.Id, p.X, p.Y, true);
             e.Pointer.Capture(null);
             e.Handled = true;
+        };
+        // Focus moved away (Alt-Tab, a dialog) in the middle of a touch: lift the finger where it
+        // last was, otherwise the device would keep the touch held for good.
+        screen.PointerCaptureLost += (_, _) =>
+        {
+            if (!_activeTouches.Remove(screen, out var active) || ViewModel is not { } vm) return;
+            touch(vm, active.PointerId, active.Position.X, active.Position.Y, true);
         };
     }
 
     private void OnControlPressed(object sender, PointerPressedEventArgs e)
     {
-        if (ViewModel is not { } vm || ControlAt(e.Source) is not { } border) return;
-        if (border.DataContext is not VirtualControlViewModel control) return;
+        if (_pressed != null || ViewModel is not { } vm || ControlAt(e.Source) is not { } border) return;
+        if (!IsPrimaryPress(e, border) || border.DataContext is not VirtualControlViewModel control) return;
 
         _pressed = border;
         border.Classes.Add("pressed");
+        border.PointerCaptureLost += OnPressedCaptureLost;
         e.Pointer.Capture(border);
         vm.Press(control, down: true);
         e.Handled = true;
@@ -114,21 +134,35 @@ public partial class VirtualDeviceWindow : Window
 
     private void OnControlReleased(object sender, PointerReleasedEventArgs e)
     {
+        if (_pressed == null) return;
+        ReleasePressed();
+        e.Pointer.Capture(null);
+    }
+
+    /// <summary>Focus moved away while a button was held: release it rather than leave it held.</summary>
+    private void OnPressedCaptureLost(object sender, PointerCaptureLostEventArgs e) => ReleasePressed();
+
+    private void ReleasePressed()
+    {
         if (_pressed is not { } border) return;
         _pressed = null;
+        border.PointerCaptureLost -= OnPressedCaptureLost;
         border.Classes.Remove("pressed");
-        e.Pointer.Capture(null);
 
         if (ViewModel is { } vm && border.DataContext is VirtualControlViewModel control)
             vm.Press(control, down: false);
     }
+
+    /// <summary>Only the primary button touches or presses; a right or middle click does nothing.</summary>
+    private static bool IsPrimaryPress(PointerPressedEventArgs e, Visual relativeTo) =>
+        e.GetCurrentPoint(relativeTo).Properties.IsLeftButtonPressed;
 
     private void OnControlWheel(object sender, PointerWheelEventArgs e)
     {
         if (ViewModel is not { } vm || ControlAt(e.Source) is not { } border) return;
         if (!border.Classes.Contains("dial") || border.DataContext is not VirtualControlViewModel control) return;
 
-        vm.Rotate(control, Notches(e));
+        vm.Rotate(control, Notches(control, e));
         e.Handled = true;
     }
 
@@ -138,12 +172,16 @@ public partial class VirtualDeviceWindow : Window
         .OfType<Border>()
         .FirstOrDefault(b => b.Classes.Contains("dial") || b.Classes.Contains("round") || b.Classes.Contains("named"));
 
-    /// <summary>One detent per wheel notch; scrolling up turns clockwise.</summary>
-    private static int Notches(PointerWheelEventArgs e) =>
-        e.Delta.Y switch
-        {
-            > 0 => Math.Max(1, (int)Math.Round(e.Delta.Y)),
-            < 0 => Math.Min(-1, (int)Math.Round(e.Delta.Y)),
-            _ => 0
-        };
+    /// <summary>
+    /// Whole detents for a scroll on <paramref name="target"/>; scrolling up turns clockwise. A
+    /// mouse wheel reports one unit per notch, a trackpad a stream of fractions — those are
+    /// accumulated, otherwise every tiny trackpad event would turn a full detent.
+    /// </summary>
+    private int Notches(object target, PointerWheelEventArgs e)
+    {
+        double total = _scrollRemainders.GetValueOrDefault(target) + e.Delta.Y;
+        int notches = (int)Math.Truncate(total);
+        _scrollRemainders[target] = total - notches;
+        return notches;
+    }
 }
