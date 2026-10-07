@@ -329,6 +329,10 @@ public partial class App : Application
             // Add() selects the first device to appear and nothing else: a device that connects
             // later, the primary included, joins the switcher without taking the view over.
             shell.Add(vm);
+
+            // A virtual device has nothing on the desk to look at; its simulator is the device.
+            if (VirtualDevice.IsVirtual(host.Device))
+                vm.ShowVirtualDeviceCommand.Execute(null);
         }
     }
 

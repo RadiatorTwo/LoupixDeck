@@ -1320,5 +1320,13 @@
   "TextSource_Static": "Own text",
   "TextSource_DialLabel": "Wheel label",
   "TextSource_DialValue": "Wheel value",
-  "DialMenu_EditAppearance": "Edit appearance…"
+  "DialMenu_EditAppearance": "Edit appearance…",
+  "VirtualDevice_TitleFmt": "{0} (virtual)",
+  "VirtualDevice_MenuEntry": "Virtual device",
+  "VirtualDevice_Hint": "Click or drag on a screen to touch it, scroll over a dial or the wheel to turn it, and click a dial or button to press it.",
+  "VirtualDevice_ButtonHome": "Home",
+  "VirtualDevice_ButtonUndo": "Undo",
+  "VirtualDevice_ButtonKeyboard": "Keyboard",
+  "VirtualDevice_ButtonEnter": "Enter",
+  "VirtualDevice_ButtonSave": "Save"
 }

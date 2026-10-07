@@ -96,6 +96,13 @@ public partial class MainWindowViewModel : ViewModelBase
 
     public IAsyncRelayCommand SettingsMenuCommand { get; }
     public IAsyncRelayCommand MacroEditorMenuCommand { get; }
+
+    /// <summary>Opens the simulator window of a virtual device (see <see cref="Utils.VirtualDevice"/>).</summary>
+    public IRelayCommand ShowVirtualDeviceCommand { get; }
+
+    /// <summary>True when this device runs without hardware, so the menu offers its simulator.</summary>
+    public bool IsVirtualDevice => Utils.VirtualDevice.IsVirtualSerial(_serial);
+
     public IRelayCommand ToggleDeviceStateCommand { get; }
 
     public LoupedeckLiveSController LoupedeckController { get; }
@@ -284,7 +291,8 @@ public partial class MainWindowViewModel : ViewModelBase
         Services.Companion.ICompanionCoordinator companions,
         IDeviceHostRegistry hostRegistry,
         Services.Folders.ICustomFolderService folders,
-        ViewModels.FolderPanel.FolderPanelViewModel folderPanel)
+        ViewModels.FolderPanel.FolderPanelViewModel folderPanel,
+        IDeviceService deviceService)
     {
         FolderPanel = folderPanel;
         LoupedeckController = loupedeck;
@@ -413,6 +421,8 @@ public partial class MainWindowViewModel : ViewModelBase
 
         SettingsMenuCommand = new AsyncRelayCommand(SettingsMenuButton_Click);
         MacroEditorMenuCommand = new AsyncRelayCommand(MacroEditorMenuButton_Click);
+        ShowVirtualDeviceCommand = new RelayCommand(
+            () => Views.VirtualDeviceWindow.ShowFor(ScopeKey, deviceService.Device, _modelName));
         ToggleDeviceStateCommand = new AsyncRelayCommand(LoupedeckController.ToggleDeviceState);
 
         NavigateFolderDepthCommand = new AsyncRelayCommand<int>(depth => LoupedeckController.PageManager.NavigateFolderDepth(depth));

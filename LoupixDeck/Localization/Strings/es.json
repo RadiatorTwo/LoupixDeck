@@ -1320,5 +1320,13 @@
   "TextSource_Static": "Texto propio",
   "TextSource_DialLabel": "Etiqueta de la rueda",
   "TextSource_DialValue": "Valor de la rueda",
-  "DialMenu_EditAppearance": "Editar apariencia…"
+  "DialMenu_EditAppearance": "Editar apariencia…",
+  "VirtualDevice_TitleFmt": "{0} (virtual)",
+  "VirtualDevice_MenuEntry": "Dispositivo virtual",
+  "VirtualDevice_Hint": "Haz clic o arrastra en una pantalla para tocarla, usa la rueda del ratón sobre un dial o la rueda para girarlos y haz clic en un dial o botón para pulsarlo.",
+  "VirtualDevice_ButtonHome": "Inicio",
+  "VirtualDevice_ButtonUndo": "Deshacer",
+  "VirtualDevice_ButtonKeyboard": "Teclado",
+  "VirtualDevice_ButtonEnter": "Intro",
+  "VirtualDevice_ButtonSave": "Guardar"
 }

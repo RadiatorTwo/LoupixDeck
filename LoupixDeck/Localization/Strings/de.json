@@ -1320,5 +1320,13 @@
   "TextSource_Static": "Eigener Text",
   "TextSource_DialLabel": "Beschriftung des Rads",
   "TextSource_DialValue": "Wert des Rads",
-  "DialMenu_EditAppearance": "Aussehen bearbeiten…"
+  "DialMenu_EditAppearance": "Aussehen bearbeiten…",
+  "VirtualDevice_TitleFmt": "{0} (virtuell)",
+  "VirtualDevice_MenuEntry": "Virtuelles Gerät",
+  "VirtualDevice_Hint": "Auf einen Bildschirm klicken oder ziehen, um ihn zu berühren; über einem Drehregler oder dem Rad scrollen, um ihn zu drehen; einen Drehregler oder eine Taste anklicken, um sie zu drücken.",
+  "VirtualDevice_ButtonHome": "Home",
+  "VirtualDevice_ButtonUndo": "Rückgängig",
+  "VirtualDevice_ButtonKeyboard": "Tastatur",
+  "VirtualDevice_ButtonEnter": "Enter",
+  "VirtualDevice_ButtonSave": "Speichern"
 }
