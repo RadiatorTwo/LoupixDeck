@@ -8,6 +8,7 @@ using LoupixDeck.Models.Converter;
 using LoupixDeck.Models.Layers;
 using LoupixDeck.Registry;
 using LoupixDeck.Services;
+using LoupixDeck.Services.Actions;
 using LoupixDeck.Services.Import.Lp5;
 using LoupixDeck.Services.PluginStore;
 using LoupixDeck.Services.Portable;
@@ -57,6 +58,7 @@ public sealed partial class LoupedeckImportViewModel : DialogViewModelBase<Dialo
 
         Unmapped = new();
         Notes = new();
+        SelectedLayoutTemplate = LayoutTemplates[0];
     }
 
     /// <summary>
@@ -164,6 +166,11 @@ public sealed partial class LoupedeckImportViewModel : DialogViewModelBase<Dialo
 
     /// <summary>Offered only when a link is made while automatic switching is off.</summary>
     public bool ShowEnableSwitching => LinkApp && !_config.AppSwitchingEnabled;
+
+    public IReadOnlyList<LayoutTemplateOption> LayoutTemplates { get; } = LayoutTemplateOption.CreateAll();
+
+    [ObservableProperty]
+    public partial LayoutTemplateOption SelectedLayoutTemplate { get; set; }
 
     // ───────── Commands ─────────
 
@@ -282,6 +289,10 @@ public sealed partial class LoupedeckImportViewModel : DialogViewModelBase<Dialo
             profile.Name = NewName.Trim();
             PortablePayloadNormalizer.Normalize(profile, _deviceService.TouchButtonCount,
                 _deviceService.RotaryButtonCount, _pageManager.SideRotaryButtonCount);
+
+            if (SelectedLayoutTemplate?.Template is { } template)
+                ActionAssignment.ApplyTemplateToPages(profile.Workspaces.SelectMany(w => w.EnumerateTouchLayouts()),
+                    template, _geometry.KeySize, _geometry.KeySize);
 
             _config.Profiles.Add(profile);
 

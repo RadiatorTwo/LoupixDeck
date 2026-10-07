@@ -41,3 +41,6 @@ public sealed class ButtonTemplatePlan
 
     internal int KeyHeightPx { get; init; }
 }
+
+/// <summary>What <see cref="ActionAssignment.ApplyTemplateToPages"/> did: buttons with at least one state laid out, and the layers dropped.</summary>
+public readonly record struct TemplateApplyResult(int ButtonsChanged, int LayersRemoved);

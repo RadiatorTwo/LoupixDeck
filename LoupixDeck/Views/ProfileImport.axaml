@@ -272,6 +272,21 @@
                     </StackPanel>
                 </StackPanel>
 
+                <!-- Layout template for the touch buttons of the package -->
+                <StackPanel Spacing="6" IsVisible="{Binding ShowLayoutTemplate}">
+                    <TextBlock Text="{loc:Tr TouchButton_LayoutTemplate}" Classes="sectionHeader" />
+                    <ComboBox ItemsSource="{Binding LayoutTemplates}"
+                              SelectedItem="{Binding SelectedLayoutTemplate}"
+                              HorizontalAlignment="Stretch">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate DataType="vm:LayoutTemplateOption">
+                                <TextBlock Text="{Binding Label}" />
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+                    <TextBlock Text="{loc:Tr ProfileImport_LayoutTemplateHint}" Classes="hint" />
+                </StackPanel>
+
                 <!-- Companion pages: which companion of this master receives each part. -->
                 <StackPanel Spacing="6" IsVisible="{Binding HasCompanionParts}">
                     <TextBlock Text="{loc:Tr ProfileImport_CompanionPages}" Classes="sectionHeader" />

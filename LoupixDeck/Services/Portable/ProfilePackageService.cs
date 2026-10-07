@@ -6,6 +6,7 @@ using LoupixDeck.Models;
 using LoupixDeck.Models.Macros;
 using LoupixDeck.Models.Portable;
 using LoupixDeck.Registry;
+using LoupixDeck.Services.Actions;
 using LoupixDeck.Services.Commands;
 using LoupixDeck.Services.Companion;
 using LoupixDeck.Services.Macros;
@@ -880,6 +881,7 @@ public sealed class ProfilePackageService(
                 Profile profile = payload.Profile;
                 profile.Name = name;
                 PortablePayloadNormalizer.Normalize(profile, touchCount, rotaryCount, sideCount);
+                ApplyLayoutTemplate(options, profile.Workspaces.SelectMany(w => w.EnumerateTouchLayouts()));
                 importedProfileId = profile.Id;
 
                 Profile existing = options.Mode == PackageImportMode.Replace
@@ -915,6 +917,7 @@ public sealed class ProfilePackageService(
                 Workspace workspace = payload.Workspace;
                 workspace.Name = name;
                 PortablePayloadNormalizer.Normalize(workspace, touchCount, rotaryCount, sideCount);
+                ApplyLayoutTemplate(options, workspace.EnumerateTouchLayouts());
 
                 Profile owner = FindProfile(options.TargetProfileId) ?? config.ActiveProfile;
                 if (owner == null)
@@ -945,6 +948,7 @@ public sealed class ProfilePackageService(
                 TouchButtonPage page = payload.TouchPage;
                 page.Name = name;
                 PortablePayloadNormalizer.Normalize(page, touchCount);
+                ApplyLayoutTemplate(options, [page]);
 
                 Workspace target = FindWorkspaceById(options.TargetWorkspaceId) ?? config.ActiveWorkspace;
                 if (target == null)
@@ -994,6 +998,19 @@ public sealed class ProfilePackageService(
         ApplyCompanionParts(analysis, options, payload, warnings);
 
         return ProfilePackageResult.Ok($"Imported {what}.", warnings, importedProfileId: importedProfileId);
+    }
+
+    /// <summary>
+    /// Lays out the touch buttons of the imported item as the chosen layout template, at the key size
+    /// the touch button editor uses on this device. Companion parts are not touched.
+    /// </summary>
+    private void ApplyLayoutTemplate(ProfilePackageImportOptions options, IEnumerable<TouchButtonPage> pages)
+    {
+        if (options.LayoutTemplate is not { } template)
+            return;
+
+        int keySize = config.Geometry.KeySize;
+        ActionAssignment.ApplyTemplateToPages(pages, template, keySize, keySize);
     }
 
     /// <summary>
