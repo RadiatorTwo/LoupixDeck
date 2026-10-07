@@ -21,23 +21,12 @@ namespace LoupixDeck.Utils;
 /// Everything is keyed by <see cref="ResolvedDevice.ScopeKey"/> (slug + serial),
 /// so two physically identical units no longer collapse into one. The marker is
 /// read back-compatibly (an old marker holds only a bare slug).
-///
-/// FakeDeviceOverride is applied at the very end so the testing flow can
-/// pretend the resolved device is something else.
 /// </summary>
 public static class ActiveDeviceResolver
 {
     private const string MarkerFile = ".active-device";
 
-    public static ResolvedDevice Resolve()
-    {
-        var resolved = ResolveCore();
-#if DEBUG
-        return FakeDeviceOverride.Apply(resolved);
-#else
-        return resolved;
-#endif
-    }
+    public static ResolvedDevice Resolve() => ResolveCore();
 
     /// <summary>Persist the scope key (slug + serial) of the device we just booted
     /// into so the next launch can prefer the same one when the hardware-scan is
@@ -66,16 +55,7 @@ public static class ActiveDeviceResolver
     {
         MigrateLegacyConfigJson();
 
-        var result = new List<ResolvedDevice>();
-        foreach (var d in ScanConnectedDevices())
-        {
-#if DEBUG
-            var dev = FakeDeviceOverride.Apply(d);
-#else
-            var dev = d;
-#endif
-            result.Add(dev);
-        }
+        var result = ScanConnectedDevices();
 
         // A virtual device is never on the bus, so it joins the scan result itself — next to any
         // real hardware, never in place of it.

@@ -10,9 +10,8 @@ namespace LoupixDeck.Utils;
 /// replaced by <see cref="LoupedeckDevice.Serial.VirtualSerialConnection"/>, which acknowledges each
 /// command, drops the bytes, and mirrors the framebuffers into the simulator window.
 /// <para>
-/// Unlike <see cref="FakeDeviceOverride"/>, which relabels a real connected device, this needs no
-/// device at all and is available in Release builds, so a developer without a given model can
-/// drive its full UI on any platform.
+/// It needs no device at all and is available in Release builds, so a developer without a given
+/// model can drive its full UI on any platform.
 /// </para>
 /// <para>
 /// The virtual unit carries the serial <see cref="Serial"/>, so it always has its own config file
