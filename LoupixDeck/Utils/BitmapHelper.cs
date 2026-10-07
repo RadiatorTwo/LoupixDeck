@@ -1260,7 +1260,7 @@ public static class BitmapHelper
         var drawY = ((deviceH - dstH) / 2f) + layer.PositionY;
 
         canvas.DrawBitmap(bmp, srcRect, new SKRect(drawX, drawY, drawX + dstW, drawY + dstH),
-            SKSamplingOptions.Default, paint: null);
+            SamplingFor(srcRect.Width, srcRect.Height, dstW, dstH), paint: null);
     }
 
     /// <summary>
@@ -1328,7 +1328,7 @@ public static class BitmapHelper
         canvas.Save();
         canvas.ClipRect(new SKRect(0, 0, width, height));
         canvas.DrawBitmap(bmp, srcRect, new SKRect(drawX, drawY, drawX + dstW, drawY + dstH),
-            SKSamplingOptions.Default, paint: null);
+            SamplingFor(srcRect.Width, srcRect.Height, dstW, dstH), paint: null);
         canvas.Restore();
     }
 
@@ -1355,7 +1355,7 @@ public static class BitmapHelper
             canvas.ClipRect(new SKRect(0, 0, width, height));
             ApplyRotation(canvas, layer.Rotation, drawX + (dstW / 2f), drawY + (dstH / 2f));
             canvas.DrawBitmap(bmp, new SKRect(drawX, drawY, drawX + dstW, drawY + dstH),
-                SKSamplingOptions.Default, paint: null);
+                SamplingFor(bmp.Width, bmp.Height, dstW, dstH), paint: null);
             canvas.Restore();
         }
     }
@@ -1365,6 +1365,22 @@ public static class BitmapHelper
     {
         if (Math.Abs(degrees) < 0.01) return;
         canvas.RotateDegrees((float)degrees, cx, cy);
+    }
+
+    /// <summary>
+    /// Sampling for drawing a <paramref name="srcW"/>×<paramref name="srcH"/> bitmap into a
+    /// <paramref name="dstW"/>×<paramref name="dstH"/> rect: bicubic (Mitchell) when enlarging,
+    /// linear with mipmaps when shrinking so large reductions keep smooth edges instead of the
+    /// jagged, aliased result nearest-neighbour gives.
+    /// </summary>
+    internal static SKSamplingOptions SamplingFor(float srcW, float srcH, float dstW, float dstH)
+    {
+        if (Math.Abs(dstW) > srcW || Math.Abs(dstH) > srcH)
+        {
+            return new SKSamplingOptions(SKCubicResampler.Mitchell);
+        }
+
+        return new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear);
     }
 
     /// <summary>
@@ -1388,7 +1404,7 @@ public static class BitmapHelper
             canvas.Save();
             ApplyRotation(canvas, layer.Rotation, drawX + (dstW / 2f), drawY + (dstH / 2f));
             canvas.DrawBitmap(bmp, new SKRect(drawX, drawY, drawX + dstW, drawY + dstH),
-                SKSamplingOptions.Default, paint: null);
+                SamplingFor(bmp.Width, bmp.Height, dstW, dstH), paint: null);
             canvas.Restore();
         }
     }
