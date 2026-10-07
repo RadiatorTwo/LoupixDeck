@@ -50,6 +50,13 @@ public static class AppRestart
             start.ArgumentList.Add(WaitArgument);
             start.ArgumentList.Add(Environment.ProcessId.ToString());
 
+            // A virtual device requested on the command line survives the restart.
+            if (!string.IsNullOrEmpty(VirtualDevice.CliSlug))
+            {
+                start.ArgumentList.Add(VirtualDevice.Argument);
+                start.ArgumentList.Add(VirtualDevice.CliSlug);
+            }
+
             Process.Start(start);
             return true;
         }

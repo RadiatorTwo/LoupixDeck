@@ -99,10 +99,6 @@ public sealed class HotPlugManager : IHotPlugManager
             _detaching.RemoveWhere(k => !hostKeys.Contains(k));
 
             // ── Detach: a running host whose device is no longer present. ──
-            // Skip entirely while the DEBUG fake-device override is active: the scan
-            // can legitimately be empty (no real hardware) even though a fake device
-            // was brought up via the offline path, and we must not tear that down.
-            var fakeActive = FakeDeviceActive();
             foreach (var host in hosts)
             {
                 var key = host.Device.ScopeKey;
@@ -112,7 +108,8 @@ public sealed class HotPlugManager : IHotPlugManager
                     continue;
                 }
 
-                if (fakeActive || _detaching.Contains(key))
+                // A virtual device never appears in a USB scan and is never unplugged.
+                if (_detaching.Contains(key) || VirtualDevice.IsVirtual(host.Device))
                     continue;
 
                 var misses = _missCounts.GetValueOrDefault(key) + 1;
@@ -166,9 +163,6 @@ public sealed class HotPlugManager : IHotPlugManager
             lock (_gate) _reconciling = false;
         }
     }
-
-    private static bool FakeDeviceActive()
-        => !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("LOUPIXDECK_FAKE_DEVICE"));
 
     private static void Raise<T>(Action<T> handler, T arg)
     {

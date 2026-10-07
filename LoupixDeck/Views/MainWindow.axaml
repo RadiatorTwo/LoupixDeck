@@ -591,6 +591,14 @@
                                 FontSize="18"
                                 Content="{loc:Tr Settings_Plugins}"
                                 Command="{Binding PluginsMenuCommand}" />
+                        <!-- Only for a device that runs without hardware (virtual-device switch). -->
+                        <Button MinWidth="100" Height="40" HorizontalAlignment="Stretch"
+                                VerticalContentAlignment="Center" Margin="0,5,0,0"
+                                HorizontalContentAlignment="Center"
+                                FontSize="18"
+                                Content="{loc:Tr VirtualDevice_MenuEntry}"
+                                IsVisible="{Binding SelectedDevice.IsVirtualDevice, FallbackValue=False}"
+                                Command="{Binding SelectedDevice.ShowVirtualDeviceCommand}" />
                         <Separator />
                         <Button MinWidth="100" Height="40" HorizontalAlignment="Stretch"
                                 VerticalContentAlignment="Center"

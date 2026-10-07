@@ -358,14 +358,6 @@ public static class ServiceCollectionExtensions
                     DevicePid = deviceInfo.ProductId,
                     DeviceSerial = resolved.Serial
                 };
-
-                // First launch for this device — seed the serial port/baud from any
-                // existing sibling config so the user keeps their setup
-                // just because they switched device type (the port is hardware, not
-                // device-type-specific). Crucial for the LOUPIXDECK_FAKE_DEVICE flow:
-                // without this the fresh config has no port → device times out →
-                // App.InitializeDevices catches and shuts down silently.
-                SeedSerialPortFromSibling(config, configService, deviceInfo);
             }
 
             // A companion mirrors its master's profiles and workspaces; a device that left its group
@@ -503,34 +495,6 @@ public static class ServiceCollectionExtensions
         collection.AddTransient<MainWindowViewModel>();
 
         InitDialogs(collection);
-    }
-
-    private static void SeedSerialPortFromSibling(LoupedeckConfig fresh, IConfigService configService,
-        DeviceRegistry.DeviceInfo self)
-    {
-        try
-        {
-            var candidates = DeviceRegistry.SupportedDevices
-                .Where(d => d.Slug != self.Slug)
-                .Select(static d => FileDialogHelper.GetConfigPath(d))
-                .Where(File.Exists)
-                .OrderByDescending(File.GetLastWriteTimeUtc)
-                .ToList();
-
-            foreach (var path in candidates)
-            {
-                var sibling = configService.LoadConfig<LoupedeckConfig>(path);
-                if (sibling == null || string.IsNullOrEmpty(sibling.DevicePort)) continue;
-                fresh.DevicePort = sibling.DevicePort;
-                fresh.DeviceBaudrate = sibling.DeviceBaudrate;
-                Console.WriteLine($"[Config] Seeded {self.Slug} port from sibling: {sibling.DevicePort} @ {sibling.DeviceBaudrate}");
-                return;
-            }
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"[Config] Sibling-port seed failed: {ex.Message}");
-        }
     }
 
     /// <summary>The OS-level suspend/resume source, or a no-op on platforms without one.</summary>

@@ -1,5 +1,6 @@
 using System.Collections.Frozen;
 using LoupixDeck.Registry;
+using LoupixDeck.Utils;
 
 namespace LoupixDeck.LoupedeckDevice.Device;
 
@@ -102,7 +103,8 @@ public sealed class RazerStreamControllerXDevice : LoupedeckDevice
 
         // Without this the firmware stalls on its first unread HID report and no key ever
         // reaches the serial port on Linux (see HidrawDrain).
-        if (OperatingSystem.IsLinux() && !string.IsNullOrEmpty(path))
+        // A virtual device has no HID interface to drain.
+        if (OperatingSystem.IsLinux() && !string.IsNullOrEmpty(path) && !VirtualDevice.IsVirtualPort(path))
             _hidrawDrain = new HidrawDrain(() => SerialPath);
     }
 
@@ -118,6 +120,10 @@ public sealed class RazerStreamControllerXDevice : LoupedeckDevice
         slot = -1;
         return false;
     }
+
+    /// <inheritdoc />
+    public override byte? PhysicalKeyCode(int slot) =>
+        slot >= 0 && slot < Columns * Rows ? (byte)(FirstKeyByte + slot) : null;
 
     /// <summary>
     /// Maps a panel coordinate to a grid slot. Only ever reached through the synthetic

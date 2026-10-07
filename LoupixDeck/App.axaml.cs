@@ -42,18 +42,6 @@ public partial class App : Application
             WireGracefulShutdown(desktop);
             WireDockReopen();
 
-            // The device emulation is compiled out of Release builds, so a Release launch
-            // ignores LOUPIXDECK_FAKE_DEVICE without a word. State the build and the value
-            // once at startup — otherwise "the override does nothing" has three
-            // indistinguishable causes.
-#if DEBUG
-            Console.WriteLine("[Startup] DEBUG build — device emulation available. " +
-                              $"LOUPIXDECK_FAKE_DEVICE='{Environment.GetEnvironmentVariable("LOUPIXDECK_FAKE_DEVICE") ?? "<unset>"}'");
-#else
-            Console.WriteLine("[Startup] RELEASE build — device emulation is compiled out; " +
-                              "LOUPIXDECK_FAKE_DEVICE has no effect.");
-#endif
-
             // Read before any device is brought up, which writes the first config: without one this is
             // the very first start, which offers the starter profiles (issue #301).
             _firstStart = IsFirstStart();
@@ -329,6 +317,10 @@ public partial class App : Application
             // Add() selects the first device to appear and nothing else: a device that connects
             // later, the primary included, joins the switcher without taking the view over.
             shell.Add(vm);
+
+            // A virtual device has nothing on the desk to look at; its simulator is the device.
+            if (VirtualDevice.IsVirtual(host.Device))
+                vm.ShowVirtualDeviceCommand.Execute(null);
         }
     }
 

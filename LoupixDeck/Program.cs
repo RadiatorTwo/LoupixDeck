@@ -41,6 +41,10 @@ sealed partial class Program
         // forward its own instruction to it as a command.
         args = AppRestart.WaitForPredecessor(args);
 
+        // Consumed here, not forwarded: a second instance started with it must not send it to the
+        // running one as a CLI command.
+        args = VirtualDevice.ExtractArgument(args);
+
 #if !WINDOWS
         string socketPath;
         try

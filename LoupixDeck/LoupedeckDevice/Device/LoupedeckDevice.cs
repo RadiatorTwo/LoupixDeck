@@ -5,6 +5,7 @@ using System.Collections.Frozen;
 using System.Threading.Channels;
 using Avalonia.Media;
 using LoupixDeck.LoupedeckDevice.Serial;
+using LoupixDeck.LoupedeckDevice.Virtual;
 using LoupixDeck.Models;
 using LoupixDeck.Registry;
 using LoupixDeck.Utils;
@@ -388,9 +389,17 @@ public class LoupedeckDevice
     /// </summary>
     private void Connect()
     {
-        RefreshPathIfMissing();
+        bool isVirtual = VirtualDevice.IsVirtualPort(Path);
+        if (!isVirtual)
+            RefreshPathIfMissing();
 
-        if (!string.IsNullOrEmpty(Path))
+        if (isVirtual)
+        {
+            // No hardware: the virtual transport acknowledges and mirrors what would be sent.
+            VirtualState ??= new VirtualDeviceState(() => Displays);
+            _connection = new VirtualSerialConnection(Path, VirtualState);
+        }
+        else if (!string.IsNullOrEmpty(Path))
         {
             _connection = new SerialConnection(Path, Baudrate);
         }
@@ -591,6 +600,18 @@ public class LoupedeckDevice
     }
 
     /// <summary>
+    /// What the hardware would show, for a virtual device (see <see cref="VirtualDevice"/>);
+    /// null for a real one.
+    /// </summary>
+    public VirtualDeviceState VirtualState { get; private set; }
+
+    /// <summary>
+    /// Feeds a frame into the receive path as if the device had sent it — the simulator's input.
+    /// A no-op unless the device is virtual and connected.
+    /// </summary>
+    public void InjectInput(byte[] packet) => (_connection as VirtualSerialConnection)?.Inject(packet);
+
+    /// <summary>
     /// True while the serial link is open and usable. Lets callers tell a successful
     /// <see cref="Reconnect"/> from one that silently failed (issue #195).
     /// </summary>
@@ -656,7 +677,7 @@ public class LoupedeckDevice
     /// </summary>
     private void ProbeWake()
     {
-        if (string.IsNullOrEmpty(Path)) return;
+        if (string.IsNullOrEmpty(Path) || VirtualDevice.IsVirtualPort(Path)) return;
 
         using var probe = new System.IO.Ports.SerialPort(Path, Baudrate)
         {
@@ -1191,6 +1212,18 @@ public class LoupedeckDevice
             Direction = dy < 0 ? SwipeDirection.Up : SwipeDirection.Down
         });
     }
+
+    /// <summary>
+    /// The touch slot under a panel coordinate, or -1 for none — the same mapping a touch at
+    /// that point gets. Lets the simulator of a virtual device find the key it was clicked on.
+    /// </summary>
+    public int SlotAt(int x, int y) => GetTarget(x, y).Key;
+
+    /// <summary>
+    /// The BUTTON_PRESS byte the physical key at <paramref name="slot"/> reports, or null on a
+    /// device whose grid is a touchscreen. The inverse of <see cref="TryGetPhysicalKeySlot"/>.
+    /// </summary>
+    public virtual byte? PhysicalKeyCode(int slot) => null;
 
     /// <summary>
     /// This method is overridden in derived classes to determine which area or key is touched.

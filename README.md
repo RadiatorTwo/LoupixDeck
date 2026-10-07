@@ -379,6 +379,34 @@ sudo udevadm trigger
 
 </details>
 
+### Debugging without a device
+
+Any supported model can run as a virtual device, with no hardware attached:
+
+```bash
+./LoupixDeck --virtual-device loupedeck-ct
+# or
+LOUPIXDECK_VIRTUAL_DEVICE=loupedeck-ct ./LoupixDeck
+```
+
+| Device | Slug |
+| --- | --- |
+| Loupedeck Live | `loupedeck-live` |
+| Loupedeck Live S | `loupedeck-live-s` |
+| Loupedeck CT | `loupedeck-ct` |
+| Razer Stream Controller | `razer-stream-controller` |
+| Razer Stream Controller X | `razer-stream-controller-x` |
+
+The app runs exactly as with real hardware, but nothing is sent to a serial port. A simulator window shows the frames the app sends, decoded from the same bytes the panel would receive. It also shows the LED colours, the brightness and the vibration. The simulator also takes input:
+
+- Click or drag on a screen to touch it. On the Stream Controller X, a click presses the key.
+- Scroll over a dial or the CT wheel to turn it.
+- Click a dial or button to press it. Hold the click to hold the press.
+
+The window opens on its own and can be reopened from the main menu. The option works in Release builds and on every platform. It runs alongside any connected devices.
+
+The virtual device uses its own configuration file (`config_<slug>_VIRTUAL.json`) and never changes the configuration of a real device.
+
 ## Troubleshooting
 
 Enable managed crash logging:
