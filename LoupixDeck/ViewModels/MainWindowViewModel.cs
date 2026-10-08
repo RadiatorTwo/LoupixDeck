@@ -473,6 +473,13 @@ public partial class MainWindowViewModel : ViewModelBase
     [ObservableProperty]
     public partial bool IsFolderOpen { get; private set; }
 
+    /// <summary>
+    /// Zoom of this device's view in the main window, 1 being 100 %. Not saved: every start
+    /// begins at 100 %.
+    /// </summary>
+    [ObservableProperty]
+    public partial double ViewZoom { get; set; } = 1.0;
+
     private void OnConfigFolderPropertyChanged(object sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
         // "Name" is forwarded from the active workspace: the breadcrumb root shows it.

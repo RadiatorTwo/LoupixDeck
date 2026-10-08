@@ -165,7 +165,7 @@
         </Style>
     </UserControl.Styles>
 
-    <controls:DeviceZoomPanel BaseWidth="760" HorizontalAlignment="Center"
+    <controls:DeviceZoomPanel BaseWidth="760" Zoom="{Binding ViewZoom}" HorizontalAlignment="Center"
                               Tapped="OnBackgroundTapped"
                               ContextRequested="OnButtonContextRequested">
 

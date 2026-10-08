@@ -139,7 +139,7 @@
          The 5x3 touch grid (450x270, 16mm tiles) is centred in the bezel; the two dials
          and bottom LED sit in the left body margin (centre x=137.5), the three LEDs in
          the right body margin (centre x=762.5). -->
-    <controls:DeviceZoomPanel BaseWidth="760" HorizontalAlignment="Center"
+    <controls:DeviceZoomPanel BaseWidth="760" Zoom="{Binding ViewZoom}" HorizontalAlignment="Center"
                               Tapped="OnBackgroundTapped"
                               ContextRequested="OnButtonContextRequested">
 

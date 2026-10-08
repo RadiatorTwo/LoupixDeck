@@ -1329,5 +1329,9 @@
   "VirtualDevice_ButtonUndo": "Undo",
   "VirtualDevice_ButtonKeyboard": "Keyboard",
   "VirtualDevice_ButtonEnter": "Enter",
-  "VirtualDevice_ButtonSave": "Save"
+  "VirtualDevice_ButtonSave": "Save",
+  "MainWindow_ZoomOut": "Zoom out (Ctrl -)",
+  "MainWindow_ZoomIn": "Zoom in (Ctrl +)",
+  "MainWindow_ZoomReset": "Reset to 100% (Ctrl 0). Zoom with Ctrl + mouse wheel.",
+  "MainWindow_ZoomPercent": "{0}%"
 }

@@ -75,7 +75,7 @@
          recess stays 332 tall from the bake — it is the glass surround, and the visible
          panel is shorter than it. Margins are even all round — no dial column or LED row
          makes one edge deeper. -->
-    <controls:DeviceZoomPanel BaseWidth="620" HorizontalAlignment="Center"
+    <controls:DeviceZoomPanel BaseWidth="620" Zoom="{Binding ViewZoom}" HorizontalAlignment="Center"
                               Tapped="OnBackgroundTapped"
                               ContextRequested="OnButtonContextRequested">
 

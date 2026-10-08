@@ -143,7 +143,7 @@
          three knobs sit in each body side margin (centres x130 left / x770 right,
          y154/265/376), and the row of eight round LED buttons spans the bottom margin
          (centres y473, x140..760). -->
-    <controls:DeviceZoomPanel BaseWidth="760" HorizontalAlignment="Center"
+    <controls:DeviceZoomPanel BaseWidth="760" Zoom="{Binding ViewZoom}" HorizontalAlignment="Center"
                               Tapped="OnBackgroundTapped"
                               ContextRequested="OnButtonContextRequested">
 

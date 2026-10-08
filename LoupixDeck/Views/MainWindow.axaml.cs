@@ -5,6 +5,7 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Platform;
 using CommunityToolkit.Mvvm.Input;
+using LoupixDeck.Localization;
 using LoupixDeck.Models;
 using LoupixDeck.Utils;
 using LoupixDeck.ViewModels;
@@ -30,6 +31,7 @@ public partial class MainWindow : Window
 
     private MainShellViewModel _shell;
     private DeviceDragDrop _dragDrop;
+    private DeviceViewZoom _zoom;
     private ActionPanelWindow _panelWindow;
     private FolderPanelWindow _folderPanelWindow;
 
@@ -41,6 +43,7 @@ public partial class MainWindow : Window
 
         CreateTrayIcon();
         InitDragDrop();
+        InitZoom();
 
         this.Closing += OnWindowClosing;
         this.DataContextChanged += OnDataContextChanged;
@@ -66,6 +69,56 @@ public partial class MainWindow : Window
         AddHandler(PointerMovedEvent, OnPreviewPointerMoved, RoutingStrategies.Tunnel, handledEventsToo: true);
         AddHandler(PointerReleasedEvent, OnPreviewPointerReleased, RoutingStrategies.Tunnel, handledEventsToo: true);
         AddHandler(PointerCaptureLostEvent, OnPreviewPointerCaptureLost, RoutingStrategies.Tunnel | RoutingStrategies.Bubble, handledEventsToo: true);
+    }
+
+    // How long the zoom badge stays up after the last zoom step.
+    private static readonly TimeSpan ZoomBadgeDuration = TimeSpan.FromMilliseconds(900);
+
+    private Avalonia.Threading.DispatcherTimer _zoomBadgeTimer;
+
+    /// <summary>
+    /// Wire the device-view zoom (issue #251): the shortcuts and the wheel are the helper's own; the
+    /// menu row and the badge that shows the new zoom for a moment are connected here.
+    /// </summary>
+    private void InitZoom()
+    {
+        _zoom = new DeviceViewZoom(this, this.FindControl<ScrollViewer>("DeviceViewport"),
+            this.FindControl<ContentControl>("DeviceLayoutHost"), () => ViewModel?.SelectedDevice);
+
+        this.FindControl<Button>("ZoomOutButton").Command = _zoom.ZoomOutCommand;
+        this.FindControl<Button>("ZoomResetButton").Command = _zoom.ResetZoomCommand;
+        this.FindControl<Button>("ZoomInButton").Command = _zoom.ZoomInCommand;
+
+        _zoom.ZoomChanged += (_, _) => UpdateZoomText();
+        _zoom.UserZoomed += (_, _) => ShowZoomBadge();
+        LocalizationManager.Instance.PropertyChanged += (_, _) => UpdateZoomText();
+        UpdateZoomText();
+    }
+
+    private void UpdateZoomText()
+    {
+        string text = Loc.Tr("MainWindow_ZoomPercent", Math.Round(_zoom.CurrentZoom * 100));
+        this.FindControl<Button>("ZoomResetButton").Content = text;
+        this.FindControl<TextBlock>("ZoomBadgeText").Text = text;
+    }
+
+    private void ShowZoomBadge()
+    {
+        Border badge = this.FindControl<Border>("ZoomBadge");
+        badge.Opacity = 1;
+
+        if (_zoomBadgeTimer == null)
+        {
+            _zoomBadgeTimer = new Avalonia.Threading.DispatcherTimer { Interval = ZoomBadgeDuration };
+            _zoomBadgeTimer.Tick += (_, _) =>
+            {
+                _zoomBadgeTimer.Stop();
+                badge.Opacity = 0;
+            };
+        }
+
+        _zoomBadgeTimer.Stop();
+        _zoomBadgeTimer.Start();
     }
 
     private void OnPreviewPointerPressed(object sender, PointerPressedEventArgs e) => _dragDrop?.PointerPressed(e);
@@ -291,6 +344,9 @@ public partial class MainWindow : Window
         };
 
         FitWindowToDeviceLayout();
+
+        // The new layout has its own size per zoom; measure it before working out the limit.
+        Avalonia.Threading.Dispatcher.UIThread.Post(() => _zoom?.Refresh(), Avalonia.Threading.DispatcherPriority.Loaded);
     }
 
     /// <summary>

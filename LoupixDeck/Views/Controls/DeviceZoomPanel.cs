@@ -1,4 +1,5 @@
 using Avalonia;
+using Avalonia.Animation.Easings;
 using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
@@ -33,9 +34,16 @@ public sealed class DeviceZoomPanel : Panel
     public static readonly StyledProperty<double> BaseWidthProperty =
         AvaloniaProperty.Register<DeviceZoomPanel, double>(nameof(BaseWidth), double.NaN);
 
-    /// <summary>Zoom factor on top of <see cref="BaseWidth"/>; 1 is 100 %.</summary>
+    /// <summary>Zoom factor on top of <see cref="BaseWidth"/>; 1 is 100 %. Changes are animated.</summary>
     public static readonly StyledProperty<double> ZoomProperty =
         AvaloniaProperty.Register<DeviceZoomPanel, double>(nameof(Zoom), 1.0);
+
+    /// <summary>
+    /// Upper bound applied on top of <see cref="Zoom"/>, so a view that would not fit the screen is
+    /// shown smaller without overwriting the zoom the user chose.
+    /// </summary>
+    public static readonly StyledProperty<double> MaxZoomProperty =
+        AvaloniaProperty.Register<DeviceZoomPanel, double>(nameof(MaxZoom), double.PositiveInfinity);
 
     public static readonly AttachedProperty<bool> IsBodyProperty =
         AvaloniaProperty.RegisterAttached<DeviceZoomPanel, Control, bool>("IsBody");
@@ -49,11 +57,27 @@ public sealed class DeviceZoomPanel : Panel
     public static readonly AttachedProperty<double> InsetXProperty =
         AvaloniaProperty.RegisterAttached<DeviceZoomPanel, Control, double>("InsetX");
 
+    private static readonly TimeSpan AnimationDuration = TimeSpan.FromMilliseconds(160);
+    private static readonly CubicEaseOut AnimationEasing = new();
+
     static DeviceZoomPanel()
     {
-        AffectsMeasure<DeviceZoomPanel>(BaseWidthProperty, ZoomProperty);
+        AffectsMeasure<DeviceZoomPanel>(BaseWidthProperty);
         AffectsParentMeasure<DeviceZoomPanel>(IsBodyProperty, EdgeProperty, AnchorYProperty, InsetXProperty);
     }
+
+    // The zoom on screen right now; it trails TargetZoom while an animation runs. NaN until the
+    // first measure, which starts out at the target without animating.
+    private double _shownZoom = double.NaN;
+
+    // The running animation: the zoom it started from (NaN when none runs) and the frame time of
+    // its first frame, set once that frame arrives.
+    private double _animationFrom = double.NaN;
+    private TimeSpan? _animationStart;
+    private bool _frameRequested;
+
+    // The size reported while a zoom animates, so the window is resized once rather than every frame.
+    private Size? _heldSize;
 
     public double BaseWidth
     {
@@ -67,6 +91,18 @@ public sealed class DeviceZoomPanel : Panel
         set => SetValue(ZoomProperty, value);
     }
 
+    public double MaxZoom
+    {
+        get => GetValue(MaxZoomProperty);
+        set => SetValue(MaxZoomProperty, value);
+    }
+
+    /// <summary>The zoom the view shows once a running animation has finished.</summary>
+    public double TargetZoom => Math.Min(Zoom, MaxZoom);
+
+    /// <summary>Raised when <see cref="TargetZoom"/> may have changed.</summary>
+    public event EventHandler TargetZoomChanged;
+
     public static bool GetIsBody(Control control) => control.GetValue(IsBodyProperty);
     public static void SetIsBody(Control control, bool value) => control.SetValue(IsBodyProperty, value);
 
@@ -79,8 +115,11 @@ public sealed class DeviceZoomPanel : Panel
     public static double GetInsetX(Control control) => control.GetValue(InsetXProperty);
     public static void SetInsetX(Control control, double value) => control.SetValue(InsetXProperty, value);
 
-    /// <summary>Scale from SVG units to device-independent pixels at the current zoom.</summary>
-    public double Scale => ScaleFor(Zoom);
+    /// <summary>Scale from SVG units to device-independent pixels at the zoom shown right now.</summary>
+    public double Scale => ScaleFor(double.IsNaN(_shownZoom) ? TargetZoom : _shownZoom);
+
+    /// <summary>The panel's size at a zoom, for working out how far the view can grow.</summary>
+    public Size SizeAt(double zoom) => Extent(ScaleFor(zoom)).Size;
 
     private Control Body
     {
@@ -106,6 +145,82 @@ public sealed class DeviceZoomPanel : Panel
         return baseScale * zoom;
     }
 
+    private bool IsZoomAnimating => !double.IsNaN(_animationFrom);
+
+    protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
+    {
+        base.OnPropertyChanged(change);
+
+        if (change.Property == ZoomProperty || change.Property == MaxZoomProperty)
+            OnTargetChanged(animate: true);
+    }
+
+    private void OnTargetChanged(bool animate)
+    {
+        TargetZoomChanged?.Invoke(this, EventArgs.Empty);
+
+        TopLevel topLevel = TopLevel.GetTopLevel(this);
+        if (!animate || double.IsNaN(_shownZoom) || topLevel == null || !IsEffectivelyVisible)
+        {
+            // Nothing on screen to animate from, or a change that should follow at once.
+            StopAnimation();
+            _shownZoom = TargetZoom;
+            InvalidateMeasure();
+            return;
+        }
+
+        if (!IsZoomAnimating && AreClose(_shownZoom, TargetZoom)) return;
+
+        // Start, or restart from wherever the view is now, so a quick series of wheel notches
+        // glides on instead of jumping back.
+        _animationFrom = _shownZoom;
+        _animationStart = null;
+        InvalidateMeasure();
+        RequestFrame(topLevel);
+    }
+
+    private void RequestFrame(TopLevel topLevel)
+    {
+        if (_frameRequested) return;
+        _frameRequested = true;
+        topLevel.RequestAnimationFrame(OnAnimationFrame);
+    }
+
+    private void OnAnimationFrame(TimeSpan time)
+    {
+        _frameRequested = false;
+        if (!IsZoomAnimating) return;
+
+        _animationStart ??= time;
+        double target = TargetZoom;
+        double progress = Math.Clamp((time - _animationStart.Value) / AnimationDuration, 0, 1);
+        TopLevel topLevel = TopLevel.GetTopLevel(this);
+
+        if (progress >= 1 || topLevel == null)
+        {
+            StopAnimation();
+            _shownZoom = target;
+
+            // Hand back the room held for the animation.
+            InvalidateMeasure();
+            return;
+        }
+
+        _shownZoom = _animationFrom + ((target - _animationFrom) * AnimationEasing.Ease(progress));
+
+        // A frame only moves things within the size already granted: no measure, no window resize.
+        InvalidateArrange();
+        RequestFrame(topLevel);
+    }
+
+    private void StopAnimation()
+    {
+        _animationFrom = double.NaN;
+        _animationStart = null;
+    }
+
+    private static bool AreClose(double a, double b) => Math.Abs(a - b) < 0.0001;
+
     protected override Size MeasureOverride(Size availableSize)
     {
         // Every child is measured against infinity: the body at its fixed design size, the bands
@@ -116,7 +231,22 @@ public sealed class DeviceZoomPanel : Panel
             child.Measure(Size.Infinity);
         }
 
-        return Extent(Scale).Size;
+        if (double.IsNaN(_shownZoom))
+            _shownZoom = TargetZoom;
+
+        Size target = SizeAt(TargetZoom);
+        if (!IsZoomAnimating)
+        {
+            _heldSize = null;
+            return target;
+        }
+
+        // While the zoom animates, ask for the larger of the start and the end size: growing takes
+        // the room up front, shrinking gives it back once the animation is over. Either way the
+        // window is resized once, not on every frame, and the view animates inside it.
+        Size held = _heldSize ?? SizeAt(_shownZoom);
+        _heldSize = new Size(Math.Max(held.Width, target.Width), Math.Max(held.Height, target.Height));
+        return _heldSize.Value;
     }
 
     protected override Size ArrangeOverride(Size finalSize)
