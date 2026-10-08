@@ -284,15 +284,17 @@ public sealed partial class LoupedeckImportViewModel : DialogViewModelBase<Dialo
         try
         {
             // The real pass stores the icons; the preview pass stored nothing.
-            Lp5ConversionResult result = Lp5Converter.Convert(_archive, Shape, _assets);
+            ButtonTemplate? template = SelectedLayoutTemplate?.Template;
+            Lp5ConversionResult result = Lp5Converter.Convert(_archive, Shape, _assets, labelAsCaption: template != null);
             Profile profile = result.Profile;
             profile.Name = NewName.Trim();
             PortablePayloadNormalizer.Normalize(profile, _deviceService.TouchButtonCount,
                 _deviceService.RotaryButtonCount, _pageManager.SideRotaryButtonCount);
 
-            if (SelectedLayoutTemplate?.Template is { } template)
-                ActionAssignment.ApplyTemplateToPages(profile.Workspaces.SelectMany(w => w.EnumerateTouchLayouts()),
-                    template, _geometry.KeySize, _geometry.KeySize);
+            TemplateApplyResult? laidOut = null;
+            if (template != null)
+                laidOut = ActionAssignment.ApplyTemplateToPages(profile.Workspaces.SelectMany(w => w.EnumerateTouchLayouts()),
+                    template.Value, _geometry.KeySize, _geometry.KeySize);
 
             _config.Profiles.Add(profile);
 
@@ -311,6 +313,8 @@ public sealed partial class LoupedeckImportViewModel : DialogViewModelBase<Dialo
             _controller.SaveConfig();
 
             ResultMessage = Loc.Tr("LoupedeckImport_Done", profile.Name, result.MappedControls, result.TotalControls);
+            if (laidOut != null)
+                ResultMessage += " " + Loc.Tr("ProfileImport_LayoutTemplateResult", laidOut.Value.ButtonsChanged, laidOut.Value.LayersRemoved);
         }
         catch (Exception ex)
         {

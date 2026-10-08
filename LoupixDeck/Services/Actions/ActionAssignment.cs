@@ -372,11 +372,16 @@ public static class ActionAssignment
     /// </summary>
     public static ButtonTemplatePlan PlanTemplate(TouchButton button, ButtonTemplate template, int keyWidthPx,
         int keyHeightPx)
-        => PlanTemplate(button?.Layers, template, keyWidthPx, keyHeightPx);
+        => PlanTemplate(button?.Layers, template, keyWidthPx, keyHeightPx, createCaption: true);
 
-    /// <summary>The same for the layers of one state of a button, active or not.</summary>
+    /// <summary>
+    /// The same for the layers of one state of a button, active or not. Without
+    /// <paramref name="createCaption"/> a missing caption is never added: an icon without one is laid
+    /// out as icon only, and a state with neither icon nor caption, or with no text for text only,
+    /// is left as it is.
+    /// </summary>
     private static ButtonTemplatePlan PlanTemplate(ObservableCollection<LayerBase> layers, ButtonTemplate template,
-        int keyWidthPx, int keyHeightPx)
+        int keyWidthPx, int keyHeightPx, bool createCaption)
     {
         if (layers == null)
             return new ButtonTemplatePlan();
@@ -384,6 +389,14 @@ public static class ActionAssignment
         FindTemplateLayers(layers, keyWidthPx, keyHeightPx, out LayerBase icon, out TextLayer caption,
             out List<LayerBase> removed);
         bool hasIcon = icon != null;
+
+        if (!createCaption && caption == null)
+        {
+            if (icon == null || template == ButtonTemplate.TextOnly)
+                return new ButtonTemplatePlan();
+
+            template = ButtonTemplate.IconOnly;
+        }
 
         switch (template)
         {
@@ -501,9 +514,10 @@ public static class ActionAssignment
     }
 
     /// <summary>
-    /// Applies <paramref name="template"/> to every state of every touch button on <paramref name="pages"/>,
-    /// as the editor does after confirming it. A state without layers is left empty rather than given a
-    /// caption, and so is a folder back slot. The active state of a button does not change.
+    /// Applies <paramref name="template"/> to every state of every touch button on <paramref name="pages"/>.
+    /// Unlike the editor it never adds a caption: an icon without one is laid out as icon only, and a
+    /// state with neither icon nor caption (empty, or only plugin output) is left as it is. So is a
+    /// folder back slot. The active state of a button does not change.
     /// </summary>
     public static TemplateApplyResult ApplyTemplateToPages(IEnumerable<TouchButtonPage> pages, ButtonTemplate template,
         int keyWidthPx, int keyHeightPx)
@@ -521,12 +535,12 @@ public static class ActionAssignment
                 bool changed = false;
                 foreach (ButtonState state in button.States)
                 {
-                    if (state?.Layers == null || state.Layers.Count == 0)
+                    if (state?.Layers == null)
                         continue;
 
-                    ObservableCollection<LayerBase> layers = state.Layers;
-                    ButtonTemplatePlan plan = PlanTemplate(layers, template, keyWidthPx, keyHeightPx);
-                    if (!ApplyTemplate(layers, plan, name => UniqueLayerName(layers, name)))
+                    ButtonTemplatePlan plan = PlanTemplate(state.Layers, template, keyWidthPx, keyHeightPx,
+                        createCaption: false);
+                    if (!ApplyTemplate(state.Layers, plan, uniqueName: null))
                         continue;
 
                     // Only this state's handlers are rewired, so the button's active state stays as it is.
@@ -541,20 +555,6 @@ public static class ActionAssignment
         }
 
         return new TemplateApplyResult(buttonsChanged, layersRemoved);
-    }
-
-    private static string UniqueLayerName(IEnumerable<LayerBase> layers, string baseName)
-    {
-        bool Exists(string name) => layers.Any(l => string.Equals(l.Name, name, StringComparison.Ordinal));
-
-        if (!Exists(baseName))
-            return baseName;
-
-        int index = 1;
-        while (Exists($"{baseName} {index}"))
-            index++;
-
-        return $"{baseName} {index}";
     }
 
     /// <summary>

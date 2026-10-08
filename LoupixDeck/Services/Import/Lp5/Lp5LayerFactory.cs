@@ -16,7 +16,8 @@ namespace LoupixDeck.Services.Import.Lp5;
 /// (a preview pass) nothing is written and image layers carry no asset path. Ported from
 /// <c>lp5_to_loupix.py</c> (loupedeck-to-loupixdeck by Vencite, MIT license).
 /// </remarks>
-internal sealed class Lp5LayerFactory(Lp5Archive archive, IAssetService assets, int keySize)
+/// <param name="labelAsCaption">Also give a key with an icon or key image its label as a caption, for a layout template to place.</param>
+internal sealed class Lp5LayerFactory(Lp5Archive archive, IAssetService assets, int keySize, bool labelAsCaption)
 {
     private const int MaxCaptionLength = 28;
 
@@ -39,7 +40,13 @@ internal sealed class Lp5LayerFactory(Lp5Archive archive, IAssetService assets, 
         if (Lp5ActionResolver.IsNone(actionRef)) return [];
 
         List<LayerBase> layers = IconOrImageLayers(actionRef, label);
-        return layers.Count > 0 || string.IsNullOrEmpty(label) ? layers : [Caption(label)];
+        if (string.IsNullOrEmpty(label)) return layers;
+        if (layers.Count == 0) return [Caption(label)];
+
+        if (labelAsCaption && !layers.OfType<TextLayer>().Any())
+            layers.Add(Caption(label));
+
+        return layers;
     }
 
     /// <summary>The key's own look from the profile (icon editor layers or a key image); empty when it has none.</summary>

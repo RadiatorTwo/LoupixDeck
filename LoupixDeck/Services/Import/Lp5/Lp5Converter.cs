@@ -47,11 +47,11 @@ public sealed class Lp5Converter
     private int _movedDials;
     private int _wheelPages;
 
-    private Lp5Converter(Lp5Archive archive, DeviceShape shape, IAssetService assets)
+    private Lp5Converter(Lp5Archive archive, DeviceShape shape, IAssetService assets, bool labelAsCaption)
     {
         _archive = archive;
         _shape = shape;
-        _layers = new Lp5LayerFactory(archive, assets, shape.Geometry.KeySize);
+        _layers = new Lp5LayerFactory(archive, assets, shape.Geometry.KeySize, labelAsCaption);
 
         foreach (JToken workspace in Lp5Json.Arr(archive.LayoutMode, "workspaces"))
         {
@@ -67,8 +67,13 @@ public sealed class Lp5Converter
 
     /// <summary>Converts <paramref name="archive"/> for a device of <paramref name="shape"/>.</summary>
     /// <param name="assets">Asset store for icons; null for a preview that stores nothing.</param>
-    public static Lp5ConversionResult Convert(Lp5Archive archive, DeviceShape shape, IAssetService assets) =>
-        new Lp5Converter(archive, shape, assets).Run();
+    /// <param name="labelAsCaption">
+    /// Set when a layout template follows: a key with an icon or key image then also gets its Loupedeck
+    /// label as a caption, which the template places next to the icon.
+    /// </param>
+    public static Lp5ConversionResult Convert(Lp5Archive archive, DeviceShape shape, IAssetService assets,
+        bool labelAsCaption = false) =>
+        new Lp5Converter(archive, shape, assets, labelAsCaption).Run();
 
     /// <summary>
     /// False for a wheel page that still holds Loupedeck's default (analog clock, press shows the clock,
