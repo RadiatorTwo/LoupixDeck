@@ -765,7 +765,7 @@
             <!-- Zoom of the device view (issue #251); the commands live on the view's zoom helper,
                  so MainWindow's code-behind wires them up. -->
             <Border Name="ZoomBar" HorizontalAlignment="Right" VerticalAlignment="Center"
-                    Margin="0,0,10,0" Padding="2" CornerRadius="8" BorderThickness="1"
+                    Margin="0,0,40,0" Padding="2" CornerRadius="8" BorderThickness="1"
                     Background="{DynamicResource AppSurfaceBar}"
                     BorderBrush="{DynamicResource AppBorderSubtle}">
                 <Border.Transitions>
@@ -783,6 +783,16 @@
                 </StackPanel>
             </Border>
         </Border>
+
+        <!-- Resize grip in the bottom-right corner, so the window is easy to resize; the OS does the
+             resizing (its own cursor, snapping). Only while the window is in its normal state. -->
+        <TextBlock Grid.Row="0" Grid.RowSpan="4"
+                   HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,1,1" Padding="3"
+                   FontFamily="{StaticResource MdiFont}" FontSize="16" Text="&#xF045D;"
+                   Foreground="{DynamicResource AppTextSecondary}" Background="Transparent"
+                   Cursor="BottomRightCorner"
+                   IsVisible="{Binding $parent[Window].WindowState, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static WindowState.Normal}}"
+                   PointerPressed="OnResizeGripPressed" />
 
         <!-- Drag & drop overlay (issue #166 phase 3): a drop-target ring coloured by the pending
              operation (green move / amber swap / blue copy, red invalid) and a slightly

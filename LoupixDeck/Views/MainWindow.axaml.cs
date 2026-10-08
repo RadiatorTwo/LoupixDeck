@@ -121,6 +121,15 @@ public partial class MainWindow : Window
         _zoomBadgeTimer.Start();
     }
 
+    // The bottom-right grip: hands the resize to the OS, like dragging the window's own corner.
+    private void OnResizeGripPressed(object sender, PointerPressedEventArgs e)
+    {
+        if (WindowState != WindowState.Normal || !e.GetCurrentPoint(this).Properties.IsLeftButtonPressed) return;
+
+        BeginResizeDrag(WindowEdge.SouthEast, e);
+        e.Handled = true;
+    }
+
     private void OnPreviewPointerPressed(object sender, PointerPressedEventArgs e) => _dragDrop?.PointerPressed(e);
     private void OnPreviewPointerMoved(object sender, PointerEventArgs e) => _dragDrop?.PointerMoved(e);
     private void OnPreviewPointerReleased(object sender, PointerReleasedEventArgs e) => _dragDrop?.PointerReleased(e);
