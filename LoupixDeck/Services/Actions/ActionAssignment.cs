@@ -1,4 +1,5 @@
 using Avalonia.Media;
+using LoupixDeck.Commands.Base;
 using LoupixDeck.Models;
 using LoupixDeck.Models.Layers;
 using LoupixDeck.PluginSdk;
@@ -90,6 +91,54 @@ public static class ActionAssignment
         if (button == null)
             return;
 
+        // The background is the button's own setting, so the user changes it like any other.
+        AddLayers(button.Layers, background =>
+        {
+            button.BackColor = background;
+            button.BackgroundEnabled = true;
+        }, label, symbolId, keyWidthPx, keyHeightPx, layout, assets);
+
+        button.RewireLayerHandlers();
+    }
+
+    /// <summary>
+    /// Gives each state of <paramref name="button"/> that is still empty the layers (and background)
+    /// its declared state brings along, matched by position. A state that already has layers is left
+    /// alone, so the user's artwork is never replaced; a state without a layout is skipped.
+    /// </summary>
+    public static void AddStateLayouts(TouchButton button, IReadOnlyList<CommandStateInfo> states,
+        string label, string symbolId, int keyWidthPx, int keyHeightPx, IAssetService assets = null)
+    {
+        if (button?.States == null || states == null)
+            return;
+
+        bool added = false;
+        for (int index = 0; index < states.Count && index < button.States.Count; index++)
+        {
+            ButtonState state = button.States[index];
+            ButtonLayoutDescriptor layout = states[index].Layout;
+            if (layout == null || state.Layers.Count > 0)
+                continue;
+
+            AddLayers(state.Layers, background =>
+            {
+                state.BackColor = background;
+                state.BackgroundEnabled = true;
+            }, label, symbolId, keyWidthPx, keyHeightPx, layout, assets);
+            added = true;
+        }
+
+        if (added)
+            button.RewireLayerHandlers();
+    }
+
+    /// <summary>
+    /// Appends a command's layers to <paramref name="layers"/> and hands a declared background
+    /// colour to <paramref name="setBackground"/>; the caller rewires the button afterwards.
+    /// </summary>
+    private static void AddLayers(ICollection<LayerBase> layers, Action<Color> setBackground, string label,
+        string symbolId, int keyWidthPx, int keyHeightPx, ButtonLayoutDescriptor layout, IAssetService assets)
+    {
         double scaleX = ScaleFactor(keyWidthPx);
         double scaleY = ScaleFactor(keyHeightPx);
         string text = label ?? string.Empty;
@@ -101,15 +150,15 @@ public static class ActionAssignment
                 break;
 
             case ButtonLayoutMode.IconOnly when hasSymbol:
-                button.Layers.Add(CreateSymbol(text, symbolId, 0, IconOnlyScale));
+                layers.Add(CreateSymbol(text, symbolId, 0, IconOnlyScale));
                 break;
 
             case ButtonLayoutMode.CaptionOnly:
-                button.Layers.Add(CreateTextOnly(text, scaleX, scaleY));
+                layers.Add(CreateTextOnly(text, scaleX, scaleY));
                 break;
 
             case ButtonLayoutMode.Custom:
-                AddCustomLayers(button, layout, text, symbolId, scaleX, scaleY, assets);
+                AddCustomLayers(layers, layout, text, symbolId, scaleX, scaleY, assets);
                 break;
 
             // Default, IconAndCaption, and IconOnly for a command whose icon cannot be resolved:
@@ -117,25 +166,19 @@ public static class ActionAssignment
             default:
                 if (hasSymbol)
                 {
-                    button.Layers.Add(CreateSymbol(text, symbolId, Scaled(SymbolOffsetYPx, scaleY), SymbolScale));
-                    button.Layers.Add(CreateCaption(text, keyWidthPx, keyHeightPx));
+                    layers.Add(CreateSymbol(text, symbolId, Scaled(SymbolOffsetYPx, scaleY), SymbolScale));
+                    layers.Add(CreateCaption(text, keyWidthPx, keyHeightPx));
                 }
                 else
                 {
-                    button.Layers.Add(CreateTextOnly(text, scaleX, scaleY));
+                    layers.Add(CreateTextOnly(text, scaleX, scaleY));
                 }
 
                 break;
         }
 
-        // The background is the button's own setting, so the user changes it like any other.
         if (Color.TryParse(layout?.BackgroundColor, out Color background))
-        {
-            button.BackColor = background;
-            button.BackgroundEnabled = true;
-        }
-
-        button.RewireLayerHandlers();
+            setBackground(background);
     }
 
     /// <summary>The caption under an icon, sized for a key of the given size.</summary>
@@ -181,7 +224,7 @@ public static class ActionAssignment
     /// Builds the layers a plugin listed, bottom first. A layer that cannot be built — an unknown
     /// glyph, a kind this host does not know — is skipped rather than failing the assignment.
     /// </summary>
-    private static void AddCustomLayers(TouchButton button, ButtonLayoutDescriptor layout, string label,
+    private static void AddCustomLayers(ICollection<LayerBase> layers, ButtonLayoutDescriptor layout, string label,
         string symbolId, double scaleX, double scaleY, IAssetService assets)
     {
         foreach (ButtonLayerDescriptor descriptor in layout.Layers ?? [])
@@ -217,7 +260,7 @@ public static class ActionAssignment
                         if (hasColor && pictureSymbol.IsTintable)
                             pictureSymbol.Tint = color;
 
-                        button.Layers.Add(pictureSymbol);
+                        layers.Add(pictureSymbol);
                         break;
                     }
 
@@ -237,14 +280,14 @@ public static class ActionAssignment
                     if (hasColor)
                         symbol.Tint = color;
 
-                    button.Layers.Add(symbol);
+                    layers.Add(symbol);
                     break;
 
                 case ButtonLayerKind.Image:
                     if (!TryImportPicture(assets, descriptor.ImageData, out string imagePath, out SKBitmap imageBitmap))
                         break;
 
-                    button.Layers.Add(new ImageLayer
+                    layers.Add(new ImageLayer
                     {
                         Name = name,
                         AssetRelativePath = imagePath,
@@ -277,11 +320,11 @@ public static class ActionAssignment
                     if (hasColor)
                         layer.TextColor = color;
 
-                    button.Layers.Add(layer);
+                    layers.Add(layer);
                     break;
 
                 case ButtonLayerKind.Indicator:
-                    button.Layers.Add(CreateIndicator(descriptor, name, x, y, hasColor ? color : null));
+                    layers.Add(CreateIndicator(descriptor, name, x, y, hasColor ? color : null));
                     break;
             }
         }

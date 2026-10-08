@@ -150,6 +150,13 @@ synchronous: return a cached value. `host.RequestButtonRefresh(name)` re-reads
 it immediately. The interface combines with `IDisplayCommand` and
 `IDisplayImageCommand`.
 
+Since SDK 1.30.0, a command that declares button states can give each state
+its own starting look with `ButtonStateDescriptor.Layout`, for example an
+hourglass while busy and a bell while waiting. When the host creates the
+command's states on a touch key, it fills each state that has no layers yet from
+that layout. It never replaces existing layers. Set the command's `ButtonLayout` to
+`ButtonLayoutMode.None` when every state brings its own.
+
 ## CommandDescriptor
 
 ```csharp

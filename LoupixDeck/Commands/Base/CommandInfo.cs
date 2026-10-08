@@ -39,4 +39,6 @@ public class CommandInfo
 /// <summary>One state a command declares, mirroring the SDK's ButtonStateDescriptor.</summary>
 /// <param name="Name">State name, persisted on the button and used to address the state.</param>
 /// <param name="Description">Optional one-line explanation shown in the editor.</param>
-public sealed record CommandStateInfo(string Name, string Description);
+/// <param name="Layout">Optional layers the state starts with on a touch button.</param>
+public sealed record CommandStateInfo(string Name, string Description,
+    LoupixDeck.PluginSdk.ButtonLayoutDescriptor Layout = null);

@@ -1,5 +1,7 @@
 using LoupixDeck.Models;
 using LoupixDeck.Models.Layers;
+using LoupixDeck.Registry;
+using LoupixDeck.Services.Actions;
 using LoupixDeck.Utils;
 
 namespace LoupixDeck.Services.Commands;
@@ -53,7 +55,10 @@ public interface ICommandStateMaterializer
     string GetOwnerDisplayName(StatefulButton button);
 }
 
-public sealed class CommandStateMaterializer(ICommandRegistry commandRegistry) : ICommandStateMaterializer
+public sealed class CommandStateMaterializer(
+    ICommandRegistry commandRegistry,
+    IAssetService assetService = null,
+    DeviceGeometry geometry = null) : ICommandStateMaterializer
 {
     public StateSyncResult Reconcile(StatefulButton button)
     {
@@ -69,6 +74,7 @@ public sealed class CommandStateMaterializer(ICommandRegistry commandRegistry) :
                 return StateSyncResult.Unchanged;
 
             Materialize(button, command, ownerKey);
+            AddStateLayouts(button, command);
             return StateSyncResult.Materialized;
         }
 
@@ -172,6 +178,34 @@ public sealed class CommandStateMaterializer(ICommandRegistry commandRegistry) :
         }
 
         button.Refresh();
+    }
+
+    /// <summary>
+    /// Gives the freshly created states of a touch button the layers their declared states bring
+    /// along. Only empty states are filled, so whatever the button showed before is kept.
+    /// </summary>
+    private void AddStateLayouts(StatefulButton button, RegisteredCommand command)
+    {
+        if (button is not TouchButton touch || command.States.All(state => state.Layout == null))
+            return;
+
+        int keySize = (geometry ?? DeviceGeometry.Default).KeySize;
+        string symbolId = SymbolLibrary.TryGetByGlyph(command.Info?.Icon, out SymbolDefinition definition)
+            ? definition.Id
+            : null;
+
+        touch.IgnoreRefresh = true;
+        try
+        {
+            ActionAssignment.AddStateLayouts(touch, command.States, command.Info?.DisplayName, symbolId,
+                keySize, keySize, assetService);
+        }
+        finally
+        {
+            touch.IgnoreRefresh = false;
+        }
+
+        touch.Refresh();
     }
 
     /// <summary>Keeps every generated state on the button's current command string.</summary>
