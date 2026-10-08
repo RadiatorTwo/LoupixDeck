@@ -790,6 +790,39 @@ public static class BitmapHelper
         return bitmap;
     }
 
+    // The recording each RecordedRender bitmap was drawn from, so a plugin layer can be played
+    // back sharp inside a larger preview instead of scaling its device-sized bitmap up.
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<SKBitmap, SKPicture> Recordings = new();
+
+    /// <summary>
+    /// Keeps <paramref name="picture"/> with the bitmap rasterized from it, and lets the on-screen
+    /// device view draw the bitmap again from it at any resolution (issue #251).
+    /// </summary>
+    internal static void RememberRecording(SKBitmap bitmap, SKPicture picture)
+    {
+        Recordings.AddOrUpdate(bitmap, picture);
+
+        int width = bitmap.Width;
+        int height = bitmap.Height;
+        PreviewRecipes.Register(bitmap, scale =>
+        {
+            lock (SkiaRenderGate.Sync)
+            {
+                using var preview = new SKBitmap(
+                    Math.Max(1, (int)Math.Ceiling(width * scale)),
+                    Math.Max(1, (int)Math.Ceiling(height * scale)));
+                using (var canvas = new SKCanvas(preview))
+                {
+                    canvas.Scale((float)scale);
+                    canvas.ClipRect(new SKRect(0, 0, width, height));
+                    canvas.DrawPicture(picture);
+                }
+
+                return Models.Converter.SKBitmapToAvaloniaBitmapConverter.ToBitmap(preview);
+            }
+        });
+    }
+
     /// <summary>
     /// Draws a key like <see cref="RenderTouchButtonContent"/>, but <paramref name="scale"/> times
     /// as large, for the on-screen device view only: the layout is the device's (layers are placed
@@ -1425,8 +1458,22 @@ public static class BitmapHelper
             canvas.Save();
             canvas.ClipRect(new SKRect(0, 0, width, height));
             ApplyRotation(canvas, layer.Rotation, drawX + (dstW / 2f), drawY + (dstH / 2f));
-            canvas.DrawBitmap(bmp, new SKRect(drawX, drawY, drawX + dstW, drawY + dstH),
-                SamplingFor(bmp.Width, bmp.Height, dstW, dstH), paint: null);
+
+            if (canvas.TotalMatrix.ScaleX > 1.01f && Recordings.TryGetValue(bmp, out SKPicture picture))
+            {
+                // A preview drawn larger than the device (issue #251): play the plugin's drawing
+                // back at this resolution rather than scaling its device-sized bitmap up.
+                canvas.Translate(drawX, drawY);
+                canvas.Scale(dstW / bmp.Width, dstH / bmp.Height);
+                canvas.ClipRect(new SKRect(0, 0, bmp.Width, bmp.Height));
+                canvas.DrawPicture(picture);
+            }
+            else
+            {
+                canvas.DrawBitmap(bmp, new SKRect(drawX, drawY, drawX + dstW, drawY + dstH),
+                    SamplingFor(bmp.Width, bmp.Height, dstW, dstH), paint: null);
+            }
+
             canvas.Restore();
         }
     }
@@ -2172,21 +2219,19 @@ public static class BitmapHelper
     {
         ArgumentNullException.ThrowIfNull(page);
 
-        var bitmap = new SKBitmap(width, height);
+        // Recorded, so the on-screen view can draw the strip sharp at its own size (#251).
+        using var recording = new RecordedRender(width, height);
 
         lock (SkiaRenderGate.Sync)
         {
-            using var canvas = new SKCanvas(bitmap);
+            var canvas = recording.Canvas;
 
             DrawStripWallpaperOrColor(canvas, config, side, width, height, SKColors.Black);
 
             var buttons = page.RotaryButtons;
             var count = buttons?.Count ?? 0;
             if (count == 0)
-            {
-                canvas.Flush();
-                return bitmap;
-            }
+                return recording.Finish();
 
             var segmentHeight = height / (float)count;
 
@@ -2246,10 +2291,8 @@ public static class BitmapHelper
                     bold: false);
             }
 
-            canvas.Flush();
+            return recording.Finish();
         }
-
-        return bitmap;
     }
 
     // Dial indicator palette. Deliberately neutral: the host draws this for every plugin's
@@ -2346,17 +2389,16 @@ public static class BitmapHelper
         ArgumentNullException.ThrowIfNull(wheel);
         ArgumentNullException.ThrowIfNull(canvas);
 
-        var bitmap = new SKBitmap(size, size);
+        // Recorded, so the on-screen view can draw the wheel sharp at its own size (#251).
+        using var recording = new RecordedRender(size, size);
 
         lock (SkiaRenderGate.Sync)
         {
-            using var skCanvas = new SKCanvas(bitmap);
+            var skCanvas = recording.Canvas;
             skCanvas.Clear(canvas.BackgroundEnabled ? canvas.BackColor.ToSKColor() : SKColors.Black);
             DrawLayers(skCanvas, canvas.Layers, size, size, new DialRenderContext(wheel.DisplayText, value));
-            skCanvas.Flush();
+            return recording.Finish();
         }
-
-        return bitmap;
     }
 
     /// <summary>
@@ -2369,11 +2411,12 @@ public static class BitmapHelper
     /// </summary>
     public static SKBitmap RenderWheelScreen(RotaryButton wheel, LoupixDeck.PluginSdk.AdjustmentValue? value, int size)
     {
-        var bitmap = new SKBitmap(size, size);
+        // Recorded, so the on-screen view can draw the wheel sharp at its own size (#251).
+        using var recording = new RecordedRender(size, size);
 
         lock (SkiaRenderGate.Sync)
         {
-            using var canvas = new SKCanvas(bitmap);
+            var canvas = recording.Canvas;
             canvas.Clear(SKColors.Black);
 
             var label = wheel?.DisplayText;
@@ -2415,10 +2458,8 @@ public static class BitmapHelper
                     bold: hasText);
             }
 
-            canvas.Flush();
+            return recording.Finish();
         }
-
-        return bitmap;
     }
 
     private static readonly SKColor WheelMenuHighlight = new(0x3D, 0x9B, 0xFF);
@@ -2432,18 +2473,18 @@ public static class BitmapHelper
     public static SKBitmap RenderWheelMenu(IReadOnlyList<string> labels, int highlight, int size)
     {
         ArgumentNullException.ThrowIfNull(labels);
-        var bitmap = new SKBitmap(size, size);
+        // Recorded, so the on-screen view can draw the wheel sharp at its own size (#251).
+        using var recording = new RecordedRender(size, size);
 
         lock (SkiaRenderGate.Sync)
         {
-            using var canvas = new SKCanvas(bitmap);
+            var canvas = recording.Canvas;
             canvas.Clear(SKColors.Black);
 
             var count = labels.Count;
             if (count == 0)
             {
-                canvas.Flush();
-                return bitmap;
+                return recording.Finish();
             }
 
             float rowHeight = size * 0.24f;
@@ -2475,10 +2516,8 @@ public static class BitmapHelper
             DrawTextAt(canvas, $"{highlight + 1} / {count}", WheelMenuDim, 13, centered: true,
                 posX: 0, posY: size * 0.82f, imageWidth: size, imageHeight: size * 0.1f);
 
-            canvas.Flush();
+            return recording.Finish();
         }
-
-        return bitmap;
     }
 
     /// <summary>
@@ -2629,11 +2668,12 @@ public static class BitmapHelper
         int height,
         RotarySide side)
     {
-        var bitmap = new SKBitmap(width, height);
+        // Recorded, so the on-screen view can draw the strip sharp at its own size (#251).
+        using var recording = new RecordedRender(width, height);
 
         lock (SkiaRenderGate.Sync)
         {
-            using var skCanvas = new SKCanvas(bitmap);
+            var skCanvas = recording.Canvas;
 
             // No wallpaper → fall back to the canvas's own background colour (default black),
             // matching touch-button behaviour. Avoids sending a washed-out grey to the device.
@@ -2643,10 +2683,8 @@ public static class BitmapHelper
             if (canvas?.Layers != null)
                 DrawLayers(skCanvas, canvas.Layers, width, height);
 
-            skCanvas.Flush();
+            return recording.Finish();
         }
-
-        return bitmap;
     }
 
     /// <summary>
@@ -2655,6 +2693,10 @@ public static class BitmapHelper
     /// page's opacity dim on top. Falls back to <paramref name="fallbackColor"/> (black,
     /// or the free-draw canvas's own background) when no wallpaper is set.
     /// </summary>
+    // Linear: identical to nearest at the device's exact 1:1 cutout, and smooth when a recorded
+    // strip is played back larger in the on-screen view (issue #251).
+    private static readonly SKSamplingOptions StripWallpaperSampling = new(SKFilterMode.Linear, SKMipmapMode.None);
+
     private static void DrawStripWallpaperOrColor(
         SKCanvas canvas,
         LoupedeckConfig config,
@@ -2668,7 +2710,7 @@ public static class BitmapHelper
         if (sideWallpaper != null)
         {
             var sideDest = new SKRect(0, 0, width, height);
-            canvas.DrawBitmap(sideWallpaper, sideDest, SKSamplingOptions.Default, paint: null);
+            canvas.DrawBitmap(sideWallpaper, sideDest, StripWallpaperSampling, paint: null);
             if (sideOpacity > 0)
             {
                 using var dim = new SKPaint { Color = new SKColor(0, 0, 0, (byte)(255 * sideOpacity)) };
@@ -2699,7 +2741,7 @@ public static class BitmapHelper
             height * scaleY);
         var destRect = new SKRect(0, 0, width, height);
 
-        canvas.DrawBitmap(wallpaper, srcRect, destRect, SKSamplingOptions.Default, paint: null);
+        canvas.DrawBitmap(wallpaper, srcRect, destRect, StripWallpaperSampling, paint: null);
 
         if (opacity > 0)
         {

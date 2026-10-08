@@ -331,31 +331,29 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
             // The plugin draws the button onto a host canvas at the device's key size; serialize
             // with all other Skia work (font/glyph caches + the layer's gated bitmap swap) so it
             // can't race the pipeline.
+            // Recorded, so the on-screen device view can play the plugin's drawing back sharp at its
+            // own size (#251) without asking the plugin to draw a second time.
             int keySize = _config?.EffectiveKeyCalibration.KeySize ?? DeviceGeometry.Default.KeySize;
-            var bitmap = new SKBitmap(keySize, keySize);
-            bool drew;
+            SKBitmap bitmap = null;
             try
             {
+                using var recording = new RecordedRender(keySize, keySize);
                 lock (SkiaRenderGate.Sync)
                 {
-                    using var canvas = new SKCanvas(bitmap);
-                    var rc = new SkiaRenderCanvas(canvas, keySize, keySize);
-                    drew = command.RenderImage(entry.Parameters, entry.SequenceCommands, stateName, button.RuntimeKey, rc);
-                    if (drew) canvas.Flush();
+                    var rc = new SkiaRenderCanvas(recording.Canvas, keySize, keySize);
+                    if (command.RenderImage(entry.Parameters, entry.SequenceCommands, stateName, button.RuntimeKey, rc))
+                        bitmap = recording.Finish();
                 }
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"DynamicTextManager: image command '{command.CommandName}' threw: {ex.Message}");
-                bitmap.Dispose();
                 return;
             }
 
-            if (!drew)
-            {
-                bitmap.Dispose(); // plugin declined (no data yet) → leave the button unchanged
+            // The plugin declined (no data yet): leave the button unchanged.
+            if (bitmap == null)
                 return;
-            }
 
             var ownerKey = entry.OwnerKey;
             var name = command.CommandName;
