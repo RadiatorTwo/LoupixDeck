@@ -1,3 +1,5 @@
+using LoupixDeck.Services.Actions;
+
 namespace LoupixDeck.Services.Portable;
 
 /// <summary>
@@ -23,15 +25,19 @@ public sealed class ProfilePackageResult
     /// <summary>Id of the profile that was added or replaced (profile import only).</summary>
     public Guid? ImportedProfileId { get; init; }
 
+    /// <summary>What the layout template chosen for the import did; null when none was chosen.</summary>
+    public TemplateApplyResult? LayoutTemplate { get; init; }
+
     public static ProfilePackageResult Ok(string message, IReadOnlyList<string> warnings = null,
-        string packagePath = null, Guid? importedProfileId = null) =>
+        string packagePath = null, Guid? importedProfileId = null, TemplateApplyResult? layoutTemplate = null) =>
         new()
         {
             Success = true,
             Message = message,
             Warnings = warnings ?? [],
             PackagePath = packagePath,
-            ImportedProfileId = importedProfileId
+            ImportedProfileId = importedProfileId,
+            LayoutTemplate = layoutTemplate
         };
 
     public static ProfilePackageResult Fail(string message, IReadOnlyList<string> warnings = null) =>

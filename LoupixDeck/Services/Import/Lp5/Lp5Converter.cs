@@ -41,6 +41,7 @@ public sealed class Lp5Converter
     private readonly Dictionary<string, Guid> _workspaceIds = new(StringComparer.Ordinal);
     private readonly List<Lp5UnsupportedControl> _unsupported = [];
     private readonly List<Lp5MovedControl> _moved = [];
+    private readonly HashSet<TouchButton> _unmappedKeys = [];
     private int _totalControls;
     private int _mappedControls;
     private int _movedKeys;
@@ -129,6 +130,7 @@ public sealed class Lp5Converter
             Profile = profile,
             Unsupported = _unsupported,
             Moved = _moved,
+            UnmappedKeys = _unmappedKeys,
             Notes = notes,
             Workspaces = profile.Workspaces.Count,
             TouchPages = touchPages,
@@ -337,6 +339,7 @@ public sealed class Lp5Converter
             button.Layers.Add(caption);
             button.BackColor = UnmappedBackground;
             button.BackgroundEnabled = true;
+            _unmappedKeys.Add(button);
             button.RewireLayerHandlers();
             return;
         }

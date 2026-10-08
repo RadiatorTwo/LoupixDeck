@@ -119,6 +119,22 @@ public sealed record LayoutTemplateOption(ButtonTemplate? Template, string Label
         new(ButtonTemplate.IconOnly, Loc.Tr("TouchButton_Template_IconOnly")),
         new(ButtonTemplate.TextOnly, Loc.Tr("TouchButton_Template_TextOnly"))
     ];
+
+    /// <summary>What a template did to an imported item, as one line for the result notice.</summary>
+    public static string DescribeResult(TemplateApplyResult result) =>
+        Loc.Tr("ProfileImport_LayoutTemplateResult", result.ButtonsChanged, result.LayersRemoved);
+
+    /// <summary>The lines a package result is reported with: its message, what a template did, the warnings.</summary>
+    public static IEnumerable<string> ResultLines(ProfilePackageResult result)
+    {
+        yield return result.Message;
+
+        if (result.LayoutTemplate is { } laidOut)
+            yield return DescribeResult(laidOut);
+
+        foreach (string warning in result.Warnings)
+            yield return warning;
+    }
 }
 
 /// <summary>A companion of this master a companion part can be imported onto; a null key skips the part.</summary>

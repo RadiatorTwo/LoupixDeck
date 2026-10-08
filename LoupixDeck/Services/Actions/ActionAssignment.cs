@@ -372,16 +372,17 @@ public static class ActionAssignment
     /// </summary>
     public static ButtonTemplatePlan PlanTemplate(TouchButton button, ButtonTemplate template, int keyWidthPx,
         int keyHeightPx)
-        => PlanTemplate(button?.Layers, template, keyWidthPx, keyHeightPx, createCaption: true);
+        => PlanTemplate(button?.Layers, template, keyWidthPx, keyHeightPx, bulk: false);
 
     /// <summary>
-    /// The same for the layers of one state of a button, active or not. Without
-    /// <paramref name="createCaption"/> a missing caption is never added: an icon without one is laid
-    /// out as icon only, and a state with neither icon nor caption, or with no text for text only,
-    /// is left as it is.
+    /// The same for the layers of one state of a button, active or not. A <paramref name="bulk"/> run
+    /// has nobody to edit the result, so it never adds a caption: an icon without one is laid out as
+    /// icon only, and a state with neither icon nor caption, or with no text for text only, is left
+    /// as it is. So is a state that shows plugin output or a dial indicator and would end up as text
+    /// alone, which would be enlarged over it.
     /// </summary>
     private static ButtonTemplatePlan PlanTemplate(ObservableCollection<LayerBase> layers, ButtonTemplate template,
-        int keyWidthPx, int keyHeightPx, bool createCaption)
+        int keyWidthPx, int keyHeightPx, bool bulk)
     {
         if (layers == null)
             return new ButtonTemplatePlan();
@@ -390,12 +391,14 @@ public static class ActionAssignment
             out List<LayerBase> removed);
         bool hasIcon = icon != null;
 
-        if (!createCaption && caption == null)
+        if (bulk)
         {
-            if (icon == null || template == ButtonTemplate.TextOnly)
+            bool textAlone = icon == null || template == ButtonTemplate.TextOnly;
+            if (textAlone && (caption == null || layers.Any(l => l is PluginLayer or DialIndicatorLayer && l.Visible)))
                 return new ButtonTemplatePlan();
 
-            template = ButtonTemplate.IconOnly;
+            if (caption == null)
+                template = ButtonTemplate.IconOnly;
         }
 
         switch (template)
@@ -516,11 +519,12 @@ public static class ActionAssignment
     /// <summary>
     /// Applies <paramref name="template"/> to every state of every touch button on <paramref name="pages"/>.
     /// Unlike the editor it never adds a caption: an icon without one is laid out as icon only, and a
-    /// state with neither icon nor caption (empty, or only plugin output) is left as it is. So is a
-    /// folder back slot. The active state of a button does not change.
+    /// state with neither icon nor caption (empty, or only plugin output) is left as it is, and so is
+    /// plugin output or a dial indicator with only a text. Buttons in <paramref name="skip"/> are not
+    /// touched at all. The active state of a button does not change.
     /// </summary>
     public static TemplateApplyResult ApplyTemplateToPages(IEnumerable<TouchButtonPage> pages, ButtonTemplate template,
-        int keyWidthPx, int keyHeightPx)
+        int keyWidthPx, int keyHeightPx, IReadOnlySet<TouchButton> skip = null)
     {
         int buttonsChanged = 0;
         int layersRemoved = 0;
@@ -529,7 +533,7 @@ public static class ActionAssignment
         {
             foreach (TouchButton button in page?.TouchButtons ?? [])
             {
-                if (button == null || button.IsFolderBackSlot || button.States == null)
+                if (button?.States == null || skip?.Contains(button) == true)
                     continue;
 
                 bool changed = false;
@@ -539,7 +543,7 @@ public static class ActionAssignment
                         continue;
 
                     ButtonTemplatePlan plan = PlanTemplate(state.Layers, template, keyWidthPx, keyHeightPx,
-                        createCaption: false);
+                        bulk: true);
                     if (!ApplyTemplate(state.Layers, plan, uniqueName: null))
                         continue;
 

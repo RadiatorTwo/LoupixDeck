@@ -284,8 +284,10 @@ public sealed partial class LoupedeckImportViewModel : DialogViewModelBase<Dialo
         try
         {
             // The real pass stores the icons; the preview pass stored nothing.
+            // Icon only drops the caption again, so the label is passed only to a template that shows it.
             ButtonTemplate? template = SelectedLayoutTemplate?.Template;
-            Lp5ConversionResult result = Lp5Converter.Convert(_archive, Shape, _assets, labelAsCaption: template != null);
+            Lp5ConversionResult result = Lp5Converter.Convert(_archive, Shape, _assets,
+                labelAsCaption: template is not (null or ButtonTemplate.IconOnly));
             Profile profile = result.Profile;
             profile.Name = NewName.Trim();
             PortablePayloadNormalizer.Normalize(profile, _deviceService.TouchButtonCount,
@@ -294,7 +296,7 @@ public sealed partial class LoupedeckImportViewModel : DialogViewModelBase<Dialo
             TemplateApplyResult? laidOut = null;
             if (template != null)
                 laidOut = ActionAssignment.ApplyTemplateToPages(profile.Workspaces.SelectMany(w => w.EnumerateTouchLayouts()),
-                    template.Value, _geometry.KeySize, _geometry.KeySize);
+                    template.Value, _geometry.KeySize, _geometry.KeySize, result.UnmappedKeys);
 
             _config.Profiles.Add(profile);
 
@@ -314,7 +316,7 @@ public sealed partial class LoupedeckImportViewModel : DialogViewModelBase<Dialo
 
             ResultMessage = Loc.Tr("LoupedeckImport_Done", profile.Name, result.MappedControls, result.TotalControls);
             if (laidOut != null)
-                ResultMessage += " " + Loc.Tr("ProfileImport_LayoutTemplateResult", laidOut.Value.ButtonsChanged, laidOut.Value.LayersRemoved);
+                ResultMessage += " " + LayoutTemplateOption.DescribeResult(laidOut.Value);
         }
         catch (Exception ex)
         {
