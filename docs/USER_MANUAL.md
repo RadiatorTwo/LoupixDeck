@@ -578,6 +578,8 @@ Use `Save this dial as a preset…` to store the current dial under a name. User
 
 An enabled plugin can contribute presets for its own commands. The quick menu and action panel group presets under **Built-in**, each plugin's name, and **Yours**. Plugin presets are read-only: you can apply one, but not edit, rename, or delete it. They are read again whenever a preset surface is built, so presets can appear or disappear with live plugin state or after a device is connected, without restarting LoupixDeck. Applying one still copies its commands once; the configured dial does not keep a link to the plugin preset.
 
+Indicator layers and value text work on touch keys too. A plugin command that reports a value (a usage gauge, a level) can be drawn by the key's own layers: add an indicator layer with `+ Indicator`, or set a text layer's *Text source* to `Value` or `Value detail`. Such commands usually bring these layers along when you assign them, and you can restyle each one like any other layer. While the command reports no value, these layers draw nothing.
+
 On the Loupedeck CT, the centre wheel's own screen can also be restyled: right-click the wheel and choose `Edit appearance…` to edit it as a layer canvas, with an arc indicator layer and text layers that show the wheel's label and value. See [Loupedeck CT: Wheel Screen Appearance](CT_WHEEL_APPEARANCE.md).
 
 For devices with side strips, each knob can also have a strip label. On the Razer Stream Controller, open a side strip and choose its mode for the current rotary page:

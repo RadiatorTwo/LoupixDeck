@@ -102,6 +102,54 @@ internal sealed class CpuTempCommand(Func<IPluginHost> hostAccessor) : IDisplayC
 }
 ```
 
+## IValueDisplayCommand
+
+```csharp
+public interface IValueDisplayCommand : IPluginCommand
+{
+    TimeSpan         UpdateInterval { get; }
+    AdjustmentValue? GetValue(CommandContext ctx);
+}
+```
+
+Reports a value that the touch button draws with its **own layers**, so the
+user can restyle every part of it in the button editor. Use it for gauges,
+levels and progress. Since SDK 1.29.0.
+
+- An **indicator** layer draws an arc from `AdjustmentValue.Normalized` (0–1).
+  `double.NaN` means no arc.
+- A text layer whose source is **Value** shows `AdjustmentValue.Text`. One
+  whose source is **Detail** shows `AdjustmentValue.Detail`.
+- `null` draws neither.
+
+The plugin does not draw anything itself. Declare the layers the button
+starts with in `CommandDescriptor.ButtonLayout`. The user can then move,
+restyle or delete them like any other layer:
+
+```csharp
+ButtonLayout = new ButtonLayoutDescriptor
+{
+    Mode = ButtonLayoutMode.Custom,
+    BackgroundColor = "#FF551C",
+    Layers =
+    [
+        new ButtonLayerDescriptor
+        {
+            Kind = ButtonLayerKind.Indicator, Name = "Usage arc", IconScale = 0.82,
+            Color = "#FFFFFF", TrackColor = "#33000000", Thickness = 0.09,
+            StartAngle = -90, SweepAngle = 360
+        },
+        new ButtonLayerDescriptor { Kind = ButtonLayerKind.Text, Name = "Percent", TextSource = ButtonTextSource.Value, TextSize = 18 },
+        new ButtonLayerDescriptor { Kind = ButtonLayerKind.Text, Name = "Reset", TextSource = ButtonTextSource.Detail, TextSize = 9, OffsetY = 14 }
+    ]
+}
+```
+
+`GetValue` runs on the polling timer (`UpdateInterval`) and must be fast and
+synchronous: return a cached value. `host.RequestButtonRefresh(name)` re-reads
+it immediately. The interface combines with `IDisplayCommand` and
+`IDisplayImageCommand`.
+
 ## CommandDescriptor
 
 ```csharp

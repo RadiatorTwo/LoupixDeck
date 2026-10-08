@@ -45,7 +45,8 @@ delete it.
 |-------------|-----------------------------------------------------------------|
 | Own text    | Whatever you type in the Text box (the normal behaviour).       |
 | Wheel label | The wheel mode's label from the wheel-modes bar.                |
-| Wheel value | The value text the adjustment command reports, e.g. `-32.5 dB`.  |
+| Value       | The value text the adjustment command reports, e.g. `-32.5 dB`.  |
+| Value detail | The value's secondary text, when the command reports one.     |
 
 A dynamic text layer keeps all the usual styling — size, colour, bold, outline, box and
 position — so the label and value can be placed and coloured independently. When there is no
