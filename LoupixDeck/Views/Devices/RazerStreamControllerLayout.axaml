@@ -134,8 +134,8 @@
 
     <!-- The device is drawn from its baked SVG body (Assets/razer-gehaeuse.svg) and the
          interactive controls are overlaid on a Canvas whose coordinate space matches
-         the SVG viewBox (900x600). Both share one Viewbox so the controls scale in
-         lockstep with the body image. The pagers stay outside the Viewbox so their
+         the SVG viewBox (900x600). Both form the DeviceZoomPanel body so the controls scale
+         in lockstep with the body image. The pagers are anchored around the body so their
          text never scales. Coordinates were derived from the device top-view photo:
            body rect (80,50)-(820,555)  (740x505, aspect 1.465)
            display (210,130)-(690,400)  (480x270 = left 60 panel + 4x3 grid + right 60 panel)
@@ -143,17 +143,20 @@
          three knobs sit in each body side margin (centres x130 left / x770 right,
          y154/265/376), and the row of eight round LED buttons spans the bottom margin
          (centres y473, x140..760). -->
-    <StackPanel Orientation="Vertical" HorizontalAlignment="Center" Spacing="2"
-                Tapped="OnBackgroundTapped"
-                ContextRequested="OnButtonContextRequested">
+    <controls:DeviceZoomPanel BaseWidth="760" HorizontalAlignment="Center"
+                              Tapped="OnBackgroundTapped"
+                              ContextRequested="OnButtonContextRequested">
 
         <!-- Independent rotary pagers: the left column and the right column page
              separately (mirroring the device's per-strip swipe). Left pager sits over
              the left knob column, right pager over the right column. Two real columns
-             (with a min-width spacer) keep them from overlapping; the spacer also widens
-             the window past the 760-wide device body so both pagers fit. The touch pager
-             lives below the screen (further down). -->
-        <Grid Margin="55,10,0,-24" ZIndex="1">
+             (with a min-width spacer) keep them from overlapping. Both are inset 65 units
+             from the body sides and end 20px above the visible body top (SVG y=50).
+             The touch pager lives below the screen (further down). -->
+        <Grid Margin="0,10,0,20" ZIndex="1"
+              controls:DeviceZoomPanel.Edge="Top"
+              controls:DeviceZoomPanel.AnchorY="50"
+              controls:DeviceZoomPanel.InsetX="65">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="*" MinWidth="40" />
@@ -183,9 +186,7 @@
                 </StackPanel>
             </Border>
 
-            <!-- Mirrors the left pager's 55px inset (the hamburger now lives in the header
-                 bar, so nothing overlays this corner any more). -->
-            <Border Grid.Column="2" Classes="Pager" HorizontalAlignment="Right" Margin="0,0,55,0">
+            <Border Grid.Column="2" Classes="Pager" HorizontalAlignment="Right">
                 <StackPanel Orientation="Horizontal" Spacing="3" VerticalAlignment="Center">
                     <Button Classes="PagerBtn PagerNav" Content="‹"
                             ToolTip.Tip="{loc:Tr Device_PreviousRightRotaryPage}"
@@ -210,10 +211,8 @@
             </Border>
         </Grid>
 
-        <!-- Device body (SVG) + control overlay, scaled together. Centered so the
-             body stays put when the rotary pagers widen the window past 760. -->
-        <Viewbox Width="760" Stretch="Uniform" HorizontalAlignment="Center">
-            <Grid Width="900" Height="600">
+        <!-- Device body (SVG) + control overlay, scaled together. -->
+            <Grid Width="900" Height="600" controls:DeviceZoomPanel.IsBody="True">
 
                 <!-- Gehäuse / body artwork. -->
                 <svg:Svg Path="{DynamicResource RazerBodySvgPath}"
@@ -510,11 +509,12 @@
                     </StackPanel>
                 </Border>
             </Grid>
-        </Viewbox>
 
-        <!-- Touch page pager, centred below the display it controls. The negative top
-             margin pulls it up into the transparent band below the visible body. -->
-        <Panel HorizontalAlignment="Center" Margin="0,-26,0,12">
+        <!-- Touch page pager, centred below the display it controls, 14px under the
+             visible body (SVG y=555). -->
+        <Panel HorizontalAlignment="Center" Margin="0,14,0,12"
+               controls:DeviceZoomPanel.Edge="Bottom"
+               controls:DeviceZoomPanel.AnchorY="555">
             <!-- While a custom folder is open its breadcrumbs take the pager's place. -->
             <controls:FolderBreadcrumbBar HorizontalAlignment="Center" IsVisible="{Binding IsFolderOpen}" />
             <Border Classes="Pager" HorizontalAlignment="Center" IsVisible="{Binding !IsFolderOpen}">
@@ -542,5 +542,5 @@
             </Border>
         </Panel>
 
-    </StackPanel>
+    </controls:DeviceZoomPanel>
 </UserControl>

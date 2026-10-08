@@ -165,12 +165,16 @@
         </Style>
     </UserControl.Styles>
 
-    <StackPanel Orientation="Vertical" HorizontalAlignment="Center" Spacing="2"
-                Tapped="OnBackgroundTapped"
-                ContextRequested="OnButtonContextRequested">
+    <controls:DeviceZoomPanel BaseWidth="760" HorizontalAlignment="Center"
+                              Tapped="OnBackgroundTapped"
+                              ContextRequested="OnButtonContextRequested">
 
-        <!-- Independent rotary pagers for the 6 side dials (left/right columns). -->
-        <Grid Margin="55,10,0,-24" ZIndex="1">
+        <!-- Independent rotary pagers for the 6 side dials (left/right columns), inset 65
+             units from the body sides and ending 12px above the visible body top (SVG y=40). -->
+        <Grid Margin="0,10,0,12" ZIndex="1"
+              controls:DeviceZoomPanel.Edge="Top"
+              controls:DeviceZoomPanel.AnchorY="40"
+              controls:DeviceZoomPanel.InsetX="65">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="*" MinWidth="40" />
@@ -200,7 +204,7 @@
                 </StackPanel>
             </Border>
 
-            <Border Grid.Column="2" Classes="Pager" HorizontalAlignment="Right" Margin="0,0,55,0">
+            <Border Grid.Column="2" Classes="Pager" HorizontalAlignment="Right">
                 <StackPanel Orientation="Horizontal" Spacing="3" VerticalAlignment="Center">
                     <Button Classes="PagerBtn PagerNav" Content="‹"
                             ToolTip.Tip="{loc:Tr Device_PreviousRightRotaryPage}"
@@ -226,8 +230,7 @@
         </Grid>
 
         <!-- Device body (SVG placeholder) + control overlay. -->
-        <Viewbox Width="760" Stretch="Uniform" HorizontalAlignment="Center">
-            <Grid Width="900" Height="760">
+            <Grid Width="900" Height="760" controls:DeviceZoomPanel.IsBody="True">
 
                 <svg:Svg Path="{DynamicResource LoupedeckCtBodySvgPath}"
                          Stretch="Fill" Width="900" Height="760" />
@@ -601,11 +604,13 @@
                     </StackPanel>
                 </Border>
             </Grid>
-        </Viewbox>
 
         <!-- Touch pages (the 12-key grid) and the centre wheel's modes of the current touch page,
-             side by side; the leading icon says which control each pager belongs to. -->
-        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="16" Margin="0,-26,0,12">
+             side by side, just under the visible body (SVG y=730); the leading icon says which
+             control each pager belongs to. -->
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="16" Margin="0,2,0,12"
+                    controls:DeviceZoomPanel.Edge="Bottom"
+                    controls:DeviceZoomPanel.AnchorY="730">
             <Panel VerticalAlignment="Center">
                 <!-- While a custom folder is open its breadcrumbs take the pager's place. -->
                 <controls:FolderBreadcrumbBar HorizontalAlignment="Center" IsVisible="{Binding IsFolderOpen}" />
@@ -668,5 +673,5 @@
             </Border>
         </StackPanel>
 
-    </StackPanel>
+    </controls:DeviceZoomPanel>
 </UserControl>

@@ -128,9 +128,9 @@
 
     <!-- The device is drawn from its SVG body (Assets/loupedeck-gehaeuse.svg) and the
          interactive controls are overlaid on a Canvas whose coordinate space matches
-         the SVG viewBox (900x540). Both share one Viewbox so the controls scale in
-         lockstep with the body image — their relative alignment is resolution
-         independent. The page pagers stay outside the Viewbox so their text never
+         the SVG viewBox (900x540). Both form the DeviceZoomPanel body so the controls scale
+         in lockstep with the body image — their relative alignment is resolution
+         independent. The page pagers are anchored around the body so their text never
          scales. Coordinates are SVG units at 5 units/mm (real device proportions).
          Key landmarks used for placement:
            body rect (75,75)-(825,495)  (750x420 = 150x84mm)
@@ -139,22 +139,20 @@
          The 5x3 touch grid (450x270, 16mm tiles) is centred in the bezel; the two dials
          and bottom LED sit in the left body margin (centre x=137.5), the three LEDs in
          the right body margin (centre x=762.5). -->
-    <StackPanel Orientation="Vertical" HorizontalAlignment="Center" Spacing="2"
-                Tapped="OnBackgroundTapped"
-                ContextRequested="OnButtonContextRequested">
+    <controls:DeviceZoomPanel BaseWidth="760" HorizontalAlignment="Center"
+                              Tapped="OnBackgroundTapped"
+                              ContextRequested="OnButtonContextRequested">
 
         <!-- Rotary page controls as their own strip above the device (left, over the
              dials). The touch pager lives below the screen it controls (further down). -->
-        <!-- Left edge flush with the body: SVG body starts at x=75 of the 900-wide
-             viewBox, which at the 760px Viewbox scale (760/900) is ~63px in. The Viewbox
-             also has a ~63px transparent band above the visible body top (SVG y=75) that
-             carries the body's drop shadow. The negative bottom margin pulls the strip
-             down into that transparent band to close the gap (~10px left), while keeping
-             a buffer so the top shadow is never clipped. ZIndex=1 lifts the strip above
-             the Viewbox that follows it: the negative bottom margin makes the Viewbox
-             overlap upward, and since it is drawn later its transparent shadow band would
-             otherwise swallow this pager's clicks and hover. -->
-        <Border Classes="Pager" HorizontalAlignment="Left" Margin="63,10,12,-55" ZIndex="1">
+        <!-- Left edge flush with the body (SVG x=75), ending 10px above the visible body
+             top (SVG y=75), down in the transparent band that carries the body's drop
+             shadow. ZIndex=1 lifts the strip above the body, whose transparent shadow
+             band would otherwise swallow this pager's clicks and hover. -->
+        <Border Classes="Pager" HorizontalAlignment="Left" Margin="0,10,0,10" ZIndex="1"
+                controls:DeviceZoomPanel.Edge="Top"
+                controls:DeviceZoomPanel.AnchorY="75"
+                controls:DeviceZoomPanel.InsetX="75">
             <StackPanel Orientation="Horizontal" Spacing="3" VerticalAlignment="Center">
                 <Button Classes="PagerBtn PagerNav" Content="‹"
                         ToolTip.Tip="{loc:Tr Device_PreviousRotaryPage}"
@@ -179,8 +177,7 @@
         </Border>
 
         <!-- Device body (SVG) + control overlay, scaled together. -->
-        <Viewbox Width="760" Stretch="Uniform">
-            <Grid Width="900" Height="540">
+        <Grid Width="900" Height="540" controls:DeviceZoomPanel.IsBody="True">
 
                 <!-- Gehäuse / body artwork. -->
                 <svg:Svg Path="{DynamicResource DeviceBodySvgPath}"
@@ -423,13 +420,13 @@
                     </StackPanel>
                 </Border>
             </Grid>
-        </Viewbox>
 
-        <!-- Touch page pager, centred below the touch screen it controls. The negative
-             top margin pulls it up into the ~38px transparent band below the visible body
-             (SVG y=495) so the gap to the body (~10px) matches the top pager; the larger
-             bottom margin keeps it clear of the window edge. -->
-        <Panel HorizontalAlignment="Center" Margin="0,-30,0,12">
+        <!-- Touch page pager, centred below the touch screen it controls, 10px under the
+             visible body (SVG y=495) like the top pager; the larger bottom margin keeps it
+             clear of the window edge. -->
+        <Panel HorizontalAlignment="Center" Margin="0,10,0,12"
+               controls:DeviceZoomPanel.Edge="Bottom"
+               controls:DeviceZoomPanel.AnchorY="495">
             <!-- While a custom folder is open its breadcrumbs take the pager's place. -->
             <controls:FolderBreadcrumbBar HorizontalAlignment="Center" IsVisible="{Binding IsFolderOpen}" />
             <Border Classes="Pager" HorizontalAlignment="Center" IsVisible="{Binding !IsFolderOpen}">
@@ -457,5 +454,5 @@
             </Border>
         </Panel>
 
-    </StackPanel>
+    </controls:DeviceZoomPanel>
 </UserControl>

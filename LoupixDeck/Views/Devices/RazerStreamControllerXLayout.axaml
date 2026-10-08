@@ -68,20 +68,19 @@
          pager below it.
 
          Coordinates are SVG-viewBox units (720x520), matching the body image so the
-         controls scale with it inside the shared Viewbox. The body is laid out from the
+         controls scale with it inside the shared DeviceZoomPanel body. The body is laid out from the
          panel outwards, since the device is a screen and nothing else: the 480x270 panel
          sits at (120,125), centred in the bezel recess at (98,94), which the baked body
          clears by 52 on every side (see tools/BodyTextureBaker, variant razer-x). The
          recess stays 332 tall from the bake — it is the glass surround, and the visible
          panel is shorter than it. Margins are even all round — no dial column or LED row
          makes one edge deeper. -->
-    <StackPanel Orientation="Vertical" HorizontalAlignment="Center" Spacing="2"
-                Tapped="OnBackgroundTapped"
-                ContextRequested="OnButtonContextRequested">
+    <controls:DeviceZoomPanel BaseWidth="620" HorizontalAlignment="Center"
+                              Tapped="OnBackgroundTapped"
+                              ContextRequested="OnButtonContextRequested">
 
         <!-- Device body (SVG) + control overlay, scaled together. -->
-        <Viewbox Width="620" Stretch="Uniform">
-            <Grid Width="720" Height="520">
+            <Grid Width="720" Height="520" controls:DeviceZoomPanel.IsBody="True">
 
                 <!-- Gehaeuse / body artwork, baked per theme (see tools/BodyTextureBaker). -->
                 <svg:Svg Path="{DynamicResource RazerXBodySvgPath}"
@@ -329,11 +328,12 @@
                     </StackPanel>
                 </Border>
             </Grid>
-        </Viewbox>
 
-        <!-- Touch page pager, centred below the key grid it controls. There is no rotary
-             pager: the device has no dials. -->
-        <Panel HorizontalAlignment="Center" Margin="0,-30,0,12">
+        <!-- Touch page pager, centred below the key grid it controls, overlapping the
+             body's bottom edge (SVG y=506). There is no rotary pager: the device has no dials. -->
+        <Panel HorizontalAlignment="Center" Margin="0,0,0,12"
+               controls:DeviceZoomPanel.Edge="Bottom"
+               controls:DeviceZoomPanel.AnchorY="488">
             <!-- While a custom folder is open its breadcrumbs take the pager's place. -->
             <controls:FolderBreadcrumbBar HorizontalAlignment="Center" IsVisible="{Binding IsFolderOpen}" />
             <Border Classes="Pager" HorizontalAlignment="Center" IsVisible="{Binding !IsFolderOpen}">
@@ -361,5 +361,5 @@
             </Border>
         </Panel>
 
-    </StackPanel>
+    </controls:DeviceZoomPanel>
 </UserControl>
