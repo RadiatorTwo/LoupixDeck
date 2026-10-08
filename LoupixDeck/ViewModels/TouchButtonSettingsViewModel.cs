@@ -497,20 +497,36 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         OnPropertyChanged(nameof(ShowCommandArea));
         OnPropertyChanged(nameof(ShowParametersTab));
         OnPropertyChanged(nameof(ButtonLabel));
+        OnPropertyChanged(nameof(TextSources));
     }
 
     /// <summary>Sample value the wheel preview is rendered with, so the arc and value text are visible.</summary>
     private static readonly AdjustmentValue WheelPreviewValue = new(0.65, "65 %");
 
-    /// <summary>The dial context for the preview: the real label (or a sample) and a sample value.</summary>
+    /// <summary>Sample value a touch key preview is rendered with when the key has no live value.</summary>
+    private static readonly AdjustmentValue KeyPreviewValue = new(0.65, "65 %") { Detail = "Detail" };
+
+    /// <summary>
+    /// The dial context for the preview. The wheel: its real label (or a sample) and a sample value.
+    /// A touch key: the value its command last reported, or a sample, so indicator and value text
+    /// layers show while styling.
+    /// </summary>
     private DialRenderContext? PreviewDial => IsWheelCanvas
         ? new DialRenderContext(
             string.IsNullOrWhiteSpace(_wheel.DisplayText) ? Loc.Tr("TouchButton_WheelSampleLabel") : _wheel.DisplayText,
             WheelPreviewValue)
-        : null;
+        : IsStripCanvas
+            ? null
+            : new DialRenderContext(null, ButtonData?.DisplayValue ?? KeyPreviewValue);
 
-    /// <summary>The text sources a wheel text layer can pick from.</summary>
-    public static IReadOnlyList<TextSource> TextSources { get; } = Enum.GetValues<TextSource>();
+    private static readonly IReadOnlyList<TextSource> WheelTextSources = Enum.GetValues<TextSource>();
+
+    // A touch key has no wheel label; it gets its value and detail from its command.
+    private static readonly IReadOnlyList<TextSource> KeyTextSources =
+        [TextSource.Static, TextSource.DialValue, TextSource.ValueDetail];
+
+    /// <summary>The text sources a text layer on the edited surface can pick from.</summary>
+    public IReadOnlyList<TextSource> TextSources => IsWheelCanvas ? WheelTextSources : KeyTextSources;
 
     public IRelayCommand AddIndicatorLayerCommand => field ??= Relay.Create(AddIndicatorLayer);
     public IRelayCommand UseAutomaticLayoutCommand => field ??= Relay.Create(UseAutomaticLayout);

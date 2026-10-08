@@ -399,10 +399,10 @@
                                     HorizontalAlignment="Stretch"
                                     Command="{Binding AddSymbolLayerCommand}" />
                         </UniformGrid>
-                        <!-- Only a dial-driven surface (the CT wheel) has a value to indicate. -->
+                        <!-- The CT wheel and a touch key whose command reports a value have one to indicate. -->
                         <Button Classes="toolbar" Content="{loc:Tr TouchButton_Indicator}" Margin="0,-4,0,8"
                                 HorizontalAlignment="Stretch"
-                                IsVisible="{Binding IsWheelCanvas}"
+                                IsVisible="{Binding !IsStripCanvas}"
                                 Command="{Binding AddIndicatorLayerCommand}"
                                 ToolTip.Tip="{loc:Tr TouchButton_IndicatorArcHint}" />
                     </StackPanel>
@@ -833,11 +833,11 @@
                                             <TextBlock Classes="label" Text="{loc:Tr TouchButton_Name}" />
                                             <TextBox Text="{Binding Name, Mode=TwoWay}" Margin="0,2,0,8" />
 
-                                            <!-- Only a dial-driven surface (the CT wheel) can feed a layer live text. -->
-                                            <StackPanel IsVisible="{Binding $parent[Window].((vm:TouchButtonSettingsViewModel)DataContext).IsWheelCanvas}">
+                                            <!-- The CT wheel and a touch key whose command reports a value feed a layer live text. -->
+                                            <StackPanel IsVisible="{Binding !IsCommandOwned}">
                                                 <TextBlock Classes="label" Text="{loc:Tr TouchButton_TextSource}" />
                                                 <ComboBox Margin="0,2,0,8" HorizontalAlignment="Stretch"
-                                                          ItemsSource="{x:Static vm:TouchButtonSettingsViewModel.TextSources}"
+                                                          ItemsSource="{Binding $parent[Window].((vm:TouchButtonSettingsViewModel)DataContext).TextSources}"
                                                           SelectedItem="{Binding TextSource, Mode=TwoWay}">
                                                     <ComboBox.ItemTemplate>
                                                         <DataTemplate x:DataType="layers:TextSource">
@@ -1110,7 +1110,7 @@
                                         </StackPanel>
                                     </DataTemplate>
 
-                                    <!-- Dial indicator layer: the wheel's adjustment arc. -->
+                                    <!-- Indicator layer: the arc of the wheel's or the key's command value. -->
                                     <DataTemplate DataType="layers:DialIndicatorLayer">
                                         <StackPanel>
                                             <TextBlock Classes="panel-title" Text="{loc:Tr TouchButton_SelectedLayerIndicator}" />

@@ -21,6 +21,7 @@ public class TextSourceLabelConverter : IValueConverter
         TextSource.Static => Loc.Tr("TextSource_Static"),
         TextSource.DialLabel => Loc.Tr("TextSource_DialLabel"),
         TextSource.DialValue => Loc.Tr("TextSource_DialValue"),
+        TextSource.ValueDetail => Loc.Tr("TextSource_ValueDetail"),
         _ => source.ToString()
     };
 }
