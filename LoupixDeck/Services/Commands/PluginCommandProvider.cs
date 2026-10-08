@@ -81,7 +81,7 @@ public class PluginCommandProvider : ICommandProvider
                 .Select(p => new ParameterDescriptor(p.Name, p.ParameterType, p.DefaultValue))
                 .ToList(),
             States = descriptor.States
-                .Select(state => new CommandStateInfo(state.Name, state.Description))
+                .Select(state => new CommandStateInfo(state.Name, state.Description, state.Layout))
                 .ToList(),
             ButtonLayout = descriptor.ButtonLayout,
             OwnerPluginId = pluginId

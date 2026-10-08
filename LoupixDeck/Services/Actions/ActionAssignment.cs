@@ -1,4 +1,5 @@
 using Avalonia.Media;
+using LoupixDeck.Commands.Base;
 using LoupixDeck.Models;
 using LoupixDeck.Models.Layers;
 using LoupixDeck.PluginSdk;
@@ -98,6 +99,37 @@ public static class ActionAssignment
         }, label, symbolId, keyWidthPx, keyHeightPx, layout, assets);
 
         button.RewireLayerHandlers();
+    }
+
+    /// <summary>
+    /// Gives each state of <paramref name="button"/> that is still empty the layers (and background)
+    /// its declared state brings along, matched by position. A state that already has layers is left
+    /// alone, so the user's artwork is never replaced; a state without a layout is skipped.
+    /// </summary>
+    public static void AddStateLayouts(TouchButton button, IReadOnlyList<CommandStateInfo> states,
+        string label, string symbolId, int keyWidthPx, int keyHeightPx, IAssetService assets = null)
+    {
+        if (button?.States == null || states == null)
+            return;
+
+        bool added = false;
+        for (int index = 0; index < states.Count && index < button.States.Count; index++)
+        {
+            ButtonState state = button.States[index];
+            ButtonLayoutDescriptor layout = states[index].Layout;
+            if (layout == null || state.Layers.Count > 0)
+                continue;
+
+            AddLayers(state.Layers, background =>
+            {
+                state.BackColor = background;
+                state.BackgroundEnabled = true;
+            }, label, symbolId, keyWidthPx, keyHeightPx, layout, assets);
+            added = true;
+        }
+
+        if (added)
+            button.RewireLayerHandlers();
     }
 
     /// <summary>
