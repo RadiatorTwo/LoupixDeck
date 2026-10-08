@@ -1135,6 +1135,7 @@
   "TouchButton_SwitchToFreeDrawToEdit": "Zum Bearbeiten der Streifen-Zeichenfläche auf FreeDraw umschalten. Im segmentierten Modus zeigt der Streifen die drei Reglerbeschriftungen.",
   "TouchButton_Symbol": "+ Symbol",
   "TouchButton_Symbol2": "Symbol",
+  "TouchButton_Template_DefaultCaption": "Text",
   "TouchButton_Template_IconOnly": "Nur Symbol",
   "TouchButton_Template_IconTextBottom": "Symbol + Text unten",
   "TouchButton_Template_IconTextTop": "Symbol + Text oben",

@@ -1135,6 +1135,7 @@
   "TouchButton_SwitchToFreeDrawToEdit": "Cambia a Dibujo libre para editar el lienzo de la tira. En modo Segmentado la tira muestra las tres etiquetas de los diales.",
   "TouchButton_Symbol": "+ Símbolo",
   "TouchButton_Symbol2": "Símbolo",
+  "TouchButton_Template_DefaultCaption": "Texto",
   "TouchButton_Template_IconOnly": "Solo símbolo",
   "TouchButton_Template_IconTextBottom": "Símbolo + texto abajo",
   "TouchButton_Template_IconTextTop": "Símbolo + texto arriba",

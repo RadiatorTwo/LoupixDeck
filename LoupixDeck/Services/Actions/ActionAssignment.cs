@@ -50,11 +50,12 @@ public static class ActionAssignment
 
     /// <summary>The fraction of the key an icon fills when it stands alone, without a caption.</summary>
     private const double IconOnlyScale = 0.6;
-    /// <summary>Share of the key an image must cover in both directions to count as a background.</summary>
+
+    /// <summary>Share of the key's short edge an image must cover in both directions to count as a background.</summary>
     private const double FullKeyImageShare = 0.98;
 
-    /// <summary>Text of a caption a template has to create because the button has no text layer.</summary>
-    private const string DefaultCaptionText = "Text";
+    /// <summary>String key of the text of a caption a template has to create because the button has no text layer.</summary>
+    private const string DefaultCaptionKey = "TouchButton_Template_DefaultCaption";
 
     /// <summary>
     /// The fraction of the key's short edge the glyph fills. A <see cref="LayerBase.Scale"/> is
@@ -283,8 +284,9 @@ public static class ActionAssignment
     /// <summary>
     /// Centres <paramref name="image"/> at <paramref name="positionY"/> with its longest edge at
     /// <paramref name="size"/> of the key's short edge. An image layer's <see cref="LayerBase.Scale"/>
-    /// multiplies the picture after the renderer has fitted it into the whole key, so on a key that
-    /// is not square the scale has to be derived from the picture's own size.
+    /// multiplies the picture after the renderer has fitted it into the whole key, so the scale is
+    /// corrected by what the drawn picture is off; without a loadable picture it stays at
+    /// <paramref name="size"/>.
     /// </summary>
     private static void PlaceImage(ImageLayer image, int positionY, double size, int keyWidthPx, int keyHeightPx)
     {
@@ -293,28 +295,8 @@ public static class ActionAssignment
         image.ScaleY = 0;
         image.Scale = size;
 
-        if (keyWidthPx <= 0 || keyHeightPx <= 0)
-            return;
-
-        double width;
-        double height;
-        if (!image.SourceRect.IsEmpty && image.SourceRect.Width > 0 && image.SourceRect.Height > 0)
-        {
-            width = image.SourceRect.Width;
-            height = image.SourceRect.Height;
-        }
-        else if ((image.CachedImage ?? BitmapHelper.AssetResolver?.Invoke(image.AssetRelativePath)) is { Width: > 0, Height: > 0 } bitmap)
-        {
-            width = bitmap.Width;
-            height = bitmap.Height;
-        }
-        else
-        {
-            return;
-        }
-
-        double fit = Math.Min(keyWidthPx / width, keyHeightPx / height);
-        image.Scale = size * Math.Min(keyWidthPx, keyHeightPx) / (Math.Max(width, height) * fit);
+        if (BitmapHelper.GetLayerDeviceRect(image, keyWidthPx, keyHeightPx) is { Width: > 0, Height: > 0 } drawn)
+            image.Scale = size * size * Math.Min(keyWidthPx, keyHeightPx) / Math.Max(drawn.Width, drawn.Height);
     }
 
     /// <summary>Puts the icon layer at <paramref name="positionY"/> at <paramref name="size"/> of the key.</summary>
@@ -333,21 +315,23 @@ public static class ActionAssignment
 
     /// <summary>
     /// The layers a template works with. Only visible layers count. The icon is the top-most symbol or
-    /// image layer, a picture that fills the whole key being a background and so kept as it is. A
-    /// command-owned icon or caption is used only when there is no other, and is positioned but never
-    /// removed. Plugin layers, dial indicators, command-owned and hidden layers are never touched;
-    /// <paramref name="others"/> is everything else that is neither the icon nor the caption, which a
-    /// template removes.
+    /// image layer. A picture that fills the whole key is a background: it is kept as it is, and is the
+    /// icon only when the button has no other. A command-owned icon or caption is used only when there
+    /// is no other, and is positioned but never removed. Plugin layers, dial indicators, command-owned
+    /// and hidden layers are never touched; <paramref name="others"/> is everything else that is
+    /// neither the icon nor the caption, which a template removes.
     /// </summary>
-    private static void FindTemplateLayers(TouchButton button, out LayerBase icon, out TextLayer caption,
-        out List<LayerBase> others)
+    private static void FindTemplateLayers(TouchButton button, int keyWidthPx, int keyHeightPx, out LayerBase icon,
+        out TextLayer caption, out List<LayerBase> others)
     {
         List<LayerBase> layers = button.Layers?.ToList() ?? [];
         List<LayerBase> visible = layers.Where(l => l is { Visible: true }).ToList();
 
         // Layers are drawn first to last, so the last one is on top.
-        List<LayerBase> icons = visible.Where(l => l is SymbolLayer || l is ImageLayer image && !IsFullKeyImage(image)).ToList();
-        icon = icons.LastOrDefault(l => !l.IsCommandOwned) ?? icons.LastOrDefault();
+        List<LayerBase> backgrounds = visible.Where(l => l is ImageLayer image && IsFullKeyImage(image, keyWidthPx, keyHeightPx)).ToList();
+        List<LayerBase> icons = visible.Where(l => l is SymbolLayer or ImageLayer && !backgrounds.Contains(l)).ToList();
+        icon = icons.LastOrDefault(l => !l.IsCommandOwned) ?? icons.LastOrDefault()
+            ?? backgrounds.LastOrDefault(l => !l.IsCommandOwned) ?? backgrounds.LastOrDefault();
 
         List<TextLayer> captions = visible.OfType<TextLayer>().ToList();
         caption = captions.FirstOrDefault(l => !l.IsCommandOwned) ?? captions.FirstOrDefault();
@@ -356,114 +340,126 @@ public static class ActionAssignment
         foreach (LayerBase layer in visible)
         {
             if (layer is PluginLayer or DialIndicatorLayer || layer.IsCommandOwned || ReferenceEquals(layer, icon)
-                || ReferenceEquals(layer, caption) || layer is ImageLayer background && IsFullKeyImage(background))
+                || ReferenceEquals(layer, caption) || backgrounds.Contains(layer))
                 continue;
 
             others.Add(layer);
         }
     }
 
-    /// <summary>Whether <paramref name="image"/> covers the whole key, as a background picture does.</summary>
-    private static bool IsFullKeyImage(ImageLayer image)
+    /// <summary>
+    /// Whether <paramref name="image"/> covers the key as a background picture does: drawn on a key of
+    /// the given size, it spans the key's short edge in both directions. A picture that cannot be
+    /// loaded is judged by its scale, which is what a square one comes to.
+    /// </summary>
+    private static bool IsFullKeyImage(ImageLayer image, int keyWidthPx, int keyHeightPx)
     {
-        double key = Math.Min(image.DeviceBaseWidth, image.DeviceBaseHeight);
-        return key > 0 && image.DisplayWidth >= key * FullKeyImageShare && image.DisplayHeight >= key * FullKeyImageShare;
+        if (BitmapHelper.GetLayerDeviceRect(image, keyWidthPx, keyHeightPx) is not { } drawn)
+            return image.EffectiveScaleX >= FullKeyImageShare && image.EffectiveScaleY >= FullKeyImageShare;
+
+        double edge = Math.Min(keyWidthPx, keyHeightPx) * FullKeyImageShare;
+        return edge > 0 && drawn.Width >= edge && drawn.Height >= edge;
     }
 
     /// <summary>
-    /// Whether <paramref name="button"/>'s active state has an icon layer a template can use: the
-    /// top-most visible symbol or image layer that is not a full-key background.
+    /// Works out what <paramref name="template"/> does to <paramref name="button"/>'s active state on a
+    /// key of the given size, without changing the button, so the editor can ask about the layers that
+    /// go before it hands the plan to <see cref="ApplyTemplate"/>. The icon and caption layers are kept
+    /// and only moved and resized; other layers go, except plugin layers, dial indicators, hidden
+    /// layers and command-owned layers. A command-owned caption cannot be dropped, so icon-only then
+    /// lays out like icon and text, and so does text-only over a command-owned icon.
     /// </summary>
-    public static bool HasTemplateIcon(TouchButton button)
+    public static ButtonTemplatePlan PlanTemplate(TouchButton button, ButtonTemplate template, int keyWidthPx,
+        int keyHeightPx)
     {
-        if (button == null)
-            return false;
+        if (button?.Layers == null)
+            return new ButtonTemplatePlan();
 
-        FindTemplateLayers(button, out LayerBase icon, out _, out _);
-        return icon != null;
-    }
+        FindTemplateLayers(button, keyWidthPx, keyHeightPx, out LayerBase icon, out TextLayer caption,
+            out List<LayerBase> removed);
+        bool hasIcon = icon != null;
 
-    /// <summary>
-    /// The layers <see cref="ApplyTemplate"/> would remove from <paramref name="button"/>'s active
-    /// state, so the editor can ask first. Empty when nothing would be removed or applying would do
-    /// nothing at all.
-    /// </summary>
-    public static IReadOnlyList<LayerBase> GetLayersRemovedByTemplate(TouchButton button, ButtonTemplate template)
-    {
-        if (button == null)
-            return [];
-
-        FindTemplateLayers(button, out LayerBase icon, out TextLayer caption, out List<LayerBase> others);
-        return GetLayersRemovedByTemplate(icon, caption, others, template);
-    }
-
-    private static IReadOnlyList<LayerBase> GetLayersRemovedByTemplate(LayerBase icon, TextLayer caption,
-        List<LayerBase> others, ButtonTemplate template)
-    {
         switch (template)
         {
             case ButtonTemplate.IconOnly:
                 if (icon == null)
-                    return [];
+                    return new ButtonTemplatePlan();
 
                 if (caption is { IsCommandOwned: false })
-                    others.Add(caption);
+                {
+                    removed.Add(caption);
+                    caption = button.Layers.OfType<TextLayer>().FirstOrDefault(l => l is { Visible: true, IsCommandOwned: true });
+                }
+
+                // A caption a command owns stays, so the enlarged icon would cover it.
+                if (caption != null)
+                    template = ButtonTemplate.IconCaptionBottom;
                 break;
 
             case ButtonTemplate.TextOnly:
                 if (icon is { IsCommandOwned: false })
-                    others.Add(icon);
+                {
+                    removed.Add(icon);
+                    icon = button.Layers.LastOrDefault(l => l is SymbolLayer or ImageLayer && l is { Visible: true, IsCommandOwned: true });
+                }
+
+                // Likewise an icon a command owns stays, so the text would cover it.
+                if (icon != null)
+                    template = ButtonTemplate.IconCaptionBottom;
                 break;
         }
 
-        return others;
+        // Without an icon the icon-and-caption templates have nothing to put the caption next to.
+        if (icon == null)
+            template = ButtonTemplate.TextOnly;
+
+        return new ButtonTemplatePlan
+        {
+            Applies = true,
+            HasIcon = hasIcon,
+            Removed = removed,
+            Layout = template,
+            Icon = icon,
+            Caption = caption,
+            KeyWidthPx = keyWidthPx,
+            KeyHeightPx = keyHeightPx
+        };
     }
 
     /// <summary>
-    /// Rearranges the icon and caption already on <paramref name="button"/>'s active state into
-    /// <paramref name="template"/>, with the same positions and sizes <see cref="AddLayers"/> gives a
-    /// fresh button. The icon and caption layers are kept and only moved and resized, so their look
-    /// and text stay; other layers go (see <see cref="GetLayersRemovedByTemplate"/>), except plugin
-    /// layers, hidden layers and command-owned layers. A command-owned caption cannot be dropped, so
-    /// icon-only then lays out like icon and text. A caption that is needed and missing is created
+    /// Rearranges the icon and caption of <paramref name="button"/>'s active state as
+    /// <paramref name="plan"/> says, with the same positions and sizes <see cref="AddLayers"/> gives a
+    /// fresh button, so their look and text stay. A caption that is needed and missing is created
     /// through <paramref name="uniqueName"/>, which turns a base name into one no layer has yet.
     /// </summary>
     /// <returns>False when nothing was applied: an icon-only template on a button with no icon.</returns>
-    public static bool ApplyTemplate(TouchButton button, ButtonTemplate template, int keyWidthPx, int keyHeightPx,
-        Func<string, string> uniqueName = null)
+    public static bool ApplyTemplate(TouchButton button, ButtonTemplatePlan plan, Func<string, string> uniqueName = null)
     {
-        if (button?.Layers == null)
+        if (button?.Layers == null || plan is not { Applies: true })
             return false;
 
-        FindTemplateLayers(button, out LayerBase icon, out TextLayer caption, out List<LayerBase> others);
-        if (template == ButtonTemplate.IconOnly && icon == null)
-            return false;
-
-        foreach (LayerBase layer in GetLayersRemovedByTemplate(icon, caption, others, template))
+        foreach (LayerBase layer in plan.Removed)
             button.Layers.Remove(layer);
 
+        int keyWidthPx = plan.KeyWidthPx;
+        int keyHeightPx = plan.KeyHeightPx;
         double scaleX = ScaleFactor(keyWidthPx);
         double scaleY = ScaleFactor(keyHeightPx);
 
-        // Without an icon the icon-and-caption templates have nothing to put the caption next to.
-        if (icon == null && template != ButtonTemplate.IconOnly)
-            template = ButtonTemplate.TextOnly;
-
-        // A caption a command owns stays, so the enlarged icon would cover it.
-        if (template == ButtonTemplate.IconOnly && caption is { IsCommandOwned: true })
-            template = ButtonTemplate.IconCaptionBottom;
-
-        if (template != ButtonTemplate.IconOnly && caption == null)
+        LayerBase icon = plan.Icon;
+        TextLayer caption = plan.Caption;
+        if (plan.Layout != ButtonTemplate.IconOnly && caption == null)
         {
+            string text = Localization.Loc.Tr(DefaultCaptionKey);
             caption = new TextLayer
             {
-                Name = uniqueName?.Invoke(DefaultCaptionText) ?? DefaultCaptionText,
-                Text = DefaultCaptionText
+                Name = uniqueName?.Invoke(text) ?? text,
+                Text = text
             };
             button.Layers.Add(caption);
         }
 
-        switch (template)
+        switch (plan.Layout)
         {
             case ButtonTemplate.IconCaptionBottom:
                 PlaceIcon(icon, Scaled(SymbolOffsetYPx, scaleY), SymbolScale, keyWidthPx, keyHeightPx);

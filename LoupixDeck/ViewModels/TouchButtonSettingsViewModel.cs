@@ -1240,17 +1240,20 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     {
         if (ButtonData == null || IsStripCanvas) return;
 
+        ButtonTemplatePlan plan = ActionAssignment.PlanTemplate(ButtonData, template, DeviceWidth, DeviceHeight);
+
         // A template that needs an icon asks for one first; cancelling the picker changes nothing.
         SymbolLayer addedIcon = null;
-        if (template != ButtonTemplate.TextOnly && !ActionAssignment.HasTemplateIcon(ButtonData))
+        if (template != ButtonTemplate.TextOnly && !plan.HasIcon)
         {
             addedIcon = await PickSymbolLayer();
             if (addedIcon == null) return;
 
             AddLayer(addedIcon);
+            plan = ActionAssignment.PlanTemplate(ButtonData, template, DeviceWidth, DeviceHeight);
         }
 
-        int removed = ActionAssignment.GetLayersRemovedByTemplate(ButtonData, template).Count;
+        int removed = plan.Removed.Count;
         if (removed > 0)
         {
             DialogResult result = await _dialogService.ShowDialogAsync<ConfirmDialogViewModel, DialogResult>(vm =>
@@ -1268,7 +1271,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
             }
         }
 
-        if (!ActionAssignment.ApplyTemplate(ButtonData, template, DeviceWidth, DeviceHeight, GetUniqueLayerName))
+        if (!ActionAssignment.ApplyTemplate(ButtonData, plan, GetUniqueLayerName))
             return;
 
         // A caption the template created has not been stamped with the surface size yet.
