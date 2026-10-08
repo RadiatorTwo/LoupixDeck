@@ -11,16 +11,22 @@ public class SKBitmapToAvaloniaBitmapConverter : IValueConverter
 {
     public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
     {
-        if (value is not SKBitmap { IsNull: false } skBitmap) return AvaloniaProperty.UnsetValue;
+        return (object)ToBitmap(value as SKBitmap) ?? AvaloniaProperty.UnsetValue;
+    }
+
+    /// <summary>Copies a Skia bitmap into an independent Avalonia bitmap; null when it has no pixels.</summary>
+    public static Bitmap ToBitmap(SKBitmap skBitmap)
+    {
+        if (skBitmap is not { IsNull: false }) return null;
 
         // Guard: a bitmap that cannot expose its pixels (empty / not peekable)
         // would otherwise NRE / AccessViolation below. PeekPixels returns null
         // in that case.
         using var pixmap = skBitmap.PeekPixels();
-        if (pixmap == null) return AvaloniaProperty.UnsetValue;
+        if (pixmap == null) return null;
 
         var pixels = skBitmap.GetPixels();
-        if (pixels == IntPtr.Zero) return AvaloniaProperty.UnsetValue;
+        if (pixels == IntPtr.Zero) return null;
 
         // Derive PixelFormat / AlphaFormat from SKColorType
         var pixelFormat = skBitmap.ColorType switch

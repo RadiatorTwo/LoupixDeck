@@ -207,35 +207,35 @@
                                     Tapped="OnButtonTapped" DoubleTapped="OnButtonDoubleTapped"
                                     CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[0]}">
                                 <Border CornerRadius="0" ClipToBounds="True">
-                                    <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[0].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
+                                    <controls:DevicePreviewImage DeviceImage="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[0].RenderedImage}" />
                                 </Border>
                             </Button>
                             <Button Tag="Touch" Grid.Row="0" Grid.Column="1" Width="90" Height="90"
                                     Tapped="OnButtonTapped" DoubleTapped="OnButtonDoubleTapped"
                                     CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[1]}">
                                 <Border CornerRadius="0" ClipToBounds="True">
-                                    <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[1].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
+                                    <controls:DevicePreviewImage DeviceImage="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[1].RenderedImage}" />
                                 </Border>
                             </Button>
                             <Button Tag="Touch" Grid.Row="0" Grid.Column="2" Width="90" Height="90"
                                     Tapped="OnButtonTapped" DoubleTapped="OnButtonDoubleTapped"
                                     CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[2]}">
                                 <Border CornerRadius="0" ClipToBounds="True">
-                                    <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[2].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
+                                    <controls:DevicePreviewImage DeviceImage="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[2].RenderedImage}" />
                                 </Border>
                             </Button>
                             <Button Tag="Touch" Grid.Row="0" Grid.Column="3" Width="90" Height="90"
                                     Tapped="OnButtonTapped" DoubleTapped="OnButtonDoubleTapped"
                                     CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[3]}">
                                 <Border CornerRadius="0" ClipToBounds="True">
-                                    <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[3].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
+                                    <controls:DevicePreviewImage DeviceImage="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[3].RenderedImage}" />
                                 </Border>
                             </Button>
                             <Button Tag="Touch" Grid.Row="0" Grid.Column="4" Width="90" Height="90"
                                     Tapped="OnButtonTapped" DoubleTapped="OnButtonDoubleTapped"
                                     CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[4]}">
                                 <Border CornerRadius="0" ClipToBounds="True">
-                                    <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[4].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
+                                    <controls:DevicePreviewImage DeviceImage="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[4].RenderedImage}" />
                                 </Border>
                             </Button>
 
@@ -243,35 +243,35 @@
                                     Tapped="OnButtonTapped" DoubleTapped="OnButtonDoubleTapped"
                                     CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[5]}">
                                 <Border CornerRadius="0" ClipToBounds="True">
-                                    <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[5].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
+                                    <controls:DevicePreviewImage DeviceImage="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[5].RenderedImage}" />
                                 </Border>
                             </Button>
                             <Button Tag="Touch" Grid.Row="1" Grid.Column="1" Width="90" Height="90"
                                     Tapped="OnButtonTapped" DoubleTapped="OnButtonDoubleTapped"
                                     CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[6]}">
                                 <Border CornerRadius="0" ClipToBounds="True">
-                                    <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[6].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
+                                    <controls:DevicePreviewImage DeviceImage="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[6].RenderedImage}" />
                                 </Border>
                             </Button>
                             <Button Tag="Touch" Grid.Row="1" Grid.Column="2" Width="90" Height="90"
                                     Tapped="OnButtonTapped" DoubleTapped="OnButtonDoubleTapped"
                                     CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[7]}">
                                 <Border CornerRadius="0" ClipToBounds="True">
-                                    <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[7].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
+                                    <controls:DevicePreviewImage DeviceImage="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[7].RenderedImage}" />
                                 </Border>
                             </Button>
                             <Button Tag="Touch" Grid.Row="1" Grid.Column="3" Width="90" Height="90"
                                     Tapped="OnButtonTapped" DoubleTapped="OnButtonDoubleTapped"
                                     CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[8]}">
                                 <Border CornerRadius="0" ClipToBounds="True">
-                                    <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[8].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
+                                    <controls:DevicePreviewImage DeviceImage="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[8].RenderedImage}" />
                                 </Border>
                             </Button>
                             <Button Tag="Touch" Grid.Row="1" Grid.Column="4" Width="90" Height="90"
                                     Tapped="OnButtonTapped" DoubleTapped="OnButtonDoubleTapped"
                                     CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[9]}">
                                 <Border CornerRadius="0" ClipToBounds="True">
-                                    <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[9].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
+                                    <controls:DevicePreviewImage DeviceImage="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[9].RenderedImage}" />
                                 </Border>
                             </Button>
 
@@ -279,35 +279,35 @@
                                     Tapped="OnButtonTapped" DoubleTapped="OnButtonDoubleTapped"
                                     CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[10]}">
                                 <Border CornerRadius="0" ClipToBounds="True">
-                                    <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[10].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
+                                    <controls:DevicePreviewImage DeviceImage="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[10].RenderedImage}" />
                                 </Border>
                             </Button>
                             <Button Tag="Touch" Grid.Row="2" Grid.Column="1" Width="90" Height="90"
                                     Tapped="OnButtonTapped" DoubleTapped="OnButtonDoubleTapped"
                                     CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[11]}">
                                 <Border CornerRadius="0" ClipToBounds="True">
-                                    <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[11].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
+                                    <controls:DevicePreviewImage DeviceImage="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[11].RenderedImage}" />
                                 </Border>
                             </Button>
                             <Button Tag="Touch" Grid.Row="2" Grid.Column="2" Width="90" Height="90"
                                     Tapped="OnButtonTapped" DoubleTapped="OnButtonDoubleTapped"
                                     CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[12]}">
                                 <Border CornerRadius="0" ClipToBounds="True">
-                                    <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[12].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
+                                    <controls:DevicePreviewImage DeviceImage="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[12].RenderedImage}" />
                                 </Border>
                             </Button>
                             <Button Tag="Touch" Grid.Row="2" Grid.Column="3" Width="90" Height="90"
                                     Tapped="OnButtonTapped" DoubleTapped="OnButtonDoubleTapped"
                                     CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[13]}">
                                 <Border CornerRadius="0" ClipToBounds="True">
-                                    <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[13].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
+                                    <controls:DevicePreviewImage DeviceImage="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[13].RenderedImage}" />
                                 </Border>
                             </Button>
                             <Button Tag="Touch" Grid.Row="2" Grid.Column="4" Width="90" Height="90"
                                     Tapped="OnButtonTapped" DoubleTapped="OnButtonDoubleTapped"
                                     CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[14]}">
                                 <Border CornerRadius="0" ClipToBounds="True">
-                                    <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[14].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
+                                    <controls:DevicePreviewImage DeviceImage="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[14].RenderedImage}" />
                                 </Border>
                             </Button>
                         </Grid>
@@ -357,18 +357,18 @@
                 <Button Classes="Dial" Canvas.Left="92.5" Canvas.Top="116" Width="90" Height="90"
                         Tapped="OnButtonTapped" DoubleTapped="OnButtonDoubleTapped"
                         CommandParameter="{Binding LoupedeckController.Config.CurrentRotaryButtonPage.RotaryButtons[0], Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
-                    <Image Source="{Binding RotaryKnobImage}" Width="90" Height="90" />
+                    <controls:DevicePreviewImage DeviceImage="{Binding RotaryKnobImage}" Width="90" Height="90" />
                 </Button>
                 <Button Classes="Dial" Canvas.Left="92.5" Canvas.Top="240" Width="90" Height="90"
                         Tapped="OnButtonTapped" DoubleTapped="OnButtonDoubleTapped"
                         CommandParameter="{Binding LoupedeckController.Config.CurrentRotaryButtonPage.RotaryButtons[1], Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">
-                    <Image Source="{Binding RotaryKnobImage}" Width="90" Height="90" />
+                    <controls:DevicePreviewImage DeviceImage="{Binding RotaryKnobImage}" Width="90" Height="90" />
                 </Button>
                 <Button Tag="Led" Classes="Led" Canvas.Left="107.5" Canvas.Top="379" Width="60" Height="60"
                         Tapped="OnButtonTapped" DoubleTapped="OnButtonDoubleTapped"
                         CommandParameter="{Binding LoupedeckController.Config.SimpleButtons[0]}">
                     <Border Background="Transparent" Width="60" Height="60" CornerRadius="30">
-                        <Image Source="{Binding LoupedeckController.Config.SimpleButtons[0].RenderedImage}" />
+                        <controls:DevicePreviewImage DeviceImage="{Binding LoupedeckController.Config.SimpleButtons[0].RenderedImage}" />
                     </Border>
                 </Button>
 
@@ -378,21 +378,21 @@
                         Tapped="OnButtonTapped" DoubleTapped="OnButtonDoubleTapped"
                         CommandParameter="{Binding LoupedeckController.Config.SimpleButtons[1]}">
                     <Border Background="Transparent" Width="60" Height="60" CornerRadius="30">
-                        <Image Source="{Binding LoupedeckController.Config.SimpleButtons[1].RenderedImage}" />
+                        <controls:DevicePreviewImage DeviceImage="{Binding LoupedeckController.Config.SimpleButtons[1].RenderedImage}" />
                     </Border>
                 </Button>
                 <Button Tag="Led" Classes="Led" Canvas.Left="732.5" Canvas.Top="255" Width="60" Height="60"
                         Tapped="OnButtonTapped" DoubleTapped="OnButtonDoubleTapped"
                         CommandParameter="{Binding LoupedeckController.Config.SimpleButtons[2]}">
                     <Border Background="Transparent" Width="60" Height="60" CornerRadius="30">
-                        <Image Source="{Binding LoupedeckController.Config.SimpleButtons[2].RenderedImage}" />
+                        <controls:DevicePreviewImage DeviceImage="{Binding LoupedeckController.Config.SimpleButtons[2].RenderedImage}" />
                     </Border>
                 </Button>
                 <Button Tag="Led" Classes="Led" Canvas.Left="732.5" Canvas.Top="379" Width="60" Height="60"
                         Tapped="OnButtonTapped" DoubleTapped="OnButtonDoubleTapped"
                         CommandParameter="{Binding LoupedeckController.Config.SimpleButtons[3]}">
                     <Border Background="Transparent" Width="60" Height="60" CornerRadius="30">
-                        <Image Source="{Binding LoupedeckController.Config.SimpleButtons[3].RenderedImage}" />
+                        <controls:DevicePreviewImage DeviceImage="{Binding LoupedeckController.Config.SimpleButtons[3].RenderedImage}" />
                     </Border>
                 </Button>
             </Canvas>

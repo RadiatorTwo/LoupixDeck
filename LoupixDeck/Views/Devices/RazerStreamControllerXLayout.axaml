@@ -117,7 +117,7 @@
                             BorderBrush="{DynamicResource DeviceButtonBorder}">
                         <Border Width="86" Height="86" CornerRadius="8" ClipToBounds="True"
                                 HorizontalAlignment="Center" VerticalAlignment="Center">
-                            <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[0].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
+                            <controls:DevicePreviewImage DeviceImage="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[0].RenderedImage}" />
                         </Border>
                     </Border>
                 </Button>
@@ -130,7 +130,7 @@
                             BorderBrush="{DynamicResource DeviceButtonBorder}">
                         <Border Width="86" Height="86" CornerRadius="8" ClipToBounds="True"
                                 HorizontalAlignment="Center" VerticalAlignment="Center">
-                            <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[1].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
+                            <controls:DevicePreviewImage DeviceImage="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[1].RenderedImage}" />
                         </Border>
                     </Border>
                 </Button>
@@ -143,7 +143,7 @@
                             BorderBrush="{DynamicResource DeviceButtonBorder}">
                         <Border Width="86" Height="86" CornerRadius="8" ClipToBounds="True"
                                 HorizontalAlignment="Center" VerticalAlignment="Center">
-                            <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[2].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
+                            <controls:DevicePreviewImage DeviceImage="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[2].RenderedImage}" />
                         </Border>
                     </Border>
                 </Button>
@@ -156,7 +156,7 @@
                             BorderBrush="{DynamicResource DeviceButtonBorder}">
                         <Border Width="86" Height="86" CornerRadius="8" ClipToBounds="True"
                                 HorizontalAlignment="Center" VerticalAlignment="Center">
-                            <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[3].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
+                            <controls:DevicePreviewImage DeviceImage="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[3].RenderedImage}" />
                         </Border>
                     </Border>
                 </Button>
@@ -169,7 +169,7 @@
                             BorderBrush="{DynamicResource DeviceButtonBorder}">
                         <Border Width="86" Height="86" CornerRadius="8" ClipToBounds="True"
                                 HorizontalAlignment="Center" VerticalAlignment="Center">
-                            <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[4].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
+                            <controls:DevicePreviewImage DeviceImage="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[4].RenderedImage}" />
                         </Border>
                     </Border>
                 </Button>
@@ -182,7 +182,7 @@
                             BorderBrush="{DynamicResource DeviceButtonBorder}">
                         <Border Width="86" Height="86" CornerRadius="8" ClipToBounds="True"
                                 HorizontalAlignment="Center" VerticalAlignment="Center">
-                            <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[5].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
+                            <controls:DevicePreviewImage DeviceImage="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[5].RenderedImage}" />
                         </Border>
                     </Border>
                 </Button>
@@ -195,7 +195,7 @@
                             BorderBrush="{DynamicResource DeviceButtonBorder}">
                         <Border Width="86" Height="86" CornerRadius="8" ClipToBounds="True"
                                 HorizontalAlignment="Center" VerticalAlignment="Center">
-                            <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[6].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
+                            <controls:DevicePreviewImage DeviceImage="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[6].RenderedImage}" />
                         </Border>
                     </Border>
                 </Button>
@@ -208,7 +208,7 @@
                             BorderBrush="{DynamicResource DeviceButtonBorder}">
                         <Border Width="86" Height="86" CornerRadius="8" ClipToBounds="True"
                                 HorizontalAlignment="Center" VerticalAlignment="Center">
-                            <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[7].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
+                            <controls:DevicePreviewImage DeviceImage="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[7].RenderedImage}" />
                         </Border>
                     </Border>
                 </Button>
@@ -221,7 +221,7 @@
                             BorderBrush="{DynamicResource DeviceButtonBorder}">
                         <Border Width="86" Height="86" CornerRadius="8" ClipToBounds="True"
                                 HorizontalAlignment="Center" VerticalAlignment="Center">
-                            <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[8].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
+                            <controls:DevicePreviewImage DeviceImage="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[8].RenderedImage}" />
                         </Border>
                     </Border>
                 </Button>
@@ -234,7 +234,7 @@
                             BorderBrush="{DynamicResource DeviceButtonBorder}">
                         <Border Width="86" Height="86" CornerRadius="8" ClipToBounds="True"
                                 HorizontalAlignment="Center" VerticalAlignment="Center">
-                            <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[9].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
+                            <controls:DevicePreviewImage DeviceImage="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[9].RenderedImage}" />
                         </Border>
                     </Border>
                 </Button>
@@ -247,7 +247,7 @@
                             BorderBrush="{DynamicResource DeviceButtonBorder}">
                         <Border Width="86" Height="86" CornerRadius="8" ClipToBounds="True"
                                 HorizontalAlignment="Center" VerticalAlignment="Center">
-                            <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[10].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
+                            <controls:DevicePreviewImage DeviceImage="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[10].RenderedImage}" />
                         </Border>
                     </Border>
                 </Button>
@@ -260,7 +260,7 @@
                             BorderBrush="{DynamicResource DeviceButtonBorder}">
                         <Border Width="86" Height="86" CornerRadius="8" ClipToBounds="True"
                                 HorizontalAlignment="Center" VerticalAlignment="Center">
-                            <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[11].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
+                            <controls:DevicePreviewImage DeviceImage="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[11].RenderedImage}" />
                         </Border>
                     </Border>
                 </Button>
@@ -273,7 +273,7 @@
                             BorderBrush="{DynamicResource DeviceButtonBorder}">
                         <Border Width="86" Height="86" CornerRadius="8" ClipToBounds="True"
                                 HorizontalAlignment="Center" VerticalAlignment="Center">
-                            <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[12].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
+                            <controls:DevicePreviewImage DeviceImage="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[12].RenderedImage}" />
                         </Border>
                     </Border>
                 </Button>
@@ -286,7 +286,7 @@
                             BorderBrush="{DynamicResource DeviceButtonBorder}">
                         <Border Width="86" Height="86" CornerRadius="8" ClipToBounds="True"
                                 HorizontalAlignment="Center" VerticalAlignment="Center">
-                            <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[13].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
+                            <controls:DevicePreviewImage DeviceImage="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[13].RenderedImage}" />
                         </Border>
                     </Border>
                 </Button>
@@ -299,7 +299,7 @@
                             BorderBrush="{DynamicResource DeviceButtonBorder}">
                         <Border Width="86" Height="86" CornerRadius="8" ClipToBounds="True"
                                 HorizontalAlignment="Center" VerticalAlignment="Center">
-                            <Image Source="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[14].RenderedImage, Converter={StaticResource SkiaToBitmapConverter}}" />
+                            <controls:DevicePreviewImage DeviceImage="{Binding LoupedeckController.Config.CurrentTouchButtonPage.TouchButtons[14].RenderedImage}" />
                         </Border>
                     </Border>
                 </Button>

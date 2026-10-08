@@ -59,14 +59,19 @@ public static class BitmapHelper
     /// centre dot, 1 and up = that digit; null keeps the generic ring.
     /// </summary>
     public static Bitmap RenderSimpleButtonImage(SimpleButton simpleButton, int width, int height,
-        int? legend = null)
+        int? legend = null, float supersample = 2f, bool? lightTheme = null)
     {
         ArgumentNullException.ThrowIfNull(simpleButton);
 
-        // Supersample so the downscaled on-screen image has smooth edges.
-        const int ss = 2;
-        var w = width * ss;
-        var h = height * ss;
+        // Light/Dark plastic palette so the button body follows the app theme. Resolved here, on the
+        // caller's thread: the preview recipe below runs off the UI thread, where the theme cannot be read.
+        var light = lightTheme ?? IsLightTheme;
+
+        // Supersample so the downscaled on-screen image has smooth edges. Every size below is a
+        // multiple of ss, so a larger factor draws the same button at a higher resolution.
+        var ss = supersample;
+        var w = (int)Math.Round(width * ss);
+        var h = (int)Math.Round(height * ss);
 
         // Unpremultiplied Bgra8888 matches the Avalonia Bitmap construction below
         // (AlphaFormat.Unpremul), avoiding dark fringes on the glow's soft edges.
@@ -93,10 +98,8 @@ public static class BitmapHelper
                 // matches the rotary knob so both seat with the same depth.
                 var bodyRadius = (Math.Min(w, h) / 2f) - (9f * ss);
 
-                // Light/Dark plastic palette so the button body follows the app theme.
-                // The bevel rim and glowing LED ring stay the same — the ring colour is
-                // device state, not chrome.
-                var light = IsLightTheme;
+                // The bevel rim and glowing LED ring stay the same in both themes — the ring
+                // colour is device state, not chrome.
 
                 // 1. Seating shadow: soft dark blob slightly below the body so the
                 //    button appears to sit in the panel.
@@ -256,6 +259,10 @@ public static class BitmapHelper
             GC.KeepAlive(surface);
         }
 
+        // The on-screen device view can draw it again at the size it is shown at (issue #251).
+        PreviewRecipes.Register(result,
+            scale => RenderSimpleButtonImage(simpleButton, width, height, legend, (float)(supersample * scale), light));
+
         return result;
     }
 
@@ -380,12 +387,17 @@ public static class BitmapHelper
     /// and returned as an Avalonia <see cref="Bitmap"/> so the existing image
     /// bindings stay unchanged.
     /// </summary>
-    public static Bitmap RenderRotaryKnobImage(int width, int height)
+    public static Bitmap RenderRotaryKnobImage(int width, int height, float supersample = 2f, bool? lightTheme = null)
     {
-        // Supersample so the downscaled on-screen image has smooth edges.
-        const int ss = 2;
-        var w = width * ss;
-        var h = height * ss;
+        // Light/Dark plastic palette so the knob follows the app theme. Resolved here, on the
+        // caller's thread: the preview recipe below runs off the UI thread, where the theme cannot be read.
+        var light = lightTheme ?? IsLightTheme;
+
+        // Supersample so the downscaled on-screen image has smooth edges. Every size below is a
+        // multiple of ss, so a larger factor draws the same knob at a higher resolution.
+        var ss = supersample;
+        var w = (int)Math.Round(width * ss);
+        var h = (int)Math.Round(height * ss);
 
         var info = new SKImageInfo(w, h, SKColorType.Bgra8888, SKAlphaType.Unpremul);
 
@@ -414,10 +426,8 @@ public static class BitmapHelper
                 var midRadius = baseRadius * (12f / 15f);
                 var topRadius = baseRadius * (11f / 15f);
 
-                // Light/Dark plastic palette so the knob follows the app theme. The
-                // top-lit shading, rims and contact shadows stay the same; only the
-                // base plastic tone flips.
-                var light = IsLightTheme;
+                // The top-lit shading, rims and contact shadows stay the same in both themes;
+                // only the base plastic tone flips.
 
                 // 1. Seating shadow: soft dark blob slightly below the base so the
                 //    knob appears to sit in the panel.
@@ -469,6 +479,9 @@ public static class BitmapHelper
                 surface.RowBytes);
             GC.KeepAlive(surface);
         }
+
+        PreviewRecipes.Register(result,
+            scale => RenderRotaryKnobImage(width, height, (float)(supersample * scale), light));
 
         return result;
     }
@@ -763,26 +776,84 @@ public static class BitmapHelper
             bitmap = new SKBitmap(width, height);
             using var canvas = new SKCanvas(bitmap);
 
-            if (touchButton.IsFolderBackSlot)
-            {
-                DrawFolderBackTileBackground(canvas, wallpaperToUse, wallpaperSource, width, height);
-                DrawBackChevron(canvas, width, height);
-            }
-            else
-            {
-                DrawTouchButtonBackground(canvas, touchButton, wallpaperToUse, opacityToUse,
-                    wallpaperSource, width, height);
-
-                DrawLayers(canvas, touchButton.Layers, width, height, touchButton.ValueContext);
-                DrawFolderBadgeIfLinked(canvas, touchButton, width, height);
-            }
+            DrawTouchButtonContent(canvas, touchButton, wallpaperToUse, opacityToUse, wallpaperSource, width, height);
         }
+
+        // The on-screen device view can draw the key again at the size it is shown at (#251).
+        PreviewRecipes.Register(bitmap, scale => RenderTouchButtonPreview(touchButton, config, width, height,
+            wallpaperSource, scale));
 
         // Publish the finished bitmap (fires OnPropertyChanged for the UI binding);
         // kept outside the gate so UI-marshalled work never runs while the lock is held.
         touchButton.RenderedImage = bitmap;
 
         return bitmap;
+    }
+
+    /// <summary>
+    /// Draws a key like <see cref="RenderTouchButtonContent"/>, but <paramref name="scale"/> times
+    /// as large, for the on-screen device view only: the layout is the device's (layers are placed
+    /// in device pixels), the text, symbols and pictures are drawn at the higher resolution.
+    /// Nothing is published to the button; the result is not the image sent to the hardware.
+    /// </summary>
+    private static Bitmap RenderTouchButtonPreview(
+        TouchButton touchButton,
+        LoupedeckConfig config,
+        int width,
+        int height,
+        SKRectI? wallpaperSource,
+        double scale)
+    {
+        var (wallpaperToUse, opacityToUse) = ResolveWallpaper(config);
+
+        lock (SkiaRenderGate.Sync)
+        {
+            using var bitmap = new SKBitmap(
+                Math.Max(1, (int)Math.Ceiling(width * scale)),
+                Math.Max(1, (int)Math.Ceiling(height * scale)));
+            using (var canvas = new SKCanvas(bitmap))
+            {
+                canvas.Scale((float)scale);
+                DrawTouchButtonContent(canvas, touchButton, wallpaperToUse, opacityToUse, wallpaperSource, width, height);
+            }
+
+            return Models.Converter.SKBitmapToAvaloniaBitmapConverter.ToBitmap(bitmap);
+        }
+    }
+
+    /// <summary>Everything a key shows, in device pixels. Must be called under <see cref="SkiaRenderGate"/>.Sync.</summary>
+    private static void DrawTouchButtonContent(
+        SKCanvas canvas,
+        TouchButton touchButton,
+        SKBitmap wallpaper,
+        double wallpaperOpacity,
+        SKRectI? wallpaperSource,
+        int width,
+        int height)
+    {
+        if (touchButton.IsFolderBackSlot)
+        {
+            DrawFolderBackTileBackground(canvas, wallpaper, wallpaperSource, width, height);
+            DrawBackChevron(canvas, width, height);
+        }
+        else
+        {
+            DrawTouchButtonBackground(canvas, touchButton, wallpaper, wallpaperOpacity,
+                wallpaperSource, width, height);
+
+            DrawLayers(canvas, touchButton.Layers, width, height, touchButton.ValueContext);
+            DrawFolderBadgeIfLinked(canvas, touchButton, width, height);
+        }
+    }
+
+    /// <summary>
+    /// Sampling for a wallpaper cutout: the device draws it 1:1, where the default is exact; a
+    /// preview drawn larger (<see cref="RenderTouchButtonPreview"/>) smooths it instead of
+    /// showing blocky pixels.
+    /// </summary>
+    private static SKSamplingOptions WallpaperSampling(SKCanvas canvas)
+    {
+        return canvas.TotalMatrix.ScaleX > 1.01f ? new SKSamplingOptions(SKCubicResampler.Mitchell) : SKSamplingOptions.Default;
     }
 
     /// <summary>
@@ -820,7 +891,7 @@ public static class BitmapHelper
             var destRect = new SKRect(0, 0, width, height);
 
             // Draw Wallpaper Cutout
-            canvas.DrawBitmap(wallpaper, srcRect, destRect, SKSamplingOptions.Default, paint: null);
+            canvas.DrawBitmap(wallpaper, srcRect, destRect, WallpaperSampling(canvas), paint: null);
 
             // Semi-transparent background
             using var paint = new SKPaint();
@@ -852,7 +923,7 @@ public static class BitmapHelper
 
         var destRect = new SKRect(0, 0, width, height);
         canvas.DrawBitmap(wallpaper, new SKRect(source.Left, source.Top, source.Right, source.Bottom), destRect,
-            SKSamplingOptions.Default, paint: null);
+            WallpaperSampling(canvas), paint: null);
 
         using var paint = new SKPaint();
         paint.Color = new SKColor(0, 0, 0, 160);

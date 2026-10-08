@@ -103,6 +103,12 @@ public sealed class DeviceZoomPanel : Panel
     /// <summary>Raised when <see cref="TargetZoom"/> may have changed.</summary>
     public event EventHandler TargetZoomChanged;
 
+    /// <summary>
+    /// Raised when the scale the view is shown at has come to rest at a new value, so content that
+    /// renders for its on-screen size can catch up (frames of an animation in between do not count).
+    /// </summary>
+    public event EventHandler ScaleSettled;
+
     public static bool GetIsBody(Control control) => control.GetValue(IsBodyProperty);
     public static void SetIsBody(Control control, bool value) => control.SetValue(IsBodyProperty, value);
 
@@ -166,6 +172,7 @@ public sealed class DeviceZoomPanel : Panel
             StopAnimation();
             _shownZoom = TargetZoom;
             InvalidateMeasure();
+            ScaleSettled?.Invoke(this, EventArgs.Empty);
             return;
         }
 
@@ -203,6 +210,7 @@ public sealed class DeviceZoomPanel : Panel
 
             // Hand back the room held for the animation.
             InvalidateMeasure();
+            ScaleSettled?.Invoke(this, EventArgs.Empty);
             return;
         }
 
