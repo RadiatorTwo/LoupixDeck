@@ -3,6 +3,8 @@ using System.Runtime.InteropServices;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using LoupixDeck.Commands;
+using LoupixDeck.Localization;
+using LoupixDeck.Services.Actions;
 using LoupixDeck.Services.Macros;
 using LoupixDeck.Services.Portable;
 using LoupixDeck.Utils;
@@ -100,6 +102,39 @@ public sealed class ImportTargetRow(string label, Guid? profileId = null, Guid? 
     public Guid? ProfileId { get; } = profileId;
     public Guid? WorkspaceId { get; } = workspaceId;
     public int? PageIndex { get; } = pageIndex;
+}
+
+/// <summary>
+/// One entry of the layout template list of an import dialog; a null template leaves the buttons as
+/// they are.
+/// </summary>
+public sealed record LayoutTemplateOption(ButtonTemplate? Template, string Label)
+{
+    /// <summary>"None" followed by every template, labelled as the touch button editor labels them.</summary>
+    public static IReadOnlyList<LayoutTemplateOption> CreateAll() =>
+    [
+        new(null, Loc.Tr("ProfileImport_LayoutTemplateNone")),
+        new(ButtonTemplate.IconCaptionBottom, Loc.Tr("TouchButton_Template_IconTextBottom")),
+        new(ButtonTemplate.IconCaptionTop, Loc.Tr("TouchButton_Template_IconTextTop")),
+        new(ButtonTemplate.IconOnly, Loc.Tr("TouchButton_Template_IconOnly")),
+        new(ButtonTemplate.TextOnly, Loc.Tr("TouchButton_Template_TextOnly"))
+    ];
+
+    /// <summary>What a template did to an imported item, as one line for the result notice.</summary>
+    public static string DescribeResult(TemplateApplyResult result) =>
+        Loc.Tr("ProfileImport_LayoutTemplateResult", result.ButtonsChanged, result.LayersRemoved);
+
+    /// <summary>The lines a package result is reported with: its message, what a template did, the warnings.</summary>
+    public static IEnumerable<string> ResultLines(ProfilePackageResult result)
+    {
+        yield return result.Message;
+
+        if (result.LayoutTemplate is { } laidOut)
+            yield return DescribeResult(laidOut);
+
+        foreach (string warning in result.Warnings)
+            yield return warning;
+    }
 }
 
 /// <summary>A companion of this master a companion part can be imported onto; a null key skips the part.</summary>

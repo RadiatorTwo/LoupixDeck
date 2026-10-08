@@ -6,6 +6,7 @@ using LoupixDeck.Models;
 using LoupixDeck.Models.Portable;
 using LoupixDeck.Registry;
 using LoupixDeck.Services;
+using LoupixDeck.Services.Actions;
 using LoupixDeck.Services.Companion;
 using LoupixDeck.Services.Portable;
 using LoupixDeck.Utils;
@@ -49,6 +50,7 @@ public sealed partial class ProfileImportViewModel : DialogViewModelBase<DialogR
         ImportTargets = new();
         ReplaceTargets = new();
         CompanionParts = new();
+        SelectedLayoutTemplate = LayoutTemplates[0];
     }
 
     /// <summary>
@@ -220,6 +222,16 @@ public sealed partial class ProfileImportViewModel : DialogViewModelBase<DialogR
     [ObservableProperty]
     public partial bool CompanionPartsIgnored { get; set; }
 
+    // ───────── Layout template ─────────
+
+    public IReadOnlyList<LayoutTemplateOption> LayoutTemplates { get; } = LayoutTemplateOption.CreateAll();
+
+    [ObservableProperty]
+    public partial LayoutTemplateOption SelectedLayoutTemplate { get; set; }
+
+    /// <summary>The template applies to touch buttons, which every kind but a rotary page carries.</summary>
+    public bool ShowLayoutTemplate => _analysis?.Manifest?.Kind is PackageKind.Profile or PackageKind.Workspace or PackageKind.TouchPage;
+
     /// <summary>Label of the container list, e.g. "Import into profile".</summary>
     [ObservableProperty]
     public partial string ImportTargetLabel { get; set; } = string.Empty;
@@ -319,6 +331,7 @@ public sealed partial class ProfileImportViewModel : DialogViewModelBase<DialogR
         OnPropertyChanged(nameof(HasWarnings));
         OnPropertyChanged(nameof(HasDisabledPlugins));
         OnPropertyChanged(nameof(HasImportTargets));
+        OnPropertyChanged(nameof(ShowLayoutTemplate));
         OnPropertyChanged(nameof(HasCompanionParts));
         OnPropertyChanged(nameof(CompanionReplaceWarning));
         OnPropertyChanged(nameof(HasCompanionReplaceWarning));
@@ -557,6 +570,7 @@ public sealed partial class ProfileImportViewModel : DialogViewModelBase<DialogR
             MacroRenames = renames,
             PluginIdsToEnable = Plugins.Where(p => p.IsDisabled && p.EnableOnImport).Select(p => p.Id).ToList(),
             BackupReplacedItem = BackupReplacedItem,
+            LayoutTemplate = ShowLayoutTemplate ? SelectedLayoutTemplate?.Template : null,
             CompanionTargets = CompanionParts
                 .Where(row => row.SelectedTarget?.Key != null)
                 .GroupBy(row => row.PackageKey, StringComparer.OrdinalIgnoreCase)

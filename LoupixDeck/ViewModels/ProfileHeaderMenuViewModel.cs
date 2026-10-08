@@ -142,7 +142,7 @@ public sealed class ProfileHeaderMenuViewModel : ViewModelBase
 
     /// <summary>
     /// Opens the import preview. The header has no status line, so a failed import or one with
-    /// notes is reported in a notice; a clean import simply shows up in the selectors.
+    /// notes or a layout template is reported in a notice; a clean import simply shows up in the selectors.
     /// </summary>
     private async Task ImportPackage()
     {
@@ -152,10 +152,10 @@ public sealed class ProfileHeaderMenuViewModel : ViewModelBase
 
         Refresh();
 
-        if (result.Success && result.Warnings.Count == 0)
+        if (result.Success && result.Warnings.Count == 0 && result.LayoutTemplate == null)
             return;
 
-        string message = string.Join(Environment.NewLine, [result.Message, .. result.Warnings]);
+        string message = string.Join(Environment.NewLine, LayoutTemplateOption.ResultLines(result));
         await _dialogService.ShowDialogAsync<ConfirmDialogViewModel, DialogResult>(vm =>
             vm.Configure(message, title: Loc.Tr("MainWindow_ImportPackageResultTitle"),
                 confirmText: Loc.Tr("Confirm_Ok"), showCancel: false));

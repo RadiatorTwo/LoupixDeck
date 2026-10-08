@@ -1,3 +1,5 @@
+using LoupixDeck.Services.Actions;
+
 namespace LoupixDeck.Services.Portable;
 
 /// <summary>How an imported item relates to what is already there.</summary>
@@ -62,6 +64,12 @@ public sealed class ProfilePackageImportOptions
 
     /// <summary>Export the item being replaced to a package under the config dir first.</summary>
     public bool BackupReplacedItem { get; set; } = true;
+
+    /// <summary>
+    /// Layout template applied to every touch button of the imported item. Null leaves the buttons as
+    /// they were exported. Rotary pages and companion parts are never touched.
+    /// </summary>
+    public ButtonTemplate? LayoutTemplate { get; set; }
 
     /// <summary>
     /// The companion each companion part of the package goes to: the part's device key (as exported)

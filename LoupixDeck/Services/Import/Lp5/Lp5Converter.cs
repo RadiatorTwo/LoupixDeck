@@ -41,17 +41,18 @@ public sealed class Lp5Converter
     private readonly Dictionary<string, Guid> _workspaceIds = new(StringComparer.Ordinal);
     private readonly List<Lp5UnsupportedControl> _unsupported = [];
     private readonly List<Lp5MovedControl> _moved = [];
+    private readonly HashSet<TouchButton> _unmappedKeys = [];
     private int _totalControls;
     private int _mappedControls;
     private int _movedKeys;
     private int _movedDials;
     private int _wheelPages;
 
-    private Lp5Converter(Lp5Archive archive, DeviceShape shape, IAssetService assets)
+    private Lp5Converter(Lp5Archive archive, DeviceShape shape, IAssetService assets, bool labelAsCaption)
     {
         _archive = archive;
         _shape = shape;
-        _layers = new Lp5LayerFactory(archive, assets, shape.Geometry.KeySize);
+        _layers = new Lp5LayerFactory(archive, assets, shape.Geometry.KeySize, labelAsCaption);
 
         foreach (JToken workspace in Lp5Json.Arr(archive.LayoutMode, "workspaces"))
         {
@@ -67,8 +68,13 @@ public sealed class Lp5Converter
 
     /// <summary>Converts <paramref name="archive"/> for a device of <paramref name="shape"/>.</summary>
     /// <param name="assets">Asset store for icons; null for a preview that stores nothing.</param>
-    public static Lp5ConversionResult Convert(Lp5Archive archive, DeviceShape shape, IAssetService assets) =>
-        new Lp5Converter(archive, shape, assets).Run();
+    /// <param name="labelAsCaption">
+    /// Set when a layout template follows: a key with an icon or key image then also gets its Loupedeck
+    /// label as a caption, which the template places next to the icon.
+    /// </param>
+    public static Lp5ConversionResult Convert(Lp5Archive archive, DeviceShape shape, IAssetService assets,
+        bool labelAsCaption = false) =>
+        new Lp5Converter(archive, shape, assets, labelAsCaption).Run();
 
     /// <summary>
     /// False for a wheel page that still holds Loupedeck's default (analog clock, press shows the clock,
@@ -124,6 +130,7 @@ public sealed class Lp5Converter
             Profile = profile,
             Unsupported = _unsupported,
             Moved = _moved,
+            UnmappedKeys = _unmappedKeys,
             Notes = notes,
             Workspaces = profile.Workspaces.Count,
             TouchPages = touchPages,
@@ -332,6 +339,7 @@ public sealed class Lp5Converter
             button.Layers.Add(caption);
             button.BackColor = UnmappedBackground;
             button.BackgroundEnabled = true;
+            _unmappedKeys.Add(button);
             button.RewireLayerHandlers();
             return;
         }

@@ -81,6 +81,9 @@ public sealed class Lp5ConversionResult
     /// <summary>Controls placed on extra pages because their page had no room for them.</summary>
     public required IReadOnlyList<Lp5MovedControl> Moved { get; init; }
 
+    /// <summary>Touch keys whose action was not converted and that carry the "not imported" marker; a layout template leaves them alone.</summary>
+    public required IReadOnlySet<TouchButton> UnmappedKeys { get; init; }
+
     public int Workspaces { get; init; }
 
     public int TouchPages { get; init; }

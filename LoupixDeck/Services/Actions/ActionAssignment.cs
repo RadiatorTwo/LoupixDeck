@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using Avalonia.Media;
 using LoupixDeck.Commands.Base;
 using LoupixDeck.Models;
@@ -321,10 +322,10 @@ public static class ActionAssignment
     /// and hidden layers are never touched; <paramref name="others"/> is everything else that is
     /// neither the icon nor the caption, which a template removes.
     /// </summary>
-    private static void FindTemplateLayers(TouchButton button, int keyWidthPx, int keyHeightPx, out LayerBase icon,
-        out TextLayer caption, out List<LayerBase> others)
+    private static void FindTemplateLayers(IEnumerable<LayerBase> stateLayers, int keyWidthPx, int keyHeightPx,
+        out LayerBase icon, out TextLayer caption, out List<LayerBase> others)
     {
-        List<LayerBase> layers = button.Layers?.ToList() ?? [];
+        List<LayerBase> layers = stateLayers?.ToList() ?? [];
         List<LayerBase> visible = layers.Where(l => l is { Visible: true }).ToList();
 
         // Layers are drawn first to last, so the last one is on top.
@@ -371,13 +372,34 @@ public static class ActionAssignment
     /// </summary>
     public static ButtonTemplatePlan PlanTemplate(TouchButton button, ButtonTemplate template, int keyWidthPx,
         int keyHeightPx)
+        => PlanTemplate(button?.Layers, template, keyWidthPx, keyHeightPx, bulk: false);
+
+    /// <summary>
+    /// The same for the layers of one state of a button, active or not. A <paramref name="bulk"/> run
+    /// has nobody to edit the result, so it never adds a caption: an icon without one is laid out as
+    /// icon only, and a state with neither icon nor caption, or with no text for text only, is left
+    /// as it is. So is a state that shows plugin output or a dial indicator and would end up as text
+    /// alone, which would be enlarged over it.
+    /// </summary>
+    private static ButtonTemplatePlan PlanTemplate(ObservableCollection<LayerBase> layers, ButtonTemplate template,
+        int keyWidthPx, int keyHeightPx, bool bulk)
     {
-        if (button?.Layers == null)
+        if (layers == null)
             return new ButtonTemplatePlan();
 
-        FindTemplateLayers(button, keyWidthPx, keyHeightPx, out LayerBase icon, out TextLayer caption,
+        FindTemplateLayers(layers, keyWidthPx, keyHeightPx, out LayerBase icon, out TextLayer caption,
             out List<LayerBase> removed);
         bool hasIcon = icon != null;
+
+        if (bulk)
+        {
+            bool textAlone = icon == null || template == ButtonTemplate.TextOnly;
+            if (textAlone && (caption == null || layers.Any(l => l is PluginLayer or DialIndicatorLayer && l.Visible)))
+                return new ButtonTemplatePlan();
+
+            if (caption == null)
+                template = ButtonTemplate.IconOnly;
+        }
 
         switch (template)
         {
@@ -388,7 +410,7 @@ public static class ActionAssignment
                 if (caption is { IsCommandOwned: false })
                 {
                     removed.Add(caption);
-                    caption = button.Layers.OfType<TextLayer>().FirstOrDefault(l => l is { Visible: true, IsCommandOwned: true });
+                    caption = layers.OfType<TextLayer>().FirstOrDefault(l => l is { Visible: true, IsCommandOwned: true });
                 }
 
                 // A caption a command owns stays, so the enlarged icon would cover it.
@@ -400,7 +422,7 @@ public static class ActionAssignment
                 if (icon is { IsCommandOwned: false })
                 {
                     removed.Add(icon);
-                    icon = button.Layers.LastOrDefault(l => l is SymbolLayer or ImageLayer && l is { Visible: true, IsCommandOwned: true });
+                    icon = layers.LastOrDefault(l => l is SymbolLayer or ImageLayer && l is { Visible: true, IsCommandOwned: true });
                 }
 
                 // Likewise an icon a command owns stays, so the text would cover it.
@@ -435,11 +457,22 @@ public static class ActionAssignment
     /// <returns>False when nothing was applied: an icon-only template on a button with no icon.</returns>
     public static bool ApplyTemplate(TouchButton button, ButtonTemplatePlan plan, Func<string, string> uniqueName = null)
     {
-        if (button?.Layers == null || plan is not { Applies: true })
+        if (button?.Layers == null || !ApplyTemplate(button.Layers, plan, uniqueName))
+            return false;
+
+        button.RewireLayerHandlers();
+        return true;
+    }
+
+    /// <summary>The same for the layers of one state of a button; the caller rewires the layer handlers.</summary>
+    private static bool ApplyTemplate(ObservableCollection<LayerBase> layers, ButtonTemplatePlan plan,
+        Func<string, string> uniqueName)
+    {
+        if (plan is not { Applies: true })
             return false;
 
         foreach (LayerBase layer in plan.Removed)
-            button.Layers.Remove(layer);
+            layers.Remove(layer);
 
         int keyWidthPx = plan.KeyWidthPx;
         int keyHeightPx = plan.KeyHeightPx;
@@ -456,7 +489,7 @@ public static class ActionAssignment
                 Name = uniqueName?.Invoke(text) ?? text,
                 Text = text
             };
-            button.Layers.Add(caption);
+            layers.Add(caption);
         }
 
         switch (plan.Layout)
@@ -480,8 +513,52 @@ public static class ActionAssignment
                 break;
         }
 
-        button.RewireLayerHandlers();
         return true;
+    }
+
+    /// <summary>
+    /// Applies <paramref name="template"/> to every state of every touch button on <paramref name="pages"/>.
+    /// Unlike the editor it never adds a caption: an icon without one is laid out as icon only, and a
+    /// state with neither icon nor caption (empty, or only plugin output) is left as it is, and so is
+    /// plugin output or a dial indicator with only a text. Buttons in <paramref name="skip"/> are not
+    /// touched at all. The active state of a button does not change.
+    /// </summary>
+    public static TemplateApplyResult ApplyTemplateToPages(IEnumerable<TouchButtonPage> pages, ButtonTemplate template,
+        int keyWidthPx, int keyHeightPx, IReadOnlySet<TouchButton> skip = null)
+    {
+        int buttonsChanged = 0;
+        int layersRemoved = 0;
+
+        foreach (TouchButtonPage page in pages ?? [])
+        {
+            foreach (TouchButton button in page?.TouchButtons ?? [])
+            {
+                if (button?.States == null || skip?.Contains(button) == true)
+                    continue;
+
+                bool changed = false;
+                foreach (ButtonState state in button.States)
+                {
+                    if (state?.Layers == null)
+                        continue;
+
+                    ButtonTemplatePlan plan = PlanTemplate(state.Layers, template, keyWidthPx, keyHeightPx,
+                        bulk: true);
+                    if (!ApplyTemplate(state.Layers, plan, uniqueName: null))
+                        continue;
+
+                    // Only this state's handlers are rewired, so the button's active state stays as it is.
+                    state.RewireLayerHandlers();
+                    changed = true;
+                    layersRemoved += plan.Removed.Count;
+                }
+
+                if (changed)
+                    buttonsChanged++;
+            }
+        }
+
+        return new TemplateApplyResult(buttonsChanged, layersRemoved);
     }
 
     /// <summary>
