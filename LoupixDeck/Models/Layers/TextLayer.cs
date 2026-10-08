@@ -50,16 +50,17 @@ public partial class TextLayer : LayerBase
 
     /// <summary>
     /// Where the text comes from. Anything but <see cref="TextSource.Static"/> makes the layer
-    /// draw the dial's live label or value instead of <see cref="Text"/>; only surfaces that have
-    /// a dial (the CT wheel canvas) supply one, elsewhere such a layer draws nothing. Omitted from
-    /// the file when static, so existing layers serialize unchanged.
+    /// draw the live label or value instead of <see cref="Text"/>. The CT wheel canvas supplies the
+    /// dial's label and value; a touch key supplies the value its command reports
+    /// (<c>IValueDisplayCommand</c>). Without one the layer draws nothing. Omitted from the file
+    /// when static, so existing layers serialize unchanged.
     /// </summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsDynamicText))]
     [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
     public partial TextSource TextSource { get; set; }
 
-    /// <summary>True when the text is supplied by the dial rather than typed in.</summary>
+    /// <summary>True when the text is supplied by the dial or the key's command rather than typed in.</summary>
     [JsonIgnore]
     public bool IsDynamicText => TextSource != TextSource.Static;
 

@@ -230,6 +230,33 @@ public class PluginCommandProvider : ICommandProvider
                 displayCommand.GetText(DisplayContext(parameters, sequence, stateName, buttonKey));
         }
 
+        // A value feeds the button's own layers, so it runs alongside whichever display path
+        // (if any) the command also takes, on the shorter of the two intervals.
+        var isValueDisplay = false;
+        Func<string[], IReadOnlyList<SequenceCommand>, string, string, AdjustmentValue?> getDisplayValue = null;
+        if (command is IValueDisplayCommand valueCommand)
+        {
+            isValueDisplay = true;
+            interval = interval == TimeSpan.Zero || valueCommand.UpdateInterval < interval
+                ? valueCommand.UpdateInterval
+                : interval;
+            getDisplayValue = (parameters, sequence, stateName, buttonKey) =>
+            {
+                try
+                {
+                    AdjustmentValue? value = valueCommand.GetValue(DisplayContext(parameters, sequence, stateName, buttonKey));
+                    return value is { } v && !double.IsNaN(v.Normalized)
+                        ? v with { Normalized = Math.Clamp(v.Normalized, 0d, 1d) }
+                        : value;
+                }
+                catch (Exception ex)
+                {
+                    host?.Logger?.Error($"GetValue failed for '{descriptor.CommandName}'", ex);
+                    return null;
+                }
+            };
+        }
+
         return new RegisteredCommand
         {
             CommandName = descriptor.CommandName,
@@ -242,6 +269,8 @@ public class PluginCommandProvider : ICommandProvider
             IsAnimatedImageCommand = isAnimatedImage,
             AnimatedTargetFps = animatedFps,
             UpdateInterval = interval,
+            IsValueDisplayCommand = isValueDisplay,
+            GetDisplayValue = getDisplayValue,
             IsAdjustmentCommand = isAdjustment,
             ApplyAdjustment = applyAdjustment,
             ApplyReset = applyReset,

@@ -62,6 +62,19 @@ public class TouchButton : StatefulButton
         && !string.IsNullOrWhiteSpace(Command)
         && !(Layers?.Any(layer => layer is { Visible: true }) ?? false);
 
+    /// <summary>
+    /// The value the bound command last reported (<c>IValueDisplayCommand</c>), drawn by the
+    /// button's indicator layers and value text layers. Runtime only: the dynamic-text manager
+    /// sets it from its poll, and it is null when the command reports nothing or reports no value.
+    /// </summary>
+    [JsonIgnore]
+    public LoupixDeck.PluginSdk.AdjustmentValue? DisplayValue { get; set; }
+
+    /// <summary>The render context for <see cref="DisplayValue"/>, or null when there is none.</summary>
+    [JsonIgnore]
+    public DialRenderContext? ValueContext =>
+        DisplayValue is { } value ? new DialRenderContext(null, value) : null;
+
     protected override void RaiseActiveStateProjections()
     {
         OnPropertyChanged(nameof(Layers));

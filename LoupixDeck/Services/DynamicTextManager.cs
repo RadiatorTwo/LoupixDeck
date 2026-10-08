@@ -104,7 +104,8 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
 
                 var isText = command.IsDisplayCommand && command.GetText != null;
                 var isImage = command.IsImageDisplayCommand && command.RenderImage != null;
-                if (!isText && !isImage)
+                var isValue = command.IsValueDisplayCommand && command.GetDisplayValue != null;
+                if (!isText && !isImage && !isValue)
                     continue;
 
                 var parms = CommandStringParser.GetParameters(button.Command);
@@ -128,6 +129,7 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
         // Remove/demote plugin-managed layers whose owning command is no longer bound
         // (command changed/cleared, or its plugin was uninstalled) before (re)starting the loop.
         SweepOrphanLayers(page);
+        ClearStaleValues(page, entries);
 
         if (entries.Count == 0)
             return;
@@ -321,6 +323,9 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
         // command's content (and the layer it lands on) follows the state, not the entry.
         string stateName = command.DeclaresStates ? button.ActiveState?.Name : null;
 
+        if (command.IsValueDisplayCommand && command.GetDisplayValue != null)
+            PublishValue(entry);
+
         if (command.IsImageDisplayCommand && command.RenderImage != null)
         {
             // The plugin draws the button onto a host canvas at the device's key size; serialize
@@ -369,6 +374,9 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
             return;
         }
 
+        if (!command.IsDisplayCommand || command.GetText == null)
+            return;
+
         // Text path.
         string newText;
         try
@@ -391,6 +399,55 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
                 return;
 
             button.GetOrAdoptOwnedTextLayer(key, cmdName).Text = newText;
+        });
+    }
+
+    /// <summary>
+    /// Reads the value of a value display command and hands it to the button, which redraws its
+    /// indicator and value text layers when it changed. The value is read here, off the UI thread,
+    /// like every other plugin render call.
+    /// </summary>
+    private static void PublishValue(Entry entry)
+    {
+        var button = entry.Button;
+        string stateName = entry.Command.DeclaresStates ? button.ActiveState?.Name : null;
+        AdjustmentValue? value = entry.Command.GetDisplayValue(entry.Parameters, entry.SequenceCommands, stateName,
+            button.RuntimeKey);
+
+        var ownerKey = entry.OwnerKey;
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (!StillBound(button, ownerKey) || Equals(button.DisplayValue, value))
+                return;
+
+            button.DisplayValue = value;
+            button.Refresh();
+        });
+    }
+
+    /// <summary>
+    /// Drops the value a button kept from a value command it is no longer bound to, so its
+    /// indicator and value text layers stop showing it.
+    /// </summary>
+    private static void ClearStaleValues(TouchButtonPage page, List<Entry> entries)
+    {
+        if (page?.TouchButtons == null)
+            return;
+
+        var stale = page.TouchButtons
+            .Where(button => button?.DisplayValue != null &&
+                             !entries.Any(e => ReferenceEquals(e.Button, button) && e.Command.IsValueDisplayCommand))
+            .ToArray();
+        if (stale.Length == 0)
+            return;
+
+        Dispatcher.UIThread.Post(() =>
+        {
+            foreach (var button in stale)
+            {
+                button.DisplayValue = null;
+                button.Refresh();
+            }
         });
     }
 

@@ -13,6 +13,7 @@ in `plugin.json`; the Plugin Store checks that version before offering a release
 | 1.26.0 | v1.34.0 | `CommandContext.ButtonKey`, `IRenderCanvas.DrawPixels` |
 | 1.27.0 | v1.37.0 | `CommandDescriptor.ButtonLayout` and its layer descriptors |
 | 1.28.0 | v1.37.0 | `FolderEntry.Render`, `IPluginRequirements`, `PluginRequirement` |
+| 1.29.0 | unreleased | `IValueDisplayCommand`, `AdjustmentValue.Detail`; indicator layers, value text sources and a background colour in button layouts |
 
 ## Plugin translations
 
@@ -97,6 +98,27 @@ The actions panel applies this layout when assigning the command. The button
 editor applies a declared layout when the first command is added to a button
 with an empty layer list. These are normal,
 editable layers created once; runtime display commands still render over them.
+
+## Touch-key values drawn by the key's own layers
+
+Implement `IValueDisplayCommand` on a touch-button command to report a value
+instead of drawing the key. `GetValue` returns an `AdjustmentValue` (the same
+type adjustment dials use) or `null`; the host polls it on `UpdateInterval`, and
+`host.RequestButtonRefresh` re-reads it at once. The key's layers draw it:
+
+- an **Indicator** layer draws an arc up to `Normalized` (0–1); `double.NaN`
+  draws no arc;
+- a text layer whose *Text source* is **Value** shows `Text`, and one set to
+  **Value detail** shows the new `AdjustmentValue.Detail`.
+
+Declare the starting layers in the layout: `ButtonLayerKind.Indicator` (with
+`Color` as the fill, `TrackColor`, `Thickness`, `StartAngle`, `SweepAngle`, and
+`IconScale` for its size) and `ButtonLayerDescriptor.TextSource`.
+`ButtonLayoutDescriptor.BackgroundColor` sets the key's own background colour.
+The user can add, move and restyle these layers in the button editor like any
+other, which is the point: a gauge stays fully stylable without the plugin
+drawing anything. The interface combines with `IDisplayCommand` and
+`IDisplayImageCommand`.
 
 ## Pixel-exact folder slots
 

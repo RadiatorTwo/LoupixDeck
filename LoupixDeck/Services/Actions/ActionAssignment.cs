@@ -128,6 +128,13 @@ public static class ActionAssignment
                 break;
         }
 
+        // The background is the button's own setting, so the user changes it like any other.
+        if (Color.TryParse(layout?.BackgroundColor, out Color background))
+        {
+            button.BackColor = background;
+            button.BackgroundEnabled = true;
+        }
+
         button.RewireLayerHandlers();
     }
 
@@ -259,15 +266,49 @@ public static class ActionAssignment
                         PositionY = y,
                         // 0 stays 0: the box then fills the key.
                         BoxWidth = descriptor.BoxWidth > 0 ? Scaled(descriptor.BoxWidth, scaleX) : 0,
-                        BoxHeight = descriptor.BoxHeight > 0 ? Scaled(descriptor.BoxHeight, scaleY) : 0
+                        BoxHeight = descriptor.BoxHeight > 0 ? Scaled(descriptor.BoxHeight, scaleY) : 0,
+                        TextSource = descriptor.TextSource switch
+                        {
+                            ButtonTextSource.Value => TextSource.DialValue,
+                            ButtonTextSource.Detail => TextSource.ValueDetail,
+                            _ => TextSource.Static
+                        }
                     };
                     if (hasColor)
                         layer.TextColor = color;
 
                     button.Layers.Add(layer);
                     break;
+
+                case ButtonLayerKind.Indicator:
+                    button.Layers.Add(CreateIndicator(descriptor, name, x, y, hasColor ? color : null));
+                    break;
             }
         }
+    }
+
+    /// <summary>An indicator arc from a plugin's layer; anything the plugin leaves unset keeps the layer's default.</summary>
+    private static DialIndicatorLayer CreateIndicator(ButtonLayerDescriptor descriptor, string name, int x, int y,
+        Color? fill)
+    {
+        DialIndicatorLayer indicator = new()
+        {
+            Name = name,
+            Scale = Math.Clamp(descriptor.IconScale, 0.1, 1.0),
+            PositionX = x,
+            PositionY = y
+        };
+        if (fill is { } fillColor)
+            indicator.FillColor = fillColor;
+        if (Color.TryParse(descriptor.TrackColor, out Color track))
+            indicator.TrackColor = track;
+        if (descriptor.Thickness is > 0 and <= 0.5)
+            indicator.Thickness = descriptor.Thickness.Value;
+        if (descriptor.StartAngle is { } start)
+            indicator.StartAngle = start;
+        if (descriptor.SweepAngle is > 0 and <= 360)
+            indicator.SweepAngle = descriptor.SweepAngle.Value;
+        return indicator;
     }
 
     /// <summary>
