@@ -67,7 +67,21 @@ public sealed class RegisteredCommand
     /// <summary>True when the command brings its own button states along.</summary>
     public bool DeclaresStates => States.Count > 0;
 
-    /// <summary>Poll interval for display commands; ignored otherwise.</summary>
+    /// <summary>
+    /// True when the command reports a value its touch button draws with its own indicator and
+    /// value text layers — adapted from an <c>IValueDisplayCommand</c>. Independent of
+    /// <see cref="IsDisplayCommand"/> and <see cref="IsImageDisplayCommand"/>: a command may be both,
+    /// and the same poll serves both.
+    /// </summary>
+    public bool IsValueDisplayCommand { get; init; }
+
+    /// <summary>
+    /// For value display commands: the current value, or null for none. Arguments as for
+    /// <see cref="GetText"/>. Null for other commands.
+    /// </summary>
+    public Func<string[], IReadOnlyList<SequenceCommand>, string, string, AdjustmentValue?> GetDisplayValue { get; init; }
+
+    /// <summary>Poll interval for display and value display commands; ignored otherwise.</summary>
     public TimeSpan UpdateInterval { get; init; }
 
     /// <summary>

@@ -773,7 +773,7 @@ public static class BitmapHelper
                 DrawTouchButtonBackground(canvas, touchButton, wallpaperToUse, opacityToUse,
                     wallpaperSource, width, height);
 
-                DrawLayers(canvas, touchButton.Layers, width, height);
+                DrawLayers(canvas, touchButton.Layers, width, height, touchButton.ValueContext);
                 DrawFolderBadgeIfLinked(canvas, touchButton, width, height);
             }
         }
@@ -934,7 +934,7 @@ public static class BitmapHelper
             }
             else
             {
-                DrawLayers(canvas, touchButton.Layers, width, height);
+                DrawLayers(canvas, touchButton.Layers, width, height, touchButton.ValueContext);
                 DrawFolderBadgeIfLinked(canvas, touchButton, width, height);
             }
             return bitmap;
@@ -1417,6 +1417,7 @@ public static class BitmapHelper
     {
         TextSource.DialLabel => dial?.Label,
         TextSource.DialValue => dial?.ValueText,
+        TextSource.ValueDetail => dial?.ValueDetail,
         _ => layer.Text
     };
 
