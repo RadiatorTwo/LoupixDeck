@@ -14,6 +14,7 @@ in `plugin.json`; the Plugin Store checks that version before offering a release
 | 1.27.0 | v1.37.0 | `CommandDescriptor.ButtonLayout` and its layer descriptors |
 | 1.28.0 | v1.37.0 | `FolderEntry.Render`, `IPluginRequirements`, `PluginRequirement` |
 | 1.29.0 | unreleased | `IValueDisplayCommand`, `AdjustmentValue.Detail`; indicator layers, value text sources and a background colour in button layouts |
+| 1.30.0 | unreleased | `ButtonStateDescriptor.Layout`: starting layers per declared state |
 
 ## Plugin translations
 
@@ -119,6 +120,13 @@ The user can add, move and restyle these layers in the button editor like any
 other, which is the point: a gauge stays fully stylable without the plugin
 drawing anything. The interface combines with `IDisplayCommand` and
 `IDisplayImageCommand`.
+
+Since SDK 1.30.0, a command that declares button states can give each state its
+own starting look with `ButtonStateDescriptor.Layout`, for example an hourglass
+while busy and a bell while waiting. When the host creates the command's states
+on a touch key, it fills each state that has no layers yet from that layout. It
+never replaces existing layers. Set the command's `ButtonLayout` to
+`ButtonLayoutMode.None` when every state brings its own.
 
 ## Pixel-exact folder slots
 
