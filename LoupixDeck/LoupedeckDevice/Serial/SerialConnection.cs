@@ -39,9 +39,9 @@ public class SerialConnection : ISerialConnection
     private readonly int _baudRate;
 
     /// <summary>
-    /// SerialPort instance used for communication.
+    /// The open port, or null when not connected.
     /// </summary>
-    private SerialPort _serialPort;
+    private ISerialTransport _port;
 
     /// <summary>
     /// Thread that continuously reads incoming data.
@@ -83,7 +83,7 @@ public class SerialConnection : ISerialConnection
     /// <summary>
     /// Indicates whether the serial port is open and ready for communication.
     /// </summary>
-    public bool IsReady => _serialPort is not null && _serialPort.IsOpen;
+    public bool IsReady => _port is { IsOpen: true };
     
     /// <summary>
     /// Searches for all available serial ports and returns them as a list.
@@ -109,16 +109,7 @@ public class SerialConnection : ISerialConnection
 
         try
         {
-            _serialPort = new SerialPort(_portName, _baudRate)
-            {
-                Parity = Parity.None,
-                DataBits = 8,
-                StopBits = StopBits.One,
-                Handshake = Handshake.None,
-                ReadTimeout = SerialPort.InfiniteTimeout,
-                WriteTimeout = 3000,
-                Encoding = Encoding.UTF8
-            };
+            _port = ISerialTransport.Create(_portName, _baudRate);
 
             OpenWithBackoff();
 
@@ -160,11 +151,8 @@ public class SerialConnection : ISerialConnection
             SerialConnectionDiagnostics.RecordFailure(_portName, _baudRate, ex);
 
             // If something fails, close the port immediately.
-            if (_serialPort != null && _serialPort.IsOpen)
-            {
-                _serialPort.Close();
-            }
-            _serialPort = null;
+            _port?.Close();
+            _port = null;
 
             // We do not have an error event in the interface, so we use Disconnected to indicate a failure.
             Disconnected?.Invoke(this, new ConnectionEventArgs(_portName, ex));
@@ -197,7 +185,7 @@ public class SerialConnection : ISerialConnection
         {
             try
             {
-                _serialPort!.Open();
+                _port!.Open();
                 NoteOpened(_portName);
                 return;
             }
@@ -324,7 +312,7 @@ public class SerialConnection : ISerialConnection
         try
         {
             WriteMaskedFrame(frame.AsSpan(0, frameLength), data, payloadLength);
-            _serialPort?.Write(frame, 0, frameLength);
+            _port?.Write(frame, 0, frameLength);
         }
         catch (Exception ex)
         {
@@ -359,7 +347,7 @@ public class SerialConnection : ISerialConnection
                 buffer.AsSpan(start, frameLength),
                 buffer.AsSpan(payloadOffset, payloadLength),
                 payloadLength);
-            _serialPort?.Write(buffer, start, frameLength);
+            _port?.Write(buffer, start, frameLength);
         }
         catch (Exception ex)
         {
@@ -435,44 +423,15 @@ public class SerialConnection : ISerialConnection
     /// </summary>
     public void Close()
     {
-        if (_serialPort == null)
+        var port = _port;
+        if (port == null)
         {
             return;
         }
 
         _running = false;
-
-        try
-        {
-            if (_serialPort.IsOpen)
-            {
-                _serialPort.Close();
-            }
-        }
-        catch
-        {
-            // Optionally log or handle close exceptions.
-        }
-        finally
-        {
-            try
-            {
-                // On Linux, SerialPort.Dispose() calls SerialStream.Flush() ->
-                // Termios.TermiosDrain() on the SafeSerialDeviceHandle. During shutdown
-                // the handle may already be disposed (the ReadLoop thread races with the
-                // main-thread teardown and calls Close() from its own finally block), so
-                // the drain throws ObjectDisposedException. Because this runs on the
-                // background ReadLoop thread, an unguarded throw becomes an unhandled
-                // exception that terminates the whole process on exit. Swallow it.
-                _serialPort?.Dispose();
-            }
-            catch
-            {
-                // Handle already gone (device unplugged / concurrent Close) — ignore.
-            }
-
-            _serialPort = null;
-        }
+        port.Close();
+        _port = null;
 
         Disconnected?.Invoke(this, new ConnectionEventArgs(_portName));
     }
@@ -487,7 +446,7 @@ public class SerialConnection : ISerialConnection
     {
         var buffer = Encoding.ASCII.GetBytes(WS_UPGRADE_HEADER);
 
-        if (_serialPort == null)
+        if (_port == null)
         {
             throw new InvalidOperationException("Serial port is not initialized.");
         }
@@ -499,8 +458,7 @@ public class SerialConnection : ISerialConnection
                 // SendWakeSignal();
 
                 // Sending Header
-                _serialPort.BaseStream.Write(buffer, 0, buffer.Length);
-                _serialPort.BaseStream.Flush();
+                _port.Write(buffer, 0, buffer.Length);
 
                 // Read answer.
                 // The first handshake after a (re)start always times out — the initial
@@ -508,13 +466,13 @@ public class SerialConnection : ISerialConnection
                 // attempt. So this timeout is paid in full on every startup; it must stay
                 // small. When the device DOES reply, Read returns immediately, so the value
                 // only bounds the wait on the guaranteed-silent first attempt.
-                _serialPort.ReadTimeout = 250; // Timeout for the handshake response
+                const int handshakeTimeoutMs = 250;
                 var readBuf = new byte[1024];
                 var responseBuilder = new StringBuilder();
 
                 while (true)
                 {
-                    int read = _serialPort.BaseStream.Read(readBuf, 0, readBuf.Length);
+                    int read = _port.Read(readBuf, 0, readBuf.Length, handshakeTimeoutMs);
                     if (read > 0)
                     {
                         responseBuilder.Append(Encoding.ASCII.GetString(readBuf, 0, read));
@@ -543,7 +501,7 @@ public class SerialConnection : ISerialConnection
             catch (Exception ex)
             {
                 // The first attempt is expected to time out: the header write is what wakes the
-                // device, and it only answers the second one (see the ReadTimeout note above).
+                // device, and it only answers the second one (see the timeout note above).
                 // Reporting that as a failure on every single startup trains the reader to
                 // ignore the line. Every other error, and any failure of a later attempt, is
                 // still reported.
@@ -558,11 +516,6 @@ public class SerialConnection : ISerialConnection
 
                 Thread.Sleep(500);
             }
-            finally
-            {
-                // Reset timeout
-                _serialPort.ReadTimeout = SerialPort.InfiniteTimeout;
-            }
         }
 
         return false; // Should never be reached
@@ -575,7 +528,7 @@ public class SerialConnection : ISerialConnection
             // Send a zero byte (0x00) as a wake-up signal
             var wakeSignal = "\0"u8.ToArray();
             //var wakeSignal = Encoding.ASCII.GetBytes("HELO");
-            _serialPort.BaseStream.Write(wakeSignal, 0, wakeSignal.Length);
+            _port.Write(wakeSignal, 0, wakeSignal.Length);
 
             // Optional: Kurze Pause, um dem Ger�t Zeit zu geben, zu reagieren
             Thread.Sleep(100);
@@ -604,9 +557,9 @@ public class SerialConnection : ISerialConnection
 
         try
         {
-            while (_running && _serialPort != null && _serialPort.IsOpen)
+            while (_running && _port is { IsOpen: true } port)
             {
-                int read = _serialPort.BaseStream.Read(buf, 0, buf.Length);
+                int read = port.Read(buf, 0, buf.Length, Timeout.Infinite);
                 if (read <= 0)
                 {
                     // Port is closed or EOF
