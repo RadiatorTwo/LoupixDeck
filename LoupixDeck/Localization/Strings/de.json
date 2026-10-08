@@ -1329,5 +1329,9 @@
   "VirtualDevice_ButtonUndo": "Rückgängig",
   "VirtualDevice_ButtonKeyboard": "Tastatur",
   "VirtualDevice_ButtonEnter": "Enter",
-  "VirtualDevice_ButtonSave": "Speichern"
+  "VirtualDevice_ButtonSave": "Speichern",
+  "MainWindow_ZoomOut": "Verkleinern (Ctrl -)",
+  "MainWindow_ZoomIn": "Vergrößern (Ctrl +)",
+  "MainWindow_ZoomReset": "Auf 100 % zurücksetzen (Ctrl 0). Zoomen mit Ctrl + Mausrad.",
+  "MainWindow_ZoomPercent": "{0} %"
 }

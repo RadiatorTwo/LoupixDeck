@@ -1329,5 +1329,9 @@
   "VirtualDevice_ButtonUndo": "Deshacer",
   "VirtualDevice_ButtonKeyboard": "Teclado",
   "VirtualDevice_ButtonEnter": "Intro",
-  "VirtualDevice_ButtonSave": "Guardar"
+  "VirtualDevice_ButtonSave": "Guardar",
+  "MainWindow_ZoomOut": "Alejar (Ctrl -)",
+  "MainWindow_ZoomIn": "Acercar (Ctrl +)",
+  "MainWindow_ZoomReset": "Restablecer al 100 % (Ctrl 0). Zoom con Ctrl + rueda del ratón.",
+  "MainWindow_ZoomPercent": "{0} %"
 }

@@ -1430,25 +1430,20 @@ public partial class LoupedeckLiveSController(
         {
             // The session draws with SkiaSharp via the canvas; serialize with all other Skia work
             // so a plugin frame can't race the host's render pipeline (caches aren't thread-safe).
-            var bitmap = new SkiaSharp.SKBitmap(StripWidth, StripHeight);
+            // Recorded, so the on-screen view can draw the strip sharp at its own size (#251).
             try
             {
+                using var recording = new RecordedRender(StripWidth, StripHeight);
                 lock (SkiaRenderGate.Sync)
                 {
-                    using var canvas = new SkiaSharp.SKCanvas(bitmap);
-                    var rc = new SkiaRenderCanvas(canvas, StripWidth, StripHeight);
+                    var rc = new SkiaRenderCanvas(recording.Canvas, StripWidth, StripHeight);
                     if (session.RenderStrip(rc))
-                    {
-                        canvas.Flush();
-                        return bitmap;
-                    }
+                        return recording.Finish();
                 }
-                bitmap.Dispose();
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"Side-strip session RenderStrip failed ({side}): {ex.Message}");
-                bitmap.Dispose();
             }
         }
 
