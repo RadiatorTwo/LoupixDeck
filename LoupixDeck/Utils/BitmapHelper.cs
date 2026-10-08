@@ -1250,7 +1250,7 @@ public static class BitmapHelper
     /// <see cref="DrawSymbolLayer"/> so the selection overlay always matches
     /// the rendered output.
     /// </summary>
-    private static SKRect? GetLayerDeviceRect(LayerBase layer, int deviceW, int deviceH)
+    internal static SKRect? GetLayerDeviceRect(LayerBase layer, int deviceW, int deviceH)
     {
         switch (layer)
         {

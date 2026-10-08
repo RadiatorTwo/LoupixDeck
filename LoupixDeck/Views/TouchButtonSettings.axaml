@@ -12,6 +12,7 @@
     xmlns:layers="clr-namespace:LoupixDeck.Models.Layers"
     xmlns:conv="clr-namespace:LoupixDeck.Models.Converter"
     xmlns:models="clr-namespace:LoupixDeck.Models"
+    xmlns:actions="clr-namespace:LoupixDeck.Services.Actions"
     x:DataType="vm:TouchButtonSettingsViewModel"
     Title="{Binding ButtonLabel}"
     Width="1440"
@@ -380,6 +381,25 @@
 
                     <StackPanel Grid.Row="4" IsEnabled="{Binding CanEditCanvas}">
                         <TextBlock Classes="panel-title" Text="{loc:Tr TouchButton_Layers}" />
+                        <Button Classes="toolbar" Content="{loc:Tr TouchButton_LayoutTemplate}" Margin="0,0,0,8"
+                                HorizontalAlignment="Stretch" IsVisible="{Binding !IsStripCanvas}">
+                            <Button.Flyout>
+                                <MenuFlyout Placement="BottomEdgeAlignedLeft">
+                                    <MenuItem Header="{loc:Tr TouchButton_Template_IconTextBottom}"
+                                              Command="{Binding ApplyTemplateCommand}"
+                                              CommandParameter="{x:Static actions:ButtonTemplate.IconCaptionBottom}" />
+                                    <MenuItem Header="{loc:Tr TouchButton_Template_IconTextTop}"
+                                              Command="{Binding ApplyTemplateCommand}"
+                                              CommandParameter="{x:Static actions:ButtonTemplate.IconCaptionTop}" />
+                                    <MenuItem Header="{loc:Tr TouchButton_Template_IconOnly}"
+                                              Command="{Binding ApplyTemplateCommand}"
+                                              CommandParameter="{x:Static actions:ButtonTemplate.IconOnly}" />
+                                    <MenuItem Header="{loc:Tr TouchButton_Template_TextOnly}"
+                                              Command="{Binding ApplyTemplateCommand}"
+                                              CommandParameter="{x:Static actions:ButtonTemplate.TextOnly}" />
+                                </MenuFlyout>
+                            </Button.Flyout>
+                        </Button>
                         <!-- 2×2 grid so all four add-layer buttons fit the fixed-width panel
                              regardless of label length (a single row overflowed the right edge). -->
                         <UniformGrid Columns="2" Margin="0,0,0,8">

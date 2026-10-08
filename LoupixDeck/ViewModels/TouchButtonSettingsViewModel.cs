@@ -580,6 +580,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     public IAsyncRelayCommand AddImageLayerCommand => field ??= Relay.Create(AddImageLayer);
     public IAsyncRelayCommand AddAnimatedImageLayerCommand => field ??= Relay.Create(AddAnimatedImageLayer);
     public IRelayCommand AddTextLayerCommand => field ??= Relay.Create(AddTextLayer);
+    public IAsyncRelayCommand ApplyTemplateCommand => field ??= Relay.Create<ButtonTemplate>(ApplyTemplate);
     public IAsyncRelayCommand AddSymbolLayerCommand => field ??= Relay.Create(AddSymbolLayer);
 
     public IAsyncRelayCommand AssignApplicationCommand => field ??= Relay.Create(AssignApplication);
@@ -1231,21 +1232,89 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         SelectedLayer = layer;
     }
 
+    /// <summary>
+    /// Arranges the icon and caption of the active state as <paramref name="template"/>. Layers the
+    /// template drops are listed to the user first, because they may have drawn them by hand.
+    /// </summary>
+    private async Task ApplyTemplate(ButtonTemplate template)
+    {
+        if (ButtonData == null || IsStripCanvas) return;
+
+        ButtonTemplatePlan plan = ActionAssignment.PlanTemplate(ButtonData, template, DeviceWidth, DeviceHeight);
+
+        // A template that needs an icon asks for one first; cancelling the picker changes nothing.
+        SymbolLayer addedIcon = null;
+        if (template != ButtonTemplate.TextOnly && !plan.HasIcon)
+        {
+            addedIcon = await PickSymbolLayer();
+            if (addedIcon == null) return;
+
+            AddLayer(addedIcon);
+            plan = ActionAssignment.PlanTemplate(ButtonData, template, DeviceWidth, DeviceHeight);
+        }
+
+        int removed = plan.Removed.Count;
+        if (removed > 0)
+        {
+            DialogResult result = await _dialogService.ShowDialogAsync<ConfirmDialogViewModel, DialogResult>(vm =>
+                vm.Configure(
+                    Loc.Tr("Confirm_ApplyTemplateMessage", removed),
+                    title: Loc.Tr("Confirm_ApplyTemplateTitle"),
+                    confirmText: Loc.Tr("Confirm_Overwrite"),
+                    cancelText: Loc.Tr("Confirm_Cancel")));
+            if (!result.IsConfirmed)
+            {
+                if (addedIcon != null)
+                    ButtonData.Layers.Remove(addedIcon);
+
+                return;
+            }
+        }
+
+        if (!ActionAssignment.ApplyTemplate(ButtonData, plan, GetUniqueLayerName))
+            return;
+
+        // A caption the template created has not been stamped with the surface size yet.
+        ApplyDeviceBaseToLayers();
+
+        if (_selectedLayer != null && !ButtonData.Layers.Contains(_selectedLayer))
+            SelectedLayer = null;
+
+        if (addedIcon != null)
+            SelectedLayer = addedIcon;
+
+        UpdateEditorPreview();
+        UpdateSelectionBounds();
+    }
+
     private async Task AddSymbolLayer()
     {
         if (ButtonData == null) return;
 
+        SymbolLayer layer = await PickSymbolLayer();
+        if (layer == null) return;
+
+        AddLayer(layer);
+        SelectedLayer = layer;
+    }
+
+    /// <summary>
+    /// Opens the symbol picker and builds the symbol layer for the choice, without adding it to the
+    /// button. Null when the picker is cancelled or the choice cannot be used.
+    /// </summary>
+    private async Task<SymbolLayer> PickSymbolLayer()
+    {
         var request = new SymbolPickerRequest();
         var result = await _dialogService.ShowDialogAsync<SymbolPickerViewModel, DialogResult>(
             vm => vm.Initialize(request));
 
-        if (result is not { IsConfirmed: true }) return;
+        if (result is not { IsConfirmed: true }) return null;
 
         SymbolLayer layer;
         if (request.SelectedPackIcon is { } icon)
         {
             layer = new SymbolLayer { Name = GetUniqueLayerName(icon.DisplayName) };
-            if (!ApplyPackIcon(layer, icon, 0.7)) return;
+            if (!ApplyPackIcon(layer, icon, 0.7)) return null;
         }
         else if (request.SelectedSymbol is { } def)
         {
@@ -1257,10 +1326,9 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
             layer.FitScaleToGlyph(0.7);
         }
         else
-            return;
+            return null;
 
-        AddLayer(layer);
-        SelectedLayer = layer;
+        return layer;
     }
 
     /// <summary>
