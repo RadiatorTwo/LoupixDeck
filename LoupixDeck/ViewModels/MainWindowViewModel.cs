@@ -281,6 +281,7 @@ public partial class MainWindowViewModel : ViewModelBase
         IDynamicTextManager dynamicTextManager,
         Services.Animation.IButtonAnimationManager buttonAnimationManager,
         ISystemPowerService powerService,
+        IDisplayStateService displayState,
         IExclusiveModeService exclusiveMode,
         IAppSwitchingService appSwitching,
         IWorkspaceActivationService workspaceActivation,
@@ -380,6 +381,14 @@ public partial class MainWindowViewModel : ViewModelBase
                 // full state — restoring state alone wrote to a dead handle (issue #195).
                 await LoupedeckController.HandleSystemResume());
         powerService.StartMonitoring();
+
+        // Follow the monitors when the device is set to (issue #382); the controller checks the
+        // setting, so turning it on later needs no re-subscription. Same UI-thread hop as above.
+        displayState.DisplaysOff += (_, _) =>
+            Avalonia.Threading.Dispatcher.UIThread.Post(() => _ = LoupedeckController.HandleDisplaysOff());
+        displayState.DisplaysOn += (_, _) =>
+            Avalonia.Threading.Dispatcher.UIThread.Post(() => _ = LoupedeckController.HandleDisplaysOn());
+        displayState.StartMonitoring();
 
         // Foreground-window → page switching. Started on the UI thread because the
         // Windows WinEvent hook requires the message pump of the thread that sets it.

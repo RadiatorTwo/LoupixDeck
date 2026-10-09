@@ -109,6 +109,24 @@ public partial class LoupedeckLiveSController(
     /// </summary>
     private volatile bool _blankedForSuspend;
 
+    /// <summary>
+    /// True while the off state was entered because the host's monitors went dark (#382). Only
+    /// this off state is undone when they wake; a device the user turned off stays off.
+    /// </summary>
+    private volatile bool _blankedForDisplays;
+
+    /// <summary>The monitor state last reported through <see cref="HandleDisplaysOff"/> and
+    /// <see cref="HandleDisplaysOn"/>.</summary>
+    private volatile bool _displaysOn = true;
+
+    /// <summary>Who switched the device off.</summary>
+    private enum OffReason
+    {
+        User,
+        Suspend,
+        Displays
+    }
+
     // True while the full-display screensaver owns the display (issue #120). Like
     // _isDeviceOff, this gates the controller's own redraw paths so dynamic text /
     // side-strip provider frames don't paint over the video. NOT the plugin exclusive
@@ -184,20 +202,38 @@ public partial class LoupedeckLiveSController(
 
     private static int SideIndex(RotarySide side) => side == RotarySide.Right ? 1 : 0;
 
-    public Task ClearDeviceState() => EnterOffState(false);
+    public Task ClearDeviceState() => EnterOffState(OffReason.User);
 
     /// <summary>
     /// The host is suspending: blank the device exactly like the manual off, but remember
     /// that it was not the user's doing, so the next connect switches it back on (#195).
     /// A device the user had already turned off stays off across the suspend.
     /// </summary>
-    public Task HandleSystemSuspend() => EnterOffState(true);
+    public Task HandleSystemSuspend() => EnterOffState(OffReason.Suspend);
 
-    private async Task EnterOffState(bool forSuspend)
+    /// <summary>
+    /// The host's monitors went dark (#382). Blanks the device when it is set to follow them,
+    /// marked so that only the monitors waking again switches it back on.
+    /// </summary>
+    public Task HandleDisplaysOff()
+    {
+        _displaysOn = false;
+        return config.TurnOffWithDisplays ? EnterOffState(OffReason.Displays) : Task.CompletedTask;
+    }
+
+    /// <summary>The host's monitors are on again; undoes an off state they caused (#382).</summary>
+    public Task HandleDisplaysOn()
+    {
+        _displaysOn = true;
+        return _blankedForDisplays ? RestoreDeviceState() : Task.CompletedTask;
+    }
+
+    private async Task EnterOffState(OffReason reason)
     {
         if (_isDeviceOff) return;
         _isDeviceOff = true;
-        _blankedForSuspend = forSuspend;
+        _blankedForSuspend = reason == OffReason.Suspend;
+        _blankedForDisplays = reason == OffReason.Displays;
         // The device goes dark (or the machine suspends) — a held button's release will never
         // arrive, so nothing may keep waiting on it (#185).
         ReleaseAllPresses();
@@ -266,19 +302,22 @@ public partial class LoupedeckLiveSController(
         if (!_isDeviceOff) return;
 
         var wasBlankedForSuspend = _blankedForSuspend;
+        var wasBlankedForDisplays = _blankedForDisplays;
         _isDeviceOff = false;
         _blankedForSuspend = false;
+        _blankedForDisplays = false;
         // Anything still tracked from before the device went off is stale by definition (#185).
         ReleaseAllPresses();
 
         if (await PushFullState()) return;
 
-        // Back to exactly the state we came from. A device blanked by a suspend keeps that mark,
-        // so the next connect still takes it online by itself; a device the user turned off stays
-        // off, and the user can press on again once it is reachable.
+        // Back to exactly the state we came from. A device blanked by a suspend or by the monitors
+        // keeps that mark, so the next connect still takes it online by itself; a device the user
+        // turned off stays off, and the user can press on again once it is reachable.
         Console.WriteLine("Switching the device on failed — nothing reached the hardware, staying off.");
         _isDeviceOff = true;
         _blankedForSuspend = wasBlankedForSuspend;
+        _blankedForDisplays = wasBlankedForDisplays;
     }
 
     /// <summary>
@@ -386,7 +425,17 @@ public partial class LoupedeckLiveSController(
                 // The device power-cycled while the host slept, so it is physically back
                 // on — leaving it in the suspend-blanked state would repaint black and
                 // require the manual off/on toggle (#195). A user-off device stays blank.
-                var takeOnline = _blankedForSuspend;
+                // A device set to follow the monitors stays dark while they are still off after
+                // the wake; the mark moves over so the monitors waking switches it on (#382).
+                if (_blankedForSuspend && !_displaysOn && config.TurnOffWithDisplays)
+                {
+                    _blankedForSuspend = false;
+                    _blankedForDisplays = true;
+                }
+
+                // A device the monitors blanked comes back with them, here when their wake arrived
+                // while the link was still down.
+                var takeOnline = _blankedForSuspend || (_blankedForDisplays && _displaysOn);
 
                 var pushed = (takeOnline || !_isDeviceOff)
                     ? await PushFullState()
@@ -402,6 +451,7 @@ public partial class LoupedeckLiveSController(
                 if (takeOnline)
                 {
                     _blankedForSuspend = false;
+                    _blankedForDisplays = false;
                     _isDeviceOff = false;
                     ReleaseAllPresses();
                 }
@@ -3533,6 +3583,13 @@ public partial class LoupedeckLiveSController(
                     // async void: an unhandled transport failure here would tear the process down.
                     await TryDeviceIo("setting the brightness",
                         () => deviceService.Device.SetBrightness(config.Brightness / 100.0));
+                    break;
+
+                case nameof(LoupedeckConfig.TurnOffWithDisplays):
+                    // No longer following the monitors: a device they blanked comes back now
+                    // instead of staying dark until they wake (#382).
+                    if (!config.TurnOffWithDisplays && _blankedForDisplays)
+                        await RestoreDeviceState();
                     break;
 
                 case nameof(LoupedeckConfig.DitheringEnabled):

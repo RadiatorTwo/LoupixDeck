@@ -156,6 +156,11 @@ public partial class LoupedeckConfig : ObservableObject
     [ObservableProperty]
     public partial bool TouchSlidingPreventionEnabled { get; set; } = true;
 
+    // Blank the device while the host's monitors are off and switch it back on when they wake
+    // (issue #382). Absent in older configs, which keeps the device lit as before.
+    [ObservableProperty]
+    public partial bool TurnOffWithDisplays { get; set; }
+
     // ───────── Screensaver (issue #120) ─────────
     // Full-display animated screensaver: after the device has been idle for
     // ScreensaverIdleTimeoutSeconds, the configured video/GIF (decoded via ffmpeg)
