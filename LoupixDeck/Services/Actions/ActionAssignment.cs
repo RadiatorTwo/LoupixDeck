@@ -353,16 +353,30 @@ public static class ActionAssignment
 
     /// <summary>
     /// Whether <paramref name="image"/> covers the key as a background picture does: drawn on a key of
-    /// the given size, it spans the key's short edge in both directions. A picture that cannot be
-    /// loaded is judged by its scale, which is what a square one comes to.
+    /// the given size, it covers the square in the middle of the key that spans the key's short edge.
+    /// A picture moved off the middle leaves part of that square bare and is no background. A picture
+    /// that cannot be loaded is taken as square, so its scale and position are what count.
     /// </summary>
     private static bool IsFullKeyImage(ImageLayer image, int keyWidthPx, int keyHeightPx)
     {
+        float shortEdge = Math.Min(keyWidthPx, keyHeightPx);
         if (BitmapHelper.GetLayerDeviceRect(image, keyWidthPx, keyHeightPx) is not { } drawn)
-            return image.EffectiveScaleX >= FullKeyImageShare && image.EffectiveScaleY >= FullKeyImageShare;
+        {
+            float width = shortEdge * (float)image.EffectiveScaleX;
+            float height = shortEdge * (float)image.EffectiveScaleY;
+            float left = ((keyWidthPx - width) / 2f) + image.PositionX;
+            float top = ((keyHeightPx - height) / 2f) + image.PositionY;
+            drawn = new SKRect(left, top, left + width, top + height);
+        }
 
-        double edge = Math.Min(keyWidthPx, keyHeightPx) * FullKeyImageShare;
-        return edge > 0 && drawn.Width >= edge && drawn.Height >= edge;
+        float edge = shortEdge * (float)FullKeyImageShare;
+        if (edge <= 0)
+            return false;
+
+        float squareLeft = (keyWidthPx - edge) / 2f;
+        float squareTop = (keyHeightPx - edge) / 2f;
+        return drawn.Left <= squareLeft && drawn.Top <= squareTop
+            && drawn.Right >= squareLeft + edge && drawn.Bottom >= squareTop + edge;
     }
 
     /// <summary>
