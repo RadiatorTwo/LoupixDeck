@@ -460,7 +460,9 @@ public static class ActionAssignment
         if (button?.Layers == null || !ApplyTemplate(button.Layers, plan, uniqueName))
             return false;
 
-        button.RewireLayerHandlers();
+        // Only the active state's handlers: the button-wide rewire normalizes the active state as
+        // after a load, which would switch an editor showing another state back to the default one.
+        button.ActiveState?.RewireLayerHandlers();
         return true;
     }
 
