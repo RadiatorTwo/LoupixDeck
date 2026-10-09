@@ -1,4 +1,5 @@
 #if WINDOWS
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using Microsoft.Win32.SafeHandles;
@@ -12,9 +13,15 @@ namespace LoupixDeck.Services.SystemPower;
 /// shows a picture and counts as on.
 ///
 /// A running Windows screen saver counts as "displays off" too, although the monitors stay powered:
-/// to the user the computer has gone idle the same way. Windows runs it on a desktop of its own, so
-/// its start and end are each a desktop switch; the WinEvent for that switch triggers a one-off
-/// <c>SPI_GETSCREENSAVERRUNNING</c> query.
+/// to the user the computer has gone idle the same way. Two cases, both seen through WinEvents:
+/// <list type="bullet">
+/// <item>Started by the idle timeout, it runs on a desktop of its own, so its start and end are each
+/// a desktop switch, answered with a one-off <c>SPI_GETSCREENSAVERRUNNING</c> query.</item>
+/// <item>Started by "Preview" (or directly), it runs on the user's desktop and takes the foreground;
+/// that is followed until its <c>.scr</c> process exits.</item>
+/// </list>
+/// The hooks live on a thread of their own with its own message loop, because out-of-context
+/// WinEvents only arrive on the hooking thread while it pumps.
 /// </summary>
 [SupportedOSPlatform("windows")]
 public sealed partial class WindowsDisplayStateService : DisplayStateServiceBase, IDisposable
@@ -26,9 +33,11 @@ public sealed partial class WindowsDisplayStateService : DisplayStateServiceBase
     private const uint ERROR_SUCCESS = 0;
     private const uint DisplayOff = 0;
 
+    private const uint EVENT_SYSTEM_FOREGROUND = 0x0003;
     private const uint EVENT_SYSTEM_DESKTOPSWITCH = 0x0020;
     private const uint WINEVENT_OUTOFCONTEXT = 0x0000;
     private const uint SPI_GETSCREENSAVERRUNNING = 0x0072;
+    private const uint WM_QUIT = 0x0012;
 
     // Offsets in POWERBROADCAST_SETTING: GUID PowerSetting, DWORD DataLength, UCHAR Data[].
     private const int DataLengthOffset = 16;
@@ -46,15 +55,29 @@ public sealed partial class WindowsDisplayStateService : DisplayStateServiceBase
         public IntPtr Context;
     }
 
+    [StructLayout(LayoutKind.Sequential)]
+    private struct Msg
+    {
+        public IntPtr Hwnd;
+        public uint Message;
+        public IntPtr WParam;
+        public IntPtr LParam;
+        public uint Time;
+        public int PointX;
+        public int PointY;
+    }
+
     private readonly Lock _stateGate = new();
     private bool _monitorsOn = true;
-    private bool _screenSaverRunning;
+    private bool _screenSaverDesktop;
+    private Process _screenSaverProcess;
 
     // Held as fields so the GC cannot collect the delegates native code calls back into.
     private DeviceNotifyCallbackRoutine _callback;
-    private WinEventDelegate _desktopSwitchProc;
+    private WinEventDelegate _winEventProc;
     private PowerSettingNotificationHandle _registration;
-    private IntPtr _desktopSwitchHook = IntPtr.Zero;
+    private Thread _hookThread;
+    private uint _hookThreadId;
 
     [LibraryImport("powrprof.dll")]
     private static partial uint PowerSettingRegisterNotification(in Guid settingGuid, uint flags,
@@ -77,6 +100,22 @@ public sealed partial class WindowsDisplayStateService : DisplayStateServiceBase
     private static partial bool SystemParametersInfo(uint uiAction, uint uiParam,
         [MarshalAs(UnmanagedType.Bool)] out bool pvParam, uint fWinIni);
 
+    [LibraryImport("user32.dll")]
+    private static partial uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
+
+    [LibraryImport("user32.dll", EntryPoint = "GetMessageW")]
+    private static partial int GetMessage(out Msg lpMsg, IntPtr hWnd, uint wMsgFilterMin, uint wMsgFilterMax);
+
+    [LibraryImport("user32.dll", EntryPoint = "DispatchMessageW")]
+    private static partial IntPtr DispatchMessage(in Msg lpMsg);
+
+    [LibraryImport("user32.dll", EntryPoint = "PostThreadMessageW")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool PostThreadMessage(uint idThread, uint msg, IntPtr wParam, IntPtr lParam);
+
+    [LibraryImport("kernel32.dll")]
+    private static partial uint GetCurrentThreadId();
+
     protected override void Start()
     {
         _callback = OnPowerSettingChanged;
@@ -96,15 +135,36 @@ public sealed partial class WindowsDisplayStateService : DisplayStateServiceBase
             return;
         }
 
-        // Out-of-context WinEvent callbacks arrive on the thread that set the hook while it pumps
-        // messages; StartMonitoring runs on the UI thread, which Avalonia pumps.
-        _desktopSwitchProc = OnDesktopSwitched;
-        _desktopSwitchHook = SetWinEventHook(EVENT_SYSTEM_DESKTOPSWITCH, EVENT_SYSTEM_DESKTOPSWITCH, IntPtr.Zero,
-            Marshal.GetFunctionPointerForDelegate(_desktopSwitchProc), 0, 0, WINEVENT_OUTOFCONTEXT);
-        if (_desktopSwitchHook == IntPtr.Zero)
-            Console.WriteLine("[Displays] Desktop switch hook unavailable; the screen saver is not followed.");
+        _winEventProc = OnWinEvent;
+        _hookThread = new Thread(RunHookThread) { IsBackground = true, Name = "Screen saver hook" };
+        _hookThread.Start();
 
         MarkSupported();
+    }
+
+    /// <summary>Sets the WinEvent hooks and pumps messages for them until <see cref="Dispose"/>.</summary>
+    private void RunHookThread()
+    {
+        _hookThreadId = GetCurrentThreadId();
+        IntPtr proc = Marshal.GetFunctionPointerForDelegate(_winEventProc);
+        IntPtr desktopHook = SetWinEventHook(EVENT_SYSTEM_DESKTOPSWITCH, EVENT_SYSTEM_DESKTOPSWITCH,
+            IntPtr.Zero, proc, 0, 0, WINEVENT_OUTOFCONTEXT);
+        IntPtr foregroundHook = SetWinEventHook(EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_FOREGROUND,
+            IntPtr.Zero, proc, 0, 0, WINEVENT_OUTOFCONTEXT);
+        if (desktopHook == IntPtr.Zero || foregroundHook == IntPtr.Zero)
+            Console.WriteLine("[Displays] WinEvent hook unavailable; the screen saver may not be followed.");
+
+        try
+        {
+            // GetMessage returns 0 on WM_QUIT and -1 on error; both end the loop.
+            while (GetMessage(out Msg msg, IntPtr.Zero, 0, 0) > 0)
+                DispatchMessage(msg);
+        }
+        finally
+        {
+            if (desktopHook != IntPtr.Zero) UnhookWinEvent(desktopHook);
+            if (foregroundHook != IntPtr.Zero) UnhookWinEvent(foregroundHook);
+        }
     }
 
     private uint OnPowerSettingChanged(IntPtr context, uint type, IntPtr setting)
@@ -117,8 +177,11 @@ public sealed partial class WindowsDisplayStateService : DisplayStateServiceBase
             if (Marshal.ReadInt32(setting, DataLengthOffset) < sizeof(uint)) return ERROR_SUCCESS;
 
             uint state = (uint)Marshal.ReadInt32(setting, DataOffset);
-            lock (_stateGate) _monitorsOn = state != DisplayOff;
-            Publish();
+            lock (_stateGate)
+            {
+                _monitorsOn = state != DisplayOff;
+                Publish();
+            }
         }
         catch
         {
@@ -128,15 +191,16 @@ public sealed partial class WindowsDisplayStateService : DisplayStateServiceBase
         return ERROR_SUCCESS;
     }
 
-    private void OnDesktopSwitched(IntPtr hWinEventHook, uint eventType, IntPtr hwnd,
+    private void OnWinEvent(IntPtr hWinEventHook, uint eventType, IntPtr hwnd,
         int idObject, int idChild, uint dwEventThread, uint dwmsEventTime)
     {
         // Native callback - an exception must never unwind into the hook.
         try
         {
-            if (!SystemParametersInfo(SPI_GETSCREENSAVERRUNNING, 0, out bool running, 0)) return;
-            lock (_stateGate) _screenSaverRunning = running;
-            Publish();
+            if (eventType == EVENT_SYSTEM_DESKTOPSWITCH)
+                OnDesktopSwitched();
+            else if (eventType == EVENT_SYSTEM_FOREGROUND && hwnd != IntPtr.Zero && idObject == 0 && idChild == 0)
+                OnForegroundChanged(hwnd);
         }
         catch
         {
@@ -144,24 +208,104 @@ public sealed partial class WindowsDisplayStateService : DisplayStateServiceBase
         }
     }
 
-    /// <summary>The displays count as on while the monitors are powered and no screen saver runs.</summary>
-    private void Publish()
+    private void OnDesktopSwitched()
     {
-        // Reported under the lock so a power callback and a screen saver exit on two threads
-        // cannot overtake each other; the subscribers only post to the UI thread.
-        lock (_stateGate) Report(_monitorsOn && !_screenSaverRunning);
+        if (!SystemParametersInfo(SPI_GETSCREENSAVERRUNNING, 0, out bool running, 0)) return;
+        lock (_stateGate)
+        {
+            _screenSaverDesktop = running;
+            Publish();
+        }
     }
+
+    private void OnForegroundChanged(IntPtr hwnd)
+    {
+        GetWindowThreadProcessId(hwnd, out uint pid);
+        if (pid == 0) return;
+
+        Process process = Process.GetProcessById((int)pid);
+        if (!IsScreenSaverProcess(process))
+        {
+            process.Dispose();
+            return;
+        }
+
+        lock (_stateGate)
+        {
+            if (_screenSaverProcess?.Id == process.Id)
+            {
+                process.Dispose();
+                return;
+            }
+
+            _screenSaverProcess?.Dispose();
+            _screenSaverProcess = process;
+        }
+
+        // A screen saver ends by exiting, whatever the user does to stop it.
+        process.EnableRaisingEvents = true;
+        process.Exited += OnScreenSaverExited;
+
+        lock (_stateGate)
+        {
+            if (process.HasExited)
+            {
+                ForgetScreenSaver(process);
+                return;
+            }
+
+            Publish();
+        }
+    }
+
+    private static bool IsScreenSaverProcess(Process process)
+    {
+        try
+        {
+            string path = process.MainModule?.FileName;
+            return path != null && path.EndsWith(".scr", StringComparison.OrdinalIgnoreCase);
+        }
+        catch
+        {
+            // Protected or already gone; a screen saver runs as the user and is neither.
+            return false;
+        }
+    }
+
+    private void OnScreenSaverExited(object sender, EventArgs e)
+    {
+        lock (_stateGate) ForgetScreenSaver((Process)sender);
+    }
+
+    /// <summary>Drops the followed screen saver process if it is still the current one. Caller holds the lock.</summary>
+    private void ForgetScreenSaver(Process process)
+    {
+        if (!ReferenceEquals(process, _screenSaverProcess)) return;
+        _screenSaverProcess.Dispose();
+        _screenSaverProcess = null;
+        Publish();
+    }
+
+    /// <summary>
+    /// The displays count as on while the monitors are powered and no screen saver runs. Caller
+    /// holds the lock, so callbacks on different threads cannot overtake each other; the
+    /// subscribers only post to the UI thread.
+    /// </summary>
+    private void Publish() => Report(_monitorsOn && !_screenSaverDesktop && _screenSaverProcess == null);
 
     public void Dispose()
     {
-        if (_desktopSwitchHook != IntPtr.Zero)
-        {
-            UnhookWinEvent(_desktopSwitchHook);
-            _desktopSwitchHook = IntPtr.Zero;
-        }
+        if (_hookThreadId != 0)
+            PostThreadMessage(_hookThreadId, WM_QUIT, IntPtr.Zero, IntPtr.Zero);
 
         _registration?.Dispose();
         _registration = null;
+
+        lock (_stateGate)
+        {
+            _screenSaverProcess?.Dispose();
+            _screenSaverProcess = null;
+        }
     }
 
     /// <summary>Owns an <c>HPOWERNOTIFY</c> and unregisters it on release.</summary>
