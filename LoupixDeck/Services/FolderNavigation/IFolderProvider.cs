@@ -13,6 +13,12 @@ public interface IFolderProvider
 
     IReadOnlyDictionary<int, RotaryOverride> RotaryOverrides { get; }
 
+    /// <summary>
+    /// Creates the session that drives one side strip while this folder is visible, or null when
+    /// the folder leaves that strip to the host (blank, or the rotary override indicators).
+    /// </summary>
+    LoupixDeck.PluginSdk.ISideStripSession CreateSideStripSession(LoupixDeck.PluginSdk.SideStripContext context);
+
     /// <summary>Called once when the folder is pushed. Wire up any external listeners here.</summary>
     void OnEnter();
 

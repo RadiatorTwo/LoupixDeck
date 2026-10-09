@@ -102,7 +102,7 @@ public partial class LoupedeckLiveSController
     /// drag-busy guard so it never fights a swipe.</summary>
     private bool PluginStripActive()
     {
-        if (_isDeviceOff || folderNav.IsActive || _screensaverActive || _fullDisplayActive) return false;
+        if (_isDeviceOff || _screensaverActive || _fullDisplayActive) return false;
         if (exclusiveMode.Owns(ExclusiveControlScope.SideDisplays)) return false;
 
         for (var idx = 0; idx < 2; idx++)
@@ -225,7 +225,7 @@ public partial class LoupedeckLiveSController
             DrainStripDisposeQueue(idx);
 
             if (Interlocked.Read(ref _stripDrawnGen[idx]) >= requested) return;
-            if (_isDeviceOff || folderNav.IsActive || exclusiveMode.Owns(ExclusiveControlScope.SideDisplays) ||
+            if (_isDeviceOff || exclusiveMode.Owns(ExclusiveControlScope.SideDisplays) ||
                 _screensaverActive || _fullDisplayActive) return;
             // The drag/settle owns the strip until it finishes; the animation resumes after it.
             if (IsStripDragBusy(idx)) return;

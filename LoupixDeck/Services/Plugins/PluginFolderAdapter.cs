@@ -67,8 +67,13 @@ internal sealed class PluginFolderAdapter : CoreFolder.IFolderProvider
             {
                 OnLeft = kv.Value.OnLeft,
                 OnRight = kv.Value.OnRight,
-                OnPress = kv.Value.OnPress
+                OnPress = kv.Value.OnPress,
+                Label = kv.Value.Label,
+                GetValue = kv.Value.GetValue
             });
+
+    public Sdk.ISideStripSession CreateSideStripSession(Sdk.SideStripContext context) =>
+        _inner is Sdk.IFolderSideStripProvider strips ? strips.CreateSideStripSession(context) : null;
 
     public IReadOnlyList<CoreFolder.FolderEntry> BuildEntries()
     {

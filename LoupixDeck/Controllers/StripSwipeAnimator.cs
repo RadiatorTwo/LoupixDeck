@@ -295,6 +295,15 @@ public partial class LoupedeckLiveSController
             ? LoupedeckDevice.Device.RazerStreamControllerDevice.LeftSideIndex
             : LoupedeckDevice.Device.RazerStreamControllerDevice.RightSideIndex;
 
+        // The window does not show plugin folders, so a folder's strip goes to the device only
+        // and is not handed to the on-screen slot that would otherwise own its lifetime.
+        if (folderNav.IsActive)
+        {
+            using (strip)
+                await device.DrawTouchSlot(slotIndex, strip);
+            return;
+        }
+
         var slotButton = config.CurrentTouchButtonPage?.TouchButtons?.FindByIndex(slotIndex);
         slotButton?.RenderedImage = strip;
 
@@ -646,6 +655,11 @@ public partial class LoupedeckLiveSController
         {
             try { stripSession.OnStripTapped(tapX, tapY); }
             catch (Exception ex) { Console.WriteLine($"Side-strip session tap failed: {ex.Message}"); }
+        }
+        else if (folderNav.IsActive)
+        {
+            // A folder without a strip session has nothing to tap; the page's free-draw commands
+            // and segment session do not apply inside a folder.
         }
         else if (RouteFreeDrawSegmentTap(side, tapY))
         {

@@ -2226,6 +2226,28 @@ public static class BitmapHelper
     {
         ArgumentNullException.ThrowIfNull(page);
 
+        var buttons = page.RotaryButtons;
+        return RenderRotaryStrip(buttons?.Count ?? 0, i => buttons[i]?.DisplayText, config, width, height, side,
+            drawSegment, valueFor);
+    }
+
+    /// <summary>
+    /// Renders a segmented side strip from <paramref name="count"/> dial segments without a
+    /// rotary page behind them: <paramref name="labelFor"/> supplies each segment's label. Same
+    /// look as the page overload above, which delegates here.
+    /// </summary>
+    public static SKBitmap RenderRotaryStrip(
+        int count,
+        Func<int, string> labelFor,
+        LoupedeckConfig config,
+        int width,
+        int height,
+        RotarySide side,
+        Func<int, LoupixDeck.PluginSdk.IRenderCanvas, bool> drawSegment = null,
+        Func<int, LoupixDeck.PluginSdk.AdjustmentValue?> valueFor = null)
+    {
+        ArgumentNullException.ThrowIfNull(labelFor);
+
         // Recorded, so the on-screen view can draw the strip sharp at its own size (#251).
         using var recording = new RecordedRender(width, height);
 
@@ -2235,8 +2257,6 @@ public static class BitmapHelper
 
             DrawStripWallpaperOrColor(canvas, config, side, width, height, SKColors.Black);
 
-            var buttons = page.RotaryButtons;
-            var count = buttons?.Count ?? 0;
             if (count == 0)
                 return recording.Finish();
 
@@ -2262,7 +2282,7 @@ public static class BitmapHelper
                     if (drawn) continue;
                 }
 
-                var text = buttons[i]?.DisplayText;
+                var text = labelFor(i);
 
                 // A dial bound to an adjustment command shows that command's value instead of
                 // a bare label: the bar says where it sits, the text says what it is.

@@ -160,6 +160,11 @@ public partial class LoupedeckLiveSController(
     private readonly ISideStripSession[] _stripSession = new ISideStripSession[2];
     private readonly ISideStripProvider[] _stripProvider = new ISideStripProvider[2];
     private readonly RotaryButtonPage[] _stripPage = new RotaryButtonPage[2];
+    // The open plugin folder that owns the side's strip (#378), or null outside a folder. While
+    // set, _stripSession holds the session that folder created (or null when it declined), so
+    // drawing, animation and input reuse the plugin-override paths unchanged.
+    private readonly Services.FolderNavigation.IFolderProvider[] _stripFolder =
+        new Services.FolderNavigation.IFolderProvider[2];
     private readonly SemaphoreSlim[] _stripRedrawGate = [new(1, 1), new(1, 1)];
     private readonly long[] _stripRedrawGen = new long[2];
     private readonly long[] _stripDrawnGen = new long[2];
@@ -1075,13 +1080,14 @@ public partial class LoupedeckLiveSController(
         if (StopFullDisplayOnInput()) return;
 
         if (_isDeviceOff || exclusiveMode.Owns(ExclusiveControlScope.SideDisplays) ||
-            folderNav.IsActive || _screensaverActive || _fullDisplayActive)
+            _screensaverActive || _fullDisplayActive)
             return;
 
         var side = ToRotarySide(e.Side);
 
         // A plugin-override strip owns its gestures: the provider decides whether to
-        // page (via the context callbacks) or consume the swipe.
+        // page (via the context callbacks) or consume the swipe. Inside a folder that is the
+        // folder's own strip session.
         if (IsPluginStripActive(side, out var session))
         {
             var direction = e.Direction == SwipeDirection.Up ? StripSwipeDirection.Up : StripSwipeDirection.Down;
@@ -1089,6 +1095,10 @@ public partial class LoupedeckLiveSController(
             catch (Exception ex) { Console.WriteLine($"Side-strip session swipe failed: {ex.Message}"); }
             return;
         }
+
+        // The rotary pages are frozen while a folder is open.
+        if (folderNav.IsActive)
+            return;
 
         // Non-plugin strips: the finger-follow drag state machine (OnTouchButtonPress →
         // HandleStripDragEnd) owns paging and commits distance-based on release. Ignore
@@ -1141,6 +1151,13 @@ public partial class LoupedeckLiveSController(
         var device = deviceService.Device;
         if (device is not { HasSideStrips: true })
             return;
+
+        // An open plugin folder owns the strips (#378).
+        if (folderNav.IsActive)
+        {
+            await PushStrip(side, RenderFolderStrip(side));
+            return;
+        }
 
         var page = pageManager.GetCurrentRotaryPage(side);
         if (page == null) return;
@@ -1312,12 +1329,24 @@ public partial class LoupedeckLiveSController(
         await RedrawWheel();
         if (deviceService.Device?.HasSideStrips != true) return;
         if (exclusiveMode.Owns(ExclusiveControlScope.SideDisplays)) return;
-        EnsureStripAttachment(RotarySide.Left);
-        EnsureStripAttachment(RotarySide.Right);
-        EnsureSegmentAttachment(RotarySide.Left);
-        EnsureSegmentAttachment(RotarySide.Right);
+        EnsureSideStripAttachment(RotarySide.Left);
+        EnsureSideStripAttachment(RotarySide.Right);
         await DrawSideStrip(RotarySide.Left);
         await DrawSideStrip(RotarySide.Right);
+    }
+
+    /// <summary>Attaches whatever owns the side's strip right now: the open folder's session, or
+    /// the current rotary page's plugin-override and segment sessions.</summary>
+    private void EnsureSideStripAttachment(RotarySide side)
+    {
+        if (folderNav.IsActive)
+        {
+            EnsureFolderStripAttachment(side);
+            return;
+        }
+
+        EnsureStripAttachment(side);
+        EnsureSegmentAttachment(side);
     }
 
     /// <summary>Repaints a single side strip — public entry for the UI after the user
@@ -1326,8 +1355,7 @@ public partial class LoupedeckLiveSController(
     /// No-op on devices without side strips.</summary>
     public Task RefreshSideStrip(RotarySide side)
     {
-        EnsureStripAttachment(side);
-        EnsureSegmentAttachment(side);
+        EnsureSideStripAttachment(side);
         return DrawSideStrip(side);
     }
 
@@ -1344,6 +1372,9 @@ public partial class LoupedeckLiveSController(
     {
         if (deviceService.Device?.HasSideStrips != true || side == RotarySide.Both)
             return Task.CompletedTask;
+
+        // The page's animated strip layers are hidden while a folder owns the strips.
+        if (folderNav.IsActive) return Task.CompletedTask;
 
         var idx = SideIndex(side);
 
@@ -1471,8 +1502,10 @@ public partial class LoupedeckLiveSController(
         if (page is { StripMode: StripMode.PluginOverride })
             desired = sideStripRegistry.Get(page.StripPluginId);
 
-        // Nothing changed (same page object, same resolved provider) → keep the session.
-        if (ReferenceEquals(_stripPage[idx], page) && ReferenceEquals(_stripProvider[idx], desired))
+        // Nothing changed (same page object, same resolved provider) → keep the session. A
+        // session a folder left behind never counts as unchanged.
+        if (_stripFolder[idx] == null &&
+            ReferenceEquals(_stripPage[idx], page) && ReferenceEquals(_stripProvider[idx], desired))
             return;
 
         DetachStripAt(idx);
@@ -1538,6 +1571,7 @@ public partial class LoupedeckLiveSController(
         _stripSession[idx] = null;
         _stripProvider[idx] = null;
         _stripPage[idx] = null;
+        _stripFolder[idx] = null;
         // Clear the animation slot before disposing, so no new frame starts on a dying session.
         DetachAnimatedStripSession(idx);
         if (session == null) return;
@@ -1643,6 +1677,15 @@ public partial class LoupedeckLiveSController(
     {
         session = null;
         if (deviceService.Device?.HasSideStrips != true || side == RotarySide.Both) return false;
+
+        // Inside a folder the folder's own session takes the strip's input.
+        if (folderNav.IsActive)
+        {
+            var idx = SideIndex(side);
+            session = _stripFolder[idx] != null ? _stripSession[idx] : null;
+            return session != null;
+        }
+
         var page = pageManager.GetCurrentRotaryPage(side);
         if (page is not { StripMode: StripMode.PluginOverride }) return false;
         session = _stripSession[SideIndex(side)];
@@ -1686,7 +1729,7 @@ public partial class LoupedeckLiveSController(
             // A later request already rendered at least this fresh (RenderStrip reads
             // live provider state, so the newest frame is always what gets drawn).
             if (Interlocked.Read(ref _stripDrawnGen[idx]) >= requested) return;
-            if (_isDeviceOff || folderNav.IsActive || exclusiveMode.Owns(ExclusiveControlScope.SideDisplays) ||
+            if (_isDeviceOff || exclusiveMode.Owns(ExclusiveControlScope.SideDisplays) ||
                 _screensaverActive || _fullDisplayActive) return;
 
             var since = Environment.TickCount64 - _stripLastDrawTick[idx];
@@ -2036,6 +2079,20 @@ public partial class LoupedeckLiveSController(
         {
             foreach (var touch in e.Touches)
             {
+                // The strips are not folder slots: a touch there is tracked like on a plugin-override
+                // strip, and its release routes a tap to the folder's strip session (#378).
+                if (IsSideStripSlot(touch.Target.Key))
+                {
+                    if (e.ChangedTouch != null && touch.Id != e.ChangedTouch.Id)
+                        continue;
+
+                    var folderStripSide = touch.Target.Key == LoupedeckDevice.Device.RazerStreamControllerDevice.RightSideIndex
+                        ? RotarySide.Right
+                        : RotarySide.Left;
+                    TrackStripTapSample(SideIndex(folderStripSide), touch.Y, touch.Id);
+                    continue;
+                }
+
                 HandleFolderTouch(touch.Target.Key);
             }
             return;
@@ -2236,6 +2293,11 @@ public partial class LoupedeckLiveSController(
                 {
                     try { action().GetAwaiter().GetResult(); }
                     catch (Exception ex) { Console.WriteLine($"Folder rotary failed: {ex.Message}"); }
+
+                    // Like a dial bound to an adjustment command, the indicator follows the turn
+                    // without waiting for the folder to announce the new value.
+                    if (ov.GetValue != null && !IsWheelIndex(rotaryIndex))
+                        _ = RefreshAdjustmentIndicator(rotaryIndex);
                 }
             }
             return;
@@ -2625,7 +2687,11 @@ public partial class LoupedeckLiveSController(
             // display; the early returns below skip the branch further down that resets
             // this flag, so reset it here too — otherwise the next real folder entry sees
             // a stale "already open" and skips blanking the side strips.
-            if (!folderNav.IsActive) _folderModeWasActive = false;
+            if (!folderNav.IsActive)
+            {
+                _folderModeWasActive = false;
+                DetachFolderStrips();
+            }
 
             if (device == null) return;
 
@@ -2637,15 +2703,11 @@ public partial class LoupedeckLiveSController(
             {
                 FolderGrid grid = folderNav.Grid;
 
-                // Folder mode owns the grid. The strips are not part of the folder — a
-                // key-sized tile does not fit a 60x270 strip region — so on entry (not on
-                // every entry change within an already-open folder) the providers are
-                // stopped and the strips are blanked once, rather than painted per slot.
+                // Folder mode owns the grid and the strips. The page's strip sessions stop on
+                // entry (not on every entry change within an already-open folder); the strips
+                // then belong to the folder (#378) and are repainted after the grid below.
                 if (!_folderModeWasActive && device.HasSideStrips)
-                {
                     DetachAllSideStripProviders();
-                    await BlankSideStrips(device, grid);
-                }
 
                 _folderModeWasActive = true;
 
@@ -2684,6 +2746,17 @@ public partial class LoupedeckLiveSController(
                 {
                     foreach (SkiaSharp.SKBitmap tile in tiles) tile?.Dispose();
                 }
+
+                // A folder change (opened, sub-folder, back) swaps the strip sessions; any other
+                // announcement repaints the strips, which is how a dial's label and value follow
+                // the folder's EntriesChanged.
+                if (device.HasSideStrips && !_isDeviceOff && !_screensaverActive && !_fullDisplayActive)
+                {
+                    EnsureFolderStripAttachment(RotarySide.Left);
+                    EnsureFolderStripAttachment(RotarySide.Right);
+                    await RedrawStripCoalesced(RotarySide.Left, 0);
+                    await RedrawStripCoalesced(RotarySide.Right, 1);
+                }
             }
             else
             {
@@ -2716,21 +2789,161 @@ public partial class LoupedeckLiveSController(
     }
 
     /// <summary>
-    /// Draws one black frame to each side strip when folder mode is entered. The strips are
-    /// not part of the folder grid, so instead of leaving stale plugin/segment content on
-    /// screen the panel is blanked once; <see cref="RedrawSideStrips"/> repaints it (and
-    /// re-attaches the providers stopped above) when folder mode is left.
+    /// Makes the side's strip session match the open folder: a folder that just became visible
+    /// gets asked for its session (<see cref="PluginSdk.IFolderSideStripProvider"/>), replacing the
+    /// previous folder's or page's. Idempotent while the same folder stays open, so a takeover that
+    /// detached the session (device off, screensaver, full display) gets a fresh one on its way back.
     /// </summary>
-    private async Task BlankSideStrips(LoupedeckDevice.Device.LoupedeckDevice device, FolderGrid grid)
+    private void EnsureFolderStripAttachment(RotarySide side)
     {
-        using SkiaSharp.SKBitmap blank = new(StripWidth, StripHeight);
-        using (SkiaSharp.SKCanvas canvas = new(blank))
+        if (deviceService.Device?.HasSideStrips != true || side == RotarySide.Both) return;
+
+        var idx = SideIndex(side);
+        var folder = folderNav.CurrentProvider;
+        if (folder != null && ReferenceEquals(_stripFolder[idx], folder)) return;
+
+        DetachStripAt(idx);
+        DetachSegmentAt(idx);
+        if (folder == null) return;
+        _stripFolder[idx] = folder;
+
+        var context = new SideStripContext
         {
-            canvas.Clear(SkiaSharp.SKColors.Black);
+            Side = side == RotarySide.Right ? StripSide.Right : StripSide.Left,
+            Width = StripWidth,
+            Height = StripHeight,
+            Rotaries = BuildFolderStripRotaries(FolderStripOverrides(side)),
+            // The rotary pages are frozen while a folder is open.
+            RequestNextPage = static () => { },
+            RequestPreviousPage = static () => { }
+        };
+
+        try
+        {
+            var session = folder.CreateSideStripSession(context);
+            if (session == null) return;
+            _stripSession[idx] = session;
+            session.StripChanged += OnStripSessionChanged;
+            AttachAnimatedStripSession(idx, session);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Folder '{folder.Title}' side-strip CreateSideStripSession failed: {ex.Message}");
+        }
+    }
+
+    /// <summary>Drops the strip sessions an open folder created. Called when folder mode ends,
+    /// before the page's own sessions are attached again.</summary>
+    private void DetachFolderStrips()
+    {
+        for (var idx = 0; idx < 2; idx++)
+        {
+            if (_stripFolder[idx] != null)
+                DetachStripAt(idx);
+        }
+    }
+
+    /// <summary>The open folder's rotary overrides for the dials next to one strip, top to bottom
+    /// (null where the folder does not override a dial).</summary>
+    private Services.FolderNavigation.RotaryOverride[] FolderStripOverrides(RotarySide side)
+    {
+        var count = RotaryButtonPage.StripSegmentCount;
+        var result = new Services.FolderNavigation.RotaryOverride[count];
+
+        IReadOnlyDictionary<int, Services.FolderNavigation.RotaryOverride> overrides;
+        try { overrides = folderNav.CurrentProvider?.RotaryOverrides; }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Folder rotary overrides failed: {ex.Message}");
+            return result;
         }
 
-        await device.DrawTouchSlot(grid.LeftStripSlot, blank);
-        await device.DrawTouchSlot(grid.RightStripSlot, blank);
+        if (overrides == null) return result;
+
+        var first = side == RotarySide.Right ? count : 0;
+        for (var i = 0; i < count; i++)
+        {
+            if (overrides.TryGetValue(first + i, out var ov))
+                result[i] = ov;
+        }
+
+        return result;
+    }
+
+    /// <summary>Maps the folder's dials to the SDK's rotary context. They have no command strings;
+    /// label and value come from the folder's rotary overrides.</summary>
+    private static IReadOnlyList<SideStripRotary> BuildFolderStripRotaries(
+        Services.FolderNavigation.RotaryOverride[] overrides)
+    {
+        var list = new List<SideStripRotary>(overrides.Length);
+        for (var i = 0; i < overrides.Length; i++)
+        {
+            var ov = overrides[i];
+            list.Add(new SideStripRotary
+            {
+                Index = i,
+                Label = ov?.Label ?? string.Empty,
+                GetValue = ov?.GetValue ?? (static () => null)
+            });
+        }
+        return list;
+    }
+
+    /// <summary>
+    /// Renders one strip while a plugin folder is open (#378). The folder's session draws the whole
+    /// strip when it accepts; otherwise the strip is composed of segments, which the session may
+    /// draw one by one (<see cref="ISegmentStripSession"/>) and which otherwise show the dial's
+    /// override label and value. A folder that offers none of this keeps the black strip it always had.
+    /// </summary>
+    private SkiaSharp.SKBitmap RenderFolderStrip(RotarySide side)
+    {
+        var idx = SideIndex(side);
+        var overrides = FolderStripOverrides(side);
+
+        // Pulled here, before the Skia gate, for the reason given in RenderStripFor: a value is
+        // plugin code that may wait on its backend.
+        var labels = new string[overrides.Length];
+        var values = new AdjustmentValue?[overrides.Length];
+        for (var i = 0; i < overrides.Length; i++)
+        {
+            labels[i] = overrides[i]?.Label;
+            if (overrides[i]?.GetValue is not { } getValue) continue;
+
+            try { values[i] = getValue(); }
+            catch (Exception ex) { Console.WriteLine($"Folder dial value {i} ({side}) failed: {ex.Message}"); }
+        }
+
+        var session = _stripFolder[idx] != null ? _stripSession[idx] : null;
+        if (session != null)
+        {
+            // Same render as a plugin-override strip (RenderPluginStripOrFallback).
+            try
+            {
+                using var recording = new RecordedRender(StripWidth, StripHeight);
+                lock (SkiaRenderGate.Sync)
+                {
+                    var rc = new SkiaRenderCanvas(recording.Canvas, StripWidth, StripHeight);
+                    if (session.RenderStrip(rc))
+                        return recording.Finish();
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Folder side-strip session RenderStrip failed ({side}): {ex.Message}");
+            }
+        }
+
+        var segments = session as ISegmentStripSession;
+        if (segments == null && labels.All(string.IsNullOrWhiteSpace) && values.All(v => !v.HasValue))
+        {
+            var blank = new SkiaSharp.SKBitmap(StripWidth, StripHeight);
+            using (var canvas = new SkiaSharp.SKCanvas(blank))
+                canvas.Clear(SkiaSharp.SKColors.Black);
+            return blank;
+        }
+
+        return BitmapHelper.RenderRotaryStrip(overrides.Length, i => labels[i], config, StripWidth, StripHeight,
+            side, segments == null ? null : (i, rc) => segments.RenderSegment(i, rc), i => values[i]);
     }
 
     private void OnTouchLayoutChanged()
