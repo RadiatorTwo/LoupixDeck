@@ -102,12 +102,38 @@ public sealed partial class FolderPanelViewModel : ViewModelBase
     [ObservableProperty]
     public partial string PathLabel { get; private set; } = string.Empty;
 
+    /// <summary>Whether keys opening a folder carry the folder badge, a setting of the active workspace.</summary>
+    [ObservableProperty]
+    public partial bool ShowFolderBadges { get; set; } = true;
+
     public ObservableCollection<FolderNodeViewModel> RootNodes { get; } = [];
 
     /// <summary>The folder rows currently shown, in tree order.</summary>
     public ObservableCollection<FolderNodeViewModel> VisibleRows { get; } = [];
 
     partial void OnSearchQueryChanged(string value) => RefreshRows();
+
+    partial void OnShowFolderBadgesChanged(bool value)
+    {
+        Workspace workspace = _config.ActiveWorkspace;
+        if (workspace == null || workspace.ShowFolderBadges == value) return;
+
+        workspace.ShowFolderBadges = value;
+        _controller.SaveConfig();
+        _ = RedrawForBadgesAsync();
+    }
+
+    private async Task RedrawForBadgesAsync()
+    {
+        try
+        {
+            await _controller.RedrawCurrentTouchPage();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[FolderPanel] repainting after the folder badge toggle failed: {ex.Message}");
+        }
+    }
 
     // ── Tree state ─────────────────────────────────────────────────────────
 
@@ -140,6 +166,7 @@ public sealed partial class FolderPanelViewModel : ViewModelBase
                 RootNodes.Add(BuildNode(folder, null));
 
         WorkspaceName = _config.ActiveWorkspace?.Name ?? string.Empty;
+        ShowFolderBadges = _config.ActiveWorkspace?.ShowFolderBadges ?? true;
         CanEditStructure = _config.CompanionLink == null;
         ShowEmptyHint = RootNodes.Count == 0 && CanEditStructure;
         RefreshCurrent();

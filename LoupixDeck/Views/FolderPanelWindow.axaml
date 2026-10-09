@@ -49,7 +49,7 @@
         </Style>
 
         <!-- Header actions, the same square buttons as next to the apps and commands search. -->
-        <Style Selector="Button.panel-action">
+        <Style Selector="Button.panel-action, ToggleButton.panel-action">
             <Setter Property="Width" Value="30" />
             <Setter Property="Height" Value="30" />
             <Setter Property="Padding" Value="0" />
@@ -66,6 +66,11 @@
         </Style>
         <Style Selector="Button.panel-action:disabled">
             <Setter Property="Opacity" Value="0.35" />
+        </Style>
+        <Style Selector="ToggleButton.panel-action:checked /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource AppControlBackgroundActive}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AppBorderSubtle}" />
+            <Setter Property="Foreground" Value="#4DA3FF" />
         </Style>
 
         <!-- Borderless in-row glyph button: the expand caret. -->
@@ -113,19 +118,24 @@
         <Border BorderBrush="{DynamicResource AppBorderSubtle}" BorderThickness="1,0,0,0">
             <DockPanel>
                 <!-- Header: title, folder count, new and delete. -->
-                <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto,Auto,Auto" Margin="8,8,8,6">
+                <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto,Auto,Auto,Auto" Margin="8,8,8,6">
                     <TextBlock Grid.Column="0" Classes="section-header" Margin="6,0,0,0"
                                VerticalAlignment="Center"
                                Text="{loc:Tr FolderPanel_Title}" />
                     <TextBlock Grid.Column="1" Classes="row-count" Margin="0,0,4,0"
                                Text="{Binding Counter}" />
+                    <!-- mdi-folder-eye-outline. A workspace option, saved with the folders: the badge on
+                         keys that open a folder. -->
+                    <ToggleButton Grid.Column="2" Classes="panel-action" Content="&#xF178B;"
+                                  IsChecked="{Binding ShowFolderBadges}"
+                                  ToolTip.Tip="{loc:Tr FolderPanel_ShowBadges}" />
                     <!-- mdi-folder-plus-outline -->
-                    <Button Grid.Column="2" Classes="panel-action" Content="&#xF0B9D;"
+                    <Button Grid.Column="3" Classes="panel-action" Content="&#xF0B9D;"
                             IsEnabled="{Binding CanEditStructure}"
                             ToolTip.Tip="{loc:Tr FolderPanel_NewFolder}"
                             Command="{Binding NewFolderCommand}" />
                     <!-- mdi-delete-outline -->
-                    <Button Grid.Column="3" Classes="panel-action" Content="&#xF09E7;"
+                    <Button Grid.Column="4" Classes="panel-action" Content="&#xF09E7;"
                             IsEnabled="{Binding CanDeleteCurrent}"
                             ToolTip.Tip="{loc:Tr FolderPanel_DeleteFolder}"
                             Command="{Binding DeleteCurrentCommand}" />

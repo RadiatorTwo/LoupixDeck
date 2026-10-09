@@ -207,6 +207,15 @@ public partial class Workspace : ObservableObject
     public bool ShouldSerializeFolders() => Folders is { Count: > 0 };
 
     /// <summary>
+    /// Whether keys opening a custom folder carry the small folder badge. Saved with the folders,
+    /// and only when switched off, so files written before this existed keep showing the badge.
+    /// </summary>
+    [ObservableProperty]
+    public partial bool ShowFolderBadges { get; set; } = true;
+
+    public bool ShouldSerializeShowFolderBadges() => !ShowFolderBadges;
+
+    /// <summary>
     /// The folders opened from the current page, outermost first. Runtime only: a launch or a
     /// workspace switch always starts on a page. Replaced as a whole, never mutated, so the
     /// device read thread can read it without a lock.

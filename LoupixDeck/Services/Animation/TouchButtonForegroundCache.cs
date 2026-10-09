@@ -23,13 +23,16 @@ public sealed class TouchButtonForegroundCache : IDisposable
 {
     private readonly int _width;
     private readonly int _height;
+    private readonly Func<bool> _showFolderBadges;
     private readonly Dictionary<int, SKBitmap> _entries = [];
     private bool _disposed;
 
-    public TouchButtonForegroundCache(int width, int height)
+    /// <param name="showFolderBadges">Read on every render, so a toggle takes effect with the next invalidation.</param>
+    public TouchButtonForegroundCache(int width, int height, Func<bool> showFolderBadges = null)
     {
         _width = width;
         _height = height;
+        _showFolderBadges = showFolderBadges;
     }
 
     /// <summary>
@@ -48,7 +51,7 @@ public sealed class TouchButtonForegroundCache : IDisposable
 
             // Nothing to draw: cache the absence too, so an empty key does not re-render forever.
             var foreground = button.Layers is { Count: > 0 }
-                ? BitmapHelper.RenderTouchButtonForeground(button, _width, _height)
+                ? BitmapHelper.RenderTouchButtonForeground(button, _width, _height, _showFolderBadges?.Invoke() ?? true)
                 : null;
 
             _entries[button.Index] = foreground;
