@@ -1373,13 +1373,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     }
 
     /// <summary>True when the layer belongs to the command currently bound to the button.</summary>
-    private bool IsOwnedByBoundCommand(LayerBase layer)
-    {
-        if (layer == null || !layer.IsCommandOwned) return false;
-
-        string boundKey = PluginLayerKey.For(ButtonData?.Command);
-        return boundKey != null && string.Equals(layer.OwnerKey, boundKey, StringComparison.Ordinal);
-    }
+    private bool IsOwnedByBoundCommand(LayerBase layer) => layer?.IsOwnedBy(ButtonData?.Command) == true;
 
     /// <summary>
     /// The layers as the list shows them: topmost first. A reversed mirror of
