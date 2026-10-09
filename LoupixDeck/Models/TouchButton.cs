@@ -21,8 +21,28 @@ public class TouchButton : StatefulButton
         PropertyChanged += (_, e) =>
         {
             if (e.PropertyName == nameof(Command))
+            {
                 OnPropertyChanged(nameof(ShowsCommandHint));
+                RefreshIfFolderBadgeChanged();
+            }
         };
+    }
+
+    // Whether the command last seen opens a custom folder, i.e. whether the key carries the badge.
+    private bool _opensFolder;
+
+    /// <summary>
+    /// Repaints the key when a command change adds or removes the folder badge. The command is
+    /// not part of the layers, so nothing else repaints for it: clearing a moved folder key
+    /// empties the layers first and the command after, which left the badge on the device.
+    /// </summary>
+    private void RefreshIfFolderBadgeChanged()
+    {
+        bool opensFolder = Services.Folders.FolderCommand.OpensFolder(Command);
+        if (opensFolder == _opensFolder) return;
+
+        _opensFolder = opensFolder;
+        if (!IsSyncingCommand) Refresh();
     }
 
     /// <summary>Parameterless ctor for the JSON deserializer.</summary>

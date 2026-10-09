@@ -173,6 +173,12 @@ public abstract class StatefulButton : LoupedeckButton
 
     private bool _syncingCommand;
 
+    /// <summary>
+    /// True while <see cref="Command"/> is being mirrored from the active state. A state switch
+    /// refreshes the button itself once the mirror is done.
+    /// </summary>
+    protected bool IsSyncingCommand => _syncingCommand;
+
     protected void SyncCommandFromActiveState()
     {
         // Mirror the active state's command into the inherited Command so the press handler and
