@@ -151,6 +151,12 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
     /// </summary>
     public bool IsDisplayStateSupported { get; }
 
+    /// <summary>
+    /// Whether this platform reports the desktop screen saver, which "Start with the desktop
+    /// screen saver" depends on (issue #382). Windows only.
+    /// </summary>
+    public bool IsDesktopScreenSaverSupported { get; }
+
     public SettingsViewModel(LoupedeckConfig config,
         IDeviceService deviceService,
         IPageManager pageManager,
@@ -172,6 +178,7 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
         IDisplayStateService displayState)
     {
         IsDisplayStateSupported = displayState.IsSupported;
+        IsDesktopScreenSaverSupported = displayState.IsScreenSaverSupported;
         _companions = companions;
         Diagnostics = diagnostics;
         _contextSync = contextSync;

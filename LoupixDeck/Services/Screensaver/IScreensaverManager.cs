@@ -25,6 +25,13 @@ public interface IScreensaverManager
     /// it (not also run the button/touch/rotary action).</summary>
     bool NotifyActivity();
 
+    /// <summary>
+    /// Starts the screensaver now instead of after the idle countdown, even when the idle
+    /// screensaver is turned off; used to follow the desktop screen saver (issue #382). Does
+    /// nothing while disarmed or already running. The first input stops it as usual.
+    /// </summary>
+    void StartNow();
+
     /// <summary>Stops any running screensaver and the idle countdown. Call on shutdown.</summary>
     void Stop();
 

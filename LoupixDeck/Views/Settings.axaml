@@ -864,13 +864,27 @@
                             <TextBlock Classes="hint" Margin="0,4,0,0"
                                        Text="{loc:Tr Settings_FillsTheWholeDisplayAfter}"/>
 
+                            <CheckBox Content="{loc:Tr Settings_ScreensaverWithDesktop}" Margin="0,10,0,0"
+                                      IsVisible="{Binding IsDesktopScreenSaverSupported}"
+                                      IsChecked="{Binding Config.ScreensaverWithDesktop, Mode=TwoWay}" />
+                            <TextBlock Classes="hint" Margin="0,4,0,0"
+                                       IsVisible="{Binding IsDesktopScreenSaverSupported}"
+                                       Text="{loc:Tr Settings_ScreensaverWithDesktopHint}"/>
+
                             <TextBlock Classes="hint" Margin="0,8,0,0"
                                        Foreground="#E6A23C"
                                        IsVisible="{Binding ShowFfmpegHint}"
                                        Text="{loc:Tr Settings_FfmpegWasNotFoundOn}"/>
 
+                            <!-- The source is used by the idle screensaver and by the desktop one alike. -->
                             <Grid ColumnDefinitions="120,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto"
-                                  Margin="0,10,0,0" IsEnabled="{Binding Config.ScreensaverEnabled}">
+                                  Margin="0,10,0,0">
+                                <Grid.IsEnabled>
+                                    <MultiBinding Converter="{x:Static BoolConverters.Or}">
+                                        <Binding Path="Config.ScreensaverEnabled" />
+                                        <Binding Path="Config.ScreensaverWithDesktop" />
+                                    </MultiBinding>
+                                </Grid.IsEnabled>
                                 <!-- Source kind -->
                                 <TextBlock Grid.Row="0" Grid.Column="0" Classes="label" Text="{loc:Tr Settings_Source}"
                                            VerticalAlignment="Center" />
@@ -906,9 +920,10 @@
 
                                 <!-- Idle timeout -->
                                 <TextBlock Grid.Row="3" Grid.Column="0" Classes="label" Text="{loc:Tr Settings_IdleTimeout}"
-                                           VerticalAlignment="Center" Margin="0,8,0,0" />
+                                           VerticalAlignment="Center" Margin="0,8,0,0"
+                                           IsEnabled="{Binding Config.ScreensaverEnabled}" />
                                 <StackPanel Grid.Row="3" Grid.Column="1" Orientation="Horizontal" Spacing="8"
-                                            Margin="0,8,0,0">
+                                            Margin="0,8,0,0" IsEnabled="{Binding Config.ScreensaverEnabled}">
                                     <NumericUpDown Width="120" Minimum="5" Maximum="3600" Increment="5"
                                                    FormatString="0"
                                                    Value="{Binding Config.ScreensaverIdleTimeoutSeconds, Mode=TwoWay}" />

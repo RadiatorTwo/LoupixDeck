@@ -123,6 +123,10 @@ public partial class LoupedeckLiveSController(
     /// <see cref="HandleDesktopScreenSaver"/>.</summary>
     private volatile bool _desktopScreenSaver;
 
+    /// <summary>True while the screensaver plays because the desktop screen saver runs, so its
+    /// end stops it again. Cleared whenever the screensaver stops for any reason.</summary>
+    private volatile bool _screensaverForDesktop;
+
     /// <summary>Who switched the device off.</summary>
     private enum OffReason
     {
@@ -238,21 +242,45 @@ public partial class LoupedeckLiveSController(
 
     /// <summary>
     /// Whether the host's idle state asks for a dark device: it follows the monitors, and the
-    /// monitors are off or the desktop screen saver runs (#382).
+    /// monitors are off or the desktop screen saver runs. A device set to play its screensaver
+    /// with the desktop one does that instead while the monitors are still on (#382).
     /// </summary>
-    private bool HostWantsOff() => config.TurnOffWithDisplays && (!_displaysOn || _desktopScreenSaver);
+    private bool HostWantsOff() => config.TurnOffWithDisplays &&
+                                   (!_displaysOn || (_desktopScreenSaver && !config.ScreensaverWithDesktop));
+
+    /// <summary>Whether the screensaver should play along with the desktop screen saver (#382).</summary>
+    private bool HostWantsScreensaver() => config.ScreensaverWithDesktop && _desktopScreenSaver && _displaysOn;
 
     /// <summary>
     /// Brings the device in line with the host's idle state: dark while the host asks for it,
-    /// marked so that only the host waking switches it back on, and on again once it does. A
-    /// device the user turned off is left alone either way.
+    /// marked so that only the host waking switches it back on, and on again once it does; the
+    /// screensaver playing while the desktop one runs, if set. A device the user turned off is
+    /// left alone either way.
     /// </summary>
     private async Task ApplyHostIdleState()
     {
         if (HostWantsOff())
+        {
             await EnterOffState(OffReason.Displays);
-        else if (_blankedForDisplays)
+            return;
+        }
+
+        if (_blankedForDisplays)
             await RestoreDeviceState();
+        if (_isDeviceOff) return;
+
+        if (HostWantsScreensaver())
+        {
+            // A screensaver the device's own idle countdown started is left to that countdown.
+            if (screensaver.IsRunning) return;
+            _screensaverForDesktop = true;
+            screensaver.StartNow();
+        }
+        else if (_screensaverForDesktop)
+        {
+            _screensaverForDesktop = false;
+            screensaver.StopRunning();
+        }
     }
 
     private async Task EnterOffState(OffReason reason)
@@ -764,6 +792,7 @@ public partial class LoupedeckLiveSController(
     private void OnScreensaverStopped()
     {
         _screensaverActive = false;
+        _screensaverForDesktop = false;
         _ = RedrawCurrentTouchPage();
     }
 
@@ -3613,8 +3642,10 @@ public partial class LoupedeckLiveSController(
                     break;
 
                 case nameof(LoupedeckConfig.TurnOffWithDisplays):
-                    // No longer following the monitors: a device they blanked comes back now
-                    // instead of staying dark until they wake (#382).
+                case nameof(LoupedeckConfig.ScreensaverWithDesktop):
+                    // Re-weigh the host's idle state against the new setting right away, e.g. a
+                    // device the monitors blanked comes back instead of staying dark until they
+                    // wake (#382).
                     await ApplyHostIdleState();
                     break;
 

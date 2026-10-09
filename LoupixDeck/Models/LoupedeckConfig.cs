@@ -190,6 +190,12 @@ public partial class LoupedeckConfig : ObservableObject
     [ObservableProperty]
     public partial bool ScreensaverLoop { get; set; } = true;
 
+    // Play the screensaver while the host's desktop screen saver runs, independent of the idle
+    // timeout above; while it runs this wins over TurnOffWithDisplays (issue #382). Absent in
+    // older configs, which keeps the previous behavior.
+    [ObservableProperty]
+    public partial bool ScreensaverWithDesktop { get; set; }
+
     // Which source drives the screensaver (issue #124). Absent in configs saved before the plugin
     // source existed, so the default reproduces the original video playback exactly.
     [ObservableProperty]

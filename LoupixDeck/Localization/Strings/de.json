@@ -1365,5 +1365,7 @@
   "Confirm_Apply": "Anwenden",
   "Settings_TurnOffWithDisplays": "Mit den Monitoren ausschalten",
   "Settings_TurnOffWithDisplaysHint": "Schaltet das Gerät aus, wenn der Computer die Monitore abschaltet, und wieder ein, sobald sie aufwachen. Ein Gerät, das du selbst ausgeschaltet hast, bleibt aus.",
-  "Settings_TurnOffWithDisplaysUnsupported": "Dieser Desktop meldet nicht, wann sich die Monitore abschalten, daher kann das Gerät ihnen nicht folgen."
+  "Settings_TurnOffWithDisplaysUnsupported": "Dieser Desktop meldet nicht, wann sich die Monitore abschalten, daher kann das Gerät ihnen nicht folgen.",
+  "Settings_ScreensaverWithDesktop": "Mit dem Desktop-Bildschirmschoner starten",
+  "Settings_ScreensaverWithDesktopHint": "Spielt den Bildschirmschoner auf dem Gerät ab, solange der Windows-Bildschirmschoner läuft, auch wenn der animierte Bildschirmschoner oben aus ist. Währenddessen bleibt das Gerät an, statt sich mit den Monitoren auszuschalten."
 }

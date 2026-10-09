@@ -1365,5 +1365,7 @@
   "Confirm_Apply": "Apply",
   "Settings_TurnOffWithDisplays": "Turn off with the monitors",
   "Settings_TurnOffWithDisplaysHint": "Switches the device off when the computer turns its monitors off, and back on when they wake. A device you turned off yourself stays off.",
-  "Settings_TurnOffWithDisplaysUnsupported": "This desktop does not report when the monitors turn off, so the device cannot follow them."
+  "Settings_TurnOffWithDisplaysUnsupported": "This desktop does not report when the monitors turn off, so the device cannot follow them.",
+  "Settings_ScreensaverWithDesktop": "Start with the desktop screen saver",
+  "Settings_ScreensaverWithDesktopHint": "Plays the screensaver while the Windows screen saver runs, even when the idle screensaver is off. While it plays, the device stays on instead of turning off with the monitors."
 }
