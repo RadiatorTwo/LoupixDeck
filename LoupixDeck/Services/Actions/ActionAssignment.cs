@@ -386,7 +386,8 @@ public static class ActionAssignment
     /// </summary>
     public static ButtonTemplatePlan PlanTemplate(TouchButton button, ButtonTemplate template, int keyWidthPx,
         int keyHeightPx)
-        => PlanTemplate(button?.Layers, button?.Command, template, keyWidthPx, keyHeightPx, bulk: false);
+        => PlanTemplate(button?.Layers, button?.Command, template, keyWidthPx, keyHeightPx, bulk: false,
+            drawsOnKey: null);
 
     /// <summary>
     /// The same for the layers of one state of a button, active or not, with the command bound to that
@@ -394,10 +395,12 @@ public static class ActionAssignment
     /// has nobody to edit the result, so it never adds a caption: an icon without one is laid out as
     /// icon only, and a state with neither icon nor caption, or with no text for text only, is left
     /// as it is. So is a state that shows plugin output or a dial indicator and would end up as text
-    /// alone, which would be enlarged over it.
+    /// alone, which would be enlarged over it. Plugin output counts whether its layer exists yet or
+    /// <paramref name="drawsOnKey"/> says the bound command draws one: an imported profile has no
+    /// plugin layer until the command first draws.
     /// </summary>
     private static ButtonTemplatePlan PlanTemplate(ObservableCollection<LayerBase> layers, string command,
-        ButtonTemplate template, int keyWidthPx, int keyHeightPx, bool bulk)
+        ButtonTemplate template, int keyWidthPx, int keyHeightPx, bool bulk, Func<string, bool> drawsOnKey)
     {
         if (layers == null)
             return new ButtonTemplatePlan();
@@ -408,7 +411,9 @@ public static class ActionAssignment
         if (bulk)
         {
             bool textAlone = icon == null || template == ButtonTemplate.TextOnly;
-            if (textAlone && (caption == null || layers.Any(l => l is PluginLayer or DialIndicatorLayer && l.Visible)))
+            bool drawnOver = layers.Any(l => l is PluginLayer or DialIndicatorLayer && l.Visible)
+                || drawsOnKey?.Invoke(command) == true;
+            if (textAlone && (caption == null || drawnOver))
                 return new ButtonTemplatePlan();
 
             if (caption == null)
@@ -540,20 +545,24 @@ public static class ActionAssignment
     /// plugin output or a dial indicator with only a text. Buttons in <paramref name="skip"/> are not
     /// touched at all. The active state of a button does not change.
     /// </summary>
+    /// <param name="drawsOnKey">
+    /// Whether a bound command draws plugin output onto the key, for states whose plugin layer does not
+    /// exist yet; see <see cref="Commands.CommandRegistryExtensions.DrawsOnKey"/>. Null trusts the layers.
+    /// </param>
     public static TemplateApplyResult ApplyTemplateToPages(IEnumerable<TouchButtonPage> pages, ButtonTemplate template,
-        int keyWidthPx, int keyHeightPx, IReadOnlySet<TouchButton> skip = null)
-        => RunTemplateOnPages(pages, template, keyWidthPx, keyHeightPx, skip, apply: true);
+        int keyWidthPx, int keyHeightPx, IReadOnlySet<TouchButton> skip = null, Func<string, bool> drawsOnKey = null)
+        => RunTemplateOnPages(pages, template, keyWidthPx, keyHeightPx, skip, drawsOnKey, apply: true);
 
     /// <summary>
     /// What <see cref="ApplyTemplateToPages"/> would do with the same arguments, without changing
     /// anything, so the caller can name the totals before asking.
     /// </summary>
     public static TemplateApplyResult PlanTemplateOnPages(IEnumerable<TouchButtonPage> pages, ButtonTemplate template,
-        int keyWidthPx, int keyHeightPx, IReadOnlySet<TouchButton> skip = null)
-        => RunTemplateOnPages(pages, template, keyWidthPx, keyHeightPx, skip, apply: false);
+        int keyWidthPx, int keyHeightPx, IReadOnlySet<TouchButton> skip = null, Func<string, bool> drawsOnKey = null)
+        => RunTemplateOnPages(pages, template, keyWidthPx, keyHeightPx, skip, drawsOnKey, apply: false);
 
     private static TemplateApplyResult RunTemplateOnPages(IEnumerable<TouchButtonPage> pages, ButtonTemplate template,
-        int keyWidthPx, int keyHeightPx, IReadOnlySet<TouchButton> skip, bool apply)
+        int keyWidthPx, int keyHeightPx, IReadOnlySet<TouchButton> skip, Func<string, bool> drawsOnKey, bool apply)
     {
         int buttonsChanged = 0;
         int layersRemoved = 0;
@@ -572,7 +581,7 @@ public static class ActionAssignment
                         continue;
 
                     ButtonTemplatePlan plan = PlanTemplate(state.Layers, state.Command, template, keyWidthPx,
-                        keyHeightPx, bulk: true);
+                        keyHeightPx, bulk: true, drawsOnKey);
                     if (!plan.Applies)
                         continue;
 

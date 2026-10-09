@@ -1013,7 +1013,8 @@ public sealed class ProfilePackageService(
             return null;
 
         int keySize = config.Geometry.KeySize;
-        return ActionAssignment.ApplyTemplateToPages(pages, template, keySize, keySize);
+        return ActionAssignment.ApplyTemplateToPages(pages, template, keySize, keySize,
+            drawsOnKey: commandRegistry.DrawsOnKey);
     }
 
     /// <summary>

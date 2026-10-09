@@ -9,6 +9,7 @@ using LoupixDeck.Models.Layers;
 using LoupixDeck.Registry;
 using LoupixDeck.Services;
 using LoupixDeck.Services.Actions;
+using LoupixDeck.Services.Commands;
 using LoupixDeck.Services.Import.Lp5;
 using LoupixDeck.Services.PluginStore;
 using LoupixDeck.Services.Portable;
@@ -40,13 +41,15 @@ public sealed partial class LoupedeckImportViewModel : DialogViewModelBase<Dialo
     private readonly IDeviceController _controller;
     private readonly DeviceGeometry _geometry;
     private readonly IPluginStoreService _pluginStore;
+    private readonly ICommandRegistry _commandRegistry;
 
     private string _path;
     private Lp5Archive _archive;
     private Lp5ConversionResult _preview;
 
     public LoupedeckImportViewModel(LoupedeckConfig config, IAssetService assets, IDeviceService deviceService,
-        IPageManager pageManager, IDeviceController controller, DeviceGeometry geometry, IPluginStoreService pluginStore)
+        IPageManager pageManager, IDeviceController controller, DeviceGeometry geometry, IPluginStoreService pluginStore,
+        ICommandRegistry commandRegistry)
     {
         _config = config;
         _assets = assets;
@@ -55,6 +58,7 @@ public sealed partial class LoupedeckImportViewModel : DialogViewModelBase<Dialo
         _controller = controller;
         _geometry = geometry ?? DeviceGeometry.Default;
         _pluginStore = pluginStore;
+        _commandRegistry = commandRegistry;
 
         Unmapped = new();
         Notes = new();
@@ -296,7 +300,7 @@ public sealed partial class LoupedeckImportViewModel : DialogViewModelBase<Dialo
             TemplateApplyResult? laidOut = null;
             if (template != null)
                 laidOut = ActionAssignment.ApplyTemplateToPages(profile.Workspaces.SelectMany(w => w.EnumerateTouchLayouts()),
-                    template.Value, _geometry.KeySize, _geometry.KeySize, result.UnmappedKeys);
+                    template.Value, _geometry.KeySize, _geometry.KeySize, result.UnmappedKeys, _commandRegistry.DrawsOnKey);
 
             _config.Profiles.Add(profile);
 

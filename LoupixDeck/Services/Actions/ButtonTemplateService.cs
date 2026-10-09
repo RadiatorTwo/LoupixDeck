@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using LoupixDeck.Localization;
 using LoupixDeck.Models;
 using LoupixDeck.Models.Layers;
+using LoupixDeck.Services.Commands;
 using LoupixDeck.Services.IconPacks;
 using LoupixDeck.Utils;
 using LoupixDeck.ViewModels;
@@ -56,7 +57,8 @@ public interface IButtonTemplateService
 public readonly record struct ButtonTemplateOutcome(bool Applied, SymbolLayer AddedIcon);
 
 /// <inheritdoc cref="IButtonTemplateService"/>
-public sealed class ButtonTemplateService(IDialogService dialogService, IAssetService assetService)
+public sealed class ButtonTemplateService(IDialogService dialogService, IAssetService assetService,
+    ICommandRegistry commandRegistry)
     : IButtonTemplateService
 {
     private const double PickedSymbolSize = 0.7;
@@ -119,7 +121,7 @@ public sealed class ButtonTemplateService(IDialogService dialogService, IAssetSe
 
         TouchButtonPage[] pages = [page];
         TemplateApplyResult planned = ActionAssignment.PlanTemplateOnPages(pages, template, keyWidthPx,
-            keyHeightPx, skip);
+            keyHeightPx, skip, commandRegistry.DrawsOnKey);
 
         if (planned.ButtonsChanged == 0)
         {
@@ -142,7 +144,8 @@ public sealed class ButtonTemplateService(IDialogService dialogService, IAssetSe
         if (result is not { IsConfirmed: true })
             return null;
 
-        return ActionAssignment.ApplyTemplateToPages(pages, template, keyWidthPx, keyHeightPx, skip);
+        return ActionAssignment.ApplyTemplateToPages(pages, template, keyWidthPx, keyHeightPx, skip,
+            commandRegistry.DrawsOnKey);
     }
 
     public async Task<SymbolLayer> PickSymbolLayerAsync(IEnumerable<LayerBase> layers)
