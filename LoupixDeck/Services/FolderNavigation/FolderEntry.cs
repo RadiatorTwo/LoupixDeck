@@ -31,4 +31,10 @@ public sealed class RotaryOverride
     public Func<Task> OnLeft { get; init; }
     public Func<Task> OnRight { get; init; }
     public Func<Task> OnPress { get; init; }
+
+    /// <summary>Label drawn in this dial's side-strip segment while the folder is open; null for none.</summary>
+    public string Label { get; init; }
+
+    /// <summary>Live value drawn as the dial indicator in the side-strip segment; null for none.</summary>
+    public Func<LoupixDeck.PluginSdk.AdjustmentValue?> GetValue { get; init; }
 }
