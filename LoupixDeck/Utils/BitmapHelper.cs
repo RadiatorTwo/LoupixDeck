@@ -1271,27 +1271,7 @@ public static class BitmapHelper
                 }
                 if (bmp == null) return null;
 
-                float srcW, srcH;
-                if (!image.SourceRect.IsEmpty &&
-                    image.SourceRect.Width > 0 && image.SourceRect.Height > 0)
-                {
-                    srcW = image.SourceRect.Width;
-                    srcH = image.SourceRect.Height;
-                }
-                else
-                {
-                    srcW = bmp.Width;
-                    srcH = bmp.Height;
-                }
-
-                var fit = Math.Min(deviceW / srcW, deviceH / srcH);
-                var scaleX = (float)Math.Max(0.01, image.EffectiveScaleX);
-                var scaleY = (float)Math.Max(0.01, image.EffectiveScaleY);
-                var dstW = srcW * fit * scaleX;
-                var dstH = srcH * fit * scaleY;
-                var drawX = ((deviceW - dstW) / 2f) + image.PositionX;
-                var drawY = ((deviceH - dstH) / 2f) + image.PositionY;
-                return new SKRect(drawX, drawY, drawX + dstW, drawY + dstH);
+                return ImageLayerDeviceRect(image, bmp.Width, bmp.Height, deviceW, deviceH);
             }
             case SymbolLayer symbol:
                 return CenteredSquareRect(symbol, deviceW, deviceH);
@@ -1316,6 +1296,37 @@ public static class BitmapHelper
             default:
                 return null;
         }
+    }
+
+    /// <summary>
+    /// Where <paramref name="image"/> is drawn when its picture is <paramref name="pictureWidth"/> ×
+    /// <paramref name="pictureHeight"/> pixels: its source rectangle, or the whole picture, fitted into
+    /// the device rect, then scaled and moved by the layer.
+    /// </summary>
+    private static SKRect ImageLayerDeviceRect(ImageLayer image, int pictureWidth, int pictureHeight,
+        int deviceW, int deviceH)
+    {
+        float srcW, srcH;
+        if (!image.SourceRect.IsEmpty &&
+            image.SourceRect.Width > 0 && image.SourceRect.Height > 0)
+        {
+            srcW = image.SourceRect.Width;
+            srcH = image.SourceRect.Height;
+        }
+        else
+        {
+            srcW = pictureWidth;
+            srcH = pictureHeight;
+        }
+
+        var fit = Math.Min(deviceW / srcW, deviceH / srcH);
+        var scaleX = (float)Math.Max(0.01, image.EffectiveScaleX);
+        var scaleY = (float)Math.Max(0.01, image.EffectiveScaleY);
+        var dstW = srcW * fit * scaleX;
+        var dstH = srcH * fit * scaleY;
+        var drawX = ((deviceW - dstW) / 2f) + image.PositionX;
+        var drawY = ((deviceH - dstH) / 2f) + image.PositionY;
+        return new SKRect(drawX, drawY, drawX + dstW, drawY + dstH);
     }
 
     /// <summary>
