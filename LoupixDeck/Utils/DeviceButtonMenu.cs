@@ -67,11 +67,11 @@ public static class DeviceButtonMenu
             menu.Items.Add(new Separator());
         }
 
-        menu.Items.Add(MakeItem("Copy", vm.CopySelectedCommand, vm.CanCopySelected()));
-        menu.Items.Add(MakeItem("Cut", vm.CutSelectedCommand, vm.CanClearSelected()));
-        menu.Items.Add(MakeItem("Paste", vm.PasteSelectedCommand, vm.CanPasteSelected()));
+        menu.Items.Add(MakeItem(Loc.Tr("ButtonMenu_Copy"), vm.CopySelectedCommand, vm.CanCopySelected()));
+        menu.Items.Add(MakeItem(Loc.Tr("ButtonMenu_Cut"), vm.CutSelectedCommand, vm.CanClearSelected()));
+        menu.Items.Add(MakeItem(Loc.Tr("ButtonMenu_Paste"), vm.PasteSelectedCommand, vm.CanPasteSelected()));
         menu.Items.Add(new Separator());
-        menu.Items.Add(MakeItem("Clear", vm.ClearSelectedCommand, vm.CanClearSelected()));
+        menu.Items.Add(MakeItem(Loc.Tr("ButtonMenu_Clear"), vm.ClearSelectedCommand, vm.CanClearSelected()));
 
         menu.ShowAt(button, showAtPointer: true);
         e.Handled = true;

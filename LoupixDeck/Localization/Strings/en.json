@@ -1346,5 +1346,16 @@
   "MainWindow_ZoomOut": "Zoom out (Ctrl -)",
   "MainWindow_ZoomIn": "Zoom in (Ctrl +)",
   "MainWindow_ZoomReset": "Reset to 100% (Ctrl 0). Zoom with Ctrl + mouse wheel.",
-  "MainWindow_ZoomPercent": "{0}%"
+  "MainWindow_ZoomPercent": "{0}%",
+  "ButtonMenu_Copy": "Copy",
+  "ButtonMenu_Cut": "Cut",
+  "ButtonMenu_Paste": "Paste",
+  "ButtonMenu_Clear": "Clear",
+  "DialMenu_AdvancedSettings": "Advanced settings…",
+  "DialMenu_Remove": "Remove",
+  "DialMenu_Loading": "Loading…",
+  "DialMenu_NothingToShow": "Nothing to show",
+  "DialMenu_Presets": "Presets",
+  "DialMenu_NoPresets": "No presets",
+  "DialMenu_SaveAsPreset": "Save this dial as a preset…"
 }

@@ -1346,5 +1346,16 @@
   "MainWindow_ZoomOut": "Alejar (Ctrl -)",
   "MainWindow_ZoomIn": "Acercar (Ctrl +)",
   "MainWindow_ZoomReset": "Restablecer al 100 % (Ctrl 0). Zoom con Ctrl + rueda del ratón.",
-  "MainWindow_ZoomPercent": "{0} %"
+  "MainWindow_ZoomPercent": "{0} %",
+  "ButtonMenu_Copy": "Copiar",
+  "ButtonMenu_Cut": "Cortar",
+  "ButtonMenu_Paste": "Pegar",
+  "ButtonMenu_Clear": "Vaciar",
+  "DialMenu_AdvancedSettings": "Configuración avanzada…",
+  "DialMenu_Remove": "Quitar",
+  "DialMenu_Loading": "Cargando…",
+  "DialMenu_NothingToShow": "Nada que mostrar",
+  "DialMenu_Presets": "Ajustes",
+  "DialMenu_NoPresets": "No hay ajustes",
+  "DialMenu_SaveAsPreset": "Guardar este dial como ajuste…"
 }

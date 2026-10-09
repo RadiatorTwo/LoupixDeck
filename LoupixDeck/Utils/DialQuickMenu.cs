@@ -48,7 +48,7 @@ public static class DialQuickMenu
 
         yield return new MenuItem
         {
-            Header = "Advanced settings…",
+            Header = Loc.Tr("DialMenu_AdvancedSettings"),
             Command = vm.RotaryButtonCommand,
             CommandParameter = dial
         };
@@ -72,7 +72,7 @@ public static class DialQuickMenu
 
         item.Items.Add(new MenuItem
         {
-            Header = "Remove",
+            Header = Loc.Tr("DialMenu_Remove"),
             IsEnabled = !string.IsNullOrWhiteSpace(current),
             Command = Relay.Create(() => vm.ClearDialGestureAsync(dial, gesture))
         });
@@ -81,7 +81,7 @@ public static class DialQuickMenu
 
         if (!menu.IsReady)
         {
-            item.Items.Add(new MenuItem { Header = "Loading…", IsEnabled = false });
+            item.Items.Add(new MenuItem { Header = Loc.Tr("DialMenu_Loading"), IsEnabled = false });
             return item;
         }
 
@@ -170,7 +170,7 @@ public static class DialQuickMenu
         }
 
         if (parent.Items.Count == 0)
-            parent.Items.Add(new MenuItem { Header = "Nothing to show", IsEnabled = false });
+            parent.Items.Add(new MenuItem { Header = Loc.Tr("DialMenu_NothingToShow"), IsEnabled = false });
     }
 
     private static bool Contains(MenuEntry group, MenuEntry entry)
@@ -189,14 +189,14 @@ public static class DialQuickMenu
     private static MenuItem BuildPresetMenu(RotaryButton dial, MainWindowViewModel vm,
         DialQuickMenuViewModel menu)
     {
-        MenuItem item = new() { Header = "Presets", Icon = Glyph(DialPreset.DefaultGlyph) };
+        MenuItem item = new() { Header = Loc.Tr("DialMenu_Presets"), Icon = Glyph(DialPreset.DefaultGlyph) };
 
         IReadOnlyList<DialPreset> presets = menu.Presets;
         DialPreset assigned = menu.FindAssignedPreset(dial, presets);
 
         if (presets.Count == 0)
         {
-            item.Items.Add(new MenuItem { Header = "No presets", IsEnabled = false });
+            item.Items.Add(new MenuItem { Header = Loc.Tr("DialMenu_NoPresets"), IsEnabled = false });
             AddSaveEntry(item, dial, vm);
             return item;
         }
@@ -251,7 +251,7 @@ public static class DialQuickMenu
         parent.Items.Add(new Separator());
         parent.Items.Add(new MenuItem
         {
-            Header = "Save this dial as a preset…",
+            Header = Loc.Tr("DialMenu_SaveAsPreset"),
             IsEnabled = !dial.IsEmpty(),
             Command = Relay.Create(() => vm.SaveDialAsPresetAsync(dial))
         });
