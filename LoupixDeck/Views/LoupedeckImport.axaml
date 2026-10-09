@@ -139,6 +139,8 @@
                         </ComboBox.ItemTemplate>
                     </ComboBox>
                     <TextBlock Text="{loc:Tr LoupedeckImport_LayoutTemplateHint}" Classes="hint" />
+                    <TextBlock Text="{Binding LayoutTemplatePreview}" IsVisible="{Binding HasLayoutTemplatePreview}"
+                               Classes="hint" TextWrapping="Wrap" />
                 </StackPanel>
 
                 <!-- Plugins the imported actions need -->

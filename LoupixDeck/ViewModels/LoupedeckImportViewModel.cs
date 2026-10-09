@@ -47,6 +47,9 @@ public sealed partial class LoupedeckImportViewModel : DialogViewModelBase<Dialo
     private Lp5Archive _archive;
     private Lp5ConversionResult _preview;
 
+    /// <summary>The preview converted with labels as captions, as the import does for a template that shows them.</summary>
+    private Lp5ConversionResult _captionedPreview;
+
     public LoupedeckImportViewModel(LoupedeckConfig config, IAssetService assets, IDeviceService deviceService,
         IPageManager pageManager, IDeviceController controller, DeviceGeometry geometry, IPluginStoreService pluginStore,
         ICommandRegistry commandRegistry)
@@ -176,6 +179,41 @@ public sealed partial class LoupedeckImportViewModel : DialogViewModelBase<Dialo
     [ObservableProperty]
     public partial LayoutTemplateOption SelectedLayoutTemplate { get; set; }
 
+    /// <summary>What the selected template will do to the imported keys; empty without a template.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasLayoutTemplatePreview))]
+    public partial string LayoutTemplatePreview { get; set; } = string.Empty;
+
+    public bool HasLayoutTemplatePreview => !string.IsNullOrEmpty(LayoutTemplatePreview);
+
+    partial void OnSelectedLayoutTemplateChanged(LayoutTemplateOption value) => UpdateLayoutTemplatePreview();
+
+    /// <summary>
+    /// Plans the selected template on the preview the import would lay out, with or without captions
+    /// as <see cref="ImportAsync"/> converts. The preview stores no pictures, so a picture is judged by
+    /// its scale and position.
+    /// </summary>
+    private void UpdateLayoutTemplatePreview()
+    {
+        ButtonTemplate? template = SelectedLayoutTemplate?.Template;
+        Lp5ConversionResult preview = UsesCaptions(template) ? _captionedPreview : _preview;
+        if (template == null || preview == null)
+        {
+            LayoutTemplatePreview = string.Empty;
+            return;
+        }
+
+        TemplateApplyResult planned = ActionAssignment.PlanTemplateOnPages(
+            preview.Profile.Workspaces.SelectMany(w => w.EnumerateTouchLayouts()), template.Value,
+            _geometry.KeySize, _geometry.KeySize, preview.UnmappedKeys, _commandRegistry.DrawsOnKey,
+            preview.IconImages);
+        LayoutTemplatePreview = Loc.Tr("ProfileImport_LayoutTemplatePreview", planned.ButtonsChanged,
+            planned.LayersRemoved);
+    }
+
+    /// <summary>Icon only drops the caption again, so the label is passed only to a template that shows it.</summary>
+    private static bool UsesCaptions(ButtonTemplate? template) => template is not (null or ButtonTemplate.IconOnly);
+
     // ───────── Commands ─────────
 
     public IAsyncRelayCommand ImportCommand => field ??= Relay.Create(ImportAsync, () => CanImport);
@@ -201,10 +239,11 @@ public sealed partial class LoupedeckImportViewModel : DialogViewModelBase<Dialo
 
         try
         {
-            (_archive, _preview) = await Task.Run(() =>
+            (_archive, _preview, _captionedPreview) = await Task.Run(() =>
             {
                 Lp5Archive archive = Lp5Archive.Open(_path);
-                return (archive, Lp5Converter.Convert(archive, shape, assets: null));
+                return (archive, Lp5Converter.Convert(archive, shape, assets: null),
+                    Lp5Converter.Convert(archive, shape, assets: null, labelAsCaption: true));
             });
         }
         catch (Exception ex)
@@ -236,6 +275,7 @@ public sealed partial class LoupedeckImportViewModel : DialogViewModelBase<Dialo
             $"{(string.IsNullOrWhiteSpace(moved.Label) ? "—" : moved.Label)}{Environment.NewLine}{moved.From}  →  {moved.To}"));
 
         BuildAppLink();
+        UpdateLayoutTemplatePreview();
         await FindMissingPluginsAsync();
 
         IsLoading = false;
@@ -288,10 +328,9 @@ public sealed partial class LoupedeckImportViewModel : DialogViewModelBase<Dialo
         try
         {
             // The real pass stores the icons; the preview pass stored nothing.
-            // Icon only drops the caption again, so the label is passed only to a template that shows it.
             ButtonTemplate? template = SelectedLayoutTemplate?.Template;
             Lp5ConversionResult result = Lp5Converter.Convert(_archive, Shape, _assets,
-                labelAsCaption: template is not (null or ButtonTemplate.IconOnly));
+                labelAsCaption: UsesCaptions(template));
             Profile profile = result.Profile;
             profile.Name = NewName.Trim();
             PortablePayloadNormalizer.Normalize(profile, _deviceService.TouchButtonCount,
