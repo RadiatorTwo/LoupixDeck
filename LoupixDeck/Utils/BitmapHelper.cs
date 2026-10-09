@@ -776,7 +776,8 @@ public static class BitmapHelper
             bitmap = new SKBitmap(width, height);
             using var canvas = new SKCanvas(bitmap);
 
-            DrawTouchButtonContent(canvas, touchButton, wallpaperToUse, opacityToUse, wallpaperSource, width, height);
+            DrawTouchButtonContent(canvas, touchButton, wallpaperToUse, opacityToUse, wallpaperSource, width, height,
+                ShowsFolderBadges(config));
         }
 
         // The on-screen device view can draw the key again at the size it is shown at (#251).
@@ -847,7 +848,8 @@ public static class BitmapHelper
             using (var canvas = new SKCanvas(bitmap))
             {
                 canvas.Scale((float)scale);
-                DrawTouchButtonContent(canvas, touchButton, wallpaperToUse, opacityToUse, wallpaperSource, width, height);
+                DrawTouchButtonContent(canvas, touchButton, wallpaperToUse, opacityToUse, wallpaperSource, width, height,
+                ShowsFolderBadges(config));
             }
 
             return Models.Converter.SKBitmapToAvaloniaBitmapConverter.ToBitmap(bitmap);
@@ -862,7 +864,8 @@ public static class BitmapHelper
         double wallpaperOpacity,
         SKRectI? wallpaperSource,
         int width,
-        int height)
+        int height,
+        bool showFolderBadge)
     {
         if (touchButton.IsFolderBackSlot)
         {
@@ -875,9 +878,12 @@ public static class BitmapHelper
                 wallpaperSource, width, height);
 
             DrawLayers(canvas, touchButton.Layers, width, height, touchButton.ValueContext);
-            DrawFolderBadgeIfLinked(canvas, touchButton, width, height);
+            if (showFolderBadge) DrawFolderBadgeIfLinked(canvas, touchButton, width, height);
         }
     }
+
+    /// <summary>Whether the active workspace shows the folder badge on keys that open a custom folder.</summary>
+    public static bool ShowsFolderBadges(LoupedeckConfig config) => config?.ActiveWorkspace?.ShowFolderBadges ?? true;
 
     /// <summary>
     /// Sampling for a wallpaper cutout: the device draws it 1:1, where the default is exact; a
@@ -1023,7 +1029,8 @@ public static class BitmapHelper
     /// not publish to <see cref="TouchButton.RenderedImage"/>, since it is not what the key looks
     /// like on its own.
     /// </summary>
-    public static SKBitmap RenderTouchButtonForeground(TouchButton touchButton, int width, int height)
+    public static SKBitmap RenderTouchButtonForeground(TouchButton touchButton, int width, int height,
+        bool showFolderBadge = true)
     {
         ArgumentNullException.ThrowIfNull(touchButton);
 
@@ -1039,7 +1046,7 @@ public static class BitmapHelper
             else
             {
                 DrawLayers(canvas, touchButton.Layers, width, height, touchButton.ValueContext);
-                DrawFolderBadgeIfLinked(canvas, touchButton, width, height);
+                if (showFolderBadge) DrawFolderBadgeIfLinked(canvas, touchButton, width, height);
             }
             return bitmap;
         }

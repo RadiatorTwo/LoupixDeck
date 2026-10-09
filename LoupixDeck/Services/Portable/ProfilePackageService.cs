@@ -1185,6 +1185,7 @@ public sealed class ProfilePackageService(
         // re-derived from its master by the structure sync, which keeps these nodes by id.
         target.SetFolderPath([]);
         target.Folders = source.Folders ?? [];
+        target.ShowFolderBadges = source.ShowFolderBadges;
         target.CurrentTouchPageIndex = -1;
         target.CurrentRotaryPageIndex = -1;
         target.CurrentLeftRotaryPageIndex = -1;
