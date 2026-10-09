@@ -9,6 +9,7 @@ using LoupixDeck.Models.Layers;
 using LoupixDeck.Registry;
 using LoupixDeck.Services;
 using LoupixDeck.Services.Actions;
+using LoupixDeck.Services.Commands;
 using LoupixDeck.Services.Import.Lp5;
 using LoupixDeck.Services.PluginStore;
 using LoupixDeck.Services.Portable;
@@ -40,13 +41,18 @@ public sealed partial class LoupedeckImportViewModel : DialogViewModelBase<Dialo
     private readonly IDeviceController _controller;
     private readonly DeviceGeometry _geometry;
     private readonly IPluginStoreService _pluginStore;
+    private readonly ICommandRegistry _commandRegistry;
 
     private string _path;
     private Lp5Archive _archive;
     private Lp5ConversionResult _preview;
 
+    /// <summary>The preview converted with labels as captions, as the import does for a template that shows them.</summary>
+    private Lp5ConversionResult _captionedPreview;
+
     public LoupedeckImportViewModel(LoupedeckConfig config, IAssetService assets, IDeviceService deviceService,
-        IPageManager pageManager, IDeviceController controller, DeviceGeometry geometry, IPluginStoreService pluginStore)
+        IPageManager pageManager, IDeviceController controller, DeviceGeometry geometry, IPluginStoreService pluginStore,
+        ICommandRegistry commandRegistry)
     {
         _config = config;
         _assets = assets;
@@ -55,10 +61,12 @@ public sealed partial class LoupedeckImportViewModel : DialogViewModelBase<Dialo
         _controller = controller;
         _geometry = geometry ?? DeviceGeometry.Default;
         _pluginStore = pluginStore;
+        _commandRegistry = commandRegistry;
 
         Unmapped = new();
         Notes = new();
-        SelectedLayoutTemplate = LayoutTemplates[0];
+        LayoutTemplate = new LayoutTemplatePickerViewModel(Loc.Tr("LoupedeckImport_LayoutTemplateHint"),
+            PlanLayoutTemplate);
     }
 
     /// <summary>
@@ -167,10 +175,27 @@ public sealed partial class LoupedeckImportViewModel : DialogViewModelBase<Dialo
     /// <summary>Offered only when a link is made while automatic switching is off.</summary>
     public bool ShowEnableSwitching => LinkApp && !_config.AppSwitchingEnabled;
 
-    public IReadOnlyList<LayoutTemplateOption> LayoutTemplates { get; } = LayoutTemplateOption.CreateAll();
+    public LayoutTemplatePickerViewModel LayoutTemplate { get; }
 
-    [ObservableProperty]
-    public partial LayoutTemplateOption SelectedLayoutTemplate { get; set; }
+    /// <summary>
+    /// Plans <paramref name="template"/> on the preview the import would lay out, with or without
+    /// captions as <see cref="ImportAsync"/> converts. The preview stores no pictures, so a picture is
+    /// judged by its scale and position. Null until the preview is converted.
+    /// </summary>
+    private TemplateApplyResult? PlanLayoutTemplate(ButtonTemplate template)
+    {
+        Lp5ConversionResult preview = UsesCaptions(template) ? _captionedPreview : _preview;
+        if (preview == null)
+            return null;
+
+        return ActionAssignment.PlanTemplateOnPages(
+            preview.Profile.Workspaces.SelectMany(w => w.EnumerateTouchLayouts()), template,
+            _geometry.KeySize, _geometry.KeySize, preview.UnmappedKeys, _commandRegistry.DrawsOnKey,
+            preview.IconImages);
+    }
+
+    /// <summary>Icon only drops the caption again, so the label is passed only to a template that shows it.</summary>
+    private static bool UsesCaptions(ButtonTemplate? template) => template is not (null or ButtonTemplate.IconOnly);
 
     // ───────── Commands ─────────
 
@@ -197,10 +222,11 @@ public sealed partial class LoupedeckImportViewModel : DialogViewModelBase<Dialo
 
         try
         {
-            (_archive, _preview) = await Task.Run(() =>
+            (_archive, _preview, _captionedPreview) = await Task.Run(() =>
             {
                 Lp5Archive archive = Lp5Archive.Open(_path);
-                return (archive, Lp5Converter.Convert(archive, shape, assets: null));
+                return (archive, Lp5Converter.Convert(archive, shape, assets: null),
+                    Lp5Converter.Convert(archive, shape, assets: null, labelAsCaption: true));
             });
         }
         catch (Exception ex)
@@ -232,6 +258,7 @@ public sealed partial class LoupedeckImportViewModel : DialogViewModelBase<Dialo
             $"{(string.IsNullOrWhiteSpace(moved.Label) ? "—" : moved.Label)}{Environment.NewLine}{moved.From}  →  {moved.To}"));
 
         BuildAppLink();
+        LayoutTemplate.Refresh();
         await FindMissingPluginsAsync();
 
         IsLoading = false;
@@ -284,10 +311,9 @@ public sealed partial class LoupedeckImportViewModel : DialogViewModelBase<Dialo
         try
         {
             // The real pass stores the icons; the preview pass stored nothing.
-            // Icon only drops the caption again, so the label is passed only to a template that shows it.
-            ButtonTemplate? template = SelectedLayoutTemplate?.Template;
+            ButtonTemplate? template = LayoutTemplate.Template;
             Lp5ConversionResult result = Lp5Converter.Convert(_archive, Shape, _assets,
-                labelAsCaption: template is not (null or ButtonTemplate.IconOnly));
+                labelAsCaption: UsesCaptions(template));
             Profile profile = result.Profile;
             profile.Name = NewName.Trim();
             PortablePayloadNormalizer.Normalize(profile, _deviceService.TouchButtonCount,
@@ -296,7 +322,8 @@ public sealed partial class LoupedeckImportViewModel : DialogViewModelBase<Dialo
             TemplateApplyResult? laidOut = null;
             if (template != null)
                 laidOut = ActionAssignment.ApplyTemplateToPages(profile.Workspaces.SelectMany(w => w.EnumerateTouchLayouts()),
-                    template.Value, _geometry.KeySize, _geometry.KeySize, result.UnmappedKeys);
+                    template.Value, _geometry.KeySize, _geometry.KeySize, result.UnmappedKeys, _commandRegistry.DrawsOnKey,
+                    result.IconImages);
 
             _config.Profiles.Add(profile);
 
@@ -316,7 +343,7 @@ public sealed partial class LoupedeckImportViewModel : DialogViewModelBase<Dialo
 
             ResultMessage = Loc.Tr("LoupedeckImport_Done", profile.Name, result.MappedControls, result.TotalControls);
             if (laidOut != null)
-                ResultMessage += " " + LayoutTemplateOption.DescribeResult(laidOut.Value);
+                ResultMessage += " " + laidOut.Value.Describe();
         }
         catch (Exception ex)
         {

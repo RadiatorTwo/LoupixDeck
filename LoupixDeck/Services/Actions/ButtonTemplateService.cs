@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using LoupixDeck.Localization;
 using LoupixDeck.Models;
 using LoupixDeck.Models.Layers;
+using LoupixDeck.Services.Commands;
 using LoupixDeck.Services.IconPacks;
 using LoupixDeck.Utils;
 using LoupixDeck.ViewModels;
@@ -56,7 +57,8 @@ public interface IButtonTemplateService
 public readonly record struct ButtonTemplateOutcome(bool Applied, SymbolLayer AddedIcon);
 
 /// <inheritdoc cref="IButtonTemplateService"/>
-public sealed class ButtonTemplateService(IDialogService dialogService, IAssetService assetService)
+public sealed class ButtonTemplateService(IDialogService dialogService, IAssetService assetService,
+    ICommandRegistry commandRegistry)
     : IButtonTemplateService
 {
     private const double PickedSymbolSize = 0.7;
@@ -67,23 +69,25 @@ public sealed class ButtonTemplateService(IDialogService dialogService, IAssetSe
         if (button?.Layers == null)
             return default;
 
-        ButtonTemplatePlan plan = ActionAssignment.PlanTemplate(button, template, keyWidthPx, keyHeightPx);
-
         // A template that needs an icon asks for one first; cancelling the picker changes nothing.
         SymbolLayer addedIcon = null;
-        if (template != ButtonTemplate.TextOnly && !plan.HasIcon)
+        if (template != ButtonTemplate.TextOnly && !ActionAssignment.HasTemplateIcon(button))
         {
             addedIcon = await PickSymbolLayerAsync(button.Layers);
             if (addedIcon == null)
                 return default;
 
             AddLayer(button.Layers, addedIcon, keyWidthPx, keyHeightPx);
-            plan = ActionAssignment.PlanTemplate(button, template, keyWidthPx, keyHeightPx);
         }
 
-        int removed = plan.Removed.Count;
-        if (removed > 0)
+        ButtonTemplatePlan plan = ActionAssignment.PlanTemplate(button, template, keyWidthPx, keyHeightPx);
+
+        // A command can adopt or re-create a layer while the question is open, so the plan is made
+        // again after every answer, and asked about again when it would drop a layer not agreed to.
+        IReadOnlyList<LayerBase> confirmed = [];
+        while (plan.Removed.Any(layer => !confirmed.Contains(layer)))
         {
+            int removed = plan.Removed.Count;
             DialogResult result = await dialogService.ShowDialogAsync<ConfirmDialogViewModel, DialogResult>(vm =>
                 vm.Configure(
                     Loc.Tr("Confirm_ApplyTemplateMessage", removed),
@@ -97,6 +101,9 @@ public sealed class ButtonTemplateService(IDialogService dialogService, IAssetSe
 
                 return default;
             }
+
+            confirmed = plan.Removed;
+            plan = ActionAssignment.PlanTemplate(button, template, keyWidthPx, keyHeightPx);
         }
 
         ObservableCollection<LayerBase> layers = button.Layers;
@@ -114,7 +121,7 @@ public sealed class ButtonTemplateService(IDialogService dialogService, IAssetSe
 
         TouchButtonPage[] pages = [page];
         TemplateApplyResult planned = ActionAssignment.PlanTemplateOnPages(pages, template, keyWidthPx,
-            keyHeightPx, skip);
+            keyHeightPx, skip, commandRegistry.DrawsOnKey);
 
         if (planned.ButtonsChanged == 0)
         {
@@ -137,7 +144,8 @@ public sealed class ButtonTemplateService(IDialogService dialogService, IAssetSe
         if (result is not { IsConfirmed: true })
             return null;
 
-        return ActionAssignment.ApplyTemplateToPages(pages, template, keyWidthPx, keyHeightPx, skip);
+        return ActionAssignment.ApplyTemplateToPages(pages, template, keyWidthPx, keyHeightPx, skip,
+            commandRegistry.DrawsOnKey);
     }
 
     public async Task<SymbolLayer> PickSymbolLayerAsync(IEnumerable<LayerBase> layers)
@@ -185,13 +193,12 @@ public sealed class ButtonTemplateService(IDialogService dialogService, IAssetSe
         if (string.IsNullOrEmpty(relative)) return false;
 
         SKBitmap bitmap = assetService.Load(relative);
-        SKRectI bounds = bitmap != null ? IconColorAnalysis.GetContentBounds(bitmap) : SKRectI.Empty;
 
         layer.SymbolId = string.Empty;
         layer.IconSource = icon.Key;
         layer.IconAssetPath = relative;
         layer.KeepOriginalColors = bitmap != null && !IconColorAnalysis.IsMonochrome(bitmap);
-        layer.FitScaleToAspect(size, bounds.Height > 0 ? (double)bounds.Width / bounds.Height : 1.0);
+        layer.FitScaleToAspect(size, IconColorAnalysis.GetContentAspectRatio(bitmap) ?? 1.0);
         return true;
     }
 

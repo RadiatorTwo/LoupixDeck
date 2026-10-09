@@ -88,6 +88,19 @@ public static class IconColorAnalysis
         return ContentBoundsCache.GetValue(bitmap, static bmp => new Bounds(ComputeContentBounds(bmp))).Rect;
     }
 
+    /// <summary>
+    /// Width / height of the visible content (<see cref="GetContentBounds"/>), the ratio a pack icon's
+    /// layer box is fitted to. Null when there is no bitmap or its content has no area.
+    /// </summary>
+    public static double? GetContentAspectRatio(SKBitmap bitmap)
+    {
+        if (bitmap == null)
+            return null;
+
+        SKRectI bounds = GetContentBounds(bitmap);
+        return bounds.Width > 0 && bounds.Height > 0 ? (double)bounds.Width / bounds.Height : null;
+    }
+
     private static SKRectI ComputeContentBounds(SKBitmap bitmap)
     {
         SKRectI full = new(0, 0, bitmap.Width, bitmap.Height);

@@ -46,6 +46,18 @@ public abstract partial class LayerBase
     public bool IsCommandOwned => !string.IsNullOrEmpty(OwnerKey);
 
     /// <summary>
+    /// True when this layer belongs to <paramref name="boundCommand"/>, the command bound to its
+    /// button or state. A layer left behind by a command that is no longer bound has no owner left.
+    /// </summary>
+    public bool IsOwnedBy(string boundCommand)
+    {
+        if (!IsCommandOwned) return false;
+
+        string boundKey = PluginLayerKey.For(boundCommand);
+        return boundKey != null && string.Equals(OwnerKey, boundKey, StringComparison.Ordinal);
+    }
+
+    /// <summary>
     /// True when the layer was created by its owning command (vs adopted from a pre-existing
     /// user layer). On orphan, a created layer is removed entirely, while an adopted one is only
     /// demoted back to a normal user layer so the user's styling is never destroyed. Persisted so

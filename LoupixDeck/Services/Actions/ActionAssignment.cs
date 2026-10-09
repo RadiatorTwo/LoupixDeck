@@ -262,24 +262,13 @@ public static class ActionAssignment
         symbol.PositionX = 0;
         symbol.PositionY = positionY;
 
+        // A pack icon whose asset cannot be loaded keeps the ratio its box already has.
         if (symbol.IsImageIcon)
-            symbol.FitScaleToAspect(scale, PackIconAspectRatio(symbol));
+            symbol.FitScaleToAspect(scale,
+                IconColorAnalysis.GetContentAspectRatio(BitmapHelper.AssetResolver?.Invoke(symbol.IconAssetPath))
+                ?? (symbol.EffectiveScaleX / symbol.EffectiveScaleY));
         else
             symbol.FitScaleToGlyph(scale);
-    }
-
-    /// <summary>Width / height of a pack icon's visible content, or the ratio its box already has
-    /// when the asset cannot be loaded.</summary>
-    private static double PackIconAspectRatio(SymbolLayer symbol)
-    {
-        if (BitmapHelper.AssetResolver?.Invoke(symbol.IconAssetPath) is { } bitmap)
-        {
-            SKRectI bounds = IconColorAnalysis.GetContentBounds(bitmap);
-            if (bounds.Width > 0 && bounds.Height > 0)
-                return (double)bounds.Width / bounds.Height;
-        }
-
-        return symbol.EffectiveScaleX / symbol.EffectiveScaleY;
     }
 
     /// <summary>
@@ -317,31 +306,34 @@ public static class ActionAssignment
     /// <summary>
     /// The layers a template works with. Only visible layers count. The icon is the top-most symbol or
     /// image layer. A picture that fills the whole key is a background: it is kept as it is, and is the
-    /// icon only when the button has no other. A command-owned icon or caption is used only when there
-    /// is no other, and is positioned but never removed. Plugin layers, dial indicators, command-owned
-    /// and hidden layers are never touched; <paramref name="others"/> is everything else that is
-    /// neither the icon nor the caption, which a template removes.
+    /// icon only when the button has no other. An icon or caption owned by <paramref name="command"/> is
+    /// used only when there is no other, and is positioned but never removed; one left behind by a
+    /// command that is no longer bound counts as the user's. Plugin layers, dial indicators, layers
+    /// owned by <paramref name="command"/> and hidden layers are never touched; <paramref name="others"/> is everything else that is
+    /// neither the icon nor the caption, which a template removes. <paramref name="backgrounds"/> are
+    /// the pictures that fill the key, the icon among them when it is one.
     /// </summary>
-    private static void FindTemplateLayers(IEnumerable<LayerBase> stateLayers, int keyWidthPx, int keyHeightPx,
-        out LayerBase icon, out TextLayer caption, out List<LayerBase> others)
+    private static void FindTemplateLayers(IEnumerable<LayerBase> stateLayers, string command, int keyWidthPx,
+        int keyHeightPx, out LayerBase icon, out TextLayer caption, out List<LayerBase> others, out List<LayerBase> backgrounds)
     {
         List<LayerBase> layers = stateLayers?.ToList() ?? [];
         List<LayerBase> visible = layers.Where(l => l is { Visible: true }).ToList();
 
         // Layers are drawn first to last, so the last one is on top.
-        List<LayerBase> backgrounds = visible.Where(l => l is ImageLayer image && IsFullKeyImage(image, keyWidthPx, keyHeightPx)).ToList();
-        List<LayerBase> icons = visible.Where(l => l is SymbolLayer or ImageLayer && !backgrounds.Contains(l)).ToList();
-        icon = icons.LastOrDefault(l => !l.IsCommandOwned) ?? icons.LastOrDefault()
-            ?? backgrounds.LastOrDefault(l => !l.IsCommandOwned) ?? backgrounds.LastOrDefault();
+        List<LayerBase> fullKey = visible.Where(l => l is ImageLayer image && IsFullKeyImage(image, keyWidthPx, keyHeightPx)).ToList();
+        List<LayerBase> icons = visible.Where(l => l is SymbolLayer or ImageLayer && !fullKey.Contains(l)).ToList();
+        icon = icons.LastOrDefault(l => !l.IsOwnedBy(command)) ?? icons.LastOrDefault()
+            ?? fullKey.LastOrDefault(l => !l.IsOwnedBy(command)) ?? fullKey.LastOrDefault();
+        backgrounds = fullKey;
 
         List<TextLayer> captions = visible.OfType<TextLayer>().ToList();
-        caption = captions.FirstOrDefault(l => !l.IsCommandOwned) ?? captions.FirstOrDefault();
+        caption = captions.FirstOrDefault(l => !l.IsOwnedBy(command)) ?? captions.FirstOrDefault();
 
         others = [];
         foreach (LayerBase layer in visible)
         {
-            if (layer is PluginLayer or DialIndicatorLayer || layer.IsCommandOwned || ReferenceEquals(layer, icon)
-                || ReferenceEquals(layer, caption) || backgrounds.Contains(layer))
+            if (layer is PluginLayer or DialIndicatorLayer || layer.IsOwnedBy(command) || ReferenceEquals(layer, icon)
+                || ReferenceEquals(layer, caption) || fullKey.Contains(layer))
                 continue;
 
             others.Add(layer);
@@ -350,51 +342,84 @@ public static class ActionAssignment
 
     /// <summary>
     /// Whether <paramref name="image"/> covers the key as a background picture does: drawn on a key of
-    /// the given size, it spans the key's short edge in both directions. A picture that cannot be
-    /// loaded is judged by its scale, which is what a square one comes to.
+    /// the given size, it covers the square in the middle of the key that spans the key's short edge.
+    /// A picture moved off the middle leaves part of that square bare and is no background. A picture
+    /// that cannot be loaded is taken as square, so its scale and position are what count.
     /// </summary>
     private static bool IsFullKeyImage(ImageLayer image, int keyWidthPx, int keyHeightPx)
     {
-        if (BitmapHelper.GetLayerDeviceRect(image, keyWidthPx, keyHeightPx) is not { } drawn)
-            return image.EffectiveScaleX >= FullKeyImageShare && image.EffectiveScaleY >= FullKeyImageShare;
+        float shortEdge = Math.Min(keyWidthPx, keyHeightPx);
+        if (BitmapHelper.GetImageLayerDeviceRectWithoutLoading(image, keyWidthPx, keyHeightPx) is not { } drawn)
+        {
+            float width = shortEdge * (float)image.EffectiveScaleX;
+            float height = shortEdge * (float)image.EffectiveScaleY;
+            float left = ((keyWidthPx - width) / 2f) + image.PositionX;
+            float top = ((keyHeightPx - height) / 2f) + image.PositionY;
+            drawn = new SKRect(left, top, left + width, top + height);
+        }
 
-        double edge = Math.Min(keyWidthPx, keyHeightPx) * FullKeyImageShare;
-        return edge > 0 && drawn.Width >= edge && drawn.Height >= edge;
+        float edge = shortEdge * (float)FullKeyImageShare;
+        if (edge <= 0)
+            return false;
+
+        float squareLeft = (keyWidthPx - edge) / 2f;
+        float squareTop = (keyHeightPx - edge) / 2f;
+        return drawn.Left <= squareLeft && drawn.Top <= squareTop
+            && drawn.Right >= squareLeft + edge && drawn.Bottom >= squareTop + edge;
     }
+
+    /// <summary>
+    /// Whether <paramref name="button"/>'s active state has a layer a template can lay out as its icon:
+    /// any visible symbol or image layer, a background included.
+    /// </summary>
+    public static bool HasTemplateIcon(TouchButton button)
+        => button?.Layers?.Any(l => l is SymbolLayer or ImageLayer && l.Visible) == true;
 
     /// <summary>
     /// Works out what <paramref name="template"/> does to <paramref name="button"/>'s active state on a
     /// key of the given size, without changing the button, so the editor can ask about the layers that
     /// go before it hands the plan to <see cref="ApplyTemplate"/>. The icon and caption layers are kept
     /// and only moved and resized; other layers go, except plugin layers, dial indicators, hidden
-    /// layers and command-owned layers. A command-owned caption cannot be dropped, so icon-only then
-    /// lays out like icon and text, and so does text-only over a command-owned icon.
+    /// layers and layers owned by the bound command. Such a caption cannot be dropped, so icon-only then
+    /// lays out like icon and text, and so does text-only over such an icon. A layer left behind by a
+    /// command that is no longer bound is the user's, as the editor treats it.
     /// </summary>
     public static ButtonTemplatePlan PlanTemplate(TouchButton button, ButtonTemplate template, int keyWidthPx,
         int keyHeightPx)
-        => PlanTemplate(button?.Layers, template, keyWidthPx, keyHeightPx, bulk: false);
+        => PlanTemplate(button?.Layers, button?.Command, template, keyWidthPx, keyHeightPx, bulk: false,
+            drawsOnKey: null, iconImages: null);
 
     /// <summary>
-    /// The same for the layers of one state of a button, active or not. A <paramref name="bulk"/> run
+    /// The same for the layers of one state of a button, active or not, with the command bound to that
+    /// state. A <paramref name="bulk"/> run
     /// has nobody to edit the result, so it never adds a caption: an icon without one is laid out as
     /// icon only, and a state with neither icon nor caption, or with no text for text only, is left
     /// as it is. So is a state that shows plugin output or a dial indicator and would end up as text
-    /// alone, which would be enlarged over it.
+    /// alone, which would be enlarged over it. Plugin output counts whether its layer exists yet or
+    /// <paramref name="drawsOnKey"/> says the bound command draws one: an imported profile has no
+    /// plugin layer until the command first draws. Nobody confirms how a bulk run resizes, so a picture
+    /// that fills the key stays the background and is never shrunk into the icon, unless
+    /// <paramref name="iconImages"/> names it as one, as an import does with a key's own picture.
     /// </summary>
-    private static ButtonTemplatePlan PlanTemplate(ObservableCollection<LayerBase> layers, ButtonTemplate template,
-        int keyWidthPx, int keyHeightPx, bool bulk)
+    private static ButtonTemplatePlan PlanTemplate(ObservableCollection<LayerBase> layers, string command,
+        ButtonTemplate template, int keyWidthPx, int keyHeightPx, bool bulk, Func<string, bool> drawsOnKey,
+        IReadOnlySet<LayerBase> iconImages)
     {
         if (layers == null)
             return new ButtonTemplatePlan();
 
-        FindTemplateLayers(layers, keyWidthPx, keyHeightPx, out LayerBase icon, out TextLayer caption,
-            out List<LayerBase> removed);
-        bool hasIcon = icon != null;
+        FindTemplateLayers(layers, command, keyWidthPx, keyHeightPx, out LayerBase icon, out TextLayer caption,
+            out List<LayerBase> removed, out List<LayerBase> backgrounds);
 
         if (bulk)
         {
+            if (icon != null && backgrounds.Contains(icon) && iconImages?.Contains(icon) != true)
+                icon = null;
+
             bool textAlone = icon == null || template == ButtonTemplate.TextOnly;
-            if (textAlone && (caption == null || layers.Any(l => l is PluginLayer or DialIndicatorLayer && l.Visible)))
+            bool drawnOver = layers.Any(l => l is PluginLayer or DialIndicatorLayer && l.Visible)
+                || drawsOnKey?.Invoke(command) == true;
+            if (textAlone && (caption == null || drawnOver))
                 return new ButtonTemplatePlan();
 
             if (caption == null)
@@ -407,10 +432,10 @@ public static class ActionAssignment
                 if (icon == null)
                     return new ButtonTemplatePlan();
 
-                if (caption is { IsCommandOwned: false })
+                if (caption != null && !caption.IsOwnedBy(command))
                 {
                     removed.Add(caption);
-                    caption = layers.OfType<TextLayer>().FirstOrDefault(l => l is { Visible: true, IsCommandOwned: true });
+                    caption = layers.OfType<TextLayer>().FirstOrDefault(l => l.Visible && l.IsOwnedBy(command));
                 }
 
                 // A caption a command owns stays, so the enlarged icon would cover it.
@@ -419,11 +444,13 @@ public static class ActionAssignment
                 break;
 
             case ButtonTemplate.TextOnly:
-                if (icon is { IsCommandOwned: false })
-                {
+                // A background is no icon here: it stays under the text as it is, even when it was
+                // the only picture and so stood in as the icon.
+                if (icon != null && !icon.IsOwnedBy(command) && !backgrounds.Contains(icon))
                     removed.Add(icon);
-                    icon = layers.LastOrDefault(l => l is SymbolLayer or ImageLayer && l is { Visible: true, IsCommandOwned: true });
-                }
+
+                icon = layers.LastOrDefault(l => l is SymbolLayer or ImageLayer && l.Visible && l.IsOwnedBy(command)
+                    && !backgrounds.Contains(l));
 
                 // Likewise an icon a command owns stays, so the text would cover it.
                 if (icon != null)
@@ -438,7 +465,6 @@ public static class ActionAssignment
         return new ButtonTemplatePlan
         {
             Applies = true,
-            HasIcon = hasIcon,
             Removed = removed,
             Layout = template,
             Icon = icon,
@@ -460,7 +486,9 @@ public static class ActionAssignment
         if (button?.Layers == null || !ApplyTemplate(button.Layers, plan, uniqueName))
             return false;
 
-        button.RewireLayerHandlers();
+        // Only the active state's handlers: the button-wide rewire normalizes the active state as
+        // after a load, which would switch an editor showing another state back to the default one.
+        button.ActiveState?.RewireLayerHandlers();
         return true;
     }
 
@@ -523,20 +551,31 @@ public static class ActionAssignment
     /// plugin output or a dial indicator with only a text. Buttons in <paramref name="skip"/> are not
     /// touched at all. The active state of a button does not change.
     /// </summary>
+    /// <param name="drawsOnKey">
+    /// Whether a bound command draws plugin output onto the key, for states whose plugin layer does not
+    /// exist yet; see <see cref="Commands.CommandRegistryExtensions.DrawsOnKey"/>. Null trusts the layers.
+    /// </param>
+    /// <param name="iconImages">
+    /// Pictures that fill the key but are its icon rather than a background, so the template may shrink
+    /// them. Any other picture that fills the key stays as it is.
+    /// </param>
     public static TemplateApplyResult ApplyTemplateToPages(IEnumerable<TouchButtonPage> pages, ButtonTemplate template,
-        int keyWidthPx, int keyHeightPx, IReadOnlySet<TouchButton> skip = null)
-        => RunTemplateOnPages(pages, template, keyWidthPx, keyHeightPx, skip, apply: true);
+        int keyWidthPx, int keyHeightPx, IReadOnlySet<TouchButton> skip = null, Func<string, bool> drawsOnKey = null,
+        IReadOnlySet<LayerBase> iconImages = null)
+        => RunTemplateOnPages(pages, template, keyWidthPx, keyHeightPx, skip, drawsOnKey, iconImages, apply: true);
 
     /// <summary>
     /// What <see cref="ApplyTemplateToPages"/> would do with the same arguments, without changing
     /// anything, so the caller can name the totals before asking.
     /// </summary>
     public static TemplateApplyResult PlanTemplateOnPages(IEnumerable<TouchButtonPage> pages, ButtonTemplate template,
-        int keyWidthPx, int keyHeightPx, IReadOnlySet<TouchButton> skip = null)
-        => RunTemplateOnPages(pages, template, keyWidthPx, keyHeightPx, skip, apply: false);
+        int keyWidthPx, int keyHeightPx, IReadOnlySet<TouchButton> skip = null, Func<string, bool> drawsOnKey = null,
+        IReadOnlySet<LayerBase> iconImages = null)
+        => RunTemplateOnPages(pages, template, keyWidthPx, keyHeightPx, skip, drawsOnKey, iconImages, apply: false);
 
     private static TemplateApplyResult RunTemplateOnPages(IEnumerable<TouchButtonPage> pages, ButtonTemplate template,
-        int keyWidthPx, int keyHeightPx, IReadOnlySet<TouchButton> skip, bool apply)
+        int keyWidthPx, int keyHeightPx, IReadOnlySet<TouchButton> skip, Func<string, bool> drawsOnKey,
+        IReadOnlySet<LayerBase> iconImages, bool apply)
     {
         int buttonsChanged = 0;
         int layersRemoved = 0;
@@ -554,8 +593,8 @@ public static class ActionAssignment
                     if (state?.Layers == null)
                         continue;
 
-                    ButtonTemplatePlan plan = PlanTemplate(state.Layers, template, keyWidthPx, keyHeightPx,
-                        bulk: true);
+                    ButtonTemplatePlan plan = PlanTemplate(state.Layers, state.Command, template, keyWidthPx,
+                        keyHeightPx, bulk: true, drawsOnKey, iconImages);
                     if (!plan.Applies)
                         continue;
 
@@ -613,9 +652,8 @@ public static class ActionAssignment
                             PositionX = x,
                             PositionY = y
                         };
-                        SKRectI bounds = IconColorAnalysis.GetContentBounds(iconBitmap);
                         pictureSymbol.FitScaleToAspect(iconScale,
-                            bounds.Height > 0 ? (double)bounds.Width / bounds.Height : 1.0);
+                            IconColorAnalysis.GetContentAspectRatio(iconBitmap) ?? 1.0);
                         if (hasColor && pictureSymbol.IsTintable)
                             pictureSymbol.Tint = color;
 

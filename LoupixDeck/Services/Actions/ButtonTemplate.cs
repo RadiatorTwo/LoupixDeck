@@ -23,9 +23,6 @@ public sealed class ButtonTemplatePlan
     /// <summary>False when the template does nothing: icon only on a button with no icon.</summary>
     public bool Applies { get; init; }
 
-    /// <summary>Whether the button has an icon layer a template can use.</summary>
-    public bool HasIcon { get; init; }
-
     /// <summary>The layers applying removes from the button.</summary>
     public IReadOnlyList<LayerBase> Removed { get; init; } = [];
 
@@ -43,4 +40,9 @@ public sealed class ButtonTemplatePlan
 }
 
 /// <summary>What <see cref="ActionAssignment.ApplyTemplateToPages"/> did: buttons with at least one state laid out, and the layers dropped.</summary>
-public readonly record struct TemplateApplyResult(int ButtonsChanged, int LayersRemoved);
+public readonly record struct TemplateApplyResult(int ButtonsChanged, int LayersRemoved)
+{
+    /// <summary>What a template did to an imported item, as one line for the result notice.</summary>
+    public string Describe() =>
+        Localization.Loc.Tr("ProfileImport_LayoutTemplateResult", ButtonsChanged, LayersRemoved);
+}

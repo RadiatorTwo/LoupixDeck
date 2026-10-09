@@ -4,6 +4,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="using:LoupixDeck.ViewModels"
+        xmlns:controls="using:LoupixDeck.Views.Controls"
         mc:Ignorable="d"
         Width="620" Height="640"
         MinWidth="520" MinHeight="420"
@@ -127,19 +128,7 @@
                 </StackPanel>
 
                 <!-- Layout template for the touch buttons of the profile -->
-                <StackPanel Spacing="6">
-                    <TextBlock Text="{loc:Tr TouchButton_LayoutTemplate}" Classes="sectionHeader" />
-                    <ComboBox ItemsSource="{Binding LayoutTemplates}"
-                              SelectedItem="{Binding SelectedLayoutTemplate}"
-                              HorizontalAlignment="Stretch">
-                        <ComboBox.ItemTemplate>
-                            <DataTemplate DataType="vm:LayoutTemplateOption">
-                                <TextBlock Text="{Binding Label}" />
-                            </DataTemplate>
-                        </ComboBox.ItemTemplate>
-                    </ComboBox>
-                    <TextBlock Text="{loc:Tr LoupedeckImport_LayoutTemplateHint}" Classes="hint" />
-                </StackPanel>
+                <controls:LayoutTemplatePicker DataContext="{Binding LayoutTemplate}" />
 
                 <!-- Plugins the imported actions need -->
                 <StackPanel Spacing="6" IsVisible="{Binding HasMissingPlugins}">

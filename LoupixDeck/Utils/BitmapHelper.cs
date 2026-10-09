@@ -19,6 +19,12 @@ public static class BitmapHelper
     public static Func<string, SKBitmap> AssetResolver { get; set; }
 
     /// <summary>
+    /// Resolver for the pixel size of an asset without decoding it, wired up next to
+    /// <see cref="AssetResolver"/>. Returns null if unresolved.
+    /// </summary>
+    public static Func<string, SKSizeI?> AssetSizeResolver { get; set; }
+
+    /// <summary>
     /// Cache of "Liberation Sans" typefaces keyed by (weight, slant). Previously a
     /// fresh <see cref="SKTypeface"/> was allocated on every text render, piling up
     /// native objects that the GC finalizer thread later freed concurrently with
@@ -1271,27 +1277,7 @@ public static class BitmapHelper
                 }
                 if (bmp == null) return null;
 
-                float srcW, srcH;
-                if (!image.SourceRect.IsEmpty &&
-                    image.SourceRect.Width > 0 && image.SourceRect.Height > 0)
-                {
-                    srcW = image.SourceRect.Width;
-                    srcH = image.SourceRect.Height;
-                }
-                else
-                {
-                    srcW = bmp.Width;
-                    srcH = bmp.Height;
-                }
-
-                var fit = Math.Min(deviceW / srcW, deviceH / srcH);
-                var scaleX = (float)Math.Max(0.01, image.EffectiveScaleX);
-                var scaleY = (float)Math.Max(0.01, image.EffectiveScaleY);
-                var dstW = srcW * fit * scaleX;
-                var dstH = srcH * fit * scaleY;
-                var drawX = ((deviceW - dstW) / 2f) + image.PositionX;
-                var drawY = ((deviceH - dstH) / 2f) + image.PositionY;
-                return new SKRect(drawX, drawY, drawX + dstW, drawY + dstH);
+                return ImageLayerDeviceRect(image, bmp.Width, bmp.Height, deviceW, deviceH);
             }
             case SymbolLayer symbol:
                 return CenteredSquareRect(symbol, deviceW, deviceH);
@@ -1316,6 +1302,53 @@ public static class BitmapHelper
             default:
                 return null;
         }
+    }
+
+    /// <summary>
+    /// <see cref="GetLayerDeviceRect"/> for an image layer whose picture may not be loaded: then only
+    /// its size is read, so measuring many layers neither decodes their pictures nor keeps them in
+    /// memory. Null when the picture cannot be found.
+    /// </summary>
+    internal static SKRect? GetImageLayerDeviceRectWithoutLoading(ImageLayer image, int deviceW, int deviceH)
+    {
+        SKSizeI? size = image.CachedImage is { } bmp
+            ? new SKSizeI(bmp.Width, bmp.Height)
+            : string.IsNullOrEmpty(image.AssetRelativePath) ? null : AssetSizeResolver?.Invoke(image.AssetRelativePath);
+
+        return size is { Width: > 0, Height: > 0 } picture
+            ? ImageLayerDeviceRect(image, picture.Width, picture.Height, deviceW, deviceH)
+            : null;
+    }
+
+    /// <summary>
+    /// Where <paramref name="image"/> is drawn when its picture is <paramref name="pictureWidth"/> ×
+    /// <paramref name="pictureHeight"/> pixels: its source rectangle, or the whole picture, fitted into
+    /// the device rect, then scaled and moved by the layer.
+    /// </summary>
+    private static SKRect ImageLayerDeviceRect(ImageLayer image, int pictureWidth, int pictureHeight,
+        int deviceW, int deviceH)
+    {
+        float srcW, srcH;
+        if (!image.SourceRect.IsEmpty &&
+            image.SourceRect.Width > 0 && image.SourceRect.Height > 0)
+        {
+            srcW = image.SourceRect.Width;
+            srcH = image.SourceRect.Height;
+        }
+        else
+        {
+            srcW = pictureWidth;
+            srcH = pictureHeight;
+        }
+
+        var fit = Math.Min(deviceW / srcW, deviceH / srcH);
+        var scaleX = (float)Math.Max(0.01, image.EffectiveScaleX);
+        var scaleY = (float)Math.Max(0.01, image.EffectiveScaleY);
+        var dstW = srcW * fit * scaleX;
+        var dstH = srcH * fit * scaleY;
+        var drawX = ((deviceW - dstW) / 2f) + image.PositionX;
+        var drawY = ((deviceH - dstH) / 2f) + image.PositionY;
+        return new SKRect(drawX, drawY, drawX + dstW, drawY + dstH);
     }
 
     /// <summary>

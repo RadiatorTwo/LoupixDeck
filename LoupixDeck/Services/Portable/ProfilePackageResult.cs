@@ -40,6 +40,18 @@ public sealed class ProfilePackageResult
             LayoutTemplate = layoutTemplate
         };
 
+    /// <summary>The lines the result is reported with: its message, what a layout template did, the warnings.</summary>
+    public IEnumerable<string> ReportLines()
+    {
+        yield return Message;
+
+        if (LayoutTemplate is { } laidOut)
+            yield return laidOut.Describe();
+
+        foreach (string warning in Warnings)
+            yield return warning;
+    }
+
     public static ProfilePackageResult Fail(string message, IReadOnlyList<string> warnings = null) =>
         new() { Success = false, Message = message, Warnings = warnings ?? [] };
 }

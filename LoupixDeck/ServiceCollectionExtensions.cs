@@ -626,6 +626,7 @@ public static class ServiceCollectionExtensions
         // Let the (static) bitmap renderer resolve image-layer assets via DI.
         var assetService = root.GetRequiredService<IAssetService>();
         BitmapHelper.AssetResolver = assetService.Load;
+        BitmapHelper.AssetSizeResolver = assetService.GetImageSize;
     }
 
     /// <summary>Per-device one-time init: dialog registration, haptic materialization,

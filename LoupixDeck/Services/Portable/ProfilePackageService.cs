@@ -241,6 +241,25 @@ public sealed class ProfilePackageService(
         }
     }
 
+    public TemplateApplyResult? PlanLayoutTemplate(ProfilePackageAnalysis analysis, ButtonTemplate template)
+    {
+        ProfilePackagePayload payload = analysis?.Payload;
+        IEnumerable<TouchButtonPage> pages = analysis?.Manifest?.Kind switch
+        {
+            PackageKind.Profile when payload?.Profile != null =>
+                payload.Profile.Workspaces.SelectMany(w => w.EnumerateTouchLayouts()),
+            PackageKind.Workspace when payload?.Workspace != null => payload.Workspace.EnumerateTouchLayouts(),
+            PackageKind.TouchPage when payload?.TouchPage != null => [payload.TouchPage],
+            _ => null
+        };
+        if (pages == null)
+            return null;
+
+        int keySize = config.Geometry.KeySize;
+        return ActionAssignment.PlanTemplateOnPages(pages, template, keySize, keySize,
+            drawsOnKey: commandRegistry.DrawsOnKey);
+    }
+
     public void DiscardAnalysis(ProfilePackageAnalysis analysis)
     {
         if (!string.IsNullOrEmpty(analysis?.StageDirectory))
@@ -1013,7 +1032,8 @@ public sealed class ProfilePackageService(
             return null;
 
         int keySize = config.Geometry.KeySize;
-        return ActionAssignment.ApplyTemplateToPages(pages, template, keySize, keySize);
+        return ActionAssignment.ApplyTemplateToPages(pages, template, keySize, keySize,
+            drawsOnKey: commandRegistry.DrawsOnKey);
     }
 
     /// <summary>

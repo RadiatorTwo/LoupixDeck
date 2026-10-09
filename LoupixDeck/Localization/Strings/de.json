@@ -1369,5 +1369,6 @@
   "Settings_ScreensaverWithDesktop": "Mit dem Desktop-Bildschirmschoner starten",
   "Settings_ScreensaverWithDesktopHint": "Spielt den Bildschirmschoner auf dem Gerät ab, solange der Windows-Bildschirmschoner läuft, auch wenn der animierte Bildschirmschoner oben aus ist. Währenddessen bleibt das Gerät an, statt den Monitoren zu folgen.",
   "Settings_DisplaysOffTurnOff": "Ausschalten",
-  "Settings_DisplaysOffDim": "Dimmen auf"
+  "Settings_DisplaysOffDim": "Dimmen auf",
+  "ProfileImport_LayoutTemplatePreview": "Ordnet {0} Taste(n) neu an und entfernt {1} Ebene(n)."
 }

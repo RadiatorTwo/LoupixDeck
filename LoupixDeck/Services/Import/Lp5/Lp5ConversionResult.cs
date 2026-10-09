@@ -1,4 +1,5 @@
 using LoupixDeck.Models;
+using LoupixDeck.Models.Layers;
 
 namespace LoupixDeck.Services.Import.Lp5;
 
@@ -83,6 +84,9 @@ public sealed class Lp5ConversionResult
 
     /// <summary>Touch keys whose action was not converted and that carry the "not imported" marker; a layout template leaves them alone.</summary>
     public required IReadOnlySet<TouchButton> UnmappedKeys { get; init; }
+
+    /// <summary>The pictures placed on keys, which are the keys' icons even when they fill the key; a layout template may shrink them.</summary>
+    public IReadOnlySet<LayerBase> IconImages { get; init; } = new HashSet<LayerBase>();
 
     public int Workspaces { get; init; }
 
