@@ -201,7 +201,7 @@ Built-in commands and plugins cover:
 - Elgato Key Lights
 - Audio devices, per-application mixing and sound playback on Windows and Linux
 - SteelSeries Sonar on Windows
-- Twitch chat and stream controls on Windows
+- Twitch chat and stream control with on-button feedback on Windows
 - KDE Plasma desktops, windows, Activities and session controls on Linux
 - Media Session on Windows and MPRIS Media on Linux
 - Home Assistant and PowerToys integrations from the Plugin Store

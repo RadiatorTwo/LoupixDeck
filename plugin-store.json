@@ -399,7 +399,7 @@
     {
       "id": "twitch",
       "name": "Twitch",
-      "description": "Send chat messages, create clips, run ads, set stream markers, clear chat, toggle slow and emote-only mode, and show the live viewer count.",
+      "description": "Control your Twitch chat and stream from the device, with each action's result and the live viewer count shown on the buttons.",
       "author": "vividflash",
       "repository": "vividflash/LoupixDeck.Plugin.Twitch",
       "icon": "https://raw.githubusercontent.com/vividflash/LoupixDeck.Plugin.Twitch/main/icon.png",
