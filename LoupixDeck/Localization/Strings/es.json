@@ -1363,9 +1363,11 @@
   "Confirm_ApplyTemplatePageMessage": "¿Reorganizar {0} botón(es) de esta página? Se quitarán otras {1} capa(s). Los botones a los que no se ajusta la plantilla se quedan como están.",
   "Confirm_ApplyTemplatePageNothing": "Ningún botón de esta página se puede organizar con esta plantilla.",
   "Confirm_Apply": "Aplicar",
-  "Settings_TurnOffWithDisplays": "Apagar con los monitores",
-  "Settings_TurnOffWithDisplaysHint": "Apaga el dispositivo cuando el ordenador apaga los monitores y lo vuelve a encender cuando se reactivan. Un dispositivo que hayas apagado tú sigue apagado.",
+  "Settings_TurnOffWithDisplays": "Seguir a los monitores",
+  "Settings_TurnOffWithDisplaysHint": "Cuando el ordenador apaga los monitores, el dispositivo se apaga o se atenúa y vuelve cuando se reactivan. En Windows también cuenta el protector de pantalla. Un dispositivo que hayas apagado tú sigue apagado.",
   "Settings_TurnOffWithDisplaysUnsupported": "Este escritorio no informa de cuándo se apagan los monitores, por lo que el dispositivo no puede seguirlos.",
   "Settings_ScreensaverWithDesktop": "Iniciar con el protector de pantalla del escritorio",
-  "Settings_ScreensaverWithDesktopHint": "Reproduce el salvapantallas mientras se ejecuta el protector de pantalla de Windows, aunque el salvapantallas por inactividad esté desactivado. Mientras tanto, el dispositivo sigue encendido en lugar de apagarse con los monitores."
+  "Settings_ScreensaverWithDesktopHint": "Reproduce el salvapantallas mientras se ejecuta el protector de pantalla de Windows, aunque el salvapantallas por inactividad esté desactivado. Mientras tanto, el dispositivo sigue encendido en lugar de seguir a los monitores.",
+  "Settings_DisplaysOffTurnOff": "Apagar",
+  "Settings_DisplaysOffDim": "Atenuar al"
 }

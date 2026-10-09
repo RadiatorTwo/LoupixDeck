@@ -127,6 +127,16 @@ public partial class LoupedeckLiveSController(
     /// end stops it again. Cleared whenever the screensaver stops for any reason.</summary>
     private volatile bool _screensaverForDesktop;
 
+    /// <summary>True while the display brightness is lowered because the host is idle and the
+    /// device is set to dim rather than turn off (#382).</summary>
+    private volatile bool _dimmedForDisplays;
+
+    /// <summary>The display brightness to apply now: the configured one, lowered while dimmed
+    /// for the host (never raised by a dim level above it).</summary>
+    private double EffectiveBrightness => (_dimmedForDisplays
+        ? Math.Min(config.DisplaysOffDimBrightness, config.Brightness)
+        : config.Brightness) / 100.0;
+
     /// <summary>Who switched the device off.</summary>
     private enum OffReason
     {
@@ -241,32 +251,51 @@ public partial class LoupedeckLiveSController(
     }
 
     /// <summary>
-    /// Whether the host's idle state asks for a dark device: it follows the monitors, and the
+    /// Whether the host's idle state concerns the device: it follows the monitors, and the
     /// monitors are off or the desktop screen saver runs. A device set to play its screensaver
     /// with the desktop one does that instead while the monitors are still on (#382).
     /// </summary>
-    private bool HostWantsOff() => config.TurnOffWithDisplays &&
-                                   (!_displaysOn || (_desktopScreenSaver && !config.ScreensaverWithDesktop));
+    private bool HostIsIdle() => config.TurnOffWithDisplays &&
+                                 (!_displaysOn || (_desktopScreenSaver && !config.ScreensaverWithDesktop));
+
+    /// <summary>Whether the host's idle state asks for a dark device (#382).</summary>
+    private bool HostWantsOff() => HostIsIdle() && config.DisplaysOffAction == DisplaysOffAction.TurnOff;
+
+    /// <summary>Whether the host's idle state asks for a dimmed device (#382).</summary>
+    private bool HostWantsDim() => HostIsIdle() && config.DisplaysOffAction == DisplaysOffAction.Dim;
 
     /// <summary>Whether the screensaver should play along with the desktop screen saver (#382).</summary>
     private bool HostWantsScreensaver() => config.ScreensaverWithDesktop && _desktopScreenSaver && _displaysOn;
 
     /// <summary>
-    /// Brings the device in line with the host's idle state: dark while the host asks for it,
-    /// marked so that only the host waking switches it back on, and on again once it does; the
-    /// screensaver playing while the desktop one runs, if set. A device the user turned off is
-    /// left alone either way.
+    /// Brings the device in line with the host's idle state: dark or dimmed while the host asks
+    /// for it, marked so that only the host waking undoes it, and back to normal once it does;
+    /// the screensaver playing while the desktop one runs, if set. A device the user turned off
+    /// is left alone either way.
     /// </summary>
     private async Task ApplyHostIdleState()
     {
         if (HostWantsOff())
         {
+            _dimmedForDisplays = false;
             await EnterOffState(OffReason.Displays);
             return;
         }
 
         if (_blankedForDisplays)
             await RestoreDeviceState();
+
+        // Tracked even while the user has the device off, so switching it on lands on the right
+        // brightness; only pushed while it is on.
+        var dim = HostWantsDim();
+        if (dim != _dimmedForDisplays)
+        {
+            _dimmedForDisplays = dim;
+            if (!_isDeviceOff)
+                await TryDeviceIo("dimming the display",
+                    () => deviceService.Device?.SetBrightness(EffectiveBrightness) ?? Task.CompletedTask);
+        }
+
         if (_isDeviceOff) return;
 
         if (HostWantsScreensaver())
@@ -396,7 +425,7 @@ public partial class LoupedeckLiveSController(
             // off/on toggle. It matters most on the resume path, where HandleSystemResume pushes
             // in a retry loop while the link is still being rebuilt.
             if (device is not { IsConnected: true }) return false;
-            await device.SetBrightness(config.Brightness / 100.0);
+            await device.SetBrightness(EffectiveBrightness);
             if (config.SimpleButtons != null)
             {
                 foreach (var btn in config.SimpleButtons)
@@ -1032,7 +1061,7 @@ public partial class LoupedeckLiveSController(
 
         deviceService.Device.DitherFramebuffer = config.DitheringEnabled;
         await TryDeviceIo("setting the brightness",
-            () => deviceService.Device.SetBrightness(config.Brightness / 100.0));
+            () => deviceService.Device.SetBrightness(EffectiveBrightness));
 
         // Re-apply the simple-button LED colours now that the device is fully initialised.
         // BUTTON0 is the device's boot status LED: the firmware holds it green during
@@ -3638,10 +3667,19 @@ public partial class LoupedeckLiveSController(
                     await Task.Delay(100, token); // Debounce
                     // async void: an unhandled transport failure here would tear the process down.
                     await TryDeviceIo("setting the brightness",
-                        () => deviceService.Device.SetBrightness(config.Brightness / 100.0));
+                        () => deviceService.Device.SetBrightness(EffectiveBrightness));
+                    break;
+
+                case nameof(LoupedeckConfig.DisplaysOffDimBrightness):
+                    // Only visible while dimmed; otherwise the next dim picks the new level up.
+                    if (!_dimmedForDisplays || _isDeviceOff) break;
+                    await Task.Delay(100, token); // Debounce, like the brightness slider
+                    await TryDeviceIo("dimming the display",
+                        () => deviceService.Device?.SetBrightness(EffectiveBrightness) ?? Task.CompletedTask);
                     break;
 
                 case nameof(LoupedeckConfig.TurnOffWithDisplays):
+                case nameof(LoupedeckConfig.DisplaysOffAction):
                 case nameof(LoupedeckConfig.ScreensaverWithDesktop):
                     // Re-weigh the host's idle state against the new setting right away, e.g. a
                     // device the monitors blanked comes back instead of staying dark until they

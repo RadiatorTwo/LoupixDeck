@@ -243,6 +243,26 @@
                             <CheckBox Content="{loc:Tr Settings_TurnOffWithDisplays}" Margin="0,12,0,0"
                                       IsEnabled="{Binding IsDisplayStateSupported}"
                                       IsChecked="{Binding Config.TurnOffWithDisplays, Mode=TwoWay}" />
+                            <StackPanel Orientation="Horizontal" Spacing="12" Margin="28,6,0,0">
+                                <StackPanel.IsEnabled>
+                                    <MultiBinding Converter="{x:Static BoolConverters.And}">
+                                        <Binding Path="IsDisplayStateSupported" />
+                                        <Binding Path="Config.TurnOffWithDisplays" />
+                                    </MultiBinding>
+                                </StackPanel.IsEnabled>
+                                <RadioButton GroupName="DisplaysOffAction" VerticalAlignment="Center"
+                                             Content="{loc:Tr Settings_DisplaysOffTurnOff}"
+                                             IsChecked="{Binding Config.DisplaysOffAction, Mode=TwoWay, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=TurnOff}" />
+                                <RadioButton GroupName="DisplaysOffAction" VerticalAlignment="Center"
+                                             Content="{loc:Tr Settings_DisplaysOffDim}"
+                                             IsChecked="{Binding Config.DisplaysOffAction, Mode=TwoWay, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Dim}" />
+                                <Slider Minimum="0" Maximum="100" Width="160" TickFrequency="1" IsSnapToTickEnabled="True"
+                                        VerticalAlignment="Center"
+                                        IsEnabled="{Binding Config.DisplaysOffAction, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Dim}"
+                                        Value="{Binding Config.DisplaysOffDimBrightness, Mode=TwoWay}" />
+                                <TextBlock Classes="value" VerticalAlignment="Center" Width="36" TextAlignment="Right"
+                                           Text="{Binding Config.DisplaysOffDimBrightness}" />
+                            </StackPanel>
                             <TextBlock Classes="hint" Margin="0,4,0,0"
                                        Text="{loc:Tr Settings_TurnOffWithDisplaysHint}" />
                             <TextBlock Classes="hint" Margin="0,4,0,0" Foreground="#E6A23C"

@@ -161,6 +161,14 @@ public partial class LoupedeckConfig : ObservableObject
     [ObservableProperty]
     public partial bool TurnOffWithDisplays { get; set; }
 
+    // Whether following the monitors turns the device off or only dims it, and how far
+    // (percent of full brightness). Absent in older configs, which keeps turning it off.
+    [ObservableProperty]
+    public partial DisplaysOffAction DisplaysOffAction { get; set; } = DisplaysOffAction.TurnOff;
+
+    [ObservableProperty]
+    public partial int DisplaysOffDimBrightness { get; set; } = 10;
+
     // ───────── Screensaver (issue #120) ─────────
     // Full-display animated screensaver: after the device has been idle for
     // ScreensaverIdleTimeoutSeconds, the configured video/GIF (decoded via ffmpeg)
