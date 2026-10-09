@@ -23,9 +23,6 @@ public sealed class ButtonTemplatePlan
     /// <summary>False when the template does nothing: icon only on a button with no icon.</summary>
     public bool Applies { get; init; }
 
-    /// <summary>Whether the button has an icon layer a template can use.</summary>
-    public bool HasIcon { get; init; }
-
     /// <summary>The layers applying removes from the button.</summary>
     public IReadOnlyList<LayerBase> Removed { get; init; } = [];
 

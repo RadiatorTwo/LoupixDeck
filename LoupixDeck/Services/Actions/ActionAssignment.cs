@@ -380,6 +380,13 @@ public static class ActionAssignment
     }
 
     /// <summary>
+    /// Whether <paramref name="button"/>'s active state has a layer a template can lay out as its icon:
+    /// any visible symbol or image layer, a background included.
+    /// </summary>
+    public static bool HasTemplateIcon(TouchButton button)
+        => button?.Layers?.Any(l => l is SymbolLayer or ImageLayer && l.Visible) == true;
+
+    /// <summary>
     /// Works out what <paramref name="template"/> does to <paramref name="button"/>'s active state on a
     /// key of the given size, without changing the button, so the editor can ask about the layers that
     /// go before it hands the plan to <see cref="ApplyTemplate"/>. The icon and caption layers are kept
@@ -408,7 +415,6 @@ public static class ActionAssignment
 
         FindTemplateLayers(layers, command, keyWidthPx, keyHeightPx, out LayerBase icon, out TextLayer caption,
             out List<LayerBase> removed, out List<LayerBase> backgrounds);
-        bool hasIcon = icon != null;
 
         if (bulk)
         {
@@ -459,7 +465,6 @@ public static class ActionAssignment
         return new ButtonTemplatePlan
         {
             Applies = true,
-            HasIcon = hasIcon,
             Removed = removed,
             Layout = template,
             Icon = icon,

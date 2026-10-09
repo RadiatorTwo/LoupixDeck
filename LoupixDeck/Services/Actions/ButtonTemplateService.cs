@@ -67,19 +67,18 @@ public sealed class ButtonTemplateService(IDialogService dialogService, IAssetSe
         if (button?.Layers == null)
             return default;
 
-        ButtonTemplatePlan plan = ActionAssignment.PlanTemplate(button, template, keyWidthPx, keyHeightPx);
-
         // A template that needs an icon asks for one first; cancelling the picker changes nothing.
         SymbolLayer addedIcon = null;
-        if (template != ButtonTemplate.TextOnly && !plan.HasIcon)
+        if (template != ButtonTemplate.TextOnly && !ActionAssignment.HasTemplateIcon(button))
         {
             addedIcon = await PickSymbolLayerAsync(button.Layers);
             if (addedIcon == null)
                 return default;
 
             AddLayer(button.Layers, addedIcon, keyWidthPx, keyHeightPx);
-            plan = ActionAssignment.PlanTemplate(button, template, keyWidthPx, keyHeightPx);
         }
+
+        ButtonTemplatePlan plan = ActionAssignment.PlanTemplate(button, template, keyWidthPx, keyHeightPx);
 
         // A command can adopt or re-create a layer while the question is open, so the plan is made
         // again after every answer, and asked about again when it would drop a layer not agreed to.
