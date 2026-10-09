@@ -10,12 +10,22 @@ public abstract class DisplayStateServiceBase : IDisplayStateService
 {
     private readonly Lock _gate = new();
     private bool _displaysOn = true;
+    private bool _screenSaverRunning;
     private bool _started;
 
     public event EventHandler DisplaysOff;
     public event EventHandler DisplaysOn;
+    public event EventHandler ScreenSaverStarted;
+    public event EventHandler ScreenSaverStopped;
 
     public bool IsSupported { get; private set; }
+
+    public bool IsScreenSaverSupported { get; private set; }
+
+    public bool ScreenSaverRunning
+    {
+        get { lock (_gate) return _screenSaverRunning; }
+    }
 
     public bool DisplaysAreOn
     {
@@ -46,6 +56,9 @@ public abstract class DisplayStateServiceBase : IDisplayStateService
     /// <summary>A source is attached and will report changes.</summary>
     protected void MarkSupported() => IsSupported = true;
 
+    /// <summary>The desktop screen saver is followed as well.</summary>
+    protected void MarkScreenSaverSupported() => IsScreenSaverSupported = true;
+
     /// <summary>Reports the state the source currently sees; only a change raises an event.</summary>
     protected void Report(bool displaysOn)
     {
@@ -57,5 +70,18 @@ public abstract class DisplayStateServiceBase : IDisplayStateService
 
         Console.WriteLine($"[Displays] Displays {(displaysOn ? "on" : "off")}");
         (displaysOn ? DisplaysOn : DisplaysOff)?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>Reports whether the desktop screen saver runs; only a change raises an event.</summary>
+    protected void ReportScreenSaver(bool running)
+    {
+        lock (_gate)
+        {
+            if (_screenSaverRunning == running) return;
+            _screenSaverRunning = running;
+        }
+
+        Console.WriteLine($"[Displays] Desktop screen saver {(running ? "started" : "stopped")}");
+        (running ? ScreenSaverStarted : ScreenSaverStopped)?.Invoke(this, EventArgs.Empty);
     }
 }

@@ -119,6 +119,10 @@ public partial class LoupedeckLiveSController(
     /// <see cref="HandleDisplaysOn"/>.</summary>
     private volatile bool _displaysOn = true;
 
+    /// <summary>Whether the host's desktop screen saver runs, as last reported through
+    /// <see cref="HandleDesktopScreenSaver"/>.</summary>
+    private volatile bool _desktopScreenSaver;
+
     /// <summary>Who switched the device off.</summary>
     private enum OffReason
     {
@@ -211,21 +215,44 @@ public partial class LoupedeckLiveSController(
     /// </summary>
     public Task HandleSystemSuspend() => EnterOffState(OffReason.Suspend);
 
-    /// <summary>
-    /// The host's monitors went dark (#382). Blanks the device when it is set to follow them,
-    /// marked so that only the monitors waking again switches it back on.
-    /// </summary>
+    /// <summary>The host's monitors went dark (#382).</summary>
     public Task HandleDisplaysOff()
     {
         _displaysOn = false;
-        return config.TurnOffWithDisplays ? EnterOffState(OffReason.Displays) : Task.CompletedTask;
+        return ApplyHostIdleState();
     }
 
-    /// <summary>The host's monitors are on again; undoes an off state they caused (#382).</summary>
+    /// <summary>The host's monitors are on again (#382).</summary>
     public Task HandleDisplaysOn()
     {
         _displaysOn = true;
-        return _blankedForDisplays ? RestoreDeviceState() : Task.CompletedTask;
+        return ApplyHostIdleState();
+    }
+
+    /// <summary>The host's desktop screen saver started or ended (#382).</summary>
+    public Task HandleDesktopScreenSaver(bool running)
+    {
+        _desktopScreenSaver = running;
+        return ApplyHostIdleState();
+    }
+
+    /// <summary>
+    /// Whether the host's idle state asks for a dark device: it follows the monitors, and the
+    /// monitors are off or the desktop screen saver runs (#382).
+    /// </summary>
+    private bool HostWantsOff() => config.TurnOffWithDisplays && (!_displaysOn || _desktopScreenSaver);
+
+    /// <summary>
+    /// Brings the device in line with the host's idle state: dark while the host asks for it,
+    /// marked so that only the host waking switches it back on, and on again once it does. A
+    /// device the user turned off is left alone either way.
+    /// </summary>
+    private async Task ApplyHostIdleState()
+    {
+        if (HostWantsOff())
+            await EnterOffState(OffReason.Displays);
+        else if (_blankedForDisplays)
+            await RestoreDeviceState();
     }
 
     private async Task EnterOffState(OffReason reason)
@@ -427,7 +454,7 @@ public partial class LoupedeckLiveSController(
                 // require the manual off/on toggle (#195). A user-off device stays blank.
                 // A device set to follow the monitors stays dark while they are still off after
                 // the wake; the mark moves over so the monitors waking switches it on (#382).
-                if (_blankedForSuspend && !_displaysOn && config.TurnOffWithDisplays)
+                if (_blankedForSuspend && HostWantsOff())
                 {
                     _blankedForSuspend = false;
                     _blankedForDisplays = true;
@@ -435,7 +462,7 @@ public partial class LoupedeckLiveSController(
 
                 // A device the monitors blanked comes back with them, here when their wake arrived
                 // while the link was still down.
-                var takeOnline = _blankedForSuspend || (_blankedForDisplays && _displaysOn);
+                var takeOnline = _blankedForSuspend || (_blankedForDisplays && !HostWantsOff());
 
                 var pushed = (takeOnline || !_isDeviceOff)
                     ? await PushFullState()
@@ -3588,8 +3615,7 @@ public partial class LoupedeckLiveSController(
                 case nameof(LoupedeckConfig.TurnOffWithDisplays):
                     // No longer following the monitors: a device they blanked comes back now
                     // instead of staying dark until they wake (#382).
-                    if (!config.TurnOffWithDisplays && _blankedForDisplays)
-                        await RestoreDeviceState();
+                    await ApplyHostIdleState();
                     break;
 
                 case nameof(LoupedeckConfig.DitheringEnabled):

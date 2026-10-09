@@ -12,8 +12,8 @@ namespace LoupixDeck.Services.SystemPower;
 /// state right after registration and then every change: 0 = off, 1 = on, 2 = dimmed. Dimmed still
 /// shows a picture and counts as on.
 ///
-/// A running Windows screen saver counts as "displays off" too, although the monitors stay powered:
-/// to the user the computer has gone idle the same way. Two cases, both seen through WinEvents:
+/// The Windows screen saver is reported as well; the monitors stay powered while it runs, so the
+/// console display state never shows it. Two cases, both seen through WinEvents:
 /// <list type="bullet">
 /// <item>Started by the idle timeout, it runs on a desktop of its own, so its start and end are each
 /// a desktop switch, answered with a one-off <c>SPI_GETSCREENSAVERRUNNING</c> query.</item>
@@ -68,7 +68,6 @@ public sealed partial class WindowsDisplayStateService : DisplayStateServiceBase
     }
 
     private readonly Lock _stateGate = new();
-    private bool _monitorsOn = true;
     private bool _screenSaverDesktop;
     private Process _screenSaverProcess;
 
@@ -140,6 +139,7 @@ public sealed partial class WindowsDisplayStateService : DisplayStateServiceBase
         _hookThread.Start();
 
         MarkSupported();
+        MarkScreenSaverSupported();
     }
 
     /// <summary>Sets the WinEvent hooks and pumps messages for them until <see cref="Dispose"/>.</summary>
@@ -177,11 +177,7 @@ public sealed partial class WindowsDisplayStateService : DisplayStateServiceBase
             if (Marshal.ReadInt32(setting, DataLengthOffset) < sizeof(uint)) return ERROR_SUCCESS;
 
             uint state = (uint)Marshal.ReadInt32(setting, DataOffset);
-            lock (_stateGate)
-            {
-                _monitorsOn = state != DisplayOff;
-                Publish();
-            }
+            Report(state != DisplayOff);
         }
         catch
         {
@@ -214,7 +210,7 @@ public sealed partial class WindowsDisplayStateService : DisplayStateServiceBase
         lock (_stateGate)
         {
             _screenSaverDesktop = running;
-            Publish();
+            PublishScreenSaver();
         }
     }
 
@@ -254,7 +250,7 @@ public sealed partial class WindowsDisplayStateService : DisplayStateServiceBase
                 return;
             }
 
-            Publish();
+            PublishScreenSaver();
         }
     }
 
@@ -283,15 +279,14 @@ public sealed partial class WindowsDisplayStateService : DisplayStateServiceBase
         if (!ReferenceEquals(process, _screenSaverProcess)) return;
         _screenSaverProcess.Dispose();
         _screenSaverProcess = null;
-        Publish();
+        PublishScreenSaver();
     }
 
     /// <summary>
-    /// The displays count as on while the monitors are powered and no screen saver runs. Caller
-    /// holds the lock, so callbacks on different threads cannot overtake each other; the
-    /// subscribers only post to the UI thread.
+    /// The screen saver runs while either case says so. Caller holds the lock, so callbacks on
+    /// different threads cannot overtake each other; the subscribers only post to the UI thread.
     /// </summary>
-    private void Publish() => Report(_monitorsOn && !_screenSaverDesktop && _screenSaverProcess == null);
+    private void PublishScreenSaver() => ReportScreenSaver(_screenSaverDesktop || _screenSaverProcess != null);
 
     public void Dispose()
     {

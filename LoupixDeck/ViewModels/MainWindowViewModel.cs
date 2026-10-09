@@ -388,6 +388,10 @@ public partial class MainWindowViewModel : ViewModelBase
             Avalonia.Threading.Dispatcher.UIThread.Post(() => _ = LoupedeckController.HandleDisplaysOff());
         displayState.DisplaysOn += (_, _) =>
             Avalonia.Threading.Dispatcher.UIThread.Post(() => _ = LoupedeckController.HandleDisplaysOn());
+        displayState.ScreenSaverStarted += (_, _) =>
+            Avalonia.Threading.Dispatcher.UIThread.Post(() => _ = LoupedeckController.HandleDesktopScreenSaver(true));
+        displayState.ScreenSaverStopped += (_, _) =>
+            Avalonia.Threading.Dispatcher.UIThread.Post(() => _ = LoupedeckController.HandleDesktopScreenSaver(false));
         displayState.StartMonitoring();
 
         // Foreground-window → page switching. Started on the UI thread because the
