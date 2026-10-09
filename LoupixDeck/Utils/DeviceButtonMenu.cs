@@ -3,7 +3,9 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.VisualTree;
+using LoupixDeck.Localization;
 using LoupixDeck.Models;
+using LoupixDeck.Services.Actions;
 using LoupixDeck.ViewModels;
 
 namespace LoupixDeck.Utils;
@@ -17,6 +19,7 @@ namespace LoupixDeck.Utils;
 /// A dial gets the quick menu above those entries: its three gestures, the presets, and a way into
 /// the full editor. Those items are built by <see cref="DialQuickMenu"/> — this stays the one place
 /// a device button's menu is composed, and each kind of button contributes its own section.
+/// A grid touch button gets the layout templates (issue #370) the same way.
 /// </summary>
 public static class DeviceButtonMenu
 {
@@ -58,6 +61,12 @@ public static class DeviceButtonMenu
             menu.Items.Add(new Separator());
         }
 
+        if (vm.IsTemplateTarget(target))
+        {
+            menu.Items.Add(BuildTemplateItem(vm));
+            menu.Items.Add(new Separator());
+        }
+
         menu.Items.Add(MakeItem("Copy", vm.CopySelectedCommand, vm.CanCopySelected()));
         menu.Items.Add(MakeItem("Cut", vm.CutSelectedCommand, vm.CanClearSelected()));
         menu.Items.Add(MakeItem("Paste", vm.PasteSelectedCommand, vm.CanPasteSelected()));
@@ -67,6 +76,25 @@ public static class DeviceButtonMenu
         menu.ShowAt(button, showAtPointer: true);
         e.Handled = true;
     }
+
+    /// <summary>The "Layout template" submenu with the four templates the button editor offers.</summary>
+    private static MenuItem BuildTemplateItem(MainWindowViewModel vm)
+    {
+        MenuItem item = new()
+        {
+            Header = Loc.Tr("TouchButton_LayoutTemplate"),
+            IsEnabled = vm.CanApplyTemplateToSelected()
+        };
+
+        item.Items.Add(MakeTemplateItem("TouchButton_Template_IconTextBottom", ButtonTemplate.IconCaptionBottom, vm));
+        item.Items.Add(MakeTemplateItem("TouchButton_Template_IconTextTop", ButtonTemplate.IconCaptionTop, vm));
+        item.Items.Add(MakeTemplateItem("TouchButton_Template_IconOnly", ButtonTemplate.IconOnly, vm));
+        item.Items.Add(MakeTemplateItem("TouchButton_Template_TextOnly", ButtonTemplate.TextOnly, vm));
+        return item;
+    }
+
+    private static MenuItem MakeTemplateItem(string headerKey, ButtonTemplate template, MainWindowViewModel vm)
+        => new() { Header = Loc.Tr(headerKey), Command = vm.ApplyTemplateToSelectedCommand, CommandParameter = template };
 
     private static MenuItem MakeItem(string header, ICommand command, bool enabled)
         => new() { Header = header, Command = command, IsEnabled = enabled };
