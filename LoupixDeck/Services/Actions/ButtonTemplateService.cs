@@ -81,9 +81,12 @@ public sealed class ButtonTemplateService(IDialogService dialogService, IAssetSe
             plan = ActionAssignment.PlanTemplate(button, template, keyWidthPx, keyHeightPx);
         }
 
-        int removed = plan.Removed.Count;
-        if (removed > 0)
+        // A command can adopt or re-create a layer while the question is open, so the plan is made
+        // again after every answer, and asked about again when it would drop a layer not agreed to.
+        IReadOnlyList<LayerBase> confirmed = [];
+        while (plan.Removed.Any(layer => !confirmed.Contains(layer)))
         {
+            int removed = plan.Removed.Count;
             DialogResult result = await dialogService.ShowDialogAsync<ConfirmDialogViewModel, DialogResult>(vm =>
                 vm.Configure(
                     Loc.Tr("Confirm_ApplyTemplateMessage", removed),
@@ -97,6 +100,9 @@ public sealed class ButtonTemplateService(IDialogService dialogService, IAssetSe
 
                 return default;
             }
+
+            confirmed = plan.Removed;
+            plan = ActionAssignment.PlanTemplate(button, template, keyWidthPx, keyHeightPx);
         }
 
         ObservableCollection<LayerBase> layers = button.Layers;
