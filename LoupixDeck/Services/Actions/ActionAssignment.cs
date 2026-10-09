@@ -525,6 +525,18 @@ public static class ActionAssignment
     /// </summary>
     public static TemplateApplyResult ApplyTemplateToPages(IEnumerable<TouchButtonPage> pages, ButtonTemplate template,
         int keyWidthPx, int keyHeightPx, IReadOnlySet<TouchButton> skip = null)
+        => RunTemplateOnPages(pages, template, keyWidthPx, keyHeightPx, skip, apply: true);
+
+    /// <summary>
+    /// What <see cref="ApplyTemplateToPages"/> would do with the same arguments, without changing
+    /// anything, so the caller can name the totals before asking.
+    /// </summary>
+    public static TemplateApplyResult PlanTemplateOnPages(IEnumerable<TouchButtonPage> pages, ButtonTemplate template,
+        int keyWidthPx, int keyHeightPx, IReadOnlySet<TouchButton> skip = null)
+        => RunTemplateOnPages(pages, template, keyWidthPx, keyHeightPx, skip, apply: false);
+
+    private static TemplateApplyResult RunTemplateOnPages(IEnumerable<TouchButtonPage> pages, ButtonTemplate template,
+        int keyWidthPx, int keyHeightPx, IReadOnlySet<TouchButton> skip, bool apply)
     {
         int buttonsChanged = 0;
         int layersRemoved = 0;
@@ -544,11 +556,17 @@ public static class ActionAssignment
 
                     ButtonTemplatePlan plan = PlanTemplate(state.Layers, template, keyWidthPx, keyHeightPx,
                         bulk: true);
-                    if (!ApplyTemplate(state.Layers, plan, uniqueName: null))
+                    if (!plan.Applies)
                         continue;
 
-                    // Only this state's handlers are rewired, so the button's active state stays as it is.
-                    state.RewireLayerHandlers();
+                    if (apply)
+                    {
+                        ApplyTemplate(state.Layers, plan, uniqueName: null);
+
+                        // Only this state's handlers are rewired, so the button's active state stays as it is.
+                        state.RewireLayerHandlers();
+                    }
+
                     changed = true;
                     layersRemoved += plan.Removed.Count;
                 }

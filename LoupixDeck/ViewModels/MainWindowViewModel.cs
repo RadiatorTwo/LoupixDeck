@@ -34,6 +34,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly IButtonClipboardService _clipboard;
     private readonly IWorkspaceActivationService _workspaceActivation;
     private readonly Services.Actions.IPanelAssignmentService _panelAssignment;
+    private readonly Services.Actions.IButtonTemplateService _buttonTemplates;
     private readonly LoupedeckConfig _config;
     private readonly Services.DialPresets.IDialPresetStore _dialPresetStore;
     private readonly Services.Folders.ICustomFolderService _folders;
@@ -56,6 +57,10 @@ public partial class MainWindowViewModel : ViewModelBase
     public IRelayCommand CutSelectedCommand { get; }
     public IAsyncRelayCommand PasteSelectedCommand { get; }
     public IRelayCommand ClearSelectedCommand { get; }
+
+    // Layout template on the selected touch button, from its context menu (issue #370).
+    public IAsyncRelayCommand<Services.Actions.ButtonTemplate> ApplyTemplateToSelectedCommand { get; }
+    public IAsyncRelayCommand<Services.Actions.ButtonTemplate> ApplyTemplateToPageCommand { get; }
 
     public IRelayCommand AddRotaryPageCommand { get; }
     public IRelayCommand DeleteRotaryPageCommand { get; }
@@ -285,6 +290,7 @@ public partial class MainWindowViewModel : ViewModelBase
         ProfileHeaderMenuViewModel profileMenu,
         Services.DialPresets.IDialPresetStore dialPresetStore,
         Services.Actions.IPanelAssignmentService panelAssignment,
+        Services.Actions.IButtonTemplateService buttonTemplates,
         LoupixDeck.Registry.DeviceRegistry.DeviceInfo deviceInfo,
         LoupixDeck.Registry.ResolvedDevice resolved,
         LoupixDeck.Registry.DeviceGeometry geometry,
@@ -324,6 +330,7 @@ public partial class MainWindowViewModel : ViewModelBase
         ActionPanel.UnlinkFromProfile = ProfileMenu.UnlinkApplicationAsync;
         ProfileMenu.LinkChanged += RefreshPanelProfileLinks;
         _panelAssignment = panelAssignment;
+        _buttonTemplates = buttonTemplates;
         _config = config;
 
         // Warm the panel's lists so it is populated the first time it is opened. Queued until the
@@ -389,6 +396,8 @@ public partial class MainWindowViewModel : ViewModelBase
         CutSelectedCommand = new RelayCommand(CutSelected);
         PasteSelectedCommand = new AsyncRelayCommand(PasteSelected);
         ClearSelectedCommand = new RelayCommand(ClearSelected);
+        ApplyTemplateToSelectedCommand = new AsyncRelayCommand<Services.Actions.ButtonTemplate>(ApplyTemplateToSelected);
+        ApplyTemplateToPageCommand = new AsyncRelayCommand<Services.Actions.ButtonTemplate>(ApplyTemplateToPage);
 
         AddRotaryPageCommand = new RelayCommand(AddRotaryPageButton_Click);
         DeleteRotaryPageCommand = new RelayCommand(DeleteRotaryPageButton_Click);
@@ -872,6 +881,66 @@ public partial class MainWindowViewModel : ViewModelBase
                 _ = LoupedeckController.RefreshSideStrip(side);
                 break;
         }
+    }
+
+    /// <summary>True for a grid touch button: the side strips and a folder's Back tile take no template.</summary>
+    public bool IsTemplateTarget(LoupedeckButton button) => Classify(button) == ButtonKind.Touch;
+
+    /// <summary>
+    /// True when the selected element is a grid touch button with something visible on it. A
+    /// template only rearranges what a key shows; an empty key is designed in the editor.
+    /// </summary>
+    public bool CanApplyTemplateToSelected()
+        => IsTemplateTarget(_selectedButton) &&
+           ((TouchButton)_selectedButton).Layers?.Any(l => l is { Visible: true }) == true;
+
+    /// <summary>
+    /// Applies <paramref name="template"/> to the selected touch button the way the editor does: the
+    /// symbol picker when an icon is missing, a confirmation before layers are removed.
+    /// </summary>
+    private async Task ApplyTemplateToSelected(Services.Actions.ButtonTemplate template)
+    {
+        if (!CanApplyTemplateToSelected()) return;
+
+        TouchButton button = (TouchButton)_selectedButton;
+        Services.Actions.ButtonTemplateOutcome outcome =
+            await _buttonTemplates.ApplyAsync(button, template, _geometry.KeySize, _geometry.KeySize);
+        if (!outcome.Applied) return;
+
+        AfterTemplateApplied();
+    }
+
+    /// <summary>
+    /// True when a key on the touch page shown right now (the open folder's layout while a folder is
+    /// open) has something visible a template could lay out.
+    /// </summary>
+    public bool CanApplyTemplateToPage()
+        => LoupedeckController.Config.CurrentTouchButtonPage?.TouchButtons?
+            .Any(b => IsTemplateTarget(b) && b.Layers?.Any(l => l is { Visible: true }) == true) == true;
+
+    /// <summary>
+    /// Applies <paramref name="template"/> to every key of the touch page shown right now, the way an
+    /// import does. The side strips and a folder's Back tile are left out, as in the single-key menu.
+    /// </summary>
+    private async Task ApplyTemplateToPage(Services.Actions.ButtonTemplate template)
+    {
+        TouchButtonPage page = LoupedeckController.Config.CurrentTouchButtonPage;
+        if (page?.TouchButtons == null) return;
+
+        HashSet<TouchButton> skip = page.TouchButtons.Where(b => b != null && !IsTemplateTarget(b)).ToHashSet();
+        Services.Actions.TemplateApplyResult? result =
+            await _buttonTemplates.ApplyToPageAsync(page, template, _geometry.KeySize, _geometry.KeySize, skip);
+        if (result is not { ButtonsChanged: > 0 }) return;
+
+        AfterTemplateApplied();
+    }
+
+    /// <summary>The layer changes repaint the keys on their own; what is left is what closing the editor does.</summary>
+    private void AfterTemplateApplied()
+    {
+        LoupedeckController.SaveConfig();
+        _dynamicTextManager.Rescan();
+        _buttonAnimationManager.Rescan();
     }
 
     /// <summary>Persist + rebuild the dynamic-text / animation entry sets after a touch button's

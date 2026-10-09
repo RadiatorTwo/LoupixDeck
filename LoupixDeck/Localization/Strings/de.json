@@ -1346,5 +1346,21 @@
   "MainWindow_ZoomOut": "Verkleinern (Ctrl -)",
   "MainWindow_ZoomIn": "Vergrößern (Ctrl +)",
   "MainWindow_ZoomReset": "Auf 100 % zurücksetzen (Ctrl 0). Zoomen mit Ctrl + Mausrad.",
-  "MainWindow_ZoomPercent": "{0} %"
+  "MainWindow_ZoomPercent": "{0} %",
+  "ButtonMenu_Copy": "Kopieren",
+  "ButtonMenu_Cut": "Ausschneiden",
+  "ButtonMenu_Paste": "Einfügen",
+  "ButtonMenu_Clear": "Leeren",
+  "DialMenu_AdvancedSettings": "Erweiterte Einstellungen…",
+  "DialMenu_Remove": "Entfernen",
+  "DialMenu_Loading": "Wird geladen…",
+  "DialMenu_NothingToShow": "Nichts anzuzeigen",
+  "DialMenu_Presets": "Vorlagen",
+  "DialMenu_NoPresets": "Keine Vorlagen",
+  "DialMenu_SaveAsPreset": "Diesen Drehregler als Vorlage speichern…",
+  "TouchButton_TemplateWholePage": "Auf alle Tasten dieser Seite anwenden",
+  "Confirm_ApplyTemplatePageTitle": "Vorlage auf Seite anwenden",
+  "Confirm_ApplyTemplatePageMessage": "{0} Taste(n) auf dieser Seite neu anordnen? {1} andere Ebene(n) werden entfernt. Tasten, zu denen die Vorlage nicht passt, bleiben unverändert.",
+  "Confirm_ApplyTemplatePageNothing": "Keine Taste auf dieser Seite lässt sich mit dieser Vorlage anordnen.",
+  "Confirm_Apply": "Anwenden"
 }
