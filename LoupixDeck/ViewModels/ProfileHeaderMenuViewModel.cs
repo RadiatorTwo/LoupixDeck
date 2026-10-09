@@ -156,7 +156,7 @@ public sealed class ProfileHeaderMenuViewModel : ViewModelBase
         if (result.Success && result.Warnings.Count == 0 && result.LayoutTemplate is not { ButtonsChanged: > 0 })
             return;
 
-        string message = string.Join(Environment.NewLine, LayoutTemplateOption.ResultLines(result));
+        string message = string.Join(Environment.NewLine, result.ReportLines());
         await _dialogService.ShowDialogAsync<ConfirmDialogViewModel, DialogResult>(vm =>
             vm.Configure(message, title: Loc.Tr("MainWindow_ImportPackageResultTitle"),
                 confirmText: Loc.Tr("Confirm_Ok"), showCancel: false));

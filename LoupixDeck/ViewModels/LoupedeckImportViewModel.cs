@@ -343,7 +343,7 @@ public sealed partial class LoupedeckImportViewModel : DialogViewModelBase<Dialo
 
             ResultMessage = Loc.Tr("LoupedeckImport_Done", profile.Name, result.MappedControls, result.TotalControls);
             if (laidOut != null)
-                ResultMessage += " " + LayoutTemplateOption.DescribeResult(laidOut.Value);
+                ResultMessage += " " + laidOut.Value.Describe();
         }
         catch (Exception ex)
         {

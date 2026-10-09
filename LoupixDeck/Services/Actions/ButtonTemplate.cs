@@ -40,4 +40,9 @@ public sealed class ButtonTemplatePlan
 }
 
 /// <summary>What <see cref="ActionAssignment.ApplyTemplateToPages"/> did: buttons with at least one state laid out, and the layers dropped.</summary>
-public readonly record struct TemplateApplyResult(int ButtonsChanged, int LayersRemoved);
+public readonly record struct TemplateApplyResult(int ButtonsChanged, int LayersRemoved)
+{
+    /// <summary>What a template did to an imported item, as one line for the result notice.</summary>
+    public string Describe() =>
+        Localization.Loc.Tr("ProfileImport_LayoutTemplateResult", ButtonsChanged, LayersRemoved);
+}

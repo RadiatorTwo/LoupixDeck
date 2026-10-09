@@ -721,7 +721,7 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
     {
         if (result == null) return;
 
-        PackageStatusMessage = string.Join(Environment.NewLine, LayoutTemplateOption.ResultLines(result));
+        PackageStatusMessage = string.Join(Environment.NewLine, result.ReportLines());
     }
 
     private void AddProfile()
