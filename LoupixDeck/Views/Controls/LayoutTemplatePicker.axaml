@@ -1,0 +1,22 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:loc="using:LoupixDeck.Localization"
+             xmlns:vm="using:LoupixDeck.ViewModels"
+             x:Class="LoupixDeck.Views.Controls.LayoutTemplatePicker"
+             x:DataType="vm:LayoutTemplatePickerViewModel">
+    <StackPanel Spacing="6">
+        <TextBlock Text="{loc:Tr TouchButton_LayoutTemplate}" Classes="sectionHeader" />
+        <ComboBox ItemsSource="{Binding Templates}"
+                  SelectedItem="{Binding Selected}"
+                  HorizontalAlignment="Stretch">
+            <ComboBox.ItemTemplate>
+                <DataTemplate DataType="vm:LayoutTemplateOption">
+                    <TextBlock Text="{Binding Label}" />
+                </DataTemplate>
+            </ComboBox.ItemTemplate>
+        </ComboBox>
+        <TextBlock Text="{Binding Hint}" Classes="hint" />
+        <TextBlock Text="{Binding Preview}" IsVisible="{Binding HasPreview}"
+                   Classes="hint" TextWrapping="Wrap" />
+    </StackPanel>
+</UserControl>

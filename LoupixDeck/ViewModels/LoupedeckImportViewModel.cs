@@ -65,7 +65,8 @@ public sealed partial class LoupedeckImportViewModel : DialogViewModelBase<Dialo
 
         Unmapped = new();
         Notes = new();
-        SelectedLayoutTemplate = LayoutTemplates[0];
+        LayoutTemplate = new LayoutTemplatePickerViewModel(Loc.Tr("LoupedeckImport_LayoutTemplateHint"),
+            PlanLayoutTemplate);
     }
 
     /// <summary>
@@ -174,41 +175,23 @@ public sealed partial class LoupedeckImportViewModel : DialogViewModelBase<Dialo
     /// <summary>Offered only when a link is made while automatic switching is off.</summary>
     public bool ShowEnableSwitching => LinkApp && !_config.AppSwitchingEnabled;
 
-    public IReadOnlyList<LayoutTemplateOption> LayoutTemplates { get; } = LayoutTemplateOption.CreateAll();
-
-    [ObservableProperty]
-    public partial LayoutTemplateOption SelectedLayoutTemplate { get; set; }
-
-    /// <summary>What the selected template will do to the imported keys; empty without a template.</summary>
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasLayoutTemplatePreview))]
-    public partial string LayoutTemplatePreview { get; set; } = string.Empty;
-
-    public bool HasLayoutTemplatePreview => !string.IsNullOrEmpty(LayoutTemplatePreview);
-
-    partial void OnSelectedLayoutTemplateChanged(LayoutTemplateOption value) => UpdateLayoutTemplatePreview();
+    public LayoutTemplatePickerViewModel LayoutTemplate { get; }
 
     /// <summary>
-    /// Plans the selected template on the preview the import would lay out, with or without captions
-    /// as <see cref="ImportAsync"/> converts. The preview stores no pictures, so a picture is judged by
-    /// its scale and position.
+    /// Plans <paramref name="template"/> on the preview the import would lay out, with or without
+    /// captions as <see cref="ImportAsync"/> converts. The preview stores no pictures, so a picture is
+    /// judged by its scale and position. Null until the preview is converted.
     /// </summary>
-    private void UpdateLayoutTemplatePreview()
+    private TemplateApplyResult? PlanLayoutTemplate(ButtonTemplate template)
     {
-        ButtonTemplate? template = SelectedLayoutTemplate?.Template;
         Lp5ConversionResult preview = UsesCaptions(template) ? _captionedPreview : _preview;
-        if (template == null || preview == null)
-        {
-            LayoutTemplatePreview = string.Empty;
-            return;
-        }
+        if (preview == null)
+            return null;
 
-        TemplateApplyResult planned = ActionAssignment.PlanTemplateOnPages(
-            preview.Profile.Workspaces.SelectMany(w => w.EnumerateTouchLayouts()), template.Value,
+        return ActionAssignment.PlanTemplateOnPages(
+            preview.Profile.Workspaces.SelectMany(w => w.EnumerateTouchLayouts()), template,
             _geometry.KeySize, _geometry.KeySize, preview.UnmappedKeys, _commandRegistry.DrawsOnKey,
             preview.IconImages);
-        LayoutTemplatePreview = Loc.Tr("ProfileImport_LayoutTemplatePreview", planned.ButtonsChanged,
-            planned.LayersRemoved);
     }
 
     /// <summary>Icon only drops the caption again, so the label is passed only to a template that shows it.</summary>
@@ -275,7 +258,7 @@ public sealed partial class LoupedeckImportViewModel : DialogViewModelBase<Dialo
             $"{(string.IsNullOrWhiteSpace(moved.Label) ? "—" : moved.Label)}{Environment.NewLine}{moved.From}  →  {moved.To}"));
 
         BuildAppLink();
-        UpdateLayoutTemplatePreview();
+        LayoutTemplate.Refresh();
         await FindMissingPluginsAsync();
 
         IsLoading = false;
@@ -328,7 +311,7 @@ public sealed partial class LoupedeckImportViewModel : DialogViewModelBase<Dialo
         try
         {
             // The real pass stores the icons; the preview pass stored nothing.
-            ButtonTemplate? template = SelectedLayoutTemplate?.Template;
+            ButtonTemplate? template = LayoutTemplate.Template;
             Lp5ConversionResult result = Lp5Converter.Convert(_archive, Shape, _assets,
                 labelAsCaption: UsesCaptions(template));
             Profile profile = result.Profile;

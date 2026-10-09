@@ -4,6 +4,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="using:LoupixDeck.ViewModels"
+        xmlns:controls="using:LoupixDeck.Views.Controls"
         mc:Ignorable="d"
         Width="660" Height="700"
         MinWidth="560" MinHeight="480"
@@ -273,21 +274,9 @@
                 </StackPanel>
 
                 <!-- Layout template for the touch buttons of the package -->
-                <StackPanel Spacing="6" IsVisible="{Binding ShowLayoutTemplate}">
-                    <TextBlock Text="{loc:Tr TouchButton_LayoutTemplate}" Classes="sectionHeader" />
-                    <ComboBox ItemsSource="{Binding LayoutTemplates}"
-                              SelectedItem="{Binding SelectedLayoutTemplate}"
-                              HorizontalAlignment="Stretch">
-                        <ComboBox.ItemTemplate>
-                            <DataTemplate DataType="vm:LayoutTemplateOption">
-                                <TextBlock Text="{Binding Label}" />
-                            </DataTemplate>
-                        </ComboBox.ItemTemplate>
-                    </ComboBox>
-                    <TextBlock Text="{loc:Tr ProfileImport_LayoutTemplateHint}" Classes="hint" />
-                    <TextBlock Text="{Binding LayoutTemplatePreview}" IsVisible="{Binding HasLayoutTemplatePreview}"
-                               Classes="hint" TextWrapping="Wrap" />
-                </StackPanel>
+                <Panel IsVisible="{Binding ShowLayoutTemplate}">
+                    <controls:LayoutTemplatePicker DataContext="{Binding LayoutTemplate}" />
+                </Panel>
 
                 <!-- Companion pages: which companion of this master receives each part. -->
                 <StackPanel Spacing="6" IsVisible="{Binding HasCompanionParts}">
