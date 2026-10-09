@@ -120,6 +120,34 @@ public class AssetService : IAssetService
         }
     }
 
+    public SKSizeI? GetImageSize(string relativePath)
+    {
+        if (string.IsNullOrWhiteSpace(relativePath)) return null;
+
+        if (_cache.TryGetValue(relativePath, out var cached) && cached != null)
+            return new SKSizeI(cached.Width, cached.Height);
+
+        var absolute = ResolveAbsolute(relativePath);
+        if (!File.Exists(absolute)) return null;
+
+        try
+        {
+            if (string.Equals(Path.GetExtension(absolute), ".svg", StringComparison.OrdinalIgnoreCase))
+            {
+                using var svg = new SKSvg();
+                return svg.Load(absolute) is { } picture ? SvgRasterSizeOf(picture.CullRect) : null;
+            }
+
+            using var codec = SKCodec.Create(absolute);
+            return codec == null ? null : new SKSizeI(codec.Info.Width, codec.Info.Height);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"AssetService: failed to read the size of '{absolute}': {ex.Message}");
+            return null;
+        }
+    }
+
     /// <summary>
     /// Renders an SVG asset to a bitmap whose longest edge is <see cref="SvgRasterSize"/>, keeping
     /// the drawing's aspect ratio. The renderers aspect-fit and scale image layers, so one fixed,
@@ -132,13 +160,10 @@ public class AssetService : IAssetService
         if (picture == null) return null;
 
         var bounds = picture.CullRect;
-        if (bounds.Width <= 0 || bounds.Height <= 0) return null;
+        if (SvgRasterSizeOf(bounds) is not { } size) return null;
 
         var scale = SvgRasterSize / Math.Max(bounds.Width, bounds.Height);
-        var width = Math.Max(1, (int)Math.Round(bounds.Width * scale));
-        var height = Math.Max(1, (int)Math.Round(bounds.Height * scale));
-
-        var bitmap = new SKBitmap(new SKImageInfo(width, height, SKColorType.Bgra8888, SKAlphaType.Premul));
+        var bitmap = new SKBitmap(new SKImageInfo(size.Width, size.Height, SKColorType.Bgra8888, SKAlphaType.Premul));
         using var canvas = new SKCanvas(bitmap);
         canvas.Clear(SKColors.Transparent);
         canvas.Scale(scale);
@@ -146,6 +171,16 @@ public class AssetService : IAssetService
         canvas.DrawPicture(picture);
         canvas.Flush();
         return bitmap;
+    }
+
+    /// <summary>The size <see cref="RasterizeSvg"/> renders a drawing with these bounds at; null for an empty one.</summary>
+    private static SKSizeI? SvgRasterSizeOf(SKRect bounds)
+    {
+        if (bounds.Width <= 0 || bounds.Height <= 0) return null;
+
+        var scale = SvgRasterSize / Math.Max(bounds.Width, bounds.Height);
+        return new SKSizeI(Math.Max(1, (int)Math.Round(bounds.Width * scale)),
+            Math.Max(1, (int)Math.Round(bounds.Height * scale)));
     }
 
     public void Cleanup(IEnumerable<string> referencedRelativePaths)

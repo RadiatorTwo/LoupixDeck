@@ -349,7 +349,7 @@ public static class ActionAssignment
     private static bool IsFullKeyImage(ImageLayer image, int keyWidthPx, int keyHeightPx)
     {
         float shortEdge = Math.Min(keyWidthPx, keyHeightPx);
-        if (BitmapHelper.GetLayerDeviceRect(image, keyWidthPx, keyHeightPx) is not { } drawn)
+        if (BitmapHelper.GetImageLayerDeviceRectWithoutLoading(image, keyWidthPx, keyHeightPx) is not { } drawn)
         {
             float width = shortEdge * (float)image.EffectiveScaleX;
             float height = shortEdge * (float)image.EffectiveScaleY;

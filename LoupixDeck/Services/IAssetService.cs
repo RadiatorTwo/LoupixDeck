@@ -35,6 +35,13 @@ public interface IAssetService
     SKBitmap Load(string relativePath);
 
     /// <summary>
+    /// The pixel size <see cref="Load"/> gives the picture at the given relative asset path, read from
+    /// the file header without decoding or caching the pixels (the cached bitmap's size when it is
+    /// loaded already). Null if the file is missing or unreadable.
+    /// </summary>
+    SKSizeI? GetImageSize(string relativePath);
+
+    /// <summary>
     /// Resolves a stored relative asset path (e.g. "assets/screensavers/&lt;hash&gt;.mp4")
     /// to its absolute path on disk. Used by consumers that need the file itself rather
     /// than a decoded bitmap (e.g. handing a video to ffmpeg).

@@ -19,6 +19,12 @@ public static class BitmapHelper
     public static Func<string, SKBitmap> AssetResolver { get; set; }
 
     /// <summary>
+    /// Resolver for the pixel size of an asset without decoding it, wired up next to
+    /// <see cref="AssetResolver"/>. Returns null if unresolved.
+    /// </summary>
+    public static Func<string, SKSizeI?> AssetSizeResolver { get; set; }
+
+    /// <summary>
     /// Cache of "Liberation Sans" typefaces keyed by (weight, slant). Previously a
     /// fresh <see cref="SKTypeface"/> was allocated on every text render, piling up
     /// native objects that the GC finalizer thread later freed concurrently with
@@ -1296,6 +1302,22 @@ public static class BitmapHelper
             default:
                 return null;
         }
+    }
+
+    /// <summary>
+    /// <see cref="GetLayerDeviceRect"/> for an image layer whose picture may not be loaded: then only
+    /// its size is read, so measuring many layers neither decodes their pictures nor keeps them in
+    /// memory. Null when the picture cannot be found.
+    /// </summary>
+    internal static SKRect? GetImageLayerDeviceRectWithoutLoading(ImageLayer image, int deviceW, int deviceH)
+    {
+        SKSizeI? size = image.CachedImage is { } bmp
+            ? new SKSizeI(bmp.Width, bmp.Height)
+            : string.IsNullOrEmpty(image.AssetRelativePath) ? null : AssetSizeResolver?.Invoke(image.AssetRelativePath);
+
+        return size is { Width: > 0, Height: > 0 } picture
+            ? ImageLayerDeviceRect(image, picture.Width, picture.Height, deviceW, deviceH)
+            : null;
     }
 
     /// <summary>
