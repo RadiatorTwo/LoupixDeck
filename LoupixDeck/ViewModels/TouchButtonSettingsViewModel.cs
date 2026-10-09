@@ -72,6 +72,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     private readonly Services.Commands.ICommandStateMaterializer _stateMaterializer;
     private readonly IAssetService _assetService;
     private readonly IDialogService _dialogService;
+    private readonly IButtonTemplateService _buttonTemplates;
     private readonly ISideStripProviderRegistry _sideStripRegistry;
     private readonly IDynamicTextManager _dynamicTextManager;
     private readonly Services.Animation.IButtonAnimationManager _buttonAnimationManager;
@@ -1053,9 +1054,11 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         Services.AppLauncher.IAppIconExtractor appIcons,
         LoupedeckConfig config,
         DeviceGeometry geometry,
-        Services.Companion.ICommandLockService commandLock)
+        Services.Companion.ICommandLockService commandLock,
+        IButtonTemplateService buttonTemplates)
     {
         _commandLock = commandLock;
+        _buttonTemplates = buttonTemplates;
         _commandBuilder = commandBuilder;
         _menuTreeBuilder = menuTreeBuilder;
         _commandRegistry = commandRegistry;
@@ -1095,22 +1098,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     /// ("Text" → "Text 1" → "Text 2" …).
     /// </summary>
     private string GetUniqueLayerName(string baseName)
-    {
-        if (ButtonData?.Layers == null)
-            return baseName;
-
-        bool Exists(string name) =>
-            ButtonData.Layers.Any(l => string.Equals(l.Name, name, StringComparison.Ordinal));
-
-        if (!Exists(baseName))
-            return baseName;
-
-        var index = 1;
-        while (Exists($"{baseName} {index}"))
-            index++;
-
-        return $"{baseName} {index}";
-    }
+        => ButtonTemplateService.UniqueLayerName(ButtonData?.Layers, baseName);
 
     private async Task AddImageLayer()
     {
@@ -1240,38 +1228,9 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     {
         if (ButtonData == null || IsStripCanvas) return;
 
-        ButtonTemplatePlan plan = ActionAssignment.PlanTemplate(ButtonData, template, DeviceWidth, DeviceHeight);
-
-        // A template that needs an icon asks for one first; cancelling the picker changes nothing.
-        SymbolLayer addedIcon = null;
-        if (template != ButtonTemplate.TextOnly && !plan.HasIcon)
-        {
-            addedIcon = await PickSymbolLayer();
-            if (addedIcon == null) return;
-
-            AddLayer(addedIcon);
-            plan = ActionAssignment.PlanTemplate(ButtonData, template, DeviceWidth, DeviceHeight);
-        }
-
-        int removed = plan.Removed.Count;
-        if (removed > 0)
-        {
-            DialogResult result = await _dialogService.ShowDialogAsync<ConfirmDialogViewModel, DialogResult>(vm =>
-                vm.Configure(
-                    Loc.Tr("Confirm_ApplyTemplateMessage", removed),
-                    title: Loc.Tr("Confirm_ApplyTemplateTitle"),
-                    confirmText: Loc.Tr("Confirm_Overwrite"),
-                    cancelText: Loc.Tr("Confirm_Cancel")));
-            if (!result.IsConfirmed)
-            {
-                if (addedIcon != null)
-                    ButtonData.Layers.Remove(addedIcon);
-
-                return;
-            }
-        }
-
-        if (!ActionAssignment.ApplyTemplate(ButtonData, plan, GetUniqueLayerName))
+        ButtonTemplateOutcome outcome = await _buttonTemplates.ApplyAsync(ButtonData, template, DeviceWidth,
+            DeviceHeight);
+        if (!outcome.Applied)
             return;
 
         // A caption the template created has not been stamped with the surface size yet.
@@ -1280,8 +1239,8 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         if (_selectedLayer != null && !ButtonData.Layers.Contains(_selectedLayer))
             SelectedLayer = null;
 
-        if (addedIcon != null)
-            SelectedLayer = addedIcon;
+        if (outcome.AddedIcon != null)
+            SelectedLayer = outcome.AddedIcon;
 
         UpdateEditorPreview();
         UpdateSelectionBounds();
@@ -1291,75 +1250,11 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     {
         if (ButtonData == null) return;
 
-        SymbolLayer layer = await PickSymbolLayer();
+        SymbolLayer layer = await _buttonTemplates.PickSymbolLayerAsync(ButtonData.Layers);
         if (layer == null) return;
 
         AddLayer(layer);
         SelectedLayer = layer;
-    }
-
-    /// <summary>
-    /// Opens the symbol picker and builds the symbol layer for the choice, without adding it to the
-    /// button. Null when the picker is cancelled or the choice cannot be used.
-    /// </summary>
-    private async Task<SymbolLayer> PickSymbolLayer()
-    {
-        var request = new SymbolPickerRequest();
-        var result = await _dialogService.ShowDialogAsync<SymbolPickerViewModel, DialogResult>(
-            vm => vm.Initialize(request));
-
-        if (result is not { IsConfirmed: true }) return null;
-
-        SymbolLayer layer;
-        if (request.SelectedPackIcon is { } icon)
-        {
-            layer = new SymbolLayer { Name = GetUniqueLayerName(icon.DisplayName) };
-            if (!ApplyPackIcon(layer, icon, 0.7)) return null;
-        }
-        else if (request.SelectedSymbol is { } def)
-        {
-            layer = new SymbolLayer
-            {
-                Name = GetUniqueLayerName(def.DisplayName),
-                SymbolId = def.Id
-            };
-            layer.FitScaleToGlyph(0.7);
-        }
-        else
-            return null;
-
-        return layer;
-    }
-
-    /// <summary>
-    /// Puts an icon-pack icon on a symbol layer: the file is copied into the asset store, so the
-    /// button keeps working when the pack folder goes away. Colored icons keep their colors, single-
-    /// color ones take the tint like a glyph. Returns false when the file could not be copied.
-    /// </summary>
-    private bool ApplyPackIcon(SymbolLayer layer, IconPackEntry icon, double size)
-    {
-        string relative;
-        try
-        {
-            relative = _assetService.Import(icon.FullPath, "icons");
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            Console.WriteLine($"[IconPacks] Importing '{icon.FullPath}' failed: {ex.Message}");
-            return false;
-        }
-
-        if (string.IsNullOrEmpty(relative)) return false;
-
-        SKBitmap bitmap = _assetService.Load(relative);
-        SKRectI bounds = bitmap != null ? IconColorAnalysis.GetContentBounds(bitmap) : SKRectI.Empty;
-
-        layer.SymbolId = string.Empty;
-        layer.IconSource = icon.Key;
-        layer.IconAssetPath = relative;
-        layer.KeepOriginalColors = bitmap != null && !IconColorAnalysis.IsMonochrome(bitmap);
-        layer.FitScaleToAspect(size, bounds.Height > 0 ? (double)bounds.Width / bounds.Height : 1.0);
-        return true;
     }
 
     /// <summary>
@@ -1385,7 +1280,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
 
         if (request.SelectedPackIcon is { } icon)
         {
-            if (ApplyPackIcon(symbol, icon, size))
+            if (_buttonTemplates.ApplyPackIcon(symbol, icon, size))
                 symbol.Name = icon.DisplayName;
             return;
         }

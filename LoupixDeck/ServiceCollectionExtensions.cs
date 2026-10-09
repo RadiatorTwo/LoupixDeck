@@ -491,6 +491,7 @@ public static class ServiceCollectionExtensions
         collection.AddSingleton<ViewModels.DialQuickMenuViewModel>();
         collection.AddSingleton<ViewModels.ProfileHeaderMenuViewModel>();
         collection.AddSingleton<Services.Actions.IPanelAssignmentService, Services.Actions.PanelAssignmentService>();
+        collection.AddSingleton<Services.Actions.IButtonTemplateService, Services.Actions.ButtonTemplateService>();
 
         collection.AddTransient<MainWindowViewModel>();
 
