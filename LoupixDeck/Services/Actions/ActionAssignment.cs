@@ -320,19 +320,21 @@ public static class ActionAssignment
     /// icon only when the button has no other. A command-owned icon or caption is used only when there
     /// is no other, and is positioned but never removed. Plugin layers, dial indicators, command-owned
     /// and hidden layers are never touched; <paramref name="others"/> is everything else that is
-    /// neither the icon nor the caption, which a template removes.
+    /// neither the icon nor the caption, which a template removes. <paramref name="backgrounds"/> are
+    /// the pictures that fill the key, the icon among them when it is one.
     /// </summary>
     private static void FindTemplateLayers(IEnumerable<LayerBase> stateLayers, int keyWidthPx, int keyHeightPx,
-        out LayerBase icon, out TextLayer caption, out List<LayerBase> others)
+        out LayerBase icon, out TextLayer caption, out List<LayerBase> others, out List<LayerBase> backgrounds)
     {
         List<LayerBase> layers = stateLayers?.ToList() ?? [];
         List<LayerBase> visible = layers.Where(l => l is { Visible: true }).ToList();
 
         // Layers are drawn first to last, so the last one is on top.
-        List<LayerBase> backgrounds = visible.Where(l => l is ImageLayer image && IsFullKeyImage(image, keyWidthPx, keyHeightPx)).ToList();
-        List<LayerBase> icons = visible.Where(l => l is SymbolLayer or ImageLayer && !backgrounds.Contains(l)).ToList();
+        List<LayerBase> fullKey = visible.Where(l => l is ImageLayer image && IsFullKeyImage(image, keyWidthPx, keyHeightPx)).ToList();
+        List<LayerBase> icons = visible.Where(l => l is SymbolLayer or ImageLayer && !fullKey.Contains(l)).ToList();
         icon = icons.LastOrDefault(l => !l.IsCommandOwned) ?? icons.LastOrDefault()
-            ?? backgrounds.LastOrDefault(l => !l.IsCommandOwned) ?? backgrounds.LastOrDefault();
+            ?? fullKey.LastOrDefault(l => !l.IsCommandOwned) ?? fullKey.LastOrDefault();
+        backgrounds = fullKey;
 
         List<TextLayer> captions = visible.OfType<TextLayer>().ToList();
         caption = captions.FirstOrDefault(l => !l.IsCommandOwned) ?? captions.FirstOrDefault();
@@ -341,7 +343,7 @@ public static class ActionAssignment
         foreach (LayerBase layer in visible)
         {
             if (layer is PluginLayer or DialIndicatorLayer || layer.IsCommandOwned || ReferenceEquals(layer, icon)
-                || ReferenceEquals(layer, caption) || backgrounds.Contains(layer))
+                || ReferenceEquals(layer, caption) || fullKey.Contains(layer))
                 continue;
 
             others.Add(layer);
@@ -388,7 +390,7 @@ public static class ActionAssignment
             return new ButtonTemplatePlan();
 
         FindTemplateLayers(layers, keyWidthPx, keyHeightPx, out LayerBase icon, out TextLayer caption,
-            out List<LayerBase> removed);
+            out List<LayerBase> removed, out List<LayerBase> backgrounds);
         bool hasIcon = icon != null;
 
         if (bulk)
@@ -419,11 +421,13 @@ public static class ActionAssignment
                 break;
 
             case ButtonTemplate.TextOnly:
-                if (icon is { IsCommandOwned: false })
-                {
+                // A background is no icon here: it stays under the text as it is, even when it was
+                // the only picture and so stood in as the icon.
+                if (icon is { IsCommandOwned: false } && !backgrounds.Contains(icon))
                     removed.Add(icon);
-                    icon = layers.LastOrDefault(l => l is SymbolLayer or ImageLayer && l is { Visible: true, IsCommandOwned: true });
-                }
+
+                icon = layers.LastOrDefault(l => l is SymbolLayer or ImageLayer && l is { Visible: true, IsCommandOwned: true }
+                    && !backgrounds.Contains(l));
 
                 // Likewise an icon a command owns stays, so the text would cover it.
                 if (icon != null)
