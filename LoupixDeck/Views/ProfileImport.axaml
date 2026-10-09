@@ -285,6 +285,8 @@
                         </ComboBox.ItemTemplate>
                     </ComboBox>
                     <TextBlock Text="{loc:Tr ProfileImport_LayoutTemplateHint}" Classes="hint" />
+                    <TextBlock Text="{Binding LayoutTemplatePreview}" IsVisible="{Binding HasLayoutTemplatePreview}"
+                               Classes="hint" TextWrapping="Wrap" />
                 </StackPanel>
 
                 <!-- Companion pages: which companion of this master receives each part. -->

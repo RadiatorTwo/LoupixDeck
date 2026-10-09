@@ -1369,5 +1369,6 @@
   "Settings_ScreensaverWithDesktop": "Iniciar con el protector de pantalla del escritorio",
   "Settings_ScreensaverWithDesktopHint": "Reproduce el salvapantallas mientras se ejecuta el protector de pantalla de Windows, aunque el salvapantallas por inactividad esté desactivado. Mientras tanto, el dispositivo sigue encendido en lugar de seguir a los monitores.",
   "Settings_DisplaysOffTurnOff": "Apagar",
-  "Settings_DisplaysOffDim": "Atenuar al"
+  "Settings_DisplaysOffDim": "Atenuar al",
+  "ProfileImport_LayoutTemplatePreview": "Reorganiza {0} botón(es) y quita {1} capa(s)."
 }

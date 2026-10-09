@@ -1,4 +1,5 @@
 using LoupixDeck.Models;
+using LoupixDeck.Services.Actions;
 
 namespace LoupixDeck.Services.Portable;
 
@@ -44,6 +45,13 @@ public interface IProfilePackageService
     /// folder is gone afterwards either way.
     /// </summary>
     Task<ProfilePackageResult> ImportAsync(ProfilePackageAnalysis analysis, ProfilePackageImportOptions options);
+
+    /// <summary>
+    /// What <paramref name="template"/> would do to the touch buttons of an inspected package, so the
+    /// import dialog can name it before anything is committed. Null for a package without touch
+    /// buttons. Pictures not yet in the asset store are judged by their scale and position.
+    /// </summary>
+    TemplateApplyResult? PlanLayoutTemplate(ProfilePackageAnalysis analysis, ButtonTemplate template);
 
     /// <summary>
     /// Throws away the staging folder of an analysis the user cancelled. Safe to call twice.

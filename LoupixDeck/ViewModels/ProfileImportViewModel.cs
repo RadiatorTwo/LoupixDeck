@@ -229,6 +229,28 @@ public sealed partial class ProfileImportViewModel : DialogViewModelBase<DialogR
     [ObservableProperty]
     public partial LayoutTemplateOption SelectedLayoutTemplate { get; set; }
 
+    /// <summary>
+    /// What the selected template will do to the package, shown before the import commits it because
+    /// there is no undo; empty without a template.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasLayoutTemplatePreview))]
+    public partial string LayoutTemplatePreview { get; set; } = string.Empty;
+
+    public bool HasLayoutTemplatePreview => !string.IsNullOrEmpty(LayoutTemplatePreview);
+
+    partial void OnSelectedLayoutTemplateChanged(LayoutTemplateOption value) => UpdateLayoutTemplatePreview();
+
+    private void UpdateLayoutTemplatePreview()
+    {
+        TemplateApplyResult? planned = ShowLayoutTemplate && SelectedLayoutTemplate?.Template is { } template
+            ? _packageService.PlanLayoutTemplate(_analysis, template)
+            : null;
+        LayoutTemplatePreview = planned is { } result
+            ? Loc.Tr("ProfileImport_LayoutTemplatePreview", result.ButtonsChanged, result.LayersRemoved)
+            : string.Empty;
+    }
+
     /// <summary>The template applies to touch buttons, which every kind but a rotary page carries.</summary>
     public bool ShowLayoutTemplate => _analysis?.Manifest?.Kind is PackageKind.Profile or PackageKind.Workspace or PackageKind.TouchPage;
 
@@ -332,6 +354,7 @@ public sealed partial class ProfileImportViewModel : DialogViewModelBase<DialogR
         OnPropertyChanged(nameof(HasDisabledPlugins));
         OnPropertyChanged(nameof(HasImportTargets));
         OnPropertyChanged(nameof(ShowLayoutTemplate));
+        UpdateLayoutTemplatePreview();
         OnPropertyChanged(nameof(HasCompanionParts));
         OnPropertyChanged(nameof(CompanionReplaceWarning));
         OnPropertyChanged(nameof(HasCompanionReplaceWarning));

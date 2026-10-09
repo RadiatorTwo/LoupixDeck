@@ -1369,5 +1369,6 @@
   "Settings_ScreensaverWithDesktop": "Start with the desktop screen saver",
   "Settings_ScreensaverWithDesktopHint": "Plays the screensaver while the Windows screen saver runs, even when the idle screensaver is off. While it plays, the device stays on instead of following the monitors.",
   "Settings_DisplaysOffTurnOff": "Turn off",
-  "Settings_DisplaysOffDim": "Dim to"
+  "Settings_DisplaysOffDim": "Dim to",
+  "ProfileImport_LayoutTemplatePreview": "This lays out {0} key(s) and removes {1} layer(s)."
 }
