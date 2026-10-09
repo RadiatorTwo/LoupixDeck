@@ -96,6 +96,25 @@ public interface IDeviceController
     Task HandleSystemSuspend();
 
     /// <summary>
+    /// The host's monitors went dark. Blanks the device when
+    /// <see cref="Models.LoupedeckConfig.TurnOffWithDisplays"/> is set, marked so that only the
+    /// host waking switches it back on (issue #382).
+    /// </summary>
+    Task HandleDisplaysOff();
+
+    /// <summary>
+    /// The host's monitors are on again. Switches the device on when the host's idle state was
+    /// what turned it off; a device the user turned off stays off (issue #382).
+    /// </summary>
+    Task HandleDisplaysOn();
+
+    /// <summary>
+    /// The host's desktop screen saver started or ended. Treated like the monitors going dark
+    /// and waking (issue #382).
+    /// </summary>
+    Task HandleDesktopScreenSaver(bool running);
+
+    /// <summary>
     /// Handles a system resume: re-establishes the serial link (the handle from before
     /// the suspend is dead even when the port is still listed), takes the device out of
     /// the state the suspend handler blanked it into, and re-pushes everything (#195).

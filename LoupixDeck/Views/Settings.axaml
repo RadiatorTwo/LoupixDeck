@@ -240,6 +240,34 @@
                                           IsChecked="{Binding Config.DitheringEnabled, Mode=TwoWay}"
                                           ToolTip.Tip="{loc:Tr Settings_SmoothsColourGradientsByMixing}" />
                             </StackPanel>
+                            <CheckBox Content="{loc:Tr Settings_TurnOffWithDisplays}" Margin="0,12,0,0"
+                                      IsEnabled="{Binding IsDisplayStateSupported}"
+                                      IsChecked="{Binding Config.TurnOffWithDisplays, Mode=TwoWay}" />
+                            <StackPanel Orientation="Horizontal" Spacing="12" Margin="28,6,0,0">
+                                <StackPanel.IsEnabled>
+                                    <MultiBinding Converter="{x:Static BoolConverters.And}">
+                                        <Binding Path="IsDisplayStateSupported" />
+                                        <Binding Path="Config.TurnOffWithDisplays" />
+                                    </MultiBinding>
+                                </StackPanel.IsEnabled>
+                                <RadioButton GroupName="DisplaysOffAction" VerticalAlignment="Center"
+                                             Content="{loc:Tr Settings_DisplaysOffTurnOff}"
+                                             IsChecked="{Binding Config.DisplaysOffAction, Mode=TwoWay, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=TurnOff}" />
+                                <RadioButton GroupName="DisplaysOffAction" VerticalAlignment="Center"
+                                             Content="{loc:Tr Settings_DisplaysOffDim}"
+                                             IsChecked="{Binding Config.DisplaysOffAction, Mode=TwoWay, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Dim}" />
+                                <Slider Minimum="0" Maximum="100" Width="160" TickFrequency="1" IsSnapToTickEnabled="True"
+                                        VerticalAlignment="Center"
+                                        IsEnabled="{Binding Config.DisplaysOffAction, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Dim}"
+                                        Value="{Binding Config.DisplaysOffDimBrightness, Mode=TwoWay}" />
+                                <TextBlock Classes="value" VerticalAlignment="Center" Width="36" TextAlignment="Right"
+                                           Text="{Binding Config.DisplaysOffDimBrightness}" />
+                            </StackPanel>
+                            <TextBlock Classes="hint" Margin="0,4,0,0"
+                                       Text="{loc:Tr Settings_TurnOffWithDisplaysHint}" />
+                            <TextBlock Classes="hint" Margin="0,4,0,0" Foreground="#E6A23C"
+                                       IsVisible="{Binding !IsDisplayStateSupported}"
+                                       Text="{loc:Tr Settings_TurnOffWithDisplaysUnsupported}" />
                         </StackPanel>
                     </Border>
 
@@ -856,13 +884,27 @@
                             <TextBlock Classes="hint" Margin="0,4,0,0"
                                        Text="{loc:Tr Settings_FillsTheWholeDisplayAfter}"/>
 
+                            <CheckBox Content="{loc:Tr Settings_ScreensaverWithDesktop}" Margin="0,10,0,0"
+                                      IsVisible="{Binding IsDesktopScreenSaverSupported}"
+                                      IsChecked="{Binding Config.ScreensaverWithDesktop, Mode=TwoWay}" />
+                            <TextBlock Classes="hint" Margin="0,4,0,0"
+                                       IsVisible="{Binding IsDesktopScreenSaverSupported}"
+                                       Text="{loc:Tr Settings_ScreensaverWithDesktopHint}"/>
+
                             <TextBlock Classes="hint" Margin="0,8,0,0"
                                        Foreground="#E6A23C"
                                        IsVisible="{Binding ShowFfmpegHint}"
                                        Text="{loc:Tr Settings_FfmpegWasNotFoundOn}"/>
 
+                            <!-- The source is used by the idle screensaver and by the desktop one alike. -->
                             <Grid ColumnDefinitions="120,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto"
-                                  Margin="0,10,0,0" IsEnabled="{Binding Config.ScreensaverEnabled}">
+                                  Margin="0,10,0,0">
+                                <Grid.IsEnabled>
+                                    <MultiBinding Converter="{x:Static BoolConverters.Or}">
+                                        <Binding Path="Config.ScreensaverEnabled" />
+                                        <Binding Path="Config.ScreensaverWithDesktop" />
+                                    </MultiBinding>
+                                </Grid.IsEnabled>
                                 <!-- Source kind -->
                                 <TextBlock Grid.Row="0" Grid.Column="0" Classes="label" Text="{loc:Tr Settings_Source}"
                                            VerticalAlignment="Center" />
@@ -898,9 +940,10 @@
 
                                 <!-- Idle timeout -->
                                 <TextBlock Grid.Row="3" Grid.Column="0" Classes="label" Text="{loc:Tr Settings_IdleTimeout}"
-                                           VerticalAlignment="Center" Margin="0,8,0,0" />
+                                           VerticalAlignment="Center" Margin="0,8,0,0"
+                                           IsEnabled="{Binding Config.ScreensaverEnabled}" />
                                 <StackPanel Grid.Row="3" Grid.Column="1" Orientation="Horizontal" Spacing="8"
-                                            Margin="0,8,0,0">
+                                            Margin="0,8,0,0" IsEnabled="{Binding Config.ScreensaverEnabled}">
                                     <NumericUpDown Width="120" Minimum="5" Maximum="3600" Increment="5"
                                                    FormatString="0"
                                                    Value="{Binding Config.ScreensaverIdleTimeoutSeconds, Mode=TwoWay}" />

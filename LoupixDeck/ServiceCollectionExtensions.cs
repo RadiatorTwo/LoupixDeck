@@ -185,6 +185,9 @@ public static class ServiceCollectionExtensions
         collection.AddSingleton<ISystemPowerService>(_ =>
             new ResumeDetectingSystemPowerService(CreatePlatformPowerService()));
 
+        // Monitor power state, for turning the device off with the displays (issue #382).
+        collection.AddSingleton(CreatePlatformDisplayStateService());
+
         // Foreground-window monitor. The Linux monitor needs no #if guard (it only uses
         // Process + /proc); only the Windows type lives behind #if WINDOWS.
         if (OperatingSystem.IsLinux())
@@ -277,6 +280,7 @@ public static class ServiceCollectionExtensions
         collection.Forward<Services.PluginStore.IPluginStoreService>(root);
         collection.Forward<ICommandRunner>(root);
         collection.Forward<ISystemPowerService>(root);
+        collection.Forward<IDisplayStateService>(root);
         collection.Forward<IActiveWindowMonitor>(root);
         collection.Forward<IActiveWindowState>(root);
         collection.Forward<IMacroConditionEvaluator>(root);
@@ -508,6 +512,20 @@ public static class ServiceCollectionExtensions
             return new WindowsSystemPowerService();
 #endif
         return new NoOpSystemPowerService();
+    }
+
+    /// <summary>The OS-level monitor power source, or a no-op on platforms without one.</summary>
+    private static IDisplayStateService CreatePlatformDisplayStateService()
+    {
+        if (OperatingSystem.IsLinux())
+            return new LinuxDisplayStateService();
+#if WINDOWS
+        if (OperatingSystem.IsWindows())
+            return new WindowsDisplayStateService();
+#endif
+        if (OperatingSystem.IsMacOS())
+            return new MacDisplayStateService();
+        return new NoOpDisplayStateService();
     }
 
     private static void InitDialogs(IServiceCollection collection)

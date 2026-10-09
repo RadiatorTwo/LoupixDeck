@@ -1362,5 +1362,12 @@
   "Confirm_ApplyTemplatePageTitle": "Apply template to page",
   "Confirm_ApplyTemplatePageMessage": "Lay out {0} key(s) on this page? {1} other layer(s) will be removed. Keys the template does not fit stay as they are.",
   "Confirm_ApplyTemplatePageNothing": "No key on this page can be laid out with this template.",
-  "Confirm_Apply": "Apply"
+  "Confirm_Apply": "Apply",
+  "Settings_TurnOffWithDisplays": "Follow the monitors",
+  "Settings_TurnOffWithDisplaysHint": "When the computer turns its monitors off, the device turns off or dims, and comes back when they wake. On Windows the screen saver counts as well. A device you turned off yourself stays off.",
+  "Settings_TurnOffWithDisplaysUnsupported": "This desktop does not report when the monitors turn off, so the device cannot follow them.",
+  "Settings_ScreensaverWithDesktop": "Start with the desktop screen saver",
+  "Settings_ScreensaverWithDesktopHint": "Plays the screensaver while the Windows screen saver runs, even when the idle screensaver is off. While it plays, the device stays on instead of following the monitors.",
+  "Settings_DisplaysOffTurnOff": "Turn off",
+  "Settings_DisplaysOffDim": "Dim to"
 }

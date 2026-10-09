@@ -152,9 +152,13 @@ public sealed class ScreensaverManager : IScreensaverManager, IDisposable
         catch { /* disposed */ }
     }
 
-    private void OnIdleElapsed() => _ = StartScreensaverAsync();
+    private void OnIdleElapsed() => _ = StartScreensaverAsync(force: false);
 
-    private async Task StartScreensaverAsync()
+    public void StartNow() => _ = StartScreensaverAsync(force: true);
+
+    /// <param name="force">Started on request rather than by the idle countdown, which does not
+    /// need the idle screensaver to be enabled.</param>
+    private async Task StartScreensaverAsync(bool force)
     {
         try
         {
@@ -163,7 +167,7 @@ public sealed class ScreensaverManager : IScreensaverManager, IDisposable
                 if (_disposed || !_armed || _source != null) return;
             }
 
-            if (!_config.ScreensaverEnabled) return;
+            if (!force && !_config.ScreensaverEnabled) return;
 
             var device = _deviceService.Device;
             if (device == null) return;
