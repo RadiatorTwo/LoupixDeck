@@ -240,6 +240,14 @@
                                           IsChecked="{Binding Config.DitheringEnabled, Mode=TwoWay}"
                                           ToolTip.Tip="{loc:Tr Settings_SmoothsColourGradientsByMixing}" />
                             </StackPanel>
+                            <CheckBox Content="{loc:Tr Settings_TurnOffWithDisplays}" Margin="0,12,0,0"
+                                      IsEnabled="{Binding IsDisplayStateSupported}"
+                                      IsChecked="{Binding Config.TurnOffWithDisplays, Mode=TwoWay}" />
+                            <TextBlock Classes="hint" Margin="0,4,0,0"
+                                       Text="{loc:Tr Settings_TurnOffWithDisplaysHint}" />
+                            <TextBlock Classes="hint" Margin="0,4,0,0" Foreground="#E6A23C"
+                                       IsVisible="{Binding !IsDisplayStateSupported}"
+                                       Text="{loc:Tr Settings_TurnOffWithDisplaysUnsupported}" />
                         </StackPanel>
                     </Border>
 

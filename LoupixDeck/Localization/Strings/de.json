@@ -1362,5 +1362,8 @@
   "Confirm_ApplyTemplatePageTitle": "Vorlage auf Seite anwenden",
   "Confirm_ApplyTemplatePageMessage": "{0} Taste(n) auf dieser Seite neu anordnen? {1} andere Ebene(n) werden entfernt. Tasten, zu denen die Vorlage nicht passt, bleiben unverändert.",
   "Confirm_ApplyTemplatePageNothing": "Keine Taste auf dieser Seite lässt sich mit dieser Vorlage anordnen.",
-  "Confirm_Apply": "Anwenden"
+  "Confirm_Apply": "Anwenden",
+  "Settings_TurnOffWithDisplays": "Mit den Monitoren ausschalten",
+  "Settings_TurnOffWithDisplaysHint": "Schaltet das Gerät aus, wenn der Computer die Monitore abschaltet, und wieder ein, sobald sie aufwachen. Ein Gerät, das du selbst ausgeschaltet hast, bleibt aus.",
+  "Settings_TurnOffWithDisplaysUnsupported": "Dieser Desktop meldet nicht, wann sich die Monitore abschalten, daher kann das Gerät ihnen nicht folgen."
 }

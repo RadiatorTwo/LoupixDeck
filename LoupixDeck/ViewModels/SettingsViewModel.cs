@@ -15,6 +15,7 @@ using LoupixDeck.Services.Companion;
 using LoupixDeck.Services.Diagnostics;
 using LoupixDeck.Services.Plugins;
 using LoupixDeck.Services.Portable;
+using LoupixDeck.Services.SystemPower;
 using LoupixDeck.Services.Updates;
 using LoupixDeck.Utils;
 using LoupixDeck.ViewModels.Base;
@@ -144,6 +145,12 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
     /// </summary>
     public bool IsAppSwitchingSupported => OperatingSystem.IsWindows() || OperatingSystem.IsLinux();
 
+    /// <summary>
+    /// Whether this session reports the monitors' power state, which "Turn off with the
+    /// monitors" depends on (issue #382). False on desktops without an event source for it.
+    /// </summary>
+    public bool IsDisplayStateSupported { get; }
+
     public SettingsViewModel(LoupedeckConfig config,
         IDeviceService deviceService,
         IPageManager pageManager,
@@ -161,8 +168,10 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
         ICompanionContextSync contextSync,
         IDeviceController controller,
         ResolvedDevice device,
-        LinuxDiagnosticsViewModel diagnostics)
+        LinuxDiagnosticsViewModel diagnostics,
+        IDisplayStateService displayState)
     {
+        IsDisplayStateSupported = displayState.IsSupported;
         _companions = companions;
         Diagnostics = diagnostics;
         _contextSync = contextSync;

@@ -1362,5 +1362,8 @@
   "Confirm_ApplyTemplatePageTitle": "Apply template to page",
   "Confirm_ApplyTemplatePageMessage": "Lay out {0} key(s) on this page? {1} other layer(s) will be removed. Keys the template does not fit stay as they are.",
   "Confirm_ApplyTemplatePageNothing": "No key on this page can be laid out with this template.",
-  "Confirm_Apply": "Apply"
+  "Confirm_Apply": "Apply",
+  "Settings_TurnOffWithDisplays": "Turn off with the monitors",
+  "Settings_TurnOffWithDisplaysHint": "Switches the device off when the computer turns its monitors off, and back on when they wake. A device you turned off yourself stays off.",
+  "Settings_TurnOffWithDisplaysUnsupported": "This desktop does not report when the monitors turn off, so the device cannot follow them."
 }
