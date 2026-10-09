@@ -300,7 +300,8 @@ public sealed partial class LoupedeckImportViewModel : DialogViewModelBase<Dialo
             TemplateApplyResult? laidOut = null;
             if (template != null)
                 laidOut = ActionAssignment.ApplyTemplateToPages(profile.Workspaces.SelectMany(w => w.EnumerateTouchLayouts()),
-                    template.Value, _geometry.KeySize, _geometry.KeySize, result.UnmappedKeys, _commandRegistry.DrawsOnKey);
+                    template.Value, _geometry.KeySize, _geometry.KeySize, result.UnmappedKeys, _commandRegistry.DrawsOnKey,
+                    result.IconImages);
 
             _config.Profiles.Add(profile);
 

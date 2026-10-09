@@ -131,6 +131,7 @@ public sealed class Lp5Converter
             Unsupported = _unsupported,
             Moved = _moved,
             UnmappedKeys = _unmappedKeys,
+            IconImages = _layers.IconImages,
             Notes = notes,
             Workspaces = profile.Workspaces.Count,
             TouchPages = touchPages,

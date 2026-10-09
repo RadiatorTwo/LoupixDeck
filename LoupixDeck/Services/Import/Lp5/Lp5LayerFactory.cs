@@ -28,6 +28,12 @@ internal sealed class Lp5LayerFactory(Lp5Archive archive, IAssetService assets, 
     /// <summary>Image layers created so far.</summary>
     public int Icons { get; private set; }
 
+    /// <summary>
+    /// Every picture layer created so far. Loupedeck has no background picture: a picture on a key, even
+    /// one that fills it, is the key's icon, which a layout template may shrink next to the caption.
+    /// </summary>
+    public HashSet<LayerBase> IconImages { get; } = [];
+
     /// <summary>Icon images that could not be read and were left out.</summary>
     public int UnreadableIcons { get; private set; }
 
@@ -61,12 +67,14 @@ internal sealed class Lp5LayerFactory(Lp5Archive archive, IAssetService assets, 
         if (image != null)
         {
             Icons++;
-            return [new ImageLayer
+            ImageLayer keyImage = new()
             {
                 Name = string.IsNullOrEmpty(label) ? Loc.Tr("LoupedeckImport_LayerIcon") : label,
                 AssetRelativePath = Store(image, ".png"),
                 Scale = 1.0
-            }];
+            };
+            IconImages.Add(keyImage);
+            return [keyImage];
         }
 
         return [];
@@ -117,14 +125,16 @@ internal sealed class Lp5LayerFactory(Lp5Archive archive, IAssetService assets, 
                 }
 
                 Icons++;
-                layers.Add(new ImageLayer
+                ImageLayer picture = new()
                 {
                     Name = Loc.Tr("LoupedeckImport_LayerIcon"),
                     AssetRelativePath = relative,
                     Scale = width / 100,
                     PositionX = centerX,
                     PositionY = centerY
-                });
+                };
+                IconImages.Add(picture);
+                layers.Add(picture);
             }
             else if (type == "Text" && Lp5Json.Str(item, "text") is { Length: > 0 } text)
             {
