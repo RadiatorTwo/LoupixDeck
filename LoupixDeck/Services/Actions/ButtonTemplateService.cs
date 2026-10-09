@@ -190,13 +190,12 @@ public sealed class ButtonTemplateService(IDialogService dialogService, IAssetSe
         if (string.IsNullOrEmpty(relative)) return false;
 
         SKBitmap bitmap = assetService.Load(relative);
-        SKRectI bounds = bitmap != null ? IconColorAnalysis.GetContentBounds(bitmap) : SKRectI.Empty;
 
         layer.SymbolId = string.Empty;
         layer.IconSource = icon.Key;
         layer.IconAssetPath = relative;
         layer.KeepOriginalColors = bitmap != null && !IconColorAnalysis.IsMonochrome(bitmap);
-        layer.FitScaleToAspect(size, bounds.Height > 0 ? (double)bounds.Width / bounds.Height : 1.0);
+        layer.FitScaleToAspect(size, IconColorAnalysis.GetContentAspectRatio(bitmap) ?? 1.0);
         return true;
     }
 

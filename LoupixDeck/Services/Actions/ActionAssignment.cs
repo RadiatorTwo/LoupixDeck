@@ -262,24 +262,13 @@ public static class ActionAssignment
         symbol.PositionX = 0;
         symbol.PositionY = positionY;
 
+        // A pack icon whose asset cannot be loaded keeps the ratio its box already has.
         if (symbol.IsImageIcon)
-            symbol.FitScaleToAspect(scale, PackIconAspectRatio(symbol));
+            symbol.FitScaleToAspect(scale,
+                IconColorAnalysis.GetContentAspectRatio(BitmapHelper.AssetResolver?.Invoke(symbol.IconAssetPath))
+                ?? (symbol.EffectiveScaleX / symbol.EffectiveScaleY));
         else
             symbol.FitScaleToGlyph(scale);
-    }
-
-    /// <summary>Width / height of a pack icon's visible content, or the ratio its box already has
-    /// when the asset cannot be loaded.</summary>
-    private static double PackIconAspectRatio(SymbolLayer symbol)
-    {
-        if (BitmapHelper.AssetResolver?.Invoke(symbol.IconAssetPath) is { } bitmap)
-        {
-            SKRectI bounds = IconColorAnalysis.GetContentBounds(bitmap);
-            if (bounds.Width > 0 && bounds.Height > 0)
-                return (double)bounds.Width / bounds.Height;
-        }
-
-        return symbol.EffectiveScaleX / symbol.EffectiveScaleY;
     }
 
     /// <summary>
@@ -641,9 +630,8 @@ public static class ActionAssignment
                             PositionX = x,
                             PositionY = y
                         };
-                        SKRectI bounds = IconColorAnalysis.GetContentBounds(iconBitmap);
                         pictureSymbol.FitScaleToAspect(iconScale,
-                            bounds.Height > 0 ? (double)bounds.Width / bounds.Height : 1.0);
+                            IconColorAnalysis.GetContentAspectRatio(iconBitmap) ?? 1.0);
                         if (hasColor && pictureSymbol.IsTintable)
                             pictureSymbol.Tint = color;
 
