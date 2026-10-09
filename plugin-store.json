@@ -407,17 +407,17 @@
       "minSdkVersion": "1.28.0",
       "commandPrefixes": [ "Twitch." ],
       "release": {
-        "version": "1.4.0",
-        "tag": "v1.4.0",
-        "publishedAt": "2026-10-03T15:58:31Z",
+        "version": "1.5.0",
+        "tag": "v1.5.0",
+        "publishedAt": "2026-10-09T11:31:50Z",
         "sdkVersion": "1.28.0",
-        "releaseNotesUrl": "https://github.com/vividflash/LoupixDeck.Plugin.Twitch/releases/tag/v1.4.0",
+        "releaseNotesUrl": "https://github.com/vividflash/LoupixDeck.Plugin.Twitch/releases/tag/v1.5.0",
         "packages": [
           {
             "platform": "windows",
-            "fileName": "twitch-1.4.0-windows.zip",
-            "downloadUrl": "https://github.com/vividflash/LoupixDeck.Plugin.Twitch/releases/download/v1.4.0/twitch-1.4.0-windows.zip",
-            "sha256": "1441a61de4746ffaaa0bef9fcd938e4fff5f7218d80f282dcc150616d4a73546"
+            "fileName": "twitch-1.5.0-windows.zip",
+            "downloadUrl": "https://github.com/vividflash/LoupixDeck.Plugin.Twitch/releases/download/v1.5.0/twitch-1.5.0-windows.zip",
+            "sha256": "02d580f25b7c1a87e28a55f4d6069e05b8ce443282b84ee257aea58a285d1e4b"
           }
         ]
       }
