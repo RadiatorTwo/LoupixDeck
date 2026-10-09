@@ -463,17 +463,17 @@
       "minSdkVersion": "1.28.0",
       "commandPrefixes": [ "Voicemeeter." ],
       "release": {
-        "version": "1.2.0",
-        "tag": "v1.2.0",
-        "publishedAt": "2026-10-08T21:55:46Z",
+        "version": "1.2.2",
+        "tag": "v1.2.2",
+        "publishedAt": "2026-10-08T23:03:27Z",
         "sdkVersion": "1.28.0",
-        "releaseNotesUrl": "https://github.com/vividflash/LoupixDeck.Plugin.Voicemeeter/releases/tag/v1.2.0",
+        "releaseNotesUrl": "https://github.com/vividflash/LoupixDeck.Plugin.Voicemeeter/releases/tag/v1.2.2",
         "packages": [
           {
             "platform": "windows",
-            "fileName": "voicemeeter-1.2.0-windows.zip",
-            "downloadUrl": "https://github.com/vividflash/LoupixDeck.Plugin.Voicemeeter/releases/download/v1.2.0/voicemeeter-1.2.0-windows.zip",
-            "sha256": "657a613e1e1a0d464c120ef6f9a9968a95ece85e32e9548ff219bce376943d1b"
+            "fileName": "voicemeeter-1.2.2-windows.zip",
+            "downloadUrl": "https://github.com/vividflash/LoupixDeck.Plugin.Voicemeeter/releases/download/v1.2.2/voicemeeter-1.2.2-windows.zip",
+            "sha256": "1edf867906658361f153b33286def068e17c15d863c1e18cc6e39125f60e35b7"
           }
         ]
       }
