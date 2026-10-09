@@ -1357,5 +1357,10 @@
   "DialMenu_NothingToShow": "Nichts anzuzeigen",
   "DialMenu_Presets": "Vorlagen",
   "DialMenu_NoPresets": "Keine Vorlagen",
-  "DialMenu_SaveAsPreset": "Diesen Drehregler als Vorlage speichern…"
+  "DialMenu_SaveAsPreset": "Diesen Drehregler als Vorlage speichern…",
+  "TouchButton_TemplateWholePage": "Auf alle Tasten dieser Seite anwenden",
+  "Confirm_ApplyTemplatePageTitle": "Vorlage auf Seite anwenden",
+  "Confirm_ApplyTemplatePageMessage": "{0} Taste(n) auf dieser Seite neu anordnen? {1} andere Ebene(n) werden entfernt. Tasten, zu denen die Vorlage nicht passt, bleiben unverändert.",
+  "Confirm_ApplyTemplatePageNothing": "Keine Taste auf dieser Seite lässt sich mit dieser Vorlage anordnen.",
+  "Confirm_Apply": "Anwenden"
 }

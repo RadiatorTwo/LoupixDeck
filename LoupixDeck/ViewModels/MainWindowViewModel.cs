@@ -60,6 +60,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
     // Layout template on the selected touch button, from its context menu (issue #370).
     public IAsyncRelayCommand<Services.Actions.ButtonTemplate> ApplyTemplateToSelectedCommand { get; }
+    public IAsyncRelayCommand<Services.Actions.ButtonTemplate> ApplyTemplateToPageCommand { get; }
 
     public IRelayCommand AddRotaryPageCommand { get; }
     public IRelayCommand DeleteRotaryPageCommand { get; }
@@ -396,6 +397,7 @@ public partial class MainWindowViewModel : ViewModelBase
         PasteSelectedCommand = new AsyncRelayCommand(PasteSelected);
         ClearSelectedCommand = new RelayCommand(ClearSelected);
         ApplyTemplateToSelectedCommand = new AsyncRelayCommand<Services.Actions.ButtonTemplate>(ApplyTemplateToSelected);
+        ApplyTemplateToPageCommand = new AsyncRelayCommand<Services.Actions.ButtonTemplate>(ApplyTemplateToPage);
 
         AddRotaryPageCommand = new RelayCommand(AddRotaryPageButton_Click);
         DeleteRotaryPageCommand = new RelayCommand(DeleteRotaryPageButton_Click);
@@ -905,7 +907,37 @@ public partial class MainWindowViewModel : ViewModelBase
             await _buttonTemplates.ApplyAsync(button, template, _geometry.KeySize, _geometry.KeySize);
         if (!outcome.Applied) return;
 
-        // The layer changes repaint the key on their own; what is left is what closing the editor does.
+        AfterTemplateApplied();
+    }
+
+    /// <summary>
+    /// True when a key on the touch page shown right now (the open folder's layout while a folder is
+    /// open) has something visible a template could lay out.
+    /// </summary>
+    public bool CanApplyTemplateToPage()
+        => LoupedeckController.Config.CurrentTouchButtonPage?.TouchButtons?
+            .Any(b => IsTemplateTarget(b) && b.Layers?.Any(l => l is { Visible: true }) == true) == true;
+
+    /// <summary>
+    /// Applies <paramref name="template"/> to every key of the touch page shown right now, the way an
+    /// import does. The side strips and a folder's Back tile are left out, as in the single-key menu.
+    /// </summary>
+    private async Task ApplyTemplateToPage(Services.Actions.ButtonTemplate template)
+    {
+        TouchButtonPage page = LoupedeckController.Config.CurrentTouchButtonPage;
+        if (page?.TouchButtons == null) return;
+
+        HashSet<TouchButton> skip = page.TouchButtons.Where(b => b != null && !IsTemplateTarget(b)).ToHashSet();
+        Services.Actions.TemplateApplyResult? result =
+            await _buttonTemplates.ApplyToPageAsync(page, template, _geometry.KeySize, _geometry.KeySize, skip);
+        if (result is not { ButtonsChanged: > 0 }) return;
+
+        AfterTemplateApplied();
+    }
+
+    /// <summary>The layer changes repaint the keys on their own; what is left is what closing the editor does.</summary>
+    private void AfterTemplateApplied()
+    {
         LoupedeckController.SaveConfig();
         _dynamicTextManager.Rescan();
         _buttonAnimationManager.Rescan();

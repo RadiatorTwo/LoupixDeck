@@ -1357,5 +1357,10 @@
   "DialMenu_NothingToShow": "Nothing to show",
   "DialMenu_Presets": "Presets",
   "DialMenu_NoPresets": "No presets",
-  "DialMenu_SaveAsPreset": "Save this dial as a preset…"
+  "DialMenu_SaveAsPreset": "Save this dial as a preset…",
+  "TouchButton_TemplateWholePage": "Apply to all keys on this page",
+  "Confirm_ApplyTemplatePageTitle": "Apply template to page",
+  "Confirm_ApplyTemplatePageMessage": "Lay out {0} key(s) on this page? {1} other layer(s) will be removed. Keys the template does not fit stay as they are.",
+  "Confirm_ApplyTemplatePageNothing": "No key on this page can be laid out with this template.",
+  "Confirm_Apply": "Apply"
 }

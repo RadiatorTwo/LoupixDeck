@@ -26,6 +26,16 @@ public interface IButtonTemplateService
         int keyHeightPx);
 
     /// <summary>
+    /// Applies <paramref name="template"/> to every touch button on <paramref name="page"/> the way an
+    /// import does: every state, no symbol picker, no added caption, and keys the template does not
+    /// fit stay as they are. Asks once with the totals first. Buttons in <paramref name="skip"/> are not
+    /// touched. The caller owns saving.
+    /// </summary>
+    /// <returns>What was laid out; null when the user cancelled or no key could take the template.</returns>
+    Task<TemplateApplyResult?> ApplyToPageAsync(TouchButtonPage page, ButtonTemplate template, int keyWidthPx,
+        int keyHeightPx, IReadOnlySet<TouchButton> skip);
+
+    /// <summary>
     /// Opens the symbol picker and builds a symbol layer for the choice, named so that no layer in
     /// <paramref name="layers"/> has the name yet. Null when the picker was cancelled or the icon
     /// could not be imported. The layer is not added anywhere.
@@ -94,6 +104,40 @@ public sealed class ButtonTemplateService(IDialogService dialogService, IAssetSe
             return default;
 
         return new ButtonTemplateOutcome(true, addedIcon);
+    }
+
+    public async Task<TemplateApplyResult?> ApplyToPageAsync(TouchButtonPage page, ButtonTemplate template,
+        int keyWidthPx, int keyHeightPx, IReadOnlySet<TouchButton> skip)
+    {
+        if (page == null)
+            return null;
+
+        TouchButtonPage[] pages = [page];
+        TemplateApplyResult planned = ActionAssignment.PlanTemplateOnPages(pages, template, keyWidthPx,
+            keyHeightPx, skip);
+
+        if (planned.ButtonsChanged == 0)
+        {
+            await dialogService.ShowDialogAsync<ConfirmDialogViewModel, DialogResult>(vm =>
+                vm.Configure(
+                    Loc.Tr("Confirm_ApplyTemplatePageNothing"),
+                    title: Loc.Tr("Confirm_ApplyTemplatePageTitle"),
+                    confirmText: Loc.Tr("Confirm_Ok"),
+                    showCancel: false));
+            return null;
+        }
+
+        // Always asked, even when no layer goes: many keys change at once and there is no undo.
+        DialogResult result = await dialogService.ShowDialogAsync<ConfirmDialogViewModel, DialogResult>(vm =>
+            vm.Configure(
+                Loc.Tr("Confirm_ApplyTemplatePageMessage", planned.ButtonsChanged, planned.LayersRemoved),
+                title: Loc.Tr("Confirm_ApplyTemplatePageTitle"),
+                confirmText: Loc.Tr("Confirm_Apply"),
+                cancelText: Loc.Tr("Confirm_Cancel")));
+        if (result is not { IsConfirmed: true })
+            return null;
+
+        return ActionAssignment.ApplyTemplateToPages(pages, template, keyWidthPx, keyHeightPx, skip);
     }
 
     public async Task<SymbolLayer> PickSymbolLayerAsync(IEnumerable<LayerBase> layers)

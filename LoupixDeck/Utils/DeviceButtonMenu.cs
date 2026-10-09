@@ -77,24 +77,40 @@ public static class DeviceButtonMenu
         e.Handled = true;
     }
 
-    /// <summary>The "Layout template" submenu with the four templates the button editor offers.</summary>
+    /// <summary>
+    /// The "Layout template" submenu: the four templates the button editor offers for the clicked key,
+    /// then the same four for every key of the page. It stays open on an empty key, because the page
+    /// entries do not depend on the key that was clicked.
+    /// </summary>
     private static MenuItem BuildTemplateItem(MainWindowViewModel vm)
     {
-        MenuItem item = new()
-        {
-            Header = Loc.Tr("TouchButton_LayoutTemplate"),
-            IsEnabled = vm.CanApplyTemplateToSelected()
-        };
+        MenuItem item = new() { Header = Loc.Tr("TouchButton_LayoutTemplate") };
+        AddTemplateItems(item, vm.ApplyTemplateToSelectedCommand, vm.CanApplyTemplateToSelected());
 
-        item.Items.Add(MakeTemplateItem("TouchButton_Template_IconTextBottom", ButtonTemplate.IconCaptionBottom, vm));
-        item.Items.Add(MakeTemplateItem("TouchButton_Template_IconTextTop", ButtonTemplate.IconCaptionTop, vm));
-        item.Items.Add(MakeTemplateItem("TouchButton_Template_IconOnly", ButtonTemplate.IconOnly, vm));
-        item.Items.Add(MakeTemplateItem("TouchButton_Template_TextOnly", ButtonTemplate.TextOnly, vm));
+        item.Items.Add(new Separator());
+
+        MenuItem page = new()
+        {
+            Header = Loc.Tr("TouchButton_TemplateWholePage"),
+            IsEnabled = vm.CanApplyTemplateToPage()
+        };
+        AddTemplateItems(page, vm.ApplyTemplateToPageCommand, enabled: true);
+        item.Items.Add(page);
+
         return item;
     }
 
-    private static MenuItem MakeTemplateItem(string headerKey, ButtonTemplate template, MainWindowViewModel vm)
-        => new() { Header = Loc.Tr(headerKey), Command = vm.ApplyTemplateToSelectedCommand, CommandParameter = template };
+    private static void AddTemplateItems(MenuItem parent, ICommand command, bool enabled)
+    {
+        parent.Items.Add(MakeTemplateItem("TouchButton_Template_IconTextBottom", ButtonTemplate.IconCaptionBottom, command, enabled));
+        parent.Items.Add(MakeTemplateItem("TouchButton_Template_IconTextTop", ButtonTemplate.IconCaptionTop, command, enabled));
+        parent.Items.Add(MakeTemplateItem("TouchButton_Template_IconOnly", ButtonTemplate.IconOnly, command, enabled));
+        parent.Items.Add(MakeTemplateItem("TouchButton_Template_TextOnly", ButtonTemplate.TextOnly, command, enabled));
+    }
+
+    private static MenuItem MakeTemplateItem(string headerKey, ButtonTemplate template, ICommand command,
+        bool enabled)
+        => new() { Header = Loc.Tr(headerKey), Command = command, CommandParameter = template, IsEnabled = enabled };
 
     private static MenuItem MakeItem(string header, ICommand command, bool enabled)
         => new() { Header = header, Command = command, IsEnabled = enabled };

@@ -1357,5 +1357,10 @@
   "DialMenu_NothingToShow": "Nada que mostrar",
   "DialMenu_Presets": "Ajustes",
   "DialMenu_NoPresets": "No hay ajustes",
-  "DialMenu_SaveAsPreset": "Guardar este dial como ajuste…"
+  "DialMenu_SaveAsPreset": "Guardar este dial como ajuste…",
+  "TouchButton_TemplateWholePage": "Aplicar a todos los botones de esta página",
+  "Confirm_ApplyTemplatePageTitle": "Aplicar plantilla a la página",
+  "Confirm_ApplyTemplatePageMessage": "¿Reorganizar {0} botón(es) de esta página? Se quitarán otras {1} capa(s). Los botones a los que no se ajusta la plantilla se quedan como están.",
+  "Confirm_ApplyTemplatePageNothing": "Ningún botón de esta página se puede organizar con esta plantilla.",
+  "Confirm_Apply": "Aplicar"
 }
