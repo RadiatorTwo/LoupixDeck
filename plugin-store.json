@@ -54,6 +54,32 @@
       }
     },
     {
+      "id": "claude",
+      "name": "Claude",
+      "description": "Open Claude and Quick entry from the deck, watch your usage limits, and get a key that lights when a Claude Code session is waiting for you.",
+      "author": "web-engineer",
+      "repository": "web-engineer/LoupixDeck.Plugin.Claude",
+      "icon": "https://raw.githubusercontent.com/web-engineer/LoupixDeck.Plugin.Claude/main/icon.png",
+      "platforms": [ "Windows", "Linux" ],
+      "minSdkVersion": "1.28.0",
+      "commandPrefixes": [ "Claude." ],
+      "release": {
+        "version": "0.2.1",
+        "tag": "v0.2.1",
+        "publishedAt": "2026-10-08T14:27:56Z",
+        "sdkVersion": "1.30.0",
+        "releaseNotesUrl": "https://github.com/web-engineer/LoupixDeck.Plugin.Claude/releases/tag/v0.2.1",
+        "packages": [
+          {
+            "platform": "any",
+            "fileName": "claude-0.2.1-any.zip",
+            "downloadUrl": "https://github.com/web-engineer/LoupixDeck.Plugin.Claude/releases/download/v0.2.1/claude-0.2.1-any.zip",
+            "sha256": "cb7ec8bd0ea64ce03d2588349f76f7c7d27467aaedf0d9993632da0a4aeea157"
+          }
+        ]
+      }
+    },
+    {
       "id": "coolercontrol",
       "name": "CoolerControl",
       "description": "Activate CoolerControl modes and show the daemon's sensor readings on touch buttons.",
@@ -392,6 +418,32 @@
             "fileName": "steelseriessonar-1.2.0-windows.zip",
             "downloadUrl": "https://github.com/RadiatorTwo/LoupixDeck.Plugin.SteelseriesSonar/releases/download/v1.2.0/steelseriessonar-1.2.0-windows.zip",
             "sha256": "115745baebd6495a03f053c92a3de9586d07e2f8a269c4d22673f40b3eed51de"
+          }
+        ]
+      }
+    },
+    {
+      "id": "systemd",
+      "name": "Systemd",
+      "description": "Monitor and control systemd user and system units over the native D-Bus API.",
+      "author": "RadiatorTwo",
+      "repository": "RadiatorTwo/LoupixDeck.Plugin.Systemd",
+      "icon": "https://raw.githubusercontent.com/RadiatorTwo/LoupixDeck.Plugin.Systemd/master/icon.png",
+      "platforms": [ "Linux" ],
+      "minSdkVersion": "1.28.0",
+      "commandPrefixes": [ "Systemd." ],
+      "release": {
+        "version": "1.0.0",
+        "tag": "v1.0.0",
+        "publishedAt": "2026-10-03T23:34:25Z",
+        "sdkVersion": "1.28",
+        "releaseNotesUrl": "https://github.com/RadiatorTwo/LoupixDeck.Plugin.Systemd/releases/tag/v1.0.0",
+        "packages": [
+          {
+            "platform": "linux",
+            "fileName": "systemd-1.0.0-linux.zip",
+            "downloadUrl": "https://github.com/RadiatorTwo/LoupixDeck.Plugin.Systemd/releases/download/v1.0.0/systemd-1.0.0-linux.zip",
+            "sha256": "dd4c1a09ad3194af897d6bc324abf71ac54ee586ae98636c5de92dcca187a7fa"
           }
         ]
       }
