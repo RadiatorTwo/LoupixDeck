@@ -319,6 +319,32 @@
       }
     },
     {
+      "id": "network",
+      "name": "Network",
+      "description": "Controls NetworkManager connections, Wi-Fi and VPNs over the native D-Bus API.",
+      "author": "RadiatorTwo",
+      "repository": "RadiatorTwo/LoupixDeck.Plugin.Network",
+      "icon": "https://raw.githubusercontent.com/RadiatorTwo/LoupixDeck.Plugin.Network/master/icon.png",
+      "platforms": [ "Linux" ],
+      "minSdkVersion": "1.31.0",
+      "commandPrefixes": [ "Network." ],
+      "release": {
+        "version": "1.0.0",
+        "tag": "v1.0.0",
+        "publishedAt": "2026-10-10T17:15:51Z",
+        "sdkVersion": "1.31",
+        "releaseNotesUrl": "https://github.com/RadiatorTwo/LoupixDeck.Plugin.Network/releases/tag/v1.0.0",
+        "packages": [
+          {
+            "platform": "linux",
+            "fileName": "network-1.0.0-linux.zip",
+            "downloadUrl": "https://github.com/RadiatorTwo/LoupixDeck.Plugin.Network/releases/download/v1.0.0/network-1.0.0-linux.zip",
+            "sha256": "3870c663ce91b7db7ae33457137abcb35299d22cfabf059e02a74bfaa1acdb36"
+          }
+        ]
+      }
+    },
+    {
       "id": "obs",
       "name": "OBS Studio",
       "description": "Control recording, streaming, replay buffer, scenes and sources in OBS Studio.",
@@ -366,6 +392,32 @@
             "fileName": "powertoys-0.2.1-windows.zip",
             "downloadUrl": "https://github.com/Vencite/LoupixDeck.Plugin.PowerToys/releases/download/v0.2.1/powertoys-0.2.1-windows.zip",
             "sha256": "af91759d007929931f57822de9445046a12e65d54d2b9e854ccfa7b7b6cea29e"
+          }
+        ]
+      }
+    },
+    {
+      "id": "speedtest",
+      "name": "Speedtest",
+      "description": "Internet speed test (Cloudflare, M-Lab, LibreSpeed) and LAN test (iperf3) with live results on a touch button.",
+      "author": "RadiatorTwo",
+      "repository": "RadiatorTwo/LoupixDeck.Plugin.Speedtest",
+      "icon": "https://raw.githubusercontent.com/RadiatorTwo/LoupixDeck.Plugin.Speedtest/master/icon.png",
+      "platforms": [ "Windows", "Linux" ],
+      "minSdkVersion": "1.31.0",
+      "commandPrefixes": [ "Speedtest." ],
+      "release": {
+        "version": "1.0.0",
+        "tag": "v1.0.0",
+        "publishedAt": "2026-10-10T18:13:16Z",
+        "sdkVersion": "1.31",
+        "releaseNotesUrl": "https://github.com/RadiatorTwo/LoupixDeck.Plugin.Speedtest/releases/tag/v1.0.0",
+        "packages": [
+          {
+            "platform": "any",
+            "fileName": "speedtest-1.0.0-any.zip",
+            "downloadUrl": "https://github.com/RadiatorTwo/LoupixDeck.Plugin.Speedtest/releases/download/v1.0.0/speedtest-1.0.0-any.zip",
+            "sha256": "9cf186f8fa4ee454b6f5223a8d7b9784099c2c5461a69813bf74dcf43c6fbefd"
           }
         ]
       }
