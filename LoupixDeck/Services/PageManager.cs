@@ -75,6 +75,17 @@ public interface IPageManager
     /// </summary>
     event Action TouchLayoutChanged;
 
+    /// <summary>
+    /// Fired once every key of the touch layout on screen has been painted to the device in full
+    /// (a page or folder switch, start-up, wake, the end of a page slide). <see cref="TouchLayoutChanged"/>
+    /// fires before that paint, so a value that arrives in between can be painted over by it; listeners
+    /// that push per-key content repaint those keys here.
+    /// </summary>
+    event Action TouchLayoutDrawn;
+
+    /// <summary>Raises <see cref="TouchLayoutDrawn"/> after a caller outside the page manager painted the whole layout.</summary>
+    void NotifyTouchLayoutDrawn();
+
     // --- Custom folders (issue #249) -----------------------------------------
 
     /// <summary>
@@ -341,14 +352,17 @@ public class PageManager : IPageManager
         if (device.KeyGridHasGaps)
         {
             await device.DrawTouchGridRegion(CurrentTouchButtonPage.TouchButtons, _config);
-            return;
+        }
+        else
+        {
+            foreach (var touchButton in CurrentTouchButtonPage.TouchButtons)
+            {
+                // Force refresh to ensure wallpaper changes are applied when switching pages
+                await device.DrawTouchButton(touchButton, _config, true);
+            }
         }
 
-        foreach (var touchButton in CurrentTouchButtonPage.TouchButtons)
-        {
-            // Force refresh to ensure wallpaper changes are applied when switching pages
-            await device.DrawTouchButton(touchButton, _config, true);
-        }
+        NotifyTouchLayoutDrawn();
     }
 
     public void AddRotaryButtonPage(bool init = false)
@@ -489,6 +503,10 @@ public class PageManager : IPageManager
     public event Action<int, int> OnTouchPageChanged;
 
     public event Action TouchLayoutChanged;
+
+    public event Action TouchLayoutDrawn;
+
+    public void NotifyTouchLayoutDrawn() => TouchLayoutDrawn?.Invoke();
 
     public event Action<IReadOnlyList<Guid>> FolderPathChanged;
 

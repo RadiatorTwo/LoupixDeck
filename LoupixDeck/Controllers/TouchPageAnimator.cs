@@ -288,6 +288,10 @@ public partial class LoupedeckLiveSController
                 outgoing.Dispose();
                 incoming.Dispose();
 
+                // The incoming grid was rendered before the slide began; keys whose value arrived
+                // since were just painted over, so let their owners repaint them.
+                pageManager.NotifyTouchLayoutDrawn();
+
                 var name = tr.OverlayPageName;
                 tr.OverlayPageName = null;
                 if (!string.IsNullOrEmpty(name))

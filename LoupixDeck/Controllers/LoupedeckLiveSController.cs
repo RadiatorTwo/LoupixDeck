@@ -756,11 +756,14 @@ public partial class LoupedeckLiveSController(
         if (device.KeyGridHasGaps)
         {
             await device.DrawTouchGridRegion(buttons, config);
-            return;
+        }
+        else
+        {
+            foreach (var touchButton in buttons)
+                await device.DrawTouchButton(touchButton, config, true);
         }
 
-        foreach (var touchButton in buttons)
-            await device.DrawTouchButton(touchButton, config, true);
+        pageManager.NotifyTouchLayoutDrawn();
     }
 
     public async Task RedrawCurrentTouchPage()
