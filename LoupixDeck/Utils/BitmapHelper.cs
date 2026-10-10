@@ -2239,6 +2239,13 @@ public static class BitmapHelper
     }
 
     /// <summary>
+    /// Size of all text on a side strip, dial labels and values alike: the caption size a
+    /// key's label gets (ActionAssignment's LabelTextSizePx), so the strips match the keys
+    /// and a word such as "Changes" fits the 60 px strip on one line. Values stay bold.
+    /// </summary>
+    private const int StripLabelTextSize = 11;
+
+    /// <summary>
     /// Renders a side strip in segmented mode: the strip's full height is split into
     /// one region per knob on that dial column (3 × 60×90 on the Razer), each showing
     /// the knob's <see cref="RotaryButton.DisplayText"/> label centered — or, when the knob
@@ -2342,7 +2349,7 @@ public static class BitmapHelper
                     canvas,
                     text,
                     SKColors.White,
-                    16,
+                    StripLabelTextSize,
                     centered: true,
                     posX: 0,
                     posY: top,
@@ -2387,7 +2394,7 @@ public static class BitmapHelper
             // Caption only — same treatment a plain label gets, so the two look alike.
             if (hasText || hasLabel)
             {
-                DrawTextAt(canvas, hasText ? value.Text : label, SKColors.White, 16, centered: true,
+                DrawTextAt(canvas, hasText ? value.Text : label, SKColors.White, StripLabelTextSize, centered: true,
                     posX: 0, posY: top, imageWidth: width, imageHeight: segmentHeight, bold: hasText);
             }
 
@@ -2422,16 +2429,16 @@ public static class BitmapHelper
         if (hasLabel && hasText)
         {
             float half = textHeight / 2f;
-            DrawTextAt(canvas, label, SKColors.White, 13, centered: true,
+            DrawTextAt(canvas, label, SKColors.White, StripLabelTextSize, centered: true,
                 posX: 0, posY: top, imageWidth: width, imageHeight: half, bold: false);
-            DrawTextAt(canvas, value.Text, SKColors.White, 17, centered: true,
+            DrawTextAt(canvas, value.Text, SKColors.White, StripLabelTextSize, centered: true,
                 posX: 0, posY: top + half, imageWidth: width, imageHeight: half, bold: true);
             return;
         }
 
         if (hasLabel || hasText)
         {
-            DrawTextAt(canvas, hasText ? value.Text : label, SKColors.White, hasText ? 17 : 15, centered: true,
+            DrawTextAt(canvas, hasText ? value.Text : label, SKColors.White, StripLabelTextSize, centered: true,
                 posX: 0, posY: top, imageWidth: width, imageHeight: textHeight, bold: hasText);
         }
     }
