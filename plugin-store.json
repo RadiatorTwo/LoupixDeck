@@ -54,6 +54,37 @@
       }
     },
     {
+      "id": "bluetooth",
+      "name": "Bluetooth",
+      "description": "Connects, disconnects and shows paired Bluetooth devices on Linux (BlueZ) and Windows.",
+      "author": "RadiatorTwo",
+      "repository": "RadiatorTwo/LoupixDeck.Plugin.Bluetooth",
+      "icon": "https://raw.githubusercontent.com/RadiatorTwo/LoupixDeck.Plugin.Bluetooth/master/icon.png",
+      "platforms": [
+        "Windows",
+        "Linux"
+      ],
+      "minSdkVersion": "1.31.0",
+      "commandPrefixes": [
+        "Bluetooth."
+      ],
+      "release": {
+        "version": "1.1.0",
+        "tag": "v1.1.0",
+        "publishedAt": "2026-10-11T16:12:47Z",
+        "sdkVersion": "1.31",
+        "releaseNotesUrl": "https://github.com/RadiatorTwo/LoupixDeck.Plugin.Bluetooth/releases/tag/v1.1.0",
+        "packages": [
+          {
+            "platform": "any",
+            "fileName": "bluetooth-1.1.0-any.zip",
+            "downloadUrl": "https://github.com/RadiatorTwo/LoupixDeck.Plugin.Bluetooth/releases/download/v1.1.0/bluetooth-1.1.0-any.zip",
+            "sha256": "f50eaa6b2863dc91c3ca0559bef04e4778b9a0823dae9acdccb2bc7ab271ab2f"
+          }
+        ]
+      }
+    },
+    {
       "id": "claude",
       "name": "Claude",
       "description": "Open Claude and Quick entry from the deck, watch your usage limits, and get a key that lights when a Claude Code session is waiting for you.",
