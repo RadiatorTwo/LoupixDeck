@@ -5,6 +5,7 @@ using LoupixDeck.Services.FolderNavigation;
 using LoupixDeck.Services.Plugins;
 using LoupixDeck.Services.Screensaver;
 using LoupixDeck.Utils;
+using SkiaSharp;
 
 namespace LoupixDeck.Services.Animation;
 
@@ -72,6 +73,10 @@ public sealed class WallpaperAnimationManager : IWallpaperAnimationManager, IDis
 
     public bool IsPlaying => _source != null;
 
+    public bool CarriesStrips => _source is { IsActive: true };
+
+    public event Action StripOwnerChanged;
+
     public void Start()
     {
         lock (_gate)
@@ -116,6 +121,20 @@ public sealed class WallpaperAnimationManager : IWallpaperAnimationManager, IDis
             foreach (var button in buttons) RefreshUiMirror(button);
         }
 
+        return true;
+    }
+
+    public bool TryRedirectStripRedraw(RotarySide side, SKBitmap foreground)
+    {
+        var source = _source;
+        if (source is not { IsActive: true })
+        {
+            foreground?.Dispose();
+            return false;
+        }
+
+        source.SetStrip(side, foreground);
+        _scheduler.RequestFrame(source);
         return true;
     }
 
@@ -188,6 +207,21 @@ public sealed class WallpaperAnimationManager : IWallpaperAnimationManager, IDis
         var slot = _pageManager.CurrentTouchButtonPage?.MainWallpaper;
         WatchSlot(slot);
 
+        var wasCarryingStrips = CarriesStrips;
+        try
+        {
+            RebuildCore(slot);
+        }
+        finally
+        {
+            // A fresh source starts without strips, and a stopped one leaves the strips showing
+            // the last video frame behind them: either way they need a redraw by their new owner.
+            if (wasCarryingStrips || CarriesStrips) StripOwnerChanged?.Invoke();
+        }
+    }
+
+    private void RebuildCore(WallpaperSlot slot)
+    {
         Stop();
 
         if (slot is not { HasVideo: true }) return;
@@ -261,7 +295,13 @@ public sealed class WallpaperAnimationManager : IWallpaperAnimationManager, IDis
                       !_folderNav.IsActive &&
                       !_fullDisplay.IsActive &&
                       !_exclusiveMode.Owns(ExclusiveControlScope.TouchButtons);
+
+        var wasCarryingStrips = CarriesStrips;
         _source?.SetEnabled(enabled);
+
+        // Paused, the strips go back to being pushed on their own, with their background; resumed,
+        // the overlay needs them again.
+        if (wasCarryingStrips != CarriesStrips) StripOwnerChanged?.Invoke();
     }
 
     private void RequestFrame()

@@ -1,3 +1,6 @@
+using LoupixDeck.Models;
+using SkiaSharp;
+
 namespace LoupixDeck.Services.Animation;
 
 /// <summary>
@@ -23,4 +26,25 @@ public interface IWallpaperAnimationManager
 
     /// <summary>The whole-page equivalent, for a repaint that would push every key.</summary>
     bool TryRedirectPageRedraw();
+
+    /// <summary>
+    /// Whether the video frames currently carry the side strips, so a strip must be rendered
+    /// without its background and handed over through <see cref="TryRedirectStripRedraw"/>.
+    /// </summary>
+    bool CarriesStrips { get; }
+
+    /// <summary>
+    /// Takes one side strip's redraw over while a clip is playing: <paramref name="foreground"/>
+    /// (the strip without its background) is drawn over its column on every following video
+    /// frame instead of being pushed on its own, which the next frame would overwrite. Always
+    /// takes ownership of the bitmap. Returns false when no clip is playing, and the caller then
+    /// does its normal push.
+    /// </summary>
+    bool TryRedirectStripRedraw(RotarySide side, SKBitmap foreground);
+
+    /// <summary>
+    /// Raised when <see cref="CarriesStrips"/> may have changed — playback started, stopped,
+    /// paused or resumed — so the strips can be redrawn for the new owner of their pixels.
+    /// </summary>
+    event Action StripOwnerChanged;
 }
