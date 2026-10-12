@@ -7,9 +7,11 @@ namespace LoupixDeck.Registry;
 /// <param name="HasIndependentRotarySides">True when the device has left and right dial columns
 /// with their own pages and side strips (Razer Stream Controller).</param>
 /// <param name="Geometry">Pixel geometry, used to place icons and labels.</param>
+/// <param name="HasWheel">True when the device has a centre wheel with wheel modes (Loupedeck CT).</param>
 public sealed record DeviceShape(
     int TouchButtonCount,
     int RotaryButtonCount,
     int SideRotaryButtonCount,
     bool HasIndependentRotarySides,
-    DeviceGeometry Geometry);
+    DeviceGeometry Geometry,
+    bool HasWheel = false);
