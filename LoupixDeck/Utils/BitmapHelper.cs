@@ -1345,7 +1345,7 @@ public static class BitmapHelper
     internal static SKRect? GetImageLayerDeviceRectWithoutLoading(ImageLayer image, int deviceW, int deviceH)
     {
         SKSizeI? size = image.CachedImage is { } bmp
-            ? new SKSizeI(bmp.Width, bmp.Height)
+            ? SourceSizeOf(bmp)
             : string.IsNullOrEmpty(image.AssetRelativePath) ? null : AssetSizeResolver?.Invoke(image.AssetRelativePath);
 
         return size is { Width: > 0, Height: > 0 } picture
@@ -1425,7 +1425,8 @@ public static class BitmapHelper
         }
         else
         {
-            srcRect = new SKRect(0, 0, bmp.Width, bmp.Height);
+            SKSizeI source = SourceSizeOf(bmp);
+            srcRect = new SKRect(0, 0, source.Width, source.Height);
         }
 
         var fit = Math.Min(deviceW / srcRect.Width, deviceH / srcRect.Height);
@@ -1436,8 +1437,9 @@ public static class BitmapHelper
         var drawX = ((deviceW - dstW) / 2f) + layer.PositionX;
         var drawY = ((deviceH - dstH) / 2f) + layer.PositionY;
 
-        canvas.DrawBitmap(bmp, srcRect, new SKRect(drawX, drawY, drawX + dstW, drawY + dstH),
-            SamplingFor(srcRect.Width, srcRect.Height, dstW, dstH), paint: null);
+        SKRect pixelRect = ToBitmapPixels(bmp, srcRect);
+        canvas.DrawBitmap(bmp, pixelRect, new SKRect(drawX, drawY, drawX + dstW, drawY + dstH),
+            SamplingFor(pixelRect.Width, pixelRect.Height, dstW, dstH), paint: null);
     }
 
     /// <summary>
@@ -1489,10 +1491,11 @@ public static class BitmapHelper
         // The previous approach materialised an intermediate SKBitmap with the source's
         // AlphaType — for opaque sources (e.g. JPEG) the "transparent" surrounding area
         // stayed fully opaque black and overwrote any layers drawn beneath this one.
+        SKSizeI source = SourceSizeOf(bmp);
         var srcRect = (!layer.SourceRect.IsEmpty &&
                        layer.SourceRect.Width > 0 && layer.SourceRect.Height > 0)
             ? layer.SourceRect.ToSKRect()
-            : new SKRect(0, 0, bmp.Width, bmp.Height);
+            : new SKRect(0, 0, source.Width, source.Height);
 
         var fit = Math.Min(width / srcRect.Width, height / srcRect.Height);
         var scaleX = (float)Math.Max(0.01, layer.EffectiveScaleX);
@@ -1504,9 +1507,28 @@ public static class BitmapHelper
 
         canvas.Save();
         canvas.ClipRect(new SKRect(0, 0, width, height));
-        canvas.DrawBitmap(bmp, srcRect, new SKRect(drawX, drawY, drawX + dstW, drawY + dstH),
-            SamplingFor(srcRect.Width, srcRect.Height, dstW, dstH), paint: null);
+        SKRect pixelRect = ToBitmapPixels(bmp, srcRect);
+        canvas.DrawBitmap(bmp, pixelRect, new SKRect(drawX, drawY, drawX + dstW, drawY + dstH),
+            SamplingFor(pixelRect.Width, pixelRect.Height, dstW, dstH), paint: null);
         canvas.Restore();
+    }
+
+    /// <summary>
+    /// The size of the image <paramref name="bitmap"/> stands for, in which an image layer's geometry
+    /// is kept: the source's for a <see cref="DownscaledBitmap"/>, its own size otherwise.
+    /// </summary>
+    internal static SKSizeI SourceSizeOf(SKBitmap bitmap) => bitmap is DownscaledBitmap downscaled
+        ? new SKSizeI(downscaled.SourceWidth, downscaled.SourceHeight)
+        : new SKSizeI(bitmap.Width, bitmap.Height);
+
+    /// <summary>Maps <paramref name="sourceRect"/>, in source pixels, onto <paramref name="bitmap"/>'s pixels.</summary>
+    internal static SKRect ToBitmapPixels(SKBitmap bitmap, SKRect sourceRect)
+    {
+        if (bitmap is not DownscaledBitmap downscaled) return sourceRect;
+
+        float sx = bitmap.Width / (float)downscaled.SourceWidth;
+        float sy = bitmap.Height / (float)downscaled.SourceHeight;
+        return new SKRect(sourceRect.Left * sx, sourceRect.Top * sy, sourceRect.Right * sx, sourceRect.Bottom * sy);
     }
 
     /// <summary>

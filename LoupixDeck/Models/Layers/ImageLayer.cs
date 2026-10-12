@@ -1,4 +1,5 @@
 using CommunityToolkit.Mvvm.ComponentModel;
+using LoupixDeck.Utils;
 using Newtonsoft.Json;
 using SkiaSharp;
 
@@ -97,7 +98,10 @@ public partial class ImageLayer : LayerBase
             return (SourceRect.Width, SourceRect.Height);
 
         if (CachedImage is { Width: > 0, Height: > 0 })
-            return (CachedImage.Width, CachedImage.Height);
+        {
+            SKSizeI source = BitmapHelper.SourceSizeOf(CachedImage);
+            return (source.Width, source.Height);
+        }
 
         return null;
     }
