@@ -286,7 +286,7 @@ public partial class LoupedeckLiveSController
     {
         using var _routerScope = router.Enter(serviceProvider);
         if (StopFullDisplayOnInput()) return;
-        if (_isDeviceOff || folderNav.IsActive || exclusiveMode.Owns(ExclusiveControlScope.RotaryPress))
+        if (_isDeviceOff || folderNav.IsActive || exclusiveMode.OwnsWheel(ExclusiveControlScope.RotaryPress))
             return;
 
         var page = config.CurrentTouchButtonPage;
@@ -412,7 +412,7 @@ public partial class LoupedeckLiveSController
         using var _routerScope = router.Enter(serviceProvider);
 
         if (StopFullDisplayOnInput()) return;
-        if (_isDeviceOff || folderNav.IsActive || exclusiveMode.Owns(ExclusiveControlScope.RotaryPress))
+        if (_isDeviceOff || folderNav.IsActive || exclusiveMode.OwnsWheel(ExclusiveControlScope.RotaryPress))
             return;
 
         FireAndForget(next ? "System.NextWorkspace" : "System.PreviousWorkspace", ButtonTargets.RotaryEncoder,
@@ -422,7 +422,7 @@ public partial class LoupedeckLiveSController
     /// <summary>
     /// Runs the wheel's press, with the same precedence as a side dial's press in
     /// <see cref="OnSimpleButtonPress"/>: a display takeover, an exclusive provider that owns
-    /// rotary presses, an open folder's rotary override, then the user's binding.
+    /// the wheel's press, an open folder's rotary override, then the user's binding.
     /// </summary>
     private void OnWheelPressed()
     {
@@ -432,7 +432,7 @@ public partial class LoupedeckLiveSController
 
         const int index = Device.WheelRotaryIndex;
 
-        if (exclusiveMode.Owns(ExclusiveControlScope.RotaryPress))
+        if (exclusiveMode.OwnsWheel(ExclusiveControlScope.RotaryPress))
         {
             try { exclusiveMode.Current?.OnRotaryPressed(index); }
             catch (Exception ex) { Console.WriteLine($"Exclusive wheel press: {ex.Message}"); }
