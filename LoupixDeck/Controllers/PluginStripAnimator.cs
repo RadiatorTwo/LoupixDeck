@@ -277,15 +277,24 @@ public partial class LoupedeckLiveSController
 
             // Plugin code may call back into the host, so give it the right ambient device; all
             // Skia work stays under the shared gate (SkiaRenderCanvas does not lock itself).
-            using (router.Enter(serviceProvider))
+            try
             {
-                lock (SkiaRenderGate.Sync)
+                using (router.Enter(serviceProvider))
                 {
-                    using var canvas = new SKCanvas(bitmap);
-                    var renderCanvas = new SkiaRenderCanvas(canvas, StripWidth, StripHeight);
-                    info = session.RenderStripFrame(renderCanvas, frame);
-                    if (info.Drawn) canvas.Flush();
+                    lock (SkiaRenderGate.Sync)
+                    {
+                        using var canvas = new SKCanvas(bitmap);
+                        var renderCanvas = new SkiaRenderCanvas(canvas, StripWidth, StripHeight);
+                        info = session.RenderStripFrame(renderCanvas, frame);
+                        if (info.Drawn) canvas.Flush();
+                    }
                 }
+            }
+            catch
+            {
+                // The plugin threw; its frame was never handed on.
+                bitmap.Dispose();
+                throw;
             }
 
             if (info.IsFinal)

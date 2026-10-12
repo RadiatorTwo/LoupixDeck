@@ -320,6 +320,15 @@ public partial class LoupedeckLiveSController
         {
             tr.Active = false;
             Console.WriteLine($"Touch page transition frame failed: {ex.Message}");
+
+            // The slide is over, so its grids and frame are freed here as on its last frame. Only
+            // this frame's grids: a superseding transition may have armed new ones meanwhile, and
+            // it queues these for disposal itself (disposing twice is harmless).
+            if (ReferenceEquals(tr.Outgoing, outgoing)) tr.Outgoing = null;
+            if (ReferenceEquals(tr.Incoming, incoming)) tr.Incoming = null;
+            outgoing.Dispose();
+            incoming.Dispose();
+            ReleaseTouchSlideFrame();
         }
     }
 
