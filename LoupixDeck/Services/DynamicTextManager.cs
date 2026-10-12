@@ -235,6 +235,13 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
 
         lock (_gate)
         {
+            // Rescans arrive from the UI thread and from the serial-read thread (wheel mode switch);
+            // one that ran alongside this one may already have started a loop.
+            // Stop it here, or it keeps ticking with nothing left to cancel it.
+            try { _cts?.Cancel(); } catch { }
+            try { _timer?.Dispose(); } catch { }
+            _cts?.Dispose();
+
             _active = entries;
             _cts = new CancellationTokenSource();
             _timer = new PeriodicTimer(tickInterval);
