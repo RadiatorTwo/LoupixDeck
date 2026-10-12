@@ -316,12 +316,17 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
     {
         foreach (PluginLayer layer in canvas.Layers.OfType<PluginLayer>().ToArray())
         {
-            if (string.IsNullOrWhiteSpace(layer.Command))
+            // Plugin-owned layers are bound through their owner key, not here.
+            if (layer.IsCommandOwned)
                 continue;
 
-            RegisteredCommand command = _commandRegistry.Get(CommandStringParser.GetName(layer.Command));
+            string name = string.IsNullOrWhiteSpace(layer.Command) ? null : CommandStringParser.GetName(layer.Command);
+            RegisteredCommand command = string.IsNullOrEmpty(name) ? null : _commandRegistry.Get(name);
             if (command is not { IsImageDisplayCommand: true, RenderImage: not null })
+            {
+                ClearWheelImage(layer, canvas);
                 continue;
+            }
 
             TimeSpan interval = command.UpdateInterval;
             if (interval < TimeSpan.FromMilliseconds(250))
@@ -339,6 +344,23 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
                 NextDueUtc = DateTime.UtcNow
             });
         }
+    }
+
+    /// <summary>
+    /// Drops the last image of a wheel layer whose command was cleared or no longer draws an image,
+    /// so the wheel stops showing a frozen frame, like the text path clearing its live text.
+    /// </summary>
+    private void ClearWheelImage(PluginLayer layer, TouchButton canvas)
+    {
+        if (layer.RenderedBitmap == null)
+            return;
+
+        Dispatcher.UIThread.Post(() =>
+        {
+            layer.SetLiveBitmap(null);
+            _ = _controller?.RefreshWheelAnimationFrame();
+            canvas.RaiseLiveContentChanged();
+        });
     }
 
     /// <summary>
