@@ -55,6 +55,10 @@ public sealed class DeviceDragDrop
     private readonly Canvas _overlay;       // fills the root Grid; ghost/highlight live here
     private readonly Border _ghost;
     private readonly Image _ghostImage;
+
+    // The snapshot a key drag renders for its ghost: a GPU render target this class owns, freed
+    // when the drag ends. A panel drag's ghost is the row's own icon and is not owned here.
+    private RenderTargetBitmap _ghostSnapshot;
     private readonly Border _dropHighlight;
     private readonly Func<MainWindowViewModel> _resolveVm;
 
@@ -323,6 +327,8 @@ public sealed class DeviceDragDrop
             RenderTargetBitmap bitmap = new(new PixelSize(pxW, pxH), new Vector(96, 96));
             bitmap.Render(content);
 
+            _ghostSnapshot?.Dispose();
+            _ghostSnapshot = bitmap;
             _ghostImage.Source = bitmap;
             _ghostImage.Stretch = Stretch.Fill;
             _ghost.Padding = default;
@@ -582,5 +588,9 @@ public sealed class DeviceDragDrop
         _ghost.IsVisible = false;
         _dropHighlight.IsVisible = false;
         _overlay.IsVisible = false;
+
+        // Not shown any more; the compositor keeps its own reference to a frame it still draws.
+        _ghostSnapshot?.Dispose();
+        _ghostSnapshot = null;
     }
 }
