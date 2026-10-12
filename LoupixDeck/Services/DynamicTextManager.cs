@@ -387,8 +387,8 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
 
             // Not RenderedBitmap: its change notification reaches the canvas's ItemChanged, which
             // rescans, which re-renders at once - an endless loop on the UI thread. The swap here
-            // is silent (old bitmap still retired under the gate) and the repaint is explicit.
-            layer.SetAnimationBitmap(bitmap);
+            // only notifies when the size changes (the first frame) and the repaint is explicit.
+            layer.SetLiveBitmap(bitmap);
             _ = _controller?.RefreshWheelAnimationFrame();
             entry.WheelCanvas?.RaiseLiveContentChanged();
         });

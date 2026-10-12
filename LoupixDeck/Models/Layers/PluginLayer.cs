@@ -84,6 +84,20 @@ public class PluginLayer : LayerBase
     }
 
     /// <summary>
+    /// Silent swap like <see cref="SetAnimationBitmap"/> for content the host redraws itself, except
+    /// that a change of the image's dimensions (the first image, or none any more) still reports the
+    /// new display size: the editor's selection box and size fields follow it. Only a dimension change
+    /// notifies, so the rescan that notification starts settles instead of looping.
+    /// </summary>
+    public void SetLiveBitmap(SKBitmap value)
+    {
+        (double Width, double Height)? before = GetSourceDimensions();
+        SetAnimationBitmap(value);
+        if (GetSourceDimensions() != before)
+            OnDisplaySizeChanged();
+    }
+
+    /// <summary>
     /// Disposes the current and all retired bitmaps under the render gate. Called by the
     /// dynamic-text manager when this layer is swept (its owning command unbound).
     /// </summary>
