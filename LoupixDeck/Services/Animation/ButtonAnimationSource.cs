@@ -52,6 +52,11 @@ public sealed class ButtonAnimationSource : IAnimationSource, IDisposable
     private readonly System.Threading.ManualResetEventSlim _idle = new(true);
 
     private volatile Entry[] _entries = Array.Empty<Entry>();
+
+    // A frame a plugin drew nothing new into is kept for the next tick instead of being freed, so a
+    // plugin that only changes now and then does not cost an allocation every tick. A pushed frame
+    // belongs to its layer. Only touched by the frame render, which never overlaps itself.
+    private SKBitmap _spareFrame;
     private volatile bool _enabled;
 
     public ButtonAnimationSource(
@@ -212,7 +217,7 @@ public sealed class ButtonAnimationSource : IAnimationSource, IDisposable
         };
 
         int keySize = _config.EffectiveKeyCalibration.KeySize;
-        var bitmap = new SKBitmap(keySize, keySize);
+        SKBitmap bitmap = TakeSpareFrame(keySize);
         AnimationFrameInfo info;
         try
         {
@@ -236,7 +241,7 @@ public sealed class ButtonAnimationSource : IAnimationSource, IDisposable
         if (!info.Drawn)
         {
             // Plugin had nothing new this tick.
-            bitmap.Dispose();
+            KeepSpareFrame(bitmap);
             if (info.IsFinal) entry.Finished = true;
             return false;
         }
@@ -244,7 +249,7 @@ public sealed class ButtonAnimationSource : IAnimationSource, IDisposable
         // Dirty-check on the plugin's own frame number: identical frame ⇒ no device push.
         if (info.FrameNumber == entry.LastPushedFrame)
         {
-            bitmap.Dispose();
+            KeepSpareFrame(bitmap);
             if (info.IsFinal) entry.Finished = true;
             return false;
         }
@@ -255,11 +260,36 @@ public sealed class ButtonAnimationSource : IAnimationSource, IDisposable
         return true;
     }
 
+    /// <summary>A cleared key-sized frame: the spare when it fits, a new one otherwise.</summary>
+    private SKBitmap TakeSpareFrame(int keySize)
+    {
+        SKBitmap spare = _spareFrame;
+        _spareFrame = null;
+        if (spare != null && spare.Width == keySize && spare.Height == keySize)
+        {
+            // A new frame starts out empty; so does a reused one.
+            spare.Erase(SKColors.Transparent);
+            return spare;
+        }
+
+        spare?.Dispose();
+        return new SKBitmap(keySize, keySize);
+    }
+
+    private void KeepSpareFrame(SKBitmap bitmap)
+    {
+        _spareFrame?.Dispose();
+        _spareFrame = bitmap;
+    }
+
     public void Dispose()
     {
         _enabled = false;
         try { _idle.Wait(1000); } catch { /* ignore */ }
         try { _idle.Dispose(); } catch { /* ignore */ }
+
+        _spareFrame?.Dispose();
+        _spareFrame = null;
     }
 
     // ── entry types ───────────────────────────────────────────────────────────

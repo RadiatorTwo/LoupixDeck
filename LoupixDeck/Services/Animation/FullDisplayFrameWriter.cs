@@ -41,6 +41,16 @@ public sealed class FullDisplayFrameWriter : IDisposable
     // protocol and makes the next launch's handshake time out until a power-cycle.
     private readonly ManualResetEventSlim _idle = new(true);
 
+    // The panel frame and one slice per segmented display, reused for every frame instead of being
+    // allocated at up to 30 fps. The scheduler never renders a source's next frame before the
+    // previous one is done, and a writer belongs to one source, so one set is enough. Guarded by
+    // SkiaRenderGate.Sync, like the disposal flags below: a Dispose that gives up waiting on a
+    // stuck push leaves releasing them to that push.
+    private SKBitmap _frame;
+    private SKBitmap[] _slices;
+    private bool _pushing;
+    private bool _disposed;
+
     public FullDisplayFrameWriter(
         LoupedeckDevice.Device.LoupedeckDevice device,
         bool debug = false,
@@ -73,13 +83,17 @@ public sealed class FullDisplayFrameWriter : IDisposable
     /// </summary>
     public async Task PushAsync(byte[] bgra, CancellationToken token, Action<SKCanvas> overlay = null)
     {
-        SKBitmap frame = null;
-        var draws = new List<(string Id, SKBitmap Bitmap, bool Owned)>(_targets.Count);
+        var draws = new List<(string Id, SKBitmap Bitmap)>(_targets.Count);
 
         lock (SkiaRenderGate.Sync)
         {
-            frame = new SKBitmap(new SKImageInfo(_geometry.PanelWidth, _geometry.PanelHeight,
+            if (_disposed) return;
+
+            _frame ??= new SKBitmap(new SKImageInfo(_geometry.PanelWidth, _geometry.PanelHeight,
                 SKColorType.Bgra8888, SKAlphaType.Opaque));
+            _slices ??= new SKBitmap[_targets.Count];
+            SKBitmap frame = _frame;
+
             // Copy exactly one frame: the buffer may be pooled (ArrayPool) so it can be larger
             // than one frame — never use bgra.Length here.
             Marshal.Copy(bgra, 0, frame.GetPixels(), _geometry.FrameBytes);
@@ -104,16 +118,18 @@ public sealed class FullDisplayFrameWriter : IDisposable
                 }
             }
 
-            foreach (var target in _targets)
+            for (int i = 0; i < _targets.Count; i++)
             {
+                DisplayTarget target = _targets[i];
                 if (target.IsFullFrame)
                 {
                     // The whole panel frame goes straight to the unified buffer.
-                    draws.Add((target.DisplayId, frame, false));
+                    draws.Add((target.DisplayId, frame));
                     continue;
                 }
 
-                var slice = new SKBitmap(new SKImageInfo(target.DestWidth, target.DestHeight,
+                // The slice is drawn over edge to edge, so nothing of the previous frame survives.
+                SKBitmap slice = _slices[i] ??= new SKBitmap(new SKImageInfo(target.DestWidth, target.DestHeight,
                     SKColorType.Bgra8888, SKAlphaType.Opaque));
                 using (var canvas = new SKCanvas(slice))
                 {
@@ -121,8 +137,12 @@ public sealed class FullDisplayFrameWriter : IDisposable
                         new SKRect(0, 0, target.DestWidth, target.DestHeight),
                         SKSamplingOptions.Default, paint: null);
                 }
-                draws.Add((target.DisplayId, slice, true));
+                draws.Add((target.DisplayId, slice));
             }
+
+            // Set last: a push that threw while composing never reached the device and holds
+            // nothing, so Dispose may free the buffers.
+            _pushing = true;
         }
 
         _idle.Reset();
@@ -156,9 +176,8 @@ public sealed class FullDisplayFrameWriter : IDisposable
         {
             lock (SkiaRenderGate.Sync)
             {
-                foreach (var draw in draws)
-                    if (draw.Owned) draw.Bitmap.Dispose();
-                frame.Dispose();
+                _pushing = false;
+                if (_disposed) ReleaseBuffers();
             }
             _idle.Set();
         }
@@ -201,7 +220,26 @@ public sealed class FullDisplayFrameWriter : IDisposable
     public void Dispose()
     {
         try { _idle.Wait(1000); } catch { /* ignore */ }
+
+        lock (SkiaRenderGate.Sync)
+        {
+            _disposed = true;
+            if (!_pushing) ReleaseBuffers();
+        }
+
         try { _idle.Dispose(); } catch { /* ignore */ }
+    }
+
+    /// <summary>Frees the reused frame buffers. Call under <see cref="SkiaRenderGate"/>.Sync.</summary>
+    private void ReleaseBuffers()
+    {
+        _frame?.Dispose();
+        _frame = null;
+
+        if (_slices == null) return;
+        foreach (SKBitmap slice in _slices)
+            slice?.Dispose();
+        _slices = null;
     }
 
     /// <summary>One display's slice of the panel: which buffer, the source rectangle in the

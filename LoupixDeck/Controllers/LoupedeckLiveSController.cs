@@ -2656,12 +2656,18 @@ public partial class LoupedeckLiveSController(
 
         int totalSlots = device.TouchButtonCount;
         var slotBitmaps = new SkiaSharp.SKBitmap[totalSlots];
-        for (var slot = 0; slot < totalSlots; slot++)
-            slotBitmaps[slot] = RenderSlot(bySlot, slot);
+        try
+        {
+            for (var slot = 0; slot < totalSlots; slot++)
+                slotBitmaps[slot] = RenderSlot(bySlot, slot);
 
-        await device.DrawTouchSlotsAtomic(slotBitmaps, refresh: true);
-
-        foreach (var b in slotBitmaps) b?.Dispose();
+            await device.DrawTouchSlotsAtomic(slotBitmaps, refresh: true);
+        }
+        finally
+        {
+            // Also when a plugin's slot render or the device write throws.
+            foreach (var b in slotBitmaps) b?.Dispose();
+        }
     }
 
     // FullScreen for a grid-only takeover: composite the grid slots into one bitmap and

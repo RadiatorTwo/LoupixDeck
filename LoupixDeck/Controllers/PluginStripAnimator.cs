@@ -35,6 +35,11 @@ public partial class LoupedeckLiveSController
     private readonly TimeSpan[] _animatedStripStartElapsed = [TimeSpan.Zero, TimeSpan.Zero];
     private readonly bool[] _animatedStripFinished = [false, false];
 
+    // Per side, a frame the plugin drew nothing new into, kept for the next tick instead of being
+    // freed (a pushed frame belongs to the strip's RenderedImage). Only touched under the side's
+    // redraw gate, and at most one per side is ever held.
+    private readonly SKBitmap[] _animatedStripSpare = new SKBitmap[2];
+
     // Global FPS ceiling we raised for a fast strip, and the value to restore afterwards
     // (0 = we haven't raised it).
     private int _stripPreviousFpsLimit;
@@ -133,6 +138,22 @@ public partial class LoupedeckLiveSController
         SyncStripFpsLimit();
         if (_pluginStripAnimationSource != null)
             animationScheduler.RequestFrame(_pluginStripAnimationSource);
+    }
+
+    /// <summary>A cleared strip-sized frame for side <paramref name="idx"/>: its spare, or a new one.</summary>
+    private SKBitmap TakeStripSpare(int idx)
+    {
+        SKBitmap spare = _animatedStripSpare[idx];
+        _animatedStripSpare[idx] = null;
+        if (spare != null && spare.Width == StripWidth && spare.Height == StripHeight)
+        {
+            // A new frame starts out empty; so does a reused one.
+            spare.Erase(SKColors.Transparent);
+            return spare;
+        }
+
+        spare?.Dispose();
+        return new SKBitmap(StripWidth, StripHeight);
     }
 
     /// <summary>Clears a side's animation slot. Called from <c>DetachStripAt</c> BEFORE the session
@@ -251,20 +272,29 @@ public partial class LoupedeckLiveSController
             };
 
             var snapshot = Interlocked.Read(ref _stripRedrawGen[idx]);
-            var bitmap = new SKBitmap(StripWidth, StripHeight);
+            SKBitmap bitmap = TakeStripSpare(idx);
             AnimationFrameInfo info;
 
             // Plugin code may call back into the host, so give it the right ambient device; all
             // Skia work stays under the shared gate (SkiaRenderCanvas does not lock itself).
-            using (router.Enter(serviceProvider))
+            try
             {
-                lock (SkiaRenderGate.Sync)
+                using (router.Enter(serviceProvider))
                 {
-                    using var canvas = new SKCanvas(bitmap);
-                    var renderCanvas = new SkiaRenderCanvas(canvas, StripWidth, StripHeight);
-                    info = session.RenderStripFrame(renderCanvas, frame);
-                    if (info.Drawn) canvas.Flush();
+                    lock (SkiaRenderGate.Sync)
+                    {
+                        using var canvas = new SKCanvas(bitmap);
+                        var renderCanvas = new SkiaRenderCanvas(canvas, StripWidth, StripHeight);
+                        info = session.RenderStripFrame(renderCanvas, frame);
+                        if (info.Drawn) canvas.Flush();
+                    }
                 }
+            }
+            catch
+            {
+                // The plugin threw; its frame was never handed on.
+                bitmap.Dispose();
+                throw;
             }
 
             if (info.IsFinal)
@@ -273,7 +303,8 @@ public partial class LoupedeckLiveSController
             // Dirty-check on the plugin's frame number, exactly like the animated button path.
             if (!info.Drawn || info.FrameNumber == _animatedStripLastPushed[idx])
             {
-                bitmap.Dispose();
+                _animatedStripSpare[idx]?.Dispose();
+                _animatedStripSpare[idx] = bitmap;
                 return;
             }
 

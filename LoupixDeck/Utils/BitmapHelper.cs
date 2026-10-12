@@ -2681,24 +2681,24 @@ public static class BitmapHelper
     }
 
     /// <summary>
-    /// Horizontal analogue of <see cref="ComposeVerticalSlide"/> for the touch-page slide.
-    /// <paramref name="current"/> is drawn shifted horizontally by <paramref name="offsetX"/>
-    /// and <paramref name="neighbor"/> fills the gap it leaves: a negative offset (paging to
-    /// the next page) reveals the neighbor entering from the right; a positive offset (previous
-    /// page) reveals it from the left. <paramref name="neighbor"/> may be null — then only the
-    /// shifted current page is drawn over black.
+    /// Horizontal analogue of <see cref="ComposeVerticalSlide"/> for the touch-page slide, drawn
+    /// into <paramref name="target"/> (the size of <paramref name="current"/>) so a slide reuses
+    /// one frame buffer. <paramref name="current"/> is drawn shifted horizontally by
+    /// <paramref name="offsetX"/> and <paramref name="neighbor"/> fills the gap it leaves: a
+    /// negative offset (paging to the next page) reveals the neighbor entering from the right; a
+    /// positive offset (previous page) reveals it from the left. <paramref name="neighbor"/> may
+    /// be null — then only the shifted current page is drawn over black.
     /// </summary>
-    public static SKBitmap ComposeHorizontalSlide(SKBitmap current, SKBitmap neighbor, int offsetX)
+    public static void DrawHorizontalSlide(SKBitmap target, SKBitmap current, SKBitmap neighbor, int offsetX)
     {
+        ArgumentNullException.ThrowIfNull(target);
         ArgumentNullException.ThrowIfNull(current);
 
         var width = current.Width;
-        var height = current.Height;
-        var bitmap = new SKBitmap(width, height);
 
         lock (SkiaRenderGate.Sync)
         {
-            using var canvas = new SKCanvas(bitmap);
+            using var canvas = new SKCanvas(target);
             canvas.Clear(SKColors.Black);
             canvas.DrawBitmap(current, offsetX, 0, SKSamplingOptions.Default, paint: null);
             if (neighbor != null)
@@ -2708,8 +2708,6 @@ public static class BitmapHelper
             }
             canvas.Flush();
         }
-
-        return bitmap;
     }
 
     /// <summary>
