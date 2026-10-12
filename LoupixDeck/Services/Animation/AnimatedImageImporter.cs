@@ -47,6 +47,8 @@ public sealed class AnimatedImageImporter : IAnimatedImageImporter
     private const int DefaultTargetSize = 90;
     // Cap frame rate and length so the imported GIF stays small and decodes to a bounded frame count.
     private const int ImportFps = 15;
+    // A surface larger than a key (the wheel screen) keeps the clip's own frame rate up to this cap.
+    private const int LargeSurfaceMaxFps = 30;
     private const int MaxSeconds = 10;
 
     private static readonly string[] _animatedImageExt = { ".gif", ".webp" };
@@ -113,15 +115,21 @@ public sealed class AnimatedImageImporter : IAnimatedImageImporter
             var large = Math.Min(w, h) > DefaultTargetSize;
             var maxColors = large ? 256 : 128;
             var dither = large ? "sierra2_4a" : "bayer";
-            var vf =
-                $"fps={ImportFps},{geometry},split[s0][s1];" +
-                $"[s0]palettegen=max_colors={maxColors}[p];[s1][p]paletteuse=dither={dither}";
+            string Args(bool keepSourceRate)
+            {
+                var rate = keepSourceRate ? string.Empty : $"fps={ImportFps},";
+                var vf =
+                    $"{rate}{geometry},split[s0][s1];" +
+                    $"[s0]palettegen=max_colors={maxColors}[p];[s1][p]paletteuse=dither={dither}";
+                var cap = keepSourceRate ? $"-fpsmax {LargeSurfaceMaxFps} " : string.Empty;
+                return $"-hide_banner -loglevel error -t {MaxSeconds} -i \"{sourcePath}\" " +
+                       $"{cap}-vf \"{vf}\" -loop 0 -y \"{tempGif}\"";
+            }
 
-            var args =
-                $"-hide_banner -loglevel error -t {MaxSeconds} -i \"{sourcePath}\" " +
-                $"-vf \"{vf}\" -loop 0 -y \"{tempGif}\"";
-
-            var ok = await RunFfmpegAsync(args).ConfigureAwait(false);
+            // -fpsmax needs a recent ffmpeg; an older one rejects it, so fall back to the fixed rate.
+            var ok = await RunFfmpegAsync(Args(large)).ConfigureAwait(false);
+            if ((!ok || !File.Exists(tempGif)) && large)
+                ok = await RunFfmpegAsync(Args(false)).ConfigureAwait(false);
             if (!ok || !File.Exists(tempGif))
             {
                 Console.WriteLine("[AnimatedImport] ffmpeg transcode failed.");

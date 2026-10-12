@@ -10,10 +10,10 @@ namespace LoupixDeck.Services.Animation;
 /// <inheritdoc cref="IWheelAnimationManager"/>
 public sealed class WheelAnimationManager : IWheelAnimationManager, IDisposable
 {
-    // Tick rate of an animated wheel image. Deliberately below the grid and strips: every push is a
-    // full 240x240 frame on the serial link the touch screen shares, so a higher rate would buy
-    // little and cost the main screen its bandwidth.
-    private const int ImageFps = 10;
+    // Upper bound for the tick rate of an animated wheel image. The clip's own frame rate is used
+    // when it is lower. Every push is a full 240x240 frame, so this is the knob if a device turns
+    // out to struggle; the scheduler's global limit applies on top.
+    private const int MaxImageFps = 30;
 
     private readonly IPageManager _pageManager;
     private readonly IAnimationScheduler _scheduler;
@@ -146,11 +146,19 @@ public sealed class WheelAnimationManager : IWheelAnimationManager, IDisposable
             {
                 Layer = spec.ImageLayer,
                 Anim = anim,
-                DesiredFps = ImageFps
+                DesiredFps = FpsOf(anim)
             });
         }
 
         return entries;
+    }
+
+    /// <summary>The clip's own frame rate, capped at <see cref="MaxImageFps"/>.</summary>
+    private static int FpsOf(DecodedAnimation anim)
+    {
+        if (anim.TotalDurationMs <= 0) return MaxImageFps;
+        double fps = anim.Frames.Length * 1000.0 / anim.TotalDurationMs;
+        return Math.Clamp((int)Math.Ceiling(fps), 1, MaxImageFps);
     }
 
     private void SubscribeCanvas(TouchButton canvas)

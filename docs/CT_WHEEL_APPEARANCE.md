@@ -29,7 +29,7 @@ Edits are pushed to the wheel screen as you make them.
 ## Layers
 
 Text, image, animated image and symbol layers work as on a touch button. An animated image plays
-at up to 10 frames per second, which keeps the serial link free for the main screen, and pauses
+at the clip's own frame rate, up to 30 frames per second, and pauses
 while the wheel menu is open, the device is off or the screensaver runs. Text tokens such as the
 time are not refreshed: the wheel screen is repainted when its value or its layers change, not on
 a timer. Two things are specific to the wheel:
