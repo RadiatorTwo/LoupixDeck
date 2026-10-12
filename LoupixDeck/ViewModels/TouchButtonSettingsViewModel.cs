@@ -673,8 +673,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     /// <summary>Every registered command that draws its own image, for the wheel layer's command picker.</summary>
     public IReadOnlyList<TextCommandChoice> ImageCommandChoices => field ??= _commandRegistry.GetAll()
         .Where(c => c.IsImageDisplayCommand && c.RenderImage != null && c.Info != null)
-        .Select(c => new TextCommandChoice(c.CommandName,
-            string.IsNullOrEmpty(c.Info.Group) ? c.Info.DisplayName : $"{c.Info.Group} / {c.Info.DisplayName}"))
+        .Select(c => new TextCommandChoice(c.CommandName, CommandChoiceTitle(c.Info)))
         .OrderBy(c => c.Title, StringComparer.CurrentCultureIgnoreCase)
         .ToList();
 
@@ -1675,8 +1674,9 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         {
             UpdateEditorPreview();
             UpdateSelectionBounds();
-            // A command typed into the box, rather than picked, must move the picker along.
+            // A command typed into the box, rather than picked, must move the pickers along.
             OnPropertyChanged(nameof(SelectedTextCommandChoice));
+            OnPropertyChanged(nameof(SelectedImageCommandChoice));
         });
     }
 
