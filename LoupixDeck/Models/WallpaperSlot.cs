@@ -99,8 +99,34 @@ public partial class WallpaperSlot
     /// <see cref="BitmapHelper.GetOrBakeSlot"/>, which re-bakes when a different size is
     /// asked for (see <see cref="BakedSize"/>).
     /// </summary>
+    /// <remarks>
+    /// A replaced bake may still be read by a render that resolved it just before the swap (the
+    /// key renders resolve the wallpaper before they take the render gate) or by the settings
+    /// preview converter. So, like <see cref="TouchButton.RenderedImage"/>, it is retired and only
+    /// disposed a few bakes later instead of leaving its native pixels to the finalizer, which every
+    /// slider tick in the wallpaper settings used to pile up.
+    /// </remarks>
     [JsonIgnore]
-    public SKBitmap Baked { get; set; }
+    public SKBitmap Baked
+    {
+        get;
+        set
+        {
+            if (ReferenceEquals(field, value)) return;
+
+            lock (SkiaRenderGate.Sync)
+            {
+                if (field != null)
+                    _retiredBakes.Enqueue(field);
+                field = value;
+                while (_retiredBakes.Count > RetainedBakeGenerations)
+                    _retiredBakes.Dequeue().Dispose();
+            }
+        }
+    }
+
+    private readonly Queue<SKBitmap> _retiredBakes = new();
+    private const int RetainedBakeGenerations = 3;
 
     /// <summary>
     /// Surface size <see cref="Baked"/> was produced for. The cache must be keyed on this:
