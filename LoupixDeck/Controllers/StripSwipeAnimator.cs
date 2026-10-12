@@ -307,6 +307,15 @@ public partial class LoupedeckLiveSController
         var slotButton = config.CurrentTouchButtonPage?.TouchButtons?.FindByIndex(slotIndex);
         slotButton?.RenderedImage = strip;
 
+        // Under a playing video wallpaper the frame goes into the video instead (see
+        // DrawSideStrip). The on-screen slot owns this bitmap, so the video gets its own copy.
+        if (wallpaperAnimation.CarriesStrips)
+        {
+            SKBitmap copy;
+            lock (SkiaRenderGate.Sync) copy = strip.Copy();
+            if (wallpaperAnimation.TryRedirectStripRedraw(side, copy)) return;
+        }
+
         await device.DrawTouchSlot(slotIndex, strip);
     }
 

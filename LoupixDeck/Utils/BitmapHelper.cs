@@ -2321,6 +2321,8 @@ public static class BitmapHelper
     /// is the page wallpaper's true panel region for this strip (left = x 0–60, right =
     /// x 420–480 of the 480-wide panel) so the image stays continuous with the centre
     /// grid across the bezel; falls back to a solid dark fill when no wallpaper is set.
+    /// <paramref name="drawBackground"/> false leaves the background transparent, for a strip
+    /// composited over a video wallpaper.
     /// </summary>
     public static SKBitmap RenderRotaryStrip(
         RotaryButtonPage page,
@@ -2329,13 +2331,14 @@ public static class BitmapHelper
         int height,
         RotarySide side,
         Func<int, LoupixDeck.PluginSdk.IRenderCanvas, bool> drawSegment = null,
-        Func<int, LoupixDeck.PluginSdk.AdjustmentValue?> valueFor = null)
+        Func<int, LoupixDeck.PluginSdk.AdjustmentValue?> valueFor = null,
+        bool drawBackground = true)
     {
         ArgumentNullException.ThrowIfNull(page);
 
         var buttons = page.RotaryButtons;
         return RenderRotaryStrip(buttons?.Count ?? 0, i => buttons[i]?.DisplayText, config, width, height, side,
-            drawSegment, valueFor);
+            drawSegment, valueFor, drawBackground);
     }
 
     /// <summary>
@@ -2351,7 +2354,8 @@ public static class BitmapHelper
         int height,
         RotarySide side,
         Func<int, LoupixDeck.PluginSdk.IRenderCanvas, bool> drawSegment = null,
-        Func<int, LoupixDeck.PluginSdk.AdjustmentValue?> valueFor = null)
+        Func<int, LoupixDeck.PluginSdk.AdjustmentValue?> valueFor = null,
+        bool drawBackground = true)
     {
         ArgumentNullException.ThrowIfNull(labelFor);
 
@@ -2362,7 +2366,8 @@ public static class BitmapHelper
         {
             var canvas = recording.Canvas;
 
-            DrawStripWallpaperOrColor(canvas, config, side, width, height, SKColors.Black);
+            if (drawBackground)
+                DrawStripWallpaperOrColor(canvas, config, side, width, height, SKColors.Black);
 
             if (count == 0)
                 return recording.Finish();
@@ -2793,14 +2798,16 @@ public static class BitmapHelper
     /// background, with the page's <see cref="RotaryButtonPage.StripCanvas"/> layers
     /// (image/text/symbol) composited on top across the full 60×270 surface. The dials
     /// are decoupled — no per-knob labels are drawn. Falls back to just the background
-    /// when the canvas is empty.
+    /// when the canvas is empty. <paramref name="drawBackground"/> false leaves the background
+    /// transparent, for a strip composited over a video wallpaper.
     /// </summary>
     public static SKBitmap RenderStripCanvas(
         TouchButton canvas,
         LoupedeckConfig config,
         int width,
         int height,
-        RotarySide side)
+        RotarySide side,
+        bool drawBackground = true)
     {
         // Recorded, so the on-screen view can draw the strip sharp at its own size (#251).
         using var recording = new RecordedRender(width, height);
@@ -2811,8 +2818,11 @@ public static class BitmapHelper
 
             // No wallpaper → fall back to the canvas's own background colour (default black),
             // matching touch-button behaviour. Avoids sending a washed-out grey to the device.
-            var fallback = canvas?.BackColor.ToSKColor() ?? SKColors.Black;
-            DrawStripWallpaperOrColor(skCanvas, config, side, width, height, fallback);
+            if (drawBackground)
+            {
+                var fallback = canvas?.BackColor.ToSKColor() ?? SKColors.Black;
+                DrawStripWallpaperOrColor(skCanvas, config, side, width, height, fallback);
+            }
 
             if (canvas?.Layers != null)
                 DrawLayers(skCanvas, canvas.Layers, width, height);

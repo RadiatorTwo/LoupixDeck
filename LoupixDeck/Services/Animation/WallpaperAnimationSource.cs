@@ -36,8 +36,14 @@ public sealed class WallpaperAnimationSource : IAnimationSource, IDisposable
     // calibration (which may leave gaps), not from index * keySize.
     private readonly SKRectI[] _keyRects;
 
+    // The side strips' content without their background, left at 0 and right at 1, owned by this
+    // source. The controller renders them (plugin calls cannot run on the frame budget) and hands
+    // them over; they are swapped and read under SkiaRenderGate.Sync, like the key foregrounds.
+    private readonly SKBitmap[] _strips = new SKBitmap[2];
+
     private volatile bool _active;
     private volatile bool _enabled = true;
+    private bool _disposed;
 
     // Diagnostics, opt-in via LOUPIX_WP_DEBUG=1: mirrors the screensaver's breakdown and adds the
     // overlay's own cost, which is the number that decides whether a given panel can carry this.
@@ -105,6 +111,27 @@ public sealed class WallpaperAnimationSource : IAnimationSource, IDisposable
 
     /// <summary>Re-renders every key on the next frame — what a page change needs.</summary>
     public void InvalidateAllButtons() => _foregrounds.InvalidateAll();
+
+    /// <summary>
+    /// Replaces one side strip's content, drawn over its column from the next frame on. Takes
+    /// ownership of <paramref name="strip"/>, also when the source is already disposed.
+    /// </summary>
+    public void SetStrip(RotarySide side, SKBitmap strip)
+    {
+        var idx = side == RotarySide.Right ? 1 : 0;
+
+        lock (SkiaRenderGate.Sync)
+        {
+            if (_disposed)
+            {
+                strip?.Dispose();
+                return;
+            }
+
+            _strips[idx]?.Dispose();
+            _strips[idx] = strip;
+        }
+    }
 
     public async Task RenderFrameAsync(AnimationRenderContext context)
     {
@@ -189,8 +216,12 @@ public sealed class WallpaperAnimationSource : IAnimationSource, IDisposable
             canvas.DrawRect(new SKRect(0, 0, _geometry.PanelWidth, _geometry.PanelHeight), dim);
         }
 
+        var rightColumnX = _geometry.PanelWidth - _geometry.StripWidth;
         DrawSideSlot(canvas, page.LeftWallpaper, 0);
-        DrawSideSlot(canvas, page.RightWallpaper, _geometry.PanelWidth - _geometry.StripWidth);
+        DrawSideSlot(canvas, page.RightWallpaper, rightColumnX);
+
+        DrawStrip(canvas, _strips[0], 0);
+        DrawStrip(canvas, _strips[1], rightColumnX);
 
         var buttons = page.TouchButtons;
         if (buttons == null) return;
@@ -242,13 +273,36 @@ public sealed class WallpaperAnimationSource : IAnimationSource, IDisposable
         canvas.DrawRect(destination, dim);
     }
 
+    /// <summary>
+    /// Draws a side strip's content over its column, above the video and any still side-slot
+    /// image. The strip has no background of its own, so whatever is beneath shows through.
+    /// </summary>
+    private void DrawStrip(SKCanvas canvas, SKBitmap strip, int columnX)
+    {
+        if (strip == null) return;
+
+        var destination = new SKRect(columnX, 0, columnX + _geometry.StripWidth, _geometry.PanelHeight);
+        canvas.DrawBitmap(strip, new SKRect(0, 0, strip.Width, strip.Height), destination,
+            SKSamplingOptions.Default, paint: null);
+    }
+
     public void Dispose()
     {
         _active = false;
         // Stop decoding first, then let the writer drain so the serial port is never closed
-        // mid-write, then free the cached key bitmaps.
+        // mid-write, then free the cached key and strip bitmaps.
         try { _stream.Dispose(); } catch { /* ignore */ }
         try { _writer.Dispose(); } catch { /* ignore */ }
         try { _foregrounds.Dispose(); } catch { /* ignore */ }
+
+        lock (SkiaRenderGate.Sync)
+        {
+            _disposed = true;
+            for (var i = 0; i < _strips.Length; i++)
+            {
+                _strips[i]?.Dispose();
+                _strips[i] = null;
+            }
+        }
     }
 }

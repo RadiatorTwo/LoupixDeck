@@ -708,6 +708,7 @@ public partial class LoupedeckLiveSController(
         // Unsubscribe app-level events so nothing tries to repaint the gone device.
         pageManager.TouchLayoutChanged -= OnTouchLayoutChanged;
         pageManager.OnRotaryPageChanged -= OnRotaryPageChanged;
+        wallpaperAnimation.StripOwnerChanged -= OnStripOwnerChanged;
         folderNav.StateChanged -= OnFolderStateChanged;
         exclusiveMode.StateChanged -= OnExclusiveStateChanged;
         config.PropertyChanged -= ConfigOnPropertyChanged;
@@ -1122,6 +1123,9 @@ public partial class LoupedeckLiveSController(
         // Repaint the affected side strip whenever its rotary page changes.
         pageManager.OnRotaryPageChanged += OnRotaryPageChanged;
 
+        // Repaint both strips when a video wallpaper takes their pixels over or hands them back.
+        wallpaperAnimation.StripOwnerChanged += OnStripOwnerChanged;
+
         // Register the side-strip transition source on the central animation scheduler so
         // swipe-release and command/GUI-driven rotary page slides are paced centrally (#119).
         RegisterStripAnimationSource();
@@ -1278,6 +1282,18 @@ public partial class LoupedeckLiveSController(
         }
     }
 
+    private async void OnStripOwnerChanged()
+    {
+        try
+        {
+            await RefreshSideStrips();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Side-strip redraw after a video wallpaper change failed: {ex.Message}");
+        }
+    }
+
     /// <summary>
     /// Renders the segmented label strip for one dial column (3 stacked 60×90 knob
     /// labels) and pushes it to the matching side panel region of the unified display.
@@ -1313,6 +1329,14 @@ public partial class LoupedeckLiveSController(
         var slotButton = config.CurrentTouchButtonPage?.TouchButtons?.FindByIndex(slotIndex);
         slotButton?.RenderedImage = strip;
 
+        // A playing video wallpaper rewrites the whole panel every frame, strips included, so a
+        // strip pushed on its own would vanish with the next frame. Hand the video its content
+        // instead, without the background, so the clip plays behind the labels.
+        if (wallpaperAnimation.CarriesStrips &&
+            wallpaperAnimation.TryRedirectStripRedraw(side,
+                RenderStripFor(page, side, useSessions: true, drawBackground: false)))
+            return;
+
         await device.DrawTouchSlot(slotIndex, strip);
     }
 
@@ -1322,8 +1346,11 @@ public partial class LoupedeckLiveSController(
     /// plugin/segment sessions (bound to the side's *current* page) contribute: the
     /// authoritative current-page render passes true; transient neighbour frames for a
     /// swipe animation pass false and render the page's own content as plain labels.
+    /// <paramref name="drawBackground"/> false leaves out the wallpaper region behind the strip,
+    /// for a strip composited over a video wallpaper.
     /// </summary>
-    private SkiaSharp.SKBitmap RenderStripFor(RotaryButtonPage page, RotarySide side, bool useSessions)
+    private SkiaSharp.SKBitmap RenderStripFor(RotaryButtonPage page, RotarySide side, bool useSessions,
+        bool drawBackground = true)
     {
         // Every dial's adjustment value is resolved HERE, before anything takes
         // SkiaRenderGate.Sync. Resolving one calls into a plugin, which talks to its backend
@@ -1337,7 +1364,7 @@ public partial class LoupedeckLiveSController(
         try
         {
             // A swipe draws the current and neighbour strips into every one of its frames.
-            SkiaSharp.SKBitmap strip = RenderStripLocked(page, side, useSessions);
+            SkiaSharp.SKBitmap strip = RenderStripLocked(page, side, useSessions, drawBackground);
             strip?.SetImmutable();
             return strip;
         }
@@ -1374,7 +1401,8 @@ public partial class LoupedeckLiveSController(
         return snapshot;
     }
 
-    private SkiaSharp.SKBitmap RenderStripLocked(RotaryButtonPage page, RotarySide side, bool useSessions)
+    private SkiaSharp.SKBitmap RenderStripLocked(RotaryButtonPage page, RotarySide side, bool useSessions,
+        bool drawBackground)
     {
         // PluginOverride: a plugin provider renders the strip; FreeDraw: the page's
         // editable canvas; Segmented (default): the three adjacent dial labels.
@@ -1383,16 +1411,17 @@ public partial class LoupedeckLiveSController(
         return page.StripMode switch
         {
             StripMode.PluginOverride => useSessions
-                ? RenderPluginStripOrFallback(page, side)
+                ? RenderPluginStripOrFallback(page, side, drawBackground)
                 : BitmapHelper.RenderRotaryStrip(page, config, StripWidth, StripHeight, side,
-                    valueFor: valueFor),
-            StripMode.FreeDraw => BitmapHelper.RenderStripCanvas(page.StripCanvas, config, StripWidth, StripHeight, side),
+                    valueFor: valueFor, drawBackground: drawBackground),
+            StripMode.FreeDraw => BitmapHelper.RenderStripCanvas(page.StripCanvas, config, StripWidth, StripHeight,
+                side, drawBackground),
             _ => useSessions
                 ? BitmapHelper.RenderRotaryStrip(page, config, StripWidth, StripHeight, side,
                     (i, rc) => (_segmentSession[SideIndex(side)] as ISegmentStripSession)?.RenderSegment(i, rc) ?? false,
-                    valueFor)
+                    valueFor, drawBackground)
                 : BitmapHelper.RenderRotaryStrip(page, config, StripWidth, StripHeight, side,
-                    valueFor: valueFor)
+                    valueFor: valueFor, drawBackground: drawBackground)
         };
     }
 
@@ -1593,9 +1622,11 @@ public partial class LoupedeckLiveSController(
     /// <summary>
     /// Renders a plugin-override strip: the attached provider draws the whole 60×270 strip onto a
     /// host canvas. Falls back to the segmented dial labels when no provider is attached or the
-    /// provider declines (returns false) / throws.
+    /// provider declines (returns false) / throws. The provider draws its own background, so
+    /// <paramref name="drawBackground"/> only affects the fallback.
     /// </summary>
-    private SkiaSharp.SKBitmap RenderPluginStripOrFallback(RotaryButtonPage page, RotarySide side)
+    private SkiaSharp.SKBitmap RenderPluginStripOrFallback(RotaryButtonPage page, RotarySide side,
+        bool drawBackground)
     {
         var session = _stripSession[SideIndex(side)];
         if (session != null)
@@ -1621,7 +1652,7 @@ public partial class LoupedeckLiveSController(
 
         // Unbound / orphaned id / declined / failed → segmented labels.
         return BitmapHelper.RenderRotaryStrip(page, config, StripWidth, StripHeight, side,
-            valueFor: AdjustmentValueFor(page, side));
+            valueFor: AdjustmentValueFor(page, side), drawBackground: drawBackground);
     }
 
     /// <summary>
