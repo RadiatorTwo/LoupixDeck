@@ -376,8 +376,14 @@ public static class BitmapHelper
             var light = IsLightTheme;
             if (_rotaryKnobImage == null || _rotaryKnobImageLight != light)
             {
+                Bitmap old = _rotaryKnobImage;
                 _rotaryKnobImage = RenderRotaryKnobImage(90, 90);
                 _rotaryKnobImageLight = light;
+
+                // Every dial is still bound to the old image while the first binding reads the new
+                // one, so it is freed once they have all re-read it rather than right here.
+                if (old != null)
+                    Avalonia.Threading.Dispatcher.UIThread.Post(old.Dispose, Avalonia.Threading.DispatcherPriority.Background);
             }
 
             return _rotaryKnobImage;
