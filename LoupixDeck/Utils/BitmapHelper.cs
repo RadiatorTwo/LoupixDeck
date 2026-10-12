@@ -1576,6 +1576,7 @@ public static class BitmapHelper
         TextSource.DialLabel => dial?.Label,
         TextSource.DialValue => dial?.ValueText,
         TextSource.ValueDetail => dial?.ValueDetail,
+        TextSource.Command => layer.LiveText ?? layer.Text,
         _ => layer.Text
     };
 

@@ -30,9 +30,9 @@ Edits are pushed to the wheel screen as you make them.
 
 Text, image, animated image and symbol layers work as on a touch button. An animated image plays
 at the clip's own frame rate, up to 30 frames per second, and pauses
-while the wheel menu is open, the device is off or the screensaver runs. Text tokens such as the
-time are not refreshed: the wheel screen is repainted when its value or its layers change, not on
-a timer. Two things are specific to the wheel:
+while the wheel menu is open, the device is off or the screensaver runs. Live text such as the
+time comes from a text layer's *Dynamic text command* source (below). Two things are specific to
+the wheel:
 
 **Indicator layer.** Draws the adjustment arc. You can set the track and fill colours, the
 stroke thickness (as a fraction of the layer size), the start angle and the sweep (360 for a full
@@ -49,6 +49,14 @@ delete it.
 | Wheel label | The wheel mode's label from the wheel-modes bar.                |
 | Value       | The value text the adjustment command reports, e.g. `-32.5 dB`.  |
 | Value detail | The value's secondary text, when the command reports one.     |
+| Dynamic text command | The text of a dynamic-text command, refreshed on its own interval. |
+
+**Dynamic text command.** Choosing this source shows a *Dynamic text command* box: enter the
+command string a touch key would use, for example `DynamicText.Clock(HH:mm)`, or a display command
+from a plugin. The wheel repaints whenever the text changes, honouring the command's update interval,
+and immediately when a plugin pushes new data. Only the wheel mode that is showing is polled;
+switching mode, page or workspace stops the others. The layer's own Text is kept as the fallback
+shown until the command first reports, and by a LoupixDeck release that predates this source.
 
 A dynamic text layer keeps all the usual styling — size, colour, bold, outline, box and
 position — so the label and value can be placed and coloured independently. When there is no

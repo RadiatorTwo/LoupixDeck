@@ -1370,5 +1370,8 @@
   "Settings_ScreensaverWithDesktopHint": "Plays the screensaver while the Windows screen saver runs, even when the idle screensaver is off. While it plays, the device stays on instead of following the monitors.",
   "Settings_DisplaysOffTurnOff": "Turn off",
   "Settings_DisplaysOffDim": "Dim to",
-  "ProfileImport_LayoutTemplatePreview": "This lays out {0} key(s) and removes {1} layer(s)."
+  "ProfileImport_LayoutTemplatePreview": "This lays out {0} key(s) and removes {1} layer(s).",
+  "TextSource_Command": "Dynamic text command",
+  "TouchButton_TextCommand": "Dynamic text command",
+  "TouchButton_TextCommandHint": "A dynamic-text command such as DynamicText.Clock(HH:mm). It refreshes on its own interval; the text below shows until it reports."
 }

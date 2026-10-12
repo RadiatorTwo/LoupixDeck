@@ -864,6 +864,14 @@
                                                 </ComboBox>
                                             </StackPanel>
 
+                                            <StackPanel IsVisible="{Binding IsCommandText}">
+                                                <TextBlock Classes="label" Text="{loc:Tr TouchButton_TextCommand}" />
+                                                <TextBox Text="{Binding TextCommand, Mode=TwoWay}" Margin="0,2,0,2"
+                                                         Watermark="DynamicText.Clock(HH:mm)" />
+                                                <TextBlock Classes="hint" Margin="0,0,0,8"
+                                                           Text="{loc:Tr TouchButton_TextCommandHint}" />
+                                            </StackPanel>
+
                                             <TextBlock Classes="label" Text="{loc:Tr TouchButton_Text2}" />
                                             <TextBox Text="{Binding Text, Mode=TwoWay}" Margin="0,2,0,2"
                                                      IsReadOnly="{Binding IsCommandOwned}"
