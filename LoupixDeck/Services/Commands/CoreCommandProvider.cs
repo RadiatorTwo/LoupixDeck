@@ -1,5 +1,6 @@
 ﻿using LoupixDeck.Commands.Base;
 using LoupixDeck.PluginSdk;
+using LoupixDeck.Utils;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace LoupixDeck.Services.Commands;
@@ -60,6 +61,33 @@ public class CoreCommandProvider : ICommandProvider
                 }
             }
 
+            var isImage = false;
+            Func<string[], IReadOnlyList<SequenceCommand>, string, string, IRenderCanvas, bool> renderImage = null;
+
+            if (_sysCommandService.TryGetCommandType(name, out var imageType)
+                && typeof(IDynamicImageProvider).IsAssignableFrom(imageType))
+            {
+                try
+                {
+                    var imageProvider = (IDynamicImageProvider)ActivatorUtilities.CreateInstance(_serviceProvider, imageType);
+                    isImage = true;
+                    interval = imageProvider.UpdateInterval;
+                    renderImage = (parms, _, _, _, canvas) =>
+                    {
+                        if (canvas is not SkiaRenderCanvas skia)
+                            return false;
+
+                        bool drawn = false;
+                        skia.Draw(c => drawn = imageProvider.Render(parms, c, canvas.Width, canvas.Height));
+                        return drawn;
+                    };
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"CoreCommandProvider: failed to instantiate image command '{name}': {ex.Message}");
+                }
+            }
+
             var capturedName = name;
             result.Add(new RegisteredCommand
             {
@@ -71,7 +99,9 @@ public class CoreCommandProvider : ICommandProvider
                 IsDisplayCommand = isDisplay,
                 UpdateInterval = interval,
                 Execute = (parameters, _, _, _) => _sysCommandService.ExecuteCommand(capturedName, parameters),
-                GetText = getText
+                GetText = getText,
+                IsImageDisplayCommand = isImage,
+                RenderImage = renderImage
             });
         }
 
