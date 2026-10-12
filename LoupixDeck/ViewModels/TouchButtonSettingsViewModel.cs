@@ -633,10 +633,17 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     /// <summary>Every registered command that reports text, for the wheel text layer's command picker.</summary>
     public IReadOnlyList<TextCommandChoice> TextCommandChoices => field ??= _commandRegistry.GetAll()
         .Where(c => c.IsDisplayCommand && c.GetText != null && c.Info != null)
-        .Select(c => new TextCommandChoice(c.CommandName,
-            string.IsNullOrEmpty(c.Info.Group) ? c.Info.DisplayName : $"{c.Info.Group} / {c.Info.DisplayName}"))
+        .Select(c => new TextCommandChoice(c.CommandName, CommandChoiceTitle(c.Info)))
         .OrderBy(c => c.Title, StringComparer.CurrentCultureIgnoreCase)
         .ToList();
+
+    /// <summary>"Group / Name" of a command, translated like every other command picker.</summary>
+    private static string CommandChoiceTitle(Commands.Base.CommandInfo info)
+    {
+        LocalizationManager loc = LocalizationManager.Instance;
+        string name = loc.TrText(info.DisplayName, info.OwnerPluginId);
+        return string.IsNullOrEmpty(info.Group) ? name : $"{loc.TrText(info.Group, info.OwnerPluginId)} / {name}";
+    }
 
     /// <summary>
     /// The command the selected text layer is bound to. Picking one writes its bare name (default
