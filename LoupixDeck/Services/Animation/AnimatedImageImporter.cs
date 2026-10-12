@@ -107,9 +107,15 @@ public sealed class AnimatedImageImporter : IAnimatedImageImporter
             var geometry = fill
                 ? $"scale=-2:{h}:flags=lanczos"
                 : $"scale={w}:{h}:flags=lanczos:force_original_aspect_ratio=decrease";
+            // A large surface (the 240x240 wheel screen) shows the coarse 128-colour bayer pattern;
+            // give it the full palette and error-diffusion dithering. Key-sized clips keep the
+            // small palette, which also keeps their GIFs small.
+            var large = Math.Min(w, h) > DefaultTargetSize;
+            var maxColors = large ? 256 : 128;
+            var dither = large ? "sierra2_4a" : "bayer";
             var vf =
                 $"fps={ImportFps},{geometry},split[s0][s1];" +
-                "[s0]palettegen=max_colors=128[p];[s1][p]paletteuse=dither=bayer";
+                $"[s0]palettegen=max_colors={maxColors}[p];[s1][p]paletteuse=dither={dither}";
 
             var args =
                 $"-hide_banner -loglevel error -t {MaxSeconds} -i \"{sourcePath}\" " +
