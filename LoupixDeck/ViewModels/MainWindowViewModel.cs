@@ -147,6 +147,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
     private readonly IDynamicTextManager _dynamicTextManager;
     private readonly Services.Animation.IButtonAnimationManager _buttonAnimationManager;
+    private readonly Services.Animation.IWheelAnimationManager _wheelAnimationManager;
     private readonly IExclusiveModeService _exclusiveMode;
 
     private bool _isExclusiveModeActive;
@@ -280,6 +281,7 @@ public partial class MainWindowViewModel : ViewModelBase
         ICommandRegistry commandRegistry,
         IDynamicTextManager dynamicTextManager,
         Services.Animation.IButtonAnimationManager buttonAnimationManager,
+        Services.Animation.IWheelAnimationManager wheelAnimationManager,
         ISystemPowerService powerService,
         IDisplayStateService displayState,
         IExclusiveModeService exclusiveMode,
@@ -316,6 +318,7 @@ public partial class MainWindowViewModel : ViewModelBase
         ScopeKey = resolved?.ScopeKey ?? deviceInfo.Slug;
         _dynamicTextManager = dynamicTextManager;
         _buttonAnimationManager = buttonAnimationManager;
+        _wheelAnimationManager = wheelAnimationManager;
         _exclusiveMode = exclusiveMode;
         _workspaceActivation = workspaceActivation;
         ActionPanel = actionPanel;
@@ -1397,6 +1400,10 @@ public partial class MainWindowViewModel : ViewModelBase
         bool created = wheel.Canvas == null;
         wheel.Canvas ??= WheelCanvasDefaults.Create(size);
         LoupedeckController.RegisterWheelCanvas(wheel);
+        // The managers follow the canvas they saw at their last scan; a canvas created just now is
+        // new to them, so its layer edits would not reach them until an unrelated rescan.
+        if (created)
+            RescanWheelContent();
 
         TouchButtonSettingsViewModel editor = null;
         await _dialogService.ShowDialogAsync<TouchButtonSettingsViewModel, DialogResult>(vm =>
@@ -1415,7 +1422,16 @@ public partial class MainWindowViewModel : ViewModelBase
             wheel.Canvas = null;
 
         LoupedeckController.SaveConfig();
+        // A dropped canvas must stop polling and animating, which only a rescan ends.
+        RescanWheelContent();
         await LoupedeckController.RefreshWheel();
+    }
+
+    /// <summary>Rebuilds the dynamic-text and animation entries of the active wheel mode's canvas.</summary>
+    private void RescanWheelContent()
+    {
+        _dynamicTextManager.Rescan();
+        _wheelAnimationManager.Rescan();
     }
 
     private Task SettingsMenuButton_Click() => ShowSettingsAsync(null);
