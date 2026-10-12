@@ -742,16 +742,24 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
             RightTabIndex = 0;
     }
 
-    private SKBitmap _editorPreview;
+    private Avalonia.Media.Imaging.Bitmap _editorPreview;
 
-    public SKBitmap EditorPreview
+    /// <summary>
+    /// The rendered editor canvas. A new one replaces the old on every render, and a drag renders on
+    /// every pointer move, so the old one is disposed right away: the GC only sees the small managed
+    /// shells of these native pixel buffers and let them pile up to gigabytes before collecting.
+    /// The image control keeps its own reference to a frame it is still drawing.
+    /// </summary>
+    public Avalonia.Media.Imaging.Bitmap EditorPreview
     {
         get => _editorPreview;
         private set
         {
             if (ReferenceEquals(_editorPreview, value)) return;
+            Avalonia.Media.Imaging.Bitmap old = _editorPreview;
             _editorPreview = value;
             OnPropertyChanged(nameof(EditorPreview));
+            old?.Dispose();
         }
     }
 
@@ -1690,9 +1698,10 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         // Segment dividers only make sense (and are only drawn) for a free-draw side
         // strip; the renderer further gates them on the grid toggle.
         var segmentCount = IsSegmentCommandMode ? RotaryButtonPage.StripSegmentCount : 0;
-        EditorPreview = BitmapHelper.RenderEditorCanvas(
+        using SKBitmap rendered = BitmapHelper.RenderEditorCanvas(
             ButtonData, _config, EditorCanvasWidth, EditorCanvasHeight, DeviceWidth, DeviceHeight,
             ShowGrid, GridStepDevice, segmentCount, PreviewDial, roundMask: IsWheelCanvas);
+        EditorPreview = SKBitmapToAvaloniaBitmapConverter.ToBitmap(rendered);
     }
 
     /// <summary>
@@ -1750,6 +1759,8 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
 
         LayerListItems?.Dispose();
         LayerListItems = null;
+
+        EditorPreview = null;
 
         _sideStripRegistry.ProvidersChanged -= OnStripProvidersChanged;
 
