@@ -170,15 +170,18 @@ public sealed class AppIconExtractor : IAppIconExtractor
     }
 
     /// <summary>Evicts least-recently-used entries. Must be called under <see cref="_sync"/>.</summary>
+    /// <remarks>
+    /// Evicted bitmaps are dropped, not disposed: a picker row or panel may still display one (a
+    /// list longer than the cache evicts icons that are on screen), and disposing it would blank or
+    /// crash that view. Once no view references it, the GC reclaims it.
+    /// </remarks>
     private void Trim()
     {
         while (_recent.Count > MaxCachedBitmaps)
         {
             string oldest = _recent.Last!.Value;
             _recent.RemoveLast();
-
-            if (_bitmaps.Remove(oldest, out Bitmap bitmap))
-                bitmap.Dispose();
+            _bitmaps.Remove(oldest);
         }
     }
 
