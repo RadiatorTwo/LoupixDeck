@@ -43,6 +43,29 @@ public sealed class ExclusiveModeService : IExclusiveModeService
         return (ActiveScope & scope) == scope;
     }
 
+    public bool OwnsWheel(ExclusiveControlScope rotaryFlag)
+    {
+        IExclusiveModeProvider provider = _current;
+        if (provider == null)
+            return false;
+
+        ExclusiveControlScope scope = ActiveScope;
+        if ((scope & ExclusiveControlScope.Wheel) != 0)
+            return true;
+
+        // A throwing getter keeps the wheel with the rotary flags, the behaviour before the
+        // wheel had its own flag (#398).
+        bool followsRotary;
+        try { followsRotary = provider.WheelFollowsRotaryScope; }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"ExclusiveMode.WheelFollowsRotaryScope threw: {ex.Message}");
+            followsRotary = true;
+        }
+
+        return followsRotary && rotaryFlag != ExclusiveControlScope.None && (scope & rotaryFlag) == rotaryFlag;
+    }
+
     public event Action StateChanged;
 
     public bool TryEnter(IExclusiveModeProvider provider)

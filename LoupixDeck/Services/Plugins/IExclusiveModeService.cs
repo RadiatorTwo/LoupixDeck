@@ -33,6 +33,13 @@ public interface IExclusiveModeService
     /// <see cref="ExclusiveControlScope.None"/>.</summary>
     bool Owns(ExclusiveControlScope scope);
 
+    /// <summary>True when a provider is active and owns the Loupedeck CT wheel for
+    /// <paramref name="rotaryFlag"/> (<see cref="ExclusiveControlScope.RotaryTurn"/> or
+    /// <see cref="ExclusiveControlScope.RotaryPress"/>): through
+    /// <see cref="ExclusiveControlScope.Wheel"/>, or through the rotary flag unless the provider
+    /// opted out with <see cref="IExclusiveModeProvider.WheelFollowsRotaryScope"/>.</summary>
+    bool OwnsWheel(ExclusiveControlScope rotaryFlag);
+
     /// <summary>Tries to enter exclusive mode. Returns false if already active.</summary>
     bool TryEnter(IExclusiveModeProvider provider);
 

@@ -1960,7 +1960,7 @@ public partial class LoupedeckLiveSController(
             // keeps running the user's normal assignment.
             if (TryGetRotaryIndex(e.ButtonId, out var rIdx))
             {
-                if (exclusiveMode.Owns(ExclusiveControlScope.RotaryPress))
+                if (ExclusiveOwnsRotary(rIdx, ExclusiveControlScope.RotaryPress))
                 {
                     try { exclusiveMode.Current?.OnRotaryPressed(rIdx); }
                     catch (Exception ex) { Console.WriteLine($"Exclusive rotary press: {ex.Message}"); }
@@ -2444,11 +2444,15 @@ public partial class LoupedeckLiveSController(
 
         if (StopFullDisplayOnInput()) return;
 
-        // Only forwarded when the provider declared it overrides rotary turns (#127);
-        // otherwise the dial keeps running the user's normal command below.
-        if (exclusiveMode.Owns(ExclusiveControlScope.RotaryTurn))
+        // Only forwarded when the provider declared it overrides this dial's turns (#127, the
+        // CT wheel separately per #398); otherwise the dial keeps running the user's normal
+        // command below.
+        bool knownRotary = TryGetRotaryIndex(e.ButtonId, out var rIdx);
+        if (knownRotary
+                ? ExclusiveOwnsRotary(rIdx, ExclusiveControlScope.RotaryTurn)
+                : exclusiveMode.Owns(ExclusiveControlScope.RotaryTurn))
         {
-            if (TryGetRotaryIndex(e.ButtonId, out var rIdx))
+            if (knownRotary)
             {
                 try { exclusiveMode.Current?.OnRotated(rIdx, e.Delta); }
                 catch (Exception ex) { Console.WriteLine($"Exclusive rotate: {ex.Message}"); }
@@ -2501,6 +2505,14 @@ public partial class LoupedeckLiveSController(
         var wrapped = wrap?.Apply(command) ?? command;
         FireAndForget(wrapped, ButtonTargets.RotaryEncoder, idx, e.Delta);
     }
+
+    /// <summary>
+    /// Whether the active exclusive provider owns <paramref name="flag"/> for the rotary at
+    /// <paramref name="index"/>. The CT wheel has its own ownership rule (#398); a side dial
+    /// follows the flag alone.
+    /// </summary>
+    private bool ExclusiveOwnsRotary(int index, ExclusiveControlScope flag) =>
+        IsWheelIndex(index) ? exclusiveMode.OwnsWheel(flag) : exclusiveMode.Owns(flag);
 
     /// <summary>
     /// Maps the device knob id to its rotary-page slot index. Order matches the
