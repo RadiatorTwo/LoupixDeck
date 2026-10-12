@@ -30,9 +30,11 @@ public sealed partial class RotaryButtonPage(int pageSize) : ButtonPageBase()
     /// Free-draw canvas for this page's side strip: a 60×270 layer surface (image/
     /// text/symbol) edited like a touch button, shown when this page's
     /// <see cref="StripMode"/> is <see cref="StripMode.FreeDraw"/>. Null/absent in
-    /// older configs and in segmented mode; created on demand by the editor.
+    /// older configs and in segmented mode; created on demand by the editor. Observable so the
+    /// strip animation starts as soon as the editor creates the canvas.
     /// </summary>
-    public TouchButton StripCanvas { get; set; }
+    [ObservableProperty]
+    public partial TouchButton StripCanvas { get; set; }
 
     /// <summary>
     /// Per-segment tap commands for a <see cref="StripMode.FreeDraw"/> side strip: the
