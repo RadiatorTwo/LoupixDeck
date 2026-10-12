@@ -28,6 +28,12 @@ public sealed partial class FolderNodeViewModel : PanelItemViewModel
 
     public FolderNodeViewModel Parent { get; }
 
+    /// <summary>
+    /// The panel this row belongs to. The context menu lives in a popup, outside the row's logical
+    /// tree, so it reaches the panel's commands through the row instead of through a $parent lookup.
+    /// </summary>
+    public FolderPanelViewModel Panel { get; init; }
+
     public override string Title => Folder.Name;
 
     public ObservableCollection<FolderNodeViewModel> Children { get; } = [];

@@ -182,17 +182,17 @@
                                         <Border.ContextFlyout>
                                             <MenuFlyout>
                                                 <MenuItem Header="{loc:Tr FolderPanel_NewSubfolder}"
-                                                          IsEnabled="{Binding $parent[ItemsControl].((fp:FolderPanelViewModel)DataContext).CanEditStructure}"
-                                                          Command="{Binding $parent[ItemsControl].((fp:FolderPanelViewModel)DataContext).NewSubfolderCommand}"
+                                                          IsEnabled="{Binding Panel.CanEditStructure}"
+                                                          Command="{Binding Panel.NewSubfolderCommand}"
                                                           CommandParameter="{Binding}" />
                                                 <MenuItem Header="{loc:Tr FolderPanel_Rename}"
-                                                          IsEnabled="{Binding $parent[ItemsControl].((fp:FolderPanelViewModel)DataContext).CanEditStructure}"
-                                                          Command="{Binding $parent[ItemsControl].((fp:FolderPanelViewModel)DataContext).RenameCommand}"
+                                                          IsEnabled="{Binding Panel.CanEditStructure}"
+                                                          Command="{Binding Panel.RenameCommand}"
                                                           CommandParameter="{Binding}" />
                                                 <Separator />
                                                 <MenuItem Header="{loc:Tr FolderPanel_Delete}"
-                                                          IsEnabled="{Binding $parent[ItemsControl].((fp:FolderPanelViewModel)DataContext).CanEditStructure}"
-                                                          Command="{Binding $parent[ItemsControl].((fp:FolderPanelViewModel)DataContext).DeleteCommand}"
+                                                          IsEnabled="{Binding Panel.CanEditStructure}"
+                                                          Command="{Binding Panel.DeleteCommand}"
                                                           CommandParameter="{Binding}" />
                                             </MenuFlyout>
                                         </Border.ContextFlyout>

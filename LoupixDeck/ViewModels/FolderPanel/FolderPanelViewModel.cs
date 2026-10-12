@@ -174,7 +174,7 @@ public sealed partial class FolderPanelViewModel : ViewModelBase
 
     private FolderNodeViewModel BuildNode(CustomFolder folder, FolderNodeViewModel parent)
     {
-        FolderNodeViewModel node = new(folder, parent) { IsExpanded = !_collapsed.Contains(folder.Id) };
+        FolderNodeViewModel node = new(folder, parent) { Panel = this, IsExpanded = !_collapsed.Contains(folder.Id) };
         foreach (CustomFolder child in folder.Children ?? [])
             if (child != null)
                 node.Children.Add(BuildNode(child, node));
