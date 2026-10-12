@@ -36,9 +36,15 @@ public class SKBitmapToAvaloniaBitmapConverter : IValueConverter
             _ => PixelFormat.Bgra8888 // Fallback
         };
 
-        var alphaFormat = skBitmap.AlphaType == SKAlphaType.Opaque
-            ? AlphaFormat.Opaque
-            : AlphaFormat.Unpremul;
+        // Label the pixels with the alpha type they were actually written in: Skia
+        // bitmaps default to premultiplied, and reading those as unpremultiplied
+        // brightens every semi-transparent edge.
+        var alphaFormat = skBitmap.AlphaType switch
+        {
+            SKAlphaType.Opaque => AlphaFormat.Opaque,
+            SKAlphaType.Unpremul => AlphaFormat.Unpremul,
+            _ => AlphaFormat.Premul
+        };
 
         // Avalonia 11.3's Bitmap(PixelFormat, AlphaFormat, IntPtr, …) constructor
         // copies the pixels, so the returned Bitmap is independent of skBitmap.
