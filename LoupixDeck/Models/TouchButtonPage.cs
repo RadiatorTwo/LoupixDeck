@@ -69,6 +69,16 @@ public sealed partial class TouchButtonPage(int pageSize) : ButtonPageBase()
     public SKBitmap Wallpaper => BitmapHelper.GetOrBakeSlot(MainWallpaper, Geometry.PanelWidth, Geometry.PanelHeight);
 
     /// <summary>
+    /// <see cref="Wallpaper"/> as an image for the page list in the settings. Every slot edit
+    /// re-reads it, so it is copied into reused buffers rather than into a new bitmap each time,
+    /// and only when the bake itself changed. Read it on the UI thread.
+    /// </summary>
+    [JsonIgnore]
+    public Avalonia.Media.Imaging.Bitmap WallpaperThumbnail => _wallpaperThumbnail.Show(Wallpaper);
+
+    private readonly PreviewBitmapBuffer _wallpaperThumbnail = new();
+
+    /// <summary>
     /// Panel geometry of the owning device, used to bake the preview above at the same size
     /// the renderer uses (a mismatch would bake a second copy into the slot cache).
     /// Runtime-only; assigned by <see cref="LoupedeckConfig.ApplyDeviceGeometry"/> on load and
@@ -86,6 +96,7 @@ public sealed partial class TouchButtonPage(int pageSize) : ButtonPageBase()
     private void OnWallpaperSlotChanged(object sender, EventArgs e)
     {
         OnPropertyChanged(nameof(Wallpaper));
+        OnPropertyChanged(nameof(WallpaperThumbnail));
         OnPropertyChanged(nameof(WallpaperInvalidated));
     }
 

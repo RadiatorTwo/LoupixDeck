@@ -289,15 +289,22 @@ public class TouchPageWallpaperSettingsViewModel : DialogViewModelBase<TouchButt
 
     // ───────── Previews ─────────
 
-    public SKBitmap MainPreview
+    // The previews are re-read on every slider tick. Binding the bakes through the SKBitmap
+    // converter allocated a new Avalonia bitmap per preview per tick; these copy into reused
+    // buffers instead. ActivePreview hands out the buffer of the preview it mirrors.
+    private readonly PreviewBitmapBuffer _mainPreviewBuffer = new();
+    private readonly PreviewBitmapBuffer _leftPreviewBuffer = new();
+    private readonly PreviewBitmapBuffer _rightPreviewBuffer = new();
+
+    public Avalonia.Media.Imaging.Bitmap MainPreview
     {
         get
         {
             var slot = _targetPage?.MainWallpaper;
             if (slot is { HasVideo: true })
-                return GetPosterFrame(slot.VideoPath);
+                return _mainPreviewBuffer.Show(GetPosterFrame(slot.VideoPath));
 
-            return BitmapHelper.GetOrBakeSlot(slot, _geometry.PanelWidth, _geometry.PanelHeight);
+            return _mainPreviewBuffer.Show(BitmapHelper.GetOrBakeSlot(slot, _geometry.PanelWidth, _geometry.PanelHeight));
         }
     }
 
@@ -317,13 +324,13 @@ public class TouchPageWallpaperSettingsViewModel : DialogViewModelBase<TouchButt
         return _poster;
     }
 
-    public SKBitmap LeftPreview =>
-        BitmapHelper.GetOrBakeSlot(_targetPage?.LeftWallpaper, _geometry.StripWidth, _geometry.PanelHeight);
+    public Avalonia.Media.Imaging.Bitmap LeftPreview => _leftPreviewBuffer.Show(
+        BitmapHelper.GetOrBakeSlot(_targetPage?.LeftWallpaper, _geometry.StripWidth, _geometry.PanelHeight));
 
-    public SKBitmap RightPreview =>
-        BitmapHelper.GetOrBakeSlot(_targetPage?.RightWallpaper, _geometry.StripWidth, _geometry.PanelHeight);
+    public Avalonia.Media.Imaging.Bitmap RightPreview => _rightPreviewBuffer.Show(
+        BitmapHelper.GetOrBakeSlot(_targetPage?.RightWallpaper, _geometry.StripWidth, _geometry.PanelHeight));
 
-    public SKBitmap ActivePreview => SelectedTarget switch
+    public Avalonia.Media.Imaging.Bitmap ActivePreview => SelectedTarget switch
     {
         WallpaperTarget.Left => LeftPreview,
         WallpaperTarget.Right => RightPreview,
@@ -459,5 +466,17 @@ public class TouchPageWallpaperSettingsViewModel : DialogViewModelBase<TouchButt
         }
         Cancel();
         CloseRequested?.Invoke();
+    }
+
+    /// <summary>Frees the preview buffers and the poster frame. Call once the window has closed.</summary>
+    public void Cleanup()
+    {
+        _mainPreviewBuffer.Dispose();
+        _leftPreviewBuffer.Dispose();
+        _rightPreviewBuffer.Dispose();
+
+        _poster?.Dispose();
+        _poster = null;
+        _posterPath = null;
     }
 }
