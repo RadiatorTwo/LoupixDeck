@@ -744,22 +744,35 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
 
     private Avalonia.Media.Imaging.Bitmap _editorPreview;
 
-    /// <summary>
-    /// The rendered editor canvas. A new one replaces the old on every render, and a drag renders on
-    /// every pointer move, so the old one is disposed right away: the GC only sees the small managed
-    /// shells of these native pixel buffers and let them pile up to gigabytes before collecting.
-    /// The image control keeps its own reference to a frame it is still drawing.
-    /// </summary>
+    /// <summary>The rendered editor canvas: one of the <see cref="_previewBuffers"/>.</summary>
     public Avalonia.Media.Imaging.Bitmap EditorPreview
     {
         get => _editorPreview;
         private set
         {
             if (ReferenceEquals(_editorPreview, value)) return;
-            Avalonia.Media.Imaging.Bitmap old = _editorPreview;
             _editorPreview = value;
             OnPropertyChanged(nameof(EditorPreview));
-            old?.Dispose();
+        }
+    }
+
+    // A drag renders the editor canvas on every pointer move, so the renders draw into two
+    // canvas-sized buffers kept for as long as the size stays, instead of allocating a frame each
+    // time. They alternate because the image control only redraws when its source changes, and so
+    // a render never writes into the frame that is on screen.
+    private readonly Avalonia.Media.Imaging.WriteableBitmap[] _previewBuffers = new Avalonia.Media.Imaging.WriteableBitmap[2];
+    private int _previewBufferIndex;
+    private bool _previewClosed;
+
+    private void DisposePreviewBuffers()
+    {
+        // A render posted before the dialog closed must not allocate the buffers again.
+        _previewClosed = true;
+        EditorPreview = null;
+        for (int i = 0; i < _previewBuffers.Length; i++)
+        {
+            _previewBuffers[i]?.Dispose();
+            _previewBuffers[i] = null;
         }
     }
 
@@ -1698,10 +1711,29 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         // Segment dividers only make sense (and are only drawn) for a free-draw side
         // strip; the renderer further gates them on the grid toggle.
         var segmentCount = IsSegmentCommandMode ? RotaryButtonPage.StripSegmentCount : 0;
-        using SKBitmap rendered = BitmapHelper.RenderEditorCanvas(
-            ButtonData, _config, EditorCanvasWidth, EditorCanvasHeight, DeviceWidth, DeviceHeight,
-            ShowGrid, GridStepDevice, segmentCount, PreviewDial, roundMask: IsWheelCanvas);
-        EditorPreview = SKBitmapToAvaloniaBitmapConverter.ToBitmap(rendered);
+        int width = EditorCanvasWidth;
+        int height = EditorCanvasHeight;
+        if (_previewClosed || width <= 0 || height <= 0) return;
+
+        _previewBufferIndex ^= 1;
+        Avalonia.Media.Imaging.WriteableBitmap target = _previewBuffers[_previewBufferIndex];
+        if (target == null || target.PixelSize.Width != width || target.PixelSize.Height != height)
+        {
+            target?.Dispose();
+            target = new Avalonia.Media.Imaging.WriteableBitmap(new Avalonia.PixelSize(width, height),
+                new Avalonia.Vector(96, 96), Avalonia.Platform.PixelFormat.Bgra8888, Avalonia.Platform.AlphaFormat.Premul);
+            _previewBuffers[_previewBufferIndex] = target;
+        }
+
+        using (Avalonia.Platform.ILockedFramebuffer frame = target.Lock())
+        {
+            SKImageInfo info = new(width, height, SKColorType.Bgra8888, SKAlphaType.Premul);
+            using SKSurface surface = SKSurface.Create(info, frame.Address, frame.RowBytes);
+            BitmapHelper.DrawEditorCanvas(surface.Canvas, ButtonData, width, height, DeviceWidth, DeviceHeight,
+                ShowGrid, GridStepDevice, segmentCount, PreviewDial, roundMask: IsWheelCanvas);
+        }
+
+        EditorPreview = target;
     }
 
     /// <summary>
@@ -1760,7 +1792,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         LayerListItems?.Dispose();
         LayerListItems = null;
 
-        EditorPreview = null;
+        DisposePreviewBuffers();
 
         _sideStripRegistry.ProvidersChanged -= OnStripProvidersChanged;
 
