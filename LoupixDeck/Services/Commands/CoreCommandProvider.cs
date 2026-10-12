@@ -61,15 +61,15 @@ public class CoreCommandProvider : ICommandProvider
                 }
             }
 
-            var isImage = false;
+            bool isImage = false;
             Func<string[], IReadOnlyList<SequenceCommand>, string, string, IRenderCanvas, bool> renderImage = null;
 
-            if (_sysCommandService.TryGetCommandType(name, out var imageType)
+            if (_sysCommandService.TryGetCommandType(name, out Type imageType)
                 && typeof(IDynamicImageProvider).IsAssignableFrom(imageType))
             {
                 try
                 {
-                    var imageProvider = (IDynamicImageProvider)ActivatorUtilities.CreateInstance(_serviceProvider, imageType);
+                    IDynamicImageProvider imageProvider = (IDynamicImageProvider)ActivatorUtilities.CreateInstance(_serviceProvider, imageType);
                     isImage = true;
                     interval = imageProvider.UpdateInterval;
                     renderImage = (parms, _, _, _, canvas) =>

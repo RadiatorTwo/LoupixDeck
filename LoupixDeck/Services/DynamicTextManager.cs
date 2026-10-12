@@ -381,7 +381,7 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
             using var recording = new RecordedRender(size, size);
             lock (SkiaRenderGate.Sync)
             {
-                var rc = new SkiaRenderCanvas(recording.Canvas, size, size);
+                SkiaRenderCanvas rc = new(recording.Canvas, size, size);
                 if (entry.Command.RenderImage(entry.Parameters, entry.SequenceCommands, null, entry.WheelRuntimeKey, rc))
                     bitmap = recording.Finish();
             }

@@ -1271,7 +1271,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     /// <summary>Adds a wheel layer bound to an image command; the analog clock is the first choice.</summary>
     private void AddLiveImageLayer()
     {
-        var layer = new PluginLayer
+        PluginLayer layer = new()
         {
             Name = GetUniqueLayerName(Loc.Tr("TouchButton_ClockLayerName")),
             Command = "DynamicText.AnalogClock"
