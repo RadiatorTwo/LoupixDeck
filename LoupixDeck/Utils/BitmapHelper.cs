@@ -1187,7 +1187,7 @@ public static class BitmapHelper
         if (roundMask)
         {
             // A round rect with a radius of half the side is the inscribed circle.
-            var circle = new SKRoundRect(frameRect, frameRect.Width / 2f, frameRect.Height / 2f);
+            using SKRoundRect circle = new(frameRect, frameRect.Width / 2f, frameRect.Height / 2f);
             canvas.Save();
             canvas.ClipRoundRect(circle, SKClipOperation.Difference, antialias: true);
             using (var dim = new SKPaint { Color = new SKColor(0, 0, 0, 0x99) })
