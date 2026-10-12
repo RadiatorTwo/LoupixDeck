@@ -36,6 +36,16 @@ public partial class LoupedeckButton
 
     public event EventHandler ItemChanged;
 
+    /// <summary>
+    /// Raised when live content (a command-drawn image) was swapped in silently. Unlike
+    /// <see cref="ItemChanged"/> it does not push to the device or rescan dynamic commands, so an
+    /// editor preview can follow it without feeding back into the code that raised it. May fire on
+    /// any thread.
+    /// </summary>
+    public event EventHandler LiveContentChanged;
+
+    public void RaiseLiveContentChanged() => LiveContentChanged?.Invoke(this, EventArgs.Empty);
+
     public void Refresh()
     {
         if (IgnoreRefresh) return;

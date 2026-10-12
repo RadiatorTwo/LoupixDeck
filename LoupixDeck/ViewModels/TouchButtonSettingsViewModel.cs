@@ -27,6 +27,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         {
             ButtonData.ItemChanged -= ButtonData_ItemChanged;
             ButtonData.PropertyChanged -= ButtonData_PropertyChanged;
+            ButtonData.LiveContentChanged -= ButtonData_LiveContentChanged;
         }
 
         ButtonData = parameter;
@@ -35,6 +36,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         {
             ButtonData.ItemChanged += ButtonData_ItemChanged;
             ButtonData.PropertyChanged += ButtonData_PropertyChanged;
+            ButtonData.LiveContentChanged += ButtonData_LiveContentChanged;
 
             // Remember the runtime active state and start editing it; restored on Cleanup so the
             // editor's state-switching does not leave the button on a non-default state at runtime.
@@ -529,6 +531,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     /// <summary>The text sources a text layer on the edited surface can pick from.</summary>
     public IReadOnlyList<TextSource> TextSources => IsWheelCanvas ? WheelTextSources : KeyTextSources;
 
+    public IRelayCommand AddLiveImageLayerCommand => field ??= Relay.Create(AddLiveImageLayer);
     public IRelayCommand AddIndicatorLayerCommand => field ??= Relay.Create(AddIndicatorLayer);
     public IRelayCommand UseAutomaticLayoutCommand => field ??= Relay.Create(UseAutomaticLayout);
 
@@ -618,6 +621,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
             OnPropertyChanged(nameof(SelectedLayer));
             OnPropertyChanged(nameof(SelectedImageLayer));
             OnPropertyChanged(nameof(SelectedTextLayer));
+            OnPropertyChanged(nameof(SelectedImageCommandChoice));
             OnPropertyChanged(nameof(SelectedTextCommandChoice));
             OnPropertyChanged(nameof(ScaleHandlesVisible));
             OnPropertyChanged(nameof(CanDeleteSelectedLayer));
@@ -662,6 +666,30 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         {
             if (SelectedTextLayer == null || value == null || value == SelectedTextCommandChoice) return;
             SelectedTextLayer.TextCommand = value.CommandName;
+            OnPropertyChanged();
+        }
+    }
+
+    /// <summary>Every registered command that draws its own image, for the wheel layer's command picker.</summary>
+    public IReadOnlyList<TextCommandChoice> ImageCommandChoices => field ??= _commandRegistry.GetAll()
+        .Where(c => c.IsImageDisplayCommand && c.RenderImage != null && c.Info != null)
+        .Select(c => new TextCommandChoice(c.CommandName, CommandChoiceTitle(c.Info)))
+        .OrderBy(c => c.Title, StringComparer.CurrentCultureIgnoreCase)
+        .ToList();
+
+    /// <summary>The image command the selected plugin layer is bound to; picking one writes its bare name.</summary>
+    public TextCommandChoice SelectedImageCommandChoice
+    {
+        get
+        {
+            string command = (_selectedLayer as PluginLayer)?.Command;
+            string name = string.IsNullOrWhiteSpace(command) ? null : CommandStringParser.GetName(command);
+            return ImageCommandChoices.FirstOrDefault(c => c.CommandName == name);
+        }
+        set
+        {
+            if (_selectedLayer is not PluginLayer layer || value == null || value == SelectedImageCommandChoice) return;
+            layer.Command = value.CommandName;
             OnPropertyChanged();
         }
     }
@@ -1240,6 +1268,18 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         if (heightFill > 1.0) layer.Scale = heightFill;
     }
 
+    /// <summary>Adds a wheel layer bound to an image command; the analog clock is the first choice.</summary>
+    private void AddLiveImageLayer()
+    {
+        PluginLayer layer = new()
+        {
+            Name = GetUniqueLayerName(Loc.Tr("TouchButton_ClockLayerName")),
+            Command = "DynamicText.AnalogClock"
+        };
+        AddLayer(layer);
+        SelectedLayer = layer;
+    }
+
     private void AddTextLayer()
     {
         // Cap the default box to a compact, square-ish size so a tall surface (e.g. the
@@ -1634,10 +1674,15 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         {
             UpdateEditorPreview();
             UpdateSelectionBounds();
-            // A command typed into the box, rather than picked, must move the picker along.
+            // A command typed into the box, rather than picked, must move the pickers along.
             OnPropertyChanged(nameof(SelectedTextCommandChoice));
+            OnPropertyChanged(nameof(SelectedImageCommandChoice));
         });
     }
+
+    // A command-drawn image changed (e.g. the analog clock ticked): repaint the preview only.
+    private void ButtonData_LiveContentChanged(object sender, EventArgs e) =>
+        Avalonia.Threading.Dispatcher.UIThread.Post(UpdateEditorPreview);
 
     private void UpdateEditorPreview()
     {
@@ -1700,6 +1745,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
 
             ButtonData.ItemChanged -= ButtonData_ItemChanged;
             ButtonData.PropertyChanged -= ButtonData_PropertyChanged;
+            ButtonData.LiveContentChanged -= ButtonData_LiveContentChanged;
         }
 
         LayerListItems?.Dispose();

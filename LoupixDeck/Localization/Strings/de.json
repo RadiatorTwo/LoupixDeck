@@ -1375,5 +1375,10 @@
   "ProfileImport_LayoutTemplatePreview": "Ordnet {0} Taste(n) neu an und entfernt {1} Ebene(n).",
   "TextSource_Command": "Dynamischer-Text-Befehl",
   "TouchButton_TextCommand": "Dynamischer-Text-Befehl",
-  "TouchButton_TextCommandHint": "Ein Befehl für dynamischen Text, z. B. DynamicText.Clock(HH:mm). Er aktualisiert sich im eigenen Intervall; bis er etwas meldet, steht der Text darunter."
+  "TouchButton_TextCommandHint": "Ein Befehl für dynamischen Text, z. B. DynamicText.Clock(HH:mm). Er aktualisiert sich im eigenen Intervall; bis er etwas meldet, steht der Text darunter.",
+  "TouchButton_LiveImage": "Live-Bild",
+  "TouchButton_LiveImageHint": "Zeichnet den gewählten Befehl (z. B. die Analoguhr) auf das Rad und aktualisiert sich im eigenen Intervall.",
+  "TouchButton_ImageCommand": "Bildbefehl",
+  "TouchButton_ImageCommandHint": "Ein Befehl, der sein Bild selbst zeichnet, z. B. DynamicText.AnalogClock(true). Der optionale Parameter blendet bei false den Sekundenzeiger aus.",
+  "TouchButton_ClockLayerName": "Uhr"
 }

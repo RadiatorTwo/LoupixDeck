@@ -38,6 +38,12 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
         /// </summary>
         public TextLayer WheelLayer;
 
+        /// <summary>Set instead of <see cref="WheelLayer"/> for a wheel layer bound to an image command.</summary>
+        public PluginLayer WheelImageLayer;
+
+        /// <summary>The canvas holding <see cref="WheelImageLayer"/>, told when its image changed.</summary>
+        public TouchButton WheelCanvas;
+
         /// <summary>The wheel canvas's runtime key, handed to the command in place of a button's.</summary>
         public string WheelRuntimeKey;
 
@@ -268,6 +274,8 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
         if (canvas?.Layers == null)
             return;
 
+        AddWheelImageEntries(entries, canvas);
+
         foreach (TextLayer layer in canvas.Layers.OfType<TextLayer>().ToArray())
         {
             if (layer.TextSource != TextSource.Command)
@@ -299,6 +307,113 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
                 NextDueUtc = DateTime.UtcNow
             });
         }
+    }
+
+    /// <summary>
+    /// Adds an entry for every plugin layer of the wheel canvas the user bound to an image command.
+    /// </summary>
+    private void AddWheelImageEntries(List<Entry> entries, TouchButton canvas)
+    {
+        foreach (PluginLayer layer in canvas.Layers.OfType<PluginLayer>().ToArray())
+        {
+            // Plugin-owned layers are bound through their owner key, not here.
+            if (layer.IsCommandOwned)
+                continue;
+
+            string name = string.IsNullOrWhiteSpace(layer.Command) ? null : CommandStringParser.GetName(layer.Command);
+            RegisteredCommand command = string.IsNullOrEmpty(name) ? null : _commandRegistry.Get(name);
+            if (command is not { IsImageDisplayCommand: true, RenderImage: not null })
+            {
+                ClearWheelImage(layer, canvas);
+                continue;
+            }
+
+            TimeSpan interval = command.UpdateInterval;
+            if (interval < TimeSpan.FromMilliseconds(250))
+                interval = TimeSpan.FromMilliseconds(250);
+
+            entries.Add(new Entry
+            {
+                WheelImageLayer = layer,
+                WheelCanvas = canvas,
+                WheelRuntimeKey = canvas.RuntimeKey,
+                Command = command,
+                Parameters = CommandStringParser.GetParameters(layer.Command),
+                SequenceCommands = CommandStringParser.BuildSequence(layer.Command),
+                Interval = interval,
+                NextDueUtc = DateTime.UtcNow
+            });
+        }
+    }
+
+    /// <summary>
+    /// Drops the last image of a wheel layer whose command was cleared or no longer draws an image,
+    /// so the wheel stops showing a frozen frame, like the text path clearing its live text.
+    /// </summary>
+    private void ClearWheelImage(PluginLayer layer, TouchButton canvas)
+    {
+        if (layer.RenderedBitmap == null)
+            return;
+
+        Dispatcher.UIThread.Post(() =>
+        {
+            layer.SetLiveBitmap(null);
+            _ = _controller?.RefreshWheelAnimationFrame();
+            canvas.RaiseLiveContentChanged();
+        });
+    }
+
+    /// <summary>
+    /// Wheel counterpart of the image path in <see cref="RenderEntry"/>: draws the command at the
+    /// wheel screen's size, stores the bitmap on the layer and repaints the wheel.
+    /// </summary>
+    private void RenderWheelImageEntry(Entry entry)
+    {
+        using var _routerScope = _router.Enter(_deviceProvider);
+
+        int size = _controller?.WheelScreenSize ?? 0;
+        if (size <= 0)
+            return;
+
+        SKBitmap bitmap = null;
+        try
+        {
+            using var recording = new RecordedRender(size, size);
+            lock (SkiaRenderGate.Sync)
+            {
+                SkiaRenderCanvas rc = new(recording.Canvas, size, size);
+                if (entry.Command.RenderImage(entry.Parameters, entry.SequenceCommands, null, entry.WheelRuntimeKey, rc))
+                    bitmap = recording.Finish();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"DynamicTextManager: image command '{entry.Command.CommandName}' threw: {ex.Message}");
+            return;
+        }
+
+        if (bitmap == null)
+            return;
+
+        PluginLayer layer = entry.WheelImageLayer;
+        Dispatcher.UIThread.Post(() =>
+        {
+            lock (_gate)
+            {
+                if (!_active.Contains(entry))
+                {
+                    bitmap.Dispose();
+                    return;
+                }
+            }
+
+            // Not RenderedBitmap: its change notification reaches the canvas's ItemChanged, which
+            // rescans, which re-renders at once - an endless loop on the UI thread. The swap here
+            // only notifies when the size changes (the first frame) and the repaint is explicit.
+            layer.SetLiveBitmap(bitmap);
+            _ = _controller?.RefreshWheelAnimationFrame();
+            entry.WheelCanvas?.RaiseLiveContentChanged();
+        });
     }
 
     /// <summary>
@@ -477,6 +592,12 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
     /// </summary>
     private void RenderEntry(Entry entry)
     {
+        if (entry.WheelImageLayer != null)
+        {
+            RenderWheelImageEntry(entry);
+            return;
+        }
+
         if (entry.WheelLayer != null)
         {
             RenderWheelEntry(entry);

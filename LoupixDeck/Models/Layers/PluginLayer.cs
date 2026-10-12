@@ -10,9 +10,12 @@ namespace LoupixDeck.Models.Layers;
 /// <see cref="ImageLayer"/>. The host only blits <see cref="RenderedBitmap"/> (with the
 /// same fit/scale/position math as an image layer).
 ///
-/// This layer kind can only be created by the dynamic-text manager (never via the editor's
+/// On a key, this layer kind is created only by the dynamic-text manager (never via the editor's
 /// add buttons). It is plugin-managed (see <see cref="LayerBase.OwnerKey"/>): the user may
 /// move/scale/rotate/hide/reorder it, but not edit its content or delete it directly.
+///
+/// On the CT wheel canvas the user adds it ("Live image") and binds it to an image command
+/// through <see cref="Command"/>. It has no owner, so the user may also retarget or delete it.
 /// </summary>
 public class PluginLayer : LayerBase
 {
@@ -84,6 +87,20 @@ public class PluginLayer : LayerBase
     }
 
     /// <summary>
+    /// Silent swap like <see cref="SetAnimationBitmap"/> for content the host redraws itself, except
+    /// that a change of the image's dimensions (the first image, or none any more) still reports the
+    /// new display size: the editor's selection box and size fields follow it. Only a dimension change
+    /// notifies, so the rescan that notification starts settles instead of looping.
+    /// </summary>
+    public void SetLiveBitmap(SKBitmap value)
+    {
+        (double Width, double Height)? before = GetSourceDimensions();
+        SetAnimationBitmap(value);
+        if (GetSourceDimensions() != before)
+            OnDisplaySizeChanged();
+    }
+
+    /// <summary>
     /// Disposes the current and all retired bitmaps under the render gate. Called by the
     /// dynamic-text manager when this layer is swept (its owning command unbound).
     /// </summary>
@@ -144,6 +161,19 @@ public class PluginLayer : LayerBase
             if (baseH <= 0) return;
             ScaleY = value / baseH;
         }
+    }
+
+    /// <summary>
+    /// Set on a wheel canvas layer the user bound to an image command (e.g. the analog clock):
+    /// the dynamic-text manager renders that command into this layer. Null on plugin-owned button
+    /// layers, whose binding is <see cref="LayerBase.OwnerKey"/>. Optional, so files saved before
+    /// it existed load unchanged.
+    /// </summary>
+    [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+    public string Command
+    {
+        get;
+        set => SetProperty(ref field, value);
     }
 
     public override string LayerKind => Kind;

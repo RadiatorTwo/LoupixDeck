@@ -67,6 +67,10 @@ internal sealed class SkiaRenderCanvas : IRenderCanvas
             _canvas.DrawRect(new SKRect(0, 0, Width, Height), paint);
         });
 
+    /// <summary>Runs <paramref name="draw"/> against the raw Skia canvas of this region (clipped,
+    /// origin at 0,0). For core commands that need sub-pixel drawing the plugin-facing API lacks.</summary>
+    public void Draw(Action<SKCanvas> draw) => InRegion(() => draw(_canvas));
+
     // ── Rectangles ──────────────────────────────────────────────────────────
     public void FillRectangle(int x, int y, int width, int height, PluginColor color) =>
         InRegion(() => { using var p = Fill(color); _canvas.DrawRect(new SKRect(x, y, x + width, y + height), p); });
