@@ -56,7 +56,7 @@
                             <Button Classes="region" Classes.selected="{Binding IsLeftSelected}"
                                     Command="{Binding SelectLeftCommand}"
                                     Width="44" Height="200">
-                                <Image Source="{Binding LeftPreview, Converter={StaticResource SkiaToBitmapConverter}}"
+                                <Image Source="{Binding LeftPreview}"
                                        Stretch="Fill" />
                             </Button>
                             <TextBlock Classes="label" Text="{loc:Tr Wallpaper_Left}" FontSize="11" HorizontalAlignment="Center" />
@@ -67,7 +67,7 @@
                             <Button Classes="region" Classes.selected="{Binding IsMainSelected}"
                                     Command="{Binding SelectMainCommand}"
                                     Width="356" Height="200">
-                                <Image Source="{Binding MainPreview, Converter={StaticResource SkiaToBitmapConverter}}"
+                                <Image Source="{Binding MainPreview}"
                                        Stretch="Uniform" />
                             </Button>
                             <TextBlock Classes="label" Text="{loc:Tr Wallpaper_Main}" FontSize="11" HorizontalAlignment="Center" />
@@ -78,7 +78,7 @@
                             <Button Classes="region" Classes.selected="{Binding IsRightSelected}"
                                     Command="{Binding SelectRightCommand}"
                                     Width="44" Height="200">
-                                <Image Source="{Binding RightPreview, Converter={StaticResource SkiaToBitmapConverter}}"
+                                <Image Source="{Binding RightPreview}"
                                        Stretch="Fill" />
                             </Button>
                             <TextBlock Classes="label" Text="{loc:Tr Wallpaper_Right}" FontSize="11" HorizontalAlignment="Center" />
@@ -102,7 +102,7 @@
                     <StackPanel Orientation="Horizontal" Spacing="12">
                         <Border BorderBrush="{DynamicResource AppBorderSubtle}" BorderThickness="1" CornerRadius="3">
                             <Image Width="220" Height="124"
-                                   Source="{Binding ActivePreview, Converter={StaticResource SkiaToBitmapConverter}}" />
+                                   Source="{Binding ActivePreview}" />
                         </Border>
                         <StackPanel Spacing="6" VerticalAlignment="Center">
                             <Button Content="{loc:Tr Wallpaper_Select}" Command="{Binding SelectMediaCommand}" MinWidth="110" />

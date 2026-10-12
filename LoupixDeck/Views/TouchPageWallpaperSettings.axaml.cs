@@ -22,5 +22,7 @@ public partial class TouchPageWallpaperSettings : Window
             if (DataContext is IDialogViewModel vm && !vm.DialogResult.Task.IsCompleted)
                 vm.DialogResult.TrySetResult(new DialogResult(false));
         };
+
+        Closed += (_, _) => (DataContext as TouchPageWallpaperSettingsViewModel)?.Cleanup();
     }
 }
