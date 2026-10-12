@@ -73,6 +73,20 @@ public partial class LoupedeckLiveSController
     /// <summary>Side of the connected device's wheel screen in pixels, or 0 without a wheel.</summary>
     public int WheelScreenSize => deviceService.Device is { HasWheel: true } d ? d.WheelScreenSize : 0;
 
+    /// <inheritdoc/>
+    public event Action WheelModeChanged;
+
+    /// <inheritdoc/>
+    public Task RefreshWheelAnimationFrame()
+    {
+        if (deviceService.Device is not { HasWheel: true }) return Task.CompletedTask;
+
+        // The menu is a static frame; an animation tick must not repaint it (or fight its idle close).
+        if (TryGetOpenWheelMenu(config.CurrentTouchButtonPage, out _)) return Task.CompletedTask;
+
+        return RedrawWheel();
+    }
+
     /// <summary>
     /// Subscribes a wheel mode's custom <see cref="Models.RotaryButton.Canvas"/> to the live
     /// redraw pipeline, so editing its layers repaints the wheel screen immediately (mirroring
@@ -339,6 +353,7 @@ public partial class LoupedeckLiveSController
         page.WheelModeIndex = ((index % page.WheelModes.Count) + page.WheelModes.Count) % page.WheelModes.Count;
         SaveConfig();
         _ = RedrawWheel();
+        WheelModeChanged?.Invoke();
     }
 
     // ───────── Wheel-mode editing (device view pager) ─────────

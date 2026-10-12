@@ -143,6 +143,19 @@ public interface IDeviceController
     /// </summary>
     Task RefreshSideStripAnimationFrame(RotarySide side);
 
+    /// <summary>Side of the wheel screen in pixels, or 0 on a device without a wheel.</summary>
+    int WheelScreenSize { get; }
+
+    /// <summary>Raised after the active wheel mode of the current page changed (switched, added or deleted).</summary>
+    event Action WheelModeChanged;
+
+    /// <summary>
+    /// Re-renders and pushes the wheel screen for a single animation frame through the same
+    /// coalescing gate as every other wheel repaint. Skipped while the wheel menu is open; the
+    /// repaint itself is skipped while the device is off or something else owns the display.
+    /// </summary>
+    Task RefreshWheelAnimationFrame();
+
     /// <summary>
     /// Repaints the side strips that carry a dial bound to <paramref name="commandName"/>, so a
     /// plugin whose adjustment value changed can get its dial indicator redrawn — the dial

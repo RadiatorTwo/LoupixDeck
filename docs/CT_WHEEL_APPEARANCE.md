@@ -28,9 +28,11 @@ Edits are pushed to the wheel screen as you make them.
 
 ## Layers
 
-Text, image and symbol layers work as on a touch button. Animated image layers are not offered,
-and text tokens such as the time are not refreshed: the wheel screen is repainted when its value
-or its layers change, not on a timer. Two things are specific to the wheel:
+Text, image, animated image and symbol layers work as on a touch button. An animated image plays
+at up to 10 frames per second, which keeps the serial link free for the main screen, and pauses
+while the wheel menu is open, the device is off or the screensaver runs. Text tokens such as the
+time are not refreshed: the wheel screen is repainted when its value or its layers change, not on
+a timer. Two things are specific to the wheel:
 
 **Indicator layer.** Draws the adjustment arc. You can set the track and fill colours, the
 stroke thickness (as a fraction of the layer size), the start angle and the sweep (360 for a full
