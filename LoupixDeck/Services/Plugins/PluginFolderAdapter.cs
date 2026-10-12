@@ -1,4 +1,5 @@
 using Avalonia.Media;
+using LoupixDeck.Utils;
 using SkiaSharp;
 using CoreFolder = LoupixDeck.Services.FolderNavigation;
 using Sdk = LoupixDeck.PluginSdk;
@@ -15,6 +16,12 @@ internal sealed class PluginFolderAdapter : CoreFolder.IFolderProvider
     private readonly Sdk.IFolderProvider _inner;
     private readonly Lock _subscriptionLock = new();
     private Action _entriesChanged;
+
+    // The images decoded for the entries handed out last, and for the build before. A folder render
+    // that read the previous entries may still be drawing them while a plugin announces new ones,
+    // so a build frees the images of the build before last. Guarded by the render gate.
+    private List<SKBitmap> _currentImages = [];
+    private List<SKBitmap> _previousImages = [];
 
     public PluginFolderAdapter(Sdk.IFolderProvider inner)
     {
@@ -58,7 +65,18 @@ internal sealed class PluginFolderAdapter : CoreFolder.IFolderProvider
 
     public void OnEnter() => _inner.OnEnter();
 
-    public void OnExit() => _inner.OnExit();
+    public void OnExit()
+    {
+        try
+        {
+            _inner.OnExit();
+        }
+        finally
+        {
+            // Nothing renders this folder any more, apart from a render still in flight.
+            RetireImages([]);
+        }
+    }
 
     public IReadOnlyDictionary<int, CoreFolder.RotaryOverride> RotaryOverrides =>
         _inner.RotaryOverrides.ToDictionary(
@@ -78,7 +96,22 @@ internal sealed class PluginFolderAdapter : CoreFolder.IFolderProvider
     public IReadOnlyList<CoreFolder.FolderEntry> BuildEntries()
     {
         var entries = _inner.BuildEntries() ?? Array.Empty<Sdk.FolderEntry>();
-        return entries.Select(ConvertEntry).ToList();
+        List<CoreFolder.FolderEntry> converted = entries.Select(ConvertEntry).ToList();
+        RetireImages(converted.Select(static e => e.Image).Where(static image => image != null).ToList());
+        return converted;
+    }
+
+    /// <summary>Makes <paramref name="next"/> the current images and frees the build before last.</summary>
+    private void RetireImages(List<SKBitmap> next)
+    {
+        lock (SkiaRenderGate.Sync)
+        {
+            foreach (SKBitmap image in _previousImages)
+                image.Dispose();
+
+            _previousImages = _currentImages;
+            _currentImages = next;
+        }
     }
 
     private static CoreFolder.FolderEntry ConvertEntry(Sdk.FolderEntry e)
@@ -107,7 +140,10 @@ internal sealed class PluginFolderAdapter : CoreFolder.IFolderProvider
 
         try
         {
-            return SKBitmap.Decode(png);
+            // Only ever drawn from, so immutable: Skia then does not copy it on every draw.
+            SKBitmap image = SKBitmap.Decode(png);
+            image?.SetImmutable();
+            return image;
         }
         catch
         {
