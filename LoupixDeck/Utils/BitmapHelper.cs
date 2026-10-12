@@ -2157,11 +2157,15 @@ public static class BitmapHelper
 
         DrawWallpaperOrColor(canvas, config, slotIndex, width, height, gridColumns, entry.BackColor, wallpaperSource);
 
-        if (entry.Image != null)
+        if (entry.Image is { Width: > 0, Height: > 0 } image)
         {
-            var destRect = new SKRect(0, 0, width, height);
-            using var scaledImage = ScaleAndPositionBitmap(entry.Image, width, height);
-            canvas.DrawBitmap(scaledImage, destRect, SKSamplingOptions.Default, paint: null);
+            // Fitted and centred, as ScaleAndPositionBitmap would do it, but drawn straight onto the
+            // key: a folder redraws every slot, and going through it allocated two bitmaps a slot.
+            float fit = Math.Min(width / (float)image.Width, height / (float)image.Height);
+            int fitW = Math.Max(1, (int)Math.Round(image.Width * fit));
+            int fitH = Math.Max(1, (int)Math.Round(image.Height * fit));
+            SKRect destRect = SKRect.Create((width - fitW) * 0.5f, (height - fitH) * 0.5f, fitW, fitH);
+            canvas.DrawBitmap(image, destRect, new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear), paint: null);
         }
 
         // A plugin that draws the slot itself gets the key's real size, so it can put pixel-exact
