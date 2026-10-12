@@ -681,6 +681,7 @@ public partial class LoupedeckLiveSController(
         // Detach the transition sources before halting the loop.
         try { UnregisterStripAnimationSource(); } catch { /* best effort */ }
         try { UnregisterPluginStripAnimationSource(); } catch { /* best effort */ }
+        try { UnregisterPluginWheelAnimationSource(); } catch { /* best effort */ }
         try { UnregisterTouchAnimationSource(); } catch { /* best effort */ }
 
         // Halt the central animation loop so no frame is pushed to the gone device.
@@ -1130,6 +1131,7 @@ public partial class LoupedeckLiveSController(
         // swipe-release and command/GUI-driven rotary page slides are paced centrally (#119).
         RegisterStripAnimationSource();
         RegisterPluginStripAnimationSource();
+        RegisterPluginWheelAnimationSource();
 
         // Register the touch-page transition source on the same central scheduler.
         RegisterTouchAnimationSource();
@@ -2550,6 +2552,9 @@ public partial class LoupedeckLiveSController(
             DetachAllSideStripProviders();
         else if (exclusiveMode.IsActive)
             await RedrawSideStrips();
+
+        // The provider may draw the wheel screen too (#396); a no-op unless it does or it changed.
+        await RedrawWheelForExclusive();
 
         var requested = Interlocked.Increment(ref _exclusiveGen);
 

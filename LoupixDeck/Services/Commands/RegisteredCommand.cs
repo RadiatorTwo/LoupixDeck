@@ -114,6 +114,24 @@ public sealed class RegisteredCommand
     public Func<string[], int?, AdjustmentValue?> GetValue { get; init; }
 
     /// <summary>
+    /// True when the command draws the CT's wheel screen itself — adapted from an
+    /// <c>IWheelRenderer</c>. Independent of the display and adjustment classification: a wheel
+    /// command typically adjusts a value and draws it.
+    /// </summary>
+    public bool IsWheelRenderer { get; init; }
+
+    /// <summary>For wheel renderers: how often the wheel is repainted; zero repaints on demand only.</summary>
+    public TimeSpan WheelRenderInterval { get; init; }
+
+    /// <summary>
+    /// For wheel renderers: draws the wheel screen onto a host canvas, returning true when drawn
+    /// (false, or a plugin exception, → the normal wheel look). The arguments are the command
+    /// parameters, the wheel's rotary index, the canvas, the screen size, the wheel mode's label and
+    /// its current adjustment value. Null for other commands.
+    /// </summary>
+    public Func<string[], int?, LoupixDeck.PluginSdk.IRenderCanvas, int, string, AdjustmentValue?, bool> RenderWheel { get; init; }
+
+    /// <summary>
     /// Runs the command. The second argument is the button type that triggered
     /// the call — forwarded to <c>CommandContext.Target</c> on plugin commands;
     /// core commands ignore it. The third argument identifies the originating
