@@ -1634,6 +1634,8 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         {
             UpdateEditorPreview();
             UpdateSelectionBounds();
+            // A command typed into the box, rather than picked, must move the picker along.
+            OnPropertyChanged(nameof(SelectedTextCommandChoice));
         });
     }
 
