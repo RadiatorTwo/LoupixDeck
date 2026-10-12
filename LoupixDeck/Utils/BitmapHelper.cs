@@ -687,6 +687,9 @@ public static class BitmapHelper
             }
         }
 
+        // Every key render cuts its slice out of this bitmap; a mutable source would be copied
+        // whole for each cutout.
+        baked.SetImmutable();
         slot.Baked = baked;
         slot.BakedSize = (width, height);
         return baked;
@@ -785,6 +788,9 @@ public static class BitmapHelper
             DrawTouchButtonContent(canvas, touchButton, wallpaperToUse, opacityToUse, wallpaperSource, width, height,
                 ShowsFolderBadges(config));
         }
+
+        // Finished: from here on the key is only drawn from (the page-slide grid, the key fit).
+        bitmap.SetImmutable();
 
         // The on-screen device view can draw the key again at the size it is shown at (#251).
         PreviewRecipes.Register(bitmap, scale => RenderTouchButtonPreview(touchButton, config, width, height,
@@ -2742,6 +2748,8 @@ public static class BitmapHelper
             canvas.Flush();
         }
 
+        // The slide draws the outgoing and incoming grids into every one of its frames.
+        bitmap.SetImmutable();
         return bitmap;
     }
 

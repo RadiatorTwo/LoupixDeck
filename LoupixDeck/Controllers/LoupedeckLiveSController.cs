@@ -1336,7 +1336,10 @@ public partial class LoupedeckLiveSController(
         _frameAdjustmentValues[idx] = SnapshotAdjustmentValues(page, side);
         try
         {
-            return RenderStripLocked(page, side, useSessions);
+            // A swipe draws the current and neighbour strips into every one of its frames.
+            SkiaSharp.SKBitmap strip = RenderStripLocked(page, side, useSessions);
+            strip?.SetImmutable();
+            return strip;
         }
         finally
         {

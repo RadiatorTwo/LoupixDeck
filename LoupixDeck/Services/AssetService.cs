@@ -110,7 +110,12 @@ public class AssetService : IAssetService
                 ? RasterizeSvg(absolute)
                 : SKBitmap.Decode(absolute);
             if (bitmap != null)
+            {
+                // Cached assets are only ever drawn from. Without the flag Skia copies the whole
+                // source into a temporary image on every draw (a key render's icon, three times).
+                bitmap.SetImmutable();
                 _cache[relativePath] = bitmap;
+            }
             return bitmap;
         }
         catch (Exception ex)
