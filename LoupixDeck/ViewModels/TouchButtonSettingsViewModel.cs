@@ -1262,7 +1262,8 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
             CachedImage = anim.Frames[0]
         };
 
-        ApplyInitialStripHeightFit(layer, anim.Frames[0]?.Width ?? 0, anim.Frames[0]?.Height ?? 0);
+        SKSizeI firstFrame = anim.Frames[0] is { } frame ? BitmapHelper.SourceSizeOf(frame) : default;
+        ApplyInitialStripHeightFit(layer, firstFrame.Width, firstFrame.Height);
 
         AddLayer(layer);
         SelectedLayer = layer;

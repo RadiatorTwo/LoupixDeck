@@ -678,8 +678,10 @@ public partial class TouchButtonSettings : Window
         var deviceHeight = vm.DeviceHeight;
         if (layer is ImageLayer img && img.CachedImage != null)
         {
-            _bmpWidth = img.CachedImage.Width;
-            _bmpHeight = img.CachedImage.Height;
+            // Crop math works in source pixels, which a downscaled animation frame is not in.
+            SkiaSharp.SKSizeI source = BitmapHelper.SourceSizeOf(img.CachedImage);
+            _bmpWidth = source.Width;
+            _bmpHeight = source.Height;
 
             if (!img.SourceRect.IsEmpty && img.SourceRect.Width > 0 && img.SourceRect.Height > 0)
             {
