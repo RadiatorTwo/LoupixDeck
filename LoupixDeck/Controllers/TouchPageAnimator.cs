@@ -38,6 +38,11 @@ public partial class LoupedeckLiveSController
 
     private readonly TouchTransition _touchTransition = new();
 
+    // The slide's frame, drawn over in full for every step instead of being allocated per frame,
+    // and freed when the slide ends. Only touched on the scheduler thread, which never overlaps
+    // frames for this source.
+    private SKBitmap _touchSlideFrame;
+
     // Frames retired by a superseding transition, freed on the scheduler thread (no frame
     // overlaps another for one source, so draining at the top of a frame is race-free).
     private readonly List<SKBitmap> _touchDisposeQueue = [];
@@ -268,6 +273,7 @@ public partial class LoupedeckLiveSController
             tr.OverlayPageName = null;
             outgoing.Dispose();
             incoming.Dispose();
+            ReleaseTouchSlideFrame();
             return;
         }
 
@@ -287,6 +293,7 @@ public partial class LoupedeckLiveSController
                 tr.Incoming = null;
                 outgoing.Dispose();
                 incoming.Dispose();
+                ReleaseTouchSlideFrame();
 
                 // The incoming grid was rendered before the slide began; keys whose value arrived
                 // since were just painted over, so let their owners repaint them.
@@ -299,14 +306,27 @@ public partial class LoupedeckLiveSController
                 return;
             }
 
-            using var frame = BitmapHelper.ComposeHorizontalSlide(outgoing, incoming, offset);
-            await PushTouchGrid(frame);
+            if (_touchSlideFrame == null || _touchSlideFrame.Width != outgoing.Width ||
+                _touchSlideFrame.Height != outgoing.Height)
+            {
+                _touchSlideFrame?.Dispose();
+                _touchSlideFrame = new SKBitmap(outgoing.Width, outgoing.Height);
+            }
+
+            BitmapHelper.DrawHorizontalSlide(_touchSlideFrame, outgoing, incoming, offset);
+            await PushTouchGrid(_touchSlideFrame);
         }
         catch (Exception ex)
         {
             tr.Active = false;
             Console.WriteLine($"Touch page transition frame failed: {ex.Message}");
         }
+    }
+
+    private void ReleaseTouchSlideFrame()
+    {
+        _touchSlideFrame?.Dispose();
+        _touchSlideFrame = null;
     }
 
     /// <summary>Pushes a grid-region bitmap to the center display (device picks the x-origin).</summary>
