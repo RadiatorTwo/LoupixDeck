@@ -33,6 +33,10 @@ public sealed class WheelAnimationManager : IWheelAnimationManager, IDisposable
     // freshly imported animation starts immediately, not only on the next navigation.
     private TouchButton _subscribedCanvas;
 
+    // Bumped by every rescan on the UI thread. A decode that finishes after a newer rescan started
+    // (an uncached wheel clip takes a while) drops its result instead of replacing the newer one.
+    private int _generation;
+
     public WheelAnimationManager(
         IPageManager pageManager,
         IAnimationScheduler scheduler,
@@ -82,12 +86,19 @@ public sealed class WheelAnimationManager : IWheelAnimationManager, IDisposable
             if (_disposed) return;
 
             List<Spec> specs = BuildSpecs();
+            int generation = Interlocked.Increment(ref _generation);
 
             _ = Task.Run(() =>
             {
                 try
                 {
-                    _source.SetEntries(Materialize(specs));
+                    List<WheelAnimationSource.WheelEntry> entries = Materialize(specs);
+                    lock (_gate)
+                    {
+                        if (generation != _generation) return;
+                        _source.SetEntries(entries);
+                    }
+
                     UpdateEnabled();
                     if (_source.IsActive)
                         _scheduler.RequestFrame(_source);
