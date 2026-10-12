@@ -2,6 +2,32 @@
   "schemaVersion": 2,
   "plugins": [
     {
+      "id": "anthem",
+      "name": "Anthem",
+      "description": "Volume, mute, power, inputs, listening modes, tone, balance, speaker levels and Zone 2 for Anthem MRX x40 / AVM x0 receivers.",
+      "author": "web-engineer",
+      "repository": "web-engineer/LoupixDeck.Plugin.Anthem",
+      "icon": "https://raw.githubusercontent.com/web-engineer/LoupixDeck.Plugin.Anthem/main/icon.png",
+      "platforms": [ "Windows", "Linux", "macOS" ],
+      "minSdkVersion": "1.28.0",
+      "commandPrefixes": [ "Anthem." ],
+      "release": {
+        "version": "1.1.0",
+        "tag": "v1.1.0",
+        "publishedAt": "2026-10-12T11:42:32Z",
+        "sdkVersion": "1.28.0",
+        "releaseNotesUrl": "https://github.com/web-engineer/LoupixDeck.Plugin.Anthem/releases/tag/v1.1.0",
+        "packages": [
+          {
+            "platform": "any",
+            "fileName": "anthem-1.1.0-any.zip",
+            "downloadUrl": "https://github.com/web-engineer/LoupixDeck.Plugin.Anthem/releases/download/v1.1.0/anthem-1.1.0-any.zip",
+            "sha256": "037a0231339008d2ed628b0cc1190510491e35fa3c8294dd6bfa4673f051b5ed"
+          }
+        ]
+      }
+    },
+    {
       "id": "argus",
       "name": "Argus Monitor",
       "description": "Display Argus Monitor sensor readings on touch buttons via its shared-memory data API.",
@@ -91,7 +117,7 @@
       "author": "web-engineer",
       "repository": "web-engineer/LoupixDeck.Plugin.Claude",
       "icon": "https://raw.githubusercontent.com/web-engineer/LoupixDeck.Plugin.Claude/main/icon.png",
-      "platforms": [ "Windows", "Linux" ],
+      "platforms": [ "Windows", "Linux", "macOS" ],
       "minSdkVersion": "1.28.0",
       "commandPrefixes": [ "Claude." ],
       "release": {
@@ -194,6 +220,32 @@
       }
     },
     {
+      "id": "govee",
+      "name": "Govee Lights",
+      "description": "Control Govee lights from the deck: power, brightness, colour, white temperature, scenes and segments, with live state on the keys.",
+      "author": "web-engineer",
+      "repository": "web-engineer/LoupixDeck.Plugin.Govee",
+      "icon": "https://raw.githubusercontent.com/web-engineer/LoupixDeck.Plugin.Govee/main/icon.png",
+      "platforms": [ "Windows", "Linux", "macOS" ],
+      "minSdkVersion": "1.30.0",
+      "commandPrefixes": [ "Govee." ],
+      "release": {
+        "version": "0.1.0",
+        "tag": "v0.1.0",
+        "publishedAt": "2026-10-12T11:42:28Z",
+        "sdkVersion": "1.30.0",
+        "releaseNotesUrl": "https://github.com/web-engineer/LoupixDeck.Plugin.Govee/releases/tag/v0.1.0",
+        "packages": [
+          {
+            "platform": "any",
+            "fileName": "govee-0.1.0-any.zip",
+            "downloadUrl": "https://github.com/web-engineer/LoupixDeck.Plugin.Govee/releases/download/v0.1.0/govee-0.1.0-any.zip",
+            "sha256": "1365a51f80cd32bd1c569f60d3583c9a2ca2dc173f38e7e005cfe65edc216b7f"
+          }
+        ]
+      }
+    },
+    {
       "id": "homeassistant",
       "name": "Home Assistant",
       "description": "Control Home Assistant entities directly from LoupixDeck.",
@@ -241,6 +293,32 @@
             "fileName": "hwinfo-1.2.0-windows.zip",
             "downloadUrl": "https://github.com/RadiatorTwo/LoupixDeck.Plugin.HwInfo/releases/download/v1.2.0/hwinfo-1.2.0-windows.zip",
             "sha256": "5bea1736d0bbc3365cde381eb7d7197e9416151c124604772366a5b52b433e2f"
+          }
+        ]
+      }
+    },
+    {
+      "id": "kasa",
+      "name": "Kasa Smart Plugs",
+      "description": "Switch TP-Link Kasa smart plugs and power strips from the deck, with live on/off state on the keys.",
+      "author": "web-engineer",
+      "repository": "web-engineer/LoupixDeck.Plugin.Kasa",
+      "icon": "https://raw.githubusercontent.com/web-engineer/LoupixDeck.Plugin.Kasa/main/icon.png",
+      "platforms": [ "Windows", "Linux", "macOS" ],
+      "minSdkVersion": "1.30.0",
+      "commandPrefixes": [ "Kasa." ],
+      "release": {
+        "version": "0.1.0",
+        "tag": "v0.1.0",
+        "publishedAt": "2026-10-12T11:42:29Z",
+        "sdkVersion": "1.30.0",
+        "releaseNotesUrl": "https://github.com/web-engineer/LoupixDeck.Plugin.Kasa/releases/tag/v0.1.0",
+        "packages": [
+          {
+            "platform": "any",
+            "fileName": "kasa-0.1.0-any.zip",
+            "downloadUrl": "https://github.com/web-engineer/LoupixDeck.Plugin.Kasa/releases/download/v0.1.0/kasa-0.1.0-any.zip",
+            "sha256": "22b1e8fd0995c0a76254dc20b34977653f47b07fd7087ec211a41eea144ee159"
           }
         ]
       }
@@ -423,6 +501,32 @@
             "fileName": "powertoys-0.2.1-windows.zip",
             "downloadUrl": "https://github.com/Vencite/LoupixDeck.Plugin.PowerToys/releases/download/v0.2.1/powertoys-0.2.1-windows.zip",
             "sha256": "af91759d007929931f57822de9445046a12e65d54d2b9e854ccfa7b7b6cea29e"
+          }
+        ]
+      }
+    },
+    {
+      "id": "slack",
+      "name": "Slack",
+      "description": "Slack from the deck: shortcut keys and dials, an unread badge, huddle keys, and status, Do Not Disturb and away keys.",
+      "author": "web-engineer",
+      "repository": "web-engineer/LoupixDeck.Plugin.Slack",
+      "icon": "https://raw.githubusercontent.com/web-engineer/LoupixDeck.Plugin.Slack/main/icon.png",
+      "platforms": [ "Windows", "Linux", "macOS" ],
+      "minSdkVersion": "1.30.0",
+      "commandPrefixes": [ "Slack." ],
+      "release": {
+        "version": "0.1.0",
+        "tag": "v0.1.0",
+        "publishedAt": "2026-10-12T11:42:30Z",
+        "sdkVersion": "1.30.0",
+        "releaseNotesUrl": "https://github.com/web-engineer/LoupixDeck.Plugin.Slack/releases/tag/v0.1.0",
+        "packages": [
+          {
+            "platform": "any",
+            "fileName": "slack-0.1.0-any.zip",
+            "downloadUrl": "https://github.com/web-engineer/LoupixDeck.Plugin.Slack/releases/download/v0.1.0/slack-0.1.0-any.zip",
+            "sha256": "32e1fe93d5694fc825f617dbb0c83c61384834e995aca29db49da7ce091051aa"
           }
         ]
       }
@@ -614,6 +718,32 @@
       }
     },
     {
+      "id": "vscode",
+      "name": "Visual Studio Code",
+      "description": "Visual Studio Code from the deck: commands by ID through a companion extension, live problems, git, debug and task keys, and folders of tasks, launch configurations, problems and open editors.",
+      "author": "web-engineer",
+      "repository": "web-engineer/LoupixDeck.Plugin.VSCode",
+      "icon": "https://raw.githubusercontent.com/web-engineer/LoupixDeck.Plugin.VSCode/main/icon.png",
+      "platforms": [ "Windows", "Linux", "macOS" ],
+      "minSdkVersion": "1.30.0",
+      "commandPrefixes": [ "VSCode." ],
+      "release": {
+        "version": "0.1.0",
+        "tag": "v0.1.0",
+        "publishedAt": "2026-10-12T11:42:31Z",
+        "sdkVersion": "1.30.0",
+        "releaseNotesUrl": "https://github.com/web-engineer/LoupixDeck.Plugin.VSCode/releases/tag/v0.1.0",
+        "packages": [
+          {
+            "platform": "any",
+            "fileName": "vscode-0.1.0-any.zip",
+            "downloadUrl": "https://github.com/web-engineer/LoupixDeck.Plugin.VSCode/releases/download/v0.1.0/vscode-0.1.0-any.zip",
+            "sha256": "b6d4e105f8256fb2242c1c839525d9d555feba5b26aa1d1a529e14c72d165430"
+          }
+        ]
+      }
+    },
+    {
       "id": "vtubestudio",
       "name": "VTube Studio",
       "description": "Toggle expressions and trigger hotkeys of the model and of Live2D items in VTube Studio, with the on/off state and icons on the buttons.",
@@ -640,6 +770,32 @@
             "fileName": "vtubestudio-1.1.0-any.zip",
             "downloadUrl": "https://github.com/vividflash/LoupixDeck.Plugin.VTubeStudio/releases/download/v1.1.0/vtubestudio-1.1.0-any.zip",
             "sha256": "59124b17610254f4bff35e4284fad89ab20df8293478be700e632663b7cbb5a5"
+          }
+        ]
+      }
+    },
+    {
+      "id": "wacom",
+      "name": "Wacom",
+      "description": "Display Toggle and Precision Mode for Wacom tablets on Loupedeck keys (macOS only).",
+      "author": "web-engineer",
+      "repository": "web-engineer/LoupixDeck.Plugin.Wacom",
+      "icon": "",
+      "platforms": [ "macOS" ],
+      "minSdkVersion": "1.30.0",
+      "commandPrefixes": [ "Wacom." ],
+      "release": {
+        "version": "0.1.0",
+        "tag": "v0.1.0",
+        "publishedAt": "2026-10-12T11:42:33Z",
+        "sdkVersion": "1.30.0",
+        "releaseNotesUrl": "https://github.com/web-engineer/LoupixDeck.Plugin.Wacom/releases/tag/v0.1.0",
+        "packages": [
+          {
+            "platform": "any",
+            "fileName": "wacom-0.1.0-any.zip",
+            "downloadUrl": "https://github.com/web-engineer/LoupixDeck.Plugin.Wacom/releases/download/v0.1.0/wacom-0.1.0-any.zip",
+            "sha256": "f0454e081e3a905386b43a33d5c16270edb2f3b88443f0eaf0823146a549d5b7"
           }
         ]
       }
