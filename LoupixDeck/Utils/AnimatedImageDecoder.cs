@@ -101,7 +101,9 @@ public static class AnimatedImageDecoder
                 }
 
                 lastIndex = i;
+                // Playback only draws the frames; immutable spares Skia a full copy per draw.
                 frames[i] = canvas.Copy();
+                frames[i]?.SetImmutable();
                 durations[i] = fi.Duration > 0 ? fi.Duration : FallbackFrameMs;
             }
 
@@ -124,6 +126,8 @@ public static class AnimatedImageDecoder
             bmp.Dispose();
             return null;
         }
+
+        bmp.SetImmutable();
 
         return new DecodedAnimation(new[] { bmp }, new[] { FallbackFrameMs },
             loops: false, info.Width, info.Height);

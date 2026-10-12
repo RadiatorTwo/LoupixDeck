@@ -54,6 +54,8 @@ public sealed class TouchButtonForegroundCache : IDisposable
                 ? BitmapHelper.RenderTouchButtonForeground(button, _width, _height, _showFolderBadges?.Invoke() ?? true)
                 : null;
 
+            // Blitted onto every video frame; immutable spares Skia a copy per blit.
+            foreground?.SetImmutable();
             _entries[button.Index] = foreground;
             return foreground;
         }
