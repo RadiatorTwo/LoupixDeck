@@ -1098,10 +1098,35 @@ public static class BitmapHelper
     {
         ArgumentNullException.ThrowIfNull(touchButton);
 
-        var (scale, frameW, frameH) = ComputeEditorFrame(deviceWidth, deviceHeight);
-
         var bmp = new SKBitmap(canvasWidth, canvasHeight);
         using var canvas = new SKCanvas(bmp);
+        DrawEditorCanvas(canvas, touchButton, canvasWidth, canvasHeight, deviceWidth, deviceHeight,
+            drawGrid, gridStepDevice, segmentCount, dial, roundMask);
+        return bmp;
+    }
+
+    /// <summary>
+    /// Draws what <see cref="RenderEditorCanvas"/> renders onto a caller-owned canvas of
+    /// <paramref name="canvasWidth"/>×<paramref name="canvasHeight"/>, so a caller that redraws
+    /// often can reuse its pixel buffer instead of allocating one per frame.
+    /// </summary>
+    public static void DrawEditorCanvas(
+        SKCanvas canvas,
+        TouchButton touchButton,
+        int canvasWidth,
+        int canvasHeight,
+        int deviceWidth,
+        int deviceHeight,
+        bool drawGrid = false,
+        int gridStepDevice = 10,
+        int segmentCount = 0,
+        DialRenderContext? dial = null,
+        bool roundMask = false)
+    {
+        ArgumentNullException.ThrowIfNull(canvas);
+        ArgumentNullException.ThrowIfNull(touchButton);
+
+        var (scale, frameW, frameH) = ComputeEditorFrame(deviceWidth, deviceHeight);
 
         // Transparent outside the button frame — the editor window paints the
         // theme-aware canvas background (and plate shadow) behind this bitmap.
@@ -1162,7 +1187,7 @@ public static class BitmapHelper
         if (roundMask)
         {
             // A round rect with a radius of half the side is the inscribed circle.
-            var circle = new SKRoundRect(frameRect, frameRect.Width / 2f, frameRect.Height / 2f);
+            using SKRoundRect circle = new(frameRect, frameRect.Width / 2f, frameRect.Height / 2f);
             canvas.Save();
             canvas.ClipRoundRect(circle, SKClipOperation.Difference, antialias: true);
             using (var dim = new SKPaint { Color = new SKColor(0, 0, 0, 0x99) })
@@ -1225,8 +1250,6 @@ public static class BitmapHelper
                 }
             }
         }
-
-        return bmp;
     }
 
     /// <summary>

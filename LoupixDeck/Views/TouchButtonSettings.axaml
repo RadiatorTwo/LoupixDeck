@@ -643,7 +643,7 @@
                                        Height="{Binding EditorCanvasHeight}"
                                        Stretch="None"
                                        IsHitTestVisible="False"
-                                       Source="{Binding EditorPreview, Converter={StaticResource SkiaToBitmapConverter}}" />
+                                       Source="{Binding EditorPreview}" />
                                 <Canvas Width="{Binding EditorCanvasWidth}"
                                         Height="{Binding EditorCanvasHeight}" Background="Transparent">
                                     <Rectangle Stroke="#CC5B9BD5"
