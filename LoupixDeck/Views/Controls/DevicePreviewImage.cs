@@ -50,7 +50,13 @@ public sealed class DevicePreviewImage : Control
     private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<object, SharedPreview> SharedPreviews = new();
 
     private Bitmap _deviceBitmap;
+
+    // True when _deviceBitmap is this control's own copy of an SKBitmap, false when it is a bound
+    // Avalonia bitmap someone else owns. Only an own copy is disposed when it is replaced.
+    private bool _ownsDeviceBitmap;
+
     private Bitmap _preview;
+    private SharedPreview _previewShared;
     private object _previewSource;
     private double _previewScale;
     private int _generation;
@@ -77,12 +83,18 @@ public sealed class DevicePreviewImage : Control
 
         if (change.Property != DeviceImageProperty) return;
 
+        // Every edit of a key replaces its image. The copies hold native pixels and, once drawn, GPU
+        // memory, which only a full GC would release; so the replaced copy is disposed right away.
+        // The compositor keeps its own reference to a frame it is still drawing.
+        Bitmap replaced = _ownsDeviceBitmap ? _deviceBitmap : null;
+        _ownsDeviceBitmap = change.NewValue is SKBitmap;
         _deviceBitmap = change.NewValue switch
         {
             SKBitmap skBitmap => SKBitmapToAvaloniaBitmapConverter.ToBitmap(skBitmap),
             Bitmap bitmap => bitmap,
             _ => null
         };
+        replaced?.Dispose();
 
         // The preview shows the old content now; drop it and let the device image stand in.
         DropPreview();
@@ -126,9 +138,22 @@ public sealed class DevicePreviewImage : Control
 
     private void DropPreview()
     {
-        _preview = null;
+        ReleasePreview();
         _previewSource = null;
         _generation++;
+    }
+
+    /// <summary>Lets go of the shown preview, disposing it when no other control shows it.</summary>
+    private void ReleasePreview()
+    {
+        SharedPreview shared = _previewShared;
+        _preview = null;
+        _previewShared = null;
+        if (shared == null) return;
+
+        shared.Users--;
+        if (shared.Users <= 0)
+            shared.Retire();
     }
 
     // ---- Layout and drawing: those of an Image with Stretch="Uniform" -------------------
@@ -230,15 +255,26 @@ public sealed class DevicePreviewImage : Control
             return;
 
         int generation = ++_generation;
-        SharedRender(source, recipe, scale).ContinueWith(task =>
+        SharedPreview shared = SharedRender(source, recipe, scale);
+        shared.Render.ContinueWith(task =>
         {
             Bitmap preview = task.Result;
             Dispatcher.UIThread.Post(() =>
             {
-                // Something newer has replaced the image or the request in the meantime.
-                if (generation != _generation || !ReferenceEquals(DeviceImage, source) || preview == null) return;
+                // Something newer has replaced the image or the request in the meantime. A preview
+                // nobody took and nobody can be handed any more is disposed here.
+                if (generation != _generation || !ReferenceEquals(DeviceImage, source) || preview == null ||
+                    shared.IsRetired)
+                {
+                    if (shared.Users <= 0 && !shared.IsCurrentFor(source))
+                        shared.Retire();
+                    return;
+                }
 
+                ReleasePreview();
+                shared.Users++;
                 _preview = preview;
+                _previewShared = shared;
                 _previewSource = source;
                 _previewScale = scale;
                 InvalidateVisual();
@@ -250,11 +286,11 @@ public sealed class DevicePreviewImage : Control
     /// The preview of <paramref name="source"/> at <paramref name="scale"/>, rendered once however
     /// many controls show the same image at the same size - every dial shows one shared knob image.
     /// </summary>
-    private static Task<Bitmap> SharedRender(object source, Func<double, Bitmap> recipe, double scale)
+    private static SharedPreview SharedRender(object source, Func<double, Bitmap> recipe, double scale)
     {
-        if (SharedPreviews.TryGetValue(source, out SharedPreview shared) &&
+        if (SharedPreviews.TryGetValue(source, out SharedPreview shared) && !shared.IsRetired &&
             Math.Abs(shared.Scale - scale) / scale < ScaleTolerance)
-            return shared.Render;
+            return shared;
 
         Task<Bitmap> render = _renderQueue.ContinueWith(_ =>
         {
@@ -270,11 +306,41 @@ public sealed class DevicePreviewImage : Control
         }, TaskScheduler.Default);
 
         _renderQueue = render;
-        SharedPreviews.AddOrUpdate(source, new SharedPreview(scale, render));
-        return render;
+        SharedPreview created = new(source, scale, render);
+        SharedPreviews.AddOrUpdate(source, created);
+        return created;
     }
 
-    private sealed record SharedPreview(double Scale, Task<Bitmap> Render);
+    /// <summary>
+    /// One rendered preview and the controls showing it (<see cref="Users"/>, UI thread only). It is
+    /// disposed once the last of them lets go, and is then no longer handed out.
+    /// </summary>
+    private sealed class SharedPreview(object source, double scale, Task<Bitmap> render)
+    {
+        private readonly WeakReference<object> _source = new(source);
+
+        public double Scale { get; } = scale;
+        public Task<Bitmap> Render { get; } = render;
+        public int Users { get; set; }
+        public bool IsRetired { get; private set; }
+
+        public bool IsCurrentFor(object source) =>
+            SharedPreviews.TryGetValue(source, out SharedPreview current) && ReferenceEquals(current, this);
+
+        public void Retire()
+        {
+            if (IsRetired) return;
+            IsRetired = true;
+
+            if (_source.TryGetTarget(out object source) && IsCurrentFor(source))
+                SharedPreviews.Remove(source);
+
+            // Only reached once the render has completed: a control releases only what it adopted,
+            // and the not-adopted path runs from the render's continuation.
+            if (Render.IsCompletedSuccessfully)
+                Render.Result?.Dispose();
+        }
+    }
 
     /// <summary>Screen pixels per pixel of the device image, as it is drawn right now.</summary>
     private double OnScreenScale()
