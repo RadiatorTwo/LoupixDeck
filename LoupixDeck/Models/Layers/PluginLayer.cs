@@ -146,5 +146,18 @@ public class PluginLayer : LayerBase
         }
     }
 
+    /// <summary>
+    /// Set on a wheel canvas layer the user bound to an image command (e.g. the analog clock):
+    /// the dynamic-text manager renders that command into this layer. Null on plugin-owned button
+    /// layers, whose binding is <see cref="LayerBase.OwnerKey"/>. Optional, so files saved before
+    /// it existed load unchanged.
+    /// </summary>
+    [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+    public string Command
+    {
+        get;
+        set => SetProperty(ref field, value);
+    }
+
     public override string LayerKind => Kind;
 }

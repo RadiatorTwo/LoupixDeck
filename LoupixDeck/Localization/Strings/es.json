@@ -1375,5 +1375,9 @@
   "ProfileImport_LayoutTemplatePreview": "Reorganiza {0} botón(es) y quita {1} capa(s).",
   "TextSource_Command": "Comando de texto dinámico",
   "TouchButton_TextCommand": "Comando de texto dinámico",
-  "TouchButton_TextCommandHint": "Un comando de texto dinámico como DynamicText.Clock(HH:mm). Se actualiza en su propio intervalo; hasta que informe, se muestra el texto de abajo."
+  "TouchButton_TextCommandHint": "Un comando de texto dinámico como DynamicText.Clock(HH:mm). Se actualiza en su propio intervalo; hasta que informe, se muestra el texto de abajo.",
+  "TouchButton_LiveImage": "Imagen en vivo",
+  "TouchButton_LiveImageHint": "Dibuja el comando elegido (p. ej. el reloj analógico) en la rueda y se actualiza en su propio intervalo.",
+  "TouchButton_ImageCommand": "Comando de imagen",
+  "TouchButton_ImageCommandHint": "Un comando que dibuja su propia imagen, como DynamicText.AnalogClock(true). El parámetro opcional oculta el segundero si es false."
 }

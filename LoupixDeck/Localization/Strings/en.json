@@ -1375,5 +1375,9 @@
   "ProfileImport_LayoutTemplatePreview": "This lays out {0} key(s) and removes {1} layer(s).",
   "TextSource_Command": "Dynamic text command",
   "TouchButton_TextCommand": "Dynamic text command",
-  "TouchButton_TextCommandHint": "A dynamic-text command such as DynamicText.Clock(HH:mm). It refreshes on its own interval; the text below shows until it reports."
+  "TouchButton_TextCommandHint": "A dynamic-text command such as DynamicText.Clock(HH:mm). It refreshes on its own interval; the text below shows until it reports.",
+  "TouchButton_LiveImage": "Live image",
+  "TouchButton_LiveImageHint": "Draws the selected command (e.g. the analog clock) onto the wheel and refreshes on its own interval.",
+  "TouchButton_ImageCommand": "Image command",
+  "TouchButton_ImageCommandHint": "A command that draws its own image, such as DynamicText.AnalogClock(true). The optional parameter hides the second hand when false."
 }

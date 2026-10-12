@@ -416,6 +416,11 @@
                                     HorizontalAlignment="Stretch"
                                     Command="{Binding AddSymbolLayerCommand}" />
                         </UniformGrid>
+                        <Button Classes="toolbar" Content="{loc:Tr TouchButton_LiveImage}" Margin="0,-4,0,8"
+                                HorizontalAlignment="Stretch"
+                                IsVisible="{Binding IsWheelCanvas}"
+                                Command="{Binding AddLiveImageLayerCommand}"
+                                ToolTip.Tip="{loc:Tr TouchButton_LiveImageHint}" />
                         <!-- The CT wheel and a touch key whose command reports a value have one to indicate. -->
                         <Button Classes="toolbar" Content="{loc:Tr TouchButton_Indicator}" Margin="0,-4,0,8"
                                 HorizontalAlignment="Stretch"
@@ -1228,8 +1233,26 @@
                                         <StackPanel>
                                             <TextBlock Classes="panel-title" Text="{loc:Tr TouchButton_SelectedLayerPlugin}" />
 
+                                            <StackPanel IsVisible="{Binding !IsCommandOwned}">
+                                                <TextBlock Classes="label" Text="{loc:Tr TouchButton_ImageCommand}" />
+                                                <ComboBox Margin="0,2,0,2" HorizontalAlignment="Stretch"
+                                                          ItemsSource="{Binding $parent[Window].((vm:TouchButtonSettingsViewModel)DataContext).ImageCommandChoices}"
+                                                          SelectedItem="{Binding $parent[Window].((vm:TouchButtonSettingsViewModel)DataContext).SelectedImageCommandChoice, Mode=TwoWay}">
+                                                    <ComboBox.ItemTemplate>
+                                                        <DataTemplate x:DataType="vm:TextCommandChoice">
+                                                            <TextBlock Text="{Binding Title}" />
+                                                        </DataTemplate>
+                                                    </ComboBox.ItemTemplate>
+                                                </ComboBox>
+                                                <TextBox Text="{Binding Command, Mode=TwoWay}" Margin="0,2,0,2"
+                                                         PlaceholderText="DynamicText.AnalogClock(true)" />
+                                                <TextBlock Classes="hint" Margin="0,0,0,8"
+                                                           Text="{loc:Tr TouchButton_ImageCommandHint}" />
+                                            </StackPanel>
+
                                             <Border Background="{DynamicResource AppSurfaceLow}"
-                                                    CornerRadius="6" Padding="8" Margin="0,0,0,8">
+                                                    CornerRadius="6" Padding="8" Margin="0,0,0,8"
+                                                    IsVisible="{Binding IsCommandOwned}">
                                                 <StackPanel>
                                                     <TextBlock Classes="label" Text="{loc:Tr TouchButton_RenderedByPluginCommand}" />
                                                     <TextBlock Text="{Binding CommandName}"
