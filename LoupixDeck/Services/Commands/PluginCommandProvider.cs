@@ -182,6 +182,39 @@ public class PluginCommandProvider : ICommandProvider
             };
         }
 
+        // Wheel screen (IWheelRenderer). Orthogonal to both the adjustment path above and the
+        // touch-button display classification below.
+        var isWheelRenderer = false;
+        var wheelInterval = TimeSpan.Zero;
+        Func<string[], int?, IRenderCanvas, int, string, AdjustmentValue?, bool> renderWheel = null;
+        if (command is IWheelRenderer wheelRenderer)
+        {
+            isWheelRenderer = true;
+            try
+            {
+                wheelInterval = wheelRenderer.Interval;
+            }
+            catch (Exception ex)
+            {
+                host?.Logger?.Error($"Interval failed for '{descriptor.CommandName}'", ex);
+            }
+
+            renderWheel = (parameters, sourceIndex, canvas, size, label, value) =>
+            {
+                try
+                {
+                    return wheelRenderer.RenderWheel(canvas,
+                        new WheelRenderContext(RotaryContext(parameters, sourceIndex), size, label, value));
+                }
+                catch (Exception ex)
+                {
+                    // A throwing plugin falls back to the normal wheel look instead of a blank screen.
+                    host?.Logger?.Error($"RenderWheel failed for '{descriptor.CommandName}'", ex);
+                    return false;
+                }
+            };
+        }
+
         var isDisplay = false;
         var isImageDisplay = false;
         var isAnimatedImage = false;
@@ -275,6 +308,9 @@ public class PluginCommandProvider : ICommandProvider
             ApplyAdjustment = applyAdjustment,
             ApplyReset = applyReset,
             GetValue = getValue,
+            IsWheelRenderer = isWheelRenderer,
+            WheelRenderInterval = wheelInterval,
+            RenderWheel = renderWheel,
             Execute = execute,
             GetText = getText,
             RenderImage = renderImage,

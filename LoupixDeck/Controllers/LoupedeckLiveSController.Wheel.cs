@@ -154,12 +154,20 @@ public partial class LoupedeckLiveSController
             {
                 // Resolved before rendering, outside the Skia gate — see RenderStripFor.
                 AdjustmentValue? value = ResolveDialAdjustmentValue(wheel, Device.WheelRotaryIndex);
-                if (wheel.Canvas != null)
+
+                // A takeover's drawing wins over the page; a plugin renderer bound to the wheel wins
+                // over the user's canvas and the automatic layout. Each falls through when it declines.
+                TimeSpan interval = TimeSpan.Zero;
+                frame = RenderExclusiveWheel(device.WheelScreenSize)
+                        ?? RenderBoundWheel(wheel, value, device.WheelScreenSize, out interval);
+                SchedulePluginWheel(interval);
+
+                if (frame == null && wheel.Canvas != null)
                 {
                     RegisterWheelCanvas(wheel);
                     frame = BitmapHelper.RenderWheelCanvas(wheel, wheel.Canvas, value, device.WheelScreenSize);
                 }
-                else
+                else if (frame == null)
                 {
                     frame = BitmapHelper.RenderWheelScreen(wheel, value, device.WheelScreenSize);
                 }

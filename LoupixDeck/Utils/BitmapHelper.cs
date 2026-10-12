@@ -2541,6 +2541,34 @@ public static class BitmapHelper
     }
 
     /// <summary>
+    /// Lets a plugin draw the wheel screen (<paramref name="size"/> square) onto a black canvas.
+    /// Returns the frame, or null when <paramref name="render"/> declines or throws, so the caller
+    /// falls back to the normal wheel look. The caller owns the bitmap.
+    /// </summary>
+    public static SKBitmap RenderWheelPlugin(int size, Func<LoupixDeck.PluginSdk.IRenderCanvas, bool> render)
+    {
+        ArgumentNullException.ThrowIfNull(render);
+
+        try
+        {
+            // Recorded, so the on-screen view can draw the wheel sharp at its own size (#251).
+            using var recording = new RecordedRender(size, size);
+            lock (SkiaRenderGate.Sync)
+            {
+                recording.Canvas.Clear(SKColors.Black);
+                if (render(new SkiaRenderCanvas(recording.Canvas, size, size)))
+                    return recording.Finish();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Plugin wheel render failed: {ex.Message}");
+        }
+
+        return null;
+    }
+
+    /// <summary>
     /// Renders the Loupedeck CT's round wheel screen (<paramref name="size"/> square, the
     /// visible area being the inscribed circle): the wheel's <see cref="RotaryButton.DisplayText"/>
     /// centred, or — when the wheel is bound to an adjustment command — a 270° arc filled to the

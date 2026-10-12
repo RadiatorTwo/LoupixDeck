@@ -41,6 +41,20 @@ public interface ICommandService
     /// controller decide whether a dial needs its indicator repainted after a turn.
     /// </summary>
     bool IsAdjustmentCommand(string command);
+
+    /// <summary>
+    /// The repaint interval of a command that draws the wheel screen itself (zero = on demand),
+    /// or null when <paramref name="command"/> is empty, not registered or not a wheel renderer.
+    /// </summary>
+    TimeSpan? GetWheelRenderInterval(string command);
+
+    /// <summary>
+    /// Lets a wheel-renderer command draw the wheel screen onto <paramref name="canvas"/>. False when
+    /// the command is not a wheel renderer, declines, or throws — the caller then draws the normal
+    /// wheel look. Runs under <c>SkiaRenderGate.Sync</c>, like a plugin drawing a touch button.
+    /// </summary>
+    bool TryRenderWheel(string command, int? sourceIndex, IRenderCanvas canvas, int size, string label,
+        AdjustmentValue? value);
 }
 
 public class CommandService : ICommandService
@@ -109,6 +123,33 @@ public class CommandService : ICommandService
             return false;
 
         return _commandRegistry.Get(CommandStringParser.GetName(part)) is { IsAdjustmentCommand: true };
+    }
+
+    public TimeSpan? GetWheelRenderInterval(string command) =>
+        WheelRendererFor(command, out _) is { } registered ? registered.WheelRenderInterval : null;
+
+    public bool TryRenderWheel(string command, int? sourceIndex, IRenderCanvas canvas, int size, string label,
+        AdjustmentValue? value)
+    {
+        RegisteredCommand registered = WheelRendererFor(command, out string part);
+        if (registered == null)
+            return false;
+
+        using var _routerScope = _router.Enter(_deviceProvider);
+        return registered.RenderWheel(CommandStringParser.GetParameters(part) ?? [], sourceIndex, canvas, size,
+            label, value);
+    }
+
+    /// <summary>The wheel renderer the first chain part of <paramref name="command"/> resolves to, or null.</summary>
+    private RegisteredCommand WheelRendererFor(string command, out string part)
+    {
+        part = FirstChainPart(command);
+        if (part == null)
+            return null;
+
+        return _commandRegistry.Get(CommandStringParser.GetName(part)) is { IsWheelRenderer: true, RenderWheel: not null } registered
+            ? registered
+            : null;
     }
 
     /// <summary>
