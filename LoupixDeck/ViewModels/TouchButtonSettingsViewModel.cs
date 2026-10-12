@@ -618,6 +618,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
             OnPropertyChanged(nameof(SelectedLayer));
             OnPropertyChanged(nameof(SelectedImageLayer));
             OnPropertyChanged(nameof(SelectedTextLayer));
+            OnPropertyChanged(nameof(SelectedTextCommandChoice));
             OnPropertyChanged(nameof(ScaleHandlesVisible));
             OnPropertyChanged(nameof(CanDeleteSelectedLayer));
             OnPropertyChanged(nameof(HasSelectedLayer));
@@ -628,6 +629,35 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
 
     public ImageLayer SelectedImageLayer => _selectedLayer as ImageLayer;
     public TextLayer SelectedTextLayer => _selectedLayer as TextLayer;
+
+    /// <summary>Every registered command that reports text, for the wheel text layer's command picker.</summary>
+    public IReadOnlyList<TextCommandChoice> TextCommandChoices => field ??= _commandRegistry.GetAll()
+        .Where(c => c.IsDisplayCommand && c.GetText != null && c.Info != null)
+        .Select(c => new TextCommandChoice(c.CommandName,
+            string.IsNullOrEmpty(c.Info.Group) ? c.Info.DisplayName : $"{c.Info.Group} / {c.Info.DisplayName}"))
+        .OrderBy(c => c.Title, StringComparer.CurrentCultureIgnoreCase)
+        .ToList();
+
+    /// <summary>
+    /// The command the selected text layer is bound to. Picking one writes its bare name (default
+    /// parameters); parameters can be added in the command box below.
+    /// </summary>
+    public TextCommandChoice SelectedTextCommandChoice
+    {
+        get
+        {
+            string name = string.IsNullOrWhiteSpace(SelectedTextLayer?.TextCommand)
+                ? null
+                : CommandStringParser.GetName(SelectedTextLayer.TextCommand);
+            return TextCommandChoices.FirstOrDefault(c => c.CommandName == name);
+        }
+        set
+        {
+            if (SelectedTextLayer == null || value == null || value == SelectedTextCommandChoice) return;
+            SelectedTextLayer.TextCommand = value.CommandName;
+            OnPropertyChanged();
+        }
+    }
 
     /// <summary>True when a layer is selected — the right panel then shows layer properties.</summary>
     public bool HasSelectedLayer => _selectedLayer != null;
@@ -1683,3 +1713,6 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         });
     }
 }
+
+/// <summary>A dynamic-text command a wheel text layer can take its text from.</summary>
+public sealed record TextCommandChoice(string CommandName, string Title);
