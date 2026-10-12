@@ -10,9 +10,12 @@ namespace LoupixDeck.Models.Layers;
 /// <see cref="ImageLayer"/>. The host only blits <see cref="RenderedBitmap"/> (with the
 /// same fit/scale/position math as an image layer).
 ///
-/// This layer kind can only be created by the dynamic-text manager (never via the editor's
+/// On a key, this layer kind is created only by the dynamic-text manager (never via the editor's
 /// add buttons). It is plugin-managed (see <see cref="LayerBase.OwnerKey"/>): the user may
 /// move/scale/rotate/hide/reorder it, but not edit its content or delete it directly.
+///
+/// On the CT wheel canvas the user adds it ("Live image") and binds it to an image command
+/// through <see cref="Command"/>. It has no owner, so the user may also retarget or delete it.
 /// </summary>
 public class PluginLayer : LayerBase
 {
