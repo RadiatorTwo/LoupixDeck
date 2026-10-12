@@ -637,12 +637,15 @@ public sealed class Lp5Converter
         // Pressing the wheel shows the clock by default; that is not an assignment the user made.
         if (pressRef == ClockPressAction)
             pressRef = null;
-        if (Lp5ActionResolver.IsNone(pressRef) && Lp5ActionResolver.IsNone(rotateRef))
-            return null;
 
         // The wheel screen's tool templates (anything but the clock) have no counterpart; the mode keeps
-        // the automatic layout.
-        if (!string.IsNullOrEmpty(template) && template != AnalogClockTemplate)
+        // the automatic layout. Such a page is the user's even with nothing assigned (the template is
+        // its content), so it still becomes a mode and is reported rather than dropped unseen.
+        bool toolTemplate = !string.IsNullOrEmpty(template) && template != AnalogClockTemplate;
+        if (!toolTemplate && Lp5ActionResolver.IsNone(pressRef) && Lp5ActionResolver.IsNone(rotateRef))
+            return null;
+
+        if (toolTemplate)
         {
             _unsupported.Add(new Lp5UnsupportedControl(location, pageName.Length > 0 ? pageName : template,
                 Lp5UnsupportedReason.UnsupportedWheelTemplate, template));
