@@ -47,6 +47,10 @@ public partial class LoupedeckLiveSController
     private readonly Dictionary<byte, (int X, int Y)> _wheelTouchLast = new();
     private long _lastWheelTapTimestamp;
 
+    // Touch ids a plugin claimed through OnWheelTouch; the host runs no tap, swipe or menu for them.
+    // Serial read thread only, like the dictionaries above.
+    private readonly HashSet<byte> _wheelTouchClaimed = new();
+
     // Mode menu state. Touched from the serial read thread (touches, turns) and the auto-close
     // timer, hence the lock. The menu belongs to the page it was opened on: a page change closes it.
     private readonly Lock _wheelMenuLock = new();
@@ -193,7 +197,8 @@ public partial class LoupedeckLiveSController
     /// <summary>
     /// Turns touches on the wheel screen into presses and workspace swipes. The firmware reports a
     /// held finger as repeated TOUCH_START frames for the same id, so only the first one records the
-    /// start; the later ones track where the finger has moved to.
+    /// start; the later ones track where the finger has moved to. Every frame is offered to the
+    /// plugin wheel input first (<see cref="TryOfferWheelTouch"/>); a touch it claims runs no gesture.
     /// </summary>
     private void OnWheelTouch(object sender, TouchEventArgs e)
     {
@@ -205,6 +210,8 @@ public partial class LoupedeckLiveSController
             if (_wheelTouchStarts.ContainsKey(touch.Id))
             {
                 _wheelTouchLast[touch.Id] = (touch.X, touch.Y);
+                if (TryOfferWheelTouch(WheelTouchPhase.Move, touch.X, touch.Y, touch.Id))
+                    _wheelTouchClaimed.Add(touch.Id);
                 return;
             }
 
@@ -217,11 +224,15 @@ public partial class LoupedeckLiveSController
 
             _wheelTouchStarts[touch.Id] = (touch.X, touch.Y, Stopwatch.GetTimestamp());
             _wheelTouchLast[touch.Id] = (touch.X, touch.Y);
+            _wheelTouchClaimed.Remove(touch.Id);
+            if (TryOfferWheelTouch(WheelTouchPhase.Start, touch.X, touch.Y, touch.Id))
+                _wheelTouchClaimed.Add(touch.Id);
             return;
         }
 
         if (!_wheelTouchStarts.Remove(touch.Id, out var start)) return;
         _wheelTouchLast.Remove(touch.Id, out var last);
+        var claimed = _wheelTouchClaimed.Remove(touch.Id);
 
         // The end frame normally carries the lift-off position; fall back to the last move if it
         // reports nothing past the start.
@@ -230,10 +241,14 @@ public partial class LoupedeckLiveSController
         if (endX == start.X && endY == start.Y)
             (endX, endY) = last;
 
+        if (TryOfferWheelTouch(WheelTouchPhase.End, endX, endY, touch.Id) || claimed)
+            return;
+
         var dx = endX - start.X;
         var dy = endY - start.Y;
         if (Math.Abs(dx) >= WheelSwipeMinTravel && Math.Abs(dx) >= Math.Abs(dy) * WheelSwipeDominance)
         {
+            if (TryOfferWheelSwipe(dx < 0 ? WheelSwipeDirection.Left : WheelSwipeDirection.Right)) return;
             CloseWheelMenu(redraw: false);
             OnWheelSwiped(next: dx < 0);
             return;
@@ -241,6 +256,8 @@ public partial class LoupedeckLiveSController
 
         if (Math.Abs(dy) >= WheelSwipeMinTravel && Math.Abs(dy) >= Math.Abs(dx) * WheelSwipeDominance)
         {
+            if (TryOfferWheelSwipe(dy < 0 ? WheelSwipeDirection.Up : WheelSwipeDirection.Down)) return;
+
             // Swiping up scrolls the list up, bringing the next mode into the middle.
             StepWheelMenu(dy < 0 ? 1 : -1);
             return;
@@ -257,6 +274,81 @@ public partial class LoupedeckLiveSController
 
         if (TrySelectWheelMenuHighlight()) return;
         OnWheelPressed();
+    }
+
+    /// <summary>
+    /// Offers a wheel-screen touch frame to the plugin wheel input (see <see cref="CanDeliverWheelInput"/>):
+    /// the exclusive provider owning the wheel's press, else the first command bound to the active wheel
+    /// mode that implements <see cref="IWheelInputHandler"/>. True when the plugin claims the touch.
+    /// </summary>
+    private bool TryOfferWheelTouch(WheelTouchPhase phase, int x, int y, byte id)
+    {
+        using var _routerScope = router.Enter(serviceProvider);
+        if (!CanDeliverWheelInput()) return false;
+
+        var max = WheelScreenSize - 1;
+        var touch = new WheelTouch(phase, Math.Clamp(x, 0, max), Math.Clamp(y, 0, max), id);
+
+        if (exclusiveMode.OwnsWheel(ExclusiveControlScope.RotaryPress))
+        {
+            try { return exclusiveMode.Current?.OnWheelTouch(touch) == true; }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Exclusive wheel touch: {ex.Message}");
+                return false;
+            }
+        }
+
+        return WheelInputCommand() is { } command &&
+               commandService.TryHandleWheelTouch(command, Device.WheelRotaryIndex, touch);
+    }
+
+    /// <summary>Offers a recognised wheel swipe to the plugin wheel input, like <see cref="TryOfferWheelTouch"/>.
+    /// True when handled.</summary>
+    private bool TryOfferWheelSwipe(WheelSwipeDirection direction)
+    {
+        using var _routerScope = router.Enter(serviceProvider);
+        if (!CanDeliverWheelInput()) return false;
+
+        if (exclusiveMode.OwnsWheel(ExclusiveControlScope.RotaryPress))
+        {
+            try { return exclusiveMode.Current?.OnWheelSwiped(direction) == true; }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Exclusive wheel swipe: {ex.Message}");
+                return false;
+            }
+        }
+
+        return WheelInputCommand() is { } command &&
+               commandService.TryHandleWheelSwipe(command, Device.WheelRotaryIndex, direction);
+    }
+
+    /// <summary>
+    /// Plugin wheel input is withheld while the device is off, a screensaver or display takeover owns
+    /// the screens (a touch then only wakes or stops them), the mode menu is open, or a folder is open
+    /// without an exclusive provider owning the wheel.
+    /// </summary>
+    private bool CanDeliverWheelInput()
+    {
+        if (_isDeviceOff || _screensaverActive || _fullDisplayActive) return false;
+        if (TryGetOpenWheelMenu(config.CurrentTouchButtonPage, out _)) return false;
+        return !folderNav.IsActive || exclusiveMode.OwnsWheel(ExclusiveControlScope.RotaryPress);
+    }
+
+    /// <summary>The first wheel binding of the active wheel mode that handles wheel input, in the same
+    /// order the wheel renderer is resolved in (<see cref="RenderBoundWheel"/>), or null.</summary>
+    private string WheelInputCommand()
+    {
+        var wheel = config.CurrentTouchButtonPage?.Wheel;
+        if (wheel == null) return null;
+
+        foreach (var command in new[] { wheel.RotaryLeftCommand, wheel.RotaryRightCommand, wheel.Command })
+        {
+            if (commandService.IsWheelInputHandler(command)) return command;
+        }
+
+        return null;
     }
 
     /// <summary>

@@ -55,6 +55,24 @@ public interface ICommandService
     /// </summary>
     bool TryRenderWheel(string command, int? sourceIndex, IRenderCanvas canvas, int size, string label,
         AdjustmentValue? value);
+
+    /// <summary>
+    /// True when the first chain part of <paramref name="command"/> is a registered command that
+    /// handles wheel-screen input itself (<c>IWheelInputHandler</c>).
+    /// </summary>
+    bool IsWheelInputHandler(string command);
+
+    /// <summary>
+    /// Offers a wheel-screen touch frame to a wheel input handler command. True when it claims the
+    /// touch; false when the command is no handler, declines, or throws.
+    /// </summary>
+    bool TryHandleWheelTouch(string command, int? sourceIndex, WheelTouch touch);
+
+    /// <summary>
+    /// Offers a wheel-screen swipe to a wheel input handler command. True when handled; false when the
+    /// command is no handler, declines, or throws.
+    /// </summary>
+    bool TryHandleWheelSwipe(string command, int? sourceIndex, WheelSwipeDirection direction);
 }
 
 public class CommandService : ICommandService
@@ -138,6 +156,41 @@ public class CommandService : ICommandService
         using var _routerScope = _router.Enter(_deviceProvider);
         return registered.RenderWheel(CommandStringParser.GetParameters(part) ?? [], sourceIndex, canvas, size,
             label, value);
+    }
+
+    public bool IsWheelInputHandler(string command) => WheelInputHandlerFor(command, out _) != null;
+
+    public bool TryHandleWheelTouch(string command, int? sourceIndex, WheelTouch touch)
+    {
+        RegisteredCommand registered = WheelInputHandlerFor(command, out string part);
+        if (registered == null)
+            return false;
+
+        using var _routerScope = _router.Enter(_deviceProvider);
+        return registered.HandleWheelTouch(CommandStringParser.GetParameters(part) ?? [], sourceIndex, touch);
+    }
+
+    public bool TryHandleWheelSwipe(string command, int? sourceIndex, WheelSwipeDirection direction)
+    {
+        RegisteredCommand registered = WheelInputHandlerFor(command, out string part);
+        if (registered == null)
+            return false;
+
+        using var _routerScope = _router.Enter(_deviceProvider);
+        return registered.HandleWheelSwipe(CommandStringParser.GetParameters(part) ?? [], sourceIndex, direction);
+    }
+
+    /// <summary>The wheel input handler the first chain part of <paramref name="command"/> resolves to, or null.</summary>
+    private RegisteredCommand WheelInputHandlerFor(string command, out string part)
+    {
+        part = FirstChainPart(command);
+        if (part == null)
+            return null;
+
+        return _commandRegistry.Get(CommandStringParser.GetName(part)) is
+            { HandleWheelTouch: not null, HandleWheelSwipe: not null } registered
+            ? registered
+            : null;
     }
 
     /// <summary>The wheel renderer the first chain part of <paramref name="command"/> resolves to, or null.</summary>

@@ -215,6 +215,38 @@ public class PluginCommandProvider : ICommandProvider
             };
         }
 
+        // Wheel input (IWheelInputHandler). A throwing plugin declines, so the host's own gesture runs.
+        Func<string[], int?, WheelTouch, bool> handleWheelTouch = null;
+        Func<string[], int?, WheelSwipeDirection, bool> handleWheelSwipe = null;
+        if (command is IWheelInputHandler wheelInput)
+        {
+            handleWheelTouch = (parameters, sourceIndex, touch) =>
+            {
+                try
+                {
+                    return wheelInput.OnWheelTouch(touch, RotaryContext(parameters, sourceIndex));
+                }
+                catch (Exception ex)
+                {
+                    host?.Logger?.Error($"OnWheelTouch failed for '{descriptor.CommandName}'", ex);
+                    return false;
+                }
+            };
+
+            handleWheelSwipe = (parameters, sourceIndex, direction) =>
+            {
+                try
+                {
+                    return wheelInput.OnWheelSwiped(direction, RotaryContext(parameters, sourceIndex));
+                }
+                catch (Exception ex)
+                {
+                    host?.Logger?.Error($"OnWheelSwiped failed for '{descriptor.CommandName}'", ex);
+                    return false;
+                }
+            };
+        }
+
         var isDisplay = false;
         var isImageDisplay = false;
         var isAnimatedImage = false;
@@ -311,6 +343,8 @@ public class PluginCommandProvider : ICommandProvider
             IsWheelRenderer = isWheelRenderer,
             WheelRenderInterval = wheelInterval,
             RenderWheel = renderWheel,
+            HandleWheelTouch = handleWheelTouch,
+            HandleWheelSwipe = handleWheelSwipe,
             Execute = execute,
             GetText = getText,
             RenderImage = renderImage,

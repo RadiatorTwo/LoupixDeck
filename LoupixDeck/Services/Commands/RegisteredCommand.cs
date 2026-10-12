@@ -132,6 +132,19 @@ public sealed class RegisteredCommand
     public Func<string[], int?, LoupixDeck.PluginSdk.IRenderCanvas, int, string, AdjustmentValue?, bool> RenderWheel { get; init; }
 
     /// <summary>
+    /// For wheel input handlers (<c>IWheelInputHandler</c>): offers a wheel-screen touch frame, returning
+    /// true when the command claims the touch. The arguments are the command parameters and the wheel's
+    /// rotary index. Null for other commands.
+    /// </summary>
+    public Func<string[], int?, WheelTouch, bool> HandleWheelTouch { get; init; }
+
+    /// <summary>
+    /// For wheel input handlers: offers a swipe across the wheel screen, returning true when handled.
+    /// Null for other commands.
+    /// </summary>
+    public Func<string[], int?, WheelSwipeDirection, bool> HandleWheelSwipe { get; init; }
+
+    /// <summary>
     /// Runs the command. The second argument is the button type that triggered
     /// the call — forwarded to <c>CommandContext.Target</c> on plugin commands;
     /// core commands ignore it. The third argument identifies the originating
