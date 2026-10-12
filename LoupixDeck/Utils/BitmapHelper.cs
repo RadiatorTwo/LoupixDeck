@@ -671,8 +671,8 @@ public static class BitmapHelper
         if (slot == null || !slot.HasImage) return null;
         if (slot.Baked != null && slot.BakedSize == (width, height)) return slot.Baked;
 
-        // Drop the reference without disposing: the previous bake may still be bound to a
-        // UI image or held by an in-flight render, and Invalidate() releases it the same way.
+        // Retires the previous bake rather than disposing it: it may still be read by the
+        // settings preview or by an in-flight render (see WallpaperSlot.Baked).
         slot.Baked = null;
 
         var original = AssetResolver?.Invoke(slot.AssetPath);
