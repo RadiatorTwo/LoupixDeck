@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using Avalonia;
 using Avalonia.Media.Imaging;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -57,6 +58,10 @@ public sealed partial class PluginDetailViewModel : ViewModelBase
     public void Detach()
     {
         LocalizationManager.Instance.PropertyChanged -= OnLanguageChanged;
+
+        // A new pane is built for every selection, so its icon goes with it. The page has already
+        // bound the next pane's, and the compositor keeps its own reference to a frame it still draws.
+        Icon?.Dispose();
     }
 
     /// <summary>Plugin texts are looked up at display time, so a language switch only has to
@@ -380,7 +385,27 @@ public sealed partial class PluginDetailViewModel : ViewModelBase
     /// break the page.</summary>
     private static Bitmap LoadIcon(LoadedPlugin plugin)
     {
-        return LoadIconFile(plugin) ?? LoadMetadataIcon(plugin);
+        return FitIcon(LoadIconFile(plugin) ?? LoadMetadataIcon(plugin));
+    }
+
+    // The page shows the icon at 48 px; twice that stays sharp on a high-DPI screen.
+    private const int IconPixels = 96;
+
+    /// <summary>Scales a larger <paramref name="icon"/> down to <see cref="IconPixels"/>, freeing the full-size decode.</summary>
+    private static Bitmap FitIcon(Bitmap icon)
+    {
+        if (icon == null) return null;
+
+        PixelSize size = icon.PixelSize;
+        int longest = Math.Max(size.Width, size.Height);
+        if (longest <= IconPixels) return icon;
+
+        double scale = IconPixels / (double)longest;
+        Bitmap fitted = icon.CreateScaledBitmap(
+            new PixelSize(Math.Max(1, (int)Math.Round(size.Width * scale)), Math.Max(1, (int)Math.Round(size.Height * scale))),
+            BitmapInterpolationMode.HighQuality);
+        icon.Dispose();
+        return fitted;
     }
 
     private static Bitmap LoadIconFile(LoadedPlugin plugin)
