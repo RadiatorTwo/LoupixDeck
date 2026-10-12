@@ -32,18 +32,46 @@ internal sealed class RecordedRender : IDisposable
     {
         SKPicture picture = _recorder.EndRecording();
 
-        var bitmap = new SKBitmap(_width, _height);
+        var bitmap = new RecordedBitmap(_width, _height, picture);
         using (var canvas = new SKCanvas(bitmap))
         {
             canvas.DrawPicture(picture);
         }
 
-        BitmapHelper.RememberRecording(bitmap, picture);
+        BitmapHelper.RememberRecording(bitmap);
         return bitmap;
     }
 
     public void Dispose()
     {
         _recorder.Dispose();
+    }
+}
+
+/// <summary>
+/// A bitmap rasterized from a recording, which owns that recording and frees it with itself. The
+/// picture keeps its own copy of every mutable bitmap drawn into it, so leaving it to the
+/// finalizer let native memory pile up with every strip, wheel and plugin redraw.
+/// </summary>
+internal sealed class RecordedBitmap(int width, int height, SKPicture picture) : SKBitmap(width, height)
+{
+    /// <summary>The drawing this bitmap was rasterized from; null once the bitmap is disposed.</summary>
+    /// <remarks>Read it under <see cref="SkiaRenderGate"/>.Sync: disposal clears it under the same gate.</remarks>
+    public SKPicture Picture { get; private set; } = picture;
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            // Under the gate, so a preview recipe or a render already playing the picture back
+            // never sees it freed halfway through.
+            lock (SkiaRenderGate.Sync)
+            {
+                Picture?.Dispose();
+                Picture = null;
+            }
+        }
+
+        base.Dispose(disposing);
     }
 }

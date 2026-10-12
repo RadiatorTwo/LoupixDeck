@@ -803,24 +803,22 @@ public static class BitmapHelper
         return bitmap;
     }
 
-    // The recording each RecordedRender bitmap was drawn from, so a plugin layer can be played
-    // back sharp inside a larger preview instead of scaling its device-sized bitmap up.
-    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<SKBitmap, SKPicture> Recordings = new();
-
     /// <summary>
-    /// Keeps <paramref name="picture"/> with the bitmap rasterized from it, and lets the on-screen
-    /// device view draw the bitmap again from it at any resolution (issue #251).
+    /// Lets the on-screen device view draw <paramref name="bitmap"/> again from its recording at
+    /// any resolution (issue #251).
     /// </summary>
-    internal static void RememberRecording(SKBitmap bitmap, SKPicture picture)
+    internal static void RememberRecording(RecordedBitmap bitmap)
     {
-        Recordings.AddOrUpdate(bitmap, picture);
-
         int width = bitmap.Width;
         int height = bitmap.Height;
         PreviewRecipes.Register(bitmap, scale =>
         {
             lock (SkiaRenderGate.Sync)
             {
+                // The recipe runs after a delay, by which time the bitmap may have been replaced
+                // and disposed along with its recording; the device image is then shown as is.
+                if (bitmap.Picture is not { } picture) return null;
+
                 using var preview = new SKBitmap(
                     Math.Max(1, (int)Math.Ceiling(width * scale)),
                     Math.Max(1, (int)Math.Ceiling(height * scale)));
@@ -1528,7 +1526,7 @@ public static class BitmapHelper
             canvas.ClipRect(new SKRect(0, 0, width, height));
             ApplyRotation(canvas, layer.Rotation, drawX + (dstW / 2f), drawY + (dstH / 2f));
 
-            if (canvas.TotalMatrix.ScaleX > 1.01f && Recordings.TryGetValue(bmp, out SKPicture picture))
+            if (canvas.TotalMatrix.ScaleX > 1.01f && bmp is RecordedBitmap { Picture: { } picture })
             {
                 // A preview drawn larger than the device (issue #251): play the plugin's drawing
                 // back at this resolution rather than scaling its device-sized bitmap up.
