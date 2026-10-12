@@ -109,11 +109,12 @@ public static class BitmapHelper
 
                 // 1. Seating shadow: soft dark blob slightly below the body so the
                 //    button appears to sit in the panel.
+                using (SKMaskFilter shadowBlur = SKMaskFilter.CreateBlur(SKBlurStyle.Normal, 4f * ss))
                 using (var shadow = new SKPaint
                        {
                            IsAntialias = true,
                            Color = new SKColor(0, 0, 0, (byte)(light ? 110 : 185)),
-                           MaskFilter = SKMaskFilter.CreateBlur(SKBlurStyle.Normal, 4f * ss)
+                           MaskFilter = shadowBlur
                        })
                 {
                     canvas.DrawCircle(cx, cy + (3f * ss), bodyRadius, shadow);
@@ -207,6 +208,7 @@ public static class BitmapHelper
                 }
 
                 // Wide soft halo.
+                using (SKMaskFilter haloBlur = SKMaskFilter.CreateBlur(SKBlurStyle.Normal, (printed ? 2.5f : 4.5f) * ss))
                 using (var halo = new SKPaint
                        {
                            IsAntialias = true,
@@ -215,13 +217,14 @@ public static class BitmapHelper
                            StrokeCap = SKStrokeCap.Round,
                            StrokeJoin = SKStrokeJoin.Round,
                            Color = glowColor.WithAlpha((byte)(printed ? 45 : 110)),
-                           MaskFilter = SKMaskFilter.CreateBlur(SKBlurStyle.Normal, (printed ? 2.5f : 4.5f) * ss)
+                           MaskFilter = haloBlur
                        })
                 {
                     DrawLegend(halo);
                 }
 
                 // Tighter inner glow.
+                using (SKMaskFilter innerGlowBlur = SKMaskFilter.CreateBlur(SKBlurStyle.Normal, (printed ? 1f : 2f) * ss))
                 using (var innerGlow = new SKPaint
                        {
                            IsAntialias = true,
@@ -230,7 +233,7 @@ public static class BitmapHelper
                            StrokeCap = SKStrokeCap.Round,
                            StrokeJoin = SKStrokeJoin.Round,
                            Color = glowColor.WithAlpha((byte)(printed ? 90 : 180)),
-                           MaskFilter = SKMaskFilter.CreateBlur(SKBlurStyle.Normal, (printed ? 1f : 2f) * ss)
+                           MaskFilter = innerGlowBlur
                        })
                 {
                     DrawLegend(innerGlow);
@@ -443,11 +446,12 @@ public static class BitmapHelper
 
                 // 1. Seating shadow: soft dark blob slightly below the base so the
                 //    knob appears to sit in the panel.
+                using (SKMaskFilter shadowBlur = SKMaskFilter.CreateBlur(SKBlurStyle.Normal, 4f * ss))
                 using (var shadow = new SKPaint
                        {
                            IsAntialias = true,
                            Color = new SKColor(0, 0, 0, (byte)(light ? 110 : 185)),
-                           MaskFilter = SKMaskFilter.CreateBlur(SKBlurStyle.Normal, 4f * ss)
+                           MaskFilter = shadowBlur
                        })
                 {
                     canvas.DrawCircle(cx, cy + (3f * ss), baseRadius, shadow);
@@ -542,13 +546,14 @@ public static class BitmapHelper
     /// </summary>
     private static void DrawStepShadow(SKCanvas canvas, float cx, float cy, float radius, float scale)
     {
+        using SKMaskFilter blur = SKMaskFilter.CreateBlur(SKBlurStyle.Normal, 2f * scale);
         using var p = new SKPaint
         {
             IsAntialias = true,
             Style = SKPaintStyle.Stroke,
             StrokeWidth = 3f * scale,
             Color = new SKColor(0, 0, 0, 150),
-            MaskFilter = SKMaskFilter.CreateBlur(SKBlurStyle.Normal, 2f * scale)
+            MaskFilter = blur
         };
         canvas.DrawCircle(cx, cy + (0.5f * scale), radius + (1.5f * scale), p);
     }
@@ -594,11 +599,12 @@ public static class BitmapHelper
         }
 
         // Soft specular highlight near the top edge.
+        using (SKMaskFilter highlightBlur = SKMaskFilter.CreateBlur(SKBlurStyle.Normal, 5f * scale))
         using (var highlight = new SKPaint
                {
                    IsAntialias = true,
                    Color = new SKColor(0xFF, 0xFF, 0xFF, 55),
-                   MaskFilter = SKMaskFilter.CreateBlur(SKBlurStyle.Normal, 5f * scale)
+                   MaskFilter = highlightBlur
                })
         {
             canvas.DrawOval(
@@ -1866,8 +1872,8 @@ public static class BitmapHelper
                 Style = SKPaintStyle.Fill,
                 IsAntialias = true
             };
-            if (shadowBlur > 0)
-                shadowPaint.MaskFilter = SKMaskFilter.CreateBlur(SKBlurStyle.Normal, shadowBlur);
+            using SKMaskFilter blur = shadowBlur > 0 ? SKMaskFilter.CreateBlur(SKBlurStyle.Normal, shadowBlur) : null;
+            shadowPaint.MaskFilter = blur;
 
             var saved = canvas.Save();
             canvas.Translate(shadowOffsetX, shadowOffsetY);
@@ -2027,13 +2033,14 @@ public static class BitmapHelper
     /// id is unknown or the icon font could not be loaded.</summary>
     private static void DrawSymbolPlaceholderRect(SKCanvas canvas, SKRect rect, SKColor tint)
     {
+        using SKPathEffect dash = SKPathEffect.CreateDash(new float[] { 4, 4 }, 0);
         using var paint = new SKPaint
         {
             Color = tint,
             Style = SKPaintStyle.Stroke,
             StrokeWidth = 2,
             IsAntialias = true,
-            PathEffect = SKPathEffect.CreateDash(new float[] { 4, 4 }, 0)
+            PathEffect = dash
         };
         canvas.DrawRect(rect, paint);
     }
