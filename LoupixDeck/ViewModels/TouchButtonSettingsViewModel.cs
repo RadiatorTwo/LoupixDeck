@@ -1273,7 +1273,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
     {
         var layer = new PluginLayer
         {
-            Name = GetUniqueLayerName("Clock"),
+            Name = GetUniqueLayerName(Loc.Tr("TouchButton_ClockLayerName")),
             Command = "DynamicText.AnalogClock"
         };
         AddLayer(layer);
