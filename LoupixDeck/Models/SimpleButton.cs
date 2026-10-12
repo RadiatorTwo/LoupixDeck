@@ -36,15 +36,22 @@ public class SimpleButton : StatefulButton
 
     private Bitmap _renderedImage;
 
+    /// <summary>The baked button image the device view shows. Set on the UI thread only.</summary>
     [JsonIgnore]
     public Bitmap RenderedImage
     {
         get => _renderedImage;
         set
         {
-            if (_renderedImage == value) return;
+            if (ReferenceEquals(_renderedImage, value)) return;
+            Bitmap old = _renderedImage;
             _renderedImage = value;
             OnPropertyChanged(nameof(RenderedImage));
+
+            // Every LED colour change bakes a new image. The bindings have moved on to it by now,
+            // and the compositor keeps its own reference to a frame it is still drawing, so the
+            // old one is freed here instead of holding its pixels until a full GC.
+            old?.Dispose();
         }
     }
 
