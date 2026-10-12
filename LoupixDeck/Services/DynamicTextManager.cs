@@ -135,7 +135,9 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
             snapshot = _active;
         }
 
-        var buttons = snapshot.Where(e => e.Command.IsValueDisplayCommand).Select(e => (e.Button, e.OwnerKey)).ToArray();
+        // Wheel entries carry no button: a command that is both a text and a value command can be
+        // bound to a wheel text layer, and it has no key value to repaint here.
+        var buttons = snapshot.Where(e => e.Button != null && e.Command.IsValueDisplayCommand).Select(e => (e.Button, e.OwnerKey)).ToArray();
         if (buttons.Length == 0)
             return;
 
