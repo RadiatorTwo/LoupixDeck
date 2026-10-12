@@ -37,7 +37,10 @@ public enum Lp5UnsupportedReason
     EmptyText,
 
     /// <summary>An audio output, named in the profile, that this computer does not have.</summary>
-    AudioDeviceNotFound
+    AudioDeviceNotFound,
+
+    /// <summary>A wheel page with a screen template other than the analog clock; the mode keeps the automatic layout.</summary>
+    UnsupportedWheelTemplate
 }
 
 /// <summary>One control whose assignment was not (fully) converted.</summary>
@@ -49,7 +52,7 @@ public sealed record Lp5UnsupportedControl(string Location, string Label, Lp5Uns
 /// <summary>A remark about the conversion as a whole.</summary>
 public enum Lp5NoteKind
 {
-    /// <summary>Loupedeck wheel pages (Loupedeck CT) have no equivalent and were skipped.</summary>
+    /// <summary>Loupedeck wheel pages (Loupedeck CT) were skipped because the device has no wheel.</summary>
     WheelPagesSkipped,
 
     /// <summary>The source pages have more keys than the device; the surplus moved to extra pages.</summary>

@@ -214,7 +214,8 @@ public sealed partial class LoupedeckImportViewModel : DialogViewModelBase<Dialo
     partial void OnIsImportingChanged(bool value) => ImportCommand.NotifyCanExecuteChanged();
 
     private DeviceShape Shape => new(_deviceService.TouchButtonCount, _deviceService.RotaryButtonCount,
-        _pageManager.SideRotaryButtonCount, _pageManager.HasIndependentRotarySides, _geometry);
+        _pageManager.SideRotaryButtonCount, _pageManager.HasIndependentRotarySides, _geometry,
+        _deviceService.Device is { HasWheel: true });
 
     public async Task InitializeAsync()
     {
@@ -378,6 +379,7 @@ public sealed partial class LoupedeckImportViewModel : DialogViewModelBase<Dialo
         Lp5UnsupportedReason.AudioDeviceNotFound => Loc.Tr("LoupedeckImport_ReasonAudioDevice", detail ?? string.Empty),
         Lp5UnsupportedReason.PageOutsideWorkspace => Loc.Tr("LoupedeckImport_ReasonPageOutsideWorkspace"),
         Lp5UnsupportedReason.UnsupportedAdjustment => Loc.Tr("LoupedeckImport_ReasonAdjustment", detail ?? string.Empty),
+        Lp5UnsupportedReason.UnsupportedWheelTemplate => Loc.Tr("LoupedeckImport_ReasonWheelTemplate", detail ?? string.Empty),
         _ => Loc.Tr("LoupedeckImport_ReasonRecursion")
     };
 

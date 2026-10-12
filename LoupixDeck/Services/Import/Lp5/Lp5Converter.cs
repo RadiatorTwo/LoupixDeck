@@ -47,6 +47,8 @@ public sealed class Lp5Converter
     private int _movedKeys;
     private int _movedDials;
     private int _wheelPages;
+    private const string AnalogClockTemplate = "WheelToolAnalogClock";
+    private const string ClockPressAction = "$@Generic___@ButtonClock";
 
     private Lp5Converter(Lp5Archive archive, DeviceShape shape, IAssetService assets, bool labelAsCaption)
     {
@@ -86,8 +88,8 @@ public sealed class Lp5Converter
         if (page == null) return false;
 
         JObject parameters = Lp5Json.Obj(page, "parameters");
-        return Lp5Json.Str(page, "templateName") != "WheelToolAnalogClock"
-               || Lp5Json.Str(parameters, "actions") != "$@Generic___@ButtonClock"
+        return Lp5Json.Str(page, "templateName") != AnalogClockTemplate
+               || Lp5Json.Str(parameters, "actions") != ClockPressAction
                || Lp5Json.Str(parameters, "adjustment") != "$@Generic___@MouseWheel";
     }
 
@@ -105,7 +107,8 @@ public sealed class Lp5Converter
 
             touchPages += workspace.TouchButtonPages.Count;
             rotaryPages += workspace.RotaryButtonPages.Count + workspace.LeftRotaryButtonPages.Count;
-            _wheelPages += Lp5Json.Strings(source, "wheelPageNames").Count(IsCustomWheelPage);
+            if (!_shape.HasWheel)
+                _wheelPages += Lp5Json.Strings(source, "wheelPageNames").Count(IsCustomWheelPage);
         }
 
         if (profile.Workspaces.Count == 0)
@@ -204,6 +207,9 @@ public sealed class Lp5Converter
         }
         foreach (RotaryButtonPage page in extraSharedPages)
             workspace.RotaryButtonPages.Add(page);
+
+        if (_shape.HasWheel)
+            ApplyWheelModes(workspace, source, name, context);
 
         return workspace;
     }
@@ -577,6 +583,85 @@ public sealed class Lp5Converter
 
         page.StripCanvas = canvas;
         page.StripMode = StripMode.FreeDraw;
+    }
+
+    // ---- Wheel pages -------------------------------------------------------------------------
+
+    /// <summary>One converted Loupedeck wheel page: what a mode needs, before it is copied to a touch page.</summary>
+    private sealed record WheelModeSpec(string Press, string Left, string Right, string Label);
+
+    /// <summary>
+    /// Loupedeck wheel pages belong to a workspace, LoupixDeck wheel modes to a touch page: every touch
+    /// page of the workspace gets its own copy of the custom wheel pages, in their source order. A
+    /// workspace without custom wheel pages keeps the default (empty) mode.
+    /// </summary>
+    private void ApplyWheelModes(Workspace workspace, JToken source, string workspaceName, Lp5Context context)
+    {
+        Dictionary<string, JObject> wheelPages = PagesById("wheelPages");
+        List<WheelModeSpec> specs = [];
+
+        foreach (string pageId in Lp5Json.Strings(source, "wheelPageNames"))
+        {
+            if (pageId == null || !wheelPages.TryGetValue(pageId, out JObject page) || !IsCustomWheelPage(pageId)) continue;
+
+            string pageName = Lp5Json.Str(page, "displayName") ?? string.Empty;
+            string shownName = pageName.Length > 0 ? pageName : Loc.Tr("LoupedeckImport_LocationWheel", specs.Count + 1);
+            if (ConvertWheelPage(page, $"{workspaceName} › {shownName}", pageName, context) is { } spec)
+                specs.Add(spec);
+        }
+
+        if (specs.Count == 0) return;
+
+        foreach (TouchButtonPage touchPage in workspace.TouchButtonPages)
+        {
+            touchPage.WheelModes = specs.Select(spec =>
+            {
+                RotaryButton mode = TouchButtonPage.NewWheelMode();
+                mode.Command = spec.Press;
+                mode.RotaryLeftCommand = spec.Left;
+                mode.RotaryRightCommand = spec.Right;
+                mode.DisplayText = spec.Label;
+                return mode;
+            }).ToList();
+        }
+    }
+
+    /// <summary>The wheel page as a mode, or null for a page with nothing assigned.</summary>
+    private WheelModeSpec ConvertWheelPage(JObject page, string location, string pageName, Lp5Context context)
+    {
+        JObject parameters = Lp5Json.Obj(page, "parameters");
+        string pressRef = Lp5Json.Str(parameters, "actions");
+        string rotateRef = Lp5Json.Str(parameters, "adjustment");
+        string template = Lp5Json.Str(page, "templateName");
+
+        // Pressing the wheel shows the clock by default; that is not an assignment the user made.
+        if (pressRef == ClockPressAction)
+            pressRef = null;
+        if (Lp5ActionResolver.IsNone(pressRef) && Lp5ActionResolver.IsNone(rotateRef))
+            return null;
+
+        // The wheel screen's tool templates (anything but the clock) have no counterpart; the mode keeps
+        // the automatic layout.
+        if (!string.IsNullOrEmpty(template) && template != AnalogClockTemplate)
+        {
+            _unsupported.Add(new Lp5UnsupportedControl(location, pageName.Length > 0 ? pageName : template,
+                Lp5UnsupportedReason.UnsupportedWheelTemplate, template));
+        }
+
+        Lp5DialResolution resolution = _resolver.ResolveDial(pressRef, rotateRef, context);
+
+        _totalControls++;
+        if (resolution.Press.Command != null || resolution.Left != null || resolution.Right != null)
+            _mappedControls++;
+
+        if (resolution.Press.Reason != null)
+            Record(location, _resolver.Label(pressRef), resolution.Press);
+        if (resolution.RotateReason is { } reason)
+            _unsupported.Add(new Lp5UnsupportedControl(location, _resolver.Label(rotateRef), reason, resolution.RotateDetail));
+
+        string label = pageName.Length > 0 ? pageName : resolution.Label;
+        return new WheelModeSpec(resolution.Press.Command, resolution.Left ?? string.Empty, resolution.Right ?? string.Empty,
+            ShortenDialLabel(label));
     }
 
     // ---- Round buttons and home workspace ----------------------------------------------------
