@@ -463,6 +463,10 @@ public static class ServiceCollectionExtensions
         // driving animated image layers on the FreeDraw side-strip canvases.
         collection.AddSingleton<Services.Animation.ISideDisplayAnimationManager, Services.Animation.SideDisplayAnimationManager>();
 
+        // Animated image layers on the CT wheel screen (issue #394): one source per device on the
+        // central scheduler, idle unless the active wheel mode's canvas carries an animated layer.
+        collection.AddSingleton<Services.Animation.IWheelAnimationManager, Services.Animation.WheelAnimationManager>();
+
         // Video page wallpaper: one source per device on the central scheduler, playing the active
         // page's clip behind the keys. Idle unless a page's main wallpaper slot references one.
         collection.AddSingleton<Services.Animation.IWallpaperAnimationManager, Services.Animation.WallpaperAnimationManager>();

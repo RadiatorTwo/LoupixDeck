@@ -409,11 +409,8 @@
                             <Button Classes="toolbar" Content="{loc:Tr TouchButton_Image}" Margin="0,0,0,4"
                                     HorizontalAlignment="Stretch"
                                     Command="{Binding AddImageLayerCommand}" />
-                            <!-- The wheel screen is repainted on change only, never by the animation
-                                 scheduler, so an animated layer there would show its first frame. -->
                             <Button Classes="toolbar" Content="{loc:Tr TouchButton_Animation}" Margin="0,0,4,0"
                                     HorizontalAlignment="Stretch"
-                                    IsEnabled="{Binding !IsWheelCanvas}"
                                     Command="{Binding AddAnimatedImageLayerCommand}" />
                             <Button Classes="toolbar" Content="{loc:Tr TouchButton_Symbol}" Margin="0,0,0,0"
                                     HorizontalAlignment="Stretch"
