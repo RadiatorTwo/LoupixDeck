@@ -33,6 +33,11 @@ public sealed class SideDisplayAnimationManager : ISideDisplayAnimationManager, 
     // every Rescan so a freshly-imported animation starts immediately, not only on next navigation.
     private readonly TouchButton[] _subscribedCanvases = new TouchButton[2];
 
+    // The current rotary page per side, watched for StripMode and StripCanvas changes: the editor
+    // creates the canvas on first use and switching to FreeDraw starts showing it, and neither
+    // raises anything on a canvas we could already be subscribed to.
+    private readonly RotaryButtonPage[] _subscribedPages = new RotaryButtonPage[2];
+
     public SideDisplayAnimationManager(
         IPageManager pageManager,
         IAnimationScheduler scheduler,
@@ -117,7 +122,10 @@ public sealed class SideDisplayAnimationManager : ISideDisplayAnimationManager, 
         if (!_pageManager.HasIndependentRotarySides)
         {
             for (var slot = 0; slot < 2; slot++)
+            {
+                SubscribePage(slot, null);
                 SubscribeCanvas(slot, null);
+            }
             return specs;
         }
 
@@ -125,6 +133,8 @@ public sealed class SideDisplayAnimationManager : ISideDisplayAnimationManager, 
         {
             var side = slot == 0 ? RotarySide.Left : RotarySide.Right;
             var page = _pageManager.GetCurrentRotaryPage(side);
+
+            SubscribePage(slot, page);
 
             // Only a FreeDraw strip renders its canvas; Segmented/PluginOverride ignore StripCanvas
             // even if a stale one exists.
@@ -192,6 +202,25 @@ public sealed class SideDisplayAnimationManager : ISideDisplayAnimationManager, 
     // not raise ItemChanged (SetAnimationFrame is a silent field swap), so this never self-triggers.
     private void OnStripCanvasItemChanged(object sender, EventArgs e) => Rescan();
 
+    /// <summary>Reconciles the PropertyChanged subscription for one side's current page (UI thread).</summary>
+    private void SubscribePage(int slot, RotaryButtonPage page)
+    {
+        var current = _subscribedPages[slot];
+        if (ReferenceEquals(current, page)) return;
+
+        if (current != null) current.PropertyChanged -= OnStripPagePropertyChanged;
+        _subscribedPages[slot] = page;
+        if (page != null) page.PropertyChanged += OnStripPagePropertyChanged;
+    }
+
+    // A new canvas or a mode switch changes which canvas (if any) the strip shows; the rescan
+    // subscribes to it and picks up its animated layers.
+    private void OnStripPagePropertyChanged(object sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(RotaryButtonPage.StripCanvas) or nameof(RotaryButtonPage.StripMode))
+            Rescan();
+    }
+
     // ── takeover / pause coordination ──────────────────────────────────────────
 
     private void OnScreensaverStarted()
@@ -240,7 +269,10 @@ public sealed class SideDisplayAnimationManager : ISideDisplayAnimationManager, 
         _folderNav.StateChanged -= OnTakeoverStateChanged;
 
         for (var slot = 0; slot < 2; slot++)
+        {
+            SubscribePage(slot, null);
             SubscribeCanvas(slot, null);
+        }
 
         try { _scheduler.Unregister(_source); } catch { /* best effort */ }
         try { _source.Dispose(); } catch { /* best effort */ }
