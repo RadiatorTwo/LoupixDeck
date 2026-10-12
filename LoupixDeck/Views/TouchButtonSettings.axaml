@@ -864,6 +864,23 @@
                                                 </ComboBox>
                                             </StackPanel>
 
+                                            <StackPanel IsVisible="{Binding IsCommandText}">
+                                                <TextBlock Classes="label" Text="{loc:Tr TouchButton_TextCommand}" />
+                                                <ComboBox Margin="0,2,0,2" HorizontalAlignment="Stretch"
+                                                          ItemsSource="{Binding $parent[Window].((vm:TouchButtonSettingsViewModel)DataContext).TextCommandChoices}"
+                                                          SelectedItem="{Binding $parent[Window].((vm:TouchButtonSettingsViewModel)DataContext).SelectedTextCommandChoice, Mode=TwoWay}">
+                                                    <ComboBox.ItemTemplate>
+                                                        <DataTemplate x:DataType="vm:TextCommandChoice">
+                                                            <TextBlock Text="{Binding Title}" />
+                                                        </DataTemplate>
+                                                    </ComboBox.ItemTemplate>
+                                                </ComboBox>
+                                                <TextBox Text="{Binding TextCommand, Mode=TwoWay}" Margin="0,2,0,2"
+                                                         PlaceholderText="DynamicText.Clock(HH:mm)" />
+                                                <TextBlock Classes="hint" Margin="0,0,0,8"
+                                                           Text="{loc:Tr TouchButton_TextCommandHint}" />
+                                            </StackPanel>
+
                                             <TextBlock Classes="label" Text="{loc:Tr TouchButton_Text2}" />
                                             <TextBox Text="{Binding Text, Mode=TwoWay}" Margin="0,2,0,2"
                                                      IsReadOnly="{Binding IsCommandOwned}"

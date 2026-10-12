@@ -18,5 +18,12 @@ public enum TextSource
     DialValue = 2,
 
     /// <summary>The value's secondary text (<c>AdjustmentValue.Detail</c>), e.g. "resets in 3h12".</summary>
-    ValueDetail = 3
+    ValueDetail = 3,
+
+    /// <summary>
+    /// The text a dynamic-text command (<see cref="TextLayer.TextCommand"/>) reports, refreshed on
+    /// that command's own interval. Wheel canvas only. A release that predates this value draws
+    /// the layer's own <see cref="TextLayer.Text"/> instead.
+    /// </summary>
+    Command = 4
 }

@@ -57,12 +57,38 @@ public partial class TextLayer : LayerBase
     /// </summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsDynamicText))]
+    [NotifyPropertyChangedFor(nameof(IsCommandText))]
     [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
     public partial TextSource TextSource { get; set; }
 
-    /// <summary>True when the text is supplied by the dial or the key's command rather than typed in.</summary>
+    /// <summary>
+    /// True when the text is supplied by the dial or the key's command rather than typed in. A
+    /// <see cref="TextSource.Command"/> layer is not: its own <see cref="Text"/> stays editable as
+    /// the fallback shown before the first poll and by releases that predate the source.
+    /// </summary>
     [JsonIgnore]
-    public bool IsDynamicText => TextSource != TextSource.Static;
+    public bool IsDynamicText => TextSource is not (TextSource.Static or TextSource.Command);
+
+    /// <summary>True when the text comes from the dynamic-text command in <see cref="TextCommand"/>.</summary>
+    [JsonIgnore]
+    public bool IsCommandText => TextSource == TextSource.Command;
+
+    /// <summary>
+    /// Command string (e.g. <c>DynamicText.Clock(HH:mm)</c>) of the dynamic-text command that
+    /// supplies the text when <see cref="TextSource"/> is <see cref="TextSource.Command"/>. Omitted
+    /// from the file when empty, so existing layers serialize unchanged.
+    /// </summary>
+    [ObservableProperty]
+    [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
+    public partial string TextCommand { get; set; }
+
+    /// <summary>
+    /// The latest text reported by <see cref="TextCommand"/>. Runtime only: it is written silently
+    /// on every poll, so it neither raises change notifications nor reaches the file; until the
+    /// first poll the layer falls back to <see cref="Text"/>.
+    /// </summary>
+    [JsonIgnore]
+    public string LiveText { get; set; }
 
     [ObservableProperty]
     public partial int TextSize { get; set; } = 16;

@@ -1,10 +1,12 @@
 using Avalonia.Threading;
+using LoupixDeck.Controllers;
 using LoupixDeck.Models;
 using LoupixDeck.Models.Layers;
 using LoupixDeck.PluginSdk;
 using LoupixDeck.Registry;
 using LoupixDeck.Services.Commands;
 using LoupixDeck.Utils;
+using Microsoft.Extensions.DependencyInjection;
 using SkiaSharp;
 
 namespace LoupixDeck.Services;
@@ -28,6 +30,17 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
     private sealed class Entry
     {
         public TouchButton Button;
+
+        /// <summary>
+        /// Set instead of <see cref="Button"/> for a text layer of the CT wheel canvas bound to a
+        /// dynamic-text command: the reported text goes to <see cref="TextLayer.LiveText"/> and the
+        /// wheel is repainted, rather than a button layer being written.
+        /// </summary>
+        public TextLayer WheelLayer;
+
+        /// <summary>The wheel canvas's runtime key, handed to the command in place of a button's.</summary>
+        public string WheelRuntimeKey;
+
         public RegisteredCommand Command;
         public string[] Parameters;
 
@@ -76,10 +89,37 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
     {
         _pageManager.TouchLayoutChanged += OnTouchLayoutChanged;
         _pageManager.TouchLayoutDrawn += OnTouchLayoutDrawn;
+
+        // Resolved from the device provider rather than injected: the controller depends on this
+        // device's services, so asking for it in the constructor would be circular.
+        _controller = _deviceProvider.GetService<IDeviceController>();
+        if (_controller != null)
+            _controller.WheelModeChanged += OnTouchLayoutChanged;
+
         Rescan();
     }
 
     private void OnTouchLayoutChanged() => Rescan();
+
+    /// <summary>A layer edit on the wheel canvas (command added, changed or removed) rebuilds the entries.</summary>
+    private void OnWheelCanvasItemChanged(object sender, EventArgs e) => Rescan();
+
+    private IDeviceController _controller;
+
+    /// <summary>The wheel canvas whose edits this manager follows; one at a time, like the animation manager.</summary>
+    private TouchButton _subscribedCanvas;
+
+    private void SubscribeWheelCanvas(TouchButton canvas)
+    {
+        if (ReferenceEquals(_subscribedCanvas, canvas))
+            return;
+
+        if (_subscribedCanvas != null)
+            _subscribedCanvas.ItemChanged -= OnWheelCanvasItemChanged;
+        _subscribedCanvas = canvas;
+        if (canvas != null)
+            canvas.ItemChanged += OnWheelCanvasItemChanged;
+    }
 
     /// <summary>
     /// The whole layout was just painted. A rescan publishes values as soon as the layout changes,
@@ -155,6 +195,8 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
             }
         }
 
+        AddWheelEntries(entries);
+
         // Remove/demote plugin-managed layers whose owning command is no longer bound
         // (command changed/cleared, or its plugin was uninstalled) before (re)starting the loop.
         SweepOrphanLayers(page);
@@ -185,7 +227,7 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
         // poll tick (which would leave the new state blank until then).
         foreach (Entry entry in entries)
         {
-            if (entry.Command.DeclaresStates)
+            if (entry.Button != null && entry.Command.DeclaresStates)
                 Subscribe(entry.Button);
         }
 
@@ -198,6 +240,94 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
             var timer = _timer;
             _loopTask = Task.Run(() => TickLoop(timer, token), token);
         }
+    }
+
+    /// <summary>
+    /// Adds an entry for every text layer of the active wheel mode's canvas that takes its text from
+    /// a dynamic-text command. Only the mode showing on the glass is scanned, so switching mode,
+    /// page, workspace or profile (each of which rescans) stops the polling of the canvas that went
+    /// inactive. A layer that no longer resolves to a command drops its stale live text and draws
+    /// its own text again.
+    /// </summary>
+    private void AddWheelEntries(List<Entry> entries)
+    {
+        TouchButton canvas = _controller is { WheelScreenSize: > 0 }
+            ? _pageManager.CurrentTouchButtonPage?.Wheel?.Canvas
+            : null;
+        SubscribeWheelCanvas(canvas);
+
+        if (canvas?.Layers == null)
+            return;
+
+        foreach (TextLayer layer in canvas.Layers.OfType<TextLayer>().ToArray())
+        {
+            if (layer.TextSource != TextSource.Command)
+                continue;
+
+            RegisteredCommand command = null;
+            string name = string.IsNullOrWhiteSpace(layer.TextCommand) ? null : CommandStringParser.GetName(layer.TextCommand);
+            if (!string.IsNullOrEmpty(name))
+                command = _commandRegistry.Get(name);
+
+            if (command is not { IsDisplayCommand: true, GetText: not null })
+            {
+                layer.LiveText = null;
+                continue;
+            }
+
+            TimeSpan interval = command.UpdateInterval;
+            if (interval < TimeSpan.FromMilliseconds(250))
+                interval = TimeSpan.FromMilliseconds(250);
+
+            entries.Add(new Entry
+            {
+                WheelLayer = layer,
+                WheelRuntimeKey = canvas.RuntimeKey,
+                Command = command,
+                Parameters = CommandStringParser.GetParameters(layer.TextCommand),
+                SequenceCommands = CommandStringParser.BuildSequence(layer.TextCommand),
+                Interval = interval,
+                NextDueUtc = DateTime.UtcNow
+            });
+        }
+    }
+
+    /// <summary>
+    /// Wheel counterpart of the text path in <see cref="RenderEntry"/>: reads the command's text
+    /// and, when it changed, stores it on the layer and repaints the wheel on the UI thread.
+    /// </summary>
+    private void RenderWheelEntry(Entry entry)
+    {
+        using var _routerScope = _router.Enter(_deviceProvider);
+
+        string newText;
+        try
+        {
+            newText = entry.Command.GetText(entry.Parameters, entry.SequenceCommands, null, entry.WheelRuntimeKey) ?? string.Empty;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"DynamicTextManager: command '{entry.Command.CommandName}' threw: {ex.Message}");
+            return;
+        }
+
+        TextLayer layer = entry.WheelLayer;
+        if (string.Equals(layer.LiveText, newText, StringComparison.Ordinal))
+            return;
+
+        Dispatcher.UIThread.Post(() =>
+        {
+            // The layer may have been retargeted or removed between the read and this post; a
+            // rescan then rebuilt the entries and this one is no longer in the active set.
+            lock (_gate)
+            {
+                if (!_active.Contains(entry))
+                    return;
+            }
+
+            layer.LiveText = newText;
+            _ = _controller?.RefreshWheelAnimationFrame();
+        });
     }
 
     /// <summary>
@@ -338,6 +468,12 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
     /// </summary>
     private void RenderEntry(Entry entry)
     {
+        if (entry.WheelLayer != null)
+        {
+            RenderWheelEntry(entry);
+            return;
+        }
+
         var command = entry.Command;
         var button = entry.Button;
         if (command == null || button == null)
@@ -641,6 +777,9 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
     {
         _pageManager.TouchLayoutChanged -= OnTouchLayoutChanged;
         _pageManager.TouchLayoutDrawn -= OnTouchLayoutDrawn;
+        if (_controller != null)
+            _controller.WheelModeChanged -= OnTouchLayoutChanged;
+        SubscribeWheelCanvas(null);
         StopLoop();
     }
 
