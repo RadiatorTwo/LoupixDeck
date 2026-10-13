@@ -1578,6 +1578,12 @@ public partial class LoupedeckLiveSController(
 
         if (deviceService.Device?.HasSideStrips != true) return;
 
+        // An open folder owns the strips (#378) and draws its own dials, so the rotary page's
+        // bindings say nothing about what they show. Without this every value refresh of a
+        // command bound on the frozen page repainted both folder strips, which a plugin
+        // refreshing several commands per knob detent turned into a flood of redraws (#435).
+        if (folderNav.IsActive) return;
+
         foreach (var side in new[] { RotarySide.Left, RotarySide.Right })
         {
             var page = pageManager.GetCurrentRotaryPage(side);
