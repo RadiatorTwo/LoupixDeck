@@ -66,6 +66,8 @@ Windows users have two download choices:
 - `LoupixDeck-Setup-win-x64.exe`: native Windows installer.
 - `LoupixDeck-win-x64.zip`: portable ZIP, useful when you do not want an installed app.
 
+On Windows on ARM devices (e.g. Surface Pro X, Snapdragon laptops), download `LoupixDeck-Setup-win-arm64.exe` or `LoupixDeck-win-arm64.zip` instead; the x64 build shows blank windows under emulation. An existing x64 installation can be updated with the ARM64 setup in place, and the in-app updater switches to the ARM64 setup automatically once a release provides one.
+
 For most users, use the installer:
 
 1. Download `LoupixDeck-Setup-win-x64.exe` from the latest GitHub release.
