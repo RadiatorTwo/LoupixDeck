@@ -18,7 +18,7 @@ public class WindowsKeyboardRouter(
     // InterceptionEnabled == null means "auto" → use Interception whenever the driver is
     // present; false means the user explicitly turned it off.
     private IUInputKeyboard Active =>
-        (config.InterceptionEnabled ?? true) && interception.IsDriverAvailable()
+        InterceptionService.IsSupported && (config.InterceptionEnabled ?? true) && interception.IsDriverAvailable()
             ? interception
             : sendInput;
 

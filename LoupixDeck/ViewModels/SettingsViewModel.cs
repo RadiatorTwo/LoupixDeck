@@ -124,6 +124,9 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
 
     public bool IsWindows => OperatingSystem.IsWindows();
 
+    /// <summary>Gates the Interception page: Windows only, and never on ARM64 (no driver exists for it).</summary>
+    public bool IsInterceptionSupported => InterceptionService.IsSupported;
+
     /// <summary>Gates the Linux-only Device Doctor page (issue #258).</summary>
     public bool IsLinux => OperatingSystem.IsLinux();
 
@@ -260,7 +263,7 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
         _ = Task.Run(RefreshDeviceInfoAsync);
 
         // Probe the Interception driver state (DLL API) off the UI thread; drives the page.
-        if (IsWindows)
+        if (IsInterceptionSupported)
             _ = Task.Run(RefreshInterceptionStatus);
 
         // Probe ffmpeg availability off the UI thread (the first probe can block briefly);
