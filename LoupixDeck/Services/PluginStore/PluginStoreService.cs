@@ -557,8 +557,11 @@ public sealed partial class PluginStoreService : ObservableObject, IPluginStoreS
         }
         else
         {
+            // A build that cannot load on this CPU architecture (an x64 install moved to ARM64) is replaced
+            // by the matching build of the same version, so it counts as an update too.
             Version current = PluginInstaller.ParseVersion(installedVersion);
-            status = compatible is not null && compatible.Version > current
+            bool wrongArchitecture = !PluginArchitecture.AllowsCurrent(installed.Manifest?.Architectures);
+            status = compatible is not null && (compatible.Version > current || wrongArchitecture)
                 ? PluginStoreStatus.UpdateAvailable
                 : PluginStoreStatus.Installed;
         }

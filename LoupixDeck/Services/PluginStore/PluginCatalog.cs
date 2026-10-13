@@ -1,4 +1,5 @@
 using LoupixDeck.Commands;
+using LoupixDeck.Services.Plugins;
 
 namespace LoupixDeck.Services.PluginStore;
 
@@ -83,10 +84,16 @@ public sealed class PluginCatalogEntry
 
     /// <summary>
     /// True when the catalog lists the running OS (or no platform at all), or when the published release ships
-    /// a build this system can install: its own platform's package or the platform-independent one.
+    /// a build this system can install: its own platform's package or the platform-independent one. False when
+    /// the release ships builds for this OS, but none for this CPU architecture.
     /// </summary>
     public bool SupportsCurrentPlatform()
     {
+        if (Release?.ExcludesCurrentArchitecture() == true)
+        {
+            return false;
+        }
+
         if (Platforms is not { Count: > 0 })
         {
             return true;
@@ -141,29 +148,58 @@ public sealed class PluginReleaseEntry
         : Tag;
 
     /// <summary>
-    /// The package to install on this machine: the build for the running OS (windows, linux or macos), else
-    /// the platform-independent one, else null when the release ships nothing for this system.
+    /// The package to install on this machine: the build for the running OS and CPU architecture (e.g.
+    /// <c>windows-arm64</c>), else the one for the running OS (<c>windows</c>, <c>linux</c> or <c>macos</c>),
+    /// else the platform-independent one, else null when the release ships nothing for this system. A package
+    /// whose <see cref="PluginPackageEntry.Architectures"/> leaves out this architecture is skipped.
     /// </summary>
     public PluginPackageEntry FindPackageForCurrentPlatform()
+    {
+        return FindPackage(CurrentOsPlatform, PluginArchitecture.Current);
+    }
+
+    /// <summary>
+    /// True when the release ships a build for this OS (or a platform-independent one), but every such build
+    /// leaves out this CPU architecture, e.g. an x64-only plugin on an ARM64 machine.
+    /// </summary>
+    public bool ExcludesCurrentArchitecture()
+    {
+        return Packages is { Count: > 0 }
+               && Packages.Any(p => p != null && (p.MatchesOs(CurrentOsPlatform) || p.Matches("any")))
+               && FindPackageForCurrentPlatform() is null;
+    }
+
+    internal PluginPackageEntry FindPackage(string os, string architecture)
     {
         if (Packages is not { Count: > 0 })
         {
             return null;
         }
 
-        string platform = OperatingSystem.IsWindows() ? "windows"
-            : OperatingSystem.IsMacOS() ? "macos"
-            : "linux";
-        return Packages.FirstOrDefault(p => p != null && p.Matches(platform))
-               ?? Packages.FirstOrDefault(p => p != null && p.Matches("any"));
+        return Packages.FirstOrDefault(p => p != null && p.Matches($"{os}-{architecture}"))
+               ?? Packages.FirstOrDefault(p => p != null && p.Matches(os) && p.Allows(architecture))
+               ?? Packages.FirstOrDefault(p => p != null && p.Matches("any") && p.Allows(architecture));
     }
+
+    private static string CurrentOsPlatform => OperatingSystem.IsWindows() ? "windows"
+        : OperatingSystem.IsMacOS() ? "macos"
+        : "linux";
 }
 
 /// <summary>One downloadable build of a release.</summary>
 public sealed class PluginPackageEntry
 {
-    /// <summary><c>windows</c>, <c>linux</c>, <c>macos</c> or <c>any</c>.</summary>
+    /// <summary>
+    /// <c>windows</c>, <c>linux</c>, <c>macos</c> or <c>any</c>, optionally with a CPU architecture
+    /// (<c>windows-arm64</c>). An app that predates architectures only knows the plain values and skips the others.
+    /// </summary>
     public string Platform { get; set; }
+
+    /// <summary>
+    /// CPU architectures the package runs on (<c>x64</c>, <c>arm64</c>). Optional: missing or empty means every
+    /// architecture. Lets the plain <c>windows</c> package stay the x64 build older apps install.
+    /// </summary>
+    public List<string> Architectures { get; set; } = [];
 
     public string FileName { get; set; }
 
@@ -175,6 +211,18 @@ public sealed class PluginPackageEntry
     public bool Matches(string platform)
     {
         return string.Equals(Platform, platform, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>True for <paramref name="os"/> itself and for any of its architecture-specific values.</summary>
+    public bool MatchesOs(string os)
+    {
+        return Matches(os) || (Platform?.StartsWith(os + "-", StringComparison.OrdinalIgnoreCase) == true);
+    }
+
+    /// <summary>True when <see cref="Architectures"/> allows <paramref name="architecture"/>.</summary>
+    public bool Allows(string architecture)
+    {
+        return PluginArchitecture.Allows(Architectures, architecture);
     }
 
     /// <summary>True when the entry carries everything needed to download and verify the package.</summary>
