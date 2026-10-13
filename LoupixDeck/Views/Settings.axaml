@@ -91,7 +91,7 @@
                             <TextBlock Grid.Column="2" Classes="nav-label" Text="{loc:Tr Settings_Screensaver}" />
                         </Grid>
                     </Button>
-                    <StackPanel IsVisible="{Binding IsWindows}">
+                    <StackPanel IsVisible="{Binding IsInterceptionSupported}">
                         <TextBlock Classes="section-header" Text="{loc:Tr Settings_INPUT}" />
                         <Button Classes="nav" Classes.active="{Binding CurrentView, Converter={StaticResource EnumToBooleanConverter}, ConverterParameter=Interception}"
                                 Command="{Binding NavigateCommand}" CommandParameter="{x:Static bs:SettingsView.Interception}">

@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO.Compression;
+using System.Runtime.InteropServices;
 using Newtonsoft.Json.Linq;
 
 namespace LoupixDeck.Services;
@@ -27,6 +28,15 @@ public interface IInterceptionService
 
 public class InterceptionService(InterceptionKeyboard interceptionKeyboard) : IInterceptionService
 {
+    /// <summary>
+    /// True on Windows x86/x64. Interception ships no ARM64 driver, and Windows on ARM64 cannot load an
+    /// x64 kernel driver: installed as a keyboard/mouse class filter it would leave those devices without
+    /// a working driver. The OS architecture decides, not the process one, so an x64 build running
+    /// emulated on ARM64 is excluded as well.
+    /// </summary>
+    public static bool IsSupported { get; } =
+        OperatingSystem.IsWindows() && RuntimeInformation.OSArchitecture is Architecture.X64 or Architecture.X86;
+
     private const string ReleaseApiUrl =
         "https://api.github.com/repos/oblitum/Interception/releases/latest";
 
