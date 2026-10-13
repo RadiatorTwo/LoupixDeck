@@ -558,10 +558,25 @@ public class LoupedeckDevice
 
                     if (item.ExpectResponse)
                     {
-                        // A previous command on this 1-byte id may have timed out without an
-                        // ACK; reclaim its CTS so the pool does not leak across the wrap.
+                        // A previous command on this 1-byte id may still wait for its ACK: the
+                        // device skips a DRAW ACK now and then (#149), and 255 commands fit into
+                        // its timeout under load. Its TCS is overwritten below, so finish it now.
+                        // Cancelling runs its timeout callback (success for a tolerated missing
+                        // ACK, TimeoutException otherwise). Resetting the CTS for the pool instead
+                        // dropped that callback, the command never completed, and the redraw
+                        // awaiting it held its gate forever (#435). A cancelled CTS cannot go back
+                        // into the pool anyway.
                         if (_pendingTimeouts.TryRemove(_transactionId, out CancellationTokenSource staleCts))
-                            ReturnTimeoutCts(staleCts);
+                        {
+                            staleCts.Cancel();
+                            staleCts.Dispose();
+                        }
+
+                        // Safety net for a stale command without a timeout; a no-op once the
+                        // callback above completed it.
+                        if (_pendingTransactions.TryRemove(_transactionId, out TaskCompletionSource<byte[]> staleTcs))
+                            staleTcs.TrySetException(new TimeoutException(
+                                $"Transaction id {_transactionId} was reused before its response arrived."));
 
                         _pendingTransactions[_transactionId] = item.Completion;
                         _pendingTimeouts[_transactionId] = item.TimeoutCts;
