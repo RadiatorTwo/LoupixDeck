@@ -9,8 +9,8 @@
     <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 
-    <!-- Windows-only native setup tool. -->
-    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <!-- Windows-only native setup tool. win-x64 by default; `-r win-arm64` builds the ARM64 setup. -->
+    <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == ''">win-x64</RuntimeIdentifier>
     <SelfContained>true</SelfContained>
 
     <!-- NativeAOT: single native exe, no .NET runtime dependency, fast start.
@@ -29,7 +29,7 @@
     <!-- Windows-only platform gate, mirroring the main app. -->
     <DefineConstants Condition="'$(OS)' == 'Windows_NT'">WINDOWS</DefineConstants>
 
-    <!-- This tool only ever builds/runs as win-x64, so the Windows-only Registry/COM/identity
+    <!-- This tool only ever builds/runs on Windows (win-x64 / win-arm64), so the Windows-only Registry/COM/identity
          APIs are always available; silence the platform-compatibility analyzer. -->
     <NoWarn>$(NoWarn);CA1416</NoWarn>
   </PropertyGroup>
