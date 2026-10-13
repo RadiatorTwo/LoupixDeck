@@ -11,12 +11,25 @@ permissions:
 # Plugins are not bundled: each plugin ships from its own repository through the in-app Plugin
 # Store (issue #234, plugin-store.json). The app release contains the app only.
 jobs:
+  # One leg per Windows architecture. ARM64 builds on a native ARM runner so the NativeAOT setup and
+  # uninstaller link with the host toolchain instead of cross-linking from x64 (issue #438).
   build-windows:
-    name: Build Windows
-    runs-on: windows-latest
+    name: Build Windows (${{ matrix.rid }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - rid: win-x64
+            runner: windows-latest
+            machine: '8664'
+          - rid: win-arm64
+            runner: windows-11-arm
+            machine: 'AA64'
 
     env:
       PROJECT_PATH: ./LoupixDeck/LoupixDeck.csproj
+      RID: ${{ matrix.rid }}
 
     steps:
       - name: Checkout repository
@@ -44,13 +57,13 @@ jobs:
 
       - name: Publish for Windows
         run: |
-          dotnet publish $env:PROJECT_PATH -c Release -r win-x64 --self-contained true `
+          dotnet publish $env:PROJECT_PATH -c Release -r $env:RID --self-contained true `
             /p:PublishSingleFile=true `
             /p:PublishTrimmed=false `
             /p:EnableCompressionInSingleFile=true `
             /p:ReadyToRun=true `
             /p:Version=$env:VERSION `
-            -o publish/win-x64
+            -o publish/$env:RID
 
       # Place the native renderer libs (Skia / HarfBuzz / ANGLE) loose next to the single-file exe.
       # The app self-extracts identical libs from its bundle, but a stray copy earlier on the DLL
@@ -60,57 +73,83 @@ jobs:
       # publish is used purely to let NuGet resolve the exact matching native versions.
       - name: Harvest native renderer libraries
         run: |
-          dotnet publish $env:PROJECT_PATH -c Release -r win-x64 --self-contained true `
+          dotnet publish $env:PROJECT_PATH -c Release -r $env:RID --self-contained true `
             /p:PublishSingleFile=false `
             /p:PublishTrimmed=false `
             /p:ReadyToRun=false `
             /p:Version=$env:VERSION `
-            -o publish/win-x64-natives
+            -o publish/$env:RID-natives
           $prefixes = 'libSkiaSharp', 'libHarfBuzzSharp', 'av_'
           $copied = 0
-          Get-ChildItem -Path publish/win-x64-natives -Filter *.dll | ForEach-Object {
+          Get-ChildItem -Path publish/$env:RID-natives -Filter *.dll | ForEach-Object {
             $name = $_.Name
             if ($prefixes | Where-Object { $name.StartsWith($_, [System.StringComparison]::OrdinalIgnoreCase) }) {
-              Copy-Item $_.FullName -Destination publish/win-x64 -Force
+              Copy-Item $_.FullName -Destination publish/$env:RID -Force
               $copied++
             }
           }
           if ($copied -eq 0) { throw "No native renderer libraries were harvested" }
-          Remove-Item publish/win-x64-natives -Recurse -Force
+          Remove-Item publish/$env:RID-natives -Recurse -Force
           Write-Host "Placed $copied native lib(s) in the payload root."
 
       - name: Zip Windows build
         run: |
-          Get-ChildItem -Path publish/win-x64 -Filter *.pdb -Recurse | Remove-Item -Force
-          Compress-Archive -Path publish/win-x64/* -DestinationPath LoupixDeck-win-x64.zip
+          Get-ChildItem -Path publish/$env:RID -Filter *.pdb -Recurse | Remove-Item -Force
+          Compress-Archive -Path publish/$env:RID/* -DestinationPath LoupixDeck-$env:RID.zip
 
       # Tiny native uninstaller (no payload) — embedded into the setup and written into the install dir.
       - name: Build uninstaller
         run: |
-          dotnet publish ./LoupixDeck.Uninstall/LoupixDeck.Uninstall.csproj -c Release -r win-x64 `
+          dotnet publish ./LoupixDeck.Uninstall/LoupixDeck.Uninstall.csproj -c Release -r $env:RID `
             /p:Version=$env:VERSION `
             -o publish/uninstall
 
       # Native single-exe installer (NativeAOT). The just-built zip IS the payload: its entries
       # (LoupixDeck.exe, ...) sit at the archive root, exactly what the installer's
-      # PayloadExtractor expects. windows-latest ships the MSVC toolchain ILC needs for AOT linking.
+      # PayloadExtractor expects. Both runners ship the MSVC toolchain ILC needs for AOT linking.
       - name: Build installer
         run: |
-          $payload = (Resolve-Path LoupixDeck-win-x64.zip).Path
+          $payload = (Resolve-Path LoupixDeck-$env:RID.zip).Path
           $uninstaller = (Resolve-Path publish/uninstall/LoupixDeck.Uninstall.exe).Path
-          dotnet publish ./LoupixDeck.Setup/LoupixDeck.Setup.csproj -c Release -r win-x64 `
+          dotnet publish ./LoupixDeck.Setup/LoupixDeck.Setup.csproj -c Release -r $env:RID `
             /p:Version=$env:VERSION `
             /p:PayloadZip=$payload `
             /p:UninstallerExe=$uninstaller `
             -o publish/setup
-          Copy-Item publish/setup/LoupixDeck.Setup.exe LoupixDeck-Setup-win-x64.exe -Force
+          Copy-Item publish/setup/LoupixDeck.Setup.exe "LoupixDeck-Setup-$env:RID.exe" -Force
+
+      # A wrong-architecture binary in the payload would install fine and then fail to start (or fall
+      # back to emulation), so check the PE machine type of every shipped executable and native lib.
+      - name: Verify PE machine type
+        run: |
+          $expected = [Convert]::ToUInt16('${{ matrix.machine }}', 16)
+          $files = @(Get-ChildItem -Path publish/$env:RID -Include *.exe, *.dll -Recurse) +
+            (Get-Item publish/uninstall/LoupixDeck.Uninstall.exe) +
+            (Get-Item "LoupixDeck-Setup-$env:RID.exe")
+          $bad = 0
+          foreach ($file in $files) {
+            $stream = [System.IO.File]::OpenRead($file.FullName)
+            try {
+              $reader = New-Object System.IO.BinaryReader($stream)
+              $stream.Position = 0x3C
+              $stream.Position = $reader.ReadInt32() + 4
+              $machine = $reader.ReadUInt16()
+            }
+            finally { $stream.Dispose() }
+            if ($machine -ne $expected) {
+              Write-Host ("::error::{0}: machine 0x{1:X4}, expected 0x{2:X4}" -f $file.FullName, $machine, $expected)
+              $bad++
+            }
+          }
+          if ($bad -gt 0) { throw "$bad binaries have the wrong machine type for $env:RID" }
+          Write-Host "Checked $($files.Count) binaries: all 0x${{ matrix.machine }}."
 
       - name: Upload Windows assets to release
         uses: softprops/action-gh-release@v3
         with:
           files: |
-            LoupixDeck-win-x64.zip
-            LoupixDeck-Setup-win-x64.exe
+            LoupixDeck-${{ matrix.rid }}.zip
+            LoupixDeck-Setup-${{ matrix.rid }}.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -163,7 +202,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   # The in-app updater (LoupixDeck/Services/Updates) finds its download by the fixed asset names
-  # LoupixDeck-Setup-win-x64.exe and install-loupixdeck.sh and verifies it against the SHA-256
+  # LoupixDeck-Setup-win-x64.exe, LoupixDeck-Setup-win-arm64.exe and install-loupixdeck.sh and verifies it against the SHA-256
   # digest GitHub records for every release asset. Keep the names stable.
   publish-install-script:
     name: Publish install script
