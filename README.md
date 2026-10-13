@@ -55,6 +55,11 @@ Download the latest release and choose one of these packages:
 | --- | --- |
 | `LoupixDeck-Setup-win-x64.exe` | Normal installation |
 | `LoupixDeck-win-x64.zip` | Portable use |
+| `LoupixDeck-Setup-win-arm64.exe` | Normal installation on Windows on ARM |
+| `LoupixDeck-win-arm64.zip` | Portable use on Windows on ARM |
+
+On Windows on ARM devices (e.g. Surface Pro X, Snapdragon laptops) use the `arm64` packages: the x64 build
+shows blank windows under emulation. The in-app updater picks the matching setup automatically.
 
 For the portable version, extract the archive and run `LoupixDeck.exe`.
 

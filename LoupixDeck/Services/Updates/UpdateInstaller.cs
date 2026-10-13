@@ -1,3 +1,5 @@
+using System.Runtime.InteropServices;
+
 namespace LoupixDeck.Services.Updates;
 
 /// <summary>How this installation can be updated.</summary>
@@ -44,6 +46,7 @@ public interface IUpdateInstaller
 public sealed class UpdateInstaller : IUpdateInstaller
 {
     public const string WindowsSetupAsset = "LoupixDeck-Setup-win-x64.exe";
+    public const string WindowsSetupArm64Asset = "LoupixDeck-Setup-win-arm64.exe";
     public const string LinuxScriptAsset = "install-loupixdeck.sh";
 
     /// <summary>Written next to LoupixDeck.exe by LoupixDeck-Setup (LoupixDeck.Setup/Services/AppPaths.cs).</summary>
@@ -64,14 +67,12 @@ public sealed class UpdateInstaller : IUpdateInstaller
     public async Task<UpdateInstallResult> InstallAsync(ReleaseInfo release, IProgress<double> progress,
         CancellationToken cancellationToken)
     {
-        string assetName = Mode switch
+        ReleaseAsset installer = Mode switch
         {
-            UpdateInstallMode.WindowsSetup => WindowsSetupAsset,
-            UpdateInstallMode.LinuxScript => LinuxScriptAsset,
+            UpdateInstallMode.WindowsSetup => FindWindowsSetup(release),
+            UpdateInstallMode.LinuxScript => release.FindAsset(LinuxScriptAsset),
             _ => null
         };
-
-        ReleaseAsset installer = assetName is null ? null : release.FindAsset(assetName);
         if (Mode == UpdateInstallMode.LinuxScript && installer?.Sha256 is null)
         {
             // Releases published before the script became a release asset: run the same script a
@@ -129,6 +130,43 @@ public sealed class UpdateInstaller : IUpdateInstaller
         {
             return Fail(ex.Message);
         }
+    }
+
+    /// <summary>
+    /// The first verifiable setup for this machine, or null. An ARM64 process never falls back to the
+    /// x64 setup: it renders blank windows under emulation, so the release page is the better outcome.
+    /// </summary>
+    private static ReleaseAsset FindWindowsSetup(ReleaseInfo release)
+    {
+        Architecture process = RuntimeInformation.ProcessArchitecture;
+        Architecture os = RuntimeInformation.OSArchitecture;
+        foreach (string name in WindowsSetupCandidates(process, os))
+        {
+            ReleaseAsset asset = release.FindAsset(name);
+            if (asset?.Sha256 is not null)
+            {
+                Console.WriteLine($"[Update] Using {name} (process {process}, OS {os}).");
+                return asset;
+            }
+        }
+
+        Console.WriteLine($"[Update] {release.Tag} has no setup for process {process}, OS {os}.");
+        return null;
+    }
+
+    /// <summary>
+    /// Setup asset names to try, in order. An x64 process on an ARM64 OS prefers the ARM64 setup so an
+    /// emulated install migrates to the native build once a release ships one.
+    /// </summary>
+    internal static string[] WindowsSetupCandidates(Architecture process, Architecture os)
+    {
+        if (process == Architecture.Arm64)
+            return [WindowsSetupArm64Asset];
+
+        if (process == Architecture.X64 && os == Architecture.Arm64)
+            return [WindowsSetupArm64Asset, WindowsSetupAsset];
+
+        return [WindowsSetupAsset];
     }
 
     private static UpdateInstallResult OpenReleasePage(ReleaseInfo release)

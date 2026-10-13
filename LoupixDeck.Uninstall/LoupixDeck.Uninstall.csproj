@@ -8,8 +8,9 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 
-    <!-- Tiny native uninstaller: no Avalonia/Skia, just Win32 message boxes. -->
-    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <!-- Tiny native uninstaller: no Avalonia/Skia, just Win32 message boxes.
+         win-x64 by default; `-r win-arm64` builds the ARM64 uninstaller. -->
+    <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == ''">win-x64</RuntimeIdentifier>
     <SelfContained>true</SelfContained>
     <PublishAot>true</PublishAot>
     <InvariantGlobalization>true</InvariantGlobalization>
