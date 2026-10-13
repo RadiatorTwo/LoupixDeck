@@ -1234,6 +1234,7 @@
   "Plugins_StatusLoaded": "Loaded",
   "Plugins_StatusDisabled": "Disabled",
   "Plugins_StatusIncompatible": "Needs a different SDK version",
+  "Plugins_ArchitectureUnsupportedFmt": "This build of the plugin runs on {0} only, not on {1}. Install the build for this system from the Plugin Store.",
   "Plugins_StatusFailed": "Failed to load",
   "Plugins_StatusRestart": "Restart required",
   "Plugins_InstalledCount": "Installed · {0}",

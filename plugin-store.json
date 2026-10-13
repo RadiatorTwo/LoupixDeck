@@ -710,6 +710,7 @@
         "packages": [
           {
             "platform": "windows",
+            "architectures": [ "x64" ],
             "fileName": "voicemeeter-1.3.0-windows.zip",
             "downloadUrl": "https://github.com/vividflash/LoupixDeck.Plugin.Voicemeeter/releases/download/v1.3.0/voicemeeter-1.3.0-windows.zip",
             "sha256": "e5dcc584b0ae080e414b9e73175de8407fc806023178c7529776c312b0783059"

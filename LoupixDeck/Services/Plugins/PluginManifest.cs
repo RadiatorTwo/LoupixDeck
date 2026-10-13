@@ -24,6 +24,12 @@ public sealed class PluginManifest
     /// <summary>"All", "Windows", "Linux" or "macOS" — the OS the plugin supports.</summary>
     public string Platform { get; set; } = "All";
 
+    /// <summary>
+    /// CPU architectures the build runs on (<c>x64</c>, <c>arm64</c>), e.g. when it loads an x64-only
+    /// native library. Optional: missing or empty means every architecture.
+    /// </summary>
+    public List<string> Architectures { get; set; } = [];
+
     // ───────── Display metadata (all optional; older manifests omit them) ─────────
 
     /// <summary>Plugin author / publisher, shown in the plugin manager.</summary>

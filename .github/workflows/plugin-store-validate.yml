@@ -134,6 +134,22 @@ jobs:
                 continue
               fi
 
+              # The app installs a package for every architecture the list allows it on and then loads it by
+              # the architectures in its plugin.json. A manifest stricter than the list would leave a build
+              # that never loads and is offered as an update forever, so the manifest must allow every
+              # architecture the list does. An empty list means every architecture.
+              case "$platform" in
+                *-*) list_arch="[\"${platform#*-}\"]" ;;
+                *) list_arch=$(jq -c '.architectures // []' <<<"$package") ;;
+              esac
+              manifest_arch=$(jq -c '.architectures // []' package-manifest.json)
+              if ! jq -e -n --argjson list "$list_arch" --argjson manifest "$manifest_arch" \
+                  '($manifest | length) == 0 or (($list | length) > 0 and ($list - $manifest | length) == 0)' > /dev/null; then
+                echo "✗ $id: $file runs on ${manifest_arch} by its plugin.json, the list allows ${list_arch} (empty = every architecture)." >&2
+                failed=1
+                continue
+              fi
+
               echo "✓ $id $version ($platform): downloaded, checksum and manifest match."
               rm -f package.zip package-manifest.json
             done < <(jq -c '.release.packages[]' <<<"$entry")

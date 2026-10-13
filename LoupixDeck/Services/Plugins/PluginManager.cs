@@ -526,6 +526,21 @@ public class PluginManager : IPluginManager
             };
         }
 
+        // Architecture gate — a build with x64-only native code cannot load into an ARM64 process.
+        // Unlike the platform gate the plugin stays listed: an x64 install moved to ARM64 keeps its
+        // plugins folder, and the user has to see why one stopped working to replace or remove it.
+        if (!PluginArchitecture.AllowsCurrent(manifest.Architectures))
+        {
+            return new LoadedPlugin
+            {
+                Manifest = manifest,
+                Directory = dir,
+                Status = PluginLoadStatus.Disabled,
+                FailureReason = Loc.Tr("Plugins_ArchitectureUnsupportedFmt",
+                    string.Join(", ", manifest.Architectures), PluginArchitecture.Current)
+            };
+        }
+
         // SDK compatibility — the major version must match the host SDK.
         if (!Version.TryParse(manifest.SdkVersion, out var pluginSdk))
         {

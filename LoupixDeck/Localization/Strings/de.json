@@ -1234,6 +1234,7 @@
   "Plugins_StatusLoaded": "Geladen",
   "Plugins_StatusDisabled": "Deaktiviert",
   "Plugins_StatusIncompatible": "Benötigt eine andere SDK-Version",
+  "Plugins_ArchitectureUnsupportedFmt": "Diese Version des Plugins läuft nur auf {0}, nicht auf {1}. Installiere die passende Version aus dem Plugin-Store.",
   "Plugins_StatusFailed": "Laden fehlgeschlagen",
   "Plugins_StatusRestart": "Neustart erforderlich",
   "Plugins_InstalledCount": "Installiert · {0}",
