@@ -201,6 +201,13 @@ public sealed class PluginInstaller : IPluginInstaller
             return PluginActionResult.Fail(Loc.Tr("Plugin_IncompatibleSdk", pluginSdk, SdkInfo.Version));
         }
 
+        // The loader would refuse it anyway; installing it would only replace a working build.
+        if (!PluginArchitecture.AllowsCurrent(manifest.Architectures))
+        {
+            return PluginActionResult.Fail(Loc.Tr("Plugins_ArchitectureUnsupportedFmt",
+                string.Join(", ", manifest.Architectures), PluginArchitecture.Current));
+        }
+
         if (!File.Exists(Path.Combine(contentRoot, manifest.EntryAssembly)))
         {
             return PluginActionResult.Fail(Loc.Tr("Plugin_EntryAssemblyMissing", manifest.EntryAssembly));
