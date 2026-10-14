@@ -800,6 +800,32 @@
           }
         ]
       }
+    },
+    {
+      "id": "wled",
+      "name": "WLED",
+      "description": "Control WLED LED controllers: power, brightness, presets, effects and palettes, with dials and a preset browser.",
+      "author": "RadiatorTwo",
+      "repository": "RadiatorTwo/LoupixDeck.Plugin.WLED",
+      "icon": "https://raw.githubusercontent.com/RadiatorTwo/LoupixDeck.Plugin.WLED/master/icon.png",
+      "platforms": [ "Windows", "Linux", "macOS" ],
+      "minSdkVersion": "1.33.0",
+      "commandPrefixes": [ "Wled." ],
+      "release": {
+        "version": "1.0.0",
+        "tag": "v1.0.0",
+        "publishedAt": "2026-10-14T21:13:32Z",
+        "sdkVersion": "1.33",
+        "releaseNotesUrl": "https://github.com/RadiatorTwo/LoupixDeck.Plugin.WLED/releases/tag/v1.0.0",
+        "packages": [
+          {
+            "platform": "any",
+            "fileName": "wled-1.0.0-any.zip",
+            "downloadUrl": "https://github.com/RadiatorTwo/LoupixDeck.Plugin.WLED/releases/download/v1.0.0/wled-1.0.0-any.zip",
+            "sha256": "bd19f19311f3cbfb711c81426728ff4f729dc6ef7d03593c1b5e7c3dad8ccf2f"
+          }
+        ]
+      }
     }
   ]
 }
