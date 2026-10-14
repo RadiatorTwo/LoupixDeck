@@ -38,6 +38,31 @@ public partial class LoupedeckLiveSController
 
     private readonly TouchTransition _touchTransition = new();
 
+    // Slides committed on the UI thread whose incoming grid is still rendering, so the transition
+    // is not armed yet. Together with TouchTransition.Active this spans a slide from commit to
+    // final frame.
+    private int _touchSlidesPending;
+
+    // Set (1) when the screen must be repainted once the slide lands, because a key of the page
+    // changed mid-slide or a newer page was committed. Written with Interlocked on both threads:
+    // each side writes its flag and then reads the other's, so at least one of them repaints.
+    private int _touchSlideRepaintNeeded;
+
+    /// <summary>True from the moment a slide commits its page until its final frame (or abort).</summary>
+    private bool TouchSlideInFlight =>
+        Volatile.Read(ref _touchSlidesPending) > 0 || Volatile.Read(ref _touchTransition.Active);
+
+    /// <summary>
+    /// Called instead of painting a key, or a newer page, while a slide is in flight: the slide
+    /// repaints the page when it lands. Returns false when the slide landed meanwhile, in which
+    /// case the caller paints after all.
+    /// </summary>
+    private bool DeferTouchPaintToSlide()
+    {
+        Interlocked.Exchange(ref _touchSlideRepaintNeeded, 1);
+        return TouchSlideInFlight;
+    }
+
     // The slide's frame, drawn over in full for every step instead of being allocated per frame,
     // and freed when the slide ends. Only touched on the scheduler thread, which never overlaps
     // frames for this source.
@@ -133,8 +158,22 @@ public partial class LoupedeckLiveSController
         {
             try
             {
-                if (!TouchAnimationApplicable() || _touchTransition.Active
-                    || targetIndex == pageManager.CurrentTouchPageIndex)
+                if (targetIndex == pageManager.CurrentTouchPageIndex)
+                    return;
+
+                // A page change while a slide is in flight only moves the page state on. Painting
+                // it now would race the slide, whose frames and final grid would then land on top
+                // and leave a mix of both pages on screen while presses already hit the new page.
+                // The slide repaints the page that is current when it lands.
+                if (TouchSlideInFlight)
+                {
+                    await pageManager.ApplyTouchPage(targetIndex, draw: false);
+                    if (!DeferTouchPaintToSlide())
+                        await RedrawCurrentTouchPage();
+                    return;
+                }
+
+                if (!TouchAnimationApplicable())
                 {
                     await pageManager.ApplyTouchPage(targetIndex);
                     return;
@@ -148,6 +187,10 @@ public partial class LoupedeckLiveSController
                 var outgoing = ComposeCurrentTouchGrid(columns, rows);
 
                 // Commit page state only (no device paint) so the incoming page is now current.
+                // Counted as in flight first: the commit re-renders the page's dynamic keys, and
+                // those per-key paints must wait for the slide too.
+                Interlocked.Exchange(ref _touchSlideRepaintNeeded, 0);
+                Interlocked.Increment(ref _touchSlidesPending);
                 await pageManager.ApplyTouchPage(targetIndex, draw: false);
 
                 var overlayName = !_screensaverActive && config.ShowPageNameOverlayEnabled
@@ -161,9 +204,11 @@ public partial class LoupedeckLiveSController
                     {
                         var incoming = RenderTouchGridForCurrentPage(columns, rows);
                         BeginTouchTransition(outgoing, incoming, direction, overlayName);
+                        Interlocked.Decrement(ref _touchSlidesPending);
                     }
                     catch (Exception ex)
                     {
+                        Interlocked.Decrement(ref _touchSlidesPending);
                         outgoing?.Dispose();
                         Console.WriteLine($"Touch page transition render failed: {ex.Message}");
                         // The page was already committed (draw:false) but nothing was painted —
@@ -176,7 +221,16 @@ public partial class LoupedeckLiveSController
             catch (Exception ex)
             {
                 Console.WriteLine($"Touch page transition failed: {ex.Message}");
-                try { await pageManager.ApplyTouchPage(targetIndex); } catch { /* best effort */ }
+                try
+                {
+                    // Nothing armed a slide, so nothing would paint the committed page.
+                    Volatile.Write(ref _touchSlidesPending, 0);
+                    if (targetIndex == pageManager.CurrentTouchPageIndex)
+                        await RedrawCurrentTouchPage();
+                    else
+                        await pageManager.ApplyTouchPage(targetIndex);
+                }
+                catch { /* best effort */ }
             }
         });
     }
@@ -230,7 +284,7 @@ public partial class LoupedeckLiveSController
         tr.Target = direction < 0 ? -outgoing.Width : outgoing.Width;
         tr.OverlayPageName = overlayName;
         tr.StartTimestamp = Stopwatch.GetTimestamp();
-        tr.Active = true;
+        Volatile.Write(ref tr.Active, true);
 
         _touchAnimationSource ??= new TouchAnimationSource(this);
         animationScheduler.RequestFrame(_touchAnimationSource);
@@ -288,16 +342,22 @@ public partial class LoupedeckLiveSController
             {
                 // Final frame: the incoming grid exactly, at rest.
                 await PushTouchGrid(incoming);
-                tr.Active = false;
                 tr.Outgoing = null;
                 tr.Incoming = null;
                 outgoing.Dispose();
                 incoming.Dispose();
                 ReleaseTouchSlideFrame();
 
-                // The incoming grid was rendered before the slide began; keys whose value arrived
-                // since were just painted over, so let their owners repaint them.
-                pageManager.NotifyTouchLayoutDrawn();
+                // The incoming grid was rendered before the slide began. A key that changed since,
+                // or a page committed during the slide, was held back for this moment: paint the
+                // current page in full rather than leave the stale grid standing. The exchange is
+                // a full fence, so a deferral racing this landing either sees Active false and
+                // paints itself, or is seen here.
+                Volatile.Write(ref tr.Active, false);
+                if (Interlocked.Exchange(ref _touchSlideRepaintNeeded, 0) == 1)
+                    Avalonia.Threading.Dispatcher.UIThread.Post(() => _ = RedrawCurrentTouchPage());
+                else
+                    pageManager.NotifyTouchLayoutDrawn();
 
                 var name = tr.OverlayPageName;
                 tr.OverlayPageName = null;
