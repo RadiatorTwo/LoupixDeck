@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.IO.Hashing;
 using System.Threading;
+using LoupixDeck.Localization;
 using LoupixDeck.LoupedeckDevice;
 using LoupixDeck.Models;
 using LoupixDeck.Models.Extensions;
@@ -3588,10 +3589,22 @@ public partial class LoupedeckLiveSController(
     /// <summary>
     /// Renders the on-screen image of an LED button. The Loupedeck Live and the Razer Stream
     /// Controller print a ring with a centre dot on their first round button and 1–7 on the
-    /// rest, the Loupedeck CT prints 1–8; other devices and buttons get the generic ring.
+    /// rest, the Loupedeck CT prints 1–8; other devices and buttons get the generic ring. The
+    /// CT's square named keys are drawn as key caps with their own printed legend.
     /// </summary>
     private Avalonia.Media.Imaging.Bitmap RenderSimpleButton(SimpleButton button)
     {
+        if (button.Id is >= Constants.ButtonType.CT_HOME and <= Constants.ButtonType.CT_E)
+        {
+            var text = button.Id switch
+            {
+                Constants.ButtonType.CT_UNDO => Loc.Tr("VirtualDevice_ButtonUndo"),
+                Constants.ButtonType.CT_SAVE => Loc.Tr("VirtualDevice_ButtonSave"),
+                _ => null
+            };
+            return BitmapHelper.RenderNamedButtonImage(button, 90, 90, text);
+        }
+
         int? legend = null;
         if (button.Id is >= Constants.ButtonType.BUTTON0 and <= Constants.ButtonType.BUTTON7)
         {
@@ -3656,7 +3669,8 @@ public partial class LoupedeckLiveSController(
     /// <summary>
     /// Re-renders the baked simple-button images for the current theme. Called when the
     /// app theme variant changes so the LED/RGB button plastic follows Light/Dark. The
-    /// device LED colours are unaffected (they're device state, not chrome). Must run on
+    /// device LED colours are unaffected (they're device state, not chrome). Also called when
+    /// the UI language changes, since the CT's Undo and Save keys print a translated word. Must run on
     /// the UI thread — it assigns RenderedImage, which the UI binds to.
     /// </summary>
     public void RefreshRenderedButtonChrome()

@@ -460,6 +460,7 @@ public partial class MainWindowViewModel : ViewModelBase
         // whose bitmaps bake in their colours and so can't react to DynamicResource.
         if (Avalonia.Application.Current is { } currentApp)
             currentApp.ActualThemeVariantChanged += OnThemeVariantChanged;
+        LocalizationManager.Instance.PropertyChanged += OnLanguageChanged;
     }
 
     /// <summary>
@@ -472,6 +473,7 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         if (Avalonia.Application.Current is { } app)
             app.ActualThemeVariantChanged -= OnThemeVariantChanged;
+        LocalizationManager.Instance.PropertyChanged -= OnLanguageChanged;
         _exclusiveMode.StateChanged -= OnExclusiveModeStateChanged;
         _workspaceActivation.ActiveProfileChanged -= OnActiveProfileChanged;
         _workspaceActivation.ActiveWorkspaceChanged -= OnActiveWorkspaceChanged;
@@ -559,6 +561,10 @@ public partial class MainWindowViewModel : ViewModelBase
             LoupedeckController.RefreshRenderedButtonChrome();
         });
     }
+
+    // The CT's Undo and Save keys print a translated word into their baked bitmaps.
+    private void OnLanguageChanged(object sender, System.ComponentModel.PropertyChangedEventArgs e) =>
+        Avalonia.Threading.Dispatcher.UIThread.Post(LoupedeckController.RefreshRenderedButtonChrome);
 
     private void OnExclusiveModeStateChanged()
     {

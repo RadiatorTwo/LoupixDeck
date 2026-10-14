@@ -3,6 +3,7 @@ using Avalonia;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
+using LoupixDeck.LoupedeckDevice;
 using LoupixDeck.Models;
 using LoupixDeck.Models.Layers;
 using SkiaSharp;
@@ -273,6 +274,328 @@ public static class BitmapHelper
             scale => RenderSimpleButtonImage(simpleButton, width, height, legend, (float)(supersample * scale), light));
 
         return result;
+    }
+
+    /// <summary>
+    /// Renders one of the Loupedeck CT's square named keys (Home, Undo, Keyboard, Enter, Save,
+    /// Fn, A–E): a flat key cap with the legend printed on the real device, drawn in the lower
+    /// half of the cap as on the hardware. An unlit key shows the legend as plain print; a key
+    /// with a colour lights its legend in that colour, like the round buttons' printed legends.
+    /// <paramref name="text"/> is the word printed on the Undo and Save keys, passed in so the
+    /// caller can translate it; the other legends are icons or letters and ignore it.
+    /// </summary>
+    public static Bitmap RenderNamedButtonImage(SimpleButton simpleButton, int width, int height,
+        string text = null, float supersample = 2f, bool? lightTheme = null)
+    {
+        ArgumentNullException.ThrowIfNull(simpleButton);
+
+        // Resolved on the caller's thread: the preview recipe below runs off the UI thread.
+        var light = lightTheme ?? IsLightTheme;
+
+        var ss = supersample;
+        var w = (int)Math.Round(width * ss);
+        var h = (int)Math.Round(height * ss);
+        var info = new SKImageInfo(w, h, SKColorType.Bgra8888, SKAlphaType.Unpremul);
+
+        Bitmap result;
+
+        lock (SkiaRenderGate.Sync)
+        {
+            using var surface = new SKBitmap(info);
+            using (var canvas = new SKCanvas(surface))
+            {
+                canvas.Clear(SKColors.Transparent);
+
+                // Room around the cap for its seating shadow, so its blurred edge is not clipped
+                // at the bitmap edge (a hard line on a light background).
+                var inset = 7f * ss;
+                var face = new SKRect(inset, inset, w - inset, h - inset);
+                var size = Math.Min(face.Width, face.Height);
+                var corner = size * 0.08f;
+
+                // 1. Seating shadow.
+                using (SKMaskFilter shadowBlur = SKMaskFilter.CreateBlur(SKBlurStyle.Normal, 2.5f * ss))
+                using (var shadow = new SKPaint
+                       {
+                           IsAntialias = true,
+                           Color = new SKColor(0, 0, 0, (byte)(light ? 100 : 175)),
+                           MaskFilter = shadowBlur
+                       })
+                {
+                    SKRect shadowRect = face;
+                    shadowRect.Offset(0, 2f * ss);
+                    canvas.DrawRoundRect(shadowRect, corner, corner, shadow);
+                }
+
+                // 2. Cap face: the same near-flat plastic as the round buttons.
+                SKColor[] bodyColors = light
+                    ? [new SKColor(0xE2, 0xE2, 0xE2), new SKColor(0xD0, 0xD0, 0xD0)]
+                    : [new SKColor(0x33, 0x33, 0x33), new SKColor(0x29, 0x29, 0x29)];
+                using (var bodyShader = SKShader.CreateLinearGradient(
+                           new SKPoint(0, face.Top), new SKPoint(0, face.Bottom),
+                           bodyColors, [0f, 1f], SKShaderTileMode.Clamp))
+                using (var body = new SKPaint { IsAntialias = true, Shader = bodyShader })
+                {
+                    canvas.DrawRoundRect(face, corner, corner, body);
+                }
+
+                // 3. Bevel rim: bright top edge fading to a dark bottom edge.
+                var rimWidth = 1.5f * ss;
+                using (var rimShader = SKShader.CreateLinearGradient(
+                           new SKPoint(0, face.Top), new SKPoint(0, face.Bottom),
+                           [new SKColor(0xFF, 0xFF, 0xFF, 55), new SKColor(0x00, 0x00, 0x00, 110)],
+                           [0f, 1f], SKShaderTileMode.Clamp))
+                using (var rim = new SKPaint
+                       {
+                           IsAntialias = true,
+                           Style = SKPaintStyle.Stroke,
+                           StrokeWidth = rimWidth,
+                           Shader = rimShader
+                       })
+                {
+                    SKRect rimRect = face;
+                    rimRect.Inflate(-rimWidth / 2f, -rimWidth / 2f);
+                    canvas.DrawRoundRect(rimRect, corner, corner, rim);
+                }
+
+                // 4. Legend. Line icons go in strokes, letters and solid shapes in fills.
+                using var strokes = new SKPathBuilder();
+                using var fills = new SKPathBuilder();
+                AddNamedKeyLegend(strokes, fills, simpleButton.Id, text, face);
+                using SKPath strokePath = strokes.Detach();
+                using SKPath fillPath = fills.Detach();
+
+                var lineWidth = size * 0.028f;
+
+                void DrawLegend(SKPaint paint, float width)
+                {
+                    paint.Style = SKPaintStyle.Stroke;
+                    paint.StrokeWidth = width;
+                    canvas.DrawPath(strokePath, paint);
+                    // A glow pass grows the fills by the extra stroke width; the core fills exactly.
+                    paint.Style = width > lineWidth ? SKPaintStyle.StrokeAndFill : SKPaintStyle.Fill;
+                    paint.StrokeWidth = width - lineWidth;
+                    canvas.DrawPath(fillPath, paint);
+                }
+
+                SKColor ledColor = simpleButton.ButtonColor.ToSKColor();
+                var maxChannel = Math.Max(ledColor.Red, Math.Max(ledColor.Green, ledColor.Blue));
+                var lit = ledColor.Alpha >= 8 && maxChannel >= 24;
+
+                if (lit)
+                {
+                    using (SKMaskFilter haloBlur = SKMaskFilter.CreateBlur(SKBlurStyle.Normal, 2.5f * ss))
+                    using (var halo = new SKPaint
+                           {
+                               IsAntialias = true,
+                               StrokeCap = SKStrokeCap.Round,
+                               StrokeJoin = SKStrokeJoin.Round,
+                               Color = ledColor.WithAlpha(60),
+                               MaskFilter = haloBlur
+                           })
+                    {
+                        DrawLegend(halo, lineWidth * 2.4f);
+                    }
+
+                    using (SKMaskFilter innerGlowBlur = SKMaskFilter.CreateBlur(SKBlurStyle.Normal, 1f * ss))
+                    using (var innerGlow = new SKPaint
+                           {
+                               IsAntialias = true,
+                               StrokeCap = SKStrokeCap.Round,
+                               StrokeJoin = SKStrokeJoin.Round,
+                               Color = ledColor.WithAlpha(110),
+                               MaskFilter = innerGlowBlur
+                           })
+                    {
+                        DrawLegend(innerGlow, lineWidth * 1.5f);
+                    }
+                }
+
+                using (var core = new SKPaint
+                       {
+                           IsAntialias = true,
+                           StrokeCap = SKStrokeCap.Round,
+                           StrokeJoin = SKStrokeJoin.Round,
+                           // Lightened toward white it reads as lit on a dark cap but washes out on a light one.
+                           Color = lit
+                               ? light ? ledColor.WithAlpha(255) : MixToWhite(ledColor.WithAlpha(255), 0.45f)
+                               : light ? new SKColor(0x4A, 0x4A, 0x4A) : new SKColor(0xD2, 0xD2, 0xD2)
+                       })
+                {
+                    DrawLegend(core, lineWidth);
+                }
+            }
+
+            var pixels = surface.GetPixels();
+            result = new Bitmap(
+                PixelFormat.Bgra8888,
+                AlphaFormat.Unpremul,
+                pixels,
+                new PixelSize(w, h),
+                new Vector(96, 96),
+                surface.RowBytes);
+            GC.KeepAlive(surface);
+        }
+
+        PreviewRecipes.Register(result,
+            scale => RenderNamedButtonImage(simpleButton, width, height, text, (float)(supersample * scale), light));
+
+        return result;
+    }
+
+    /// <summary>
+    /// Adds the legend printed on a CT named key to <paramref name="strokes"/> (line icons) and
+    /// <paramref name="fills"/> (letters, arrows, the lock body), laid out on the key's
+    /// <paramref name="face"/> as on the device: one line of legend in the lower half, with the
+    /// arrow keys' triangle and the Fn keys' word on the left and their letter or lock on the right.
+    /// </summary>
+    private static void AddNamedKeyLegend(SKPathBuilder strokes, SKPathBuilder fills,
+        Constants.ButtonType id, string text, SKRect face)
+    {
+        var u = Math.Min(face.Width, face.Height);
+        SKPoint P(float x, float y) => new(face.Left + (x * face.Width), face.Top + (y * face.Height));
+
+        // Centre line of the legend row and the cap height of its letters.
+        const float row = 0.68f;
+        var capHeight = u * 0.15f;
+
+        void Text(string value, float x, SKTextAlign align)
+        {
+            if (string.IsNullOrEmpty(value)) return;
+
+            SKTypeface typeface = GetTextTypeface(false, false);
+            using var font = new SKFont(typeface, capHeight / 0.72f) { Subpixel = true };
+            var cap = font.Metrics.CapHeight;
+            if (cap > 0f)
+                font.Size *= capHeight / cap;
+
+            // A long translated word shrinks to stay on the cap.
+            var maxWidth = u * 0.84f;
+            var textWidth = font.MeasureText(value);
+            if (textWidth > maxWidth)
+            {
+                font.Size *= maxWidth / textWidth;
+                textWidth = maxWidth;
+            }
+
+            var left = align switch
+            {
+                SKTextAlign.Center => P(x, 0).X - (textWidth / 2f),
+                SKTextAlign.Right => P(x, 0).X - textWidth,
+                _ => P(x, 0).X
+            };
+            var baseline = P(0, row).Y + (font.Metrics.CapHeight / 2f);
+            using SKPath path = font.GetTextPath(value, new SKPoint(left, baseline));
+            fills.AddPath(path, SKPathAddMode.Append);
+        }
+
+        void Triangle(SKPoint a, SKPoint b, SKPoint c) => fills.AddPoly([a, b, c], true);
+
+        // Arrow triangle centred at x on the legend row, pointing the given way.
+        void Arrow(float x, int dx, int dy)
+        {
+            var c = P(x, row);
+            var r = u * 0.075f;
+            if (dy != 0)
+                Triangle(new SKPoint(c.X, c.Y + (dy * r)),
+                    new SKPoint(c.X - (r * 1.15f), c.Y - (dy * r * 0.8f)),
+                    new SKPoint(c.X + (r * 1.15f), c.Y - (dy * r * 0.8f)));
+            else
+                Triangle(new SKPoint(c.X + (dx * r), c.Y),
+                    new SKPoint(c.X - (dx * r * 0.8f), c.Y - (r * 1.15f)),
+                    new SKPoint(c.X - (dx * r * 0.8f), c.Y + (r * 1.15f)));
+        }
+
+        // Padlock centred at x: a solid body under an open-bottomed shackle.
+        void Lock(float x)
+        {
+            var c = P(x, row);
+            var bw = u * 0.11f;
+            var bh = u * 0.085f;
+            var bodyTop = c.Y - (bh * 0.25f);
+            fills.AddRoundRect(new SKRect(c.X - (bw / 2f), bodyTop, c.X + (bw / 2f), bodyTop + bh),
+                u * 0.012f, u * 0.012f, SKPathDirection.Clockwise);
+            var sr = bw * 0.3f;
+            var shackleTop = bodyTop - (u * 0.075f);
+            strokes.MoveTo(c.X - sr, bodyTop);
+            strokes.LineTo(c.X - sr, shackleTop + sr);
+            strokes.ArcTo(new SKRect(c.X - sr, shackleTop, c.X + sr, shackleTop + (2f * sr)), 180f, 180f, false);
+            strokes.LineTo(c.X + sr, bodyTop);
+        }
+
+        switch (id)
+        {
+            case Constants.ButtonType.CT_HOME:
+                strokes.AddCircle(P(0.5f, row).X, P(0.5f, row).Y, u * 0.08f);
+                break;
+            case Constants.ButtonType.CT_ENTER:
+            {
+                // Return arrow: down from the top right, then left into an arrow head.
+                SKPoint top = P(0.62f, row - 0.075f);
+                SKPoint corner = P(0.62f, row + 0.035f);
+                SKPoint tip = P(0.37f, row + 0.035f);
+                var head = u * 0.06f;
+                strokes.MoveTo(top);
+                strokes.LineTo(corner);
+                strokes.LineTo(tip);
+                strokes.MoveTo(tip.X + head, tip.Y - head);
+                strokes.LineTo(tip);
+                strokes.LineTo(tip.X + head, tip.Y + head);
+                break;
+            }
+            case Constants.ButtonType.CT_UNDO:
+            case Constants.ButtonType.CT_SAVE:
+                Text(text, 0.5f, SKTextAlign.Center);
+                break;
+            case Constants.ButtonType.CT_KEYBOARD:
+            {
+                // Keyboard outline with two rows of keys and a space bar.
+                SKPoint c = P(0.5f, row);
+                var kw = u * 0.32f;
+                var kh = u * 0.15f;
+                var outline = new SKRect(c.X - (kw / 2f), c.Y - (kh / 2f), c.X + (kw / 2f), c.Y + (kh / 2f));
+                strokes.AddRoundRect(outline, u * 0.015f, u * 0.015f, SKPathDirection.Clockwise);
+                var key = u * 0.024f;
+                var pitch = (kw - (u * 0.07f)) / 6f;
+                for (var r = 0; r < 2; r++)
+                {
+                    var y = outline.Top + (u * 0.03f) + (r * u * 0.035f);
+                    for (var i = 0; i < 7; i++)
+                    {
+                        var x = outline.Left + (u * 0.035f) + (i * pitch) - (key / 2f);
+                        fills.AddRect(new SKRect(x, y, x + key, y + key), SKPathDirection.Clockwise);
+                    }
+                }
+                var barY = outline.Top + (u * 0.1f);
+                fills.AddRect(new SKRect(c.X - (u * 0.08f), barY, c.X + (u * 0.08f), barY + key),
+                    SKPathDirection.Clockwise);
+                break;
+            }
+            case Constants.ButtonType.CT_FN_L:
+            case Constants.ButtonType.CT_FN_R:
+                Text("Fn", 0.17f, SKTextAlign.Left);
+                Lock(0.74f);
+                break;
+            case Constants.ButtonType.CT_A:
+                Arrow(0.3f, 0, -1);
+                Text("A", 0.74f, SKTextAlign.Center);
+                break;
+            case Constants.ButtonType.CT_B:
+                Arrow(0.3f, 0, 1);
+                Text("B", 0.74f, SKTextAlign.Center);
+                break;
+            case Constants.ButtonType.CT_C:
+                Arrow(0.3f, -1, 0);
+                Text("C", 0.74f, SKTextAlign.Center);
+                break;
+            case Constants.ButtonType.CT_D:
+                Arrow(0.3f, 1, 0);
+                Text("D", 0.74f, SKTextAlign.Center);
+                break;
+            case Constants.ButtonType.CT_E:
+                Text("E", 0.5f, SKTextAlign.Center);
+                break;
+        }
     }
 
     /// <summary>
