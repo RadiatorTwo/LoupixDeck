@@ -82,7 +82,8 @@
         </Style>
 
         <!-- Square named buttons: same chrome-free treatment as the round LEDs, but the
-             hover/selection highlight is a rounded rectangle following the square shape. -->
+             hover/selection highlight is a rounded rectangle following the square shape.
+             The button includes a 7 px shadow margin around the cap, so the highlight is inset by it. -->
         <Style Selector="Button.LedSquare">
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderBrush" Value="Transparent" />
@@ -96,7 +97,7 @@
                                           ContentTemplate="{TemplateBinding ContentTemplate}"
                                           HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
                                           VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
-                        <Border Name="HighlightBorder" Margin="3" CornerRadius="6"
+                        <Border Name="HighlightBorder" Margin="7" CornerRadius="6"
                                 BorderThickness="3" BorderBrush="Transparent"
                                 IsHitTestVisible="False"
                                 Classes.selected="{Binding ((models:LoupedeckButton)CommandParameter).IsSelected, RelativeSource={RelativeSource TemplatedParent}, FallbackValue=False}" />
@@ -154,6 +155,17 @@
         <!-- Selected (single click): solid accent border; declared last so it wins over hover. -->
         <Style Selector="Button[Tag=Touch] /template/ Border#HighlightBorder.selected">
             <Setter Property="BorderBrush" Value="{StaticResource PageActiveBorderBrush}" />
+        </Style>
+        <!-- Key names printed on the chassis under the round buttons. -->
+        <Style Selector="TextBlock.ChassisPrint">
+            <Setter Property="FontSize" Value="16" />
+            <Setter Property="HorizontalAlignment" Value="Center" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Foreground" Value="{DynamicResource DevicePrintBrush}" />
+        </Style>
+        <Style Selector="TextBlock.ChassisIcon">
+            <Setter Property="FontFamily" Value="{StaticResource MdiFont}" />
+            <Setter Property="FontSize" Value="20" />
         </Style>
         <!-- Leading icon of a pager, naming the control it pages (touch grid vs. wheel). -->
         <Style Selector="TextBlock.PagerIcon">
@@ -230,12 +242,12 @@
         </Grid>
 
         <!-- Device body (SVG placeholder) + control overlay. -->
-        <Grid Width="900" Height="760" controls:DeviceZoomPanel.IsBody="True">
+        <Grid Width="900" Height="900" controls:DeviceZoomPanel.IsBody="True">
 
             <svg:Svg Path="{DynamicResource LoupedeckCtBodySvgPath}"
-                     Stretch="Fill" Width="900" Height="760" />
+                     Stretch="Fill" Width="900" Height="900" />
 
-            <Canvas Width="900" Height="760">
+            <Canvas Width="900" Height="900">
 
                 <!-- ===== Screen block: identical geometry to Razer/Live (480x270 =
                      60 left strip + 4x3 grid + 60 right strip). ===== -->
@@ -467,10 +479,27 @@
                     </Border>
                 </Button>
 
-                <!-- ===== Bottom control cluster, matching the real device photo:
-                     a left 2x3 block of named buttons, the centre wheel, and a
-                     right 2x3 block of named buttons — all in the same row band,
-                     below the 8 round LEDs.
+                <!-- Key names printed on the chassis under the round buttons, one column per
+                     button (88.6 px pitch, centred on each button). Key names stay literal. -->
+                <UniformGrid Canvas.Left="95.7" Canvas.Top="511" Width="708.6" Height="24"
+                             Columns="8" IsHitTestVisible="False">
+                    <TextBlock Classes="ChassisPrint" Text="Tab" />
+                    <TextBlock Classes="ChassisPrint ChassisIcon" Text="&#xF0636;" />
+                    <TextBlock Classes="ChassisPrint" Text="Ctrl" />
+                    <TextBlock Classes="ChassisPrint" Text="Alt" />
+                    <TextBlock Classes="ChassisPrint ChassisIcon" Text="&#xF0633;" />
+                    <TextBlock Classes="ChassisPrint ChassisIcon" Text="&#xF1050;" />
+                    <TextBlock Classes="ChassisPrint ChassisIcon" Text="&#xF09E7;" />
+                    <TextBlock Classes="ChassisPrint ChassisIcon" Text="&#xF0B5C;" />
+                </UniformGrid>
+
+                <!-- ===== Bottom control cluster, measured from a top-down shot of the CT
+                     (scaled 0.75 to this canvas, anchored on the round-button row):
+                     a left 2x3 block of named keys (91 px pitch), the centre
+                     wheel level with their middle row, and a right 2x3 block.
+                     Each key's image is a 76 px cap with its printed legend
+                     (BitmapHelper.RenderNamedButtonImage) inside a 90 px button,
+                     so the cap's shadow is not clipped.
                      Left column order (top→bottom): Home/Enter, Undo/Save,
                      Keyboard/FnL. Right column order: A/B (up/down), C/D
                      (left/right), FnR/E. Matches BuildSimpleButtons' ctDefaults
@@ -478,45 +507,45 @@
                      [13]=FnL [14]=A [15]=B [16]=C [17]=D [18]=FnR [19]=E. ===== -->
 
                 <!-- Left block. -->
-                <Button Tag="Led" Classes="LedSquare" Canvas.Left="170" Canvas.Top="520" Width="70" Height="55"
+                <Button Tag="Led" Classes="LedSquare" Canvas.Left="100" Canvas.Top="540" Width="90" Height="90"
                         Tapped="OnButtonTapped" DoubleTapped="OnButtonDoubleTapped"
                         CommandParameter="{Binding LoupedeckController.Config.SimpleButtons[8]}">
-                    <Border Background="Transparent" Width="70" Height="55" CornerRadius="6">
+                    <Border Background="Transparent" Width="90" Height="90">
                         <controls:DevicePreviewImage DeviceImage="{Binding LoupedeckController.Config.SimpleButtons[8].RenderedImage}" />
                     </Border>
                 </Button>
-                <Button Tag="Led" Classes="LedSquare" Canvas.Left="250" Canvas.Top="520" Width="70" Height="55"
+                <Button Tag="Led" Classes="LedSquare" Canvas.Left="191" Canvas.Top="540" Width="90" Height="90"
                         Tapped="OnButtonTapped" DoubleTapped="OnButtonDoubleTapped"
                         CommandParameter="{Binding LoupedeckController.Config.SimpleButtons[11]}">
-                    <Border Background="Transparent" Width="70" Height="55" CornerRadius="6">
+                    <Border Background="Transparent" Width="90" Height="90">
                         <controls:DevicePreviewImage DeviceImage="{Binding LoupedeckController.Config.SimpleButtons[11].RenderedImage}" />
                     </Border>
                 </Button>
-                <Button Tag="Led" Classes="LedSquare" Canvas.Left="170" Canvas.Top="585" Width="70" Height="55"
+                <Button Tag="Led" Classes="LedSquare" Canvas.Left="100" Canvas.Top="631" Width="90" Height="90"
                         Tapped="OnButtonTapped" DoubleTapped="OnButtonDoubleTapped"
                         CommandParameter="{Binding LoupedeckController.Config.SimpleButtons[9]}">
-                    <Border Background="Transparent" Width="70" Height="55" CornerRadius="6">
+                    <Border Background="Transparent" Width="90" Height="90">
                         <controls:DevicePreviewImage DeviceImage="{Binding LoupedeckController.Config.SimpleButtons[9].RenderedImage}" />
                     </Border>
                 </Button>
-                <Button Tag="Led" Classes="LedSquare" Canvas.Left="250" Canvas.Top="585" Width="70" Height="55"
+                <Button Tag="Led" Classes="LedSquare" Canvas.Left="191" Canvas.Top="631" Width="90" Height="90"
                         Tapped="OnButtonTapped" DoubleTapped="OnButtonDoubleTapped"
                         CommandParameter="{Binding LoupedeckController.Config.SimpleButtons[12]}">
-                    <Border Background="Transparent" Width="70" Height="55" CornerRadius="6">
+                    <Border Background="Transparent" Width="90" Height="90">
                         <controls:DevicePreviewImage DeviceImage="{Binding LoupedeckController.Config.SimpleButtons[12].RenderedImage}" />
                     </Border>
                 </Button>
-                <Button Tag="Led" Classes="LedSquare" Canvas.Left="170" Canvas.Top="650" Width="70" Height="55"
+                <Button Tag="Led" Classes="LedSquare" Canvas.Left="100" Canvas.Top="722" Width="90" Height="90"
                         Tapped="OnButtonTapped" DoubleTapped="OnButtonDoubleTapped"
                         CommandParameter="{Binding LoupedeckController.Config.SimpleButtons[10]}">
-                    <Border Background="Transparent" Width="70" Height="55" CornerRadius="6">
+                    <Border Background="Transparent" Width="90" Height="90">
                         <controls:DevicePreviewImage DeviceImage="{Binding LoupedeckController.Config.SimpleButtons[10].RenderedImage}" />
                     </Border>
                 </Button>
-                <Button Tag="Led" Classes="LedSquare" Canvas.Left="250" Canvas.Top="650" Width="70" Height="55"
+                <Button Tag="Led" Classes="LedSquare" Canvas.Left="191" Canvas.Top="722" Width="90" Height="90"
                         Tapped="OnButtonTapped" DoubleTapped="OnButtonDoubleTapped"
                         CommandParameter="{Binding LoupedeckController.Config.SimpleButtons[13]}">
-                    <Border Background="Transparent" Width="70" Height="55" CornerRadius="6">
+                    <Border Background="Transparent" Width="90" Height="90">
                         <controls:DevicePreviewImage DeviceImage="{Binding LoupedeckController.Config.SimpleButtons[13].RenderedImage}" />
                     </Border>
                 </Button>
@@ -525,7 +554,7 @@
                      touchscreen. Its binding lives on the current touch page
                      (TouchButtonPage.Wheel), so it follows touch-page switches; the
                      screen's last frame is mirrored inside the ring. -->
-                <Button Classes="Knob" Canvas.Left="350" Canvas.Top="510" Width="200" Height="200"
+                <Button Classes="Knob" Canvas.Left="350" Canvas.Top="576" Width="200" Height="200"
                         Tapped="OnButtonTapped" DoubleTapped="OnButtonDoubleTapped"
                         ToolTip.Tip="{loc:Tr Device_CentreWheel}"
                         CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.Wheel}">
@@ -540,45 +569,45 @@
                 </Button>
 
                 <!-- Right block. -->
-                <Button Tag="Led" Classes="LedSquare" Canvas.Left="580" Canvas.Top="520" Width="70" Height="55"
+                <Button Tag="Led" Classes="LedSquare" Canvas.Left="619" Canvas.Top="540" Width="90" Height="90"
                         Tapped="OnButtonTapped" DoubleTapped="OnButtonDoubleTapped"
                         CommandParameter="{Binding LoupedeckController.Config.SimpleButtons[14]}">
-                    <Border Background="Transparent" Width="70" Height="55" CornerRadius="6">
+                    <Border Background="Transparent" Width="90" Height="90">
                         <controls:DevicePreviewImage DeviceImage="{Binding LoupedeckController.Config.SimpleButtons[14].RenderedImage}" />
                     </Border>
                 </Button>
-                <Button Tag="Led" Classes="LedSquare" Canvas.Left="660" Canvas.Top="520" Width="70" Height="55"
+                <Button Tag="Led" Classes="LedSquare" Canvas.Left="710" Canvas.Top="540" Width="90" Height="90"
                         Tapped="OnButtonTapped" DoubleTapped="OnButtonDoubleTapped"
                         CommandParameter="{Binding LoupedeckController.Config.SimpleButtons[15]}">
-                    <Border Background="Transparent" Width="70" Height="55" CornerRadius="6">
+                    <Border Background="Transparent" Width="90" Height="90">
                         <controls:DevicePreviewImage DeviceImage="{Binding LoupedeckController.Config.SimpleButtons[15].RenderedImage}" />
                     </Border>
                 </Button>
-                <Button Tag="Led" Classes="LedSquare" Canvas.Left="580" Canvas.Top="585" Width="70" Height="55"
+                <Button Tag="Led" Classes="LedSquare" Canvas.Left="619" Canvas.Top="631" Width="90" Height="90"
                         Tapped="OnButtonTapped" DoubleTapped="OnButtonDoubleTapped"
                         CommandParameter="{Binding LoupedeckController.Config.SimpleButtons[16]}">
-                    <Border Background="Transparent" Width="70" Height="55" CornerRadius="6">
+                    <Border Background="Transparent" Width="90" Height="90">
                         <controls:DevicePreviewImage DeviceImage="{Binding LoupedeckController.Config.SimpleButtons[16].RenderedImage}" />
                     </Border>
                 </Button>
-                <Button Tag="Led" Classes="LedSquare" Canvas.Left="660" Canvas.Top="585" Width="70" Height="55"
+                <Button Tag="Led" Classes="LedSquare" Canvas.Left="710" Canvas.Top="631" Width="90" Height="90"
                         Tapped="OnButtonTapped" DoubleTapped="OnButtonDoubleTapped"
                         CommandParameter="{Binding LoupedeckController.Config.SimpleButtons[17]}">
-                    <Border Background="Transparent" Width="70" Height="55" CornerRadius="6">
+                    <Border Background="Transparent" Width="90" Height="90">
                         <controls:DevicePreviewImage DeviceImage="{Binding LoupedeckController.Config.SimpleButtons[17].RenderedImage}" />
                     </Border>
                 </Button>
-                <Button Tag="Led" Classes="LedSquare" Canvas.Left="580" Canvas.Top="650" Width="70" Height="55"
+                <Button Tag="Led" Classes="LedSquare" Canvas.Left="619" Canvas.Top="722" Width="90" Height="90"
                         Tapped="OnButtonTapped" DoubleTapped="OnButtonDoubleTapped"
                         CommandParameter="{Binding LoupedeckController.Config.SimpleButtons[18]}">
-                    <Border Background="Transparent" Width="70" Height="55" CornerRadius="6">
+                    <Border Background="Transparent" Width="90" Height="90">
                         <controls:DevicePreviewImage DeviceImage="{Binding LoupedeckController.Config.SimpleButtons[18].RenderedImage}" />
                     </Border>
                 </Button>
-                <Button Tag="Led" Classes="LedSquare" Canvas.Left="660" Canvas.Top="650" Width="70" Height="55"
+                <Button Tag="Led" Classes="LedSquare" Canvas.Left="710" Canvas.Top="722" Width="90" Height="90"
                         Tapped="OnButtonTapped" DoubleTapped="OnButtonDoubleTapped"
                         CommandParameter="{Binding LoupedeckController.Config.SimpleButtons[19]}">
-                    <Border Background="Transparent" Width="70" Height="55" CornerRadius="6">
+                    <Border Background="Transparent" Width="90" Height="90">
                         <controls:DevicePreviewImage DeviceImage="{Binding LoupedeckController.Config.SimpleButtons[19].RenderedImage}" />
                     </Border>
                 </Button>
@@ -606,11 +635,11 @@
         </Grid>
 
         <!-- Touch pages (the 12-key grid) and the centre wheel's modes of the current touch page,
-             side by side, just under the visible body (SVG y=730); the leading icon says which
+             side by side, just under the visible body (SVG y=866); the leading icon says which
              control each pager belongs to. -->
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="16" Margin="0,2,0,12"
                     controls:DeviceZoomPanel.Edge="Bottom"
-                    controls:DeviceZoomPanel.AnchorY="730">
+                    controls:DeviceZoomPanel.AnchorY="866">
             <Panel VerticalAlignment="Center">
                 <!-- While a custom folder is open its breadcrumbs take the pager's place. -->
                 <controls:FolderBreadcrumbBar HorizontalAlignment="Center" IsVisible="{Binding IsFolderOpen}" />
