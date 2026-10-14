@@ -1,4 +1,5 @@
 using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Avalonia.Styling;
@@ -33,6 +34,16 @@ public partial class App : Application
         LocalizationManager.Instance.InitializeFromSettings();
 
         AvaloniaXamlLoader.Load(this);
+
+        // Without a menu of its own the macOS application menu leads with Avalonia's
+        // "About Avalonia" item. Avalonia still adds Services, Hide and Quit after this one.
+        // It has to be set here: the menu is read once, before the framework finishes starting.
+        if (OperatingSystem.IsMacOS())
+        {
+            var about = new NativeMenuItem($"{Loc.Tr("MainWindow_About")} LoupixDeck");
+            about.Click += (_, _) => _shell?.AboutMenuCommand.Execute(null);
+            NativeMenu.SetMenu(this, new NativeMenu { about });
+        }
     }
 
     public override async void OnFrameworkInitializationCompleted()
