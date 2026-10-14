@@ -183,6 +183,15 @@ public partial class LoupedeckLiveSController(
     private long _folderRequestedGen;
     private long _folderDrawnGen;
 
+    // The folder grid last sent (#440): its pixel hash, the device it went to and that device's
+    // GridRegionWriteCount right after the send. A redraw whose grid hashes the same, while
+    // nothing else has written to the grid since, skips sending it again. That is the common
+    // case of a folder announcing a change only its dials show: sending the grid is most of a
+    // redraw's cost (up to 45 ms on a Live S), rendering it is a few milliseconds.
+    private ulong _folderGridHash;
+    private LoupedeckDevice.Device.LoupedeckDevice _folderGridDevice;
+    private long _folderGridWriteCount;
+
     // Tracks the slot index of the currently active touch contact. Set on the
     // first TOUCH_START of a finger-down sequence, cleared on TOUCH_END.
     private int? _activeTouchSlot;
@@ -2878,6 +2887,31 @@ public partial class LoupedeckLiveSController(
         }
     }
 
+    /// <summary>
+    /// Sends the composed folder grid unless the panel already shows exactly these pixels. Only
+    /// called under <see cref="_folderRedrawGate"/>, which also guards the remembered state.
+    /// </summary>
+    private async Task DrawFolderGrid(LoupedeckDevice.Device.LoupedeckDevice device, SkiaSharp.SKBitmap region)
+    {
+        ulong hash = XxHash3.HashToUInt64(region.GetPixelSpan());
+        if (ReferenceEquals(device, _folderGridDevice) && hash == _folderGridHash &&
+            device.GridRegionWriteCount == _folderGridWriteCount)
+            return;
+
+        _folderGridDevice = null;
+        long before = device.GridRegionWriteCount;
+        await device.DrawCenterGridRegion(region);
+
+        // Exactly one write since the read above means it was ours. Any other write that slipped
+        // in may have landed after it, so the grid is not remembered and the next redraw sends.
+        long after = device.GridRegionWriteCount;
+        if (after != before + 1) return;
+
+        _folderGridDevice = device;
+        _folderGridHash = hash;
+        _folderGridWriteCount = after;
+    }
+
     private async Task RedrawFolderState(bool workspaceApplying)
     {
         try
@@ -2941,7 +2975,7 @@ public partial class LoupedeckLiveSController(
                     }
 
                     using SkiaSharp.SKBitmap region = BitmapHelper.ComposeTouchGrid(tiles, device);
-                    await device.DrawCenterGridRegion(region);
+                    await DrawFolderGrid(device, region);
                 }
                 finally
                 {
