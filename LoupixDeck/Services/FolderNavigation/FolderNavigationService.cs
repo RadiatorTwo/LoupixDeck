@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using LoupixDeck.Registry;
+using LoupixDeck.Services.Diagnostics;
 
 namespace LoupixDeck.Services.FolderNavigation;
 
@@ -88,8 +89,11 @@ public sealed class FolderNavigationService(DeviceGeometry geometry) : IFolderNa
 
     private void OnProviderEntriesChanged()
     {
+        FolderRedrawProbe.CountEvent();
+        long probe = FolderRedrawProbe.Begin();
         if (CurrentProvider != null)
             SetActive(CurrentProvider);
+        FolderRedrawProbe.End("build entries", probe);
 
         StateChanged?.Invoke();
     }

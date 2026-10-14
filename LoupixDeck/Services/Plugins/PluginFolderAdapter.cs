@@ -95,8 +95,13 @@ internal sealed class PluginFolderAdapter : CoreFolder.IFolderProvider
 
     public IReadOnlyList<CoreFolder.FolderEntry> BuildEntries()
     {
+        long probe = Diagnostics.FolderRedrawProbe.Begin();
         var entries = _inner.BuildEntries() ?? Array.Empty<Sdk.FolderEntry>();
+        Diagnostics.FolderRedrawProbe.End("  plugin build", probe);
+
+        probe = Diagnostics.FolderRedrawProbe.Begin();
         List<CoreFolder.FolderEntry> converted = entries.Select(ConvertEntry).ToList();
+        Diagnostics.FolderRedrawProbe.End("  png decode", probe);
         RetireImages(converted.Select(static e => e.Image).Where(static image => image != null).ToList());
         return converted;
     }
