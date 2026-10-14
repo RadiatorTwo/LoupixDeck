@@ -3415,6 +3415,10 @@ public partial class LoupedeckLiveSController(
         if (folderNav.IsActive || exclusiveMode.Owns(ExclusiveControlScope.TouchButtons) ||
             _screensaverActive || _fullDisplayActive) return;
 
+        // A touch page slide is in flight: a key painted now would land between its frames and
+        // then be covered by its final grid. The slide repaints the page when it lands instead.
+        if (TouchSlideInFlight && DeferTouchPaintToSlide()) return;
+
         var button = config.CurrentTouchButtonPage.TouchButtons.FirstOrDefault(b => b.Index == item.Index);
 
         if (button == null) return;
