@@ -184,13 +184,8 @@ public partial class App : Application
             if (primaryHost != null)
                 Program.AppServices = primaryHost.Provider;
             // Read before the window is built, otherwise it paints in the default theme and
-            // then switches.
-            RequestedThemeVariant = primaryConfig?.ThemeVariant switch
-            {
-                "Light" => ThemeVariant.Light,
-                "Dark" => ThemeVariant.Dark,
-                _ => ThemeVariant.Default
-            };
+            // then switches. The theme is global; the primary's config only seeds it once.
+            ThemeSettings.Initialize(primaryConfig?.ThemeVariant);
             ShowMainWindow(shell, primaryConfig, desktop);
 
             // Look for a new release in the background (issue #233) as soon as the window exists to

@@ -1161,36 +1161,29 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
 
     // ───────── Theme ─────────
 
+    // The theme is global (ThemeSettings), not part of this device's config.
     public bool ThemeIsDark
     {
-        get => string.Equals(Config.ThemeVariant, "Dark", StringComparison.OrdinalIgnoreCase);
+        get => string.Equals(ThemeSettings.Current, "Dark", StringComparison.OrdinalIgnoreCase);
         set { if (value) ApplyTheme("Dark"); }
     }
     public bool ThemeIsLight
     {
-        get => string.Equals(Config.ThemeVariant, "Light", StringComparison.OrdinalIgnoreCase);
+        get => string.Equals(ThemeSettings.Current, "Light", StringComparison.OrdinalIgnoreCase);
         set { if (value) ApplyTheme("Light"); }
     }
     public bool ThemeIsSystem
     {
-        get => string.Equals(Config.ThemeVariant, "System", StringComparison.OrdinalIgnoreCase);
+        get => string.Equals(ThemeSettings.Current, "System", StringComparison.OrdinalIgnoreCase);
         set { if (value) ApplyTheme("System"); }
     }
 
     private void ApplyTheme(string variant)
     {
-        if (Config.ThemeVariant == variant) return;
-        Config.ThemeVariant = variant;
+        ThemeSettings.Apply(variant);
         OnPropertyChanged(nameof(ThemeIsDark));
         OnPropertyChanged(nameof(ThemeIsLight));
         OnPropertyChanged(nameof(ThemeIsSystem));
-
-        Application.Current?.RequestedThemeVariant = variant switch
-            {
-                "Light" => ThemeVariant.Light,
-                "Dark" => ThemeVariant.Dark,
-                _ => ThemeVariant.Default
-            };
     }
 
     // ───────── About ─────────
