@@ -187,6 +187,9 @@ public class LoupedeckDevice
     // following Close() fires it again).
     private int _reconnectPending;
 
+    // See GridRegionWriteCount.
+    private long _gridRegionWrites;
+
     // Accessed concurrently from the send-queue worker thread (insert) and the
     // serial read thread (lookup/remove). Plain Dictionary corrupts under that
     // race ("non-concurrent collection" / "Index was outside the bounds of the
@@ -291,6 +294,15 @@ public class LoupedeckDevice
     /// against the same one. Framebuffer space only — touch coordinates use VisibleX directly.
     /// </summary>
     public virtual int GridOriginX => VisibleX is { Length: > 0 } ? VisibleX[0] : 0;
+
+    /// <summary>
+    /// Counts the writes that may have changed the key grid on the glass: every framebuffer
+    /// write to "center" that overlaps the grid region, plus every (re)connect, after which
+    /// the panel no longer shows what was drawn before. A caller that remembers the count
+    /// right after its own write knows the grid still shows that write as long as the count
+    /// has not moved, and can skip sending identical pixels again (#440).
+    /// </summary>
+    public long GridRegionWriteCount => Interlocked.Read(ref _gridRegionWrites);
 
     /// <summary>
     /// Largest RGB565 payload the panel accepts in a single FRAMEBUFF write, or 0 for no
@@ -422,7 +434,11 @@ public class LoupedeckDevice
             }
         }
 
-        _connection.Connected += (_, e) => OnConnect?.Invoke(this, e);
+        _connection.Connected += (_, e) =>
+        {
+            Interlocked.Increment(ref _gridRegionWrites);
+            OnConnect?.Invoke(this, e);
+        };
         _connection.MessageReceived += (_, e) => OnReceive(e.Data);
         _connection.Disconnected += (_, e) =>
         {
@@ -1360,6 +1376,14 @@ public class LoupedeckDevice
         // malformed packet rather than a no-op.
         if (drawWidth <= 0 || drawHeight <= 0)
             return;
+
+        if (id == "center")
+        {
+            SKSizeI grid = GetGridRegionSize();
+            SKRectI gridRect = SKRectI.Create(GridOriginX, 0, grid.Width, grid.Height);
+            if (gridRect.IntersectsWith(SKRectI.Create(drawX, drawY, drawWidth, drawHeight)))
+                Interlocked.Increment(ref _gridRegionWrites);
+        }
 
         // A panel that caps its FRAMEBUFF payload takes the frame in horizontal bands. The
         // rows of a band are contiguous in the buffer, so each one is a normal region write

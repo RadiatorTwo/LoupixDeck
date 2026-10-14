@@ -183,6 +183,15 @@ public partial class LoupedeckLiveSController(
     private long _folderRequestedGen;
     private long _folderDrawnGen;
 
+    // The folder grid last sent (#440): its pixel hash, the device it went to and that device's
+    // GridRegionWriteCount right after the send. A redraw whose grid hashes the same, while
+    // nothing else has written to the grid since, skips sending it again. That is the common
+    // case of a folder announcing a change only its dials show: sending the grid is most of a
+    // redraw's cost (up to 45 ms on a Live S), rendering it is a few milliseconds.
+    private ulong _folderGridHash;
+    private LoupedeckDevice.Device.LoupedeckDevice _folderGridDevice;
+    private long _folderGridWriteCount;
+
     // Tracks the slot index of the currently active touch contact. Set on the
     // first TOUCH_START of a finger-down sequence, cleared on TOUCH_END.
     private int? _activeTouchSlot;
@@ -1311,7 +1320,13 @@ public partial class LoupedeckLiveSController(
         // An open plugin folder owns the strips (#378).
         if (folderNav.IsActive)
         {
-            await PushStrip(side, RenderFolderStrip(side));
+            long probe = Services.Diagnostics.FolderRedrawProbe.Begin();
+            SkiaSharp.SKBitmap folderStrip = RenderFolderStrip(side);
+            Services.Diagnostics.FolderRedrawProbe.End("  strip render", probe);
+
+            probe = Services.Diagnostics.FolderRedrawProbe.Begin();
+            await PushStrip(side, folderStrip);
+            Services.Diagnostics.FolderRedrawProbe.End("  strip send", probe);
             return;
         }
 
@@ -2878,6 +2893,33 @@ public partial class LoupedeckLiveSController(
         }
     }
 
+    /// <summary>
+    /// Sends the composed folder grid unless the panel already shows exactly these pixels. Only
+    /// called under <see cref="_folderRedrawGate"/>, which also guards the remembered state.
+    /// </summary>
+    private async Task DrawFolderGrid(LoupedeckDevice.Device.LoupedeckDevice device, SkiaSharp.SKBitmap region)
+    {
+        ulong hash = XxHash3.HashToUInt64(region.GetPixelSpan());
+        if (ReferenceEquals(device, _folderGridDevice) && hash == _folderGridHash &&
+            device.GridRegionWriteCount == _folderGridWriteCount)
+            return;
+
+        _folderGridDevice = null;
+        long before = device.GridRegionWriteCount;
+        long probe = Services.Diagnostics.FolderRedrawProbe.Begin();
+        await device.DrawCenterGridRegion(region);
+        Services.Diagnostics.FolderRedrawProbe.End("  send grid", probe);
+
+        // Exactly one write since the read above means it was ours. Any other write that slipped
+        // in may have landed after it, so the grid is not remembered and the next redraw sends.
+        long after = device.GridRegionWriteCount;
+        if (after != before + 1) return;
+
+        _folderGridDevice = device;
+        _folderGridHash = hash;
+        _folderGridWriteCount = after;
+    }
+
     private async Task RedrawFolderState(bool workspaceApplying)
     {
         try
@@ -2916,6 +2958,8 @@ public partial class LoupedeckLiveSController(
                 // keys one by one left the previous folder's icons on screen until each key's turn came.
                 int keySize = device.KeySize;
                 SkiaSharp.SKBitmap[] tiles = new SkiaSharp.SKBitmap[grid.GridSlots];
+                long probeTotal = Services.Diagnostics.FolderRedrawProbe.Begin();
+                long probe = probeTotal;
                 try
                 {
                     for (int slot = 0; slot < grid.GridSlots; slot++)
@@ -2940,8 +2984,15 @@ public partial class LoupedeckLiveSController(
                         }
                     }
 
+                    Services.Diagnostics.FolderRedrawProbe.End("render tiles", probe);
+
+                    probe = Services.Diagnostics.FolderRedrawProbe.Begin();
                     using SkiaSharp.SKBitmap region = BitmapHelper.ComposeTouchGrid(tiles, device);
-                    await device.DrawCenterGridRegion(region);
+                    Services.Diagnostics.FolderRedrawProbe.End("compose grid", probe);
+
+                    probe = Services.Diagnostics.FolderRedrawProbe.Begin();
+                    await DrawFolderGrid(device, region);
+                    Services.Diagnostics.FolderRedrawProbe.End("grid hash+send", probe);
                 }
                 finally
                 {
@@ -2955,9 +3006,14 @@ public partial class LoupedeckLiveSController(
                 {
                     EnsureFolderStripAttachment(RotarySide.Left);
                     EnsureFolderStripAttachment(RotarySide.Right);
+                    probe = Services.Diagnostics.FolderRedrawProbe.Begin();
                     await RedrawStripCoalesced(RotarySide.Left, 0);
                     await RedrawStripCoalesced(RotarySide.Right, 1);
+                    Services.Diagnostics.FolderRedrawProbe.End("strips (both)", probe);
                 }
+
+                Services.Diagnostics.FolderRedrawProbe.End("total redraw", probeTotal);
+                Services.Diagnostics.FolderRedrawProbe.CountRedraw();
             }
             else
             {
