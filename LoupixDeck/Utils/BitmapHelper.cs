@@ -158,8 +158,11 @@ public static class BitmapHelper
                 }
 
                 // 4. Glowing LED ring with a gap at the top-right, or the device's legend.
-                var glowColor = ResolveGlowColor(simpleButton.ButtonColor.ToSKColor());
-                var coreColor = MixToWhite(glowColor, 0.45f);
+                SKColor ledColor = simpleButton.ButtonColor.ToSKColor();
+                var glowColor = ResolveGlowColor(ledColor);
+                // Lightened toward white the core reads as lit on a dark face but washes out on a
+                // light one, so a lit button keeps its own colour there.
+                var coreColor = light && IsLit(ledColor) ? glowColor : MixToWhite(glowColor, 0.45f);
 
                 // The body face spans the 11 mm button; size the ring to a 5 mm diameter.
                 var ringRadius = bodyRadius * (5f / 11f);
@@ -379,8 +382,7 @@ public static class BitmapHelper
                 }
 
                 SKColor ledColor = simpleButton.ButtonColor.ToSKColor();
-                var maxChannel = Math.Max(ledColor.Red, Math.Max(ledColor.Green, ledColor.Blue));
-                var lit = ledColor.Alpha >= 8 && maxChannel >= 24;
+                var lit = IsLit(ledColor);
 
                 if (lit)
                 {
@@ -665,10 +667,16 @@ public static class BitmapHelper
     /// visible. Uses the brightest channel (not perceived luminance) so saturated but
     /// perceptually dark colours like pure blue keep their own colour.
     /// </summary>
-    private static SKColor ResolveGlowColor(SKColor c)
+    private static SKColor ResolveGlowColor(SKColor c) => IsLit(c) ? c : new SKColor(0x3A, 0x3A, 0x3A);
+
+    /// <summary>
+    /// True when an LED colour carries a visible hue; a fully transparent or (near-)black colour is
+    /// the "off" state.
+    /// </summary>
+    private static bool IsLit(SKColor c)
     {
         var maxChannel = Math.Max(c.Red, Math.Max(c.Green, c.Blue));
-        return c.Alpha < 8 || maxChannel < 24 ? new SKColor(0x3A, 0x3A, 0x3A) : c;
+        return c.Alpha >= 8 && maxChannel >= 24;
     }
 
     /// <summary>Blends <paramref name="c"/> toward white by factor <paramref name="t"/> (0..1).</summary>
