@@ -123,6 +123,11 @@ public partial class LoupedeckConfig : ObservableObject
     /// </summary>
     public string DeviceSerial { get; set; }
 
+    /// <summary>
+    /// Legacy per-device theme. The theme is global now (<c>ThemeSettings</c>, in
+    /// ui-settings.json); this is still read once from the primary device to seed it, and kept
+    /// so older config files load unchanged.
+    /// </summary>
     public string ThemeVariant { get; set; } = "Dark";
 
     public CloseButtonBehavior CloseButtonBehavior { get; set; } = CloseButtonBehavior.MinimizeToTray;
