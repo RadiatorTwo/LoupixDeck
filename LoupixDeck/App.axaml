@@ -3,6 +3,7 @@
              x:Class="LoupixDeck.App"
              xmlns:local="using:LoupixDeck"
              xmlns:converter="using:LoupixDeck.Models.Converter"
+             Name="LoupixDeck"
              RequestedThemeVariant="Dark">
     <!-- "Default" ThemeVariant follows system theme variant. "Dark" or "Light" are other available options. -->
     <Application.DataTemplates>
