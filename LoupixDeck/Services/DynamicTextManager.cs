@@ -394,7 +394,7 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
         Dispatcher.UIThread.Post(() =>
         {
             layer.SetLiveBitmap(null);
-            _ = _controller?.RefreshWheelAnimationFrame();
+            _ = _controller?.RefreshWheelCanvasFrame();
             canvas.RaiseLiveContentChanged();
         });
     }
@@ -455,7 +455,7 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
             // rescans, which re-renders at once - an endless loop on the UI thread. The swap here
             // only notifies when the size changes (the first frame) and the repaint is explicit.
             layer.SetLiveBitmap(bitmap);
-            _ = _controller?.RefreshWheelAnimationFrame();
+            _ = _controller?.RefreshWheelCanvasFrame();
             entry.WheelCanvas?.RaiseLiveContentChanged();
         });
     }
@@ -494,7 +494,7 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
             }
 
             layer.LiveText = newText;
-            _ = _controller?.RefreshWheelAnimationFrame();
+            _ = _controller?.RefreshWheelCanvasFrame();
         });
     }
 

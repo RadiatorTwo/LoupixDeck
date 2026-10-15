@@ -111,7 +111,7 @@ public sealed class WheelAnimationSource(IServiceProvider deviceProvider) : IAni
         _idle.Reset();
         try
         {
-            await controller.RefreshWheelAnimationFrame().ConfigureAwait(false);
+            await controller.RefreshWheelCanvasFrame().ConfigureAwait(false);
         }
         finally
         {
