@@ -175,14 +175,16 @@ public partial class LoupedeckLiveSController
 
     /// <summary>
     /// Repaints the wheel for an exclusive-mode change: on enter and exit, when the provider
-    /// changed, and on <see cref="IExclusiveModeProvider.EntriesChanged"/> while the provider draws it.
+    /// changed, when <paramref name="takeoverChanged"/> reports a scope change (the wheel may
+    /// follow the rotary scope), and on <see cref="IExclusiveModeProvider.EntriesChanged"/>
+    /// while the provider draws it.
     /// </summary>
-    private Task RedrawWheelForExclusive()
+    private Task RedrawWheelForExclusive(bool takeoverChanged)
     {
         IExclusiveModeProvider provider = exclusiveMode.IsActive ? exclusiveMode.Current : null;
         bool providerChanged = !ReferenceEquals(provider, _wheelExclusiveProvider);
         _wheelExclusiveProvider = provider;
 
-        return providerChanged || _wheelDrawnByExclusive ? RedrawWheel() : Task.CompletedTask;
+        return providerChanged || takeoverChanged || _wheelDrawnByExclusive ? RedrawWheel() : Task.CompletedTask;
     }
 }
