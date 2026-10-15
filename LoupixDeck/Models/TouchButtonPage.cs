@@ -78,6 +78,30 @@ public sealed partial class TouchButtonPage(int pageSize) : ButtonPageBase()
 
     private readonly PreviewBitmapBuffer _wallpaperThumbnail = new();
 
+    /// <summary>True when any of the three wallpaper slots holds an image.</summary>
+    [JsonIgnore]
+    public bool HasAnyWallpaper =>
+        (MainWallpaper?.HasImage ?? false) ||
+        (LeftWallpaper?.HasImage ?? false) ||
+        (RightWallpaper?.HasImage ?? false);
+
+    /// <summary>
+    /// The page whose wallpapers are drawn for the page at <paramref name="index"/> when it has
+    /// none of its own: the nearest page at or before <paramref name="index"/> that has one.
+    /// Null when no such page exists.
+    /// </summary>
+    public static TouchButtonPage FindWallpaperSource(IList<TouchButtonPage> pages, int index)
+    {
+        if (pages is not { Count: > 0 }) return null;
+
+        for (int i = Math.Min(index, pages.Count - 1); i >= 0; i--)
+        {
+            if (pages[i].HasAnyWallpaper) return pages[i];
+        }
+
+        return null;
+    }
+
     /// <summary>
     /// Panel geometry of the owning device, used to bake the preview above at the same size
     /// the renderer uses (a mismatch would bake a second copy into the slot cache).

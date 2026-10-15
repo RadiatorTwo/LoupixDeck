@@ -1206,25 +1206,20 @@ public static class BitmapHelper
         return dst;
     }
 
-    private static bool HasAnyWallpaper(TouchButtonPage page) =>
-        page != null &&
-        ((page.MainWallpaper?.HasImage ?? false) ||
-         (page.LeftWallpaper?.HasImage ?? false) ||
-         (page.RightWallpaper?.HasImage ?? false));
-
     /// <summary>
     /// Picks the page whose wallpapers should be drawn for the current view: the current
-    /// page when it has <b>any</b> of its three wallpapers set, otherwise page 0 as a
-    /// fallback. Once a page defines a wallpaper it is self-contained — its empty slots
-    /// stay empty rather than borrowing from page 0 (so a page that only sets a main
+    /// page when it has <b>any</b> of its three wallpapers set, otherwise the nearest page
+    /// before it that has one (an open folder starts the search at the page it was opened
+    /// from). Once a page defines a wallpaper it is self-contained — its empty slots stay
+    /// empty rather than borrowing from an earlier page (so a page that only sets a main
     /// wallpaper does not inherit another page's side wallpapers).
     /// </summary>
     private static TouchButtonPage ResolveWallpaperSourcePage(LoupedeckConfig config)
     {
         var current = config?.CurrentTouchButtonPage;
-        if (HasAnyWallpaper(current)) return current;
-        if (config?.TouchButtonPages is { Count: > 0 }) return config.TouchButtonPages[0];
-        return current;
+        if ((current?.HasAnyWallpaper ?? false) || config == null) return current;
+
+        return TouchButtonPage.FindWallpaperSource(config.TouchButtonPages, config.CurrentTouchPageIndex) ?? current;
     }
 
     /// <summary>
