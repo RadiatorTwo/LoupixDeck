@@ -1,3 +1,4 @@
+using System.IO.Hashing;
 using Avalonia.Media;
 using LoupixDeck.Utils;
 using SkiaSharp;
@@ -17,10 +18,12 @@ internal sealed class PluginFolderAdapter : CoreFolder.IFolderProvider
     private readonly Lock _subscriptionLock = new();
     private Action _entriesChanged;
 
-    // The images decoded for the entries handed out last, and for the build before. A folder render
-    // that read the previous entries may still be drawing them while a plugin announces new ones,
-    // so a build frees the images of the build before last. Guarded by the render gate.
-    private List<SKBitmap> _currentImages = [];
+    // The images decoded for the entries handed out last, by a hash of their PNG bytes, and the ones
+    // the build before used and the last one no longer does. A folder render that read the previous
+    // entries may still be drawing them while a plugin announces new ones, so a build frees only the
+    // images dropped one build earlier. An image whose bytes come again is reused, not decoded anew.
+    // Guarded by the render gate.
+    private Dictionary<ulong, SKBitmap> _currentImages = [];
     private List<SKBitmap> _previousImages = [];
 
     public PluginFolderAdapter(Sdk.IFolderProvider inner)
@@ -140,32 +143,65 @@ internal sealed class PluginFolderAdapter : CoreFolder.IFolderProvider
         Diagnostics.FolderRedrawProbe.End("  plugin build", probe);
 
         probe = Diagnostics.FolderRedrawProbe.Begin();
-        List<CoreFolder.FolderEntry> converted = entries.Select(ConvertEntry).ToList();
+        var images = new Dictionary<ulong, SKBitmap>();
+        List<CoreFolder.FolderEntry> converted = entries.Select(e => ConvertEntry(e, images)).ToList();
         Diagnostics.FolderRedrawProbe.End("  png decode", probe);
-        RetireImages(converted.Select(static e => e.Image).Where(static image => image != null).ToList());
+        RetireImages(images);
         return converted;
     }
 
-    /// <summary>Makes <paramref name="next"/> the current images and frees the build before last.</summary>
-    private void RetireImages(List<SKBitmap> next)
+    /// <summary>
+    /// Makes <paramref name="next"/> the current images, frees the ones dropped by the build before,
+    /// and holds back the current ones <paramref name="next"/> no longer uses for one more build.
+    /// </summary>
+    private void RetireImages(Dictionary<ulong, SKBitmap> next)
     {
         lock (SkiaRenderGate.Sync)
         {
+            // A build overlapping an exit may have picked an image up again after it was set aside.
+            var kept = new HashSet<SKBitmap>(next.Values, ReferenceEqualityComparer.Instance);
             foreach (SKBitmap image in _previousImages)
-                image.Dispose();
+            {
+                if (!kept.Contains(image))
+                    image.Dispose();
+            }
 
-            _previousImages = _currentImages;
+            _previousImages = _currentImages.Values.Where(image => !kept.Contains(image)).ToList();
             _currentImages = next;
         }
     }
 
-    private static CoreFolder.FolderEntry ConvertEntry(Sdk.FolderEntry e)
+    /// <summary>
+    /// The decoded image for <paramref name="png"/>: the one this build or the last one already
+    /// decoded from the same bytes, or a new decode. Recorded in <paramref name="images"/>.
+    /// </summary>
+    private SKBitmap DecodeOrReuse(byte[] png, Dictionary<ulong, SKBitmap> images)
+    {
+        if (png == null || png.Length == 0)
+            return null;
+
+        ulong hash = XxHash3.HashToUInt64(png);
+        if (images.TryGetValue(hash, out SKBitmap image))
+            return image;
+
+        lock (SkiaRenderGate.Sync)
+        {
+            _currentImages.TryGetValue(hash, out image);
+        }
+
+        image ??= DecodeImage(png);
+        if (image != null)
+            images[hash] = image;
+        return image;
+    }
+
+    private CoreFolder.FolderEntry ConvertEntry(Sdk.FolderEntry e, Dictionary<ulong, SKBitmap> images)
     {
         return new CoreFolder.FolderEntry
         {
             SlotIndex = e.SlotIndex,
             Text = e.Text,
-            Image = DecodeImage(e.Image),
+            Image = DecodeOrReuse(e.Image, images),
             Render = e.Render,
             BackColor = ToColor(e.BackColor),
             TextColor = ToColor(e.TextColor),
