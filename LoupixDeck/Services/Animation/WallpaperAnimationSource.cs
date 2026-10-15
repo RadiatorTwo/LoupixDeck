@@ -36,6 +36,9 @@ public sealed class WallpaperAnimationSource : IAnimationSource, IDisposable
     // only once its event reaches it, which may be after the new owner already painted.
     private readonly Func<bool> _mayOwnDisplay;
 
+    // The page-name tile on a key, read under the Skia gate while composing a frame.
+    private readonly Func<int, SKBitmap> _temporaryTile;
+
     private readonly VideoFrameStream _stream;
     private readonly FullDisplayFrameWriter _writer;
     private readonly TouchButtonForegroundCache _foregrounds;
@@ -69,6 +72,7 @@ public sealed class WallpaperAnimationSource : IAnimationSource, IDisposable
         LoupedeckConfig config,
         WallpaperSlot slot,
         Func<bool> mayOwnDisplay,
+        Func<int, SKBitmap> temporaryTile,
         string absoluteVideoPath,
         int fps,
         BitmapHelper.ScalingOption scaling)
@@ -77,6 +81,7 @@ public sealed class WallpaperAnimationSource : IAnimationSource, IDisposable
         _config = config;
         _slot = slot;
         _mayOwnDisplay = mayOwnDisplay;
+        _temporaryTile = temporaryTile;
         _geometry = device.Geometry;
         _fps = Math.Clamp(fps <= 0 ? 30 : fps, 1, 120);
 
@@ -283,7 +288,8 @@ public sealed class WallpaperAnimationSource : IAnimationSource, IDisposable
                 canvas.DrawRect(destination, back);
             }
 
-            var foreground = _foregrounds.Get(button);
+            // The page-name tile covers the key while it is shown.
+            var foreground = _temporaryTile(button.Index) ?? _foregrounds.Get(button);
             if (foreground == null) continue;
 
             canvas.DrawBitmap(foreground, new SKRect(0, 0, foreground.Width, foreground.Height),
