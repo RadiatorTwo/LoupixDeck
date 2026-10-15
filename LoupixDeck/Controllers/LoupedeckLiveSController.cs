@@ -177,6 +177,14 @@ public partial class LoupedeckLiveSController(
     // in OnFolderStateChanged all go through Interlocked/Volatile rather than a plain int.
     private int _workspaceApplyDepth;
 
+    /// <summary>
+    /// True while <see cref="ApplyActiveWorkspace"/> runs. It ends with one repaint of the page,
+    /// the strips and the wheel, so the repaints its own steps trigger along the way — rotary pages
+    /// reset, the touch page applied, takeovers ended, the video wallpaper swapped — are skipped:
+    /// they drew each surface several times, partly with the workspace being left (#464).
+    /// </summary>
+    private bool WorkspaceApplying => Volatile.Read(ref _workspaceApplyDepth) > 0;
+
     // Serialises folder redraws and coalesces bursts. A live folder can announce a change every
     // few milliseconds (marquee, level meters, a dial turned quickly), and each redraw renders and
     // pushes the whole grid. Same scheme as the wheel and side-strip redraw gates.
@@ -777,6 +785,9 @@ public partial class LoupedeckLiveSController(
         if (_isDeviceOff || folderNav.IsActive || _screensaverActive || _fullDisplayActive)
             return;
 
+        // A workspace switch ending a takeover would repaint the page being left first.
+        if (WorkspaceApplying) return;
+
         var device = deviceService.Device;
         if (device == null || config.CurrentTouchButtonPage?.TouchButtons == null)
             return;
@@ -1253,7 +1264,7 @@ public partial class LoupedeckLiveSController(
             return;
 
         if (_isDeviceOff || exclusiveMode.Owns(ExclusiveControlScope.SideDisplays) ||
-            folderNav.IsActive || _screensaverActive || _fullDisplayActive)
+            folderNav.IsActive || _screensaverActive || _fullDisplayActive || WorkspaceApplying)
             return;
 
         try
@@ -1270,6 +1281,8 @@ public partial class LoupedeckLiveSController(
 
     private async void OnStripOwnerChanged()
     {
+        if (WorkspaceApplying) return;
+
         try
         {
             await RefreshSideStrips();
@@ -2898,7 +2911,7 @@ public partial class LoupedeckLiveSController(
     {
         // Read before waiting on the gate: ExitAll raises this synchronously from inside
         // ApplyActiveWorkspace, which may have finished by the time a queued redraw runs.
-        bool workspaceApplying = Volatile.Read(ref _workspaceApplyDepth) > 0;
+        bool workspaceApplying = WorkspaceApplying;
         long requested = Interlocked.Increment(ref _folderRequestedGen);
 
         await _folderRedrawGate.WaitAsync();
@@ -3051,7 +3064,7 @@ public partial class LoupedeckLiveSController(
                 // null (a never-visited workspace), or simply about to be overwritten.
                 // ApplyActiveWorkspace's own repaint (page + side strips) covers what this
                 // branch would otherwise do; painting here too would race it.
-                if (workspaceApplying || Volatile.Read(ref _workspaceApplyDepth) > 0) return;
+                if (workspaceApplying || WorkspaceApplying) return;
 
                 // Folder mode left — restore the configured page.
                 // One region write: it also clears the folder tiles from the gaps of a grid
@@ -3251,7 +3264,8 @@ public partial class LoupedeckLiveSController(
         }
 
         // The side strips share the page wallpaper, so repaint them for the new page.
-        if (!_isDeviceOff && !folderNav.IsActive && !exclusiveMode.Owns(ExclusiveControlScope.SideDisplays))
+        if (!_isDeviceOff && !folderNav.IsActive && !exclusiveMode.Owns(ExclusiveControlScope.SideDisplays) &&
+            !WorkspaceApplying)
             _ = RedrawSideStrips();
     }
 
