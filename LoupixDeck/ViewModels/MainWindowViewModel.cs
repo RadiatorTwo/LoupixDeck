@@ -144,6 +144,7 @@ public partial class MainWindowViewModel : ViewModelBase
     /// so the knob plastic follows Light/Dark — the underlying bitmap self-heals on read.
     /// </summary>
     public Avalonia.Media.Imaging.Bitmap RotaryKnobImage => Utils.BitmapHelper.RotaryKnobImage;
+    public Avalonia.Media.Imaging.Bitmap CtWheelImage => Utils.BitmapHelper.CtWheelImage;
 
     private readonly IDynamicTextManager _dynamicTextManager;
     private readonly Services.Animation.IButtonAnimationManager _buttonAnimationManager;
@@ -557,6 +558,7 @@ public partial class MainWindowViewModel : ViewModelBase
         {
             // The knob bitmap self-heals to the new theme on next read; nudge the binding.
             OnPropertyChanged(nameof(RotaryKnobImage));
+            OnPropertyChanged(nameof(CtWheelImage));
             // LED/RGB button bodies are baked bitmaps — re-render them for the new theme.
             LoupedeckController.RefreshRenderedButtonChrome();
         });
