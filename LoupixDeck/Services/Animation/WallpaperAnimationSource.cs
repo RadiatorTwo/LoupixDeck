@@ -29,8 +29,9 @@ public sealed class WallpaperAnimationSource : IAnimationSource, IDisposable
     private readonly DeviceGeometry _geometry;
     private readonly int _fps;
 
-    // The slot this clip plays in, which receives each pushed frame as its paused still.
-    private readonly WallpaperSlot _slot;
+    // The slot this clip plays in, which receives each pushed frame as its paused still. Swapped
+    // by Retarget and read under SkiaRenderGate.Sync.
+    private WallpaperSlot _slot;
 
     // Asked live before every push, independent of SetEnabled: the manager hears about a takeover
     // only once its event reaches it, which may be after the new owner already painted.
@@ -104,6 +105,24 @@ public sealed class WallpaperAnimationSource : IAnimationSource, IDisposable
 
     public int TargetFps => _fps;
     public bool IsActive => _active && _enabled;
+
+    /// <summary>The device this clip plays on.</summary>
+    public LoupedeckDevice.Device.LoupedeckDevice Device => _device;
+
+    /// <summary>False once the frame stream ended (ffmpeg died); paused playback still runs.</summary>
+    public bool IsRunning => _active;
+
+    /// <summary>
+    /// Moves playback to another slot playing the same clip — another page with the same
+    /// wallpaper — so the clip keeps running instead of restarting ffmpeg and refilling its ring.
+    /// </summary>
+    public void Retarget(WallpaperSlot slot)
+    {
+        lock (SkiaRenderGate.Sync)
+        {
+            _slot = slot;
+        }
+    }
 
     /// <summary>
     /// Starts decoding. Returns false without starting anything when the device has no drawable
@@ -203,7 +222,13 @@ public sealed class WallpaperAnimationSource : IAnimationSource, IDisposable
     {
         // The live check is asked here too, not only before the push: while the device is off or
         // taken over, not even pulling a frame keeps ffmpeg from decoding ahead for nothing.
-        if (!IsActive || !_mayOwnDisplay()) return;
+        if (!IsActive) return;
+        if (!_mayOwnDisplay())
+        {
+            // Whoever owns the display now draws over the last frame.
+            MarkOverlayDirty();
+            return;
+        }
 
         var token = _stream.Token ?? context.CancellationToken;
 

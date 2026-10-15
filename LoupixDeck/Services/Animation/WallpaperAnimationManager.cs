@@ -254,11 +254,26 @@ public sealed class WallpaperAnimationManager : IWallpaperAnimationManager, IDis
 
     private void RebuildCore(WallpaperSlot slot)
     {
+        var device = _deviceService.Device;
+
+        // The new page plays the same clip the same way: keep it running and only bring the keys
+        // over, rather than killing ffmpeg and decoding the clip into a fresh ring again.
+        var running = _source;
+        if (running is { IsRunning: true } && device != null && ReferenceEquals(running.Device, device) &&
+            slot is { HasVideo: true } && slot.VideoPath == _playingPath &&
+            slot.VideoFps == _playingFps && slot.ScalingOption == _playingScaling)
+        {
+            running.Retarget(slot);
+            running.InvalidateAllButtons();
+            UpdateEnabled();
+            RequestFrame();
+            return;
+        }
+
         Stop();
 
         if (slot is not { HasVideo: true }) return;
 
-        var device = _deviceService.Device;
         if (device == null) return;
 
         if (!File.Exists(slot.VideoPath))
@@ -274,7 +289,7 @@ public sealed class WallpaperAnimationManager : IWallpaperAnimationManager, IDis
             return;
         }
 
-        var source = new WallpaperAnimationSource(device, _config, slot, IsDisplayFree,
+        var source = new WallpaperAnimationSource(device, _config, slot, MayPushFrame,
             _deviceService.GetTemporaryTextTile, slot.VideoPath,
             slot.VideoFps, slot.ScalingOption);
         if (!source.Start())
@@ -346,6 +361,16 @@ public sealed class WallpaperAnimationManager : IWallpaperAnimationManager, IDis
         !_folderNav.IsActive &&
         !_fullDisplay.IsActive &&
         !_exclusiveMode.Owns(ExclusiveControlScope.TouchButtons);
+
+    /// <summary>
+    /// The source's live check before each frame: <see cref="IsDisplayFree"/>, and no touch page
+    /// slide in flight. A clip kept playing across a page change would otherwise push frames
+    /// between the slide's own. Kept out of <see cref="UpdateEnabled"/>, which nothing calls again
+    /// when the slide lands: a vetoed frame leaves the overlay dirty, so the next tick pushes.
+    /// </summary>
+    private bool MayPushFrame() =>
+        IsDisplayFree() &&
+        _deviceProvider.GetService<Controllers.IDeviceController>()?.TouchSlideInFlight != true;
 
     private void RequestFrame()
     {
