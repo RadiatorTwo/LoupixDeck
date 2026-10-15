@@ -1314,6 +1314,10 @@ public static class BitmapHelper
         // overlap another render/convert running on a different thread (see
         // SkiaRenderGate / docs/CRASH_ANALYSIS_ACCESS_VIOLATION.md, measure 1). Only
         // the finished-bitmap publish + return is left outside the lock.
+        // Read once: the value is set on the UI thread while this may run elsewhere, and the
+        // stamp below must name the value that was actually drawn.
+        LoupixDeck.PluginSdk.AdjustmentValue? value = touchButton.DisplayValue;
+
         SKBitmap bitmap;
         lock (SkiaRenderGate.Sync)
         {
@@ -1322,8 +1326,10 @@ public static class BitmapHelper
             using var canvas = new SKCanvas(bitmap);
 
             DrawTouchButtonContent(canvas, touchButton, wallpaperToUse, opacityToUse, wallpaperSource, width, height,
-                ShowsFolderBadges(config));
+                ShowsFolderBadges(config), value is { } v ? new DialRenderContext(null, v) : null);
         }
+
+        touchButton.RenderedDisplayValue = value;
 
         // Finished: from here on the key is only drawn from (the page-slide grid, the key fit).
         bitmap.SetImmutable();
@@ -1395,7 +1401,7 @@ public static class BitmapHelper
             {
                 canvas.Scale((float)scale);
                 DrawTouchButtonContent(canvas, touchButton, wallpaperToUse, opacityToUse, wallpaperSource, width, height,
-                ShowsFolderBadges(config));
+                ShowsFolderBadges(config), touchButton.ValueContext);
             }
 
             return Models.Converter.SKBitmapToAvaloniaBitmapConverter.ToBitmap(bitmap);
@@ -1411,7 +1417,8 @@ public static class BitmapHelper
         SKRectI? wallpaperSource,
         int width,
         int height,
-        bool showFolderBadge)
+        bool showFolderBadge,
+        DialRenderContext? valueContext)
     {
         if (touchButton.IsFolderBackSlot)
         {
@@ -1423,7 +1430,7 @@ public static class BitmapHelper
             DrawTouchButtonBackground(canvas, touchButton, wallpaper, wallpaperOpacity,
                 wallpaperSource, width, height);
 
-            DrawLayers(canvas, touchButton.Layers, width, height, touchButton.ValueContext);
+            DrawLayers(canvas, touchButton.Layers, width, height, valueContext);
             if (showFolderBadge) DrawFolderBadgeIfLinked(canvas, touchButton, width, height);
         }
     }

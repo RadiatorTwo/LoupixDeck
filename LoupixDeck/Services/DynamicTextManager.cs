@@ -131,7 +131,8 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
     /// The whole layout was just painted. A rescan publishes values as soon as the layout changes,
     /// which is before that paint, so a key whose value landed first was painted over with the
     /// value missing, and the value-unchanged check in <see cref="PublishValue"/> then never
-    /// repaints it (it stayed blank until pressed). Repaint every key that holds a value now.
+    /// repaints it (it stayed blank until pressed). Repaint only the keys whose image was rendered
+    /// with a different value than the one they hold now: the rest were just painted correctly.
     /// </summary>
     private void OnTouchLayoutDrawn()
     {
@@ -151,7 +152,8 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
         {
             foreach (var (button, ownerKey) in buttons)
             {
-                if (button.DisplayValue != null && StillBound(button, ownerKey))
+                if (button.DisplayValue != null && !Equals(button.DisplayValue, button.RenderedDisplayValue) &&
+                    StillBound(button, ownerKey))
                     button.Refresh();
             }
         });
