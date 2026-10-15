@@ -3839,6 +3839,12 @@ public partial class LoupedeckLiveSController(
                     await RedrawCurrentTouchPage();
                     break;
 
+                case nameof(LoupedeckConfig.InheritWallpaperFromPreviousPage):
+                    // The current page may switch between its own (empty) wallpaper and an
+                    // inherited one; repaint it the same way as a dithering toggle.
+                    await RedrawCurrentTouchPage();
+                    break;
+
                 case nameof(LoupedeckConfig.KeyCalibration):
                     // Both the size and the position of every key can have changed, so the
                     // cached per-button bitmaps are the wrong size and have to go before

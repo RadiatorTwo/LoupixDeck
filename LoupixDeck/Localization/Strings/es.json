@@ -1381,5 +1381,6 @@
   "TouchButton_LiveImageHint": "Dibuja el comando elegido (p. ej. el reloj analógico) en la rueda y se actualiza en su propio intervalo.",
   "TouchButton_ImageCommand": "Comando de imagen",
   "TouchButton_ImageCommandHint": "Un comando que dibuja su propia imagen, como DynamicText.AnalogClock(true). El parámetro opcional oculta el segundero si es false.",
-  "TouchButton_ClockLayerName": "Reloj"
+  "TouchButton_ClockLayerName": "Reloj",
+  "Settings_InheritWallpaper": "Heredar el fondo de las páginas anteriores"
 }

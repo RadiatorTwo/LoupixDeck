@@ -1381,5 +1381,6 @@
   "TouchButton_LiveImageHint": "Zeichnet den gewählten Befehl (z. B. die Analoguhr) auf das Rad und aktualisiert sich im eigenen Intervall.",
   "TouchButton_ImageCommand": "Bildbefehl",
   "TouchButton_ImageCommandHint": "Ein Befehl, der sein Bild selbst zeichnet, z. B. DynamicText.AnalogClock(true). Der optionale Parameter blendet bei false den Sekundenzeiger aus.",
-  "TouchButton_ClockLayerName": "Uhr"
+  "TouchButton_ClockLayerName": "Uhr",
+  "Settings_InheritWallpaper": "Wallpaper von vorherigen Seiten übernehmen"
 }

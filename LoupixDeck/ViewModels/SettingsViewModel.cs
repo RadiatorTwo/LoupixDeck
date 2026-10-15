@@ -234,6 +234,15 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
         // RelayCommand runs Execute via Task.Run), so the handlers marshal to the UI thread.
         BindPageCollections();
 
+        // Page thumbnails show the wallpaper a page inherits, like the device does.
+        RefreshInheritedWallpapers();
+        if (Config != null) Config.PropertyChanged += OnConfigChangedForWallpapers;
+        _ = DialogResult.Task.ContinueWith(_ => Dispatcher.UIThread.Post(() =>
+        {
+            if (Config != null) Config.PropertyChanged -= OnConfigChangedForWallpapers;
+            UnwatchPageWallpapers();
+        }), TaskScheduler.Default);
+
         // Build the Profiles tree editor rows from the config.
         BuildProfileRows();
 
@@ -526,6 +535,7 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
         {
             RefreshTouchPageCommands();
             SyncFallbackPageOptions();
+            RefreshInheritedWallpapers();
         });
 
     private void OnRotaryPagesChangedHandler(object sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e) =>
@@ -556,8 +566,55 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
             RefreshRotaryPageCommands();
             SyncRotaryPageOptions();
             SyncFallbackPageOptions();
+            RefreshInheritedWallpapers();
             foreach (var row in ProfileRows) row.RefreshFlags();
         });
+
+    // Pages whose wallpaper changes are watched, because an edit can change what the pages after
+    // them inherit.
+    private readonly List<TouchButtonPage> _wallpaperWatchedPages = [];
+
+    /// <summary>
+    /// Points every page without a wallpaper of its own at the earlier page it inherits from, so the
+    /// thumbnails match the device. Call on the UI thread.
+    /// </summary>
+    private void RefreshInheritedWallpapers()
+    {
+        UnwatchPageWallpapers();
+
+        ObservableCollection<TouchButtonPage> pages = TouchPages;
+        if (pages == null) return;
+
+        bool inherit = Config?.InheritWallpaperFromPreviousPage ?? false;
+        for (int i = 0; i < pages.Count; i++)
+        {
+            TouchButtonPage page = pages[i];
+            page.PropertyChanged += OnTouchPageWallpaperChanged;
+            _wallpaperWatchedPages.Add(page);
+            page.SetInheritedWallpaperSource(inherit && !page.HasAnyWallpaper
+                ? TouchButtonPage.FindWallpaperSource(pages, i)
+                : null);
+        }
+    }
+
+    private void UnwatchPageWallpapers()
+    {
+        foreach (TouchButtonPage page in _wallpaperWatchedPages)
+            page.PropertyChanged -= OnTouchPageWallpaperChanged;
+        _wallpaperWatchedPages.Clear();
+    }
+
+    private void OnTouchPageWallpaperChanged(object sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(TouchButtonPage.WallpaperInvalidated))
+            Dispatcher.UIThread.Post(RefreshInheritedWallpapers);
+    }
+
+    private void OnConfigChangedForWallpapers(object sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(LoupedeckConfig.InheritWallpaperFromPreviousPage))
+            Dispatcher.UIThread.Post(RefreshInheritedWallpapers);
+    }
 
     // ───────── Profiles / Workspaces (issue #132) ─────────
 

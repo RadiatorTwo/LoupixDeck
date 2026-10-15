@@ -641,6 +641,9 @@
                                     <TextBlock Grid.Column="0" Classes="card-title" Text="{loc:Tr Settings_TouchPages}" />
                                     <Button Grid.Column="1" Content="{loc:Tr Settings_Add}" Command="{Binding AddTouchPageCommand}" />
                                 </Grid>
+                                <CheckBox Margin="0,8,0,0"
+                                          Content="{loc:Tr Settings_InheritWallpaper}"
+                                          IsChecked="{Binding Config.InheritWallpaperFromPreviousPage, Mode=TwoWay}" />
                                 <ItemsControl ItemsSource="{Binding TouchPages}" Margin="0,8,0,0">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate DataType="m:TouchButtonPage">

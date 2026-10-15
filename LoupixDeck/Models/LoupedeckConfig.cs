@@ -492,6 +492,13 @@ public partial class LoupedeckConfig : ObservableObject
     [ObservableProperty]
     public partial bool ShowPageNameOverlayEnabled { get; set; }
 
+    // A touch page without a wallpaper of its own shows the wallpaper of the nearest page
+    // before it, and new pages and folders start with a copy of their source's wallpaper.
+    // Switched off, every page shows only its own wallpaper. Absent from an old config it
+    // defaults to true, which keeps the inheritance users already had.
+    [ObservableProperty]
+    public partial bool InheritWallpaperFromPreviousPage { get; set; } = true;
+
     // Slide transition when a rotary (side-strip) page changes. On by default; a user who
     // finds the slide distracting can switch to instant paging. Additive optional field —
     // absent from an old config it defaults to true (unchanged behaviour after the feature).
