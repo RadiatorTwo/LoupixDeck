@@ -14,7 +14,28 @@ public sealed class FolderNavigationService(DeviceGeometry geometry) : IFolderNa
 
     public IFolderProvider CurrentProvider { get; private set; }
 
-    public ImmutableDictionary<int, FolderEntry> CurrentEntries { get; private set; } = ImmutableDictionary<int, FolderEntry>.Empty;
+    /// <summary>
+    /// The current provider's entries. A provider's change announcement only marks them stale; they
+    /// are rebuilt by the next read, which is the controller's coalesced redraw (or a press), so a
+    /// burst of announcements costs one build instead of one per announcement.
+    /// </summary>
+    public ImmutableDictionary<int, FolderEntry> CurrentEntries
+    {
+        get
+        {
+            if (Volatile.Read(ref _entriesStale) != 0)
+                RebuildStaleEntries();
+            return _currentEntries;
+        }
+    }
+
+    private ImmutableDictionary<int, FolderEntry> _currentEntries = ImmutableDictionary<int, FolderEntry>.Empty;
+
+    // 1 once the current provider announced a change its entries do not show yet.
+    private int _entriesStale;
+
+    // Serialises entry builds: a stale read may run on any thread, alongside navigation.
+    private readonly Lock _buildLock = new();
 
     public event Action StateChanged;
 
@@ -52,8 +73,7 @@ public sealed class FolderNavigationService(DeviceGeometry geometry) : IFolderNa
 
         if (_stack.Count == 0)
         {
-            CurrentProvider = null;
-            CurrentEntries = ImmutableDictionary<int, FolderEntry>.Empty;
+            ClearActive();
         }
         else
         {
@@ -80,8 +100,7 @@ public sealed class FolderNavigationService(DeviceGeometry geometry) : IFolderNa
             try { leaving.OnExit(); } catch { /* swallow */ }
         }
 
-        CurrentProvider = null;
-        CurrentEntries = ImmutableDictionary<int, FolderEntry>.Empty;
+        ClearActive();
 
         StateChanged?.Invoke();
         return Task.CompletedTask;
@@ -90,17 +109,48 @@ public sealed class FolderNavigationService(DeviceGeometry geometry) : IFolderNa
     private void OnProviderEntriesChanged()
     {
         FolderRedrawProbe.CountEvent();
-        long probe = FolderRedrawProbe.Begin();
-        if (CurrentProvider != null)
-            SetActive(CurrentProvider);
-        FolderRedrawProbe.End("build entries", probe);
-
+        Volatile.Write(ref _entriesStale, 1);
         StateChanged?.Invoke();
+    }
+
+    private void RebuildStaleEntries()
+    {
+        lock (_buildLock)
+        {
+            // Cleared before the build, so an announcement made while it runs is built next time.
+            if (Interlocked.Exchange(ref _entriesStale, 0) == 0) return;
+
+            IFolderProvider provider = CurrentProvider;
+            if (provider == null) return;
+
+            long probe = FolderRedrawProbe.Begin();
+            BuildActive(provider);
+            FolderRedrawProbe.End("build entries", probe);
+        }
+    }
+
+    private void ClearActive()
+    {
+        lock (_buildLock)
+        {
+            Volatile.Write(ref _entriesStale, 0);
+            CurrentProvider = null;
+            _currentEntries = ImmutableDictionary<int, FolderEntry>.Empty;
+        }
     }
 
     private void SetActive(IFolderProvider provider)
     {
-        CurrentProvider = provider;
+        lock (_buildLock)
+        {
+            Volatile.Write(ref _entriesStale, 0);
+            CurrentProvider = provider;
+            BuildActive(provider);
+        }
+    }
+
+    private void BuildActive(IFolderProvider provider)
+    {
         var entries = provider.BuildEntries() ?? Array.Empty<FolderEntry>();
         var dict = ImmutableDictionary.CreateBuilder<int, FolderEntry>();
         foreach (var entry in entries)
@@ -110,7 +160,7 @@ public sealed class FolderNavigationService(DeviceGeometry geometry) : IFolderNa
             if (!Grid.IsGridSlot(entry.SlotIndex)) continue;
             dict[entry.SlotIndex] = entry;
         }
-        CurrentEntries = dict.ToImmutable();
+        _currentEntries = dict.ToImmutable();
     }
 }
 

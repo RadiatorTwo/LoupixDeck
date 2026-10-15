@@ -3029,6 +3029,10 @@ public partial class LoupedeckLiveSController(
                 // Every key is rendered first and the grid then goes to the panel as one picture. Writing the
                 // keys one by one left the previous folder's icons on screen until each key's turn came.
                 int keySize = device.KeySize;
+
+                // Read once: an announcement arriving mid-render would rebuild the entries on the
+                // next read and mix two builds on one grid.
+                var entries = folderNav.CurrentEntries;
                 SkiaSharp.SKBitmap[] tiles = new SkiaSharp.SKBitmap[grid.GridSlots];
                 long probeTotal = Services.Diagnostics.FolderRedrawProbe.Begin();
                 long probe = probeTotal;
@@ -3044,7 +3048,7 @@ public partial class LoupedeckLiveSController(
                             tiles[slot] = BitmapHelper.RenderFolderBackButton(config, slot, keySize, keySize,
                                 grid.Columns, wallpaperKey);
                         }
-                        else if (folderNav.CurrentEntries.TryGetValue(slot, out var entry))
+                        else if (entries.TryGetValue(slot, out var entry))
                         {
                             tiles[slot] = BitmapHelper.RenderFolderEntry(entry, config, slot, keySize, keySize,
                                 grid.Columns, wallpaperKey);
