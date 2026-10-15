@@ -43,23 +43,41 @@ public partial class LoupedeckLiveSController
     // final frame.
     private int _touchSlidesPending;
 
-    // Set (1) when the screen must be repainted once the slide lands, because a key of the page
-    // changed mid-slide or a newer page was committed. Written with Interlocked on both threads:
-    // each side writes its flag and then reads the other's, so at least one of them repaints.
+    // Set (1) when the whole grid must be repainted once the slide lands, because a newer page was
+    // committed mid-slide. Written with Interlocked on both threads: each side writes its flag and
+    // then reads the other's, so at least one of them repaints.
     private int _touchSlideRepaintNeeded;
+
+    // Grid keys (bit = key index) that changed mid-slide and are repainted on their own once the
+    // slide lands. Same Interlocked handshake as _touchSlideRepaintNeeded.
+    private long _touchSlideDeferredKeys;
 
     /// <summary>True from the moment a slide commits its page until its final frame (or abort).</summary>
     public bool TouchSlideInFlight =>
         Volatile.Read(ref _touchSlidesPending) > 0 || Volatile.Read(ref _touchTransition.Active);
 
     /// <summary>
-    /// Called instead of painting a key, or a newer page, while a slide is in flight: the slide
-    /// repaints the page when it lands. Returns false when the slide landed meanwhile, in which
-    /// case the caller paints after all.
+    /// Called instead of painting a newer page while a slide is in flight: the slide repaints the
+    /// grid when it lands. Returns false when the slide landed meanwhile, in which case the caller
+    /// paints after all.
     /// </summary>
     private bool DeferTouchPaintToSlide()
     {
         Interlocked.Exchange(ref _touchSlideRepaintNeeded, 1);
+        return TouchSlideInFlight;
+    }
+
+    /// <summary>
+    /// Called instead of painting one key while a slide is in flight: the slide repaints that key
+    /// when it lands. Returns false when the slide landed meanwhile, in which case the caller
+    /// paints after all.
+    /// </summary>
+    private bool DeferTouchKeyPaintToSlide(int index)
+    {
+        if (index is >= 0 and < 64)
+            Interlocked.Or(ref _touchSlideDeferredKeys, 1L << index);
+        else
+            Interlocked.Exchange(ref _touchSlideRepaintNeeded, 1);
         return TouchSlideInFlight;
     }
 
@@ -189,7 +207,6 @@ public partial class LoupedeckLiveSController
                 // Commit page state only (no device paint) so the incoming page is now current.
                 // Counted as in flight first: the commit re-renders the page's dynamic keys, and
                 // those per-key paints must wait for the slide too.
-                Interlocked.Exchange(ref _touchSlideRepaintNeeded, 0);
                 Interlocked.Increment(ref _touchSlidesPending);
 
                 // The previous page's name tile would keep re-asserting itself between the slide's
@@ -207,6 +224,11 @@ public partial class LoupedeckLiveSController
                 {
                     try
                     {
+                        // Whatever was deferred so far (the commit's own key changes, a page
+                        // committed before this point) is part of the state rendered below, so it
+                        // needs no repaint after the landing. Only later deferrals do.
+                        Interlocked.Exchange(ref _touchSlideRepaintNeeded, 0);
+                        Interlocked.Exchange(ref _touchSlideDeferredKeys, 0);
                         var incoming = RenderTouchGridForCurrentPage(columns, rows);
                         BeginTouchTransition(outgoing, incoming, direction, overlayName);
                         Interlocked.Decrement(ref _touchSlidesPending);
@@ -353,16 +375,23 @@ public partial class LoupedeckLiveSController
                 incoming.Dispose();
                 ReleaseTouchSlideFrame();
 
-                // The incoming grid was rendered before the slide began. A key that changed since,
-                // or a page committed during the slide, was held back for this moment: paint the
-                // current page in full rather than leave the stale grid standing. The exchange is
-                // a full fence, so a deferral racing this landing either sees Active false and
-                // paints itself, or is seen here.
+                // The incoming grid was rendered before the slide began. A page committed during
+                // the slide was held back for this moment: paint the current grid in full (its
+                // commit already repainted the side strips). Keys that changed since were held
+                // back too: repaint just those. The exchanges are full fences, so a deferral
+                // racing this landing either sees Active false and paints itself, or is seen here.
                 Volatile.Write(ref tr.Active, false);
+                long deferredKeys = Interlocked.Exchange(ref _touchSlideDeferredKeys, 0);
                 if (Interlocked.Exchange(ref _touchSlideRepaintNeeded, 0) == 1)
-                    Avalonia.Threading.Dispatcher.UIThread.Post(() => _ = RedrawCurrentTouchPage());
+                {
+                    Avalonia.Threading.Dispatcher.UIThread.Post(() => _ = RedrawCurrentTouchGrid());
+                }
                 else
+                {
                     pageManager.NotifyTouchLayoutDrawn();
+                    if (deferredKeys != 0)
+                        Avalonia.Threading.Dispatcher.UIThread.Post(() => RepaintDeferredTouchKeys(deferredKeys));
+                }
 
                 var name = tr.OverlayPageName;
                 tr.OverlayPageName = null;
@@ -394,6 +423,21 @@ public partial class LoupedeckLiveSController
             outgoing.Dispose();
             incoming.Dispose();
             ReleaseTouchSlideFrame();
+        }
+    }
+
+    /// <summary>Queues a repaint of each current-page key whose bit is set in <paramref name="keys"/>.</summary>
+    private void RepaintDeferredTouchKeys(long keys)
+    {
+        var buttons = config.CurrentTouchButtonPage?.TouchButtons;
+        if (buttons == null) return;
+
+        for (int index = 0; index < 64; index++)
+        {
+            if ((keys & (1L << index)) == 0) continue;
+            var button = buttons.FindByIndex(index);
+            if (button != null)
+                TouchItemChanged(button, EventArgs.Empty);
         }
     }
 

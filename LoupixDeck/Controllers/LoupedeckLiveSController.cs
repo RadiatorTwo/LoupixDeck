@@ -779,18 +779,28 @@ public partial class LoupedeckLiveSController(
 
     public async Task RedrawCurrentTouchPage()
     {
+        if (await RedrawCurrentTouchGrid())
+            await RedrawSideStrips();
+    }
+
+    /// <summary>
+    /// Repaints the current page's touch grid without the side strips. Returns false when nothing
+    /// may be painted right now, so the side strips are left alone as well.
+    /// </summary>
+    private async Task<bool> RedrawCurrentTouchGrid()
+    {
         // No-op while something else owns the screen — the owner repaints when it
         // releases (device-off → RestoreDeviceState, folder/exclusive → their exit
         // handlers), so painting here would fight them.
         if (_isDeviceOff || folderNav.IsActive || _screensaverActive || _fullDisplayActive)
-            return;
+            return false;
 
         // A workspace switch ending a takeover would repaint the page being left first.
-        if (WorkspaceApplying) return;
+        if (WorkspaceApplying) return false;
 
         var device = deviceService.Device;
         if (device == null || config.CurrentTouchButtonPage?.TouchButtons == null)
-            return;
+            return false;
 
         // An exclusive provider suppresses only the surfaces it claimed (#127); the rest
         // of the page keeps rendering normally.
@@ -803,7 +813,7 @@ public partial class LoupedeckLiveSController(
                 await device.DrawTouchGridRegion(config.CurrentTouchButtonPage.TouchButtons, config);
         }
 
-        await RedrawSideStrips();
+        return true;
     }
 
     // ───────── Screensaver (issue #120) ─────────
@@ -3479,8 +3489,8 @@ public partial class LoupedeckLiveSController(
             _screensaverActive || _fullDisplayActive) return;
 
         // A touch page slide is in flight: a key painted now would land between its frames and
-        // then be covered by its final grid. The slide repaints the page when it lands instead.
-        if (TouchSlideInFlight && DeferTouchPaintToSlide()) return;
+        // then be covered by its final grid. The slide repaints the key when it lands instead.
+        if (TouchSlideInFlight && DeferTouchKeyPaintToSlide(item.Index)) return;
 
         var button = config.CurrentTouchButtonPage.TouchButtons.FirstOrDefault(b => b.Index == item.Index);
 
