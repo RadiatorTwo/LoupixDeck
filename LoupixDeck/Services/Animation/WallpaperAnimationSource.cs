@@ -169,7 +169,9 @@ public sealed class WallpaperAnimationSource : IAnimationSource, IDisposable
 
     public async Task RenderFrameAsync(AnimationRenderContext context)
     {
-        if (!IsActive) return;
+        // The live check is asked here too, not only before the push: while the device is off or
+        // taken over, not even pulling a frame keeps ffmpeg from decoding ahead for nothing.
+        if (!IsActive || !_mayOwnDisplay()) return;
 
         var token = _stream.Token ?? context.CancellationToken;
 

@@ -3440,10 +3440,11 @@ public partial class LoupedeckLiveSController(
             _pendingTouchRedraws.Remove(item);
         }
 
-        // Folder mode, exclusive mode, or the screensaver owns the touch display —
-        // suppress per-button redraws (e.g. from DynamicTextManager) so they don't paint
-        // over the active view. When the owner exits, its handler repaints the page.
-        if (folderNav.IsActive || exclusiveMode.Owns(ExclusiveControlScope.TouchButtons) ||
+        // The device is off, or folder mode, exclusive mode or the screensaver owns the touch
+        // display — suppress per-button redraws (e.g. from DynamicTextManager) so they don't
+        // paint over the active view or onto a dark panel. When the owner exits, or the device
+        // is switched back on, the page is repainted.
+        if (_isDeviceOff || folderNav.IsActive || exclusiveMode.Owns(ExclusiveControlScope.TouchButtons) ||
             _screensaverActive || _fullDisplayActive) return;
 
         // A touch page slide is in flight: a key painted now would land between its frames and

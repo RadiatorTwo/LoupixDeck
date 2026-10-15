@@ -5,6 +5,7 @@ using LoupixDeck.Services.FolderNavigation;
 using LoupixDeck.Services.Plugins;
 using LoupixDeck.Services.Screensaver;
 using LoupixDeck.Utils;
+using Microsoft.Extensions.DependencyInjection;
 using SkiaSharp;
 
 namespace LoupixDeck.Services.Animation;
@@ -33,6 +34,9 @@ public sealed class WallpaperAnimationManager : IWallpaperAnimationManager, IDis
     private readonly IFolderNavigationService _folderNav;
     private readonly IFullDisplayRenderService _fullDisplay;
 
+    // Resolves the device controller lazily: it depends on this manager, so it cannot be injected.
+    private readonly IServiceProvider _deviceProvider;
+
     private readonly Lock _gate = new();
     private bool _started;
     private bool _disposed;
@@ -59,8 +63,10 @@ public sealed class WallpaperAnimationManager : IWallpaperAnimationManager, IDis
         IScreensaverManager screensaver,
         IExclusiveModeService exclusiveMode,
         IFolderNavigationService folderNav,
-        IFullDisplayRenderService fullDisplay)
+        IFullDisplayRenderService fullDisplay,
+        IServiceProvider deviceProvider)
     {
+        _deviceProvider = deviceProvider;
         _pageManager = pageManager;
         _deviceService = deviceService;
         _config = config;
@@ -305,6 +311,10 @@ public sealed class WallpaperAnimationManager : IWallpaperAnimationManager, IDis
     /// every frame, so a frame never lands over a takeover that has not reached
     /// <see cref="UpdateEnabled"/> yet.</summary>
     private bool IsDisplayFree() =>
+        // A device switched off (by the user, a suspend or the monitors going dark) shows nothing,
+        // so a frame pushed to it is serial bandwidth and ffmpeg work spent on a blank panel.
+        // Switching it back on repaints the page, which hands the redraw to the clip again.
+        _deviceProvider.GetService<Controllers.IDeviceController>()?.IsDeviceOff != true &&
         !_screensaverActive &&
         !_folderNav.IsActive &&
         !_fullDisplay.IsActive &&

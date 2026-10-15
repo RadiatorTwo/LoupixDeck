@@ -3,6 +3,7 @@ using LoupixDeck.Models.Layers;
 using LoupixDeck.PluginSdk;
 using LoupixDeck.Services.Commands;
 using LoupixDeck.Utils;
+using Microsoft.Extensions.DependencyInjection;
 using SkiaSharp;
 
 namespace LoupixDeck.Services.Animation;
@@ -117,7 +118,11 @@ public sealed class ButtonAnimationSource : IAnimationSource, IDisposable
         if (entries.Length == 0) return;
 
         var device = _deviceService.Device;
-        if (device == null) return;
+        if (device is not { IsConnected: true }) return;
+
+        // A device switched off shows nothing; switching it back on repaints the page with the
+        // layers' current frames, and the animation carries on from there.
+        if (_deviceProvider.GetService<Controllers.IDeviceController>()?.IsDeviceOff == true) return;
 
         var columns = device.Columns;
         List<TouchButton> dirty = null;
