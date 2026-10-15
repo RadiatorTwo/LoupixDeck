@@ -1550,6 +1550,12 @@ public partial class LoupedeckLiveSController(
         return RedrawStripCoalesced(side, idx);
     }
 
+    // When a plugin last asked for a value repaint of each surface (left strip, right strip,
+    // wheel), as a Stopwatch timestamp. Lets the repaint after an adjustment command tell that
+    // the plugin already refreshed the dial while the command ran.
+    private const int WheelSurface = 2;
+    private readonly long[] _pluginValueRefreshTs = new long[3];
+
     /// <inheritdoc/>
     public async Task RefreshDialsForCommand(string commandName)
     {
@@ -1564,6 +1570,7 @@ public partial class LoupedeckLiveSController(
              BindsCommand(wheel.RotaryRightCommand, commandName) ||
              BindsCommand(wheel.Command, commandName)))
         {
+            Interlocked.Exchange(ref _pluginValueRefreshTs[WheelSurface], System.Diagnostics.Stopwatch.GetTimestamp());
             await RedrawWheel();
         }
 
@@ -1590,6 +1597,7 @@ public partial class LoupedeckLiveSController(
             var idx = SideIndex(side);
             if (IsStripDragBusy(idx)) continue;
 
+            Interlocked.Exchange(ref _pluginValueRefreshTs[idx], System.Diagnostics.Stopwatch.GetTimestamp());
             await RedrawStripCoalesced(side, idx);
         }
     }
@@ -2050,6 +2058,7 @@ public partial class LoupedeckLiveSController(
         {
             try
             {
+                long started = System.Diagnostics.Stopwatch.GetTimestamp();
                 await commandService.ExecuteCommand(command, target, sourceIndex, ticks);
 
                 // An adjustment command changed its value, so the dial indicator drawn from
@@ -2058,7 +2067,7 @@ public partial class LoupedeckLiveSController(
                 if (target == ButtonTargets.RotaryEncoder && sourceIndex.HasValue &&
                     commandService.IsAdjustmentCommand(command))
                 {
-                    await RefreshAdjustmentIndicator(sourceIndex.Value);
+                    await RefreshAdjustmentIndicator(sourceIndex.Value, started);
                 }
             }
             catch (Exception ex) { Console.WriteLine($"Command failed ({command}): {ex.Message}"); }
@@ -2072,13 +2081,21 @@ public partial class LoupedeckLiveSController(
     /// the redraws would overlap on the serial queue. A swipe drag owns the strip until it
     /// lands, so that frame is skipped — the next turn (or the swipe's commit) repaints.
     /// </summary>
-    private Task RefreshAdjustmentIndicator(int globalIndex)
+    private Task RefreshAdjustmentIndicator(int globalIndex, long commandStarted = 0)
     {
-        if (IsWheelIndex(globalIndex)) return RedrawWheel();
+        // Most plugins report the new value themselves while the command runs (#435), which
+        // already repainted this surface after the value changed. Drawing it again here would
+        // render the same value a second time per detent (#463).
+        bool RefreshedByPlugin(int surface) =>
+            commandStarted != 0 && Interlocked.Read(ref _pluginValueRefreshTs[surface]) >= commandStarted;
+
+        if (IsWheelIndex(globalIndex))
+            return RefreshedByPlugin(WheelSurface) ? Task.CompletedTask : RedrawWheel();
         if (deviceService.Device?.HasSideStrips != true) return Task.CompletedTask;
 
         var (side, _) = ResolveRotary(globalIndex);
         var idx = SideIndex(side);
+        if (RefreshedByPlugin(idx)) return Task.CompletedTask;
         if (IsStripDragBusy(idx)) return Task.CompletedTask;
 
         return RedrawStripCoalesced(side, idx);
