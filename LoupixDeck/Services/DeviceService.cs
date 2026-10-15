@@ -12,6 +12,11 @@ public interface IDeviceService
     void StartDevice(string devicePort, int deviceBaudrate);
     void ReconnectDevice();
     Task ShowTemporaryTextButton(int index, string text, int displayDurationMilliseconds);
+
+    /// <summary>True while <see cref="ShowTemporaryTextButton"/> shows its tile on key
+    /// <paramref name="index"/>. Redraws of that key stand back meanwhile, so an animated or
+    /// live key does not flicker against the tile; the key is repainted when the tile goes.</summary>
+    bool IsShowingTemporaryText(int index);
 }
 
 public class LoupedeckDeviceService : IDeviceService
@@ -84,17 +89,23 @@ public class LoupedeckDeviceService : IDeviceService
 
     private int _currentCallId;
 
+    // Key the temporary text tile is on, or -1. Read by the key redraw paths on other threads.
+    private volatile int _temporaryTextIndex = -1;
+
+    public bool IsShowingTemporaryText(int index) => index >= 0 && _temporaryTextIndex == index;
+
     public async Task ShowTemporaryTextButton(int index, string text, int displayDurationMilliseconds)
     {
         var callId = Interlocked.Increment(ref _currentCallId); // Atomically increment the call ID
         const int interval = 100; // Update interval in milliseconds
         var elapsed = 0; // Tracks the elapsed time
 
-        // Rendered once. The loop re-asserts the tile every interval because a key redraw (a
-        // dynamic text tick, an animation frame, the page paint) may cover it meanwhile; the
-        // device only sends it again when that happened.
+        // Rendered once. The key's own redraws stand back while the tile is up (see
+        // IsShowingTemporaryText); the loop still re-asserts it every interval against what does
+        // not, such as a page paint, and the device only sends it again when it was covered.
         using (SkiaSharp.SKBitmap tile = Device.RenderTextButton(text))
         {
+            _temporaryTextIndex = index;
             while (elapsed < displayDurationMilliseconds)
             {
                 if (callId != _currentCallId)
@@ -112,9 +123,11 @@ public class LoupedeckDeviceService : IDeviceService
         // Only the last call executes this action
         if (callId == _currentCallId)
         {
-            // Put the key back. Its RenderedImage is current: redraws of the key kept rendering
-            // while the overlay was up, so only an empty one has to be rendered here.
-            await Device.DrawTouchButton(_config.CurrentTouchButtonPage.TouchButtons[index], _config, false);
+            _temporaryTextIndex = -1;
+
+            // Put the key back, rendered fresh: its own redraws were held back while the tile
+            // was up, so an animation or a live value has moved on since its last render.
+            await Device.DrawTouchButton(_config.CurrentTouchButtonPage.TouchButtons[index], _config, true);
         }
     }
 }

@@ -176,6 +176,9 @@ public sealed class ButtonAnimationSource : IAnimationSource, IDisposable
                 // playing this is false and the partial push below runs exactly as before.
                 if (_wallpaper.TryRedirectButtonRedraw(button.Index)) continue;
 
+                // The page-name tile is up on this key; it repaints the key when it goes.
+                if (_deviceService.IsShowingTemporaryText(button.Index)) continue;
+
                 await device.DrawTouchButton(button, _config, refresh: true).ConfigureAwait(false);
             }
         }
