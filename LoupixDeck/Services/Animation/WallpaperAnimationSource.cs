@@ -56,6 +56,11 @@ public sealed class WallpaperAnimationSource : IAnimationSource, IDisposable
     private volatile bool _enabled = true;
     private bool _disposed;
 
+    // 1 while the panel may not show the current overlay: set by every invalidation and when the
+    // last push did not reach the panel, cleared right before a frame is composed. While it is 0,
+    // a repeated ring frame would push the same picture again and is skipped.
+    private int _overlayDirty = 1;
+
     // Diagnostics, opt-in via LOUPIX_WP_DEBUG=1: mirrors the screensaver's breakdown and adds the
     // overlay's own cost, which is the number that decides whether a given panel can carry this.
     private static readonly bool _debug =
@@ -143,13 +148,33 @@ public sealed class WallpaperAnimationSource : IAnimationSource, IDisposable
 
     /// <summary>Pauses or resumes without tearing down ffmpeg — what the screensaver, a plugin
     /// takeover, folder navigation and page swipes need while they own the display.</summary>
-    public void SetEnabled(bool enabled) => _enabled = enabled;
+    public void SetEnabled(bool enabled)
+    {
+        _enabled = enabled;
+
+        // Whoever owned the display meanwhile painted over the last frame.
+        if (enabled) MarkOverlayDirty();
+    }
+
+    /// <summary>
+    /// Makes the next frame go out even when the clip is still on the same frame — for anything
+    /// the overlay draws that changed without an invalidation (the page-name tile, an opacity).
+    /// </summary>
+    public void MarkOverlayDirty() => Volatile.Write(ref _overlayDirty, 1);
 
     /// <summary>Re-renders one key on its next frame.</summary>
-    public void InvalidateButton(int index) => _foregrounds.Invalidate(index);
+    public void InvalidateButton(int index)
+    {
+        _foregrounds.Invalidate(index);
+        MarkOverlayDirty();
+    }
 
     /// <summary>Re-renders every key on the next frame — what a page change needs.</summary>
-    public void InvalidateAllButtons() => _foregrounds.InvalidateAll();
+    public void InvalidateAllButtons()
+    {
+        _foregrounds.InvalidateAll();
+        MarkOverlayDirty();
+    }
 
     /// <summary>
     /// Replaces one side strip's content, drawn over its column from the next frame on. Takes
@@ -170,6 +195,8 @@ public sealed class WallpaperAnimationSource : IAnimationSource, IDisposable
             _strips[idx]?.Dispose();
             _strips[idx] = strip;
         }
+
+        MarkOverlayDirty();
     }
 
     public async Task RenderFrameAsync(AnimationRenderContext context)
@@ -193,6 +220,19 @@ public sealed class WallpaperAnimationSource : IAnimationSource, IDisposable
 
         if (!frame.HasFrame) return; // stopped / disposed
 
+        // The panel already shows this ring frame with the current overlay: the clock has not
+        // reached the next frame yet, or the clip is a single still. Pushing it again would only
+        // cost a full serial write.
+        if (frame.Repeat && Volatile.Read(ref _overlayDirty) == 0)
+        {
+            _stream.Release(frame);
+            return;
+        }
+
+        // Cleared before composing, so an invalidation landing mid-compose sends the next frame.
+        Volatile.Write(ref _overlayDirty, 0);
+        var pushed = false;
+
         try
         {
             var overlayMs = 0d;
@@ -201,7 +241,7 @@ public sealed class WallpaperAnimationSource : IAnimationSource, IDisposable
             // Asked again right before composing: the display may have been taken over (a folder
             // opened) while this frame was being waited for, and a frame sent now would land over
             // the new owner's first picture.
-            var pushed = await _writer.PushAsync(frame.Buffer, token, canvas =>
+            pushed = await _writer.PushAsync(frame.Buffer, token, canvas =>
             {
                 var overlayStart = _debug ? Stopwatch.GetTimestamp() : 0;
                 DrawOverlay(canvas);
@@ -233,6 +273,8 @@ public sealed class WallpaperAnimationSource : IAnimationSource, IDisposable
         }
         finally
         {
+            // Not on the panel (vetoed by a takeover, or the write failed): the next frame goes out.
+            if (!pushed) MarkOverlayDirty();
             _stream.Release(frame);
         }
     }

@@ -16,12 +16,13 @@ namespace LoupixDeck.Services.Animation;
 /// </summary>
 public readonly struct VideoFrame
 {
-    public VideoFrame(byte[] buffer, int dropped, bool ended, bool pooled = false)
+    public VideoFrame(byte[] buffer, int dropped, bool ended, bool pooled = false, bool repeat = false)
     {
         Buffer = buffer;
         Dropped = dropped;
         Ended = ended;
         Pooled = pooled;
+        Repeat = repeat;
     }
 
     /// <summary>The frame's raw BGRA pixels, or null when no frame was produced.</summary>
@@ -37,6 +38,11 @@ public readonly struct VideoFrame
     /// <summary>Whether <see cref="Buffer"/> came from the shared array pool (streaming mode) and
     /// must go back to it, rather than being owned by the ring.</summary>
     public bool Pooled { get; }
+
+    /// <summary>True when this is the same ring frame the previous read returned: the clock has
+    /// not reached the next frame yet, the ring is still filling, or the clip has a single frame.
+    /// A consumer that already presented it can skip pushing it again.</summary>
+    public bool Repeat { get; }
 
     public bool HasFrame => Buffer != null;
 }
@@ -621,9 +627,10 @@ public sealed class VideoFrameStream : IDisposable
         // Frames skipped since the last presented one. Negative across the loop seam, which is
         // not a drop — it is the loop.
         var dropped = _lastRingIndex >= 0 ? Math.Max(0, index - _lastRingIndex - 1) : 0;
+        var repeat = index == _lastRingIndex;
         _lastRingIndex = index;
 
-        return new VideoFrame(_ring[index], dropped, ended: false);
+        return new VideoFrame(_ring[index], dropped, ended: false, repeat: repeat);
     }
 
     /// <summary>

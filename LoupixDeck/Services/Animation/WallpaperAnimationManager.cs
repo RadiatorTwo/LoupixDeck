@@ -126,6 +126,7 @@ public sealed class WallpaperAnimationManager : IWallpaperAnimationManager, IDis
 
         if (showing)
         {
+            source.MarkOverlayDirty();
             _scheduler.RequestFrame(source);
             return true;
         }
@@ -214,7 +215,12 @@ public sealed class WallpaperAnimationManager : IWallpaperAnimationManager, IDis
         var path = slot.HasVideo ? slot.VideoPath : null;
         if (path == _playingPath &&
             slot.VideoFps == _playingFps &&
-            slot.ScalingOption == _playingScaling) return;
+            slot.ScalingOption == _playingScaling)
+        {
+            // A paused or single-frame clip sends no new frame on its own to show the change.
+            RequestFrame();
+            return;
+        }
 
         // The fps and the fit are baked into ffmpeg's arguments at spawn, so either one changing
         // means a restart. Opacity is not: the overlay reads it live per frame.
@@ -344,7 +350,10 @@ public sealed class WallpaperAnimationManager : IWallpaperAnimationManager, IDis
     private void RequestFrame()
     {
         var source = _source;
-        if (source is { IsActive: true }) _scheduler.RequestFrame(source);
+        if (source is not { IsActive: true }) return;
+
+        source.MarkOverlayDirty();
+        _scheduler.RequestFrame(source);
     }
 
     private void ReportProblem(string path, string message)
