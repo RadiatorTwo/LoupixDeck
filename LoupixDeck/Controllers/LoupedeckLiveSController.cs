@@ -1061,7 +1061,7 @@ public partial class LoupedeckLiveSController(
         await TryDeviceIo("re-applying the LED colours", ReapplySimpleButtonColors);
 
         // Paint the initial segmented rotary labels onto the side strips (Razer).
-        await TryDeviceIo("drawing the side strips", RedrawSideStrips);
+        await TryDeviceIo("drawing the side strips", () => RedrawSideStrips());
 
         InitButtonEvents();
 
@@ -1485,10 +1485,11 @@ public partial class LoupedeckLiveSController(
     /// <summary>Re-evaluates plugin-override attachment for both strips, then repaints
     /// them (no-op on devices without side strips, or while an exclusive provider owns
     /// the side displays). Also repaints the CT's wheel screen, which every caller —
-    /// page change, connect, wake, takeover end — needs refreshed at the same moments.</summary>
-    private async Task RedrawSideStrips()
+    /// page change, connect, wake, takeover end — needs refreshed at the same moments, unless
+    /// <paramref name="includeWheel"/> is false because the caller repaints the wheel itself.</summary>
+    private async Task RedrawSideStrips(bool includeWheel = true)
     {
-        await RedrawWheel();
+        if (includeWheel) await RedrawWheel();
         if (deviceService.Device?.HasSideStrips != true) return;
         if (exclusiveMode.Owns(ExclusiveControlScope.SideDisplays)) return;
         EnsureSideStripAttachment(RotarySide.Left);
@@ -2555,17 +2556,24 @@ public partial class LoupedeckLiveSController(
 
     private async void OnExclusiveStateChanged()
     {
+        // StateChanged also fires for every EntriesChanged of the active provider, which a live
+        // provider raises many times a second. Only entering, leaving, a provider swap or a scope
+        // change can change who owns the strips and the wheel.
+        bool takeoverChanged = NoteExclusiveTakeover();
+
         // A takeover that claims the side displays owns the strips too: stop any
         // plugin-strip providers (idempotent). They re-attach when exclusive mode exits
         // via RedrawSideStrips. A provider that left the strips out (#127) keeps them
-        // running — repaint them so a scope change takes effect right away.
+        // running — repaint them so a scope change takes effect right away. Their content
+        // does not depend on the provider's entries, so an entries update leaves them alone.
         if (exclusiveMode.Owns(ExclusiveControlScope.SideDisplays))
             DetachAllSideStripProviders();
-        else if (exclusiveMode.IsActive)
-            await RedrawSideStrips();
+        else if (exclusiveMode.IsActive && takeoverChanged)
+            await RedrawSideStrips(includeWheel: false);
 
-        // The provider may draw the wheel screen too (#396); a no-op unless it does or it changed.
-        await RedrawWheelForExclusive();
+        // The provider may draw the wheel screen too (#396); a no-op unless it does or the
+        // takeover changed.
+        await RedrawWheelForExclusive(takeoverChanged);
 
         var requested = Interlocked.Increment(ref _exclusiveGen);
 
@@ -2599,6 +2607,29 @@ public partial class LoupedeckLiveSController(
         finally
         {
             _exclusiveRedrawGate.Release();
+        }
+    }
+
+    // The provider and scope OnExclusiveStateChanged last saw, to tell a takeover change from an
+    // entries update. Guarded by _exclusiveTakeoverLock: StateChanged is raised on the
+    // provider's thread.
+    private readonly Lock _exclusiveTakeoverLock = new();
+    private IExclusiveModeProvider _exclusiveSeenProvider;
+    private ExclusiveControlScope _exclusiveSeenScope;
+
+    /// <summary>Records the current exclusive provider and scope; true when either differs
+    /// from what the previous call saw.</summary>
+    private bool NoteExclusiveTakeover()
+    {
+        IExclusiveModeProvider provider = exclusiveMode.IsActive ? exclusiveMode.Current : null;
+        ExclusiveControlScope scope = exclusiveMode.ActiveScope;
+
+        lock (_exclusiveTakeoverLock)
+        {
+            bool changed = !ReferenceEquals(provider, _exclusiveSeenProvider) || scope != _exclusiveSeenScope;
+            _exclusiveSeenProvider = provider;
+            _exclusiveSeenScope = scope;
+            return changed;
         }
     }
 
