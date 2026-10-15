@@ -865,7 +865,8 @@ public static class BitmapHelper
     /// edge, around the round screen's black glass. The screen's active area (which the
     /// layout overlays) is smaller than the glass, so a plain black margin shows between
     /// the image and the ring, as on the device. Unlike the side dials it has no tiers or
-    /// grip ridges.
+    /// grip ridges. In the Light theme the ring is light metal and the glass margin takes
+    /// the light screen bezel's grey, like the rest of the light hardware.
     /// </summary>
     public static Bitmap RenderCtWheelImage(int size, float supersample = 2f, bool? lightTheme = null)
     {
@@ -901,15 +902,26 @@ public static class BitmapHelper
                     canvas.DrawCircle(c, c + (3.5f * ss), outerR, shadow);
                 }
 
-                // 2. The metal ring: black anodised with a faint sweep sheen.
+                // 2. The metal ring: anodised (black, or light grey in the Light theme) with a
+                //    faint sweep sheen.
+                SKColor[] metalColors = light
+                    ?
+                    [
+                        new SKColor(0xD8, 0xD8, 0xD9), new SKColor(0xEE, 0xEE, 0xEF),
+                        new SKColor(0xDA, 0xDA, 0xDB), new SKColor(0xC6, 0xC6, 0xC7),
+                        new SKColor(0xE8, 0xE8, 0xE9), new SKColor(0xD2, 0xD2, 0xD3),
+                        new SKColor(0xEC, 0xEC, 0xED), new SKColor(0xD8, 0xD8, 0xD9)
+                    ]
+                    :
+                    [
+                        new SKColor(0x14, 0x14, 0x15), new SKColor(0x2A, 0x2A, 0x2C),
+                        new SKColor(0x16, 0x16, 0x17), new SKColor(0x0C, 0x0C, 0x0D),
+                        new SKColor(0x24, 0x24, 0x26), new SKColor(0x12, 0x12, 0x13),
+                        new SKColor(0x28, 0x28, 0x2A), new SKColor(0x14, 0x14, 0x15)
+                    ];
                 using (var metalShader = SKShader.CreateSweepGradient(
                            new SKPoint(c, c),
-                           [
-                               new SKColor(0x14, 0x14, 0x15), new SKColor(0x2A, 0x2A, 0x2C),
-                               new SKColor(0x16, 0x16, 0x17), new SKColor(0x0C, 0x0C, 0x0D),
-                               new SKColor(0x24, 0x24, 0x26), new SKColor(0x12, 0x12, 0x13),
-                               new SKColor(0x28, 0x28, 0x2A), new SKColor(0x14, 0x14, 0x15)
-                           ],
+                           metalColors,
                            [0f, 0.12f, 0.25f, 0.4f, 0.55f, 0.7f, 0.85f, 1f]))
                 using (var metal = new SKPaint { IsAntialias = true, Shader = metalShader })
                 {
@@ -921,11 +933,17 @@ public static class BitmapHelper
                 //    bottom; the inner bevel faces the centre, so its top half faces away from
                 //    the light and only its bottom half picks up a faint glint.
                 var bevelWidth = 3.4f * ss;
-                (float R, SKColor Top, SKColor Bottom)[] bevels =
-                [
-                    (outerR - (bevelWidth / 2f), new SKColor(0xFF, 0xFF, 0xFF, 85), new SKColor(0x00, 0x00, 0x00, 100)),
-                    (glassR + (bevelWidth / 2f), new SKColor(0x00, 0x00, 0x00, 110), new SKColor(0xFF, 0xFF, 0xFF, 28))
-                ];
+                (float R, SKColor Top, SKColor Bottom)[] bevels = light
+                    ?
+                    [
+                        (outerR - (bevelWidth / 2f), new SKColor(0xFF, 0xFF, 0xFF, 200), new SKColor(0x00, 0x00, 0x00, 70)),
+                        (glassR + (bevelWidth / 2f), new SKColor(0x00, 0x00, 0x00, 75), new SKColor(0xFF, 0xFF, 0xFF, 150))
+                    ]
+                    :
+                    [
+                        (outerR - (bevelWidth / 2f), new SKColor(0xFF, 0xFF, 0xFF, 85), new SKColor(0x00, 0x00, 0x00, 100)),
+                        (glassR + (bevelWidth / 2f), new SKColor(0x00, 0x00, 0x00, 110), new SKColor(0xFF, 0xFF, 0xFF, 28))
+                    ];
                 foreach (var (bevelR, bevelTop, bevelBottom) in bevels)
                 {
                     using var bevelShader = SKShader.CreateLinearGradient(
@@ -945,8 +963,18 @@ public static class BitmapHelper
                 }
 
                 // 4. Screen glass: flat black, unlit. Only a soft shadow from the ring above
-                //    it darkens its top edge.
-                using (var glass = new SKPaint { IsAntialias = true, Color = new SKColor(0x04, 0x04, 0x04) })
+                //    it darkens its top edge. In the Light theme it takes the light screen
+                //    bezel's grey (DeviceBezelBrush), so it matches the main screen's frame.
+                SKColor[] glassColors = light
+                    ? [new SKColor(0xC2, 0xC2, 0xC2), new SKColor(0xB0, 0xB0, 0xB0)]
+                    : [new SKColor(0x04, 0x04, 0x04), new SKColor(0x04, 0x04, 0x04)];
+                using (var glassShader = SKShader.CreateLinearGradient(
+                           new SKPoint(c, c - glassR),
+                           new SKPoint(c, c + glassR),
+                           glassColors,
+                           [0f, 1f],
+                           SKShaderTileMode.Clamp))
+                using (var glass = new SKPaint { IsAntialias = true, Shader = glassShader })
                 {
                     canvas.DrawCircle(c, c, glassR, glass);
                 }
@@ -963,7 +991,7 @@ public static class BitmapHelper
                            IsAntialias = true,
                            Style = SKPaintStyle.Stroke,
                            StrokeWidth = 6f * ss,
-                           Color = new SKColor(0, 0, 0, 220),
+                           Color = new SKColor(0, 0, 0, (byte)(light ? 90 : 220)),
                            MaskFilter = glassBlur
                        })
                 {
