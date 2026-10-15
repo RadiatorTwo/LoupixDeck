@@ -752,9 +752,8 @@ public partial class LoupedeckLiveSController(
 
     /// <summary>
     /// Paints the current page's touch buttons onto a device that is not being repainted by
-    /// anything else (start-up, reconnect, device-on). A gapped grid goes out as one region so
-    /// the pixels between the keys are written too — per key it would leave whatever sits in
-    /// the gaps untouched.
+    /// anything else (start-up, reconnect, device-on). The page goes out as one region, which
+    /// costs one framebuffer write and DRAW and also covers the gaps between keys.
     /// </summary>
     private async Task DrawCurrentTouchPageButtons(LoupedeckDevice.Device.LoupedeckDevice device)
     {
@@ -765,15 +764,7 @@ public partial class LoupedeckLiveSController(
         // only tear against it.
         if (wallpaperAnimation.TryRedirectPageRedraw()) return;
 
-        if (device.KeyGridHasGaps)
-        {
-            await device.DrawTouchGridRegion(buttons, config);
-        }
-        else
-        {
-            foreach (var touchButton in buttons)
-                await device.DrawTouchButton(touchButton, config, true);
-        }
+        await device.DrawTouchGridRegion(buttons, config);
 
         pageManager.NotifyTouchLayoutDrawn();
     }
@@ -794,28 +785,11 @@ public partial class LoupedeckLiveSController(
         // of the page keeps rendering normally.
         if (!exclusiveMode.Owns(ExclusiveControlScope.TouchButtons))
         {
-            // A grid with gaps repaints as one region, otherwise whatever was drawn between
-            // the keys (a test pattern, the previous page) survives the repaint. The region
-            // stops at the grid, so a provider's side strips are untouched either way.
-            if (wallpaperAnimation.TryRedirectPageRedraw())
-            {
-                // The clip's next frame carries the repainted keys.
-            }
-            else if (device.KeyGridHasGaps)
-            {
+            // The page goes out as one region write. The region stops at the grid, so a
+            // provider's side strips are untouched; a video wallpaper's next frame carries
+            // the repainted keys instead.
+            if (!wallpaperAnimation.TryRedirectPageRedraw())
                 await device.DrawTouchGridRegion(config.CurrentTouchButtonPage.TouchButtons, config);
-            }
-            else
-            {
-                var stripsTaken = exclusiveMode.Owns(ExclusiveControlScope.SideDisplays);
-                foreach (var tb in config.CurrentTouchButtonPage.TouchButtons)
-                {
-                    // Slots 12/13 are the side strips; skip them only when the provider owns
-                    // the side displays, so a grid repaint can't paint over its strips.
-                    if (stripsTaken && IsSideStripSlot(tb.Index)) continue;
-                    await device.DrawTouchButton(tb, config, true);
-                }
-            }
         }
 
         await RedrawSideStrips();
@@ -3032,13 +3006,10 @@ public partial class LoupedeckLiveSController(
                 if (workspaceApplying || Volatile.Read(ref _workspaceApplyDepth) > 0) return;
 
                 // Folder mode left — restore the configured page.
+                // One region write: it also clears the folder tiles from the gaps of a grid
+                // whose keys do not cover it completely.
                 if (!wallpaperAnimation.TryRedirectPageRedraw())
-                {
-                    foreach (var touchButton in config.CurrentTouchButtonPage.TouchButtons)
-                    {
-                        await device.DrawTouchButton(touchButton, config, true);
-                    }
-                }
+                    await device.DrawTouchGridRegion(config.CurrentTouchButtonPage.TouchButtons, config);
 
                 await RedrawSideStrips();
             }
@@ -3392,14 +3363,9 @@ public partial class LoupedeckLiveSController(
             {
                 case nameof(TouchButtonPage.WallpaperInvalidated):
                     await Task.Delay(100, token); // Debounce
-                    if (!wallpaperAnimation.TryRedirectPageRedraw())
-                    {
-                        foreach (var touchButton in config.CurrentTouchButtonPage.TouchButtons)
-                        {
-                            await deviceService.Device.DrawTouchButton(touchButton, config, true);
-                            await Task.Delay(0, token);
-                        }
-                    }
+                    var device = deviceService.Device;
+                    if (device != null && !wallpaperAnimation.TryRedirectPageRedraw())
+                        await device.DrawTouchGridRegion(config.CurrentTouchButtonPage.TouchButtons, config);
                     // The side strips share the wallpaper — repaint them too.
                     await RedrawSideStrips();
                     break;

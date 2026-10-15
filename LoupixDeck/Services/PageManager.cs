@@ -347,20 +347,10 @@ public class PageManager : IPageManager
         LoupedeckDevice.Device.LoupedeckDevice device = _deviceService.Device;
         if (device == null) return;
 
-        // A grid with gaps has to go out as one region: a per-key write never touches the
-        // pixels between the keys, so the previous page would stay standing there.
-        if (device.KeyGridHasGaps)
-        {
-            await device.DrawTouchGridRegion(CurrentTouchButtonPage.TouchButtons, _config);
-        }
-        else
-        {
-            foreach (var touchButton in CurrentTouchButtonPage.TouchButtons)
-            {
-                // Force refresh to ensure wallpaper changes are applied when switching pages
-                await device.DrawTouchButton(touchButton, _config, true);
-            }
-        }
+        // One region write for the whole page: a single framebuffer write and DRAW instead of
+        // one of each per key, and it also covers the pixels between the keys of a grid with
+        // gaps, where the previous page would otherwise stay standing.
+        await device.DrawTouchGridRegion(CurrentTouchButtonPage.TouchButtons, _config);
 
         NotifyTouchLayoutDrawn();
     }
