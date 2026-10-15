@@ -83,9 +83,22 @@ public partial class ImageLayer : LayerBase
         set
         {
             if (!SetProperty(ref _cachedImage, value)) return;
-            OnPropertyChanged();
             OnDisplaySizeChanged();
         }
+    }
+
+    /// <summary>
+    /// Stores the image a render resolved from <see cref="AssetRelativePath"/> after a load left
+    /// <see cref="CachedImage"/> empty. The layer's content did not change — the render is drawing
+    /// it right now — so unlike the setter this raises no <see cref="CachedImage"/> change, which
+    /// re-entered the render and redrew and resent the key several more times (#456). Only the
+    /// display size is reported, which the editor's size fields read and which never redraws.
+    /// </summary>
+    public void SetResolvedImage(SKBitmap image)
+    {
+        if (ReferenceEquals(_cachedImage, image)) return;
+        _cachedImage = image;
+        OnDisplaySizeChanged();
     }
 
     /// <summary>
