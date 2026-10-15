@@ -65,6 +65,11 @@ public partial class LoupedeckLiveSController
     private long _wheelRequestedGen;
     private long _wheelDrawnGen;
 
+    // Minimum gap between two wheel pushes, the same floor the side strips have: a fast spin of
+    // an adjustment command asks for a repaint per detent, and each one is a 240x240 frame.
+    private const int WheelMinRedrawMs = 33;
+    private long _wheelLastDrawTick;
+
     private bool IsWheelIndex(int globalIndex) =>
         globalIndex == Device.WheelRotaryIndex && deviceService.Device?.HasWheel == true;
 
@@ -141,6 +146,13 @@ public partial class LoupedeckLiveSController
         {
             // Coalesced away: an earlier waiter already drew state at least this fresh.
             if (Interlocked.Read(ref _wheelDrawnGen) >= requested) return;
+
+            // Waiting here lets the requests of a burst pile up behind this one; the snapshot
+            // below then covers them all with a single frame.
+            var since = Environment.TickCount64 - _wheelLastDrawTick;
+            if (since < WheelMinRedrawMs)
+                await Task.Delay((int)(WheelMinRedrawMs - since));
+
             var snapshot = Interlocked.Read(ref _wheelRequestedGen);
 
             var page = config.CurrentTouchButtonPage;
@@ -183,6 +195,7 @@ public partial class LoupedeckLiveSController
             await device.DrawWheelScreen(frame);
 
             Interlocked.Exchange(ref _wheelDrawnGen, snapshot);
+            _wheelLastDrawTick = Environment.TickCount64;
         }
         catch (Exception ex)
         {
