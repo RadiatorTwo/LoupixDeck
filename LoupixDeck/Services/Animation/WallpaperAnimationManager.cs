@@ -242,8 +242,8 @@ public sealed class WallpaperAnimationManager : IWallpaperAnimationManager, IDis
             return;
         }
 
-        var source = new WallpaperAnimationSource(device, _config, slot.VideoPath, slot.VideoFps,
-            slot.ScalingOption);
+        var source = new WallpaperAnimationSource(device, _config, slot, IsDisplayFree, slot.VideoPath,
+            slot.VideoFps, slot.ScalingOption);
         if (!source.Start())
         {
             source.Dispose();
@@ -291,10 +291,7 @@ public sealed class WallpaperAnimationManager : IWallpaperAnimationManager, IDis
     /// </summary>
     private void UpdateEnabled()
     {
-        var enabled = !_screensaverActive &&
-                      !_folderNav.IsActive &&
-                      !_fullDisplay.IsActive &&
-                      !_exclusiveMode.Owns(ExclusiveControlScope.TouchButtons);
+        var enabled = IsDisplayFree();
 
         var wasCarryingStrips = CarriesStrips;
         _source?.SetEnabled(enabled);
@@ -303,6 +300,15 @@ public sealed class WallpaperAnimationManager : IWallpaperAnimationManager, IDis
         // the overlay needs them again.
         if (wasCarryingStrips != CarriesStrips) StripOwnerChanged?.Invoke();
     }
+
+    /// <summary>True while nothing else owns the display. Read live by the playing source before
+    /// every frame, so a frame never lands over a takeover that has not reached
+    /// <see cref="UpdateEnabled"/> yet.</summary>
+    private bool IsDisplayFree() =>
+        !_screensaverActive &&
+        !_folderNav.IsActive &&
+        !_fullDisplay.IsActive &&
+        !_exclusiveMode.Owns(ExclusiveControlScope.TouchButtons);
 
     private void RequestFrame()
     {

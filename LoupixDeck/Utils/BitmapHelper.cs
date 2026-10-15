@@ -1247,7 +1247,10 @@ public static class BitmapHelper
     private static TouchButtonPage ResolveWallpaperSourcePage(LoupedeckConfig config)
     {
         var current = config?.CurrentTouchButtonPage;
-        if ((current?.HasAnyWallpaper ?? false) || !(config?.InheritWallpaperFromPreviousPage ?? false)) return current;
+        // A page playing a clip has a wallpaper of its own even without a still image: while the
+        // clip is paused its keys draw on the clip's last frame, never on an earlier page's image.
+        if ((current?.HasAnyWallpaper ?? false) || (current?.MainWallpaper?.HasVideo ?? false) ||
+            !(config?.InheritWallpaperFromPreviousPage ?? false)) return current;
 
         return TouchButtonPage.FindWallpaperSource(config.TouchButtonPages, config.CurrentTouchPageIndex) ?? current;
     }
@@ -1262,8 +1265,17 @@ public static class BitmapHelper
         var page = ResolveWallpaperSourcePage(config);
         if (page == null) return (null, 0);
 
-        var baked = GetOrBakeSlot(page.MainWallpaper, config.Geometry.PanelWidth, config.Geometry.PanelHeight);
-        return baked != null ? (baked, page.MainWallpaper.Opacity) : (null, 0);
+        int width = config.Geometry.PanelWidth;
+        int height = config.Geometry.PanelHeight;
+
+        // A clip's last frame wins over the slot's still image, the same way the clip itself does.
+        // Falls through to the still image when the clip has not played on this panel yet.
+        WallpaperSlot slot = page.MainWallpaper;
+        if (slot is { HasVideo: true, VideoStill: { } still } && still.Width == width && still.Height == height)
+            return (still, slot.Opacity);
+
+        var baked = GetOrBakeSlot(slot, width, height);
+        return baked != null ? (baked, slot.Opacity) : (null, 0);
     }
 
     /// <summary>
