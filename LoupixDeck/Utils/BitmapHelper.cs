@@ -1212,12 +1212,14 @@ public static class BitmapHelper
     /// before it that has one (an open folder starts the search at the page it was opened
     /// from). Once a page defines a wallpaper it is self-contained — its empty slots stay
     /// empty rather than borrowing from an earlier page (so a page that only sets a main
-    /// wallpaper does not inherit another page's side wallpapers).
+    /// wallpaper does not inherit another page's side wallpapers). With
+    /// <see cref="LoupedeckConfig.InheritWallpaperFromPreviousPage"/> off, the current page
+    /// is always its own source.
     /// </summary>
     private static TouchButtonPage ResolveWallpaperSourcePage(LoupedeckConfig config)
     {
         var current = config?.CurrentTouchButtonPage;
-        if ((current?.HasAnyWallpaper ?? false) || config == null) return current;
+        if ((current?.HasAnyWallpaper ?? false) || !(config?.InheritWallpaperFromPreviousPage ?? false)) return current;
 
         return TouchButtonPage.FindWallpaperSource(config.TouchButtonPages, config.CurrentTouchPageIndex) ?? current;
     }

@@ -431,20 +431,13 @@ public class PageManager : IPageManager
 
     public async Task AddTouchButtonPage(bool init = false)
     {
-        var previous = TouchButtonPages.Count > 0
-            ? TouchButtonPages[TouchButtonPages.Count - 1]
-            : null;
-
         var touchCount = _deviceService.TouchButtonCount;
         var newPage = new TouchButtonPage(touchCount)
         {
             Page = TouchButtonPages.Count + 1,
-            Geometry = _config.Geometry,
-            // Carry over the wallpapers by cloning their persistent parameters
-            // (the baked bitmaps are just render caches).
-            MainWallpaper = previous?.MainWallpaper?.Clone() ?? new WallpaperSlot(),
-            LeftWallpaper = previous?.LeftWallpaper?.Clone() ?? new WallpaperSlot(),
-            RightWallpaper = previous?.RightWallpaper?.Clone() ?? new WallpaperSlot()
+            // No wallpaper of its own: with InheritWallpaperFromPreviousPage on, the renderer
+            // shows the previous page's, and switching that off leaves the page empty.
+            Geometry = _config.Geometry
         };
 
         for (int i = 0; i < touchCount; i++)
@@ -635,14 +628,9 @@ public class PageManager : IPageManager
 
         if (folder.Layout == null)
         {
-            var source = _config.ActiveWorkspace?.CurrentPageLayout ?? TouchButtonPages?.FirstOrDefault();
-            folder.Layout = new TouchButtonPage(keyCount)
-            {
-                // A new folder starts on the wallpaper of the page it is opened from, like a new page.
-                MainWallpaper = source?.MainWallpaper?.Clone() ?? new WallpaperSlot(),
-                LeftWallpaper = source?.LeftWallpaper?.Clone() ?? new WallpaperSlot(),
-                RightWallpaper = source?.RightWallpaper?.Clone() ?? new WallpaperSlot()
-            };
+            // Like a new page, a new folder has no wallpaper of its own; with
+            // InheritWallpaperFromPreviousPage on it shows the one of the page it is opened from.
+            folder.Layout = new TouchButtonPage(keyCount);
             _preparedLayouts.AddOrUpdate(folder.Layout, null);
         }
 

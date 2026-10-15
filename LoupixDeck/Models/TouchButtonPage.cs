@@ -74,9 +74,28 @@ public sealed partial class TouchButtonPage(int pageSize) : ButtonPageBase()
     /// and only when the bake itself changed. Read it on the UI thread.
     /// </summary>
     [JsonIgnore]
-    public Avalonia.Media.Imaging.Bitmap WallpaperThumbnail => _wallpaperThumbnail.Show(Wallpaper);
+    public Avalonia.Media.Imaging.Bitmap WallpaperThumbnail =>
+        _wallpaperThumbnail.Show((InheritedWallpaperSource ?? this).Wallpaper);
 
     private readonly PreviewBitmapBuffer _wallpaperThumbnail = new();
+
+    /// <summary>
+    /// The earlier page whose wallpaper this page shows on the device because it has none of its
+    /// own, so the settings thumbnail matches the device; null when the page shows its own.
+    /// Runtime-only, kept current by the settings page list.
+    /// </summary>
+    [JsonIgnore]
+    public TouchButtonPage InheritedWallpaperSource { get; private set; }
+
+    /// <summary>
+    /// Sets <see cref="InheritedWallpaperSource"/> and refreshes the thumbnail even when the source
+    /// stays the same, since the source's own wallpaper may have changed.
+    /// </summary>
+    public void SetInheritedWallpaperSource(TouchButtonPage source)
+    {
+        InheritedWallpaperSource = source;
+        OnPropertyChanged(nameof(WallpaperThumbnail));
+    }
 
     /// <summary>True when any of the three wallpaper slots holds an image.</summary>
     [JsonIgnore]

@@ -1381,5 +1381,6 @@
   "TouchButton_LiveImageHint": "Draws the selected command (e.g. the analog clock) onto the wheel and refreshes on its own interval.",
   "TouchButton_ImageCommand": "Image command",
   "TouchButton_ImageCommandHint": "A command that draws its own image, such as DynamicText.AnalogClock(true). The optional parameter hides the second hand when false.",
-  "TouchButton_ClockLayerName": "Clock"
+  "TouchButton_ClockLayerName": "Clock",
+  "Settings_InheritWallpaper": "Inherit wallpaper from previous pages"
 }
