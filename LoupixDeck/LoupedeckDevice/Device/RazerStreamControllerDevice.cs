@@ -125,7 +125,7 @@ public class RazerStreamControllerDevice : LoupedeckDevice
             const int sideW = 60;
             const int sideH = 270;
             var destX = index == LeftSideIndex ? 0 : 420;
-            try { await DrawCanvasRegion("center", sideW, sideH, bitmap, destX, 0, refresh); }
+            try { await DrawCanvasRegionIfChanged("center", sideW, sideH, bitmap, destX, 0, refresh); }
             catch (Exception ex) { Console.WriteLine($"Razer side-panel slot draw failed for index {index}: {ex.Message}"); }
             return;
         }

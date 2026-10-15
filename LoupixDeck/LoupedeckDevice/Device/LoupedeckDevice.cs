@@ -2,6 +2,7 @@ using System.Buffers;
 using System.Buffers.Binary;
 using System.Collections.Concurrent;
 using System.Collections.Frozen;
+using System.IO.Hashing;
 using System.Threading.Channels;
 using Avalonia.Media;
 using LoupixDeck.LoupedeckDevice.Serial;
@@ -189,6 +190,13 @@ public class LoupedeckDevice
 
     // See GridRegionWriteCount.
     private long _gridRegionWrites;
+
+    // Regions written through DrawCanvasRegionIfChanged (#462): the pixel hash last sent to
+    // each, keyed by display and rectangle. Any write overlapping a region drops its entry and a
+    // (re)connect drops them all, so an entry only exists while the panel still shows exactly
+    // those pixels. Guarded by its own lock; _canvasWrites counts every canvas write.
+    private readonly Dictionary<(string Id, SKRectI Rect), ulong> _writtenRegions = new();
+    private long _canvasWrites;
 
     // Accessed concurrently from the send-queue worker thread (insert) and the
     // serial read thread (lookup/remove). Plain Dictionary corrupts under that
@@ -437,6 +445,7 @@ public class LoupedeckDevice
         _connection.Connected += (_, e) =>
         {
             Interlocked.Increment(ref _gridRegionWrites);
+            ForgetWrittenRegions(null, default);
             OnConnect?.Invoke(this, e);
         };
         _connection.MessageReceived += (_, e) => OnReceive(e.Data);
@@ -1377,6 +1386,8 @@ public class LoupedeckDevice
         if (drawWidth <= 0 || drawHeight <= 0)
             return;
 
+        ForgetWrittenRegions(id, SKRectI.Create(drawX, drawY, drawWidth, drawHeight));
+
         if (id == "center")
         {
             SKSizeI grid = GetGridRegionSize();
@@ -1840,6 +1851,68 @@ public class LoupedeckDevice
     protected Task DrawCanvasRegion(string displayId, int width, int height, SKBitmap bitmap, int x, int y,
         bool autoRefresh = true)
         => DrawCanvas(displayId, width, height, bitmap, x, y, autoRefresh);
+
+    /// <summary>
+    /// Like <see cref="DrawCanvasRegion"/>, but skips the write when the panel already shows
+    /// exactly these pixels there: the region was last written through this method with the
+    /// same content and nothing has written over it since. For surfaces that many callers
+    /// repaint without knowing whether their content changed — the side strips and the wheel
+    /// screen (#462). Sending is the expensive part; hashing a strip costs microseconds.
+    /// </summary>
+    protected async Task DrawCanvasRegionIfChanged(string displayId, int width, int height, SKBitmap bitmap,
+        int x, int y, bool autoRefresh = true)
+    {
+        ArgumentNullException.ThrowIfNull(bitmap);
+
+        ulong hash;
+        lock (SkiaRenderGate.Sync)
+            hash = XxHash3.HashToUInt64(bitmap.GetPixelSpan());
+
+        (string, SKRectI) key = (displayId, SKRectI.Create(x, y, width, height));
+        lock (_writtenRegions)
+        {
+            if (_writtenRegions.TryGetValue(key, out ulong shown) && shown == hash)
+                return;
+        }
+
+        long before = Interlocked.Read(ref _canvasWrites);
+        await DrawCanvas(displayId, width, height, bitmap, x, y, autoRefresh);
+
+        // Remember the content only when it is on the glass (a write without refresh is not
+        // shown yet) and this was the only write meanwhile: another one may have landed after
+        // it and covered the region.
+        if (!autoRefresh || Interlocked.Read(ref _canvasWrites) != before + 1) return;
+
+        lock (_writtenRegions)
+            _writtenRegions[key] = hash;
+    }
+
+    /// <summary>
+    /// Drops the remembered content of every region on <paramref name="displayId"/> that
+    /// <paramref name="written"/> overlaps, or of all regions when <paramref name="displayId"/>
+    /// is null. Counts the write for <see cref="DrawCanvasRegionIfChanged"/>.
+    /// </summary>
+    private void ForgetWrittenRegions(string displayId, SKRectI written)
+    {
+        Interlocked.Increment(ref _canvasWrites);
+
+        lock (_writtenRegions)
+        {
+            if (_writtenRegions.Count == 0) return;
+
+            if (displayId == null)
+            {
+                _writtenRegions.Clear();
+                return;
+            }
+
+            foreach ((string Id, SKRectI Rect) region in _writtenRegions.Keys.ToList())
+            {
+                if (region.Id == displayId && region.Rect.IntersectsWith(written))
+                    _writtenRegions.Remove(region);
+            }
+        }
+    }
 
     public async Task DrawTextButton(int index, string text)
     {

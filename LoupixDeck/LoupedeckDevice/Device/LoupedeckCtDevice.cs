@@ -53,7 +53,7 @@ public class LoupedeckCtDevice : LoupedeckDevice
     {
         ArgumentNullException.ThrowIfNull(bitmap);
 
-        try { await DrawCanvasRegion("knob", WheelSize, WheelSize, bitmap, 0, 0, refresh); }
+        try { await DrawCanvasRegionIfChanged("knob", WheelSize, WheelSize, bitmap, 0, 0, refresh); }
         catch (Exception ex) { Console.WriteLine($"CT wheel screen draw failed: {ex.Message}"); }
     }
 
@@ -153,7 +153,7 @@ public class LoupedeckCtDevice : LoupedeckDevice
             const int sideW = 60;
             const int sideH = 270;
             var destX = index == LeftSideIndex ? 0 : 420;
-            try { await DrawCanvasRegion("center", sideW, sideH, bitmap, destX, 0, refresh); }
+            try { await DrawCanvasRegionIfChanged("center", sideW, sideH, bitmap, destX, 0, refresh); }
             catch (Exception ex) { Console.WriteLine($"CT side-panel slot draw failed for index {index}: {ex.Message}"); }
             return;
         }
