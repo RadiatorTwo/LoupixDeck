@@ -172,6 +172,9 @@ public sealed class ButtonAnimationSource : IAnimationSource, IDisposable
         _idle.Reset();
         try
         {
+            // The keys are written without showing each one, then shown with a single DRAW: a
+            // DRAW repaints the whole panel, so one per key costs N panel refreshes per tick.
+            var written = false;
             foreach (var button in dirty)
             {
                 if (context.CancellationToken.IsCancellationRequested) return;
@@ -184,8 +187,11 @@ public sealed class ButtonAnimationSource : IAnimationSource, IDisposable
                 // The page-name tile is up on this key; it repaints the key when it goes.
                 if (_deviceService.IsShowingTemporaryText(button.Index)) continue;
 
-                await device.DrawTouchButton(button, _config, refresh: true).ConfigureAwait(false);
+                await device.DrawTouchButton(button, _config, refresh: true, show: false).ConfigureAwait(false);
+                written = true;
             }
+
+            if (written) await device.ShowCenter().ConfigureAwait(false);
         }
         finally
         {

@@ -1708,11 +1708,15 @@ public class LoupedeckDevice
 
     /// <summary>
     /// Draws a touch button on the corresponding key, optionally with an image and text overlay.
+    /// <paramref name="refresh"/> re-renders the key first. <paramref name="show"/> false writes the
+    /// key without the DRAW that shows it, for a caller that writes several keys and then shows
+    /// them all at once with <see cref="ShowCenter"/>.
     /// </summary>
     public virtual async Task DrawTouchButton(
         TouchButton touchButton,
         LoupedeckConfig config,
-        bool refresh)
+        bool refresh,
+        bool show = true)
     {
         ArgumentNullException.ThrowIfNull(touchButton);
 
@@ -1726,7 +1730,7 @@ public class LoupedeckDevice
 
         try
         {
-            await DrawKey(touchButton.Index, touchButton.RenderedImage);
+            await DrawKey(touchButton.Index, touchButton.RenderedImage, show);
         }
         catch (TimeoutException ex)
         {
@@ -2026,6 +2030,23 @@ public class LoupedeckDevice
         ArgumentNullException.ThrowIfNull(gridBitmap);
         var xBase = VisibleX is { Length: > 0 } ? VisibleX[0] : 0;
         await DrawCanvasRegion("center", gridBitmap.Width, gridBitmap.Height, gridBitmap, xBase, 0, refresh);
+    }
+
+    /// <summary>
+    /// Shows what was written to the key grid's display without a DRAW of its own (see the
+    /// <c>show</c> argument of <see cref="DrawTouchButton"/>). Errors are logged, not thrown, like a
+    /// key write's.
+    /// </summary>
+    public async Task ShowCenter()
+    {
+        try
+        {
+            await Refresh("center");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Showing the key grid failed: {ex.Message}");
+        }
     }
 
     /// <summary>

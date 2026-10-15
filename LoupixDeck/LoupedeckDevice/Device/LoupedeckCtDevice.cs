@@ -163,13 +163,14 @@ public class LoupedeckCtDevice : LoupedeckDevice
 
     /// <inheritdoc />
     /// <remarks>Side panels (12/13) are owned by the rotary-label renderer, same as Razer.</remarks>
-    public override async Task DrawTouchButton(TouchButton touchButton, LoupedeckConfig config, bool refresh)
+    public override async Task DrawTouchButton(TouchButton touchButton, LoupedeckConfig config, bool refresh,
+        bool show = true)
     {
         ArgumentNullException.ThrowIfNull(touchButton);
 
         if (touchButton.Index >= Columns * Rows)
             return; // side panels — not owned by the grid touch-button pipeline
 
-        await base.DrawTouchButton(touchButton, config, refresh);
+        await base.DrawTouchButton(touchButton, config, refresh, show);
     }
 }
