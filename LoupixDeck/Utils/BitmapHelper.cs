@@ -833,6 +833,162 @@ public static class BitmapHelper
         return result;
     }
 
+    private static Bitmap _ctWheelImage;
+    private static bool _ctWheelImageLight;
+
+    /// <summary>
+    /// A shared, lazily-rendered image of the Loupedeck CT's centre wheel, at the size the
+    /// CT layout draws it. Re-rendered when the theme variant changes, like
+    /// <see cref="RotaryKnobImage"/>.
+    /// </summary>
+    public static Bitmap CtWheelImage
+    {
+        get
+        {
+            var light = IsLightTheme;
+            if (_ctWheelImage == null || _ctWheelImageLight != light)
+            {
+                Bitmap old = _ctWheelImage;
+                _ctWheelImage = RenderCtWheelImage(284);
+                _ctWheelImageLight = light;
+
+                if (old != null)
+                    Avalonia.Threading.Dispatcher.UIThread.Post(old.Dispose, Avalonia.Threading.DispatcherPriority.Background);
+            }
+
+            return _ctWheelImage;
+        }
+    }
+
+    /// <summary>
+    /// Renders the CT's centre wheel: a raised black metal ring with a small bevel on each
+    /// edge, around the round screen's black glass. The screen's active area (which the
+    /// layout overlays) is smaller than the glass, so a plain black margin shows between
+    /// the image and the ring, as on the device. Unlike the side dials it has no tiers or
+    /// grip ridges.
+    /// </summary>
+    public static Bitmap RenderCtWheelImage(int size, float supersample = 2f, bool? lightTheme = null)
+    {
+        var light = lightTheme ?? IsLightTheme;
+        var ss = supersample;
+        var px = (int)Math.Round(size * ss);
+        var info = new SKImageInfo(px, px, SKColorType.Bgra8888, SKAlphaType.Unpremul);
+
+        Bitmap result;
+
+        lock (SkiaRenderGate.Sync)
+        {
+            using var surface = new SKBitmap(info);
+            using (var canvas = new SKCanvas(surface))
+            {
+                canvas.Clear(SKColors.Transparent);
+
+                // Proportions measured from a top-down shot of the device: the metal ring is
+                // about an eighth of the wheel's radius, the rest is screen glass.
+                var c = px / 2f;
+                var outerR = c - (7f * ss);
+                var glassR = outerR * (118f / 135f);
+
+                // 1. Seating shadow under the raised ring.
+                using (SKMaskFilter shadowBlur = SKMaskFilter.CreateBlur(SKBlurStyle.Normal, 5f * ss))
+                using (var shadow = new SKPaint
+                       {
+                           IsAntialias = true,
+                           Color = new SKColor(0, 0, 0, (byte)(light ? 110 : 190)),
+                           MaskFilter = shadowBlur
+                       })
+                {
+                    canvas.DrawCircle(c, c + (3.5f * ss), outerR, shadow);
+                }
+
+                // 2. The metal ring: black anodised with a faint sweep sheen.
+                using (var metalShader = SKShader.CreateSweepGradient(
+                           new SKPoint(c, c),
+                           [
+                               new SKColor(0x14, 0x14, 0x15), new SKColor(0x2A, 0x2A, 0x2C),
+                               new SKColor(0x16, 0x16, 0x17), new SKColor(0x0C, 0x0C, 0x0D),
+                               new SKColor(0x24, 0x24, 0x26), new SKColor(0x12, 0x12, 0x13),
+                               new SKColor(0x28, 0x28, 0x2A), new SKColor(0x14, 0x14, 0x15)
+                           ],
+                           [0f, 0.12f, 0.25f, 0.4f, 0.55f, 0.7f, 0.85f, 1f]))
+                using (var metal = new SKPaint { IsAntialias = true, Shader = metalShader })
+                {
+                    canvas.DrawCircle(c, c, outerR, metal);
+                }
+
+                // 3. Bevels, lit from the top like the other controls: the outer bevel faces
+                //    outward, so it catches the light at the top and falls into shadow at the
+                //    bottom; the inner bevel faces the centre, so its top half faces away from
+                //    the light and only its bottom half picks up a faint glint.
+                var bevelWidth = 3.4f * ss;
+                (float R, SKColor Top, SKColor Bottom)[] bevels =
+                [
+                    (outerR - (bevelWidth / 2f), new SKColor(0xFF, 0xFF, 0xFF, 85), new SKColor(0x00, 0x00, 0x00, 100)),
+                    (glassR + (bevelWidth / 2f), new SKColor(0x00, 0x00, 0x00, 110), new SKColor(0xFF, 0xFF, 0xFF, 28))
+                ];
+                foreach (var (bevelR, bevelTop, bevelBottom) in bevels)
+                {
+                    using var bevelShader = SKShader.CreateLinearGradient(
+                        new SKPoint(c, c - bevelR),
+                        new SKPoint(c, c + bevelR),
+                        [bevelTop, bevelBottom],
+                        [0f, 1f],
+                        SKShaderTileMode.Clamp);
+                    using var bevel = new SKPaint
+                    {
+                        IsAntialias = true,
+                        Style = SKPaintStyle.Stroke,
+                        StrokeWidth = bevelWidth,
+                        Shader = bevelShader
+                    };
+                    canvas.DrawCircle(c, c, bevelR, bevel);
+                }
+
+                // 4. Screen glass: flat black, unlit. Only a soft shadow from the ring above
+                //    it darkens its top edge.
+                using (var glass = new SKPaint { IsAntialias = true, Color = new SKColor(0x04, 0x04, 0x04) })
+                {
+                    canvas.DrawCircle(c, c, glassR, glass);
+                }
+
+                canvas.Save();
+                using (var clip = new SKPath())
+                {
+                    clip.AddCircle(c, c, glassR);
+                    canvas.ClipPath(clip, SKClipOperation.Intersect, true);
+                }
+                using (SKMaskFilter glassBlur = SKMaskFilter.CreateBlur(SKBlurStyle.Normal, 3f * ss))
+                using (var glassShadow = new SKPaint
+                       {
+                           IsAntialias = true,
+                           Style = SKPaintStyle.Stroke,
+                           StrokeWidth = 6f * ss,
+                           Color = new SKColor(0, 0, 0, 220),
+                           MaskFilter = glassBlur
+                       })
+                {
+                    canvas.DrawCircle(c, c + (2f * ss), glassR + (2f * ss), glassShadow);
+                }
+                canvas.Restore();
+            }
+
+            var pixels = surface.GetPixels();
+            result = new Bitmap(
+                PixelFormat.Bgra8888,
+                AlphaFormat.Unpremul,
+                pixels,
+                new PixelSize(px, px),
+                new Vector(96, 96),
+                surface.RowBytes);
+            GC.KeepAlive(surface);
+        }
+
+        PreviewRecipes.Register(result,
+            scale => RenderCtWheelImage(size, (float)(supersample * scale), light));
+
+        return result;
+    }
+
     /// <summary>
     /// Draws one knob tier: a top-lit dark disc with a bevelled rim (a bright top
     /// edge fading to a dark bottom edge) that gives the flat face edge definition.

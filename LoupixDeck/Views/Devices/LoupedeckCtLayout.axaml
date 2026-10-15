@@ -554,13 +554,15 @@
                      touchscreen. Its binding lives on the current touch page
                      (TouchButtonPage.Wheel), so it follows touch-page switches; the
                      screen's last frame is mirrored inside the ring. -->
-                <Button Classes="Knob" Canvas.Left="350" Canvas.Top="576" Width="200" Height="200"
+                <Button Classes="Knob" Canvas.Left="308" Canvas.Top="534" Width="284" Height="284"
                         Tapped="OnButtonTapped" DoubleTapped="OnButtonDoubleTapped"
                         ToolTip.Tip="{loc:Tr Device_CentreWheel}"
                         CommandParameter="{Binding LoupedeckController.Config.CurrentTouchButtonPage.Wheel}">
                     <Grid>
-                        <controls:DevicePreviewImage DeviceImage="{Binding RotaryKnobImage}" Width="200" Height="200" />
-                        <Border Width="120" Height="120" CornerRadius="60" ClipToBounds="True"
+                        <!-- Ring 270 px across, as on the device; the screen's active area is 175 px,
+                             inside a black glass margin (BitmapHelper.RenderCtWheelImage). -->
+                        <controls:DevicePreviewImage DeviceImage="{Binding CtWheelImage}" Width="284" Height="284" />
+                        <Border Width="175" Height="175" CornerRadius="87.5" ClipToBounds="True"
                                 HorizontalAlignment="Center" VerticalAlignment="Center"
                                 IsHitTestVisible="False">
                             <controls:DevicePreviewImage DeviceImage="{Binding LoupedeckController.Config.CurrentTouchButtonPage.Wheel.RenderedImage}" />
