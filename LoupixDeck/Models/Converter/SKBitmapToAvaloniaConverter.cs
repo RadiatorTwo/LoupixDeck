@@ -3,6 +3,7 @@ using Avalonia;
 using Avalonia.Data.Converters;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
+using LoupixDeck.Utils;
 using SkiaSharp;
 
 namespace LoupixDeck.Models.Converter;
@@ -17,7 +18,22 @@ public class SKBitmapToAvaloniaBitmapConverter : IValueConverter
     /// <summary>Copies a Skia bitmap into an independent Avalonia bitmap; null when it has no pixels.</summary>
     public static Bitmap ToBitmap(SKBitmap skBitmap)
     {
-        if (skBitmap is not { IsNull: false }) return null;
+        if (skBitmap == null) return null;
+
+        // The RenderedImage setters retire and dispose old bitmaps under the Skia gate,
+        // from whichever thread redraws the key or wheel. Holding the gate for the whole
+        // copy keeps the bitmap from being disposed while its native pixels are read.
+        lock (SkiaRenderGate.Sync)
+        {
+            return CopyToBitmap(skBitmap);
+        }
+    }
+
+    private static Bitmap CopyToBitmap(SKBitmap skBitmap)
+    {
+        // Checked under the gate: a bitmap disposed before it was read has a zero handle,
+        // and calling into native Skia with it would fault.
+        if (skBitmap.Handle == IntPtr.Zero || skBitmap.IsNull) return null;
 
         // Guard: a bitmap that cannot expose its pixels (empty / not peekable)
         // would otherwise NRE / AccessViolation below. PeekPixels returns null
