@@ -108,7 +108,40 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
     private void OnTouchLayoutChanged() => Rescan();
 
     /// <summary>A layer edit on the wheel canvas (command added, changed or removed) rebuilds the entries.</summary>
-    private void OnWheelCanvasItemChanged(object sender, EventArgs e) => Rescan();
+    /// <remarks>
+    /// Most edits (a colour, a position, a font) change no binding; a full rescan for them would
+    /// restart the poll of every key and render each wheel entry again. Only an edit that adds,
+    /// removes or retargets a command-bound layer rescans.
+    /// </remarks>
+    private void OnWheelCanvasItemChanged(object sender, EventArgs e)
+    {
+        if (sender is TouchButton canvas && WheelBindingsOf(canvas).SequenceEqual(_wheelBindings))
+            return;
+
+        Rescan();
+    }
+
+    /// <summary>The wheel canvas bindings the active entries were built from.</summary>
+    private (object Layer, string Binding)[] _wheelBindings = [];
+
+    /// <summary>
+    /// Every layer of <paramref name="canvas"/> that <see cref="AddWheelEntries"/> considers, with
+    /// what it binds: two equal results build the same wheel entries.
+    /// </summary>
+    private static (object Layer, string Binding)[] WheelBindingsOf(TouchButton canvas)
+    {
+        if (canvas?.Layers == null) return [];
+
+        return canvas.Layers
+            .Select(layer => layer switch
+            {
+                TextLayer text => ((object)text, $"text|{text.TextSource}|{text.TextCommand}"),
+                PluginLayer plugin => (plugin, $"plugin|{plugin.IsCommandOwned}|{plugin.Command}"),
+                _ => (null, null)
+            })
+            .Where(binding => binding.Item1 != null)
+            .ToArray();
+    }
 
     private IDeviceController _controller;
 
@@ -272,6 +305,7 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
             ? _pageManager.CurrentTouchButtonPage?.Wheel?.Canvas
             : null;
         SubscribeWheelCanvas(canvas);
+        _wheelBindings = WheelBindingsOf(canvas);
 
         if (canvas?.Layers == null)
             return;

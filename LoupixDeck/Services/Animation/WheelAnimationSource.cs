@@ -50,7 +50,23 @@ public sealed class WheelAnimationSource(IServiceProvider deviceProvider) : IAni
     /// <summary>Replaces the set of animated wheel layers (called by the manager on rescan).</summary>
     public void SetEntries(IReadOnlyList<WheelEntry> entries)
     {
-        _entries = entries is { Count: > 0 } ? [.. entries] : [];
+        WheelEntry[] next = entries is { Count: > 0 } ? [.. entries] : [];
+
+        // A rescan for an edit that left a layer's animation as it was keeps that layer's timeline,
+        // so its first tick after the rescan is not taken for a new frame and does not repaint.
+        WheelEntry[] previous = _entries;
+        foreach (WheelEntry entry in next)
+        {
+            WheelEntry same = previous.FirstOrDefault(p =>
+                ReferenceEquals(p.Layer, entry.Layer) && ReferenceEquals(p.Anim, entry.Anim));
+            if (same == null) continue;
+
+            entry.StartElapsed = same.StartElapsed;
+            entry.LastPushedFrame = same.LastPushedFrame;
+            entry.Finished = same.Finished;
+        }
+
+        _entries = next;
     }
 
     /// <summary>Pauses (false) or resumes (true) the whole source without unregistering it.</summary>
