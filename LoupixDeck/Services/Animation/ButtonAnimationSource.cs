@@ -60,6 +60,14 @@ public sealed class ButtonAnimationSource : IAnimationSource, IDisposable
     private SKBitmap _spareFrame;
     private volatile bool _enabled;
 
+    // The pre-rendered static parts of each key with exactly one animated layer, so a frame only
+    // draws that layer anew. Replaced as a whole by SetEntries; read by the frame render.
+    private volatile Dictionary<TouchButton, AnimatedKeyCache> _keyCaches = [];
+
+    // Rescans run on the thread pool and may overlap; this keeps two rebuilds from both
+    // subscribing a key or disposing a cache the other just kept.
+    private readonly Lock _keyCacheGate = new();
+
     public ButtonAnimationSource(
         IDeviceService deviceService,
         LoupedeckConfig config,
@@ -104,7 +112,53 @@ public sealed class ButtonAnimationSource : IAnimationSource, IDisposable
     /// <summary>Replaces the set of animated buttons (called by the manager on page change/rescan).</summary>
     public void SetEntries(IReadOnlyList<Entry> entries)
     {
-        _entries = entries is { Count: > 0 } ? entries.ToArray() : Array.Empty<Entry>();
+        lock (_keyCacheGate)
+        {
+            _entries = entries is { Count: > 0 } ? entries.ToArray() : Array.Empty<Entry>();
+            RebuildKeyCaches();
+        }
+    }
+
+    /// <summary>
+    /// Gives each key with exactly one animated layer a cache of its static parts, kept across
+    /// rescans for a key that keeps its layer, and drops the rest. A key with two animated layers
+    /// is rendered in full: either one would be frozen in the other's cached parts.
+    /// </summary>
+    private void RebuildKeyCaches()
+    {
+        var old = _keyCaches;
+        var next = new Dictionary<TouchButton, AnimatedKeyCache>();
+
+        foreach (var group in _entries.Where(e => e.Button != null).GroupBy(e => e.Button))
+        {
+            var only = group.Count() == 1 ? group.First().AnimatedLayer : null;
+            if (only == null) continue;
+
+            // The frame render may still be reading the old dictionary, so it is left as it is.
+            if (!old.TryGetValue(group.Key, out var cache))
+            {
+                cache = new AnimatedKeyCache();
+                group.Key.ItemChanged += OnAnimatedKeyChanged;
+            }
+
+            next[group.Key] = cache;
+        }
+
+        _keyCaches = next;
+
+        foreach (var (button, cache) in old)
+        {
+            if (next.ContainsKey(button)) continue;
+            button.ItemChanged -= OnAnimatedKeyChanged;
+            cache.Dispose();
+        }
+    }
+
+    /// <summary>The key was edited or redrawn for another reason: its static parts are stale.</summary>
+    private void OnAnimatedKeyChanged(object sender, EventArgs e)
+    {
+        if (sender is TouchButton button && _keyCaches.TryGetValue(button, out var cache))
+            cache.Invalidate();
     }
 
     /// <summary>Pauses (false) or resumes (true) the whole source without unregistering it.</summary>
@@ -187,7 +241,17 @@ public sealed class ButtonAnimationSource : IAnimationSource, IDisposable
                 // The page-name tile is up on this key; it repaints the key when it goes.
                 if (_deviceService.IsShowingTemporaryText(button.Index)) continue;
 
-                await device.DrawTouchButton(button, _config, refresh: true, show: false).ConfigureAwait(false);
+                // A key with its static parts cached only draws its animated layer anew.
+                var renderFull = true;
+                if (_keyCaches.TryGetValue(button, out var cache) &&
+                    entries.FirstOrDefault(e => ReferenceEquals(e.Button, button))?.AnimatedLayer is { } layer)
+                {
+                    BitmapHelper.RenderTouchButtonAroundLayer(button, _config, device.KeySize, device.KeySize,
+                        device.GetWallpaperKeyRect(button.Index), layer, cache);
+                    renderFull = false;
+                }
+
+                await device.DrawTouchButton(button, _config, refresh: renderFull, show: false).ConfigureAwait(false);
                 written = true;
             }
 
@@ -309,6 +373,17 @@ public sealed class ButtonAnimationSource : IAnimationSource, IDisposable
 
         _spareFrame?.Dispose();
         _spareFrame = null;
+
+        lock (_keyCacheGate)
+        {
+            var caches = _keyCaches;
+            _keyCaches = [];
+            foreach (var (button, cache) in caches)
+            {
+                button.ItemChanged -= OnAnimatedKeyChanged;
+                cache.Dispose();
+            }
+        }
     }
 
     // ── entry types ───────────────────────────────────────────────────────────
@@ -329,12 +404,17 @@ public sealed class ButtonAnimationSource : IAnimationSource, IDisposable
 
         /// <summary>True once a one-shot animation has shown its final frame (no more ticks).</summary>
         public bool Finished { get; set; }
+
+        /// <summary>The layer this entry animates, or null when it has none.</summary>
+        public abstract LayerBase AnimatedLayer { get; }
     }
 
     public sealed class ImageEntry : Entry
     {
         public required ImageLayer Layer { get; init; }
         public required DecodedAnimation Anim { get; init; }
+
+        public override LayerBase AnimatedLayer => Layer;
     }
 
     public sealed class PluginEntry : Entry
@@ -354,5 +434,7 @@ public sealed class ButtonAnimationSource : IAnimationSource, IDisposable
 
         /// <summary>Per-entry monotonic frame counter handed to the plugin.</summary>
         public long FrameCounter { get; set; }
+
+        public override LayerBase AnimatedLayer => Layer;
     }
 }
