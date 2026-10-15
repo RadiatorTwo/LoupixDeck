@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using LoupixDeck.Models;
 using LoupixDeck.Registry;
 using LoupixDeck.Utils;
@@ -27,6 +28,13 @@ public sealed class WallpaperAnimationSource : IAnimationSource, IDisposable
     private readonly LoupedeckConfig _config;
     private readonly DeviceGeometry _geometry;
     private readonly int _fps;
+
+    // The slot this clip plays in, which receives each pushed frame as its paused still.
+    private readonly WallpaperSlot _slot;
+
+    // Asked live before every push, independent of SetEnabled: the manager hears about a takeover
+    // only once its event reaches it, which may be after the new owner already painted.
+    private readonly Func<bool> _mayOwnDisplay;
 
     private readonly VideoFrameStream _stream;
     private readonly FullDisplayFrameWriter _writer;
@@ -59,12 +67,16 @@ public sealed class WallpaperAnimationSource : IAnimationSource, IDisposable
     public WallpaperAnimationSource(
         LoupedeckDevice.Device.LoupedeckDevice device,
         LoupedeckConfig config,
+        WallpaperSlot slot,
+        Func<bool> mayOwnDisplay,
         string absoluteVideoPath,
         int fps,
         BitmapHelper.ScalingOption scaling)
     {
         _device = device;
         _config = config;
+        _slot = slot;
+        _mayOwnDisplay = mayOwnDisplay;
         _geometry = device.Geometry;
         _fps = Math.Clamp(fps <= 0 ? 30 : fps, 1, 120);
 
@@ -100,6 +112,28 @@ public sealed class WallpaperAnimationSource : IAnimationSource, IDisposable
         _dbgWindowStart = Stopwatch.GetTimestamp();
         _active = true;
         return true;
+    }
+
+    /// <summary>
+    /// Copies the frame just pushed into the slot's <see cref="WallpaperSlot.VideoStill"/>, so keys
+    /// rendered while playback is paused draw on what the panel was showing.
+    /// </summary>
+    private void KeepAsStill(byte[] bgra)
+    {
+        lock (SkiaRenderGate.Sync)
+        {
+            if (_disposed) return;
+
+            SKBitmap still = _slot.VideoStill;
+            if (still == null || still.Width != _geometry.PanelWidth || still.Height != _geometry.PanelHeight)
+            {
+                still = new SKBitmap(new SKImageInfo(_geometry.PanelWidth, _geometry.PanelHeight,
+                    SKColorType.Bgra8888, SKAlphaType.Opaque));
+                _slot.VideoStill = still;
+            }
+
+            Marshal.Copy(bgra, 0, still.GetPixels(), _geometry.FrameBytes);
+        }
     }
 
     /// <summary>Pauses or resumes without tearing down ffmpeg — what the screensaver, a plugin
@@ -157,12 +191,17 @@ public sealed class WallpaperAnimationSource : IAnimationSource, IDisposable
             var overlayMs = 0d;
             var pushStart = _debug ? Stopwatch.GetTimestamp() : 0;
 
-            await _writer.PushAsync(frame.Buffer, token, canvas =>
+            // Asked again right before composing: the display may have been taken over (a folder
+            // opened) while this frame was being waited for, and a frame sent now would land over
+            // the new owner's first picture.
+            var pushed = await _writer.PushAsync(frame.Buffer, token, canvas =>
             {
                 var overlayStart = _debug ? Stopwatch.GetTimestamp() : 0;
                 DrawOverlay(canvas);
                 if (_debug) overlayMs = Stopwatch.GetElapsedTime(overlayStart).TotalMilliseconds;
-            }).ConfigureAwait(false);
+            }, () => _enabled && _mayOwnDisplay()).ConfigureAwait(false);
+
+            if (pushed) KeepAsStill(frame.Buffer);
 
             if (!_debug) return;
 

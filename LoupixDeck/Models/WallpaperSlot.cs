@@ -42,7 +42,11 @@ public partial class WallpaperSlot
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasVideo))]
     public partial string VideoPath { get; set; }
-    partial void OnVideoPathChanged(string value) => RaiseChanged();
+    partial void OnVideoPathChanged(string value)
+    {
+        VideoStill = null;
+        RaiseChanged();
+    }
 
     /// <summary>Display name of the chosen clip, for the settings UI.</summary>
     [ObservableProperty]
@@ -127,6 +131,34 @@ public partial class WallpaperSlot
 
     private readonly Queue<SKBitmap> _retiredBakes = new();
     private const int RetainedBakeGenerations = 3;
+
+    /// <summary>
+    /// The last frame the slot's clip put on the panel, at panel size. Runtime-only: the playing
+    /// wallpaper copies each frame it pushes into this bitmap. While playback is paused — a plugin
+    /// folder, an exclusive takeover, a page slide — keys rendered as stills draw on this frame,
+    /// so they show what the clip was showing rather than an unrelated wallpaper. Null until the
+    /// clip has pushed a frame, and dropped when the clip changes.
+    /// </summary>
+    /// <remarks>Read and written under <see cref="SkiaRenderGate.Sync"/>; a replaced bitmap is
+    /// retired like <see cref="Baked"/>, since a render may have resolved it just before.</remarks>
+    [JsonIgnore]
+    public SKBitmap VideoStill
+    {
+        get;
+        set
+        {
+            if (ReferenceEquals(field, value)) return;
+
+            lock (SkiaRenderGate.Sync)
+            {
+                if (field != null)
+                    _retiredBakes.Enqueue(field);
+                field = value;
+                while (_retiredBakes.Count > RetainedBakeGenerations)
+                    _retiredBakes.Dequeue().Dispose();
+            }
+        }
+    }
 
     /// <summary>
     /// Surface size <see cref="Baked"/> was produced for. The cache must be keyed on this:

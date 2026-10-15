@@ -80,14 +80,21 @@ public sealed class FullDisplayFrameWriter : IDisposable
     /// gate, so it must only draw: no blocking, no other locks, and no device I/O. It is also on
     /// the per-frame budget, which at 30 fps is what remains of ~33 ms after the ~27 ms the serial
     /// panel write costs — so blit prepared bitmaps here, never render layers or lay out text.
+    ///
+    /// <paramref name="shouldPush"/>, when given, is asked under the gate right before composing:
+    /// returning false drops the frame. A caller whose permission to own the panel can be revoked
+    /// while it waits for a frame uses it to keep that frame from landing over the new owner.
+    /// Returns whether the frame was composed and sent.
     /// </summary>
-    public async Task PushAsync(byte[] bgra, CancellationToken token, Action<SKCanvas> overlay = null)
+    public async Task<bool> PushAsync(byte[] bgra, CancellationToken token, Action<SKCanvas> overlay = null,
+        Func<bool> shouldPush = null)
     {
         var draws = new List<(string Id, SKBitmap Bitmap)>(_targets.Count);
 
         lock (SkiaRenderGate.Sync)
         {
-            if (_disposed) return;
+            if (_disposed) return false;
+            if (shouldPush != null && !shouldPush()) return false;
 
             _frame ??= new SKBitmap(new SKImageInfo(_geometry.PanelWidth, _geometry.PanelHeight,
                 SKColorType.Bgra8888, SKAlphaType.Opaque));
@@ -150,7 +157,7 @@ public sealed class FullDisplayFrameWriter : IDisposable
         {
             foreach (var draw in draws)
             {
-                if (token.IsCancellationRequested) return;
+                if (token.IsCancellationRequested) return false;
                 // refresh:true — one atomic full-display FRAMEBUFF + DRAW per frame. A
                 // framebuffer write WITHOUT a DRAW does not reliably present on the device
                 // (the last DRAW'd page content stays visible), so the frame must be drawn.
@@ -171,6 +178,8 @@ public sealed class FullDisplayFrameWriter : IDisposable
                     await _device.DrawScreen(draw.Id, draw.Bitmap, refresh: true).ConfigureAwait(false);
                 }
             }
+
+            return true;
         }
         finally
         {
