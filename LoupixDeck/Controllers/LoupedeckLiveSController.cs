@@ -3382,9 +3382,14 @@ public partial class LoupedeckLiveSController(
         // Only redraw if this is the current page and wallpaper properties changed
         if (page != config.CurrentTouchButtonPage) return;
 
-        _propertyChangedCts?.Cancel();
-        _propertyChangedCts = new CancellationTokenSource();
-        var token = _propertyChangedCts.Token;
+        // Only a new invalidation restarts the debounce. Other page notifications must not
+        // cancel it: the settings page answers WallpaperInvalidated by refreshing every page's
+        // inherited thumbnail, which raises WallpaperThumbnail right inside the debounce window.
+        if (e.PropertyName != nameof(TouchButtonPage.WallpaperInvalidated)) return;
+
+        _wallpaperRedrawCts?.Cancel();
+        _wallpaperRedrawCts = new CancellationTokenSource();
+        var token = _wallpaperRedrawCts.Token;
 
         try
         {
@@ -3797,7 +3802,11 @@ public partial class LoupedeckLiveSController(
     }
 
     private CancellationTokenSource _propertyChangedCts;
-    
+
+    // Debounce of the current page's wallpaper redraw. Separate from _propertyChangedCts, so a
+    // config change cannot cancel a pending wallpaper redraw and vice versa.
+    private CancellationTokenSource _wallpaperRedrawCts;
+
     private async void ConfigOnPropertyChanged(object sender, PropertyChangedEventArgs e)
     {
         _propertyChangedCts?.Cancel();
