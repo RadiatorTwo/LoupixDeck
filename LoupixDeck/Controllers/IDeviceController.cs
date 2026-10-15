@@ -161,6 +161,14 @@ public interface IDeviceController
     Task RefreshWheelAnimationFrame();
 
     /// <summary>
+    /// <see cref="RefreshWheelAnimationFrame"/> for a change on the wheel canvas (an animation frame,
+    /// a dynamic text or image layer). Skipped while the wheel shows something else - a takeover's
+    /// or a bound plugin renderer's drawing, or the automatic layout - since the frame would not
+    /// change.
+    /// </summary>
+    Task RefreshWheelCanvasFrame();
+
+    /// <summary>
     /// Repaints the side strips that carry a dial bound to <paramref name="commandName"/>, so a
     /// plugin whose adjustment value changed can get its dial indicator redrawn — the dial
     /// counterpart of <see cref="LoupixDeck.PluginSdk.IPluginHost.RequestButtonRefresh"/>.

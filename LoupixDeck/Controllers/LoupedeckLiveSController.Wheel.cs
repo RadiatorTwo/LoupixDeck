@@ -96,6 +96,15 @@ public partial class LoupedeckLiveSController
         return RedrawWheel();
     }
 
+    /// <inheritdoc/>
+    public Task RefreshWheelCanvasFrame() =>
+        _wheelDrawnFromCanvas ? RefreshWheelAnimationFrame() : Task.CompletedTask;
+
+    // Whether the last wheel frame (other than the mode menu) was the user's canvas. A takeover, a
+    // bound renderer or the automatic layout drawing instead each repaint on their own terms, and a
+    // change of who draws always comes with a full RedrawWheel, which sets this again.
+    private volatile bool _wheelDrawnFromCanvas;
+
     /// <summary>
     /// Subscribes a wheel mode's custom <see cref="Models.RotaryButton.Canvas"/> to the live
     /// redraw pipeline, so editing its layers repaints the wheel screen immediately (mirroring
@@ -178,6 +187,7 @@ public partial class LoupedeckLiveSController
                         ?? RenderBoundWheel(wheel, value, device.WheelScreenSize, out interval);
                 SchedulePluginWheel(interval);
 
+                _wheelDrawnFromCanvas = frame == null && wheel.Canvas != null;
                 if (frame == null && wheel.Canvas != null)
                 {
                     RegisterWheelCanvas(wheel);
