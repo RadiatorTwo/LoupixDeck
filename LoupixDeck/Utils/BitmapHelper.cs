@@ -1346,6 +1346,58 @@ public static class BitmapHelper
     }
 
     /// <summary>
+    /// Renders a key like <see cref="RenderTouchButtonContent"/>, but takes its layers from a
+    /// pre-rendered foreground (as <see cref="RenderTouchButtonForeground"/> draws it) instead of
+    /// drawing them again: the background goes down first, then the foreground is blitted over it.
+    /// <paramref name="foreground"/> is called under the render gate, so it may hand out a bitmap
+    /// that is only valid while the gate is held; it may return null for a key without layers.
+    /// A folder back slot is rendered in full, since its chevron is not part of a foreground.
+    /// </summary>
+    public static SKBitmap RenderTouchButtonOverForeground(
+        TouchButton touchButton,
+        LoupedeckConfig config,
+        int width,
+        int height,
+        SKRectI? wallpaperSource,
+        Func<SKBitmap> foreground)
+    {
+        ArgumentNullException.ThrowIfNull(touchButton);
+        if (touchButton.IsFolderBackSlot)
+            return RenderTouchButtonContent(touchButton, config, width, height, wallpaperSource);
+
+        var (wallpaperToUse, opacityToUse) = ResolveWallpaper(config);
+
+        // Read before the foreground is fetched, which renders the layers with the value current
+        // then: a value landing in between leaves the stamp stale, and a stale stamp only costs
+        // a repaint, never a missed one.
+        LoupixDeck.PluginSdk.AdjustmentValue? value = touchButton.DisplayValue;
+
+        SKBitmap bitmap;
+        lock (SkiaRenderGate.Sync)
+        {
+            bitmap = new SKBitmap(width, height);
+            using var canvas = new SKCanvas(bitmap);
+
+            DrawTouchButtonBackground(canvas, touchButton, wallpaperToUse, opacityToUse,
+                wallpaperSource, width, height);
+
+            var layers = foreground();
+            if (layers != null)
+                canvas.DrawBitmap(layers, new SKRect(0, 0, layers.Width, layers.Height),
+                    new SKRect(0, 0, width, height), SKSamplingOptions.Default, paint: null);
+        }
+
+        touchButton.RenderedDisplayValue = value;
+        bitmap.SetImmutable();
+
+        PreviewRecipes.Register(bitmap, scale => RenderTouchButtonPreview(touchButton, config, width, height,
+            wallpaperSource, scale));
+
+        touchButton.RenderedImage = bitmap;
+        return bitmap;
+    }
+
+    /// <summary>
     /// Lets the on-screen device view draw <paramref name="bitmap"/> again from its recording at
     /// any resolution (issue #251).
     /// </summary>

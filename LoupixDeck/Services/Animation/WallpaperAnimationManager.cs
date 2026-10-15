@@ -110,7 +110,7 @@ public sealed class WallpaperAnimationManager : IWallpaperAnimationManager, IDis
 
         source.InvalidateButton(index);
         _scheduler.RequestFrame(source);
-        RefreshUiMirror(_config?.CurrentTouchButtonPage?.TouchButtons?.FindByIndex(index));
+        RefreshUiMirror(source, _config?.CurrentTouchButtonPage?.TouchButtons?.FindByIndex(index));
         return true;
     }
 
@@ -145,7 +145,7 @@ public sealed class WallpaperAnimationManager : IWallpaperAnimationManager, IDis
         var buttons = _config?.CurrentTouchButtonPage?.TouchButtons;
         if (buttons != null)
         {
-            foreach (var button in buttons) RefreshUiMirror(button);
+            foreach (var button in buttons) RefreshUiMirror(source, button);
         }
 
         return true;
@@ -172,14 +172,17 @@ public sealed class WallpaperAnimationManager : IWallpaperAnimationManager, IDis
     /// touches that bitmap — only <c>DrawTouchButton</c> publishes it, and the redirect is what
     /// replaces that call. Without this the window keeps showing the key as it looked before the
     /// edit for as long as the clip plays, while the device already shows the new layers.
+    ///
+    /// The layers are rendered once, into the source's foreground cache, and the mirror is built
+    /// from that same bitmap: the next video frame then blits it without drawing the layers again.
     /// </summary>
-    private void RefreshUiMirror(TouchButton button)
+    private void RefreshUiMirror(WallpaperAnimationSource source, TouchButton button)
     {
         var device = _deviceService?.Device;
         if (button == null || device == null || _config == null) return;
 
-        BitmapHelper.RenderTouchButtonContent(button, _config, device.KeySize, device.KeySize,
-            device.GetWallpaperKeyRect(button.Index));
+        BitmapHelper.RenderTouchButtonOverForeground(button, _config, device.KeySize, device.KeySize,
+            device.GetWallpaperKeyRect(button.Index), () => source.GetForeground(button));
     }
 
     private void OnTouchLayoutChanged() => Rebuild();

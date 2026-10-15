@@ -181,6 +181,12 @@ public sealed class WallpaperAnimationSource : IAnimationSource, IDisposable
     /// </summary>
     public void MarkOverlayDirty() => Volatile.Write(ref _overlayDirty, 1);
 
+    /// <summary>
+    /// The key's layers as the next frame draws them, rendered now if they are not cached yet.
+    /// Only valid while the caller holds <see cref="SkiaRenderGate"/>.Sync: an invalidation frees it.
+    /// </summary>
+    public SKBitmap GetForeground(TouchButton button) => _foregrounds.Get(button);
+
     /// <summary>Re-renders one key on its next frame.</summary>
     public void InvalidateButton(int index)
     {
