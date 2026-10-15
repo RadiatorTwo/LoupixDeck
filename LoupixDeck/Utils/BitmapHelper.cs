@@ -1836,7 +1836,7 @@ public static class BitmapHelper
                 if (bmp == null && !string.IsNullOrEmpty(image.AssetRelativePath) && AssetResolver != null)
                 {
                     bmp = AssetResolver(image.AssetRelativePath);
-                    image.CachedImage = bmp;
+                    image.SetResolvedImage(bmp);
                 }
                 if (bmp == null) return null;
 
@@ -1943,7 +1943,7 @@ public static class BitmapHelper
         if (bmp == null && !string.IsNullOrEmpty(layer.AssetRelativePath) && AssetResolver != null)
         {
             bmp = AssetResolver(layer.AssetRelativePath);
-            layer.CachedImage = bmp;
+            layer.SetResolvedImage(bmp);
         }
         if (bmp == null) return;
 
@@ -2013,7 +2013,7 @@ public static class BitmapHelper
         if (bmp == null && !string.IsNullOrEmpty(layer.AssetRelativePath) && AssetResolver != null)
         {
             bmp = AssetResolver(layer.AssetRelativePath);
-            layer.CachedImage = bmp;
+            layer.SetResolvedImage(bmp);
         }
         if (bmp == null) return;
 
