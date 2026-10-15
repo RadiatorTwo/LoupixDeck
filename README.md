@@ -37,9 +37,9 @@ Built with [Avalonia](https://avaloniaui.net/) and [.NET 10](https://dotnet.micr
 | **Loupedeck Live S** | ✅ Supported | 5×3 touch grid, 2 dials, 8 physical buttons |
 | **Razer Stream Controller** | ✅ Supported | 4×3 touch grid, 2 side panels, 6 dials, 8 LED buttons |
 | **Razer Stream Controller X** | ✅ Supported | 5×3 physical key grid |
-| **Loupedeck CT** | 🚧 Partial | 4×3 touch grid, wheel display, 6 dials and additional buttons |
+| **Loupedeck CT** | ✅ Supported | 4×3 touch grid, wheel display, 6 dials and additional buttons |
 
-Loupedeck CT support is still being completed and needs more hardware testing. The Stream Controller X has physical keys instead of a touchscreen; LoupixDeck maps each key to the corresponding display position and supports press-and-hold actions.
+The Stream Controller X has physical keys instead of a touchscreen; LoupixDeck maps each key to the corresponding display position and supports press-and-hold actions.
 
 Multiple devices can run in one LoupixDeck instance. Devices are separated by USB serial number and retain their own configuration.
 
@@ -446,7 +446,7 @@ Please read [CONTRIBUTING.md](CONTRIBUTING.md) before submitting a change. If yo
 
 ## Project status
 
-LoupixDeck is actively developed and suitable for daily use on the fully supported devices listed above. Loupedeck CT support remains experimental while its remaining controls are implemented and verified. macOS support is an experimental alpha.
+LoupixDeck is actively developed and suitable for daily use on all devices listed above. macOS support is an experimental alpha.
 
 ## Credits
 
