@@ -128,7 +128,9 @@ public sealed class ButtonAnimationSource : IAnimationSource, IDisposable
         if (controller is { IsDeviceOff: true } or { TouchSlideInFlight: true }) return;
 
         var columns = device.Columns;
-        List<TouchButton> dirty = null;
+        // A set: a key with two animated entries (two animated image layers, or an image plus an
+        // animated plugin command) changes once per tick, not once per entry.
+        HashSet<TouchButton> dirty = null;
 
         // Plugin render callbacks may call back into the host — make this device the ambient target
         // (issue #116 phase 2), exactly as the dynamic-text manager does.
@@ -156,7 +158,7 @@ public sealed class ButtonAnimationSource : IAnimationSource, IDisposable
                     };
 
                     if (changed && entry.Button != null)
-                        (dirty ??= new List<TouchButton>()).Add(entry.Button);
+                        (dirty ??= []).Add(entry.Button);
                 }
                 catch (Exception ex)
                 {
