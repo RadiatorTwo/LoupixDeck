@@ -40,6 +40,7 @@ public class PluginLayer : LayerBase
         get => _renderedBitmap;
         set
         {
+            (double Width, double Height)? before = GetSourceDimensions();
             bool changed;
             lock (SkiaRenderGate.Sync)
             {
@@ -58,8 +59,32 @@ public class PluginLayer : LayerBase
             if (changed)
             {
                 OnPropertyChanged();
-                OnDisplaySizeChanged();
+                // Only a different image size moves the editor's size fields; raising the size on
+                // every new frame redrew the key twice more per tick (#455).
+                if (GetSourceDimensions() != before)
+                    OnDisplaySizeChanged();
             }
+        }
+    }
+
+    /// <summary>
+    /// True when <paramref name="candidate"/> has exactly the pixels of the current
+    /// <see cref="RenderedBitmap"/>. A polled plugin image is usually the same frame as last time
+    /// (a clock between minute changes, a status icon); the caller then drops it instead of
+    /// redrawing and resending the key (#455).
+    /// </summary>
+    public bool ShowsSamePixels(SKBitmap candidate)
+    {
+        if (candidate == null) return false;
+
+        lock (SkiaRenderGate.Sync)
+        {
+            SKBitmap current = _renderedBitmap;
+            if (current == null || current.Width != candidate.Width || current.Height != candidate.Height ||
+                current.ColorType != candidate.ColorType || current.AlphaType != candidate.AlphaType)
+                return false;
+
+            return current.GetPixelSpan().SequenceEqual(candidate.GetPixelSpan());
         }
     }
 

@@ -662,7 +662,17 @@ public sealed class DynamicTextManager : IDynamicTextManager, IDisposable
                     return;
                 }
 
-                button.GetOrCreatePluginLayer(ownerKey, name).RenderedBitmap = bitmap; // setter retires the old bitmap under the gate
+                PluginLayer layer = button.GetOrCreatePluginLayer(ownerKey, name);
+
+                // The plugin drew the same picture as last tick: keep the current one, so the key is
+                // not redrawn and resent for nothing.
+                if (layer.ShowsSamePixels(bitmap))
+                {
+                    bitmap.Dispose();
+                    return;
+                }
+
+                layer.RenderedBitmap = bitmap; // setter retires the old bitmap under the gate
             });
             return;
         }
