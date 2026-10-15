@@ -1646,8 +1646,8 @@ public partial class LoupedeckLiveSController(
     /// <summary>
     /// Renders a plugin-override strip: the attached provider draws the whole 60×270 strip onto a
     /// host canvas. Falls back to the segmented dial labels when no provider is attached or the
-    /// provider declines (returns false) / throws. The provider draws its own background, so
-    /// <paramref name="drawBackground"/> only affects the fallback.
+    /// provider declines (returns false) / throws. The provider draws over this strip's wallpaper
+    /// region; <paramref name="drawBackground"/> false leaves it transparent instead.
     /// </summary>
     private SkiaSharp.SKBitmap RenderPluginStripOrFallback(RotaryButtonPage page, RotarySide side,
         bool drawBackground)
@@ -1663,6 +1663,9 @@ public partial class LoupedeckLiveSController(
                 using var recording = new RecordedRender(StripWidth, StripHeight);
                 lock (SkiaRenderGate.Sync)
                 {
+                    if (drawBackground)
+                        BitmapHelper.DrawPluginStripBackground(recording.Canvas, config, side, StripWidth, StripHeight);
+
                     var rc = new SkiaRenderCanvas(recording.Canvas, StripWidth, StripHeight);
                     if (session.RenderStrip(rc))
                         return recording.Finish();
@@ -3180,6 +3183,8 @@ public partial class LoupedeckLiveSController(
                 using var recording = new RecordedRender(StripWidth, StripHeight);
                 lock (SkiaRenderGate.Sync)
                 {
+                    BitmapHelper.DrawPluginStripBackground(recording.Canvas, config, side, StripWidth, StripHeight);
+
                     var rc = new SkiaRenderCanvas(recording.Canvas, StripWidth, StripHeight);
                     if (session.RenderStrip(rc))
                         return recording.Finish();
