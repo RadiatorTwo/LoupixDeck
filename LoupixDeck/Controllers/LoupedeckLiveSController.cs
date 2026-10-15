@@ -3486,6 +3486,9 @@ public partial class LoupedeckLiveSController(
 
         if (button == null) return;
 
+        // The page-name tile is up on this key; it repaints the key when it goes.
+        if (deviceService.IsShowingTemporaryText(button.Index)) return;
+
         // While a clip plays behind the keys, the key is re-rendered into the next video frame's
         // overlay rather than pushed on its own — a partial write racing a full-panel push tears.
         if (wallpaperAnimation.TryRedirectButtonRedraw(button.Index)) return;

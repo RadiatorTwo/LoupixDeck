@@ -122,7 +122,10 @@ public sealed class ButtonAnimationSource : IAnimationSource, IDisposable
 
         // A device switched off shows nothing; switching it back on repaints the page with the
         // layers' current frames, and the animation carries on from there.
-        if (_deviceProvider.GetService<Controllers.IDeviceController>()?.IsDeviceOff == true) return;
+        // A page slide paints the whole grid frame by frame; a key pushed between its frames
+        // flickers. The slide repaints the page when it lands, and the animation carries on.
+        var controller = _deviceProvider.GetService<Controllers.IDeviceController>();
+        if (controller is { IsDeviceOff: true } or { TouchSlideInFlight: true }) return;
 
         var columns = device.Columns;
         List<TouchButton> dirty = null;
@@ -175,6 +178,9 @@ public sealed class ButtonAnimationSource : IAnimationSource, IDisposable
                 // instead: a partial write racing a full-panel push tears. With no clip
                 // playing this is false and the partial push below runs exactly as before.
                 if (_wallpaper.TryRedirectButtonRedraw(button.Index)) continue;
+
+                // The page-name tile is up on this key; it repaints the key when it goes.
+                if (_deviceService.IsShowingTemporaryText(button.Index)) continue;
 
                 await device.DrawTouchButton(button, _config, refresh: true).ConfigureAwait(false);
             }

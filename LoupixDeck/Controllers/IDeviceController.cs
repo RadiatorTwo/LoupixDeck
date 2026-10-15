@@ -26,6 +26,10 @@ public interface IDeviceController
     /// </summary>
     bool IsDeviceOff { get; }
 
+    /// <summary>True while a touch page slide is animating. Per-key writes landing between its
+    /// frames flicker, so key animations hold back; the slide repaints the page when it lands.</summary>
+    bool TouchSlideInFlight { get; }
+
     /// <summary>
     /// True while the device's serial link is open and usable. A device can be present on the
     /// USB bus yet not connected — e.g. another program held its port at startup — in which case

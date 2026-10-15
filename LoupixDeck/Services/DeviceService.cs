@@ -12,6 +12,28 @@ public interface IDeviceService
     void StartDevice(string devicePort, int deviceBaudrate);
     void ReconnectDevice();
     Task ShowTemporaryTextButton(int index, string text, int displayDurationMilliseconds);
+
+    /// <summary>True while <see cref="ShowTemporaryTextButton"/> shows its tile on key
+    /// <paramref name="index"/>. Redraws of that key stand back meanwhile, so an animated or
+    /// live key does not flicker against the tile; the key is repainted when the tile goes.</summary>
+    bool IsShowingTemporaryText(int index);
+
+    /// <summary>The tile <see cref="ShowTemporaryTextButton"/> shows on key <paramref name="index"/>,
+    /// or null. Only valid under <see cref="Utils.SkiaRenderGate.Sync"/>: the tile is released
+    /// under the gate once it goes.</summary>
+    SkiaSharp.SKBitmap GetTemporaryTextTile(int index);
+
+    /// <summary>
+    /// Set by a playing video wallpaper, which owns the whole panel: a single key written on its
+    /// own would be covered by the next frame and tear against it. Called with the key index and
+    /// whether the tile is being shown (true) or taken down (false); returns true when the clip
+    /// took the key over — it then draws the tile, or the restored key, into its own frames.
+    /// </summary>
+    Func<int, bool, bool> ClipKeyRedraw { get; set; }
+
+    /// <summary>Takes a shown temporary text tile down early without restoring its key, for a
+    /// caller that repaints the whole grid anyway (a page slide).</summary>
+    void CancelTemporaryText();
 }
 
 public class LoupedeckDeviceService : IDeviceService
@@ -84,30 +106,82 @@ public class LoupedeckDeviceService : IDeviceService
 
     private int _currentCallId;
 
+    // Key the temporary text tile is on, or -1. Read by the key redraw paths on other threads.
+    private volatile int _temporaryTextIndex = -1;
+
+    // The tile itself, swapped and released under SkiaRenderGate.Sync: the video wallpaper's
+    // overlay draws it from its render thread.
+    private SkiaSharp.SKBitmap _temporaryTextTile;
+
+    public bool IsShowingTemporaryText(int index) => index >= 0 && _temporaryTextIndex == index;
+
+    public SkiaSharp.SKBitmap GetTemporaryTextTile(int index) =>
+        IsShowingTemporaryText(index) ? _temporaryTextTile : null;
+
+    public Func<int, bool, bool> ClipKeyRedraw { get; set; }
+
+    public void CancelTemporaryText()
+    {
+        // The running loop sees a newer call id and ends without drawing again or restoring;
+        // its finally releases the tile and lifts the hold on the key.
+        Interlocked.Increment(ref _currentCallId);
+    }
+
     public async Task ShowTemporaryTextButton(int index, string text, int displayDurationMilliseconds)
     {
         var callId = Interlocked.Increment(ref _currentCallId); // Atomically increment the call ID
         const int interval = 100; // Update interval in milliseconds
         var elapsed = 0; // Tracks the elapsed time
 
-        while (elapsed < displayDurationMilliseconds)
+        // Rendered once. The key's own redraws stand back while the tile is up (see
+        // IsShowingTemporaryText); the loop still re-asserts it every interval against what does
+        // not, such as a page paint, and the device only sends it again when it was covered.
+        SkiaSharp.SKBitmap tile = Device.RenderTextButton(text);
+        lock (Utils.SkiaRenderGate.Sync)
         {
-            if (callId != _currentCallId)
-            {
-                // Exit if a newer call has been made
-                return;
-            }
+            _temporaryTextTile = tile;
+            _temporaryTextIndex = index;
+        }
 
-            await Device.DrawTextButton(index, text); // Update the text button
-            await Task.Delay(interval); // Wait for the specified interval
-            elapsed += interval; // Increment the elapsed time
+        try
+        {
+            while (elapsed < displayDurationMilliseconds)
+            {
+                if (callId != _currentCallId)
+                {
+                    // Exit if a newer call has been made
+                    return;
+                }
+
+                // A playing clip draws the tile into its frames instead.
+                if (ClipKeyRedraw?.Invoke(index, true) != true)
+                    await Device.DrawTextButton(index, tile); // Update the text button
+                await Task.Delay(interval); // Wait for the specified interval
+                elapsed += interval; // Increment the elapsed time
+            }
+        }
+        finally
+        {
+            // A newer call has already put its own tile in place; only this call's is released.
+            lock (Utils.SkiaRenderGate.Sync)
+            {
+                if (ReferenceEquals(_temporaryTextTile, tile))
+                {
+                    _temporaryTextTile = null;
+                    _temporaryTextIndex = -1;
+                }
+
+                tile.Dispose();
+            }
         }
 
         // Only the last call executes this action
         if (callId == _currentCallId)
         {
-            // Reset the button with current page wallpaper
-            await Device.DrawTouchButton(_config.CurrentTouchButtonPage.TouchButtons[index], _config, true);
+            // Put the key back, rendered fresh: its own redraws were held back while the tile
+            // was up, so an animation or a live value has moved on since its last render.
+            if (ClipKeyRedraw?.Invoke(index, false) != true)
+                await Device.DrawTouchButton(_config.CurrentTouchButtonPage.TouchButtons[index], _config, true);
         }
     }
 }

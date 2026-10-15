@@ -98,6 +98,7 @@ public sealed class WallpaperAnimationManager : IWallpaperAnimationManager, IDis
         _folderNav.StateChanged += OnTakeoverStateChanged;
         _fullDisplay.Started += OnTakeoverStateChanged;
         _fullDisplay.Stopped += OnTakeoverStateChanged;
+        _deviceService.ClipKeyRedraw = RedirectTemporaryTextKey;
 
         Rebuild();
     }
@@ -111,6 +112,25 @@ public sealed class WallpaperAnimationManager : IWallpaperAnimationManager, IDis
         _scheduler.RequestFrame(source);
         RefreshUiMirror(_config?.CurrentTouchButtonPage?.TouchButtons?.FindByIndex(index));
         return true;
+    }
+
+    /// <summary>
+    /// <see cref="IDeviceService.ClipKeyRedraw"/>: while a clip plays, the page-name tile and the
+    /// key it covered go into the clip's frames. Showing it only asks for a frame — the overlay
+    /// draws the tile itself; taking it down re-renders the key, whose redraws were held back.
+    /// </summary>
+    private bool RedirectTemporaryTextKey(int index, bool showing)
+    {
+        var source = _source;
+        if (source is not { IsActive: true }) return false;
+
+        if (showing)
+        {
+            _scheduler.RequestFrame(source);
+            return true;
+        }
+
+        return TryRedirectButtonRedraw(index);
     }
 
     public bool TryRedirectPageRedraw()
@@ -248,7 +268,8 @@ public sealed class WallpaperAnimationManager : IWallpaperAnimationManager, IDis
             return;
         }
 
-        var source = new WallpaperAnimationSource(device, _config, slot, IsDisplayFree, slot.VideoPath,
+        var source = new WallpaperAnimationSource(device, _config, slot, IsDisplayFree,
+            _deviceService.GetTemporaryTextTile, slot.VideoPath,
             slot.VideoFps, slot.ScalingOption);
         if (!source.Start())
         {
@@ -348,6 +369,7 @@ public sealed class WallpaperAnimationManager : IWallpaperAnimationManager, IDis
         _folderNav.StateChanged -= OnTakeoverStateChanged;
         _fullDisplay.Started -= OnTakeoverStateChanged;
         _fullDisplay.Stopped -= OnTakeoverStateChanged;
+        if (_deviceService.ClipKeyRedraw == RedirectTemporaryTextKey) _deviceService.ClipKeyRedraw = null;
 
         WatchSlot(null);
         Stop();
