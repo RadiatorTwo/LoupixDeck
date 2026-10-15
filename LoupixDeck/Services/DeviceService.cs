@@ -90,24 +90,31 @@ public class LoupedeckDeviceService : IDeviceService
         const int interval = 100; // Update interval in milliseconds
         var elapsed = 0; // Tracks the elapsed time
 
-        while (elapsed < displayDurationMilliseconds)
+        // Rendered once. The loop re-asserts the tile every interval because a key redraw (a
+        // dynamic text tick, an animation frame, the page paint) may cover it meanwhile; the
+        // device only sends it again when that happened.
+        using (SkiaSharp.SKBitmap tile = Device.RenderTextButton(text))
         {
-            if (callId != _currentCallId)
+            while (elapsed < displayDurationMilliseconds)
             {
-                // Exit if a newer call has been made
-                return;
-            }
+                if (callId != _currentCallId)
+                {
+                    // Exit if a newer call has been made
+                    return;
+                }
 
-            await Device.DrawTextButton(index, text); // Update the text button
-            await Task.Delay(interval); // Wait for the specified interval
-            elapsed += interval; // Increment the elapsed time
+                await Device.DrawTextButton(index, tile); // Update the text button
+                await Task.Delay(interval); // Wait for the specified interval
+                elapsed += interval; // Increment the elapsed time
+            }
         }
 
         // Only the last call executes this action
         if (callId == _currentCallId)
         {
-            // Reset the button with current page wallpaper
-            await Device.DrawTouchButton(_config.CurrentTouchButtonPage.TouchButtons[index], _config, true);
+            // Put the key back. Its RenderedImage is current: redraws of the key kept rendering
+            // while the overlay was up, so only an empty one has to be rendered here.
+            await Device.DrawTouchButton(_config.CurrentTouchButtonPage.TouchButtons[index], _config, false);
         }
     }
 }

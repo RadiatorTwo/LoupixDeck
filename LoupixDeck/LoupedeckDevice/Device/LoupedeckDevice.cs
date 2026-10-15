@@ -1914,18 +1914,32 @@ public class LoupedeckDevice
         }
     }
 
-    public async Task DrawTextButton(int index, string text)
+    /// <summary>Renders <paramref name="text"/> as a key-sized tile for
+    /// <see cref="DrawTextButton"/>. The caller owns and disposes the bitmap.</summary>
+    public SKBitmap RenderTextButton(string text)
     {
         if (string.IsNullOrEmpty(text))
             throw new ArgumentException("Text must not be null or empty.", nameof(text));
 
-        var renderedBitmap = BitmapHelper.RenderTextToBitmap(text, KeySize, KeySize);
-        if (renderedBitmap == null)
-            throw new Exception("The rendering of the text has failed.");
+        return BitmapHelper.RenderTextToBitmap(text, KeySize, KeySize)
+               ?? throw new Exception("The rendering of the text has failed.");
+    }
+
+    /// <summary>
+    /// Shows a tile from <see cref="RenderTextButton"/> on a key. Sent only when the key does not
+    /// already show it: a caller that re-asserts the tile against other key redraws costs a write
+    /// only after something actually covered it (#465).
+    /// </summary>
+    public async Task DrawTextButton(int index, SKBitmap textButton)
+    {
+        ArgumentNullException.ThrowIfNull(textButton);
+        if (index < 0 || index >= Columns * Rows)
+            throw new Exception($"Key {index} is not a valid key");
 
         try
         {
-            await DrawKey(index, renderedBitmap);
+            SKRectI rect = GetKeyRect(index);
+            await DrawCanvasRegionIfChanged("center", rect.Width, rect.Height, textButton, rect.Left, rect.Top);
         }
         catch (TimeoutException ex)
         {
