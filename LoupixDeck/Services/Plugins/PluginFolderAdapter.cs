@@ -78,17 +78,57 @@ internal sealed class PluginFolderAdapter : CoreFolder.IFolderProvider
         }
     }
 
-    public IReadOnlyDictionary<int, CoreFolder.RotaryOverride> RotaryOverrides =>
-        _inner.RotaryOverrides.ToDictionary(
-            kv => kv.Key,
-            kv => new CoreFolder.RotaryOverride
+    /// <summary>
+    /// The plugin's dial overrides as core types. Read on every folder redraw and every dial turn
+    /// or press, so the conversion is kept and redone only when the plugin hands out different
+    /// overrides: SDK overrides are init-only, so the same objects under the same keys convert to
+    /// the same result.
+    /// </summary>
+    public IReadOnlyDictionary<int, CoreFolder.RotaryOverride> RotaryOverrides
+    {
+        get
+        {
+            IReadOnlyDictionary<int, Sdk.RotaryOverride> source = _inner.RotaryOverrides;
+            lock (_overridesLock)
             {
-                OnLeft = kv.Value.OnLeft,
-                OnRight = kv.Value.OnRight,
-                OnPress = kv.Value.OnPress,
-                Label = kv.Value.Label,
-                GetValue = kv.Value.GetValue
-            });
+                if (_overrides != null && SameOverrides(source))
+                    return _overrides;
+
+                _overrideSources = source?.ToDictionary(kv => kv.Key, kv => kv.Value) ?? [];
+                _overrides = _overrideSources.ToDictionary(
+                    kv => kv.Key,
+                    kv => new CoreFolder.RotaryOverride
+                    {
+                        OnLeft = kv.Value.OnLeft,
+                        OnRight = kv.Value.OnRight,
+                        OnPress = kv.Value.OnPress,
+                        Label = kv.Value.Label,
+                        GetValue = kv.Value.GetValue
+                    });
+                return _overrides;
+            }
+        }
+    }
+
+    private readonly Lock _overridesLock = new();
+    private Dictionary<int, Sdk.RotaryOverride> _overrideSources;
+    private Dictionary<int, CoreFolder.RotaryOverride> _overrides;
+
+    /// <summary>True when <paramref name="source"/> holds exactly the overrides last converted.</summary>
+    private bool SameOverrides(IReadOnlyDictionary<int, Sdk.RotaryOverride> source)
+    {
+        if (source == null) return _overrideSources.Count == 0;
+        if (source.Count != _overrideSources.Count) return false;
+
+        foreach (KeyValuePair<int, Sdk.RotaryOverride> kv in source)
+        {
+            if (!_overrideSources.TryGetValue(kv.Key, out Sdk.RotaryOverride known) ||
+                !ReferenceEquals(known, kv.Value))
+                return false;
+        }
+
+        return true;
+    }
 
     public Sdk.ISideStripSession CreateSideStripSession(Sdk.SideStripContext context) =>
         _inner is Sdk.IFolderSideStripProvider strips ? strips.CreateSideStripSession(context) : null;
