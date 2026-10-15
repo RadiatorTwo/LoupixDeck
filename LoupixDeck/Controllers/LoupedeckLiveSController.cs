@@ -3411,9 +3411,32 @@ public partial class LoupedeckLiveSController(
         }
     }
 
-    private async void TouchItemChanged(object sender, EventArgs e)
+    // Buttons with a redraw queued but not yet started. A single edit raises ItemChanged several
+    // times in a row (a setter plus its derived properties, a reset touching several fields), so
+    // the redraw is posted once per burst instead of rendering and sending the key for every
+    // notification. Touched from the raising thread and the UI thread, hence the lock.
+    private readonly HashSet<TouchButton> _pendingTouchRedraws = [];
+
+    private void TouchItemChanged(object sender, EventArgs e)
     {
         if (sender is not TouchButton item) return;
+
+        lock (_pendingTouchRedraws)
+        {
+            if (!_pendingTouchRedraws.Add(item)) return;
+        }
+
+        Avalonia.Threading.Dispatcher.UIThread.Post(() => _ = RedrawChangedTouchButton(item));
+    }
+
+    private async Task RedrawChangedTouchButton(TouchButton item)
+    {
+        // Leave the queue before drawing, so a change landing while this draw is in flight
+        // queues the next one instead of being swallowed.
+        lock (_pendingTouchRedraws)
+        {
+            _pendingTouchRedraws.Remove(item);
+        }
 
         // Folder mode, exclusive mode, or the screensaver owns the touch display —
         // suppress per-button redraws (e.g. from DynamicTextManager) so they don't paint
@@ -3433,7 +3456,11 @@ public partial class LoupedeckLiveSController(
         // overlay rather than pushed on its own — a partial write racing a full-panel push tears.
         if (wallpaperAnimation.TryRedirectButtonRedraw(button.Index)) return;
 
-        await deviceService.Device.DrawTouchButton(button, config, true);
+        // The redraw runs a dispatcher turn after the change, so the device may be gone by now.
+        var device = deviceService.Device;
+        if (device == null) return;
+
+        await device.DrawTouchButton(button, config, true);
     }
 
     /// <summary>

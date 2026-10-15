@@ -1685,15 +1685,22 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         OnPropertyChanged(nameof(ResetOnRestart));
     }
 
+    // Set while an ItemChanged refresh is queued, so a burst of notifications from one edit
+    // renders the editor canvas once instead of once per notification.
+    private int _itemChangedRefreshPending;
+
     private void ButtonData_ItemChanged(object sender, EventArgs e)
     {
         HasEdits = true;
+
+        if (Interlocked.Exchange(ref _itemChangedRefreshPending, 1) == 1) return;
 
         // ItemChanged may fire on a background thread (e.g. dynamic-text timer).
         // Dispatch to the UI thread so the bitmap swap and property notifications
         // are observed by Avalonia bindings.
         Avalonia.Threading.Dispatcher.UIThread.Post(() =>
         {
+            Volatile.Write(ref _itemChangedRefreshPending, 0);
             UpdateEditorPreview();
             UpdateSelectionBounds();
             // A command typed into the box, rather than picked, must move the pickers along.

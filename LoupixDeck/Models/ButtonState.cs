@@ -169,8 +169,32 @@ public partial class ButtonState : ObservableObject
         RaiseChanged();
     }
 
+    /// <summary>
+    /// Layer properties that never change how the layer is drawn on their own: projections
+    /// raised alongside the property they derive from (which triggers the redraw itself),
+    /// or editor-only values. Forwarding them would redraw the key once per notification,
+    /// e.g. five times for a single <see cref="LayerBase.Scale"/> change.
+    /// </summary>
+    private static readonly HashSet<string> NonRenderLayerProperties =
+    [
+        nameof(LayerBase.Name),
+        nameof(LayerBase.IsCommandOwned),
+        nameof(LayerBase.EffectiveScaleX),
+        nameof(LayerBase.EffectiveScaleY),
+        nameof(LayerBase.DisplayWidth),
+        nameof(LayerBase.DisplayHeight),
+        nameof(ImageLayer.IsAnimated),
+        nameof(SymbolLayer.Glyph),
+        nameof(SymbolLayer.IsImageIcon),
+        nameof(SymbolLayer.IsTintable),
+        nameof(SymbolLayer.IconPreview),
+        nameof(TextLayer.IsDynamicText),
+        nameof(TextLayer.IsCommandText),
+    ];
+
     private void Layer_PropertyChanged(object sender, PropertyChangedEventArgs e)
     {
+        if (e.PropertyName != null && NonRenderLayerProperties.Contains(e.PropertyName)) return;
         RaiseChanged();
     }
 
