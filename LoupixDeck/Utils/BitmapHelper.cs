@@ -1398,6 +1398,97 @@ public static class BitmapHelper
     }
 
     /// <summary>
+    /// Renders a key like <see cref="RenderTouchButtonContent"/> for a new frame of its one animated
+    /// layer <paramref name="animated"/>: the parts below and above that layer come from
+    /// <paramref name="cache"/>, built on first use and again whenever the key, its wallpaper, its
+    /// value or the folder badge setting changed, so a frame draws only the animated layer anew.
+    /// A key that does not hold the layer (any more), or a folder back slot, is rendered in full.
+    /// </summary>
+    public static SKBitmap RenderTouchButtonAroundLayer(
+        TouchButton touchButton,
+        LoupedeckConfig config,
+        int width,
+        int height,
+        SKRectI? wallpaperSource,
+        LayerBase animated,
+        AnimatedKeyCache cache)
+    {
+        ArgumentNullException.ThrowIfNull(touchButton);
+        ArgumentNullException.ThrowIfNull(cache);
+
+        var layers = touchButton.Layers;
+        int split = layers?.IndexOf(animated) ?? -1;
+        if (touchButton.IsFolderBackSlot || split < 0)
+            return RenderTouchButtonContent(touchButton, config, width, height, wallpaperSource);
+
+        var (wallpaperToUse, opacityToUse) = ResolveWallpaper(config);
+        bool folderBadge = ShowsFolderBadges(config);
+        LoupixDeck.PluginSdk.AdjustmentValue? value = touchButton.DisplayValue;
+        DialRenderContext? dial = value is { } v ? new DialRenderContext(null, v) : null;
+
+        SKBitmap bitmap;
+        lock (SkiaRenderGate.Sync)
+        {
+            if (cache.Disposed)
+                return RenderTouchButtonContent(touchButton, config, width, height, wallpaperSource);
+
+            // Read before building: an invalidation landing during the build rebuilds next frame.
+            int generation = cache.Generation;
+            if (cache.Under == null || cache.BuiltGeneration != generation ||
+                !ReferenceEquals(cache.Split, animated) ||
+                !ReferenceEquals(cache.Wallpaper, wallpaperToUse) || cache.WallpaperOpacity != opacityToUse ||
+                cache.WallpaperSource != wallpaperSource || cache.FolderBadge != folderBadge ||
+                !Equals(cache.Value, value) || cache.Width != width || cache.Height != height)
+            {
+                cache.Under?.Dispose();
+                cache.Over?.Dispose();
+
+                cache.Under = new SKBitmap(width, height);
+                using (var under = new SKCanvas(cache.Under))
+                {
+                    DrawTouchButtonBackground(under, touchButton, wallpaperToUse, opacityToUse,
+                        wallpaperSource, width, height);
+                    DrawLayers(under, layers.Take(split), width, height, dial);
+                }
+
+                cache.Over = new SKBitmap(width, height);
+                using (var over = new SKCanvas(cache.Over))
+                {
+                    over.Clear(SKColors.Transparent);
+                    DrawLayers(over, layers.Skip(split + 1), width, height, dial);
+                    if (folderBadge) DrawFolderBadgeIfLinked(over, touchButton, width, height);
+                }
+
+                cache.BuiltGeneration = generation;
+                cache.Split = animated;
+                cache.Wallpaper = wallpaperToUse;
+                cache.WallpaperOpacity = opacityToUse;
+                cache.WallpaperSource = wallpaperSource;
+                cache.FolderBadge = folderBadge;
+                cache.Value = value;
+                cache.Width = width;
+                cache.Height = height;
+            }
+
+            var keyRect = new SKRect(0, 0, width, height);
+            bitmap = new SKBitmap(width, height);
+            using var canvas = new SKCanvas(bitmap);
+            canvas.DrawBitmap(cache.Under, keyRect);
+            DrawLayers(canvas, [animated], width, height, dial);
+            canvas.DrawBitmap(cache.Over, keyRect);
+        }
+
+        touchButton.RenderedDisplayValue = value;
+        bitmap.SetImmutable();
+
+        PreviewRecipes.Register(bitmap, scale => RenderTouchButtonPreview(touchButton, config, width, height,
+            wallpaperSource, scale));
+
+        touchButton.RenderedImage = bitmap;
+        return bitmap;
+    }
+
+    /// <summary>
     /// Lets the on-screen device view draw <paramref name="bitmap"/> again from its recording at
     /// any resolution (issue #251).
     /// </summary>
@@ -2036,7 +2127,7 @@ public static class BitmapHelper
     /// dispatches to the appropriate per-layer renderer.
     /// </summary>
     private static void DrawLayers(SKCanvas canvas,
-        System.Collections.ObjectModel.ObservableCollection<LayerBase> layers,
+        IEnumerable<LayerBase> layers,
         int width, int height, DialRenderContext? dial = null)
     {
         if (layers == null) return;
