@@ -110,7 +110,7 @@ public sealed class WallpaperAnimationManager : IWallpaperAnimationManager, IDis
 
         source.InvalidateButton(index);
         _scheduler.RequestFrame(source);
-        RefreshUiMirror(_config?.CurrentTouchButtonPage?.TouchButtons?.FindByIndex(index));
+        RefreshUiMirror(source, _config?.CurrentTouchButtonPage?.TouchButtons?.FindByIndex(index));
         return true;
     }
 
@@ -126,6 +126,7 @@ public sealed class WallpaperAnimationManager : IWallpaperAnimationManager, IDis
 
         if (showing)
         {
+            source.MarkOverlayDirty();
             _scheduler.RequestFrame(source);
             return true;
         }
@@ -144,7 +145,7 @@ public sealed class WallpaperAnimationManager : IWallpaperAnimationManager, IDis
         var buttons = _config?.CurrentTouchButtonPage?.TouchButtons;
         if (buttons != null)
         {
-            foreach (var button in buttons) RefreshUiMirror(button);
+            foreach (var button in buttons) RefreshUiMirror(source, button);
         }
 
         return true;
@@ -171,14 +172,17 @@ public sealed class WallpaperAnimationManager : IWallpaperAnimationManager, IDis
     /// touches that bitmap — only <c>DrawTouchButton</c> publishes it, and the redirect is what
     /// replaces that call. Without this the window keeps showing the key as it looked before the
     /// edit for as long as the clip plays, while the device already shows the new layers.
+    ///
+    /// The layers are rendered once, into the source's foreground cache, and the mirror is built
+    /// from that same bitmap: the next video frame then blits it without drawing the layers again.
     /// </summary>
-    private void RefreshUiMirror(TouchButton button)
+    private void RefreshUiMirror(WallpaperAnimationSource source, TouchButton button)
     {
         var device = _deviceService?.Device;
         if (button == null || device == null || _config == null) return;
 
-        BitmapHelper.RenderTouchButtonContent(button, _config, device.KeySize, device.KeySize,
-            device.GetWallpaperKeyRect(button.Index));
+        BitmapHelper.RenderTouchButtonOverForeground(button, _config, device.KeySize, device.KeySize,
+            device.GetWallpaperKeyRect(button.Index), () => source.GetForeground(button));
     }
 
     private void OnTouchLayoutChanged() => Rebuild();
@@ -214,7 +218,12 @@ public sealed class WallpaperAnimationManager : IWallpaperAnimationManager, IDis
         var path = slot.HasVideo ? slot.VideoPath : null;
         if (path == _playingPath &&
             slot.VideoFps == _playingFps &&
-            slot.ScalingOption == _playingScaling) return;
+            slot.ScalingOption == _playingScaling)
+        {
+            // A paused or single-frame clip sends no new frame on its own to show the change.
+            RequestFrame();
+            return;
+        }
 
         // The fps and the fit are baked into ffmpeg's arguments at spawn, so either one changing
         // means a restart. Opacity is not: the overlay reads it live per frame.
@@ -248,11 +257,26 @@ public sealed class WallpaperAnimationManager : IWallpaperAnimationManager, IDis
 
     private void RebuildCore(WallpaperSlot slot)
     {
+        var device = _deviceService.Device;
+
+        // The new page plays the same clip the same way: keep it running and only bring the keys
+        // over, rather than killing ffmpeg and decoding the clip into a fresh ring again.
+        var running = _source;
+        if (running is { IsRunning: true } && device != null && ReferenceEquals(running.Device, device) &&
+            slot is { HasVideo: true } && slot.VideoPath == _playingPath &&
+            slot.VideoFps == _playingFps && slot.ScalingOption == _playingScaling)
+        {
+            running.Retarget(slot);
+            running.InvalidateAllButtons();
+            UpdateEnabled();
+            RequestFrame();
+            return;
+        }
+
         Stop();
 
         if (slot is not { HasVideo: true }) return;
 
-        var device = _deviceService.Device;
         if (device == null) return;
 
         if (!File.Exists(slot.VideoPath))
@@ -268,7 +292,7 @@ public sealed class WallpaperAnimationManager : IWallpaperAnimationManager, IDis
             return;
         }
 
-        var source = new WallpaperAnimationSource(device, _config, slot, IsDisplayFree,
+        var source = new WallpaperAnimationSource(device, _config, slot, MayPushFrame,
             _deviceService.GetTemporaryTextTile, slot.VideoPath,
             slot.VideoFps, slot.ScalingOption);
         if (!source.Start())
@@ -341,10 +365,23 @@ public sealed class WallpaperAnimationManager : IWallpaperAnimationManager, IDis
         !_fullDisplay.IsActive &&
         !_exclusiveMode.Owns(ExclusiveControlScope.TouchButtons);
 
+    /// <summary>
+    /// The source's live check before each frame: <see cref="IsDisplayFree"/>, and no touch page
+    /// slide in flight. A clip kept playing across a page change would otherwise push frames
+    /// between the slide's own. Kept out of <see cref="UpdateEnabled"/>, which nothing calls again
+    /// when the slide lands: a vetoed frame leaves the overlay dirty, so the next tick pushes.
+    /// </summary>
+    private bool MayPushFrame() =>
+        IsDisplayFree() &&
+        _deviceProvider.GetService<Controllers.IDeviceController>()?.TouchSlideInFlight != true;
+
     private void RequestFrame()
     {
         var source = _source;
-        if (source is { IsActive: true }) _scheduler.RequestFrame(source);
+        if (source is not { IsActive: true }) return;
+
+        source.MarkOverlayDirty();
+        _scheduler.RequestFrame(source);
     }
 
     private void ReportProblem(string path, string message)

@@ -40,6 +40,10 @@ public sealed class ScreensaverAnimationSource : IAnimationSource, IDisposable
     private volatile bool _active;
     private int _endedSignalled;
 
+    // Whether the last frame pulled from the stream reached the panel. Only touched on the
+    // scheduler thread, which never overlaps frames for one source.
+    private bool _presented;
+
     // Diagnostics (issue #120): opt-in via env var LOUPIX_SS_DEBUG=1. When on, ffmpeg runs at
     // -loglevel verbose and its stderr is echoed, and every DebugReportEvery frames we print a
     // per-frame breakdown (pipe-read ms vs device-push ms) so the real bottleneck — ffmpeg, the
@@ -104,11 +108,15 @@ public sealed class ScreensaverAnimationSource : IAnimationSource, IDisposable
 
         if (!frame.HasFrame) return; // stopped / disposed
 
+        // The panel already shows this ring frame; pushing it again costs a full serial write.
+        if (frame.Repeat && _presented) return;
+        _presented = false;
+
         try
         {
             if (!_debug)
             {
-                await _writer.PushAsync(frame.Buffer, token).ConfigureAwait(false);
+                _presented = await _writer.PushAsync(frame.Buffer, token).ConfigureAwait(false);
                 return;
             }
 
@@ -116,7 +124,7 @@ public sealed class ScreensaverAnimationSource : IAnimationSource, IDisposable
             // latency apart from the serial framebuffer write.
             var readMs = Stopwatch.GetElapsedTime(readStart).TotalMilliseconds;
             var pushStart = Stopwatch.GetTimestamp();
-            await _writer.PushAsync(frame.Buffer, token).ConfigureAwait(false);
+            _presented = await _writer.PushAsync(frame.Buffer, token).ConfigureAwait(false);
             var pushMs = Stopwatch.GetElapsedTime(pushStart).TotalMilliseconds;
 
             _dbgReadMs += readMs;
