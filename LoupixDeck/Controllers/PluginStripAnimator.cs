@@ -273,6 +273,10 @@ public partial class LoupedeckLiveSController
 
             var snapshot = Interlocked.Read(ref _stripRedrawGen[idx]);
             SKBitmap bitmap = TakeStripSpare(idx);
+
+            // Under a playing video wallpaper the frame is composited into the video, which is the
+            // background; otherwise the plugin draws over this strip's wallpaper region.
+            bool drawBackground = !wallpaperAnimation.CarriesStrips;
             AnimationFrameInfo info;
 
             // Plugin code may call back into the host, so give it the right ambient device; all
@@ -284,6 +288,9 @@ public partial class LoupedeckLiveSController
                     lock (SkiaRenderGate.Sync)
                     {
                         using var canvas = new SKCanvas(bitmap);
+                        if (drawBackground)
+                            BitmapHelper.DrawPluginStripBackground(canvas, config, side, StripWidth, StripHeight);
+
                         var renderCanvas = new SkiaRenderCanvas(canvas, StripWidth, StripHeight);
                         info = session.RenderStripFrame(renderCanvas, frame);
                         if (info.Drawn) canvas.Flush();

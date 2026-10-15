@@ -3381,6 +3381,22 @@ public static class BitmapHelper
     // strip is played back larger in the on-screen view (issue #251).
     private static readonly SKSamplingOptions StripWallpaperSampling = new(SKFilterMode.Linear, SKMipmapMode.None);
 
+    /// <summary>
+    /// Paints what sits behind a plugin-drawn side strip: this strip's region of the page
+    /// wallpaper, or black without one. A provider that clears its canvas covers it exactly as
+    /// before; one that leaves its background transparent lets the wallpaper show through, the
+    /// same way the segmented and free-draw strips already sit on it.
+    ///
+    /// Must be called under <see cref="SkiaRenderGate"/>.Sync, like everything else that draws.
+    /// </summary>
+    public static void DrawPluginStripBackground(
+        SKCanvas canvas,
+        LoupedeckConfig config,
+        RotarySide side,
+        int width,
+        int height)
+        => DrawStripWallpaperOrColor(canvas, config, side, width, height, SKColors.Black);
+
     private static void DrawStripWallpaperOrColor(
         SKCanvas canvas,
         LoupedeckConfig config,
