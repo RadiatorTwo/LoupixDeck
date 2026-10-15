@@ -3262,14 +3262,25 @@ public partial class LoupedeckLiveSController(
 
         if (newPage != null)
         {
-            foreach (var touchButton in newPage.TouchButtons)
+            // Every layout change is followed by a paint of the whole page (or by the slide's
+            // render of it), which already shows the reset state: drawing each reset key on its
+            // own as well would send it twice.
+            _resettingStatesForLayout = true;
+            try
             {
-                // Reset stateful buttons that opt into per-page reset back to their default state
-                // as the page becomes active. App-focus switches also flow through page changes,
-                // so this transitively covers "reset on active-app change". External (plugin-driven)
-                // buttons keep their state.
-                if (touchButton.ResetOnPageChange && touchButton.Mode == ButtonStateMode.Local)
-                    touchButton.ResetToDefaultState();
+                foreach (var touchButton in newPage.TouchButtons)
+                {
+                    // Reset stateful buttons that opt into per-page reset back to their default state
+                    // as the page becomes active. App-focus switches also flow through page changes,
+                    // so this transitively covers "reset on active-app change". External (plugin-driven)
+                    // buttons keep their state.
+                    if (touchButton.ResetOnPageChange && touchButton.Mode == ButtonStateMode.Local)
+                        touchButton.ResetToDefaultState();
+                }
+            }
+            finally
+            {
+                _resettingStatesForLayout = false;
             }
         }
 
@@ -3460,9 +3471,16 @@ public partial class LoupedeckLiveSController(
     // notification. Touched from the raising thread and the UI thread, hence the lock.
     private readonly HashSet<TouchButton> _pendingTouchRedraws = [];
 
+    // True while OnTouchLayoutChanged resets the new page's keys to their default state. Only
+    // written on the UI thread, which is where those resets raise ItemChanged.
+    private bool _resettingStatesForLayout;
+
     private void TouchItemChanged(object sender, EventArgs e)
     {
         if (sender is not TouchButton item) return;
+
+        // The page paint that follows the layout change draws the reset state.
+        if (_resettingStatesForLayout) return;
 
         lock (_pendingTouchRedraws)
         {
