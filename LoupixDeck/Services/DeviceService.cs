@@ -30,6 +30,10 @@ public interface IDeviceService
     /// took the key over — it then draws the tile, or the restored key, into its own frames.
     /// </summary>
     Func<int, bool, bool> ClipKeyRedraw { get; set; }
+
+    /// <summary>Takes a shown temporary text tile down early without restoring its key, for a
+    /// caller that repaints the whole grid anyway (a page slide).</summary>
+    void CancelTemporaryText();
 }
 
 public class LoupedeckDeviceService : IDeviceService
@@ -115,6 +119,13 @@ public class LoupedeckDeviceService : IDeviceService
         IsShowingTemporaryText(index) ? _temporaryTextTile : null;
 
     public Func<int, bool, bool> ClipKeyRedraw { get; set; }
+
+    public void CancelTemporaryText()
+    {
+        // The running loop sees a newer call id and ends without drawing again or restoring;
+        // its finally releases the tile and lifts the hold on the key.
+        Interlocked.Increment(ref _currentCallId);
+    }
 
     public async Task ShowTemporaryTextButton(int index, string text, int displayDurationMilliseconds)
     {

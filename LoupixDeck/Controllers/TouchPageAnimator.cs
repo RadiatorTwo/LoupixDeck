@@ -49,7 +49,7 @@ public partial class LoupedeckLiveSController
     private int _touchSlideRepaintNeeded;
 
     /// <summary>True from the moment a slide commits its page until its final frame (or abort).</summary>
-    private bool TouchSlideInFlight =>
+    public bool TouchSlideInFlight =>
         Volatile.Read(ref _touchSlidesPending) > 0 || Volatile.Read(ref _touchTransition.Active);
 
     /// <summary>
@@ -191,6 +191,11 @@ public partial class LoupedeckLiveSController
                 // those per-key paints must wait for the slide too.
                 Interlocked.Exchange(ref _touchSlideRepaintNeeded, 0);
                 Interlocked.Increment(ref _touchSlidesPending);
+
+                // The previous page's name tile would keep re-asserting itself between the slide's
+                // frames; the incoming page shows its own once the slide lands.
+                deviceService.CancelTemporaryText();
+
                 await pageManager.ApplyTouchPage(targetIndex, draw: false);
 
                 var overlayName = !_screensaverActive && config.ShowPageNameOverlayEnabled

@@ -122,7 +122,10 @@ public sealed class ButtonAnimationSource : IAnimationSource, IDisposable
 
         // A device switched off shows nothing; switching it back on repaints the page with the
         // layers' current frames, and the animation carries on from there.
-        if (_deviceProvider.GetService<Controllers.IDeviceController>()?.IsDeviceOff == true) return;
+        // A page slide paints the whole grid frame by frame; a key pushed between its frames
+        // flickers. The slide repaints the page when it lands, and the animation carries on.
+        var controller = _deviceProvider.GetService<Controllers.IDeviceController>();
+        if (controller is { IsDeviceOff: true } or { TouchSlideInFlight: true }) return;
 
         var columns = device.Columns;
         List<TouchButton> dirty = null;
