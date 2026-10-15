@@ -90,6 +90,13 @@ public class TouchButton : StatefulButton
     [JsonIgnore]
     public LoupixDeck.PluginSdk.AdjustmentValue? DisplayValue { get; set; }
 
+    /// <summary>
+    /// The <see cref="DisplayValue"/> the key's device image was last rendered with, so a repaint
+    /// can tell whether that image still shows the current value. Runtime only.
+    /// </summary>
+    [JsonIgnore]
+    public LoupixDeck.PluginSdk.AdjustmentValue? RenderedDisplayValue { get; set; }
+
     /// <summary>The render context for <see cref="DisplayValue"/>, or null when there is none.</summary>
     [JsonIgnore]
     public DialRenderContext? ValueContext =>
