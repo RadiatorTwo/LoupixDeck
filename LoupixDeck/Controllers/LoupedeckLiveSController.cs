@@ -1335,25 +1335,48 @@ public partial class LoupedeckLiveSController(
             ? LoupedeckDevice.Device.RazerStreamControllerDevice.LeftSideIndex
             : LoupedeckDevice.Device.RazerStreamControllerDevice.RightSideIndex;
 
+        var slotButton = config.CurrentTouchButtonPage?.TouchButtons?.FindByIndex(slotIndex);
+
+        // A playing video wallpaper rewrites the whole panel every frame, strips included, so a
+        // strip pushed on its own would vanish with the next frame. Hand the video its content
+        // instead, without the background, so the clip plays behind the labels. That one render
+        // also makes the on-screen mirror, put back onto the background: rendering the strip a
+        // second time would ask every plugin for its values and segments again.
+        if (wallpaperAnimation.CarriesStrips)
+        {
+            var foreground = RenderStripFor(page, side, useSessions: true, drawBackground: false);
+            var mirror = foreground == null
+                ? null
+                : BitmapHelper.ComposeStripOverBackground(foreground, config, side, StripWidth, StripHeight,
+                    StripBackgroundFallback(page));
+            slotButton?.RenderedImage = mirror;
+
+            if (wallpaperAnimation.TryRedirectStripRedraw(side, foreground)) return;
+
+            // The clip stopped in between: the mirror carries the background, so it is what to push.
+            await device.DrawTouchSlot(slotIndex, mirror);
+            return;
+        }
+
         var strip = RenderStripFor(page, side, useSessions: true);
 
         // Mirror the strip onto the on-screen mask: the side-panel buttons bind to
         // their TouchButton.RenderedImage. The setter owns the bitmap's lifetime
         // (deferred dispose), so don't dispose it here — it's also read by the device
         // push below and held by the UI binding.
-        var slotButton = config.CurrentTouchButtonPage?.TouchButtons?.FindByIndex(slotIndex);
         slotButton?.RenderedImage = strip;
-
-        // A playing video wallpaper rewrites the whole panel every frame, strips included, so a
-        // strip pushed on its own would vanish with the next frame. Hand the video its content
-        // instead, without the background, so the clip plays behind the labels.
-        if (wallpaperAnimation.CarriesStrips &&
-            wallpaperAnimation.TryRedirectStripRedraw(side,
-                RenderStripFor(page, side, useSessions: true, drawBackground: false)))
-            return;
 
         await device.DrawTouchSlot(slotIndex, strip);
     }
+
+    /// <summary>
+    /// The colour a strip falls back to where its side has no wallpaper, as
+    /// <see cref="RenderStripLocked"/> draws it: a free-draw canvas's own background, black otherwise.
+    /// </summary>
+    private static SkiaSharp.SKColor StripBackgroundFallback(RotaryButtonPage page) =>
+        page.StripMode == StripMode.FreeDraw && page.StripCanvas != null
+            ? page.StripCanvas.BackColor.ToSKColor()
+            : SkiaSharp.SKColors.Black;
 
     /// <summary>
     /// Renders a single 60×270 strip bitmap for the given page and side, per its

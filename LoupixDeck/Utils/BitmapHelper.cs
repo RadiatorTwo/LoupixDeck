@@ -3468,6 +3468,40 @@ public static class BitmapHelper
         int height)
         => DrawStripWallpaperOrColor(canvas, config, side, width, height, SKColors.Black);
 
+    /// <summary>
+    /// Puts a strip rendered without its background (for a video wallpaper) back onto that
+    /// background — the strip's wallpaper region, or <paramref name="fallback"/> without one — so
+    /// the same render also serves the on-screen view instead of drawing the strip a second time.
+    /// The strip is drawn from its recording where it has one, which keeps the result sharp in the
+    /// on-screen view (#251). The caller keeps ownership of <paramref name="strip"/>.
+    /// </summary>
+    public static SKBitmap ComposeStripOverBackground(
+        SKBitmap strip,
+        LoupedeckConfig config,
+        RotarySide side,
+        int width,
+        int height,
+        SKColor fallback)
+    {
+        ArgumentNullException.ThrowIfNull(strip);
+
+        using var recording = new RecordedRender(width, height);
+        lock (SkiaRenderGate.Sync)
+        {
+            var canvas = recording.Canvas;
+            DrawStripWallpaperOrColor(canvas, config, side, width, height, fallback);
+
+            if (strip is RecordedBitmap { Picture: { } picture })
+                canvas.DrawPicture(picture);
+            else
+                canvas.DrawBitmap(strip, new SKRect(0, 0, width, height));
+
+            var composed = recording.Finish();
+            composed.SetImmutable();
+            return composed;
+        }
+    }
+
     private static void DrawStripWallpaperOrColor(
         SKCanvas canvas,
         LoupedeckConfig config,
