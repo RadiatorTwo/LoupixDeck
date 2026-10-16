@@ -20,7 +20,8 @@ namespace LoupixDeck.Views.Controls;
 /// </summary>
 /// <remarks>
 /// Performance: an image that changes in quick succession (an animation, a ticking clock) keeps
-/// showing the device frames and is never re-rendered, so it costs no more than before. Zooming re-renders
+/// showing the device frames and is never re-rendered, so it costs no more than before. Nothing is
+/// copied or re-rendered while the window is hidden or minimized. Zooming re-renders
 /// as soon as the zoom has come to rest. Re-renders run one at a time off the UI thread, and an
 /// image shown several times at the same size (the dials' shared knob) is rendered once.
 /// </remarks>
@@ -70,6 +71,15 @@ public sealed class DevicePreviewImage : Control
     private DeviceZoomPanel _zoomPanel;
     private TopLevel _topLevel;
 
+    // The window this control is shown in, watched for being hidden and shown again.
+    private Window _window;
+
+    // True while the device image arrived in a hidden window and has not been copied yet.
+    private bool _deviceImageStale;
+
+    // True when a preview came due in a hidden window and was skipped.
+    private bool _previewSkipped;
+
     static DevicePreviewImage()
     {
         AffectsMeasure<DevicePreviewImage>(DeviceImageProperty);
@@ -88,18 +98,11 @@ public sealed class DevicePreviewImage : Control
 
         if (change.Property != DeviceImageProperty) return;
 
-        // Every edit of a key replaces its image. The copies hold native pixels and, once drawn, GPU
-        // memory, which only a full GC would release; so the replaced copy is disposed right away.
-        // The compositor keeps its own reference to a frame it is still drawing.
-        Bitmap replaced = _ownsDeviceBitmap ? _deviceBitmap : null;
-        _ownsDeviceBitmap = change.NewValue is SKBitmap;
-        _deviceBitmap = change.NewValue switch
-        {
-            SKBitmap skBitmap => SKBitmapToAvaloniaBitmapConverter.ToBitmap(skBitmap),
-            Bitmap bitmap => bitmap,
-            _ => null
-        };
-        replaced?.Dispose();
+        // Nobody sees a hidden window, so the copy waits until it is shown again (OnWindowShown).
+        if (change.NewValue is SKBitmap && !IsWindowShown())
+            _deviceImageStale = true;
+        else
+            TakeDeviceImage();
 
         // The preview shows the old content now; drop it and let the device image stand in.
         DropPreview();
@@ -112,6 +115,30 @@ public sealed class DevicePreviewImage : Control
         Schedule(quiet ? TimeSpan.Zero : SettleTime);
     }
 
+    /// <summary>Takes the current device image for display, copying it when it is a Skia bitmap.</summary>
+    private void TakeDeviceImage()
+    {
+        _deviceImageStale = false;
+
+        // Every edit of a key replaces its image. The copies hold native pixels and, once drawn, GPU
+        // memory, which only a full GC would release; so the replaced copy is disposed right away.
+        // The compositor keeps its own reference to a frame it is still drawing.
+        object image = DeviceImage;
+        Bitmap replaced = _ownsDeviceBitmap ? _deviceBitmap : null;
+        _ownsDeviceBitmap = image is SKBitmap;
+        _deviceBitmap = image switch
+        {
+            SKBitmap skBitmap => SKBitmapToAvaloniaBitmapConverter.ToBitmap(skBitmap),
+            Bitmap bitmap => bitmap,
+            _ => null
+        };
+        replaced?.Dispose();
+    }
+
+    /// <summary>False while the window this control is in is hidden (to the tray) or minimized.</summary>
+    private bool IsWindowShown() =>
+        _window == null || (_window.IsVisible && _window.WindowState != WindowState.Minimized);
+
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
     {
         base.OnAttachedToVisualTree(e);
@@ -120,8 +147,35 @@ public sealed class DevicePreviewImage : Control
         _zoomPanel?.ScaleSettled += OnScaleChanged;
         _topLevel = TopLevel.GetTopLevel(this);
         _topLevel?.ScalingChanged += OnScaleChanged;
+        _window = _topLevel as Window;
+        _window?.PropertyChanged += OnWindowPropertyChanged;
+
+        if (_deviceImageStale && IsWindowShown())
+        {
+            TakeDeviceImage();
+            InvalidateMeasure();
+            InvalidateVisual();
+        }
 
         Schedule(AttachDelay);
+    }
+
+    private void OnWindowPropertyChanged(object sender, AvaloniaPropertyChangedEventArgs e)
+    {
+        if (e.Property != Visual.IsVisibleProperty && e.Property != Window.WindowStateProperty) return;
+        if (!IsWindowShown()) return;
+
+        // Catch up on what was left out while nobody could see it.
+        if (_deviceImageStale)
+        {
+            TakeDeviceImage();
+            InvalidateMeasure();
+            InvalidateVisual();
+            _previewSkipped = true;
+        }
+
+        if (_previewSkipped)
+            Schedule(TimeSpan.Zero);
     }
 
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
@@ -132,6 +186,8 @@ public sealed class DevicePreviewImage : Control
         _zoomPanel = null;
         _topLevel?.ScalingChanged -= OnScaleChanged;
         _topLevel = null;
+        _window?.PropertyChanged -= OnWindowPropertyChanged;
+        _window = null;
 
         Pending.Remove(this);
         _generation++;
@@ -235,6 +291,10 @@ public sealed class DevicePreviewImage : Control
 
     private void UpdatePreview()
     {
+        // A hidden or minimized window comes back to this once it is shown (OnWindowPropertyChanged).
+        _previewSkipped = !IsWindowShown();
+        if (_previewSkipped || _deviceImageStale) return;
+
         object source = DeviceImage;
         Func<double, Bitmap> recipe = PreviewRecipes.Find(source);
         if (recipe == null || _deviceBitmap == null || _topLevel == null || !IsEffectivelyVisible)
