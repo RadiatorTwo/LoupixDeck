@@ -71,7 +71,26 @@ public sealed class SideDisplayAnimationSource : IAnimationSource, IDisposable
     /// <summary>Replaces the set of animated strip layers (called by the manager on page change/rescan).</summary>
     public void SetEntries(IReadOnlyList<SideEntry> entries)
     {
-        _entries = entries is { Count: > 0 } ? entries.ToArray() : Array.Empty<SideEntry>();
+        var next = entries is { Count: > 0 } ? entries.ToArray() : Array.Empty<SideEntry>();
+
+        // A rescan rebuilds both sides whichever one changed. A layer that is still there with
+        // the same animation keeps its place in it: restarting it would push its first frame
+        // again, and visibly jump the side that did not change back to the start.
+        foreach (var entry in next)
+        {
+            foreach (var previous in _entries)
+            {
+                if (!ReferenceEquals(previous.Layer, entry.Layer) || !ReferenceEquals(previous.Anim, entry.Anim))
+                    continue;
+
+                entry.StartElapsed = previous.StartElapsed;
+                entry.LastPushedFrame = previous.LastPushedFrame;
+                entry.Finished = previous.Finished;
+                break;
+            }
+        }
+
+        _entries = next;
     }
 
     /// <summary>Pauses (false) or resumes (true) the whole source without unregistering it.</summary>
