@@ -132,41 +132,57 @@ public partial class ButtonState : ObservableObject
 
     private void RaiseChanged() => Changed?.Invoke(this, EventArgs.Empty);
 
+    // The layers Layer_PropertyChanged is attached to. Kept apart from the collection because a
+    // Clear() reports no removed items, so the handlers on the cleared layers could not be found
+    // from the change event, and those layers kept repainting the button.
+    private readonly HashSet<LayerBase> _wiredLayers = new(ReferenceEqualityComparer.Instance);
+
     private void AttachLayerHandlers(ObservableCollection<LayerBase> layers)
     {
         if (layers == null) return;
         layers.CollectionChanged += Layers_CollectionChanged;
-        foreach (var layer in layers)
-        {
-            if (layer != null) layer.PropertyChanged += Layer_PropertyChanged;
-        }
+        SyncLayerHandlers();
     }
 
     private void DetachLayerHandlers(ObservableCollection<LayerBase> layers)
     {
         if (layers == null) return;
         layers.CollectionChanged -= Layers_CollectionChanged;
-        foreach (var layer in layers)
-        {
-            if (layer != null) layer.PropertyChanged -= Layer_PropertyChanged;
-        }
+        foreach (var layer in _wiredLayers)
+            layer.PropertyChanged -= Layer_PropertyChanged;
+        _wiredLayers.Clear();
     }
 
     private void Layers_CollectionChanged(object sender, NotifyCollectionChangedEventArgs e)
     {
-        if (e.OldItems != null)
-        {
-            foreach (LayerBase l in e.OldItems)
-                if (l != null) l.PropertyChanged -= Layer_PropertyChanged;
-        }
-
-        if (e.NewItems != null)
-        {
-            foreach (LayerBase l in e.NewItems)
-                if (l != null) l.PropertyChanged += Layer_PropertyChanged;
-        }
-
+        SyncLayerHandlers();
         RaiseChanged();
+    }
+
+    /// <summary>Attaches Layer_PropertyChanged exactly once to every layer in the collection and
+    /// detaches it from every layer that left it.</summary>
+    private void SyncLayerHandlers()
+    {
+        var current = new HashSet<LayerBase>(ReferenceEqualityComparer.Instance);
+        if (_layers != null)
+        {
+            foreach (var layer in _layers)
+            {
+                if (layer != null) current.Add(layer);
+            }
+        }
+
+        foreach (var layer in _wiredLayers.Where(l => !current.Contains(l)).ToList())
+        {
+            layer.PropertyChanged -= Layer_PropertyChanged;
+            _wiredLayers.Remove(layer);
+        }
+
+        foreach (var layer in current)
+        {
+            if (_wiredLayers.Add(layer))
+                layer.PropertyChanged += Layer_PropertyChanged;
+        }
     }
 
     /// <summary>
@@ -202,16 +218,7 @@ public partial class ButtonState : ObservableObject
     /// Re-attaches per-layer PropertyChanged handlers after JSON deserialization, since the
     /// layers are constructed by <see cref="LayerJsonConverter"/> and bypass the collection setter.
     /// </summary>
-    public void RewireLayerHandlers()
-    {
-        if (_layers == null) return;
-        foreach (var layer in _layers)
-        {
-            if (layer == null) continue;
-            layer.PropertyChanged -= Layer_PropertyChanged;
-            layer.PropertyChanged += Layer_PropertyChanged;
-        }
-    }
+    public void RewireLayerHandlers() => SyncLayerHandlers();
 
     /// <summary>
     /// Returns the plugin-managed <see cref="PluginLayer"/> bound to <paramref name="ownerKey"/>,
