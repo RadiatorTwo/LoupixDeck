@@ -19,8 +19,8 @@ namespace LoupixDeck.Views.Controls;
 /// (<see cref="PreviewRecipes"/>).
 /// </summary>
 /// <remarks>
-/// Performance: an image that changes in quick succession (an animation) keeps showing the device
-/// frames and is never re-rendered, so animations cost no more than before. Zooming re-renders
+/// Performance: an image that changes in quick succession (an animation, a ticking clock) keeps
+/// showing the device frames and is never re-rendered, so it costs no more than before. Zooming re-renders
 /// as soon as the zoom has come to rest. Re-renders run one at a time off the UI thread, and an
 /// image shown several times at the same size (the dials' shared knob) is rendered once.
 /// </remarks>
@@ -30,8 +30,13 @@ public sealed class DevicePreviewImage : Control
     public static readonly StyledProperty<object> DeviceImageProperty =
         AvaloniaProperty.Register<DevicePreviewImage, object>(nameof(DeviceImage));
 
-    // An image whose last change is more recent than this counts as animating.
-    private static readonly TimeSpan SettleTime = TimeSpan.FromMilliseconds(200);
+    // An image whose last change is more recent than this counts as animating, and is re-rendered
+    // only once it has stood still this long. Long enough to cover a clock ticking once a second,
+    // which would otherwise be drawn twice on every tick.
+    private static readonly TimeSpan SettleTime = TimeSpan.FromSeconds(2);
+
+    // A freshly shown image waits for the layout to place it before it is re-rendered.
+    private static readonly TimeSpan AttachDelay = TimeSpan.FromMilliseconds(200);
 
     // No sharper than this many times the device image: beyond it the gain is invisible and the
     // memory is not.
@@ -99,8 +104,8 @@ public sealed class DevicePreviewImage : Control
         // The preview shows the old content now; drop it and let the device image stand in.
         DropPreview();
 
-        // A change after a quiet spell (a page switch, an edit, a clock ticking) is re-rendered
-        // right away; one in quick succession waits until the image settles.
+        // A change after a quiet spell (a page switch, a single edit) is re-rendered right away; one
+        // in quick succession (typing, a clock ticking) waits until the image settles.
         long now = Stopwatch.GetTimestamp();
         bool quiet = Stopwatch.GetElapsedTime(_lastContentChange, now) > SettleTime;
         _lastContentChange = now;
@@ -116,7 +121,7 @@ public sealed class DevicePreviewImage : Control
         _topLevel = TopLevel.GetTopLevel(this);
         _topLevel?.ScalingChanged += OnScaleChanged;
 
-        Schedule(SettleTime);
+        Schedule(AttachDelay);
     }
 
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
