@@ -653,17 +653,31 @@ public partial class MainWindowViewModel : ViewModelBase
 
     private void TouchPageButton_Click(int page)
     {
+        EndExclusiveModeForPageChange();
         LoupedeckController.AnimateGotoTouchPage(page - 1);
     }
 
     private void NextTouchPage_Click()
     {
+        EndExclusiveModeForPageChange();
         LoupedeckController.AnimateNextTouchPage();
     }
 
     private void PreviousTouchPage_Click()
     {
+        EndExclusiveModeForPageChange();
         LoupedeckController.AnimatePreviousTouchPage();
+    }
+
+    /// <summary>
+    /// Ends exclusive mode before a page change made in the window. Otherwise the page changed
+    /// unseen behind the takeover, while a page button on the device usually ends it, because
+    /// the provider holds the device's buttons.
+    /// </summary>
+    private void EndExclusiveModeForPageChange()
+    {
+        if (_exclusiveMode.Current is { } provider)
+            _exclusiveMode.Exit(provider);
     }
 
     private async Task RotaryButton_Click(RotaryButton button)
