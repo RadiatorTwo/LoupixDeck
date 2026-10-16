@@ -1682,8 +1682,11 @@ public class LoupedeckDevice
     ///
     /// Goes through <see cref="DrawCenterGridRegion"/> rather than the whole "center"
     /// buffer, so a device whose side strips share that buffer keeps them.
+    /// <paramref name="refresh"/> false sends the keys as last rendered, rendering only a key that
+    /// has no image yet, for a repaint where only the conversion to the panel changed.
     /// </summary>
-    public virtual async Task DrawTouchGridRegion(IReadOnlyList<TouchButton> buttons, LoupedeckConfig config)
+    public virtual async Task DrawTouchGridRegion(IReadOnlyList<TouchButton> buttons, LoupedeckConfig config,
+        bool refresh = true)
     {
         if (buttons == null) return;
 
@@ -1694,6 +1697,7 @@ public class LoupedeckDevice
             // Indices beyond the grid are the side strips, which this region does not cover
             // and whose own renderer owns them.
             if (button == null || button.Index < 0 || button.Index >= slots) continue;
+            if (!refresh && button.RenderedImage != null) continue;
 
             // Publishes the key's RenderedImage. The compose below reads it from the button
             // rather than keeping this reference: the button may free it before then.

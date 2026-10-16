@@ -803,9 +803,13 @@ public partial class LoupedeckLiveSController(
         pageManager.NotifyTouchLayoutDrawn();
     }
 
-    public async Task RedrawCurrentTouchPage()
+    public Task RedrawCurrentTouchPage() => RedrawCurrentTouchPage(refresh: true);
+
+    /// <summary><paramref name="refresh"/> false sends the keys as last rendered instead of
+    /// rendering them again; see <see cref="LoupedeckDevice.Device.LoupedeckDevice.DrawTouchGridRegion"/>.</summary>
+    private async Task RedrawCurrentTouchPage(bool refresh)
     {
-        if (await RedrawCurrentTouchGrid())
+        if (await RedrawCurrentTouchGrid(refresh))
             await RedrawSideStrips();
     }
 
@@ -813,7 +817,7 @@ public partial class LoupedeckLiveSController(
     /// Repaints the current page's touch grid without the side strips. Returns false when nothing
     /// may be painted right now, so the side strips are left alone as well.
     /// </summary>
-    private async Task<bool> RedrawCurrentTouchGrid()
+    private async Task<bool> RedrawCurrentTouchGrid(bool refresh = true)
     {
         // No-op while something else owns the screen — the owner repaints when it
         // releases (device-off → RestoreDeviceState, folder/exclusive → their exit
@@ -836,7 +840,7 @@ public partial class LoupedeckLiveSController(
             // provider's side strips are untouched; a video wallpaper's next frame carries
             // the repainted keys instead.
             if (!wallpaperAnimation.TryRedirectPageRedraw())
-                await device.DrawTouchGridRegion(config.CurrentTouchButtonPage.TouchButtons, config);
+                await device.DrawTouchGridRegion(config.CurrentTouchButtonPage.TouchButtons, config, refresh);
         }
 
         return true;
@@ -4035,8 +4039,10 @@ public partial class LoupedeckLiveSController(
                     // screensaver) holds the screen; that owner repaints when it releases.
                     // ApplyTouchPage cannot be used here: it early-returns when the requested
                     // page is already current, which is always the case for a settings toggle.
+                    // The keys look the same, only their conversion changed, so they go out as
+                    // last rendered.
                     deviceService.Device.DitherFramebuffer = config.DitheringEnabled;
-                    await RedrawCurrentTouchPage();
+                    await RedrawCurrentTouchPage(refresh: false);
                     break;
 
                 case nameof(LoupedeckConfig.InheritWallpaperFromPreviousPage):
