@@ -3591,6 +3591,23 @@ public partial class LoupedeckLiveSController(
         Avalonia.Threading.Dispatcher.UIThread.Post(() => _ = RedrawChangedTouchButton(item));
     }
 
+    /// <summary>
+    /// Repaints the current page's keys that open a folder, the only ones the folder badge setting
+    /// changes. Each goes the way of an edited key, so whatever owns the screen right now is left
+    /// alone; other pages are rendered afresh when they are shown.
+    /// </summary>
+    public void RedrawFolderLinkKeys()
+    {
+        var buttons = config.CurrentTouchButtonPage?.TouchButtons;
+        if (buttons == null) return;
+
+        foreach (var button in buttons)
+        {
+            if (button != null && Services.Folders.FolderCommand.OpensFolder(button.Command))
+                TouchItemChanged(button, EventArgs.Empty);
+        }
+    }
+
     private async Task RedrawChangedTouchButton(TouchButton item)
     {
         // Leave the queue before drawing, so a change landing while this draw is in flight
