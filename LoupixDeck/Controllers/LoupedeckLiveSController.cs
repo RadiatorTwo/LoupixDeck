@@ -2818,6 +2818,16 @@ public partial class LoupedeckLiveSController(
 
         // Exclusive ended — repaint the active page (grid + strips).
         ResetDirtyTiles();
+
+        // A plugin folder still open underneath owns the grid and the strips, so the page
+        // repaint below would leave the provider's last frame standing. The folder redraw sees
+        // the provider's writes on the grid and sends the folder in full.
+        if (folderNav.IsActive)
+        {
+            OnFolderStateChanged();
+            return;
+        }
+
         await RedrawCurrentTouchPage();
     }
 
