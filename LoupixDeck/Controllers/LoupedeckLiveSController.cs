@@ -1399,8 +1399,12 @@ public partial class LoupedeckLiveSController(
         // plugin's I/O, and lets the backend's own notification thread — which wants the gate to
         // repaint — deadlock against the render thread waiting on the backend. Inside the gate
         // the pulls are served from this snapshot, so they neither block nor re-enter.
+        // A strip that draws no dial labels skips it: a free-draw canvas, and a plugin-override
+        // strip whose session draws it (its fallback snapshots on its own, see
+        // RenderPluginStripOrFallback).
         var idx = SideIndex(side);
-        _frameAdjustmentValues[idx] = SnapshotAdjustmentValues(page, side);
+        if (StripDrawsDialLabels(page, side, useSessions))
+            _frameAdjustmentValues[idx] = SnapshotAdjustmentValues(page, side);
         try
         {
             // A swipe draws the current and neighbour strips into every one of its frames.
@@ -1421,6 +1425,17 @@ public partial class LoupedeckLiveSController(
     /// own) finds no snapshot and resolves live.
     /// </summary>
     private readonly Dictionary<int, AdjustmentValue?>[] _frameAdjustmentValues = new Dictionary<int, AdjustmentValue?>[2];
+
+    /// <summary>True when <see cref="RenderStripLocked"/> draws the segmented dial labels up front,
+    /// the only path that reads adjustment values. A plugin-override strip with a session counts as
+    /// not drawing them: the session draws the strip unless it declines.</summary>
+    private bool StripDrawsDialLabels(RotaryButtonPage page, RotarySide side, bool useSessions) =>
+        page.StripMode switch
+        {
+            StripMode.FreeDraw => false,
+            StripMode.PluginOverride => !useSessions || _stripSession[SideIndex(side)] == null,
+            _ => true
+        };
 
     /// <summary>Resolves the adjustment value of every dial on the side's page, off the Skia gate.</summary>
     private Dictionary<int, AdjustmentValue?> SnapshotAdjustmentValues(RotaryButtonPage page, RotarySide side)
@@ -1708,7 +1723,10 @@ public partial class LoupedeckLiveSController(
             }
         }
 
-        // Unbound / orphaned id / declined / failed → segmented labels.
+        // Unbound / orphaned id / declined / failed → segmented labels. A declined session left
+        // RenderStripFor without a snapshot; take it now, outside the gate, for the same reason.
+        var idx = SideIndex(side);
+        _frameAdjustmentValues[idx] ??= SnapshotAdjustmentValues(page, side);
         return BitmapHelper.RenderRotaryStrip(page, config, StripWidth, StripHeight, side,
             valueFor: AdjustmentValueFor(page, side), drawBackground: drawBackground);
     }
