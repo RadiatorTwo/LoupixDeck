@@ -120,19 +120,7 @@ public sealed partial class FolderPanelViewModel : ViewModelBase
 
         workspace.ShowFolderBadges = value;
         _controller.SaveConfig();
-        _ = RedrawForBadgesAsync();
-    }
-
-    private async Task RedrawForBadgesAsync()
-    {
-        try
-        {
-            await _controller.RedrawCurrentTouchPage();
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"[FolderPanel] repainting after the folder badge toggle failed: {ex.Message}");
-        }
+        _controller.RedrawFolderLinkKeys();
     }
 
     // ── Tree state ─────────────────────────────────────────────────────────

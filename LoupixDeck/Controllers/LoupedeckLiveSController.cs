@@ -511,7 +511,20 @@ public partial class LoupedeckLiveSController(
     /// kernel image is still coming off disk, so the port can stay away far longer (#195).</summary>
     private static readonly TimeSpan ResumeReconnectWindow = TimeSpan.FromSeconds(30);
 
-    public async Task ResyncDeviceState()
+    // Counts the connects the controller has seen, and records the one the device was last fully
+    // pushed for. A resume rebuilds the link, whose connect event re-pushes the state, and then
+    // re-pushes it once more itself in case the connect event came first; this lets whichever of
+    // the two comes second see the first one landed. -1: nothing pushed yet.
+    private int _connectSerial;
+    private int _pushedConnectSerial = -1;
+
+    public Task ResyncDeviceState() => ResyncDeviceState(skipIfConnectedSince: null);
+
+    /// <summary>Re-pushes the device state. With <paramref name="skipIfConnectedSince"/> it is
+    /// skipped when the device connected again after that connect serial and its push for that
+    /// connect landed. A link that did not come back keeps the push: the old one may still work,
+    /// and the device it reaches is still blanked for the suspend.</summary>
+    private async Task ResyncDeviceState(int? skipIfConnectedSince)
     {
         // One push running plus one queued is enough to cover every ordering; anything
         // beyond that would repaint an identical picture.
@@ -526,6 +539,11 @@ public partial class LoupedeckLiveSController(
             await _resyncGate.WaitAsync();
             try
             {
+                var connectSerial = Volatile.Read(ref _connectSerial);
+                if (skipIfConnectedSince is { } since && connectSerial > since &&
+                    _pushedConnectSerial == connectSerial && deviceService.Device is { IsConnected: true })
+                    return;
+
                 // The device power-cycled while the host slept, so it is physically back
                 // on — leaving it in the suspend-blanked state would repaint black and
                 // require the manual off/on toggle (#195). A user-off device stays blank.
@@ -551,6 +569,8 @@ public partial class LoupedeckLiveSController(
                 // the manual off/on toggle after a wake. So the mark survives a failed push
                 // and the next connect (auto-reconnect or resume retry) tries again.
                 if (!pushed) return;
+
+                _pushedConnectSerial = connectSerial;
 
                 if (takeOnline)
                 {
@@ -580,6 +600,9 @@ public partial class LoupedeckLiveSController(
     /// </summary>
     private void OnDeviceConnected(object sender, ConnectionEventArgs e)
     {
+        // Whichever of this push and a resume's own comes second finds the first one landed.
+        var connectSerialBefore = Interlocked.Increment(ref _connectSerial) - 1;
+
         // Raised from inside the connect call, i.e. before the read thread runs — hop off
         // that thread and let the link settle before drawing.
         Avalonia.Threading.Dispatcher.UIThread.Post(async () =>
@@ -589,7 +612,7 @@ public partial class LoupedeckLiveSController(
             // even if the re-push then fails.
             DeviceConnected?.Invoke(this, EventArgs.Empty);
             await Task.Delay(ReconnectSettleMs);
-            await ResyncDeviceState();
+            await ResyncDeviceState(skipIfConnectedSince: connectSerialBefore);
         });
     }
 
@@ -608,6 +631,7 @@ public partial class LoupedeckLiveSController(
         // never skipped just because the stale handle still looks healthy. The port can
         // need a few seconds to come back, so we keep trying for the whole window rather
         // than giving up after a fixed number of tries.
+        var connectSerialBefore = Volatile.Read(ref _connectSerial);
         var deadline = Environment.TickCount64 + (long)ResumeReconnectWindow.TotalMilliseconds;
         var retryDelayMs = 1000;
 
@@ -630,11 +654,11 @@ public partial class LoupedeckLiveSController(
             retryDelayMs = Math.Min(retryDelayMs * 2, 4000);
         }
 
-        // Always re-push at the end instead of trusting the connect event to have done it:
-        // the resume may land before or after the reconnect, and a second push of the same
-        // picture is harmless (redundant pushes coalesce in ResyncDeviceState).
+        // Re-push at the end instead of trusting the connect event to have done it: the resume
+        // may land before or after the reconnect. Skipped when the connect event's push already
+        // reached the device, which would otherwise be painted a second time.
         await Task.Delay(ReconnectSettleMs);
-        await ResyncDeviceState();
+        await ResyncDeviceState(skipIfConnectedSince: connectSerialBefore);
     }
 
     /// <summary>How long the shutdown blanking may take before the process carries on
@@ -779,9 +803,13 @@ public partial class LoupedeckLiveSController(
         pageManager.NotifyTouchLayoutDrawn();
     }
 
-    public async Task RedrawCurrentTouchPage()
+    public Task RedrawCurrentTouchPage() => RedrawCurrentTouchPage(refresh: true);
+
+    /// <summary><paramref name="refresh"/> false sends the keys as last rendered instead of
+    /// rendering them again; see <see cref="LoupedeckDevice.Device.LoupedeckDevice.DrawTouchGridRegion"/>.</summary>
+    private async Task RedrawCurrentTouchPage(bool refresh)
     {
-        if (await RedrawCurrentTouchGrid())
+        if (await RedrawCurrentTouchGrid(refresh))
             await RedrawSideStrips();
     }
 
@@ -789,7 +817,7 @@ public partial class LoupedeckLiveSController(
     /// Repaints the current page's touch grid without the side strips. Returns false when nothing
     /// may be painted right now, so the side strips are left alone as well.
     /// </summary>
-    private async Task<bool> RedrawCurrentTouchGrid()
+    private async Task<bool> RedrawCurrentTouchGrid(bool refresh = true)
     {
         // No-op while something else owns the screen — the owner repaints when it
         // releases (device-off → RestoreDeviceState, folder/exclusive → their exit
@@ -812,7 +840,7 @@ public partial class LoupedeckLiveSController(
             // provider's side strips are untouched; a video wallpaper's next frame carries
             // the repainted keys instead.
             if (!wallpaperAnimation.TryRedirectPageRedraw())
-                await device.DrawTouchGridRegion(config.CurrentTouchButtonPage.TouchButtons, config);
+                await device.DrawTouchGridRegion(config.CurrentTouchButtonPage.TouchButtons, config, refresh);
         }
 
         return true;
@@ -3563,6 +3591,23 @@ public partial class LoupedeckLiveSController(
         Avalonia.Threading.Dispatcher.UIThread.Post(() => _ = RedrawChangedTouchButton(item));
     }
 
+    /// <summary>
+    /// Repaints the current page's keys that open a folder, the only ones the folder badge setting
+    /// changes. Each goes the way of an edited key, so whatever owns the screen right now is left
+    /// alone; other pages are rendered afresh when they are shown.
+    /// </summary>
+    public void RedrawFolderLinkKeys()
+    {
+        var buttons = config.CurrentTouchButtonPage?.TouchButtons;
+        if (buttons == null) return;
+
+        foreach (var button in buttons)
+        {
+            if (button != null && Services.Folders.FolderCommand.OpensFolder(button.Command))
+                TouchItemChanged(button, EventArgs.Empty);
+        }
+    }
+
     private async Task RedrawChangedTouchButton(TouchButton item)
     {
         // Leave the queue before drawing, so a change landing while this draw is in flight
@@ -3806,6 +3851,7 @@ public partial class LoupedeckLiveSController(
         {
             button.RenderedImage = RenderSimpleButton(button);
         });
+        RememberLedColor(button);
 
         button.ItemChanged += SimpleButtonChanged;
 
@@ -3821,9 +3867,30 @@ public partial class LoupedeckLiveSController(
         return button;
     }
 
+    // The colour each LED button's picture and LED were last set to by the button's own changes.
+    // Locked: ItemChanged is raised from whichever thread changed the button.
+    private readonly Dictionary<Constants.ButtonType, Avalonia.Media.Color> _ledColors = [];
+
+    /// <summary>Records the button's colour; false when it was already the recorded one.</summary>
+    private bool RememberLedColor(SimpleButton button)
+    {
+        lock (_ledColors)
+        {
+            if (_ledColors.TryGetValue(button.Id, out var shown) && shown == button.ButtonColor)
+                return false;
+
+            _ledColors[button.Id] = button.ButtonColor;
+            return true;
+        }
+    }
+
     private async void SimpleButtonChanged(object sender, EventArgs e)
     {
         if (sender is not SimpleButton button) return;
+
+        // ItemChanged also fires for a new command, which changes neither the picture nor the LED.
+        // Whatever else sets the LEDs (switching off and on, a reconnect) sends every colour itself.
+        if (!RememberLedColor(button)) return;
 
         // ItemChanged is raised by whoever changed the button — a plugin thread driving a button
         // state, the serial read loop, a timer. RenderedImage is bound by the UI, so the assignment
@@ -4011,8 +4078,10 @@ public partial class LoupedeckLiveSController(
                     // screensaver) holds the screen; that owner repaints when it releases.
                     // ApplyTouchPage cannot be used here: it early-returns when the requested
                     // page is already current, which is always the case for a settings toggle.
+                    // The keys look the same, only their conversion changed, so they go out as
+                    // last rendered.
                     deviceService.Device.DitherFramebuffer = config.DitheringEnabled;
-                    await RedrawCurrentTouchPage();
+                    await RedrawCurrentTouchPage(refresh: false);
                     break;
 
                 case nameof(LoupedeckConfig.InheritWallpaperFromPreviousPage):

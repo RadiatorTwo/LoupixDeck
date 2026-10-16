@@ -248,8 +248,8 @@ public sealed class PluginReloadService : IPluginReloadService
         _dynamicText.Rescan();
         _buttonAnimation.Rescan();
         _sideDisplayAnimation.Rescan();
+        // Ends in the side strips and the wheel, which re-attach their providers on the way.
         await _deviceController.RedrawCurrentTouchPage();
-        await _deviceController.RefreshSideStrips();
     }
 
     /// <summary>
@@ -270,7 +270,6 @@ public sealed class PluginReloadService : IPluginReloadService
             host.Provider.GetRequiredService<Animation.IButtonAnimationManager>().Rescan();
             host.Provider.GetRequiredService<Animation.ISideDisplayAnimationManager>().Rescan();
             await host.Controller.RedrawCurrentTouchPage();
-            await host.Controller.RefreshSideStrips();
         }
     }
 
