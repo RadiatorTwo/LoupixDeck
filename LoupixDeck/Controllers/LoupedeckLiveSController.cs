@@ -511,7 +511,20 @@ public partial class LoupedeckLiveSController(
     /// kernel image is still coming off disk, so the port can stay away far longer (#195).</summary>
     private static readonly TimeSpan ResumeReconnectWindow = TimeSpan.FromSeconds(30);
 
-    public async Task ResyncDeviceState()
+    // Counts the connects the controller has seen, and records the one the device was last fully
+    // pushed for. A resume rebuilds the link, whose connect event re-pushes the state, and then
+    // re-pushes it once more itself in case the connect event came first; this lets whichever of
+    // the two comes second see the first one landed. -1: nothing pushed yet.
+    private int _connectSerial;
+    private int _pushedConnectSerial = -1;
+
+    public Task ResyncDeviceState() => ResyncDeviceState(skipIfConnectedSince: null);
+
+    /// <summary>Re-pushes the device state. With <paramref name="skipIfConnectedSince"/> it is
+    /// skipped when the device connected again after that connect serial and its push for that
+    /// connect landed. A link that did not come back keeps the push: the old one may still work,
+    /// and the device it reaches is still blanked for the suspend.</summary>
+    private async Task ResyncDeviceState(int? skipIfConnectedSince)
     {
         // One push running plus one queued is enough to cover every ordering; anything
         // beyond that would repaint an identical picture.
@@ -526,6 +539,11 @@ public partial class LoupedeckLiveSController(
             await _resyncGate.WaitAsync();
             try
             {
+                var connectSerial = Volatile.Read(ref _connectSerial);
+                if (skipIfConnectedSince is { } since && connectSerial > since &&
+                    _pushedConnectSerial == connectSerial && deviceService.Device is { IsConnected: true })
+                    return;
+
                 // The device power-cycled while the host slept, so it is physically back
                 // on — leaving it in the suspend-blanked state would repaint black and
                 // require the manual off/on toggle (#195). A user-off device stays blank.
@@ -551,6 +569,8 @@ public partial class LoupedeckLiveSController(
                 // the manual off/on toggle after a wake. So the mark survives a failed push
                 // and the next connect (auto-reconnect or resume retry) tries again.
                 if (!pushed) return;
+
+                _pushedConnectSerial = connectSerial;
 
                 if (takeOnline)
                 {
@@ -580,6 +600,9 @@ public partial class LoupedeckLiveSController(
     /// </summary>
     private void OnDeviceConnected(object sender, ConnectionEventArgs e)
     {
+        // Whichever of this push and a resume's own comes second finds the first one landed.
+        var connectSerialBefore = Interlocked.Increment(ref _connectSerial) - 1;
+
         // Raised from inside the connect call, i.e. before the read thread runs — hop off
         // that thread and let the link settle before drawing.
         Avalonia.Threading.Dispatcher.UIThread.Post(async () =>
@@ -589,7 +612,7 @@ public partial class LoupedeckLiveSController(
             // even if the re-push then fails.
             DeviceConnected?.Invoke(this, EventArgs.Empty);
             await Task.Delay(ReconnectSettleMs);
-            await ResyncDeviceState();
+            await ResyncDeviceState(skipIfConnectedSince: connectSerialBefore);
         });
     }
 
@@ -608,6 +631,7 @@ public partial class LoupedeckLiveSController(
         // never skipped just because the stale handle still looks healthy. The port can
         // need a few seconds to come back, so we keep trying for the whole window rather
         // than giving up after a fixed number of tries.
+        var connectSerialBefore = Volatile.Read(ref _connectSerial);
         var deadline = Environment.TickCount64 + (long)ResumeReconnectWindow.TotalMilliseconds;
         var retryDelayMs = 1000;
 
@@ -630,11 +654,11 @@ public partial class LoupedeckLiveSController(
             retryDelayMs = Math.Min(retryDelayMs * 2, 4000);
         }
 
-        // Always re-push at the end instead of trusting the connect event to have done it:
-        // the resume may land before or after the reconnect, and a second push of the same
-        // picture is harmless (redundant pushes coalesce in ResyncDeviceState).
+        // Re-push at the end instead of trusting the connect event to have done it: the resume
+        // may land before or after the reconnect. Skipped when the connect event's push already
+        // reached the device, which would otherwise be painted a second time.
         await Task.Delay(ReconnectSettleMs);
-        await ResyncDeviceState();
+        await ResyncDeviceState(skipIfConnectedSince: connectSerialBefore);
     }
 
     /// <summary>How long the shutdown blanking may take before the process carries on
