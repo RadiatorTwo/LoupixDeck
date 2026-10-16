@@ -31,13 +31,14 @@ public sealed class DevicePreviewImage : Control
     public static readonly StyledProperty<object> DeviceImageProperty =
         AvaloniaProperty.Register<DevicePreviewImage, object>(nameof(DeviceImage));
 
-    // An image whose last change is more recent than this counts as animating, and is re-rendered
-    // only once it has stood still this long. Long enough to cover a clock ticking once a second,
-    // which would otherwise be drawn twice on every tick.
-    private static readonly TimeSpan SettleTime = TimeSpan.FromSeconds(2);
+    // An image whose last change is more recent than this counts as animating.
+    private static readonly TimeSpan SettleTime = TimeSpan.FromMilliseconds(200);
 
-    // A freshly shown image waits for the layout to place it before it is re-rendered.
-    private static readonly TimeSpan AttachDelay = TimeSpan.FromMilliseconds(200);
+    // An image that changed twice in a row within this long of the change before (a clock ticking
+    // once a second) counts as ticking, and is re-rendered only once it has stood still this long:
+    // otherwise every tick would be drawn a second time. Twice, so that a page switch, which can
+    // repaint a key once more shortly after, is still re-rendered right away.
+    private static readonly TimeSpan TickTime = TimeSpan.FromSeconds(2);
 
     // No sharper than this many times the device image: beyond it the gain is invisible and the
     // memory is not.
@@ -67,6 +68,7 @@ public sealed class DevicePreviewImage : Control
     private double _previewScale;
     private int _generation;
     private long _lastContentChange;
+    private TimeSpan _lastChangeGap = TimeSpan.MaxValue;
     private long _dueAt;
     private DeviceZoomPanel _zoomPanel;
     private TopLevel _topLevel;
@@ -107,13 +109,17 @@ public sealed class DevicePreviewImage : Control
         // The preview shows the old content now; drop it and let the device image stand in.
         DropPreview();
 
-        // A change after a quiet spell (a page switch, a single edit) is re-rendered right away; one
-        // in quick succession (typing, a clock ticking) waits until the image settles.
+        // A change after a quiet spell (a page switch, an edit) is re-rendered right away; one in
+        // quick succession waits until the image settles, and a ticking one until it stops ticking.
         long now = Stopwatch.GetTimestamp();
-        bool quiet = Stopwatch.GetElapsedTime(_lastContentChange, now) > SettleTime;
+        TimeSpan gap = Stopwatch.GetElapsedTime(_lastContentChange, now);
+        bool ticking = IsTickGap(gap) && IsTickGap(_lastChangeGap);
         _lastContentChange = now;
-        Schedule(quiet ? TimeSpan.Zero : SettleTime);
+        _lastChangeGap = gap;
+        Schedule(gap <= SettleTime ? SettleTime : ticking ? TickTime : TimeSpan.Zero);
     }
+
+    private static bool IsTickGap(TimeSpan gap) => gap > SettleTime && gap <= TickTime;
 
     /// <summary>Takes the current device image for display, copying it when it is a Skia bitmap.</summary>
     private void TakeDeviceImage()
@@ -157,7 +163,7 @@ public sealed class DevicePreviewImage : Control
             InvalidateVisual();
         }
 
-        Schedule(AttachDelay);
+        Schedule(SettleTime);
     }
 
     private void OnWindowPropertyChanged(object sender, AvaloniaPropertyChangedEventArgs e)
