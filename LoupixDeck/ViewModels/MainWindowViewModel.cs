@@ -840,10 +840,10 @@ public partial class MainWindowViewModel : ViewModelBase
             if (canvas == null) return;
             if (!_clipboard.IsEmpty(canvas) && !await ConfirmOverwrite()) return;
 
-            _clipboard.PasteInto(canvas);
+            // Wired first, so the paste's own ItemChanged repaints the strip.
             LoupedeckController.RegisterStripCanvas(page);
+            _clipboard.PasteInto(canvas);
             LoupedeckController.SaveConfig();
-            await LoupedeckController.RefreshSideStrip(SideOf((TouchButton)button));
             return;
         }
 
@@ -899,10 +899,10 @@ public partial class MainWindowViewModel : ViewModelBase
                 RotarySide side = SideOf((TouchButton)button);
                 TouchButton canvas = EnsureStripCanvas(side, out RotaryButtonPage page);
                 if (canvas == null) return;
-                ButtonContentReset.ClearTouchContent(canvas);
+                // Wired first, so clearing the canvas repaints the strip through its ItemChanged.
                 LoupedeckController.RegisterStripCanvas(page);
+                ButtonContentReset.ClearTouchContent(canvas);
                 LoupedeckController.SaveConfig();
-                _ = LoupedeckController.RefreshSideStrip(side);
                 break;
         }
     }

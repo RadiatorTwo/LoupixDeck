@@ -3621,12 +3621,14 @@ public partial class LoupedeckLiveSController(
             _screensaverActive || _fullDisplayActive) return;
 
         // The canvas Index encodes its column (LeftSideIndex / RightSideIndex), so the
-        // strip is repainted via the free-draw renderer, not the grid touch path.
+        // strip is repainted via the free-draw renderer, not the grid touch path. Through the
+        // coalescing gate: one paste or clear raises a burst of these, and an edit must not
+        // push between the frames of a running animation.
         var side = canvas.Index == LoupedeckDevice.Device.RazerStreamControllerDevice.RightSideIndex
             ? RotarySide.Right
             : RotarySide.Left;
 
-        await DrawSideStrip(side);
+        await RedrawStripCoalesced(side, SideIndex(side));
     }
 
     /// <summary>
