@@ -2818,6 +2818,16 @@ public partial class LoupedeckLiveSController(
 
         // Exclusive ended — repaint the active page (grid + strips).
         ResetDirtyTiles();
+
+        // A plugin folder still open underneath owns the grid and the strips, so the page
+        // repaint below would leave the provider's last frame standing. The folder redraw sees
+        // the provider's writes on the grid and sends the folder in full.
+        if (folderNav.IsActive)
+        {
+            OnFolderStateChanged();
+            return;
+        }
+
         await RedrawCurrentTouchPage();
     }
 
@@ -3213,6 +3223,11 @@ public partial class LoupedeckLiveSController(
                 // whose keys do not cover it completely.
                 if (!wallpaperAnimation.TryRedirectPageRedraw())
                     await device.DrawTouchGridRegion(config.CurrentTouchButtonPage.TouchButtons, config);
+
+                // Closing a menu can also be how a page change lands (ApplyTouchPage), so value
+                // keys whose value arrived while the menu still held the grid catch up, as after
+                // any page paint.
+                pageManager.NotifyTouchLayoutDrawn();
 
                 await RedrawSideStrips();
             }
@@ -4061,24 +4076,31 @@ public partial class LoupedeckLiveSController(
         }
     }
 
-    private CancellationTokenSource _propertyChangedCts;
+    // Debounce of the brightness writes. Only a newer brightness value restarts it: any other
+    // config notification (a page switch raises a dozen) used to cancel it too, and the device
+    // then kept the old brightness.
+    private CancellationTokenSource _brightnessCts;
 
-    // Debounce of the current page's wallpaper redraw. Separate from _propertyChangedCts, so a
+    // Debounce of the current page's wallpaper redraw. Separate from _brightnessCts, so a
     // config change cannot cancel a pending wallpaper redraw and vice versa.
     private CancellationTokenSource _wallpaperRedrawCts;
 
+    /// <summary>Cancels the pending brightness write and returns the token for the new one.</summary>
+    private CancellationToken RestartBrightnessDebounce()
+    {
+        _brightnessCts?.Cancel();
+        _brightnessCts = new CancellationTokenSource();
+        return _brightnessCts.Token;
+    }
+
     private async void ConfigOnPropertyChanged(object sender, PropertyChangedEventArgs e)
     {
-        _propertyChangedCts?.Cancel();
-        _propertyChangedCts = new CancellationTokenSource();
-        var token = _propertyChangedCts.Token;
-
         try
         {
             switch (e.PropertyName)
             {
                 case nameof(LoupedeckConfig.Brightness):
-                    await Task.Delay(100, token); // Debounce
+                    await Task.Delay(100, RestartBrightnessDebounce()); // Debounce
                     // async void: an unhandled transport failure here would tear the process down.
                     await TryDeviceIo("setting the brightness",
                         () => deviceService.Device.SetBrightness(EffectiveBrightness));
@@ -4087,7 +4109,7 @@ public partial class LoupedeckLiveSController(
                 case nameof(LoupedeckConfig.DisplaysOffDimBrightness):
                     // Only visible while dimmed; otherwise the next dim picks the new level up.
                     if (!_dimmedForDisplays || _isDeviceOff) break;
-                    await Task.Delay(100, token); // Debounce, like the brightness slider
+                    await Task.Delay(100, RestartBrightnessDebounce()); // Debounce, like the brightness slider
                     await TryDeviceIo("dimming the display",
                         () => deviceService.Device?.SetBrightness(EffectiveBrightness) ?? Task.CompletedTask);
                     break;

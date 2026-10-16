@@ -331,7 +331,14 @@ public class PageManager : IPageManager
         // the page-name overlay here (the controller re-shows the overlay after the slide).
         if (!draw) return;
 
-        await DrawTouchButtons();
+        // A plugin menu open over the page is left with it, like the custom folders above.
+        // Painting the new page under an open menu put it over the menu's keys while presses
+        // still went to the menu. Closing the menu repaints the page that is current now, so
+        // it is not painted here as well.
+        if (_pluginMenus.IsActive)
+            await _pluginMenus.ExitAll();
+        else
+            await DrawTouchButtons();
 
         if (!init && _config.ShowPageNameOverlayEnabled)
         {
