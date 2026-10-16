@@ -139,6 +139,15 @@ public class LoupedeckCtDevice : LoupedeckDevice
         return new TouchTarget { Screen = "center", Key = key };
     }
 
+    /// <inheritdoc />
+    /// <remarks>The 60x270 side panels at x=0 and x=420 of the unified "center" buffer.</remarks>
+    public override SKRectI? GetSideStripRect(int index) => index switch
+    {
+        LeftSideIndex => SKRectI.Create(0, 0, 60, 270),
+        RightSideIndex => SKRectI.Create(420, 0, 60, 270),
+        _ => null
+    };
+
     /// <summary>
     /// Routes the side strips to their X offsets on the unified "center" buffer, the same
     /// way <see cref="RazerStreamControllerDevice"/> does; grid slots fall through to the
@@ -148,12 +157,9 @@ public class LoupedeckCtDevice : LoupedeckDevice
     {
         ArgumentNullException.ThrowIfNull(bitmap);
 
-        if (index == LeftSideIndex || index == RightSideIndex)
+        if (GetSideStripRect(index) is { } side)
         {
-            const int sideW = 60;
-            const int sideH = 270;
-            var destX = index == LeftSideIndex ? 0 : 420;
-            try { await DrawCanvasRegionIfChanged("center", sideW, sideH, bitmap, destX, 0, refresh); }
+            try { await DrawCanvasRegionIfChanged("center", side.Width, side.Height, bitmap, side.Left, side.Top, refresh); }
             catch (Exception ex) { Console.WriteLine($"CT side-panel slot draw failed for index {index}: {ex.Message}"); }
             return;
         }

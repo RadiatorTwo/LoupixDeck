@@ -2949,9 +2949,33 @@ public partial class LoupedeckLiveSController(
     }
 
     private SkiaSharp.SKBitmap RenderSlot(IReadOnlyDictionary<int, PluginSdk.FolderEntry> bySlot, int slot)
-        => bySlot.TryGetValue(slot, out var entry)
-            ? RenderSdkEntry(entry, slot)
+    {
+        // A side strip is not key-sized: the device rejects a key tile written to it, and a
+        // full-screen frame places it in the strip's own rectangle.
+        if (IsSideStripSlot(slot))
+            return RenderExclusiveStripSlot(bySlot, slot);
+
+        return bySlot.TryGetValue(slot, out var entry)
+            ? RenderSdkEntry(entry, slot, KeySize, KeySize)
             : BitmapHelper.RenderEmptyFolderSlot(config, slot, KeySize, KeySize, folderNav.Grid.Columns);
+    }
+
+    /// <summary>Renders an exclusive provider's side-strip slot at strip size; a slot without an
+    /// entry shows the strip's wallpaper, the same background a plugin strip is drawn on.</summary>
+    private SkiaSharp.SKBitmap RenderExclusiveStripSlot(IReadOnlyDictionary<int, PluginSdk.FolderEntry> bySlot,
+        int slot)
+    {
+        if (bySlot.TryGetValue(slot, out var entry))
+            return RenderSdkEntry(entry, slot, StripWidth, StripHeight);
+
+        var side = slot == LoupedeckDevice.Device.RazerStreamControllerDevice.LeftSideIndex
+            ? RotarySide.Left
+            : RotarySide.Right;
+        var bitmap = new SkiaSharp.SKBitmap(StripWidth, StripHeight);
+        using (var canvas = new SkiaSharp.SKCanvas(bitmap))
+            BitmapHelper.DrawPluginStripBackground(canvas, config, side, StripWidth, StripHeight);
+        return bitmap;
+    }
 
     // --- DirtyTiles bookkeeping -------------------------------------------------
     private PluginSdk.IExclusiveModeProvider _dirtyOwner;
@@ -2981,7 +3005,7 @@ public partial class LoupedeckLiveSController(
     }
 
     /// <summary>Adapts an SDK FolderEntry to the core FolderEntry renderer.</summary>
-    private SkiaSharp.SKBitmap RenderSdkEntry(PluginSdk.FolderEntry e, int slot)
+    private SkiaSharp.SKBitmap RenderSdkEntry(PluginSdk.FolderEntry e, int slot, int width, int height)
     {
         var core = new Services.FolderNavigation.FolderEntry
         {
@@ -2992,7 +3016,7 @@ public partial class LoupedeckLiveSController(
             TextSize = e.TextSize,
             Bold = e.Bold
         };
-        return BitmapHelper.RenderFolderEntry(core, null, slot, KeySize, KeySize, folderNav.Grid.Columns);
+        return BitmapHelper.RenderFolderEntry(core, null, slot, width, height, folderNav.Grid.Columns);
     }
 
     private async void OnFolderStateChanged()
