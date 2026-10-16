@@ -2507,6 +2507,13 @@ public partial class LoupedeckLiveSController(
             if (!ReferenceEquals(config.CurrentTouchButtonPage?.TouchButtons.FindByIndex(button.Index), button))
                 return;
 
+            // A plugin folder, an exclusive provider, the screensaver or a full-display takeover
+            // leaves CurrentTouchButtonPage as it was, so the check above does not see them. They
+            // own the grid now and have drawn over the flash already; the page key must stay hidden.
+            if (folderNav.IsActive || exclusiveMode.Owns(ExclusiveControlScope.TouchButtons)
+                || _screensaverActive || _fullDisplayActive)
+                return;
+
             // Restore — if the key has a rendered image, draw it directly; otherwise
             // re-render the button through its normal path.
             var current = button.RenderedImage;
