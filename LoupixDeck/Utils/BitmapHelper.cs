@@ -1504,19 +1504,44 @@ public static class BitmapHelper
                 // and disposed along with its recording; the device image is then shown as is.
                 if (bitmap.Picture is not { } picture) return null;
 
-                using var preview = new SKBitmap(
-                    Math.Max(1, (int)Math.Ceiling(width * scale)),
-                    Math.Max(1, (int)Math.Ceiling(height * scale)));
-                using (var canvas = new SKCanvas(preview))
+                return RenderPreviewBitmap(width, height, scale, canvas =>
                 {
-                    canvas.Scale((float)scale);
                     canvas.ClipRect(new SKRect(0, 0, width, height));
                     canvas.DrawPicture(picture);
-                }
-
-                return Models.Converter.SKBitmapToAvaloniaBitmapConverter.ToBitmap(preview);
+                });
             }
         });
+    }
+
+    /// <summary>
+    /// Draws an on-screen preview <paramref name="scale"/> times the size of a
+    /// <paramref name="width"/>×<paramref name="height"/> device image straight into the Avalonia
+    /// bitmap the view shows, sparing a Skia bitmap and the copy out of it. <paramref name="draw"/>
+    /// draws in device pixels. Must be called under <see cref="SkiaRenderGate"/>.Sync.
+    /// </summary>
+    private static Bitmap RenderPreviewBitmap(int width, int height, double scale, Action<SKCanvas> draw)
+    {
+        var size = new PixelSize(
+            Math.Max(1, (int)Math.Ceiling(width * scale)),
+            Math.Max(1, (int)Math.Ceiling(height * scale)));
+        var preview = new WriteableBitmap(size, new Vector(96, 96), PixelFormat.Bgra8888, AlphaFormat.Premul);
+
+        using (ILockedFramebuffer frame = preview.Lock())
+        {
+            var info = new SKImageInfo(size.Width, size.Height, SKColorType.Bgra8888, SKAlphaType.Premul);
+            using var surface = SKSurface.Create(info, frame.Address, frame.RowBytes);
+            if (surface == null)
+            {
+                preview.Dispose();
+                return null;
+            }
+
+            surface.Canvas.Clear(SKColors.Transparent);
+            surface.Canvas.Scale((float)scale);
+            draw(surface.Canvas);
+        }
+
+        return preview;
     }
 
     /// <summary>
@@ -1537,17 +1562,9 @@ public static class BitmapHelper
 
         lock (SkiaRenderGate.Sync)
         {
-            using var bitmap = new SKBitmap(
-                Math.Max(1, (int)Math.Ceiling(width * scale)),
-                Math.Max(1, (int)Math.Ceiling(height * scale)));
-            using (var canvas = new SKCanvas(bitmap))
-            {
-                canvas.Scale((float)scale);
+            return RenderPreviewBitmap(width, height, scale, canvas =>
                 DrawTouchButtonContent(canvas, touchButton, wallpaperToUse, opacityToUse, wallpaperSource, width, height,
-                ShowsFolderBadges(config), touchButton.ValueContext);
-            }
-
-            return Models.Converter.SKBitmapToAvaloniaBitmapConverter.ToBitmap(bitmap);
+                    ShowsFolderBadges(config), touchButton.ValueContext));
         }
     }
 
