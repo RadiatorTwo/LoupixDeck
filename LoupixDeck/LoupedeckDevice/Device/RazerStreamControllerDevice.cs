@@ -112,6 +112,15 @@ public class RazerStreamControllerDevice : LoupedeckDevice
         return new TouchTarget { Screen = "center", Key = key };
     }
 
+    /// <inheritdoc />
+    /// <remarks>The 60x270 side panels at x=0 and x=420 of the unified "center" buffer.</remarks>
+    public override SKRectI? GetSideStripRect(int index) => index switch
+    {
+        LeftSideIndex => SKRectI.Create(0, 0, 60, 270),
+        RightSideIndex => SKRectI.Create(420, 0, 60, 270),
+        _ => null
+    };
+
     /// <summary>
     /// Draws an arbitrary bitmap to one touch slot — handles the 60×270 side
     /// panels (12/13) by routing to their unified-display X offsets; everything
@@ -120,12 +129,9 @@ public class RazerStreamControllerDevice : LoupedeckDevice
     public override async Task DrawTouchSlot(int index, SKBitmap bitmap, bool refresh = true)
     {
         ArgumentNullException.ThrowIfNull(bitmap);
-        if (index == LeftSideIndex || index == RightSideIndex)
+        if (GetSideStripRect(index) is { } side)
         {
-            const int sideW = 60;
-            const int sideH = 270;
-            var destX = index == LeftSideIndex ? 0 : 420;
-            try { await DrawCanvasRegionIfChanged("center", sideW, sideH, bitmap, destX, 0, refresh); }
+            try { await DrawCanvasRegionIfChanged("center", side.Width, side.Height, bitmap, side.Left, side.Top, refresh); }
             catch (Exception ex) { Console.WriteLine($"Razer side-panel slot draw failed for index {index}: {ex.Message}"); }
             return;
         }

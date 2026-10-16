@@ -61,6 +61,13 @@ public class LoupedeckDevice
     public SKRectI GetKeyRect(int index) => KeyRectFrom(index, GridOriginX, 0);
 
     /// <summary>
+    /// Where the side-strip touch slot <paramref name="index"/> sits in the "center" buffer, or
+    /// null when the index is no side strip on this device. Only devices with
+    /// <see cref="HasSideStrips"/> return one.
+    /// </summary>
+    public virtual SKRectI? GetSideStripRect(int index) => null;
+
+    /// <summary>
     /// Centre of key <paramref name="index"/> in touch coordinates, which are panel-wide
     /// and therefore measured from <c>VisibleX/VisibleY</c> rather than from the
     /// framebuffer origin.
@@ -1845,13 +1852,15 @@ public class LoupedeckDevice
         {
             using var canvas = new SKCanvas(full);
             canvas.Clear(SKColors.Black);
-            for (var slot = 0; slot < slotBitmaps.Count && slot < Columns * Rows; slot++)
+            for (var slot = 0; slot < slotBitmaps.Count; slot++)
             {
                 var bmp = slotBitmaps[slot];
                 if (bmp == null) continue;
                 // Into the key's rectangle rather than at its corner: a caller-supplied
-                // tile of the wrong size would otherwise spill over its neighbours.
-                SKRectI rect = GetKeyRect(slot);
+                // tile of the wrong size would otherwise spill over its neighbours. Slots past
+                // the grid are the side strips, which share this buffer where a device has them.
+                SKRectI? slotRect = slot < Columns * Rows ? GetKeyRect(slot) : GetSideStripRect(slot);
+                if (slotRect is not { } rect) continue;
                 canvas.DrawBitmap(bmp, rect, new SKSamplingOptions(SKCubicResampler.Mitchell), paint: null);
             }
         }
