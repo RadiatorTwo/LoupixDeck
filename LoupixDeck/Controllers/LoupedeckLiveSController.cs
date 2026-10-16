@@ -3224,6 +3224,11 @@ public partial class LoupedeckLiveSController(
                 if (!wallpaperAnimation.TryRedirectPageRedraw())
                     await device.DrawTouchGridRegion(config.CurrentTouchButtonPage.TouchButtons, config);
 
+                // Closing a menu can also be how a page change lands (ApplyTouchPage), so value
+                // keys whose value arrived while the menu still held the grid catch up, as after
+                // any page paint.
+                pageManager.NotifyTouchLayoutDrawn();
+
                 await RedrawSideStrips();
             }
         }
