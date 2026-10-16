@@ -45,6 +45,8 @@ public partial class LoupedeckLiveSController
         public int StartY;
         public int Offset;       // last pushed visual offset (px); sign drives the neighbour
         public bool Moved;       // any travel beyond the tap threshold was seen
+        public bool Prepared;    // Current/Next/Prev were rendered for this drag
+        public bool Interrupted; // the touch cut a running slide short
         public double StartMs;   // high-res timestamp of the first sample
         public double LastMs;    // timestamp of the last sample (for velocity)
         public int LastY;        // y of the last sample
@@ -159,15 +161,25 @@ public partial class LoupedeckLiveSController
         st.Offset = dy;
         if (Math.Abs(dy) > StripTapMaxMove) st.Moved = true;
         UpdateVelocity(st, y, NowMs());
+
+        // The finger has not left the tap zone yet: nothing slides, so nothing to draw.
+        if (!st.Moved) return;
+
+        EnsureDragBitmaps(side, idx);
         _ = PushAnimationFrame(side, idx);
     }
 
     private void BeginStripDrag(RotarySide side, int idx, byte touchId, int y)
     {
         var st = _drag[idx];
+        st.Interrupted = _transition[idx].Active;
         CancelStripTransition(idx);
 
-        PrepareStripBitmaps(side, idx);
+        // Most touches are taps, which never show the slide, so the three strips are rendered
+        // on the first move past the tap zone (EnsureDragBitmaps), not here. The previous
+        // gesture's bitmaps go now, so no frame of this drag can show them.
+        RetireDragBitmaps(idx);
+        st.Prepared = false;
 
         var nowMs = NowMs();
         st.StartY = y;
@@ -179,6 +191,16 @@ public partial class LoupedeckLiveSController
         st.Velocity = 0;
         st.TouchId = touchId;
         st.Active = true;
+    }
+
+    /// <summary>Renders the drag's bitmaps once per gesture, when it first needs them.</summary>
+    private void EnsureDragBitmaps(RotarySide side, int idx)
+    {
+        var st = _drag[idx];
+        if (st.Prepared) return;
+
+        PrepareStripBitmaps(side, idx);
+        st.Prepared = true;
     }
 
     /// <summary>Renders the side's current/next/prev rotary page bitmaps into the drag
@@ -340,6 +362,12 @@ public partial class LoupedeckLiveSController
             if (!st.Moved && Math.Abs(endDy) < StripTapMaxMove)
             {
                 RouteStripTap(side, idx, changedTouch);
+
+                // A tap that stopped a slide halfway leaves its last frame on the strip, and the
+                // tap itself draws nothing: put the live strip back.
+                if (st.Interrupted)
+                    _ = RedrawStripCoalesced(side, idx);
+
                 // Cached bitmaps are retired by the next BeginStripDrag (or ResetStripDrags),
                 // never here — a release can't clobber a freshly-started drag's bitmaps.
                 return true;
@@ -347,6 +375,10 @@ public partial class LoupedeckLiveSController
 
             // Fold the release segment into the velocity estimate.
             UpdateVelocity(st, changedTouch.Y, NowMs());
+
+            // A swipe whose only sample past the tap zone is the release itself (the device
+            // sent no intermediate packets) has not rendered its strips yet.
+            EnsureDragBitmaps(side, idx);
 
             var travelDir = endDy < 0 ? -1 : 1;
             // Flick: a fast release in the same direction as the net travel commits even on
@@ -409,18 +441,25 @@ public partial class LoupedeckLiveSController
                 var t = Math.Clamp(elapsedMs / StripSettleMs, 0.0, 1.0);
                 var eased = 1 - Math.Pow(1 - t, 3); // cubic ease-out
                 _drag[idx].Offset = (int)Math.Round(tr.FromOffset + ((tr.Target - tr.FromOffset) * eased));
-                await PushAnimationFrame(side, idx);
 
-                if (t < 1.0) continue;
+                if (t < 1.0)
+                {
+                    await PushAnimationFrame(side, idx);
+                    continue;
+                }
 
-                // Final frame: snap to the exact target and finish.
+                // Final frame: snap to the exact target and finish. It is not pushed as a slide
+                // frame: the live render below draws the same end state (the landed page, or the
+                // current one back at offset 0), and draws it as it is now, with its plugin
+                // sessions, where the cached neighbour has none and the cached current page is as
+                // old as the touch. Pushing both sent the end state twice.
                 _drag[idx].Offset = tr.Target;
                 tr.Active = false;
 
                 if (tr.Commit)
                 {
-                    // The neighbour is now fully shown; committing makes it the current page and
-                    // OnRotaryPageChanged → DrawSideStrip redraws identical pixels at offset 0.
+                    // Committing makes the neighbour the current page, and
+                    // OnRotaryPageChanged → DrawSideStrip draws it at offset 0.
                     // The page change mutates bound (ObservableProperty/ObservableCollection)
                     // state, so marshal it to the UI thread (mirrors the GUI paging path).
                     var commitAction = tr.CommitAction;
