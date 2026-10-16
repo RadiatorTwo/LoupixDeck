@@ -145,7 +145,21 @@ public class LoupedeckDevice
     /// on start-up and whenever the setting changes. Defaults to off, matching that setting's
     /// default, so a device that draws before any config has been applied behaves as it always did.
     /// </summary>
-    public bool DitherFramebuffer { get; set; }
+    public bool DitherFramebuffer
+    {
+        get;
+        set
+        {
+            if (field == value) return;
+            field = value;
+
+            // The regions DrawCanvasRegionIfChanged remembers hold the source pixels, not what the
+            // panel shows: the same pixels convert differently now, so none of them may be skipped
+            // as already shown. Without this a strip or the wheel kept its old dithering.
+            lock (_writtenRegions)
+                _writtenRegions.Clear();
+        }
+    }
 
     private byte[] _ditherLutRed;
     private byte[] _ditherLutGreen;
