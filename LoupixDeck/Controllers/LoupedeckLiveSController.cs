@@ -3851,6 +3851,7 @@ public partial class LoupedeckLiveSController(
         {
             button.RenderedImage = RenderSimpleButton(button);
         });
+        RememberLedColor(button);
 
         button.ItemChanged += SimpleButtonChanged;
 
@@ -3866,9 +3867,30 @@ public partial class LoupedeckLiveSController(
         return button;
     }
 
+    // The colour each LED button's picture and LED were last set to by the button's own changes.
+    // Locked: ItemChanged is raised from whichever thread changed the button.
+    private readonly Dictionary<Constants.ButtonType, Avalonia.Media.Color> _ledColors = [];
+
+    /// <summary>Records the button's colour; false when it was already the recorded one.</summary>
+    private bool RememberLedColor(SimpleButton button)
+    {
+        lock (_ledColors)
+        {
+            if (_ledColors.TryGetValue(button.Id, out var shown) && shown == button.ButtonColor)
+                return false;
+
+            _ledColors[button.Id] = button.ButtonColor;
+            return true;
+        }
+    }
+
     private async void SimpleButtonChanged(object sender, EventArgs e)
     {
         if (sender is not SimpleButton button) return;
+
+        // ItemChanged also fires for a new command, which changes neither the picture nor the LED.
+        // Whatever else sets the LEDs (switching off and on, a reconnect) sends every colour itself.
+        if (!RememberLedColor(button)) return;
 
         // ItemChanged is raised by whoever changed the button — a plugin thread driving a button
         // state, the serial read loop, a timer. RenderedImage is bound by the UI, so the assignment
