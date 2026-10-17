@@ -298,6 +298,32 @@
       }
     },
     {
+      "id": "imecontrol",
+      "name": "IME Control",
+      "description": "Turn the IME of the active window on or off.\n\n--\n\nアクティブなウィンドウの IME を ON / OFF します。",
+      "author": "VisionsMirage",
+      "repository": "VisionsMirage/LoupixDeck.Plugin.ImeControl",
+      "icon": "https://raw.githubusercontent.com/VisionsMirage/LoupixDeck.Plugin.ImeControl/master/icon.png",
+      "platforms": [ "Windows" ],
+      "minSdkVersion": "1.28.0",
+      "commandPrefixes": [ "ImeControl." ],
+      "release": {
+        "version": "1.0.0",
+        "tag": "v1.0.0",
+        "publishedAt": "2026-10-17T11:06:50Z",
+        "sdkVersion": "1.28.0",
+        "releaseNotesUrl": "https://github.com/VisionsMirage/LoupixDeck.Plugin.ImeControl/releases/tag/v1.0.0",
+        "packages": [
+          {
+            "platform": "windows",
+            "fileName": "imecontrol-1.0.0-windows.zip",
+            "downloadUrl": "https://github.com/VisionsMirage/LoupixDeck.Plugin.ImeControl/releases/download/v1.0.0/imecontrol-1.0.0-windows.zip",
+            "sha256": "bc896810219774962c67f0ea22f03fb6db4b44981711011e024f694351434a4b"
+          }
+        ]
+      }
+    },
+    {
       "id": "kasa",
       "name": "Kasa Smart Plugs",
       "description": "Switch TP-Link Kasa smart plugs and power strips from the deck, with live on/off state on the keys.",
