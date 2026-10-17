@@ -61,6 +61,11 @@ public partial class TouchButtonSettings : Window
     // while panning (which doesn't) is left alone.
     private Size _lastPreviewExtent;
 
+    // Height bounds of the "Behavior for State" panel. Within them it only gets the height
+    // the left panel doesn't need (#507); below the minimum the left panel scrolls instead.
+    private const double BehaviorPanelMaxHeight = 320;
+    private const double BehaviorPanelMinHeight = 140;
+
     // The command being dragged from the picker into a sequence strip; null when idle.
     // The picker owns the pointer capture and threshold; this window positions the ghost
     // and per-strip drop marker and inserts on release over a strip.
@@ -116,6 +121,8 @@ public partial class TouchButtonSettings : Window
             _lastPreviewExtent = PreviewScroll.Extent;
             CenterPreview();
         };
+
+        RootGrid.LayoutUpdated += (_, _) => UpdateBehaviorPanelMaxHeight();
 
         // Clicking anywhere inside a sequence strip makes it the double-click-append
         // target. Tunnel so it fires even when a child (button, chip grip) handles the
@@ -187,6 +194,28 @@ public partial class TouchButtonSettings : Window
     // ───────── Command chain: active slot / remove / reorder / drag-insert ─────────
 
     /// <summary>Clicking anywhere inside a sequence strip makes it the double-click target.</summary>
+    /// <summary>
+    /// Caps the "Behavior for State" panel so the main area keeps the height the left panel
+    /// needs: all its sections plus the whole Layers list (at least its minimum height).
+    /// The left panel's content sits in a scroll viewer, so its desired size is its natural
+    /// height and doesn't depend on this cap; the update converges in one extra pass.
+    /// </summary>
+    private void UpdateBehaviorPanelMaxHeight()
+    {
+        Control layerList = LayerListHost.Child;
+        if (layerList == null) return;
+
+        double chrome = LeftPanel.Bounds.Height - LeftPanelScroll.Bounds.Height;
+        double listHeight = Math.Max(LayerListHost.MinHeight, layerList.DesiredSize.Height);
+        double leftPanelHeight = chrome + LeftPanelContent.DesiredSize.Height
+                                 - LayerListHost.DesiredSize.Height + listHeight;
+        double available = RootGrid.Bounds.Height - leftPanelHeight - BehaviorPanel.Margin.Top;
+        double maxHeight = Math.Clamp(available, BehaviorPanelMinHeight, BehaviorPanelMaxHeight);
+
+        if (Math.Abs(BehaviorPanel.MaxHeight - maxHeight) > 0.5)
+            BehaviorPanel.MaxHeight = maxHeight;
+    }
+
     private void OnAnyPointerPressed(object sender, PointerPressedEventArgs e)
     {
         if (DataContext is not TouchButtonSettingsViewModel vm)
