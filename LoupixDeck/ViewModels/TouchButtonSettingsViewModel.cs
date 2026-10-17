@@ -623,6 +623,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
             OnPropertyChanged(nameof(SelectedTextLayer));
             OnPropertyChanged(nameof(SelectedImageCommandChoice));
             OnPropertyChanged(nameof(SelectedTextCommandChoice));
+            OnPropertyChanged(nameof(SelectedFontChoice));
             OnPropertyChanged(nameof(ScaleHandlesVisible));
             OnPropertyChanged(nameof(CanDeleteSelectedLayer));
             OnPropertyChanged(nameof(HasSelectedLayer));
@@ -666,6 +667,21 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         {
             if (SelectedTextLayer == null || value == null || value == SelectedTextCommandChoice) return;
             SelectedTextLayer.TextCommand = value.CommandName;
+            OnPropertyChanged();
+        }
+    }
+
+    /// <summary>The fonts the selected text layer can be set to.</summary>
+    public IReadOnlyList<FontChoice> FontChoices => InstalledFonts.Choices;
+
+    /// <summary>The font of the selected text layer; the default entry clears it.</summary>
+    public FontChoice SelectedFontChoice
+    {
+        get => SelectedTextLayer == null ? null : InstalledFonts.Find(SelectedTextLayer.FontFamily);
+        set
+        {
+            if (SelectedTextLayer == null || value == null || value == SelectedFontChoice) return;
+            SelectedTextLayer.FontFamily = value.Family;
             OnPropertyChanged();
         }
     }
@@ -1310,6 +1326,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         var box = Math.Min(DeviceWidth, DeviceHeight);
         var layer = new TextLayer
         {
+            FontFamily = TextFontSettings.DefaultFamily,
             Name = GetUniqueLayerName("Text"),
             Text = "Text",
             BoxWidth = box,
@@ -1706,6 +1723,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
             // A command typed into the box, rather than picked, must move the pickers along.
             OnPropertyChanged(nameof(SelectedTextCommandChoice));
             OnPropertyChanged(nameof(SelectedImageCommandChoice));
+            OnPropertyChanged(nameof(SelectedFontChoice));
         });
     }
 

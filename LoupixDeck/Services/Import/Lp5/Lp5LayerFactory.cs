@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using LoupixDeck.Localization;
 using LoupixDeck.Models.Layers;
+using LoupixDeck.Utils;
 using Newtonsoft.Json.Linq;
 
 namespace LoupixDeck.Services.Import.Lp5;
@@ -89,6 +90,7 @@ internal sealed class Lp5LayerFactory(Lp5Archive archive, IAssetService assets, 
 
         return new TextLayer
         {
+            FontFamily = TextFontSettings.DefaultFamily,
             Name = name ?? Loc.Tr("LoupedeckImport_LayerLabel"),
             Text = text,
             TextSize = text.Length > 12 ? 13 : 16,

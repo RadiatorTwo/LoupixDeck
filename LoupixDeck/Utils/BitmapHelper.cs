@@ -25,22 +25,31 @@ public static class BitmapHelper
     /// </summary>
     public static Func<string, SKSizeI?> AssetSizeResolver { get; set; }
 
+    /// <summary>Family a text layer renders in when it names none.</summary>
+    private const string DefaultTextFontFamily = "Liberation Sans";
+
     /// <summary>
-    /// Cache of "Liberation Sans" typefaces keyed by (weight, slant). Previously a
+    /// Cache of text typefaces keyed by (family, weight, slant). Previously a
     /// fresh <see cref="SKTypeface"/> was allocated on every text render, piling up
     /// native objects that the GC finalizer thread later freed concurrently with
     /// active Skia rendering — see <c>docs/CRASH_ANALYSIS_ACCESS_VIOLATION.md</c>
     /// (point 5). Typefaces are long-lived and intentionally never disposed.
     /// </summary>
     private static readonly System.Collections.Concurrent.ConcurrentDictionary<
-        (SKFontStyleWeight Weight, SKFontStyleSlant Slant), SKTypeface> TypefaceCache = new();
+        (string Family, SKFontStyleWeight Weight, SKFontStyleSlant Slant), SKTypeface> TypefaceCache = new();
 
-    private static SKTypeface GetTextTypeface(bool bold, bool italic)
+    /// <summary>
+    /// Typeface for <paramref name="fontFamily"/>; an empty family means
+    /// <see cref="DefaultTextFontFamily"/>. A family that is not installed falls back to Skia's
+    /// system default, as the default family already does where it is missing.
+    /// </summary>
+    private static SKTypeface GetTextTypeface(bool bold, bool italic, string fontFamily = null)
     {
+        var family = string.IsNullOrEmpty(fontFamily) ? DefaultTextFontFamily : fontFamily;
         var weight = bold ? SKFontStyleWeight.Bold : SKFontStyleWeight.Normal;
         var slant = italic ? SKFontStyleSlant.Italic : SKFontStyleSlant.Upright;
-        return TypefaceCache.GetOrAdd((weight, slant), key =>
-            SKTypeface.FromFamilyName("Liberation Sans", key.Weight, SKFontStyleWidth.Normal, key.Slant));
+        return TypefaceCache.GetOrAdd((family, weight, slant), key =>
+            SKTypeface.FromFamilyName(key.Family, key.Weight, SKFontStyleWidth.Normal, key.Slant));
     }
 
     public enum ScalingOption
@@ -2358,7 +2367,8 @@ public static class BitmapHelper
             layer.Bold,
             layer.Italic,
             layer.Outlined,
-            layer.OutlineColor.ToSKColor());
+            layer.OutlineColor.ToSKColor(),
+            layer.FontFamily);
 
         canvas.RestoreToCount(saved);
     }
@@ -3802,11 +3812,12 @@ public static class BitmapHelper
         bool bold = false,
         bool italic = false,
         bool outlined = false,
-        SKColor outlineColor = default)
+        SKColor outlineColor = default,
+        string fontFamily = null)
     {
         // Center maps to (Center, Middle); top-left to (Left, Top).
         DrawTextAligned(canvas, text, color, textSize, centered ? 1 : 0, centered ? 1 : 0,
-            posX, posY, imageWidth, imageHeight, bold, italic, outlined, outlineColor);
+            posX, posY, imageWidth, imageHeight, bold, italic, outlined, outlineColor, fontFamily);
     }
 
     /// <summary>
@@ -3819,7 +3830,8 @@ public static class BitmapHelper
         SKCanvas canvas, string text, SKColor color, float textSize,
         int hAlign, int vAlign,
         float posX = 0, float posY = 0, float imageWidth = 90, float imageHeight = 90,
-        bool bold = false, bool italic = false, bool outlined = false, SKColor outlineColor = default)
+        bool bold = false, bool italic = false, bool outlined = false, SKColor outlineColor = default,
+        string fontFamily = null)
     {
         if (canvas == null || string.IsNullOrEmpty(text))
             throw new ArgumentException("Canvas and text must not be null!");
@@ -3835,7 +3847,7 @@ public static class BitmapHelper
 
         // Reuse the cached typeface; only the per-size SKFont is allocated here and
         // it is disposed at scope exit so it does not leak to the finalizer thread.
-        var typeface = GetTextTypeface(bold, italic);
+        var typeface = GetTextTypeface(bold, italic, fontFamily);
 
         using var font = new SKFont(typeface, textSize)
         {

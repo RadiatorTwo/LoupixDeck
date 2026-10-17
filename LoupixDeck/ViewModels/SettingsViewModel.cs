@@ -1243,6 +1243,22 @@ public partial class SettingsViewModel : DialogViewModelBase<DialogResult>
         OnPropertyChanged(nameof(ThemeIsSystem));
     }
 
+    // ───────── Text font ─────────
+
+    // Global (TextFontSettings) like the theme; only new text layers pick it up.
+    public IReadOnlyList<FontChoice> FontChoices => InstalledFonts.Choices;
+
+    public FontChoice SelectedDefaultFontChoice
+    {
+        get => InstalledFonts.Find(TextFontSettings.DefaultFamily);
+        set
+        {
+            if (value == null) return;
+            TextFontSettings.DefaultFamily = value.Family;
+            OnPropertyChanged();
+        }
+    }
+
     // ───────── About ─────────
 
     public string Version { get; }

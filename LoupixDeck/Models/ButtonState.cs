@@ -4,6 +4,7 @@ using System.ComponentModel;
 using Avalonia.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 using LoupixDeck.Models.Layers;
+using LoupixDeck.Utils;
 using Newtonsoft.Json;
 
 namespace LoupixDeck.Models;
@@ -270,6 +271,7 @@ public partial class ButtonState : ObservableObject
 
         var created = new TextLayer
         {
+            FontFamily = TextFontSettings.DefaultFamily,
             Name = string.IsNullOrEmpty(commandName) ? "Text" : commandName,
             // 0 means "fill the device's key", which is what a fixed 90 used to mean.
             BoxWidth = 0,

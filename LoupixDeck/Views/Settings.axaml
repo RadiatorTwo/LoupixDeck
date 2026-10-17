@@ -8,6 +8,7 @@
         xmlns:dvm="clr-namespace:LoupixDeck.ViewModels.Diagnostics"
         xmlns:cnv="clr-namespace:LoupixDeck.Models.Converter"
         xmlns:m="clr-namespace:LoupixDeck.Models"
+        xmlns:utils="clr-namespace:LoupixDeck.Utils"
         x:Class="LoupixDeck.Views.Settings"
         x:DataType="vm:SettingsViewModel"
         x:Name="SettingsWindow"
@@ -331,6 +332,25 @@
                                 <Button Grid.Row="4" Grid.Column="3" Classes="PagerBtn" Content="+"
                                         Command="{Binding AdjustKeyCalibrationCommand}" CommandParameter="centerY:1" />
                             </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Default font for new text layers; global like the language. -->
+                    <Border Classes="card">
+                        <StackPanel>
+                            <TextBlock Classes="card-title" Text="{loc:Tr Settings_TextLayers}" />
+                            <TextBlock Classes="label" Text="{loc:Tr Settings_DefaultFont}" />
+                            <ComboBox Margin="0,4,0,0" MinWidth="240"
+                                      ItemsSource="{Binding FontChoices}"
+                                      SelectedItem="{Binding SelectedDefaultFontChoice, Mode=TwoWay}">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate x:DataType="utils:FontChoice">
+                                        <TextBlock Text="{Binding Title}" />
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                            <TextBlock Classes="hint" Margin="0,8,0,0"
+                                       Text="{loc:Tr Settings_DefaultFontHint}" />
                         </StackPanel>
                     </Border>
 

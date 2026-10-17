@@ -13,6 +13,7 @@
     xmlns:conv="clr-namespace:LoupixDeck.Models.Converter"
     xmlns:models="clr-namespace:LoupixDeck.Models"
     xmlns:actions="clr-namespace:LoupixDeck.Services.Actions"
+    xmlns:utils="clr-namespace:LoupixDeck.Utils"
     x:DataType="vm:TouchButtonSettingsViewModel"
     Title="{Binding ButtonLabel}"
     Width="1440"
@@ -918,6 +919,17 @@
                                                                      Width="{Binding $parent[Panel].Bounds.Width}" />
                                                 </Panel>
                                             </Grid>
+
+                                            <TextBlock Classes="label" Text="{loc:Tr TouchButton_Font}" />
+                                            <ComboBox Margin="0,2,0,8" HorizontalAlignment="Stretch"
+                                                      ItemsSource="{Binding $parent[Window].((vm:TouchButtonSettingsViewModel)DataContext).FontChoices}"
+                                                      SelectedItem="{Binding $parent[Window].((vm:TouchButtonSettingsViewModel)DataContext).SelectedFontChoice, Mode=TwoWay}">
+                                                <ComboBox.ItemTemplate>
+                                                    <DataTemplate x:DataType="utils:FontChoice">
+                                                        <TextBlock Text="{Binding Title}" />
+                                                    </DataTemplate>
+                                                </ComboBox.ItemTemplate>
+                                            </ComboBox>
 
                                             <TextBlock Classes="label" Text="{loc:Tr TouchButton_Style}" />
                                             <WrapPanel Margin="0,2,0,4">
