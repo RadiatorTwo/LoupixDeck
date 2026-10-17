@@ -96,6 +96,15 @@ public partial class TextLayer : LayerBase
     [ObservableProperty]
     public partial Color TextColor { get; set; } = Colors.White;
 
+    /// <summary>
+    /// Font family the text renders in. Empty means the renderer's default family, which is
+    /// what every layer used before this property existed. Omitted from the file when empty,
+    /// so existing layers serialize unchanged.
+    /// </summary>
+    [ObservableProperty]
+    [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
+    public partial string FontFamily { get; set; }
+
     [ObservableProperty]
     public partial bool Bold { get; set; }
 
