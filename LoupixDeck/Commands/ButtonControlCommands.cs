@@ -6,6 +6,7 @@ using LoupixDeck.Models;
 using LoupixDeck.Models.Extensions;
 using LoupixDeck.Models.Layers;
 using LoupixDeck.Services;
+using LoupixDeck.Utils;
 
 namespace LoupixDeck.Commands;
 
@@ -188,6 +189,7 @@ public class UpdateButtonCommand(IDeviceController controller, IAssetService ass
 
         var created = new TextLayer
         {
+            FontFamily = TextFontSettings.DefaultFamily,
             Name = string.IsNullOrEmpty(nameHint) ? "Text" : nameHint,
             // 0 means "fill the device's key", which is what a fixed 90 used to mean.
             BoxWidth = 0,

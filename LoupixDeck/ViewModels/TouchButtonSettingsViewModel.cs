@@ -1326,6 +1326,7 @@ public partial class TouchButtonSettingsViewModel : DialogViewModelBase<TouchBut
         var box = Math.Min(DeviceWidth, DeviceHeight);
         var layer = new TextLayer
         {
+            FontFamily = TextFontSettings.DefaultFamily,
             Name = GetUniqueLayerName("Text"),
             Text = "Text",
             BoxWidth = box,

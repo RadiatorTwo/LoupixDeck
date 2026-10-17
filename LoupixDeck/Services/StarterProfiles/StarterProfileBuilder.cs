@@ -270,6 +270,7 @@ public sealed class StarterProfileBuilder(DeviceShape shape, bool isWindows, ISt
 
             canvas.Layers.Add(new TextLayer
             {
+                FontFamily = TextFontSettings.DefaultFamily,
                 Name = label,
                 Text = label,
                 Centered = true,

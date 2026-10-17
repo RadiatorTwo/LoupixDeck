@@ -197,6 +197,7 @@ public static class ActionAssignment
     {
         TextLayer caption = new()
         {
+            FontFamily = TextFontSettings.DefaultFamily,
             Name = text,
             Text = text
         };
@@ -219,6 +220,7 @@ public static class ActionAssignment
     {
         TextLayer layer = new()
         {
+            FontFamily = TextFontSettings.DefaultFamily,
             Name = text,
             Text = text
         };
@@ -514,6 +516,7 @@ public static class ActionAssignment
             string text = Localization.Loc.Tr(DefaultCaptionKey);
             caption = new TextLayer
             {
+                FontFamily = TextFontSettings.DefaultFamily,
                 Name = uniqueName?.Invoke(text) ?? text,
                 Text = text
             };
@@ -698,6 +701,7 @@ public static class ActionAssignment
                 case ButtonLayerKind.Text:
                     TextLayer layer = new()
                     {
+                        FontFamily = TextFontSettings.DefaultFamily,
                         Name = name,
                         Text = descriptor.Text ?? label,
                         Centered = true,

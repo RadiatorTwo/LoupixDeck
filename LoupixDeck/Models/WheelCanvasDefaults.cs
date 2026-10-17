@@ -1,5 +1,6 @@
 using Avalonia.Media;
 using LoupixDeck.Models.Layers;
+using LoupixDeck.Utils;
 
 namespace LoupixDeck.Models;
 
@@ -49,6 +50,7 @@ public static class WheelCanvasDefaults
         canvas.Layers.Add(new DialIndicatorLayer { Name = IndicatorLayerName });
         canvas.Layers.Add(new TextLayer
         {
+            FontFamily = TextFontSettings.DefaultFamily,
             Name = LabelLayerName,
             TextSource = TextSource.DialLabel,
             TextSize = 22,
@@ -59,6 +61,7 @@ public static class WheelCanvasDefaults
         });
         canvas.Layers.Add(new TextLayer
         {
+            FontFamily = TextFontSettings.DefaultFamily,
             Name = ValueLayerName,
             TextSource = TextSource.DialValue,
             TextSize = 40,
