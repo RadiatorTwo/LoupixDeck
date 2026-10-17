@@ -227,10 +227,10 @@
             <!-- Scrolls once the panel gets shorter than its sections plus a minimum Layers
                  list (e.g. a tall "Behavior for State" panel below). The right padding moves
                  into the content margin so the scrollbar gets a gutter instead of overlapping. -->
-            <Border Grid.Column="0" Classes="editor-panel" Margin="0,0,12,0" Padding="12,12,0,12">
-                <ScrollViewer VerticalScrollBarVisibility="Auto"
+            <Border Grid.Column="0" Name="LeftPanel" Classes="editor-panel" Margin="0,0,12,0" Padding="12,12,0,12">
+                <ScrollViewer Name="LeftPanelScroll" VerticalScrollBarVisibility="Auto"
                               HorizontalScrollBarVisibility="Disabled">
-                    <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,*,Auto" Margin="0,0,12,0">
+                    <Grid Name="LeftPanelContent" RowDefinitions="Auto,Auto,Auto,Auto,Auto,*,Auto" Margin="0,0,12,0">
 
                         <StackPanel Grid.Row="0">
                             <!-- Side-strip (Razer) mode picker — only when editing a strip
@@ -438,7 +438,7 @@
 
                         <!-- Fills the remaining height but asks the scroll viewer only for its
                              minimum, so the list keeps its own scrolling. -->
-                        <controls:FillRemainingDecorator Grid.Row="5" MinHeight="120">
+                        <controls:FillRemainingDecorator Grid.Row="5" Name="LayerListHost" MinHeight="120">
                             <ListBox IsEnabled="{Binding CanEditCanvas}"
                                      ItemsSource="{Binding LayerListItems}"
                                      SelectedItem="{Binding SelectedLayer, Mode=TwoWay}"
@@ -1376,8 +1376,9 @@
              Panel with the title, the after-press transition (above), and the Actions /
              command sequence (one strip for a normal button, three top/middle/bottom segments
              for a FreeDraw side strip). Capped in height and scrollable inside, so a long
-             sequence never squeezes the editor area out of a resized window. -->
-        <Border Grid.Row="1" Classes="editor-panel" Margin="0,12,0,0" MaxHeight="320"
+             sequence never squeezes the editor area out of a resized window. The cap is set
+             from code-behind: it only gets the height the left panel doesn't need. -->
+        <Border Grid.Row="1" Name="BehaviorPanel" Classes="editor-panel" Margin="0,12,0,0"
                 IsVisible="{Binding ShowCommandArea}">
             <ScrollViewer VerticalScrollBarVisibility="Auto"
                           HorizontalScrollBarVisibility="Disabled">
