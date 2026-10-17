@@ -9,6 +9,7 @@
     xmlns:local="clr-namespace:LoupixDeck"
     xmlns:vm="using:LoupixDeck.ViewModels"
     xmlns:views="using:LoupixDeck.Views"
+    xmlns:controls="using:LoupixDeck.Views.Controls"
     xmlns:layers="clr-namespace:LoupixDeck.Models.Layers"
     xmlns:conv="clr-namespace:LoupixDeck.Models.Converter"
     xmlns:models="clr-namespace:LoupixDeck.Models"
@@ -223,8 +224,13 @@
         <Grid Grid.Row="0" ColumnDefinitions="290,*,550">
 
             <!-- Left: button settings + states + layer list -->
-            <Border Grid.Column="0" Classes="editor-panel" Margin="0,0,12,0">
-                <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,*,Auto">
+            <!-- Scrolls once the panel gets shorter than its sections plus a minimum Layers
+                 list (e.g. a tall "Behavior for State" panel below). The right padding moves
+                 into the content margin so the scrollbar gets a gutter instead of overlapping. -->
+            <Border Grid.Column="0" Classes="editor-panel" Margin="0,0,12,0" Padding="12,12,0,12">
+                <ScrollViewer VerticalScrollBarVisibility="Auto"
+                              HorizontalScrollBarVisibility="Disabled">
+                <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,*,Auto" Margin="0,0,12,0">
 
                     <StackPanel Grid.Row="0">
                         <!-- Side-strip (Razer) mode picker — only when editing a strip
@@ -430,8 +436,10 @@
                                 ToolTip.Tip="{loc:Tr TouchButton_IndicatorArcHint}" />
                     </StackPanel>
 
-                    <ListBox Grid.Row="5"
-                             IsEnabled="{Binding CanEditCanvas}"
+                    <!-- Fills the remaining height but asks the scroll viewer only for its
+                         minimum, so the list keeps its own scrolling. -->
+                    <controls:FillRemainingDecorator Grid.Row="5" MinHeight="120">
+                    <ListBox IsEnabled="{Binding CanEditCanvas}"
                              ItemsSource="{Binding LayerListItems}"
                              SelectedItem="{Binding SelectedLayer, Mode=TwoWay}"
                              Background="{DynamicResource AppSurfaceLow}"
@@ -530,6 +538,7 @@
                             </DataTemplate>
                         </ListBox.DataTemplates>
                     </ListBox>
+                    </controls:FillRemainingDecorator>
 
                     <StackPanel Grid.Row="6" Orientation="Horizontal" Margin="0,8,0,0"
                                 IsEnabled="{Binding CanEditCanvas}">
@@ -547,6 +556,7 @@
                         </Button>
                     </StackPanel>
                 </Grid>
+                </ScrollViewer>
             </Border>
 
             <!-- Center: Preview panel with editor canvas + selection overlay -->
