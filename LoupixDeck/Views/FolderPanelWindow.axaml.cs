@@ -55,7 +55,7 @@ public partial class FolderPanelWindow : Window
         _ghost = this.FindControl<Border>("DragGhost");
         _ghostImage = this.FindControl<Image>("DragGhostImage");
         _dropIndicator = this.FindControl<Border>("DropIndicator");
-        _rootRow = this.FindControl<Border>("RootRow");
+        _rootRow = this.FindControl<FolderPanelView>("PanelView").RootRow;
 
         AddHandler(PointerPressedEvent, OnPreviewPointerPressed, RoutingStrategies.Tunnel, handledEventsToo: true);
         AddHandler(PointerMovedEvent, OnPreviewPointerMoved, RoutingStrategies.Tunnel, handledEventsToo: true);
@@ -111,46 +111,6 @@ public partial class FolderPanelWindow : Window
         // macOS the former are points, so the two factors differ there (see ActionPanelWindow).
         int ownerWidth = (int)Math.Round(frame.Width * _owner.DesktopScaling);
         Position = new PixelPoint(_owner.Position.X + ownerWidth + Gap, _owner.Position.Y);
-    }
-
-    private void OnRootTapped(object sender, TappedEventArgs e)
-        => _ = ViewModel?.CloseFoldersCommand.ExecuteAsync(null);
-
-    // ── In-place rename ────────────────────────────────────────────────────
-
-    private void OnRenameBoxAttached(object sender, VisualTreeAttachmentEventArgs e)
-    {
-        if (sender is not TextBox box) return;
-
-        // The box is created per rename session, so focusing it on attach starts each edit fresh.
-        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
-        {
-            box.Focus();
-            box.SelectAll();
-        });
-    }
-
-    private void OnRenameBoxKeyDown(object sender, KeyEventArgs e)
-    {
-        if (sender is not TextBox { DataContext: FolderRenameSession session } box) return;
-
-        switch (e.Key)
-        {
-            case Key.Enter:
-                ViewModel?.CommitRename(session, box.Text);
-                e.Handled = true;
-                break;
-            case Key.Escape:
-                ViewModel?.CancelRename(session);
-                e.Handled = true;
-                break;
-        }
-    }
-
-    private void OnRenameBoxLostFocus(object sender, FocusChangedEventArgs e)
-    {
-        if (sender is TextBox { DataContext: FolderRenameSession session } box)
-            ViewModel?.CommitRename(session, box.Text);
     }
 
     // ── Press, drag, release ───────────────────────────────────────────────
