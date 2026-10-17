@@ -230,332 +230,332 @@
             <Border Grid.Column="0" Classes="editor-panel" Margin="0,0,12,0" Padding="12,12,0,12">
                 <ScrollViewer VerticalScrollBarVisibility="Auto"
                               HorizontalScrollBarVisibility="Disabled">
-                <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,*,Auto" Margin="0,0,12,0">
+                    <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,*,Auto" Margin="0,0,12,0">
 
-                    <StackPanel Grid.Row="0">
-                        <!-- Side-strip (Razer) mode picker — only when editing a strip
-                             canvas. Segmented locks the canvas (the strip shows the dial
-                             labels); FreeDraw unlocks layer editing. -->
-                        <StackPanel IsVisible="{Binding IsStripCanvas}" Margin="0,0,0,12">
-                            <TextBlock Classes="panel-title" Text="{loc:Tr TouchButton_SideStrip}" />
-                            <TextBlock Classes="label" Text="{loc:Tr TouchButton_Mode}" Margin="0,0,0,2" />
-                            <ComboBox ItemsSource="{Binding AvailableStripModes}"
-                                      SelectedItem="{Binding StripMode, Mode=TwoWay}"
-                                      HorizontalAlignment="Stretch" />
-                            <TextBlock Classes="hint" Margin="0,4,0,0" TextWrapping="Wrap"
-                                       Text="{loc:Tr TouchButton_SwitchToFreeDrawToEdit}"
-                                       IsVisible="{Binding IsDrawDisabledHintVisible}" />
-
-                            <!-- Provider picker — only in PluginOverride mode. The plugin
-                                 renders this strip and handles its taps/swipes. -->
-                            <StackPanel IsVisible="{Binding IsPluginOverride}" Margin="0,8,0,0">
-                                <TextBlock Classes="label" Text="{loc:Tr TouchButton_Provider}" Margin="0,0,0,2" />
-                                <ComboBox ItemsSource="{Binding AvailableStripProviders}"
-                                          SelectedItem="{Binding SelectedStripProvider, Mode=TwoWay}"
-                                          DisplayMemberBinding="{Binding Title}"
+                        <StackPanel Grid.Row="0">
+                            <!-- Side-strip (Razer) mode picker — only when editing a strip
+                                 canvas. Segmented locks the canvas (the strip shows the dial
+                                 labels); FreeDraw unlocks layer editing. -->
+                            <StackPanel IsVisible="{Binding IsStripCanvas}" Margin="0,0,0,12">
+                                <TextBlock Classes="panel-title" Text="{loc:Tr TouchButton_SideStrip}" />
+                                <TextBlock Classes="label" Text="{loc:Tr TouchButton_Mode}" Margin="0,0,0,2" />
+                                <ComboBox ItemsSource="{Binding AvailableStripModes}"
+                                          SelectedItem="{Binding StripMode, Mode=TwoWay}"
                                           HorizontalAlignment="Stretch" />
                                 <TextBlock Classes="hint" Margin="0,4,0,0" TextWrapping="Wrap"
-                                           Text="{loc:Tr TouchButton_TheSelectedPluginRendersThis}" />
+                                           Text="{loc:Tr TouchButton_SwitchToFreeDrawToEdit}"
+                                           IsVisible="{Binding IsDrawDisabledHintVisible}" />
+
+                                <!-- Provider picker — only in PluginOverride mode. The plugin
+                                     renders this strip and handles its taps/swipes. -->
+                                <StackPanel IsVisible="{Binding IsPluginOverride}" Margin="0,8,0,0">
+                                    <TextBlock Classes="label" Text="{loc:Tr TouchButton_Provider}" Margin="0,0,0,2" />
+                                    <ComboBox ItemsSource="{Binding AvailableStripProviders}"
+                                              SelectedItem="{Binding SelectedStripProvider, Mode=TwoWay}"
+                                              DisplayMemberBinding="{Binding Title}"
+                                              HorizontalAlignment="Stretch" />
+                                    <TextBlock Classes="hint" Margin="0,4,0,0" TextWrapping="Wrap"
+                                               Text="{loc:Tr TouchButton_TheSelectedPluginRendersThis}" />
+                                </StackPanel>
+
+                                <!-- FreeDraw splits the strip into three vertical tap zones; each
+                                     zone has its own command sequence (shown at the bottom). -->
+                                <TextBlock Classes="hint" Margin="0,8,0,0" TextWrapping="Wrap"
+                                           IsVisible="{Binding IsSegmentCommandMode}"
+                                           Text="{loc:Tr TouchButton_ThisStripHasThreeTap}" />
+
+                                <Separator Margin="0,12,0,0" />
                             </StackPanel>
 
-                            <!-- FreeDraw splits the strip into three vertical tap zones; each
-                                 zone has its own command sequence (shown at the bottom). -->
-                            <TextBlock Classes="hint" Margin="0,8,0,0" TextWrapping="Wrap"
-                                       IsVisible="{Binding IsSegmentCommandMode}"
-                                       Text="{loc:Tr TouchButton_ThisStripHasThreeTap}" />
-
-                            <Separator Margin="0,12,0,0" />
-                        </StackPanel>
-
-                        <StackPanel IsVisible="{Binding ShowButtonSection}">
-                        <TextBlock Classes="panel-title" Text="{loc:Tr TouchButton_Button}" />
-                        <!-- Sets the launch command and the icon in one step; it configures the
-                             whole button, not a single layer, so it sits here rather than in the
-                             Layers toolbar. -->
-                        <Button Classes="toolbar accent" Content="{loc:Tr TouchButton_AssignApplication}"
-                                HorizontalAlignment="Stretch"
-                                Margin="0,0,0,8"
-                                Command="{Binding AssignApplicationCommand}"
-                                ToolTip.Tip="{loc:Tr TouchButton_PickAnInstalledApplicationSets}" />
-                        <CheckBox Content="{loc:Tr TouchButton_RunWhileDeviceIsOff}"
-                                  IsChecked="{Binding ButtonData.EnableWhenOff}"
-                                  Margin="0,0,0,4" />
-                        <CheckBox Content="{loc:Tr TouchButton_VibrationEnabled}"
-                                  IsChecked="{Binding ButtonData.VibrationEnabled}"
-                                  IsVisible="{Binding IsVibrationSupported}"
-                                  Margin="0,0,0,4" />
-                        <StackPanel IsEnabled="{Binding ButtonData.VibrationEnabled}"
-                                    IsVisible="{Binding IsVibrationSupported}">
-                            <TextBlock Classes="label" Text="{loc:Tr TouchButton_Pattern}" Margin="0,2,0,2" />
-                            <ComboBox ItemsSource="{Binding VibrationPatterns}"
-                                      SelectedItem="{Binding SelectedVibrationPattern}"
-                                      HorizontalAlignment="Stretch" />
-                        </StackPanel>
-                        </StackPanel>
-                    </StackPanel>
-
-                    <Separator Grid.Row="1" Margin="0,12,0,12" IsVisible="{Binding ShowButtonSection}" />
-
-                    <!-- States: compact state management, between Button and Layers. Mirrors the
-                         Layers section's button sizes/layout. Fixed-height list (does not grow with
-                         entries). Grid-touch buttons only; no popups, no horizontal list. -->
-                    <StackPanel Grid.Row="2" IsVisible="{Binding ShowStatesSection}">
-                        <TextBlock Classes="panel-title" Text="{loc:Tr TouchButton_States}" />
-
-                        <UniformGrid Columns="2" Margin="0,0,0,8" IsEnabled="{Binding CanEditStates}">
-                            <Button Classes="toolbar" Content="{loc:Tr TouchButton_Add}" Margin="0,0,4,0"
+                            <StackPanel IsVisible="{Binding ShowButtonSection}">
+                            <TextBlock Classes="panel-title" Text="{loc:Tr TouchButton_Button}" />
+                            <!-- Sets the launch command and the icon in one step; it configures the
+                                 whole button, not a single layer, so it sits here rather than in the
+                                 Layers toolbar. -->
+                            <Button Classes="toolbar accent" Content="{loc:Tr TouchButton_AssignApplication}"
                                     HorizontalAlignment="Stretch"
-                                    Command="{Binding AddStateCommand}"
-                                    ToolTip.Tip="{loc:Tr TouchButton_AddANewState}" />
-                            <Button Classes="toolbar" Content="{loc:Tr TouchButton_Duplicate}" Margin="0,0,0,0"
-                                    HorizontalAlignment="Stretch"
-                                    Command="{Binding DuplicateStateCommand}"
-                                    ToolTip.Tip="{loc:Tr TouchButton_DuplicateTheSelectedState}" />
-                        </UniformGrid>
+                                    Margin="0,0,0,8"
+                                    Command="{Binding AssignApplicationCommand}"
+                                    ToolTip.Tip="{loc:Tr TouchButton_PickAnInstalledApplicationSets}" />
+                            <CheckBox Content="{loc:Tr TouchButton_RunWhileDeviceIsOff}"
+                                      IsChecked="{Binding ButtonData.EnableWhenOff}"
+                                      Margin="0,0,0,4" />
+                            <CheckBox Content="{loc:Tr TouchButton_VibrationEnabled}"
+                                      IsChecked="{Binding ButtonData.VibrationEnabled}"
+                                      IsVisible="{Binding IsVibrationSupported}"
+                                      Margin="0,0,0,4" />
+                            <StackPanel IsEnabled="{Binding ButtonData.VibrationEnabled}"
+                                        IsVisible="{Binding IsVibrationSupported}">
+                                <TextBlock Classes="label" Text="{loc:Tr TouchButton_Pattern}" Margin="0,2,0,2" />
+                                <ComboBox ItemsSource="{Binding VibrationPatterns}"
+                                          SelectedItem="{Binding SelectedVibrationPattern}"
+                                          HorizontalAlignment="Stretch" />
+                            </StackPanel>
+                            </StackPanel>
+                        </StackPanel>
 
-                        <!-- Fixed, compact height — kept smaller than the Layers list below. -->
-                        <ListBox Height="108"
-                                 ItemsSource="{Binding States}"
-                                 SelectedItem="{Binding SelectedState, Mode=TwoWay}"
-                                 Background="{DynamicResource AppSurfaceLow}"
-                                 CornerRadius="6">
-                            <ListBox.Styles>
-                                <Style Selector="ListBoxItem">
-                                    <Setter Property="Padding" Value="8,5" />
-                                    <Setter Property="MinHeight" Value="32" />
-                                </Style>
-                            </ListBox.Styles>
-                            <ListBox.ItemTemplate>
-                                <DataTemplate DataType="models:ButtonState">
-                                    <Grid ColumnDefinitions="Auto,*,Auto">
-                                        <TextBlock Grid.Column="0" Text="{Binding DisplayIndex}"
-                                                   VerticalAlignment="Center" Margin="0,0,8,0"
-                                                   Foreground="{DynamicResource AppTextMuted}" />
-                                        <TextBlock Grid.Column="1" Text="{Binding Name}"
-                                                   VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
-                                                   ToolTip.Tip="{Binding Name}" />
-                                        <Border Grid.Column="2" Classes="layer-badge"
-                                                IsVisible="{Binding IsDefault}"
-                                                ToolTip.Tip="{loc:Tr TouchButton_DefaultState}">
-                                            <TextBlock Text="{loc:Tr TouchButton_Default}" />
-                                        </Border>
-                                    </Grid>
-                                </DataTemplate>
-                            </ListBox.ItemTemplate>
-                        </ListBox>
+                        <Separator Grid.Row="1" Margin="0,12,0,12" IsVisible="{Binding ShowButtonSection}" />
 
-                        <StackPanel Orientation="Horizontal" Margin="0,8,0,0" IsEnabled="{Binding CanEditStates}">
-                            <Button Classes="row-action" Content="▲"
-                                    Command="{Binding MoveStateUpCommand}"
-                                    ToolTip.Tip="{loc:Tr TouchButton_MoveStateUp}" />
-                            <Button Classes="row-action" Content="▼"
-                                    Command="{Binding MoveStateDownCommand}"
-                                    ToolTip.Tip="{loc:Tr TouchButton_MoveStateDown}" />
-                            <Button Classes="row-action"
-                                    Command="{Binding SetDefaultStateCommand}"
-                                    ToolTip.Tip="{loc:Tr TouchButton_SetAsDefaultState}">
-                                <TextBlock Text="&#xF04CE;" FontFamily="{StaticResource MdiFont}" />
+                        <!-- States: compact state management, between Button and Layers. Mirrors the
+                             Layers section's button sizes/layout. Fixed-height list (does not grow with
+                             entries). Grid-touch buttons only; no popups, no horizontal list. -->
+                        <StackPanel Grid.Row="2" IsVisible="{Binding ShowStatesSection}">
+                            <TextBlock Classes="panel-title" Text="{loc:Tr TouchButton_States}" />
+
+                            <UniformGrid Columns="2" Margin="0,0,0,8" IsEnabled="{Binding CanEditStates}">
+                                <Button Classes="toolbar" Content="{loc:Tr TouchButton_Add}" Margin="0,0,4,0"
+                                        HorizontalAlignment="Stretch"
+                                        Command="{Binding AddStateCommand}"
+                                        ToolTip.Tip="{loc:Tr TouchButton_AddANewState}" />
+                                <Button Classes="toolbar" Content="{loc:Tr TouchButton_Duplicate}" Margin="0,0,0,0"
+                                        HorizontalAlignment="Stretch"
+                                        Command="{Binding DuplicateStateCommand}"
+                                        ToolTip.Tip="{loc:Tr TouchButton_DuplicateTheSelectedState}" />
+                            </UniformGrid>
+
+                            <!-- Fixed, compact height — kept smaller than the Layers list below. -->
+                            <ListBox Height="108"
+                                     ItemsSource="{Binding States}"
+                                     SelectedItem="{Binding SelectedState, Mode=TwoWay}"
+                                     Background="{DynamicResource AppSurfaceLow}"
+                                     CornerRadius="6">
+                                <ListBox.Styles>
+                                    <Style Selector="ListBoxItem">
+                                        <Setter Property="Padding" Value="8,5" />
+                                        <Setter Property="MinHeight" Value="32" />
+                                    </Style>
+                                </ListBox.Styles>
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate DataType="models:ButtonState">
+                                        <Grid ColumnDefinitions="Auto,*,Auto">
+                                            <TextBlock Grid.Column="0" Text="{Binding DisplayIndex}"
+                                                       VerticalAlignment="Center" Margin="0,0,8,0"
+                                                       Foreground="{DynamicResource AppTextMuted}" />
+                                            <TextBlock Grid.Column="1" Text="{Binding Name}"
+                                                       VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                                                       ToolTip.Tip="{Binding Name}" />
+                                            <Border Grid.Column="2" Classes="layer-badge"
+                                                    IsVisible="{Binding IsDefault}"
+                                                    ToolTip.Tip="{loc:Tr TouchButton_DefaultState}">
+                                                <TextBlock Text="{loc:Tr TouchButton_Default}" />
+                                            </Border>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+
+                            <StackPanel Orientation="Horizontal" Margin="0,8,0,0" IsEnabled="{Binding CanEditStates}">
+                                <Button Classes="row-action" Content="▲"
+                                        Command="{Binding MoveStateUpCommand}"
+                                        ToolTip.Tip="{loc:Tr TouchButton_MoveStateUp}" />
+                                <Button Classes="row-action" Content="▼"
+                                        Command="{Binding MoveStateDownCommand}"
+                                        ToolTip.Tip="{loc:Tr TouchButton_MoveStateDown}" />
+                                <Button Classes="row-action"
+                                        Command="{Binding SetDefaultStateCommand}"
+                                        ToolTip.Tip="{loc:Tr TouchButton_SetAsDefaultState}">
+                                    <TextBlock Text="&#xF04CE;" FontFamily="{StaticResource MdiFont}" />
+                                </Button>
+                                <Button Classes="row-action danger"
+                                        Command="{Binding DeleteStateCommand}"
+                                        IsEnabled="{Binding CanDeleteState}"
+                                        ToolTip.Tip="{loc:Tr TouchButton_DeleteTheSelectedState}">
+                                    <TextBlock Text="&#xF01B4;" FontFamily="{StaticResource MdiFont}" />
+                                </Button>
+                            </StackPanel>
+
+                            <TextBlock Classes="label" Margin="0,8,0,0"
+                                       Text="{loc:TrFormat TouchButton_SelectedStateFmt, SelectedState.Name}" />
+
+                            <!-- The assigned command owns these states: it created them and its plugin
+                                 decides which one is active. Only the layers inside a state stay editable. -->
+                            <TextBlock Classes="label" Margin="0,8,0,0" TextWrapping="Wrap"
+                                       IsVisible="{Binding AreStatesLocked}"
+                                       Text="{loc:Tr TouchButton_StatesAreManagedByThe}" />
+
+                            <StackPanel IsEnabled="{Binding CanEditStates}">
+                                <CheckBox Content="{loc:Tr TouchButton_ResetToDefaultOnPage}"
+                                          IsChecked="{Binding ResetOnPageChange, Mode=TwoWay}"
+                                          Margin="0,8,0,0" />
+                                <CheckBox Content="{loc:Tr TouchButton_ResetToDefaultOnRestart}"
+                                          IsChecked="{Binding ResetOnRestart, Mode=TwoWay}"
+                                          Margin="0,2,0,0" />
+                            </StackPanel>
+                        </StackPanel>
+
+                        <Separator Grid.Row="3" Margin="0,12,0,12"
+                                   IsVisible="{Binding ShowStatesSection}" />
+
+                        <StackPanel Grid.Row="4" IsEnabled="{Binding CanEditCanvas}">
+                            <TextBlock Classes="panel-title" Text="{loc:Tr TouchButton_Layers}" />
+                            <Button Classes="toolbar" Content="{loc:Tr TouchButton_LayoutTemplate}" Margin="0,0,0,8"
+                                    HorizontalAlignment="Stretch" IsVisible="{Binding !IsStripCanvas}">
+                                <Button.Flyout>
+                                    <MenuFlyout Placement="BottomEdgeAlignedLeft">
+                                        <MenuItem Header="{loc:Tr TouchButton_Template_IconTextBottom}"
+                                                  Command="{Binding ApplyTemplateCommand}"
+                                                  CommandParameter="{x:Static actions:ButtonTemplate.IconCaptionBottom}" />
+                                        <MenuItem Header="{loc:Tr TouchButton_Template_IconTextTop}"
+                                                  Command="{Binding ApplyTemplateCommand}"
+                                                  CommandParameter="{x:Static actions:ButtonTemplate.IconCaptionTop}" />
+                                        <MenuItem Header="{loc:Tr TouchButton_Template_IconOnly}"
+                                                  Command="{Binding ApplyTemplateCommand}"
+                                                  CommandParameter="{x:Static actions:ButtonTemplate.IconOnly}" />
+                                        <MenuItem Header="{loc:Tr TouchButton_Template_TextOnly}"
+                                                  Command="{Binding ApplyTemplateCommand}"
+                                                  CommandParameter="{x:Static actions:ButtonTemplate.TextOnly}" />
+                                    </MenuFlyout>
+                                </Button.Flyout>
                             </Button>
+                            <!-- 2×2 grid so all four add-layer buttons fit the fixed-width panel
+                                 regardless of label length (a single row overflowed the right edge). -->
+                            <UniformGrid Columns="2" Margin="0,0,0,8">
+                                <Button Classes="toolbar" Content="{loc:Tr TouchButton_Text}" Margin="0,0,4,4"
+                                        HorizontalAlignment="Stretch"
+                                        Command="{Binding AddTextLayerCommand}" />
+                                <Button Classes="toolbar" Content="{loc:Tr TouchButton_Image}" Margin="0,0,0,4"
+                                        HorizontalAlignment="Stretch"
+                                        Command="{Binding AddImageLayerCommand}" />
+                                <Button Classes="toolbar" Content="{loc:Tr TouchButton_Animation}" Margin="0,0,4,0"
+                                        HorizontalAlignment="Stretch"
+                                        Command="{Binding AddAnimatedImageLayerCommand}" />
+                                <Button Classes="toolbar" Content="{loc:Tr TouchButton_Symbol}" Margin="0,0,0,0"
+                                        HorizontalAlignment="Stretch"
+                                        Command="{Binding AddSymbolLayerCommand}" />
+                            </UniformGrid>
+                            <Button Classes="toolbar" Content="{loc:Tr TouchButton_LiveImage}" Margin="0,-4,0,8"
+                                    HorizontalAlignment="Stretch"
+                                    IsVisible="{Binding IsWheelCanvas}"
+                                    Command="{Binding AddLiveImageLayerCommand}"
+                                    ToolTip.Tip="{loc:Tr TouchButton_LiveImageHint}" />
+                            <!-- The CT wheel and a touch key whose command reports a value have one to indicate. -->
+                            <Button Classes="toolbar" Content="{loc:Tr TouchButton_Indicator}" Margin="0,-4,0,8"
+                                    HorizontalAlignment="Stretch"
+                                    IsVisible="{Binding !IsStripCanvas}"
+                                    Command="{Binding AddIndicatorLayerCommand}"
+                                    ToolTip.Tip="{loc:Tr TouchButton_IndicatorArcHint}" />
+                        </StackPanel>
+
+                        <!-- Fills the remaining height but asks the scroll viewer only for its
+                             minimum, so the list keeps its own scrolling. -->
+                        <controls:FillRemainingDecorator Grid.Row="5" MinHeight="120">
+                            <ListBox IsEnabled="{Binding CanEditCanvas}"
+                                     ItemsSource="{Binding LayerListItems}"
+                                     SelectedItem="{Binding SelectedLayer, Mode=TwoWay}"
+                                     Background="{DynamicResource AppSurfaceLow}"
+                                     CornerRadius="6">
+                                <ListBox.Styles>
+                                    <Style Selector="ListBoxItem">
+                                        <Setter Property="Padding" Value="8,5" />
+                                        <Setter Property="MinHeight" Value="32" />
+                                    </Style>
+                                </ListBox.Styles>
+                                <ListBox.DataTemplates>
+                                    <DataTemplate DataType="layers:TextLayer">
+                                        <Grid ColumnDefinitions="Auto,Auto,*,Auto">
+                                            <CheckBox Grid.Column="0"
+                                                      IsChecked="{Binding Visible, Mode=TwoWay}"
+                                                      MinWidth="0" Margin="0,0,6,0"
+                                                      VerticalAlignment="Center"
+                                                      ToolTip.Tip="{loc:Tr TouchButton_LayerVisibility}" />
+                                            <Border Grid.Column="1" Classes="layer-badge">
+                                                <TextBlock Text="T" />
+                                            </Border>
+                                            <TextBlock Grid.Column="2" Text="{Binding Name}"
+                                                       VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                                                       ToolTip.Tip="{Binding Name}" />
+                                            <TextBlock Grid.Column="3" Text="&#xF033E;"
+                                                       FontFamily="{StaticResource MdiFont}"
+                                                       VerticalAlignment="Center" Margin="6,0,0,0"
+                                                       IsVisible="{Binding IsCommandOwned}"
+                                                       ToolTip.Tip="{loc:TrFormat TouchButton_TextSuppliedByFmt, CommandName}" />
+                                        </Grid>
+                                    </DataTemplate>
+                                    <DataTemplate DataType="layers:ImageLayer">
+                                        <Grid ColumnDefinitions="Auto,Auto,*">
+                                            <CheckBox Grid.Column="0"
+                                                      IsChecked="{Binding Visible, Mode=TwoWay}"
+                                                      MinWidth="0" Margin="0,0,6,0"
+                                                      VerticalAlignment="Center"
+                                                      ToolTip.Tip="{loc:Tr TouchButton_LayerVisibility}" />
+                                            <Border Grid.Column="1" Classes="layer-badge">
+                                                <TextBlock Text="I" />
+                                            </Border>
+                                            <TextBlock Grid.Column="2" Text="{Binding Name}"
+                                                       VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                                                       ToolTip.Tip="{Binding Name}" />
+                                        </Grid>
+                                    </DataTemplate>
+                                    <DataTemplate DataType="layers:SymbolLayer">
+                                        <Grid ColumnDefinitions="Auto,Auto,*">
+                                            <CheckBox Grid.Column="0"
+                                                      IsChecked="{Binding Visible, Mode=TwoWay}"
+                                                      MinWidth="0" Margin="0,0,6,0"
+                                                      VerticalAlignment="Center"
+                                                      ToolTip.Tip="{loc:Tr TouchButton_LayerVisibility}" />
+                                            <Border Grid.Column="1" Classes="layer-badge">
+                                                <TextBlock Text="S" />
+                                            </Border>
+                                            <TextBlock Grid.Column="2" Text="{Binding Name}"
+                                                       VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                                                       ToolTip.Tip="{Binding Name}" />
+                                        </Grid>
+                                    </DataTemplate>
+                                    <DataTemplate DataType="layers:DialIndicatorLayer">
+                                        <Grid ColumnDefinitions="Auto,Auto,*">
+                                            <CheckBox Grid.Column="0"
+                                                      IsChecked="{Binding Visible, Mode=TwoWay}"
+                                                      MinWidth="0" Margin="0,0,6,0"
+                                                      VerticalAlignment="Center"
+                                                      ToolTip.Tip="{loc:Tr TouchButton_LayerVisibility}" />
+                                            <Border Grid.Column="1" Classes="layer-badge">
+                                                <TextBlock Text="A" />
+                                            </Border>
+                                            <TextBlock Grid.Column="2" Text="{Binding Name}"
+                                                       VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                                                       ToolTip.Tip="{Binding Name}" />
+                                        </Grid>
+                                    </DataTemplate>
+                                    <!-- Plugin-owned layer: rendered by a plugin command, not user-addable. -->
+                                    <DataTemplate DataType="layers:PluginLayer">
+                                        <Grid ColumnDefinitions="Auto,Auto,*,Auto">
+                                            <CheckBox Grid.Column="0"
+                                                      IsChecked="{Binding Visible, Mode=TwoWay}"
+                                                      MinWidth="0" Margin="0,0,6,0"
+                                                      VerticalAlignment="Center"
+                                                      ToolTip.Tip="{loc:Tr TouchButton_LayerVisibility}" />
+                                            <Border Grid.Column="1" Classes="layer-badge">
+                                                <TextBlock Text="P" />
+                                            </Border>
+                                            <TextBlock Grid.Column="2" Text="{Binding Name}"
+                                                       VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                                                       ToolTip.Tip="{Binding CommandName}" />
+                                            <TextBlock Grid.Column="3" Text="&#xF033E;"
+                                                       FontFamily="{StaticResource MdiFont}"
+                                                       VerticalAlignment="Center" Margin="6,0,0,0"
+                                                       ToolTip.Tip="{loc:Tr TouchButton_ContentRenderedByAPlugin}" />
+                                        </Grid>
+                                    </DataTemplate>
+                                </ListBox.DataTemplates>
+                            </ListBox>
+                        </controls:FillRemainingDecorator>
+
+                        <StackPanel Grid.Row="6" Orientation="Horizontal" Margin="0,8,0,0"
+                                    IsEnabled="{Binding CanEditCanvas}">
+                            <Button Classes="row-action" Content="▲"
+                                    Command="{Binding MoveLayerUpCommand}"
+                                    ToolTip.Tip="{loc:Tr TouchButton_MoveLayerUp}" />
+                            <Button Classes="row-action" Content="▼"
+                                    Command="{Binding MoveLayerDownCommand}"
+                                    ToolTip.Tip="{loc:Tr TouchButton_MoveLayerDown}" />
                             <Button Classes="row-action danger"
-                                    Command="{Binding DeleteStateCommand}"
-                                    IsEnabled="{Binding CanDeleteState}"
-                                    ToolTip.Tip="{loc:Tr TouchButton_DeleteTheSelectedState}">
+                                    Command="{Binding RemoveLayerCommand}"
+                                    IsEnabled="{Binding CanDeleteSelectedLayer}"
+                                    ToolTip.Tip="{loc:Tr TouchButton_RemoveLayerPluginOwnedLayers}">
                                 <TextBlock Text="&#xF01B4;" FontFamily="{StaticResource MdiFont}" />
                             </Button>
                         </StackPanel>
-
-                        <TextBlock Classes="label" Margin="0,8,0,0"
-                                   Text="{loc:TrFormat TouchButton_SelectedStateFmt, SelectedState.Name}" />
-
-                        <!-- The assigned command owns these states: it created them and its plugin
-                             decides which one is active. Only the layers inside a state stay editable. -->
-                        <TextBlock Classes="label" Margin="0,8,0,0" TextWrapping="Wrap"
-                                   IsVisible="{Binding AreStatesLocked}"
-                                   Text="{loc:Tr TouchButton_StatesAreManagedByThe}" />
-
-                        <StackPanel IsEnabled="{Binding CanEditStates}">
-                            <CheckBox Content="{loc:Tr TouchButton_ResetToDefaultOnPage}"
-                                      IsChecked="{Binding ResetOnPageChange, Mode=TwoWay}"
-                                      Margin="0,8,0,0" />
-                            <CheckBox Content="{loc:Tr TouchButton_ResetToDefaultOnRestart}"
-                                      IsChecked="{Binding ResetOnRestart, Mode=TwoWay}"
-                                      Margin="0,2,0,0" />
-                        </StackPanel>
-                    </StackPanel>
-
-                    <Separator Grid.Row="3" Margin="0,12,0,12"
-                               IsVisible="{Binding ShowStatesSection}" />
-
-                    <StackPanel Grid.Row="4" IsEnabled="{Binding CanEditCanvas}">
-                        <TextBlock Classes="panel-title" Text="{loc:Tr TouchButton_Layers}" />
-                        <Button Classes="toolbar" Content="{loc:Tr TouchButton_LayoutTemplate}" Margin="0,0,0,8"
-                                HorizontalAlignment="Stretch" IsVisible="{Binding !IsStripCanvas}">
-                            <Button.Flyout>
-                                <MenuFlyout Placement="BottomEdgeAlignedLeft">
-                                    <MenuItem Header="{loc:Tr TouchButton_Template_IconTextBottom}"
-                                              Command="{Binding ApplyTemplateCommand}"
-                                              CommandParameter="{x:Static actions:ButtonTemplate.IconCaptionBottom}" />
-                                    <MenuItem Header="{loc:Tr TouchButton_Template_IconTextTop}"
-                                              Command="{Binding ApplyTemplateCommand}"
-                                              CommandParameter="{x:Static actions:ButtonTemplate.IconCaptionTop}" />
-                                    <MenuItem Header="{loc:Tr TouchButton_Template_IconOnly}"
-                                              Command="{Binding ApplyTemplateCommand}"
-                                              CommandParameter="{x:Static actions:ButtonTemplate.IconOnly}" />
-                                    <MenuItem Header="{loc:Tr TouchButton_Template_TextOnly}"
-                                              Command="{Binding ApplyTemplateCommand}"
-                                              CommandParameter="{x:Static actions:ButtonTemplate.TextOnly}" />
-                                </MenuFlyout>
-                            </Button.Flyout>
-                        </Button>
-                        <!-- 2×2 grid so all four add-layer buttons fit the fixed-width panel
-                             regardless of label length (a single row overflowed the right edge). -->
-                        <UniformGrid Columns="2" Margin="0,0,0,8">
-                            <Button Classes="toolbar" Content="{loc:Tr TouchButton_Text}" Margin="0,0,4,4"
-                                    HorizontalAlignment="Stretch"
-                                    Command="{Binding AddTextLayerCommand}" />
-                            <Button Classes="toolbar" Content="{loc:Tr TouchButton_Image}" Margin="0,0,0,4"
-                                    HorizontalAlignment="Stretch"
-                                    Command="{Binding AddImageLayerCommand}" />
-                            <Button Classes="toolbar" Content="{loc:Tr TouchButton_Animation}" Margin="0,0,4,0"
-                                    HorizontalAlignment="Stretch"
-                                    Command="{Binding AddAnimatedImageLayerCommand}" />
-                            <Button Classes="toolbar" Content="{loc:Tr TouchButton_Symbol}" Margin="0,0,0,0"
-                                    HorizontalAlignment="Stretch"
-                                    Command="{Binding AddSymbolLayerCommand}" />
-                        </UniformGrid>
-                        <Button Classes="toolbar" Content="{loc:Tr TouchButton_LiveImage}" Margin="0,-4,0,8"
-                                HorizontalAlignment="Stretch"
-                                IsVisible="{Binding IsWheelCanvas}"
-                                Command="{Binding AddLiveImageLayerCommand}"
-                                ToolTip.Tip="{loc:Tr TouchButton_LiveImageHint}" />
-                        <!-- The CT wheel and a touch key whose command reports a value have one to indicate. -->
-                        <Button Classes="toolbar" Content="{loc:Tr TouchButton_Indicator}" Margin="0,-4,0,8"
-                                HorizontalAlignment="Stretch"
-                                IsVisible="{Binding !IsStripCanvas}"
-                                Command="{Binding AddIndicatorLayerCommand}"
-                                ToolTip.Tip="{loc:Tr TouchButton_IndicatorArcHint}" />
-                    </StackPanel>
-
-                    <!-- Fills the remaining height but asks the scroll viewer only for its
-                         minimum, so the list keeps its own scrolling. -->
-                    <controls:FillRemainingDecorator Grid.Row="5" MinHeight="120">
-                    <ListBox IsEnabled="{Binding CanEditCanvas}"
-                             ItemsSource="{Binding LayerListItems}"
-                             SelectedItem="{Binding SelectedLayer, Mode=TwoWay}"
-                             Background="{DynamicResource AppSurfaceLow}"
-                             CornerRadius="6">
-                        <ListBox.Styles>
-                            <Style Selector="ListBoxItem">
-                                <Setter Property="Padding" Value="8,5" />
-                                <Setter Property="MinHeight" Value="32" />
-                            </Style>
-                        </ListBox.Styles>
-                        <ListBox.DataTemplates>
-                            <DataTemplate DataType="layers:TextLayer">
-                                <Grid ColumnDefinitions="Auto,Auto,*,Auto">
-                                    <CheckBox Grid.Column="0"
-                                              IsChecked="{Binding Visible, Mode=TwoWay}"
-                                              MinWidth="0" Margin="0,0,6,0"
-                                              VerticalAlignment="Center"
-                                              ToolTip.Tip="{loc:Tr TouchButton_LayerVisibility}" />
-                                    <Border Grid.Column="1" Classes="layer-badge">
-                                        <TextBlock Text="T" />
-                                    </Border>
-                                    <TextBlock Grid.Column="2" Text="{Binding Name}"
-                                               VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
-                                               ToolTip.Tip="{Binding Name}" />
-                                    <TextBlock Grid.Column="3" Text="&#xF033E;"
-                                               FontFamily="{StaticResource MdiFont}"
-                                               VerticalAlignment="Center" Margin="6,0,0,0"
-                                               IsVisible="{Binding IsCommandOwned}"
-                                               ToolTip.Tip="{loc:TrFormat TouchButton_TextSuppliedByFmt, CommandName}" />
-                                </Grid>
-                            </DataTemplate>
-                            <DataTemplate DataType="layers:ImageLayer">
-                                <Grid ColumnDefinitions="Auto,Auto,*">
-                                    <CheckBox Grid.Column="0"
-                                              IsChecked="{Binding Visible, Mode=TwoWay}"
-                                              MinWidth="0" Margin="0,0,6,0"
-                                              VerticalAlignment="Center"
-                                              ToolTip.Tip="{loc:Tr TouchButton_LayerVisibility}" />
-                                    <Border Grid.Column="1" Classes="layer-badge">
-                                        <TextBlock Text="I" />
-                                    </Border>
-                                    <TextBlock Grid.Column="2" Text="{Binding Name}"
-                                               VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
-                                               ToolTip.Tip="{Binding Name}" />
-                                </Grid>
-                            </DataTemplate>
-                            <DataTemplate DataType="layers:SymbolLayer">
-                                <Grid ColumnDefinitions="Auto,Auto,*">
-                                    <CheckBox Grid.Column="0"
-                                              IsChecked="{Binding Visible, Mode=TwoWay}"
-                                              MinWidth="0" Margin="0,0,6,0"
-                                              VerticalAlignment="Center"
-                                              ToolTip.Tip="{loc:Tr TouchButton_LayerVisibility}" />
-                                    <Border Grid.Column="1" Classes="layer-badge">
-                                        <TextBlock Text="S" />
-                                    </Border>
-                                    <TextBlock Grid.Column="2" Text="{Binding Name}"
-                                               VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
-                                               ToolTip.Tip="{Binding Name}" />
-                                </Grid>
-                            </DataTemplate>
-                            <DataTemplate DataType="layers:DialIndicatorLayer">
-                                <Grid ColumnDefinitions="Auto,Auto,*">
-                                    <CheckBox Grid.Column="0"
-                                              IsChecked="{Binding Visible, Mode=TwoWay}"
-                                              MinWidth="0" Margin="0,0,6,0"
-                                              VerticalAlignment="Center"
-                                              ToolTip.Tip="{loc:Tr TouchButton_LayerVisibility}" />
-                                    <Border Grid.Column="1" Classes="layer-badge">
-                                        <TextBlock Text="A" />
-                                    </Border>
-                                    <TextBlock Grid.Column="2" Text="{Binding Name}"
-                                               VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
-                                               ToolTip.Tip="{Binding Name}" />
-                                </Grid>
-                            </DataTemplate>
-                            <!-- Plugin-owned layer: rendered by a plugin command, not user-addable. -->
-                            <DataTemplate DataType="layers:PluginLayer">
-                                <Grid ColumnDefinitions="Auto,Auto,*,Auto">
-                                    <CheckBox Grid.Column="0"
-                                              IsChecked="{Binding Visible, Mode=TwoWay}"
-                                              MinWidth="0" Margin="0,0,6,0"
-                                              VerticalAlignment="Center"
-                                              ToolTip.Tip="{loc:Tr TouchButton_LayerVisibility}" />
-                                    <Border Grid.Column="1" Classes="layer-badge">
-                                        <TextBlock Text="P" />
-                                    </Border>
-                                    <TextBlock Grid.Column="2" Text="{Binding Name}"
-                                               VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
-                                               ToolTip.Tip="{Binding CommandName}" />
-                                    <TextBlock Grid.Column="3" Text="&#xF033E;"
-                                               FontFamily="{StaticResource MdiFont}"
-                                               VerticalAlignment="Center" Margin="6,0,0,0"
-                                               ToolTip.Tip="{loc:Tr TouchButton_ContentRenderedByAPlugin}" />
-                                </Grid>
-                            </DataTemplate>
-                        </ListBox.DataTemplates>
-                    </ListBox>
-                    </controls:FillRemainingDecorator>
-
-                    <StackPanel Grid.Row="6" Orientation="Horizontal" Margin="0,8,0,0"
-                                IsEnabled="{Binding CanEditCanvas}">
-                        <Button Classes="row-action" Content="▲"
-                                Command="{Binding MoveLayerUpCommand}"
-                                ToolTip.Tip="{loc:Tr TouchButton_MoveLayerUp}" />
-                        <Button Classes="row-action" Content="▼"
-                                Command="{Binding MoveLayerDownCommand}"
-                                ToolTip.Tip="{loc:Tr TouchButton_MoveLayerDown}" />
-                        <Button Classes="row-action danger"
-                                Command="{Binding RemoveLayerCommand}"
-                                IsEnabled="{Binding CanDeleteSelectedLayer}"
-                                ToolTip.Tip="{loc:Tr TouchButton_RemoveLayerPluginOwnedLayers}">
-                            <TextBlock Text="&#xF01B4;" FontFamily="{StaticResource MdiFont}" />
-                        </Button>
-                    </StackPanel>
-                </Grid>
+                    </Grid>
                 </ScrollViewer>
             </Border>
 
