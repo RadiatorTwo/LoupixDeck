@@ -101,6 +101,10 @@ public partial class MainWindow : Window
         _sidePanels = new SidePanelLayout(this, this.FindControl<ScrollViewer>("DeviceViewport"), _zoom, ContentHeight,
             this.FindControl<Control>("ActionPanelHost"), this.FindControl<ActionPanelView>("ActionPanelView").Width,
             this.FindControl<Control>("FolderPanelHost"), this.FindControl<FolderPanelView>("FolderPanelView").Width);
+
+        Grid root = this.FindControl<Grid>("RootGrid");
+        this.FindControl<ActionPanelView>("ActionPanelView").Attach(root, _dragDrop);
+        this.FindControl<FolderPanelView>("FolderPanelView").Attach(root, _dragDrop);
     }
 
     /// <summary>

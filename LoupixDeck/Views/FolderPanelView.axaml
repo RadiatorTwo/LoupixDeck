@@ -7,7 +7,8 @@
              mc:Ignorable="d"
              x:Class="LoupixDeck.Views.FolderPanelView"
              x:DataType="fp:FolderPanelViewModel"
-             Width="296">
+             Width="296"
+             Focusable="True">
     <UserControl.Styles>
         <StyleInclude Source="avares://LoupixDeck/Views/Styles/SettingsStyles.axaml" />
 
@@ -107,140 +108,147 @@
         </Style>
     </UserControl.Styles>
 
-    <Border BorderBrush="{DynamicResource AppBorderSubtle}" BorderThickness="1,0,0,0">
-        <DockPanel>
-            <!-- Header: title, folder count, new and delete. -->
-            <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto,Auto,Auto,Auto" Margin="8,8,8,6">
-                <TextBlock Grid.Column="0" Classes="section-header" Margin="6,0,0,0"
-                           VerticalAlignment="Center"
-                           Text="{loc:Tr FolderPanel_Title}" />
-                <TextBlock Grid.Column="1" Classes="row-count" Margin="0,0,4,0"
-                           Text="{Binding Counter}" />
-                <!-- mdi-folder-eye-outline. A workspace option, saved with the folders: the badge on
-                     keys that open a folder. -->
-                <ToggleButton Grid.Column="2" Classes="panel-action" Content="&#xF178B;"
-                              IsChecked="{Binding ShowFolderBadges}"
-                              ToolTip.Tip="{loc:Tr FolderPanel_ShowBadges}" />
-                <!-- mdi-folder-plus-outline -->
-                <Button Grid.Column="3" Classes="panel-action" Content="&#xF0B9D;"
-                        IsEnabled="{Binding CanEditStructure}"
-                        ToolTip.Tip="{loc:Tr FolderPanel_NewFolder}"
-                        Command="{Binding NewFolderCommand}" />
-                <!-- mdi-delete-outline -->
-                <Button Grid.Column="4" Classes="panel-action" Content="&#xF09E7;"
-                        IsEnabled="{Binding CanDeleteCurrent}"
-                        ToolTip.Tip="{loc:Tr FolderPanel_DeleteFolder}"
-                        Command="{Binding DeleteCurrentCommand}" />
-            </Grid>
+    <Panel>
+        <Border BorderBrush="{DynamicResource AppBorderSubtle}" BorderThickness="1,0,0,0">
+            <DockPanel>
+                <!-- Header: title, folder count, new and delete. -->
+                <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto,Auto,Auto,Auto" Margin="8,8,8,6">
+                    <TextBlock Grid.Column="0" Classes="section-header" Margin="6,0,0,0"
+                               VerticalAlignment="Center"
+                               Text="{loc:Tr FolderPanel_Title}" />
+                    <TextBlock Grid.Column="1" Classes="row-count" Margin="0,0,4,0"
+                               Text="{Binding Counter}" />
+                    <!-- mdi-folder-eye-outline. A workspace option, saved with the folders: the badge on
+                         keys that open a folder. -->
+                    <ToggleButton Grid.Column="2" Classes="panel-action" Content="&#xF178B;"
+                                  IsChecked="{Binding ShowFolderBadges}"
+                                  ToolTip.Tip="{loc:Tr FolderPanel_ShowBadges}" />
+                    <!-- mdi-folder-plus-outline -->
+                    <Button Grid.Column="3" Classes="panel-action" Content="&#xF0B9D;"
+                            IsEnabled="{Binding CanEditStructure}"
+                            ToolTip.Tip="{loc:Tr FolderPanel_NewFolder}"
+                            Command="{Binding NewFolderCommand}" />
+                    <!-- mdi-delete-outline -->
+                    <Button Grid.Column="4" Classes="panel-action" Content="&#xF09E7;"
+                            IsEnabled="{Binding CanDeleteCurrent}"
+                            ToolTip.Tip="{loc:Tr FolderPanel_DeleteFolder}"
+                            Command="{Binding DeleteCurrentCommand}" />
+                </Grid>
 
-            <TextBox DockPanel.Dock="Top" Margin="8,0,8,6"
-                     Text="{Binding SearchQuery}"
-                     PlaceholderText="{loc:Tr FolderPanel_Search}" />
+                <TextBox DockPanel.Dock="Top" Margin="8,0,8,6"
+                         Text="{Binding SearchQuery}"
+                         PlaceholderText="{loc:Tr FolderPanel_Search}" />
 
-            <!-- Footer: where the device is. -->
-            <Border DockPanel.Dock="Bottom" Padding="14,8"
-                    BorderBrush="{DynamicResource AppBorderFaint}" BorderThickness="0,1,0,0">
-                <TextBlock Classes="label" FontSize="11" Text="{Binding PathLabel}"
-                           TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding PathLabel}" />
-            </Border>
+                <!-- Footer: where the device is. -->
+                <Border DockPanel.Dock="Bottom" Padding="14,8"
+                        BorderBrush="{DynamicResource AppBorderFaint}" BorderThickness="0,1,0,0">
+                    <TextBlock Classes="label" FontSize="11" Text="{Binding PathLabel}"
+                               TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding PathLabel}" />
+                </Border>
 
-            <!-- The inset is the content's margin, not the viewer's padding, so the last row
-                 scrolls fully into view. -->
-            <ScrollViewer HorizontalScrollBarVisibility="Disabled">
-                <StackPanel Margin="8,0,8,8">
-                    <TextBlock Classes="hint" Margin="6,4,6,8"
-                               Text="{loc:Tr FolderPanel_CompanionReadOnly}"
-                               IsVisible="{Binding !CanEditStructure}" />
+                <!-- The inset is the content's margin, not the viewer's padding, so the last row
+                     scrolls fully into view. -->
+                <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+                    <StackPanel Margin="8,0,8,8">
+                        <TextBlock Classes="hint" Margin="6,4,6,8"
+                                   Text="{loc:Tr FolderPanel_CompanionReadOnly}"
+                                   IsVisible="{Binding !CanEditStructure}" />
 
-                    <!-- The workspace itself: clicking it closes every folder, dropping a folder on
-                         it moves that folder to the top level. -->
-                    <Border Name="RootRow" Classes="panel-row workspace-row"
-                            Classes.current="{Binding IsRootCurrent}"
-                            ToolTip.Tip="{loc:Tr FolderPanel_ShowPage}"
-                            Tapped="OnRootTapped">
-                        <Grid ColumnDefinitions="6,18,Auto,*">
-                            <Border Grid.Column="0" Classes="nav-accent" />
-                            <!-- mdi-home-outline -->
-                            <TextBlock Grid.Column="2" Classes="nav-icon" Text="&#xF06A1;" />
-                            <TextBlock Grid.Column="3" Classes="nav-label" Text="{Binding WorkspaceName}" />
-                        </Grid>
-                    </Border>
+                        <!-- The workspace itself: clicking it closes every folder, dropping a folder on
+                             it moves that folder to the top level. -->
+                        <Border Name="RootRow" Classes="panel-row workspace-row"
+                                Classes.current="{Binding IsRootCurrent}"
+                                ToolTip.Tip="{loc:Tr FolderPanel_ShowPage}"
+                                Tapped="OnRootTapped">
+                            <Grid ColumnDefinitions="6,18,Auto,*">
+                                <Border Grid.Column="0" Classes="nav-accent" />
+                                <!-- mdi-home-outline -->
+                                <TextBlock Grid.Column="2" Classes="nav-icon" Text="&#xF06A1;" />
+                                <TextBlock Grid.Column="3" Classes="nav-label" Text="{Binding WorkspaceName}" />
+                            </Grid>
+                        </Border>
 
-                    <ItemsControl ItemsSource="{Binding VisibleRows}">
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate x:DataType="fp:FolderNodeViewModel">
-                                <Border Classes="panel-row folder-row"
-                                        Classes.current="{Binding IsCurrent}">
-                                    <Border.ContextFlyout>
-                                        <MenuFlyout>
-                                            <MenuItem Header="{loc:Tr FolderPanel_NewSubfolder}"
-                                                      IsEnabled="{Binding Panel.CanEditStructure}"
-                                                      Command="{Binding Panel.NewSubfolderCommand}"
-                                                      CommandParameter="{Binding}" />
-                                            <MenuItem Header="{loc:Tr FolderPanel_Rename}"
-                                                      IsEnabled="{Binding Panel.CanEditStructure}"
-                                                      Command="{Binding Panel.RenameCommand}"
-                                                      CommandParameter="{Binding}" />
-                                            <Separator />
-                                            <MenuItem Header="{loc:Tr FolderPanel_Delete}"
-                                                      IsEnabled="{Binding Panel.CanEditStructure}"
-                                                      Command="{Binding Panel.DeleteCommand}"
-                                                      CommandParameter="{Binding}" />
-                                        </MenuFlyout>
-                                    </Border.ContextFlyout>
-                                    <Grid ColumnDefinitions="6,Auto,18,Auto,*,Auto">
-                                        <Border Grid.Column="0" Classes="nav-accent" />
-                                        <Border Grid.Column="1" Width="{Binding IndentWidth}" />
+                        <ItemsControl ItemsSource="{Binding VisibleRows}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="fp:FolderNodeViewModel">
+                                    <Border Classes="panel-row folder-row"
+                                            Classes.current="{Binding IsCurrent}">
+                                        <Border.ContextFlyout>
+                                            <MenuFlyout>
+                                                <MenuItem Header="{loc:Tr FolderPanel_NewSubfolder}"
+                                                          IsEnabled="{Binding Panel.CanEditStructure}"
+                                                          Command="{Binding Panel.NewSubfolderCommand}"
+                                                          CommandParameter="{Binding}" />
+                                                <MenuItem Header="{loc:Tr FolderPanel_Rename}"
+                                                          IsEnabled="{Binding Panel.CanEditStructure}"
+                                                          Command="{Binding Panel.RenameCommand}"
+                                                          CommandParameter="{Binding}" />
+                                                <Separator />
+                                                <MenuItem Header="{loc:Tr FolderPanel_Delete}"
+                                                          IsEnabled="{Binding Panel.CanEditStructure}"
+                                                          Command="{Binding Panel.DeleteCommand}"
+                                                          CommandParameter="{Binding}" />
+                                            </MenuFlyout>
+                                        </Border.ContextFlyout>
+                                        <Grid ColumnDefinitions="6,Auto,18,Auto,*,Auto">
+                                            <Border Grid.Column="0" Classes="nav-accent" />
+                                            <Border Grid.Column="1" Width="{Binding IndentWidth}" />
 
-                                        <!-- mdi-chevron-right -->
-                                        <Button Grid.Column="2" Classes="row-glyph row-caret"
-                                                Classes.expanded="{Binding IsExpanded}"
-                                                IsVisible="{Binding HasChildren}"
-                                                ToolTip.Tip="{loc:Tr FolderPanel_ExpandCollapse}"
-                                                Command="{Binding $parent[ItemsControl].((fp:FolderPanelViewModel)DataContext).ToggleExpandedCommand}"
-                                                CommandParameter="{Binding}">
-                                            <TextBlock Text="&#xF0142;" HorizontalAlignment="Center"
-                                                       VerticalAlignment="Center" RenderTransformOrigin="50%,50%" />
-                                        </Button>
+                                            <!-- mdi-chevron-right -->
+                                            <Button Grid.Column="2" Classes="row-glyph row-caret"
+                                                    Classes.expanded="{Binding IsExpanded}"
+                                                    IsVisible="{Binding HasChildren}"
+                                                    ToolTip.Tip="{loc:Tr FolderPanel_ExpandCollapse}"
+                                                    Command="{Binding $parent[ItemsControl].((fp:FolderPanelViewModel)DataContext).ToggleExpandedCommand}"
+                                                    CommandParameter="{Binding}">
+                                                <TextBlock Text="&#xF0142;" HorizontalAlignment="Center"
+                                                           VerticalAlignment="Center" RenderTransformOrigin="50%,50%" />
+                                            </Button>
 
-                                        <!-- mdi-folder-outline. The drag machine carries this tile as the ghost. -->
-                                        <Border Grid.Column="3" Classes="panel-row-icon" VerticalAlignment="Center">
-                                            <TextBlock Classes="nav-icon" Text="&#xF0256;" />
-                                        </Border>
+                                            <!-- mdi-folder-outline. The drag machine carries this tile as the ghost. -->
+                                            <Border Grid.Column="3" Classes="panel-row-icon" VerticalAlignment="Center">
+                                                <TextBlock Classes="nav-icon" Text="&#xF0256;" />
+                                            </Border>
 
-                                        <TextBlock Grid.Column="4" Classes="nav-label" Text="{Binding Title}"
-                                                   IsVisible="{Binding !IsEditing}" />
-                                        <ContentControl Grid.Column="4" Grid.ColumnSpan="2" Margin="6,0,4,0"
-                                                        VerticalAlignment="Center"
-                                                        Content="{Binding RenameSession}"
-                                                        IsVisible="{Binding IsEditing}">
-                                            <ContentControl.ContentTemplate>
-                                                <DataTemplate x:DataType="fp:FolderRenameSession">
-                                                    <TextBox Classes="rename-box"
-                                                             Text="{Binding Text}"
-                                                             AttachedToVisualTree="OnRenameBoxAttached"
-                                                             KeyDown="OnRenameBoxKeyDown"
-                                                             LostFocus="OnRenameBoxLostFocus" />
-                                                </DataTemplate>
-                                            </ContentControl.ContentTemplate>
-                                        </ContentControl>
+                                            <TextBlock Grid.Column="4" Classes="nav-label" Text="{Binding Title}"
+                                                       IsVisible="{Binding !IsEditing}" />
+                                            <ContentControl Grid.Column="4" Grid.ColumnSpan="2" Margin="6,0,4,0"
+                                                            VerticalAlignment="Center"
+                                                            Content="{Binding RenameSession}"
+                                                            IsVisible="{Binding IsEditing}">
+                                                <ContentControl.ContentTemplate>
+                                                    <DataTemplate x:DataType="fp:FolderRenameSession">
+                                                        <TextBox Classes="rename-box"
+                                                                 Text="{Binding Text}"
+                                                                 AttachedToVisualTree="OnRenameBoxAttached"
+                                                                 KeyDown="OnRenameBoxKeyDown"
+                                                                 LostFocus="OnRenameBoxLostFocus" />
+                                                    </DataTemplate>
+                                                </ContentControl.ContentTemplate>
+                                            </ContentControl>
 
-                                        <TextBlock Grid.Column="5" Classes="row-count" Text="{Binding ActionCount}"
-                                                   IsVisible="{Binding !IsEditing}" />
-                                    </Grid>
-                                </Border>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
+                                            <TextBlock Grid.Column="5" Classes="row-count" Text="{Binding ActionCount}"
+                                                       IsVisible="{Binding !IsEditing}" />
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
 
-                    <TextBlock Classes="hint" Margin="6,8"
-                               Text="{loc:Tr FolderPanel_Empty}"
-                               IsVisible="{Binding ShowEmptyHint}" />
-                    <TextBlock Classes="hint" Margin="6,8"
-                               Text="{loc:Tr FolderPanel_NoMatches}"
-                               IsVisible="{Binding ShowNoMatches}" />
-                </StackPanel>
-            </ScrollViewer>
-        </DockPanel>
-    </Border>
+                        <TextBlock Classes="hint" Margin="6,8"
+                                   Text="{loc:Tr FolderPanel_Empty}"
+                                   IsVisible="{Binding ShowEmptyHint}" />
+                        <TextBlock Classes="hint" Margin="6,8"
+                                   Text="{loc:Tr FolderPanel_NoMatches}"
+                                   IsVisible="{Binding ShowNoMatches}" />
+                    </StackPanel>
+                </ScrollViewer>
+            </DockPanel>
+        </Border>
+
+        <!-- Where a dragged folder would land in the tree. The ghost itself is the window's. -->
+        <Canvas Name="DragOverlay" IsHitTestVisible="False" IsVisible="False">
+            <Border Name="DropIndicator" IsVisible="False" CornerRadius="4" />
+        </Canvas>
+    </Panel>
 </UserControl>

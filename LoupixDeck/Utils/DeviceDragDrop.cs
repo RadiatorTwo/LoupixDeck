@@ -25,10 +25,9 @@ namespace LoupixDeck.Utils;
 /// dragging; the drop-target ring's colour previews the pending operation (green move / amber
 /// swap / blue copy / red invalid).
 ///
-/// The same machine carries a row out of the apps and actions panel. That drag always overwrites
-/// its target, and a press that never passed the threshold counts as a click assigning the row to
-/// the selected button — so the panel needs no pointer handling of its own, and a cancelled drag
-/// is torn down by the one <see cref="Reset"/> below.
+/// The same machine carries a row out of the side panels onto a key. That drag always overwrites
+/// its target. The panel owns the gesture, since only it knows what a press on its rows means,
+/// and forwards the positions; a cancelled drag is torn down by the one <see cref="Reset"/> below.
 /// </summary>
 public sealed class DeviceDragDrop
 {
@@ -69,7 +68,7 @@ public sealed class DeviceDragDrop
     // mutually exclusive.
     private PanelItemViewModel _panelItem;
 
-    // True while the gesture is owned by the panel window, which captures the pointer itself and
+    // True while the gesture is owned by a side panel, which captures the pointer itself and
     // forwards the positions here.
     private bool _external;
 
@@ -122,10 +121,10 @@ public sealed class DeviceDragDrop
 
     }
 
-    // ── Drags out of the panel window ──────────────────────────────────────
+    // ── Drags out of a side panel ──────────────────────────────────────────
     //
-    // The panel is its own window, so it owns the pointer for the whole gesture and forwards the
-    // positions here already translated into this window's coordinates. Everything past the arming
+    // The panel owns the pointer for the whole gesture, since it decides what a press on its rows
+    // means, and forwards the positions here in the root's coordinates. Everything past the arming
     // is shared with a drag that started on a button.
 
     /// <summary>Arms a drag on the panel row under <paramref name="source"/>. Returns false when
@@ -187,24 +186,10 @@ public sealed class DeviceDragDrop
         UpdateGhostPosition(posInRoot);
         UpdateTarget(posInRoot);
         UpdateChrome();
-
-        // The ghost belongs to whichever window the pointer is over: this one draws it once the
-        // pointer has crossed in, and the panel draws it until then.
-        _ghost.IsVisible = _root.Bounds.Contains(posInRoot);
     }
 
-    /// <summary>
-    /// The ghost of a panel drag in flight, so the panel window can draw the same one while the
-    /// pointer is still over it. Null whenever no panel drag is running.
-    /// </summary>
-    public IImage PanelDragGhost => (_external && _dragging) ? _ghostImage.Source : null;
-
-    /// <summary>Size to draw <see cref="PanelDragGhost"/> at, matching this window's ghost.</summary>
-    public Size PanelDragGhostSize => new(_ghost.Width, _ghost.Height);
-
-    /// <summary>Inset the icon sits at inside that tile. Handed out rather than repeated in the
-    /// panel window, so the ghost cannot end up a different size on the two sides.</summary>
-    public Thickness PanelDragGhostPadding => _ghost.Padding;
+    /// <summary>Whether a drag out of a panel is past its threshold and carrying a ghost.</summary>
+    public bool IsPanelDragging => _external && _dragging;
 
     public void PanelPointerReleased(Point posInRoot)
     {
@@ -232,7 +217,8 @@ public sealed class DeviceDragDrop
 
     public void PointerMoved(PointerEventArgs e)
     {
-        if (_sourceVisual == null) return;
+        // A panel's gesture reaches the window too, but the panel forwards it.
+        if (_sourceVisual == null || _external) return;
 
         // The gesture is only valid while the left button is held. If it isn't — e.g. the release
         // was swallowed because a double-click opened a modal editor — disarm instead of starting
@@ -267,6 +253,8 @@ public sealed class DeviceDragDrop
 
     public void PointerReleased(PointerReleasedEventArgs e)
     {
+        if (_external) return;
+
         MainWindowViewModel vm = _resolveVm();
 
         if (_dragging)
@@ -285,11 +273,11 @@ public sealed class DeviceDragDrop
         // Only abort when OUR drag capture (on the root) is lost. Ignore the button's own
         // capture-loss that fires when we take capture over at drag start, and our own release
         // in Reset() (which clears _dragging first).
-        if (_dragging && ReferenceEquals(e.Source, _root)) Reset();
+        if (_dragging && !_external && ReferenceEquals(e.Source, _root)) Reset();
     }
 
     /// <param name="pointer">
-    /// The pointer to capture, or null for a gesture the panel window already owns — capturing it
+    /// The pointer to capture, or null for a gesture a panel already owns — capturing it
     /// here a second time would take it away from the window the events are coming from.
     /// </param>
     private bool TryStartDrag(IPointer pointer)
